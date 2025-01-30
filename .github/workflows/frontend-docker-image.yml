@@ -28,4 +28,4 @@ jobs:
         with:
           context: ./frontend
           push: true
-          tags: crown-shy/comhairle-frontend:latest
+          tags: crownshy/comhairle_frontend:latest
