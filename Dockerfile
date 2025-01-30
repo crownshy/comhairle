@@ -1,33 +1,55 @@
-# ---- Build Stage ----
-FROM rust:1.74 AS builder
-WORKDIR /app
+# ---- Base Stage ----
+FROM rust:1.82 AS base
+WORKDIR /workspace
 
-# Install build dependencies
+# Install required dependencies
 RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
 
-# Cache dependencies (this helps speed up rebuilds)
-COPY Cargo.toml Cargo.lock ./
-RUN mkdir src && echo "fn main() {}" > src/main.rs  # Fake main to cache dependencies
-RUN cargo build api --release && rm -rf src
+# ---- Dependencies Caching Stage ----
+FROM base AS deps
+WORKDIR /workspace/
 
-# Copy project files
-COPY . .
-RUN cargo build api --release
+# Copy only Cargo files for efficient caching
+COPY api/Cargo.toml api/Cargo.lock ./api/
+COPY Cargo.toml Cargo.lock ./
+
+# Create a fake source file to allow dependency resolution
+RUN mkdir -p api/src && echo "fn main() {}" > api/src/main.rs
+
+# Fetch dependencies and build only dependencies layer
+RUN cargo build --bin comhairle_api --release && rm -rf target/release/deps
+
+# ---- Build Stage ----
+FROM base AS build
+WORKDIR /workspace/api
+
+# Copy the entire monorepo but ignore unnecessary files via .dockerignore
+COPY . /workspace
+
+# Ensure dependencies from previous stage are used
+COPY --from=deps /workspace/target /workspace/target
+COPY --from=deps /workspace/Cargo.lock /workspace/Cargo.lock
+COPY --from=deps /workspace/api/Cargo.lock /workspace/api/Cargo.lock
+
+# Compile the comhairle_api crate
+RUN cargo build --release --package comhairle_api
 
 # ---- Production Stage ----
-FROM debian:bullseye-slim AS runtime
+FROM debian:bookworm-slim AS production
 WORKDIR /app
 
-# Install runtime dependencies (for OpenSSL if needed)
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y libssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# Copy compiled Rust binary from the builder stage
-COPY --from=builder /app/target/release/api /usr/local/bin/api
+# Copy the compiled binary from the build stage
+COPY --from=build /workspace/target/release/comhairle_api .
 
-# Set environment variables
-ENV PORT=3000
+# Expose the service port (adjust if needed)
 EXPOSE 3000
 
-# Run the Axum application
-CMD ["/usr/local/bin/api"]
+# Set non-root user for security
+RUN useradd -m rustuser
+USER rustuser
 
+# Run the compiled binary
+CMD ["./comhairle_api"]

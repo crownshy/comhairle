@@ -1,0 +1,27 @@
+# Ignore target directory (compiled binaries)
+target/
+
+# Ignore hidden files and directories
+.git
+.gitignore
+.env
+.DS_Store
+
+# Ignore logs and temporary files
+*.log
+tmp/
+*.swp
+*.swo
+
+# Ignore IDE and editor files
+.idea/
+.vscode/
+*.iml
+
+# Ignore tests and debugging artifacts
+debug/
+profile/
+
+# Ignore Docker-related files (if not needed in the container)
+docker-compose.yml
+Dockerfile*
