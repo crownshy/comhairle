@@ -23,6 +23,6 @@ jobs:
         name: Build and push frotnend
         uses: docker/build-push-action@v6
         with:
-          context: frontend
+          context: ./frontend
           push: true
-          tags: user/app:latest
+          tags: crown-shy/comhairle-frontend:latest
