@@ -1,4 +1,3 @@
-
 use axum::{
     http::StatusCode,
     response::IntoResponse,
@@ -15,12 +14,11 @@ async fn main() {
     // build our application with a route
     let app = Router::new()
         // `GET /` goes to `root`
-        .route("/", get(root));
+        .route("/", get(root))
+        .route("/data", get(data));
 
     // run our app with hyper
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
-        .await
-        .unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     tracing::info!("listening on {}", listener.local_addr().unwrap());
     println!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
@@ -31,3 +29,6 @@ async fn root() -> &'static str {
     "Hello, World!"
 }
 
+async fn data() -> Json<String> {
+    Json("You lovely little life forms, where are you!".into())
+}
