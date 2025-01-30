@@ -1,2 +1,4 @@
-<h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
+<div class='h-screen flex flex-col gap-y-10 items-center justify-center'>
+  <h1 class="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl">Welcome to Comhairle</h1>
+  <p class="text-2xl">A platfrom about understanding what people want</p>
+</div>
