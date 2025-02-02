@@ -1,5 +1,5 @@
-import {PUBLIC_API_SERVER} from "$env/static/public"
+import {env} from "$env/dynamic/public"
 export async function getData(){
-  console.log("Getting data from ",PUBLIC_API_SERVER + "/data")
-  return fetch(PUBLIC_API_SERVER + "/data").then((a)=>a.json()) 
+  console.log("Getting data from ",env.PUBLIC_API_SERVER + "/data")
+  return fetch(env.PUBLIC_API_SERVER + "/data").then((a)=>a.json()) 
 }

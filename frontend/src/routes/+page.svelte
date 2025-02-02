@@ -1,4 +1,4 @@
-<script type="ts">
+<script lang="ts">
   import {getData} from "$lib/api"
   let dataPromise= getData()
 </script>
