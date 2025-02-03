@@ -3,7 +3,7 @@ FROM node:18 AS base
 WORKDIR /app
 
 # Install pnpm globally
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
 # Copy package files and install dependencies
 COPY package.json pnpm-lock.yaml ./
@@ -24,7 +24,7 @@ FROM node:18-slim AS production
 WORKDIR /app
 
 # Install pnpm globally in the final image
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
 # Copy built files and only necessary dependencies
 COPY --from=build /app/build ./build
