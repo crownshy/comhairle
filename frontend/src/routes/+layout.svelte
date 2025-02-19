@@ -8,5 +8,7 @@
 
 <ParaglideJS {i18n}>
 	<NavBar />
-	{@render children()}
+	<div class='max-w-screen px-20 pt-40 mb-16'>
+		{@render children()}
+	</div>
 </ParaglideJS>
