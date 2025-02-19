@@ -58,6 +58,8 @@
 	},
 	"dependencies": {
 		"@inlang/paraglide-sveltekit": "^0.15.5",
-		"@sveltejs/adapter-node": "^5.2.12"
+		"@sveltejs/adapter-node": "^5.2.12",
+		"date-fns": "^4.1.0",
+		"svelte-radix": "^2.0.1"
 	}
 }
