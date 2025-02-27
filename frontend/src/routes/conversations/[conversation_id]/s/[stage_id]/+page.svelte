@@ -1,7 +1,10 @@
 <script lang="ts">
 	import PolisEmbed from '$lib/components/PolisEmbed.svelte';
 	import ProcessDates from '$lib/components/ProcessDates.svelte';
+	import * as Accordion from '$lib/components/ui/accordion';
+	import AccordionItem from '$lib/components/ui/accordion/accordion-item.svelte';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
+	import { Accessibility } from 'svelte-radix';
 	let { data } = $props();
 	let { conversation, step } = data;
 </script>
@@ -43,8 +46,37 @@
 				<PolisEmbed polis_id={step.tool_id} />
 			</div>
 		</div>
-		<div class="col-start-4 col-end-5 row-start-3 w-full">
+		<div class="col-start-4 col-end-6 row-start-3 w-full">
 			<ProcessDates startDate={new Date(2025, 1, 1)} endDate={new Date(2025, 1, 28)} />
+			<div class="b-green-950 mt-2 border-b-2 border-t-4 p-4 text-xl font-bold">
+				Part of {conversation.name}: step by step
+			</div>
+			<div>
+				<Accordion.Root>
+					<Accordion.Item value="step-1">
+						<Accordion.Trigger><span>1</span>Learn</Accordion.Trigger>
+						<Accordion.Content>
+							<a href="#">Link</a>
+						</Accordion.Content>
+					</Accordion.Item>
+					<Accordion.Item value="step-2">
+						<Accordion.Trigger>
+							<span>2</span> Explore the opinion landscape
+						</Accordion.Trigger>
+						<Accordion.Content>
+							<a href="#">Link</a>
+						</Accordion.Content>
+					</Accordion.Item>
+					<Accordion.Item value="step-3">
+						<Accordion.Trigger>
+							<span>3</span> Summary
+						</Accordion.Trigger>
+						<Accordion.Content>
+							<a href="../report">Link</a>
+						</Accordion.Content>
+					</Accordion.Item>
+				</Accordion.Root>
+			</div>
 		</div>
 	</div>
 {:else}
