@@ -1,7 +1,8 @@
 <script>
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { onMount } from 'svelte';
 	import Logo from '$lib/assets/comhairle_logo.png';
+	import { ProfileMenu, LoginButtons } from '$lib/profile';
+	import * as m from '$lib/paraglide/messages';
 	let links = [
 		{
 			href: '/',
@@ -20,14 +21,16 @@
 			name: 'Your Rights'
 		}
 	];
-	let isOpen = false;
+	let isOpen = $state(false);
+
+	let { user } = $props();
 </script>
 
 <nav class="fixed z-10 w-full bg-white p-4 shadow-md">
 	<div class="container flex items-center justify-between">
 		<div class="align-center flex flex-row items-center">
 			<img src={Logo} alt="Comhairle Logo" />
-			<a href="/" class="text-xl font-bold">Comhairle</a>
+			<a href="/" class="invisible text-xl font-bold lg:visible">Comhairle</a>
 		</div>
 
 		<!-- Desktop Navigation -->
@@ -38,7 +41,7 @@
 		</div>
 
 		<div class="hidden md:flex">
-			<Button>Signup / Login</Button>
+			<ProfileMenu {user} />
 		</div>
 
 		<!-- Mobile Menu Button -->
@@ -54,7 +57,21 @@
 				{#each links as link}
 					<a href={link.href} class="block px-4 py-2 text-gray-700 hover:text-black">{link.name}</a>
 				{/each}
-				<Button>Signup / Login</Button>
+
+				{#if user}
+					<form method="POST" action="/auth/logout">
+						<Button
+							type="submit"
+							variant="outline"
+							fullWidth
+							class="text-gray-700 hover:text-black"
+						>
+							{m.logout()}
+						</Button>
+					</form>
+				{:else}
+					<LoginButtons />
+				{/if}
 			</div>
 		{/if}
 	</div>

@@ -1,4 +1,27 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"hello_world": "Hello, {name} from en!"
+	"already_have_an_account_login": "Already have an account? Login",
+	"continue_": "Continue",
+	"create_an_anonymous_account": "Create an anonymous account",
+	"create_a_standard_account_signup": "Create a standard account? Signup",
+	"confirm_password": "Confrim Password",
+	"create_an_account": "Create an account",
+	"dont_have_an_account_signup": "Don't have an account? Sign up",
+	"email": "Email",
+	"enter_your_details_below_to_login": "Enter your details below to login",
+	"enter_your_password_below": "Enter your details below to login",
+	"generate_pseudonymous_id": "Generate Pseudonymous Id (PID)",
+	"get_started_with_comhairle_today": "Get started with Comhairle today.",
+	"get_started_with_comhairle_right_away": "Get started with Comhairle right away.",
+	"hello_world": "Hello, {name} from en!",
+	"keey_this_pseudonymous_id_safe": "Keep this pseudnymous id in a safe place!",
+	"login": "Login",
+	"logout": "Logout",
+	"new_password": "New Password",
+	"password": "Password",
+	"please_enter_a_password": "Please enter a password",
+	"please_enter_a_valid_email": "Please enter a valid email",
+	"sign_up_anonymously": "Sign up anonymously",
+	"submit": "Submit",
+	"username": "Username"
 }
