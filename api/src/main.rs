@@ -1,40 +1,24 @@
-use axum::{
-    http::{Method, StatusCode},
-    response::IntoResponse,
-    routing::{get, post},
-    Json, Router,
-};
-use serde::{Deserialize, Serialize};
-use tower_http::cors::{Any, CorsLayer};
+use comhairle::{db::setup_db, setup_server};
+use std::error::Error;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn Error>> {
     // initialize tracing
     tracing_subscriber::fmt::init();
 
-    let cors = CorsLayer::new()
-        .allow_methods([Method::GET, Method::POST])
-        .allow_origin(Any);
+    // Load Config
+    let config = comhairle::config::load()?;
 
-    // build our application with a route
-    let app = Router::new()
-        // `GET /` goes to `root`
-        .route("/", get(root))
-        .route("/data", get(data))
-        .layer(cors);
+    // Setup DB
+    let db = setup_db(&config.database_url).await?;
+
+    let app = setup_server(config, db).await?;
 
     // run our app with hyper
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+
     tracing::info!("listening on {}", listener.local_addr().unwrap());
-    println!("listening with CORS on {}", listener.local_addr().unwrap());
+
     axum::serve(listener, app).await.unwrap();
-}
-
-// basic handler that responds with a static string
-async fn root() -> &'static str {
-    "Hello, World!"
-}
-
-async fn data() -> Json<String> {
-    Json("You lovely little life forms, where are you!".into())
+    Ok(())
 }

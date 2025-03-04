@@ -5,10 +5,49 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+name = "comhairle"
+path = "src/lib.rs"
+
+[[bin]]
+name = "comhairle_api"
+path = "src/main.rs"
+
 [dependencies]
 axum = "0.8.1"
-serde = {version="1.0.217", features=['derive']}
+config = "0.15.8"
+sea-query = {version = "0.32.1", features=["attr"] }
+sea-query-binder = {version="0.7.0", features=[
+    "sqlx-postgres",
+    "with-chrono",
+    "with-json",
+    "with-rust_decimal",
+    "with-bigdecimal",
+    "with-uuid",
+    "with-time",
+    "with-ipnetwork",
+    "with-mac_address",
+    "runtime-async-std-native-tls"
+    ]}
+serde = { version = "1.0.218", features = ["derive"] }
+# serde = {version="1.0.217", features=['derive']}
+sqlx = { version = "0.8.3", features = ["runtime-tokio-native-tls", "macros", "postgres", "chrono"] }
+sqlx-postgres = { version = "0.8.3", features = ["chrono", "json", "time", "uuid"] }
+thiserror = "2.0.11"
 tokio = {version= "1.43.0", features=["full"]}
-tower-http = {version="0.6.2", features=["trace","cors"]}
+tower-http = {version="0.6.2", features=["trace","cors","auth"]}
 tracing = "0.1.41"
 tracing-subscriber = {version ="0.3.19", features=["env-filter"]}
+
+jsonwebtoken = "^9.3.1"
+openidconnect = "^4.0.0"
+chrono = { version = "0.4.39", features = ["serde"] }
+uuid = { version = "1.14.0", features = ["serde"] }
+argon2 = "0.5.3"
+rand_core = { version = "0.6", features = ["std"] }
+tower = "0.5.2"
+serde_json = "1.0.139"
+http-body-util = "0.1.2"
+ppg = "0.4.0"
+headers = "0.4.0"
+tower-cookies = "0.11.0"
