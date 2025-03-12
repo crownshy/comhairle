@@ -61,6 +61,7 @@
 		"zod": "^3.24.2"
 	},
 	"dependencies": {
+		"@carbon/charts-svelte": "^1.23.0",
 		"@inlang/paraglide-sveltekit": "^0.15.5",
 		"@sveltejs/adapter-node": "^5.2.12",
 		"date-fns": "^4.1.0",

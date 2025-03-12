@@ -65,11 +65,42 @@ impl UserSession {
 
         let cookie = response
             .headers()
-            .get(axum::http::header::COOKIE)
+            .get(axum::http::header::SET_COOKIE)
             .map(|cookie| cookie.to_owned());
 
+        if let Some(cookie) = &cookie {
+            self.cookie = Some(cookie.clone());
+        }
+
         let value = response_to_json(response).await;
-        self.cookie = cookie.clone();
+        Ok((status, value, cookie))
+    }
+
+    pub async fn delete(
+        &mut self,
+        app: &Router,
+        url: &str,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        let mut request = Request::builder().uri(url).method("DELETE");
+
+        if let Some(cookie) = &self.cookie {
+            request = request.header(COOKIE, cookie)
+        }
+
+        let request = request.body(Body::empty()).unwrap();
+        let response = app.clone().oneshot(request).await?;
+        let status = response.status();
+
+        let cookie = response
+            .headers()
+            .get(axum::http::header::SET_COOKIE)
+            .map(|cookie| cookie.to_owned());
+
+        if let Some(cookie) = &cookie {
+            self.cookie = Some(cookie.clone());
+        }
+
+        let value = response_to_json(response).await;
         Ok((status, value, cookie))
     }
 
@@ -91,17 +122,51 @@ impl UserSession {
         let request = request.body(body).unwrap();
         let response = app.clone().oneshot(request).await?;
         let status = response.status();
+
         let cookie = response
             .headers()
             .get(axum::http::header::SET_COOKIE)
             .map(|cookie| cookie.to_owned());
 
-        self.cookie = cookie.clone();
+        if let Some(cookie) = &cookie {
+            self.cookie = Some(cookie.clone());
+        }
 
         let value = response_to_json(response).await;
         Ok((status, value, cookie))
     }
 
+    pub async fn put(
+        &mut self,
+        app: &Router,
+        url: &str,
+        body: Body,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        let mut request = Request::builder()
+            .uri(url)
+            .method("PUT")
+            .header("content-type", "application/json");
+
+        if let Some(cookie) = &self.cookie {
+            request = request.header(COOKIE, cookie)
+        }
+
+        let request = request.body(body).unwrap();
+        let response = app.clone().oneshot(request).await?;
+        let status = response.status();
+
+        let cookie = response
+            .headers()
+            .get(axum::http::header::SET_COOKIE)
+            .map(|cookie| cookie.to_owned());
+
+        if let Some(cookie) = &cookie {
+            self.cookie = Some(cookie.clone());
+        }
+
+        let value = response_to_json(response).await;
+        Ok((status, value, cookie))
+    }
     pub async fn logout(
         &mut self,
         app: &Router,
@@ -182,5 +247,60 @@ impl UserSession {
         self.cookie = cookie.clone();
 
         Ok((status, user, cookie))
+    }
+
+    pub async fn create_conversation(
+        &mut self,
+        app: &Router,
+        new_coversation: serde_json::Value,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        let (status, value, cookie) = self
+            .post(app, "/conversation", new_coversation.to_string().into())
+            .await?;
+        Ok((status, value, cookie))
+    }
+
+    pub async fn update_conversation(
+        &mut self,
+        app: &Router,
+        id: &str,
+        conversation_update: serde_json::Value,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        let (status, value, cookie) = self
+            .put(
+                app,
+                &format!("/conversation/{id}"),
+                conversation_update.to_string().into(),
+            )
+            .await?;
+        Ok((status, value, cookie))
+    }
+
+    pub async fn list_conversations(
+        &mut self,
+        app: &Router,
+        offset: i32,
+        limit: i32,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        let url = format!("/conversation?limit={}&offset={}", limit, offset);
+        self.get(app, &url).await
+    }
+
+    pub async fn delete_conversation(
+        &mut self,
+        app: &Router,
+        id: &str,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.delete(app, &format!("/conversation/{id}")).await
+    }
+
+    pub async fn get_conversation(
+        &mut self,
+        app: &Router,
+        id: &str,
+    ) -> Result<(StatusCode, HashMap<String, Value>, Option<HeaderValue>), Box<dyn Error>> {
+        let (status, value, cookie) = self.get(app, &format!("/conversation/{id}")).await?;
+        let value: HashMap<String, serde_json::Value> = serde_json::from_value(value)?;
+        Ok((status, value, cookie))
     }
 }

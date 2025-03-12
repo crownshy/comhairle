@@ -19,6 +19,9 @@ pub enum ComhairleError {
     #[error("Email {0} already taken")]
     DuplicateEmail(String),
 
+    #[error("Slug {0} already taken")]
+    DuplicateSlug(String),
+
     #[error("Failed to hash password")]
     PasswordHash,
 
@@ -27,14 +30,29 @@ pub enum ComhairleError {
 
     #[error("Auth Error {0}")]
     AuthJWTError(String),
+
+    #[error("{0} not found")]
+    ResourceNotFound(String),
+
+    #[error("Faied to create {0}")]
+    FailedToCreateResource(String),
+
+    #[error("Faied to parse order params: {0}")]
+    FailedToParseOrderParams(String),
+
+    #[error("Update request contained no valid parameters")]
+    NoValidUpdates,
 }
 
 impl IntoResponse for ComhairleError {
     fn into_response(self) -> axum::response::Response {
         let status_code = match self {
-            ComhairleError::DuplicateUsername(_) | ComhairleError::DuplicateEmail(_) => {
-                StatusCode::CONFLICT
-            }
+            ComhairleError::DuplicateUsername(_)
+            | ComhairleError::DuplicateEmail(_)
+            | ComhairleError::DuplicateSlug(_) => StatusCode::CONFLICT,
+            ComhairleError::ResourceNotFound(_) => StatusCode::NOT_FOUND,
+            ComhairleError::UserRequired => StatusCode::UNAUTHORIZED,
+            ComhairleError::NoValidUpdates => StatusCode::UNPROCESSABLE_ENTITY,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

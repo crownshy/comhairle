@@ -17,7 +17,7 @@
 			</Breadcrumb.Item>
 			<Breadcrumb.Separator />
 			<Breadcrumb.Item>
-				<Breadcrumb.Page>{conversation.name}</Breadcrumb.Page>
+				<Breadcrumb.Page>{conversation.title}</Breadcrumb.Page>
 			</Breadcrumb.Item>
 		</Breadcrumb.List>
 	</Breadcrumb.Root>
@@ -25,22 +25,22 @@
 	<div class="h-fill grid grid-cols-2 gap-8 overflow-y-auto">
 		<header
 			class="relative col-span-2 flex h-[40vh] w-full items-center bg-cover bg-center"
-			style={`background-image: url(${conversation.banner_image})`}
+			style={`background-image: url(${conversation.image_url})`}
 		>
 			<!-- Gradient Overlay -->
 			<div class="absolute inset-0 bg-gradient-to-b from-white/30 to-black/70"></div>
 
 			<!-- Content -->
 			<div class="relative z-10 ml-12 max-w-2xl text-white">
-				<h1 class="text-5xl font-bold">{conversation.name}</h1>
-				<h2 class="mt-4 text-2xl">{conversation.short_text}</h2>
+				<h1 class="text-5xl font-bold">{conversation.title}</h1>
+				<h2 class="mt-4 text-2xl">{conversation.description}</h2>
 				<Button href={`/conversations/${conversation.id}/s/0`} class="mt-5">Share Your View</Button>
 			</div>
 		</header>
 
 		<article>
 			<h3 class="text-xl font-bold">Intro</h3>
-			<p>{conversation.introduction_text}</p>
+			<p>{conversation.short_description}</p>
 		</article>
 
 		<aside>

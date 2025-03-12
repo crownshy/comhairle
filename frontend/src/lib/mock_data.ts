@@ -1,15 +1,15 @@
 export type Conversation={
   id: string,
   name:string,
-  introduction_text:string,
-  short_text:string,
+  short_description:string,
+  description:string,
   steps:Array<ConversationStep>,
-  banner_image:string
+  image_url:string
   created_at: Date,
   opened_at: Date,
   closed_at:Date
   active_participants: number
-  is_active:boolean,
+  is_complete:boolean
   video_url?:string 
   audio_url?:string 
 }

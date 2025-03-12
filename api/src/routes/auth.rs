@@ -1,10 +1,6 @@
 use axum::{
     extract::{FromRequestParts, Json, Request, State},
-    http::{
-        header::{COOKIE, SET_COOKIE},
-        request::Parts,
-        StatusCode,
-    },
+    http::{request::Parts, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
     RequestPartsExt, Router,
@@ -27,7 +23,7 @@ use tower_cookies::{Cookie, Cookies};
 use crate::{
     config::ComhairleConfig,
     error::ComhairleError,
-    users::{create_annon_user, create_user, get_user_by_email, get_user_by_id, User},
+    models::users::{create_annon_user, create_user, get_user_by_email, get_user_by_id, User},
     ComhairleState,
 };
 
@@ -140,12 +136,8 @@ async fn login(
     cookies: Cookies,
     Json(payload): Json<LoginRequest>,
 ) -> impl IntoResponse {
-    println!("Logging in ");
     if let Ok(user) = get_user_by_email(&payload.email, &state.db).await {
-        println!("found user ");
         if let Some(password) = &user.password {
-            println!("user has password");
-
             let hash = PasswordHash::new(password)
                 .map_err(|_| ComhairleError::PasswordHash)
                 .expect("Password to be hashable");
@@ -154,7 +146,6 @@ async fn login(
                 .verify_password(&payload.password.into_bytes(), &hash)
                 .is_ok()
             {
-                println!("Verified password");
                 let token = generate_jwt(&user.clone(), &state.config.jwt_secret);
                 let cookie = Cookie::build((AUTH_KEY, token))
                     .path("/")
@@ -196,7 +187,7 @@ pub fn decode_jwt(jwt: &str, secret: &str) -> Result<TokenData<Claims>, StatusCo
 /// An extractor to get a required current user.
 /// If no user is logged in then this will fail and
 /// Return a Not Found response
-pub struct RequiredUser(User);
+pub struct RequiredUser(pub User);
 
 /// An extractor to get the current user if they exist
 /// If a user is not logged in, this will still run
@@ -265,7 +256,6 @@ pub async fn validate_jwt(
     let current_user = match get_user_by_id(&uuid, &state.db).await {
         Ok(user) => user,
         Err(e) => {
-            println!("User fetch error {e:#?}");
             return Err(e);
         }
     };
@@ -274,7 +264,7 @@ pub async fn validate_jwt(
 }
 
 /// Destroy the cookie on our session to log a user out
-pub async fn logout(cookies: Cookies, req: Request) -> impl IntoResponse {
+pub async fn logout(cookies: Cookies) -> impl IntoResponse {
     cookies.remove(Cookie::build(AUTH_KEY).path("/").into());
     Json(json!({"msg":"Logged out"}))
 }
@@ -293,7 +283,7 @@ pub async fn current_user(OptionalUser(user): OptionalUser) -> impl IntoResponse
 }
 
 /// Function to set up the auth routes
-pub async fn setup_auth(_config: &ComhairleConfig) -> Router<Arc<ComhairleState>> {
+pub async fn router(_config: &ComhairleConfig) -> Router<Arc<ComhairleState>> {
     Router::new()
         .route("/login", post(login))
         .route("/signup", post(signup))

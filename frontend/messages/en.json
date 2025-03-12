@@ -23,5 +23,12 @@
 	"please_enter_a_valid_email": "Please enter a valid email",
 	"sign_up_anonymously": "Sign up anonymously",
 	"submit": "Submit",
-	"username": "Username"
+	"username": "Username",
+	"short_description": "Enter a short description of the conversation",
+	"description": "Enter a fuller description of the conversation",
+	"title": "Enter a title for the conversation",
+	"image_url":"Enter a url for the conversation. These should be a good resolution and engaging",
+	"video_url":"If a video intro for the conversation, please enter it here",
+	"is_public":"Should the conversation be shown of the home and search pages?",
+	"is_invite_only":"Should participation in this conversation be by invite only?"	 
 }

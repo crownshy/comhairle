@@ -1,8 +1,8 @@
 use std::{fmt, str::FromStr};
 
 use crate::{
-    auth::{hash_pw, SignupRequest},
     error::ComhairleError,
+    routes::auth::{hash_pw, SignupRequest},
 };
 use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;

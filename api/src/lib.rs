@@ -1,15 +1,14 @@
-mod auth;
 pub mod config;
 pub mod db;
 mod error;
-mod users;
+mod models;
+mod routes;
 
 #[cfg(test)]
 mod test_helpers;
 
 use std::sync::Arc;
 
-use auth::setup_auth;
 use axum::{http::Method, Router};
 
 use config::ComhairleConfig;
@@ -44,11 +43,12 @@ pub async fn setup_server(
         db,
         config: config.clone(),
     };
-    let auth_router = setup_auth(&config).await;
+    let auth_router = routes::auth::router(&config).await;
 
     // build our application with a route
     let app = Router::new()
         .nest("/auth", auth_router)
+        .nest("/conversation", routes::conversations::router())
         .with_state(Arc::new(state))
         .layer(CookieManagerLayer::new())
         .layer(cors);

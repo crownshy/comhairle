@@ -1,8 +1,16 @@
 import {conversations} from "$lib/mock_data"
+import { notifications } from "$lib/notifications.svelte";
+import { redirect } from "@sveltejs/kit";
 
-export function load({params}:{params:{conversation_id:string}}){
-  let conversation_id = params.conversation_id
+export async function load(event){
 
-  let conversation = conversations.find((convo)=>convo.id === conversation_id)
-  return {conversation}
+  console.log("converation id ", event.params.conversation_id)
+  let conversation_id = event.params.conversation_id
+    let response = await event.fetch(`/api/conversation/${conversation_id}`);    
+    if(response.ok){
+      let conversation = await response.json()
+      return {conversation}
+    }
+
+    redirect(307,"/")
 }
