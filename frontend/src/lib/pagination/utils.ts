@@ -5,7 +5,11 @@ export const getPage = (url: URL): number => {
 };
 export const setPage = (_url: URL, v: number): URL => {
 	const url = new URL(_url);
-	url.searchParams.set('page', String(v));
+	if (v === 1) {
+		url.searchParams.delete('page');
+	} else {
+		url.searchParams.set('page', String(v));
+	}
 	return url;
 };
 

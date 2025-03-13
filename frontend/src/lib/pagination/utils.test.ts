@@ -19,6 +19,12 @@ describe('pagination', () => {
 		expect(url.toString()).toEqual('https://example.org/conversations?page=8&sort=title%2Bdesc');
 	});
 
+	it('setPage unsets the page search param on 1', () => {
+		const oldUrl = new URL('https://example.org/conversations?page=2&sort=title%2Bdesc');
+		const url = setPage(oldUrl, 1);
+		expect(url.toString()).toEqual('https://example.org/conversations?sort=title%2Bdesc');
+	});
+
 	it('calcOffset calculates offset from pages', () => {
 		expect(calcOffset({ page: 1, pageSize: 6 })).toEqual(0);
 		expect(calcOffset({ page: 2, pageSize: 6 })).toEqual(6);
