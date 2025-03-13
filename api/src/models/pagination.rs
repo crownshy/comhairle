@@ -115,6 +115,12 @@ impl PageOptions {
     where
         T: for<'r> FromRow<'r, sqlx::postgres::PgRow> + Send + Unpin,
     {
+        // Clone the base query to generate a count query
+        let count_query = sea_query::Query::select()
+            .expr(Expr::cust("COUNT(*)::INT as count"))
+            .from_subquery(base_query.clone(), Alias::new("sub"))
+            .to_owned();
+
         // Modify base query with limit and offset
         let mut paginated_query = base_query;
 
@@ -125,12 +131,6 @@ impl PageOptions {
         if let Some(limit) = self.limit {
             paginated_query.limit(limit);
         }
-
-        // Clone the base query to generate a count query
-        let count_query = sea_query::Query::select()
-            .expr(Expr::cust("COUNT(*)::INT as count"))
-            .from_subquery(paginated_query.clone(), Alias::new("sub"))
-            .to_owned();
 
         // Generate SQL for count query
         let (count_sql, count_values) = count_query.build_sqlx(PostgresQueryBuilder);
