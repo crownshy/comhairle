@@ -50,12 +50,12 @@
 
 <form onsubmit={handleSubmit} class="space-y-4" method="POST" use:enhance>
 	{#if $errMessage}
-		<p class="text-sm text-destructive">{$errMessage}</p>
+		<p class="text-destructive text-sm">{$errMessage}</p>
 	{/if}
 
 	<Form.Field {form} name="title">
 		<Form.Control let:attrs>
-			<Form.Label>{m.title()}</Form.Label>
+			<Form.Label>{m.enter_a_title_for_the_conversation()}</Form.Label>
 			<Input {...attrs} bind:value={$formData.title} />
 		</Form.Control>
 		<Form.FieldErrors />
