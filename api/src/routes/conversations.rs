@@ -492,7 +492,7 @@ mod tests {
         let total: i32 =
             serde_json::from_value(conversations.get("total").to_owned().unwrap().to_owned())
                 .unwrap();
-        assert_eq!(total, 3, "Should have the right number of entries");
+        assert_eq!(total, 40, "Should have the right total number of entries");
 
         let conversations: Vec<HashMap<String, serde_json::Value>> =
             serde_json::from_value(conversations.get("records").to_owned().unwrap().to_owned())
