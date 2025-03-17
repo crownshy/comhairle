@@ -10,12 +10,6 @@ use sqlx::{FromRow, PgPool};
 use crate::{error::ComhairleError, ComhairleState};
 
 #[derive(Deserialize, Debug)]
-pub struct PageOptions {
-    pub offset: Option<u64>,
-    pub limit: Option<u64>,
-}
-
-#[derive(Deserialize, Debug)]
 pub struct Sort {
     sort: Option<String>,
 }
@@ -51,6 +45,12 @@ where
 }
 
 #[derive(Deserialize, Debug, Serialize)]
+pub struct PageOptions {
+    pub offset: Option<u64>,
+    pub limit: Option<u64>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
 pub enum Order {
     Asc,
     Desc,

@@ -1,12 +1,10 @@
 use axum::{
-    extract::{FromRequestParts, Json, Request, State},
+    extract::{FromRequestParts, Json, State},
     http::{request::Parts, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
     RequestPartsExt, Router,
 };
-
-use headers::HeaderMapExt;
 
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
 
@@ -309,7 +307,7 @@ mod tests {
         let email = "test_email";
 
         let mut session = UserSession::new(username, password, email);
-        let (status, value, _) = session.signup(&app).await?;
+        let (status, _, _) = session.signup(&app).await?;
         assert_eq!(status, StatusCode::CREATED, "should be created");
 
         let (status, user, _) = session.current_user(&app).await?;
@@ -376,7 +374,7 @@ mod tests {
         let email = "test_email";
 
         let mut session = UserSession::new(username, password, email);
-        let (status, _, _) = session.signup(&app).await?;
+        session.signup(&app).await?;
 
         let mut session = UserSession::new(username, password, "test_email2");
         let (status, _, _) = session.signup(&app).await?;

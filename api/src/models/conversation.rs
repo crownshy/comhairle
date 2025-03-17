@@ -1,8 +1,6 @@
 use chrono::{DateTime, Utc};
 use partially::Partial;
-use sea_query::{
-    enum_def, ConditionalStatement, Expr, OrderedStatement, PostgresQueryBuilder, Query,
-};
+use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
 use sqlx::{prelude::FromRow, PgPool};
@@ -348,6 +346,7 @@ pub async fn create(
         Err(e) => Err(ComhairleError::DatabaseError(e)),
     }
 }
+
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,

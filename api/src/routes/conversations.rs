@@ -105,7 +105,8 @@ mod tests {
     use axum::http::StatusCode;
     use serde_json::json;
     use sqlx::PgPool;
-    use std::{collections::HashMap, error::Error};
+    use std::collections::HashMap;
+    use std::error::Error;
 
     #[sqlx::test]
     fn should_be_able_to_create_conversation(pool: PgPool) -> Result<(), Box<dyn Error>> {
@@ -120,7 +121,7 @@ mod tests {
 
         session.signup(&app).await?;
 
-        let (status, conversation, _) = session
+        let (status, _, _) = session
             .create_conversation(
                 &app,
                 json! ({
@@ -233,7 +234,7 @@ mod tests {
 
         let id: String = serde_json::from_value(conversation.get("id").unwrap().clone()).unwrap();
 
-        let (status, conversation, _) = session
+        let (status, _, _) = session
             .update_conversation(
                 &app,
                 &id,
@@ -467,7 +468,7 @@ mod tests {
 
         session.signup(&app).await?;
 
-        for i in (0..40) {
+        for i in 0..40 {
             session
                 .create_conversation(
                     &app,
@@ -581,7 +582,7 @@ mod tests {
             "should get back the correct conversation by id "
         );
 
-        let (status, value, _) = session.get_conversation(&app, &slug).await?;
+        let (_, value, _) = session.get_conversation(&app, &slug).await?;
 
         assert_eq!(
             value.get("id"),

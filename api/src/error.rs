@@ -34,16 +34,18 @@ pub enum ComhairleError {
     #[error("{0} not found")]
     ResourceNotFound(String),
 
-    #[error("Faied to create {0}")]
+    #[error("Failed to create {0}")]
     FailedToCreateResource(String),
 
-    #[error("Faied to parse order params: {0}")]
+    #[error("Fai;ed to parse order params: {0}")]
     FailedToParseOrderParams(String),
 
     #[error("Update request contained no valid parameters")]
     NoValidUpdates,
 }
 
+/// Maps different error codes to a response with appropriate
+/// status code
 impl IntoResponse for ComhairleError {
     fn into_response(self) -> axum::response::Response {
         let status_code = match self {

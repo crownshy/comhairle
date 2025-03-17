@@ -3,6 +3,7 @@ pub mod db;
 mod error;
 mod models;
 mod routes;
+mod tools;
 
 #[cfg(test)]
 mod test_helpers;
@@ -49,6 +50,14 @@ pub async fn setup_server(
     let app = Router::new()
         .nest("/auth", auth_router)
         .nest("/conversation", routes::conversations::router())
+        .nest(
+            "/conversation/{conversation_id}/workflow",
+            routes::workflows::router(),
+        )
+        .nest(
+            "/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step",
+            routes::workflow_steps::router(),
+        )
         .with_state(Arc::new(state))
         .layer(CookieManagerLayer::new())
         .layer(cors);

@@ -7,6 +7,7 @@
 	import NewConversationSchema from './NewConversationSchema';
 	import { notifications } from '$lib/notifications.svelte';
 	import { goto } from '$app/navigation';
+	import { z } from 'zod';
 
 	let { data } = $props();
 

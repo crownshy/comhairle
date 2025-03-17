@@ -6,21 +6,30 @@ use axum::{
     response::Response,
     Router,
 };
+use fake::{
+    faker::lorem::en::{Paragraph, Sentence, Words},
+    Fake,
+};
 use http_body_util::BodyExt;
+use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
 
 use tower::ServiceExt;
 
-pub async fn response_to_str(response: Response) -> String {
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    std::str::from_utf8(&body)
-        .expect("The response body to be a string")
-        .into()
+pub fn extract<T: DeserializeOwned>(target: &str, entity: &serde_json::Value) -> T {
+    let value = entity.get(target).to_owned().unwrap().to_owned();
+    serde_json::from_value(value).unwrap()
 }
 
 pub async fn response_to_json(response: Response) -> Value {
     let body = response.into_body().collect().await.unwrap().to_bytes();
-    serde_json::from_slice(&body).unwrap()
+
+    serde_json::from_slice(&body).unwrap_or_else(|_| {
+        let body_str: String = std::str::from_utf8(&body)
+            .expect("response to be a string")
+            .into();
+        json!({"err": body_str})
+    })
 }
 
 pub struct UserSession {
@@ -292,6 +301,58 @@ impl UserSession {
         id: &str,
     ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
         self.delete(app, &format!("/conversation/{id}")).await
+    }
+
+    pub async fn create_random_conversation(
+        &mut self,
+        app: &Router,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        let title: String = Sentence(1..10).fake();
+        let description: String = Paragraph(3..4).fake();
+        let short_description: String = Paragraph(5..8).fake();
+        let image_url: String = "https://fakeimg.pl/1000x600".into();
+        let tags: Vec<String> = Words(2..4).fake();
+        let is_public: bool = false;
+        let is_invite_only: bool = false;
+
+        self.create_conversation(
+            app,
+            json!({
+                "title" : title,
+                "short_description": short_description,
+                "description": description,
+                "image_url": image_url,
+                "tags" : tags,
+                "is_public": is_public,
+                "is_invite_only" : is_invite_only
+            }),
+        )
+        .await
+    }
+
+    pub async fn create_random_workflow(
+        &mut self,
+        app: &Router,
+        convo_id: &str,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        let name: String = Sentence(1..10).fake();
+        let description: String = Paragraph(6..10).fake();
+        let is_active = true;
+        let is_public = true;
+
+        self.post(
+            app,
+            &format!("/conversation/{convo_id}/workflow"),
+            json!({
+                "name":name,
+                "description": description,
+                "is_active": is_active,
+                "is_public": is_public
+            })
+            .to_string()
+            .into(),
+        )
+        .await
     }
 
     pub async fn get_conversation(
