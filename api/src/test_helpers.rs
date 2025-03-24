@@ -330,6 +330,43 @@ impl UserSession {
         .await
     }
 
+    pub async fn create_random_workflow_steps(
+        &mut self,
+        app: &Router,
+        conversation_id: &str,
+        workflow_id: &str,
+        no: i32,
+    ) -> Result<Vec<Value>, Box<dyn Error>> {
+        let url = format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step");
+        let mut workflow_steps: Vec<serde_json::Value> = vec![];
+        // Create a bunch of steps
+        for no in 0..10 {
+            let (_, step, _) = self
+                .post(
+                    &app,
+                    &url,
+                    json!({
+                    "name": format!("{}", no+1),
+                    "step_order": no+1,
+                    "activation_rule" : "manual",
+                    "description": "A manually retired polis workflow step",
+                    "is_offline": false,
+                    "tool_config": {
+                        "polis" : {
+                            "server_url" : "http://polis.com",
+                            "poll_id": "12234"
+                        }
+                    }})
+                    .to_string()
+                    .into(),
+                )
+                .await
+                .expect("Workflow step to be created");
+            workflow_steps.push(step);
+        }
+        Ok(workflow_steps)
+    }
+
     pub async fn create_random_workflow(
         &mut self,
         app: &Router,

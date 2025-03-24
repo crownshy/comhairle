@@ -40,6 +40,9 @@ pub enum ComhairleError {
     #[error("Fai;ed to parse order params: {0}")]
     FailedToParseOrderParams(String),
 
+    #[error("User is already participating in workflow: {0}")]
+    UserAlreadyParticipatingInWorkflow(String),
+
     #[error("Update request contained no valid parameters")]
     NoValidUpdates,
 }
@@ -51,7 +54,8 @@ impl IntoResponse for ComhairleError {
         let status_code = match self {
             ComhairleError::DuplicateUsername(_)
             | ComhairleError::DuplicateEmail(_)
-            | ComhairleError::DuplicateSlug(_) => StatusCode::CONFLICT,
+            | ComhairleError::DuplicateSlug(_)
+            | ComhairleError::UserAlreadyParticipatingInWorkflow(_) => StatusCode::CONFLICT,
             ComhairleError::ResourceNotFound(_) => StatusCode::NOT_FOUND,
             ComhairleError::UserRequired => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates => StatusCode::UNPROCESSABLE_ENTITY,

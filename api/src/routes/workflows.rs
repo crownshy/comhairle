@@ -17,12 +17,10 @@ use crate::{
 
 use super::auth::RequiredUser;
 
-type Type = RequiredUser;
-
 /// Create workflow handler
 async fn create_workflow(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): Type,
+    RequiredUser(user): RequiredUser,
     Path(conversation_id): Path<Uuid>,
     Json(new_workflow): Json<CreateWorkflow>,
 ) -> Result<(StatusCode, Json<Workflow>), ComhairleError> {

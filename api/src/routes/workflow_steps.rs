@@ -636,8 +636,6 @@ mod tests {
         let step_to_update = workflow_steps.get(0).expect("the 4th step to exisit");
         let update_id: String = extract("id", step_to_update);
 
-        println!("Step to update {step_to_update:#?}");
-
         let (status, new_step, _) = session
             .put(
                 &app,
@@ -650,7 +648,6 @@ mod tests {
             )
             .await?;
 
-        println!("new step {new_step:#?}");
         assert_eq!(status, StatusCode::OK, "Update should have been on");
 
         // get the steps
@@ -661,7 +658,6 @@ mod tests {
             )
             .await?;
 
-        println!("steps {steps:#?}");
         let steps: Vec<serde_json::Value> = serde_json::from_value(steps).unwrap();
 
         let orders: Vec<i32> = steps

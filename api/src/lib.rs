@@ -58,6 +58,14 @@ pub async fn setup_server(
             "/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step",
             routes::workflow_steps::router(),
         )
+        .nest(
+            "/conversation/{conversation_id}/workflow/{workflow_id}/participation",
+            routes::user_participation::router(),
+        )
+        .nest(
+            "/conversation/{conversation_id}/workflow/{workflow_id}",
+            routes::user_progress::router(),
+        )
         .with_state(Arc::new(state))
         .layer(CookieManagerLayer::new())
         .layer(cors);
