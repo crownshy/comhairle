@@ -29,3 +29,19 @@ export const parseSort = (o: SortBy) => {
 			return m.title();
 	}
 };
+
+export const getSearch = (url: URL): string => {
+	const search = url.searchParams.get('search');
+	if (search === null) return '';
+	return search;
+};
+
+export const setSearch = (_url: URL, search: string): URL => {
+	const url = new URL(_url);
+	if (search) {
+		url.searchParams.set('search', search);
+	} else {
+		url.searchParams.delete('search');
+	}
+	return url;
+};

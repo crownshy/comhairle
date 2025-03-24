@@ -5,6 +5,7 @@
 	import Check from 'svelte-radix/Check.svelte';
 	import ChevronDown from 'svelte-radix/ChevronDown.svelte';
 
+	import Search from './Search.svelte';
 	import { Pager } from '$lib/pagination';
 	import { getSort, setSort, PAGE_SIZE, parseSort, type SortBy } from './utils';
 	import type { Conversation } from '$lib/mock_data';
@@ -47,8 +48,7 @@
 				</DropdownMenu.Group>
 			</DropdownMenu.Content>
 		</DropdownMenu.Root>
-
-		<Pager pageSize={PAGE_SIZE} count={data.total} url={pageUrl} />
+		<Search url={pageUrl} />
 	</div>
 </header>
 
@@ -58,4 +58,8 @@
 	{#each data.records as conversation}
 		<ConversationCard {conversation} />
 	{/each}
+</div>
+
+<div class="mt-20 flex w-full justify-center">
+	<Pager pageSize={PAGE_SIZE} count={data.total} url={pageUrl} />
 </div>
