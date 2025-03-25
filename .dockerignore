@@ -25,3 +25,5 @@ profile/
 # Ignore Docker-related files (if not needed in the container)
 docker-compose.yml
 Dockerfile*
+
+pg_data/
