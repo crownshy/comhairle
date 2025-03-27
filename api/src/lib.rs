@@ -1,9 +1,11 @@
 pub mod config;
 pub mod db;
-mod error;
-mod models;
+pub mod error;
+pub mod models;
 mod routes;
 mod tools;
+
+pub use routes::auth::hash_pw;
 
 #[cfg(test)]
 mod test_helpers;
@@ -33,8 +35,12 @@ pub async fn setup_server(
 
     // Setup CORS
     let cors = CorsLayer::new()
+        .allow_credentials(true)
         .allow_methods([Method::GET, Method::POST])
-        .allow_origin(Any);
+        .allow_origin([
+            "http://localhost".parse().unwrap(),
+            "https://stage.comhairle.scot".parse().unwrap(),
+        ]);
 
     // Run migrations
     run_migrations(&db).await?;

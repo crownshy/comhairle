@@ -1,9 +1,14 @@
-use polis::PolisToolConfig;
 use serde::{Deserialize, Serialize};
 
 use crate::error::ComhairleError;
 
+pub mod heyform;
+pub mod learn;
 pub mod polis;
+
+use heyform::HeyFormToolConfig;
+use learn::LearnToolConfig;
+use polis::PolisToolConfig;
 
 pub trait Tool {
     fn setup(&self) -> Result<(), ComhairleError>;
@@ -11,13 +16,9 @@ pub trait Tool {
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
-pub struct LearnToolConfig {
-    pub markdown: String,
-}
-
-#[derive(Clone, Deserialize, Serialize, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum ToolConfig {
     Polis(PolisToolConfig),
     Learn(LearnToolConfig),
+    HeyForm(HeyFormToolConfig),
 }

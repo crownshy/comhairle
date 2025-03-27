@@ -189,7 +189,9 @@ mod tests {
                 "is_offline": false,
                 "tool_config": {
                     "learn" : {
-                        "markdown" : "#Test"
+                        "pages":[
+                            {"markdown" : "#Test"}
+                        ]
                     }
                 }})
                 .to_string()
@@ -278,9 +280,9 @@ mod tests {
                 "description": "A manually retired learnworkflow step",
                 "is_offline": false,
                 "tool_config": {
-                    "learn" : {
+                    "learn" : { "pages" :[{
                         "markdown" : "#Test"
-                    }
+                    }]}
                 }})
                 .to_string()
                 .into(),
@@ -539,8 +541,10 @@ mod tests {
                 "is_offline": false,
                 "tool_config": {
                     "learn" : {
-                        "markdown" : "#Test"
-                    }
+                        "pages" : [
+                            { "markdown" : "#Test" }
+                        ]
+                     }
                 }})
                 .to_string()
                 .into(),

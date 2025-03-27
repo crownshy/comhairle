@@ -36,3 +36,14 @@ npm run build
 You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+
+## Loading data 
+
+For testing it's useful to have some pre-generated conversations and users. You can use the data loader binary to do this 
+
+```
+cargo run --bin comhairle_data_loader -- -f fixtures/saia.json -d true
+```
+
+This will clear out the existing database and populate it with a test setup
+
