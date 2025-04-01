@@ -17,7 +17,7 @@ pub trait Tool {
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "lowercase", tag = "type")]
 pub enum ToolConfig {
     Polis(PolisToolConfig),
     Learn(LearnToolConfig),

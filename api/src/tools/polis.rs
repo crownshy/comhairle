@@ -4,4 +4,6 @@ use serde::{Deserialize, Serialize};
 pub struct PolisToolConfig {
     pub server_url: String,
     pub poll_id: String,
+    pub admin_user: String,
+    pub admin_password: String,
 }
