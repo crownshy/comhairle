@@ -1,6 +1,6 @@
-import {conversations} from "$lib/mock_data"
+import type {PageLoad} from "./$types"
 
-export function load({params}:{params:{conversation_id:string}}){
+export const load:PageLoad = ({params})=>{
   let conversation_id = params.conversation_id
 
   let conversation = conversations.find((convo)=>convo.id === conversation_id)

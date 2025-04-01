@@ -1,26 +1,12 @@
 <script lang="ts">
 	let { data } = $props();
-	let { conversation } = data;
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
+	let { conversation, workflows } = data;
+	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 </script>
 
 {#if conversation}
-	<Breadcrumb.Root class="mb-16">
-		<Breadcrumb.List>
-			<Breadcrumb.Item>
-				<Breadcrumb.Link href="/">Home</Breadcrumb.Link>
-			</Breadcrumb.Item>
-			<Breadcrumb.Separator />
-			<Breadcrumb.Item>
-				<Breadcrumb.Link href="/conversations">Conversations</Breadcrumb.Link>
-			</Breadcrumb.Item>
-			<Breadcrumb.Separator />
-			<Breadcrumb.Item>
-				<Breadcrumb.Page>{conversation.title}</Breadcrumb.Page>
-			</Breadcrumb.Item>
-		</Breadcrumb.List>
-	</Breadcrumb.Root>
+	<Breadcrumbs {conversation} />
 
 	<div class="h-fill grid grid-cols-2 gap-8 overflow-y-auto">
 		<header
@@ -34,7 +20,10 @@
 			<div class="relative z-10 ml-12 max-w-2xl text-white">
 				<h1 class="text-5xl font-bold">{conversation.title}</h1>
 				<h2 class="mt-4 text-2xl">{conversation.description}</h2>
-				<Button href={`/conversations/${conversation.id}/s/0`} class="mt-5">Share Your View</Button>
+				<Button
+					href={`/conversations/${conversation.id}/workflow/${workflows[0].id}/s/0`}
+					class="mt-5">Join the conversation</Button
+				>
 			</div>
 		</header>
 
