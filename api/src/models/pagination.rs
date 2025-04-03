@@ -1,6 +1,8 @@
 use std::{str::FromStr, sync::Arc};
 
+use aide::OperationIo;
 use axum::{extract::FromRequestParts, http::request::Parts, RequestPartsExt};
+use schemars::JsonSchema;
 use sea_query::{Alias, Expr, PostgresQueryBuilder, SelectStatement};
 use sea_query_binder::SqlxBinder;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -9,7 +11,7 @@ use sqlx::{FromRow, PgPool};
 
 use crate::{error::ComhairleError, ComhairleState};
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, OperationIo)]
 pub struct Sort {
     sort: Option<String>,
 }
@@ -17,6 +19,7 @@ pub struct Sort {
 /// Custom extractor for getting order parameters
 /// Should be called as OrderParams<T> where T is some
 /// type that has a series of keys and then Option<Order>
+#[derive(OperationIo)]
 pub struct OrderParams<T: DeserializeOwned>(pub T);
 
 impl<T> FromRequestParts<Arc<ComhairleState>> for OrderParams<T>
@@ -44,13 +47,13 @@ where
     }
 }
 
-#[derive(Deserialize, Debug, Serialize)]
+#[derive(Deserialize, Debug, Serialize, JsonSchema)]
 pub struct PageOptions {
     pub offset: Option<u64>,
     pub limit: Option<u64>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, JsonSchema)]
 pub enum Order {
     Asc,
     Desc,
@@ -100,7 +103,7 @@ fn parse_sort_options_to_json(order_str: &str) -> Value {
     Value::Object(map)
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, JsonSchema)]
 pub struct PaginatedResults<T> {
     pub total: i32,
     pub records: Vec<T>,

@@ -61,5 +61,11 @@ partially = { version = "0.2.1", features = ["derive"] }
 slugify = "0.1.0"
 clap = { version = "4.5.32", features = ["derive"] }
 
+#API documentation
+
+schemars = { version = "0.8.10", features = ["uuid1", "chrono"] }
+aide = { version = "0.14.0", features = ["redoc", "swagger", "scalar", "axum", "axum-tokio", "axum-json", "axum-query", "axum-matched-path", "macros", "axum-extra-cookie"] }
+axum-extra = { version = "0.10.1", features = ["cookie"] }
+
 [dev-dependencies]
 fake = { version = "4", features = ["derive"] }

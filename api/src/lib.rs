@@ -1,25 +1,33 @@
 pub mod config;
 pub mod db;
+mod docs;
 pub mod error;
 pub mod models;
 mod routes;
 mod tools;
 
+use docs::docs_routes;
 pub use routes::auth::hash_pw;
+use routes::auth::AUTH_KEY;
 
 #[cfg(test)]
 mod test_helpers;
 
 use std::sync::Arc;
 
-use axum::{http::Method, Router};
+use axum::{http::Method, Extension, Json, Router};
+
+use aide::{
+    axum::ApiRouter,
+    openapi::{OpenApi, Tag},
+    transform::TransformOpenApi,
+};
 
 use config::ComhairleConfig;
 use db::run_migrations;
 use error::ComhairleError;
 use sqlx_postgres::PgPool;
-use tower_cookies::CookieManagerLayer;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::CorsLayer;
 
 #[derive(Clone)]
 pub struct ComhairleState {
@@ -27,11 +35,33 @@ pub struct ComhairleState {
     pub config: ComhairleConfig,
 }
 
+fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
+    api.title("Comhairle API")
+        .summary("The API for the comhairle system")
+        .description("An api for governence")
+        .security_scheme(
+            "JWT",
+            aide::openapi::SecurityScheme::ApiKey {
+                location: aide::openapi::ApiKeyLocation::Cookie,
+                name: AUTH_KEY.into(),
+                description: Some("A JWT for the current user".into()),
+                extensions: Default::default(),
+            },
+        )
+}
+
 pub async fn setup_server(
     config: ComhairleConfig,
     db: PgPool,
 ) -> Result<Router<()>, ComhairleError> {
     tracing::info!("Running with config {config:#?}");
+
+    aide::generate::on_error(|error| {
+        println!("{error}");
+    });
+
+    aide::generate::extract_schemas(true);
+    let mut api = OpenApi::default();
 
     // Setup CORS
     let cors = CorsLayer::new()
@@ -46,34 +76,37 @@ pub async fn setup_server(
     run_migrations(&db).await?;
 
     // Construct shared state
-    let state = ComhairleState {
+    let state = Arc::new(ComhairleState {
         db,
         config: config.clone(),
-    };
-    let auth_router = routes::auth::router(&config).await;
+    });
+    let auth_router = routes::auth::router(&config, state.clone()).await;
 
     // build our application with a route
-    let app = Router::new()
-        .nest("/auth", auth_router)
-        .nest("/conversation", routes::conversations::router())
-        .nest(
-            "/conversation/{conversation_id}/workflow",
-            routes::workflows::router(),
+    let app = ApiRouter::new()
+        .nest_api_service("/auth", auth_router)
+        .nest_api_service(
+            "/conversation",
+            routes::conversations::router(state.clone()).nest_api_service(
+                "/{conversation_id}/workflow",
+                routes::workflows::router(state.clone())
+                    .nest_api_service(
+                        "/{workflow_id}/workflow_step",
+                        routes::workflow_steps::router(state.clone()),
+                    )
+                    .nest_api_service(
+                        "/{workflow_id}/participation",
+                        routes::user_participation::router(state.clone()),
+                    )
+                    .nest_api_service(
+                        "/{workflow_id}/progress",
+                        routes::user_progress::router(state.clone()),
+                    ),
+            ),
         )
-        .nest(
-            "/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step",
-            routes::workflow_steps::router(),
-        )
-        .nest(
-            "/conversation/{conversation_id}/workflow/{workflow_id}/participation",
-            routes::user_participation::router(),
-        )
-        .nest(
-            "/conversation/{conversation_id}/workflow/{workflow_id}",
-            routes::user_progress::router(),
-        )
-        .with_state(Arc::new(state))
-        .layer(CookieManagerLayer::new())
+        .nest_api_service("/docs", docs_routes(state.clone()))
+        .finish_api_with(&mut api, api_docs)
+        .layer(Extension(Arc::new(api))) // Arc is very important here or you will face massive memory and performance issues
         .layer(cors);
 
     Ok(app)

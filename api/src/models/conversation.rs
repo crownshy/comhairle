@@ -1,5 +1,7 @@
+use aide::OperationIo;
 use chrono::{DateTime, Utc};
 use partially::Partial;
+use schemars::JsonSchema;
 use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
@@ -14,7 +16,7 @@ use super::pagination::{Order, PageOptions, PaginatedResults};
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone)]
 #[enum_def(table_name = "conversation")]
-#[partially(derive(Deserialize, Debug))]
+#[partially(derive(Deserialize, Debug, JsonSchema))]
 pub struct Conversation {
     #[partially(omit)]
     pub id: Uuid,
@@ -100,7 +102,8 @@ impl PartialConversation {
         values
     }
 }
-#[derive(Deserialize, Debug)]
+
+#[derive(Deserialize, Debug, JsonSchema)]
 pub struct ConversationFilterOptions {
     title: Option<String>,
     is_public: Option<bool>,
@@ -160,7 +163,7 @@ impl ConversationFilterOptions {
     }
 }
 
-#[derive(Deserialize, Debug, Default)]
+#[derive(Deserialize, Debug, Default, JsonSchema)]
 pub struct ConversationOrderOptions {
     title: Option<Order>,
     created_at: Option<Order>,
@@ -254,7 +257,7 @@ pub async fn update(
     Ok(conversation)
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, JsonSchema)]
 pub struct CreateConversation {
     pub title: String,
     pub short_description: String,

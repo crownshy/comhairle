@@ -2,6 +2,7 @@ use core::fmt;
 
 use chrono::{DateTime, Utc};
 use partially::Partial;
+use schemars::JsonSchema;
 use sea_query::{enum_def, ConditionalStatement, Expr, JoinType, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
@@ -14,7 +15,7 @@ use super::workflow_step::WorkflowStepIden;
 
 /// Defines the type of authentication has been used to create
 /// The user
-#[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone, JsonSchema)]
 #[sqlx(type_name = "TEXT")]
 #[serde(rename_all = "snake_case")]
 pub enum ProgressStatus {
@@ -43,7 +44,7 @@ impl fmt::Display for ProgressStatus {
     }
 }
 
-#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone)]
+#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "user_progress")]
 pub struct UserProgress {
     pub id: Uuid,

@@ -21,6 +21,26 @@ pub fn extract<T: DeserializeOwned>(target: &str, entity: &serde_json::Value) ->
     serde_json::from_value(value).unwrap()
 }
 
+pub fn polis_tool_config() -> serde_json::Value {
+    json!({
+        "type" : "polis",
+        "server_url" : "http://polis.com",
+        "poll_id": "12234",
+        "admin_user": "admin",
+        "admin_password" : "password"
+    })
+}
+
+pub fn learn_tool_config() -> serde_json::Value {
+    json!({
+    "type": "learn",
+    "pages":[
+        [
+            {"lang": "en", "content" : "#Test", "type" : "markdown"}
+        ]
+    ]})
+}
+
 pub async fn response_to_json(response: Response) -> Value {
     let body = response.into_body().collect().await.unwrap().to_bytes();
 
@@ -366,12 +386,7 @@ impl UserSession {
                     "activation_rule" : "manual",
                     "description": "A manually retired polis workflow step",
                     "is_offline": false,
-                    "tool_config": {
-                        "polis" : {
-                            "server_url" : "http://polis.com",
-                            "poll_id": "12234"
-                        }
-                    }})
+                    "tool_config": polis_tool_config()})
                     .to_string()
                     .into(),
                 )

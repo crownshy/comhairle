@@ -1,8 +1,13 @@
+use aide::OperationIo;
 use axum::{http::StatusCode, response::IntoResponse, Json};
+use schemars::JsonSchema;
+use serde::Serialize;
 use serde_json::json;
 use thiserror::Error;
+use uuid::Uuid;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, OperationIo)]
+#[aide(output)]
 pub enum ComhairleError {
     #[error("Database Failed to connect: {0}")]
     DbError(String),
@@ -25,11 +30,23 @@ pub enum ComhairleError {
     #[error("Failed to hash password")]
     PasswordHash,
 
+    #[error("The password and email don't match")]
+    WrongPassword,
+
     #[error("User Required for this route")]
     UserRequired,
 
     #[error("Auth Error {0}")]
     AuthJWTError(String),
+
+    #[error("No user with email {0}")]
+    NoUserFoundForEmail(String),
+
+    #[error("No user with id {0}")]
+    NoUserFoundForId(Uuid),
+
+    #[error("No user found")]
+    NoUserFound,
 
     #[error("{0} not found")]
     ResourceNotFound(String),
@@ -45,6 +62,20 @@ pub enum ComhairleError {
 
     #[error("Update request contained no valid parameters")]
     NoValidUpdates,
+
+    #[error("Failed to create annon user")]
+    FailedToCreateAnnonUser,
+
+    #[error("Cant log this type of user in with this flow")]
+    WrongUserType,
+
+    #[error("No user logged in")]
+    NoLogedInUser,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct ComhairleErrorResponse {
+    pub err: String,
 }
 
 /// Maps different error codes to a response with appropriate
@@ -56,8 +87,13 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::DuplicateEmail(_)
             | ComhairleError::DuplicateSlug(_)
             | ComhairleError::UserAlreadyParticipatingInWorkflow(_) => StatusCode::CONFLICT,
-            ComhairleError::ResourceNotFound(_) => StatusCode::NOT_FOUND,
-            ComhairleError::UserRequired => StatusCode::UNAUTHORIZED,
+            ComhairleError::ResourceNotFound(_)
+            | ComhairleError::NoUserFound
+            | ComhairleError::NoUserFoundForEmail(_)
+            | ComhairleError::NoUserFoundForId(_) => StatusCode::NOT_FOUND,
+            ComhairleError::UserRequired
+            | ComhairleError::WrongPassword
+            | ComhairleError::NoLogedInUser => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates => StatusCode::UNPROCESSABLE_ENTITY,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };

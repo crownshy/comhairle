@@ -115,7 +115,7 @@ pub async fn create_user(user: &SignupRequest, db: &PgPool) -> Result<User, Comh
 
 /// Create an annon user
 pub async fn create_annon_user(db: &PgPool) -> Result<User, ComhairleError> {
-    let mut retries = 5;  // Retry up to 5 times to generate a unique username
+    let mut retries = 5; // Retry up to 5 times to generate a unique username
     while retries > 0 {
         let sudo_random_name = gen_id();
 
@@ -152,7 +152,9 @@ pub async fn create_annon_user(db: &PgPool) -> Result<User, ComhairleError> {
             Err(e) => return Err(ComhairleError::DatabaseError(e)),
         }
     }
-    Err(ComhairleError::DuplicateUsername("too many retires".to_string()))
+    Err(ComhairleError::DuplicateUsername(
+        "too many retires".to_string(),
+    ))
 }
 
 /// Return a user by ID
@@ -172,7 +174,8 @@ pub async fn get_user_by_id(id: &Uuid, db: &PgPool) -> Result<User, ComhairleErr
 
     let user = sqlx::query_as_with::<_, User, _>(&sql, values)
         .fetch_one(db)
-        .await?;
+        .await
+        .map_err(|_| ComhairleError::NoUserFoundForId(id.to_owned()))?;
     Ok(user)
 }
 
@@ -193,7 +196,8 @@ pub async fn get_user_by_email(email: &str, db: &PgPool) -> Result<User, Comhair
 
     let user = sqlx::query_as_with::<_, User, _>(&sql, values)
         .fetch_one(db)
-        .await?;
+        .await
+        .map_err(|_| ComhairleError::NoUserFoundForEmail(email.to_owned()))?;
     Ok(user)
 }
 

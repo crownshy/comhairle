@@ -3,9 +3,14 @@ use std::sync::Arc;
 use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
-    routing::{delete, get, post, put},
-    Router,
 };
+
+use aide::axum::{
+    routing::{delete, get, post, put},
+    ApiRouter,
+};
+
+use schemars::JsonSchema;
 use serde::Deserialize;
 use tracing::info;
 use uuid::Uuid;
@@ -40,9 +45,9 @@ async fn update_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(id): Path<Uuid>,
     Json(conversation): Json<PartialConversation>,
-) -> Result<Json<Conversation>, ComhairleError> {
+) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
     let conversation = conversation::update(&state.db, id, &conversation).await?;
-    Ok(Json(conversation))
+    Ok((StatusCode::OK, Json(conversation)))
 }
 
 /// List conversations handler
@@ -51,14 +56,14 @@ async fn list_conversations(
     OrderParams(order_options): OrderParams<ConversationOrderOptions>,
     Query(filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
-) -> Result<Json<PaginatedResults<Conversation>>, ComhairleError> {
+) -> Result<(StatusCode, Json<PaginatedResults<Conversation>>), ComhairleError> {
     let conversations =
         conversation::list(&state.db, page_options, order_options, filter_options).await?;
-    Ok(Json(conversations))
+    Ok((StatusCode::OK, Json(conversations)))
 }
 
 /// For extracting an id or slug from Path
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, JsonSchema)]
 #[serde(untagged)]
 enum IdOrSlug {
     Id(Uuid),
@@ -69,7 +74,7 @@ enum IdOrSlug {
 async fn get_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_ident): Path<IdOrSlug>,
-) -> Result<Json<Conversation>, ComhairleError> {
+) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
     info!("Attempting to get conversation {conversation_ident:#?}");
 
     let conversation = match conversation_ident {
@@ -77,25 +82,26 @@ async fn get_conversation(
         IdOrSlug::Slug(slug) => conversation::get_by_slug(&state.db, &slug).await?,
     };
 
-    Ok(Json(conversation))
+    Ok((StatusCode::OK, Json(conversation)))
 }
 
 /// Delete a specific conversation
 async fn delete_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(id): Path<Uuid>,
-) -> Result<Json<Conversation>, ComhairleError> {
+) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
     let conversation = conversation::delete(&state.db, &id).await?;
-    Ok(Json(conversation))
+    Ok((StatusCode::OK, Json(conversation)))
 }
 
-pub fn router() -> Router<Arc<ComhairleState>> {
-    Router::new()
-        .route("/", post(create_conversation))
-        .route("/", get(list_conversations))
-        .route("/{conversation_id}", get(get_conversation))
-        .route("/{conversation_id}", put(update_conversation))
-        .route("/{conversation_id}", delete(delete_conversation))
+pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+    ApiRouter::new()
+        .api_route("/", post(create_conversation))
+        .api_route("/", get(list_conversations))
+        .api_route("/{conversation_id}", get(get_conversation))
+        .api_route("/{conversation_id}", put(update_conversation))
+        .api_route("/{conversation_id}", delete(delete_conversation))
+        .with_state(state)
 }
 
 #[cfg(test)]

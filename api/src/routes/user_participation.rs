@@ -1,11 +1,13 @@
-use std::sync::Arc;
-
+use aide::axum::{
+    routing::{delete, get, post},
+    ApiRouter,
+};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    routing::{delete, get, post},
-    Json, Router,
+    Json,
 };
+use std::sync::Arc;
 use tracing::info;
 use uuid::Uuid;
 
@@ -24,14 +26,7 @@ async fn register_user_for_workflow(
     RequiredUser(user): RequiredUser,
     Path((_, workflow_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<UserParticipation>), ComhairleError> {
-    info!(
-        "Attempting to sigun up user {} to workflow {workflow_id}",
-        user.id
-    );
-
     let user_participation = user_participation::create(&state.db, &user.id, &workflow_id).await?;
-
-    info!("Now creating user progress entries");
 
     let workflow_steps = workflow_step::list(&state.db, workflow_id).await?;
 
@@ -53,9 +48,9 @@ async fn deregister_user_on_workflow(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Path((_, workflow_id)): Path<(Uuid, Uuid)>,
-) -> Result<Json<UserParticipation>, ComhairleError> {
+) -> Result<(StatusCode, Json<UserParticipation>), ComhairleError> {
     let user_participation = user_participation::delete(&state.db, &user.id, &workflow_id).await?;
-    Ok(Json(user_participation))
+    Ok((StatusCode::OK, Json(user_participation)))
 }
 
 pub async fn get_user_participation(
@@ -67,11 +62,12 @@ pub async fn get_user_participation(
     Ok((StatusCode::OK, Json(user_participation)))
 }
 
-pub fn router() -> Router<Arc<ComhairleState>> {
-    Router::new()
-        .route("/", post(register_user_for_workflow))
-        .route("/", delete(deregister_user_on_workflow))
-        .route("/", get(get_user_participation))
+pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+    ApiRouter::new()
+        .api_route("/", post(register_user_for_workflow))
+        .api_route("/", delete(deregister_user_on_workflow))
+        .api_route("/", get(get_user_participation))
+        .with_state(state)
 }
 
 #[cfg(test)]
@@ -141,6 +137,7 @@ mod tests {
         let url = format!("/conversation/{conversation_id}/workflow/{workflow_id}/progress");
 
         let (status, progress, _) = user_session.get(&app, &url).await?;
+        println!("{status}, {progress:#?}");
 
         assert_eq!(
             status,

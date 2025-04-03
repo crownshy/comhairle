@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use partially::Partial;
+use schemars::JsonSchema;
 use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
@@ -9,9 +10,9 @@ use uuid::Uuid;
 
 use crate::error::ComhairleError;
 
-#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone)]
+#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "workflow")]
-#[partially(derive(Deserialize, Debug))]
+#[partially(derive(Deserialize, Debug, JsonSchema))]
 pub struct Workflow {
     #[partially(omit)]
     pub id: Uuid,
@@ -77,7 +78,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleErro
     Ok(conversation)
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 pub struct CreateWorkflow {
     pub name: String,
     pub description: String,

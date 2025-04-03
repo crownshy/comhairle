@@ -1,9 +1,15 @@
+use aide::{
+    axum::{
+        routing::{get, post},
+        ApiRouter,
+    },
+    OperationIo,
+};
 use axum::{
     extract::{FromRequestParts, Json, State},
     http::{request::Parts, StatusCode},
     response::{IntoResponse, Response},
-    routing::{get, post},
-    RequestPartsExt, Router,
+    RequestPartsExt,
 };
 
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
@@ -11,22 +17,27 @@ use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, 
 use argon2::{password_hash::SaltString, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 
 use rand_core::OsRng;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use tower_cookies::{Cookie, Cookies};
+use axum_extra::extract::cookie::{Cookie, CookieJar};
+// use tower_cookies::{Cookie, Cookies};
 
 use crate::{
     config::ComhairleConfig,
     error::ComhairleError,
-    models::users::{UserAuthType, create_annon_user, create_user, get_user_by_email, get_user_by_id, get_user_by_username, User},
+    models::users::{
+        create_annon_user, create_user, get_user_by_email, get_user_by_id, get_user_by_username,
+        User, UserAuthType,
+    },
     ComhairleState,
 };
 
 /// This is the key that we use in the cookie for the JWT
-const AUTH_KEY: &str = "auth-token";
+pub const AUTH_KEY: &str = "auth-token";
 
 /// Generate a hashed password
 pub fn hash_pw(password: &str) -> Result<String, ComhairleError> {
@@ -40,18 +51,17 @@ pub fn hash_pw(password: &str) -> Result<String, ComhairleError> {
 }
 
 /// Expected payload for a login request
-#[derive(Deserialize)]
+#[derive(Deserialize, JsonSchema)]
 struct LoginRequest {
     email: String,
     password: String,
 }
 
 /// Expected payload for an annon login request
-#[derive(Deserialize)]
+#[derive(Deserialize, JsonSchema)]
 struct AnnonLoginRequest {
     username: String,
 }
-
 
 /// JWT Claims
 #[derive(Debug, Serialize, Deserialize)]
@@ -87,7 +97,7 @@ fn generate_jwt(user: &User, secret: &str) -> String {
 }
 
 /// Expected payload for a signin request  
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, JsonSchema)]
 pub struct SignupRequest {
     pub username: String,
     pub password: String,
@@ -98,9 +108,9 @@ pub struct SignupRequest {
 /// Signup handler
 async fn signup(
     State(state): State<Arc<ComhairleState>>,
-    cookies: Cookies,
+    jar: CookieJar,
     Json(payload): Json<SignupRequest>,
-) -> Result<Response, ComhairleError> {
+) -> Result<(CookieJar, (StatusCode, Json<User>)), ComhairleError> {
     let user = create_user(&payload, &state.db).await?;
     let token = generate_jwt(&user, &state.config.jwt_secret);
 
@@ -109,97 +119,73 @@ async fn signup(
         .secure(true)
         .http_only(true);
 
-    cookies.add(cookie.into());
-    Ok((StatusCode::CREATED, Json(user)).into_response())
+    Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
 }
 
 /// Signup handler for annon
-async fn signup_annon(State(state): State<Arc<ComhairleState>>, cookies: Cookies) -> Response {
-    match create_annon_user(&state.db).await {
-        Ok(user) => {
-            let token = generate_jwt(&user, &state.config.jwt_secret);
-            let cookie = Cookie::build((AUTH_KEY, token))
-                .path("/")
-                .secure(true)
-                .http_only(true);
+async fn signup_annon(
+    State(state): State<Arc<ComhairleState>>,
+    jar: CookieJar,
+) -> Result<(CookieJar, (StatusCode, Json<User>)), ComhairleError> {
+    let user = create_annon_user(&state.db).await?;
+    let token = generate_jwt(&user, &state.config.jwt_secret);
 
-            cookies.add(cookie.into());
-            (StatusCode::CREATED, Json(user)).into_response()
-        }
-        Err(_) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"err" : String::from("Failed to create annon user")})),
-        )
-            .into_response(),
-    }
+    let cookie = Cookie::build((AUTH_KEY, token))
+        .path("/")
+        .secure(true)
+        .http_only(true);
+
+    Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
 }
 
 /// Email/Password Login Handler
-// TODO Tidy this up
 async fn login(
     State(state): State<Arc<ComhairleState>>,
-    cookies: Cookies,
+    jar: CookieJar,
     Json(payload): Json<LoginRequest>,
-) -> impl IntoResponse {
-    if let Ok(user) = get_user_by_email(&payload.email, &state.db).await {
-        if let Some(password) = &user.password {
-            let hash = PasswordHash::new(password)
-                .map_err(|_| ComhairleError::PasswordHash)
-                .expect("Password to be hashable");
+) -> Result<(CookieJar, (StatusCode, Json<User>)), ComhairleError> {
+    let user = get_user_by_email(&payload.email, &state.db).await?;
 
-            if Argon2::default()
-                .verify_password(&payload.password.into_bytes(), &hash)
-                .is_ok()
-            {
-                let token = generate_jwt(&user.clone(), &state.config.jwt_secret);
-                let cookie = Cookie::build((AUTH_KEY, token))
-                    .path("/")
-                    .secure(true)
-                    .http_only(true);
-                cookies.add(cookie.into());
+    let password = user
+        .password
+        .as_ref()
+        .ok_or_else(|| ComhairleError::WrongUserType)?;
 
-                return (StatusCode::OK, Json(user)).into_response();
-            } else {
-                return (
-                    StatusCode::UNAUTHORIZED,
-                    Json(json!({"err" : String::from("Incorrect Username / Password")})),
-                )
-                    .into_response();
-            }
-        } else {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(json!({"err":"This user cannot login with a password"})),
-            )
-                .into_response();
-        }
-    } else {
-        return (StatusCode::NOT_FOUND, Json(json!({"err":"No such user"}))).into_response();
-    };
+    let hash = PasswordHash::new(password).map_err(|_| ComhairleError::PasswordHash)?;
+
+    if !Argon2::default()
+        .verify_password(&payload.password.into_bytes(), &hash)
+        .is_ok()
+    {
+        return Err(ComhairleError::WrongPassword);
+    }
+
+    let token = generate_jwt(&user.clone(), &state.config.jwt_secret);
+    let cookie = Cookie::build((AUTH_KEY, token))
+        .path("/")
+        .secure(true)
+        .http_only(true);
+    Ok((jar.add(cookie), (StatusCode::OK, Json(user))))
 }
 
 async fn login_annon(
     State(state): State<Arc<ComhairleState>>,
-    cookies: Cookies,
+    cookies: CookieJar,
     Json(payload): Json<AnnonLoginRequest>,
-) -> impl IntoResponse {
-    if let Ok(user) = get_user_by_username(&payload.username, &state.db).await {
-        if user.auth_type != UserAuthType::Annon {
-            // return not found to avoid revealing that a correct username has been used.
-            return (StatusCode::NOT_FOUND, Json(json!({"err":"No such user"}))).into_response();
-        }
+) -> Result<(CookieJar, (StatusCode, Json<User>)), ComhairleError> {
+    let user = get_user_by_username(&payload.username, &state.db).await?;
 
-        let token = generate_jwt(&user.clone(), &state.config.jwt_secret);
-        let cookie = Cookie::build((AUTH_KEY, token))
-            .path("/")
-            .secure(true)
-            .http_only(true);
-        cookies.add(cookie.into());
+    if user.auth_type != UserAuthType::Annon {
+        // return not found to avoid revealing that a correct username has been used.
+        return Err(ComhairleError::NoUserFound);
+    }
 
-        return (StatusCode::OK, Json(user)).into_response();
-    } else {
-        return (StatusCode::NOT_FOUND, Json(json!({"err":"No such user"}))).into_response();
-    };
+    let token = generate_jwt(&user.clone(), &state.config.jwt_secret);
+    let cookie = Cookie::build((AUTH_KEY, token))
+        .path("/")
+        .secure(true)
+        .http_only(true);
+    Ok((cookies.add(cookie), (StatusCode::OK, Json(user))))
 }
 
 /// Decode a JWT
@@ -216,11 +202,13 @@ pub fn decode_jwt(jwt: &str, secret: &str) -> Result<TokenData<Claims>, StatusCo
 /// An extractor to get a required current user.
 /// If no user is logged in then this will fail and
 /// Return a Not Found response
+#[derive(OperationIo)]
 pub struct RequiredUser(pub User);
 
 /// An extractor to get the current user if they exist
 /// If a user is not logged in, this will still run
 /// but produce a None value in the extractor
+#[derive(OperationIo)]
 pub struct OptionalUser(pub Option<User>);
 
 impl FromRequestParts<Arc<ComhairleState>> for RequiredUser {
@@ -247,17 +235,15 @@ impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
         parts: &mut Parts,
         state: &Arc<ComhairleState>,
     ) -> Result<Self, Self::Rejection> {
-        let cookies = parts.extract::<Cookies>().await;
-        if let Ok(cookies) = cookies {
-            let token = cookies.get(AUTH_KEY);
-            if let Some(token) = token {
-                let token_str = token.to_string();
-                let token_str = token_str.split("=").skip(1).next().unwrap();
-                let poss_user = validate_jwt(state, &token_str).await;
-                Ok(OptionalUser(poss_user.ok()))
-            } else {
-                Ok(OptionalUser(None))
-            }
+        let jar = parts
+            .extract::<CookieJar>()
+            .await
+            .map_err(|e| ComhairleError::AuthJWTError(e.to_string()))?;
+
+        if let Some(token_cookie) = jar.get(AUTH_KEY) {
+            let token_str = token_cookie.value();
+            let poss_user = validate_jwt(state, token_str).await.ok();
+            Ok(OptionalUser(poss_user))
         } else {
             Ok(OptionalUser(None))
         }
@@ -293,33 +279,33 @@ pub async fn validate_jwt(
 }
 
 /// Destroy the cookie on our session to log a user out
-pub async fn logout(cookies: Cookies) -> impl IntoResponse {
-    cookies.remove(Cookie::build(AUTH_KEY).path("/").into());
-    Json(json!({"msg":"Logged out"}))
+pub async fn logout(jar: CookieJar) -> (CookieJar, Response) {
+    let cookie = Cookie::build(AUTH_KEY).path("/");
+    (
+        jar.remove(cookie),
+        Json(json!({"msg":"Logged out"})).into_response(),
+    )
 }
 
 /// Handler for the current user if there is one
-pub async fn current_user(OptionalUser(user): OptionalUser) -> impl IntoResponse {
-    if let Some(user) = user {
-        (StatusCode::OK, Json(user)).into_response()
-    } else {
-        (
-            StatusCode::NOT_FOUND,
-            Json(json!({"err" : "No current logged in user"})),
-        )
-            .into_response()
-    }
+pub async fn current_user(
+    OptionalUser(user): OptionalUser,
+) -> Result<(StatusCode, Json<User>), ComhairleError> {
+    let user = user.ok_or_else(|| ComhairleError::NoLogedInUser)?;
+
+    Ok((StatusCode::OK, Json(user)))
 }
 
 /// Function to set up the auth routes
-pub async fn router(_config: &ComhairleConfig) -> Router<Arc<ComhairleState>> {
-    Router::new()
-        .route("/login", post(login))
-        .route("/login_annon", post(login_annon))
-        .route("/signup", post(signup))
-        .route("/signup_annon", post(signup_annon))
-        .route("/logout", post(logout))
-        .route("/current_user", get(current_user))
+pub async fn router(_config: &ComhairleConfig, state: Arc<ComhairleState>) -> ApiRouter {
+    ApiRouter::new()
+        .api_route("/login", post(login))
+        .api_route("/login_annon", post(login_annon))
+        .api_route("/signup", post(signup))
+        .api_route("/signup_annon", post(signup_annon))
+        .api_route("/logout", post(logout))
+        .api_route("/current_user", get(current_user))
+        .with_state(state)
 }
 
 #[cfg(test)]
@@ -330,7 +316,7 @@ mod tests {
     use std::error::Error;
 
     #[sqlx::test]
-    fn user_should_be_able_to_sign_up(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn user_should_be_able_to_sign_up(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let config = config::load()?;
         let app = setup_server(config, pool).await?;
 
@@ -371,7 +357,7 @@ mod tests {
     }
 
     #[sqlx::test]
-    fn user_should_not_be_able_to_login_with_wrong_password(
+    async fn user_should_not_be_able_to_login_with_wrong_password(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let config = config::load()?;
@@ -383,7 +369,6 @@ mod tests {
 
         let mut session = UserSession::new(username, password, email);
         session.signup(&app).await?;
-
         session.logout(&app).await?;
 
         let mut session = UserSession::new(username, "wrong password", email);
@@ -396,7 +381,7 @@ mod tests {
         );
         Ok(())
     }
-    
+
     #[sqlx::test]
     fn other_user_types_should_not_be_able_to_annon_login(
         pool: PgPool,
@@ -413,44 +398,35 @@ mod tests {
         session.logout(&app).await?;
         let (status, _, _) = session.login_annon(&app).await?;
 
-        assert_eq!(
-            status,
-            StatusCode::NOT_FOUND,
-            "API should return NOT_FOUND"
-        );
+        assert_eq!(status, StatusCode::NOT_FOUND, "API should return NOT_FOUND");
         Ok(())
     }
-    
-    #[sqlx::test]
-    fn annon_user_should_be_able_to_login(
-        pool: PgPool,
-    )-> Result<(), Box<dyn Error>> {
 
+    #[sqlx::test]
+    fn annon_user_should_be_able_to_login(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let config = config::load()?;
         let app = setup_server(config, pool).await?;
         let mut session = UserSession::new_anon();
         session.signup_annon(&app).await?;
         session.logout(&app).await?;
-        
+
         let (status, _, _) = session.login_annon(&app).await?;
 
-        assert_eq!(
-            status,
-            StatusCode::OK,
-            "API should respond OK"
-        );
+        assert_eq!(status, StatusCode::OK, "API should respond OK");
         Ok(())
     }
-    
+
     #[sqlx::test]
-    fn unknown_username_should_not_be_able_to_annon_login(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    fn unknown_username_should_not_be_able_to_annon_login(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
         let config = config::load()?;
         let app = setup_server(config, pool).await?;
         let mut session = UserSession::new_anon();
         session.username = Some("foo".to_string());
-        
+
         let (status, _, _) = session.login_annon(&app).await?;
-        
+
         assert_eq!(
             status,
             StatusCode::NOT_FOUND,
@@ -460,7 +436,7 @@ mod tests {
     }
 
     #[sqlx::test]
-    fn username_and_email_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn username_and_email_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let config = config::load()?;
         let app = setup_server(config, pool).await?;
 
@@ -492,7 +468,7 @@ mod tests {
     }
 
     #[sqlx::test]
-    fn user_should_be_able_to_logout(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn user_should_be_able_to_logout(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let config = config::load()?;
         let app = setup_server(config, pool).await?;
 
@@ -528,7 +504,7 @@ mod tests {
     }
 
     #[sqlx::test]
-    fn annon_user_should_by_able_to_signup(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn annon_user_should_by_able_to_signup(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let config = config::load()?;
         let app = setup_server(config, pool).await?;
         let mut annon_user = UserSession::new_anon();

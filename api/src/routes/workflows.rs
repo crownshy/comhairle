@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
+use aide::axum::{
+    routing::{delete, get, post, put},
+    ApiRouter,
+};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    routing::{delete, get, post, put},
-    Json, Router,
+    Json,
 };
 use tracing::info;
 use uuid::Uuid;
@@ -43,38 +46,39 @@ async fn update_workflow(
 async fn list_workflows(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-) -> Result<Json<Vec<Workflow>>, ComhairleError> {
+) -> Result<(StatusCode, Json<Vec<Workflow>>), ComhairleError> {
     let workflows = workflow::list(&state.db, conversation_id).await?;
-    Ok(Json(workflows))
+    Ok((StatusCode::OK, Json(workflows)))
 }
 
 /// Get a specific workflow
 async fn get_workflow(
     State(state): State<Arc<ComhairleState>>,
     Path((_, workflow_id)): Path<(Uuid, Uuid)>,
-) -> Result<Json<Workflow>, ComhairleError> {
+) -> Result<(StatusCode, Json<Workflow>), ComhairleError> {
     info!("Attempting to get workflow {workflow_id:#?}");
     let workflow = workflow::get_by_id(&state.db, &workflow_id).await?;
 
-    Ok(Json(workflow))
+    Ok((StatusCode::OK, Json(workflow)))
 }
 
 /// Delete a specific workflow
 async fn delete_workflow(
     State(state): State<Arc<ComhairleState>>,
     Path((_, id)): Path<(Uuid, Uuid)>,
-) -> Result<Json<Workflow>, ComhairleError> {
+) -> Result<(StatusCode, Json<Workflow>), ComhairleError> {
     let workflow = workflow::delete(&state.db, &id).await?;
-    Ok(Json(workflow))
+    Ok((StatusCode::OK, Json(workflow)))
 }
 
-pub fn router() -> Router<Arc<ComhairleState>> {
-    Router::new()
-        .route("/", post(create_workflow))
-        .route("/", get(list_workflows))
-        .route("/{workflow_id}", get(get_workflow))
-        .route("/{workflow_id}", put(update_workflow))
-        .route("/{workflow_id}", delete(delete_workflow))
+pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+    ApiRouter::new()
+        .api_route("/", post(create_workflow))
+        .api_route("/", get(list_workflows))
+        .api_route("/{workflow_id}", get(get_workflow))
+        .api_route("/{workflow_id}", put(update_workflow))
+        .api_route("/{workflow_id}", delete(delete_workflow))
+        .with_state(state)
 }
 
 #[cfg(test)]

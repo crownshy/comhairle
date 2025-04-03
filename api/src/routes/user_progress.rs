@@ -1,11 +1,13 @@
-use std::sync::Arc;
-
+use aide::axum::{
+    routing::{get, put},
+    ApiRouter,
+};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    routing::{delete, get, post, put},
-    Json, Router,
+    Json,
 };
+use std::sync::Arc;
 use tracing::info;
 use uuid::Uuid;
 
@@ -41,13 +43,11 @@ pub async fn update_user_progress(
     Ok((StatusCode::OK, Json(user_progress)))
 }
 
-pub fn router() -> Router<Arc<ComhairleState>> {
-    Router::new()
-        .route("/progress", get(get_user_progress_for_workflow))
-        .route(
-            "/workflow_step/{workflow_step_id}/progress",
-            put(update_user_progress),
-        )
+pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+    ApiRouter::new()
+        .api_route("/", get(get_user_progress_for_workflow))
+        .api_route("/{workflow_step_id}", put(update_user_progress))
+        .with_state(state)
 }
 
 #[cfg(test)]
@@ -104,10 +104,12 @@ mod tests {
         // Sign up for the workflow
 
         let url = format!("/conversation/{conversation_id}/workflow/{workflow_id}/participation");
-        let (status, _, _) = user_session.post(&app, &url, Body::empty()).await?;
+        user_session.post(&app, &url, Body::empty()).await?;
 
         // Update the status for a user on a given step
-        let url = format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step/{workflow_step_id}/progress");
+        let url = format!(
+            "/conversation/{conversation_id}/workflow/{workflow_id}/progress/{workflow_step_id}"
+        );
 
         let (status, progress, _) = user_session
             .put(&app, &url, json!("done").to_string().into())
