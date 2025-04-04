@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use aide::axum::routing::{delete, get, post, put};
+use aide::axum::routing::{delete_with, get_with, post_with, put_with};
 use aide::axum::ApiRouter;
 
 use axum::{
@@ -69,11 +69,41 @@ async fn delete_workflow_step(
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
-        .route("/", post(create_workflow_step))
-        .route("/", get(list_workflows_step))
-        .route("/{workflow_step_id}", get(get_workflow_step))
-        .route("/{workflow_step_id}", put(update_workflow_step))
-        .route("/{workflow_step_id}", delete(delete_workflow_step))
+        .api_route(
+            "/",
+            post_with(create_workflow_step, |op| {
+                op.id("CreateWorkflowStep")
+                    .summary("Create a new workflow step")
+            }),
+        )
+        .api_route(
+            "/",
+            get_with(list_workflows_step, |op| {
+                op.id("ListWorkflowSteps")
+                    .summary("List the workflow steps associated with this workflow")
+            }),
+        )
+        .api_route(
+            "/{workflow_step_id}",
+            get_with(get_workflow_step, |op| {
+                op.id("GetWorkflowStep")
+                    .summary("Get the specified workflow step")
+            }),
+        )
+        .api_route(
+            "/{workflow_step_id}",
+            put_with(update_workflow_step, |op| {
+                op.id("UpdateWorkflowStep")
+                    .summary("Update the specifed workflow step")
+            }),
+        )
+        .api_route(
+            "/{workflow_step_id}",
+            delete_with(delete_workflow_step, |op| {
+                op.id("DeleteWorkflowStep")
+                    .summary("Delete the specified workflow step")
+            }),
+        )
         .with_state(state)
 }
 

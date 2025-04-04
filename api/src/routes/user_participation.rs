@@ -1,5 +1,5 @@
 use aide::axum::{
-    routing::{delete, get, post},
+    routing::{delete_with, get_with, post_with},
     ApiRouter,
 };
 use axum::{
@@ -8,7 +8,6 @@ use axum::{
     Json,
 };
 use std::sync::Arc;
-use tracing::info;
 use uuid::Uuid;
 
 use crate::models::{user_participation, user_progress, workflow_step};
@@ -64,9 +63,27 @@ pub async fn get_user_participation(
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
-        .api_route("/", post(register_user_for_workflow))
-        .api_route("/", delete(deregister_user_on_workflow))
-        .api_route("/", get(get_user_participation))
+        .api_route(
+            "/",
+            post_with(register_user_for_workflow, |op| {
+                op.id("RegisterUserForWorkflow")
+                    .summary("Register the currently logged in user for this workflow")
+            }),
+        )
+        .api_route(
+            "/",
+            delete_with(deregister_user_on_workflow, |op| {
+                op.id("UnregisterUserForWorkflow")
+                    .summary("Unregisters the current user on this workflow")
+            }),
+        )
+        .api_route(
+            "/",
+            get_with(get_user_participation, |op| {
+                op.id("GetUserParticipation")
+                    .summary("Returns the status of the current user on this workflow")
+            }),
+        )
         .with_state(state)
 }
 

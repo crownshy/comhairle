@@ -1,5 +1,5 @@
 use aide::axum::{
-    routing::{get, put},
+    routing::{get_with, put_with},
     ApiRouter,
 };
 use axum::{
@@ -45,8 +45,20 @@ pub async fn update_user_progress(
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
-        .api_route("/", get(get_user_progress_for_workflow))
-        .api_route("/{workflow_step_id}", put(update_user_progress))
+        .api_route(
+            "/",
+            get_with(get_user_progress_for_workflow, |op| {
+                op.id("GetUserProgress")
+                    .summary("Get the users progress on this workflow")
+            }),
+        )
+        .api_route(
+            "/{workflow_step_id}",
+            put_with(update_user_progress, |op| {
+                op.id("SetUserProgress")
+                    .summary("Set the user progress for a given workflow step")
+            }),
+        )
         .with_state(state)
 }
 

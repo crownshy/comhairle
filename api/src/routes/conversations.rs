@@ -6,7 +6,7 @@ use axum::{
 };
 
 use aide::axum::{
-    routing::{delete, get, post, put},
+    routing::{delete_with, get_with, post_with, put_with},
     ApiRouter,
 };
 
@@ -96,11 +96,46 @@ async fn delete_conversation(
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
-        .api_route("/", post(create_conversation))
-        .api_route("/", get(list_conversations))
-        .api_route("/{conversation_id}", get(get_conversation))
-        .api_route("/{conversation_id}", put(update_conversation))
-        .api_route("/{conversation_id}", delete(delete_conversation))
+        .api_route(
+            "/",
+            post_with(create_conversation, |op| {
+                op.id("CreateConversation")
+                    .summary("Create a new conversation")
+                    .description("Creates a new conversation")
+            }),
+        )
+        .api_route(
+            "/",
+            get_with(list_conversations, |op| {
+                op.id("ListConverastions")
+                    .summary("List conversations with optional filtering and ordering")
+                    .description("List conversations")
+            }),
+        )
+        .api_route(
+            "/{conversation_id}",
+            get_with(get_conversation, |op| {
+                op.id("GetConversation")
+                    .summary("Get a conversation by id or slug")
+                    .description("Get a converation by id or slug")
+            }),
+        )
+        .api_route(
+            "/{conversation_id}",
+            put_with(update_conversation, |op| {
+                op.id("UpdateConversation")
+                    .summary("Update a conversation")
+                    .description("Update a conversation")
+            }),
+        )
+        .api_route(
+            "/{conversation_id}",
+            delete_with(delete_conversation, |op| {
+                op.id("DeleteConversation")
+                    .summary("Delete the conversation and all related content")
+                    .description("Delete the conversation and all related content")
+            }),
+        )
         .with_state(state)
 }
 

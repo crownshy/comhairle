@@ -1,6 +1,6 @@
 use aide::{
     axum::{
-        routing::{get, post},
+        routing::{get, get_with, post, post_with},
         ApiRouter,
     },
     OperationIo,
@@ -299,12 +299,41 @@ pub async fn current_user(
 /// Function to set up the auth routes
 pub async fn router(_config: &ComhairleConfig, state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
-        .api_route("/login", post(login))
-        .api_route("/login_annon", post(login_annon))
-        .api_route("/signup", post(signup))
-        .api_route("/signup_annon", post(signup_annon))
-        .api_route("/logout", post(logout))
-        .api_route("/current_user", get(current_user))
+        .api_route(
+            "/login_annon",
+            post_with(login_annon, |op| {
+                op.id("LoginAnnonUser").summary("Login an annon user")
+            }),
+        )
+        .api_route(
+            "/login",
+            post_with(login, |op| op.id("LoginUser").summary("Login a user")),
+        )
+        .api_route(
+            "/signup",
+            post_with(signup, |op| {
+                op.id("SignUp")
+                    .summary("Signup a user with email and password")
+            }),
+        )
+        .api_route(
+            "/signup_annon",
+            post_with(signup_annon, |op| {
+                op.id("SignupAnnonUser").summary("Signup and annon user")
+            }),
+        )
+        .api_route(
+            "/logout",
+            post_with(logout, |op| {
+                op.id("LogoutUser").summary("Logout the current user")
+            }),
+        )
+        .api_route(
+            "/current_user",
+            get_with(current_user, |op| {
+                op.id("CurrentUser").summary("Get the current user")
+            }),
+        )
         .with_state(state)
 }
 
