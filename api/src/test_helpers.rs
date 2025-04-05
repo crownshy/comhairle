@@ -213,7 +213,21 @@ impl UserSession {
         )
         .await
     }
-
+    
+    pub async fn login_annon(
+        &mut self,
+        app: &Router,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            "/auth/login_annon",
+            json!({"username":self.username})
+                .to_string()
+                .into(),
+        )
+        .await
+    }
+    
     pub async fn signup_annon(
         &mut self,
         app: &Router,
@@ -227,6 +241,7 @@ impl UserSession {
     > {
         let (status, value, cookie) = self.post(&app, "/auth/signup_annon", Body::empty()).await?;
         let user: HashMap<String, Option<String>> = serde_json::from_value(value)?;
+        self.username = user.get("username").unwrap().clone();
         Ok((status, user, cookie))
     }
 

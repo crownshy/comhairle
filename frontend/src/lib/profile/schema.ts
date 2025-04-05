@@ -19,3 +19,8 @@ export const signupFormSchema = z
 		path: ['password_confirm']
 	});
 export type SignupForm = z.infer<typeof signupFormSchema>;
+
+export const annonLoginFormSchema = z.object({
+	username: z.string().min(1)
+});
+export type AnnonLoginFrom = z.infer<typeof annonLoginFormSchema>;

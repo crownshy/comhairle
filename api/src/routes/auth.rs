@@ -21,7 +21,7 @@ use tower_cookies::{Cookie, Cookies};
 use crate::{
     config::ComhairleConfig,
     error::ComhairleError,
-    models::users::{create_annon_user, create_user, get_user_by_email, get_user_by_id, User},
+    models::users::{UserAuthType, create_annon_user, create_user, get_user_by_email, get_user_by_id, get_user_by_username, User},
     ComhairleState,
 };
 
@@ -45,6 +45,13 @@ struct LoginRequest {
     email: String,
     password: String,
 }
+
+/// Expected payload for an annon login request
+#[derive(Deserialize)]
+struct AnnonLoginRequest {
+    username: String,
+}
+
 
 /// JWT Claims
 #[derive(Debug, Serialize, Deserialize)]
@@ -171,6 +178,30 @@ async fn login(
     };
 }
 
+async fn login_annon(
+    State(state): State<Arc<ComhairleState>>,
+    cookies: Cookies,
+    Json(payload): Json<AnnonLoginRequest>,
+) -> impl IntoResponse {
+    if let Ok(user) = get_user_by_username(&payload.username, &state.db).await {
+        if user.auth_type != UserAuthType::Annon {
+            // return not found to avoid revealing that a correct username has been used.
+            return (StatusCode::NOT_FOUND, Json(json!({"err":"No such user"}))).into_response();
+        }
+
+        let token = generate_jwt(&user.clone(), &state.config.jwt_secret);
+        let cookie = Cookie::build((AUTH_KEY, token))
+            .path("/")
+            .secure(true)
+            .http_only(true);
+        cookies.add(cookie.into());
+
+        return (StatusCode::OK, Json(user)).into_response();
+    } else {
+        return (StatusCode::NOT_FOUND, Json(json!({"err":"No such user"}))).into_response();
+    };
+}
+
 /// Decode a JWT
 pub fn decode_jwt(jwt: &str, secret: &str) -> Result<TokenData<Claims>, StatusCode> {
     let result: Result<TokenData<Claims>, StatusCode> = decode(
@@ -284,6 +315,7 @@ pub async fn current_user(OptionalUser(user): OptionalUser) -> impl IntoResponse
 pub async fn router(_config: &ComhairleConfig) -> Router<Arc<ComhairleState>> {
     Router::new()
         .route("/login", post(login))
+        .route("/login_annon", post(login_annon))
         .route("/signup", post(signup))
         .route("/signup_annon", post(signup_annon))
         .route("/logout", post(logout))
@@ -364,6 +396,69 @@ mod tests {
         );
         Ok(())
     }
+    
+    #[sqlx::test]
+    fn other_user_types_should_not_be_able_to_annon_login(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let config = config::load()?;
+        let app = setup_server(config, pool).await?;
+
+        let username = "test_user";
+        let password = "test_password";
+        let email = "test_email";
+
+        let mut session = UserSession::new(username, password, email);
+        session.signup(&app).await?;
+        session.logout(&app).await?;
+        let (status, _, _) = session.login_annon(&app).await?;
+
+        assert_eq!(
+            status,
+            StatusCode::NOT_FOUND,
+            "API should return NOT_FOUND"
+        );
+        Ok(())
+    }
+    
+    #[sqlx::test]
+    fn annon_user_should_be_able_to_login(
+        pool: PgPool,
+    )-> Result<(), Box<dyn Error>> {
+
+        let config = config::load()?;
+        let app = setup_server(config, pool).await?;
+        let mut session = UserSession::new_anon();
+        session.signup_annon(&app).await?;
+        session.logout(&app).await?;
+        
+        let (status, _, _) = session.login_annon(&app).await?;
+
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "API should respond OK"
+        );
+        Ok(())
+    }
+    
+    #[sqlx::test]
+    fn unknown_username_should_not_be_able_to_annon_login(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let config = config::load()?;
+        let app = setup_server(config, pool).await?;
+        let mut session = UserSession::new_anon();
+        session.username = Some("foo".to_string());
+        
+        let (status, _, _) = session.login_annon(&app).await?;
+        
+        assert_eq!(
+            status,
+            StatusCode::NOT_FOUND,
+            "API should respond NOT_FOUND"
+        );
+        Ok(())
+    }
+
     #[sqlx::test]
     fn username_and_email_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let config = config::load()?;

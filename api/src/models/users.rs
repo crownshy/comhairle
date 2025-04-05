@@ -178,3 +178,24 @@ pub async fn get_user_by_email(email: &str, db: &PgPool) -> Result<User, Comhair
         .await?;
     Ok(user)
 }
+
+/// Return a user by username
+pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns([
+            UserIden::Id,
+            UserIden::Username,
+            UserIden::Password,
+            UserIden::AvatarUrl,
+            UserIden::AuthType,
+            UserIden::Email,
+        ])
+        .from(UserIden::Table)
+        .and_where(Expr::col(UserIden::Username).eq(username))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let user = sqlx::query_as_with::<_, User, _>(&sql, values)
+        .fetch_one(db)
+        .await?;
+    Ok(user)
+}
