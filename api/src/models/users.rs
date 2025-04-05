@@ -3,6 +3,7 @@ use std::fmt;
 use crate::{
     error::ComhairleError,
     routes::auth::{hash_pw, SignupRequest},
+    tools::id::gen_id,
 };
 use chrono::{DateTime, Utc};
 use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
@@ -114,27 +115,44 @@ pub async fn create_user(user: &SignupRequest, db: &PgPool) -> Result<User, Comh
 
 /// Create an annon user
 pub async fn create_annon_user(db: &PgPool) -> Result<User, ComhairleError> {
-    let sudo_random_name: String = ppg::generate().replace(" ", "-");
+    let mut retries = 5;  // Retry up to 5 times to generate a unique username
+    while retries > 0 {
+        let sudo_random_name = gen_id();
 
-    let (sql, values) = Query::insert()
-        .into_table(UserIden::Table)
-        .columns([UserIden::Username, UserIden::AuthType])
-        .values([sudo_random_name.into(), UserAuthType::Annon.into()])
-        .unwrap()
-        .returning(Query::returning().columns([
-            UserIden::AuthType,
-            UserIden::Id,
-            UserIden::Username,
-            UserIden::Password,
-            UserIden::AvatarUrl,
-            UserIden::Email,
-        ]))
-        .build_sqlx(PostgresQueryBuilder);
+        let (sql, values) = Query::insert()
+            .into_table(UserIden::Table)
+            .columns([UserIden::Username, UserIden::AuthType])
+            .values([sudo_random_name.into(), UserAuthType::Annon.into()])
+            .unwrap()
+            .returning(Query::returning().columns([
+                UserIden::AuthType,
+                UserIden::Id,
+                UserIden::Username,
+                UserIden::Password,
+                UserIden::AvatarUrl,
+                UserIden::Email,
+            ]))
+            .build_sqlx(PostgresQueryBuilder);
 
-    let user = sqlx::query_as_with::<_, User, _>(&sql, values)
-        .fetch_one(db)
-        .await?;
-    Ok(user)
+        let user = sqlx::query_as_with::<_, User, _>(&sql, values)
+            .fetch_one(db)
+            .await;
+
+        match user {
+            Ok(user) => return Ok(user),
+            Err(sqlx::Error::Database(db_err)) => {
+                let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
+                if pg_err.code() == "23505" && pg_err.constraint() == Some("username") {
+                    // handle unique constraint violation on random username collision.
+                    retries -= 1;
+                    continue;
+                }
+                return Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)));
+            }
+            Err(e) => return Err(ComhairleError::DatabaseError(e)),
+        }
+    }
+    Err(ComhairleError::DuplicateUsername("too many retires".to_string()))
 }
 
 /// Return a user by ID

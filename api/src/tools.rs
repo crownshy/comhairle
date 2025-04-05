@@ -5,6 +5,7 @@ use crate::error::ComhairleError;
 pub mod heyform;
 pub mod learn;
 pub mod polis;
+pub mod id;
 
 use heyform::HeyFormToolConfig;
 use learn::LearnToolConfig;
