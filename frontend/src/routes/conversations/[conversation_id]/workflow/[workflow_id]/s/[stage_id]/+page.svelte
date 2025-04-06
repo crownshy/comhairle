@@ -7,12 +7,12 @@
 	import StepSelector from '$lib/components/StepSelector.svelte';
 	import type { PageProps } from './$types';
 	import { apiClient } from '$lib/api/client';
-	import { goto } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte';
 	import { report_url, workflow_step_url } from '$lib/urls';
 
 	let { data }: PageProps = $props();
 	let { conversation, step, workflow_steps, user } = data;
+
 
 	async function stepComplete() {
 		try {
@@ -25,10 +25,14 @@
 				headers: { 'Content-Type': 'application/json' }
 			});
 
-			if (workflow_steps[step.step_order + 1]) {
-				goto(workflow_step_url(conversation.id, step.workflow_id, step.step_order + 1));
+			let next_step = workflow_steps.find((ws) => ws.step_order === step!.step_order + 1);
+			if (next_step) {
+				let url = workflow_step_url(conversation.id, step.workflow_id, next_step.step_order);
+				//For some reason goto isnt working here. Need to figure out why
+				window.location.href = url;
 			} else {
-				goto(report_url(conversation.id, step.workflow_id));
+				//For some reason goto isnt working here
+				window.location.href = report_url(conversation.id, step.workflow_id);
 			}
 		} catch (e) {
 			if (e instanceof Error) {
@@ -61,8 +65,9 @@
 				{#if step.tool_config.type === Polis.TOOL_NAME}
 					<Polis.UserUI
 						user_id={user.id}
-						polis_id={step.tool_config.polis_id}
-						polis_url={step.tool_config.polis_url}
+						polis_id={step.tool_config.poll_id}
+						polis_url={step.tool_config.server_url}
+						onDone={stepComplete}
 					/>
 				{/if}
 				{#if step.tool_config.type === HeyForm.TOOL_NAME}
@@ -70,9 +75,7 @@
 						userId={user.id}
 						surveyId={step.tool_config.survey_id}
 						surveyURL={step.tool_config.survey_url}
-						onDone={() => {
-							stepComplete;
-						}}
+						onDone={stepComplete}
 					/>
 				{/if}
 			</div>

@@ -1,4 +1,4 @@
-import { redirect } from "@sveltejs/kit";
+import { isRedirect, redirect } from "@sveltejs/kit";
 import type { PageLoad } from './$types';
 import {apiClient} from "$lib/api/client"
 import { notifications} from '$lib/notifications.svelte';
@@ -11,11 +11,12 @@ export const load: PageLoad = async (event)=>{
 
        let conversation = await apiClient.GetConversation({params:{conversation_id}}) 
        let workflow_steps = await apiClient.ListWorkflowSteps({params:{conversation_id,workflow_id}})
-       let step = workflow_steps.find(ws=>ws.step_order = stepNo);
+       let step = workflow_steps.find(ws=>ws.step_order === stepNo);
        let progress = await apiClient.GetUserProgress({params:{conversation_id,workflow_id }})
 
        let next_undone_step_id = progress.find(p=>p.status !=="done")?.workflow_step_id;
        console.log({progress,workflow_steps})
+       let next_step = workflow_steps.find(ws=>ws.id === next_undone_step_id)!;
 
        //If the current step exists       
        if(step){
@@ -25,8 +26,6 @@ export const load: PageLoad = async (event)=>{
            console.log("current step is done")
            // and there is a later step to complete
            if(next_undone_step_id){
-             // goto that step
-             let next_step = workflow_steps.find(ws=>ws.id === next_undone_step_id)!;
              console.log("next undone step is ", next_step)
              console.log("redirecting to ",workflow_step_url(conversation_id,workflow_id, next_step.step_order))
              redirect(300,workflow_step_url(conversation_id,workflow_id, next_step.step_order))
@@ -43,17 +42,17 @@ export const load: PageLoad = async (event)=>{
        else{
          console.log("failed to find step. Trying to find first not done")
          if(next_undone_step_id){
-           let next_step = workflow_steps.find(ws=>ws.id = next_undone_step_id)!;
            redirect(300,workflow_step_url(conversation_id,workflow_id, next_step.step_order))
          }
        }
 
-       return {conversation, workflow_steps, step }
+       return {conversation, workflow_steps, step}
     }
     //TODO figure out how to type this from the generated api
     catch(e:any){
       /// Throw if error is a redirect
-      if(e.status === 300){
+      if(isRedirect(e)){
+        console.log(e)
         throw e 
       }
       //TODO we probably want some error codes to match on here
