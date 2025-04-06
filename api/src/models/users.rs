@@ -6,6 +6,7 @@ use crate::{
     tools::id::gen_id,
 };
 use chrono::{DateTime, Utc};
+use schemars::JsonSchema;
 use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
@@ -14,7 +15,7 @@ use uuid::Uuid;
 
 /// Defines the type of authentication has been used to create
 /// The user
-#[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone, JsonSchema)]
 #[sqlx(type_name = "TEXT")]
 #[serde(rename_all = "snake_case")]
 pub enum UserAuthType {
@@ -46,7 +47,7 @@ impl fmt::Display for UserAuthType {
 /// User table representation
 /// user is a protected word in postgresql so
 /// we actually use the comahirle_user table
-#[derive(Debug, Deserialize, Serialize, FromRow, Clone)]
+#[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "comhairle_user")]
 pub struct User {
     pub id: Uuid,

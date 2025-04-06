@@ -20,7 +20,7 @@ use rand_core::OsRng;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;
 
 use axum_extra::extract::cookie::{Cookie, CookieJar};
@@ -302,36 +302,49 @@ pub async fn router(_config: &ComhairleConfig, state: Arc<ComhairleState>) -> Ap
         .api_route(
             "/login_annon",
             post_with(login_annon, |op| {
-                op.id("LoginAnnonUser").summary("Login an annon user")
+                op.id("LoginAnnonUser")
+                    .summary("Login an annon user")
+                    .response::<200, Json<User>>()
             }),
         )
         .api_route(
             "/login",
-            post_with(login, |op| op.id("LoginUser").summary("Login a user")),
+            post_with(login, |op| {
+                op.id("LoginUser")
+                    .summary("Login a user")
+                    .response::<200, Json<User>>()
+            }),
         )
         .api_route(
             "/signup",
             post_with(signup, |op| {
                 op.id("SignUp")
                     .summary("Signup a user with email and password")
+                    .response::<201, Json<User>>()
             }),
         )
         .api_route(
             "/signup_annon",
             post_with(signup_annon, |op| {
-                op.id("SignupAnnonUser").summary("Signup and annon user")
+                op.id("SignupAnnonUser")
+                    .summary("Signup and annon user")
+                    .response::<201, Json<User>>()
             }),
         )
         .api_route(
             "/logout",
             post_with(logout, |op| {
-                op.id("LogoutUser").summary("Logout the current user")
+                op.id("LogoutUser")
+                    .summary("Logout the current user")
+                    .response::<200, Json<HashMap<String, String>>>()
             }),
         )
         .api_route(
             "/current_user",
             get_with(current_user, |op| {
-                op.id("CurrentUser").summary("Get the current user")
+                op.id("CurrentUser")
+                    .summary("Get the current user")
+                    .response::<200, Json<User>>()
             }),
         )
         .with_state(state)
