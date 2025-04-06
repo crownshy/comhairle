@@ -216,8 +216,8 @@ pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, C
         .and_where(Expr::col(UserIden::Username).eq(username))
         .build_sqlx(PostgresQueryBuilder);
 
-    let user = sqlx::query_as_with::<_, User, _>(&sql, values)
+    sqlx::query_as_with::<_, User, _>(&sql, values)
         .fetch_one(db)
-        .await?;
-    Ok(user)
+        .await
+        .map_err(|_| ComhairleError::NoUserFound)
 }
