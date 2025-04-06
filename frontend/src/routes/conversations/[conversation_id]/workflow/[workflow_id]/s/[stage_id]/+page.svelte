@@ -5,12 +5,41 @@
 	import ProcessDates from '$lib/components/ProcessDates.svelte';
 	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
 	import StepSelector from '$lib/components/StepSelector.svelte';
+	import type { PageProps } from './$types';
+	import { apiClient } from '$lib/api/client';
+	import { goto } from '$app/navigation';
+	import { notifications } from '$lib/notifications.svelte';
+	import { report_url, workflow_step_url } from '$lib/urls';
 
-	let { data } = $props();
+	let { data }: PageProps = $props();
 	let { conversation, step, workflow_steps, user } = data;
-	console.log({ conversation, step, workflow_steps });
 
-	function stepComplete() {}
+	async function stepComplete() {
+		try {
+			await apiClient.SetUserProgress('done', {
+				params: {
+					workflow_id: step.workflow_id,
+					conversation_id: conversation.id,
+					workflow_step_id: step.id
+				},
+				headers: { 'Content-Type': 'application/json' }
+			});
+
+			if (workflow_steps[step.step_order + 1]) {
+				goto(workflow_step_url(conversation.id, step.workflow_id, step.step_order + 1));
+			} else {
+				goto(report_url(conversation.id, step.workflow_id));
+			}
+		} catch (e) {
+			if (e instanceof Error) {
+				console.warn(e.message);
+			}
+			notifications.send({
+				message: 'Something unexpected happend. Try again shorlty',
+				priority: 'ERROR'
+			});
+		}
+	}
 </script>
 
 {#if conversation && step}

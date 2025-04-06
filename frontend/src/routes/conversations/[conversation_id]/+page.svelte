@@ -1,8 +1,43 @@
 <script lang="ts">
-	let { data } = $props();
+	import type { PageProps } from '../$types.js';
+
+	let { data }: PageProps = $props();
 	let { conversation, workflows } = data;
+
 	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
+	import * as m from '$lib/paraglide/messages';
+	import { apiClient } from '$lib/api/client';
+	import { notifications } from '$lib/notifications.svelte.js';
+	import { goto } from '$app/navigation';
+
+	let firstWorkflowPath = `/conversations/${conversation.id}/workflow/${workflows[0].id}/s/1`;
+
+	async function registerUser() {
+		try {
+			await apiClient.RegisterUserForWorkflow(undefined, {
+				params: { conversation_id: data.conversation.id, workflow_id: data.workflows[0].id }
+			});
+
+			notifications.addFlash({
+				message: `You are part of the "${conversation.title}" conversation!`
+			});
+
+			goto(firstWorkflowPath);
+		} catch (e) {
+			let message;
+
+			if (e instanceof Error) message = e.message;
+			else message = String(e);
+
+			console.warn(`Failed to register user for workflow ${message}`);
+
+			notifications.send({
+				message: 'Failed to sign you up for the conversation, try again later',
+				priority: 'ERROR'
+			});
+		}
+	}
 </script>
 
 {#if conversation}
@@ -20,22 +55,23 @@
 			<div class="relative z-10 ml-12 max-w-2xl text-white">
 				<h1 class="text-5xl font-bold">{conversation.title}</h1>
 				<h2 class="mt-4 text-2xl">{conversation.description}</h2>
-				<Button
-					href={`/conversations/${conversation.id}/workflow/${workflows[0].id}/s/0`}
-					class="mt-5">Join the conversation</Button
-				>
+				{#if data.participation}
+					<Button class="mt-5" href={firstWorkflowPath}>{m.jump_back_in()}</Button>
+				{:else}
+					<Button class="mt-5" onclick={registerUser}>{m.join_the_conversation()}</Button>
+				{/if}
 			</div>
 		</header>
 
 		<article>
-			<h3 class="text-xl font-bold">Intro</h3>
+			<h3 class="text-xl font-bold">{m.intro()}</h3>
 			<p>{conversation.short_description}</p>
 		</article>
 
 		<aside>
-			<h3 class="text-xl font-bold">Other ways to learn about this conversation</h3>
+			<h3 class="text-xl font-bold">{m.other_ways_to_learn_about_this_conversation()}</h3>
 			{#if conversation.video_url}
-				<h4 class="text-l font-bold">Watch</h4>
+				<h4 class="text-l font-bold">{m.watch()}</h4>
 				<iframe
 					width="560"
 					height="315"
@@ -49,7 +85,7 @@
 			{/if}
 
 			{#if conversation.audio_url}
-				<h4 class="text-l font-bold">Listen</h4>
+				<h4 class="text-l font-bold">{m.listen()}</h4>
 				<video controls class="h-[45px] w-full">
 					<source
 						src="https://crownshy.s3.eu-west-2.amazonaws.com/alpha_resources/Fairer+Council+Tax+in+Scotland_+A+Consultation.wav"

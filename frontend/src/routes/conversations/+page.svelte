@@ -8,7 +8,7 @@
 	import Search from './Search.svelte';
 	import { Pager } from '$lib/pagination';
 	import { getSort, setSort, PAGE_SIZE, parseSort, type SortBy } from './utils';
-	import type { Conversation } from '$lib/types.ts';
+	import type { Conversation } from '$lib/api/api';
 	import { page } from '$app/state';
 	import { buttonVariants } from '$lib/components/ui/button';
 	let { data }: { data: { records: Array<Conversation>; total: number } } = $props();

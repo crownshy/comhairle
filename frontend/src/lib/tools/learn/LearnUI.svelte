@@ -3,16 +3,17 @@
 	import Markdown from 'svelte-exmarkdown';
 	import * as m from '$lib/paraglide/messages';
 	import { languageTag } from '$lib/paraglide/runtime.js';
+	import type { Page } from '$lib/api/api';
 
 	let {
 		pages,
 		onDone
 	}: {
-		user_id: string;
-		pages: Array<Array<{ lang: string; type: string; content: string }>>;
+		pages: Array<Page>;
 		onDone: () => void;
 	} = $props();
 
+	console.log({ pages });
 	let currentPageNo = $state(0);
 	let currentPage = $derived(pages[currentPageNo]);
 	let currentPageTranslation = $derived(currentPage.filter((p) => p.lang === languageTag()));

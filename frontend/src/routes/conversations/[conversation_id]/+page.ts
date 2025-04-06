@@ -1,14 +1,19 @@
 import type {PageLoad} from "./$types"
 import { notifications } from "$lib/notifications.svelte";
 import { redirect } from "@sveltejs/kit";
+import {apiClient} from "$lib/api/client"
 
 export const load :PageLoad = async (event)=>{
     let conversation_id = event.params.conversation_id
-    let response = await event.fetch(`/api/conversation/${conversation_id}`);    
-    if(response.ok){
-      let conversation = await response.json()
-      let workflows = await event.fetch(`/api/conversation/${conversation_id}/workflow`).then((r)=>r.json())
-      return {conversation,workflows}
+    try{
+      let conversation = await apiClient.GetConversation({params:{conversation_id}})
+      let workflows = await apiClient.ListWorkflows({params:{conversation_id}});
+
+      let participation = await apiClient.GetUserParticipation({params:{conversation_id, workflow_id:workflows[0].id }})
+
+      return {conversation,workflows,participation}
     }
-    redirect(307,"/")
+    catch(e){
+      redirect(307,"/") 
+    }
 }

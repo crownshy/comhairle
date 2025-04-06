@@ -4,13 +4,17 @@
 	import { ParaglideJS } from '@inlang/paraglide-sveltekit';
 	import '../app.css';
 	import NavBar from '$lib/components/NavBar.svelte';
+	import { afterNavigate } from '$app/navigation';
 	import { notifications, NotificationsToaster } from '$lib/notifications.svelte';
 	let { children, data }: LayoutProps = $props();
-	
+
 	$effect(() => {
 		notifications.listen();
 	});
 
+	afterNavigate(() => {
+		notifications.showFlash();
+	});
 </script>
 
 <ParaglideJS {i18n}>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
-	import type { Conversation, WorkflowStep } from '$lib/types';
+	import type { Conversation, WorkflowStep } from '$lib/api/api';
 	let {
 		conversation,
 		workflow_step

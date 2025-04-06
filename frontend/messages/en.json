@@ -42,5 +42,11 @@
 	"image_url": "Enter a url for the conversation. These should be a good resolution and engaging",
 	"video_url": "If a video intro for the conversation, please enter it here",
 	"is_public": "Should the conversation be shown of the home and search pages?",
-	"is_invite_only": "Should participation in this conversation be by invite only?"
+	"is_invite_only": "Should participation in this conversation be by invite only?",
+	"join_the_conversation":"Join the conversation",
+	"other_ways_to_learn_about_this_conversation":"Other ways to learn about this conversation",
+	"intro":"Intro",
+	"watch":"Watch",
+	"listen":"Listen",
+	"jump_back_in":"Jump back in"
 }

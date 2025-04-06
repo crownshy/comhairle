@@ -8,6 +8,8 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { goto } from '$app/navigation';
 	import { z } from 'zod';
+	import { conversation_url } from '$lib/urls';
+	import { apiClient } from '$lib/api/client';
 
 	let { data } = $props();
 
@@ -27,23 +29,13 @@
 		const result = await validateForm();
 
 		if (result.valid) {
-			let response = await fetch('/api/conversation', {
-				method: 'POST',
-				body: JSON.stringify(result.data),
-				headers: {
-					'Content-Type': 'application/json'
-				}
-			});
-			let convo = await response.json();
-
-			debugger;
-			if (!response.ok) {
-				notifications.send({ message: convo.err });
-			} else {
-				notifications.send({ message: 'Conversastion Created' });
-				setTimeout(() => {
-					goto(`/conversations/${convo.id}`);
-				}, 1000);
+			try {
+				let convo = await apiClient.CreateConversation(result.data);
+				notifications.addFlash({ message: 'Conversastion Created' });
+				goto(conversation_url(convo.id));
+			} catch (e) {
+				console.warn(e);
+				notifications.send({ message: 'Something went wrong creating the conversation' });
 			}
 		}
 	}
@@ -51,7 +43,7 @@
 
 <form onsubmit={handleSubmit} class="space-y-4" method="POST" use:enhance>
 	{#if $errMessage}
-		<p class="text-destructive text-sm">{$errMessage}</p>
+		<p class="text-sm text-destructive">{$errMessage}</p>
 	{/if}
 
 	<Form.Field {form} name="title">
