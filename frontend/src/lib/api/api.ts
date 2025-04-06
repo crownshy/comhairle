@@ -2,6 +2,12 @@ import { makeApi, Zodios, type ZodiosOptions } from "@zodios/core";
 import { z } from "zod";
 
 
+export const AnnonLoginRequest = z.object({ username: z.string() }).passthrough();
+export type AnnonLoginRequest = z.infer<typeof AnnonLoginRequest>;
+export const UserAuthType = z.enum(["annon", "email_password", "scot_account"]);
+export type UserAuthType = z.infer<typeof UserAuthType>;
+export const User = z.object({ auth_type: UserAuthType, avatar_url: z.union([z.string(), z.null()]).optional(), email: z.union([z.string(), z.null()]).optional(), id: z.string().uuid(), password: z.union([z.string(), z.null()]).optional(), username: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type User = z.infer<typeof User>;
 export const LoginRequest = z.object({ email: z.string(), password: z.string() }).passthrough();
 export type LoginRequest = z.infer<typeof LoginRequest>;
 export const SignupRequest = z.object({ avatar_url: z.union([z.string(), z.null()]).optional(), email: z.string(), password: z.string(), username: z.string() }).passthrough();
@@ -49,6 +55,9 @@ export type UserProgress = z.infer<typeof UserProgress>;
 
 
 export const schemas = {
+	AnnonLoginRequest,
+	UserAuthType,
+	User,
 	LoginRequest,
 	SignupRequest,
 	created_after,
@@ -79,7 +88,7 @@ const endpoints = makeApi([
 		path: "/auth/current_user",
 		alias: "CurrentUser",
 		requestFormat: "json",
-		response: z.void(),
+		response: User,
 	},
 	{
 		method: "post",
@@ -94,14 +103,29 @@ const endpoints = makeApi([
 				schema: LoginRequest
 			},
 		],
-		response: z.void(),
+		response: User,
+	},
+	{
+		method: "post",
+		path: "/auth/login_annon",
+		alias: "LoginAnnonUser",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				description: `Expected payload for an annon login request`,
+				type: "Body",
+				schema: z.object({ username: z.string() }).passthrough()
+			},
+		],
+		response: User,
 	},
 	{
 		method: "post",
 		path: "/auth/logout",
 		alias: "LogoutUser",
 		requestFormat: "json",
-		response: z.void(),
+		response: z.record(z.string()),
 	},
 	{
 		method: "post",
@@ -116,14 +140,14 @@ const endpoints = makeApi([
 				schema: SignupRequest
 			},
 		],
-		response: z.void(),
+		response: User,
 	},
 	{
 		method: "post",
 		path: "/auth/signup_annon",
 		alias: "SignupAnnonUser",
 		requestFormat: "json",
-		response: z.void(),
+		response: User,
 	},
 	{
 		method: "get",
