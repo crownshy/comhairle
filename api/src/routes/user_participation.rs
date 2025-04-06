@@ -56,7 +56,7 @@ pub async fn get_user_participation(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Path((_, workflow_id)): Path<(Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<UserParticipation>), ComhairleError> {
+) -> Result<(StatusCode, Json<Option<UserParticipation>>), ComhairleError> {
     let user_participation = user_participation::get(&state.db, &user.id, &workflow_id).await?;
     Ok((StatusCode::OK, Json(user_participation)))
 }
@@ -68,6 +68,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(register_user_for_workflow, |op| {
                 op.id("RegisterUserForWorkflow")
                     .summary("Register the currently logged in user for this workflow")
+                    .response::<201, Json<UserParticipation>>()
             }),
         )
         .api_route(
@@ -75,6 +76,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             delete_with(deregister_user_on_workflow, |op| {
                 op.id("UnregisterUserForWorkflow")
                     .summary("Unregisters the current user on this workflow")
+                    .response::<200, Json<UserParticipation>>()
             }),
         )
         .api_route(
@@ -82,6 +84,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(get_user_participation, |op| {
                 op.id("GetUserParticipation")
                     .summary("Returns the status of the current user on this workflow")
+                    .response::<200, Json<Option<UserParticipation>>>()
             }),
         )
         .with_state(state)

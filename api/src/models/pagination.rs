@@ -104,7 +104,7 @@ fn parse_sort_options_to_json(order_str: &str) -> Value {
 }
 
 #[derive(Serialize, Debug, JsonSchema)]
-pub struct PaginatedResults<T> {
+pub struct PaginatedResults<T: JsonSchema> {
     pub total: i32,
     pub records: Vec<T>,
 }
@@ -116,7 +116,7 @@ impl PageOptions {
         base_query: SelectStatement,
     ) -> Result<PaginatedResults<T>, sqlx::Error>
     where
-        T: for<'r> FromRow<'r, sqlx::postgres::PgRow> + Send + Unpin,
+        T: for<'r> FromRow<'r, sqlx::postgres::PgRow> + Send + Unpin + JsonSchema,
     {
         // Clone the base query to generate a count query
         let count_query = sea_query::Query::select()

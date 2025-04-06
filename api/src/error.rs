@@ -71,6 +71,9 @@ pub enum ComhairleError {
 
     #[error("No user logged in")]
     NoLogedInUser,
+
+    #[error("User is not signed up to participate in the conversation")]
+    UserIsNotParticipatingInTheConversation,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]

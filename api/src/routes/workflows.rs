@@ -78,6 +78,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(create_workflow, |op| {
                 op.id("CreateWorkflow")
                     .summary("Create a new workflow on the conversation")
+                    .response::<201, Json<Workflow>>()
             }),
         )
         .api_route(
@@ -85,18 +86,23 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(list_workflows, |op| {
                 op.id("ListWorkflows")
                     .summary("List all workflows on this converastion")
+                    .response::<200, Json<Vec<Workflow>>>()
             }),
         )
         .api_route(
             "/{workflow_id}",
             get_with(get_workflow, |op| {
-                op.id("GetWorkflow").summary("Get the specified workflow")
+                op.id("GetWorkflow")
+                    .summary("Get the specified workflow")
+                    .response::<200, Json<Workflow>>()
             }),
         )
         .api_route(
             "/{workflow_id}",
             put_with(update_workflow, |op| {
-                op.id("UpdateWorkflow").summary("Update the workflow")
+                op.id("UpdateWorkflow")
+                    .summary("Update the workflow")
+                    .response::<201, Json<Workflow>>()
             }),
         )
         .api_route(
@@ -104,6 +110,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             delete_with(delete_workflow, |op| {
                 op.id("DeleteWorkflow")
                     .summary("Delete the workflow and it's associated workflow steps")
+                    .response::<201, Json<Workflow>>()
             }),
         )
         .with_state(state)

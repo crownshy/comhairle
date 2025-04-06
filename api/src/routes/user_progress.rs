@@ -17,7 +17,7 @@ use crate::{error::ComhairleError, models::user_progress::UserProgress};
 
 use super::auth::RequiredUser;
 
-/// Create workflow handler
+/// Get the progress for a user on a workflow step
 async fn get_user_progress_for_workflow(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -32,6 +32,7 @@ async fn get_user_progress_for_workflow(
     Ok((StatusCode::OK, Json(user_progress)))
 }
 
+/// Set the progress for the current user on a workflow step
 pub async fn update_user_progress(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -50,6 +51,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(get_user_progress_for_workflow, |op| {
                 op.id("GetUserProgress")
                     .summary("Get the users progress on this workflow")
+                    .response::<200, Json<Vec<UserProgress>>>()
             }),
         )
         .api_route(
@@ -57,6 +59,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             put_with(update_user_progress, |op| {
                 op.id("SetUserProgress")
                     .summary("Set the user progress for a given workflow step")
+                    .response::<200, Json<UserProgress>>()
             }),
         )
         .with_state(state)

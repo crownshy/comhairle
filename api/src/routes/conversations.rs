@@ -102,6 +102,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("CreateConversation")
                     .summary("Create a new conversation")
                     .description("Creates a new conversation")
+                    .response::<201, Json<Conversation>>()
             }),
         )
         .api_route(
@@ -110,6 +111,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("ListConverastions")
                     .summary("List conversations with optional filtering and ordering")
                     .description("List conversations")
+                    .response::<200, Json<PaginatedResults<Conversation>>>()
             }),
         )
         .api_route(
@@ -118,6 +120,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("GetConversation")
                     .summary("Get a conversation by id or slug")
                     .description("Get a converation by id or slug")
+                    .response::<200, Json<Conversation>>()
             }),
         )
         .api_route(
@@ -126,6 +129,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("UpdateConversation")
                     .summary("Update a conversation")
                     .description("Update a conversation")
+                    .response::<200, Json<Conversation>>()
             }),
         )
         .api_route(
@@ -134,6 +138,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("DeleteConversation")
                     .summary("Delete the conversation and all related content")
                     .description("Delete the conversation and all related content")
+                    .response::<200, Json<Conversation>>()
             }),
         )
         .with_state(state)

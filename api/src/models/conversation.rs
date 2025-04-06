@@ -1,4 +1,3 @@
-use aide::OperationIo;
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
@@ -14,7 +13,7 @@ use sea_query_binder::SqlxBinder;
 
 use super::pagination::{Order, PageOptions, PaginatedResults};
 
-#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone)]
+#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "conversation")]
 #[partially(derive(Deserialize, Debug, JsonSchema))]
 pub struct Conversation {

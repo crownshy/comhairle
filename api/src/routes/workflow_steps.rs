@@ -6,7 +6,7 @@ use aide::axum::ApiRouter;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    Json, Router,
+    Json,
 };
 use tracing::info;
 use uuid::Uuid;
@@ -16,6 +16,9 @@ use crate::{
     models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep, WorkflowStep},
     ComhairleState,
 };
+
+use super::auth::RequiredUser;
+use crate::models::user_participation;
 
 /// Create workflow handler
 async fn create_workflow_step(
@@ -42,7 +45,14 @@ async fn update_workflow_step(
 async fn list_workflows_step(
     State(state): State<Arc<ComhairleState>>,
     Path((_, workflow_id)): Path<(Uuid, Uuid)>,
+    RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<Vec<WorkflowStep>>), ComhairleError> {
+    // Check to see if the user is a participant on this conversation
+    let participation = user_participation::get(&state.db, &user.id, &workflow_id)
+        .await
+        .map_err(|_| ComhairleError::UserIsNotParticipatingInTheConversation)?;
+
+    println!("{participation:#?}");
     let workflows = workflow_step::list(&state.db, workflow_id).await?;
     Ok((StatusCode::OK, Json(workflows)))
 }
@@ -51,6 +61,7 @@ async fn list_workflows_step(
 async fn get_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     Path((_, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
+    RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
     info!("Attempting to get workflow step  {workflow_step_id:#?}");
     let workflow = workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
@@ -74,6 +85,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(create_workflow_step, |op| {
                 op.id("CreateWorkflowStep")
                     .summary("Create a new workflow step")
+                    .response::<201, Json<WorkflowStep>>()
             }),
         )
         .api_route(
@@ -81,6 +93,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(list_workflows_step, |op| {
                 op.id("ListWorkflowSteps")
                     .summary("List the workflow steps associated with this workflow")
+                    .response::<200, Json<Vec<WorkflowStep>>>()
             }),
         )
         .api_route(
@@ -88,6 +101,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(get_workflow_step, |op| {
                 op.id("GetWorkflowStep")
                     .summary("Get the specified workflow step")
+                    .response::<200, Json<WorkflowStep>>()
             }),
         )
         .api_route(
@@ -95,6 +109,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             put_with(update_workflow_step, |op| {
                 op.id("UpdateWorkflowStep")
                     .summary("Update the specifed workflow step")
+                    .response::<200, Json<WorkflowStep>>()
             }),
         )
         .api_route(
@@ -102,6 +117,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             delete_with(delete_workflow_step, |op| {
                 op.id("DeleteWorkflowStep")
                     .summary("Delete the specified workflow step")
+                    .response::<200, Json<WorkflowStep>>()
             }),
         )
         .with_state(state)
