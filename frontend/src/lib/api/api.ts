@@ -30,6 +30,8 @@ export const Workflow = z.object({ conversation_id: z.string().uuid(), created_a
 export type Workflow = z.infer<typeof Workflow>;
 export const CreateWorkflow = z.object({ description: z.string(), is_active: z.boolean(), is_public: z.boolean(), name: z.string() }).passthrough();
 export type CreateWorkflow = z.infer<typeof CreateWorkflow>;
+export const WorkflowStats = z.object({ total_users: z.number().int(), users_completed_step: z.record(z.number().int()) }).passthrough();
+export type WorkflowStats = z.infer<typeof WorkflowStats>;
 export const PartialWorkflow = z.object({ description: z.union([z.string(), z.null()]), is_active: z.union([z.boolean(), z.null()]), is_public: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialWorkflow = z.infer<typeof PartialWorkflow>;
 export const ActivationRule = z.literal("manual");
@@ -69,6 +71,7 @@ export const schemas = {
 	PartialConversation,
 	Workflow,
 	CreateWorkflow,
+	WorkflowStats,
 	PartialWorkflow,
 	ActivationRule,
 	LocalisedPage,
@@ -341,6 +344,13 @@ const endpoints = makeApi([
 			},
 		],
 		response: UserProgress,
+	},
+	{
+		method: "get",
+		path: "/conversation/:conversation_id/workflow/:workflow_id/stats",
+		alias: "GetWorkflowStats",
+		requestFormat: "json",
+		response: WorkflowStats,
 	},
 	{
 		method: "get",
