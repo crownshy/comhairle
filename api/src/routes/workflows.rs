@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
-    models::workflow::{self, CreateWorkflow, PartialWorkflow, Workflow},
+    models::workflow::{self, CreateWorkflow, PartialWorkflow, Workflow, WorkflowStats},
     ComhairleState,
 };
 
@@ -30,6 +30,14 @@ async fn create_workflow(
     info!("Attempting to create workflow {new_workflow:#?}");
     let workflow = workflow::create(&state.db, &new_workflow, conversation_id, user.id).await?;
     Ok((StatusCode::CREATED, Json(workflow)))
+}
+
+async fn workflow_stats(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_, workflow_id)): Path<(Uuid, Uuid)>,
+) -> Result<(StatusCode, Json<WorkflowStats>), ComhairleError> {
+    let stats = workflow::stats(&state.db, workflow_id).await?;
+    Ok((StatusCode::OK, Json(stats)))
 }
 
 /// Update workflow handler
@@ -87,6 +95,14 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("ListWorkflows")
                     .summary("List all workflows on this converastion")
                     .response::<200, Json<Vec<Workflow>>>()
+            }),
+        )
+        .api_route(
+            "/{workflow_id}/stats",
+            get_with(workflow_stats, |op| {
+                op.id("GetWorkflowStats")
+                    .summary("Gets participation stats for a workflow")
+                    .response::<201, Json<WorkflowStats>>()
             }),
         )
         .api_route(
