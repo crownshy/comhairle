@@ -139,10 +139,10 @@ mod tests {
         config, setup_server,
         test_helpers::{extract, UserSession},
     };
-    use axum::http::StatusCode;
+    use axum::{body::Body, http::StatusCode};
     use serde_json::json;
     use sqlx::PgPool;
-    use std::error::Error;
+    use std::{collections::HashMap, error::Error};
 
     #[sqlx::test]
     fn should_be_able_to_create_a_workflow_on_a_conversatin(
@@ -382,6 +382,77 @@ mod tests {
         assert_eq!(status, StatusCode::OK, "It should still be there");
         let name: String = extract("name", &workflow);
         assert_eq!(name, "new_name", "Should have an updated name");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_get_the_correct_stats_for_a_workflow(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let config = config::load()?;
+        let app = setup_server(config, pool).await?;
+
+        let mut session = UserSession::new(
+            "test_user".into(),
+            "test_password".into(),
+            "test.user@gmail.com".into(),
+        );
+
+        session.signup(&app).await?;
+
+        let (_, conversation, _) = session.create_random_conversation(&app).await?;
+
+        let id: String = extract("id", &conversation);
+
+        let (_, workflow, _) = session.create_random_workflow(&app, &id).await?;
+
+        let workflow_id: String = extract("id", &workflow);
+
+        let steps = session
+            .create_random_workflow_steps(&app, &id, &workflow_id, 10)
+            .await?;
+
+        for i in 0..10 {
+            let mut session = UserSession::new(
+                &format!("test_user_{i}"),
+                "test_password".into(),
+                &format!("test.user_{i}@gmail.com"),
+            );
+            session.signup(&app).await?;
+
+            let url = format!("/conversation/{id}/workflow/{workflow_id}/participation");
+            session.post(&app, &url, Body::empty()).await?;
+
+            for j in 0..i {
+                let workflow_step_id: String = extract("id", steps.get(j).unwrap());
+                let url = format!(
+                    "/conversation/{id}/workflow/{workflow_id}/progress/{workflow_step_id}"
+                );
+
+                session
+                    .put(&app, &url, json!("done").to_string().into())
+                    .await?;
+            }
+        }
+
+        let url = format!("/conversation/{id}/workflow/{workflow_id}/stats");
+
+        let (code, stats, _) = session.get(&app, &url).await?;
+        assert_eq!(code, StatusCode::OK, "should get response");
+        let total: i32 = extract("total_users", &stats);
+        assert_eq!(total, 10, "should get correct count of participatnts");
+
+        let step_completion: HashMap<String, i32> = extract("users_completed_step", &stats);
+
+        for (index, step) in steps.iter().enumerate() {
+            let id: String = extract("id", &step);
+            let count = step_completion.get(&id).unwrap();
+
+            assert_eq!(
+                index as i32,
+                9 - count,
+                "should get the correct count for each step"
+            );
+        }
 
         Ok(())
     }

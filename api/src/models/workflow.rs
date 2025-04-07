@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
+use sea_query::{enum_def, Expr, Order, OrderedStatement, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
@@ -180,17 +180,26 @@ pub struct WorkflowStats {
 /// Calculate stastistics for the workflow
 pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, ComhairleError> {
     let (sql, values) = Query::select()
-        .from(UserProgressIden::Table)
-        .group_by_columns([UserProgressIden::WorkflowStepId])
-        .column(UserProgressIden::WorkflowStepId)
-        .expr(Expr::col(UserProgressIden::Id).count())
+        .from(WorkflowStepIden::Table)
+        .column((WorkflowStepIden::Table, WorkflowStepIden::Id))
+        .expr(Expr::cust(
+            "COUNT(CASE WHEN user_progress.status = 'done' THEN 1 END)::INT as count",
+        ))
         .join(
-            sea_query::JoinType::InnerJoin,
-            WorkflowStepIden::Table,
-            Expr::col((WorkflowStepIden::Table, WorkflowStepIden::Id))
-                .equals((UserProgressIden::Table, UserProgressIden::WorkflowStepId)),
+            sea_query::JoinType::LeftJoin,
+            UserProgressIden::Table,
+            Expr::col((UserProgressIden::Table, UserProgressIden::WorkflowStepId))
+                .equals((WorkflowStepIden::Table, WorkflowStepIden::Id)),
         )
-        .and_where(Expr::col((WorkflowStepIden::Table, WorkflowStepIden::Id)).eq(workflow_id))
+        .and_where(
+            Expr::col((WorkflowStepIden::Table, WorkflowStepIden::WorkflowId)).eq(workflow_id),
+        )
+        .group_by_col((WorkflowStepIden::Table, WorkflowStepIden::Id))
+        .group_by_col(WorkflowStepIden::StepOrder)
+        .order_by(
+            (WorkflowStepIden::Table, WorkflowStepIden::StepOrder),
+            Order::Asc,
+        )
         .to_owned()
         .build_sqlx(PostgresQueryBuilder);
 
@@ -202,7 +211,7 @@ pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, Comh
 
     let (sql, values) = Query::select()
         .from(UserParticipationIden::Table)
-        .expr(Expr::col(UserParticipationIden::Id).count())
+        .expr(Expr::cust("COUNT(*)::INT as count"))
         .and_where(Expr::col(UserParticipationIden::WorkflowId).eq(workflow_id))
         .to_owned()
         .build_sqlx(PostgresQueryBuilder);
