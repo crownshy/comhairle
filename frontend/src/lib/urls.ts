@@ -11,5 +11,5 @@ export function workflow_step_url(conversation_id:string, workflow_id:string, st
 }
 
 export function report_url(conversation_id:string, workflow_id:string){
-  return workflow_url(conversation_id,workflow_id) +"/report"
+  return conversation_url(conversation_id) +"/report"
 }
