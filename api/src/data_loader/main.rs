@@ -32,6 +32,8 @@ struct Args {
 async fn empty_db(pool: &PgPool) -> Result<(), Box<dyn Error>> {
     // Disconnect any active connections to the target database (Postgres-specific)
     for table in [
+        "user_participation",
+        "user_progress",
         "workflow_step",
         "workflow",
         "conversation",
