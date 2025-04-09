@@ -15,13 +15,9 @@ mod test_helpers;
 
 use std::sync::Arc;
 
-use axum::{http::Method, Extension, Json, Router};
+use axum::{http::Method, Extension, Router};
 
-use aide::{
-    axum::ApiRouter,
-    openapi::{OpenApi, Tag},
-    transform::TransformOpenApi,
-};
+use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
 
 use config::ComhairleConfig;
 use db::run_migrations;
@@ -29,10 +25,14 @@ use error::ComhairleError;
 use sqlx_postgres::PgPool;
 use tower_http::cors::CorsLayer;
 
+use aws_config::meta::region::RegionProviderChain;
+use aws_sdk_s3::config::Region;
+
 #[derive(Clone)]
 pub struct ComhairleState {
     pub db: PgPool,
     pub config: ComhairleConfig,
+    pub s3_client: aws_sdk_s3::Client,
 }
 
 fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
@@ -75,10 +75,17 @@ pub async fn setup_server(
     // Run migrations
     run_migrations(&db).await?;
 
+    let region_provider =
+        RegionProviderChain::first_try(Region::new("eu-west-2")).or_default_provider();
+
+    let aws_config = aws_config::from_env().region(region_provider).load().await;
+
+    let s3_client = aws_sdk_s3::Client::new(&aws_config);
     // Construct shared state
     let state = Arc::new(ComhairleState {
         db,
         config: config.clone(),
+        s3_client,
     });
     let auth_router = routes::auth::router(&config, state.clone()).await;
 
@@ -101,7 +108,8 @@ pub async fn setup_server(
                     .nest_api_service(
                         "/{workflow_id}/progress",
                         routes::user_progress::router(state.clone()),
-                    ),
+                    )
+                    .nest_api_service("/resource", routes::resources::router(state.clone())),
             ),
         )
         .nest_api_service("/docs", docs_routes(state.clone()))

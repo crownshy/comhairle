@@ -74,6 +74,15 @@ pub enum ComhairleError {
 
     #[error("User is not signed up to participate in the conversation")]
     UserIsNotParticipatingInTheConversation,
+
+    #[error("Failed to get a presigned upload url {0}")]
+    FailedToGetUploadPresign(String),
+
+    #[error("Failed to get a presigned download url {0}")]
+    FailedToGetDownloadPresign(String),
+
+    #[error("Failed to get resource {0}")]
+    NoResourceFoundForId(Uuid),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
