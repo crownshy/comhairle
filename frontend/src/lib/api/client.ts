@@ -1,8 +1,23 @@
-import {createApiClient} from "./api"
+import {createApiClient as createApi} from "./api"
 
-//TODO make this URL configurable
-export const apiClient = createApiClient("http://localhost:5173/api/",{
-  axiosConfig:{
-    withCredentials:true
-  }
-})
+export const createApiClient = (baseUrl:string, authToken:string | undefined, source:string)=>{
+
+  let api = createApi(baseUrl,{
+    axiosConfig:{
+      withCredentials:true
+    }
+  })
+
+	api.axios.interceptors.request.use(config=>{ 
+	  if(source==="server"){
+  	  if(authToken){
+    		config.headers['Cookie'] = `auth-token=${authToken}`;
+  		}
+		}
+		return config
+	})
+
+	return api  
+}
+
+export const apiClient = createApiClient("http://localhost:5173/api", null , "client")

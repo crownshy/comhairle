@@ -44,6 +44,8 @@ class NotificationsManager {
 	}
 
 	public addFlash(opts: SendOpts){
+		console.log("ADDING FLASH ", sessionStorage)
+		if(!sessionStorage) return;
 		let flashString = sessionStorage.getItem('comhairle_flash_notfifications');
 		let flash;
 		if(flashString){
@@ -56,6 +58,7 @@ class NotificationsManager {
 	}
 
 	public showFlash(){
+		if(!sessionStorage) return;
 		let flashString = sessionStorage.getItem('comhairle_flash_notfifications');
 		if (flashString) {
 			let flash = FlashString.parse(JSON.parse(flashString))

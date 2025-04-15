@@ -40,11 +40,13 @@ export const LocalisedPage = z.object({ content: z.string(), type: z.literal("ma
 export type LocalisedPage = z.infer<typeof LocalisedPage>;
 export const Page = z.array(LocalisedPage);
 export type Page = z.infer<typeof Page>;
-export const ToolConfig = z.union([z.object({ admin_password: z.string(), admin_user: z.string(), poll_id: z.string(), server_url: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ survey_id: z.string(), survey_url: z.string(), type: z.literal("heyform") }).passthrough()]);
+export const ToolConfig = z.union([z.object({ admin_password: z.string(), admin_user: z.string(), poll_id: z.string(), server_url: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ survey_id: z.string(), survey_url: z.string(), type: z.literal("heyform") }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough()]);
 export type ToolConfig = z.infer<typeof ToolConfig>;
 export const WorkflowStep = z.object({ activation_rule: ActivationRule, created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_offline: z.boolean(), name: z.string(), step_order: z.number().int(), tool_config: ToolConfig, updated_at: z.string().datetime({ offset: true }), workflow_id: z.string().uuid() }).passthrough();
 export type WorkflowStep = z.infer<typeof WorkflowStep>;
-export const CreateWorkflowStep = z.object({ activation_rule: ActivationRule, description: z.string(), is_offline: z.boolean(), name: z.string(), step_order: z.number().int(), tool_config: ToolConfig }).passthrough();
+export const ToolSetup = z.union([z.object({ topic: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ type: z.literal("heyform") }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stoies") }).passthrough()]);
+export type ToolSetup = z.infer<typeof ToolSetup>;
+export const CreateWorkflowStep = z.object({ activation_rule: ActivationRule, description: z.string(), is_offline: z.boolean(), name: z.string(), step_order: z.number().int(), tool_setup: ToolSetup }).passthrough();
 export type CreateWorkflowStep = z.infer<typeof CreateWorkflowStep>;
 export const PartialWorkflowStep = z.object({ activation_rule: z.union([ActivationRule, z.null()]), description: z.union([z.string(), z.null()]), is_offline: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]), step_order: z.union([z.number(), z.null()]), tool_config: z.union([ToolConfig, z.null()]) }).partial().passthrough();
 export type PartialWorkflowStep = z.infer<typeof PartialWorkflowStep>;
@@ -54,6 +56,12 @@ export const ProgressStatus = z.enum(["not_started", "in_progress", "done"]);
 export type ProgressStatus = z.infer<typeof ProgressStatus>;
 export const UserProgress = z.object({ created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), status: ProgressStatus, updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid(), workflow_step_id: z.string().uuid() }).passthrough();
 export type UserProgress = z.infer<typeof UserProgress>;
+export const MediaType = z.enum(["Video", "Image", "Text"]);
+export type MediaType = z.infer<typeof MediaType>;
+export const ResourceSource = z.enum(["S3", "Url"]);
+export type ResourceSource = z.infer<typeof ResourceSource>;
+export const CreateResource = z.object({ description: z.string(), media_type: MediaType, name: z.string(), storage_type: ResourceSource, url: z.string() }).passthrough();
+export type CreateResource = z.infer<typeof CreateResource>;
 
 
 export const schemas = {
@@ -78,11 +86,15 @@ export const schemas = {
 	Page,
 	ToolConfig,
 	WorkflowStep,
+	ToolSetup,
 	CreateWorkflowStep,
 	PartialWorkflowStep,
 	UserParticipation,
 	ProgressStatus,
 	UserProgress,
+	MediaType,
+	ResourceSource,
+	CreateResource,
 };
 
 const endpoints = makeApi([
@@ -402,6 +414,37 @@ const endpoints = makeApi([
 		response: WorkflowStep,
 	},
 	{
+		method: "post",
+		path: "/conversation/:conversation_id/workflow/resource/resource",
+		alias: "CreateResource",
+		description: `Get resource by id`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: CreateResource
+			},
+		],
+		response: z.void(),
+	},
+	{
+		method: "get",
+		path: "/conversation/:conversation_id/workflow/resource/resource/:id",
+		alias: "GetResource",
+		description: `Get resource by id`,
+		requestFormat: "json",
+		response: z.void(),
+	},
+	{
+		method: "post",
+		path: "/conversation/:conversation_id/workflow/resource/upload_request",
+		alias: "UploadRequst",
+		description: `Request an upload url for a resource`,
+		requestFormat: "json",
+		response: z.void(),
+	},
+	{
 		method: "get",
 		path: "/docs",
 		alias: "getDocs",
@@ -424,6 +467,76 @@ const endpoints = makeApi([
 		description: `This documentation page.`,
 		requestFormat: "json",
 		response: z.void(),
+	},
+	{
+		method: "get",
+		path: "/tools/polis/admin_login",
+		alias: "PolisAdminLogin",
+		description: `Used to login the current user to the specified workflow id polis`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "workflow_step_id",
+				type: "Query",
+				schema: z.string().uuid()
+			},
+		],
+		response: z.string(),
+	},
+	{
+		method: "get",
+		path: "/user/owned_conversations",
+		alias: "GetOwnedConversations",
+		description: `Gets a list of the conversations a user owns`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "created_after",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "created_before",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "is_complete",
+				type: "Query",
+				schema: is_complete
+			},
+			{
+				name: "is_invite_only",
+				type: "Query",
+				schema: is_complete
+			},
+			{
+				name: "is_public",
+				type: "Query",
+				schema: is_complete
+			},
+			{
+				name: "owner_id",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "title",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "limit",
+				type: "Query",
+				schema: limit
+			},
+			{
+				name: "offset",
+				type: "Query",
+				schema: limit
+			},
+		],
+		response: PaginatedResults_for_Conversation,
 	},
 ]);
 

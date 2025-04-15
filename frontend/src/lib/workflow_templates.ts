@@ -1,0 +1,109 @@
+
+const basic_learn_config={
+        "type":"learn",
+        "pages":[[
+          {
+            content:"#Page 1 \n\n",
+            lang:"en",
+            type:"markdown"
+          },
+          
+          {
+            content:"#Leathanach 1 \n\n",
+            lang:"gd",
+            type:"markdown"
+          }
+        ],[
+            
+          {
+            content:"#Page 2 \n\n",
+            lang:"en",
+            type:"markdown"
+          },
+          
+          {
+            content:"#Leathanach 2 \n\n",
+            lang:"gd",
+            type:"markdown"
+          }
+          ]]
+}
+
+const basic_polis_config={  
+  "type":"polis",
+  "topic": "new polis poll"
+}
+
+const basic_survey_config={}
+
+export const workflow_templates={
+  "learn_polis":[
+    {
+      "name": "Learn about the topic",
+      "description":"Before we can hear what you think, we want to tell you a bit more about the topic at hand",
+      "is_offline": false,
+      "activation_rule":"manual",
+      "step_order":1,
+      "tool_setup":basic_learn_config
+    },
+    {
+      "name":"Tell us what you think",
+      "description": "Tell us what you think bellow and vote on what others thing",
+      "is_offline":false,
+      "activation_rule":"manual",
+      "step_order":2,
+      tool_setup: basic_polis_config
+    }
+    
+  ],
+  "learn_survey":[
+    {
+      "name": "Learn about the topic",
+      "description":"Before we can hear what you think, we want to tell you a bit more about the topic at hand",
+      "is_offline": false,
+      "activation_rule":"manual",
+      "step_order":1,
+      "tool_setup":basic_learn_config
+    },
+    
+    {
+      "name":"Take a short survey",
+      "description": "Take a short survey about your views",
+      "is_offline":false,
+      "activation_rule":"manual",
+      "step_order":2,
+      tool_setup: basic_survey_config
+    }
+  ],
+  "learn_survey_polis":[
+    
+    {
+      "name": "Learn about the topic",
+      "description":"Before we can hear what you think, we want to tell you a bit more about the topic at hand",
+      "is_offline": false,
+      "activation_rule":"manual",
+      "step_order":1,
+      "tool_setup":basic_learn_config
+    },
+    
+    {
+      "name":"Take a short survey",
+      "description": "Take a short survey about your views",
+      "is_offline":false,
+      "activation_rule":"manual",
+      "step_order":2,
+      tool_setup: basic_survey_config
+    },
+
+    {
+      "name":"Tell us what you think",
+      "description": "Tell us what you think bellow and vote on what others thing",
+      "is_offline":false,
+      "activation_rule":"manual",
+      "step_order":3,
+      tool_setup: basic_polis_config
+    }
+    
+  ],
+  "empty":[]
+}

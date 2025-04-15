@@ -4,7 +4,6 @@
 	import * as m from '$lib/paraglide/messages';
 	import { languageTag } from '$lib/paraglide/runtime.js';
 	import type { Page } from '$lib/api/api';
-
 	let {
 		pages,
 		onDone
@@ -13,7 +12,6 @@
 		onDone: () => void;
 	} = $props();
 
-	console.log({ pages });
 	let currentPageNo = $state(0);
 	let currentPage = $derived(pages[currentPageNo]);
 	let currentPageTranslation = $derived(currentPage.filter((p) => p.lang === languageTag()));
@@ -25,8 +23,8 @@
 </script>
 
 {#if content}
-	<article class="prose overflow-y-auto">
-		<Markdown md={JSON.parse(content)} />
+	<article class="prose max-h-[40vh] overflow-y-auto">
+		<Markdown md={content} />
 	</article>
 {:else}
 	<h1>Sorry this page is currently not avaliable in this language</h1>

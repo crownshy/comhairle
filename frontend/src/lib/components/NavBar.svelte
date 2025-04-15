@@ -2,6 +2,7 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import Logo from '$lib/assets/comhairle_logo.png';
 	import { ProfileMenu, LoginButtons } from '$lib/profile';
+	import LanguageSelector from '$lib/components/LanguageSelector.svelte';
 	import * as m from '$lib/paraglide/messages';
 	let links = [
 		{
@@ -26,9 +27,9 @@
 	let { user } = $props();
 </script>
 
-<nav class="fixed z-10 w-full bg-white p-4 shadow-md">
+<nav class="fixed z-10 flex w-full flex-col bg-white p-4 shadow-md">
 	<div class="container flex items-center justify-between">
-		<div class="align-center flex flex-row items-center">
+		<div class="align-center flex flex-row items-center gap-4">
 			<img src={Logo} alt="Comhairle Logo" />
 			<a href="/" class="invisible text-xl font-bold lg:visible">Comhairle</a>
 		</div>
@@ -40,14 +41,17 @@
 			{/each}
 		</div>
 
-		<div class="hidden md:flex">
-			<ProfileMenu {user} />
-		</div>
+		<div class="flex flex-row gap-4">
+			<LanguageSelector />
+			<div class="hidden md:flex">
+				<ProfileMenu {user} />
+			</div>
 
-		<!-- Mobile Menu Button -->
-		<Button class="md:hidden" on:click={() => (isOpen = !isOpen)}>
-			{isOpen ? 'Close' : 'Menu'}
-		</Button>
+			<!-- Mobile Menu Button -->
+			<Button class="md:hidden" on:click={() => (isOpen = !isOpen)}>
+				{isOpen ? 'Close' : 'Menu'}
+			</Button>
+		</div>
 	</div>
 
 	<!-- Mobile Navigation -->
@@ -57,7 +61,6 @@
 				{#each links as link}
 					<a href={link.href} class="block px-4 py-2 text-gray-700 hover:text-black">{link.name}</a>
 				{/each}
-
 				{#if user}
 					<form method="POST" action="/auth/logout">
 						<Button

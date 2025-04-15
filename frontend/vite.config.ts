@@ -17,6 +17,12 @@ export default defineConfig({
 				changeOrigin: true,
 				rewrite: (path) => path.replace(/^\/api/, '')
 			}
+			,
+			"/proxy/polis":{
+				target:'https://poliscommunity.crown-shy.com',
+				changeOrigin:false,
+				rewrite: (path) => path.replace(/^\/proxy\/polis/, '')
+			}
 		}
 	},
 	test: {

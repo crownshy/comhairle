@@ -39,6 +39,7 @@
 		"autoprefixer": "^10.4.20",
 		"bits-ui": "^0.22.0",
 		"clsx": "^2.1.1",
+		"cmdk-sv": "^0.0.19",
 		"eslint": "^9.18.0",
 		"eslint-config-prettier": "^10.0.1",
 		"eslint-plugin-svelte": "^2.46.1",
@@ -64,10 +65,16 @@
 	},
 	"dependencies": {
 		"@carbon/charts-svelte": "^1.23.0",
+		"@cartamd/plugin-slash": "^4.2.0",
 		"@inlang/paraglide-sveltekit": "^0.15.5",
+		"@lucide/svelte": "^0.487.0",
 		"@sveltejs/adapter-node": "^5.2.12",
 		"@zodios/core": "^10.9.6",
+		"carta-md": "^4.9.0",
+		"carta-plugin-video": "^2.1.0",
 		"date-fns": "^4.1.0",
+		"isomorphic-dompurify": "^2.23.0",
+		"lucide-svelte": "^0.487.0",
 		"svelte-exmarkdown": "^5.0.0",
 		"svelte-radix": "^2.0.1"
 	}

@@ -4,13 +4,10 @@
 	import { Button } from '$lib/components/ui/form';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import LoginButtons from './LoginButtons.svelte';
+	import { userInitals } from '$lib/utils';
 	const { user } = $props();
-	let user_initals = $derived(
-		user?.username
-			.split(/\s/)
-			.map((s) => s.charAt(0).toUpperCase())
-			.join('')
-	);
+
+	let user_initals = $derived(userInitals(user?.username));
 	console.log(user);
 </script>
 

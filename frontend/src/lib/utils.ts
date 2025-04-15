@@ -14,6 +14,14 @@ type FlyAndScaleParams = {
 	duration?: number;
 };
 
+
+export const userInitals =(username:string | null)=>{
+	if (!username) return null
+	return username
+			.split(/\s/)
+			.map((s) => s.charAt(0).toUpperCase())
+			.join('')
+	}
 export const flyAndScale = (
 	node: Element,
 	params: FlyAndScaleParams = { y: -8, x: 0, start: 0.95, duration: 150 }
