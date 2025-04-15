@@ -74,7 +74,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/resource",
             post_with(create_resource, |op| {
-                op.id("GetResource").description("Get resource by id")
+                op.id("CreateResource").description("Get resource by id")
             }),
         )
         .api_route(
