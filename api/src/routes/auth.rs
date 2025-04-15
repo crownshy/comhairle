@@ -21,6 +21,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{collections::HashMap, sync::Arc};
+use tracing::warn;
 use uuid::Uuid;
 
 use axum_extra::extract::cookie::{Cookie, CookieJar};
@@ -259,10 +260,11 @@ pub async fn validate_jwt(
 ) -> Result<User, ComhairleError> {
     let token_data = match decode_jwt(token, &state.config.jwt_secret) {
         Ok(data) => data,
-        Err(_) => {
+        Err(e) => {
+            warn!("unable to decode {e}");
             return Err(ComhairleError::AuthJWTError(
                 "Unable to decode token".to_string(),
-            ))
+            ));
         }
     };
 
