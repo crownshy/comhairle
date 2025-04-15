@@ -1,5 +1,4 @@
-use std::error::Error;
-
+use crate::tools;
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
@@ -9,12 +8,14 @@ use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::encode::IsNull;
 use sqlx::PgConnection;
-use sqlx::{prelude::FromRow, types::Json, PgPool};
+use sqlx::{prelude::FromRow, PgPool};
 use sqlx::{Decode, Encode, Postgres, Type};
 use sqlx_postgres::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef};
+use tracing::warn;
 use uuid::Uuid;
 
-use crate::{error::ComhairleError, tools::ToolConfig};
+use crate::error::ComhairleError;
+use crate::tools::{ToolConfig, ToolSetup};
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(rename_all = "lowercase")]
@@ -205,7 +206,7 @@ pub struct CreateWorkflowStep {
     pub activation_rule: ActivationRule,
     pub description: String,
     pub is_offline: bool,
-    pub tool_config: ToolConfig,
+    pub tool_setup: ToolSetup,
 }
 
 impl CreateWorkflowStep {
@@ -216,7 +217,6 @@ impl CreateWorkflowStep {
             WorkflowStepIden::ActivationRule,
             WorkflowStepIden::Description,
             WorkflowStepIden::IsOffline,
-            WorkflowStepIden::ToolConfig,
         ]
     }
 
@@ -229,9 +229,6 @@ impl CreateWorkflowStep {
                 .into(),
             self.description.to_owned().into(),
             self.is_offline.into(),
-            serde_json::to_value(self.tool_config.clone())
-                .unwrap()
-                .into(),
         ]
     }
 }
@@ -343,8 +340,31 @@ pub async fn create(
     let mut columns = new_workflow_step.columns();
     let mut values = new_workflow_step.values();
 
+    let tool_config = match &new_workflow_step.tool_setup {
+        ToolSetup::Polis(polis_tool_setup) => ToolConfig::Polis(
+            tools::polis::setup(&polis_tool_setup)
+                .await
+                .map_err(|err| {
+                    warn!("Polis error {err:#?}");
+                    err
+                })?,
+        ),
+        ToolSetup::Learn(learn_tool_setup) => {
+            ToolConfig::Learn(tools::learn::setup(&learn_tool_setup).await?)
+        }
+        ToolSetup::HeyForm(hey_form_tool_setup) => {
+            ToolConfig::HeyForm(tools::heyform::setup(&hey_form_tool_setup).await?)
+        }
+        ToolSetup::Stoies(stories_tool_setup) => {
+            ToolConfig::Stories(tools::stories::setup(&stories_tool_setup).await?)
+        }
+    };
+
     columns.push(WorkflowStepIden::WorkflowId);
     values.push(workflow_id.into());
+
+    columns.push(WorkflowStepIden::ToolConfig);
+    values.push(serde_json::to_value(tool_config).unwrap().into());
 
     let mut transaction = db.begin().await?;
 

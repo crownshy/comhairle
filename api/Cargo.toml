@@ -19,7 +19,7 @@ name = "comhairle_data_loader"
 path = "src/data_loader/main.rs"
 
 [dependencies]
-axum = "0.8.1"
+axum = "0.8.3"
 config = "0.15.8"
 sea-query = {version = "0.32.3", features=["attr","postgres-array"] }
 sea-query-binder = {version="0.7.0", features=[
@@ -46,6 +46,9 @@ tower-http = {version="0.6.2", features=["trace","cors","auth"]}
 tracing = "0.1.41"
 tracing-subscriber = {version ="0.3.19", features=["env-filter"]}
 
+hyper = { version = "1.0.0", features = ["full"] }
+hyper-util = { version = "0.1.1", features = ["client-legacy"] }
+
 jsonwebtoken = "^9.3.1"
 openidconnect = "^4.0.0"
 chrono = { version = "0.4.39", features = ["serde"] }
@@ -68,6 +71,10 @@ aide = { version = "0.14.0", features = ["redoc", "swagger", "scalar", "axum", "
 axum-extra = { version = "0.10.1", features = ["cookie"] }
 aws-sdk-s3 = "1.82.0"
 aws-config = "1.6.1"
+reqwest = {version = "0.12.15", features=["cookies", "json"]}
+axum-proxy = {version="0.4.1", features=["http2","https","axum"]}
+regex = "1.11.1"
+fancy-regex = "0.14.0"
 
 [dev-dependencies]
 fake = { version = "4", features = ["derive"] }

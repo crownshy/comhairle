@@ -6,6 +6,8 @@ use serde_json::json;
 use thiserror::Error;
 use uuid::Uuid;
 
+use crate::tools::polis::PolisError;
+
 #[derive(Error, Debug, OperationIo)]
 #[aide(output)]
 pub enum ComhairleError {
@@ -17,6 +19,9 @@ pub enum ComhairleError {
 
     #[error("Database error: {0}")]
     DatabaseError(#[from] sqlx::Error),
+
+    #[error("Polis error: {0}")]
+    PolisError(#[from] PolisError),
 
     #[error("Username {0} already taken")]
     DuplicateUsername(String),
@@ -83,6 +88,9 @@ pub enum ComhairleError {
 
     #[error("Failed to get resource {0}")]
     NoResourceFoundForId(Uuid),
+
+    #[error("Workflow Step has wrong type expected {0}")]
+    WorkflowStepHasWrongType(String),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
