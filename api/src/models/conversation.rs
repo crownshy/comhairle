@@ -349,6 +349,27 @@ pub async fn create(
     }
 }
 
+pub async fn list_owned(
+    db: &PgPool,
+    owner_id: Uuid,
+    page_options: PageOptions,
+    order_options: ConversationOrderOptions,
+    filter_options: ConversationFilterOptions,
+) -> Result<PaginatedResults<Conversation>, ComhairleError> {
+    let query = Query::select()
+        .from(ConversationIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .and_where(Expr::col(ConversationIden::OwnerId).eq(owner_id.to_owned()))
+        .to_owned();
+
+    let query = filter_options.apply(query);
+    let query = order_options.apply(query);
+
+    let conversations = page_options.fetch_paginated_results(db, query).await?;
+
+    Ok(conversations)
+}
+
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,
