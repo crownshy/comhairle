@@ -14,7 +14,7 @@
 
 <div class="grid h-full w-full grid-cols-[300px_1fr]">
 	<AdminNav user={data.user} {conversations} />
-	<main class="overflow-y-auto p-12">
+	<main class="flex flex-col overflow-y-auto p-12">
 		{@render children()}
 	</main>
 </div>

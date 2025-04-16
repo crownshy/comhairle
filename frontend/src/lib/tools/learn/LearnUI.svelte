@@ -4,6 +4,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { languageTag } from '$lib/paraglide/runtime.js';
 	import type { Page } from '$lib/api/api';
+	import { marked } from 'marked';
 	let {
 		pages,
 		onDone
@@ -17,6 +18,8 @@
 	let currentPageTranslation = $derived(currentPage.filter((p) => p.lang === languageTag()));
 	let content = $derived(currentPageTranslation[0]?.content);
 
+	let markdown = $derived(marked.parse(content));
+
 	function nextPage() {
 		currentPageNo += 1;
 	}
@@ -24,7 +27,7 @@
 
 {#if content}
 	<article class="prose max-h-[40vh] overflow-y-auto">
-		<Markdown md={content} />
+		{@html markdown}
 	</article>
 {:else}
 	<h1>Sorry this page is currently not avaliable in this language</h1>

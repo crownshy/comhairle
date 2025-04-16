@@ -76,9 +76,6 @@
 		}
 	});
 
-	$inspect(content);
-	$inspect(pages);
-
 	function deletePage() {
 		pages = pages.filter((p, i) => i !== currentPageIndex);
 		currentPageIndex = Math.max(currentPageIndex - 1, 0);
@@ -88,7 +85,13 @@
 		pages.push([
 			{
 				lang: 'en',
-				content: '',
+				content: `#Page ${pages.length - 1}`,
+				type: 'markdown'
+			},
+
+			{
+				lang: 'gd',
+				content: `#Duilleag ${pages.length - 1}`,
 				type: 'markdown'
 			}
 		]);
@@ -108,39 +111,45 @@
 </script>
 
 <!-- Controls -->
-<div class="mb-4 flex items-center justify-between gap-4">
-	<div class="flex items-center gap-2">
+<div class="flex flex-col">
+	<div class="mb-4 flex items-center justify-between gap-4">
+		<div class="flex items-center gap-2">
+			<Select.Root
+				onSelectedChange={({ value }: { value: string; label: string }) =>
+					(currentPageIndex = parseInt(value))}
+				selected={{ value: currentPageIndex, label: `Page ${currentPageIndex + 1}` }}
+			>
+				<Select.Trigger class="w-[180px]">Page {currentPageIndex + 1}</Select.Trigger>
+				<Select.Content>
+					{#each pages as _, i}
+						<Select.Item value={i}>Page {i + 1}</Select.Item>
+					{/each}
+				</Select.Content>
+			</Select.Root>
+
+			<Button onclick={addPage}>+ Add Page</Button>
+			<Button variant="destructive" onclick={deletePage}>- Delete Page</Button>
+		</div>
+
 		<Select.Root
-			onSelectedChange={({ value }: { value: string; label: string }) =>
-				(currentPageIndex = parseInt(value))}
-			selected={{ value: currentPageIndex, label: `Page ${currentPageIndex + 1}` }}
+			onSelectedChange={({ value }: { value: string; label: string }) => (currentLang = value)}
+			selected={{ value: currentLang, label: currentLang === 'en' ? 'English' : 'Gaelic' }}
 		>
-			<Select.Trigger class="w-[180px]">Page {currentPageIndex + 1}</Select.Trigger>
+			<Select.Trigger class="w-[180px]"
+				>{currentLang === 'en' ? 'English' : 'Gaelic'}</Select.Trigger
+			>
 			<Select.Content>
-				{#each pages as _, i}
-					<Select.Item value={i}>Page {i + 1}</Select.Item>
-				{/each}
+				<Select.Item value={'en'}>English</Select.Item>
+				<Select.Item value={'gd'}>Gaelic</Select.Item>
 			</Select.Content>
 		</Select.Root>
-
-		<Button onclick={addPage}>+ Add Page</Button>
-		<Button variant="destructive" onclick={deletePage}>- Delete Page</Button>
 	</div>
 
-	<Select.Root
-		onSelectedChange={({ value }: { value: string; label: string }) => (currentLang = value)}
-		selected={{ value: currentLang, label: currentLang === 'en' ? 'English' : 'Gaelic' }}
-	>
-		<Select.Trigger class="w-[180px]">{currentLang === 'en' ? 'English' : 'Gaelic'}</Select.Trigger>
-		<Select.Content>
-			<Select.Item value={'en'}>English</Select.Item>
-			<Select.Item value={'gd'}>Gaelic</Select.Item>
-		</Select.Content>
-	</Select.Root>
+	<!-- Editor -->
+	<div class="grow">
+		<MarkdownEditor {carta} bind:value={content} />
+	</div>
 </div>
-
-<!-- Editor -->
-<MarkdownEditor {carta} bind:value={content} />
 
 <style>
 	:global(.carta-font-code) {

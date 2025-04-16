@@ -5,6 +5,8 @@ import { redirect } from "@sveltejs/kit";
 
 export const load :PageLoad = async ({params,parent})=>{
   let conversation_id  = params.conversation_id;
+  console.log(params)
+  console.log("conversation_id ", conversation_id)
   let {api} = await parent();
   try{
     let conversation = await api.GetConversation({params:{conversation_id}})
@@ -20,7 +22,7 @@ export const load :PageLoad = async ({params,parent})=>{
     return {conversation, workflows,stats, workflow_steps}  
   }
   catch(e){
-    console.log(e)
+    throw(e)
     notifications.addFlash({message:"No such conversation", priority:"WARNING"})
     redirect(301,"/admin")
   }
