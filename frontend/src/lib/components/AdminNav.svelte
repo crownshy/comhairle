@@ -40,7 +40,7 @@
 				{#if conversations}
 					{#each conversations.records as conversation}
 						<Command.Item class="flex flex-row">
-							<a href={`/admin/conversations/${conversation.id}`} class="flex flex-row">
+							<a href={`/admin/conversations/${conversation.id}/landing`} class="flex flex-row">
 								<MessageCircle class="mr-2" />
 								<span>{conversation.title}</span>
 							</a>
