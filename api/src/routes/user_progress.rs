@@ -1,11 +1,13 @@
-use std::sync::Arc;
-
+use aide::axum::{
+    routing::{get_with, put_with},
+    ApiRouter,
+};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    routing::{delete, get, post, put},
-    Json, Router,
+    Json,
 };
+use std::sync::Arc;
 use tracing::info;
 use uuid::Uuid;
 
@@ -15,7 +17,7 @@ use crate::{error::ComhairleError, models::user_progress::UserProgress};
 
 use super::auth::RequiredUser;
 
-/// Create workflow handler
+/// Get the progress for a user on a workflow step
 async fn get_user_progress_for_workflow(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -30,6 +32,7 @@ async fn get_user_progress_for_workflow(
     Ok((StatusCode::OK, Json(user_progress)))
 }
 
+/// Set the progress for the current user on a workflow step
 pub async fn update_user_progress(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -41,13 +44,25 @@ pub async fn update_user_progress(
     Ok((StatusCode::OK, Json(user_progress)))
 }
 
-pub fn router() -> Router<Arc<ComhairleState>> {
-    Router::new()
-        .route("/progress", get(get_user_progress_for_workflow))
-        .route(
-            "/workflow_step/{workflow_step_id}/progress",
-            put(update_user_progress),
+pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+    ApiRouter::new()
+        .api_route(
+            "/",
+            get_with(get_user_progress_for_workflow, |op| {
+                op.id("GetUserProgress")
+                    .summary("Get the users progress on this workflow")
+                    .response::<200, Json<Vec<UserProgress>>>()
+            }),
         )
+        .api_route(
+            "/{workflow_step_id}",
+            put_with(update_user_progress, |op| {
+                op.id("SetUserProgress")
+                    .summary("Set the user progress for a given workflow step")
+                    .response::<200, Json<UserProgress>>()
+            }),
+        )
+        .with_state(state)
 }
 
 #[cfg(test)]
@@ -104,10 +119,12 @@ mod tests {
         // Sign up for the workflow
 
         let url = format!("/conversation/{conversation_id}/workflow/{workflow_id}/participation");
-        let (status, _, _) = user_session.post(&app, &url, Body::empty()).await?;
+        user_session.post(&app, &url, Body::empty()).await?;
 
         // Update the status for a user on a given step
-        let url = format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step/{workflow_step_id}/progress");
+        let url = format!(
+            "/conversation/{conversation_id}/workflow/{workflow_id}/progress/{workflow_step_id}"
+        );
 
         let (status, progress, _) = user_session
             .put(&app, &url, json!("done").to_string().into())

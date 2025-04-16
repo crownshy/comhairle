@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
+use aide::axum::routing::{delete_with, get_with, post_with, put_with};
+use aide::axum::ApiRouter;
+
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    routing::{delete, get, post, put},
-    Json, Router,
+    Json,
 };
 use tracing::info;
 use uuid::Uuid;
@@ -14,6 +16,9 @@ use crate::{
     models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep, WorkflowStep},
     ComhairleState,
 };
+
+use super::auth::RequiredUser;
+use crate::models::user_participation;
 
 /// Create workflow handler
 async fn create_workflow_step(
@@ -31,47 +36,91 @@ async fn update_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     Path((_, workflow_id, id)): Path<(Uuid, Uuid, Uuid)>,
     Json(workflow): Json<PartialWorkflowStep>,
-) -> Result<Json<WorkflowStep>, ComhairleError> {
+) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
     let workflow = workflow_step::update(&state.db, id, workflow_id, &workflow).await?;
-    Ok(Json(workflow))
+    Ok((StatusCode::OK, Json(workflow)))
 }
 
 /// List workflows handler
 async fn list_workflows_step(
     State(state): State<Arc<ComhairleState>>,
     Path((_, workflow_id)): Path<(Uuid, Uuid)>,
-) -> Result<Json<Vec<WorkflowStep>>, ComhairleError> {
+    RequiredUser(user): RequiredUser,
+) -> Result<(StatusCode, Json<Vec<WorkflowStep>>), ComhairleError> {
+    // Check to see if the user is a participant on this conversation
+    let participation = user_participation::get(&state.db, &user.id, &workflow_id)
+        .await
+        .map_err(|_| ComhairleError::UserIsNotParticipatingInTheConversation)?;
+
+    println!("{participation:#?}");
     let workflows = workflow_step::list(&state.db, workflow_id).await?;
-    Ok(Json(workflows))
+    Ok((StatusCode::OK, Json(workflows)))
 }
 
 /// Get a specific workflow
 async fn get_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     Path((_, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
-) -> Result<Json<WorkflowStep>, ComhairleError> {
+    RequiredUser(user): RequiredUser,
+) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
     info!("Attempting to get workflow step  {workflow_step_id:#?}");
     let workflow = workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
 
-    Ok(Json(workflow))
+    Ok((StatusCode::OK, Json(workflow)))
 }
 
 /// Delete a specific workflow
 async fn delete_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     Path((_, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
-) -> Result<Json<WorkflowStep>, ComhairleError> {
+) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
     let workflow = workflow_step::delete(&state.db, &workflow_step_id).await?;
-    Ok(Json(workflow))
+    Ok((StatusCode::OK, Json(workflow)))
 }
 
-pub fn router() -> Router<Arc<ComhairleState>> {
-    Router::new()
-        .route("/", post(create_workflow_step))
-        .route("/", get(list_workflows_step))
-        .route("/{workflow_step_id}", get(get_workflow_step))
-        .route("/{workflow_step_id}", put(update_workflow_step))
-        .route("/{workflow_step_id}", delete(delete_workflow_step))
+pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+    ApiRouter::new()
+        .api_route(
+            "/",
+            post_with(create_workflow_step, |op| {
+                op.id("CreateWorkflowStep")
+                    .summary("Create a new workflow step")
+                    .response::<201, Json<WorkflowStep>>()
+            }),
+        )
+        .api_route(
+            "/",
+            get_with(list_workflows_step, |op| {
+                op.id("ListWorkflowSteps")
+                    .summary("List the workflow steps associated with this workflow")
+                    .response::<200, Json<Vec<WorkflowStep>>>()
+            }),
+        )
+        .api_route(
+            "/{workflow_step_id}",
+            get_with(get_workflow_step, |op| {
+                op.id("GetWorkflowStep")
+                    .summary("Get the specified workflow step")
+                    .response::<200, Json<WorkflowStep>>()
+            }),
+        )
+        .api_route(
+            "/{workflow_step_id}",
+            put_with(update_workflow_step, |op| {
+                op.id("UpdateWorkflowStep")
+                    .summary("Update the specifed workflow step")
+                    .response::<200, Json<WorkflowStep>>()
+            }),
+        )
+        .api_route(
+            "/{workflow_step_id}",
+            delete_with(delete_workflow_step, |op| {
+                op.id("DeleteWorkflowStep")
+                    .summary("Delete the specified workflow step")
+                    .response::<200, Json<WorkflowStep>>()
+            }),
+        )
+        .with_state(state)
 }
 
 #[cfg(test)]
@@ -79,7 +128,7 @@ mod tests {
 
     use crate::{
         config, setup_server,
-        test_helpers::{extract, UserSession},
+        test_helpers::{extract, learn_tool_config, polis_tool_config, UserSession},
     };
     use axum::http::StatusCode;
     use serde_json::json;
@@ -119,10 +168,11 @@ mod tests {
                 "description": "A manually retired polis workflow step",
                 "is_offline": false,
                 "tool_config": {
-                    "polis" : {
-                        "server_url" : "http://polis.com",
-                        "poll_id": "12234"
-                    }
+                    "type": "polis",
+                    "server_url" : "http://polis.com",
+                    "poll_id": "12234",
+                    "admin_user" : "admin",
+                    "admin_password": "admin"
                 }})
                 .to_string()
                 .into(),
@@ -166,12 +216,7 @@ mod tests {
                 "activation_rule" : "manual",
                 "description": "A manually retired polis workflow step",
                 "is_offline": false,
-                "tool_config": {
-                    "polis" : {
-                        "server_url" : "http://polis.com",
-                        "poll_id": "12234"
-                    }
-                }})
+                "tool_config": polis_tool_config()})
                 .to_string()
                 .into(),
             )
@@ -182,18 +227,13 @@ mod tests {
                 &app,
                 &format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step"),
                 json!({
-                "name": "Learn Workflow Step",
-                "step_order": 2,
-                "activation_rule" : "manual",
-                "description": "A manually retired learnworkflow step",
-                "is_offline": false,
-                "tool_config": {
-                    "learn" : {
-                        "pages":[
-                            {"markdown" : "#Test"}
-                        ]
-                    }
-                }})
+                    "name": "Learn Workflow Step",
+                    "step_order": 2,
+                    "activation_rule" : "manual",
+                    "description": "A manually retired learnworkflow step",
+                    "is_offline": false,
+                    "tool_config": learn_tool_config()
+                })
                 .to_string()
                 .into(),
             )
@@ -258,12 +298,7 @@ mod tests {
                 "activation_rule" : "manual",
                 "description": "A manually retired polis workflow step",
                 "is_offline": false,
-                "tool_config": {
-                    "polis" : {
-                        "server_url" : "http://polis.com",
-                        "poll_id": "12234"
-                    }
-                }})
+                "tool_config": polis_tool_config()})
                 .to_string()
                 .into(),
             )
@@ -279,11 +314,7 @@ mod tests {
                 "activation_rule" : "manual",
                 "description": "A manually retired learnworkflow step",
                 "is_offline": false,
-                "tool_config": {
-                    "learn" : { "pages" :[{
-                        "markdown" : "#Test"
-                    }]}
-                }})
+                "tool_config": learn_tool_config()})
                 .to_string()
                 .into(),
             )
@@ -350,12 +381,7 @@ mod tests {
                     "activation_rule" : "manual",
                     "description": "A manually retired polis workflow step",
                     "is_offline": false,
-                    "tool_config": {
-                        "polis" : {
-                            "server_url" : "http://polis.com",
-                            "poll_id": "12234"
-                        }
-                    }})
+                    "tool_config": learn_tool_config()})
                     .to_string()
                     .into(),
                 )
@@ -446,12 +472,7 @@ mod tests {
                     "activation_rule" : "manual",
                     "description": "A manually retired polis workflow step",
                     "is_offline": false,
-                    "tool_config": {
-                        "polis" : {
-                            "server_url" : "http://polis.com",
-                            "poll_id": "12234"
-                        }
-                    }})
+                    "tool_config": polis_tool_config()})
                     .to_string()
                     .into(),
                 )
@@ -518,12 +539,7 @@ mod tests {
                 "activation_rule" : "manual",
                 "description": "A manually retired polis workflow step",
                 "is_offline": false,
-                "tool_config": {
-                    "polis" : {
-                        "server_url" : "http://polis.com",
-                        "poll_id": "12234"
-                    }
-                }})
+                "tool_config": polis_tool_config()})
                 .to_string()
                 .into(),
             )
@@ -539,13 +555,7 @@ mod tests {
                 "activation_rule" : "manual",
                 "description": "A manually retired learnworkflow step",
                 "is_offline": false,
-                "tool_config": {
-                    "learn" : {
-                        "pages" : [
-                            { "markdown" : "#Test" }
-                        ]
-                     }
-                }})
+                "tool_config": learn_tool_config()})
                 .to_string()
                 .into(),
             )
@@ -622,12 +632,7 @@ mod tests {
                     "activation_rule" : "manual",
                     "description": "A manually retired polis workflow step",
                     "is_offline": false,
-                    "tool_config": {
-                        "polis" : {
-                            "server_url" : "http://polis.com",
-                            "poll_id": "12234"
-                        }
-                    }})
+                    "tool_config": polis_tool_config()})
                     .to_string()
                     .into(),
                 )

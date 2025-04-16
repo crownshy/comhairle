@@ -1,25 +1,67 @@
+use crate::tools;
 use chrono::{DateTime, Utc};
 use partially::Partial;
+use schemars::JsonSchema;
 use sea_query::PostgresQueryBuilder;
 use sea_query::{enum_def, Expr, Order, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
+use sqlx::encode::IsNull;
 use sqlx::PgConnection;
-use sqlx::{prelude::FromRow, types::Json, PgPool};
-use tracing::info;
+use sqlx::{prelude::FromRow, PgPool};
+use sqlx::{Decode, Encode, Postgres, Type};
+use sqlx_postgres::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef};
+use tracing::warn;
 use uuid::Uuid;
 
-use crate::{error::ComhairleError, tools::ToolConfig};
+use crate::error::ComhairleError;
+use crate::tools::{ToolConfig, ToolSetup};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum ActivationRule {
     Manual,
 }
 
-#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone)]
+impl Type<Postgres> for ActivationRule {
+    fn type_info() -> PgTypeInfo {
+        <serde_json::Value as Type<Postgres>>::type_info()
+    }
+}
+
+impl PgHasArrayType for ActivationRule {
+    fn array_type_info() -> PgTypeInfo {
+        <serde_json::Value as PgHasArrayType>::array_type_info()
+    }
+}
+
+impl<'q> Encode<'q, Postgres> for ActivationRule {
+    fn encode_by_ref(
+        &self,
+        buf: &mut PgArgumentBuffer,
+    ) -> Result<IsNull, Box<(dyn std::error::Error + Send + Sync + 'static)>> {
+        let json = serde_json::to_value(self).unwrap();
+        <serde_json::Value as Encode<Postgres>>::encode(json, buf)
+    }
+
+    fn size_hint(&self) -> usize {
+        let json = serde_json::to_value(self).unwrap();
+        <serde_json::Value as Encode<Postgres>>::size_hint(&json)
+    }
+}
+
+impl<'r> Decode<'r, Postgres> for ActivationRule {
+    fn decode(
+        value: PgValueRef<'r>,
+    ) -> Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+        let json: serde_json::Value = Decode::<Postgres>::decode(value)?;
+        Ok(serde_json::from_value(json)?)
+    }
+}
+
+#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "workflow_step")]
-#[partially(derive(Deserialize, Debug))]
+#[partially(derive(Deserialize, Debug, JsonSchema))]
 pub struct WorkflowStep {
     #[partially(omit)]
     pub id: Uuid,
@@ -27,10 +69,10 @@ pub struct WorkflowStep {
     pub workflow_id: Uuid,
     pub name: String,
     pub step_order: i32,
-    pub activation_rule: Json<ActivationRule>,
+    pub activation_rule: ActivationRule,
     pub description: String,
     pub is_offline: bool,
-    pub tool_config: Json<ToolConfig>,
+    pub tool_config: ToolConfig,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
@@ -157,14 +199,14 @@ impl PartialWorkflowStep {
     }
 }
 
-#[derive(Partial, Debug, Deserialize, Serialize, Clone)]
+#[derive(Partial, Debug, Deserialize, Serialize, Clone, JsonSchema)]
 pub struct CreateWorkflowStep {
     pub name: String,
     pub step_order: i32,
     pub activation_rule: ActivationRule,
     pub description: String,
     pub is_offline: bool,
-    pub tool_config: ToolConfig,
+    pub tool_setup: ToolSetup,
 }
 
 impl CreateWorkflowStep {
@@ -175,7 +217,6 @@ impl CreateWorkflowStep {
             WorkflowStepIden::ActivationRule,
             WorkflowStepIden::Description,
             WorkflowStepIden::IsOffline,
-            WorkflowStepIden::ToolConfig,
         ]
     }
 
@@ -188,9 +229,6 @@ impl CreateWorkflowStep {
                 .into(),
             self.description.to_owned().into(),
             self.is_offline.into(),
-            serde_json::to_value(self.tool_config.clone())
-                .unwrap()
-                .into(),
         ]
     }
 }
@@ -302,8 +340,31 @@ pub async fn create(
     let mut columns = new_workflow_step.columns();
     let mut values = new_workflow_step.values();
 
+    let tool_config = match &new_workflow_step.tool_setup {
+        ToolSetup::Polis(polis_tool_setup) => ToolConfig::Polis(
+            tools::polis::setup(&polis_tool_setup)
+                .await
+                .map_err(|err| {
+                    warn!("Polis error {err:#?}");
+                    err
+                })?,
+        ),
+        ToolSetup::Learn(learn_tool_setup) => {
+            ToolConfig::Learn(tools::learn::setup(&learn_tool_setup).await?)
+        }
+        ToolSetup::HeyForm(hey_form_tool_setup) => {
+            ToolConfig::HeyForm(tools::heyform::setup(&hey_form_tool_setup).await?)
+        }
+        ToolSetup::Stoies(stories_tool_setup) => {
+            ToolConfig::Stories(tools::stories::setup(&stories_tool_setup).await?)
+        }
+    };
+
     columns.push(WorkflowStepIden::WorkflowId);
     values.push(workflow_id.into());
+
+    columns.push(WorkflowStepIden::ToolConfig);
+    values.push(serde_json::to_value(tool_config).unwrap().into());
 
     let mut transaction = db.begin().await?;
 

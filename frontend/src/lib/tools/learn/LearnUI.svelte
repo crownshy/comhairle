@@ -1,0 +1,40 @@
+<script lang="ts">
+	import { Button } from '$lib/components/ui/button';
+	import Markdown from 'svelte-exmarkdown';
+	import * as m from '$lib/paraglide/messages';
+	import { languageTag } from '$lib/paraglide/runtime.js';
+	import type { Page } from '$lib/api/api';
+	import { marked } from 'marked';
+	let {
+		pages,
+		onDone
+	}: {
+		pages: Array<Page>;
+		onDone: () => void;
+	} = $props();
+
+	let currentPageNo = $state(0);
+	let currentPage = $derived(pages[currentPageNo]);
+	let currentPageTranslation = $derived(currentPage.filter((p) => p.lang === languageTag()));
+	let content = $derived(currentPageTranslation[0]?.content);
+
+	let markdown = $derived(marked.parse(content));
+
+	function nextPage() {
+		currentPageNo += 1;
+	}
+</script>
+
+{#if content}
+	<article class="prose max-h-[40vh] overflow-y-auto">
+		{@html markdown}
+	</article>
+{:else}
+	<h1>Sorry this page is currently not avaliable in this language</h1>
+{/if}
+
+{#if currentPageNo == pages.length - 1}
+	<Button onclick={onDone}>{m.continue_()}</Button>
+{:else}
+	<Button onclick={nextPage}>{m.next()}</Button>
+{/if}

@@ -21,4 +21,5 @@ pub fn load() -> Result<ComhairleConfig, ComhairleError> {
 pub struct ComhairleConfig {
     pub database_url: String,
     pub jwt_secret: String,
+    pub resource_bucket: String,
 }

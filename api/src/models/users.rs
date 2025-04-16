@@ -6,6 +6,7 @@ use crate::{
     tools::id::gen_id,
 };
 use chrono::{DateTime, Utc};
+use schemars::JsonSchema;
 use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
@@ -14,7 +15,7 @@ use uuid::Uuid;
 
 /// Defines the type of authentication has been used to create
 /// The user
-#[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone, JsonSchema)]
 #[sqlx(type_name = "TEXT")]
 #[serde(rename_all = "snake_case")]
 pub enum UserAuthType {
@@ -46,7 +47,7 @@ impl fmt::Display for UserAuthType {
 /// User table representation
 /// user is a protected word in postgresql so
 /// we actually use the comahirle_user table
-#[derive(Debug, Deserialize, Serialize, FromRow, Clone)]
+#[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "comhairle_user")]
 pub struct User {
     pub id: Uuid,
@@ -115,7 +116,7 @@ pub async fn create_user(user: &SignupRequest, db: &PgPool) -> Result<User, Comh
 
 /// Create an annon user
 pub async fn create_annon_user(db: &PgPool) -> Result<User, ComhairleError> {
-    let mut retries = 5;  // Retry up to 5 times to generate a unique username
+    let mut retries = 5; // Retry up to 5 times to generate a unique username
     while retries > 0 {
         let sudo_random_name = gen_id();
 
@@ -152,7 +153,9 @@ pub async fn create_annon_user(db: &PgPool) -> Result<User, ComhairleError> {
             Err(e) => return Err(ComhairleError::DatabaseError(e)),
         }
     }
-    Err(ComhairleError::DuplicateUsername("too many retires".to_string()))
+    Err(ComhairleError::DuplicateUsername(
+        "too many retires".to_string(),
+    ))
 }
 
 /// Return a user by ID
@@ -172,7 +175,8 @@ pub async fn get_user_by_id(id: &Uuid, db: &PgPool) -> Result<User, ComhairleErr
 
     let user = sqlx::query_as_with::<_, User, _>(&sql, values)
         .fetch_one(db)
-        .await?;
+        .await
+        .map_err(|_| ComhairleError::NoUserFoundForId(id.to_owned()))?;
     Ok(user)
 }
 
@@ -193,7 +197,8 @@ pub async fn get_user_by_email(email: &str, db: &PgPool) -> Result<User, Comhair
 
     let user = sqlx::query_as_with::<_, User, _>(&sql, values)
         .fetch_one(db)
-        .await?;
+        .await
+        .map_err(|_| ComhairleError::NoUserFoundForEmail(email.to_owned()))?;
     Ok(user)
 }
 
@@ -212,8 +217,8 @@ pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, C
         .and_where(Expr::col(UserIden::Username).eq(username))
         .build_sqlx(PostgresQueryBuilder);
 
-    let user = sqlx::query_as_with::<_, User, _>(&sql, values)
+    sqlx::query_as_with::<_, User, _>(&sql, values)
         .fetch_one(db)
-        .await?;
-    Ok(user)
+        .await
+        .map_err(|_| ComhairleError::NoUserFound)
 }

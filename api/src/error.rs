@@ -1,8 +1,15 @@
+use aide::OperationIo;
 use axum::{http::StatusCode, response::IntoResponse, Json};
+use schemars::JsonSchema;
+use serde::Serialize;
 use serde_json::json;
 use thiserror::Error;
+use uuid::Uuid;
 
-#[derive(Error, Debug)]
+use crate::tools::polis::PolisError;
+
+#[derive(Error, Debug, OperationIo)]
+#[aide(output)]
 pub enum ComhairleError {
     #[error("Database Failed to connect: {0}")]
     DbError(String),
@@ -12,6 +19,9 @@ pub enum ComhairleError {
 
     #[error("Database error: {0}")]
     DatabaseError(#[from] sqlx::Error),
+
+    #[error("Polis error: {0}")]
+    PolisError(#[from] PolisError),
 
     #[error("Username {0} already taken")]
     DuplicateUsername(String),
@@ -25,11 +35,23 @@ pub enum ComhairleError {
     #[error("Failed to hash password")]
     PasswordHash,
 
+    #[error("The password and email don't match")]
+    WrongPassword,
+
     #[error("User Required for this route")]
     UserRequired,
 
     #[error("Auth Error {0}")]
     AuthJWTError(String),
+
+    #[error("No user with email {0}")]
+    NoUserFoundForEmail(String),
+
+    #[error("No user with id {0}")]
+    NoUserFoundForId(Uuid),
+
+    #[error("No user found")]
+    NoUserFound,
 
     #[error("{0} not found")]
     ResourceNotFound(String),
@@ -45,6 +67,35 @@ pub enum ComhairleError {
 
     #[error("Update request contained no valid parameters")]
     NoValidUpdates,
+
+    #[error("Failed to create annon user")]
+    FailedToCreateAnnonUser,
+
+    #[error("Cant log this type of user in with this flow")]
+    WrongUserType,
+
+    #[error("No user logged in")]
+    NoLogedInUser,
+
+    #[error("User is not signed up to participate in the conversation")]
+    UserIsNotParticipatingInTheConversation,
+
+    #[error("Failed to get a presigned upload url {0}")]
+    FailedToGetUploadPresign(String),
+
+    #[error("Failed to get a presigned download url {0}")]
+    FailedToGetDownloadPresign(String),
+
+    #[error("Failed to get resource {0}")]
+    NoResourceFoundForId(Uuid),
+
+    #[error("Workflow Step has wrong type expected {0}")]
+    WorkflowStepHasWrongType(String),
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct ComhairleErrorResponse {
+    pub err: String,
 }
 
 /// Maps different error codes to a response with appropriate
@@ -56,8 +107,13 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::DuplicateEmail(_)
             | ComhairleError::DuplicateSlug(_)
             | ComhairleError::UserAlreadyParticipatingInWorkflow(_) => StatusCode::CONFLICT,
-            ComhairleError::ResourceNotFound(_) => StatusCode::NOT_FOUND,
-            ComhairleError::UserRequired => StatusCode::UNAUTHORIZED,
+            ComhairleError::ResourceNotFound(_)
+            | ComhairleError::NoUserFound
+            | ComhairleError::NoUserFoundForEmail(_)
+            | ComhairleError::NoUserFoundForId(_) => StatusCode::NOT_FOUND,
+            ComhairleError::UserRequired
+            | ComhairleError::WrongPassword
+            | ComhairleError::NoLogedInUser => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates => StatusCode::UNPROCESSABLE_ENTITY,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };

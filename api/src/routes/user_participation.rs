@@ -1,12 +1,13 @@
-use std::sync::Arc;
-
+use aide::axum::{
+    routing::{delete_with, get_with, post_with},
+    ApiRouter,
+};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    routing::{delete, get, post},
-    Json, Router,
+    Json,
 };
-use tracing::info;
+use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::models::{user_participation, user_progress, workflow_step};
@@ -24,14 +25,7 @@ async fn register_user_for_workflow(
     RequiredUser(user): RequiredUser,
     Path((_, workflow_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<UserParticipation>), ComhairleError> {
-    info!(
-        "Attempting to sigun up user {} to workflow {workflow_id}",
-        user.id
-    );
-
     let user_participation = user_participation::create(&state.db, &user.id, &workflow_id).await?;
-
-    info!("Now creating user progress entries");
 
     let workflow_steps = workflow_step::list(&state.db, workflow_id).await?;
 
@@ -53,25 +47,47 @@ async fn deregister_user_on_workflow(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Path((_, workflow_id)): Path<(Uuid, Uuid)>,
-) -> Result<Json<UserParticipation>, ComhairleError> {
+) -> Result<(StatusCode, Json<UserParticipation>), ComhairleError> {
     let user_participation = user_participation::delete(&state.db, &user.id, &workflow_id).await?;
-    Ok(Json(user_participation))
+    Ok((StatusCode::OK, Json(user_participation)))
 }
 
 pub async fn get_user_participation(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Path((_, workflow_id)): Path<(Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<UserParticipation>), ComhairleError> {
+) -> Result<(StatusCode, Json<Option<UserParticipation>>), ComhairleError> {
     let user_participation = user_participation::get(&state.db, &user.id, &workflow_id).await?;
     Ok((StatusCode::OK, Json(user_participation)))
 }
 
-pub fn router() -> Router<Arc<ComhairleState>> {
-    Router::new()
-        .route("/", post(register_user_for_workflow))
-        .route("/", delete(deregister_user_on_workflow))
-        .route("/", get(get_user_participation))
+pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+    ApiRouter::new()
+        .api_route(
+            "/",
+            post_with(register_user_for_workflow, |op| {
+                op.id("RegisterUserForWorkflow")
+                    .summary("Register the currently logged in user for this workflow")
+                    .response::<201, Json<UserParticipation>>()
+            }),
+        )
+        .api_route(
+            "/",
+            delete_with(deregister_user_on_workflow, |op| {
+                op.id("UnregisterUserForWorkflow")
+                    .summary("Unregisters the current user on this workflow")
+                    .response::<200, Json<UserParticipation>>()
+            }),
+        )
+        .api_route(
+            "/",
+            get_with(get_user_participation, |op| {
+                op.id("GetUserParticipation")
+                    .summary("Returns the status of the current user on this workflow")
+                    .response::<200, Json<Option<UserParticipation>>>()
+            }),
+        )
+        .with_state(state)
 }
 
 #[cfg(test)]
@@ -141,6 +157,7 @@ mod tests {
         let url = format!("/conversation/{conversation_id}/workflow/{workflow_id}/progress");
 
         let (status, progress, _) = user_session.get(&app, &url).await?;
+        println!("{status}, {progress:#?}");
 
         assert_eq!(
             status,

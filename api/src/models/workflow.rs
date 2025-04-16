@@ -1,6 +1,9 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use partially::Partial;
-use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
+use schemars::JsonSchema;
+use sea_query::{enum_def, Expr, Order, OrderedStatement, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
@@ -9,9 +12,15 @@ use uuid::Uuid;
 
 use crate::error::ComhairleError;
 
-#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone)]
+use super::{
+    user_participation::{UserParticipation, UserParticipationIden},
+    user_progress::UserProgressIden,
+    workflow_step::WorkflowStepIden,
+};
+
+#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "workflow")]
-#[partially(derive(Deserialize, Debug))]
+#[partially(derive(Deserialize, Debug, JsonSchema))]
 pub struct Workflow {
     #[partially(omit)]
     pub id: Uuid,
@@ -77,7 +86,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleErro
     Ok(conversation)
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 pub struct CreateWorkflow {
     pub name: String,
     pub description: String,
@@ -145,6 +154,7 @@ pub async fn update(
 
     Ok(workflow)
 }
+
 pub async fn list(db: &PgPool, conversation_id: Uuid) -> Result<Vec<Workflow>, ComhairleError> {
     let query = Query::select()
         .from(WorkflowIden::Table)
@@ -159,6 +169,59 @@ pub async fn list(db: &PgPool, conversation_id: Uuid) -> Result<Vec<Workflow>, C
         .await?;
 
     Ok(workflows)
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, FromRow)]
+pub struct WorkflowStats {
+    pub total_users: i32,
+    pub users_completed_step: HashMap<Uuid, i32>,
+}
+
+/// Calculate stastistics for the workflow
+pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, ComhairleError> {
+    let (sql, values) = Query::select()
+        .from(WorkflowStepIden::Table)
+        .column((WorkflowStepIden::Table, WorkflowStepIden::Id))
+        .expr(Expr::cust(
+            "COUNT(CASE WHEN user_progress.status = 'done' THEN 1 END)::INT as count",
+        ))
+        .join(
+            sea_query::JoinType::LeftJoin,
+            UserProgressIden::Table,
+            Expr::col((UserProgressIden::Table, UserProgressIden::WorkflowStepId))
+                .equals((WorkflowStepIden::Table, WorkflowStepIden::Id)),
+        )
+        .and_where(
+            Expr::col((WorkflowStepIden::Table, WorkflowStepIden::WorkflowId)).eq(workflow_id),
+        )
+        .group_by_col((WorkflowStepIden::Table, WorkflowStepIden::Id))
+        .group_by_col(WorkflowStepIden::StepOrder)
+        .order_by(
+            (WorkflowStepIden::Table, WorkflowStepIden::StepOrder),
+            Order::Asc,
+        )
+        .to_owned()
+        .build_sqlx(PostgresQueryBuilder);
+
+    let step_stats = sqlx::query_as_with::<_, (Uuid, i32), _>(&sql, values)
+        .fetch_all(db)
+        .await?;
+
+    let step_stats: HashMap<Uuid, i32> = step_stats.into_iter().collect();
+
+    let (sql, values) = Query::select()
+        .from(UserParticipationIden::Table)
+        .expr(Expr::cust("COUNT(*)::INT as count"))
+        .and_where(Expr::col(UserParticipationIden::WorkflowId).eq(workflow_id))
+        .to_owned()
+        .build_sqlx(PostgresQueryBuilder);
+
+    let total_users: i32 = sqlx::query_scalar_with(&sql, values).fetch_one(db).await?;
+
+    Ok(WorkflowStats {
+        users_completed_step: step_stats,
+        total_users,
+    })
 }
 
 pub async fn create(

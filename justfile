@@ -12,3 +12,6 @@ pg:
 
 psql:
     psql -U comhairle -d comhairle  -h localhost -p 5434
+
+load_saia:
+    cargo run --bin comhairle_data_loader -- -f fixtures/saia.json -d true

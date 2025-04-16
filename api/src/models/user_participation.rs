@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use partially::Partial;
-use sea_query::{enum_def, ConditionalStatement, Expr, PostgresQueryBuilder, Query};
+use schemars::JsonSchema;
+use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
@@ -8,7 +9,7 @@ use uuid::Uuid;
 
 use crate::error::ComhairleError;
 
-#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone)]
+#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "user_participation")]
 pub struct UserParticipation {
     pub id: Uuid,
@@ -65,7 +66,7 @@ pub async fn get(
     db: &PgPool,
     user_id: &Uuid,
     workflow_id: &Uuid,
-) -> Result<UserParticipation, ComhairleError> {
+) -> Result<Option<UserParticipation>, ComhairleError> {
     let (sql, values) = Query::select()
         .from(UserParticipationIden::Table)
         .columns(DEFAULT_COLUMNS)
@@ -74,7 +75,7 @@ pub async fn get(
         .build_sqlx(PostgresQueryBuilder);
 
     let result = sqlx::query_as_with::<_, UserParticipation, _>(&sql, values)
-        .fetch_one(db)
+        .fetch_optional(db)
         .await?;
     Ok(result)
 }

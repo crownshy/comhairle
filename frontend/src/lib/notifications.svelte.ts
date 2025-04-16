@@ -1,5 +1,13 @@
 import { toast, type ExternalToast } from 'svelte-sonner';
 export { Toaster as NotificationsToaster } from '$lib/components/ui/sonner';
+import {z} from 'zod'
+
+// Use to serialize and deserialize the flash notifications
+let FlashString : z.ZodType<Array<SendOpts>> = z.array(z.object({
+	message:z.string(),
+	priority: z.optional(z.enum(['INFO' ,'WARNING' , 'ERROR' , 'SUCCESS'])),
+	duration: z.optional(z.number())
+}))
 
 class NotificationsManager {
 	private static DEFAULT_DURATION = 60000;
@@ -33,6 +41,32 @@ class NotificationsManager {
 				this.ack(opts.id);
 			}
 		});
+	}
+
+	public addFlash(opts: SendOpts){
+		console.log("ADDING FLASH ", sessionStorage)
+		if(!sessionStorage) return;
+		let flashString = sessionStorage.getItem('comhairle_flash_notfifications');
+		let flash;
+		if(flashString){
+			flash = FlashString.parse(JSON.parse(flashString))
+		}
+		else{
+			flash = [opts]
+		}
+		sessionStorage.setItem("comhairle_flash_notfifications", JSON.stringify(flash))
+	}
+
+	public showFlash(){
+		if(!sessionStorage) return;
+		let flashString = sessionStorage.getItem('comhairle_flash_notfifications');
+		if (flashString) {
+			let flash = FlashString.parse(JSON.parse(flashString))
+			for (let message of flash){
+				this.send(message)
+			}
+		}
+		sessionStorage.removeItem("comhairle_flash_notfifications")
 	}
 
 	private async ack(id: string) {

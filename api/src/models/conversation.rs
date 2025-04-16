@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use partially::Partial;
+use schemars::JsonSchema;
 use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
@@ -12,9 +13,9 @@ use sea_query_binder::SqlxBinder;
 
 use super::pagination::{Order, PageOptions, PaginatedResults};
 
-#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone)]
+#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "conversation")]
-#[partially(derive(Deserialize, Debug))]
+#[partially(derive(Deserialize, Debug, JsonSchema))]
 pub struct Conversation {
     #[partially(omit)]
     pub id: Uuid,
@@ -100,7 +101,8 @@ impl PartialConversation {
         values
     }
 }
-#[derive(Deserialize, Debug)]
+
+#[derive(Deserialize, Debug, JsonSchema)]
 pub struct ConversationFilterOptions {
     title: Option<String>,
     is_public: Option<bool>,
@@ -160,7 +162,7 @@ impl ConversationFilterOptions {
     }
 }
 
-#[derive(Deserialize, Debug, Default)]
+#[derive(Deserialize, Debug, Default, JsonSchema)]
 pub struct ConversationOrderOptions {
     title: Option<Order>,
     created_at: Option<Order>,
@@ -254,7 +256,7 @@ pub async fn update(
     Ok(conversation)
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, JsonSchema)]
 pub struct CreateConversation {
     pub title: String,
     pub short_description: String,
@@ -345,6 +347,27 @@ pub async fn create(
         }
         Err(e) => Err(ComhairleError::DatabaseError(e)),
     }
+}
+
+pub async fn list_owned(
+    db: &PgPool,
+    owner_id: Uuid,
+    page_options: PageOptions,
+    order_options: ConversationOrderOptions,
+    filter_options: ConversationFilterOptions,
+) -> Result<PaginatedResults<Conversation>, ComhairleError> {
+    let query = Query::select()
+        .from(ConversationIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .and_where(Expr::col(ConversationIden::OwnerId).eq(owner_id.to_owned()))
+        .to_owned();
+
+    let query = filter_options.apply(query);
+    let query = order_options.apply(query);
+
+    let conversations = page_options.fetch_paginated_results(db, query).await?;
+
+    Ok(conversations)
 }
 
 pub async fn list(

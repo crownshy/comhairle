@@ -1,17 +1,20 @@
 use std::sync::Arc;
 
+use aide::axum::{
+    routing::{delete_with, get_with, post_with, put_with},
+    ApiRouter,
+};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    routing::{delete, get, post, put},
-    Json, Router,
+    Json,
 };
 use tracing::info;
 use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
-    models::workflow::{self, CreateWorkflow, PartialWorkflow, Workflow},
+    models::workflow::{self, CreateWorkflow, PartialWorkflow, Workflow, WorkflowStats},
     ComhairleState,
 };
 
@@ -29,6 +32,14 @@ async fn create_workflow(
     Ok((StatusCode::CREATED, Json(workflow)))
 }
 
+async fn workflow_stats(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_, workflow_id)): Path<(Uuid, Uuid)>,
+) -> Result<(StatusCode, Json<WorkflowStats>), ComhairleError> {
+    let stats = workflow::stats(&state.db, workflow_id).await?;
+    Ok((StatusCode::OK, Json(stats)))
+}
+
 /// Update workflow handler
 async fn update_workflow(
     State(state): State<Arc<ComhairleState>>,
@@ -43,38 +54,82 @@ async fn update_workflow(
 async fn list_workflows(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-) -> Result<Json<Vec<Workflow>>, ComhairleError> {
+) -> Result<(StatusCode, Json<Vec<Workflow>>), ComhairleError> {
     let workflows = workflow::list(&state.db, conversation_id).await?;
-    Ok(Json(workflows))
+    Ok((StatusCode::OK, Json(workflows)))
 }
 
 /// Get a specific workflow
 async fn get_workflow(
     State(state): State<Arc<ComhairleState>>,
     Path((_, workflow_id)): Path<(Uuid, Uuid)>,
-) -> Result<Json<Workflow>, ComhairleError> {
+) -> Result<(StatusCode, Json<Workflow>), ComhairleError> {
     info!("Attempting to get workflow {workflow_id:#?}");
     let workflow = workflow::get_by_id(&state.db, &workflow_id).await?;
 
-    Ok(Json(workflow))
+    Ok((StatusCode::OK, Json(workflow)))
 }
 
 /// Delete a specific workflow
 async fn delete_workflow(
     State(state): State<Arc<ComhairleState>>,
     Path((_, id)): Path<(Uuid, Uuid)>,
-) -> Result<Json<Workflow>, ComhairleError> {
+) -> Result<(StatusCode, Json<Workflow>), ComhairleError> {
     let workflow = workflow::delete(&state.db, &id).await?;
-    Ok(Json(workflow))
+    Ok((StatusCode::OK, Json(workflow)))
 }
 
-pub fn router() -> Router<Arc<ComhairleState>> {
-    Router::new()
-        .route("/", post(create_workflow))
-        .route("/", get(list_workflows))
-        .route("/{workflow_id}", get(get_workflow))
-        .route("/{workflow_id}", put(update_workflow))
-        .route("/{workflow_id}", delete(delete_workflow))
+pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+    ApiRouter::new()
+        .api_route(
+            "/",
+            post_with(create_workflow, |op| {
+                op.id("CreateWorkflow")
+                    .summary("Create a new workflow on the conversation")
+                    .response::<201, Json<Workflow>>()
+            }),
+        )
+        .api_route(
+            "/",
+            get_with(list_workflows, |op| {
+                op.id("ListWorkflows")
+                    .summary("List all workflows on this converastion")
+                    .response::<200, Json<Vec<Workflow>>>()
+            }),
+        )
+        .api_route(
+            "/{workflow_id}/stats",
+            get_with(workflow_stats, |op| {
+                op.id("GetWorkflowStats")
+                    .summary("Gets participation stats for a workflow")
+                    .response::<201, Json<WorkflowStats>>()
+            }),
+        )
+        .api_route(
+            "/{workflow_id}",
+            get_with(get_workflow, |op| {
+                op.id("GetWorkflow")
+                    .summary("Get the specified workflow")
+                    .response::<200, Json<Workflow>>()
+            }),
+        )
+        .api_route(
+            "/{workflow_id}",
+            put_with(update_workflow, |op| {
+                op.id("UpdateWorkflow")
+                    .summary("Update the workflow")
+                    .response::<201, Json<Workflow>>()
+            }),
+        )
+        .api_route(
+            "/{workflow_id}",
+            delete_with(delete_workflow, |op| {
+                op.id("DeleteWorkflow")
+                    .summary("Delete the workflow and it's associated workflow steps")
+                    .response::<201, Json<Workflow>>()
+            }),
+        )
+        .with_state(state)
 }
 
 #[cfg(test)]
@@ -84,10 +139,10 @@ mod tests {
         config, setup_server,
         test_helpers::{extract, UserSession},
     };
-    use axum::http::StatusCode;
+    use axum::{body::Body, http::StatusCode};
     use serde_json::json;
     use sqlx::PgPool;
-    use std::error::Error;
+    use std::{collections::HashMap, error::Error};
 
     #[sqlx::test]
     fn should_be_able_to_create_a_workflow_on_a_conversatin(
@@ -327,6 +382,77 @@ mod tests {
         assert_eq!(status, StatusCode::OK, "It should still be there");
         let name: String = extract("name", &workflow);
         assert_eq!(name, "new_name", "Should have an updated name");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_get_the_correct_stats_for_a_workflow(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let config = config::load()?;
+        let app = setup_server(config, pool).await?;
+
+        let mut session = UserSession::new(
+            "test_user".into(),
+            "test_password".into(),
+            "test.user@gmail.com".into(),
+        );
+
+        session.signup(&app).await?;
+
+        let (_, conversation, _) = session.create_random_conversation(&app).await?;
+
+        let id: String = extract("id", &conversation);
+
+        let (_, workflow, _) = session.create_random_workflow(&app, &id).await?;
+
+        let workflow_id: String = extract("id", &workflow);
+
+        let steps = session
+            .create_random_workflow_steps(&app, &id, &workflow_id, 10)
+            .await?;
+
+        for i in 0..10 {
+            let mut session = UserSession::new(
+                &format!("test_user_{i}"),
+                "test_password".into(),
+                &format!("test.user_{i}@gmail.com"),
+            );
+            session.signup(&app).await?;
+
+            let url = format!("/conversation/{id}/workflow/{workflow_id}/participation");
+            session.post(&app, &url, Body::empty()).await?;
+
+            for j in 0..i {
+                let workflow_step_id: String = extract("id", steps.get(j).unwrap());
+                let url = format!(
+                    "/conversation/{id}/workflow/{workflow_id}/progress/{workflow_step_id}"
+                );
+
+                session
+                    .put(&app, &url, json!("done").to_string().into())
+                    .await?;
+            }
+        }
+
+        let url = format!("/conversation/{id}/workflow/{workflow_id}/stats");
+
+        let (code, stats, _) = session.get(&app, &url).await?;
+        assert_eq!(code, StatusCode::OK, "should get response");
+        let total: i32 = extract("total_users", &stats);
+        assert_eq!(total, 10, "should get correct count of participatnts");
+
+        let step_completion: HashMap<String, i32> = extract("users_completed_step", &stats);
+
+        for (index, step) in steps.iter().enumerate() {
+            let id: String = extract("id", &step);
+            let count = step_completion.get(&id).unwrap();
+
+            assert_eq!(
+                index as i32,
+                9 - count,
+                "should get the correct count for each step"
+            );
+        }
 
         Ok(())
     }
