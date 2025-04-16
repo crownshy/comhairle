@@ -30,9 +30,9 @@
 {/snippet}
 
 <header class="mb-20 px-2 md:px-0">
-	<h1 class="mb-4 text-4xl font-bold">Conversations</h1>
+	<h1 class="mb-4 text-4xl font-bold">{m.conversations()}</h1>
 	<p class="mb-4">
-		Find open consultations that you can participate, or search topics that interest you the most.
+		{m.find_open_conversations()}
 	</p>
 	<div class="flex justify-between">
 		<DropdownMenu.Root>

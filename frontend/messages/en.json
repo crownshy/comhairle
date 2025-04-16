@@ -48,5 +48,15 @@
 	"intro":"Intro",
 	"watch":"Watch",
 	"listen":"Listen",
-	"jump_back_in":"Jump back in"
+	"jump_back_in":"Jump back in",
+	"home":"Home",
+	"about":"About",
+	"participate": "Participate",
+	"your_rights": "Your Rights",
+	"welcome_to_comhairle":"Welcome to Comhairle",
+	"a_platfrom_about_what_people_want": "A platform about understanding what people want",
+	"find_open_conversations":"Find open consultations that you can participate, or search topics that interest you the most.",
+	"conversations": "Conversations",
+	"take_part": "Take Part",
+	"view_report": "View Report"
 }

@@ -50,9 +50,6 @@
 
 	<div class="grid w-full grid-cols-5 gap-8">
 		<h1 class="col-start-1 col-end-4 row-start-1 row-end-1 text-8xl font-bold">{step.name}</h1>
-		<h2 class="col-start-1 col-end-4 row-start-2 row-end-2 text-xl font-bold">
-			{step.name}
-		</h2>
 		<div class="col-start-1 col-end-4 row-start-3">
 			<p>
 				{step.description}

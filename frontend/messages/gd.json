@@ -48,5 +48,15 @@
 	"intro":"Ro-ràdh",
 	"watch":"Coimhead",
 	"listen":"Èist",
-	"jump_back_in":"Tilleadh air ais"
+	"jump_back_in":"Tilleadh air ais",
+	"home":"Dachaigh",
+	"about":"Mu dheidhinn",
+	"participate": "Gabh pàirt",
+	"your_rights": "Do chòraichean",
+	"welcome_to_comhairle":"Fàilte gu Comhairle",
+	"a_platfrom_about_what_people_want": "Àrd-ùrlar mu bhith a’ tuigsinn na tha daoine ag iarraidh",
+	"find_open_conversations":"Lorg co-chomhairlean fosgailte as urrainn dhut pàirt a ghabhail, no rannsaich cuspairean anns a bheil an ùidh as motha dhut.",
+	"conversations": "Còmhraidhean",
+	"take_part":"Gabh Pàirt",
+	"view_report":"Seall Aithisg"
 }

@@ -4,22 +4,23 @@
 	import { ProfileMenu, LoginButtons } from '$lib/profile';
 	import LanguageSelector from '$lib/components/LanguageSelector.svelte';
 	import * as m from '$lib/paraglide/messages';
+
 	let links = [
 		{
 			href: '/',
-			name: 'Home'
+			name: m.home()
 		},
 		{
 			href: '/about',
-			name: 'About'
+			name: m.about()
 		},
 		{
 			href: '/conversations',
-			name: 'Participate'
+			name: m.participate()
 		},
 		{
 			href: '/rights',
-			name: 'Your Rights'
+			name: m.your_rights()
 		}
 	];
 	let isOpen = $state(false);

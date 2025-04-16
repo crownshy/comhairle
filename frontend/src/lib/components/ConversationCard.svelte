@@ -1,8 +1,9 @@
 <script lang="ts">
-	import type { Conversation } from '$lib/mock_data';
 	import * as Card from '$lib/components/ui/card/index';
 	import { Button } from '$lib/components/ui/button';
 	let { conversation }: { conversation: Conversation } = $props();
+
+	import * as m from '$lib/paraglide/messages';
 </script>
 
 <Card.Root class="flex h-[400px] w-[350px] flex-col">
@@ -15,9 +16,9 @@
 	</Card.Content>
 	<Card.Footer class="flex grow-0 justify-between">
 		{#if conversation.is_complete}
-			<Button href={`/conversations/${conversation.id}/report`}>View Report</Button>
+			<Button href={`/conversations/${conversation.id}/report`}>{m.view_report()}</Button>
 		{:else}
-			<Button href={`/conversations/${conversation.id}/`}>Take Part</Button>
+			<Button href={`/conversations/${conversation.id}/`}>{m.take_part()}</Button>
 		{/if}
 	</Card.Footer>
 </Card.Root>
