@@ -29,37 +29,39 @@
 	</a>
 {/snippet}
 
-<header class="mb-20 px-2 md:px-0">
-	<h1 class="mb-4 text-4xl font-bold">{m.conversations()}</h1>
-	<p class="mb-4">
-		{m.find_open_conversations()}
-	</p>
-	<div class="flex justify-between">
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger class={buttonVariants({ variant: 'outline', size: 'sm' })}>
-				<ChevronDown class="h-4 w-4" />{m.sort()}
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Content>
-				<DropdownMenu.Group>
-					{@render sortOption(pageUrl, 'title+asc')}
-					{@render sortOption(pageUrl, 'title+desc')}
-					{@render sortOption(pageUrl, 'created_at+desc')}
-					{@render sortOption(pageUrl, 'created_at+asc')}
-				</DropdownMenu.Group>
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
-		<Search url={pageUrl} />
+<div class="flex h-full flex-col pt-10">
+	<header class="mb:pb-20 px-2 pb-5 md:px-0">
+		<h1 class="mb-4 text-4xl font-bold">{m.conversations()}</h1>
+		<p class="mb-4">
+			{m.find_open_conversations()}
+		</p>
+		<div class="flex justify-between">
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger class={buttonVariants({ variant: 'outline', size: 'sm' })}>
+					<ChevronDown class="h-4 w-4" />{m.sort()}
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content>
+					<DropdownMenu.Group>
+						{@render sortOption(pageUrl, 'title+asc')}
+						{@render sortOption(pageUrl, 'title+desc')}
+						{@render sortOption(pageUrl, 'created_at+desc')}
+						{@render sortOption(pageUrl, 'created_at+asc')}
+					</DropdownMenu.Group>
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
+			<Search url={pageUrl} />
+		</div>
+	</header>
+
+	<div
+		class="grid w-full grow auto-rows-auto grid-cols-[repeat(auto-fill,minmax(350px,1fr))] items-center gap-4 overflow-y-auto md:px-0 md:px-2"
+	>
+		{#each data.records as conversation}
+			<ConversationCard {conversation} />
+		{/each}
 	</div>
-</header>
 
-<div
-	class="grid w-full auto-rows-auto grid-cols-[repeat(auto-fill,minmax(350px,1fr))] items-center gap-4 px-2 md:px-0"
->
-	{#each data.records as conversation}
-		<ConversationCard {conversation} />
-	{/each}
-</div>
-
-<div class="mt-20 flex w-full justify-center">
-	<Pager pageSize={PAGE_SIZE} count={data.total} url={pageUrl} />
+	<div class="flex w-full justify-center md:mt-20">
+		<Pager pageSize={PAGE_SIZE} count={data.total} url={pageUrl} />
+	</div>
 </div>

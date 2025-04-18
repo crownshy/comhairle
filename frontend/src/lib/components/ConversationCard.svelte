@@ -6,7 +6,7 @@
 	import * as m from '$lib/paraglide/messages';
 </script>
 
-<Card.Root class="flex h-[400px] w-[350px] flex-col">
+<Card.Root class="mx-0 flex h-[400px] w-full flex-col px-0 md:w-[350px]  md:px-5">
 	<Card.Header class="grow">
 		<Card.Title class="truncate">{conversation.title}</Card.Title>
 		<Card.Description class="line-clamp-4">{conversation.description}</Card.Description>

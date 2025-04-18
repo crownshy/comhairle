@@ -45,47 +45,53 @@
 	}
 </script>
 
-{#if conversation && step}
-	<Breadcrumbs {conversation} workflow_step={step} />
+<div class="flex h-full flex-col pt-10">
+	{#if conversation && step}
+		<div class="hidden md:block">
+			<Breadcrumbs {conversation} workflow_step={step} />
+		</div>
 
-	<div class="grid w-full grid-cols-5 gap-8">
-		<h1 class="col-start-1 col-end-4 row-start-1 row-end-1 text-8xl font-bold">{step.name}</h1>
-		<div class="col-start-1 col-end-4 row-start-3">
-			<p>
-				{step.description}
-			</p>
-			<div class="h-[600px]">
-				{#if step.tool_config.type === Learn.TOOL_NAME}
-					<Learn.UserUI onDone={stepComplete} pages={step.tool_config.pages} user_id={user.id} />
-				{/if}
-				{#if step.tool_config.type === Polis.TOOL_NAME}
-					<Polis.UserUI
-						user_id={user.id}
-						polis_id={step.tool_config.poll_id}
-						polis_url={step.tool_config.server_url}
-						onDone={stepComplete}
-					/>
-				{/if}
-				{#if step.tool_config.type === HeyForm.TOOL_NAME}
-					<HeyForm.UserUI
-						userId={user.id}
-						surveyId={step.tool_config.survey_id}
-						surveyURL={step.tool_config.survey_url}
-						onDone={stepComplete}
-					/>
-				{/if}
+		<div class="flex w-full grow flex-col md:grid md:grid-cols-[1fr_300px] md:gap-x-10">
+			<h1
+				class="text-4xl font-bold md:col-start-1 md:col-end-2 md:row-start-1 md:row-end-1 md:text-6xl"
+			>
+				{step.name}
+			</h1>
+			<div class="flex grow flex-col md:row-start-2">
+				<p>
+					{step.description}
+				</p>
+				<div class="grow">
+					{#if step.tool_config.type === Learn.TOOL_NAME}
+						<Learn.UserUI onDone={stepComplete} pages={step.tool_config.pages} user_id={user.id} />
+					{/if}
+					{#if step.tool_config.type === Polis.TOOL_NAME}
+						<Polis.UserUI
+							user_id={user.id}
+							polis_id={step.tool_config.poll_id}
+							polis_url={step.tool_config.server_url}
+							onDone={stepComplete}
+						/>
+					{/if}
+					{#if step.tool_config.type === HeyForm.TOOL_NAME}
+						<HeyForm.UserUI
+							userId={user.id}
+							surveyId={step.tool_config.survey_id}
+							surveyURL={step.tool_config.survey_url}
+							onDone={stepComplete}
+						/>
+					{/if}
+				</div>
+			</div>
+			<div class="hidden w-full md:row-start-2 md:block md:flex md:flex-col md:gap-10">
+				<ProcessDates startDate={new Date(2025, 1, 1)} endDate={new Date(2025, 1, 28)} />
+				<div class="b-green-950 mt-2 border-b-2 border-t-4 p-4 text-xl font-bold">
+					Part of {conversation.title}
+					<StepSelector steps={workflow_steps} currentStep={step} />
+				</div>
 			</div>
 		</div>
-		<div class="col-start-4 col-end-6 row-start-3 w-full">
-			<ProcessDates startDate={new Date(2025, 1, 1)} endDate={new Date(2025, 1, 28)} />
-			<div class="b-green-950 mt-2 border-b-2 border-t-4 p-4 text-xl font-bold">
-				Part of {conversation.title}
-			</div>
-			<div>
-				<StepSelector steps={workflow_steps} currentStep={step} />
-			</div>
-		</div>
-	</div>
-{:else}
-	<h1>Failed to find conversation</h1>
-{/if}
+	{:else}
+		<h1>Failed to find conversation</h1>
+	{/if}
+</div>

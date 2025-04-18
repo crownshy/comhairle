@@ -4,7 +4,11 @@
 	let { children, data }: LayoutProps = $props();
 </script>
 
-<NavBar user={data.user} />
-<div class="mx-auto mb-16 w-full max-w-[1300px] pt-40 md:px-20">
-	{@render children()}
+<div class="flex h-screen w-full flex-col">
+	<NavBar user={data.user} />
+	<div class="mx-auto w-full max-w-[1300px] grow overflow-y-auto px-4 md:px-20">
+		{@render children()}
+	</div>
+
+	<div class="w-full py-4 text-center text-muted-foreground">© 2025 Comhairle</div>
 </div>

@@ -4,6 +4,7 @@
 	import { ProfileMenu, LoginButtons } from '$lib/profile';
 	import LanguageSelector from '$lib/components/LanguageSelector.svelte';
 	import * as m from '$lib/paraglide/messages';
+	import * as Drawer from '$lib/components/ui/drawer';
 
 	let links = [
 		{
@@ -28,7 +29,7 @@
 	let { user } = $props();
 </script>
 
-<nav class="fixed z-10 flex w-full flex-col bg-white p-4 shadow-md">
+<nav class="z-10 flex w-full flex-col bg-white p-4 shadow-md">
 	<div class="container flex items-center justify-between">
 		<div class="align-center flex flex-row items-center gap-4">
 			<img src={Logo} alt="Comhairle Logo" />
@@ -47,11 +48,6 @@
 			<div class="hidden md:flex">
 				<ProfileMenu {user} />
 			</div>
-
-			<!-- Mobile Menu Button -->
-			<Button class="md:hidden" on:click={() => (isOpen = !isOpen)}>
-				{isOpen ? 'Close' : 'Menu'}
-			</Button>
 		</div>
 	</div>
 

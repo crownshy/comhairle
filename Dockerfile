@@ -1,5 +1,5 @@
 # ---- Base Stage ----
-FROM rust:1.82-bookworm AS base
+FROM rust:1.83-bookworm AS base
 WORKDIR /workspace
 
 # Install required dependencies

@@ -40,62 +40,77 @@
 	}
 </script>
 
-{#if conversation}
-	<Breadcrumbs {conversation} />
+{#snippet joinButtons(participation)}
+	{#if participation}
+		<Button class="mt-5 w-full md:w-fit" href={firstWorkflowPath}>{m.jump_back_in()}</Button>
+	{:else}
+		<Button class="mt-5 w-full md:w-fit" onclick={registerUser}>{m.join_the_conversation()}</Button>
+	{/if}
+{/snippet}
 
-	<div class="h-fill grid grid-cols-2 gap-8 overflow-y-auto">
-		<header
-			class="relative col-span-2 flex h-[40vh] w-full items-center bg-cover bg-center"
-			style={`background-image: url(${conversation.image_url})`}
-		>
-			<!-- Gradient Overlay -->
-			<div class="absolute inset-0 bg-gradient-to-b from-white/30 to-black/70"></div>
+<div class="pt-5 md:pt-20">
+	{#if conversation}
+		<div class="hidden md:block">
+			<Breadcrumbs {conversation} />
+		</div>
 
-			<!-- Content -->
-			<div class="relative z-10 ml-12 max-w-2xl text-white">
-				<h1 class="text-5xl font-bold">{conversation.title}</h1>
-				<h2 class="mt-4 text-2xl">{conversation.description}</h2>
-				{#if data.participation}
-					<Button class="mt-5" href={firstWorkflowPath}>{m.jump_back_in()}</Button>
-				{:else}
-					<Button class="mt-5" onclick={registerUser}>{m.join_the_conversation()}</Button>
-				{/if}
+		<div class="h-fill grid grid-cols-1 gap-8 overflow-y-auto md:grid-cols-2">
+			<header
+				class="relative flex h-[40vh] w-full items-center bg-cover bg-center md:col-span-2"
+				style={`background-image: url(${conversation.image_url})`}
+			>
+				<!-- Gradient Overlay -->
+				<div class="absolute inset-0 bg-gradient-to-b from-white/30 to-black/70"></div>
+
+				<!-- Content -->
+				<div class="relative z-10 ml-12 max-w-2xl text-white">
+					<h1 class="text-5xl font-bold">{conversation.title}</h1>
+					<h2 class="mt-4 text-2xl">{conversation.description}</h2>
+					<div class="hidden md:block">
+						{@render joinButtons(data.participation)}
+					</div>
+				</div>
+			</header>
+
+			<article>
+				<h3 class="text-xl font-bold">{m.intro()}</h3>
+				<p>{conversation.short_description}</p>
+				<p>{conversation.description}</p>
+			</article>
+			{#if !conversation.video_url && !conversation.audio_url}
+				<aside>
+					<h3 class="text-xl font-bold">{m.other_ways_to_learn_about_this_conversation()}</h3>
+					{#if conversation.video_url}
+						<h4 class="text-l font-bold">{m.watch()}</h4>
+						<iframe
+							width="560"
+							height="315"
+							src={conversation.video_url}
+							title="YouTube video player"
+							frameborder="0"
+							allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+							referrerpolicy="strict-origin-when-cross-origin"
+							allowfullscreen
+						></iframe>
+					{/if}
+
+					{#if conversation.audio_url}
+						<h4 class="text-l font-bold">{m.listen()}</h4>
+						<video controls class="h-[45px] w-full">
+							<source
+								src="https://crownshy.s3.eu-west-2.amazonaws.com/alpha_resources/Fairer+Council+Tax+in+Scotland_+A+Consultation.wav"
+								type="audio/wav"
+							/>
+						</video>
+					{/if}
+					<aside></aside>
+				</aside>
+			{/if}
+			<div class="block md:hidden">
+				{@render joinButtons(data.participation)}
 			</div>
-		</header>
-
-		<article>
-			<h3 class="text-xl font-bold">{m.intro()}</h3>
-			<p>{conversation.short_description}</p>
-		</article>
-
-		<aside>
-			<h3 class="text-xl font-bold">{m.other_ways_to_learn_about_this_conversation()}</h3>
-			{#if conversation.video_url}
-				<h4 class="text-l font-bold">{m.watch()}</h4>
-				<iframe
-					width="560"
-					height="315"
-					src={conversation.video_url}
-					title="YouTube video player"
-					frameborder="0"
-					allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-					referrerpolicy="strict-origin-when-cross-origin"
-					allowfullscreen
-				></iframe>
-			{/if}
-
-			{#if conversation.audio_url}
-				<h4 class="text-l font-bold">{m.listen()}</h4>
-				<video controls class="h-[45px] w-full">
-					<source
-						src="https://crownshy.s3.eu-west-2.amazonaws.com/alpha_resources/Fairer+Council+Tax+in+Scotland_+A+Consultation.wav"
-						type="audio/wav"
-					/>
-				</video>
-			{/if}
-			<aside></aside>
-		</aside>
-	</div>
-{:else}
-	<h1>Conversation not found</h1>
-{/if}
+		</div>
+	{:else}
+		<h1>Conversation not found</h1>
+	{/if}
+</div>
