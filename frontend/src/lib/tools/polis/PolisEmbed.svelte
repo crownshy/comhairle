@@ -13,4 +13,3 @@
 
 <iframe src={url} title="Polis poll" style="width:100%;height:100%"></iframe>
 
-<Button variant="default" onclick={onDone}>Done</Button>

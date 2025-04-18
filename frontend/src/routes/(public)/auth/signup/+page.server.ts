@@ -4,9 +4,11 @@ import { superValidate } from 'sveltekit-superforms';
 import { signupFormSchema, type SignupForm } from '$lib/profile';
 import { zod } from 'sveltekit-superforms/adapters';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({url}) => {
+	let backTo = url.searchParams.get("backTo") ?? "/"
 	return {
-		form: await superValidate(zod(signupFormSchema))
+		form: await superValidate(zod(signupFormSchema)),
+		backTo
 	};
 };
 
@@ -25,7 +27,6 @@ export const actions = {
 				'Content-Type': 'application/json'
 			}
 		});
-		console.log(resp);
 		if (!resp.ok) {
 			const body = await resp.json();
 			if (body.err) {
@@ -34,6 +35,7 @@ export const actions = {
 			return fail(resp.status, { form });
 		}
 
-		return redirect(302, '/');
+		let backTo = evt.url.searchParams.get("backTo") ?? "/"
+		return redirect(302, backTo);
 	}
 };

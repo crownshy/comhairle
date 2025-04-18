@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
+use sea_query::{enum_def, ConditionalStatement, Expr, PostgresQueryBuilder, Query};
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
 use sqlx::{prelude::FromRow, PgPool};
@@ -379,6 +379,7 @@ pub async fn list(
     let query = Query::select()
         .from(ConversationIden::Table)
         .columns(DEFAULT_COLUMNS)
+        .and_where(Expr::col(ConversationIden::IsPublic).eq(true))
         .to_owned();
 
     let query = filter_options.apply(query);

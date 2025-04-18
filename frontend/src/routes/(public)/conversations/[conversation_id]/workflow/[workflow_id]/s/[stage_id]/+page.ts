@@ -18,22 +18,17 @@ export const load: PageLoad = async (event)=>{
        let next_undone_step_id = progress.find(p=>p.status !=="done")?.workflow_step_id;
        let next_step = workflow_steps.find(ws=>ws.id === next_undone_step_id)!;
 
-       console.log({conversation, workflow_steps, step, progress, next_undone_step_id })
 
        //If the current step exists       
        if(step){
          let step_status = progress.find((s)=> s.workflow_step_id===step.id)?.status;
          // but is done 
          if(step_status==="done"){
-           console.log("current step is done")
            // and there is a later step to complete
            if(next_undone_step_id){
-             console.log("next undone step is ", next_step)
-             console.log("redirecting to ",workflow_step_url(conversation_id,workflow_id, next_step.step_order))
              redirect(300,workflow_step_url(conversation_id,workflow_id, next_step.step_order))
            }
            else{
-             console.log("All steps compleated. Going to report")
              // Otherwise go to the report
              redirect(300,report_url(conversation_id,workflow_id))
            }
@@ -42,7 +37,6 @@ export const load: PageLoad = async (event)=>{
        // If there current step doesnt exist
        // but there is one to be done. Get the first uncompleated step
        else{
-         console.log("failed to find step. Trying to find first not done")
          if(next_undone_step_id){
            redirect(300,workflow_step_url(conversation_id,workflow_id, next_step.step_order))
          }

@@ -4,9 +4,11 @@ import { superValidate } from 'sveltekit-superforms';
 import { annonLoginFormSchema } from '$lib/profile';
 import { zod } from 'sveltekit-superforms/adapters';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({url}) => {
+	let backTo = url.searchParams.get("backTo") ?? "/"
 	return {
-		form: await superValidate(zod(annonLoginFormSchema))
+		form: await superValidate(zod(annonLoginFormSchema)),
+		backTo
 	};
 };
 
@@ -36,6 +38,8 @@ export const actions = {
 			});
 		}
 
-		return redirect(302, '/');
+		let backTo = evt.url.searchParams.get('backTo');
+		let redirectUrl = backTo ?? "/"
+		return redirect(302, redirectUrl);
 	}
 };

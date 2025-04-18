@@ -6,8 +6,12 @@
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import * as m from '$lib/paraglide/messages';
 
-	export let data: SuperValidated<Infer<typeof annonLoginFormSchema>>;
+	let {
+		data,
+		backTo
+	}: { data: SuperValidated<Infer<typeof annonLoginFormSchema>>; backTo?: string } = $props();
 
+	console.log('DATA IS ', data);
 	const form = superForm(data, {
 		validators: zodClient(annonLoginFormSchema)
 	});
@@ -18,10 +22,10 @@
 <form class="space-y-4" method="POST" use:enhance>
 	<div>
 		<h1 class="text-xl font-bold">{m.login_with_pseudonymous_id()}</h1>
-		<p class="text-muted-foreground mb-4 text-sm">{m.enter_your_details_below_to_login()}</p>
+		<p class="mb-4 text-sm text-muted-foreground">{m.enter_your_details_below_to_login()}</p>
 	</div>
 	{#if $errMessage}
-		<p class="text-destructive text-sm">{$errMessage}</p>
+		<p class="text-sm text-destructive">{$errMessage}</p>
 	{/if}
 	<Form.Field {form} name="username">
 		<Form.Control let:attrs>
@@ -31,5 +35,7 @@
 		<Form.FieldErrors />
 	</Form.Field>
 	<Form.Button fullWidth variant="default">{m.submit()}</Form.Button>
-	<p class="text-sm"><a href="/auth/signup">{m.dont_have_an_account_signup()}</a></p>
+	<p class="text-sm">
+		<a href={`/auth/signup?backTo=${backTo ?? '/'}`}>{m.dont_have_an_account_signup()}</a>
+	</p>
 </form>

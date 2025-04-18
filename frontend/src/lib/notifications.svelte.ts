@@ -43,18 +43,24 @@ class NotificationsManager {
 		});
 	}
 
+	// TODO this doesn't work when running on server side
+	// need to perhaps move to cookies to store and
+	// retrive the flash notifications 
 	public addFlash(opts: SendOpts){
-		console.log("ADDING FLASH ", sessionStorage)
-		if(!sessionStorage) return;
-		let flashString = sessionStorage.getItem('comhairle_flash_notfifications');
-		let flash;
-		if(flashString){
-			flash = FlashString.parse(JSON.parse(flashString))
+		try{
+			let flashString = sessionStorage.getItem('comhairle_flash_notfifications');
+			let flash;
+			if(flashString){
+				flash = FlashString.parse(JSON.parse(flashString))
+			}
+			else{
+				flash = [opts]
+			}
+			sessionStorage.setItem("comhairle_flash_notfifications", JSON.stringify(flash))
 		}
-		else{
-			flash = [opts]
+		catch(e){
+			console.warn("Failed to set session storage, probably on server")
 		}
-		sessionStorage.setItem("comhairle_flash_notfifications", JSON.stringify(flash))
 	}
 
 	public showFlash(){

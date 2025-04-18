@@ -23,7 +23,7 @@ export function report_url(conversation_id:string, workflow_id:string){
 
 export function loginRedirect(backTo: string, message?: string){
   if(message){
-    notifications.addFlash({message, priority:"WARNING"});
+    notifications.addFlash({message, priority:"INFO"});
   }
-  redirect(302,`/login?back_to=${JSON.stringify(backTo)}`)
+  redirect(302,`/auth/login?backTo=${backTo}`)
 }

@@ -1,6 +1,6 @@
 use aide::{
     axum::{
-        routing::{get, get_with, post, post_with},
+        routing::{get_with, post_with},
         ApiRouter,
     },
     OperationIo,
@@ -204,12 +204,36 @@ pub fn decode_jwt(jwt: &str, secret: &str) -> Result<TokenData<Claims>, StatusCo
 /// If no user is logged in then this will fail and
 /// Return a Not Found response
 #[derive(OperationIo)]
+pub struct RequiredAdminUser(pub User);
+
+impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
+    type Rejection = ComhairleError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &Arc<ComhairleState>,
+    ) -> Result<Self, Self::Rejection> {
+        let user = parts.extract_with_state::<RequiredUser, _>(state).await?;
+        if let (Some(admin_users), Some(email)) = (&state.config.admin_users, &user.0.email) {
+            println!("Admin Users : {admin_users:#?} user {email:#?} ");
+            if admin_users.contains(&email) {
+                return Ok(RequiredAdminUser(user.0.clone()));
+            }
+        }
+        Err(ComhairleError::RequiresAuthUser)
+    }
+}
+
+/// An extractor to get a required current user.
+/// If no user is logged in then this will fail and
+/// Return a Not Found response
+#[derive(OperationIo)]
 pub struct RequiredUser(pub User);
 
 /// An extractor to get the current user if they exist
 /// If a user is not logged in, this will still run
 /// but produce a None value in the extractor
-#[derive(OperationIo)]
+#[derive(OperationIo, Debug)]
 pub struct OptionalUser(pub Option<User>);
 
 impl FromRequestParts<Arc<ComhairleState>> for RequiredUser {
@@ -220,6 +244,7 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredUser {
         state: &Arc<ComhairleState>,
     ) -> Result<Self, Self::Rejection> {
         let poss_user = parts.extract_with_state::<OptionalUser, _>(state).await?;
+        println!("user {poss_user:#?}");
 
         if let Some(user) = poss_user.0 {
             Ok(RequiredUser(user))

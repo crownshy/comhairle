@@ -27,12 +27,12 @@ use crate::{
     ComhairleState,
 };
 
-use super::auth::RequiredUser;
+use super::auth::{RequiredAdminUser, RequiredUser};
 
 /// Create conversation handler
 async fn create_conversation(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
+    RequiredAdminUser(user): RequiredAdminUser,
     Json(new_converastion): Json<CreateConversation>,
 ) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
     info!("Attempting to create conversation");
@@ -43,6 +43,7 @@ async fn create_conversation(
 /// Update conversation handler
 async fn update_conversation(
     State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
     Path(id): Path<Uuid>,
     Json(conversation): Json<PartialConversation>,
 ) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {

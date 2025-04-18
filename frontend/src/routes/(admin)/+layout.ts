@@ -1,8 +1,9 @@
+import { notifications } from '$lib/notifications.svelte';
+import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad} from './$types';
 
 export const load: LayoutLoad = async({parent})=>{
   let {api}= await parent();
-  console.log("REFETCHING LAyOUT")
 
   try{
     let conversations = await api.GetOwnedConversations()
@@ -10,7 +11,10 @@ export const load: LayoutLoad = async({parent})=>{
   }
 
   catch(e){
-    console.log("User unauthorized ", e)
+    if(e.status===401){
+      notifications.addFlash({message:"You are not authorised", priority:"WARNING"})
+      redirect(302,"/")      
+    }
   }
 
 }

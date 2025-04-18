@@ -2,9 +2,10 @@
 	import type { PageData } from './$types.js';
 	import { AuthPage } from '$lib/profile';
 	import LoginForm from './login-form.svelte';
-	export let data: PageData;
+
+	let { data }: PageData = $props();
 </script>
 
 <AuthPage>
-	<LoginForm data={data.form} />
+	<LoginForm data={data.form} backTo={data.backTo} />
 </AuthPage>

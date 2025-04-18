@@ -17,11 +17,11 @@ use crate::{
     ComhairleState,
 };
 
-use super::auth::RequiredUser;
+use super::auth::{RequiredAdminUser, RequiredUser};
 
 pub async fn get_user_owned_conversations(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
+    RequiredAdminUser(user): RequiredAdminUser,
     OrderParams(order_options): OrderParams<ConversationOrderOptions>,
     Query(filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,

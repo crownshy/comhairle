@@ -5,9 +5,11 @@ import { loginFormSchema } from '$lib/profile';
 import { zod } from 'sveltekit-superforms/adapters';
 import { page } from '$app/state';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({url}) => {
+	let backTo = url.searchParams.get("backTo") ?? "/"
 	return {
-		form: await superValidate(zod(loginFormSchema))
+		form: await superValidate(zod(loginFormSchema)),
+		backTo
 	};
 };
 
@@ -37,7 +39,7 @@ export const actions = {
 			});
 		}
 
-		let backTo = page.url.searchParams.get('backTo');
+		let backTo = evt.url.searchParams.get('backTo');
 		let redirectUrl = backTo ?? "/"
 		return redirect(302, redirectUrl);
 	}

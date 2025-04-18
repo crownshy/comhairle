@@ -91,6 +91,9 @@ pub enum ComhairleError {
 
     #[error("Workflow Step has wrong type expected {0}")]
     WorkflowStepHasWrongType(String),
+
+    #[error("Requires Auth User")]
+    RequiresAuthUser,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -113,6 +116,7 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::NoUserFoundForId(_) => StatusCode::NOT_FOUND,
             ComhairleError::UserRequired
             | ComhairleError::WrongPassword
+            | ComhairleError::RequiresAuthUser
             | ComhairleError::NoLogedInUser => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates => StatusCode::UNPROCESSABLE_ENTITY,
             _ => StatusCode::INTERNAL_SERVER_ERROR,

@@ -8,7 +8,6 @@
 	const { user } = $props();
 
 	let user_initals = $derived(userInitals(user?.username));
-	console.log(user);
 </script>
 
 {#if user}

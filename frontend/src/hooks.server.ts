@@ -9,7 +9,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const token = event.cookies.get('auth_token');
 	let url = new URL( event.request.url)
 
-	console.log(`creating server side api client with token ${token}`)
   const apiClient = createApiClient(url.origin+"/api", token, "server")
 
 	event.locals.api = apiClient;

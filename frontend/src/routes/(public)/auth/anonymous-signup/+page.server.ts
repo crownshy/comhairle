@@ -1,5 +1,11 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types.js';
+import { page } from '$app/state';
+
+export const load:PageServerLoad = ({url})=>{
+	let backTo = url.searchParams.get("backTo") ?? "/"
+	return {backTo}
+}
 
 export const actions = {
 	default: async (evt) => {
@@ -9,11 +15,11 @@ export const actions = {
 		});
 
 		if (!resp.ok) {
-			console.log(resp);
 			//TODO: proper error message here, probably need form
 			return fail(400, {});
 		}
 
-		redirect(301, '/auth/anonymous-signup/code');
+		let backTo = evt.url.searchParams.get("backTo") ?? "/"
+		redirect(302, `/auth/anonymous-signup/code?backTo=${backTo}`);
 	}
 };

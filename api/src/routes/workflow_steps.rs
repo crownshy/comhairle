@@ -17,13 +17,14 @@ use crate::{
     ComhairleState,
 };
 
-use super::auth::RequiredUser;
+use super::auth::{RequiredAdminUser, RequiredUser};
 use crate::models::user_participation;
 
 /// Create workflow handler
 async fn create_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     Path((_, workflow_id)): Path<(Uuid, Uuid)>,
+    RequiredAdminUser(user): RequiredAdminUser,
     Json(new_workflow): Json<CreateWorkflowStep>,
 ) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
     info!("Attempting to create workflow");
@@ -35,6 +36,7 @@ async fn create_workflow_step(
 async fn update_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     Path((_, workflow_id, id)): Path<(Uuid, Uuid, Uuid)>,
+    RequiredAdminUser(user): RequiredAdminUser,
     Json(workflow): Json<PartialWorkflowStep>,
 ) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
     let workflow = workflow_step::update(&state.db, id, workflow_id, &workflow).await?;
@@ -44,8 +46,8 @@ async fn update_workflow_step(
 /// List workflows handler
 async fn list_workflows_step(
     State(state): State<Arc<ComhairleState>>,
-    Path((_, workflow_id)): Path<(Uuid, Uuid)>,
     RequiredUser(user): RequiredUser,
+    Path((_, workflow_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<Vec<WorkflowStep>>), ComhairleError> {
     // Check to see if the user is a participant on this conversation
     let participation = user_participation::get(&state.db, &user.id, &workflow_id)
@@ -60,8 +62,8 @@ async fn list_workflows_step(
 /// Get a specific workflow
 async fn get_workflow_step(
     State(state): State<Arc<ComhairleState>>,
-    Path((_, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
     RequiredUser(user): RequiredUser,
+    Path((_, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
     info!("Attempting to get workflow step  {workflow_step_id:#?}");
     let workflow = workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
@@ -72,6 +74,7 @@ async fn get_workflow_step(
 /// Delete a specific workflow
 async fn delete_workflow_step(
     State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
     Path((_, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
     let workflow = workflow_step::delete(&state.db, &workflow_step_id).await?;

@@ -8,7 +8,8 @@
 	import { cn } from '$lib/utils';
 	import * as m from '$lib/paraglide/messages';
 
-	export let data: SuperValidated<Infer<typeof signupFormSchema>>;
+	let { data, backTo }: { data: SuperValidated<Infer<typeof signupFormSchema>>; backTo?: string } =
+		$props();
 
 	const form = superForm(data, {
 		validators: zodClient(signupFormSchema)
@@ -20,10 +21,10 @@
 <form class="space-y-4" method="POST" use:enhance>
 	<div>
 		<h1 class="text-xl font-bold">{m.create_an_account()}</h1>
-		<p class="text-muted-foreground mb-4 text-sm">{m.get_started_with_comhairle_today()}</p>
+		<p class="mb-4 text-sm text-muted-foreground">{m.get_started_with_comhairle_today()}</p>
 	</div>
 	{#if $errMessage}
-		<p class="text-destructive text-sm">{$errMessage}</p>
+		<p class="text-sm text-destructive">{$errMessage}</p>
 	{/if}
 	<Form.Field {form} name="username">
 		<Form.Control let:attrs>
@@ -54,8 +55,11 @@
 		<Form.FieldErrors />
 	</Form.Field>
 	<Form.Button fullWidth variant="default">Submit</Form.Button>
-	<a href="/auth/anonymous-signup" class={cn('w-full', buttonVariants({ variant: 'outline' }))}
-		>{m.sign_up_anonymously()}</a
+	<a
+		href={`/auth/anonymous-signup?backTo=${backTo}`}
+		class={cn('w-full', buttonVariants({ variant: 'outline' }))}>{m.sign_up_anonymously()}</a
 	>
-	<p class="text-sm"><a href="/auth/login">{m.already_have_an_account_login()}</a></p>
+	<p class="text-sm">
+		<a href={`/auth/login?backTo=${backTo}`}>{m.already_have_an_account_login()}</a>
+	</p>
 </form>

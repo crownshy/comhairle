@@ -18,12 +18,12 @@ use crate::{
     ComhairleState,
 };
 
-use super::auth::RequiredUser;
+use super::auth::{RequiredAdminUser, RequiredUser};
 
 /// Create workflow handler
 async fn create_workflow(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
+    RequiredAdminUser(user): RequiredAdminUser,
     Path(conversation_id): Path<Uuid>,
     Json(new_workflow): Json<CreateWorkflow>,
 ) -> Result<(StatusCode, Json<Workflow>), ComhairleError> {
@@ -44,6 +44,7 @@ async fn workflow_stats(
 async fn update_workflow(
     State(state): State<Arc<ComhairleState>>,
     Path((_, id)): Path<(Uuid, Uuid)>,
+    RequiredAdminUser(user): RequiredAdminUser,
     Json(workflow): Json<PartialWorkflow>,
 ) -> Result<Json<Workflow>, ComhairleError> {
     let workflow = workflow::update(&state.db, id, &workflow).await?;
@@ -74,6 +75,7 @@ async fn get_workflow(
 async fn delete_workflow(
     State(state): State<Arc<ComhairleState>>,
     Path((_, id)): Path<(Uuid, Uuid)>,
+    RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<Workflow>), ComhairleError> {
     let workflow = workflow::delete(&state.db, &id).await?;
     Ok((StatusCode::OK, Json(workflow)))

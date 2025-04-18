@@ -59,9 +59,7 @@
 
 				//@ts-ignore
 				let template = workflow_templates[selectedWorkflowTemplate];
-				console.log('Doing tempalte ', template);
 				for (let step of template) {
-					console.log('trying to create ', step);
 					await apiClient.CreateWorkflowStep(step, {
 						params: {
 							conversation_id: conversation.id,
@@ -71,7 +69,6 @@
 				}
 
 				notifications.addFlash({ message: 'Conversastion Created' });
-				console.log('trying to invalidate');
 				await invalidateAll();
 
 				goto(manage_conversation_url(conversation.id));
