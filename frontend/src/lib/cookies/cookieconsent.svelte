@@ -3,7 +3,11 @@
 	import config from '$lib/cookies/cookieconsent-config';
 	import 'vanilla-cookieconsent/dist/cookieconsent.css';
 	import * as CookieConsent from 'vanilla-cookieconsent';
+	import { browser } from '$app/environment';
+
 	onMount(() => {
-		CookieConsent.run(config);
+		if (browser) {
+			CookieConsent.run(config);
+		}
 	});
 </script>

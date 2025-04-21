@@ -18,8 +18,8 @@
 	});
 </script>
 
+<CookieConsent />
 <ParaglideJS {i18n}>
 	<NotificationsToaster closeButton />
 	{@render children()}
-	<CookieConsent />
 </ParaglideJS>

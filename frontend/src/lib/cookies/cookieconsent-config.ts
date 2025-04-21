@@ -1,6 +1,8 @@
 import * as CookieConsent from 'vanilla-cookieconsent';
 
 const config: CookieConsent.CookieConsentConfig = {
+	autoShow:true,
+	disablePageInteraction:true,
 	categories: {
 		necessary: {
 			enabled: true,
@@ -86,8 +88,8 @@ const config: CookieConsent.CookieConsentConfig = {
 					showPreferencesBtn: 'Manage Individual preferences',
 					// closeIconLabel: 'Reject all and close modal',
 					footer: `
-							<a href="/rights/tos" target="_blank">Terms of Service</a>
-							<a href="/rights/privacy" target="_blank">Privacy Policy</a>
+							<a href="${window.location.origin}/rights/tos" target="_blank">Terms of Service</a>
+							<a href="${window.location.origin}/rights/privacy" target="_blank">Privacy Policy</a>
 					`
 				},
 				preferencesModal: {
@@ -145,7 +147,7 @@ const config: CookieConsent.CookieConsentConfig = {
 						{
 							title: 'More information',
 							description:
-								'For any queries in relation to my policy on cookies and your choices, please <a href="#contact-page">contact us</a>'
+								`For any queries in relation to my policy on cookies and your choices, please <a href="${window.location.origin}/rights/cookies">visit here</a>`
 						}
 					]
 				}

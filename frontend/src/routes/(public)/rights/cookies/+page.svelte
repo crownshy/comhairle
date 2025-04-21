@@ -13,6 +13,10 @@
 		>
 	</p>
 
+	<Button variant="secondary" onclick={CookieConsent.showPreferences}
+		>Show and edit your cookie preferences</Button
+	>
+
 	<p>Comhairle makes use of the following essential cookies</p>
 
 	<div class="relative overflow-x-auto">
@@ -54,10 +58,6 @@
 	Cookie name Purpose Expiry paraglide_lang Stores the user's language preference Check this
 	auth_token Used to login a user and associate their responses with a user account 48 hours after
 	the last page submission
-
-	<Button variant="outline" onclick={CookieConsent.showPreferences}
-		>Show and edit your cookie preferences</Button
-	>
 </div>
 
 <style>
