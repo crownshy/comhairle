@@ -62,4 +62,11 @@
 	<p class="text-sm">
 		<a href={`/auth/login?backTo=${backTo}`}>{m.already_have_an_account_login()}</a>
 	</p>
+
+	<p class="mb-4 text-sm text-muted-foreground">
+		{m.agree_to_tos()}
+		<a href="/rights/tos">TOS</a>
+		{m.agree_to_tos2()}
+		<a href="/rights/privacy">{m.agree_to_tos_privacy()}</a>
+	</p>
 </form>

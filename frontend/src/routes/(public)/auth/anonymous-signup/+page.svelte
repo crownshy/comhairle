@@ -12,6 +12,13 @@
 		<h1 class="text-xl">{m.sign_up_anonymously()}</h1>
 		<p class="mb-4 text-sm text-muted-foreground">{m.get_started_with_comhairle_right_away()}</p>
 		<Form.Button fullWidth variant="default">{m.generate_pseudonymous_id()} →</Form.Button>
+
+		<p class="mb-4 text-sm text-muted-foreground">
+			{m.agree_to_tos()}
+			<a href="/rights/tos">TOS</a>
+			{m.agree_to_tos2()}
+			<a href="/rights/privacy">{m.agree_to_tos_privacy()}</a>
+		</p>
 		<p class="text-sm">
 			<a href={`/auth/login?backTo=${data.backTo ?? '/'}`}>{m.already_have_an_account_login()}</a>
 		</p>
