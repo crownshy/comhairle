@@ -1,0 +1,86 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (X11; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0" version="26.0.16">
+  <diagram name="Page-1" id="r3YXOQ4f6xzXGiApnIWl">
+    <mxGraphModel dx="1233" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="rGkzuZiTR1N7KXrfZZaJ-1" value="Comhairle" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;" vertex="1" parent="1">
+          <mxGeometry x="340" y="480" width="170" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="rGkzuZiTR1N7KXrfZZaJ-3" value="Members of the public / organizations" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="360" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="rGkzuZiTR1N7KXrfZZaJ-4" value="Conversation builders" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="550" y="360" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="rGkzuZiTR1N7KXrfZZaJ-5" value="External AI Services" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="550" y="730" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="rGkzuZiTR1N7KXrfZZaJ-6" value="External Auth Services" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="730" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="rGkzuZiTR1N7KXrfZZaJ-8" value="Summarize conversations" style="curved=1;endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.905;entryY=0.82;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="rGkzuZiTR1N7KXrfZZaJ-5" target="rGkzuZiTR1N7KXrfZZaJ-1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="660" y="670" as="sourcePoint" />
+            <mxPoint x="710" y="620" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="710" y="670" />
+              <mxPoint x="660" y="620" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rGkzuZiTR1N7KXrfZZaJ-9" value="Contribute to converations" style="curved=1;endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="rGkzuZiTR1N7KXrfZZaJ-3" target="rGkzuZiTR1N7KXrfZZaJ-1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="180" y="510" as="sourcePoint" />
+            <mxPoint x="230" y="460" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="230" y="510" />
+              <mxPoint x="180" y="460" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rGkzuZiTR1N7KXrfZZaJ-11" value="View the results &lt;br&gt;of conversations " style="curved=1;endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.056;entryY=0.294;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="rGkzuZiTR1N7KXrfZZaJ-3" target="rGkzuZiTR1N7KXrfZZaJ-1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="300" y="480" as="sourcePoint" />
+            <mxPoint x="350" y="430" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="350" y="480" />
+              <mxPoint x="350" y="460" />
+              <mxPoint x="340" y="430" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rGkzuZiTR1N7KXrfZZaJ-12" value="Create / Moderate / View &lt;br&gt;conversations" style="curved=1;endArrow=classic;html=1;rounded=0;exitX=0.504;exitY=1.047;exitDx=0;exitDy=0;exitPerimeter=0;" edge="1" parent="1" source="rGkzuZiTR1N7KXrfZZaJ-4" target="rGkzuZiTR1N7KXrfZZaJ-1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="580" y="520" as="sourcePoint" />
+            <mxPoint x="630" y="470" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="630" y="520" />
+              <mxPoint x="580" y="470" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rGkzuZiTR1N7KXrfZZaJ-13" value="&lt;div&gt;Authenticate users /&lt;br&gt; Provide information about users&lt;br&gt;&lt;/div&gt;" style="curved=1;endArrow=classic;html=1;rounded=0;" edge="1" parent="1" target="rGkzuZiTR1N7KXrfZZaJ-1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="160" y="730" as="sourcePoint" />
+            <mxPoint x="210" y="680" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="210" y="730" />
+              <mxPoint x="160" y="680" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rGkzuZiTR1N7KXrfZZaJ-14" value="Generate seed content" style="curved=1;endArrow=classic;html=1;rounded=0;entryX=0.883;entryY=0.838;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" target="rGkzuZiTR1N7KXrfZZaJ-1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="650" y="730" as="sourcePoint" />
+            <mxPoint x="580" y="640" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="580" y="690" />
+              <mxPoint x="530" y="640" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
