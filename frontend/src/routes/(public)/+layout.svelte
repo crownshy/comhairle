@@ -10,5 +10,5 @@
 		{@render children()}
 	</div>
 
-	<div class="w-full py-4 text-center text-muted-foreground">© 2025 Comhairle</div>
+	<div class="w-full py-4 text-center text-muted-foreground">© 2025 CrownShy Ltd</div>
 </div>

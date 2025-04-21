@@ -1,8 +1,7 @@
 <script lang="ts">
 	import Logo from '$lib/assets/comhairle_logo.png';
-	import * as Avatar from '$lib/components/ui/avatar';
-	import { userInitals } from '$lib/utils';
 	import * as Command from '$lib/components/ui/command/index.js';
+	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import Plus from 'lucide-svelte/icons/plus';
 	import MessageCircle from 'lucide-svelte/icons/message-circle';
 
@@ -10,7 +9,6 @@
 	let user = $derived(props.user);
 	let conversations = $derived(props.conversations);
 
-	let user_initals = $derived(userInitals(user?.username));
 	// TODO We need to use data-sveltekit-reload as the
 	// component isn't relaoading on navigation when we use
 	// page.ts for the data fetching
@@ -21,15 +19,7 @@
 		<img src={Logo} alt="Comhairle Logo" />
 		<h1 class="text-xl font-bold">Comhairle</h1>
 	</div>
-	<div class="mt-12 flex flex-col items-center">
-		<Avatar.Root class="mb-4 h-40 w-40">
-			{#if user.avatar_url}
-				<Avatar.Image src={user.avatar_url} alt="@shadcn" />
-			{/if}
-			<Avatar.Fallback>{user_initals}</Avatar.Fallback>
-		</Avatar.Root>
-		<h2 class="text-2xl capitalize">{user.username}</h2>
-	</div>
+	<UserAvatar {user} />
 	<hr class="my-4 border-gray-300 dark:border-white" />
 	<Command.Root class="max-w-[450px] grow rounded-lg border bg-[#E4E4E7] ">
 		<Command.Input placeholder="Type a command or search..." />
