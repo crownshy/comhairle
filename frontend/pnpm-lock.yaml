@@ -50,6 +50,9 @@ importers:
       svelte-radix:
         specifier: ^2.0.1
         version: 2.0.1(svelte@5.19.2)
+      vanilla-cookieconsent:
+        specifier: ^3.1.0
+        version: 3.1.0
     devDependencies:
       '@chromatic-com/storybook':
         specifier: ^3.2.4
@@ -4281,6 +4284,9 @@ packages:
   validator@13.12.0:
     resolution: {integrity: sha512-c1Q0mCiPlgdTVVVIJIrBuxNicYE+t/7oKeI9MWLj3fh/uq2Pxh/3eeWbVZ4OcGW1TUf53At0njHw5SMdA3tmMg==}
     engines: {node: '>= 0.10'}
+
+  vanilla-cookieconsent@3.1.0:
+    resolution: {integrity: sha512-/McNRtm/3IXzb9dhqMIcbquoU45SzbN2VB+To4jxEPqMmp7uVniP6BhGLjU8MC7ZCDsNQVOp27fhQTM/ruIXAA==}
 
   vaul-svelte@0.3.2:
     resolution: {integrity: sha512-X4OGWttSTVUl417qGDsSFgOvIx24DoiMRY/jaP9z0v9FL8LQQJ0RQ1ZM0QpdyQPRlNd24ewjNQHh5EgYDtfNpw==}
@@ -9107,6 +9113,8 @@ snapshots:
 
   validator@13.12.0:
     optional: true
+
+  vanilla-cookieconsent@3.1.0: {}
 
   vaul-svelte@0.3.2(svelte@5.19.2):
     dependencies:

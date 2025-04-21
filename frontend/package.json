@@ -78,6 +78,7 @@
 		"lucide-svelte": "^0.487.0",
 		"marked": "^15.0.8",
 		"svelte-exmarkdown": "^5.0.0",
-		"svelte-radix": "^2.0.1"
+		"svelte-radix": "^2.0.1",
+		"vanilla-cookieconsent": "^3.1.0"
 	}
 }
