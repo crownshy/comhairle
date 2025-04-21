@@ -34,7 +34,7 @@ jobs:
         with:
           context: ./frontend
           push: true
-          tags: crownshy/comhairle_frontend:latest
+          tags: crownshy/comhairle_frontend:${{ github.ref_name }}
           
   build-and-run-staging:
     if: github.ref == 'refs/heads/staging'
