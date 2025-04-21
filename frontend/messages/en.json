@@ -58,5 +58,8 @@
 	"find_open_conversations":"Find open consultations that you can participate, or search topics that interest you the most.",
 	"conversations": "Conversations",
 	"take_part": "Take Part",
-	"view_report": "View Report"
+	"view_report": "View Report",
+	"agree_to_tos": "By signing for an account you agree to our",
+	"agree_to_tos2":"and",
+	"agree_to_tos_privacy":"privacy policy"
 }

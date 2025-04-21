@@ -75,5 +75,11 @@
 {/if}
 
 {#if step.tool_config.type === 'heyform'}
-	<HeyFormManage survey_url={step.tool_config.survey_url} survey_id={step.tool_config.survey_id} />
+	<HeyFormManage
+		conversation_id={conversation.id}
+		workflow_id={step.workflow_id}
+		workflow_step_id={step.id}
+		survey_url={step.tool_config.survey_url}
+		survey_id={step.tool_config.survey_id}
+	/>
 {/if}

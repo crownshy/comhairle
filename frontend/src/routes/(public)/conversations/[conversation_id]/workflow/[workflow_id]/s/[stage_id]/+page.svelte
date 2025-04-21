@@ -58,7 +58,7 @@
 				{step.name}
 			</h1>
 			<div class="flex grow flex-col md:row-start-2">
-				<p>
+				<p class="mb-4">
 					{step.description}
 				</p>
 				<div class="grow">
