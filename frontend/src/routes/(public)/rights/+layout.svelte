@@ -9,7 +9,7 @@
 		<Button variant="ghost" href="/rights/privacy">Privacy</Button>
 		<Button variant="ghost" href="/rights/cookies">Cookie Policy</Button>
 	</div>
-	<div class="border-l-grey h-full overflow-y-auto">
+	<div class="border-l-grey h-full grow overflow-y-auto">
 		{@render children()}
 	</div>
 </div>
