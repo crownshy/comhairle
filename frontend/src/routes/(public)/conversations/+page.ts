@@ -11,6 +11,7 @@ export const load: PageLoad = async (event)=> {
 	const offset = calcOffset({ page, pageSize: PAGE_SIZE });
 	const resp = await event
 		.fetch(`/api/conversation?limit=${PAGE_SIZE}&offset=${offset}&sort=${sortBy}&title=${search}`)
-		.then((r) => r.json());
+		.then((r) => r.json())
+		.catch(e=>console.log(`error fetching conversations ${JSON.stringify(e,null,2)}`));
 	return { ...resp };
 }

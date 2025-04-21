@@ -51,7 +51,7 @@ importers:
         specifier: ^2.0.1
         version: 2.0.1(svelte@5.19.2)
       vanilla-cookieconsent:
-        specifier: ^3.0.0
+        specifier: ^3.1.0
         version: 3.1.0
     devDependencies:
       '@chromatic-com/storybook':

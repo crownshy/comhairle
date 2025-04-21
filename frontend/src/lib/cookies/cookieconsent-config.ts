@@ -88,8 +88,8 @@ const config: CookieConsent.CookieConsentConfig = {
 					showPreferencesBtn: 'Manage Individual preferences',
 					// closeIconLabel: 'Reject all and close modal',
 					footer: `
-							<a href="${window.location.origin}/rights/tos" target="_blank">Terms of Service</a>
-							<a href="${window.location.origin}/rights/privacy" target="_blank">Privacy Policy</a>
+							<a href="/rights/tos" target="_blank">Terms of Service</a>
+							<a href="/rights/privacy" target="_blank">Privacy Policy</a>
 					`
 				},
 				preferencesModal: {
@@ -147,7 +147,7 @@ const config: CookieConsent.CookieConsentConfig = {
 						{
 							title: 'More information',
 							description:
-								`For any queries in relation to my policy on cookies and your choices, please <a href="${window.location.origin}/rights/cookies">visit here</a>`
+								`For any queries in relation to my policy on cookies and your choices, please <a href="/rights/cookies">visit here</a>`
 						}
 					]
 				}

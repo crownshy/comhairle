@@ -34,7 +34,9 @@ const basic_polis_config={
   "topic": "new polis poll"
 }
 
-const basic_survey_config={}
+const basic_survey_config={
+  "type": "heyform",
+}
 
 export const workflow_templates={
   "learn_polis":[

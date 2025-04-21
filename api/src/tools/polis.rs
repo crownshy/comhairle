@@ -434,8 +434,7 @@ pub async fn setup(_setup: &PolisToolSetup) -> Result<PolisToolConfig, Comhairle
             password: password.clone(),
         })
         .await?;
-    sleep(Duration::from_secs(4)).await;
-    info!("Got admin user with {email} {password}");
+    // sleep(Duration::from_millis(1)).await;
     let poll_id = client.create_poll().await?;
 
     Ok(PolisToolConfig {

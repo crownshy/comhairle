@@ -20,4 +20,4 @@ export const createApiClient = (baseUrl:string, authToken:string | undefined, so
 	return api  
 }
 
-export const apiClient = createApiClient("http://localhost:5173/api", null , "client")
+export const apiClient = createApiClient("/api", null , "client")
