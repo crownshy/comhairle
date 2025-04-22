@@ -58,17 +58,17 @@
 
 		<!-- Mobile Navigation -->
 		<div class="md:hidden">
-			<Drawer.Root bind:open={isOpen} direction="right">
+			<Drawer.Root bind:open={isOpen} direction="bottom">
 				<Drawer.Trigger asChild let:builder>
 					<Button builders={[builder]} variant="outline">
 						<HamburgerMenu />
 					</Button>
 				</Drawer.Trigger>
 				<Drawer.Content>
-					<div class="my-auto h-screen">
+					<div class="my-auto max-h-[80vh]">
 						<div class="h-full p-4">
 							<div class="flex h-full flex-col justify-between">
-								<div class="flex w-full flex-col items-center justify-center gap-2">
+								<div class="mb-10 flex w-full flex-col items-center justify-center gap-2">
 									{#each links as link}
 										<Button
 											href={link.href}
