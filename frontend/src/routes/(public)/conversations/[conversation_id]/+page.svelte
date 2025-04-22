@@ -2,7 +2,9 @@
 	import type { PageProps } from '../$types.js';
 
 	let { data }: PageProps = $props();
-	let { conversation, workflows, api } = data;
+	let { conversation, workflows } = data;
+	let user = $derived(data.user);
+	let hasAdditionalLearnMethods = $derived(conversation.video_url || conversation.audio_url);
 
 	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
@@ -10,8 +12,13 @@
 	import { notifications } from '$lib/notifications.svelte.js';
 	import { goto } from '$app/navigation';
 	import { apiClient } from '$lib/api/client';
+	import { page } from '$app/state';
 
 	let firstWorkflowPath = `/conversations/${conversation.id}/workflow/${workflows[0].id}/s/1`;
+
+	async function redirectToLogin() {
+		goto(`/auth/login?backTo=${page.url.pathname}`);
+	}
 
 	async function registerUser() {
 		try {
@@ -40,11 +47,17 @@
 	}
 </script>
 
-{#snippet joinButtons(participation)}
-	{#if participation}
-		<Button class="mt-5 w-full md:w-fit" href={firstWorkflowPath}>{m.jump_back_in()}</Button>
+{#snippet joinButtons(participation, user)}
+	{#if user}
+		{#if participation}
+			<Button class="mt-5 w-full md:w-fit" href={firstWorkflowPath}>{m.jump_back_in()}</Button>
+		{:else}
+			<Button class="mt-5 w-full md:w-fit" onclick={registerUser}
+				>{m.join_the_conversation()}</Button
+			>
+		{/if}
 	{:else}
-		<Button class="mt-5 w-full md:w-fit" onclick={registerUser}>{m.join_the_conversation()}</Button>
+		<Button class="mt-5 w-full md:w-fit" onclick={redirectToLogin}>{m.login_to_take_part()}</Button>
 	{/if}
 {/snippet}
 
@@ -67,17 +80,17 @@
 					<h1 class="text-5xl font-bold">{conversation.title}</h1>
 					<h2 class="mt-4 text-2xl">{conversation.description}</h2>
 					<div class="hidden md:block">
-						{@render joinButtons(data.participation)}
+						{@render joinButtons(data.participation, user)}
 					</div>
 				</div>
 			</header>
 
-			<article>
+			<article class={hasAdditionalLearnMethods ? '' : 'col-span-2'}>
 				<h3 class="text-xl font-bold">{m.intro()}</h3>
 				<p>{conversation.short_description}</p>
 				<p>{conversation.description}</p>
 			</article>
-			{#if !conversation.video_url && !conversation.audio_url}
+			{#if hasAdditionalLearnMethods}
 				<aside>
 					<h3 class="text-xl font-bold">{m.other_ways_to_learn_about_this_conversation()}</h3>
 					{#if conversation.video_url}
@@ -107,7 +120,7 @@
 				</aside>
 			{/if}
 			<div class="block md:hidden">
-				{@render joinButtons(data.participation)}
+				{@render joinButtons(data.participation, user)}
 			</div>
 		</div>
 	{:else}

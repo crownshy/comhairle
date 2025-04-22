@@ -9,9 +9,12 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { report_url, workflow_step_url } from '$lib/urls';
 	import { apiClient } from '$lib/api/client';
+	import { addDays, parseISO } from 'date-fns';
 
 	let { data }: PageProps = $props();
 	let { conversation, step, workflow_steps, user } = data;
+	let startDate = $derived(parseISO(conversation.created_at));
+	let endDate = $derived(addDays(startDate, 30));
 
 	async function stepComplete() {
 		try {
@@ -84,7 +87,7 @@
 				</div>
 			</div>
 			<div class="hidden w-full md:row-start-2 md:block md:flex md:flex-col md:gap-10">
-				<ProcessDates startDate={new Date(2025, 1, 1)} endDate={new Date(2025, 1, 28)} />
+				<ProcessDates {startDate} {endDate} />
 				<div class="b-green-950 mt-2 border-b-2 border-t-4 p-4 text-xl font-bold">
 					Part of {conversation.title}
 					<StepSelector steps={workflow_steps} currentStep={step} />
