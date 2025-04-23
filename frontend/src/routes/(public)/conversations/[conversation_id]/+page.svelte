@@ -85,6 +85,10 @@
 				</div>
 			</header>
 
+			<div class="col-span-2 block md:hidden">
+				{@render joinButtons(data.participation, user)}
+			</div>
+
 			<article class={hasAdditionalLearnMethods ? '' : 'col-span-2'}>
 				<h3 class="text-xl font-bold">{m.intro()}</h3>
 				<p>{conversation.short_description}</p>
@@ -119,9 +123,7 @@
 					<aside></aside>
 				</aside>
 			{/if}
-			<div class="block md:hidden">
-				{@render joinButtons(data.participation, user)}
-			</div>
+
 		</div>
 	{:else}
 		<h1>Conversation not found</h1>
