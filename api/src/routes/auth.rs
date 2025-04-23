@@ -215,7 +215,6 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
     ) -> Result<Self, Self::Rejection> {
         let user = parts.extract_with_state::<RequiredUser, _>(state).await?;
         if let (Some(admin_users), Some(email)) = (&state.config.admin_users, &user.0.email) {
-            println!("Admin Users : {admin_users:#?} user {email:#?} ");
             if admin_users.contains(&email) {
                 return Ok(RequiredAdminUser(user.0.clone()));
             }
@@ -244,7 +243,6 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredUser {
         state: &Arc<ComhairleState>,
     ) -> Result<Self, Self::Rejection> {
         let poss_user = parts.extract_with_state::<OptionalUser, _>(state).await?;
-        println!("user {poss_user:#?}");
 
         if let Some(user) = poss_user.0 {
             Ok(RequiredUser(user))

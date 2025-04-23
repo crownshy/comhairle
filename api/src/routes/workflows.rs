@@ -138,8 +138,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 mod tests {
 
     use crate::{
-        config, setup_server,
-        test_helpers::{extract, UserSession},
+        setup_server,
+        test_helpers::{extract, test_config, UserSession},
     };
     use axum::{body::Body, http::StatusCode};
     use serde_json::json;
@@ -150,14 +150,10 @@ mod tests {
     fn should_be_able_to_create_a_workflow_on_a_conversatin(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
@@ -201,14 +197,10 @@ mod tests {
     fn should_be_able_to_list_workflows_on_a_conversation(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
@@ -257,14 +249,10 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_retrive_a_workflow(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
@@ -298,14 +286,10 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_delete_a_workflow(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
@@ -338,14 +322,10 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_update_a_workflow(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
@@ -390,14 +370,10 @@ mod tests {
 
     #[sqlx::test]
     fn should_get_the_correct_stats_for_a_workflow(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 

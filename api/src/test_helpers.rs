@@ -16,6 +16,14 @@ use serde_json::{json, Value};
 
 use tower::ServiceExt;
 
+use crate::config::ComhairleConfig;
+
+pub fn test_config() -> Result<ComhairleConfig, Box<dyn Error>> {
+    let mut config = crate::config::load()?;
+    config.admin_users = Some(vec!["admin@crown-shy.com".into()]);
+    Ok(config)
+}
+
 pub fn extract<T: DeserializeOwned>(target: &str, entity: &serde_json::Value) -> T {
     let value = entity.get(target).to_owned().unwrap().to_owned();
     serde_json::from_value(value).unwrap()
@@ -24,10 +32,7 @@ pub fn extract<T: DeserializeOwned>(target: &str, entity: &serde_json::Value) ->
 pub fn polis_tool_config() -> serde_json::Value {
     json!({
         "type" : "polis",
-        "server_url" : "http://polis.com",
-        "poll_id": "12234",
-        "admin_user": "admin",
-        "admin_password" : "password"
+        "topic": "topic"
     })
 }
 
@@ -68,6 +73,16 @@ impl UserSession {
             cookie: None,
         }
     }
+
+    pub fn new_admin() -> Self {
+        Self {
+            username: Some("admin".into()),
+            password: Some("admin".into()),
+            email: Some("admin@crown-shy.com".into()),
+            cookie: None,
+        }
+    }
+
     pub fn new(username: &str, password: &str, email: &str) -> Self {
         Self {
             username: Some(username.to_owned()),
@@ -233,7 +248,7 @@ impl UserSession {
         )
         .await
     }
-    
+
     pub async fn login_annon(
         &mut self,
         app: &Router,
@@ -241,13 +256,11 @@ impl UserSession {
         self.post(
             app,
             "/auth/login_annon",
-            json!({"username":self.username})
-                .to_string()
-                .into(),
+            json!({"username":self.username}).to_string().into(),
         )
         .await
     }
-    
+
     pub async fn signup_annon(
         &mut self,
         app: &Router,
@@ -347,7 +360,7 @@ impl UserSession {
         let short_description: String = Paragraph(5..8).fake();
         let image_url: String = "https://fakeimg.pl/1000x600".into();
         let tags: Vec<String> = Words(2..4).fake();
-        let is_public: bool = false;
+        let is_public: bool = true;
         let is_invite_only: bool = false;
 
         self.create_conversation(
@@ -386,7 +399,7 @@ impl UserSession {
                     "activation_rule" : "manual",
                     "description": "A manually retired polis workflow step",
                     "is_offline": false,
-                    "tool_config": polis_tool_config()})
+                    "tool_setup": learn_tool_config()})
                     .to_string()
                     .into(),
                 )

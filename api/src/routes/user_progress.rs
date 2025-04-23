@@ -75,21 +75,17 @@ mod tests {
 
     use crate::{
         config, setup_server,
-        test_helpers::{extract, UserSession},
+        test_helpers::{extract, test_config, UserSession},
     };
 
     #[sqlx::test]
     fn should_be_able_to_register_a_user_for_a_workflow(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut admin_user_session = UserSession::new(
-            "admin_user".into(),
-            "test_password".into(),
-            "admin_user@gmail.com".into(),
-        );
+        let mut admin_user_session = UserSession::new_admin();
 
         admin_user_session.signup(&app).await?;
 

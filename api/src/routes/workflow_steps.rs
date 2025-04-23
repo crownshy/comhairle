@@ -131,7 +131,7 @@ mod tests {
 
     use crate::{
         config, setup_server,
-        test_helpers::{extract, learn_tool_config, polis_tool_config, UserSession},
+        test_helpers::{extract, learn_tool_config, polis_tool_config, test_config, UserSession},
     };
     use axum::http::StatusCode;
     use serde_json::json;
@@ -140,14 +140,10 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_create_a_workflow_step(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
@@ -170,12 +166,9 @@ mod tests {
                 "activation_rule" : "manual",
                 "description": "A manually retired polis workflow step",
                 "is_offline": false,
-                "tool_config": {
+                "tool_setup": {
                     "type": "polis",
-                    "server_url" : "http://polis.com",
-                    "poll_id": "12234",
-                    "admin_user" : "admin",
-                    "admin_password": "admin"
+                    "topic": "topic"
                 }})
                 .to_string()
                 .into(),
@@ -188,14 +181,10 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_list_workflow_steps(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
@@ -219,7 +208,7 @@ mod tests {
                 "activation_rule" : "manual",
                 "description": "A manually retired polis workflow step",
                 "is_offline": false,
-                "tool_config": polis_tool_config()})
+                "tool_setup": polis_tool_config()})
                 .to_string()
                 .into(),
             )
@@ -235,7 +224,7 @@ mod tests {
                     "activation_rule" : "manual",
                     "description": "A manually retired learnworkflow step",
                     "is_offline": false,
-                    "tool_config": learn_tool_config()
+                    "tool_setup": learn_tool_config()
                 })
                 .to_string()
                 .into(),
@@ -270,14 +259,10 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_retreive_workflow_step(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
@@ -301,7 +286,7 @@ mod tests {
                 "activation_rule" : "manual",
                 "description": "A manually retired polis workflow step",
                 "is_offline": false,
-                "tool_config": polis_tool_config()})
+                "tool_setup": polis_tool_config()})
                 .to_string()
                 .into(),
             )
@@ -317,7 +302,7 @@ mod tests {
                 "activation_rule" : "manual",
                 "description": "A manually retired learnworkflow step",
                 "is_offline": false,
-                "tool_config": learn_tool_config()})
+                "tool_setup": learn_tool_config()})
                 .to_string()
                 .into(),
             )
@@ -349,14 +334,10 @@ mod tests {
     fn workflow_steps_should_reorder_when_a_step_is_deleted(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
@@ -384,7 +365,7 @@ mod tests {
                     "activation_rule" : "manual",
                     "description": "A manually retired polis workflow step",
                     "is_offline": false,
-                    "tool_config": learn_tool_config()})
+                    "tool_setup": learn_tool_config()})
                     .to_string()
                     .into(),
                 )
@@ -440,14 +421,10 @@ mod tests {
 
     #[sqlx::test]
     fn workflow_steps_should_return_in_correct_order(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
@@ -475,7 +452,7 @@ mod tests {
                     "activation_rule" : "manual",
                     "description": "A manually retired polis workflow step",
                     "is_offline": false,
-                    "tool_config": polis_tool_config()})
+                    "tool_setup": learn_tool_config()})
                     .to_string()
                     .into(),
                 )
@@ -511,14 +488,10 @@ mod tests {
     fn workflow_steps_should_update_their_order_when_a_new_one_is_inserted(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
@@ -542,7 +515,7 @@ mod tests {
                 "activation_rule" : "manual",
                 "description": "A manually retired polis workflow step",
                 "is_offline": false,
-                "tool_config": polis_tool_config()})
+                "tool_setup": learn_tool_config()})
                 .to_string()
                 .into(),
             )
@@ -558,7 +531,7 @@ mod tests {
                 "activation_rule" : "manual",
                 "description": "A manually retired learnworkflow step",
                 "is_offline": false,
-                "tool_config": learn_tool_config()})
+                "tool_setup": learn_tool_config()})
                 .to_string()
                 .into(),
             )
@@ -599,14 +572,10 @@ mod tests {
     fn workflow_steps_should_rearange_properly_when_one_is_moved(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
@@ -635,7 +604,7 @@ mod tests {
                     "activation_rule" : "manual",
                     "description": "A manually retired polis workflow step",
                     "is_offline": false,
-                    "tool_config": polis_tool_config()})
+                    "tool_setup": learn_tool_config()})
                     .to_string()
                     .into(),
                 )

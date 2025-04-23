@@ -92,7 +92,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_helpers::extract;
+    use crate::test_helpers::{extract, test_config};
     use crate::{config, setup_server, test_helpers::UserSession};
     use axum::body::Body;
     use axum::http::StatusCode;
@@ -105,14 +105,10 @@ mod tests {
     fn should_be_able_to_register_a_user_for_a_workflow(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut admin_user_session = UserSession::new(
-            "admin_user".into(),
-            "test_password".into(),
-            "admin_user@gmail.com".into(),
-        );
+        let mut admin_user_session = UserSession::new_admin();
 
         admin_user_session.signup(&app).await?;
 

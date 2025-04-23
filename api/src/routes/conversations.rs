@@ -148,7 +148,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 #[cfg(test)]
 mod tests {
 
-    use crate::{config, setup_server, test_helpers::UserSession};
+    use crate::test_helpers::test_config;
+    use crate::{setup_server, test_helpers::UserSession};
     use axum::http::StatusCode;
     use serde_json::json;
     use sqlx::PgPool;
@@ -157,14 +158,11 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_create_conversation(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
+
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
@@ -191,15 +189,10 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_update_a_conversation(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
-
+        let mut session = UserSession::new_admin();
         session.signup(&app).await?;
 
         let (status, conversation, _) = session
@@ -250,14 +243,10 @@ mod tests {
 
     #[sqlx::test]
     fn should_not_be_able_to_udpate_owner_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
@@ -301,14 +290,10 @@ mod tests {
     }
     #[sqlx::test]
     fn should_be_able_to_list_conversations(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
@@ -321,7 +306,7 @@ mod tests {
                     "description" : "A longer description",
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
-                    "is_public" : false,
+                    "is_public" : true,
                     "is_invite_only" : false,
                     "slug" : "new_conversation"
                 }),
@@ -337,7 +322,7 @@ mod tests {
                     "description" : "A longer description",
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
-                    "is_public" : false,
+                    "is_public" : true,
                     "is_invite_only" : false,
                     "slug" : "new_new_conversation"
                 }),
@@ -369,14 +354,10 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_search_conversations(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
@@ -390,7 +371,7 @@ mod tests {
                         "description" : "A longer description",
                         "image_url" : "http://someimage.png",
                         "tags" : ["one", "two", "three"],
-                        "is_public" : false,
+                        "is_public" : true,
                         "is_invite_only" : false,
                         "slug" : format!("{i}")
                     }),
@@ -407,7 +388,7 @@ mod tests {
                     "description" : "A longer description",
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
-                    "is_public" : false,
+                    "is_public" : true,
                     "is_invite_only" : false,
                     "slug" : format!("target_slug")
                 }),
@@ -429,14 +410,10 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_order_conversations(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
@@ -450,7 +427,7 @@ mod tests {
                         "description" : "A longer description",
                         "image_url" : "http://someimage.png",
                         "tags" : ["one", "two", "three"],
-                        "is_public" : false,
+                        "is_public" : true,
                         "is_invite_only" : false,
                         "slug" : format!("{i}")
                     }),
@@ -504,14 +481,10 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_correctly_page_conversations(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
@@ -525,7 +498,7 @@ mod tests {
                         "description" : "A longer description",
                         "image_url" : "http://someimage.png",
                         "tags" : ["one", "two", "three"],
-                        "is_public" : false,
+                        "is_public" : true,
                         "is_invite_only" : false,
                         "slug" : format!("{i}")
                     }),
@@ -564,14 +537,10 @@ mod tests {
     fn should_be_able_to_get_a_created_conversation_by_id(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
@@ -642,14 +611,10 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_delete_conversation(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
         let (_, conversation, _) = session
@@ -686,14 +651,10 @@ mod tests {
     }
     #[sqlx::test]
     fn conversation_slugs_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
+        let config = test_config()?;
         let app = setup_server(config, pool).await?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
 
