@@ -1,0 +1,93 @@
+name: tests 
+
+## run tests on push to all branches
+on:
+  push: 
+  workflow_dispatch:  # Allows manual triggering
+    
+jobs:
+  frontend-unit-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - 
+        name: Checkout repository
+        uses: actions/checkout@v3
+
+      -
+        name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 'lts/*' # Use the latest LTS version of Node.js
+
+      - 
+        name: Install pnpm
+        run: npm install -g pnpm
+
+      - 
+        name: Install dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - 
+        name: Run tests
+        working-directory: frontend
+        run: npx vitest --run
+
+  api-unit-tests:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        # wait for PG to be ready, disabled because we check later on
+        # options: >-
+        #   --health-cmd="pg_isready -U test_user -d test_db"
+        #   --health-interval=10s
+        #   --health-timeout=5s
+        #   --health-retries=5
+    steps:
+      - 
+        name: Checkout repository
+        uses: actions/checkout@v3
+
+      - 
+        name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - 
+        name: Wait for PostgreSQL to be ready
+        run: |
+          for i in {1..30}; do
+            nc -z localhost 5432 && echo "PostgreSQL is ready" && exit 0
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+          echo "PostgreSQL failed to start" && exit 1
+      
+      - 
+        name: Run unit tests
+        working-directory: api
+        env:
+          DATABASE_URL: postgres://test_user:test_password@localhost:5432/test_db
+          RESOURCE_BUCKET: comhairle_resources
+          CARGO_HOME: ~/.cargo
+        run: cargo test --verbose
