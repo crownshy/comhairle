@@ -3,8 +3,8 @@ import { redirect } from "@sveltejs/kit"
 import type {PageLoad} from "./$types"
 
 export const load:PageLoad = async ({params,parent})=>{
-  let {api} = await parent();
-  let conversation_id = params.conversation_id
+  let {api,conversation, workflows} = await parent();
+  let conversation_id = conversation.id
 
   try{
     let conversation = await api.GetConversation({params:{conversation_id}})

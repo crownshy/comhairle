@@ -4,13 +4,13 @@ import { notifications} from '$lib/notifications.svelte';
 import { report_url, workflow_step_url } from "$lib/urls";
 
 export const load: PageLoad = async (event)=>{
-    let {api} = await event.parent();
+    let {api,conversation, workflows} = await event.parent();
     
-    let {conversation_id, workflow_id, stage_id} = event.params
+    let conversation_id = conversation.id;
+    let {workflow_id, stage_id} = event.params
     try{
        let stepNo = parseInt(stage_id)
 
-       let conversation = await api.GetConversation({params:{conversation_id}}) 
        let workflow_steps = await api.ListWorkflowSteps({params:{conversation_id,workflow_id}})
        let step = workflow_steps.find(ws=>ws.step_order === stepNo);
        let progress = await api.GetUserProgress({params:{conversation_id,workflow_id }})
