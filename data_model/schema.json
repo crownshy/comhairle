@@ -1,0 +1,391 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AllTypes",
+  "type": "object",
+  "required": [
+    "group",
+    "reaction",
+    "statement"
+  ],
+  "properties": {
+    "group": {
+      "$ref": "#/definitions/Group"
+    },
+    "reaction": {
+      "$ref": "#/definitions/Reaction"
+    },
+    "statement": {
+      "$ref": "#/definitions/Statement"
+    }
+  },
+  "definitions": {
+    "AlgorithmDescriptor": {
+      "description": "A way to describe an algorithmic process that has been used to generate other entities in the schema.",
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "metadata"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "description": "The type of algorithm being used",
+          "type": "string"
+        },
+        "metadata": {
+          "description": "Metadata about how the algorithm is setup",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "EntityType": {
+      "description": "A type of entity on the system",
+      "oneOf": [
+        {
+          "description": "A participant in the conversation",
+          "type": "string",
+          "enum": [
+            "Participant"
+          ]
+        },
+        {
+          "description": "A Statement made by the system",
+          "type": "string",
+          "enum": [
+            "Statement"
+          ]
+        },
+        {
+          "description": "A Group on the system",
+          "type": "string",
+          "enum": [
+            "Group"
+          ]
+        },
+        {
+          "description": "A reaction",
+          "type": "string",
+          "enum": [
+            "Reaction"
+          ]
+        }
+      ]
+    },
+    "Generator": {
+      "description": "Details of who generated an entity in the schema",
+      "oneOf": [
+        {
+          "description": "A participant",
+          "type": "object",
+          "required": [
+            "Participant"
+          ],
+          "properties": {
+            "Participant": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "A host of the process",
+          "type": "object",
+          "required": [
+            "Host"
+          ],
+          "properties": {
+            "Host": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "A algorithmic process",
+          "type": "object",
+          "required": [
+            "Algorithm"
+          ],
+          "properties": {
+            "Algorithm": {
+              "$ref": "#/definitions/AlgorithmDescriptor"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Group": {
+      "description": "Represents a grouping, created either manually or algorithmically of entities.",
+      "type": "object",
+      "required": [
+        "entities",
+        "entity_type",
+        "id"
+      ],
+      "properties": {
+        "entities": {
+          "description": "A list of the entity Uuids in this group",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "entity_type": {
+          "description": "The type of thing being grouped",
+          "allOf": [
+            {
+              "$ref": "#/definitions/EntityType"
+            }
+          ]
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "QuadVote": {
+      "description": "A quadratic vote registered in response to the entity",
+      "type": "object",
+      "required": [
+        "amount",
+        "cost"
+      ],
+      "properties": {
+        "amount": {
+          "description": "What level did the generator vote with",
+          "type": "integer",
+          "format": "int32"
+        },
+        "cost": {
+          "description": "What was the cost of the vote",
+          "type": "number",
+          "format": "float"
+        }
+      }
+    },
+    "Reaction": {
+      "description": "A reaction to an entity on the system",
+      "type": "object",
+      "required": [
+        "entity_type",
+        "id",
+        "made_by",
+        "reaction"
+      ],
+      "properties": {
+        "entity_type": {
+          "description": "The type of entity being reacted to",
+          "allOf": [
+            {
+              "$ref": "#/definitions/EntityType"
+            }
+          ]
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "made_by": {
+          "description": "Who is making this reaction",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Generator"
+            }
+          ]
+        },
+        "reaction": {
+          "description": "The reaction itself",
+          "allOf": [
+            {
+              "$ref": "#/definitions/ReactionType"
+            }
+          ]
+        }
+      }
+    },
+    "ReactionType": {
+      "description": "The type of reaction to a given entity",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "SimpleVote"
+          ],
+          "properties": {
+            "SimpleVote": {
+              "$ref": "#/definitions/SimpleVote"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "Score"
+          ],
+          "properties": {
+            "Score": {
+              "$ref": "#/definitions/Score"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "QuadraticVote"
+          ],
+          "properties": {
+            "QuadraticVote": {
+              "$ref": "#/definitions/QuadVote"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Score": {
+      "description": "A generic score that a generator assigned to an entity",
+      "type": "integer",
+      "format": "int32"
+    },
+    "SimpleVote": {
+      "description": "A vote in response to another entity on the system",
+      "oneOf": [
+        {
+          "description": "The generator agreed",
+          "type": "string",
+          "enum": [
+            "Positive"
+          ]
+        },
+        {
+          "description": "The generator disagreed",
+          "type": "string",
+          "enum": [
+            "Negative"
+          ]
+        },
+        {
+          "description": "The generator was neutral",
+          "type": "string",
+          "enum": [
+            "Neutral"
+          ]
+        }
+      ]
+    },
+    "Statement": {
+      "description": "A statement which has been made by some entity in the system",
+      "type": "object",
+      "required": [
+        "content",
+        "id",
+        "made_by",
+        "role",
+        "role_classified_by"
+      ],
+      "properties": {
+        "content": {
+          "description": "The content of the statement",
+          "type": "string"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "in_response_to": {
+          "description": "If this statement was made in response to another",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "made_by": {
+          "description": "The person, entity or algorithm that generated the statement",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Generator"
+            }
+          ]
+        },
+        "role": {
+          "description": "The role the statement plays",
+          "allOf": [
+            {
+              "$ref": "#/definitions/StatementRole"
+            }
+          ]
+        },
+        "role_classified_by": {
+          "description": "How was the role of this statement generated",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Generator"
+            }
+          ]
+        }
+      }
+    },
+    "StatementRole": {
+      "description": "The role that a given Statement plays This might be determined by the creator of the Statement, some algorithmic method or assigned by a host",
+      "oneOf": [
+        {
+          "description": "The statement represents a question being possed",
+          "type": "string",
+          "enum": [
+            "Question"
+          ]
+        },
+        {
+          "description": "The statement represents a Belief",
+          "type": "string",
+          "enum": [
+            "Belief"
+          ]
+        },
+        {
+          "description": "The statement represents a Fact",
+          "type": "string",
+          "enum": [
+            "Fact"
+          ]
+        },
+        {
+          "description": "The statement represents a Evidence provided in support of another Statement",
+          "type": "string",
+          "enum": [
+            "Evidence"
+          ]
+        },
+        {
+          "description": "The statement refutes or disagrees with another",
+          "type": "string",
+          "enum": [
+            "Refutation"
+          ]
+        },
+        {
+          "description": "The statement is a summary of another process (for example a Grouping or consensus)",
+          "type": "string",
+          "enum": [
+            "Summary"
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -80,7 +80,6 @@ pub struct ReportSectionConfigs(pub Vec<ReportSectionConfig>);
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
 #[serde(rename_all = "lowercase", tag = "type")]
-#[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 pub struct ReportSectionConfig {
     workflow_step_id: Uuid,
     config: ReportConfig,
@@ -203,6 +202,8 @@ pub async fn create_for_conversation(
         })
         .collect();
 
+    let section_configs = ReportSectionConfigs(section_configs);
+
     let values: Vec<sea_query::SimpleExpr> = vec![
         false.into(),
         conversation_id.into(),
@@ -217,8 +218,6 @@ pub async fn create_for_conversation(
             ReportIden::ConversationId,
             ReportIden::Summary,
             ReportIden::SectionConfigs,
-            ReportIden::CreatedAt,
-            ReportIden::UpdatedAt,
         ])
         .values(values)
         .unwrap()
