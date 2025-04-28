@@ -1,5 +1,8 @@
 pub mod conversation;
+pub mod feedback;
 pub mod pagination;
+pub mod report;
+pub mod report_impact;
 pub mod resource;
 pub mod user_participation;
 pub mod user_progress;

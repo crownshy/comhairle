@@ -3,6 +3,7 @@
 	import * as HeyForm from '$lib/tools/heyform/index.js';
 	import * as Learn from '$lib/tools/learn/index.js';
 	import ProcessDates from '$lib/components/ProcessDates.svelte';
+	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
 	import StepSelector from '$lib/components/StepSelector.svelte';
 	import type { PageProps } from './$types';
@@ -92,6 +93,7 @@
 					Part of {conversation.title}
 					<StepSelector steps={workflow_steps} currentStep={step} />
 				</div>
+				<FeedbackModal conversation_id={conversation.id} />
 			</div>
 		</div>
 	{:else}

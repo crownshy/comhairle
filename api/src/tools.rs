@@ -14,10 +14,10 @@ pub mod learn;
 pub mod polis;
 pub mod stories;
 
-use heyform::{HeyFormToolConfig, HeyFormToolSetup};
-use learn::{LearnToolConfig, LearnToolSetup};
-use polis::{PolisToolConfig, PolisToolSetup};
-use stories::{StoriesToolConfig, StoriesToolSetup};
+use heyform::{HeyFormReport, HeyFormToolConfig, HeyFormToolSetup};
+use learn::{LearnReport, LearnToolConfig, LearnToolSetup};
+use polis::{PolisReport, PolisToolConfig, PolisToolSetup};
+use stories::{StoriesReport, StoriesToolConfig, StoriesToolSetup};
 
 pub trait Tool {
     fn setup(&self) -> Result<(), ComhairleError>;
@@ -41,6 +41,7 @@ pub enum ToolConfig {
     HeyForm(HeyFormToolConfig),
     Stories(StoriesToolConfig),
 }
+
 impl Type<Postgres> for ToolConfig {
     fn type_info() -> PgTypeInfo {
         <serde_json::Value as Type<Postgres>>::type_info()
@@ -81,4 +82,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .nest_api_service("/polis", polis::router(state.clone()))
         .with_state(state)
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
+pub enum ReportConfig {
+    Polis(PolisReport),
+    HeyForm(HeyFormReport),
+    Learn(LearnReport),
+    Stories(StoriesReport),
 }

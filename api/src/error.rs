@@ -56,8 +56,11 @@ pub enum ComhairleError {
     #[error("{0} not found")]
     ResourceNotFound(String),
 
-    #[error("Failed to create {0}")]
-    FailedToCreateResource(String),
+    #[error("Failed to create {resource_type}")]
+    FailedToCreateResource {
+        resource_type: String,
+        error: sqlx::Error,
+    },
 
     #[error("Fai;ed to parse order params: {0}")]
     FailedToParseOrderParams(String),
@@ -94,6 +97,27 @@ pub enum ComhairleError {
 
     #[error("Requires Auth User")]
     RequiresAuthUser,
+
+    #[error("Only the owner of the conversation can perform this action")]
+    UserIsNotConversationOwner,
+
+    #[error("Failed to create report")]
+    FailedToCreateReport(sqlx::Error),
+
+    #[error("Failed to update report")]
+    FailedToUpdateReport,
+
+    #[error("Failed to create feedback")]
+    FailedToCreateFeedback,
+
+    #[error("Failed to update feedback")]
+    FailedToUpdateFeedback,
+
+    #[error("Failed to create impact")]
+    FailedToCreateImpact,
+
+    #[error("Failed to update impact")]
+    FailedToUpdateImpact(sqlx::Error),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]

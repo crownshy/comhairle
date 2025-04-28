@@ -116,7 +116,7 @@
 			onclick={() => (selectedWorkflowTemplate = 'empty')}
 		>
 			<Card.Header class="grow">
-				<Card.Title>Empty Worflow</Card.Title>
+				<Card.Title>Empty Workflow</Card.Title>
 			</Card.Header>
 			<Card.Content class="line-clamp4">
 				An empty workflow for you to configure as you will

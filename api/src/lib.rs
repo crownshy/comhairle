@@ -96,23 +96,35 @@ pub async fn setup_server(
         .nest_api_service("/tools", tools::router(state.clone()))
         .nest_api_service(
             "/conversation",
-            routes::conversations::router(state.clone()).nest_api_service(
-                "/{conversation_id}/workflow",
-                routes::workflows::router(state.clone())
-                    .nest_api_service(
-                        "/{workflow_id}/workflow_step",
-                        routes::workflow_steps::router(state.clone()),
-                    )
-                    .nest_api_service(
-                        "/{workflow_id}/participation",
-                        routes::user_participation::router(state.clone()),
-                    )
-                    .nest_api_service(
-                        "/{workflow_id}/progress",
-                        routes::user_progress::router(state.clone()),
-                    )
-                    .nest_api_service("/resource", routes::resources::router(state.clone())),
-            ),
+            routes::conversations::router(state.clone())
+                .nest_api_service(
+                    "/{conversation_id}/workflow",
+                    routes::workflows::router(state.clone())
+                        .nest_api_service(
+                            "/{workflow_id}/workflow_step",
+                            routes::workflow_steps::router(state.clone()),
+                        )
+                        .nest_api_service(
+                            "/{workflow_id}/participation",
+                            routes::user_participation::router(state.clone()),
+                        )
+                        .nest_api_service(
+                            "/{workflow_id}/progress",
+                            routes::user_progress::router(state.clone()),
+                        )
+                        .nest_api_service("/resource", routes::resources::router(state.clone())),
+                )
+                .nest_api_service(
+                    "/{conversation_id}/report",
+                    routes::reports::router(state.clone()).nest_api_service(
+                        "/{report_id}/impacts",
+                        routes::report_impacts::router(state.clone()),
+                    ),
+                )
+                .nest_api_service(
+                    "/{conversation_id}/feedback",
+                    routes::feedback::router(state.clone()),
+                ),
         )
         .nest_api_service("/docs", docs_routes(state.clone()))
         .finish_api_with(&mut api, api_docs)

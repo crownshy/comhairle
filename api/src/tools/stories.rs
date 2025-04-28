@@ -22,6 +22,9 @@ pub struct StoriesToolConfig {
 }
 
 #[derive(Debug, Default, JsonSchema, Serialize, Deserialize, Clone)]
+pub struct StoriesReport;
+
+#[derive(Debug, Default, JsonSchema, Serialize, Deserialize, Clone)]
 pub struct StoriesToolSetup {
     pub max_time: i32,
     pub to_see: i32,

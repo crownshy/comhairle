@@ -4,7 +4,7 @@
 	"continue_": "Continue",
 	"create_an_anonymous_account": "Create an anonymous account",
 	"create_a_standard_account_signup": "Create a standard account? Signup",
-	"confirm_password": "Confrim Password",
+	"confirm_password": "Confirm Password",
 	"create_an_account": "Create an account",
 	"dont_have_an_account_signup": "Don't have an account? Sign up",
 	"email": "Email",
@@ -62,5 +62,9 @@
 	"agree_to_tos": "By signing for an account you agree to our",
 	"agree_to_tos2":"and",
 	"agree_to_tos_privacy":"privacy policy",
-	"login_to_take_part": "Login to join"
+	"login_to_take_part": "Login to join",
+	"give_feedback":"Give Feedback",
+	"we_are_interested_in_hearing_what_is_good_and_bad_about_this_process": "We are interested in hearing what is good and bad about this process",
+	"type_your_feedback_here":"Type your feedback here"
+	
 }

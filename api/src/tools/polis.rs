@@ -38,6 +38,9 @@ pub struct PolisToolSetup {
     pub topic: String,
 }
 
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
+pub struct PolisReport;
+
 #[derive(Error, Debug)]
 pub enum PolisError {
     #[error("Failed to create new admin user")]

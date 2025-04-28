@@ -25,6 +25,9 @@ pub struct LearnToolConfig {
     pub pages: Vec<Page>,
 }
 
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
+pub struct LearnReport;
+
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
 pub struct LearnToolSetup {
     pub pages: Vec<Page>,

@@ -12,6 +12,9 @@ pub struct HeyFormToolConfig {
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
 pub struct HeyFormToolSetup;
 
+#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
+pub struct HeyFormReport;
+
 pub async fn setup(setup_config: &HeyFormToolSetup) -> Result<HeyFormToolConfig, ComhairleError> {
     Ok(HeyFormToolConfig {
         survey_id: "".into(),

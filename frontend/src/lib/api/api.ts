@@ -62,6 +62,34 @@ export const ResourceSource = z.enum(["S3", "Url"]);
 export type ResourceSource = z.infer<typeof ResourceSource>;
 export const CreateResource = z.object({ description: z.string(), media_type: MediaType, name: z.string(), storage_type: ResourceSource, url: z.string() }).passthrough();
 export type CreateResource = z.infer<typeof CreateResource>;
+export const Feedback = z.object({ content: z.string(), conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), created_by: z.string().uuid(), id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
+export type Feedback = z.infer<typeof Feedback>;
+export const ReportImpact = z.object({ created_at: z.string().datetime({ offset: true }), created_by: z.string().uuid(), details: z.string(), id: z.string().uuid(), kind: z.string(), report_id: z.string().uuid(), title: z.string(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
+export type ReportImpact = z.infer<typeof ReportImpact>;
+export const PolisReport = z.null();
+export type PolisReport = z.infer<typeof PolisReport>;
+export const HeyFormReport = z.null();
+export type HeyFormReport = z.infer<typeof HeyFormReport>;
+export const LearnReport = z.null();
+export type LearnReport = z.infer<typeof LearnReport>;
+export const StoriesReport = z.null();
+export type StoriesReport = z.infer<typeof StoriesReport>;
+export const ReportConfig = z.union([z.object({ Polis: PolisReport }), z.object({ HeyForm: HeyFormReport }), z.object({ Learn: LearnReport }), z.object({ Stories: StoriesReport })]);
+export type ReportConfig = z.infer<typeof ReportConfig>;
+export const ReportSectionConfig = z.object({ ai_generated: z.boolean(), config: ReportConfig, verified: z.boolean(), workflow_step_id: z.string().uuid() }).passthrough();
+export type ReportSectionConfig = z.infer<typeof ReportSectionConfig>;
+export const FullReportDTO = z.object({ conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), facilitator_feedback: z.array(Feedback), id: z.string().uuid(), impacts: z.array(ReportImpact), is_public: z.boolean(), participant_feedback: z.array(Feedback), section_configs: z.array(ReportSectionConfig), summary: z.string(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
+export type FullReportDTO = z.infer<typeof FullReportDTO>;
+export const PartialReport = z.object({ conversation_id: z.union([z.string(), z.null()]), is_public: z.union([z.boolean(), z.null()]), section_configs: z.union([z.array(ReportSectionConfig), z.null()]), summary: z.union([z.string(), z.null()]) }).partial().passthrough();
+export type PartialReport = z.infer<typeof PartialReport>;
+export const PartialReportImpact = z.object({ created_at: z.union([z.string(), z.null()]), created_by: z.union([z.string(), z.null()]), details: z.union([z.string(), z.null()]), id: z.union([z.string(), z.null()]), kind: z.union([z.string(), z.null()]), report_id: z.union([z.string(), z.null()]), title: z.union([z.string(), z.null()]), updated_at: z.union([z.string(), z.null()]) }).partial().passthrough();
+export type PartialReportImpact = z.infer<typeof PartialReportImpact>;
+export const CreateImpactDTO = z.object({ details: z.string(), kind: z.string(), title: z.string() }).passthrough();
+export type CreateImpactDTO = z.infer<typeof CreateImpactDTO>;
+export const CreateFeedbackDTO = z.object({ content: z.string() }).passthrough();
+export type CreateFeedbackDTO = z.infer<typeof CreateFeedbackDTO>;
+export const PartialFeedback = z.object({ content: z.union([z.string(), z.null()]) }).partial().passthrough();
+export type PartialFeedback = z.infer<typeof PartialFeedback>;
 
 
 export const schemas = {
@@ -95,6 +123,20 @@ export const schemas = {
 	MediaType,
 	ResourceSource,
 	CreateResource,
+	Feedback,
+	ReportImpact,
+	PolisReport,
+	HeyFormReport,
+	LearnReport,
+	StoriesReport,
+	ReportConfig,
+	ReportSectionConfig,
+	FullReportDTO,
+	PartialReport,
+	PartialReportImpact,
+	CreateImpactDTO,
+	CreateFeedbackDTO,
+	PartialFeedback,
 };
 
 const endpoints = makeApi([
@@ -264,6 +306,104 @@ const endpoints = makeApi([
 		description: `Delete the conversation and all related content`,
 		requestFormat: "json",
 		response: Conversation,
+	},
+	{
+		method: "get",
+		path: "/conversation/:conversation_id/feedback",
+		alias: "ListFeedbackForConversation",
+		requestFormat: "json",
+		response: Feedback,
+	},
+	{
+		method: "post",
+		path: "/conversation/:conversation_id/feedback",
+		alias: "CreateFeedback",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: z.object({ content: z.string() }).passthrough()
+			},
+		],
+		response: Feedback,
+	},
+	{
+		method: "put",
+		path: "/conversation/:conversation_id/feedback/:feedback_id",
+		alias: "UpdateFeedback",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: PartialFeedback
+			},
+		],
+		response: Feedback,
+	},
+	{
+		method: "get",
+		path: "/conversation/:conversation_id/report",
+		alias: "GetReportForConversation",
+		requestFormat: "json",
+		response: FullReportDTO,
+	},
+	{
+		method: "put",
+		path: "/conversation/:conversation_id/report",
+		alias: "UpdateReport",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: PartialReport
+			},
+		],
+		response: FullReportDTO,
+	},
+	{
+		method: "post",
+		path: "/conversation/:conversation_id/report",
+		alias: "GenerateReportForConversation",
+		requestFormat: "json",
+		response: FullReportDTO,
+	},
+	{
+		method: "get",
+		path: "/conversation/:conversation_id/report/:report_id/impacts",
+		alias: "ListImpactsForReport",
+		requestFormat: "json",
+		response: ReportImpact,
+	},
+	{
+		method: "put",
+		path: "/conversation/:conversation_id/report/:report_id/impacts",
+		alias: "UpdateImpact",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: PartialReportImpact
+			},
+		],
+		response: ReportImpact,
+	},
+	{
+		method: "post",
+		path: "/conversation/:conversation_id/report/:report_id/impacts",
+		alias: "CreateImpact",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: CreateImpactDTO
+			},
+		],
+		response: ReportImpact,
 	},
 	{
 		method: "get",

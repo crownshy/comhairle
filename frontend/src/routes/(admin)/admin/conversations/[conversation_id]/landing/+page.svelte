@@ -53,7 +53,7 @@
 	</div>
 
 	<div>
-		<Label for="is_public">Show conversation publically</Label>
+		<Label for="is_public">Show conversation publicly</Label>
 		<Switch bind:checked={conversation.is_public} name="is_public" />
 	</div>
 

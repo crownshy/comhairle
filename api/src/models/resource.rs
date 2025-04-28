@@ -199,7 +199,10 @@ pub async fn create_resource(
     let resource = sqlx::query_as_with::<_, Resource, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| ComhairleError::FailedToCreateResource(e.to_string()))?;
+        .map_err(|e| ComhairleError::FailedToCreateResource {
+            resource_type: "Resource".into(),
+            error: e,
+        })?;
 
     Ok(resource)
 }
