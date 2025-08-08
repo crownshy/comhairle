@@ -275,7 +275,7 @@ mod tests {
                 &app,
                 &id,
                 json!({
-                    "owner_id": "c4beb9cf-55f5-4afe-ba82-0923877dd9e5",
+                    "owner_id": session.id.unwrap(),
                 }),
             )
             .await?;

@@ -7,7 +7,7 @@ use aide::{
 };
 
 use axum::{
-    extract::{FromRequestParts, Json, State},
+    extract::{FromRequestParts, Json, Path, State},
     http::{request::Parts, StatusCode},
     response::{IntoResponse, Response},
     RequestPartsExt,
@@ -21,8 +21,11 @@ use rand_core::OsRng;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+
 use std::{collections::HashMap, sync::Arc};
 use tracing::{error, warn};
+
+use std::marker::PhantomData;
 use uuid::Uuid;
 
 use axum_extra::extract::cookie::{Cookie, CookieJar};
@@ -32,7 +35,7 @@ use crate::{
     error::ComhairleError,
     models::users::{
         create_annon_user, create_user, get_user_by_email, get_user_by_id, get_user_by_username,
-        User, UserAuthType,
+        get_user_resource_roles, Resource, Role, User, UserAuthType, UserResourceRole,
     },
     ComhairleState,
 };
@@ -206,6 +209,139 @@ pub fn decode_jwt(jwt: &str, secret: &str) -> Result<TokenData<Claims>, StatusCo
     result
 }
 
+#[derive(Deserialize)]
+struct ConversationPath {
+    conversation_id: Uuid,
+}
+
+/// An extractor to ensure that a required user has a role.
+/// If the user does not have the role then this will fail and
+/// return a Not Authorized response
+/// e.g.
+///     RequiredRole(role, _, _): RequiredRole<Conversation, Owner>
+#[derive(OperationIo)]
+pub struct RequiredRole<Kind: RequiredRoleResource, Roles: RequiredRoleRoleTuple>(
+    UserResourceRole,
+    PhantomData<Kind>,
+    PhantomData<Roles>,
+);
+impl<Kind: RequiredRoleResource, Roles: RequiredRoleRoleTuple> RequiredRole<Kind, Roles> {
+    pub fn new(user_resource_role: UserResourceRole) -> Self {
+        RequiredRole(user_resource_role, PhantomData, PhantomData)
+    }
+}
+
+impl<Resource: RequiredRoleResource, Roles: RequiredRoleRoleTuple>
+    FromRequestParts<Arc<ComhairleState>> for RequiredRole<Resource, Roles>
+{
+    type Rejection = ComhairleError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &Arc<ComhairleState>,
+    ) -> Result<Self, Self::Rejection> {
+        let RequiredUser(user) = parts.extract_with_state::<RequiredUser, _>(state).await?;
+        let params = parts
+            .extract::<Path<ConversationPath>>()
+            .await
+            .map_err(|_| {
+                ComhairleError::ResourceNotFound("Path must contain a conversation_id".to_string())
+            })?;
+
+        let roles = get_user_resource_roles(
+            Resource::to_enum(),
+            &params.conversation_id, // TODO: handle slug
+            &Roles::to_enum_vec(),
+            &user.id,
+            &state.db,
+        )
+        .await?;
+
+        match roles.first() {
+            Some(role) => Ok(RequiredRole::new(role.clone())),
+            None => Err(ComhairleError::UserNotAuthorized),
+        }
+    }
+}
+
+pub trait RequiredRoleRole: Default {
+    fn to_enum() -> Role;
+}
+
+pub trait RequiredRoleRoleTuple {
+    fn to_enum_vec() -> Vec<Role>;
+}
+
+impl RequiredRoleRoleTuple for () {
+    fn to_enum_vec() -> Vec<Role> {
+        Vec::new()
+    }
+}
+
+impl<Head: RequiredRoleRole, Tail: RequiredRoleRoleTuple> RequiredRoleRoleTuple for (Head, Tail) {
+    fn to_enum_vec() -> Vec<Role> {
+        let mut roles = Tail::to_enum_vec();
+        roles.push(Head::to_enum());
+        roles
+    }
+}
+
+impl<Head: RequiredRoleRole> RequiredRoleRoleTuple for (Head,) {
+    fn to_enum_vec() -> Vec<Role> {
+        <(Head, ())>::to_enum_vec()
+    }
+}
+
+#[derive(Default)]
+pub struct Owner {}
+impl RequiredRoleRole for Owner {
+    fn to_enum() -> Role {
+        Role::Owner
+    }
+}
+
+#[derive(Default)]
+pub struct Contributor {}
+impl RequiredRoleRole for Contributor {
+    fn to_enum() -> Role {
+        Role::Contributor
+    }
+}
+
+#[derive(Default)]
+pub struct Translator {}
+impl RequiredRoleRole for Translator {
+    fn to_enum() -> Role {
+        Role::Translator
+    }
+}
+#[derive(Default)]
+pub struct Moderator {}
+impl RequiredRoleRole for Moderator {
+    fn to_enum() -> Role {
+        Role::Moderator
+    }
+}
+
+pub trait RequiredRoleResource: Default {
+    fn to_enum() -> Resource;
+}
+
+#[derive(Default)]
+pub struct Organisation {}
+impl RequiredRoleResource for Organisation {
+    fn to_enum() -> Resource {
+        Resource::Organisation
+    }
+}
+#[derive(Default)]
+pub struct Conversation {}
+impl RequiredRoleResource for Conversation {
+    fn to_enum() -> Resource {
+        Resource::Conversation
+    }
+}
+
 /// An extractor to get a required current user.
 /// If no user is logged in then this will fail and
 /// Return a Not Found response
@@ -327,6 +463,14 @@ pub async fn current_user(
     Ok((StatusCode::OK, Json(user)))
 }
 
+/// Handler for testing RequiresRole
+pub async fn test_requires_roles(
+    RequiredRole(_, _, _): RequiredRole<Conversation, (Owner, (Contributor,))>,
+    RequiredUser(user): RequiredUser,
+) -> Result<(StatusCode, Json<User>), ComhairleError> {
+    Ok((StatusCode::OK, Json(user)))
+}
+
 /// Function to set up the auth routes
 pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
@@ -378,16 +522,29 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<User>>()
             }),
         )
+        // TODO: this route is used for testing only. Once we have authorisation logic locekd down
+        // in other endpoints, this can be removed and those auth requirements tested.
+        .api_route(
+            "/test_requires_roles/{conversation_id}",
+            get_with(test_requires_roles, |op| {
+                op.id("TestRequiresRoles")
+                    .summary("Test the requires roles")
+                    .response::<200, Json<User>>()
+            }),
+        )
         .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
+
     use crate::{
         mailer::MockComhairleMailer,
+        models::users::{add_user_resource_role, Resource, Role},
         setup_server,
         test_helpers::{test_state, UserSession},
     };
+
     use axum::http::StatusCode;
     use mockall::predicate::{always, eq};
     use sqlx::PgPool;
@@ -662,6 +819,56 @@ mod tests {
             user_response.get("id").unwrap().is_some(),
             "current annon user should have an id"
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn user_requires_roles(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool.clone()).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let username = "test_user";
+        let password = "test_password";
+        let email = "test_email";
+        let conversation_id = uuid::Uuid::parse_str("8438709B-C269-422E-B3F1-D173295F48CF")?;
+
+        let mut session = UserSession::new(username, password, email);
+        session.signup(&app).await?;
+        let url = format!("/auth/test_requires_roles/{conversation_id}");
+
+        let (status, _, _) = session.get(&app, &url).await?;
+        assert_eq!(
+            status,
+            StatusCode::FORBIDDEN,
+            "User without role should be forbidden"
+        );
+
+        add_user_resource_role(
+            Resource::Conversation,
+            &conversation_id,
+            Role::Translator,
+            &session.id.unwrap(),
+            &pool,
+        )
+        .await?;
+        let (status, _, _) = session.get(&app, &url).await?;
+        assert_eq!(
+            status,
+            StatusCode::FORBIDDEN,
+            "User with wrong role should be forbidden"
+        );
+
+        add_user_resource_role(
+            Resource::Conversation,
+            &conversation_id,
+            Role::Owner,
+            &session.id.unwrap(),
+            &pool,
+        )
+        .await?;
+        let (status, _, _) = session.get(&app, &url).await?;
+        assert_eq!(status, StatusCode::OK, "User with role should have access");
 
         Ok(())
     }

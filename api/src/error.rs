@@ -121,6 +121,9 @@ pub enum ComhairleError {
 
     #[error("Failed to send email")]
     FailedToSendEmail(#[from] lettre::transport::smtp::Error),
+
+    #[error("User is not authorized to perform this action")]
+    UserNotAuthorized,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -146,6 +149,7 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::RequiresAuthUser
             | ComhairleError::NoLogedInUser => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates => StatusCode::UNPROCESSABLE_ENTITY,
+            ComhairleError::UserNotAuthorized => StatusCode::FORBIDDEN,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

@@ -44,6 +44,79 @@ impl fmt::Display for UserAuthType {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone)]
+#[sqlx(type_name = "text")]
+#[serde(rename_all = "snake_case")]
+pub enum Resource {
+    Organisation,
+    Conversation,
+}
+
+impl Resource {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Resource::Organisation => "Organisation",
+            Resource::Conversation => "Conversation",
+        }
+    }
+}
+
+impl Into<sea_query::Value> for Resource {
+    fn into(self) -> sea_query::Value {
+        self.to_str().into()
+    }
+}
+
+impl fmt::Display for Resource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value = self.to_str();
+        write!(f, "{}", value)
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone)]
+#[sqlx(type_name = "text")]
+#[serde(rename_all = "snake_case")]
+pub enum Role {
+    Owner,
+    Contributor,
+    Translator,
+    Moderator,
+}
+
+impl Role {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Role::Owner => "Owner",
+            Role::Contributor => "Contributor",
+            Role::Translator => "Translator",
+            Role::Moderator => "Moderator",
+        }
+    }
+}
+
+impl Into<sea_query::Value> for Role {
+    fn into(self) -> sea_query::Value {
+        self.to_str().into()
+    }
+}
+
+impl fmt::Display for Role {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value = self.to_str();
+        write!(f, "{}", value)
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, FromRow, Clone)]
+#[enum_def(table_name = "resource_role")]
+pub struct UserResourceRole {
+    pub resource_kind: Resource,
+    pub resource_id: Uuid,
+    pub resource_role: Role,
+    pub user_id: Uuid,
+}
+
 /// User table representation
 /// user is a protected word in postgresql so
 /// we actually use the comahirle_user table
@@ -202,6 +275,84 @@ pub async fn get_user_by_email(email: &str, db: &PgPool) -> Result<User, Comhair
     Ok(user)
 }
 
+pub async fn get_user_resource_roles(
+    resource_kind: Resource,
+    resource_id: &Uuid,
+    resource_roles: &[Role],
+    user_id: &Uuid,
+    db: &PgPool,
+) -> Result<Vec<UserResourceRole>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns([
+            UserResourceRoleIden::ResourceKind,
+            UserResourceRoleIden::ResourceId,
+            UserResourceRoleIden::ResourceRole,
+            UserResourceRoleIden::UserId,
+        ])
+        .from(UserResourceRoleIden::Table)
+        .and_where(Expr::col(UserResourceRoleIden::ResourceKind).eq(resource_kind.to_str()))
+        .and_where(Expr::col(UserResourceRoleIden::ResourceId).eq(resource_id.to_owned()))
+        .and_where(
+            Expr::col(UserResourceRoleIden::ResourceRole).in_tuples(
+                resource_roles
+                    .iter()
+                    .map(|role| role.to_str())
+                    .collect::<Vec<_>>(),
+            ),
+        )
+        .and_where(Expr::col(UserResourceRoleIden::UserId).eq(user_id.to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    sqlx::query_as_with::<_, UserResourceRole, _>(&sql, values)
+        .fetch_all(db)
+        .await
+        .map_err(|e| ComhairleError::DatabaseError(e))
+}
+
+pub async fn user_has_resource_role(
+    resource_kind: Resource,
+    resource_id: &Uuid,
+    resource_roles: &[Role],
+    user_id: &Uuid,
+    db: &PgPool,
+) -> Result<bool, ComhairleError> {
+    let result =
+        get_user_resource_roles(resource_kind, resource_id, resource_roles, user_id, db).await?;
+
+    if result.is_empty() {
+        return Ok(false);
+    }
+    Ok(true)
+}
+
+pub async fn add_user_resource_role(
+    resource_kind: Resource,
+    resource_id: &Uuid,
+    resource_role: Role,
+    user_id: &Uuid,
+    db: &PgPool,
+) -> Result<(), ComhairleError> {
+    let (sql, values) = Query::insert()
+        .columns([
+            UserResourceRoleIden::ResourceKind,
+            UserResourceRoleIden::ResourceId,
+            UserResourceRoleIden::ResourceRole,
+            UserResourceRoleIden::UserId,
+        ])
+        .values_panic([
+            resource_kind.into(),
+            resource_id.clone().into(),
+            resource_role.into(),
+            user_id.clone().into(),
+        ])
+        .into_table(UserResourceRoleIden::Table)
+        .build_sqlx(PostgresQueryBuilder);
+    // TODO IF NOT EXISTS
+
+    sqlx::query_with(&sql, values).execute(db).await?;
+    Ok(())
+}
+
 /// Return a user by username
 pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, ComhairleError> {
     let (sql, values) = Query::select()
@@ -221,4 +372,145 @@ pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, C
         .fetch_one(db)
         .await
         .map_err(|_| ComhairleError::NoUserFound)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        models::users::{add_user_resource_role, user_has_resource_role, Resource, Role},
+        setup_server,
+        test_helpers::{test_config, test_state, UserSession},
+    };
+    use sqlx::PgPool;
+    use std::error::Error;
+    use std::sync::Arc;
+    use uuid::Uuid;
+
+    #[sqlx::test]
+    fn user_has_resource_role_tests(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool.clone()).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let (status, conversation, _) = session
+            .create_conversation(
+                &app,
+                serde_json::json! ({
+                    "title" : "Test conversation",
+                    "short_description" : "A test conversation",
+                    "description" : "A longer description",
+                    "image_url" : "http://someimage.png",
+                    "tags" : ["one", "two", "three"],
+                    "is_public" : false,
+                    "is_invite_only" : false,
+                    "slug" : "new_conversation"
+                }),
+            )
+            .await?;
+        assert_eq!(status, 201, "should be able to create a conversation");
+        let conversation_id = Uuid::parse_str(conversation["id"].as_str().unwrap())?;
+
+        let mut session = UserSession::new(
+            "test_user".into(),
+            "test_password".into(),
+            "test.user@gmail.com".into(),
+        );
+        session.signup(&app).await?;
+
+        add_user_resource_role(
+            Resource::Conversation,
+            &conversation_id,
+            Role::Contributor,
+            &session.id.unwrap(),
+            &pool,
+        )
+        .await?;
+
+        assert_eq!(
+            user_has_resource_role(
+                Resource::Conversation,
+                &conversation_id,
+                &[Role::Contributor],
+                &session.id.unwrap(),
+                &pool.clone(),
+            )
+            .await?,
+            true,
+            "true when user has role",
+        );
+        assert_eq!(
+            user_has_resource_role(
+                Resource::Conversation,
+                &conversation_id,
+                &[Role::Contributor],
+                &Uuid::parse_str("5FDFC2CE-C7F5-43DB-AA1F-0A8698E76D2E").unwrap(),
+                &pool.clone(),
+            )
+            .await?,
+            false,
+            "false when no user with that ID",
+        );
+        assert_eq!(
+            user_has_resource_role(
+                Resource::Conversation,
+                &Uuid::parse_str("5FDFC2CE-C7F5-43DB-AA1F-0A8698E76D2E").unwrap(),
+                &[Role::Contributor],
+                &session.id.unwrap(),
+                &pool.clone(),
+            )
+            .await?,
+            false,
+            "false when no conversation with that ID",
+        );
+        assert_eq!(
+            user_has_resource_role(
+                Resource::Conversation,
+                &conversation_id,
+                &[Role::Owner],
+                &session.id.unwrap(),
+                &pool.clone(),
+            )
+            .await?,
+            false,
+            "false when wrong role kind",
+        );
+        assert_eq!(
+            user_has_resource_role(
+                Resource::Conversation,
+                &conversation_id,
+                &[Role::Owner, Role::Contributor],
+                &session.id.unwrap(),
+                &pool.clone(),
+            )
+            .await?,
+            true,
+            "true when user could be multiple roles and has one",
+        );
+
+        add_user_resource_role(
+            Resource::Conversation,
+            &conversation_id,
+            Role::Translator,
+            &session.id.unwrap(),
+            &pool,
+        )
+        .await?;
+
+        assert_eq!(
+            user_has_resource_role(
+                Resource::Conversation,
+                &conversation_id,
+                &[Role::Translator],
+                &session.id.unwrap(),
+                &pool.clone(),
+            )
+            .await?,
+            true,
+            "true when user has multiple roles and one is required",
+        );
+
+        Ok(())
+    }
 }

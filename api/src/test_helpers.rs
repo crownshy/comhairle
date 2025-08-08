@@ -1,4 +1,5 @@
 use std::{collections::HashMap, error::Error, sync::Arc};
+use uuid::Uuid;
 
 use axum::{
     body::Body,
@@ -84,6 +85,7 @@ pub async fn response_to_json(response: Response) -> Value {
 }
 
 pub struct UserSession {
+    pub id: Option<Uuid>,
     pub username: Option<String>,
     pub password: Option<String>,
     pub email: Option<String>,
@@ -93,6 +95,7 @@ pub struct UserSession {
 impl UserSession {
     pub fn new_anon() -> Self {
         Self {
+            id: None,
             username: None,
             password: None,
             email: None,
@@ -102,6 +105,7 @@ impl UserSession {
 
     pub fn new_admin() -> Self {
         Self {
+            id: None,
             username: Some("admin".into()),
             password: Some("admin".into()),
             email: Some("admin@crown-shy.com".into()),
@@ -111,6 +115,7 @@ impl UserSession {
 
     pub fn new(username: &str, password: &str, email: &str) -> Self {
         Self {
+            id: None,
             username: Some(username.to_owned()),
             password: Some(password.to_owned()),
             email: Some(email.to_owned()),
@@ -301,6 +306,7 @@ impl UserSession {
         let (status, value, cookie) = self.post(&app, "/auth/signup_annon", Body::empty()).await?;
         let user: HashMap<String, Option<String>> = serde_json::from_value(value)?;
         self.username = user.get("username").unwrap().clone();
+        self.id = Some(Uuid::parse_str(&user.get("id").unwrap().clone().unwrap()).unwrap());
         Ok((status, user, cookie))
     }
 
@@ -328,6 +334,11 @@ impl UserSession {
         let user: HashMap<String, Option<String>> = serde_json::from_value(value)?;
 
         self.cookie = cookie.clone();
+        if let Some(id) = user.get("id") {
+            if let Some(id) = id {
+                self.id = Some(Uuid::parse_str(id).unwrap());
+            }
+        }
 
         Ok((status, user, cookie))
     }
