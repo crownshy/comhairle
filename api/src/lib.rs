@@ -2,11 +2,13 @@ pub mod config;
 pub mod db;
 mod docs;
 pub mod error;
+pub mod mailer;
 pub mod models;
 mod routes;
 mod tools;
 
 use docs::docs_routes;
+use mailer::ComhairleMailer;
 pub use routes::auth::hash_pw;
 use routes::auth::AUTH_KEY;
 
@@ -25,14 +27,11 @@ use error::ComhairleError;
 use sqlx_postgres::PgPool;
 use tower_http::cors::CorsLayer;
 
-use aws_config::meta::region::RegionProviderChain;
-use aws_sdk_s3::config::Region;
-
 #[derive(Clone)]
 pub struct ComhairleState {
     pub db: PgPool,
     pub config: ComhairleConfig,
-    pub s3_client: aws_sdk_s3::Client,
+    pub mailer: Arc<dyn ComhairleMailer>,
 }
 
 fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
@@ -50,11 +49,8 @@ fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
         )
 }
 
-pub async fn setup_server(
-    config: ComhairleConfig,
-    db: PgPool,
-) -> Result<Router<()>, ComhairleError> {
-    tracing::info!("Running with config {config:#?}");
+pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, ComhairleError> {
+    tracing::info!("Running with config {:#?}", state.config);
 
     aide::generate::on_error(|error| {
         println!("{error}");
@@ -73,21 +69,9 @@ pub async fn setup_server(
         ]);
 
     // Run migrations
-    run_migrations(&db).await?;
+    run_migrations(&state.db).await?;
 
-    let region_provider =
-        RegionProviderChain::first_try(Region::new("eu-west-2")).or_default_provider();
-
-    let aws_config = aws_config::from_env().region(region_provider).load().await;
-
-    let s3_client = aws_sdk_s3::Client::new(&aws_config);
-    // Construct shared state
-    let state = Arc::new(ComhairleState {
-        db,
-        config: config.clone(),
-        s3_client,
-    });
-    let auth_router = routes::auth::router(&config, state.clone()).await;
+    let auth_router = routes::auth::router(state.clone()).await;
 
     // build our application with a route
     let app = ApiRouter::new()
@@ -111,8 +95,7 @@ pub async fn setup_server(
                         .nest_api_service(
                             "/{workflow_id}/progress",
                             routes::user_progress::router(state.clone()),
-                        )
-                        .nest_api_service("/resource", routes::resources::router(state.clone())),
+                        ),
                 )
                 .nest_api_service(
                     "/{conversation_id}/report",

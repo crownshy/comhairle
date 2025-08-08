@@ -9,6 +9,9 @@ pub fn load() -> Result<ComhairleConfig, ComhairleError> {
             "jwt_secret",
             "ababa039cc54b5df83e8899c3c5839e096379d507263c732eb54c52477bf8087",
         )?
+        .set_default("mailer.host", "")?
+        .set_default("mailer.user", "")?
+        .set_default("mailer.password", "")?
         .add_source(
             Environment::default()
                 .list_separator(",")
@@ -22,10 +25,18 @@ pub fn load() -> Result<ComhairleConfig, ComhairleError> {
     Ok(config)
 }
 
+#[derive(Clone, Debug, Deserialize, Default)]
+pub struct MailerConfig {
+    pub host: String,
+    pub user: String,
+    pub password: String,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 pub struct ComhairleConfig {
     pub database_url: String,
     pub jwt_secret: String,
     pub resource_bucket: String,
     pub admin_users: Option<Vec<String>>,
+    pub mailer: MailerConfig,
 }

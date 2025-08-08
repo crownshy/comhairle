@@ -5,6 +5,7 @@ use aide::{
     },
     OperationIo,
 };
+
 use axum::{
     extract::{FromRequestParts, Json, State},
     http::{request::Parts, StatusCode},
@@ -21,14 +22,13 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{collections::HashMap, sync::Arc};
-use tracing::warn;
+use tracing::{error, warn};
 use uuid::Uuid;
 
 use axum_extra::extract::cookie::{Cookie, CookieJar};
 // use tower_cookies::{Cookie, Cookies};
 
 use crate::{
-    config::ComhairleConfig,
     error::ComhairleError,
     models::users::{
         create_annon_user, create_user, get_user_by_email, get_user_by_id, get_user_by_username,
@@ -119,6 +119,12 @@ async fn signup(
         .path("/")
         .secure(true)
         .http_only(true);
+
+    if let Some(email) = &user.email {
+        state.mailer.send_welcome_email(email, &user)?;
+    } else {
+        error!("Trying to send email to user without an address");
+    }
 
     Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
 }
@@ -322,7 +328,7 @@ pub async fn current_user(
 }
 
 /// Function to set up the auth routes
-pub async fn router(_config: &ComhairleConfig, state: Arc<ComhairleState>) -> ApiRouter {
+pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/login_annon",
@@ -377,19 +383,74 @@ pub async fn router(_config: &ComhairleConfig, state: Arc<ComhairleState>) -> Ap
 
 #[cfg(test)]
 mod tests {
-    use crate::{config, setup_server, test_helpers::UserSession};
+    use crate::{
+        mailer::MockComhairleMailer,
+        setup_server,
+        test_helpers::{test_state, UserSession},
+    };
     use axum::http::StatusCode;
+    use mockall::predicate::{always, eq};
     use sqlx::PgPool;
-    use std::error::Error;
+    use std::{error::Error, sync::Arc};
 
     #[sqlx::test]
     async fn user_should_be_able_to_sign_up(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
-        let app = setup_server(config, pool).await?;
-
         let username = "test_user";
         let password = "test_password";
         let email = "test_email";
+
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new(username, password, email);
+        let (status, _, _) = session.signup(&app).await?;
+        assert_eq!(status, StatusCode::CREATED, "should be created");
+
+        let (status, user, _) = session.current_user(&app).await?;
+
+        assert_eq!(status, StatusCode::OK, "should get current user");
+
+        assert_eq!(
+            *user.get("username").unwrap(),
+            Some(username.to_owned()),
+            "current user should contain the right username"
+        );
+
+        assert_eq!(
+            *user.get("auth_type").unwrap(),
+            Some("email_password".to_owned()),
+            "current user should have auth_type email password"
+        );
+        assert_eq!(
+            *user.get("email").unwrap(),
+            Some(email.to_owned()),
+            "current user should contain the right email"
+        );
+
+        assert!(
+            user.get("id").is_some(),
+            "current user should contain an id"
+        );
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn user_should_receive_signup_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let username = "test_user";
+        let password = "test_password";
+        let email = "test_email";
+
+        let mut mailer = MockComhairleMailer::new();
+        mailer
+            .expect_send_welcome_email()
+            .with(eq(email), always())
+            .once()
+            .returning(|_, _| Ok(()));
+
+        mailer.expect_send_password_reset_email().times(0);
+
+        let state = test_state().db(pool).mailer(Arc::new(mailer)).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new(username, password, email);
         let (status, _, _) = session.signup(&app).await?;
@@ -427,8 +488,8 @@ mod tests {
     async fn user_should_not_be_able_to_login_with_wrong_password(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let username = "test_user";
         let password = "test_password";
@@ -453,8 +514,8 @@ mod tests {
     fn other_user_types_should_not_be_able_to_annon_login(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let username = "test_user";
         let password = "test_password";
@@ -471,8 +532,9 @@ mod tests {
 
     #[sqlx::test]
     fn annon_user_should_be_able_to_login(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
         let mut session = UserSession::new_anon();
         session.signup_annon(&app).await?;
         session.logout(&app).await?;
@@ -487,8 +549,9 @@ mod tests {
     fn unknown_username_should_not_be_able_to_annon_login(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
         let mut session = UserSession::new_anon();
         session.username = Some("foo".to_string());
 
@@ -504,8 +567,8 @@ mod tests {
 
     #[sqlx::test]
     async fn username_and_email_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let username = "test_user";
         let password = "test_password";
@@ -536,8 +599,8 @@ mod tests {
 
     #[sqlx::test]
     async fn user_should_be_able_to_logout(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let username = "test_user";
         let password = "test_password";
@@ -572,8 +635,9 @@ mod tests {
 
     #[sqlx::test]
     async fn annon_user_should_by_able_to_signup(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = config::load()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
         let mut annon_user = UserSession::new_anon();
         let (status, _, _) = annon_user.signup_annon(&app).await?;
 

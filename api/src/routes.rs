@@ -3,7 +3,6 @@ pub mod conversations;
 pub mod feedback;
 pub mod report_impacts;
 pub mod reports;
-pub mod resources;
 pub mod user;
 pub mod user_participation;
 pub mod user_progress;

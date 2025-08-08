@@ -139,19 +139,19 @@ mod tests {
 
     use crate::{
         setup_server,
-        test_helpers::{extract, test_config, UserSession},
+        test_helpers::{extract, test_config, test_state, UserSession},
     };
     use axum::{body::Body, http::StatusCode};
     use serde_json::json;
     use sqlx::PgPool;
-    use std::{collections::HashMap, error::Error};
+    use std::{collections::HashMap, error::Error, sync::Arc};
 
     #[sqlx::test]
     fn should_be_able_to_create_a_workflow_on_a_conversatin(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 
@@ -197,8 +197,8 @@ mod tests {
     fn should_be_able_to_list_workflows_on_a_conversation(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 
@@ -249,8 +249,8 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_retrive_a_workflow(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 
@@ -286,8 +286,8 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_delete_a_workflow(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 
@@ -322,8 +322,8 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_update_a_workflow(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 
@@ -370,8 +370,8 @@ mod tests {
 
     #[sqlx::test]
     fn should_get_the_correct_stats_for_a_workflow(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 

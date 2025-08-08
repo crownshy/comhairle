@@ -118,6 +118,9 @@ pub enum ComhairleError {
 
     #[error("Failed to update impact")]
     FailedToUpdateImpact(sqlx::Error),
+
+    #[error("Failed to send email")]
+    FailedToSendEmail(#[from] lettre::transport::smtp::Error),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]

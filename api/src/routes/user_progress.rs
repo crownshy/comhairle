@@ -67,7 +67,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
-    use std::error::Error;
+    use std::{error::Error, sync::Arc};
 
     use axum::{body::Body, http::StatusCode};
     use serde_json::json;
@@ -75,15 +75,15 @@ mod tests {
 
     use crate::{
         config, setup_server,
-        test_helpers::{extract, test_config, UserSession},
+        test_helpers::{extract, test_config, test_state, UserSession},
     };
 
     #[sqlx::test]
     fn should_be_able_to_register_a_user_for_a_workflow(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut admin_user_session = UserSession::new_admin();
 

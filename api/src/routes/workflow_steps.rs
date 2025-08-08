@@ -130,18 +130,22 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 mod tests {
 
     use crate::{
-        config, setup_server,
-        test_helpers::{extract, learn_tool_config, polis_tool_config, test_config, UserSession},
+        config,
+        models::workflow_step,
+        setup_server,
+        test_helpers::{
+            extract, learn_tool_config, polis_tool_config, test_config, test_state, UserSession,
+        },
     };
     use axum::http::StatusCode;
     use serde_json::json;
     use sqlx::PgPool;
-    use std::error::Error;
+    use std::{error::Error, sync::Arc};
 
     #[sqlx::test]
     fn should_be_able_to_create_a_workflow_step(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 
@@ -181,8 +185,8 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_list_workflow_steps(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 
@@ -259,8 +263,8 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_retreive_workflow_step(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 
@@ -334,8 +338,8 @@ mod tests {
     fn workflow_steps_should_reorder_when_a_step_is_deleted(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 
@@ -421,8 +425,8 @@ mod tests {
 
     #[sqlx::test]
     fn workflow_steps_should_return_in_correct_order(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 
@@ -488,8 +492,8 @@ mod tests {
     fn workflow_steps_should_update_their_order_when_a_new_one_is_inserted(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 
@@ -572,8 +576,8 @@ mod tests {
     fn workflow_steps_should_rearange_properly_when_one_is_moved(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 

@@ -1,5 +1,5 @@
-use comhairle::{db::setup_db, setup_server};
-use std::error::Error;
+use comhairle::{db::setup_db, mailer::Mailer, setup_server, ComhairleState};
+use std::{error::Error, sync::Arc};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -28,7 +28,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Setup DB
     let db = setup_db(&config.database_url).await?;
 
-    let app = setup_server(config, db).await?;
+    // Setup Mailer
+    let mailer = Arc::new(Mailer::new(
+        &config.mailer.host,
+        &config.mailer.user,
+        &config.mailer.password,
+    ));
+
+    let state = Arc::new(ComhairleState { db, mailer, config });
+
+    let app = setup_server(state).await?;
 
     // run our app with hyper
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();

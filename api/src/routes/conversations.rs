@@ -148,19 +148,19 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 #[cfg(test)]
 mod tests {
 
-    use crate::test_helpers::test_config;
+    use crate::test_helpers::test_state;
     use crate::{setup_server, test_helpers::UserSession};
     use axum::http::StatusCode;
     use serde_json::json;
     use sqlx::PgPool;
     use std::collections::HashMap;
     use std::error::Error;
+    use std::sync::Arc;
 
     #[sqlx::test]
     fn should_be_able_to_create_conversation(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 
@@ -189,8 +189,8 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_update_a_conversation(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
         session.signup(&app).await?;
@@ -243,8 +243,8 @@ mod tests {
 
     #[sqlx::test]
     fn should_not_be_able_to_udpate_owner_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 
@@ -290,8 +290,8 @@ mod tests {
     }
     #[sqlx::test]
     fn should_be_able_to_list_conversations(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 
@@ -354,8 +354,8 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_search_conversations(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 
@@ -410,8 +410,8 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_order_conversations(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 
@@ -481,8 +481,8 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_correctly_page_conversations(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 
@@ -537,8 +537,8 @@ mod tests {
     fn should_be_able_to_get_a_created_conversation_by_id(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 
@@ -611,8 +611,8 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_delete_conversation(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 
@@ -651,8 +651,8 @@ mod tests {
     }
     #[sqlx::test]
     fn conversation_slugs_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let config = test_config()?;
-        let app = setup_server(config, pool).await?;
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
 

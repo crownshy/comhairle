@@ -1,4 +1,4 @@
-use std::{collections::HashMap, error::Error};
+use std::{collections::HashMap, error::Error, sync::Arc};
 
 use axum::{
     body::Body,
@@ -6,6 +6,7 @@ use axum::{
     response::Response,
     Router,
 };
+use bon::builder;
 use fake::{
     faker::lorem::en::{Paragraph, Sentence, Words},
     Fake,
@@ -14,9 +15,34 @@ use http_body_util::BodyExt;
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
 
+use sqlx::PgPool;
 use tower::ServiceExt;
 
-use crate::config::ComhairleConfig;
+use crate::{config::ComhairleConfig, mailer::MockComhairleMailer, ComhairleState};
+
+pub fn mock_mailer() -> Arc<MockComhairleMailer> {
+    let mut mailer = MockComhairleMailer::new();
+    mailer.expect_send_welcome_email().returning(|_, _| Ok(()));
+    mailer
+        .expect_send_password_reset_email()
+        .returning(|_, _, _| Ok(()));
+
+    Arc::new(mailer)
+}
+
+#[builder]
+pub fn test_state(
+    db: PgPool,
+    mailer: Option<Arc<MockComhairleMailer>>,
+    config: Option<ComhairleConfig>,
+) -> Result<ComhairleState, Box<dyn Error>> {
+    let state = ComhairleState {
+        db,
+        mailer: mailer.unwrap_or_else(|| mock_mailer()),
+        config: config.unwrap_or_else(|| test_config().unwrap()),
+    };
+    Ok(state)
+}
 
 pub fn test_config() -> Result<ComhairleConfig, Box<dyn Error>> {
     let mut config = crate::config::load()?;

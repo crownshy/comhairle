@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{ subject }}</title>
+</head>
+<body>
+    <header>
+	  <h1>{{subject}}</h1>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <p>&copy; 2025 MyApp</p>
+    </footer>
+	<style>
+	  main{
+		text-align:center;
+	  }
+	</style>
+</body>
+</html>
