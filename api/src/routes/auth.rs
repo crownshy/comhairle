@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::marker::PhantomData;
 use std::{collections::HashMap, sync::Arc};
-use tracing::{error, warn};
+use tracing::{error, instrument, warn};
 use uuid::Uuid;
 // use tower_cookies::{Cookie, Cookies};
 
@@ -108,6 +108,8 @@ pub struct SignupRequest {
 }
 
 /// Signup handler
+
+#[instrument(err(Debug), skip(state, payload))]
 async fn signup(
     State(state): State<Arc<ComhairleState>>,
     jar: CookieJar,
@@ -131,6 +133,7 @@ async fn signup(
 }
 
 /// Signup handler for annon
+#[instrument(err(Debug), skip(state))]
 async fn signup_annon(
     State(state): State<Arc<ComhairleState>>,
     jar: CookieJar,
@@ -147,6 +150,7 @@ async fn signup_annon(
 }
 
 /// Email/Password Login Handler
+#[instrument(err(Debug), skip(state, payload))]
 async fn login(
     State(state): State<Arc<ComhairleState>>,
     jar: CookieJar,
@@ -176,6 +180,7 @@ async fn login(
     Ok((jar.add(cookie), (StatusCode::OK, Json(user))))
 }
 
+#[instrument(err(Debug), skip(state, payload))]
 async fn login_annon(
     State(state): State<Arc<ComhairleState>>,
     cookies: CookieJar,
@@ -453,6 +458,7 @@ pub async fn logout(jar: CookieJar) -> (CookieJar, Response) {
 }
 
 /// Handler for the current user if there is one
+#[instrument(err(Debug))]
 pub async fn current_user(
     OptionalUser(user): OptionalUser,
 ) -> Result<(StatusCode, Json<User>), ComhairleError> {

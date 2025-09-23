@@ -40,7 +40,7 @@
 					</Card.Header>
 					<Card.Content>
 						<div class="text-2xl font-bold">30</div>
-						<p class="text-xs text-muted-foreground">minutes</p>
+						<p class="text-muted-foreground text-xs">minutes</p>
 					</Card.Content>
 				</Card.Root>
 				<Card.Root>
@@ -59,7 +59,7 @@
 			</p>
 
 			<h2 class="text-xl font-bold">Impacts</h2>
-			<ul class="divide-y-3 flex flex-col gap-4 divide-solid divide-gray-200">
+			<ul class="flex flex-col gap-4 divide-y-3 divide-solid divide-gray-200">
 				{#each report.impacts as impact}
 					<li class="flex flex-col gap-2 border-solid p-4">
 						<div class="flex flex-row justify-between">
@@ -97,34 +97,13 @@
 			<h3 class="mb-4 text-xl font-bold">Facilitator Feedback</h3>
 			<h3 class="mb-4 text-xl font-bold">Participant feedback</h3>
 			{#each report.facilitator_feedback as feedback}
-				<article class="article-quote mb-4">
+				<article class="relative mb-4 rounded-lg border-l-4 border-blue-500 bg-gray-100 p-6 shadow-md dark:border-blue-400 dark:bg-gray-800">
+					<span class="absolute left-3 top-2 font-serif text-5xl text-blue-500 dark:text-blue-400">"</span>
 					{feedback.content}
+					<span class="absolute bottom-2 right-3 font-serif text-5xl text-blue-500 dark:text-blue-400">"</span>
 				</article>
 			{/each}
 		</Tabs.Content>
 	</Tabs.Root>
 </div>
 
-<style>
-	.article-quote {
-		@apply relative rounded-lg border-l-4 border-blue-500 bg-gray-100 p-6 shadow-md dark:border-blue-400 dark:bg-gray-800;
-	}
-
-	.article-quote::before {
-		content: '“';
-		@apply absolute left-3 top-2 font-serif text-5xl text-blue-500 dark:text-blue-400;
-	}
-
-	.article-quote::after {
-		content: '”';
-		@apply absolute bottom-2 right-3 font-serif text-5xl text-blue-500 dark:text-blue-400;
-	}
-
-	.article-quote p {
-		@apply p-4 text-lg font-medium leading-relaxed text-gray-900 dark:text-gray-100;
-	}
-
-	.article-quote cite {
-		@apply mt-3 block text-sm italic text-gray-600 dark:text-gray-400;
-	}
-</style>

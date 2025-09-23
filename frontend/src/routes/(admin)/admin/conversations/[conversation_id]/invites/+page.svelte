@@ -6,7 +6,7 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import * as Card from '$lib/components/ui/card';
-	import * as Dialog from '$lib/components/ui/dialog';
+
 	import EmailInviteForm from '$lib/components/ui/EmailInviteForm/EmailInviteForm.svelte';
 
 	import { formatDistanceToNow } from 'date-fns';
@@ -25,7 +25,7 @@
 	let { conversation } = data;
 
 	async function createInviteLink() {
-		let result = await apiClient.CreateInvite(
+		await apiClient.CreateInvite(
 			{ invite_type: 'open' },
 			{ params: { conversation_id: data.conversation.id } }
 		);

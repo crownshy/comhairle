@@ -1,5 +1,5 @@
 # ---- Base Stage ----
-FROM node:18 AS base
+FROM node:22 AS base
 WORKDIR /app
 
 # Install pnpm globally

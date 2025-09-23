@@ -11,11 +11,12 @@ WORKDIR /workspace/
 
 # Copy only Cargo files for efficient caching
 COPY api/Cargo.toml api/Cargo.lock ./api/
+COPY comhairle_macros/Cargo.toml ./comhairle_macros/Cargo.toml
 COPY Cargo.toml Cargo.lock ./
 
 # Create a fake source file to allow dependency resolution
 RUN mkdir -p api/src && echo "fn main() {}" > api/src/main.rs && echo "" > api/src/lib.rs
-
+RUN mkdir -p comhairle_macros/src && echo "" > comhairle_macros/src/lib.rs
 # Fetch dependencies and build only dependencies layer
 RUN cargo build --bin comhairle_api --release && rm -rf target/release/deps
 
@@ -30,6 +31,7 @@ COPY . /workspace
 COPY --from=deps /workspace/target /workspace/target
 COPY --from=deps /workspace/Cargo.lock /workspace/Cargo.lock
 COPY --from=deps /workspace/api/Cargo.lock /workspace/api/Cargo.lock
+# COPY --from=deps /workspace/comhairle_macros/Cargo.lock /workspace/comhairle_macros/Cargo.lock
 
 # Compile the comhairle_api crate
 RUN cargo build --release --package comhairle_api
