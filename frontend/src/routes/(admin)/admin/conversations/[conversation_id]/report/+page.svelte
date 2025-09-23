@@ -93,7 +93,7 @@
 			{/each}
 			<Card.Footer class="flex w-full justify-end">
 				<Dialog.Root bind:open>
-					<Dialog.Trigger class={buttonVariants({ variant: 'outline' })}>Add Impact</Dialog.Trigger>
+					<Dialog.Trigger class={buttonVariants({ variant: 'outline-solid' })}>Add Impact</Dialog.Trigger>
 
 					<Dialog.Content class="sm:max-w-[425px]">
 						<Dialog.Header>

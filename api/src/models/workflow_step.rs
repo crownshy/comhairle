@@ -1,62 +1,24 @@
 use crate::tools;
 use chrono::{DateTime, Utc};
+use comhairle_macros::DbJsonBEnum;
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::PostgresQueryBuilder;
 use sea_query::{enum_def, Expr, Order, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::encode::IsNull;
 use sqlx::PgConnection;
 use sqlx::{prelude::FromRow, PgPool};
-use sqlx::{Decode, Encode, Postgres, Type};
-use sqlx_postgres::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef};
 use tracing::warn;
 use uuid::Uuid;
 
 use crate::error::ComhairleError;
 use crate::tools::{ToolConfig, ToolSetup};
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, DbJsonBEnum)]
 #[serde(rename_all = "lowercase")]
 pub enum ActivationRule {
     Manual,
-}
-
-impl Type<Postgres> for ActivationRule {
-    fn type_info() -> PgTypeInfo {
-        <serde_json::Value as Type<Postgres>>::type_info()
-    }
-}
-
-impl PgHasArrayType for ActivationRule {
-    fn array_type_info() -> PgTypeInfo {
-        <serde_json::Value as PgHasArrayType>::array_type_info()
-    }
-}
-
-impl<'q> Encode<'q, Postgres> for ActivationRule {
-    fn encode_by_ref(
-        &self,
-        buf: &mut PgArgumentBuffer,
-    ) -> Result<IsNull, Box<(dyn std::error::Error + Send + Sync + 'static)>> {
-        let json = serde_json::to_value(self).unwrap();
-        <serde_json::Value as Encode<Postgres>>::encode(json, buf)
-    }
-
-    fn size_hint(&self) -> usize {
-        let json = serde_json::to_value(self).unwrap();
-        <serde_json::Value as Encode<Postgres>>::size_hint(&json)
-    }
-}
-
-impl<'r> Decode<'r, Postgres> for ActivationRule {
-    fn decode(
-        value: PgValueRef<'r>,
-    ) -> Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
-        let json: serde_json::Value = Decode::<Postgres>::decode(value)?;
-        Ok(serde_json::from_value(json)?)
-    }
 }
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
@@ -176,17 +138,11 @@ impl PartialWorkflowStep {
             values.push((WorkflowStepIden::Description, value.into()))
         };
         if let Some(value) = &self.activation_rule {
-            values.push((
-                WorkflowStepIden::ActivationRule,
-                serde_json::to_value(value).unwrap().into(),
-            ))
+            values.push((WorkflowStepIden::ActivationRule, value.into()))
         };
 
         if let Some(value) = &self.tool_config {
-            values.push((
-                WorkflowStepIden::ToolConfig,
-                serde_json::to_value(value).unwrap().into(),
-            ))
+            values.push((WorkflowStepIden::ToolConfig, value.into()))
         };
 
         if let Some(value) = self.step_order {
@@ -262,7 +218,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<WorkflowStep, ComhairleErr
     let deleted_step = sqlx::query_as_with::<_, WorkflowStep, _>(&delete_sql, delete_values)
         .fetch_one(&mut *transaction)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("Worflow_step".into()))?;
+        .map_err(|_| ComhairleError::ResourceNotFound("workflow_step".into()))?;
 
     reset_orders(&mut *transaction, &deleted_step.workflow_id).await?;
 
@@ -315,11 +271,11 @@ pub async fn update(
     Ok(workflow)
 }
 
-pub async fn list(db: &PgPool, workflow_id: Uuid) -> Result<Vec<WorkflowStep>, ComhairleError> {
+pub async fn list(db: &PgPool, workflow_id: &Uuid) -> Result<Vec<WorkflowStep>, ComhairleError> {
     let query = Query::select()
         .from(WorkflowStepIden::Table)
         .columns(DEFAULT_COLUMNS)
-        .and_where(Expr::col(WorkflowStepIden::WorkflowId).eq(workflow_id))
+        .and_where(Expr::col(WorkflowStepIden::WorkflowId).eq(*workflow_id))
         .order_by(WorkflowStepIden::StepOrder, Order::Asc)
         .to_owned();
 

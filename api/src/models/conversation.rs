@@ -1,17 +1,18 @@
+use super::pagination::{Order, PageOptions, PaginatedResults};
+use crate::error::ComhairleError;
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, ConditionalStatement, Expr, PostgresQueryBuilder, Query};
+use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
+use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
 use sqlx::{prelude::FromRow, PgPool};
 use tracing::info;
 use uuid::Uuid;
 
-use crate::error::ComhairleError;
-use sea_query_binder::SqlxBinder;
-
-use super::pagination::{Order, PageOptions, PaginatedResults};
+#[cfg(test)]
+use fake::Dummy;
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "conversation")]
@@ -257,6 +258,7 @@ pub async fn update(
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(test, derive(Dummy))]
 pub struct CreateConversation {
     pub title: String,
     pub short_description: String,

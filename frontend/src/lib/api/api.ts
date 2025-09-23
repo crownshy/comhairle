@@ -56,12 +56,18 @@ export const ProgressStatus = z.enum(["not_started", "in_progress", "done"]);
 export type ProgressStatus = z.infer<typeof ProgressStatus>;
 export const UserProgress = z.object({ created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), status: ProgressStatus, updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid(), workflow_step_id: z.string().uuid() }).passthrough();
 export type UserProgress = z.infer<typeof UserProgress>;
-export const MediaType = z.enum(["Video", "Image", "Text"]);
-export type MediaType = z.infer<typeof MediaType>;
-export const ResourceSource = z.enum(["S3", "Url"]);
-export type ResourceSource = z.infer<typeof ResourceSource>;
-export const CreateResource = z.object({ description: z.string(), media_type: MediaType, name: z.string(), storage_type: ResourceSource, url: z.string() }).passthrough();
-export type CreateResource = z.infer<typeof CreateResource>;
+export const InviteType = z.union([z.object({ email: z.string() }), z.object({ user: z.string().uuid() }), z.literal("singleuse"), z.literal("open")]);
+export type InviteType = z.infer<typeof InviteType>;
+export const LoginBehaviour = z.union([z.literal("manual"), z.literal("auto_create_annon")]);
+export type LoginBehaviour = z.infer<typeof LoginBehaviour>;
+export const InviteStatus = z.union([z.literal("pending"), z.literal("open"), z.literal("accepted"), z.literal("rejected"), z.literal("expired")]);
+export type InviteStatus = z.infer<typeof InviteStatus>;
+export const Invite = z.object({ accept_count: z.number().int(), conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), created_by: z.string().uuid(), expires_at: z.union([z.string(), z.null()]).optional(), id: z.string().uuid(), invite_type: InviteType, login_behaviour: LoginBehaviour, status: InviteStatus, tags: z.array(z.string()), updated_at: z.string().datetime({ offset: true }), workflow_id: z.union([z.string(), z.null()]).optional(), workflow_step_id: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type Invite = z.infer<typeof Invite>;
+export const CreateInviteDTO = z.object({ expires_at: z.union([z.string(), z.null()]).optional(), invite_type: InviteType, login_behaviour: LoginBehaviour.optional() }).passthrough();
+export type CreateInviteDTO = z.infer<typeof CreateInviteDTO>;
+export const DailyResponseStats = z.object({ accept: z.number().int(), day: z.string().datetime({ offset: true }), reject: z.number().int() }).passthrough();
+export type DailyResponseStats = z.infer<typeof DailyResponseStats>;
 export const Feedback = z.object({ content: z.string(), conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), created_by: z.string().uuid(), id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
 export type Feedback = z.infer<typeof Feedback>;
 export const ReportImpact = z.object({ created_at: z.string().datetime({ offset: true }), created_by: z.string().uuid(), details: z.string(), id: z.string().uuid(), kind: z.string(), report_id: z.string().uuid(), title: z.string(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
@@ -78,9 +84,11 @@ export const ReportConfig = z.union([z.object({ Polis: PolisReport }), z.object(
 export type ReportConfig = z.infer<typeof ReportConfig>;
 export const ReportSectionConfig = z.object({ ai_generated: z.boolean(), config: ReportConfig, verified: z.boolean(), workflow_step_id: z.string().uuid() }).passthrough();
 export type ReportSectionConfig = z.infer<typeof ReportSectionConfig>;
-export const FullReportDTO = z.object({ conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), facilitator_feedback: z.array(Feedback), id: z.string().uuid(), impacts: z.array(ReportImpact), is_public: z.boolean(), participant_feedback: z.array(Feedback), section_configs: z.array(ReportSectionConfig), summary: z.string(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
+export const ReportSectionConfigs = z.array(ReportSectionConfig);
+export type ReportSectionConfigs = z.infer<typeof ReportSectionConfigs>;
+export const FullReportDTO = z.object({ conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), facilitator_feedback: z.array(Feedback), id: z.string().uuid(), impacts: z.array(ReportImpact), is_public: z.boolean(), participant_feedback: z.array(Feedback), section_configs: ReportSectionConfigs, summary: z.string(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
 export type FullReportDTO = z.infer<typeof FullReportDTO>;
-export const PartialReport = z.object({ conversation_id: z.union([z.string(), z.null()]), is_public: z.union([z.boolean(), z.null()]), section_configs: z.union([z.array(ReportSectionConfig), z.null()]), summary: z.union([z.string(), z.null()]) }).partial().passthrough();
+export const PartialReport = z.object({ conversation_id: z.union([z.string(), z.null()]), is_public: z.union([z.boolean(), z.null()]), section_configs: z.union([ReportSectionConfigs, z.null()]), summary: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialReport = z.infer<typeof PartialReport>;
 export const PartialReportImpact = z.object({ created_at: z.union([z.string(), z.null()]), created_by: z.union([z.string(), z.null()]), details: z.union([z.string(), z.null()]), id: z.union([z.string(), z.null()]), kind: z.union([z.string(), z.null()]), report_id: z.union([z.string(), z.null()]), title: z.union([z.string(), z.null()]), updated_at: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialReportImpact = z.infer<typeof PartialReportImpact>;
@@ -120,9 +128,12 @@ export const schemas = {
 	UserParticipation,
 	ProgressStatus,
 	UserProgress,
-	MediaType,
-	ResourceSource,
-	CreateResource,
+	InviteType,
+	LoginBehaviour,
+	InviteStatus,
+	Invite,
+	CreateInviteDTO,
+	DailyResponseStats,
 	Feedback,
 	ReportImpact,
 	PolisReport,
@@ -131,6 +142,7 @@ export const schemas = {
 	StoriesReport,
 	ReportConfig,
 	ReportSectionConfig,
+	ReportSectionConfigs,
 	FullReportDTO,
 	PartialReport,
 	PartialReportImpact,
@@ -203,6 +215,13 @@ const endpoints = makeApi([
 		method: "post",
 		path: "/auth/signup_annon",
 		alias: "SignupAnnonUser",
+		requestFormat: "json",
+		response: User,
+	},
+	{
+		method: "get",
+		path: "/auth/test_requires_roles/:conversation_id",
+		alias: "TestRequiresRoles",
 		requestFormat: "json",
 		response: User,
 	},
@@ -341,6 +360,62 @@ const endpoints = makeApi([
 			},
 		],
 		response: Feedback,
+	},
+	{
+		method: "get",
+		path: "/conversation/:conversation_id/invite",
+		alias: "ListInvitesForConversation",
+		requestFormat: "json",
+		response: z.array(Invite),
+	},
+	{
+		method: "post",
+		path: "/conversation/:conversation_id/invite",
+		alias: "CreateInvite",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: CreateInviteDTO
+			},
+		],
+		response: Invite,
+	},
+	{
+		method: "get",
+		path: "/conversation/:conversation_id/invite/:invite_id",
+		alias: "GetInvite",
+		requestFormat: "json",
+		response: Invite,
+	},
+	{
+		method: "delete",
+		path: "/conversation/:conversation_id/invite/:invite_id",
+		alias: "DeleteInvite",
+		requestFormat: "json",
+		response: Invite,
+	},
+	{
+		method: "post",
+		path: "/conversation/:conversation_id/invite/:invite_id/accept",
+		alias: "AcceptInvite",
+		requestFormat: "json",
+		response: Invite,
+	},
+	{
+		method: "post",
+		path: "/conversation/:conversation_id/invite/:invite_id/reject",
+		alias: "RejectInvite",
+		requestFormat: "json",
+		response: Invite,
+	},
+	{
+		method: "get",
+		path: "/conversation/:conversation_id/invite/:invite_id/stats",
+		alias: "GetInviteStats",
+		requestFormat: "json",
+		response: z.array(DailyResponseStats),
 	},
 	{
 		method: "get",
@@ -552,37 +627,6 @@ const endpoints = makeApi([
 		alias: "DeleteWorkflowStep",
 		requestFormat: "json",
 		response: WorkflowStep,
-	},
-	{
-		method: "post",
-		path: "/conversation/:conversation_id/workflow/resource/resource",
-		alias: "CreateResource",
-		description: `Get resource by id`,
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "body",
-				type: "Body",
-				schema: CreateResource
-			},
-		],
-		response: z.void(),
-	},
-	{
-		method: "get",
-		path: "/conversation/:conversation_id/workflow/resource/resource/:id",
-		alias: "GetResource",
-		description: `Get resource by id`,
-		requestFormat: "json",
-		response: z.void(),
-	},
-	{
-		method: "post",
-		path: "/conversation/:conversation_id/workflow/resource/upload_request",
-		alias: "UploadRequst",
-		description: `Request an upload url for a resource`,
-		requestFormat: "json",
-		response: z.void(),
 	},
 	{
 		method: "get",

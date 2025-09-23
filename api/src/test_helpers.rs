@@ -22,12 +22,7 @@ use tower::ServiceExt;
 use crate::{config::ComhairleConfig, mailer::MockComhairleMailer, ComhairleState};
 
 pub fn mock_mailer() -> Arc<MockComhairleMailer> {
-    let mut mailer = MockComhairleMailer::new();
-    mailer.expect_send_welcome_email().returning(|_, _| Ok(()));
-    mailer
-        .expect_send_password_reset_email()
-        .returning(|_, _, _| Ok(()));
-
+    let mailer = MockComhairleMailer::base();
     Arc::new(mailer)
 }
 

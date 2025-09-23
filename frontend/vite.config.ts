@@ -1,14 +1,20 @@
-import { paraglide } from '@inlang/paraglide-sveltekit/vite';
-import { defineConfig } from 'vitest/config';
+
+import { paraglideVitePlugin } from '@inlang/paraglide-js';
+import devtoolsJson from 'vite-plugin-devtools-json';
+
+import { defineConfig } from 'vite'
 import { sveltekit } from '@sveltejs/kit/vite';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
 	plugins: [
+		tailwindcss(),
 		sveltekit(),
-		paraglide({
+		devtoolsJson(),
+		paraglideVitePlugin({
 			project: './project.inlang',
 			outdir: './src/lib/paraglide'
-		})
+		}),
 	],
 	server: {
 		proxy: {
@@ -18,9 +24,9 @@ export default defineConfig({
 				rewrite: (path) => path.replace(/^\/api/, '')
 			}
 			,
-			"/proxy/polis":{
-				target:'https://poliscommunity.crown-shy.com',
-				changeOrigin:false,
+			"/proxy/polis": {
+				target: 'https://poliscommunity.crown-shy.com',
+				changeOrigin: false,
 				rewrite: (path) => path.replace(/^\/proxy\/polis/, '')
 			}
 		}

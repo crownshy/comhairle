@@ -37,7 +37,7 @@
 		</p>
 		<div class="flex justify-between">
 			<DropdownMenu.Root>
-				<DropdownMenu.Trigger class={buttonVariants({ variant: 'outline', size: 'sm' })}>
+				<DropdownMenu.Trigger class={buttonVariants({ variant: 'outline-solid', size: 'sm' })}>
 					<ChevronDown class="h-4 w-4" />{m.sort()}
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content>
@@ -54,7 +54,7 @@
 	</header>
 
 	<div
-		class="grid w-full grow auto-rows-auto grid-cols-[repeat(auto-fill,minmax(350px,1fr))] items-center gap-4 overflow-y-auto md:px-0 md:px-2"
+		class="grid w-full grow auto-rows-auto grid-cols-1 items-center gap-4 overflow-y-auto md:px-0 md:px-2"
 	>
 		{#each data.records as conversation}
 			<ConversationCard {conversation} />

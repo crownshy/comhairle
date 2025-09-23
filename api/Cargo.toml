@@ -84,6 +84,13 @@ minijinja-embed = "2.10.2"
 mockall = "0.13.1"
 bon = "3.6.5"
 
+
+# Macros
+comhairle-macros = {path="../comhairle_macros"}
+tracing-test = "0.2.5"
+dotenvy = "0.15.7"
+fake = { version = "4", features = ["chrono", "derive", "uuid"] }
+
 [dev-dependencies]
 fake = { version = "4", features = ["derive"] }
 

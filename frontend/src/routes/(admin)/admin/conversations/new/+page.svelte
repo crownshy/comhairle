@@ -14,6 +14,8 @@
 	import { workflow_templates } from '$lib/workflow_templates';
 
 	import * as Card from '$lib/components/ui/card';
+	import { page } from '$app/stores';
+	let url = $page.url;
 
 	let { data } = $props();
 
@@ -38,9 +40,9 @@
 				let fullConversation = {
 					...result.data,
 					description:
-						'This should be a longer description about the conversation. It should introduce people to what is being discussed and outline the actions that might be taken as a result of the conversation',
+						'This should be a longer description about the conversation. It should introduce people to what is being discussed and outline-solid the actions that might be taken as a result of the conversation',
 					tags: [],
-					image_url: PlaceholderConvo,
+					image_url: url.origin + PlaceholderConvo,
 					is_public: false,
 					is_invite_only: false
 				};
@@ -88,17 +90,21 @@
 	{/if}
 
 	<Form.Field {form} name="title">
-		<Form.Control let:attrs>
-			<Form.Label>{m.enter_a_title_for_the_conversation()}</Form.Label>
-			<Input {...attrs} bind:value={$formData.title} />
+		<Form.Control>
+			{#snippet children({ props })}
+				<Form.Label>{m.enter_a_title_for_the_conversation()}</Form.Label>
+				<Input {...props} bind:value={$formData.title} />
+			{/snippet}
 		</Form.Control>
 		<Form.FieldErrors />
 	</Form.Field>
 
 	<Form.Field {form} name="short_description">
-		<Form.Control let:attrs>
-			<Form.Label>{m.short_description()}</Form.Label>
-			<Input {...attrs} bind:value={$formData.short_description} />
+		<Form.Control>
+			{#snippet children({ props })}
+				<Form.Label>{m.short_description()}</Form.Label>
+				<Input {...props} bind:value={$formData.short_description} />
+			{/snippet}
 		</Form.Control>
 		<Form.FieldErrors />
 	</Form.Field>

@@ -10,5 +10,5 @@
 		{m.welcome_to_comhairle()}
 	</h1>
 	<p class="text-center text-2xl md:text-left">{m.a_platfrom_about_what_people_want()}</p>
-	<Button href="/conversations">Explore conversations</Button>
+	<Button size="lg" href="/conversations">Explore conversations</Button>
 </div>

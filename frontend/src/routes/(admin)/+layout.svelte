@@ -10,9 +10,16 @@
 	if (!data.user) {
 		loginRedirect(page.url.toString(), 'You need to be logged in to access this');
 	}
+
+	let theme = {
+		radius: '2rem',
+		mutted: 'hsla(100, 29%, 10%, 1)'
+	};
+
+	let themeCss = Object.entries(theme).reduce((a, b) => (a = a + `--${b[0]} : ${b[1]};`), '');
 </script>
 
-<div class="grid h-full w-full grid-cols-[300px_1fr]">
+<div style={themeCss} class="bg-admin-background grid h-full w-full grid-cols-[350px_1fr]">
 	<AdminNav user={data.user} {conversations} />
 	<main class="flex flex-col overflow-y-auto p-12">
 		{@render children()}

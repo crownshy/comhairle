@@ -110,6 +110,15 @@ pub enum ComhairleError {
     #[error("Failed to create feedback")]
     FailedToCreateFeedback,
 
+    #[error("Failed to create invite")]
+    FailedToCreateInvite(sqlx::Error),
+
+    #[error("Invite does not match logged in user")]
+    InviteDoesNotMatchUser,
+
+    #[error("This invite has expired")]
+    InviteExpired,
+
     #[error("Failed to update feedback")]
     FailedToUpdateFeedback,
 
@@ -124,6 +133,9 @@ pub enum ComhairleError {
 
     #[error("User is not authorized to perform this action")]
     UserNotAuthorized,
+
+    #[error("Failed to generate stats for invite {0}")]
+    InviteStatsAggregationError(sqlx::Error),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -147,6 +159,7 @@ impl IntoResponse for ComhairleError {
             ComhairleError::UserRequired
             | ComhairleError::WrongPassword
             | ComhairleError::RequiresAuthUser
+            | ComhairleError::InviteDoesNotMatchUser
             | ComhairleError::NoLogedInUser => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates => StatusCode::UNPROCESSABLE_ENTITY,
             ComhairleError::UserNotAuthorized => StatusCode::FORBIDDEN,

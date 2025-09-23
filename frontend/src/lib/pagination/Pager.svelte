@@ -11,7 +11,7 @@
 
 	const pageNumber = $derived(getPage(url));
 	const pageCount = $derived(calcPageCount({ pageSize, total: count }));
-	const linkBtnCls = buttonVariants({ variant: 'outline', size: 'sm' });
+	const linkBtnCls = buttonVariants({ variant: 'outline-solid', size: 'sm' });
 </script>
 
 <nav class="flex flex-col items-center" aria-label="pagination">

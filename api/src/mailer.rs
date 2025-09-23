@@ -35,6 +35,21 @@ pub struct Mailer {
     template_engine: Environment<'static>,
 }
 
+#[cfg(test)]
+impl MockComhairleMailer {
+    pub fn base() -> MockComhairleMailer {
+        let mut mailer = MockComhairleMailer::new();
+
+        mailer.expect_send_welcome_email().returning(|_, _| Ok(()));
+        mailer.expect_send_email().returning(|_, _, _, _| Ok(()));
+        mailer
+            .expect_send_password_reset_email()
+            .returning(|_, _, _| Ok(()));
+
+        mailer
+    }
+}
+
 impl Mailer {
     pub fn new(host: &str, user: &str, password: &str) -> Self {
         let creds = Credentials::new(user.to_string(), password.to_string());
@@ -57,13 +72,6 @@ impl ComhairleMailer for Mailer {
         template: &str,
         context: Value,
     ) -> Result<(), ComhairleError> {
-        let templates = self.template_engine.templates();
-        println!("Printing templates");
-        for t in templates {
-            println!("{t:#?}");
-        }
-        println!("done");
-
         let template = self
             .template_engine
             .get_template(template)
@@ -72,11 +80,10 @@ impl ComhairleMailer for Mailer {
         let content = template
             .render(context)
             .expect("Template to render properly");
-        println!("Printing content {content}");
 
         let email = Message::builder()
             .from("noreply@comhairle.scot".parse().unwrap())
-            .reply_to("noreply@comhairle.scot".parse().unwrap())
+            .reply_to("invites@comhairle.scot".parse().unwrap())
             .to(to.parse().unwrap())
             .header(lettre::message::header::ContentType::TEXT_HTML)
             .subject(subject)

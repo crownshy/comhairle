@@ -15,6 +15,7 @@
 		admin_password: string;
 	} = $props();
 	$inspect(workflow_step_id);
+	polis_url = 'http://localhost:5000';
 	let url = $derived(`${polis_url}/m/${polis_id}`);
 </script>
 
@@ -22,7 +23,7 @@
 
 <p>Polis ID: {polis_id}</p>
 <p>Polis url: {polis_url}</p>
-<p>Admin email : {admin_user}</p>
+<p>Admin email: {admin_user}</p>
 <p>Adming password: {admin_password}</p>
 
 <iframe class="min-h-[40vh]" src={url} title="Polis poll" style="width:100%;height:100%"></iframe>

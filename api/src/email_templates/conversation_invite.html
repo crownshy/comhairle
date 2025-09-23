@@ -1,0 +1,15 @@
+{% extends "email_layout.html" %}
+{% block content %}
+
+{%if user%}
+<p>Dear {{ user.username }}!</p>
+{%endif%}
+
+<img src={{conversation_hero}} />
+<p>You have been invited by the Scotish Government to take part in a
+	conversation about {{conversation_title}}</p>
+
+<p>Your views will be key to helping us develop better policy</p>
+
+<a href={{invite_link}}><button>Join the conversation!</button> </a>
+{% endblock %}

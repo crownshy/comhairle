@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { Input } from '$lib/components/ui/input';
-	import { buttonVariants } from '$lib/components/ui/button';
-	import { cn } from '$lib/utils';
+	import { Button } from '$lib/components/ui/button';
+	import CopyButton from '$lib/components/CopyButton.svelte';
 	import { AuthPage } from '$lib/profile';
 	import * as m from '$lib/paraglide/messages';
 	import { page } from '$app/state';
@@ -12,16 +11,19 @@
 
 <AuthPage>
 	<div class="space-y-4">
-		<h1 class="text-xl">{m.sign_up_anonymously()}</h1>
-		<p class="mb-4 text-sm text-muted-foreground">{m.get_started_with_comhairle_right_away()}</p>
+		<p class="text-muted-foreground mb-4 text-sm">{m.get_started_with_comhairle_right_away()}</p>
 
-		<a href={backTo} class={cn('w-full', buttonVariants({ variant: 'default' }))}>{m.continue_()}</a
-		>
+		<h3 class="text-center">Your Id is</h3>
+		<CopyButton copyText={data?.user?.username}>
+			<h2 class="text-center text-2xl font-bold">
+				{data?.user?.username}
+			</h2>
+		</CopyButton>
+		<p class="text-center">Write this down somewhere safe and use it to log back in.</p>
 
-		<Input disabled value={data?.user?.username} />
+		<p class="text-muted-foreground mb-4 text-sm">{m.keey_this_pseudonymous_id_safe()}</p>
 
-		<p class="mb-4 text-sm text-muted-foreground">{m.keey_this_pseudonymous_id_safe()}</p>
-
+		<Button href={backTo} variant="secondary" class="w-full">{m.continue_()}</Button>
 		<p class="text-sm">
 			<a href={`/auth/signup?backTo=${backTo}`}>{m.create_a_standard_account_signup()}</a>
 		</p>

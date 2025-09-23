@@ -181,7 +181,7 @@ pub async fn create_for_conversation(
     conversation_id: Uuid,
 ) -> Result<Report, ComhairleError> {
     let workflows = workflow::list(&db, conversation_id).await?;
-    let workflow_steps = workflow_step::list(&db, workflows[0].id).await?;
+    let workflow_steps = workflow_step::list(&db, &workflows[0].id).await?;
 
     let section_configs: Vec<ReportSectionConfig> = workflow_steps
         .iter()

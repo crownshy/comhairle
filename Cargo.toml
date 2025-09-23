@@ -1,5 +1,5 @@
 [workspace]
 members = [
-    "api",
+    "api", "comhairle_macros",
 ]
 resolver="2"

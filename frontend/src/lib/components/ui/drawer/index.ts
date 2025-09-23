@@ -8,10 +8,10 @@ import Footer from "./drawer-footer.svelte";
 import Header from "./drawer-header.svelte";
 import Title from "./drawer-title.svelte";
 import NestedRoot from "./drawer-nested.svelte";
+import Close from "./drawer-close.svelte";
+import Trigger from "./drawer-trigger.svelte";
 
-const Trigger = DrawerPrimitive.Trigger;
-const Portal = DrawerPrimitive.Portal;
-const Close = DrawerPrimitive.Close;
+const Portal: typeof DrawerPrimitive.Portal = DrawerPrimitive.Portal;
 
 export {
 	Root,
@@ -25,6 +25,7 @@ export {
 	Trigger,
 	Portal,
 	Close,
+
 	//
 	Root as Drawer,
 	NestedRoot as DrawerNestedRoot,

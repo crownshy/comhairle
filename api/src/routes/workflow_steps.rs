@@ -24,7 +24,7 @@ use crate::models::user_participation;
 async fn create_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     Path((_, workflow_id)): Path<(Uuid, Uuid)>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredAdminUser(_user): RequiredAdminUser,
     Json(new_workflow): Json<CreateWorkflowStep>,
 ) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
     info!("Attempting to create workflow");
@@ -36,7 +36,7 @@ async fn create_workflow_step(
 async fn update_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     Path((_, workflow_id, id)): Path<(Uuid, Uuid, Uuid)>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredAdminUser(_user): RequiredAdminUser,
     Json(workflow): Json<PartialWorkflowStep>,
 ) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
     let workflow = workflow_step::update(&state.db, id, workflow_id, &workflow).await?;
@@ -50,19 +50,18 @@ async fn list_workflows_step(
     Path((_, workflow_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<Vec<WorkflowStep>>), ComhairleError> {
     // Check to see if the user is a participant on this conversation
-    let participation = user_participation::get(&state.db, &user.id, &workflow_id)
+    user_participation::get(&state.db, &user.id, &workflow_id)
         .await
         .map_err(|_| ComhairleError::UserIsNotParticipatingInTheConversation)?;
 
-    println!("{participation:#?}");
-    let workflows = workflow_step::list(&state.db, workflow_id).await?;
+    let workflows = workflow_step::list(&state.db, &workflow_id).await?;
     Ok((StatusCode::OK, Json(workflows)))
 }
 
 /// Get a specific workflow
 async fn get_workflow_step(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
+    RequiredUser(_user): RequiredUser,
     Path((_, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
     info!("Attempting to get workflow step  {workflow_step_id:#?}");
@@ -111,7 +110,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{workflow_step_id}",
             put_with(update_workflow_step, |op| {
                 op.id("UpdateWorkflowStep")
-                    .summary("Update the specifed workflow step")
+                    .summary("Update the specified workflow step")
                     .response::<200, Json<WorkflowStep>>()
             }),
         )
@@ -130,8 +129,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 mod tests {
 
     use crate::{
-        config,
-        models::workflow_step,
         setup_server,
         test_helpers::{
             extract, learn_tool_config, polis_tool_config, test_config, test_state, UserSession,

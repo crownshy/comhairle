@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, Order, OrderedStatement, PostgresQueryBuilder, Query};
+use sea_query::{enum_def, Expr, Order, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
@@ -13,9 +13,10 @@ use uuid::Uuid;
 use crate::error::ComhairleError;
 
 use super::{
-    user_participation::{UserParticipation, UserParticipationIden},
-    user_progress::UserProgressIden,
-    workflow_step::WorkflowStepIden,
+    user_participation::{self, UserParticipation, UserParticipationIden},
+    user_progress::{self, UserProgressIden},
+    users::User,
+    workflow_step::{self, WorkflowStepIden},
 };
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
@@ -111,6 +112,28 @@ impl CreateWorkflow {
             self.is_public.into(),
         ]
     }
+}
+
+pub async fn register_user(
+    db: &PgPool,
+    user: &User,
+    workflow_id: &Uuid,
+) -> Result<UserParticipation, ComhairleError> {
+    let user_participation = user_participation::create(&db, &user.id, &workflow_id).await?;
+
+    let workflow_steps = workflow_step::list(&db, workflow_id).await?;
+
+    for step in workflow_steps {
+        user_progress::create(
+            &db,
+            &user.id,
+            &step.id,
+            user_progress::ProgressStatus::NotStarted,
+        )
+        .await?;
+    }
+
+    Ok(user_participation)
 }
 
 // TODO ensure this deletes all workflow steps on deletion

@@ -4,6 +4,10 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    // Load .env files
+    //
+    dotenvy::dotenv().ok();
+
     // initialize tracing
     tracing_subscriber::registry()
         .with(
@@ -18,7 +22,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .with_thread_ids(true)
                 .with_thread_names(true)
                 .with_target(true)
-                .with_span_events(tracing_subscriber::fmt::format::FmtSpan::CLOSE),
+                .with_span_events(tracing_subscriber::fmt::format::FmtSpan::CLOSE)
+                .pretty(),
         )
         .init();
 
@@ -28,6 +33,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Setup DB
     let db = setup_db(&config.database_url).await?;
 
+    println!("config {config:#?}");
     // Setup Mailer
     let mailer = Arc::new(Mailer::new(
         &config.mailer.host,

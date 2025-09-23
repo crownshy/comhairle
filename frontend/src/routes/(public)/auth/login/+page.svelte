@@ -6,5 +6,5 @@
 </script>
 
 <AuthPage>
-	<LoginForm data={data.form} backTo={data.backTo} />
+	<LoginForm backTo={data.backTo} />
 </AuthPage>

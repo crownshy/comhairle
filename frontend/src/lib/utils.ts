@@ -15,13 +15,14 @@ type FlyAndScaleParams = {
 };
 
 
-export const userInitals =(username:string | null)=>{
+export const userInitials = (username: string | null) => {
 	if (!username) return null
 	return username
-			.split(/\s/)
-			.map((s) => s.charAt(0).toUpperCase())
-			.join('')
-	}
+		.split(/\s/)
+		.map((s) => s.charAt(0).toUpperCase())
+		.join('')
+}
+
 export const flyAndScale = (
 	node: Element,
 	params: FlyAndScaleParams = { y: -8, x: 0, start: 0.95, duration: 150 }
@@ -68,3 +69,10 @@ export const flyAndScale = (
 		easing: cubicOut
 	};
 };
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type WithoutChild<T> = T extends { child?: any } ? Omit<T, "child"> : T;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type WithoutChildren<T> = T extends { children?: any } ? Omit<T, "children"> : T;
+export type WithoutChildrenOrChild<T> = WithoutChildren<WithoutChild<T>>;
+export type WithElementRef<T, U extends HTMLElement = HTMLElement> = T & { ref?: U | null };

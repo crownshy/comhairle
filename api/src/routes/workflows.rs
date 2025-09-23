@@ -18,7 +18,8 @@ use crate::{
     ComhairleState,
 };
 
-use super::auth::{RequiredAdminUser, RequiredUser};
+use super::auth::RequiredAdminUser;
+use super::auth::RequiredUser;
 
 /// Create workflow handler
 async fn create_workflow(
@@ -139,7 +140,7 @@ mod tests {
 
     use crate::{
         setup_server,
-        test_helpers::{extract, test_config, test_state, UserSession},
+        test_helpers::{extract, test_state, UserSession},
     };
     use axum::{body::Body, http::StatusCode};
     use serde_json::json;

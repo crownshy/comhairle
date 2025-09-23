@@ -2,7 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import Markdown from 'svelte-exmarkdown';
 	import * as m from '$lib/paraglide/messages';
-	import { languageTag } from '$lib/paraglide/runtime.js';
+	import { getLocale } from '$lib/paraglide/runtime.js';
 	import type { Page } from '$lib/api/api';
 	import { marked } from 'marked';
 	import { tick } from 'svelte';
@@ -17,7 +17,7 @@
 
 	let currentPageNo = $state(0);
 	let currentPage = $derived(pages[currentPageNo]);
-	let currentPageTranslation = $derived(currentPage.filter((p) => p.lang === languageTag()));
+	let currentPageTranslation = $derived(currentPage.filter((p) => p.lang === getLocale()));
 	let content = $derived(currentPageTranslation[0]?.content);
 
 	let markdown = $derived(marked.parse(content));

@@ -28,7 +28,7 @@
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Trigger class={buttonVariants({ variant: 'outline' })}>{m.give_feedback()}</Dialog.Trigger
+	<Dialog.Trigger class={buttonVariants({ variant: 'outline-solid' })}>{m.give_feedback()}</Dialog.Trigger
 	>
 	<Dialog.Content class="sm:max-w-[425px]">
 		<Dialog.Header>

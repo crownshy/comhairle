@@ -139,13 +139,13 @@
 			autoplay
 			muted
 			playsinline
-			class="mt-4 w-full rounded-lg shadow"
+			class="mt-4 w-full rounded-lg shadow-sm"
 		/>
 	</div>
 
 	{#if isRecorded && videoUrl}
 		<CardContent class="space-y-4">
-			<video controls src={videoUrl} class="w-full rounded-lg shadow" />
+			<video controls src={videoUrl} class="w-full rounded-lg shadow-sm" />
 			<div class="flex gap-4">
 				<Button on:click={uploadVideo} disabled={isUploading}>Upload</Button>
 				<Button variant="outline" on:click={reset} disabled={isUploading}>Record Again</Button>

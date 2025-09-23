@@ -6,29 +6,23 @@ use aide::{
     OperationIo,
 };
 
+use argon2::{password_hash::SaltString, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use axum::{
     extract::{FromRequestParts, Json, Path, State},
     http::{request::Parts, StatusCode},
     response::{IntoResponse, Response},
     RequestPartsExt,
 };
-
+use axum_extra::extract::cookie::{Cookie, CookieJar};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
-
-use argon2::{password_hash::SaltString, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
-
 use rand_core::OsRng;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-
+use std::marker::PhantomData;
 use std::{collections::HashMap, sync::Arc};
 use tracing::{error, warn};
-
-use std::marker::PhantomData;
 use uuid::Uuid;
-
-use axum_extra::extract::cookie::{Cookie, CookieJar};
 // use tower_cookies::{Cookie, Cookies};
 
 use crate::{
@@ -39,6 +33,9 @@ use crate::{
     },
     ComhairleState,
 };
+
+#[cfg(test)]
+use fake::Dummy;
 
 /// This is the key that we use in the cookie for the JWT
 pub const AUTH_KEY: &str = "auth-token";
@@ -102,6 +99,7 @@ fn generate_jwt(user: &User, secret: &str) -> String {
 
 /// Expected payload for a signin request  
 #[derive(Deserialize, Debug, JsonSchema)]
+#[cfg_attr(test, derive(Dummy))]
 pub struct SignupRequest {
     pub username: String,
     pub password: String,

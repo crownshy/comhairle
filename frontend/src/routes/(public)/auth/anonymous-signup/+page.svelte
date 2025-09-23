@@ -10,10 +10,10 @@
 <AuthPage>
 	<form class="space-y-4" method="POST">
 		<h1 class="text-xl">{m.sign_up_anonymously()}</h1>
-		<p class="mb-4 text-sm text-muted-foreground">{m.get_started_with_comhairle_right_away()}</p>
-		<Form.Button fullWidth variant="default">{m.generate_pseudonymous_id()} →</Form.Button>
+		<p class="text-foreground mb-4 text-sm">{m.get_started_with_comhairle_right_away()}</p>
+		<Form.Button class="w-full" variant="secondary">{m.generate_anonymous_id()} →</Form.Button>
 
-		<p class="mb-4 text-sm text-muted-foreground">
+		<p class="text-muted-foreground mb-4 text-sm">
 			{m.agree_to_tos()}
 			<a href="/rights/tos">TOS</a>
 			{m.agree_to_tos2()}

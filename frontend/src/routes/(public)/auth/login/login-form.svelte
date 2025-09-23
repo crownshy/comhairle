@@ -2,51 +2,79 @@
 	import * as Form from '$lib/components/ui/form';
 	import { Input } from '$lib/components/ui/input';
 	import { loginFormSchema } from '$lib/profile';
-	import { type SuperValidated, type Infer, superForm } from 'sveltekit-superforms';
-	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { type SuperValidated, type Infer, superForm, defaults } from 'sveltekit-superforms';
+	import { zod, zodClient } from 'sveltekit-superforms/adapters';
 	import * as m from '$lib/paraglide/messages';
-	import { buttonVariants } from '$lib/components/ui/button';
-	import { cn } from '$lib/utils';
+	import { Button } from '$lib/components/ui/button';
+	import { apiClient } from '$lib/api/client';
+	import { goto, invalidateAll } from '$app/navigation';
 
-	let { data, backTo }: { data: SuperValidated<Infer<typeof loginFormSchema>>; backTo?: string } =
-		$props();
+	let { backTo }: { backTo?: string } = $props();
 
-	const form = superForm(data, {
-		validators: zodClient(loginFormSchema)
+	const form = superForm(defaults(zod(loginFormSchema)), {
+		validators: zodClient(loginFormSchema),
+		taintedMessage: false,
+		onSubmit: attemptLogin
 	});
 
-	const { form: formData, enhance, message: errMessage } = form;
+	let responseMessage = $state(null);
+
+	const { form: formData, enhance, message, validateForm } = form;
+
+	async function attemptLogin() {
+		let result = await validateForm({ update: true });
+		if (result.valid) {
+			let { email, password } = result.data;
+			try {
+				await apiClient.LoginUser({
+					email,
+					password
+				});
+				await invalidateAll();
+				await goto(backTo ?? '/');
+			} catch (e) {
+				responseMessage = e.response.data.err;
+			}
+		}
+	}
 </script>
 
 <form class="space-y-4" method="POST" use:enhance>
 	<div>
 		<h1 class="text-xl font-bold">{m.login()}</h1>
-		<p class="mb-4 text-sm text-muted-foreground">{m.enter_your_details_below_to_login()}</p>
+		<p class="text-muted-foreground mb-4 text-sm">{m.enter_your_details_below_to_login()}</p>
 	</div>
-	{#if $errMessage}
-		<p class="text-sm text-destructive">{$errMessage}</p>
+
+	{#if responseMessage}
+		<p class="text-destructive text-sm">{responseMessage}</p>
 	{/if}
+
 	<Form.Field {form} name="email">
-		<Form.Control let:attrs>
-			<Form.Label>{m.email()}</Form.Label>
-			<Input {...attrs} bind:value={$formData.email} required />
+		<Form.Control>
+			{#snippet children({ props })}
+				<Form.Label>{m.email()}</Form.Label>
+				<Input {...props} bind:value={$formData.email} required />
+			{/snippet}
 		</Form.Control>
 		<Form.FieldErrors />
 	</Form.Field>
+
 	<Form.Field {form} name="password">
-		<Form.Control let:attrs>
-			<Form.Label>{m.password()}</Form.Label>
-			<Input type="password" {...attrs} bind:value={$formData.password} required />
+		<Form.Control>
+			{#snippet children({ props })}
+				<Form.Label>{m.password()}</Form.Label>
+				<Input type="password" {...props} bind:value={$formData.password} required />
+			{/snippet}
 		</Form.Control>
 		<Form.FieldErrors />
 	</Form.Field>
-	<Form.Button fullWidth variant="default">{m.submit()}</Form.Button>
-	<a
-		href={`/auth/anonymous-login?backTo=${backTo ?? '/'}`}
-		class={cn('w-full', buttonVariants({ variant: 'outline' }))}
-	>
-		{m.Login_with_Pseudonymous_ID()}
-	</a>
+
+	<Form.Button class="w-full" variant="secondary">{m.submit()}</Form.Button>
+
+	<Button href={`/auth/anonymous-login?backTo=${backTo ?? '/'}`} variant="link" class={'w-full'}>
+		{m.login_with_anonymous_id()}
+	</Button>
+
 	<p class="text-sm">
 		<a href={`/auth/signup?backTo=${backTo ?? '/'}`}>{m.dont_have_an_account_signup()}</a>
 	</p>

@@ -10,7 +10,7 @@ use axum::{
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::models::{user_participation, user_progress, workflow_step};
+use crate::models::{self, user_participation};
 use crate::ComhairleState;
 use crate::{error::ComhairleError, models::user_participation::UserParticipation};
 
@@ -25,19 +25,8 @@ async fn register_user_for_workflow(
     RequiredUser(user): RequiredUser,
     Path((_, workflow_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<UserParticipation>), ComhairleError> {
-    let user_participation = user_participation::create(&state.db, &user.id, &workflow_id).await?;
-
-    let workflow_steps = workflow_step::list(&state.db, workflow_id).await?;
-
-    for step in workflow_steps {
-        user_progress::create(
-            &state.db,
-            &user.id,
-            &step.id,
-            user_progress::ProgressStatus::NotStarted,
-        )
-        .await?;
-    }
+    let user_participation =
+        models::workflow::register_user(&state.db, &user, &workflow_id).await?;
 
     Ok((StatusCode::CREATED, Json(user_participation)))
 }

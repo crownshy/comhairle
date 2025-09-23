@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod conversations;
 pub mod feedback;
+pub mod invites;
 pub mod report_impacts;
 pub mod reports;
 pub mod user;

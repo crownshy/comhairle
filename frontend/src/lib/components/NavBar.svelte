@@ -1,13 +1,13 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
-	import Logo from '$lib/assets/comhairle_logo.png';
+	import Logo from '$lib/assets/comhairle_logo.svg';
 	import { ProfileMenu, LoginButtons } from '$lib/profile';
 	import LanguageSelector from '$lib/components/LanguageSelector.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import * as Drawer from '$lib/components/ui/drawer';
 	import { HamburgerMenu } from 'svelte-radix';
-	import { afterNavigate, beforeNavigate } from '$app/navigation';
-	import UserAvatar from './UserAvatar.svelte';
+	import { afterNavigate } from '$app/navigation';
+	import UserNavMenu from './UserNavMenu.svelte';
 
 	let links = [
 		{
@@ -37,21 +37,21 @@
 	let { user } = $props();
 </script>
 
-<nav class="z-10 flex w-full flex-col bg-white p-4 shadow-md">
-	<div class="container flex items-center justify-between">
+<nav class="bg-primary text-muted-foreground z-10 flex w-full flex-col items-center p-5 shadow-md">
+	<div class="margin-auto container flex max-w-[1200px] items-center justify-between">
 		<div class="align-center flex flex-row items-center gap-4">
 			<img src={Logo} alt="Comhairle Logo" />
 			<a href="/" class=" invisible hidden text-xl font-bold lg:visible lg:block">Comhairle</a>
 		</div>
 
 		<!-- Desktop Navigation -->
-		<div class="hidden space-x-6 md:flex lg:space-x-10">
+		<div class="hidden space-x-6 md:flex lg:space-x-5">
 			{#each links as link}
-				<a href={link.href} class="text-gray-700 hover:text-black">{link.name}</a>
+				<Button href={link.href} variant="nav">{link.name}</Button>
 			{/each}
 		</div>
 
-		<div class="hidden md:flex">
+		<div class="hidden gap-x-5 md:flex">
 			<LanguageSelector />
 			<ProfileMenu {user} />
 		</div>
@@ -59,8 +59,8 @@
 		<!-- Mobile Navigation -->
 		<div class="md:hidden">
 			<Drawer.Root bind:open={isOpen} direction="bottom">
-				<Drawer.Trigger asChild let:builder>
-					<Button builders={[builder]} variant="outline">
+				<Drawer.Trigger>
+					<Button variant="outline">
 						<HamburgerMenu />
 					</Button>
 				</Drawer.Trigger>
@@ -80,25 +80,7 @@
 									{/each}
 									<LanguageSelector />
 								</div>
-								<div class="flex w-full flex-col items-center gap-4">
-									{#if user}
-										<div class="flex flex-col gap-4">
-											<UserAvatar {user} />
-											<form method="POST" action="/auth/logout">
-												<Button
-													type="submit"
-													variant="outline"
-													fullWidth
-													class="text-gray-700 hover:text-black"
-												>
-													{m.logout()}
-												</Button>
-											</form>
-										</div>
-									{:else}
-										<LoginButtons />
-									{/if}
-								</div>
+								<UserNavMenu {user} />
 							</div>
 						</div>
 					</div>

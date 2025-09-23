@@ -5,7 +5,6 @@ use crate::{
     routes::auth::{hash_pw, SignupRequest},
     tools::id::gen_id,
 };
-use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;

@@ -1,34 +1,25 @@
-<script>
-	import { availableLanguageTags, languageTag } from '$lib/paraglide/runtime';
+<script lang="ts">
+	import { getLocale, locales, setLocale, type Locale } from '$lib/paraglide/runtime';
 	import * as Select from '$lib/components/ui/select';
-	import { i18n } from '$lib/i18n';
-	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import { get } from 'svelte/store';
 
-	/**
-	 * @param { import("$lib/paraglide/runtime").AvailableLanguageTag } newLanguage
-	 */
-	function switchToLanguage(newLanguage) {
-		const canonicalPath = i18n.route(get(page).url.pathname);
-		const localisedPath = i18n.resolveRoute(canonicalPath, newLanguage);
-		goto(localisedPath);
-	}
-
-	/**
-	 * @type {Record<import("$lib/paraglide/runtime").AvailableLanguageTag, string>}
-	 */
 	const labels = {
 		en: 'English',
 		gd: 'Gaelic'
 	};
+
+	function switchToLanguage(newLanguage: Locale) {
+		setLocale(newLanguage);
+	}
+	let currentLanguage = getLocale();
 </script>
 
-<select
-	class="border-1px border-grey bg-white"
-	on:change={(e) => switchToLanguage(/** @type {any} */ (e).target.value)}
->
-	{#each availableLanguageTags as langTag}
-		<option value={langTag} selected={languageTag() === langTag}>{labels[langTag]}</option>
-	{/each}
-</select>
+<Select.Root type="single" onValueChange={(locale) => switchToLanguage(locale as Locale)}>
+	<Select.Trigger class="w-[180px]">
+		{labels[currentLanguage]}
+	</Select.Trigger>
+	<Select.Content>
+		{#each locales as langTag}
+			<Select.Item value={langTag}>{labels[langTag]}</Select.Item>
+		{/each}
+	</Select.Content>
+</Select.Root>
