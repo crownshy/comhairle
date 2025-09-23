@@ -35,6 +35,7 @@ RUN pnpm install --frozen-lockfile --prod
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Expose the application port
 EXPOSE 3000
