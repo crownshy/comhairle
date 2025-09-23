@@ -11,6 +11,9 @@ RUN pnpm install --frozen-lockfile
 
 # ---- Build Stage ----
 FROM base AS build
+
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
 WORKDIR /app
 
 # Copy all project files
@@ -20,7 +23,8 @@ COPY . .
 RUN pnpm run build
 
 # ---- Production Stage ----
-FROM node:18-slim AS production
+FROM node:22-slim AS production
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 WORKDIR /app
 
 # Install pnpm globally in the final image
@@ -35,7 +39,6 @@ RUN pnpm install --frozen-lockfile --prod
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Expose the application port
 EXPOSE 3000
