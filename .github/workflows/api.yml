@@ -67,6 +67,8 @@ jobs:
             cd helm_charts
             sed -i "s|docker_tag_api:.*|docker_tag_api:${{ github.sha }}|g" comhairle/stage_values.yaml
             git add .
+            git config --global user.email "stuart.lynn@gmail.com"
+            git config --global user.name "Stuart Lynn"
             git commit -m "Updating stage api image tag to ${{ github.sha }}"
             git push
      
