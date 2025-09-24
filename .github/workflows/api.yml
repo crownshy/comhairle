@@ -62,11 +62,11 @@ jobs:
           tags: crownshy/comhairle_api:${{github.sha}}
       - 
         name: Update GitOps manifests
-          run: |
-              git clone https://${{ secrets.GITOPS_TOKEN }}@github.com/crownshy/helm_charts.git
-              cd helm_charts
-              sed -i "s|docker_tag_api:.*|docker_tag_api:${{ github.sha }}|g" comhairle/stage_values.yaml
-              git add .
-              git commit -m "Updating stage api image tag to ${{ github.sha }}"
-              git push
+        run: |
+            git clone https://${{ secrets.GITOPS_TOKEN }}@github.com/crownshy/helm_charts.git
+            cd helm_charts
+            sed -i "s|docker_tag_api:.*|docker_tag_api:${{ github.sha }}|g" comhairle/stage_values.yaml
+            git add .
+            git commit -m "Updating stage api image tag to ${{ github.sha }}"
+            git push
      
