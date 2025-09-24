@@ -71,7 +71,7 @@ jobs:
         with:
           context: ./frontend
           push: true
-          tags: crownshy/comhairle_frontend:staging
+          tags: crownshy/comhairle_frontend:${{github.sha}}
       - 
         name: Update GitOps manifests
         run: |
