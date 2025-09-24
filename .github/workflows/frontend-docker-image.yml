@@ -77,7 +77,7 @@ jobs:
         run: |
             git clone https://${{ secrets.GITOPS_TOKEN }}@github.com/crownshy/helm_charts.git
             cd helm_charts
-            sed -i "s|docker_tag_frontend:.*|docker_tag_frontend:${{ github.sha }}|g" comhairle/stage_values.yaml
+            sed -i "s|docker_tag_frontend:.*|docker_tag_frontend: \"${{ github.sha }}\"|g" comhairle/stage_values.yaml
             git add .
             git config --global user.email "stuart.lynn@gmail.com"
             git config --global user.name "Stuart Lynn"
