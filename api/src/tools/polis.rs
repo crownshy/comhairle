@@ -14,7 +14,6 @@ use reqwest::{header::SET_COOKIE, Client};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tokio::time::sleep;
 use tracing::{info, warn};
 use uuid::Uuid;
 
@@ -22,7 +21,7 @@ use crate::{error::ComhairleError, models, ComhairleState};
 
 use super::ToolConfig;
 
-pub const POLIS_BASE_URL: &str = "https://poliscommunity.crown-shy.com";
+pub const POLIS_BASE_URL: &str = "https://polis.comhairle.scot";
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct PolisToolConfig {
@@ -253,7 +252,6 @@ async fn admin_login(
     cookies: CookieJar,
 ) -> Result<(CookieJar, (StatusCode, Json<String>)), ComhairleError> {
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
-    println!("{workflow_step:#?}");
 
     if let ToolConfig::Polis(config) = workflow_step.tool_config {
         let client = PolisClient::new();
@@ -263,7 +261,9 @@ async fn admin_login(
                 password: config.admin_password,
             })
             .await?;
-        let parsed_cookie = Cookie::parse(cookie).map_err(|_| PolisError::FailedToLogin)?;
+        let mut parsed_cookie = Cookie::parse(cookie).map_err(|_| PolisError::FailedToLogin)?;
+        parsed_cookie.set_domain("comhairle.scot");
+
         let new_cookies = cookies.add(parsed_cookie);
 
         Ok((new_cookies, (StatusCode::OK, Json("logged in".into()))))
