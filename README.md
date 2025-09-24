@@ -45,6 +45,3 @@ While citizens are anonymous, they will be given a token that they can use to lo
 
 In the future we will aim to add a privacy preserving login like VeriFox or ScotAccount for citizens.
 Passing Auth between the different services will be handled by JWT.
-
-
-
