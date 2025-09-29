@@ -4,7 +4,8 @@
 
 	const labels = {
 		en: 'English',
-		gd: 'Gaelic'
+		gd: 'Gaelic',
+		cy: 'Welsh'
 	};
 
 	function switchToLanguage(newLanguage: Locale) {

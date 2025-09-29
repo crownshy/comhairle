@@ -2,6 +2,7 @@
 	import Logo from '$lib/assets/comhairle_logo.svg';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import * as SideBar from '$lib/components/ui/sidebar';
+	import * as Collapsible from '$lib/components/ui/collapsible';
 	import {
 		Home,
 		Info,
@@ -65,48 +66,79 @@
 					{#if conversations}
 						<SideBar.Menu>
 							{#each conversations.records as conversation}
-								<SideBar.MenuItem>
-									<SideBar.MenuButton>
-										{#snippet child({ props })}
-											<a {...props} href={`/admin/conversations/${conversation.id}/configure`}>
-												<MessageSquareText />
-												{conversation.title}
-											</a>
-										{/snippet}
-									</SideBar.MenuButton>
-									<SideBar.MenuSub>
-										<SideBar.MenuSubItem>
-											<SideBar.MenuSubButton
-												href={`/admin/conversations/${conversation.id}/configure`}
-												><TerminalSquare
-													class="stroke-nav-text hover:stroke-sidebar-foreground"
-												/>Configure</SideBar.MenuSubButton
-											>
-										</SideBar.MenuSubItem>
-									</SideBar.MenuSub>
-									<SideBar.MenuSub>
-										<SideBar.MenuSubItem>
-											<SideBar.MenuSubButton
-												href={`/admin/conversations/${conversation.id}/invites`}
-												><UsersRound class="stroke-nav-text hover:stroke-sidebar-foreground" /> Recruit</SideBar.MenuSubButton
-											>
-										</SideBar.MenuSubItem>
-									</SideBar.MenuSub>
-									<SideBar.MenuSub>
-										<SideBar.MenuSubItem>
-											<SideBar.MenuSubButton href={`/admin/conversations/${conversation.id}/design`}
-												><Pencil class="stroke-nav-text hover:stroke-sidebar-foreground" /> Design</SideBar.MenuSubButton
-											>
-										</SideBar.MenuSubItem>
-									</SideBar.MenuSub>
-									<SideBar.MenuSub>
-										<SideBar.MenuSubItem>
-											<SideBar.MenuSubButton href={`/admin/conversations/${conversation.id}/report`}
-												><NotebookText class="stroke-nav-text hover:stroke-sidebar-foreground" /> Report</SideBar.MenuSubButton
-											>
-										</SideBar.MenuSubItem>
-									</SideBar.MenuSub>
-								</SideBar.MenuItem>
+								<Collapsible.Root class="group/collapsible">
+									<SideBar.MenuItem>
+										<Collapsible.Trigger>
+											{#snippet child({ props })}
+												<SideBar.MenuButton class="text-nowrap text-ellipsis " {...props}>
+													{#snippet child({ props })}
+														<a
+															{...props}
+															href={`/admin/conversations/${conversation.id}/configure`}
+														>
+															<MessageSquareText />
+															{conversation.title}
+														</a>
+													{/snippet}
+												</SideBar.MenuButton>
+											{/snippet}
+										</Collapsible.Trigger>
+										<Collapsible.Content>
+											<SideBar.MenuSub>
+												<SideBar.MenuSubItem>
+													<SideBar.MenuSubButton
+														href={`/admin/conversations/${conversation.id}/configure`}
+														><TerminalSquare
+															class="stroke-nav-text hover:stroke-sidebar-foreground"
+														/>Configure</SideBar.MenuSubButton
+													>
+												</SideBar.MenuSubItem>
+											</SideBar.MenuSub>
+											<SideBar.MenuSub>
+												<SideBar.MenuSubItem>
+													<SideBar.MenuSubButton
+														href={`/admin/conversations/${conversation.id}/invites`}
+														><UsersRound class="stroke-nav-text hover:stroke-sidebar-foreground" /> Recruit</SideBar.MenuSubButton
+													>
+												</SideBar.MenuSubItem>
+											</SideBar.MenuSub>
+											<SideBar.MenuSub>
+												<SideBar.MenuSubItem>
+													<SideBar.MenuSubButton
+														href={`/admin/conversations/${conversation.id}/design`}
+														><Pencil class="stroke-nav-text hover:stroke-sidebar-foreground" /> Design</SideBar.MenuSubButton
+													>
+												</SideBar.MenuSubItem>
+											</SideBar.MenuSub>
+											<SideBar.MenuSub>
+												<SideBar.MenuSubItem>
+													<SideBar.MenuSubButton
+														href={`/admin/conversations/${conversation.id}/report`}
+														><NotebookText
+															class="stroke-nav-text hover:stroke-sidebar-foreground"
+														/> Report</SideBar.MenuSubButton
+													>
+												</SideBar.MenuSubItem>
+											</SideBar.MenuSub>
+											<SideBar.MenuSub>
+												<SideBar.MenuSubItem>
+													<SideBar.MenuSubButton
+														href={`/admin/conversations/${conversation.id}/monitor`}
+														><UsersRound class="stroke-nav-text hover:stroke-sidebar-foreground" /> Monitor</SideBar.MenuSubButton
+													>
+												</SideBar.MenuSubItem>
+											</SideBar.MenuSub>
+											<SideBar.MenuSub>
+												<SideBar.MenuSubItem>
+													<SideBar.MenuSubButton
+														href={`/admin/conversations/${conversation.id}/moderate`}
+														><UsersRound class="stroke-nav-text hover:stroke-sidebar-foreground" /> Moderate</SideBar.MenuSubButton
+													>
+												</SideBar.MenuSubItem>
+											</SideBar.MenuSub></Collapsible.Content
+										>
+									</SideBar.MenuItem>
+								</Collapsible.Root>
 							{/each}
 							<SideBar.MenuItem>
 								<Button href="/admin/conversations/new" class="w-full" variant="secondary">

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as m from '$lib/paraglide/messages';
 </script>
 
 <div class="bg-primary inline-flex w-full flex-col items-center justify-center gap-2.5">
@@ -19,25 +20,25 @@
 								href="/"
 								class="justify-start font-['Inter'] text-lg leading-tight font-medium text-stone-300"
 							>
-								Home
+								{m.home()}
 							</a>
 							<a
 								href="/about"
 								class="justify-start font-['Inter'] text-lg leading-tight font-medium text-stone-300"
 							>
-								About Us
+								{m.about()}
 							</a>
 							<a
 								href="/contact"
 								class="justify-start font-['Inter'] text-lg leading-tight font-medium text-stone-300"
 							>
-								Contact
+								{m.contact()}
 							</a>
 							<a
 								href="/rights"
 								class="justify-start font-['Inter'] text-lg leading-tight font-medium text-stone-300"
 							>
-								Your Rights
+								{m.your_rights()}
 							</a>
 						</div>
 					</div>
@@ -47,7 +48,7 @@
 					<div
 						class="absolute top-[15px] left-[26px] justify-center text-center font-['Inter'] text-sm leading-tight font-medium text-white"
 					>
-						Subscribe
+						{m.subscribe()}
 					</div>
 				</div>
 				<div class="relative h-12 w-80">
@@ -57,7 +58,7 @@
 					<div
 						class="absolute top-[16px] left-[24px] justify-center font-['Inter'] text-sm leading-tight font-normal text-neutral-500"
 					>
-						Your email
+						{m.your_email()}
 					</div>
 				</div>
 			</div>
@@ -80,19 +81,19 @@
 						href="http://localhost:5173/rights/privacy"
 						class="justify-start font-['Inter'] text-base leading-normal font-normal text-neutral-500"
 					>
-						Privacy Policy
+						{m.privacy_policy()}
 					</a>
 					<a
 						href="http://localhost:5173/rights/tos"
 						class="justify-start font-['Inter'] text-base leading-normal font-normal text-neutral-500"
 					>
-						Terms of Service
+						{m.terms_of_service()}
 					</a>
 					<a
 						href="http://localhost:5173/rights/cookies"
 						class="justify-start font-['Inter'] text-base leading-normal font-normal text-neutral-500"
 					>
-						Cookies Settings
+						{m.cookies_settings()}
 					</a>
 				</div>
 			</div>

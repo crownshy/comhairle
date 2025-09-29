@@ -1,5 +1,5 @@
 [workspace]
 members = [
-    "api", "comhairle_macros",
+    "api", "comhairle_macros","adaptors/heyform-rust-sdk"
 ]
 resolver="2"

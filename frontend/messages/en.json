@@ -64,6 +64,13 @@
 	"login_to_take_part": "Login to join",
 	"give_feedback":"Give Feedback",
 	"we_are_interested_in_hearing_what_is_good_and_bad_about_this_process": "We are interested in hearing what is good and bad about this process",
-	"type_your_feedback_here":"Type your feedback here"
+	"type_your_feedback_here":"Type your feedback here",
+	"contact": "Contact",
+	"subscribe":"Subscribe",
+	"your_email":"Your Email",
+	"privacy_policy": "Privacy Policy",
+	"terms_of_service": "Terms Of Service",
+	"cookies_settings": "Cookies Settings",
+	"explore_conversations":"Explore Conversations"
 	
 }

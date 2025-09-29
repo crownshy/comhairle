@@ -11,23 +11,23 @@
 	let hasAdditionalLearnMethods = $derived(conversation.video_url || conversation.audio_url);
 </script>
 
-<div class="h-fill grid grid-cols-1 gap-8 overflow-y-auto md:grid-cols-2">
-	<header
-		class="relative flex h-[40vh] w-full items-center bg-cover bg-center md:col-span-2"
+<div class=" grid min-h-[900px] grid-cols-1 gap-8 md:grid-cols-2">
+	<div
+		class="relative flex h-[500px] w-full items-center rounded-2xl bg-cover bg-center py-10 md:col-span-2"
 		style={`background-image: url(${conversation.image_url})`}
 	>
 		<!-- Gradient Overlay -->
 		<div class="absolute inset-0 bg-linear-to-b from-white/30 to-black/70"></div>
 
 		<!-- Content -->
-		<div class="relative z-10 ml-12 max-w-2xl text-white">
+		<div class="relative z-10 ml-12 max-w-2xl py-10 text-white">
 			<h1 class="text-5xl font-bold">{conversation.title}</h1>
 			<h2 class="mt-4 text-2xl">{conversation.description}</h2>
 			<div class="hidden md:block">
 				{@render children()}
 			</div>
 		</div>
-	</header>
+	</div>
 
 	<div class="col-span-2 block md:hidden">
 		{@render children()}

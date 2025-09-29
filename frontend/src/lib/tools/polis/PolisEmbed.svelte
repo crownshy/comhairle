@@ -20,7 +20,7 @@
 	let url = $derived(`${polis_url}/${polis_id}?xid=${user_id}`);
 </script>
 
-<iframe src={url} title="Polis poll" style="width:100%;height:100%"></iframe>
+<iframe src={url} title="Polis poll" class="border-none" style="width:100%;height:100%"></iframe>
 
 <Dialog.Root bind:open={showDialog}>
 	<Dialog.Content class="sm:max-w-[425px]">

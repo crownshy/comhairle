@@ -31,7 +31,7 @@ pub enum ToolSetup {
     Polis(PolisToolSetup),
     Learn(LearnToolSetup),
     HeyForm(HeyFormToolSetup),
-    Stoies(StoriesToolSetup),
+    Stories(StoriesToolSetup),
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, DbJsonBEnum)]

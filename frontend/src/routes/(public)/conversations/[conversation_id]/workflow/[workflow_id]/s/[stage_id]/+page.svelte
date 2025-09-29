@@ -2,6 +2,7 @@
 	import * as Polis from '$lib/tools/polis/index.js';
 	import * as HeyForm from '$lib/tools/heyform/index.js';
 	import * as Learn from '$lib/tools/learn/index.js';
+	import * as LivedExperience from '$lib/tools/lived_experince/index.js';
 	import ProcessDates from '$lib/components/ProcessDates.svelte';
 	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
@@ -49,7 +50,7 @@
 	}
 </script>
 
-<div class="flex h-full flex-col pt-10">
+<div class="flex flex-col pt-10">
 	{#if conversation && step}
 		<div class="hidden md:block">
 			<Breadcrumbs {conversation} workflow_step={step} />
@@ -61,7 +62,7 @@
 			>
 				{step.name}
 			</h1>
-			<div class="flex grow flex-col md:row-start-2">
+			<div class="my-4 flex grow flex-col md:row-start-2">
 				<p class="mb-4">
 					{step.description}
 				</p>
@@ -85,11 +86,14 @@
 							onDone={stepComplete}
 						/>
 					{/if}
+					{#if step.tool_config.type === LivedExperience.TOOL_NAME}
+						<LivedExperience.UserUI onDone={stepComplete} />
+					{/if}
 				</div>
 			</div>
 			<div class="hidden w-full md:row-start-2 md:block md:flex md:flex-col md:gap-10">
 				<ProcessDates {startDate} {endDate} />
-				<div class="b-green-950 mt-2 border-b-2 border-t-4 p-4 text-xl font-bold">
+				<div class="b-green-950 mt-2 border-t-4 border-b-2 p-4 text-xl font-bold">
 					Part of {conversation.title}
 					<StepSelector steps={workflow_steps} currentStep={step} />
 				</div>

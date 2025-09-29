@@ -5,32 +5,53 @@
 	import { notifications } from '$lib/notifications.svelte';
 	let {
 		survey_id,
-		survey_url,
-		conversation_id,
-		workflow_id,
-		workflow_step_id
+		admin_user,
+		admin_password,
+		workspace_id,
+		project_id
 	}: {
 		survey_id: string;
 		survey_url: string;
+		admin_user: string;
+		admin_password: string;
+		workspace_id: string;
+		project_id: string;
+
 		conversation_id: string;
 		workflow_id: string;
 		workflow_step_id: string;
 	} = $props();
-	$effect(() => {
-		apiClient
-			.UpdateWorkflowStep(
-				{ tool_config: { survey_id, survey_url, type: 'heyform' } },
-				{ params: { conversation_id, workflow_id, workflow_step_id } }
-			)
-			.then(() => {
-				notifications.send({ message: 'Updated HeyForm ID', priority: 'INFO' });
-			})
-			.catch((e) => {
-				console.warn(e);
-				notifications.send({ message: 'Failed to update HeyForm ID', priority: 'ERROR' });
-			});
-	});
+	let iframe = $state();
+
+	const CREATE_PAGE = `https://forms.comhairle.scot/workspace/${workspace_id}/project/${project_id}/form/${survey_id}/create`;
+
+	const HOME = 'https://forms.comhairle.scot/login';
+
+	let url = $state(HOME);
+
+	function handleLoad(e) {
+		iframe.contentWindow.postMessage(
+			{
+				type: 'HEYFORM_LOGIN',
+				user: admin_user,
+				password: admin_password,
+				redirect: CREATE_PAGE
+			},
+			'https://forms.comhairle.scot'
+		);
+
+		setTimeout(() => {
+			iframe.style.display = 'block';
+		}, 1000);
+	}
 </script>
 
-<Label for="heyform_id">HeyForm ID</Label>
-<Input name="heyform_id" bind:value={survey_id} />
+<iframe
+	bind:this={iframe}
+	onload={handleLoad}
+	src={url}
+	title="survey"
+	allow="microphone; camera"
+	class="h-full w-full border-none"
+	style="display:none;"
+></iframe>

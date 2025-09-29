@@ -23,6 +23,19 @@ export const userInitials = (username: string | null) => {
 		.join('')
 }
 
+export const infoURLForTool = (tool: string) => {
+	switch (tool) {
+		case "polis":
+			return "/admin/info/tools/polis"
+		case "learn":
+			return "/admin/info/tools/learn"
+		case "heyform":
+			return "/admin/info/tools/heyform"
+		case "stories":
+			return "/admin/info/tools/lived_experince"
+	}
+}
+
 export const flyAndScale = (
 	node: Element,
 	params: FlyAndScaleParams = { y: -8, x: 0, start: 0.95, duration: 150 }

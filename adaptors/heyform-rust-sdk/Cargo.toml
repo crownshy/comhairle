@@ -1,0 +1,24 @@
+[package]
+name = "heyform-sdk"
+version = "0.1.0"
+edition = "2021"
+description = "A Rust SDK for the HeyForm GraphQL API"
+license = "MIT"
+repository = "https://github.com/heyform/heyform"
+keywords = ["graphql", "forms", "api", "heyform"]
+categories = ["api-bindings", "web-programming"]
+
+[dependencies]
+reqwest = { version = "0.12", features = ["json", "cookies"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+url = "2.0"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+thiserror = "1.0"
+graphql_client = { version = "0.14", features = ["reqwest"] }
+nanoid = "0.4"
+serde_repr = "0.1"
+
+[dev-dependencies]
+tokio-test = "0.4"

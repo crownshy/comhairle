@@ -1,12 +1,12 @@
+use crate::tools::polis::PolisError;
 use aide::OperationIo;
 use axum::{http::StatusCode, response::IntoResponse, Json};
+use heyform_sdk::HeyFormError;
 use schemars::JsonSchema;
 use serde::Serialize;
 use serde_json::json;
 use thiserror::Error;
 use uuid::Uuid;
-
-use crate::tools::polis::PolisError;
 
 #[derive(Error, Debug, OperationIo)]
 #[aide(output)]
@@ -22,6 +22,9 @@ pub enum ComhairleError {
 
     #[error("Polis error: {0}")]
     PolisError(#[from] PolisError),
+
+    #[error("HeyForm error: {0}")]
+    HeyFormError(#[from] HeyFormError),
 
     #[error("Username {0} already taken")]
     DuplicateUsername(String),

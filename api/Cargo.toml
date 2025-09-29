@@ -84,6 +84,9 @@ minijinja-embed = "2.10.2"
 mockall = "0.13.1"
 bon = "3.6.5"
 
+# adaptors
+
+heyform-sdk = {path="../adaptors/heyform-rust-sdk"}
 
 # Macros
 comhairle-macros = {path="../comhairle_macros"}

@@ -12,7 +12,7 @@
 	}
 
 	let theme = {
-		radius: '2rem',
+		radius: '0.5rem',
 		mutted: 'hsla(100, 29%, 10%, 1)'
 	};
 

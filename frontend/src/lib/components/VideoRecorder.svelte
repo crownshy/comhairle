@@ -4,6 +4,12 @@
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import { Progress } from '$lib/components/ui/progress';
 
+	type Props = {
+		onDone: () => void;
+	};
+
+	let { onDone } = $props();
+
 	let stream: MediaStream | null = null;
 	let mediaRecorder: MediaRecorder | null = null;
 	let recordedChunks: Blob[] = [];
@@ -89,6 +95,8 @@
 	}
 
 	function uploadVideo() {
+		onDone();
+		return;
 		if (!recordedChunks.length) return;
 
 		const blob = new Blob(recordedChunks, { type: 'video/webm' });
@@ -123,11 +131,11 @@
 	}
 </script>
 
-<Card class="mx-auto mt-10 max-w-xl space-y-6 p-6">
+<Card class="mx-auto mt-10 max-w-xl space-y-6 rounded-[1em] p-6">
 	<h2 class="text-2xl font-bold">🎥 Record Your Video</h2>
 
 	{#if !isRecording && !isRecorded}
-		<Button on:click={startRecording}>Start Recording</Button>
+		<Button onclick={startRecording}>Start Recording</Button>
 	{/if}
 
 	<div class="space-y-2" style:display={isRecording ? null : 'none'}>
@@ -147,7 +155,7 @@
 		<CardContent class="space-y-4">
 			<video controls src={videoUrl} class="w-full rounded-lg shadow-sm" />
 			<div class="flex gap-4">
-				<Button on:click={uploadVideo} disabled={isUploading}>Upload</Button>
+				<Button onclick={uploadVideo} disabled={isUploading}>Upload</Button>
 				<Button variant="outline" on:click={reset} disabled={isUploading}>Record Again</Button>
 			</div>
 

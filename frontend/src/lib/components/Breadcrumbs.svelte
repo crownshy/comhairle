@@ -9,24 +9,24 @@
 
 <Breadcrumb.Root class="mb-16">
 	<Breadcrumb.List>
-		<Breadcrumb.Item>
+		<Breadcrumb.Item class="text-black">
 			<Breadcrumb.Link href="/">Home</Breadcrumb.Link>
 		</Breadcrumb.Item>
 		{#if conversation}
-			<Breadcrumb.Separator />
-			<Breadcrumb.Item>
+			<Breadcrumb.Separator class="text-black" />
+			<Breadcrumb.Item class="text-black">
 				<Breadcrumb.Link href="/conversations">Conversations</Breadcrumb.Link>
 			</Breadcrumb.Item>
-			<Breadcrumb.Separator />
-			<Breadcrumb.Item>
+			<Breadcrumb.Separator class="text-black" />
+			<Breadcrumb.Item class="text-black">
 				<Breadcrumb.Link href={`/conversations/${conversation.id}`}>
 					{conversation.title}
 				</Breadcrumb.Link>
 			</Breadcrumb.Item>
 		{/if}
 		{#if workflow_step}
-			<Breadcrumb.Separator />
-			<Breadcrumb.Item>
+			<Breadcrumb.Separator class="text-black" />
+			<Breadcrumb.Item class="text-black">
 				<Breadcrumb.Page>{workflow_step.name}</Breadcrumb.Page>
 			</Breadcrumb.Item>
 		{/if}

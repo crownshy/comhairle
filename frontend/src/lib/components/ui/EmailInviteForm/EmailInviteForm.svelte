@@ -33,40 +33,38 @@
 			return;
 		}
 
-		if (result.valid) {
-			let expireOption = result.data.expiresOption;
-			let expireDate = null;
-			if (expireOption == '1 day') {
-				expireDate = today(getLocalTimeZone()).add({ days: 1 });
-			}
-			if (expireOption == '1 week') {
-				expireDate = today(getLocalTimeZone()).add({ weeks: 1 });
-			}
-			if (expireOption == '1 month') {
-				expireDate = today(getLocalTimeZone()).add({ months: 1 });
-			}
-			if (expireOption == 'custom' && result.data.customExpire) {
-				expireDate = parseDate(result.data.customExpire);
-			}
+		let expireOption = result.data.expiresOption;
+		let expireDate = null;
+		if (expireOption == '1 day') {
+			expireDate = today(getLocalTimeZone()).add({ days: 1 });
+		}
+		if (expireOption == '1 week') {
+			expireDate = today(getLocalTimeZone()).add({ weeks: 1 });
+		}
+		if (expireOption == '1 month') {
+			expireDate = today(getLocalTimeZone()).add({ months: 1 });
+		}
+		if (expireOption == 'custom' && result.data.customExpire) {
+			expireDate = parseDate(result.data.customExpire);
+		}
 
-			try {
-				await Promise.all(
-					splitEmails(result.data.emails).map(async (email) => {
-						return await apiClient.CreateInvite(
-							{
-								invite_type: { email },
-								expires_at: expireDate?.toDate(getLocalTimeZone()).toISOString()
-							},
-							{ params: { conversation_id: conversation_id } }
-						);
-					})
-				);
-				notifications.send({ message: 'Emails sent' });
-				onDone();
-			} catch (e) {
-				notifications.send({ priority: 'ERROR', message: 'Failed to send emails' });
-				$message = 'Failed to send emails';
-			}
+		try {
+			await Promise.all(
+				splitEmails(result.data.emails).map(async (email) => {
+					return await apiClient.CreateInvite(
+						{
+							invite_type: { email },
+							expires_at: expireDate?.toDate(getLocalTimeZone()).toISOString()
+						},
+						{ params: { conversation_id: conversation_id } }
+					);
+				})
+			);
+			notifications.send({ message: 'Emails sent' });
+			onDone();
+		} catch (e) {
+			notifications.send({ priority: 'ERROR', message: 'Failed to send emails' });
+			$message = 'Failed to send emails';
 		}
 	}
 

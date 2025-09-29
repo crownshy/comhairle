@@ -311,7 +311,7 @@ pub async fn create(
         ToolSetup::HeyForm(hey_form_tool_setup) => {
             ToolConfig::HeyForm(tools::heyform::setup(&hey_form_tool_setup).await?)
         }
-        ToolSetup::Stoies(stories_tool_setup) => {
+        ToolSetup::Stories(stories_tool_setup) => {
             ToolConfig::Stories(tools::stories::setup(&stories_tool_setup).await?)
         }
     };
