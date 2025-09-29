@@ -10,6 +10,7 @@
 		MessageSquareText,
 		NotebookText,
 		Pencil,
+		Binoculars,
 		Plus,
 		Settings,
 		TerminalSquare,
@@ -124,7 +125,7 @@
 												<SideBar.MenuSubItem>
 													<SideBar.MenuSubButton
 														href={`/admin/conversations/${conversation.id}/monitor`}
-														><UsersRound class="stroke-nav-text hover:stroke-sidebar-foreground" /> Monitor</SideBar.MenuSubButton
+														><Binoculars class="stroke-nav-text hover:stroke-sidebar-foreground" /> Monitor</SideBar.MenuSubButton
 													>
 												</SideBar.MenuSubItem>
 											</SideBar.MenuSub>

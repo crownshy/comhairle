@@ -62,7 +62,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             put_with(update_report, |op| {
                 op.id("UpdateReport")
                     .summary("Update a report")
-                    .response::<201, Json<FullReportDTO>>()
+                    .response::<201, Json<Report>>()
             }),
         )
         .api_route(

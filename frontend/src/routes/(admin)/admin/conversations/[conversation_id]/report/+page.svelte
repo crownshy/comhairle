@@ -17,17 +17,48 @@
 	import Delete from 'lucide-svelte/icons/delete';
 	import { Separator } from '$lib/components/ui/separator';
 	import { report_url } from '$lib/urls.js';
+	import { NotebookText } from 'lucide-svelte';
+	import { Carta, MarkdownEditor } from 'carta-md';
+	import DOMPurify from 'isomorphic-dompurify';
+	import 'carta-md/default.css';
+	import '@cartamd/plugin-slash/default.css';
+	import 'carta-plugin-video/default.css';
+	import { slash } from '@cartamd/plugin-slash';
+	import { video } from 'carta-plugin-video';
 
 	let { data } = $props();
 	let report = $derived(data.report);
 	let conversation = $derived(data.conversation);
+
+	const carta = new Carta({
+		sanitizer: DOMPurify.sanitize,
+		extensions: [slash(), video()]
+	});
 
 	let newImpact = $state({
 		title: '',
 		details: '',
 		kind: 'policy'
 	});
-	let open = $state(false);
+
+	let newFeedback = $state({
+		title: '',
+		details: ''
+	});
+
+	let impactOpen = $state(false);
+	let feedbackOpen = $state(false);
+
+	let localSummary = $state(report.summary);
+
+	async function saveSummary() {
+		await apiClient.UpdateReport(
+			{ summary: localSummary },
+			{ params: { conversation_id: conversation.id } }
+		);
+	}
+
+	async function createFeedback() {}
 
 	async function createImpact() {
 		try {
@@ -35,7 +66,7 @@
 				params: { report_id: report.id, conversation_id: report.conversation_id }
 			});
 			invalidateAll();
-			open = false;
+			impactOpen = false;
 			notifications.send({ message: 'Impact Saved', priority: 'INFO' });
 		} catch (e) {
 			notifications.send({ message: 'Failed to save impact', priority: 'ERROR' });
@@ -43,11 +74,14 @@
 	}
 </script>
 
+<h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><NotebookText /> Monitor</h1>
+<p class="mb-10">Use this space to edit the report for this conversation</p>
+
 <div class="flex flex-col gap-4">
 	<div class="flex w-full flex-row items-center justify-end gap-2">
 		<Button variant="ghost" href={report_url(conversation.id, '')}>View Report</Button>
 		<Label for="published">Publish Report</Label>
-		<Switch name="publised" value={report.is_public} />
+		<Switch name="published" value={report.is_public} />
 	</div>
 
 	<Card.Root>
@@ -56,8 +90,9 @@
 			<Card.Description>Overall summary of the conversation</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			<Textarea value={report.summary} />
+			<MarkdownEditor {carta} bind:value={localSummary} />
 		</Card.Content>
+		<Button variant="secondary" onclick={saveSummary}>Save</Button>
 	</Card.Root>
 
 	<Card.Root>
@@ -70,30 +105,36 @@
 				<div class="flex w-full flex-row items-center justify-between">
 					<p class="">{impact.title}</p>
 					<div class="flex flex-row">
-						<Tooltip.Root>
-							<Tooltip.Trigger asChild let:builder>
-								<Button builders={[builder]} aria-label="Edit" variant="ghost"><Edit /></Button>
-							</Tooltip.Trigger>
-							<Tooltip.Content>
-								<p>Edit Impact</p>
-							</Tooltip.Content>
-						</Tooltip.Root>
+						<Tooltip.Provider>
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									<Button aria-label="Edit" variant="ghost"><Edit /></Button>
+								</Tooltip.Trigger>
+								<Tooltip.Content>
+									<p>Edit Impact</p>
+								</Tooltip.Content>
+							</Tooltip.Root>
+						</Tooltip.Provider>
 
-						<Tooltip.Root>
-							<Tooltip.Trigger asChild let:builder>
-								<Button builders={[builder]} aria-label="Delete" variant="ghost"><Delete /></Button>
-							</Tooltip.Trigger>
-							<Tooltip.Content>
-								<p>Delete Impact</p>
-							</Tooltip.Content>
-						</Tooltip.Root>
+						<Tooltip.Provider>
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									<Button aria-label="Delete" variant="ghost"><Delete /></Button>
+								</Tooltip.Trigger>
+								<Tooltip.Content>
+									<p>Delete Impact</p>
+								</Tooltip.Content>
+							</Tooltip.Root></Tooltip.Provider
+						>
 					</div>
 				</div>
 				<Separator class="my-4" />
 			{/each}
 			<Card.Footer class="flex w-full justify-end">
-				<Dialog.Root bind:open>
-					<Dialog.Trigger class={buttonVariants({ variant: 'outline-solid' })}>Add Impact</Dialog.Trigger>
+				<Dialog.Root bind:open={impactOpen}>
+					<Dialog.Trigger class={buttonVariants({ variant: 'outline-solid' })}
+						>Add Impact</Dialog.Trigger
+					>
 
 					<Dialog.Content class="sm:max-w-[425px]">
 						<Dialog.Header>
@@ -133,6 +174,76 @@
 						</div>
 						<Dialog.Footer>
 							<Button onclick={createImpact} type="submit">{m.submit()}</Button>
+						</Dialog.Footer>
+					</Dialog.Content>
+				</Dialog.Root>
+			</Card.Footer>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>Facilitator Notes</Card.Title>
+			<Card.Description>Notes gathered by facilitators</Card.Description>
+		</Card.Header>
+		<Card.Content>
+			{#each report.facilitator_feedback as impact}
+				<div class="flex w-full flex-row items-center justify-between">
+					<p class="">{impact.title}</p>
+					<div class="flex flex-row">
+						<Tooltip.Provider>
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									<Button aria-label="Edit" variant="ghost"><Edit /></Button>
+								</Tooltip.Trigger>
+								<Tooltip.Content>
+									<p>Edit Feedback</p>
+								</Tooltip.Content>
+							</Tooltip.Root></Tooltip.Provider
+						>
+
+						<Tooltip.Provider>
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									<Button aria-label="Delete" variant="ghost"><Delete /></Button>
+								</Tooltip.Trigger>
+								<Tooltip.Content>
+									<p>Delete Feedback</p>
+								</Tooltip.Content>
+							</Tooltip.Root></Tooltip.Provider
+						>
+					</div>
+				</div>
+				<Separator class="my-4" />
+			{/each}
+			<Card.Footer class="flex w-full justify-end">
+				<Dialog.Root bind:open={feedbackOpen}>
+					<Dialog.Trigger class={buttonVariants({ variant: 'primary' })}
+						>Add Feedback</Dialog.Trigger
+					>
+
+					<Dialog.Content class="sm:max-w-[425px]">
+						<Dialog.Header>
+							<Dialog.Title>Add feedback</Dialog.Title>
+							<Dialog.Description
+								>Record some feedback or notes from facilitators</Dialog.Description
+							>
+						</Dialog.Header>
+						<div class="grid gap-4 py-4">
+							<div class="flex flex-col gap-4">
+								<Label for="title">Title</Label>
+								<Input bind:value={newFeedback.title} id="title" />
+								<Label for="title">Details</Label>
+								<Textarea
+									id="details"
+									placeholder={'Describe in detail the impact.'}
+									bind:value={newFeedback.details}
+									class="col-span-3"
+								/>
+							</div>
+						</div>
+						<Dialog.Footer>
+							<Button onclick={createFeedback} type="submit">{m.submit()}</Button>
 						</Dialog.Footer>
 					</Dialog.Content>
 				</Dialog.Root>
