@@ -39,7 +39,7 @@
 		let new_step_order =
 			workflow_steps.length > 0
 				? Math.max(...workflow_steps.map((ws: WorkflowStep) => ws.step_order)) + 1
-				: 0;
+				: 1;
 
 		try {
 			await apiClient.CreateWorkflowStep(

@@ -1,3 +1,10 @@
+<script lang="ts">
+	import vtaiwan from '$lib/assets/vtaiwan.jpg';
+	import climateuk from '$lib/assets/climageuk.jpg';
+	import seattle from '$lib/assets/seattle_usa.jpg';
+	import { ChevronRight } from 'lucide-svelte';
+</script>
+
 <div class=" prose inline-flex w-[1443px] flex-col items-center justify-center gap-2.5 py-8">
 	<div class="flex flex-col items-center justify-center gap-2.5 self-stretch pb-12">
 		<div class="flex flex-col items-start justify-start gap-12 self-stretch">
@@ -14,9 +21,7 @@
 					</div>
 				</div>
 				<div class="relative h-3.5 w-3.5 overflow-hidden">
-					<div
-						class="outline-base-muted-foreground absolute top-[2.81px] left-[9.84px] h-1 w-2.5 origin-top-left rotate-90 outline outline-[1.33px] outline-offset-[-0.67px]"
-					></div>
+					<ChevronRight size="sm" />
 				</div>
 				<div class="flex h-9 items-center justify-center gap-2.5">
 					<div class="justify-start font-['Inter'] text-sm leading-tight font-medium text-black">
@@ -24,9 +29,7 @@
 					</div>
 				</div>
 				<div class="relative h-3.5 w-3.5 overflow-hidden">
-					<div
-						class="outline-base-muted-foreground absolute top-[2.81px] left-[9.84px] h-1 w-2.5 origin-top-left rotate-90 outline outline-[1.33px] outline-offset-[-0.67px]"
-					></div>
+					<ChevronRight size="sm" />
 				</div>
 				<div
 					data-state="Default"
@@ -40,9 +43,7 @@
 					</div>
 				</div>
 				<div class="relative h-3.5 w-3.5 overflow-hidden">
-					<div
-						class="outline-base-muted-foreground absolute top-[2.81px] left-[9.84px] h-1 w-2.5 origin-top-left rotate-90 outline outline-[1.33px] outline-offset-[-0.67px]"
-					></div>
+					<ChevronRight size="sm" />
 				</div>
 				<div
 					class="text-base-foreground justify-start font-['Inter'] text-sm leading-tight font-medium"
@@ -63,79 +64,6 @@
 					groups, and highlight areas of consensus. It has been used by governments, civil society,
 					and organizations worldwide to make policymaking and collective decision-making more
 					inclusive and evidence-based.
-				</div>
-			</div>
-		</div>
-	</div>
-	<div class="flex flex-col items-center justify-center gap-2.5 self-stretch">
-		<div class="flex h-60 flex-col items-start justify-start gap-12 self-stretch pb-6">
-			<div
-				class="outline-base-border h-0 self-stretch outline outline-1 outline-offset-[-0.50px]"
-			></div>
-			<div
-				class="flex min-w-[1000px] flex-1 flex-col items-start justify-between self-stretch overflow-hidden"
-			>
-				<div class="inline-flex items-start justify-start gap-2 self-stretch">
-					<div class="inline-flex max-w-[900px] flex-1 flex-col items-start justify-start gap-2">
-						<div class="inline-flex items-center justify-start gap-2 self-stretch">
-							<div
-								class="text-Headings justify-start font-['Inter'] text-3xl leading-loose font-semibold"
-							>
-								Git repository
-							</div>
-							<div
-								class="outline-base-foreground h-5 w-5 outline outline-2 outline-offset-[-1px]"
-							></div>
-						</div>
-						<div
-							class="text-base-muted-foreground justify-start self-stretch font-['Inter'] text-base leading-normal font-medium"
-						>
-							https://github.com/compdemocracy/polis
-						</div>
-					</div>
-				</div>
-			</div>
-			<div class="flex flex-col items-start justify-center gap-2.5 self-stretch">
-				<div class="inline-flex h-9 items-center justify-start rounded-full bg-stone-300 p-1">
-					<div
-						data-active="On"
-						data-badge="false"
-						data-show-icon="false"
-						data-state="Default"
-						class="bg-custom-background-dark:input\30 outline-custom-dark:input/0 flex items-center justify-center gap-2 rounded-full px-3 py-1 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] outline outline-1 outline-offset-[-1px]"
-					>
-						<div
-							class="justify-start text-center font-['Inter'] text-sm leading-tight font-medium text-stone-900"
-						>
-							How it works
-						</div>
-					</div>
-					<div
-						data-active="Off"
-						data-badge="false"
-						data-show-icon="false"
-						data-state="Default"
-						class="flex items-center justify-center gap-2 rounded-lg px-3 py-1"
-					>
-						<div
-							class="justify-start text-center font-['Inter'] text-sm leading-tight font-medium text-stone-900"
-						>
-							Templates using Polis
-						</div>
-					</div>
-					<div
-						data-active="Off"
-						data-badge="false"
-						data-show-icon="false"
-						data-state="Default"
-						class="flex items-center justify-center gap-2 rounded-lg px-3 py-1"
-					>
-						<div
-							class="justify-start text-center font-['Inter'] text-sm leading-tight font-medium text-stone-900"
-						>
-							Case studies
-						</div>
-					</div>
 				</div>
 			</div>
 		</div>
@@ -213,18 +141,7 @@
 									<div
 										class="inline-flex flex-wrap content-start items-start justify-start gap-3 self-stretch"
 									>
-										<div class="flex items-center justify-start gap-1">
-											<div class="relative h-4 w-4 overflow-hidden">
-												<div
-													class="absolute top-[2px] left-[3px] h-3 w-2.5 outline outline-[1.33px] outline-offset-[-0.67px] outline-zinc-600"
-												></div>
-											</div>
-											<div
-												class="justify-start font-['Inter'] text-sm leading-tight font-normal text-zinc-600"
-											>
-												TBD
-											</div>
-										</div>
+										<div class="flex items-center justify-start gap-1"></div>
 									</div>
 									<div
 										class="text-Headings justify-start self-stretch font-['Inter'] text-xl leading-loose font-semibold"
@@ -435,20 +352,7 @@
 								<div class="flex flex-col items-start justify-start gap-3 self-stretch">
 									<div
 										class="inline-flex flex-wrap content-start items-start justify-start gap-3 self-stretch"
-									>
-										<div class="flex items-center justify-start gap-1">
-											<div class="relative h-4 w-4 overflow-hidden">
-												<div
-													class="absolute top-[2px] left-[3px] h-3 w-2.5 outline outline-[1.33px] outline-offset-[-0.67px] outline-zinc-600"
-												></div>
-											</div>
-											<div
-												class="justify-start font-['Inter'] text-sm leading-tight font-normal text-zinc-600"
-											>
-												TBD
-											</div>
-										</div>
-									</div>
+									></div>
 									<div
 										class="text-Headings justify-start self-stretch font-['Inter'] text-xl leading-loose font-semibold"
 									>
@@ -667,9 +571,9 @@
 				features.
 			</div>
 		</div>
-		<div class="inline-flex items-start justify-start gap-6 self-stretch">
+		<div class="inline-flex w-full items-start justify-start gap-6 self-stretch">
 			<div class="inline-flex flex-1 flex-col items-start justify-start gap-4">
-				<img class="h-96 self-stretch rounded-[40px]" src="https://placehold.co/437x360" />
+				<img class="h-[200px] w-[473px] self-stretch rounded-[40px]" src={vtaiwan} />
 				<div class="flex flex-col items-start justify-start gap-4 self-stretch px-4">
 					<div class="flex flex-col items-start justify-center gap-2 self-stretch">
 						<div
@@ -695,7 +599,7 @@
 				</div>
 			</div>
 			<div class="inline-flex flex-1 flex-col items-start justify-start gap-4">
-				<img class="h-96 self-stretch rounded-[40px]" src="https://placehold.co/437x360" />
+				<img class="h-[200px] w-[473px] self-stretch rounded-[40px]" src={climateuk} />
 				<div class="flex flex-col items-start justify-start gap-4 self-stretch px-4">
 					<div class="flex flex-col items-start justify-center gap-2 self-stretch">
 						<div
@@ -719,7 +623,7 @@
 				</div>
 			</div>
 			<div class="inline-flex flex-1 flex-col items-start justify-start gap-4">
-				<img class="h-96 self-stretch rounded-[40px]" src="https://placehold.co/437x360" />
+				<img class=" h-[200px] w-[473px] self-stretch rounded-[40px]" src={seattle} />
 				<div class="flex flex-col items-start justify-start gap-4 self-stretch px-4">
 					<div class="flex flex-col items-start justify-center gap-2 self-stretch">
 						<div

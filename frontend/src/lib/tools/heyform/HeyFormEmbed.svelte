@@ -35,5 +35,9 @@
 	console.log('URL IS ', url);
 </script>
 
-<iframe src={url} title="survey" allow="microphone; camera" class="h-full w-full border-none"
+<iframe
+	src={url}
+	title="survey"
+	allow="microphone; camera"
+	class="h-full min-h-[900px] w-full border-none"
 ></iframe>
