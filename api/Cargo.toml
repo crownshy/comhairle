@@ -19,7 +19,7 @@ name = "comhairle_data_loader"
 path = "src/data_loader/main.rs"
 
 [dependencies]
-axum = "0.8.3"
+axum = { version = "0.8.3", features = ["ws"] }
 config = "0.15.8"
 sea-query = {version = "0.32.3", features=["attr","postgres-array"] }
 sea-query-binder = {version="0.7.0", features=[
@@ -83,6 +83,9 @@ unic-langid = "0.9.6"
 minijinja-embed = "2.10.2"
 mockall = "0.13.1"
 bon = "3.6.5"
+tokio-tungstenite = "0.27.0"
+futures-util = "0.3.31"
+dashmap = "6.1.0"
 
 # adaptors
 

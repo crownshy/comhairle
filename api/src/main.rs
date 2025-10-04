@@ -41,7 +41,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         &config.mailer.password,
     ));
 
-    let state = Arc::new(ComhairleState { db, mailer, config });
+    let websockets = comhairle::websockets::WebSocketService::new();
+    let state = Arc::new(ComhairleState { db, mailer, config, websockets });
 
     let app = setup_server(state).await?;
 

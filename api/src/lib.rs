@@ -6,6 +6,7 @@ pub mod mailer;
 pub mod models;
 mod routes;
 mod tools;
+pub mod websockets;
 
 use docs::docs_routes;
 use mailer::ComhairleMailer;
@@ -32,6 +33,7 @@ pub struct ComhairleState {
     pub db: PgPool,
     pub config: ComhairleConfig,
     pub mailer: Arc<dyn ComhairleMailer>,
+    pub websockets: websockets::WebSocketService,
 }
 
 fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
@@ -113,6 +115,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
                     routes::feedback::router(state.clone()),
                 ),
         )
+        .nest_api_service("/ws", websockets::routes::websocket_routes().with_state(state.clone()))
         .nest_api_service("/docs", docs_routes(state.clone()))
         .finish_api_with(&mut api, api_docs)
         .layer(Extension(Arc::new(api.clone()))) // Arc is very important here or you will face massive memory and performance issues

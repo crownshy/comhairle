@@ -139,6 +139,12 @@ pub enum ComhairleError {
 
     #[error("Failed to generate stats for invite {0}")]
     InviteStatsAggregationError(sqlx::Error),
+
+    #[error("WebSocket send error: {0}")]
+    WebSocketSendError(String),
+
+    #[error("Serialization error: {0}")]
+    SerializationError(String),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
