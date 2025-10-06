@@ -20,6 +20,7 @@ path = "src/data_loader/main.rs"
 
 [dependencies]
 axum = { version = "0.8.3", features = ["ws"] }
+async-trait = "0.1.83"
 config = "0.15.8"
 sea-query = {version = "0.32.3", features=["attr","postgres-array"] }
 sea-query-binder = {version="0.7.0", features=[

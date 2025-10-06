@@ -1,3 +1,6 @@
+pub mod messages;
+pub mod routes;
+
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
@@ -12,11 +15,17 @@ use axum::{
 };
 use dashmap::DashMap;
 use futures_util::{SinkExt, StreamExt};
-use serde::{Deserialize, Serialize};
+use messages::{NotificationLevel, WebSocketMessage};
+use serde::Deserialize;
 use std::net::SocketAddr;
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
 use uuid::Uuid;
+
+#[cfg(test)]
+use mockall::{automock, predicate::*};
+
+use async_trait::async_trait;
 
 use crate::{
     error::ComhairleError,
@@ -81,77 +90,65 @@ impl WebSocketConnection {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "type", content = "payload")]
-pub enum WebSocketMessage {
-    #[serde(rename = "ping")]
-    Ping { timestamp: u64 },
-
-    #[serde(rename = "pong")]
-    Pong { timestamp: u64 },
-
-    #[serde(rename = "notification")]
-    Notification {
-        title: String,
-        message: String,
-        level: NotificationLevel,
-    },
-
-    #[serde(rename = "user_joined")]
-    UserJoined {
-        user_id: Uuid,
-        username: Option<String>,
-    },
-
-    #[serde(rename = "user_left")]
-    UserLeft {
-        user_id: Uuid,
-        username: Option<String>,
-    },
-
-    #[serde(rename = "broadcast")]
-    Broadcast {
-        message: String,
-        from_user: Option<Uuid>,
-    },
-
-    #[serde(rename = "error")]
-    Error { code: String, message: String },
-
-    #[serde(rename = "custom")]
-    Custom {
-        event: String,
-        data: serde_json::Value,
-    },
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum NotificationLevel {
-    Info,
-    Warning,
-    Error,
-    Success,
-}
-
 pub type ConnectionMap = Arc<DashMap<ConnectionId, WebSocketConnection>>;
 pub type UserConnectionMap = Arc<DashMap<Uuid, Vec<ConnectionId>>>;
 
 #[derive(Clone)]
-pub struct WebSocketService {
+
+pub struct ComhairleWebSocketService {
     pub connections: ConnectionMap,
     pub user_connections: UserConnectionMap,
 }
 
-impl WebSocketService {
-    pub fn new() -> Self {
+#[async_trait]
+#[cfg_attr(test, automock)]
+pub trait WebSocketService: Send + Sync {
+    fn new() -> Self
+    where
+        Self: Sized;
+
+    fn add_connection(&self, connection: WebSocketConnection);
+
+    fn remove_connection(&self, connection_id: &ConnectionId) -> Option<WebSocketConnection>;
+
+    async fn broadcast_to_all(&self, message: &WebSocketMessage) -> Result<usize, ComhairleError>;
+
+    async fn broadcast_to_authenticated_users(
+        &self,
+        message: &WebSocketMessage,
+    ) -> Result<usize, ComhairleError>;
+
+    async fn send_to_user(
+        &self,
+        user_id: &Uuid,
+        message: &WebSocketMessage,
+    ) -> Result<usize, ComhairleError>;
+
+    async fn send_to_connections(
+        &self,
+        connection_ids: &[ConnectionId],
+        message: &WebSocketMessage,
+    ) -> Result<usize, ComhairleError>;
+
+    fn get_connection_count(&self) -> usize;
+
+    fn get_authenticated_connection_count(&self) -> usize;
+
+    fn get_user_connection_count(&self, user_id: &Uuid) -> usize;
+
+    fn get_connected_user_ids(&self) -> Vec<Uuid>;
+}
+
+#[async_trait]
+impl WebSocketService for ComhairleWebSocketService {
+    fn new() -> Self {
         Self {
             connections: Arc::new(DashMap::new()),
             user_connections: Arc::new(DashMap::new()),
         }
     }
 
-    pub fn add_connection(&self, connection: WebSocketConnection) {
+    fn add_connection(&self, connection: WebSocketConnection) {
         let connection_id = connection.id.clone();
 
         if let Some(user) = &connection.user {
@@ -165,7 +162,7 @@ impl WebSocketService {
         self.connections.insert(connection_id, connection);
     }
 
-    pub fn remove_connection(&self, connection_id: &ConnectionId) -> Option<WebSocketConnection> {
+    fn remove_connection(&self, connection_id: &ConnectionId) -> Option<WebSocketConnection> {
         if let Some((_, connection)) = self.connections.remove(connection_id) {
             if let Some(user) = &connection.user {
                 let user_id = user.id;
@@ -183,10 +180,7 @@ impl WebSocketService {
         }
     }
 
-    pub async fn broadcast_to_all(
-        &self,
-        message: &WebSocketMessage,
-    ) -> Result<usize, ComhairleError> {
+    async fn broadcast_to_all(&self, message: &WebSocketMessage) -> Result<usize, ComhairleError> {
         let mut sent_count = 0;
         let mut failed_connections = Vec::new();
 
@@ -206,7 +200,7 @@ impl WebSocketService {
         Ok(sent_count)
     }
 
-    pub async fn broadcast_to_authenticated_users(
+    async fn broadcast_to_authenticated_users(
         &self,
         message: &WebSocketMessage,
     ) -> Result<usize, ComhairleError> {
@@ -231,7 +225,7 @@ impl WebSocketService {
         Ok(sent_count)
     }
 
-    pub async fn send_to_user(
+    async fn send_to_user(
         &self,
         user_id: &Uuid,
         message: &WebSocketMessage,
@@ -261,7 +255,7 @@ impl WebSocketService {
         Ok(sent_count)
     }
 
-    pub async fn send_to_connections(
+    async fn send_to_connections(
         &self,
         connection_ids: &[ConnectionId],
         message: &WebSocketMessage,
@@ -286,25 +280,25 @@ impl WebSocketService {
         Ok(sent_count)
     }
 
-    pub fn get_connection_count(&self) -> usize {
+    fn get_connection_count(&self) -> usize {
         self.connections.len()
     }
 
-    pub fn get_authenticated_connection_count(&self) -> usize {
+    fn get_authenticated_connection_count(&self) -> usize {
         self.connections
             .iter()
             .filter(|conn| conn.user.is_some())
             .count()
     }
 
-    pub fn get_user_connection_count(&self, user_id: &Uuid) -> usize {
+    fn get_user_connection_count(&self, user_id: &Uuid) -> usize {
         self.user_connections
             .get(user_id)
             .map(|connections| connections.len())
             .unwrap_or(0)
     }
 
-    pub fn get_connected_user_ids(&self) -> Vec<Uuid> {
+    fn get_connected_user_ids(&self) -> Vec<Uuid> {
         self.user_connections
             .iter()
             .map(|entry| *entry.key())
@@ -480,131 +474,3 @@ async fn handle_websocket_message(
 
     Ok(())
 }
-
-pub mod routes {
-    use super::*;
-    use crate::routes::auth::RequiredUser;
-    use aide::{
-        axum::{
-            routing::{get_with, post_with},
-            ApiRouter,
-        },
-        OperationIo,
-    };
-    use axum::{routing::get, Json};
-    use serde::{Deserialize, Serialize};
-
-    use schemars::JsonSchema;
-
-    #[derive(Serialize, OperationIo, JsonSchema)]
-    struct WebSocketStats {
-        total_connections: usize,
-        authenticated_connections: usize,
-        connected_users: Vec<Uuid>,
-    }
-
-    #[derive(Deserialize, OperationIo, JsonSchema)]
-    struct BroadcastMessage {
-        message: String,
-        authenticated_only: Option<bool>,
-    }
-
-    #[derive(Deserialize, OperationIo, JsonSchema)]
-    struct SendToUserMessage {
-        user_id: Uuid,
-        message: String,
-    }
-
-    #[derive(Serialize, OperationIo, JsonSchema)]
-    struct BroadcastResponse {
-        sent_to: usize,
-        message: String,
-    }
-
-    async fn get_websocket_stats(
-        State(state): State<Arc<ComhairleState>>,
-        _user: RequiredUser,
-    ) -> Json<WebSocketStats> {
-        let ws_service = &state.websockets;
-        Json(WebSocketStats {
-            total_connections: ws_service.get_connection_count(),
-            authenticated_connections: ws_service.get_authenticated_connection_count(),
-            connected_users: ws_service.get_connected_user_ids(),
-        })
-    }
-
-    async fn broadcast_message(
-        State(state): State<Arc<ComhairleState>>,
-        _user: RequiredUser,
-        Json(payload): Json<BroadcastMessage>,
-    ) -> Result<Json<BroadcastResponse>, ComhairleError> {
-        let ws_service = &state.websockets;
-        let message = WebSocketMessage::Broadcast {
-            message: payload.message.clone(),
-            from_user: None,
-        };
-
-        let sent_count = if payload.authenticated_only.unwrap_or(false) {
-            ws_service
-                .broadcast_to_authenticated_users(&message)
-                .await?
-        } else {
-            ws_service.broadcast_to_all(&message).await?
-        };
-
-        Ok(Json(BroadcastResponse {
-            sent_to: sent_count,
-            message: payload.message,
-        }))
-    }
-
-    async fn send_to_user(
-        State(state): State<Arc<ComhairleState>>,
-        _user: RequiredUser,
-        Json(payload): Json<SendToUserMessage>,
-    ) -> Result<Json<BroadcastResponse>, ComhairleError> {
-        let ws_service = &state.websockets;
-        let message = WebSocketMessage::Notification {
-            title: "Message".to_string(),
-            message: payload.message.clone(),
-            level: NotificationLevel::Info,
-        };
-
-        let sent_count = ws_service.send_to_user(&payload.user_id, &message).await?;
-
-        Ok(Json(BroadcastResponse {
-            sent_to: sent_count,
-            message: payload.message,
-        }))
-    }
-
-    pub fn websocket_routes() -> ApiRouter<Arc<ComhairleState>> {
-        ApiRouter::new()
-            .route("/ws", get(websocket_handler))
-            .api_route(
-                "/stats",
-                get_with(get_websocket_stats, |op| {
-                    op.id("GetWebSocketStats")
-                        .summary("Get WebSocket connection statistics")
-                        .response::<200, Json<WebSocketStats>>()
-                }),
-            )
-            .api_route(
-                "/broadcast",
-                post_with(broadcast_message, |op| {
-                    op.id("BroadcastMessage")
-                        .summary("Broadcast a message to all connected clients")
-                        .response::<200, Json<BroadcastResponse>>()
-                }),
-            )
-            .api_route(
-                "/send",
-                post_with(send_to_user, |op| {
-                    op.id("SendToUser")
-                        .summary("Send a message to a specific user")
-                        .response::<200, Json<BroadcastResponse>>()
-                }),
-            )
-    }
-}
-
