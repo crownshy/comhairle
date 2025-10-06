@@ -42,7 +42,7 @@
 					description:
 						'This should be a longer description about the conversation. It should introduce people to what is being discussed and outline-solid the actions that might be taken as a result of the conversation',
 					tags: [],
-					image_url: url.origin + PlaceholderConvo,
+					image_url: PlaceholderConvo,
 					is_public: false,
 					is_invite_only: false
 				};
@@ -86,7 +86,7 @@
 	<h2 class="text-xl font-bold">Create a new conversation</h2>
 
 	{#if $errMessage}
-		<p class="text-sm text-destructive">{$errMessage}</p>
+		<p class="text-destructive text-sm">{$errMessage}</p>
 	{/if}
 
 	<Form.Field {form} name="title">
