@@ -3,6 +3,7 @@
 	let { children }: LayoutProps = $props();
 </script>
 
+<h1 class="my-10 text-4xl font-bold">Your Rights</h1>
 <div class="mt-10 flex h-full w-full flex-col gap-10 md:flex-row">
 	<div class="flex flex-col">
 		<Button variant="ghost" href="/rights/tos">Terms of service</Button>

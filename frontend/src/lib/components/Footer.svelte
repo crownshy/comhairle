@@ -3,8 +3,8 @@
 </script>
 
 <div class="bg-primary inline-flex w-full flex-col items-center justify-center gap-2.5">
-	<div class="flex w-[1440px] flex-col items-center justify-start gap-8 py-24">
-		<div class="flex w-full max-w-[1280px] flex-col items-start justify-start gap-12 px-6">
+	<div class="mx-auto flex w-full flex-col items-center justify-start gap-8 py-24">
+		<div class="flex w-full max-w-full flex-col items-center justify-center gap-12 px-6">
 			<div class="inline-flex h-20 w-full max-w-[1280px] items-center justify-between">
 				<div class="flex flex-1 items-center justify-start gap-6">
 					<div class="flex items-center justify-start gap-3">
@@ -29,7 +29,7 @@
 								{m.about()}
 							</a>
 							<a
-								href="/contact"
+								aria-disabled="true"
 								class="justify-start font-['Inter'] text-lg leading-tight font-medium text-stone-300"
 							>
 								{m.contact()}
@@ -43,22 +43,24 @@
 						</div>
 					</div>
 				</div>
-				<div class="relative mr-2 h-12 w-28">
-					<div class="absolute top-0 left-0 h-12 w-28 rounded-[100px] bg-lime-900"></div>
-					<div
-						class="absolute top-[15px] left-[26px] justify-center text-center font-['Inter'] text-sm leading-tight font-medium text-white"
-					>
-						{m.subscribe()}
+				<div class="hidden flex-row items-center justify-between lg:flex">
+					<div class="relative mr-2 h-12 w-28">
+						<div class="absolute top-0 left-0 h-12 w-28 rounded-[100px] bg-lime-900"></div>
+						<div
+							class="absolute top-[15px] left-[26px] justify-center text-center font-['Inter'] text-sm leading-tight font-medium text-white"
+						>
+							{m.subscribe()}
+						</div>
 					</div>
-				</div>
-				<div class="relative h-12 w-80">
-					<div
-						class="absolute top-0 left-0 h-12 w-80 rounded-[100px] border-2 border-stone-700"
-					></div>
-					<div
-						class="absolute top-[16px] left-[24px] justify-center font-['Inter'] text-sm leading-tight font-normal text-neutral-500"
-					>
-						{m.your_email()}
+					<div class="relative h-12 w-80">
+						<div
+							class="absolute top-0 left-0 h-12 w-80 rounded-[100px] border-2 border-stone-700"
+						></div>
+						<div
+							class="absolute top-[16px] left-[24px] justify-center font-['Inter'] text-sm leading-tight font-normal text-neutral-500"
+						>
+							{m.your_email()}
+						</div>
 					</div>
 				</div>
 			</div>
@@ -78,19 +80,19 @@
 				</div>
 				<div class="flex items-center justify-start gap-8">
 					<a
-						href="http://localhost:5173/rights/privacy"
+						href="/rights/privacy"
 						class="justify-start font-['Inter'] text-base leading-normal font-normal text-neutral-500"
 					>
 						{m.privacy_policy()}
 					</a>
 					<a
-						href="http://localhost:5173/rights/tos"
+						href="/rights/tos"
 						class="justify-start font-['Inter'] text-base leading-normal font-normal text-neutral-500"
 					>
 						{m.terms_of_service()}
 					</a>
 					<a
-						href="http://localhost:5173/rights/cookies"
+						href="/rights/cookies"
 						class="justify-start font-['Inter'] text-base leading-normal font-normal text-neutral-500"
 					>
 						{m.cookies_settings()}

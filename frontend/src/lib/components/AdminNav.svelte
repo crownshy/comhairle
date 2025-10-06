@@ -3,6 +3,7 @@
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import * as SideBar from '$lib/components/ui/sidebar';
 	import * as Collapsible from '$lib/components/ui/collapsible';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import {
 		Home,
 		Info,
@@ -18,6 +19,8 @@
 	} from 'lucide-svelte';
 	import { Button } from './ui/button';
 	let props = $props();
+	let path = $derived(props.path);
+	console.log('Path is ', path);
 	let user = $derived(props.user);
 	let conversations = $derived(props.conversations);
 
@@ -27,7 +30,7 @@
 </script>
 
 <SideBar.Provider>
-	<SideBar.Root>
+	<SideBar.Root class="w-[400px]">
 		<SideBar.Header>
 			<div class="flex flex-row items-center gap-4 p-4">
 				<img src={Logo} alt="Comhairle Logo" />
@@ -67,21 +70,30 @@
 					{#if conversations}
 						<SideBar.Menu>
 							{#each conversations.records as conversation}
-								<Collapsible.Root class="group/collapsible">
+								<Collapsible.Root open={path.includes(conversation.id)} class="group/collapsible">
 									<SideBar.MenuItem>
 										<Collapsible.Trigger>
 											{#snippet child({ props })}
-												<SideBar.MenuButton class="text-nowrap text-ellipsis " {...props}>
-													{#snippet child({ props })}
-														<a
-															{...props}
-															href={`/admin/conversations/${conversation.id}/configure`}
-														>
-															<MessageSquareText />
+												<Tooltip.Provider>
+													<Tooltip.Root>
+														<Tooltip.Trigger>
+															<SideBar.MenuButton class="text-nowrap text-ellipsis " {...props}>
+																{#snippet child({ props })}
+																	<a
+																		{...props}
+																		href={`/admin/conversations/${conversation.id}/configure`}
+																	>
+																		<MessageSquareText />
+																		{conversation.title}
+																	</a>
+																{/snippet}
+															</SideBar.MenuButton>
+														</Tooltip.Trigger>
+														<Tooltip.Content side="right">
 															{conversation.title}
-														</a>
-													{/snippet}
-												</SideBar.MenuButton>
+														</Tooltip.Content>
+													</Tooltip.Root>
+												</Tooltip.Provider>
 											{/snippet}
 										</Collapsible.Trigger>
 										<Collapsible.Content>
@@ -89,6 +101,7 @@
 												<SideBar.MenuSubItem>
 													<SideBar.MenuSubButton
 														href={`/admin/conversations/${conversation.id}/configure`}
+														class={path.includes('configure') ? 'font-bold' : ''}
 														><TerminalSquare
 															class="stroke-nav-text hover:stroke-sidebar-foreground"
 														/>Configure</SideBar.MenuSubButton
@@ -99,6 +112,7 @@
 												<SideBar.MenuSubItem>
 													<SideBar.MenuSubButton
 														href={`/admin/conversations/${conversation.id}/invites`}
+														class={path.includes('invites') ? 'font-bold' : ''}
 														><UsersRound class="stroke-nav-text hover:stroke-sidebar-foreground" /> Recruit</SideBar.MenuSubButton
 													>
 												</SideBar.MenuSubItem>
@@ -107,6 +121,7 @@
 												<SideBar.MenuSubItem>
 													<SideBar.MenuSubButton
 														href={`/admin/conversations/${conversation.id}/design`}
+														class={path.includes('design') ? 'font-bold' : ''}
 														><Pencil class="stroke-nav-text hover:stroke-sidebar-foreground" /> Design</SideBar.MenuSubButton
 													>
 												</SideBar.MenuSubItem>
@@ -115,6 +130,7 @@
 												<SideBar.MenuSubItem>
 													<SideBar.MenuSubButton
 														href={`/admin/conversations/${conversation.id}/report`}
+														class={path.includes('report') ? 'font-bold' : ''}
 														><NotebookText
 															class="stroke-nav-text hover:stroke-sidebar-foreground"
 														/> Report</SideBar.MenuSubButton
@@ -125,6 +141,7 @@
 												<SideBar.MenuSubItem>
 													<SideBar.MenuSubButton
 														href={`/admin/conversations/${conversation.id}/monitor`}
+														class={path.includes('monitor') ? 'font-bold' : ''}
 														><Binoculars class="stroke-nav-text hover:stroke-sidebar-foreground" /> Monitor</SideBar.MenuSubButton
 													>
 												</SideBar.MenuSubItem>
@@ -133,6 +150,7 @@
 												<SideBar.MenuSubItem>
 													<SideBar.MenuSubButton
 														href={`/admin/conversations/${conversation.id}/moderate`}
+														class={path.includes('moderate') ? 'font-bold' : ''}
 														><UsersRound class="stroke-nav-text hover:stroke-sidebar-foreground" /> Moderate</SideBar.MenuSubButton
 													>
 												</SideBar.MenuSubItem>

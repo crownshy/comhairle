@@ -6,5 +6,7 @@ export const load: LayoutLoad = async ({ url, data }) => {
 	let token = data.token;
 	let user = data.user;
 	const api = createApiClient(url.origin + "/api", token, browser ? "client" : "server");
-	return { api, user };
+	const userRoles = await api.GetUserRoles();
+
+	return { api, user, userRoles };
 };

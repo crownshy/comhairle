@@ -7,7 +7,7 @@ export function conversation_url(conversation_id: string) {
 }
 
 export function manage_conversation_url(conversation_id: string) {
-	return `/admin/conversations/${conversation_id}`
+	return `/admin/conversations/${conversation_id}/config`
 }
 
 export function workflow_url(conversation_id: string, workflow_id: string) {

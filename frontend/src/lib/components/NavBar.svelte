@@ -34,7 +34,7 @@
 		isOpen = false;
 	});
 
-	let { user } = $props();
+	let { user, isAdmin } = $props();
 </script>
 
 <nav class="bg-primary text-muted-foreground z-10 flex w-full flex-col items-center p-5 shadow-md">
@@ -54,6 +54,9 @@
 		<div class="hidden gap-x-5 md:flex">
 			<LanguageSelector />
 			<ProfileMenu {user} />
+			{#if isAdmin}
+				<Button variant="default" href="/admin">Admin</Button>
+			{/if}
 		</div>
 
 		<!-- Mobile Navigation -->
@@ -81,6 +84,9 @@
 									<LanguageSelector />
 								</div>
 								<UserNavMenu {user} />
+								{#if isAdmin}
+									<Button variant="default" href="/admin">Admin</Button>
+								{/if}
 							</div>
 						</div>
 					</div>

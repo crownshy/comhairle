@@ -53,11 +53,11 @@
 		</div>
 	</header>
 
-	<div
-		class="grid w-full grow auto-rows-auto grid-cols-1 items-center gap-4 overflow-y-auto md:px-0 md:px-2"
-	>
+	<div class=" grid w-full grow auto-rows-auto grid-cols-1 items-center gap-4 md:px-0 md:px-2">
 		{#each data.records as conversation}
-			<ConversationCard {conversation} />
+			<a href={`/conversations/${conversation.slug || conversation.id}`}>
+				<ConversationCard {conversation} />
+			</a>
 		{/each}
 	</div>
 

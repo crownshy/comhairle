@@ -47,7 +47,7 @@
 	/>
 </svelte:head>
 
-<div style={themeCss} class="size-full bg-stone-50">
+<div style={themeCss} class="w-full bg-stone-50">
 	<CookieConsent />
 	<NotificationsToaster closeButton />
 	{@render children()}

@@ -12,6 +12,12 @@ export const LoginRequest = z.object({ email: z.string(), password: z.string() }
 export type LoginRequest = z.infer<typeof LoginRequest>;
 export const SignupRequest = z.object({ avatar_url: z.union([z.string(), z.null()]).optional(), email: z.string(), password: z.string(), username: z.string() }).passthrough();
 export type SignupRequest = z.infer<typeof SignupRequest>;
+export const ResourceType = z.union([z.literal("Site"), z.object({ Conversation: z.string().uuid() })]);
+export type ResourceType = z.infer<typeof ResourceType>;
+export const ResourceRole = z.enum(["Admin", "SuperAdmin"]);
+export type ResourceRole = z.infer<typeof ResourceRole>;
+export const UserRoles = z.object({ resource: ResourceType, roles: z.array(ResourceRole) }).passthrough();
+export type UserRoles = z.infer<typeof UserRoles>;
 export const created_after = z.union([z.string(), z.null()]).optional();
 export type created_after = z.infer<typeof created_after>;
 export const is_complete = z.union([z.boolean(), z.null()]).optional();
@@ -108,6 +114,9 @@ export const schemas = {
 	User,
 	LoginRequest,
 	SignupRequest,
+	ResourceType,
+	ResourceRole,
+	UserRoles,
 	created_after,
 	is_complete,
 	limit,
@@ -724,6 +733,14 @@ const endpoints = makeApi([
 			},
 		],
 		response: PaginatedResults_for_Conversation,
+	},
+	{
+		method: "get",
+		path: "/user/roles",
+		alias: "GetUserRoles",
+		description: `Gets a list of roles the current user has`,
+		requestFormat: "json",
+		response: z.array(UserRoles),
 	},
 ]);
 
