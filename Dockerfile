@@ -15,28 +15,28 @@ COPY comhairle_macros/Cargo.toml ./comhairle_macros/Cargo.toml
 COPY adaptors/heyform-rust-sdk/Cargo.toml ./adaptors/heyform-rust-sdk/Cargo.toml
 COPY Cargo.toml Cargo.lock ./
 
-# Create a fake source file to allow dependency resolution
-RUN mkdir -p api/src && echo "fn main() {}" > api/src/main.rs && echo "" > api/src/lib.rs
-RUN mkdir -p comhairle_macros/src && echo "" > comhairle_macros/src/lib.rs
-RUN mkdir -p adaptors/heyform-rust-sdk/src && echo "" > adaptors/heyform-rust-sdk/src/lib.rs
-# Fetch dependencies and build only dependencies layer
-RUN cargo build --bin comhairle_api --release && rm -rf target/release/deps
+# Create dummy source files
+RUN mkdir -p api/src && echo "fn main() {}" > api/src/main.rs && echo "" > api/src/lib.rs && \
+    mkdir -p comhairle_macros/src && echo "" > comhairle_macros/src/lib.rs && \
+    mkdir -p adaptors/heyform-rust-sdk/src && echo "" > adaptors/heyform-rust-sdk/src/lib.rs
+
+# Build dependencies only - keep the target directory intact
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/workspace/target \
+    cargo build --bin comhairle_api --release
 
 # ---- Build Stage ----
 FROM base AS build
-WORKDIR /workspace/api
+WORKDIR /workspace
 
-# Copy the entire monorepo but ignore unnecessary files via .dockerignore
+# Copy source code
 COPY . /workspace
 
-# Ensure dependencies from previous stage are used
-COPY --from=deps /workspace/target /workspace/target
-COPY --from=deps /workspace/Cargo.lock /workspace/Cargo.lock
-COPY --from=deps /workspace/api/Cargo.lock /workspace/api/Cargo.lock
-# COPY --from=deps /workspace/comhairle_macros/Cargo.lock /workspace/comhairle_macros/Cargo.lock
-
-# Compile the comhairle_api crate
-RUN cargo build --release --package comhairle_api
+# Use cached dependencies and build with cache mounts
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/workspace/target \
+    --mount=from=deps,source=/workspace/target,target=/workspace/target \
+    cargo build --release --package comhairle_api
 
 # ---- Production Stage ----
 FROM debian:bookworm-slim AS production

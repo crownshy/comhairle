@@ -34,6 +34,9 @@ jobs:
         with:
           push: true
           tags: crownshy/comhairle_api:${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
       
   build-and-run-staging:
     if: github.ref == 'refs/heads/staging'
@@ -60,6 +63,9 @@ jobs:
         with:
           push: true
           tags: crownshy/comhairle_api:${{github.sha}}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
       - 
         name: Update GitOps manifests
         run: |
