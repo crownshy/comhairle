@@ -2,13 +2,6 @@
 	import LearnManage from '$lib/tools/learn/LearnManage.svelte';
 	import PolisManage from '$lib/tools/polis/PolisManage.svelte';
 	import CommonStepConfig from '$lib/components/CommonStepConfig/CommonStepConfig.svelte';
-	import Label from '$lib/components/ui/label/label.svelte';
-	import Input from '$lib/components/ui/input/input.svelte';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { apiClient } from '$lib/api/client';
-	import TextArea from '$lib/components/ui/textarea/textarea.svelte';
-	import { notifications } from '$lib/notifications.svelte.js';
-	import { invalidateAll } from '$app/navigation';
 	import HeyFormManage from '$lib/tools/heyform/HeyFormManage.svelte';
 	import LivedExperienceManage from '$lib/tools/lived_experince/LivedExperinceManage.svelte';
 	import type { WorkflowStep } from '$lib/api/api.js';

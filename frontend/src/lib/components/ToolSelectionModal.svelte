@@ -4,6 +4,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import type { Snippet } from 'svelte';
+	import { Plus } from 'lucide-svelte';
 	type Props = {
 		onSelection: (tool: string) => void;
 		children?: Snippet;
@@ -12,14 +13,12 @@
 	let { onSelection, prompt, children }: Props = $props();
 	let selected: string | null = $state(null);
 
-	let open = $state(false);
-
-	function submit() {
+	function select(selection: string) {
+		onSelection(selection);
 		open = false;
-		if (selected) {
-			onSelection(selected);
-		}
 	}
+
+	let open = $state(false);
 </script>
 
 <Dialog.Root bind:open>
@@ -49,11 +48,7 @@
 					</Card.Content>
 					<Card.Footer class="flex flex-row justify-end">
 						{#if tool.available}
-							{#if selected === tool.name}
-								<p class="text-primary py-2 font-bold">Selected</p>
-							{:else}
-								<Button variant="default" onclick={() => (selected = tool.name)}>Select</Button>
-							{/if}
+							<Button variant="default" onclick={() => select(tool.name)}><Plus /> Add Step</Button>
 						{:else}
 							<p class="text-[hsl(80, 52% 91%)] py-2 font-bold">Comming Soon</p>
 						{/if}
@@ -61,8 +56,5 @@
 				</Card.Root>
 			{/each}
 		</div>
-		<Dialog.Footer>
-			<Button class="secondary" onclick={submit} disabled={!selected}>Select</Button>
-		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>

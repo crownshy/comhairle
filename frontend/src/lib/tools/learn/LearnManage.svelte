@@ -115,9 +115,9 @@
 	<div class="mb-4 flex items-center justify-between gap-4">
 		<div class="flex items-center gap-2">
 			<Select.Root
-				onSelectedChange={({ value }: { value: string; label: string }) =>
-					(currentPageIndex = parseInt(value))}
-				selected={{ value: currentPageIndex, label: `Page ${currentPageIndex + 1}` }}
+				type="single"
+				value={currentPageIndex.toString()}
+				onValueChange={(value: string) => (currentPageIndex = parseInt(value))}
 			>
 				<Select.Trigger class="w-[180px]">Page {currentPageIndex + 1}</Select.Trigger>
 				<Select.Content>
@@ -132,8 +132,9 @@
 		</div>
 
 		<Select.Root
-			onSelectedChange={({ value }: { value: string; label: string }) => (currentLang = value)}
-			selected={{ value: currentLang, label: currentLang === 'en' ? 'English' : 'Gaelic' }}
+			type="single"
+			onValueChange={(value: string) => (currentLang = value)}
+			value={currentLang}
 		>
 			<Select.Trigger class="w-[180px]"
 				>{currentLang === 'en' ? 'English' : 'Gaelic'}</Select.Trigger
@@ -146,7 +147,7 @@
 	</div>
 
 	<!-- Editor -->
-	<div class="grow">
+	<div class="grow bg-white">
 		<MarkdownEditor {carta} bind:value={content} />
 	</div>
 </div>

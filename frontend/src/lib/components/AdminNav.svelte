@@ -32,25 +32,17 @@
 <SideBar.Provider>
 	<SideBar.Root class="w-[400px]">
 		<SideBar.Header>
-			<div class="flex flex-row items-center gap-4 p-4">
-				<img src={Logo} alt="Comhairle Logo" />
-				<h1 class="text-nav-text text-xl font-bold">Comhairle</h1>
-			</div>
+			<a href="/">
+				<div class="flex flex-row items-center gap-4 p-4">
+					<img src={Logo} alt="Comhairle Logo" />
+					<h1 class="text-nav-text text-xl font-bold">Comhairle</h1>
+				</div>
+			</a>
 		</SideBar.Header>
 		<SideBar.Content class="radius-nav">
 			<SideBar.Group>
 				<SideBar.GroupContent>
 					<SideBar.Menu>
-						<SideBar.MenuItem>
-							<SideBar.MenuButton>
-								{#snippet child({ props })}
-									<a {...props} href="/">
-										<Home />
-										Home
-									</a>
-								{/snippet}
-							</SideBar.MenuButton>
-						</SideBar.MenuItem>
 						<SideBar.MenuItem>
 							<SideBar.MenuButton>
 								{#snippet child({ props })}
