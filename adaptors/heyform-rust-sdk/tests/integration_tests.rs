@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
     use heyform_sdk::{
-        HeyFormClient, SignUpInput, LoginInput, CreateTeamInput, CreateFormInput,
-        InteractiveMode, FormKind, FormTheme, UpdateFormThemeInput,
+        CreateFormInput, CreateTeamInput, FormKind, FormTheme, HeyFormClient, InteractiveMode,
+        LoginInput, SignUpInput, UpdateFormThemeInput,
     };
 
     // Note: These are integration tests that would require a running HeyForm instance
@@ -12,7 +12,7 @@ mod tests {
     #[ignore] // Ignore by default since it requires real API
     async fn test_signup_flow() {
         let client = HeyFormClient::default().unwrap();
-        
+
         let signup_input = SignUpInput {
             name: "Test User".to_string(),
             email: format!("test+{}@example.com", chrono::Utc::now().timestamp()),
@@ -29,7 +29,7 @@ mod tests {
     #[ignore] // Ignore by default since it requires real API
     async fn test_login_flow() {
         let client = HeyFormClient::default().unwrap();
-        
+
         let login_input = LoginInput {
             email: "test@example.com".to_string(),
             password: "TestPassword123!".to_string(),
@@ -78,6 +78,12 @@ mod tests {
             name: Some("Test Form".to_string()),
             interactive_mode: InteractiveMode::Conversational,
             kind: FormKind::Poll,
+
+            name_schema: Some(vec![serde_json::json!({
+                "id": "title",
+                "title": "ComhairleForm",
+                "kind": "title"
+            })]),
         };
 
         let json = serde_json::to_string(&create_input);

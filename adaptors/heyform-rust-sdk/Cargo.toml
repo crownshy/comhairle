@@ -19,6 +19,7 @@ thiserror = "1.0"
 graphql_client = { version = "0.14", features = ["reqwest"] }
 nanoid = "0.4"
 serde_repr = "0.1"
+chrono = "0.4.42"
 
 [dev-dependencies]
 tokio-test = "0.4"
