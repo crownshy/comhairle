@@ -18,7 +18,8 @@ COPY Cargo.toml Cargo.lock ./
 # Create dummy source files
 RUN mkdir -p api/src && echo "fn main() {}" > api/src/main.rs && echo "" > api/src/lib.rs && \
     mkdir -p comhairle_macros/src && echo "" > comhairle_macros/src/lib.rs && \
-    mkdir -p adaptors/heyform-rust-sdk/src && echo "" > adaptors/heyform-rust-sdk/src/lib.rs
+    mkdir -p adaptors/heyform-rust-sdk/src && echo "" > adaptors/heyform-rust-sdk/src/lib.rs && \
+	mkdir -p target/release
 
 # Build dependencies only - keep the target directory intact
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
@@ -32,10 +33,11 @@ WORKDIR /workspace
 # Copy source code
 COPY . /workspace
 
-# Use cached dependencies and build with cache mounts
+# Copy cached dependencies and build
+COPY --from=deps /workspace/target /workspace/target
+
+# Build with cache mounts
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/workspace/target \
-    --mount=from=deps,source=/workspace/target,target=/workspace/target \
     cargo build --release --package comhairle_api
 
 # ---- Production Stage ----
