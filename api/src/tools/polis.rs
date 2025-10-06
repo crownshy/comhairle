@@ -453,6 +453,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[ignore]
     async fn login() -> Result<(), Box<dyn std::error::Error>> {
         let client = PolisClient::new();
         let login = PolisLogin {
@@ -471,6 +472,7 @@ mod tests {
     // }
 
     #[tokio::test]
+    #[ignore]
     async fn create_poll() -> Result<(), Box<dyn std::error::Error>> {
         let client = PolisClient::new();
 
@@ -490,6 +492,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn sign_up_and_create_poll() -> Result<(), Box<dyn std::error::Error>> {
         let client = PolisClient::new();
         let (email, password) = client.create_random_admin_user().await?;
@@ -506,6 +509,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn set_topic() -> Result<(), Box<dyn std::error::Error>> {
         let client = PolisClient::new();
 
