@@ -30,9 +30,7 @@
 	let url = $state(HOME);
 
 	function handleLoad(e) {
-		console.log('trying to post message');
 		setTimeout(() => {
-			console.log('sending message');
 			iframe.contentWindow.postMessage(
 				{
 					type: 'HEYFORM_LOGIN',
