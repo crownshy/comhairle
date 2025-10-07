@@ -30,15 +30,19 @@
 	let url = $state(HOME);
 
 	function handleLoad(e) {
-		iframe.contentWindow.postMessage(
-			{
-				type: 'HEYFORM_LOGIN',
-				user: admin_user,
-				password: admin_password,
-				redirect: CREATE_PAGE
-			},
-			'https://forms.comhairle.scot'
-		);
+		console.log('trying to post message');
+		setTimeout(() => {
+			console.log('sending message');
+			iframe.contentWindow.postMessage(
+				{
+					type: 'HEYFORM_LOGIN',
+					user: admin_user,
+					password: admin_password,
+					redirect: CREATE_PAGE
+				},
+				'https://forms.comhairle.scot'
+			);
+		}, 100);
 
 		setTimeout(() => {
 			iframe.style.display = 'block';
