@@ -85,7 +85,7 @@
 	let customExpire = $derived($form.customExpire ? parseDate($form.customExpire) : undefined);
 </script>
 
-<form method="POST" onsubmit={sendEmailInvite} class="mt-10 flex flex-col gap-y-10" use:enhance>
+<form method="POST"  class="mt-10 flex flex-col gap-y-10" use:enhance>
 	<Form.Field form={emailsForm} name="emails" class="">
 		<Form.Control>
 			{#snippet children({ props })}
