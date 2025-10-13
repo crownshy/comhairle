@@ -41,7 +41,9 @@
 	<div class="margin-auto container flex max-w-[1200px] items-center justify-between">
 		<div class="align-center flex flex-row items-center gap-4">
 			<img src={Logo} alt="Comhairle Logo" />
-			<a href="/" class=" invisible hidden text-xl font-bold lg:visible lg:block">Comhairle</a>
+			<a href="/" class=" text-nav-text invisible hidden text-xl font-bold lg:visible lg:block"
+				>Comhairle</a
+			>
 		</div>
 
 		<!-- Desktop Navigation -->

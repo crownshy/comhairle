@@ -45,7 +45,9 @@
 		<DropdownMenu.Content>
 			<DropdownMenu.Group>
 				<DropdownMenu.Item>
-					<h2>{user.username}</h2>
+					{#if user.auth_type === 'annon'}
+						<h2>Your ID: {user.username}</h2>
+					{/if}
 				</DropdownMenu.Item>
 				<DropdownMenu.Item>
 					<form method="POST" action="/settings">
