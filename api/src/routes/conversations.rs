@@ -22,7 +22,10 @@ use crate::{
             self, Conversation, ConversationFilterOptions, ConversationOrderOptions,
             CreateConversation, PartialConversation,
         },
+        notification::{self as notification_model, CreateNotification, NotificationContextType},
+        notification_delivery::{self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod},
         pagination::{OrderParams, PageOptions, PaginatedResults},
+        user_participation,
     },
     ComhairleState,
 };
@@ -95,6 +98,79 @@ async fn delete_conversation(
     Ok((StatusCode::OK, Json(conversation)))
 }
 
+#[derive(Deserialize, JsonSchema)]
+pub struct SendNotificationRequest {
+    pub title: String,
+    pub content: String,
+    pub notification_type: Option<crate::models::notification::NotificationType>,
+    pub delivery_method: Option<DeliveryMethod>,
+}
+
+/// Send notification to all conversation participants
+async fn send_notification_to_participants(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    Path(conversation_id): Path<Uuid>,
+    Json(request): Json<SendNotificationRequest>,
+) -> Result<(StatusCode, Json<serde_json::Value>), ComhairleError> {
+    // Verify conversation exists and user has permission
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    
+    if conversation.owner_id != user.id {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
+
+    // Create the notification
+    let create_notification = CreateNotification {
+        title: request.title,
+        content: request.content,
+        notification_type: request.notification_type,
+        context_type: Some(NotificationContextType::Conversation),
+        context_id: Some(conversation_id),
+    };
+    
+    let notification = notification_model::create(&state.db, &create_notification).await?;
+    
+    // Get all participant user IDs for this conversation
+    let participant_user_ids = user_participation::get_participant_user_ids_for_conversation(
+        &state.db, 
+        &conversation_id
+    ).await?;
+    
+    if participant_user_ids.is_empty() {
+        return Ok((
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "notification_id": notification.id,
+                "participants_notified": 0,
+                "message": "No participants found for this conversation"
+            }))
+        ));
+    }
+    
+    // Create deliveries for all participants
+    let delivery_method = request.delivery_method.unwrap_or(DeliveryMethod::InApp);
+    let deliveries: Vec<CreateNotificationDelivery> = participant_user_ids
+        .into_iter()
+        .map(|user_id| CreateNotificationDelivery {
+            notification_id: notification.id,
+            user_id,
+            delivery_method: Some(delivery_method.clone()),
+        })
+        .collect();
+    
+    let created_deliveries = notification_delivery_model::create_bulk(&state.db, &deliveries).await?;
+    
+    Ok((
+        StatusCode::CREATED,
+        Json(serde_json::json!({
+            "notification_id": notification.id,
+            "participants_notified": created_deliveries.len(),
+            "message": format!("Notification sent to {} participants", created_deliveries.len())
+        }))
+    ))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -140,6 +216,16 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Delete the conversation and all related content")
                     .description("Delete the conversation and all related content")
                     .response::<200, Json<Conversation>>()
+            }),
+        )
+        .api_route(
+            "/{conversation_id}/notifications",
+            post_with(send_notification_to_participants, |op| {
+                op.id("SendNotificationToParticipants")
+                    .summary("Send notification to all conversation participants")
+                    .description("Creates a notification and sends it to all users participating in workflows within the conversation. Only conversation owners can send notifications.")
+                    .response::<201, Json<serde_json::Value>>()
+                    .tag("Notifications")
             }),
         )
         .with_state(state)

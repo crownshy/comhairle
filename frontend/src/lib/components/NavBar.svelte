@@ -85,7 +85,7 @@
 								</div>
 								<UserNavMenu {user} />
 								{#if isAdmin}
-									<Button variant="default" href="/admin">Admin</Button>
+									<Button variant="secondary" href="/admin">Admin</Button>
 								{/if}
 							</div>
 						</div>

@@ -5,9 +5,21 @@
 	import { buttonVariants } from '$lib/components/ui/button';
 	import LoginButtons from './LoginButtons.svelte';
 	import { userInitials } from '$lib/utils';
+	import { apiClient } from '$lib/api/client';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Bell, LogOut, Settings } from 'lucide-svelte';
 	const { user } = $props();
 
 	let user_initials = $derived(userInitials(user?.username));
+	let notifications: number | undefined = $state();
+
+	$effect(() => {
+		async function checkNotifications() {
+			notifications = (await apiClient.getNotificationsunreadcount()).count;
+		}
+		checkNotifications();
+		setInterval(checkNotifications, 5000);
+	});
 </script>
 
 {#if user}
@@ -26,15 +38,33 @@
 					{user.username}
 				{/if}
 			</p>
+			{#if notifications && notifications > 0}
+				<Badge>{notifications}</Badge>
+			{/if}
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Content>
 			<DropdownMenu.Group>
 				<DropdownMenu.Item>
-					<h2>Id {user.username}</h2>
+					<h2>{user.username}</h2>
+				</DropdownMenu.Item>
+				<DropdownMenu.Item>
+					<form method="POST" action="/settings">
+						<Button type="submit" variant="ghost"><Settings />Settings</Button>
+					</form>
+				</DropdownMenu.Item>
+				<DropdownMenu.Item>
+					<form method="POST" action="/notifications">
+						<Button type="submit" variant="ghost"
+							><Bell />Notifications
+							{#if notifications && notifications > 0}
+								<Badge>{notifications}</Badge>
+							{/if}
+						</Button>
+					</form>
 				</DropdownMenu.Item>
 				<DropdownMenu.Item>
 					<form method="POST" action="/auth/logout">
-						<Button type="submit" variant="ghost" fullWidth>Logout</Button>
+						<Button type="submit" variant="ghost"><LogOut />Logout</Button>
 					</form>
 				</DropdownMenu.Item>
 			</DropdownMenu.Group>

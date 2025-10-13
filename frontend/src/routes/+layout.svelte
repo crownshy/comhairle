@@ -22,7 +22,7 @@
 		secondary: 'hsl(102, 34%, 30%)',
 		radius: '6.25rem',
 		'secondary-foreground': 'white',
-		'muted-foreground': 'hsla(79, 100%, 96%, 1)',
+		'muted-foreground': '#272f1d',
 		'nav-background': 'hsla(78, 60%, 89%, 0.08)',
 		'nav-text': 'hsla(79, 100%, 96%, 1)',
 		'font-serif': 'inter',
