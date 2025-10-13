@@ -38,6 +38,10 @@ export const basic_survey_config = {
 	"type": "heyform",
 }
 
+export const basic_elicitation_bot_config={
+	"type": "elicitationbot"
+}
+
 export const basic_lived_experience_config = {
 	"type": "stories",
 	"max_time": 10,

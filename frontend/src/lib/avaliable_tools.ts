@@ -34,7 +34,7 @@ export const AvailableTools: Array<ToolDescription> = [
 		description: "Help participants refine and capture their views through and AI bot mediated interaction",
 		icon: Bot,
 		infoLink: "elicitation_bot",
-		available: false
+		available: true
 	},
 	{
 		name: "Lived Experience",

@@ -16,8 +16,8 @@ use uuid::Uuid;
 use crate::{
     error::ComhairleError,
     tools::{
-        heyform::HeyFormReport, learn::LearnReport, polis::PolisReport, stories::StoriesReport,
-        ReportConfig, ToolConfig,
+        elicitation_bot::ElicitationBotReport, heyform::HeyFormReport, learn::LearnReport,
+        polis::PolisReport, stories::StoriesReport, ReportConfig, ToolConfig,
     },
 };
 
@@ -191,6 +191,7 @@ pub async fn create_for_conversation(
                 ToolConfig::Learn(_) => ReportConfig::Learn(LearnReport),
                 ToolConfig::HeyForm(_) => ReportConfig::HeyForm(HeyFormReport),
                 ToolConfig::Stories(_) => ReportConfig::Stories(StoriesReport),
+                ToolConfig::ElicitationBot(_) => ReportConfig::ElicitationBot(ElicitationBotReport),
             };
 
             ReportSectionConfig {

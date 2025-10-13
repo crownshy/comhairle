@@ -5,7 +5,8 @@
 		basic_learn_config,
 		basic_polis_config,
 		basic_survey_config,
-		basic_lived_experience_config
+		basic_lived_experience_config,
+		basic_elicitation_bot_config
 	} from '$lib/workflow_templates.js';
 	import ToolSelectionModal from '$lib/components/ToolSelectionModal.svelte';
 	import { Header } from '$lib/components/ui/alert-dialog/index.js';
@@ -33,7 +34,8 @@
 			Polis: basic_polis_config,
 			Learn: basic_learn_config,
 			Survey: basic_survey_config,
-			'Lived Experience': basic_lived_experience_config
+			'Lived Experience': basic_lived_experience_config,
+			'Elicitation Bot': basic_elicitation_bot_config
 		}[step];
 
 		let new_step_order =

@@ -3,6 +3,7 @@
 	import * as HeyForm from '$lib/tools/heyform/index.js';
 	import * as Learn from '$lib/tools/learn/index.js';
 	import * as LivedExperience from '$lib/tools/lived_experince/index.js';
+	import * as ElicitationBot from '$lib/tools/elicitation_bot/index.js';
 	import ProcessDates from '$lib/components/ProcessDates.svelte';
 	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
@@ -17,6 +18,8 @@
 	let { conversation, step, workflow_steps, user } = data;
 	let startDate = $derived(parseISO(conversation.created_at));
 	let endDate = $derived(addDays(startDate, 30));
+
+	console.log("step ", step)
 
 	async function stepComplete() {
 		try {
@@ -88,6 +91,12 @@
 					{/if}
 					{#if step.tool_config.type === LivedExperience.TOOL_NAME}
 						<LivedExperience.UserUI onDone={stepComplete} />
+					{/if}
+					{#if step.tool_config.type === LivedExperience.TOOL_NAME}
+						<LivedExperience.UserUI onDone={stepComplete} />
+					{/if}
+					{#if step.tool_config.type === ElicitationBot.TOOL_NAME}
+						<ElicitationBot.UserUI onDone={stepComplete} />
 					{/if}
 				</div>
 			</div>
