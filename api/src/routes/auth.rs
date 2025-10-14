@@ -362,7 +362,11 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
         let user = parts.extract_with_state::<RequiredUser, _>(state).await?;
         let re = Regex::new(r"^test(?:[1-9]|10)@crown-shy\.com$").unwrap();
         if let (Some(admin_users), Some(email)) = (&state.config.admin_users, &user.0.email) {
-            if admin_users.contains(&email) || re.is_match(email) {
+            let downcase_admin_users: Vec<String> =
+                admin_users.into_iter().map(|a| a.to_lowercase()).collect();
+            if downcase_admin_users.contains(&email.to_lowercase())
+                || re.is_match(&email.to_lowercase())
+            {
                 return Ok(RequiredAdminUser(user.0.clone()));
             }
         }
