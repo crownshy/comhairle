@@ -50,19 +50,15 @@
 					{/if}
 				</DropdownMenu.Item>
 				<DropdownMenu.Item>
-					<form method="POST" action="/settings">
-						<Button type="submit" variant="ghost"><Settings />Settings</Button>
-					</form>
+						<Button href='/settings' type="submit" variant="ghost"><Settings />Settings</Button>
 				</DropdownMenu.Item>
 				<DropdownMenu.Item>
-					<form method="POST" action="/notifications">
-						<Button type="submit" variant="ghost"
-							><Bell />Notifications
-							{#if notifications && notifications > 0}
-								<Badge>{notifications}</Badge>
-							{/if}
-						</Button>
-					</form>
+					<Button href="/notifications" type="submit" variant="ghost"
+						><Bell />Notifications
+						{#if notifications && notifications > 0}
+							<Badge>{notifications}</Badge>
+						{/if}
+					</Button>
 				</DropdownMenu.Item>
 				<DropdownMenu.Item>
 					<form method="POST" action="/auth/logout">
