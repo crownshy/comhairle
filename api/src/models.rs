@@ -2,6 +2,8 @@ pub mod conversation;
 pub mod feedback;
 pub mod invite_response;
 pub mod invites;
+pub mod notification;
+pub mod notification_delivery;
 pub mod pagination;
 pub mod report;
 pub mod report_impact;

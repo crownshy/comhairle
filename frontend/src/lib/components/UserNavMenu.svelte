@@ -4,6 +4,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import type { User } from '$lib/api/api';
 	import { LoginButtons } from '$lib/profile';
+	import { apiClient } from '$lib/api/client';
 
 	type Props = {
 		user: User;
@@ -11,6 +12,7 @@
 
 	let props: Props = $props();
 	let user = props.user;
+
 </script>
 
 <div class="flex w-full flex-col items-center gap-4">

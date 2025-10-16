@@ -15,7 +15,8 @@
 		Plus,
 		Settings,
 		TerminalSquare,
-		UsersRound
+		UsersRound,
+		Bell
 	} from 'lucide-svelte';
 	import { Button } from './ui/button';
 	let props = $props();
@@ -144,6 +145,15 @@
 														href={`/admin/conversations/${conversation.id}/moderate`}
 														class={path.includes('moderate') ? 'font-bold' : ''}
 														><UsersRound class="stroke-nav-text hover:stroke-sidebar-foreground" /> Moderate</SideBar.MenuSubButton
+													>
+												</SideBar.MenuSubItem>
+											</SideBar.MenuSub>
+											<SideBar.MenuSub>
+												<SideBar.MenuSubItem>
+													<SideBar.MenuSubButton
+														href={`/admin/conversations/${conversation.id}/notifications`}
+														class={path.includes('notifications') ? 'font-bold' : ''}
+														><Bell class="stroke-nav-text hover:stroke-sidebar-foreground" /> Notify</SideBar.MenuSubButton
 													>
 												</SideBar.MenuSubItem>
 											</SideBar.MenuSub></Collapsible.Content
