@@ -45,7 +45,7 @@
 				</div>
 				<div class="hidden flex-row items-center justify-between lg:flex">
 					<div class="relative mr-2 h-12 w-28">
-						<div class="absolute top-0 left-0 h-12 w-28 rounded-[100px] bg-lime-900"></div>
+						<div class="bg-secondary absolute top-0 left-0 h-12 w-28 rounded-[100px]"></div>
 						<div
 							class="absolute top-[15px] left-[26px] justify-center text-center font-['Inter'] text-sm leading-tight font-medium text-white"
 						>
@@ -54,10 +54,10 @@
 					</div>
 					<div class="relative h-12 w-80">
 						<div
-							class="absolute top-0 left-0 h-12 w-80 rounded-[100px] border-2 border-stone-700"
+							class="border-secondary absolute top-0 left-0 h-12 w-80 rounded-[100px] border-2"
 						></div>
 						<div
-							class="absolute top-[16px] left-[24px] justify-center font-['Inter'] text-sm leading-tight font-normal text-neutral-500"
+							class="absolute top-[16px] left-[24px] justify-center font-['Inter'] text-sm leading-tight font-normal text-white"
 						>
 							{m.your_email()}
 						</div>
@@ -73,27 +73,25 @@
 				></div>
 			</div>
 			<div class="inline-flex items-center justify-between self-stretch">
-				<div
-					class="justify-start font-['Inter'] text-base leading-normal font-normal text-neutral-500"
-				>
+				<div class="text-mutted justify-start font-['Inter'] text-base leading-normal font-normal">
 					Copyright {new Date().getFullYear()} © CrownShy
 				</div>
 				<div class="flex items-center justify-start gap-8">
 					<a
 						href="/rights/privacy"
-						class="justify-start font-['Inter'] text-base leading-normal font-normal text-neutral-500"
+						class="text-mutted justify-start font-['Inter'] text-base leading-normal font-normal"
 					>
 						{m.privacy_policy()}
 					</a>
 					<a
 						href="/rights/tos"
-						class="justify-start font-['Inter'] text-base leading-normal font-normal text-neutral-500"
+						class="text-mutted justify-start font-['Inter'] text-base leading-normal font-normal"
 					>
 						{m.terms_of_service()}
 					</a>
 					<a
 						href="/rights/cookies"
-						class="justify-start font-['Inter'] text-base leading-normal font-normal text-neutral-500"
+						class="text-mutted justify-start font-['Inter'] text-base leading-normal font-normal"
 					>
 						{m.cookies_settings()}
 					</a>
