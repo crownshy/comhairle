@@ -54,7 +54,11 @@ export const Workflow = z.object({ conversation_id: z.string().uuid(), created_a
 export type Workflow = z.infer<typeof Workflow>;
 export const CreateWorkflow = z.object({ description: z.string(), is_active: z.boolean(), is_public: z.boolean(), name: z.string() }).passthrough();
 export type CreateWorkflow = z.infer<typeof CreateWorkflow>;
-export const WorkflowStats = z.object({ total_users: z.number().int(), users_completed_step: z.record(z.number().int()) }).passthrough();
+export const DailySignupStats = z.object({ day: z.string().datetime({ offset: true }), users: z.number().int() }).passthrough();
+export type DailySignupStats = z.infer<typeof DailySignupStats>;
+export const WorkflowStepStats = z.object({ completed: z.number().int(), id: z.string().uuid(), started: z.number().int() }).passthrough();
+export type WorkflowStepStats = z.infer<typeof WorkflowStepStats>;
+export const WorkflowStats = z.object({ signup_stats: z.array(DailySignupStats), step_stats: z.array(WorkflowStepStats), total_users: z.number().int() }).passthrough();
 export type WorkflowStats = z.infer<typeof WorkflowStats>;
 export const PartialWorkflow = z.object({ description: z.union([z.string(), z.null()]), is_active: z.union([z.boolean(), z.null()]), is_public: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialWorkflow = z.infer<typeof PartialWorkflow>;
@@ -155,6 +159,8 @@ export const schemas = {
 	SendNotificationRequest,
 	Workflow,
 	CreateWorkflow,
+	DailySignupStats,
+	WorkflowStepStats,
 	WorkflowStats,
 	PartialWorkflow,
 	ActivationRule,

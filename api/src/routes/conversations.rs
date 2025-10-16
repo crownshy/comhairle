@@ -11,7 +11,7 @@ use aide::axum::{
 };
 
 use schemars::JsonSchema;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tracing::info;
 use uuid::Uuid;
 
@@ -23,9 +23,11 @@ use crate::{
             CreateConversation, PartialConversation,
         },
         notification::{self as notification_model, CreateNotification, NotificationContextType},
-        notification_delivery::{self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod},
+        notification_delivery::{
+            self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
+        },
         pagination::{OrderParams, PageOptions, PaginatedResults},
-        user_participation,
+        user_participation::{self, DailySignupStats},
     },
     ComhairleState,
 };
@@ -115,7 +117,7 @@ async fn send_notification_to_participants(
 ) -> Result<(StatusCode, Json<serde_json::Value>), ComhairleError> {
     // Verify conversation exists and user has permission
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
-    
+
     if conversation.owner_id != user.id {
         return Err(ComhairleError::UserNotAuthorized);
     }
@@ -128,15 +130,14 @@ async fn send_notification_to_participants(
         context_type: Some(NotificationContextType::Conversation),
         context_id: Some(conversation_id),
     };
-    
+
     let notification = notification_model::create(&state.db, &create_notification).await?;
-    
+
     // Get all participant user IDs for this conversation
-    let participant_user_ids = user_participation::get_participant_user_ids_for_conversation(
-        &state.db, 
-        &conversation_id
-    ).await?;
-    
+    let participant_user_ids =
+        user_participation::get_participant_user_ids_for_conversation(&state.db, &conversation_id)
+            .await?;
+
     if participant_user_ids.is_empty() {
         return Ok((
             StatusCode::OK,
@@ -144,10 +145,10 @@ async fn send_notification_to_participants(
                 "notification_id": notification.id,
                 "participants_notified": 0,
                 "message": "No participants found for this conversation"
-            }))
+            })),
         ));
     }
-    
+
     // Create deliveries for all participants
     let delivery_method = request.delivery_method.unwrap_or(DeliveryMethod::InApp);
     let deliveries: Vec<CreateNotificationDelivery> = participant_user_ids
@@ -158,16 +159,17 @@ async fn send_notification_to_participants(
             delivery_method: Some(delivery_method.clone()),
         })
         .collect();
-    
-    let created_deliveries = notification_delivery_model::create_bulk(&state.db, &deliveries).await?;
-    
+
+    let created_deliveries =
+        notification_delivery_model::create_bulk(&state.db, &deliveries).await?;
+
     Ok((
         StatusCode::CREATED,
         Json(serde_json::json!({
             "notification_id": notification.id,
             "participants_notified": created_deliveries.len(),
             "message": format!("Notification sent to {} participants", created_deliveries.len())
-        }))
+        })),
     ))
 }
 

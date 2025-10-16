@@ -26,6 +26,7 @@
 					{stat.name}
 				</div>
 			</div>
+
 			<div
 				class="justify-start self-stretch font-['Inter'] text-3xl leading-9 font-semibold text-lime-50"
 			>

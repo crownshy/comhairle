@@ -139,6 +139,9 @@ pub enum ComhairleError {
 
     #[error("Failed to generate stats for invite {0}")]
     InviteStatsAggregationError(sqlx::Error),
+
+    #[error("Failed to generate stats for Workflow {0}")]
+    WorkflowStatsAggregationError(sqlx::Error),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
