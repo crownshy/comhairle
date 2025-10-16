@@ -9,12 +9,14 @@ use sqlx_postgres::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef};
 
 use crate::{error::ComhairleError, ComhairleState};
 
+pub mod elicitation_bot;
 pub mod heyform;
 pub mod id;
 pub mod learn;
 pub mod polis;
 pub mod stories;
 
+use elicitation_bot::{ElicitationBotReport, ElicitationBotToolConfig, ElicitationBotToolSetup};
 use heyform::{HeyFormReport, HeyFormToolConfig, HeyFormToolSetup};
 use learn::{LearnReport, LearnToolConfig, LearnToolSetup};
 use polis::{PolisReport, PolisToolConfig, PolisToolSetup};
@@ -32,6 +34,7 @@ pub enum ToolSetup {
     Learn(LearnToolSetup),
     HeyForm(HeyFormToolSetup),
     Stories(StoriesToolSetup),
+    ElicitationBot(ElicitationBotToolSetup),
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, DbJsonBEnum)]
@@ -41,6 +44,7 @@ pub enum ToolConfig {
     Learn(LearnToolConfig),
     HeyForm(HeyFormToolConfig),
     Stories(StoriesToolConfig),
+    ElicitationBot(ElicitationBotToolConfig),
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
@@ -55,4 +59,5 @@ pub enum ReportConfig {
     HeyForm(HeyFormReport),
     Learn(LearnReport),
     Stories(StoriesReport),
+    ElicitationBot(ElicitationBotReport),
 }

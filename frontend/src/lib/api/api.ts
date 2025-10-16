@@ -64,11 +64,11 @@ export const LocalisedPage = z.object({ content: z.string(), type: z.literal("ma
 export type LocalisedPage = z.infer<typeof LocalisedPage>;
 export const Page = z.array(LocalisedPage);
 export type Page = z.infer<typeof Page>;
-export const ToolConfig = z.union([z.object({ admin_password: z.string(), admin_user: z.string(), poll_id: z.string(), server_url: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ admin_password: z.string(), admin_user: z.string(), project_id: z.string(), survey_id: z.string(), survey_url: z.string(), type: z.literal("heyform"), workspace_id: z.string() }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough()]);
+export const ToolConfig = z.union([z.object({ admin_password: z.string(), admin_user: z.string(), poll_id: z.string(), server_url: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ admin_password: z.string(), admin_user: z.string(), project_id: z.string(), survey_id: z.string(), survey_url: z.string(), type: z.literal("heyform"), workspace_id: z.string() }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ type: z.literal("elicitationbot") }).passthrough()]);
 export type ToolConfig = z.infer<typeof ToolConfig>;
 export const WorkflowStep = z.object({ activation_rule: ActivationRule, created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_offline: z.boolean(), name: z.string(), step_order: z.number().int(), tool_config: ToolConfig, updated_at: z.string().datetime({ offset: true }), workflow_id: z.string().uuid() }).passthrough();
 export type WorkflowStep = z.infer<typeof WorkflowStep>;
-export const ToolSetup = z.union([z.object({ topic: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ type: z.literal("heyform") }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough()]);
+export const ToolSetup = z.union([z.object({ topic: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ type: z.literal("heyform") }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ type: z.literal("elicitationbot") }).passthrough()]);
 export type ToolSetup = z.infer<typeof ToolSetup>;
 export const CreateWorkflowStep = z.object({ activation_rule: ActivationRule, description: z.string(), is_offline: z.boolean(), name: z.string(), step_order: z.number().int(), tool_setup: ToolSetup }).passthrough();
 export type CreateWorkflowStep = z.infer<typeof CreateWorkflowStep>;
@@ -104,7 +104,9 @@ export const LearnReport = z.null();
 export type LearnReport = z.infer<typeof LearnReport>;
 export const StoriesReport = z.null();
 export type StoriesReport = z.infer<typeof StoriesReport>;
-export const ReportConfig = z.union([z.object({ Polis: PolisReport }), z.object({ HeyForm: HeyFormReport }), z.object({ Learn: LearnReport }), z.object({ Stories: StoriesReport })]);
+export const ElicitationBotReport = z.null();
+export type ElicitationBotReport = z.infer<typeof ElicitationBotReport>;
+export const ReportConfig = z.union([z.object({ Polis: PolisReport }), z.object({ HeyForm: HeyFormReport }), z.object({ Learn: LearnReport }), z.object({ Stories: StoriesReport }), z.object({ ElicitationBot: ElicitationBotReport })]);
 export type ReportConfig = z.infer<typeof ReportConfig>;
 export const ReportSectionConfig = z.object({ ai_generated: z.boolean(), config: ReportConfig, verified: z.boolean(), workflow_step_id: z.string().uuid() }).passthrough();
 export type ReportSectionConfig = z.infer<typeof ReportSectionConfig>;
@@ -178,6 +180,7 @@ export const schemas = {
 	HeyFormReport,
 	LearnReport,
 	StoriesReport,
+	ElicitationBotReport,
 	ReportConfig,
 	ReportSectionConfig,
 	ReportSectionConfigs,
