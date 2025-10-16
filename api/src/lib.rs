@@ -6,11 +6,13 @@ pub mod mailer;
 pub mod models;
 mod routes;
 mod tools;
+pub mod websockets;
 
 use docs::docs_routes;
 use mailer::ComhairleMailer;
 pub use routes::auth::hash_pw;
 use routes::auth::AUTH_KEY;
+use websockets::WebSocketService;
 
 #[cfg(test)]
 mod test_helpers;
@@ -32,6 +34,7 @@ pub struct ComhairleState {
     pub db: PgPool,
     pub config: ComhairleConfig,
     pub mailer: Arc<dyn ComhairleMailer>,
+    pub websockets: Arc<dyn WebSocketService>,
 }
 
 fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
@@ -113,6 +116,10 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
                     "/{conversation_id}/feedback",
                     routes::feedback::router(state.clone()),
                 ),
+        )
+        .nest_api_service(
+            "/ws",
+            websockets::routes::websocket_routes().with_state(state.clone()),
         )
         .nest_api_service("/docs", docs_routes(state.clone()))
         .finish_api_with(&mut api, api_docs)
