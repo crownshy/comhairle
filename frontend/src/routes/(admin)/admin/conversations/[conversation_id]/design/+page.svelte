@@ -114,7 +114,6 @@
 
 <div class="mb-5 flex flex-col gap-y-5">
 	{#each workflow_steps as step, index (step.id)}
-		<!-- Make items draggable -->
 		<div animate:flip={{ duration: 200 }}>
 			<Card.Root class="transition-all">
 				<Card.Header>
