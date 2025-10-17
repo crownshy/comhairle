@@ -132,7 +132,7 @@ async fn send_to_user(
 
 pub fn websocket_routes() -> ApiRouter<Arc<ComhairleState>> {
     ApiRouter::new()
-        .route("/ws", get(websocket_handler))
+        .route("/", get(websocket_handler))
         .api_route(
             "/stats",
             get_with(get_websocket_stats, |op| {
@@ -150,7 +150,7 @@ pub fn websocket_routes() -> ApiRouter<Arc<ComhairleState>> {
             }),
         )
         .api_route(
-            "/broadcast/:workflow_id",
+            "/broadcast/{workflow_id}",
             post_with(broadcast_message_to_workflow_participants, |op| {
                 op.id("BroadcastMessageToWorkflowParticipants")
                     .summary(
