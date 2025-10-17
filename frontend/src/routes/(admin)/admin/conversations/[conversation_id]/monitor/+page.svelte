@@ -2,10 +2,13 @@
 	import DailyStatsChart from '$lib/components/DailyStatsChart.svelte';
 	import StatsBar from '$lib/components/StatsBar.svelte';
 	import StatProgressIndicator from '$lib/components/StatProgressIndicator.svelte';
-	import * as Card from '$lib/components/ui/card';
 	import { Binoculars } from 'lucide-svelte';
+	import PopulationComparison from '$lib/components/PopulationComparison.svelte';
+	import GenderComparison from '$lib/components/GenderComparison.svelte';
+	import GeoComparison from '$lib/components/GeoComparison/GeoComparison.svelte';
+	import * as Card from '$lib/components/ui/card';
+
 	import type { PageProps } from './$types';
-	import { apiClient } from '$lib/api/client';
 
 	let { data }: PageProps = $props();
 	let { workflow_steps, workflowStats } = data;
@@ -56,7 +59,7 @@
 
 {#each workflow_steps as step}
 	<h3 class="my-5 text-xl font-bold">{step.name}</h3>
-	<div class="flex flex-row gap-x-10">
+	<div class="grid grid-cols-3 gap-10 overflow-x-auto">
 		<StatProgressIndicator
 			title="Started"
 			currentValue={workflowStats.step_stats.find((s) => s.id == step.id).started}
@@ -75,7 +78,30 @@
 			entityType={'participants'}
 			message="have completed this workflow step"
 		/>
+
+		<Card.Root class="flex-inline flex">
+			<Card.Header class="items-center">
+				<Card.Title>Time to complete</Card.Title>
+				<Card.Description>Median user time to complete</Card.Description>
+			</Card.Header>
+			<Card.Content class="h-full">
+				<div class="flex flex-col items-center justify-center">
+					<h1 class="pt-[70px] text-3xl">1 Minute</h1>
+					<p>median</p>
+				</div>
+			</Card.Content>
+			<Card.Footer class="flex-col gap-2 text-sm">
+				Most users completed this step in 1 minute. The longest it took someone was 3 minutes.
+			</Card.Footer>
+		</Card.Root>
 	</div>
 {/each}
 
 <h2 class="my-10 text-2xl">Reach</h2>
+
+<div class="grid w-full grid-cols-1 gap-10 md:grid-cols-2">
+	<PopulationComparison />
+
+	<GenderComparison />
+	<GeoComparison />
+</div>

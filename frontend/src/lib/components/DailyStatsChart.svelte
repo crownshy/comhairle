@@ -34,8 +34,8 @@
 	$inspect(localStats);
 
 	const chartConfig = {
-		signups: { label: 'Signups', color: 'red' },
-		active: { label: 'Active', color: 'blue' }
+		signups: { label: 'Signups', color: 'var(--primary)' },
+		active: { label: 'Active', color: 'var(--secondary)' }
 	} satisfies Chart.ChartConfig;
 
 	let context = $state<ChartContextValue>();
