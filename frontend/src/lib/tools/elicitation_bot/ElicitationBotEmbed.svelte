@@ -2,8 +2,7 @@
 </script>
 
 <iframe
-	class="h-[800px] border-none"
-	width="1000"
-	height="500"
+	class="mb-5 h-[800px] w-full border-none"
+	height="800"
 	src="https://app.harmonica.chat/chat?s=hst_b33815c3f6ec"
 />
