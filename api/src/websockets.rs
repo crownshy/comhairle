@@ -30,7 +30,7 @@ use async_trait::async_trait;
 use crate::{
     error::ComhairleError,
     models::users::User,
-    routes::auth::{validate_jwt, OptionalUser, AUTH_KEY},
+    routes::auth::{validate_jwt, OptionalUser, RequiredUser, AUTH_KEY},
     ComhairleState,
 };
 
@@ -48,13 +48,13 @@ impl ConnectionId {
 #[derive(Debug, Clone)]
 pub struct WebSocketConnection {
     pub id: ConnectionId,
-    pub user: Option<User>,
+    pub user: User,
     pub addr: SocketAddr,
     pub sender: mpsc::UnboundedSender<Message>,
 }
 
 impl WebSocketConnection {
-    pub fn new(user: Option<User>, addr: SocketAddr) -> (Self, mpsc::UnboundedReceiver<Message>) {
+    pub fn new(user: User, addr: SocketAddr) -> (Self, mpsc::UnboundedReceiver<Message>) {
         let id = ConnectionId::new();
         let (sender, receiver) = mpsc::unbounded_channel();
 
@@ -132,8 +132,6 @@ pub trait WebSocketService: Send + Sync {
 
     fn get_connection_count(&self) -> usize;
 
-    fn get_authenticated_connection_count(&self) -> usize;
-
     fn get_user_connection_count(&self, user_id: &Uuid) -> usize;
 
     fn get_connected_user_ids(&self) -> Vec<Uuid>;
@@ -151,27 +149,23 @@ impl WebSocketService for ComhairleWebSocketService {
     fn add_connection(&self, connection: WebSocketConnection) {
         let connection_id = connection.id.clone();
 
-        if let Some(user) = &connection.user {
-            let user_id = user.id;
-            self.user_connections
-                .entry(user_id)
-                .or_insert_with(Vec::new)
-                .push(connection_id.clone());
-        }
+        let user_id = connection.user.id;
+        self.user_connections
+            .entry(user_id)
+            .or_insert_with(Vec::new)
+            .push(connection_id.clone());
 
         self.connections.insert(connection_id, connection);
     }
 
     fn remove_connection(&self, connection_id: &ConnectionId) -> Option<WebSocketConnection> {
         if let Some((_, connection)) = self.connections.remove(connection_id) {
-            if let Some(user) = &connection.user {
-                let user_id = user.id;
-                if let Some(mut user_connections) = self.user_connections.get_mut(&user_id) {
-                    user_connections.retain(|id| id.0 != connection_id.0);
-                    if user_connections.is_empty() {
-                        drop(user_connections);
-                        self.user_connections.remove(&user_id);
-                    }
+            let user_id = connection.user.id;
+            if let Some(mut user_connections) = self.user_connections.get_mut(&user_id) {
+                user_connections.retain(|id| id.0 != connection_id.0);
+                if user_connections.is_empty() {
+                    drop(user_connections);
+                    self.user_connections.remove(&user_id);
                 }
             }
             Some(connection)
@@ -209,12 +203,10 @@ impl WebSocketService for ComhairleWebSocketService {
 
         for connection_ref in self.connections.iter() {
             let connection = connection_ref.value();
-            if connection.user.is_some() {
-                if let Err(_) = connection.send_message(message).await {
-                    failed_connections.push(connection.id.clone());
-                } else {
-                    sent_count += 1;
-                }
+            if let Err(_) = connection.send_message(message).await {
+                failed_connections.push(connection.id.clone());
+            } else {
+                sent_count += 1;
             }
         }
 
@@ -284,13 +276,6 @@ impl WebSocketService for ComhairleWebSocketService {
         self.connections.len()
     }
 
-    fn get_authenticated_connection_count(&self) -> usize {
-        self.connections
-            .iter()
-            .filter(|conn| conn.user.is_some())
-            .count()
-    }
-
     fn get_user_connection_count(&self, user_id: &Uuid) -> usize {
         self.user_connections
             .get(user_id)
@@ -306,28 +291,15 @@ impl WebSocketService for ComhairleWebSocketService {
     }
 }
 
-#[derive(Deserialize)]
-pub struct WebSocketQuery {
-    token: Option<String>,
-}
-
 pub async fn websocket_handler(
     ws: WebSocketUpgrade,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    Query(query): Query<WebSocketQuery>,
     State(state): State<Arc<ComhairleState>>,
-    optional_user: OptionalUser,
+    RequiredUser(user): RequiredUser,
 ) -> Response {
-    let user = if let Some(token) = query.token {
-        validate_jwt(&state, &token).await.ok()
-    } else {
-        optional_user.0
-    };
-
     info!(
         "WebSocket connection from {}, user: {:?}",
-        addr,
-        user.as_ref().map(|u| &u.username)
+        addr, user.username
     );
 
     ws.on_upgrade(move |socket| handle_websocket(socket, user, addr, state))
@@ -335,7 +307,7 @@ pub async fn websocket_handler(
 
 async fn handle_websocket(
     socket: WebSocket,
-    user: Option<User>,
+    user: User,
     addr: SocketAddr,
     state: Arc<ComhairleState>,
 ) {
@@ -394,14 +366,12 @@ async fn handle_websocket(
     };
 
     // Send welcome message
-    if let Some(ref user) = user {
-        let welcome_msg = WebSocketMessage::Notification {
-            title: "Connected".to_string(),
-            message: format!("Welcome, {}!", user.username.as_deref().unwrap_or("User")),
-            level: NotificationLevel::Success,
-        };
-        let _ = connection.send_message(&welcome_msg).await;
-    }
+    let welcome_msg = WebSocketMessage::Notification {
+        title: "Connected".to_string(),
+        message: format!("Welcome, {}!", user.username.as_deref().unwrap_or("User")),
+        level: NotificationLevel::Success,
+    };
+    let _ = connection.send_message(&welcome_msg).await;
 
     // Wait for either task to complete
     tokio::select! {
@@ -437,6 +407,15 @@ async fn handle_websocket_message(
                             event, connection.id, data
                         );
                         // Handle custom events here
+                    }
+                    WebSocketMessage::UserStartedWorkflowStep { workflow_step_id } => {
+                        info!("User started workflow step {}", workflow_step_id);
+                    }
+                    WebSocketMessage::UserFinishedWorkflowStep { workflow_step_id } => {
+                        info!("User finished workflow step {}", workflow_step_id);
+                    }
+                    WebSocketMessage::UserIdle { workflow_step_id } => {
+                        info!("User idle on {workflow_step_id}");
                     }
                     _ => {
                         info!(

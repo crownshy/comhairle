@@ -26,7 +26,6 @@ use super::{
 #[derive(Serialize, OperationIo, JsonSchema)]
 struct WebSocketStats {
     total_connections: usize,
-    authenticated_connections: usize,
     connected_users: Vec<Uuid>,
 }
 
@@ -55,7 +54,6 @@ async fn get_websocket_stats(
     let ws_service = &state.websockets;
     Json(WebSocketStats {
         total_connections: ws_service.get_connection_count(),
-        authenticated_connections: ws_service.get_authenticated_connection_count(),
         connected_users: ws_service.get_connected_user_ids(),
     })
 }

@@ -27,7 +27,7 @@ use crate::{
             self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
         },
         pagination::{OrderParams, PageOptions, PaginatedResults},
-        user_participation::{self, DailySignupStats},
+        user_participation::{self},
     },
     ComhairleState,
 };
