@@ -86,12 +86,18 @@
 			</Card.Header>
 			<Card.Content class="h-full">
 				<div class="flex flex-col items-center justify-center">
-					<h1 class="pt-[70px] text-3xl">1 Minute</h1>
-					<p>median</p>
+					{#if workflowStats.step_stats.find((s) => s.id == step.id).completed > 0}
+						<h1 class="pt-[70px] text-3xl">1 Minute</h1>
+						<p>median</p>
+					{:else}
+						<h1 class="pt-[70px] text-center text-2xl">No users have completed this step yet</h1>
+					{/if}
 				</div>
 			</Card.Content>
 			<Card.Footer class="flex-col gap-2 text-sm">
-				Most users completed this step in 1 minute. The longest it took someone was 3 minutes.
+				{#if workflowStats.step_stats.find((s) => s.id == step.id).completed > 0}
+					Most users completed this step in 1 minute. The longest it took someone was 3 minutes.
+				{/if}
 			</Card.Footer>
 		</Card.Root>
 	</div>
