@@ -314,6 +314,9 @@ pub async fn create(
         ToolSetup::Stories(stories_tool_setup) => {
             ToolConfig::Stories(tools::stories::setup(&stories_tool_setup).await?)
         }
+        ToolSetup::ElicitationBot(elicitation_bot_setup) => {
+            ToolConfig::ElicitationBot(tools::elicitation_bot::setup(&elicitation_bot_setup).await?)
+        }
     };
 
     columns.push(WorkflowStepIden::WorkflowId);

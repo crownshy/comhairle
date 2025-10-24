@@ -1,4 +1,10 @@
-use comhairle::{db::setup_db, mailer::Mailer, setup_server, ComhairleState};
+use comhairle::{
+    db::setup_db, 
+    mailer::Mailer, 
+    setup_server, 
+    websockets::{ComhairleWebSocketService, WebSocketService}, 
+    ComhairleState
+};
 use std::{error::Error, sync::Arc};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -41,7 +47,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         &config.mailer.password,
     ));
 
-    let state = Arc::new(ComhairleState { db, mailer, config });
+    let websockets = Arc::new(ComhairleWebSocketService::new());
+    let state = Arc::new(ComhairleState {
+        db,
+        mailer,
+        config,
+        websockets,
+    });
 
     let app = setup_server(state).await?;
 

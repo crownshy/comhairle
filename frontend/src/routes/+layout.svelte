@@ -22,7 +22,7 @@
 		secondary: 'hsl(102, 34%, 30%)',
 		radius: '6.25rem',
 		'secondary-foreground': 'white',
-		'muted-foreground': 'hsla(79, 100%, 96%, 1)',
+		'muted-foreground': '#272f1d',
 		'nav-background': 'hsla(78, 60%, 89%, 0.08)',
 		'nav-text': 'hsla(79, 100%, 96%, 1)',
 		'font-serif': 'inter',
@@ -34,8 +34,8 @@
 		'admin-background': 'hsla(60, 67%, 98%, 1)',
 		mutted: 'hsla(100, 29%, 10%, 1)'
 	};
-
-	let themeCss = Object.entries(theme).reduce((a, b) => (a = a + `--${b[0]} : ${b[1]};`), '');
+	let themeCss = '';
+	// let themeCss = Object.entries(theme).reduce((a, b) => (a = a + `--${b[0]} : ${b[1]};`), '');
 </script>
 
 <svelte:head>
@@ -47,7 +47,7 @@
 	/>
 </svelte:head>
 
-<div style={themeCss} class="w-full bg-stone-50">
+<div style={themeCss} class="scot-gov w-full bg-stone-50">
 	<CookieConsent />
 	<NotificationsToaster closeButton />
 	{@render children()}

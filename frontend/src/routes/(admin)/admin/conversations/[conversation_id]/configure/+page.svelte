@@ -53,49 +53,47 @@
 <p class="mb-10">Use this space to set up the project and manage the team supporting it</p>
 
 <form method="POST" onsubmit={updateConversation} class="flex flex-col gap-4" use:enhance>
-	<Form.Field
-		form={conversationForm}
-		name="title"
-		class="flex w-full flex-row justify-between border-t-1 py-5"
-	>
+	<Form.Field form={conversationForm} name="title">
 		<Form.Control>
 			{#snippet children({ props })}
-				<Form.Label class="font-bold">Title</Form.Label>
-				<div class="flex-col gap-2">
-					<Input class="w-5xl" {...props} bind:value={$form.title} />
-					<Form.FieldErrors />
+				<div class="flex w-full flex-row justify-between border-t-1 py-5">
+					<Form.Label class="w-60 font-bold">Title</Form.Label>
+					<div class="grow flex-col gap-2">
+						<Input class="max-w-5xl" {...props} bind:value={$form.title} />
+						<Form.FieldErrors />
+					</div>
 				</div>
 			{/snippet}
 		</Form.Control>
 	</Form.Field>
 
-	<Form.Field
-		class="flex w-full flex-row justify-between border-t-1 py-5"
-		form={conversationForm}
-		name="short_description"
-	>
+	<Form.Field form={conversationForm} name="short_description">
 		<Form.Control>
 			{#snippet children({ props })}
-				<Form.Label class="font-bold">Short Description</Form.Label>
-				<div class="flex-col gap-2">
-					<Textarea class="w-5xl bg-white " {...props} bind:value={$form.short_description} />
-					<Form.FieldErrors />
+				<div class="flex w-full flex-row justify-between border-t-1 py-5">
+					<Form.Label class="w-60 font-bold">Short Description</Form.Label>
+					<div class="grow flex-col gap-2">
+						<Textarea class="max-w-3xl bg-white " {...props} bind:value={$form.short_description} />
+						<Form.FieldErrors />
+					</div>
 				</div>
 			{/snippet}
 		</Form.Control>
 	</Form.Field>
 
-	<Form.Field
-		class="flex w-full flex-row justify-between border-t-1 py-5"
-		form={conversationForm}
-		name="description"
-	>
+	<Form.Field form={conversationForm} name="description">
 		<Form.Control>
 			{#snippet children({ props })}
-				<Form.Label class="font-bold">Description</Form.Label>
-				<div class="flex-col gap-2">
-					<Textarea class="w-5xl bg-white " {...props} bind:value={$form.description} />
-					<Form.FieldErrors />
+				<div class="flex w-full flex-row justify-between border-t-1 py-5">
+					<Form.Label class="w-60 font-bold">Description</Form.Label>
+					<div class="grow flex-col gap-2">
+						<Textarea
+							class=" w-full min-w-2xl bg-white "
+							{...props}
+							bind:value={$form.description}
+						/>
+						<Form.FieldErrors />
+					</div>
 				</div>
 			{/snippet}
 		</Form.Control>
@@ -110,16 +108,18 @@
 			>
 				<Form.Control>
 					{#snippet children({ props })}
-						<div class="flex flex-col gap-2">
-							<Form.Label class="font-bold">Banner Image URL</Form.Label>
-							{#if $form.image_url}
-								<img width="200px" alt="Conversation Banner" src={$form.image_url} />
-							{/if}
-						</div>
-						<div class="flex-col gap-2">
-							<Input class="w-5xl" {...props} bind:value={$form.image_url} />
+						<div class="flex w-full flex-row justify-between border-t-1 py-5">
+							<div class="flex w-60 flex-col gap-2">
+								<Form.Label class="font-bold">Banner Image URL</Form.Label>
+								{#if $form.image_url}
+									<img width="200px" alt="Conversation Banner" src={$form.image_url} />
+								{/if}
+							</div>
+							<div class="grow flex-col gap-2">
+								<Input  {...props} bind:value={$form.image_url} />
 
-							<Form.FieldErrors />
+								<Form.FieldErrors />
+							</div>
 						</div>
 					{/snippet}
 				</Form.Control>

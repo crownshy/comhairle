@@ -9,12 +9,16 @@ use axum::{
     http::StatusCode,
     Json,
 };
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use tracing::info;
 use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
-    models::workflow::{self, CreateWorkflow, PartialWorkflow, Workflow, WorkflowStats},
+    models::workflow::{
+        self, CreateWorkflow, DailySignupStats, PartialWorkflow, Workflow, WorkflowStats,
+    },
     ComhairleState,
 };
 
@@ -33,7 +37,7 @@ async fn create_workflow(
     Ok((StatusCode::CREATED, Json(workflow)))
 }
 
-async fn workflow_stats(
+async fn get_workflow_stats(
     State(state): State<Arc<ComhairleState>>,
     Path((_, workflow_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<WorkflowStats>), ComhairleError> {
@@ -102,7 +106,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/{workflow_id}/stats",
-            get_with(workflow_stats, |op| {
+            get_with(get_workflow_stats, |op| {
                 op.id("GetWorkflowStats")
                     .summary("Gets participation stats for a workflow")
                     .response::<201, Json<WorkflowStats>>()

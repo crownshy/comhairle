@@ -197,7 +197,15 @@ pub async fn list(db: &PgPool, conversation_id: Uuid) -> Result<Vec<Workflow>, C
 #[derive(Serialize, Deserialize, JsonSchema, FromRow)]
 pub struct WorkflowStats {
     pub total_users: i32,
-    pub users_completed_step: HashMap<Uuid, i32>,
+    pub step_stats: Vec<WorkflowStepStats>,
+    pub signup_stats: Vec<DailySignupStats>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, FromRow)]
+pub struct WorkflowStepStats {
+    id: Uuid,
+    completed: i32,
+    started: i32,
 }
 
 /// Calculate stastistics for the workflow
@@ -206,7 +214,10 @@ pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, Comh
         .from(WorkflowStepIden::Table)
         .column((WorkflowStepIden::Table, WorkflowStepIden::Id))
         .expr(Expr::cust(
-            "COUNT(CASE WHEN user_progress.status = 'done' THEN 1 END)::INT as count",
+            "COUNT(CASE WHEN user_progress.status = 'done' THEN 1 END)::INT as completed",
+        ))
+        .expr(Expr::cust(
+            "COUNT(CASE WHEN user_progress.status = 'in_progress' THEN 1 END)::INT as started",
         ))
         .join(
             sea_query::JoinType::LeftJoin,
@@ -226,11 +237,9 @@ pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, Comh
         .to_owned()
         .build_sqlx(PostgresQueryBuilder);
 
-    let step_stats = sqlx::query_as_with::<_, (Uuid, i32), _>(&sql, values)
+    let step_stats = sqlx::query_as_with::<_, WorkflowStepStats, _>(&sql, values)
         .fetch_all(db)
         .await?;
-
-    let step_stats: HashMap<Uuid, i32> = step_stats.into_iter().collect();
 
     let (sql, values) = Query::select()
         .from(UserParticipationIden::Table)
@@ -240,10 +249,12 @@ pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, Comh
         .build_sqlx(PostgresQueryBuilder);
 
     let total_users: i32 = sqlx::query_scalar_with(&sql, values).fetch_one(db).await?;
+    let signup_stats = get_workflow_signup_stats(&db, workflow_id).await?;
 
     Ok(WorkflowStats {
-        users_completed_step: step_stats,
+        step_stats,
         total_users,
+        signup_stats,
     })
 }
 
@@ -275,4 +286,31 @@ pub async fn create(
         .await?;
 
     Ok(workflow)
+}
+
+#[derive(FromRow, Serialize, Deserialize, JsonSchema, Debug, PartialEq, Eq)]
+pub struct DailySignupStats {
+    pub day: DateTime<Utc>,
+    pub users: i32,
+}
+
+pub async fn get_workflow_signup_stats(
+    db: &PgPool,
+    workflow_id: Uuid,
+) -> Result<Vec<DailySignupStats>, ComhairleError> {
+    let result = sqlx::query_as::<_, DailySignupStats>(
+        r#"
+        SELECT date_trunc('day', created_at) as day,
+        count(*)::INT as users
+        FROM user_participation 
+        where workflow_id = $1
+        GROUP BY date_trunc('day', created_at)
+        ORDER BY date_trunc('day', created_at) ASC;
+    "#,
+    )
+    .bind(workflow_id)
+    .fetch_all(db)
+    .await
+    .map_err(|e| ComhairleError::WorkflowStatsAggregationError(e))?;
+    Ok(result)
 }
