@@ -15,6 +15,7 @@
 	import { addDays, parseISO } from 'date-fns';
 
 	import { ws } from '$lib/api/websockets.svelte';
+	import { Button } from '$lib/components/ui/button';
 
 	let { data }: PageProps = $props();
 	let { conversation, step, workflow_steps, user } = data;
@@ -78,10 +79,13 @@
 				</h2>
 			</div>
 			<div class="my-2 flex grow flex-col md:row-start-2">
-				<p class="mb-8 text-center">
+				<p class="mb-2 text-center">
 					{step.description}
 				</p>
-				<div class="grow">
+				{#if !step.required}
+					<Button onclick={stepComplete} class="mx-auto" variant="secondary">Skip this step</Button>
+				{/if}
+				<div class="my-10 grow">
 					{#if step.tool_config.type === Learn.TOOL_NAME}
 						<Learn.UserUI onDone={stepComplete} pages={step.tool_config.pages} user_id={user.id} />
 					{/if}

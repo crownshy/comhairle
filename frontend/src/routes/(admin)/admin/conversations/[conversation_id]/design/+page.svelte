@@ -59,7 +59,8 @@
 					is_offline: false,
 					activation_rule: 'manual',
 					step_order: new_step_order,
-					tool_setup
+					tool_setup,
+					required: true
 				},
 				{ params: { conversation_id: conversation.id, workflow_id: workflow.id } }
 			);
