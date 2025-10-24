@@ -47,7 +47,7 @@ where
     }
 }
 
-#[derive(Deserialize, Debug, Serialize, JsonSchema)]
+#[derive(Deserialize, Debug, Serialize, JsonSchema, Clone)]
 pub struct PageOptions {
     pub offset: Option<u64>,
     pub limit: Option<u64>,

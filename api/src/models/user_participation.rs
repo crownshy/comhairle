@@ -99,3 +99,32 @@ pub async fn delete(
 
     Ok(user_participation)
 }
+
+pub async fn get_participant_user_ids_for_conversation(
+    db: &PgPool,
+    conversation_id: &Uuid,
+) -> Result<Vec<Uuid>, ComhairleError> {
+    use crate::models::workflow::WorkflowIden;
+
+    let (sql, values) = Query::select()
+        .from(UserParticipationIden::Table)
+        .column(UserParticipationIden::UserId)
+        .join(
+            sea_query::JoinType::InnerJoin,
+            WorkflowIden::Table,
+            Expr::col((WorkflowIden::Table, WorkflowIden::Id)).equals((
+                UserParticipationIden::Table,
+                UserParticipationIden::WorkflowId,
+            )),
+        )
+        .and_where(
+            Expr::col((WorkflowIden::Table, WorkflowIden::ConversationId))
+                .eq(conversation_id.to_owned()),
+        )
+        .distinct()
+        .build_sqlx(PostgresQueryBuilder);
+
+    let user_ids: Vec<(Uuid,)> = sqlx::query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(user_ids.into_iter().map(|(id,)| id).collect())
+}

@@ -25,13 +25,17 @@
 	let previewVideoEl = $state<HTMLVideoElement | null>(null);
 
 	const uploadEndpoint = 'https://your-api.com/upload'; // replace this
-
-	async function startRecording() {
-		try {
-			stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+	$effect(() => {
+		navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((video_stream) => {
+			stream = video_stream;
 			console.log(previewVideoEl);
 			previewVideoEl!.srcObject = stream;
+		});
+	});
 
+	async function startRecording() {
+		if (!stream) return;
+		try {
 			recordedChunks = [];
 			mediaRecorder = new MediaRecorder(stream);
 
@@ -94,6 +98,10 @@
 		isUploading = false;
 	}
 
+	function skip() {
+		onDone();
+	}
+
 	function uploadVideo() {
 		onDone();
 		return;
@@ -131,29 +139,39 @@
 	}
 </script>
 
-<Card class="mx-auto mt-10 max-w-xl space-y-6 rounded-[1em] p-6">
+<Card class="mx-auto mt-10 max-w-xl space-y-6 rounded-[0.2rem] p-6">
 	<h2 class="text-2xl font-bold">🎥 Record Your Video</h2>
 
 	{#if !isRecording && !isRecorded}
-		<Button onclick={startRecording}>Start Recording</Button>
-	{/if}
-
-	<div class="space-y-2" style:display={isRecording ? null : 'none'}>
-		<p class="font-semibold text-red-600">Recording... {countdown}s left</p>
-		<Progress value={(countdown / 20) * 100} class="h-2" />
-		<Button variant="destructive" on:click={stopRecording}>Stop Now</Button>
 		<video
 			bind:this={previewVideoEl}
 			autoplay
 			muted
 			playsinline
-			class="mt-4 w-full rounded-lg shadow-sm"
+			class="mt-4 w-full rounded-[0.2rem] shadow-sm"
 		/>
+		<div class="flex flex-col gap-2">
+			<Button onclick={startRecording}>Start Recording</Button>
+			<Button variant="secondary" onclick={skip}>Pass on this step</Button>
+		</div>
+	{/if}
+
+	<div class="space-y-2" style:display={isRecording ? null : 'none'}>
+		<p class="font-semibold text-red-600">Recording... {countdown}s left</p>
+		<Progress value={(countdown / 20) * 100} class="h-2" />
+		<video
+			bind:this={previewVideoEl}
+			autoplay
+			muted
+			playsinline
+			class="mt-4 w-full rounded-[0.2rem] shadow-sm"
+		/>
+		<Button variant="destructive" class="w-full" onclick={stopRecording}>Stop Now</Button>
 	</div>
 
 	{#if isRecorded && videoUrl}
 		<CardContent class="space-y-4">
-			<video controls src={videoUrl} class="w-full rounded-lg shadow-sm" />
+			<video controls src={videoUrl} class="w-full rounded-[0.2rem] shadow-sm" />
 			<div class="flex gap-4">
 				<Button onclick={uploadVideo} disabled={isUploading}>Upload</Button>
 				<Button variant="outline" on:click={reset} disabled={isUploading}>Record Again</Button>

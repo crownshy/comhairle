@@ -15,7 +15,8 @@
 		Plus,
 		Settings,
 		TerminalSquare,
-		UsersRound
+		UsersRound,
+		Bell
 	} from 'lucide-svelte';
 	import { Button } from './ui/button';
 	let props = $props();
@@ -103,15 +104,6 @@
 											<SideBar.MenuSub>
 												<SideBar.MenuSubItem>
 													<SideBar.MenuSubButton
-														href={`/admin/conversations/${conversation.id}/invites`}
-														class={path.includes('invites') ? 'font-bold' : ''}
-														><UsersRound class="stroke-nav-text hover:stroke-sidebar-foreground" /> Recruit</SideBar.MenuSubButton
-													>
-												</SideBar.MenuSubItem>
-											</SideBar.MenuSub>
-											<SideBar.MenuSub>
-												<SideBar.MenuSubItem>
-													<SideBar.MenuSubButton
 														href={`/admin/conversations/${conversation.id}/design`}
 														class={path.includes('design') ? 'font-bold' : ''}
 														><Pencil class="stroke-nav-text hover:stroke-sidebar-foreground" /> Design</SideBar.MenuSubButton
@@ -121,11 +113,9 @@
 											<SideBar.MenuSub>
 												<SideBar.MenuSubItem>
 													<SideBar.MenuSubButton
-														href={`/admin/conversations/${conversation.id}/report`}
-														class={path.includes('report') ? 'font-bold' : ''}
-														><NotebookText
-															class="stroke-nav-text hover:stroke-sidebar-foreground"
-														/> Report</SideBar.MenuSubButton
+														href={`/admin/conversations/${conversation.id}/invites`}
+														class={path.includes('invites') ? 'font-bold' : ''}
+														><UsersRound class="stroke-nav-text hover:stroke-sidebar-foreground" /> Recruit</SideBar.MenuSubButton
 													>
 												</SideBar.MenuSubItem>
 											</SideBar.MenuSub>
@@ -146,8 +136,28 @@
 														><UsersRound class="stroke-nav-text hover:stroke-sidebar-foreground" /> Moderate</SideBar.MenuSubButton
 													>
 												</SideBar.MenuSubItem>
-											</SideBar.MenuSub></Collapsible.Content
-										>
+											</SideBar.MenuSub>
+											<SideBar.MenuSub>
+												<SideBar.MenuSubItem>
+													<SideBar.MenuSubButton
+														href={`/admin/conversations/${conversation.id}/notifications`}
+														class={path.includes('notifications') ? 'font-bold' : ''}
+														><Bell class="stroke-nav-text hover:stroke-sidebar-foreground" /> Notify</SideBar.MenuSubButton
+													>
+												</SideBar.MenuSubItem>
+											</SideBar.MenuSub>
+											<SideBar.MenuSub>
+												<SideBar.MenuSubItem>
+													<SideBar.MenuSubButton
+														href={`/admin/conversations/${conversation.id}/report`}
+														class={path.includes('report') ? 'font-bold' : ''}
+														><NotebookText
+															class="stroke-nav-text hover:stroke-sidebar-foreground"
+														/> Report</SideBar.MenuSubButton
+													>
+												</SideBar.MenuSubItem>
+											</SideBar.MenuSub>
+										</Collapsible.Content>
 									</SideBar.MenuItem>
 								</Collapsible.Root>
 							{/each}

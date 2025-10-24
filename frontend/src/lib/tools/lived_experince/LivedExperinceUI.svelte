@@ -27,7 +27,7 @@
 
 {#if phase == 'FirstVideo'}
 	<div class="flex flex-col items-center justify-center gap-4">
-		<video controls width="250" autoplay>
+		<video controls width="400" autoplay>
 			<source
 				src="https://crownshy.s3.eu-west-2.amazonaws.com/alpha_resources/pro.mp4"
 				type="video/mp4"
@@ -39,7 +39,7 @@
 
 {#if phase == 'SecondVideo'}
 	<div class="flex flex-col items-center justify-center gap-4">
-		<video controls width="250" autoplay>
+		<video controls width="400" autoplay>
 			<source
 				src="https://crownshy.s3.eu-west-2.amazonaws.com/alpha_resources/anti.mp4"
 				type="video/mp4"
@@ -51,7 +51,7 @@
 
 {#if phase == 'ThirdVideo'}
 	<div class="flex flex-col items-center justify-center gap-4">
-		<video controls width="250" autoplay>
+		<video controls width="400" autoplay>
 			<source
 				src="https://crownshy.s3.eu-west-2.amazonaws.com/alpha_resources/neutral.mp4"
 				type="video/mp4"
@@ -62,6 +62,15 @@
 {/if}
 
 {#if phase == 'Recording'}
+	<p class="mb-5">
+		You just heard three other peoples views on the issue. Would you like to record your own to let
+		others know what you think?
+	</p>
+	<p>
+		We will only show this video to other people signed up to take part in this conversation. Like
+		with any platform on the internet we can't 100% guarantee that someone wont download this video
+		and use it elsewhere. If your comfortable with that go ahead if not feel free to skip this step.
+	</p>
 	<VideoRecorder onDone={() => (phase = 'Done')} />
 {/if}
 {#if phase == 'Done'}

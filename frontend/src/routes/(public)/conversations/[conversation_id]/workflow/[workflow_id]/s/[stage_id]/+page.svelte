@@ -3,6 +3,7 @@
 	import * as HeyForm from '$lib/tools/heyform/index.js';
 	import * as Learn from '$lib/tools/learn/index.js';
 	import * as LivedExperience from '$lib/tools/lived_experince/index.js';
+	import * as ElicitationBot from '$lib/tools/elicitation_bot/index.js';
 	import ProcessDates from '$lib/components/ProcessDates.svelte';
 	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
@@ -12,6 +13,8 @@
 	import { report_url, workflow_step_url } from '$lib/urls';
 	import { apiClient } from '$lib/api/client';
 	import { addDays, parseISO } from 'date-fns';
+
+	import { ws } from '$lib/api/websockets.svelte';
 
 	let { data }: PageProps = $props();
 	let { conversation, step, workflow_steps, user } = data;
@@ -43,27 +46,39 @@
 				console.warn(e.message);
 			}
 			notifications.send({
-				message: 'Something unexpected happend. Try again shorlty',
+				message: 'Something unexpected happened. Try again shortly',
 				priority: 'ERROR'
 			});
 		}
 	}
 </script>
 
-<div class="flex flex-col pt-10">
+<div class="flex flex-col items-center pt-10">
 	{#if conversation && step}
-		<div class="hidden md:block">
-			<Breadcrumbs {conversation} workflow_step={step} />
+		<div class="flex flex-row gap-2">
+			{#each workflow_steps as workflow_step}
+				<div
+					class="bg-primary/70 flex flex-col items-center gap-3 rounded-4xl px-10 py-3 text-sm text-[#ffffff]"
+				>
+					<div class="border-secondary h-[24px] w-[24px] rounded-[100%] border-8 bg-white"></div>
+					<p class="text-center">
+						{workflow_step.name}
+					</p>
+				</div>
+			{/each}
 		</div>
 
-		<div class="flex w-full grow flex-col md:grid md:grid-cols-[1fr_300px] md:gap-x-10">
-			<h1
-				class="text-4xl font-bold md:col-start-1 md:col-end-2 md:row-start-1 md:row-end-1 md:text-6xl"
-			>
-				{step.name}
-			</h1>
-			<div class="my-4 flex grow flex-col md:row-start-2">
-				<p class="mb-4">
+		<div class="flex w-full grow flex-col gap-y-10 md:grid md:grid-cols-1 md:gap-x-10">
+			<div class="mt-10 flex flex-col items-center gap-y-5">
+				<h1 class="text-2xl">{conversation.title}</h1>
+				<h2
+					class="text-center text-4xl font-bold md:col-start-1 md:col-end-2 md:row-start-1 md:row-end-1 md:text-6xl"
+				>
+					{step.name}
+				</h2>
+			</div>
+			<div class="my-2 flex grow flex-col md:row-start-2">
+				<p class="mb-8 text-center">
 					{step.description}
 				</p>
 				<div class="grow">
@@ -89,15 +104,10 @@
 					{#if step.tool_config.type === LivedExperience.TOOL_NAME}
 						<LivedExperience.UserUI onDone={stepComplete} />
 					{/if}
+					{#if step.tool_config.type === ElicitationBot.TOOL_NAME}
+						<ElicitationBot.UserUI onDone={stepComplete} />
+					{/if}
 				</div>
-			</div>
-			<div class="hidden w-full md:row-start-2 md:block md:flex md:flex-col md:gap-10">
-				<ProcessDates {startDate} {endDate} />
-				<div class="b-green-950 mt-2 border-t-4 border-b-2 p-4 text-xl font-bold">
-					Part of {conversation.title}
-					<StepSelector steps={workflow_steps} currentStep={step} />
-				</div>
-				<FeedbackModal conversation_id={conversation.id} />
 			</div>
 		</div>
 	{:else}

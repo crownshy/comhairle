@@ -28,15 +28,37 @@ export const Conversation = z.object({ created_at: z.string().datetime({ offset:
 export type Conversation = z.infer<typeof Conversation>;
 export const PaginatedResults_for_Conversation = z.object({ records: z.array(Conversation), total: z.number().int() }).passthrough();
 export type PaginatedResults_for_Conversation = z.infer<typeof PaginatedResults_for_Conversation>;
+export const DeliveryMethod = z.enum(["in_app", "email"]);
+export type DeliveryMethod = z.infer<typeof DeliveryMethod>;
+export const NotificationContextType = z.enum(["site", "conversation"]);
+export type NotificationContextType = z.infer<typeof NotificationContextType>;
+export const NotificationType = z.enum(["info", "warning", "error", "success"]);
+export type NotificationType = z.infer<typeof NotificationType>;
+export const Notification = z.object({ content: z.string(), context_id: z.union([z.string(), z.null()]).optional(), context_type: NotificationContextType, created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), notification_type: NotificationType, title: z.string(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
+export type Notification = z.infer<typeof Notification>;
+export const NotificationWithDelivery = z.object({ created_at: z.string().datetime({ offset: true }), delivered_at: z.string().datetime({ offset: true }), delivery_method: DeliveryMethod, id: z.string().uuid(), notification: Notification, notification_id: z.string().uuid(), read_at: z.union([z.string(), z.null()]).optional(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid() }).passthrough();
+export type NotificationWithDelivery = z.infer<typeof NotificationWithDelivery>;
+export const PaginatedResults_for_NotificationWithDelivery = z.object({ records: z.array(NotificationWithDelivery), total: z.number().int() }).passthrough();
+export type PaginatedResults_for_NotificationWithDelivery = z.infer<typeof PaginatedResults_for_NotificationWithDelivery>;
+export const UnreadCount = z.object({ count: z.number().int() }).passthrough();
+export type UnreadCount = z.infer<typeof UnreadCount>;
+export const NotificationDelivery = z.object({ created_at: z.string().datetime({ offset: true }), delivered_at: z.string().datetime({ offset: true }), delivery_method: DeliveryMethod, id: z.string().uuid(), notification_id: z.string().uuid(), read_at: z.union([z.string(), z.null()]).optional(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid() }).passthrough();
+export type NotificationDelivery = z.infer<typeof NotificationDelivery>;
 export const CreateConversation = z.object({ description: z.string(), image_url: z.string(), is_invite_only: z.boolean(), is_public: z.boolean(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), tags: z.union([z.array(z.string()), z.null()]).optional(), title: z.string(), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type CreateConversation = z.infer<typeof CreateConversation>;
 export const PartialConversation = z.object({ description: z.union([z.string(), z.null()]), image_url: z.union([z.string(), z.null()]), is_complete: z.union([z.boolean(), z.null()]), is_invite_only: z.union([z.boolean(), z.null()]), is_public: z.union([z.boolean(), z.null()]), short_description: z.union([z.string(), z.null()]), slug: z.union([z.string(), z.null()]), tags: z.union([z.array(z.string()), z.null()]), title: z.union([z.string(), z.null()]), video_url: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialConversation = z.infer<typeof PartialConversation>;
+export const SendNotificationRequest = z.object({ content: z.string(), delivery_method: z.union([DeliveryMethod, z.null()]).optional(), notification_type: z.union([NotificationType, z.null()]).optional(), title: z.string() }).passthrough();
+export type SendNotificationRequest = z.infer<typeof SendNotificationRequest>;
 export const Workflow = z.object({ conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_active: z.boolean(), is_public: z.boolean(), name: z.string(), owner_id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
 export type Workflow = z.infer<typeof Workflow>;
 export const CreateWorkflow = z.object({ description: z.string(), is_active: z.boolean(), is_public: z.boolean(), name: z.string() }).passthrough();
 export type CreateWorkflow = z.infer<typeof CreateWorkflow>;
-export const WorkflowStats = z.object({ total_users: z.number().int(), users_completed_step: z.record(z.number().int()) }).passthrough();
+export const DailySignupStats = z.object({ day: z.string().datetime({ offset: true }), users: z.number().int() }).passthrough();
+export type DailySignupStats = z.infer<typeof DailySignupStats>;
+export const WorkflowStepStats = z.object({ completed: z.number().int(), id: z.string().uuid(), started: z.number().int() }).passthrough();
+export type WorkflowStepStats = z.infer<typeof WorkflowStepStats>;
+export const WorkflowStats = z.object({ signup_stats: z.array(DailySignupStats), step_stats: z.array(WorkflowStepStats), total_users: z.number().int() }).passthrough();
 export type WorkflowStats = z.infer<typeof WorkflowStats>;
 export const PartialWorkflow = z.object({ description: z.union([z.string(), z.null()]), is_active: z.union([z.boolean(), z.null()]), is_public: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialWorkflow = z.infer<typeof PartialWorkflow>;
@@ -46,11 +68,11 @@ export const LocalisedPage = z.object({ content: z.string(), type: z.literal("ma
 export type LocalisedPage = z.infer<typeof LocalisedPage>;
 export const Page = z.array(LocalisedPage);
 export type Page = z.infer<typeof Page>;
-export const ToolConfig = z.union([z.object({ admin_password: z.string(), admin_user: z.string(), poll_id: z.string(), server_url: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ admin_password: z.string(), admin_user: z.string(), project_id: z.string(), survey_id: z.string(), survey_url: z.string(), type: z.literal("heyform"), workspace_id: z.string() }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough()]);
+export const ToolConfig = z.union([z.object({ admin_password: z.string(), admin_user: z.string(), poll_id: z.string(), server_url: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ admin_password: z.string(), admin_user: z.string(), project_id: z.string(), survey_id: z.string(), survey_url: z.string(), type: z.literal("heyform"), workspace_id: z.string() }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ type: z.literal("elicitationbot") }).passthrough()]);
 export type ToolConfig = z.infer<typeof ToolConfig>;
 export const WorkflowStep = z.object({ activation_rule: ActivationRule, created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_offline: z.boolean(), name: z.string(), step_order: z.number().int(), tool_config: ToolConfig, updated_at: z.string().datetime({ offset: true }), workflow_id: z.string().uuid() }).passthrough();
 export type WorkflowStep = z.infer<typeof WorkflowStep>;
-export const ToolSetup = z.union([z.object({ topic: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ type: z.literal("heyform") }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough()]);
+export const ToolSetup = z.union([z.object({ topic: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ type: z.literal("heyform") }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ type: z.literal("elicitationbot") }).passthrough()]);
 export type ToolSetup = z.infer<typeof ToolSetup>;
 export const CreateWorkflowStep = z.object({ activation_rule: ActivationRule, description: z.string(), is_offline: z.boolean(), name: z.string(), step_order: z.number().int(), tool_setup: ToolSetup }).passthrough();
 export type CreateWorkflowStep = z.infer<typeof CreateWorkflowStep>;
@@ -86,7 +108,9 @@ export const LearnReport = z.null();
 export type LearnReport = z.infer<typeof LearnReport>;
 export const StoriesReport = z.null();
 export type StoriesReport = z.infer<typeof StoriesReport>;
-export const ReportConfig = z.union([z.object({ Polis: PolisReport }), z.object({ HeyForm: HeyFormReport }), z.object({ Learn: LearnReport }), z.object({ Stories: StoriesReport })]);
+export const ElicitationBotReport = z.null();
+export type ElicitationBotReport = z.infer<typeof ElicitationBotReport>;
+export const ReportConfig = z.union([z.object({ Polis: PolisReport }), z.object({ HeyForm: HeyFormReport }), z.object({ Learn: LearnReport }), z.object({ Stories: StoriesReport }), z.object({ ElicitationBot: ElicitationBotReport })]);
 export type ReportConfig = z.infer<typeof ReportConfig>;
 export const ReportSectionConfig = z.object({ ai_generated: z.boolean(), config: ReportConfig, verified: z.boolean(), workflow_step_id: z.string().uuid() }).passthrough();
 export type ReportSectionConfig = z.infer<typeof ReportSectionConfig>;
@@ -122,10 +146,21 @@ export const schemas = {
 	limit,
 	Conversation,
 	PaginatedResults_for_Conversation,
+	DeliveryMethod,
+	NotificationContextType,
+	NotificationType,
+	Notification,
+	NotificationWithDelivery,
+	PaginatedResults_for_NotificationWithDelivery,
+	UnreadCount,
+	NotificationDelivery,
 	CreateConversation,
 	PartialConversation,
+	SendNotificationRequest,
 	Workflow,
 	CreateWorkflow,
+	DailySignupStats,
+	WorkflowStepStats,
 	WorkflowStats,
 	PartialWorkflow,
 	ActivationRule,
@@ -151,6 +186,7 @@ export const schemas = {
 	HeyFormReport,
 	LearnReport,
 	StoriesReport,
+	ElicitationBotReport,
 	ReportConfig,
 	ReportSectionConfig,
 	ReportSectionConfigs,
@@ -430,6 +466,21 @@ const endpoints = makeApi([
 		response: z.array(DailyResponseStats),
 	},
 	{
+		method: "post",
+		path: "/conversation/:conversation_id/notifications",
+		alias: "SendNotificationToParticipants",
+		description: `Creates a notification and sends it to all users participating in workflows within the conversation. Only conversation owners can send notifications.`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: SendNotificationRequest
+			},
+		],
+		response: z.unknown(),
+	},
+	{
 		method: "get",
 		path: "/conversation/:conversation_id/report",
 		alias: "GetReportForConversation",
@@ -666,6 +717,70 @@ const endpoints = makeApi([
 	},
 	{
 		method: "get",
+		path: "/notifications",
+		alias: "getNotifications",
+		description: `Returns a paginated list of all notification deliveries for the authenticated user`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "limit",
+				type: "Query",
+				schema: limit
+			},
+			{
+				name: "offset",
+				type: "Query",
+				schema: limit
+			},
+		],
+		response: PaginatedResults_for_NotificationWithDelivery,
+	},
+	{
+		method: "put",
+		path: "/notifications/delivery/:delivery_id/read",
+		alias: "MarkNotificationAsRead",
+		description: `Marks a specific notification delivery as read for the current user`,
+		requestFormat: "json",
+		response: NotificationDelivery,
+	},
+	{
+		method: "put",
+		path: "/notifications/read-all",
+		alias: "MarkAllNotificationsAsRead",
+		description: `Marks all unread notification deliveries as read for the current user`,
+		requestFormat: "json",
+		response: z.unknown(),
+	},
+	{
+		method: "get",
+		path: "/notifications/unread",
+		alias: "getNotificationsunread",
+		description: `Returns a paginated list of unread notification deliveries for the authenticated user`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "limit",
+				type: "Query",
+				schema: limit
+			},
+			{
+				name: "offset",
+				type: "Query",
+				schema: limit
+			},
+		],
+		response: PaginatedResults_for_NotificationWithDelivery,
+	},
+	{
+		method: "get",
+		path: "/notifications/unread/count",
+		alias: "getNotificationsunreadcount",
+		description: `Returns the count of unread notifications for the authenticated user`,
+		requestFormat: "json",
+		response: z.object({ count: z.number().int() }).passthrough(),
+	},
+	{
+		method: "get",
 		path: "/tools/polis/admin_login",
 		alias: "PolisAdminLogin",
 		description: `Used to login the current user to the specified workflow id polis`,
@@ -747,5 +862,5 @@ const endpoints = makeApi([
 export const api = new Zodios(endpoints);
 
 export function createApiClient(baseUrl: string, options?: ZodiosOptions) {
-	return new Zodios(baseUrl, endpoints, options);
+    return new Zodios(baseUrl, endpoints, options);
 }

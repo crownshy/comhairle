@@ -15,8 +15,8 @@
 </script>
 
 <Select.Root type="single" onValueChange={(locale) => switchToLanguage(locale as Locale)}>
-	<Select.Trigger class="w-[180px]">
-		{labels[currentLanguage]}
+	<Select.Trigger class="text-nav-text ">
+		<span class="text-nav-text text-center">{labels[currentLanguage]}</span>
 	</Select.Trigger>
 	<Select.Content>
 		{#each locales as langTag}

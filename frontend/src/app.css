@@ -44,6 +44,110 @@ html,body{
   --font-sans: "Inter"; 
   --font-serif: "Inter";
 }
+
+.comhairle{
+
+  --background: hsla(0, 0%, 100%, 1);
+  --foreground: hsl(30 10% 3.9%);
+  --primary: hsl(88, 33%, 9%);
+  --secondary: hsl(102, 34%, 30%);
+  --radius: 6.25rem;
+  --secondary-foreground: white;
+  --muted-foreground: #272f1d;
+  --nav-background: hsla(78, 60%, 89%, 0.08);
+  --nav-text: hsla(79, 100%, 96%, 1);
+  --font-serif: inter;
+  --font-sans: inter;
+  --font-mono: inter;
+  --sidebar: hsl(88, 33%, 9%);
+  --sidebar-radius: 10px;
+  --sidebar-foreground: hsla(79, 100%, 96%, 1);
+  --admin-background: hsla(60, 67%, 98%, 1);
+  --mutted: hsla(100, 29%, 10%, 1);
+}
+
+.scot-gov{
+  --background: hsla(0, 0%, 100%, 1);
+  --foreground: hsl(30 10% 3.9%);
+  --primary: #0065bd;
+  --secondary: #333e48;
+  --radius: 6.25rem;
+  --secondary-foreground: white;
+  --muted-foreground: #272f1d;
+  --nav-background: hsla(78, 60%, 89%, 0.08);
+  --nav-text: hsla(79, 100%, 96%, 1);
+  --font-serif: inter;
+  --font-sans: inter;
+  --font-mono: inter;
+  --sidebar: #0065bd;
+  --sidebar-radius: 10px;
+  --sidebar-foreground: hsla(79, 100%, 96%, 1);
+  --admin-background: hsla(60, 67%, 98%, 1);
+  --mutted: hsla(100, 29%, 10%, 1);
+  /* === Core brand colours === */
+  --color-brand: #0065bd;
+  --color-brand-secondary: #333e48;
+
+  /* === Text === */
+  --color-text: #1a1a1a;
+  --color-text-secondary: #5e5e5e;
+
+  /* === Links === */
+  --color-link: #0065bd;
+  --color-link-hover: #00437e;
+  --color-link-current: #1a1a1a;
+  --color-link-current-bg: #f8f8f8;
+
+  /* === Focus === */
+  --color-focus: #1a1a1a;
+  --color-focus-bg: #fdd522;
+
+  /* === Messaging === */
+  --color-positive: #1a7032;
+  --color-negative: #d32205;
+
+  /* === Borders === */
+  --color-border: #b3b3b3;
+  --color-border-strong: #1a1a1a;
+  --color-border-faint: #ebebeb;
+  --color-border-highlight: #0065bd;
+
+  /* === Backgrounds === */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f8f8f8;
+  --color-bg-tertiary: #ebebeb;
+
+  /* === Extended palette === */
+  --color-green: #5eb135;
+  --color-dark-green: #1a7032;
+  --color-teal: #28a197;
+  --color-dark-teal: #1c5d5d;
+  --color-blue-light: #d9effc;
+  --color-blue: #0065bd;
+  --color-blue-dark: #00437e;
+  --color-blue-darker: #002d54;
+  --color-purple: #741e6d;
+  --color-pink: #e5007e;
+  --color-white: #ffffff;
+  --color-grey-lighter: #f8f8f8;
+  --color-grey-light: #ebebeb;
+  --color-grey-medium: #b3b3b3;
+  --color-grey: #5e5e5e;
+  --color-grey-dark: #1a1a1a;
+  --color-black: #000000;
+  --color-red: #d32205;
+  --color-brown: #592c20;
+  --color-orange: #cb4e0b;
+  --color-yellow: #fdd522;
+
+  /* === Semantic mappings (optional shortcuts) === */
+  --color-primary: var(--color-brand);
+  --color-secondary: var(--color-brand-secondary);
+  --color-success: var(--color-positive);
+  --color-error: var(--color-negative);
+  --color-surface: var(--color-bg-primary);
+  --color-muted: var(--color-text-secondary);
+}
  
 .dark {
   --background: hsl(240 10% 3.9%);

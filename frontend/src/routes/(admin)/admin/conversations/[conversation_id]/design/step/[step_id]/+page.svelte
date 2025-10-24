@@ -3,6 +3,7 @@
 	import PolisManage from '$lib/tools/polis/PolisManage.svelte';
 	import CommonStepConfig from '$lib/components/CommonStepConfig/CommonStepConfig.svelte';
 	import HeyFormManage from '$lib/tools/heyform/HeyFormManage.svelte';
+	import EliciationBotManage from '$lib/tools/elicitation_bot/ElicitationBotManage.svelte';
 	import LivedExperienceManage from '$lib/tools/lived_experince/LivedExperinceManage.svelte';
 	import type { WorkflowStep } from '$lib/api/api.js';
 	let { data } = $props();
@@ -11,6 +12,7 @@
 	let step_id = $derived(data.step_id);
 	let workflow_steps = $derived(data.workflow_steps);
 	let step = $derived(workflow_steps.find((s: WorkflowStep) => s.id === step_id));
+	console.log('step config ', step);
 </script>
 
 <CommonStepConfig conversation_id={conversation.id} {step} />
@@ -49,4 +51,8 @@
 
 {#if step.tool_config.type === 'stories'}
 	<LivedExperienceManage />
+{/if}
+
+{#if step.tool_config.type === 'elicitationbot'}
+	<EliciationBotManage />
 {/if}
