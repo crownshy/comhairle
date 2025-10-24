@@ -70,13 +70,13 @@ export const Page = z.array(LocalisedPage);
 export type Page = z.infer<typeof Page>;
 export const ToolConfig = z.union([z.object({ admin_password: z.string(), admin_user: z.string(), poll_id: z.string(), server_url: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ admin_password: z.string(), admin_user: z.string(), project_id: z.string(), survey_id: z.string(), survey_url: z.string(), type: z.literal("heyform"), workspace_id: z.string() }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ type: z.literal("elicitationbot") }).passthrough()]);
 export type ToolConfig = z.infer<typeof ToolConfig>;
-export const WorkflowStep = z.object({ activation_rule: ActivationRule, created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_offline: z.boolean(), name: z.string(), step_order: z.number().int(), tool_config: ToolConfig, updated_at: z.string().datetime({ offset: true }), workflow_id: z.string().uuid() }).passthrough();
+export const WorkflowStep = z.object({ activation_rule: ActivationRule, created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_offline: z.boolean(), name: z.string(), required: z.boolean(), step_order: z.number().int(), tool_config: ToolConfig, updated_at: z.string().datetime({ offset: true }), workflow_id: z.string().uuid() }).passthrough();
 export type WorkflowStep = z.infer<typeof WorkflowStep>;
 export const ToolSetup = z.union([z.object({ topic: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ type: z.literal("heyform") }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ type: z.literal("elicitationbot") }).passthrough()]);
 export type ToolSetup = z.infer<typeof ToolSetup>;
-export const CreateWorkflowStep = z.object({ activation_rule: ActivationRule, description: z.string(), is_offline: z.boolean(), name: z.string(), step_order: z.number().int(), tool_setup: ToolSetup }).passthrough();
+export const CreateWorkflowStep = z.object({ activation_rule: ActivationRule, description: z.string(), is_offline: z.boolean(), name: z.string(), required: z.boolean(), step_order: z.number().int(), tool_setup: ToolSetup }).passthrough();
 export type CreateWorkflowStep = z.infer<typeof CreateWorkflowStep>;
-export const PartialWorkflowStep = z.object({ activation_rule: z.union([ActivationRule, z.null()]), description: z.union([z.string(), z.null()]), is_offline: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]), step_order: z.union([z.number(), z.null()]), tool_config: z.union([ToolConfig, z.null()]) }).partial().passthrough();
+export const PartialWorkflowStep = z.object({ activation_rule: z.union([ActivationRule, z.null()]), description: z.union([z.string(), z.null()]), is_offline: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]), required: z.union([z.boolean(), z.null()]), step_order: z.union([z.number(), z.null()]), tool_config: z.union([ToolConfig, z.null()]) }).partial().passthrough();
 export type PartialWorkflowStep = z.infer<typeof PartialWorkflowStep>;
 export const UserParticipation = z.object({ created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid(), workflow_id: z.string().uuid() }).passthrough();
 export type UserParticipation = z.infer<typeof UserParticipation>;
@@ -130,6 +130,14 @@ export const CreateFeedbackDTO = z.object({ content: z.string() }).passthrough()
 export type CreateFeedbackDTO = z.infer<typeof CreateFeedbackDTO>;
 export const PartialFeedback = z.object({ content: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialFeedback = z.infer<typeof PartialFeedback>;
+export const WebSocketStats = z.object({ connected_users: z.array(z.string().uuid()), total_connections: z.number().int().gte(0) }).passthrough();
+export type WebSocketStats = z.infer<typeof WebSocketStats>;
+export const BroadcastMessage = z.object({ authenticated_only: z.union([z.boolean(), z.null()]).optional(), message: z.string() }).passthrough();
+export type BroadcastMessage = z.infer<typeof BroadcastMessage>;
+export const BroadcastResponse = z.object({ message: z.string(), sent_to: z.number().int().gte(0) }).passthrough();
+export type BroadcastResponse = z.infer<typeof BroadcastResponse>;
+export const SendToUserMessage = z.object({ message: z.string(), user_id: z.string().uuid() }).passthrough();
+export type SendToUserMessage = z.infer<typeof SendToUserMessage>;
 
 
 export const schemas = {
@@ -197,6 +205,10 @@ export const schemas = {
 	CreateImpactDTO,
 	CreateFeedbackDTO,
 	PartialFeedback,
+	WebSocketStats,
+	BroadcastMessage,
+	BroadcastResponse,
+	SendToUserMessage,
 };
 
 const endpoints = makeApi([
@@ -856,6 +868,55 @@ const endpoints = makeApi([
 		description: `Gets a list of roles the current user has`,
 		requestFormat: "json",
 		response: z.array(UserRoles),
+	},
+	{
+		method: "post",
+		path: "/ws/broadcast",
+		alias: "BroadcastMessage",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: BroadcastMessage
+			},
+		],
+		response: BroadcastResponse,
+	},
+	{
+		method: "post",
+		path: "/ws/broadcast/:workflow_id",
+		alias: "BroadcastMessageToWorkflowParticipants",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: BroadcastMessage
+			},
+		],
+		response: BroadcastResponse,
+	},
+	{
+		method: "post",
+		path: "/ws/send",
+		alias: "SendToUser",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: SendToUserMessage
+			},
+		],
+		response: BroadcastResponse,
+	},
+	{
+		method: "get",
+		path: "/ws/stats",
+		alias: "GetWebSocketStats",
+		requestFormat: "json",
+		response: WebSocketStats,
 	},
 ]);
 
