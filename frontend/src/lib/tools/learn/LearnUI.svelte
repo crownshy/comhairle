@@ -30,14 +30,15 @@
 	function nextPage() {
 		currentPageNo += 1;
 		tick().then(() => {
-			articleElement?.scrollIntoView({ behavior: 'smooth' });
+			window.scrollTo(0, 0);
+			// articleElement?.scrollIntoView({ behavior: 'smooth' });
 		});
 	}
 </script>
 
 <div class="mx-auto flex grow flex-col">
 	{#if content}
-		<article class="prose grow overflow-y-auto" bind:this={articleElement}>
+		<article class="prose mx-auto w-full grow overflow-y-auto" bind:this={articleElement}>
 			<Markdown {carta} value={content} />
 		</article>
 	{:else}

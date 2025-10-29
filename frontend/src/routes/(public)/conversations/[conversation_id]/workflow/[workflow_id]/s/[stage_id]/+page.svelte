@@ -79,7 +79,7 @@
 			{/each}
 		</div>
 
-		<div class="flex w-full grow flex-col gap-y-10 md:grid md:grid-cols-1 md:gap-x-10">
+		<div class="flex w-full grow flex-col gap-y-5 md:grid md:grid-cols-1 md:gap-x-10">
 			<div class="mt-10 flex flex-col items-center gap-y-5">
 				<h1 class="text-2xl">{conversation.title}</h1>
 				<h2
@@ -87,11 +87,11 @@
 				>
 					{step.name}
 				</h2>
-			</div>
-			<div class="my-2 flex grow flex-col md:row-start-2">
 				<div class="prose mx-auto">
 					<Markdown {carta} value={step.description} />
 				</div>
+			</div>
+			<div class=" flex grow flex-col md:row-start-2">
 				{#if !step.required}
 					<Button onclick={stepComplete} class="mx-auto" variant="secondary">Skip this step</Button>
 				{/if}
