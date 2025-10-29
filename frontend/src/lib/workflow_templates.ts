@@ -38,7 +38,7 @@ export const basic_survey_config = {
 	"type": "heyform",
 }
 
-export const basic_elicitation_bot_config={
+export const basic_elicitation_bot_config = {
 	"type": "elicitationbot"
 }
 
@@ -55,7 +55,8 @@ export const workflow_templates = {
 			"is_offline": false,
 			"activation_rule": "manual",
 			"step_order": 1,
-			"tool_setup": basic_learn_config
+			"tool_setup": basic_learn_config,
+			"required": true
 		},
 		{
 			"name": "Tell us what you think",
@@ -63,7 +64,8 @@ export const workflow_templates = {
 			"is_offline": false,
 			"activation_rule": "manual",
 			"step_order": 2,
-			tool_setup: basic_polis_config
+			tool_setup: basic_polis_config,
+			"required": true
 		}
 
 	],
@@ -74,7 +76,8 @@ export const workflow_templates = {
 			"is_offline": false,
 			"activation_rule": "manual",
 			"step_order": 1,
-			"tool_setup": basic_learn_config
+			"tool_setup": basic_learn_config,
+			"required": true
 		},
 
 		{
@@ -83,7 +86,8 @@ export const workflow_templates = {
 			"is_offline": false,
 			"activation_rule": "manual",
 			"step_order": 2,
-			tool_setup: basic_survey_config
+			tool_setup: basic_survey_config,
+			"required": true
 		}
 	],
 	"learn_survey_polis": [
@@ -94,7 +98,8 @@ export const workflow_templates = {
 			"is_offline": false,
 			"activation_rule": "manual",
 			"step_order": 1,
-			"tool_setup": basic_learn_config
+			"tool_setup": basic_learn_config,
+			"required": true
 		},
 
 		{
@@ -103,7 +108,8 @@ export const workflow_templates = {
 			"is_offline": false,
 			"activation_rule": "manual",
 			"step_order": 2,
-			tool_setup: basic_survey_config
+			tool_setup: basic_survey_config,
+			"required": true
 		},
 
 		{
@@ -112,7 +118,8 @@ export const workflow_templates = {
 			"is_offline": false,
 			"activation_rule": "manual",
 			"step_order": 3,
-			tool_setup: basic_polis_config
+			tool_setup: basic_polis_config,
+			"required": true
 		}
 
 	],

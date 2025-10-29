@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::ComhairleError;
 
+use super::ToolConfigSanitize;
+
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
 #[serde(rename_all = "lowercase", tag = "type", content = "content")]
 pub enum PageContent {
@@ -23,6 +25,12 @@ pub struct Page(pub Vec<LocalisedPage>);
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
 pub struct LearnToolConfig {
     pub pages: Vec<Page>,
+}
+
+impl ToolConfigSanitize for LearnToolConfig {
+    fn sanatize(&self) -> Self {
+        self.clone()
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]

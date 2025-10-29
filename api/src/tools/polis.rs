@@ -19,7 +19,7 @@ use uuid::Uuid;
 
 use crate::{error::ComhairleError, models, ComhairleState};
 
-use super::ToolConfig;
+use super::{ToolConfig, ToolConfigSanitize};
 
 pub const POLIS_BASE_URL: &str = "https://polis.comhairle.scot";
 
@@ -30,6 +30,17 @@ pub struct PolisToolConfig {
 
     pub admin_user: String,
     pub admin_password: String,
+}
+
+impl ToolConfigSanitize for PolisToolConfig {
+    fn sanatize(&self) -> Self {
+        Self {
+            admin_user: "".into(),
+            admin_password: "".into(),
+            server_url: self.server_url.clone(),
+            poll_id: self.poll_id.clone(),
+        }
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]

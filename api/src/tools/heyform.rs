@@ -9,6 +9,8 @@ use thiserror::Error;
 
 use crate::error::ComhairleError;
 
+use super::ToolConfigSanitize;
+
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
 pub struct HeyFormToolConfig {
     pub survey_id: String,
@@ -19,6 +21,18 @@ pub struct HeyFormToolConfig {
     pub project_id: String,
 }
 
+impl ToolConfigSanitize for HeyFormToolConfig {
+    fn sanatize(&self) -> Self {
+        Self {
+            survey_id: self.survey_id.clone(),
+            survey_url: self.survey_url.clone(),
+            admin_user: "".into(),
+            admin_password: "".into(),
+            workspace_id: self.workspace_id.clone(),
+            project_id: self.project_id.clone(),
+        }
+    }
+}
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
 pub struct HeyFormToolSetup;
 

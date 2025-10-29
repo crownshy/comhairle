@@ -1,9 +1,15 @@
 <script lang="ts">
 	import ConversationSummary from '$lib/components/ConversationSummary.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { loginRedirect, signupRedirect, signupAnnonRedirect } from '$lib/urls.js';
+	import {
+		loginRedirect,
+		signupRedirect,
+		signupAnnonRedirect,
+		conversation_url
+	} from '$lib/urls.js';
 	import { page } from '$app/stores';
 	import { apiClient } from '$lib/api/client.js';
+	import { goto } from '$app/navigation';
 
 	let url = $page.url;
 	let { data } = $props();
@@ -25,6 +31,7 @@
 		await apiClient.AcceptInvite(undefined, {
 			params: { conversation_id: conversation!.id, invite_id: invite!.id }
 		});
+		goto(conversation_url(conversation.id));
 	}
 
 	async function rejectInvite() {
@@ -42,7 +49,7 @@
 			</h1>
 			<ConversationSummary {conversation}>
 				{#if !user && invite.login_behaviour === 'manual'}
-					<p>To join this conversation please either</p>
+					<p class="mb-2">To join this conversation please either</p>
 					<Button onclick={login}>Login</Button>
 					<Button onclick={create_account}>Create an account</Button>
 					<Button onclick={take_part_annon}>Take part anonymously</Button>
@@ -62,8 +69,8 @@
 {/if}
 
 {#if error}
-	<div class="flex h-full flex-col justify-center align-middle">
-		<div class="text-center">
+	<div class="flex h-full flex-col items-center align-middle">
+		<div class="my-auto text-center">
 			{#if error == 'Invite does not match logged in user'}
 				<h1>You are not the intended user for this invite</h1>
 				<p>If you think you should be, check if you are logged in with the correct account</p>

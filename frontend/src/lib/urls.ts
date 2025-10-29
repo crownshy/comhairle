@@ -43,9 +43,10 @@ export function signupRedirect(backTo: string, message?: string) {
 // Redirect to the signup annon page with a link back to the current 
 // context.
 export function signupAnnonRedirect(backTo: string, message?: string) {
+	console.log("Backto ", backTo)
 	if (message) {
 		notifications.addFlash({ message, priority: "INFO" });
 	}
-	goto(`/auth/anomyous-signup?backTo=${backTo}`)
+	goto(`/auth/anonymous-signup?backTo=${backTo}`)
 }
 

@@ -11,6 +11,7 @@ use axum::{
 use tracing::info;
 use uuid::Uuid;
 
+use crate::tools::ToolConfigSanitize;
 use crate::{
     error::ComhairleError,
     models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep, WorkflowStep},
@@ -18,7 +19,7 @@ use crate::{
 };
 
 use super::auth::{RequiredAdminUser, RequiredUser};
-use crate::models::user_participation;
+use crate::models::{conversation, user_participation};
 
 /// Create workflow handler
 async fn create_workflow_step(
@@ -47,27 +48,45 @@ async fn update_workflow_step(
 async fn list_workflows_step(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Path((_, workflow_id)): Path<(Uuid, Uuid)>,
+    Path((conversation_id, workflow_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<Vec<WorkflowStep>>), ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    let conversation_owner = user.id == conversation.owner_id;
+
     // Check to see if the user is a participant on this conversation
     user_participation::get(&state.db, &user.id, &workflow_id)
         .await
         .map_err(|_| ComhairleError::UserIsNotParticipatingInTheConversation)?;
 
-    let workflows = workflow_step::list(&state.db, &workflow_id).await?;
-    Ok((StatusCode::OK, Json(workflows)))
+    let mut workflow_steps = workflow_step::list(&state.db, &workflow_id).await?;
+
+    if !conversation_owner {
+        for workflow_step in workflow_steps.iter_mut() {
+            workflow_step.tool_config = workflow_step.tool_config.sanatize()
+        }
+    }
+
+    Ok((StatusCode::OK, Json(workflow_steps)))
 }
 
 /// Get a specific workflow
 async fn get_workflow_step(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(_user): RequiredUser,
-    Path((_, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
+    RequiredUser(user): RequiredUser,
+    Path((conversation_id, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
-    info!("Attempting to get workflow step  {workflow_step_id:#?}");
-    let workflow = workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
 
-    Ok((StatusCode::OK, Json(workflow)))
+    let conversation_owner = user.id == conversation.owner_id;
+
+    info!("Attempting to get workflow step  {workflow_step_id:#?}");
+    let mut workflow_step = workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
+
+    if !conversation_owner {
+        workflow_step.tool_config = workflow_step.tool_config.sanatize()
+    }
+
+    Ok((StatusCode::OK, Json(workflow_step)))
 }
 
 /// Delete a specific workflow

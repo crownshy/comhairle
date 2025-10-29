@@ -16,6 +16,7 @@
 	import * as Table from '$lib/components/ui/table/index.js';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import { Share2 } from 'lucide-svelte';
+	import OpenInviteStatsBarChart from '$lib/components/OpenInviteStatsBarChart.svelte';
 	let sendEmailDiaglogOpen = $state(false);
 
 	let url = $page.url;
@@ -134,7 +135,7 @@
 								: 'Never'}
 						</Table.Cell>
 						<Table.Cell>
-							<BarChart />
+							<OpenInviteStatsBarChart conversation_id={conversation.id} invite_id={invite.id} />
 						</Table.Cell>
 
 						<Table.Cell>

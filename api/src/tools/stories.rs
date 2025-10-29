@@ -15,6 +15,8 @@ use uuid::Uuid;
 
 use crate::{error::ComhairleError, ComhairleState};
 
+use super::ToolConfigSanitize;
+
 #[derive(Debug, Default, JsonSchema, Serialize, Deserialize, Clone)]
 pub struct StoriesToolConfig {
     pub max_time: i32,
@@ -35,6 +37,12 @@ pub async fn setup(config: &StoriesToolSetup) -> Result<StoriesToolConfig, Comha
         max_time: config.max_time,
         to_see: config.to_see,
     })
+}
+
+impl ToolConfigSanitize for StoriesToolConfig {
+    fn sanatize(&self) -> Self {
+        self.clone()
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]

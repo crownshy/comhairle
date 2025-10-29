@@ -3,8 +3,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::ComhairleError;
 
+use super::ToolConfigSanitize;
+
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
 pub struct ElicitationBotToolConfig;
+
+impl ToolConfigSanitize for ElicitationBotToolConfig {
+    fn sanatize(&self) -> Self {
+        self.clone()
+    }
+}
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
 pub struct ElicitationBotToolSetup;

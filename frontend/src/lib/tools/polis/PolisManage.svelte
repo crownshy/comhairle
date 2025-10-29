@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { apiClient } from '$lib/api/client';
-
 	let {
 		polis_id,
 		polis_url,
@@ -14,8 +12,6 @@
 		admin_user: string;
 		admin_password: string;
 	} = $props();
-
-	$inspect(workflow_step_id);
 
 	let url = $derived(`${polis_url}/m/${polis_id}`);
 	let iframe = $state();
