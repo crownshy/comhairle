@@ -4,7 +4,7 @@ export const PAGE_SIZE = 6;
 
 export const getSort = (url: URL): SortBy => {
 	const sortBy = url.searchParams.get('sort');
-	if (sortBy === null) return 'title+asc';
+	if (sortBy === null) return 'created_at+desc';
 	return sortBy as SortBy;
 };
 export const setSort = (_url: URL, v: string) => {
