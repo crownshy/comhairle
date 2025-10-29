@@ -34,6 +34,7 @@ pub struct WorkflowStep {
     pub activation_rule: ActivationRule,
     pub description: String,
     pub is_offline: bool,
+    pub required: bool,
     pub tool_config: ToolConfig,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
@@ -41,7 +42,7 @@ pub struct WorkflowStep {
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [WorkflowStepIden; 10] = [
+const DEFAULT_COLUMNS: [WorkflowStepIden; 11] = [
     WorkflowStepIden::Id,
     WorkflowStepIden::Name,
     WorkflowStepIden::WorkflowId,
@@ -50,6 +51,7 @@ const DEFAULT_COLUMNS: [WorkflowStepIden; 10] = [
     WorkflowStepIden::Description,
     WorkflowStepIden::IsOffline,
     WorkflowStepIden::ToolConfig,
+    WorkflowStepIden::Required,
     WorkflowStepIden::CreatedAt,
     WorkflowStepIden::UpdatedAt,
 ];
@@ -151,6 +153,9 @@ impl PartialWorkflowStep {
         if let Some(value) = self.is_offline {
             values.push((WorkflowStepIden::IsOffline, value.into()))
         };
+        if let Some(value) = self.required {
+            values.push((WorkflowStepIden::Required, value.into()))
+        };
         values
     }
 }
@@ -163,6 +168,7 @@ pub struct CreateWorkflowStep {
     pub description: String,
     pub is_offline: bool,
     pub tool_setup: ToolSetup,
+    pub required: bool,
 }
 
 impl CreateWorkflowStep {
@@ -173,6 +179,7 @@ impl CreateWorkflowStep {
             WorkflowStepIden::ActivationRule,
             WorkflowStepIden::Description,
             WorkflowStepIden::IsOffline,
+            WorkflowStepIden::Required,
         ]
     }
 
@@ -185,6 +192,7 @@ impl CreateWorkflowStep {
                 .into(),
             self.description.to_owned().into(),
             self.is_offline.into(),
+            self.required.into(),
         ]
     }
 }

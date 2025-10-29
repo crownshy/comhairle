@@ -40,12 +40,11 @@ pub struct Invite {
 impl Invite {
     #[instrument(err(Debug))]
     pub fn is_still_valid(&self) -> Result<(), ComhairleError> {
-        println!("CHECKING INVITE {self:#?}");
-        if self.status != InviteStatus::Pending && self.status != InviteStatus::Open {
+        if !(self.status == InviteStatus::Pending || self.status == InviteStatus::Open) {
             return Err(ComhairleError::InviteExpired);
         }
+
         if let Some(expiry) = self.expires_at {
-            println!("checking exipry ");
             if Utc::now() >= expiry {
                 Err(ComhairleError::InviteExpired)
             } else {
@@ -58,10 +57,16 @@ impl Invite {
 
     #[instrument(err(Debug))]
     pub async fn accept(&self, db: &PgPool, user: &User) -> Result<Invite, ComhairleError> {
+        let new_status = if self.status == InviteStatus::Open {
+            InviteStatus::Open
+        } else {
+            InviteStatus::Accepted
+        };
+
         let (sql, values) = Query::update()
             .table(InviteIden::Table)
             .values([
-                (InviteIden::Status, InviteStatus::Accepted.into()),
+                (InviteIden::Status, new_status.into()),
                 (InviteIden::AcceptCount, (self.accept_count + 1).into()),
             ])
             .and_where(Expr::col(InviteIden::Id).eq(self.id.to_owned()))

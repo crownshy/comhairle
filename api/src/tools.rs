@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use aide::axum::ApiRouter;
 use comhairle_macros::DbJsonBEnum;
+use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::{encode::IsNull, prelude::Type, Decode, Encode, Postgres};
@@ -37,8 +38,14 @@ pub enum ToolSetup {
     ElicitationBot(ElicitationBotToolSetup),
 }
 
+#[enum_dispatch]
+pub trait ToolConfigSanitize {
+    fn sanatize(&self) -> Self;
+}
+
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, DbJsonBEnum)]
 #[serde(rename_all = "lowercase", tag = "type")]
+#[enum_dispatch(ToolConfigSanitize)]
 pub enum ToolConfig {
     Polis(PolisToolConfig),
     Learn(LearnToolConfig),

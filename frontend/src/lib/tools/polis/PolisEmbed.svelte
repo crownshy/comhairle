@@ -12,7 +12,7 @@
 	$effect(() => {
 		setTimeout(() => {
 			showDialog = true;
-		}, 120000);
+		}, 300000);
 	});
 	let showDialog = $state(false);
 
@@ -23,7 +23,7 @@
 <iframe
 	src={url}
 	title="Polis poll"
-	class="min-h-[900px] border-none"
+	class="min-h-[500px] border-none"
 	style="width:100%;height:100%"
 ></iframe>
 

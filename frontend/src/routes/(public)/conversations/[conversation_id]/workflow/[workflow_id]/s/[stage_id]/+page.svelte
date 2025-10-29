@@ -13,13 +13,22 @@
 	import { report_url, workflow_step_url } from '$lib/urls';
 	import { apiClient } from '$lib/api/client';
 	import { addDays, parseISO } from 'date-fns';
+	import { video } from 'carta-plugin-video';
+	import { Markdown, Carta } from 'carta-md';
+	import DOMPurify from 'isomorphic-dompurify';
 
 	import { ws } from '$lib/api/websockets.svelte';
+	import { Button } from '$lib/components/ui/button';
 
 	let { data }: PageProps = $props();
 	let { conversation, step, workflow_steps, user } = data;
 	let startDate = $derived(parseISO(conversation.created_at));
 	let endDate = $derived(addDays(startDate, 30));
+
+	let carta = new Carta({
+		sanitizer: DOMPurify.sanitize,
+		extensions: [video()]
+	});
 
 	async function stepComplete() {
 		try {
@@ -58,7 +67,9 @@
 		<div class="flex flex-row gap-2">
 			{#each workflow_steps as workflow_step}
 				<div
-					class="bg-primary/70 flex flex-col items-center gap-3 rounded-4xl px-10 py-3 text-sm text-[#ffffff]"
+					class="bg-brand flex flex-col items-center gap-3 rounded-4xl px-10 py-3 text-sm text-[#ffffff]"
+					class:bg-brand={workflow_step.id === step.id}
+					class:bg-sky-500={workflow_step.id !== step.id}
 				>
 					<div class="border-secondary h-[24px] w-[24px] rounded-[100%] border-8 bg-white"></div>
 					<p class="text-center">
@@ -68,7 +79,7 @@
 			{/each}
 		</div>
 
-		<div class="flex w-full grow flex-col gap-y-10 md:grid md:grid-cols-1 md:gap-x-10">
+		<div class="flex w-full grow flex-col gap-y-5 md:grid md:grid-cols-1 md:gap-x-10">
 			<div class="mt-10 flex flex-col items-center gap-y-5">
 				<h1 class="text-2xl">{conversation.title}</h1>
 				<h2
@@ -76,12 +87,15 @@
 				>
 					{step.name}
 				</h2>
+				<div class="prose mx-auto">
+					<Markdown {carta} value={step.description} />
+				</div>
 			</div>
-			<div class="my-2 flex grow flex-col md:row-start-2">
-				<p class="mb-8 text-center">
-					{step.description}
-				</p>
-				<div class="grow">
+			<div class=" flex grow flex-col md:row-start-2">
+				{#if !step.required}
+					<Button onclick={stepComplete} class="mx-auto" variant="secondary">Skip this step</Button>
+				{/if}
+				<div class="my-10 w-full grow">
 					{#if step.tool_config.type === Learn.TOOL_NAME}
 						<Learn.UserUI onDone={stepComplete} pages={step.tool_config.pages} user_id={user.id} />
 					{/if}

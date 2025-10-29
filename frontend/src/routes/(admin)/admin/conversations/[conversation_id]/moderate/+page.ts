@@ -2,7 +2,7 @@ import type { PageLoad } from "./$types"
 
 
 export const load: PageLoad = async ({ params, parent }) => {
-	let { api, conversation } = await parent();
+	let { api, conversation, workflow_steps } = await parent();
 
-	return { invites, conversation };
+	return { conversation, workflow_steps };
 }

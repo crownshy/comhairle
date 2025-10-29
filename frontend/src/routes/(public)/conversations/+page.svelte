@@ -53,7 +53,7 @@
 		</div>
 	</header>
 
-	<div class=" grid w-full grow auto-rows-auto grid-cols-1 items-center gap-4 md:px-0 md:px-2">
+	<div class="flex w-full grow flex-col items-center gap-10 md:px-2">
 		{#each data.records as conversation}
 			<a href={`/conversations/${conversation.slug || conversation.id}`}>
 				<ConversationCard {conversation} />
@@ -61,7 +61,7 @@
 		{/each}
 	</div>
 
-	<div class="flex w-full justify-center md:mt-20">
+	<div class="my-10 flex w-full justify-center md:mt-20">
 		<Pager pageSize={PAGE_SIZE} count={data.total} url={pageUrl} />
 	</div>
 </div>
