@@ -12,7 +12,7 @@
 	$effect(() => {
 		setTimeout(() => {
 			showDialog = true;
-		}, 120000);
+		}, 300000);
 	});
 	let showDialog = $state(false);
 
