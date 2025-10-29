@@ -225,6 +225,10 @@ html,body{
 
   --color-nav-background:var(--nav-background);
   --color-nav-text: var(--nav-text);
+
+  --color-brand: var(--color-brand);
+  --color-brand-mutted: var(--color-brand)/70;
+  --color-brand-secondary: var(--color-brand-secondary);
 }
  
 @layer base {
