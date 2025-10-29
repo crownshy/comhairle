@@ -2,7 +2,8 @@
 	import type { PageData } from './$types.js';
 	import SignupForm from './signup-form.svelte';
 	import { AuthPage } from '$lib/profile';
-	let { backTo }: PageData = $props();
+	let { data }: PageData = $props();
+	let backTo = $derived(data.backTo);
 </script>
 
 <AuthPage>

@@ -10,7 +10,7 @@
 	import { apiClient } from '$lib/api/client';
 	import { goto, invalidateAll } from '$app/navigation';
 
-	let { backTo }: { backTo?: string } = $props();
+	let { backTo } = $props();
 	let responseMessage = $state(null);
 
 	const form = superForm(defaults(zod(signupFormSchema)), {

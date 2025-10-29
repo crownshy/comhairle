@@ -13,11 +13,14 @@
 	import { apiClient } from '$lib/api/client';
 	import { page } from '$app/state';
 	import ConversationSummary from '$lib/components/ConversationSummary.svelte';
+	import { loginRedirect } from '$lib/urls.js';
 
 	let firstWorkflowPath = `/conversations/${conversation.id}/workflow/${workflows[0].id}/s/1`;
 
+	let url = $derived(page.url);
+
 	async function redirectToLogin() {
-		goto(`/auth/login?backTo=${page.url.pathname}`);
+		loginRedirect(url.toString(), 'Login to join the conversation');
 	}
 
 	async function registerUser() {
