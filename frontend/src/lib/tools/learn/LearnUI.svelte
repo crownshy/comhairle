@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import Markdown from 'svelte-exmarkdown';
 	import * as m from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime.js';
 	import type { Page } from '$lib/api/api';
-	import { marked } from 'marked';
+	import DOMPurify from 'isomorphic-dompurify';
 	import { tick } from 'svelte';
+	import { video } from 'carta-plugin-video';
+	import { Markdown, Carta } from 'carta-md';
 
 	let {
 		pages,
@@ -20,8 +21,11 @@
 	let currentPageTranslation = $derived(currentPage.filter((p) => p.lang === getLocale()));
 	let content = $derived(currentPageTranslation[0]?.content);
 
-	let markdown = $derived(marked.parse(content));
-	let articleElement: HTMLElement;
+	let articleElement: HTMLElement | undefined = $state();
+	let carta = new Carta({
+		sanitizer: DOMPurify.sanitize,
+		extensions: [video()]
+	});
 
 	function nextPage() {
 		currentPageNo += 1;
@@ -31,10 +35,10 @@
 	}
 </script>
 
-<div class="flex grow flex-col">
+<div class="mx-auto flex grow flex-col">
 	{#if content}
 		<article class="prose grow overflow-y-auto" bind:this={articleElement}>
-			{@html markdown}
+			<Markdown {carta} value={content} />
 		</article>
 	{:else}
 		<h1>Sorry this page is currently not avaliable in this language</h1>

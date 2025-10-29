@@ -13,6 +13,9 @@
 	import { report_url, workflow_step_url } from '$lib/urls';
 	import { apiClient } from '$lib/api/client';
 	import { addDays, parseISO } from 'date-fns';
+	import { video } from 'carta-plugin-video';
+	import { Markdown, Carta } from 'carta-md';
+	import DOMPurify from 'isomorphic-dompurify';
 
 	import { ws } from '$lib/api/websockets.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -21,6 +24,11 @@
 	let { conversation, step, workflow_steps, user } = data;
 	let startDate = $derived(parseISO(conversation.created_at));
 	let endDate = $derived(addDays(startDate, 30));
+
+	let carta = new Carta({
+		sanitizer: DOMPurify.sanitize,
+		extensions: [video()]
+	});
 
 	async function stepComplete() {
 		try {
@@ -59,7 +67,9 @@
 		<div class="flex flex-row gap-2">
 			{#each workflow_steps as workflow_step}
 				<div
-					class="bg-primary/70 flex flex-col items-center gap-3 rounded-4xl px-10 py-3 text-sm text-[#ffffff]"
+					class="bg-brand flex flex-col items-center gap-3 rounded-4xl px-10 py-3 text-sm text-[#ffffff]"
+					class:bg-brand={workflow_step.id === step.id}
+					class:bg-sky-500={workflow_step.id !== step.id}
 				>
 					<div class="border-secondary h-[24px] w-[24px] rounded-[100%] border-8 bg-white"></div>
 					<p class="text-center">
@@ -79,13 +89,13 @@
 				</h2>
 			</div>
 			<div class="my-2 flex grow flex-col md:row-start-2">
-				<p class="mb-2 text-center">
-					{step.description}
-				</p>
+				<div class="prose mx-auto">
+					<Markdown {carta} value={step.description} />
+				</div>
 				{#if !step.required}
 					<Button onclick={stepComplete} class="mx-auto" variant="secondary">Skip this step</Button>
 				{/if}
-				<div class="my-10 grow">
+				<div class="my-10 w-full grow">
 					{#if step.tool_config.type === Learn.TOOL_NAME}
 						<Learn.UserUI onDone={stepComplete} pages={step.tool_config.pages} user_id={user.id} />
 					{/if}

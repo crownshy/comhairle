@@ -119,7 +119,7 @@
 				value={currentPageIndex.toString()}
 				onValueChange={(value: string) => (currentPageIndex = parseInt(value))}
 			>
-				<Select.Trigger class="w-[180px]">Page {currentPageIndex + 1}</Select.Trigger>
+				<Select.Trigger class="w-[180px] bg-white">Page {currentPageIndex + 1}</Select.Trigger>
 				<Select.Content>
 					{#each pages as _, i}
 						<Select.Item value={i}>Page {i + 1}</Select.Item>
@@ -136,7 +136,7 @@
 			onValueChange={(value: string) => (currentLang = value)}
 			value={currentLang}
 		>
-			<Select.Trigger class="w-[180px]"
+			<Select.Trigger class="w-[180px] bg-white"
 				>{currentLang === 'en' ? 'English' : 'Gaelic'}</Select.Trigger
 			>
 			<Select.Content>

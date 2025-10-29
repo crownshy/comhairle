@@ -12,6 +12,15 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { commonStepSchema } from './schema';
 	import { Switch } from '../ui/switch';
+	import { slash } from '@cartamd/plugin-slash';
+	import { video } from 'carta-plugin-video';
+
+	import { Carta, MarkdownEditor } from 'carta-md';
+
+	import 'carta-md/default.css';
+	import '@cartamd/plugin-slash/default.css';
+	import 'carta-plugin-video/default.css';
+	import DOMPurify from 'isomorphic-dompurify';
 
 	type Props = {
 		conversation_id: string;
@@ -31,6 +40,11 @@
 			onSubmit: updateStep
 		}
 	);
+
+	const carta = new Carta({
+		sanitizer: DOMPurify.sanitize,
+		extensions: [slash(), video()]
+	});
 
 	let { form, enhance, validateForm, message, submitting } = commonStepForm;
 
@@ -69,7 +83,7 @@
 	<Dialog.Root bind:open>
 		<Dialog.Trigger><Button variant="secondary">Edit Metadata</Button></Dialog.Trigger>
 
-		<Dialog.Content>
+		<Dialog.Content class="max-h-[90vh] min-w-[70vw]">
 			<Dialog.Header>
 				<Dialog.Title>Edit the metadata?</Dialog.Title>
 				<Dialog.Description>
@@ -81,7 +95,7 @@
 				<Form.Field form={commonStepForm} name="name">
 					<Form.Control>
 						{#snippet children({ props })}
-							<Form.Label>Name</Form.Label>
+							<Form.Label class="text-xl">Name</Form.Label>
 							<Input {...props} bind:value={$form.name} />
 						{/snippet}
 					</Form.Control>
@@ -93,8 +107,10 @@
 				<Form.Field form={commonStepForm} name="description">
 					<Form.Control>
 						{#snippet children({ props })}
-							<Form.Label>Description</Form.Label>
-							<TextArea class="bg-white" {...props} bind:value={$form.description} />
+							<Form.Label class="text-xl">Description</Form.Label>
+							<div class="h-96 overflow-y-auto rounded-lg border">
+								<MarkdownEditor {carta} bind:value={$form.description} />
+							</div>
 						{/snippet}
 					</Form.Control>
 					<Form.Description class="text-black"
@@ -102,17 +118,17 @@
 					>
 					<Form.FieldErrors />
 				</Form.Field>
+
 				<Form.Field form={commonStepForm} name="required">
 					<Form.Control>
 						{#snippet children({ props })}
-							<Switch {...props} bind:checked={$form.required} />
-							<Form.Label>Required</Form.Label>
+							<div class="flex flex-row items-center gap-2">
+								<Switch {...props} bind:checked={$form.required} />
+								<Form.Label class="text-xl">Required</Form.Label>
+							</div>
 							<Form.Description>Are users allowed to skip this step?</Form.Description>
 						{/snippet}
 					</Form.Control>
-					<Form.Description class="text-black"
-						>A description of this step that will inform users of it's intent.</Form.Description
-					>
 					<Form.FieldErrors />
 				</Form.Field>
 
