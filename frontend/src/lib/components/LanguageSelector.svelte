@@ -5,7 +5,12 @@
 	const labels = {
 		en: 'English',
 		gd: 'Gaelic',
-		cy: 'Welsh'
+		cy: 'Welsh',
+		zh: 'Chinese',
+		es: 'Spanish',
+		fr: 'French',
+		ar: 'Arabic',
+		pt: 'Portuguese'
 	};
 
 	function switchToLanguage(newLanguage: Locale) {
