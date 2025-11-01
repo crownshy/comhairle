@@ -6,5 +6,6 @@ export const conversationConfigSchema = z.object({
 	description: z.string().min(1, "Description is required"),
 	image_url: z.string().url("Must be a valid URL").or(z.literal("")),
 	is_public: z.boolean(),
-	is_invite_only: z.boolean()
+	is_invite_only: z.boolean(),
+	auto_login: z.boolean()
 });

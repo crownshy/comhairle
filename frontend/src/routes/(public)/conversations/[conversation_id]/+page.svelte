@@ -9,13 +9,15 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { notifications } from '$lib/notifications.svelte.js';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { apiClient } from '$lib/api/client';
 	import { page } from '$app/state';
 	import ConversationSummary from '$lib/components/ConversationSummary.svelte';
-	import { loginRedirect } from '$lib/urls.js';
+	import { loginRedirect, signupRedirect } from '$lib/urls.js';
 
-	let firstWorkflowPath = `/conversations/${conversation.id}/workflow/${workflows[0].id}/s/1`;
+	let firstWorkflow = $derived(workflows[0]);
+
+	let firstWorkflowPath = `/conversations/${conversation.id}/workflow/${firstWorkflow.id}/s/1`;
 
 	let url = $derived(page.url);
 
@@ -23,10 +25,20 @@
 		loginRedirect(url.toString(), 'Login to join the conversation');
 	}
 
+	async function registerAnnonUserAndRedirect() {
+		await apiClient.SignupAnnonUser(undefined, {});
+		await invalidateAll();
+		goto(firstWorkflowPath);
+	}
+
+	async function redirectToSignIn() {
+		signupRedirect(url.toString(), 'Signup to join the conversation');
+	}
+
 	async function registerUser() {
 		try {
 			await apiClient.RegisterUserForWorkflow(undefined, {
-				params: { conversation_id: data.conversation.id, workflow_id: data.workflows[0].id }
+				params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }
 			});
 
 			notifications.addFlash({
@@ -64,9 +76,16 @@
 						>{m.join_the_conversation()}</Button
 					>
 				{/if}
+			{:else if firstWorkflow.auto_login}
+				<Button class="mt-5 w-full md:w-fit" onclick={registerAnnonUserAndRedirect}
+					>{m.join_the_conversation()}</Button
+				>
 			{:else}
 				<Button class="mt-5 w-full md:w-fit" onclick={redirectToLogin}
 					>{m.login_to_take_part()}</Button
+				>
+				<Button class="mt-5 w-full md:w-fit" onclick={redirectToSignIn}
+					>{m.signup_to_take_part()}</Button
 				>
 			{/if}
 		</ConversationSummary>

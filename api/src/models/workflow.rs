@@ -31,6 +31,7 @@ pub struct Workflow {
     pub description: String,
     pub is_active: bool,
     pub is_public: bool,
+    pub auto_login: bool,
     #[partially(omit)]
     pub owner_id: Uuid,
     #[partially(omit)]
@@ -39,7 +40,7 @@ pub struct Workflow {
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [WorkflowIden; 9] = [
+const DEFAULT_COLUMNS: [WorkflowIden; 10] = [
     WorkflowIden::Id,
     WorkflowIden::ConversationId,
     WorkflowIden::Name,
@@ -49,6 +50,7 @@ const DEFAULT_COLUMNS: [WorkflowIden; 9] = [
     WorkflowIden::CreatedAt,
     WorkflowIden::UpdatedAt,
     WorkflowIden::OwnerId,
+    WorkflowIden::AutoLogin,
 ];
 
 impl PartialWorkflow {
@@ -66,6 +68,9 @@ impl PartialWorkflow {
         };
         if let Some(value) = self.is_active {
             values.push((WorkflowIden::Description, value.into()))
+        };
+        if let Some(value) = self.auto_login {
+            values.push((WorkflowIden::AutoLogin, value.into()))
         };
         values
     }
@@ -93,6 +98,7 @@ pub struct CreateWorkflow {
     pub description: String,
     pub is_active: bool,
     pub is_public: bool,
+    pub auto_login: bool,
 }
 
 impl CreateWorkflow {
@@ -102,6 +108,7 @@ impl CreateWorkflow {
             WorkflowIden::Description,
             WorkflowIden::IsActive,
             WorkflowIden::IsPublic,
+            WorkflowIden::AutoLogin,
         ]
     }
     pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
@@ -110,6 +117,7 @@ impl CreateWorkflow {
             self.description.to_owned().into(),
             self.is_active.into(),
             self.is_public.into(),
+            self.auto_login.into(),
         ]
     }
 }

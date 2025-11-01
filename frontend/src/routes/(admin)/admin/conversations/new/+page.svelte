@@ -54,7 +54,8 @@
 						name: 'Default Workflow',
 						description: 'The default workflow',
 						is_active: true,
-						is_public: true
+						is_public: true,
+						auto_login: false
 					},
 					{ params: { conversation_id: conversation.id } }
 				);
