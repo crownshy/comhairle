@@ -31,7 +31,6 @@
 		currentPageNo += 1;
 		tick().then(() => {
 			window.scrollTo(0, 0);
-			// articleElement?.scrollIntoView({ behavior: 'smooth' });
 		});
 	}
 </script>
@@ -39,7 +38,9 @@
 <div class="mx-auto flex grow flex-col">
 	{#if content}
 		<article class="prose mx-auto w-full grow overflow-y-auto" bind:this={articleElement}>
-			<Markdown {carta} value={content} />
+			{#key content}
+				<Markdown {carta} value={content} />
+			{/key}
 		</article>
 	{:else}
 		<h1>Sorry this page is currently not avaliable in this language</h1>
