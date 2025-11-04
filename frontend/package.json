@@ -103,6 +103,7 @@
     "layercake": "^10.0.2",
     "lucide-svelte": "^0.487.0",
     "marked": "^15.0.8",
+    "runed": "^0.35.1",
     "svelte-copy": "^2.0.0",
     "svelte-exmarkdown": "^5.0.0",
     "svelte-maplibre": "^1.2.3",

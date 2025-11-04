@@ -2,7 +2,9 @@
 	import Footer from '$lib/components/Footer.svelte';
 	import NavBar from '$lib/components/NavBar.svelte';
 	import type { LayoutProps } from './$types';
+	import { z } from 'zod';
 
+	let embed_params = z.object({});
 	let { children, data }: LayoutProps = $props();
 	let isAdmin = $derived(
 		data.userRoles
