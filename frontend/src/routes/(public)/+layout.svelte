@@ -21,5 +21,7 @@
 	<div class="mx-auto min-h-screen w-full max-w-[1300px] grow px-4 md:px-20">
 		{@render children()}
 	</div>
-	<Footer />
+	{#if !isEmbed}
+		<Footer />
+	{/if}
 </div>
