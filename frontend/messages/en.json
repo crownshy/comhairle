@@ -62,6 +62,7 @@
 	"agree_to_tos2":"and",
 	"agree_to_tos_privacy":"privacy policy",
 	"login_to_take_part": "Login to join",
+	"signup_to_take_part": "Signup to take part",
 	"give_feedback":"Give Feedback",
 	"we_are_interested_in_hearing_what_is_good_and_bad_about_this_process": "We are interested in hearing what is good and bad about this process",
 	"type_your_feedback_here":"Type your feedback here",
@@ -71,6 +72,7 @@
 	"privacy_policy": "Privacy Policy",
 	"terms_of_service": "Terms Of Service",
 	"cookies_settings": "Cookies Settings",
-	"explore_conversations":"Explore Conversations"
+	"explore_conversations":"Explore Conversations",
+	"signup": "Signup"
 	
 }

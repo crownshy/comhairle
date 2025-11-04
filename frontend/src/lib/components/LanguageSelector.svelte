@@ -6,7 +6,12 @@
 		en: 'English',
 		es: 'Spanish',
 		gd: 'Gaelic',
-		cy: 'Welsh'
+		cy: 'Welsh',
+		zh: 'Chinese',
+		es: 'Spanish',
+		fr: 'French',
+		ar: 'Arabic',
+		pt: 'Portuguese'
 	};
 
 	function switchToLanguage(newLanguage: Locale) {

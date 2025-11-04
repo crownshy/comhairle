@@ -14,6 +14,7 @@
 
 	let { data } = $props();
 	let conversation = $derived(data.conversation);
+	let workflow = $derived(data.workflows[0]);
 
 	let conversationForm = superForm(
 		{
@@ -22,7 +23,8 @@
 			description: conversation.description,
 			image_url: conversation.image_url,
 			is_public: conversation.is_public,
-			is_invite_only: conversation.is_invite_only
+			is_invite_only: conversation.is_invite_only,
+			auto_login: workflow.auto_login
 		},
 		{
 			validators: zodClient(conversationConfigSchema),
@@ -37,10 +39,17 @@
 	async function updateConversation() {
 		const result = await validateForm({ update: true });
 		if (!result.valid) return;
+
 		try {
 			await apiClient.UpdateConversation(result.data, {
 				params: { conversation_id: conversation.id }
 			});
+
+			await apiClient.UpdateWorkflow(
+				{ auto_login: result.data.auto_login },
+				{ params: { conversation_id: conversation.id, workflow_id: workflow.id } }
+			);
+
 			invalidateAll();
 			notifications.send({ message: 'Updated conversation', priority: 'INFO' });
 		} catch (e) {
@@ -116,7 +125,7 @@
 								{/if}
 							</div>
 							<div class="grow flex-col gap-2">
-								<Input  {...props} bind:value={$form.image_url} />
+								<Input {...props} bind:value={$form.image_url} />
 
 								<Form.FieldErrors />
 							</div>
@@ -148,6 +157,20 @@
 						<div class="flex items-center space-x-2">
 							<Switch {...props} bind:checked={$form.is_invite_only} />
 							<Form.Label>Only allow participation by invite</Form.Label>
+						</div>
+					{/snippet}
+				</Form.Control>
+				<Form.FieldErrors />
+			</Form.Field>
+
+			<Form.Field form={conversationForm} name="auto_login">
+				<Form.Control>
+					{#snippet children({ props })}
+						<div class="flex items-center space-x-2">
+							<Switch {...props} bind:checked={$form.auto_login} />
+							<Form.Label
+								>Automatically log in a user with an annon account if not logged in</Form.Label
+							>
 						</div>
 					{/snippet}
 				</Form.Control>

@@ -23,6 +23,7 @@
 <iframe
 	src={url}
 	title="Polis poll"
+	scrolling="no"
 	class="min-h-[500px] border-none"
 	style="width:100%;height:100%"
 ></iframe>

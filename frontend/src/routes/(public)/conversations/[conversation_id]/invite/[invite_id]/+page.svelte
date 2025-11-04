@@ -7,11 +7,12 @@
 		signupAnnonRedirect,
 		conversation_url
 	} from '$lib/urls.js';
-	import { page } from '$app/stores';
+
+	import { page } from '$app/state';
 	import { apiClient } from '$lib/api/client.js';
 	import { goto } from '$app/navigation';
 
-	let url = $page.url;
+	const url = $derived(page.url);
 	let { data } = $props();
 	let { user, invite, conversation, error } = data;
 

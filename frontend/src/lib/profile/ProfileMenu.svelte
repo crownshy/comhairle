@@ -50,7 +50,7 @@
 					{/if}
 				</DropdownMenu.Item>
 				<DropdownMenu.Item>
-						<Button href='/settings' type="submit" variant="ghost"><Settings />Settings</Button>
+					<Button href="/settings" type="submit" variant="ghost"><Settings />Settings</Button>
 				</DropdownMenu.Item>
 				<DropdownMenu.Item>
 					<Button href="/notifications" type="submit" variant="ghost"
