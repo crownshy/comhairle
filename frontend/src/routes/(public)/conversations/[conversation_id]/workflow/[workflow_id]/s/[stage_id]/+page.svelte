@@ -19,9 +19,13 @@
 
 	import { ws } from '$lib/api/websockets.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { goto } from '$app/navigation';
 
 	let { data }: PageProps = $props();
-	let { conversation, step, workflow_steps, user } = data;
+	let { user } = data;
+	let step = $derived(data.step);
+	let conversation = $derived(data.conversation);
+	let workflow_steps = $derived(data.workflow_steps);
 	let startDate = $derived(parseISO(conversation.created_at));
 	let endDate = $derived(addDays(startDate, 30));
 
@@ -45,10 +49,11 @@
 			if (next_step) {
 				let url = workflow_step_url(conversation.id, step.workflow_id, next_step.step_order);
 				//For some reason goto isnt working here. Need to figure out why
-				window.location.href = url;
+				goto(url);
+				// window.location.href = url;
 			} else {
 				//For some reason goto isnt working here
-				window.location.href = report_url(conversation.id, step.workflow_id);
+				goto(report_url(conversation.id, step.workflow_id));
 			}
 		} catch (e) {
 			if (e instanceof Error) {
