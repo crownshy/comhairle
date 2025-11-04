@@ -4,6 +4,7 @@
 
 	const labels = {
 		en: 'English',
+		es: 'Spanish',
 		gd: 'Gaelic',
 		cy: 'Welsh',
 		zh: 'Chinese',
