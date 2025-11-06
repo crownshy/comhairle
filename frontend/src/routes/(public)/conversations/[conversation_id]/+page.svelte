@@ -27,6 +27,11 @@
 
 	async function registerAnnonUserAndRedirect() {
 		await apiClient.SignupAnnonUser(undefined, {});
+
+		await apiClient.RegisterUserForWorkflow(undefined, {
+			params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }
+		});
+
 		await invalidateAll();
 		goto(firstWorkflowPath);
 	}
