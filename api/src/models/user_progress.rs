@@ -7,6 +7,7 @@ use sea_query::{enum_def, ConditionalStatement, Expr, JoinType, PostgresQueryBui
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::error::ComhairleError;
@@ -64,6 +65,7 @@ const DEFAULT_COLUMNS: [(UserProgressIden, UserProgressIden); 6] = [
     (UserProgressIden::Table, UserProgressIden::UpdatedAt),
 ];
 
+#[instrument(err(Debug))]
 pub async fn create(
     db: &PgPool,
     user_id: &Uuid,
@@ -92,7 +94,7 @@ pub async fn create(
 
     Ok(result)
 }
-
+#[instrument(err(Debug))]
 pub async fn update(
     db: &PgPool,
     user_id: &Uuid,
@@ -114,6 +116,7 @@ pub async fn update(
     Ok(result)
 }
 
+#[instrument(err(Debug))]
 pub async fn list_for_user_on_workflow(
     db: &PgPool,
     user_id: &Uuid,
