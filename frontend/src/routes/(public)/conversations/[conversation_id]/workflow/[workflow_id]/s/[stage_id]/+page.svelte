@@ -29,6 +29,8 @@
 	let startDate = $derived(parseISO(conversation.created_at));
 	let endDate = $derived(addDays(startDate, 30));
 
+	let description = $derived(step.description);
+
 	let carta = new Carta({
 		sanitizer: DOMPurify.sanitize,
 		extensions: [video()]
@@ -93,7 +95,9 @@
 					{step.name}
 				</h2>
 				<div class="prose mx-auto">
-					<Markdown {carta} value={step.description} />
+					{#key step.description}
+						<Markdown {carta} value={step.description} />
+					{/key}
 				</div>
 			</div>
 			<div class=" flex grow flex-col md:row-start-2">
