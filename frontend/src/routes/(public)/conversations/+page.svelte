@@ -53,7 +53,7 @@
 		</div>
 	</header>
 
-	<div class="flex w-full grow flex-col items-center gap-10 md:px-2">
+	<div class="flex w-full grow flex-col items-center lg:items-stretch gap-10 md:px-2">
 		{#each data.records as conversation}
 			<a href={`/conversations/${conversation.slug || conversation.id}`}>
 				<ConversationCard {conversation} />
