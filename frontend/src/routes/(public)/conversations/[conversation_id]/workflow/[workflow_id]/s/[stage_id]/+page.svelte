@@ -122,12 +122,14 @@
 						/>
 					{/if}
 					{#if step.tool_config.type === HeyForm.TOOL_NAME}
-						<HeyForm.UserUI
-							userId={user.id}
-							surveyId={step.tool_config.survey_id}
-							surveyURL={step.tool_config.survey_url}
-							onDone={stepComplete}
-						/>
+						{#key step.id}
+							<HeyForm.UserUI
+								userId={user.id}
+								surveyId={step.tool_config.survey_id}
+								surveyURL={step.tool_config.survey_url}
+								onDone={stepComplete}
+							/>
+						{/key}
 					{/if}
 					{#if step.tool_config.type === LivedExperience.TOOL_NAME}
 						<LivedExperience.UserUI onDone={stepComplete} />
