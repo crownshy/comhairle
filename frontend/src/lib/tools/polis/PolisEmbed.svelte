@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import * as Dialog from '$lib/components/ui/dialog';
+	import { fade } from 'svelte/transition';
 
 	type Props = {
 		polis_id: string;
@@ -11,14 +11,25 @@
 
 	$effect(() => {
 		setTimeout(() => {
-			showDialog = true;
-		}, 300000);
+			showThankYou = true;
+		}, 180000);
 	});
-	let showDialog = $state(false);
+	let showThankYou = $state(false);
 
 	let { polis_id, polis_url, user_id, onDone }: Props = $props();
 	let url = $derived(`${polis_url}/${polis_id}?xid=${user_id}`);
 </script>
+
+{#if showThankYou}
+	<div transition:fade={{ duration: 1000 }} class="prose mx-auto mb-20">
+		<h3>This interactive discussion doesn't have a fixed end</h3>
+		<p>
+			You can keep voting or adding statements as long as you link. You're welcome to return later
+			when others have contributed more. Thank you for taking part.
+		</p>
+		<Button variant="secondary" onclick={onDone}>I'm Done</Button>
+	</div>
+{/if}
 
 <iframe
 	src={url}
@@ -27,18 +38,3 @@
 	class="min-h-[500px] border-none"
 	style="width:100%;height:100%"
 ></iframe>
-
-<Dialog.Root bind:open={showDialog}>
-	<Dialog.Content class="sm:max-w-[425px]">
-		<Dialog.Header>
-			<Dialog.Title>Thanks for taking part in this conversation</Dialog.Title>
-			<Dialog.Description>
-				This polis conversation is open ended. Feel free to continue adding statements and voting
-				until you feel done or come back later to do more.
-			</Dialog.Description>
-		</Dialog.Header>
-		<Dialog.Footer>
-			<Button onclick={() => (showDialog = false)} type="submit">Ok</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>

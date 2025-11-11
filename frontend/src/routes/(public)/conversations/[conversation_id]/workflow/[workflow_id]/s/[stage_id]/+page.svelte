@@ -20,6 +20,7 @@
 	import { ws } from '$lib/api/websockets.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
+	import { thank_you_page } from '$lib/urls';
 
 	let { data }: PageProps = $props();
 	let { user } = data;
@@ -35,6 +36,10 @@
 		sanitizer: DOMPurify.sanitize,
 		extensions: [video()]
 	});
+
+	function goToThankYouPage() {
+		goto(thank_you_page(conversation.id, step.id));
+	}
 
 	async function stepComplete() {
 		try {
@@ -113,7 +118,7 @@
 							user_id={user.id}
 							polis_id={step.tool_config.poll_id}
 							polis_url={step.tool_config.server_url}
-							onDone={stepComplete}
+							onDone={goToThankYouPage}
 						/>
 					{/if}
 					{#if step.tool_config.type === HeyForm.TOOL_NAME}
