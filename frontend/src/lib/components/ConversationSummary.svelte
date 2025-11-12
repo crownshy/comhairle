@@ -11,7 +11,7 @@
 	let hasAdditionalLearnMethods = $derived(conversation.video_url || conversation.audio_url);
 </script>
 
-<div class=" grid grid-cols-1 gap-10 md:grid-cols-2">
+<div class=" grid grid-cols-1 md:grid-cols-2 md:gap-10">
 	<div
 		class="relative flex h-[500px] w-full items-center rounded-2xl bg-cover bg-center py-10 md:col-span-2"
 		style={`background-image: url(${conversation.image_url})`}
@@ -29,11 +29,11 @@
 		</div>
 	</div>
 
-	<div class="col-span-2 my-10 block md:hidden">
+	<div class="col-span-2 my-5 block md:my-10 md:hidden">
 		{@render children()}
 	</div>
 
-	<article class={hasAdditionalLearnMethods ? '' : 'col-span-2'}>
+	<article class={hasAdditionalLearnMethods ? 'mb-5' : 'col-span-2 mb-5'}>
 		<h3 class="text-xl font-bold">{m.intro()}</h3>
 		<p>{conversation.description}</p>
 	</article>
