@@ -76,7 +76,7 @@
 
 <div class="flex flex-col items-center pt-10">
 	{#if conversation && step}
-		<div class="flex flex-row gap-2">
+		<div class="hidden flex-row gap-2 md:flex">
 			{#each workflow_steps as workflow_step}
 				<div
 					class="bg-brand flex flex-col items-center gap-3 rounded-4xl px-10 py-3 text-sm text-[#ffffff]"
@@ -93,7 +93,7 @@
 
 		<div class="flex w-full grow flex-col gap-y-5 md:grid md:grid-cols-1 md:gap-x-10">
 			<div class="mt-10 flex flex-col items-center gap-y-5">
-				<h1 class="text-2xl">{conversation.title}</h1>
+				<h1 class="hidden text-2xl md:block">{conversation.title}</h1>
 				<h2
 					class="text-center text-4xl font-bold md:col-start-1 md:col-end-2 md:row-start-1 md:row-end-1 md:text-6xl"
 				>
