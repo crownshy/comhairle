@@ -6,7 +6,7 @@
 	<div class="mx-auto flex w-full flex-col items-center justify-start gap-8 py-24">
 		<div class="flex w-full max-w-full flex-col items-center justify-center gap-12 px-6">
 			<div class="inline-flex h-20 w-full max-w-[1280px] items-center justify-between">
-				<div class="flex flex-1 items-center justify-start gap-6">
+				<div class="flex flex-1 flex-col items-center justify-start gap-6 md:flex-row">
 					<div class="flex items-center justify-start gap-3">
 						<div
 							class="justify-start text-center font-['Inter'] text-2xl leading-7 font-medium text-lime-50"
@@ -14,8 +14,8 @@
 							Comhairle
 						</div>
 					</div>
-					<div class="flex flex-1 items-center justify-center gap-1">
-						<div class="flex items-center justify-start gap-8">
+					<div class="mb-10 flex flex-1 items-center justify-center gap-1 md:mb-0">
+						<div class="flex flex-col items-center justify-start gap-2 md:flex-row md:gap-8">
 							<a
 								href="/"
 								class="justify-start font-['Inter'] text-lg leading-tight font-medium text-stone-300"
@@ -36,7 +36,7 @@
 							</a>
 							<a
 								href="/rights"
-								class="justify-start font-['Inter'] text-lg leading-tight font-medium text-stone-300"
+								class=" justify-start font-['Inter'] text-lg leading-tight font-medium text-stone-300"
 							>
 								{m.your_rights()}
 							</a>
@@ -72,11 +72,13 @@
 					class="h-0 self-stretch outline outline-1 outline-offset-[-0.50px] outline-stone-700"
 				></div>
 			</div>
-			<div class="inline-flex items-center justify-between self-stretch">
-				<div class="text-mutted justify-start font-['Inter'] text-base leading-normal font-normal">
+			<div class="flex flex-col items-center justify-between self-stretch md:flex-row">
+				<div
+					class="text-mutted mb-2 justify-center text-center font-['Inter'] text-base leading-normal font-normal md:mb-0 md:justify-start md:text-start"
+				>
 					Copyright {new Date().getFullYear()} © CrownShy
 				</div>
-				<div class="flex items-center justify-start gap-8">
+				<div class="flex flex-col items-center justify-start gap-2 md:flex-row md:gap-8">
 					<a
 						href="/rights/privacy"
 						class="text-mutted justify-start font-['Inter'] text-base leading-normal font-normal"
