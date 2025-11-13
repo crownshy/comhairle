@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const commonStepSchema = z.object({
 	name: z.string().min(5, ""),
-	description: z.string().min(10, ""),
+	description: z.string(),
 	required: z.boolean()
 	// openDate: z.date(),
 	// closeDate: z.date()

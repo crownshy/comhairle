@@ -17,7 +17,7 @@
 	{#if user.auth_type === 'annon'}
 		<p>You currently signed in as an anonymous user. Use your anonymous id</p>
 		<h2 class="text-center">{user.username}</h2>
-		<p>to log back in at a later time to see the results of the converastion.</p>
+		<p>to log back in at a later time to see the results of the conversations.</p>
 	{:else}
 		<p>
 			The conversation is ongoing. When it's done we will email you with a link to the results and
