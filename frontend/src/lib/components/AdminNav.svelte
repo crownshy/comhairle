@@ -35,7 +35,7 @@
 		<SideBar.Header>
 			<a href="/">
 				<div class="flex flex-row items-center gap-4 p-4">
-					<img src={Logo} alt="Comhairle Logo" />
+					<img class="w-10" src={Logo} alt="Comhairle Logo" />
 					<h1 class="text-nav-text text-xl font-bold">Comhairle</h1>
 				</div>
 			</a>
