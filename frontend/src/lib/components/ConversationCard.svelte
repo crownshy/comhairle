@@ -7,7 +7,9 @@
 	import * as m from '$lib/paraglide/messages';
 </script>
 
-<div class="flex w-full max-w-[1280px] flex-col items-start justify-start gap-16 lg:flex-row">
+<div
+	class="flex w-full max-w-[1280px] flex-col items-start justify-start gap-5 md:gap-16 lg:flex-row"
+>
 	<img
 		class="mx-auto h-[408px] w-[612.15px] rounded-3xl object-cover lg:mx-0"
 		src={conversation.image_url}
