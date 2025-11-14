@@ -91,21 +91,20 @@
 			{/each}
 		</div>
 
-		<div class="flex w-full grow flex-col gap-y-5 md:grid md:grid-cols-1 md:gap-x-10">
-			<div class="mt-10 flex flex-col items-center gap-y-5">
-				<h1 class="hidden text-2xl md:block">{conversation.title}</h1>
+		<div class="flex w-full grow flex-col gap-y-2 md:grid md:grid-cols-1 md:gap-x-10">
+			<div class="mt-10 flex flex-col items-center gap-y-2">
 				<h2
-					class="text-center text-4xl font-bold md:col-start-1 md:col-end-2 md:row-start-1 md:row-end-1 md:text-6xl"
+					class="text-center text-4xl font-bold md:col-start-1 md:col-end-2 md:row-start-1 md:row-end-1 md:text-3xl"
 				>
 					{step.name}
 				</h2>
-				<div class="prose mx-auto">
+				<div class="prose-sm mx-auto text-center">
 					{#key step.description}
 						<Markdown {carta} value={step.description} />
 					{/key}
 				</div>
 			</div>
-			<div class=" flex grow flex-col md:row-start-2">
+			<div class="flex grow flex-col md:row-start-2">
 				{#if !step.required}
 					<Button onclick={stepComplete} class="mx-auto" variant="secondary">Skip this step</Button>
 				{/if}
