@@ -81,7 +81,8 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
     // build our application with a route
     let app = ApiRouter::new()
         .nest_api_service("/auth", auth_router)
-        .nest_api_service("/user", routes::user::router(state.clone()))
+        .nest_api_service("/user", routes::user::router(state.clone())
+            .nest_api_service("/preferences", routes::user_conversation_preferences::router(state.clone())))
         .nest_api_service(
             "/notifications",
             routes::notifications::router(state.clone()),
