@@ -28,6 +28,10 @@ export const Conversation = z.object({ created_at: z.string().datetime({ offset:
 export type Conversation = z.infer<typeof Conversation>;
 export const PaginatedResults_for_Conversation = z.object({ records: z.array(Conversation), total: z.number().int() }).passthrough();
 export type PaginatedResults_for_Conversation = z.infer<typeof PaginatedResults_for_Conversation>;
+export const UserConversationPreferences = z.object({ conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), receive_similar_conversation_updates_by_email: z.boolean(), receive_similar_conversation_updates_by_notification: z.boolean(), receive_updates_by_email: z.boolean(), receive_updates_by_notification: z.boolean(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid() }).passthrough();
+export type UserConversationPreferences = z.infer<typeof UserConversationPreferences>;
+export const UpdateUserConversationPreferences = z.object({ receive_similar_conversation_updates_by_email: z.union([z.boolean(), z.null()]), receive_similar_conversation_updates_by_notification: z.union([z.boolean(), z.null()]), receive_updates_by_email: z.union([z.boolean(), z.null()]), receive_updates_by_notification: z.union([z.boolean(), z.null()]) }).partial().passthrough();
+export type UpdateUserConversationPreferences = z.infer<typeof UpdateUserConversationPreferences>;
 export const DeliveryMethod = z.enum(["in_app", "email"]);
 export type DeliveryMethod = z.infer<typeof DeliveryMethod>;
 export const NotificationContextType = z.enum(["site", "conversation"]);
@@ -154,6 +158,8 @@ export const schemas = {
 	limit,
 	Conversation,
 	PaginatedResults_for_Conversation,
+	UserConversationPreferences,
+	UpdateUserConversationPreferences,
 	DeliveryMethod,
 	NotificationContextType,
 	NotificationType,
@@ -860,6 +866,37 @@ const endpoints = makeApi([
 			},
 		],
 		response: PaginatedResults_for_Conversation,
+	},
+	{
+		method: "get",
+		path: "/user/preferences",
+		alias: "GetAllUserConversationPreferences",
+		description: `Returns all conversation notification preferences for the authenticated user`,
+		requestFormat: "json",
+		response: z.array(UserConversationPreferences),
+	},
+	{
+		method: "get",
+		path: "/user/preferences/conversation/:conversation_id",
+		alias: "GetUserPreferenceForConversation",
+		description: `Returns the notification preferences for a specific conversation`,
+		requestFormat: "json",
+		response: UserConversationPreferences,
+	},
+	{
+		method: "put",
+		path: "/user/preferences/conversation/:conversation_id",
+		alias: "UpdateUserPreferenceForConversation",
+		description: `Updates notification preferences for a specific conversation`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: UpdateUserConversationPreferences
+			},
+		],
+		response: UserConversationPreferences,
 	},
 	{
 		method: "get",
