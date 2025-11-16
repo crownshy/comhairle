@@ -58,6 +58,10 @@ export const PartialConversation = z.object({ description: z.union([z.string(), 
 export type PartialConversation = z.infer<typeof PartialConversation>;
 export const SendNotificationRequest = z.object({ content: z.string(), delivery_method: z.union([DeliveryMethod, z.null()]).optional(), notification_type: z.union([NotificationType, z.null()]).optional(), title: z.string() }).passthrough();
 export type SendNotificationRequest = z.infer<typeof SendNotificationRequest>;
+export const RegisterEmailRequest = z.object({ email: z.string() }).passthrough();
+export type RegisterEmailRequest = z.infer<typeof RegisterEmailRequest>;
+export const RegisterEmailResponse = z.object({ conversation_id: z.string().uuid(), email: z.string(), id: z.string().uuid(), message: z.string() }).passthrough();
+export type RegisterEmailResponse = z.infer<typeof RegisterEmailResponse>;
 export const Workflow = z.object({ auto_login: z.boolean(), conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_active: z.boolean(), is_public: z.boolean(), name: z.string(), owner_id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
 export type Workflow = z.infer<typeof Workflow>;
 export const CreateWorkflow = z.object({ auto_login: z.boolean(), description: z.string(), is_active: z.boolean(), is_public: z.boolean(), name: z.string() }).passthrough();
@@ -177,6 +181,8 @@ export const schemas = {
 	CreateConversation,
 	PartialConversation,
 	SendNotificationRequest,
+	RegisterEmailRequest,
+	RegisterEmailResponse,
 	Workflow,
 	CreateWorkflow,
 	DailySignupStats,
@@ -397,6 +403,21 @@ const endpoints = makeApi([
 		description: `Delete the conversation and all related content`,
 		requestFormat: "json",
 		response: Conversation,
+	},
+	{
+		method: "post",
+		path: "/conversation/:conversation_id/email-updates",
+		alias: "RegisterEmailForUpdates",
+		description: `Allows non-logged-in users to register their email address to receive updates about a public conversation. If the email is already registered, returns existing registration.`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: z.object({ email: z.string() }).passthrough()
+			},
+		],
+		response: RegisterEmailResponse,
 	},
 	{
 		method: "get",

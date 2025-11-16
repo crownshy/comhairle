@@ -74,8 +74,8 @@
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Trigger>
-		<Button variant="secondary">Upgrade Account</Button>
+	<Dialog.Trigger class="w-full">
+		<Button class="w-full" variant="secondary">Upgrade Account</Button>
 	</Dialog.Trigger>
 	<Dialog.Content class="sm:max-w-md">
 		<Dialog.Header>
@@ -179,4 +179,3 @@
 		</form>
 	</Dialog.Content>
 </Dialog.Root>
-
