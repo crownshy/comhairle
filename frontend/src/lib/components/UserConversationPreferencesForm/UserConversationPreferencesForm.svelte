@@ -3,7 +3,6 @@
 	import { Switch } from '$lib/components/ui/switch';
 	import { apiClient } from '$lib/api/client';
 	import { notifications } from '$lib/notifications.svelte';
-	import { Settings } from 'lucide-svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { userConversationPreferencesSchema } from './schema';
@@ -11,9 +10,11 @@
 	import { onMount } from 'svelte';
 
 	let {
-		conversationId
+		conversationId,
+		isAnnon
 	}: {
 		conversationId: string;
+		isAnnon: boolean;
 	} = $props();
 
 	let loading = $state(true);
@@ -107,9 +108,9 @@
 {:else}
 	<form method="POST" class="w-full" use:enhance>
 		<div class="flex flex-col gap-2 md:flex-row">
-			<div class=" p-4">
+			<div class="flex-1 p-4">
 				<h4 class="text-base font-medium">Conversation Updates</h4>
-				<p class="text-muted-foreground text-sm">
+				<p class="text-muted-foreground my-2 text-sm">
 					Get notified about new activities in this conversation.
 				</p>
 
@@ -128,27 +129,28 @@
 						{/snippet}
 					</Form.Control>
 				</Form.Field>
-
-				<Form.Field {form} name="receive_updates_by_email" class="space-y-2">
-					<Form.Control>
-						{#snippet children({ props })}
-							<div class="flex items-center justify-between">
-								<Form.Label class="text-sm font-normal">Email notifications</Form.Label>
-								<Switch
-									{...props}
-									bind:checked={$formData.receive_updates_by_email}
-									disabled={saving}
-								/>
-							</div>
-							<Form.FieldErrors />
-						{/snippet}
-					</Form.Control>
-				</Form.Field>
+				{#if !isAnnon}
+					<Form.Field {form} name="receive_updates_by_email" class="space-y-2">
+						<Form.Control>
+							{#snippet children({ props })}
+								<div class="flex items-center justify-between">
+									<Form.Label class="text-sm font-normal">Email notifications</Form.Label>
+									<Switch
+										{...props}
+										bind:checked={$formData.receive_updates_by_email}
+										disabled={saving}
+									/>
+								</div>
+								<Form.FieldErrors />
+							{/snippet}
+						</Form.Control>
+					</Form.Field>
+				{/if}
 			</div>
 
-			<div class=" p-4">
+			<div class="flex-1 p-4">
 				<h4 class="text-base font-medium">Similar Conversations</h4>
-				<p class="text-muted-foreground text-sm">
+				<p class="text-muted-foreground my-2 text-sm">
 					Get notified about updates in similar conversations that might interest you.
 				</p>
 
@@ -172,23 +174,24 @@
 					</Form.Control>
 				</Form.Field>
 
-				<Form.Field {form} name="receive_similar_conversation_updates_by_email" class="space-y-2">
-					<Form.Control>
-						{#snippet children({ props })}
-							<div class="flex items-center justify-between">
-								<Form.Label class="text-sm font-normal">Email notifications</Form.Label>
-								<Switch
-									{...props}
-									bind:checked={$formData.receive_similar_conversation_updates_by_email}
-									disabled={saving}
-								/>
-							</div>
-							<Form.FieldErrors />
-						{/snippet}
-					</Form.Control>
-				</Form.Field>
+				{#if !isAnnon}
+					<Form.Field {form} name="receive_similar_conversation_updates_by_email" class="space-y-2">
+						<Form.Control>
+							{#snippet children({ props })}
+								<div class="flex items-center justify-between">
+									<Form.Label class="text-sm font-normal">Email notifications</Form.Label>
+									<Switch
+										{...props}
+										bind:checked={$formData.receive_similar_conversation_updates_by_email}
+										disabled={saving}
+									/>
+								</div>
+								<Form.FieldErrors />
+							{/snippet}
+						</Form.Control>
+					</Form.Field>
+				{/if}
 			</div>
 		</div>
 	</form>
 {/if}
-

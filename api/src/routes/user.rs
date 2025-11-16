@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use aide::axum::{routing::get_with, ApiRouter};
+use aide::axum::{routing::{get_with, put_with}, ApiRouter};
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -17,11 +17,15 @@ use crate::{
         self,
         conversation::{Conversation, ConversationFilterOptions, ConversationOrderOptions},
         pagination::{OrderParams, PageOptions, PaginatedResults},
+        users::{UpdateUserRequest, UpgradeAccountRequest, User},
     },
     ComhairleState,
 };
 
-use super::auth::{RequiredAdminUser, RequiredUser};
+use super::{
+    auth::{RequiredAdminUser, RequiredUser},
+    conversations,
+};
 
 pub async fn get_user_owned_conversations(
     State(state): State<Arc<ComhairleState>>,
@@ -59,6 +63,15 @@ pub struct UserRoles {
     pub roles: Vec<ResourceRole>,
 }
 
+pub async fn get_conversations_user_participating_in(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+) -> Result<(StatusCode, Json<Vec<Conversation>>), ComhairleError> {
+    let conversations =
+        models::conversation::list_for_user_participation(&state.db, &user.id).await?;
+    Ok((StatusCode::OK, Json(conversations)))
+}
+
 pub async fn get_user_roles(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -78,6 +91,24 @@ pub async fn get_user_roles(
     Ok((StatusCode::OK, Json(roles)))
 }
 
+pub async fn update_user_details(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Json(update_request): Json<UpdateUserRequest>,
+) -> Result<(StatusCode, Json<User>), ComhairleError> {
+    let updated_user = models::users::update_user(&user.id, &update_request, &state.db).await?;
+    Ok((StatusCode::OK, Json(updated_user)))
+}
+
+pub async fn upgrade_account(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Json(upgrade_request): Json<UpgradeAccountRequest>,
+) -> Result<(StatusCode, Json<User>), ComhairleError> {
+    let upgraded_user = models::users::upgrade_account(&user.id, &upgrade_request, &state.db).await?;
+    Ok((StatusCode::OK, Json(upgraded_user)))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -89,11 +120,37 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .api_route(
+            "/conversations",
+            get_with(get_conversations_user_participating_in, |op| {
+                op.id("GetConversationsUserIsParticipatingIn")
+                    .description(
+                        "Returns a list of all the conversations the user has taken part in",
+                    )
+                    .response::<201, Json<Vec<Conversation>>>()
+            }),
+        )
+        .api_route(
             "/owned_conversations",
             get_with(get_user_owned_conversations, |op| {
                 op.id("GetOwnedConversations")
                     .description("Gets a list of the conversations a user owns")
                     .response::<201, Json<PaginatedResults<Conversation>>>()
+            }),
+        )
+        .api_route(
+            "/details",
+            put_with(update_user_details, |op| {
+                op.id("UpdateUserDetails")
+                    .description("Update user details (username and/or password)")
+                    .response::<200, Json<User>>()
+            }),
+        )
+        .api_route(
+            "/upgrade",
+            put_with(upgrade_account, |op| {
+                op.id("UpgradeAccount")
+                    .description("Upgrade anonymous account to email/password account")
+                    .response::<200, Json<User>>()
             }),
         )
         .with_state(state)

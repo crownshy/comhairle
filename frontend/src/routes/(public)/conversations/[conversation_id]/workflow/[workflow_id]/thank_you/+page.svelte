@@ -4,6 +4,7 @@
 	import type { PageProps } from './$types';
 	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 	import UserConversationPreferencesForm from '$lib/components/UserConversationPreferencesForm/UserConversationPreferencesForm.svelte';
+	import UpgradeAccountModal from '$lib/components/UpgradeAccountModal/UpgradeAccountModal.svelte';
 	let { data }: PageProps = $props();
 	let user = $derived(data.user);
 	let conversation = $derived(data.conversation);
@@ -38,5 +39,15 @@
 		<FeedbackModal conversationId={conversation.id} />
 	</div>
 	<h2>Keep informed</h2>
-	<UserConversationPreferencesForm conversationId={conversation.id} />
+	{#if user.auth_type === 'annon'}
+		<p>To receive update on this conversation and future converations, upgrade to a full account</p>
+		<div class="mx-auto mt-10 flex flex-col justify-center gap-2 text-center md:flex-row">
+			<UpgradeAccountModal currentUser={user} />
+		</div>
+	{:else}
+		<UserConversationPreferencesForm
+			conversationId={conversation.id}
+			isAnnon={user.auth_type === 'annon'}
+		/>
+	{/if}
 </div>
