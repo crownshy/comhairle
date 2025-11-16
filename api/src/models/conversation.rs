@@ -1,4 +1,8 @@
-use super::pagination::{Order, PageOptions, PaginatedResults};
+use super::{
+    pagination::{Order, PageOptions, PaginatedResults},
+    user_participation::UserParticipationIden,
+    workflow::WorkflowIden,
+};
 use crate::error::ComhairleError;
 use chrono::{DateTime, Utc};
 use partially::Partial;
@@ -255,6 +259,48 @@ pub async fn update(
         .await?;
 
     Ok(conversation)
+}
+
+pub async fn list_for_user_participation(
+    db: &PgPool,
+    user_id: &Uuid,
+) -> Result<Vec<Conversation>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .from(ConversationIden::Table)
+        .columns(DEFAULT_COLUMNS.map(|col| (ConversationIden::Table, col)))
+        .join(
+            sea_query::JoinType::InnerJoin,
+            WorkflowIden::Table,
+            Expr::col((WorkflowIden::Table, WorkflowIden::ConversationId))
+                .equals((ConversationIden::Table, ConversationIden::Id)),
+        )
+        .join(
+            sea_query::JoinType::InnerJoin,
+            UserParticipationIden::Table,
+            Expr::col((
+                UserParticipationIden::Table,
+                UserParticipationIden::WorkflowId,
+            ))
+            .equals((WorkflowIden::Table, WorkflowIden::Id)),
+        )
+        .and_where(
+            Expr::col((UserParticipationIden::Table, UserParticipationIden::UserId))
+                .eq(user_id.to_owned()),
+        )
+        // .order_by(
+        //     (
+        //         UserParticipationIden::Table,
+        //         UserParticipationIden::CreatedAt,
+        //     ),
+        //     sea_query::Order::Desc,
+        // )
+        .distinct()
+        .build_sqlx(PostgresQueryBuilder);
+
+    let conversations = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
+        .fetch_all(db)
+        .await?;
+    Ok(conversations)
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]

@@ -57,8 +57,8 @@
 				{/if}
 
 				{#if user}
-					<Button onclick={acceptInvite}>Accept</Button>
-					<Button onclick={rejectInvite}>Reject</Button>
+					<Button onclick={acceptInvite}>Accept Invite</Button>
+					<Button onclick={rejectInvite}>Reject Invite</Button>
 				{/if}
 
 				{#if !user && invite.login_behaviour === 'auto_create_annon'}

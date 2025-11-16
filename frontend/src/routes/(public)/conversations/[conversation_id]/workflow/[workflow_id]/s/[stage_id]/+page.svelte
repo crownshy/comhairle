@@ -20,6 +20,7 @@
 	import { ws } from '$lib/api/websockets.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
+	import { thank_you_page } from '$lib/urls';
 
 	let { data }: PageProps = $props();
 	let { user } = data;
@@ -35,6 +36,10 @@
 		sanitizer: DOMPurify.sanitize,
 		extensions: [video()]
 	});
+
+	function goToThankYouPage() {
+		goto(thank_you_page(conversation.id, step.id));
+	}
 
 	async function stepComplete() {
 		try {
@@ -71,7 +76,7 @@
 
 <div class="flex flex-col items-center pt-10">
 	{#if conversation && step}
-		<div class="flex flex-row gap-2">
+		<div class="hidden flex-row gap-2 md:flex">
 			{#each workflow_steps as workflow_step}
 				<div
 					class="bg-brand flex flex-col items-center gap-3 rounded-4xl px-10 py-3 text-sm text-[#ffffff]"
@@ -86,21 +91,20 @@
 			{/each}
 		</div>
 
-		<div class="flex w-full grow flex-col gap-y-5 md:grid md:grid-cols-1 md:gap-x-10">
-			<div class="mt-10 flex flex-col items-center gap-y-5">
-				<h1 class="text-2xl">{conversation.title}</h1>
+		<div class="flex w-full grow flex-col gap-y-2 md:grid md:grid-cols-1 md:gap-x-10">
+			<div class="mt-10 flex flex-col items-center gap-y-2">
 				<h2
-					class="text-center text-4xl font-bold md:col-start-1 md:col-end-2 md:row-start-1 md:row-end-1 md:text-6xl"
+					class="text-center text-4xl font-bold md:col-start-1 md:col-end-2 md:row-start-1 md:row-end-1 md:text-3xl"
 				>
 					{step.name}
 				</h2>
-				<div class="prose mx-auto">
+				<div class="prose-sm mx-auto">
 					{#key step.description}
 						<Markdown {carta} value={step.description} />
 					{/key}
 				</div>
 			</div>
-			<div class=" flex grow flex-col md:row-start-2">
+			<div class="flex grow flex-col md:row-start-2">
 				{#if !step.required}
 					<Button onclick={stepComplete} class="mx-auto" variant="secondary">Skip this step</Button>
 				{/if}
@@ -113,16 +117,18 @@
 							user_id={user.id}
 							polis_id={step.tool_config.poll_id}
 							polis_url={step.tool_config.server_url}
-							onDone={stepComplete}
+							onDone={goToThankYouPage}
 						/>
 					{/if}
 					{#if step.tool_config.type === HeyForm.TOOL_NAME}
-						<HeyForm.UserUI
-							userId={user.id}
-							surveyId={step.tool_config.survey_id}
-							surveyURL={step.tool_config.survey_url}
-							onDone={stepComplete}
-						/>
+						{#key step.id}
+							<HeyForm.UserUI
+								userId={user.id}
+								surveyId={step.tool_config.survey_id}
+								surveyURL={step.tool_config.survey_url}
+								onDone={stepComplete}
+							/>
+						{/key}
 					{/if}
 					{#if step.tool_config.type === LivedExperience.TOOL_NAME}
 						<LivedExperience.UserUI onDone={stepComplete} />

@@ -6,12 +6,14 @@
 	import EliciationBotManage from '$lib/tools/elicitation_bot/ElicitationBotManage.svelte';
 	import LivedExperienceManage from '$lib/tools/lived_experince/LivedExperinceManage.svelte';
 	import type { WorkflowStep } from '$lib/api/api.js';
+	import { goto } from '$app/navigation';
 	let { data } = $props();
 
 	let conversation = $derived(data.conversation);
 	let step_id = $derived(data.step_id);
 	let workflow_steps = $derived(data.workflow_steps);
 	let step = $derived(workflow_steps.find((s: WorkflowStep) => s.id === step_id));
+
 	console.log('step config ', step);
 </script>
 

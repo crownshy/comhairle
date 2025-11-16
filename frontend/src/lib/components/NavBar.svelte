@@ -40,7 +40,7 @@
 <nav class="bg-primary text-muted-foreground z-10 flex w-full flex-col items-center p-5 shadow-md">
 	<div class="margin-auto container flex max-w-[1200px] items-center justify-between">
 		<div class="align-center flex flex-row items-center gap-4">
-			<img src={Logo} alt="Comhairle Logo" />
+			<img class="w-8" src={Logo} alt="Comhairle Logo" />
 			<a href="/" class=" text-nav-text invisible hidden text-xl font-bold lg:visible lg:block"
 				>Comhairle</a
 			>

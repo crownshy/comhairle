@@ -4,20 +4,22 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '$lib/api/client';
 	import { Button, buttonVariants } from './ui/button';
-	import { Label } from './ui/label';
 	import { Textarea } from './ui/textarea';
 
-	type FeedbackModalProps = {
-		conversation_id: string;
+	type Props = {
+		conversationId: string;
 	};
-	let { conversation_id } = $props();
+	let { conversationId }: Props = $props();
 
 	let feedback = $state('');
 	let open = $state(false);
 
 	async function submitFeedback() {
 		try {
-			await apiClient.CreateFeedback({ content: feedback }, { params: { conversation_id } });
+			await apiClient.CreateFeedback(
+				{ content: feedback },
+				{ params: { conversation_id: conversationId } }
+			);
 			notifications.send({ message: 'Thanks for your feedback', priority: 'INFO' });
 			open = false;
 		} catch (e) {
@@ -28,7 +30,7 @@
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Trigger class={buttonVariants({ variant: 'outline-solid' })}>{m.give_feedback()}</Dialog.Trigger
+	<Dialog.Trigger class={buttonVariants({ variant: 'outline' })}>{m.give_feedback()}</Dialog.Trigger
 	>
 	<Dialog.Content class="sm:max-w-[425px]">
 		<Dialog.Header>

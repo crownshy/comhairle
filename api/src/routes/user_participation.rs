@@ -10,7 +10,9 @@ use axum::{
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::models::{self, user_participation};
+use crate::models::{
+    self, user_conversation_preferences::CreateUserConversationPreferences, user_participation,
+};
 use crate::ComhairleState;
 use crate::{error::ComhairleError, models::user_participation::UserParticipation};
 
@@ -23,10 +25,29 @@ use super::auth::RequiredUser;
 async fn register_user_for_workflow(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Path((_, workflow_id)): Path<(Uuid, Uuid)>,
+    Path((conversation_id, workflow_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<UserParticipation>), ComhairleError> {
     let user_participation =
         models::workflow::register_user(&state.db, &user, &workflow_id).await?;
+
+    // Check to see if the user already has preferences for this
+    // conversastion
+    let user_preferences = models::user_conversation_preferences::get_by_user_and_conversation(
+        &state.db,
+        &user.id,
+        &conversation_id,
+    )
+    .await;
+
+    // If they dont, create some
+    if user_preferences.is_err() {
+        models::user_conversation_preferences::create_with_defaults(
+            &state.db,
+            &user.id,
+            &conversation_id,
+        )
+        .await?;
+    }
 
     Ok((StatusCode::CREATED, Json(user_participation)))
 }

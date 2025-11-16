@@ -373,6 +373,141 @@ pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, C
         .map_err(|_| ComhairleError::NoUserFound)
 }
 
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct UpdateUserRequest {
+    pub username: Option<String>,
+    pub password: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+pub struct UpgradeAccountRequest {
+    pub username: String,
+    pub email: String,
+    pub password: String,
+}
+
+/// Update user details (username and/or password)
+pub async fn update_user(
+    user_id: &Uuid,
+    update_request: &UpdateUserRequest,
+    db: &PgPool,
+) -> Result<User, ComhairleError> {
+    let mut query = Query::update();
+    query.table(UserIden::Table);
+    
+    let mut has_updates = false;
+    
+    if let Some(username) = &update_request.username {
+        query.value(UserIden::Username, username.clone());
+        has_updates = true;
+    }
+    
+    if let Some(password) = &update_request.password {
+        let hashed_password = hash_pw(password)?;
+        query.value(UserIden::Password, hashed_password);
+        has_updates = true;
+    }
+    
+    if !has_updates {
+        return get_user_by_id(user_id, db).await;
+    }
+    
+    let (sql, values) = query
+        .and_where(Expr::col(UserIden::Id).eq(user_id.to_owned()))
+        .returning(Query::returning().columns([
+            UserIden::Id,
+            UserIden::Username,
+            UserIden::Password,
+            UserIden::AvatarUrl,
+            UserIden::AuthType,
+            UserIden::Email,
+        ]))
+        .build_sqlx(PostgresQueryBuilder);
+    
+    let user_result = sqlx::query_as_with::<_, User, _>(&sql, values)
+        .fetch_one(db)
+        .await;
+    
+    match user_result {
+        Ok(user) => Ok(user),
+        Err(sqlx::Error::Database(db_err)) => {
+            let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
+            if pg_err.code() == "23505" {
+                if let Some(constraint) = pg_err.constraint() {
+                    if constraint.contains("username") {
+                        return Err(ComhairleError::DuplicateUsername(
+                            update_request.username.clone().unwrap_or_default()
+                        ));
+                    }
+                }
+            }
+            Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
+        }
+        Err(e) => Err(ComhairleError::DatabaseError(e)),
+    }
+}
+
+/// Upgrade an anonymous account to email/password account
+pub async fn upgrade_account(
+    user_id: &Uuid,
+    upgrade_request: &UpgradeAccountRequest,
+    db: &PgPool,
+) -> Result<User, ComhairleError> {
+    // First verify the user exists and is an anonymous account
+    let current_user = get_user_by_id(user_id, db).await?;
+    
+    if current_user.auth_type != UserAuthType::Annon {
+        return Err(ComhairleError::WrongUserType);
+    }
+    
+    let hashed_password = hash_pw(&upgrade_request.password)?;
+    
+    let (sql, values) = Query::update()
+        .table(UserIden::Table)
+        .values([
+            (UserIden::Username, upgrade_request.username.clone().into()),
+            (UserIden::Email, upgrade_request.email.clone().into()),
+            (UserIden::Password, hashed_password.into()),
+            (UserIden::AuthType, UserAuthType::EmailPassword.into()),
+        ])
+        .and_where(Expr::col(UserIden::Id).eq(user_id.to_owned()))
+        .returning(Query::returning().columns([
+            UserIden::Id,
+            UserIden::Username,
+            UserIden::Password,
+            UserIden::AvatarUrl,
+            UserIden::AuthType,
+            UserIden::Email,
+        ]))
+        .build_sqlx(PostgresQueryBuilder);
+    
+    let user_result = sqlx::query_as_with::<_, User, _>(&sql, values)
+        .fetch_one(db)
+        .await;
+    
+    match user_result {
+        Ok(user) => Ok(user),
+        Err(sqlx::Error::Database(db_err)) => {
+            let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
+            if pg_err.code() == "23505" {
+                if let Some(constraint) = pg_err.constraint() {
+                    if constraint.contains("username") {
+                        return Err(ComhairleError::DuplicateUsername(
+                            upgrade_request.username.clone()
+                        ));
+                    } else if constraint.contains("email") {
+                        return Err(ComhairleError::DuplicateEmail(
+                            upgrade_request.email.clone()
+                        ));
+                    }
+                }
+            }
+            Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
+        }
+        Err(e) => Err(ComhairleError::DatabaseError(e)),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
