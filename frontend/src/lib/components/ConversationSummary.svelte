@@ -21,7 +21,11 @@
 	</div>
 
 	<div class="flex flex-col gap-5">
-		<img class="h-[468px] self-stretch" src={conversation.image_url} alt={conversation.title} />
+		<img
+			class="h-[468px] self-stretch object-cover"
+			src={conversation.image_url}
+			alt={conversation.title}
+		/>
 		<p class=" text-[#687280] md:text-2xl md:text-gray-950">{conversation.description}</p>
 		<div class="block md:hidden">
 			{@render children()}
