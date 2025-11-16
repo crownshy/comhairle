@@ -22,6 +22,10 @@ use crate::{
             self, Conversation, ConversationFilterOptions, ConversationOrderOptions,
             CreateConversation, PartialConversation,
         },
+        conversation_email_notification_recipients::{
+            self as email_recipients_model, ConversationEmailNotificationRecipients,
+            CreateConversationEmailNotificationRecipients,
+        },
         notification::{self as notification_model, CreateNotification, NotificationContextType},
         notification_delivery::{
             self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
@@ -108,6 +112,19 @@ pub struct SendNotificationRequest {
     pub delivery_method: Option<DeliveryMethod>,
 }
 
+#[derive(Deserialize, JsonSchema)]
+pub struct RegisterEmailRequest {
+    pub email: String,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct RegisterEmailResponse {
+    pub id: Uuid,
+    pub conversation_id: Uuid,
+    pub email: String,
+    pub message: String,
+}
+
 /// Send notification to all conversation participants
 async fn send_notification_to_participants(
     State(state): State<Arc<ComhairleState>>,
@@ -173,6 +190,53 @@ async fn send_notification_to_participants(
     ))
 }
 
+/// Register email for conversation updates
+async fn register_email_for_updates(
+    State(state): State<Arc<ComhairleState>>,
+    Path(conversation_id): Path<Uuid>,
+    Json(request): Json<RegisterEmailRequest>,
+) -> Result<(StatusCode, Json<RegisterEmailResponse>), ComhairleError> {
+    // Verify conversation exists and is public
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+
+    // Check if email is already registered for this conversation
+    if let Ok(_existing) = email_recipients_model::get_by_conversation_and_email(
+        &state.db,
+        &conversation_id,
+        &request.email,
+    )
+    .await
+    {
+        return Ok((
+            StatusCode::OK,
+            Json(RegisterEmailResponse {
+                id: _existing.id,
+                conversation_id,
+                email: request.email.clone(),
+                message: "Email is already registered for updates on this conversation".to_string(),
+            }),
+        ));
+    }
+
+    // Create new email registration
+    let create_request = CreateConversationEmailNotificationRecipients {
+        conversation_id,
+        email: request.email.clone(),
+    };
+
+    let recipient = email_recipients_model::create(&state.db, &create_request).await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(RegisterEmailResponse {
+            id: recipient.id,
+            conversation_id,
+            email: request.email,
+            message: "Successfully registered for email updates".to_string(),
+        }),
+    ))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -228,6 +292,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Creates a notification and sends it to all users participating in workflows within the conversation. Only conversation owners can send notifications.")
                     .response::<201, Json<serde_json::Value>>()
                     .tag("Notifications")
+            }),
+        )
+        .api_route(
+            "/{conversation_id}/email-updates",
+            post_with(register_email_for_updates, |op| {
+                op.id("RegisterEmailForUpdates")
+                    .summary("Register email address for conversation updates")
+                    .description("Allows non-logged-in users to register their email address to receive updates about a public conversation. If the email is already registered, returns existing registration.")
+                    .response::<201, Json<RegisterEmailResponse>>()
+                    .response::<200, Json<RegisterEmailResponse>>()
+                    .tag("Email Notifications")
             }),
         )
         .with_state(state)
