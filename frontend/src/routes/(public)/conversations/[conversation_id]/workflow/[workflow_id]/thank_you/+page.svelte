@@ -5,6 +5,8 @@
 	import FeedbackModal from '$lib/components/FeedbackModal.svelte';
 	import UserConversationPreferencesForm from '$lib/components/UserConversationPreferencesForm/UserConversationPreferencesForm.svelte';
 	import UpgradeAccountModal from '$lib/components/UpgradeAccountModal/UpgradeAccountModal.svelte';
+	import EmailRegistrationForm from '$lib/components/EmailRegistrationForm/EmailRegistrationForm.svelte';
+
 	let { data }: PageProps = $props();
 	let user = $derived(data.user);
 	let conversation = $derived(data.conversation);
@@ -15,10 +17,10 @@
 	<h1>Thank You For Participating</h1>
 
 	Thank you for taking part in the conversation:<strong>{conversation.title}</strong> <br />
-	We value your time and effort
+	We value your time and effort.
 
 	{#if user.auth_type === 'annon'}
-		<p>You currently signed in as an anonymous user. Use your anonymous id</p>
+		<p>You are currently signed in as an anonymous user. Use your anonymous id</p>
 		<h2 class="text-center">{user.username}</h2>
 		<p>to log back in at a later time to see the results of the conversations.</p>
 	{:else}
@@ -38,13 +40,36 @@
 		>
 		<FeedbackModal conversationId={conversation.id} />
 	</div>
+
 	<h2>Keep informed</h2>
+
+	<p>
+		Sometimes we invite people who’ve taken part in Scottish Government research to take part in
+		future research on a related topic. This future research may be carried out by the Scottish
+		Government, other government bodies, or a reputable research organisation working with them. You
+		may never be contacted again, but even if you are, you’ll still be free to decide whether you
+		want to take part in the research or not. Are you willing to be contacted again for future
+		research purposes relating to this topic?
+	</p>
+
 	{#if user.auth_type === 'annon'}
-		<p>To receive update on this conversation and future converations, upgrade to a full account</p>
-		<div class="mx-auto mt-10 flex flex-col justify-center gap-2 text-center md:flex-row">
+		<p>
+			To receive updates on this conversation and future conversations, either update to a full
+			account
+		</p>
+
+		<div class="mt-5 mb-10 w-full">
 			<UpgradeAccountModal currentUser={user} />
 		</div>
+		<p>or submit your email</p>
+		<div class="mb-10">
+			<EmailRegistrationForm conversation_id={conversation.id} />
+		</div>
 	{:else}
+		<p>
+			Use the following switches to opt into future communications. You can also update this on your
+			settings page.
+		</p>
 		<UserConversationPreferencesForm
 			conversationId={conversation.id}
 			isAnnon={user.auth_type === 'annon'}
