@@ -1,4 +1,5 @@
 pub mod conversation;
+pub mod conversation_email_notification_recipients;
 pub mod feedback;
 pub mod invite_response;
 pub mod invites;
