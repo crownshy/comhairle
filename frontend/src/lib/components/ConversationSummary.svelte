@@ -1,69 +1,34 @@
 <script lang="ts">
 	import type { Conversation } from '$lib/api/api';
 	import type { Snippet } from 'svelte';
-	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
 		conversation: Conversation;
 		children: Snippet;
 	};
 	let { conversation, children }: Props = $props();
-	let hasAdditionalLearnMethods = $derived(conversation.video_url || conversation.audio_url);
 </script>
 
-<div class=" grid grid-cols-1 md:grid-cols-2 md:gap-10">
-	<div
-		class="relative flex h-[500px] w-full items-center rounded-2xl bg-cover bg-center py-10 md:col-span-2"
-		style={`background-image: url(${conversation.image_url})`}
-	>
-		<!-- Gradient Overlay -->
-		<div class="absolute inset-0 bg-linear-to-b from-white/30 to-black/70"></div>
-
-		<!-- Content -->
-		<div class="relative z-10 ml-12 max-w-2xl py-10 text-white">
-			<h1 class="text-5xl font-bold">{conversation.title}</h1>
-			<h2 class="mt-4 text-2xl">{conversation.short_description}</h2>
-			<div class="my-5 hidden md:block">
-				{@render children()}
-			</div>
+<div class="mt-10 grid grid-cols-1 gap-10 md:mt-0 md:grid-cols-[400px_1fr]">
+	<div class="flex flex-col gap-5">
+		<h1 class="text-4xl font-semibold md:text-5xl">{conversation.title}</h1>
+		<p class="text-[#687280] md:text-2xl md:text-gray-950">
+			{conversation.short_description}
+		</p>
+		<div class="hidden md:block">
+			{@render children()}
 		</div>
 	</div>
 
-	<div class="col-span-2 my-5 block md:my-10 md:hidden">
-		{@render children()}
+	<div class="flex flex-col gap-5">
+		<img
+			class="h-[468px] self-stretch object-cover"
+			src={conversation.image_url}
+			alt={conversation.title}
+		/>
+		<p class=" text-[#687280] md:text-2xl md:text-gray-950">{conversation.description}</p>
+		<div class="block md:hidden">
+			{@render children()}
+		</div>
 	</div>
-
-	<article class={hasAdditionalLearnMethods ? 'mb-5' : 'col-span-2 mb-5'}>
-		<h3 class="text-xl font-bold">{m.intro()}</h3>
-		<p>{conversation.description}</p>
-	</article>
-	{#if hasAdditionalLearnMethods}
-		<aside>
-			<h3 class="text-xl font-bold">{m.other_ways_to_learn_about_this_conversation()}</h3>
-			{#if conversation.video_url}
-				<h4 class="text-l font-bold">{m.watch()}</h4>
-				<iframe
-					width="560"
-					height="315"
-					src={conversation.video_url}
-					title="YouTube video player"
-					frameborder="0"
-					allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-					referrerpolicy="strict-origin-when-cross-origin"
-					allowfullscreen
-				></iframe>
-			{/if}
-
-			{#if conversation.audio_url}
-				<h4 class="text-l font-bold">{m.listen()}</h4>
-				<video controls class="h-[45px] w-full">
-					<source
-						src="https://crownshy.s3.eu-west-2.amazonaws.com/alpha_resources/Fairer+Council+Tax+in+Scotland_+A+Consultation.wav"
-						type="audio/wav"
-					/>
-				</video>
-			{/if}
-			<aside></aside>
-		</aside>
-	{/if}
 </div>

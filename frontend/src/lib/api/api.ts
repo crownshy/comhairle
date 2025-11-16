@@ -18,16 +18,24 @@ export const ResourceRole = z.enum(["Admin", "SuperAdmin"]);
 export type ResourceRole = z.infer<typeof ResourceRole>;
 export const UserRoles = z.object({ resource: ResourceType, roles: z.array(ResourceRole) }).passthrough();
 export type UserRoles = z.infer<typeof UserRoles>;
+export const Conversation = z.object({ created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), image_url: z.string(), is_complete: z.boolean(), is_invite_only: z.boolean(), is_public: z.boolean(), owner_id: z.string().uuid(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), tags: z.array(z.string()), title: z.string(), updated_at: z.string().datetime({ offset: true }), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type Conversation = z.infer<typeof Conversation>;
 export const created_after = z.union([z.string(), z.null()]).optional();
 export type created_after = z.infer<typeof created_after>;
 export const is_complete = z.union([z.boolean(), z.null()]).optional();
 export type is_complete = z.infer<typeof is_complete>;
 export const limit = z.union([z.number(), z.null()]).optional();
 export type limit = z.infer<typeof limit>;
-export const Conversation = z.object({ created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), image_url: z.string(), is_complete: z.boolean(), is_invite_only: z.boolean(), is_public: z.boolean(), owner_id: z.string().uuid(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), tags: z.array(z.string()), title: z.string(), updated_at: z.string().datetime({ offset: true }), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
-export type Conversation = z.infer<typeof Conversation>;
 export const PaginatedResults_for_Conversation = z.object({ records: z.array(Conversation), total: z.number().int() }).passthrough();
 export type PaginatedResults_for_Conversation = z.infer<typeof PaginatedResults_for_Conversation>;
+export const UpdateUserRequest = z.object({ password: z.union([z.string(), z.null()]), username: z.union([z.string(), z.null()]) }).partial().passthrough();
+export type UpdateUserRequest = z.infer<typeof UpdateUserRequest>;
+export const UpgradeAccountRequest = z.object({ email: z.string(), password: z.string(), username: z.string() }).passthrough();
+export type UpgradeAccountRequest = z.infer<typeof UpgradeAccountRequest>;
+export const UserConversationPreferences = z.object({ conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), receive_similar_conversation_updates_by_email: z.boolean(), receive_similar_conversation_updates_by_notification: z.boolean(), receive_updates_by_email: z.boolean(), receive_updates_by_notification: z.boolean(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid() }).passthrough();
+export type UserConversationPreferences = z.infer<typeof UserConversationPreferences>;
+export const UpdateUserConversationPreferences = z.object({ receive_similar_conversation_updates_by_email: z.union([z.boolean(), z.null()]), receive_similar_conversation_updates_by_notification: z.union([z.boolean(), z.null()]), receive_updates_by_email: z.union([z.boolean(), z.null()]), receive_updates_by_notification: z.union([z.boolean(), z.null()]) }).partial().passthrough();
+export type UpdateUserConversationPreferences = z.infer<typeof UpdateUserConversationPreferences>;
 export const DeliveryMethod = z.enum(["in_app", "email"]);
 export type DeliveryMethod = z.infer<typeof DeliveryMethod>;
 export const NotificationContextType = z.enum(["site", "conversation"]);
@@ -149,11 +157,15 @@ export const schemas = {
 	ResourceType,
 	ResourceRole,
 	UserRoles,
+	Conversation,
 	created_after,
 	is_complete,
 	limit,
-	Conversation,
 	PaginatedResults_for_Conversation,
+	UpdateUserRequest,
+	UpgradeAccountRequest,
+	UserConversationPreferences,
+	UpdateUserConversationPreferences,
 	DeliveryMethod,
 	NotificationContextType,
 	NotificationType,
@@ -808,6 +820,29 @@ const endpoints = makeApi([
 	},
 	{
 		method: "get",
+		path: "/user/conversations",
+		alias: "GetConversationsUserIsParticipatingIn",
+		description: `Returns a list of all the conversations the user has taken part in`,
+		requestFormat: "json",
+		response: z.array(Conversation),
+	},
+	{
+		method: "put",
+		path: "/user/details",
+		alias: "UpdateUserDetails",
+		description: `Update user details (username and/or password)`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: UpdateUserRequest
+			},
+		],
+		response: User,
+	},
+	{
+		method: "get",
 		path: "/user/owned_conversations",
 		alias: "GetOwnedConversations",
 		description: `Gets a list of the conversations a user owns`,
@@ -863,11 +898,57 @@ const endpoints = makeApi([
 	},
 	{
 		method: "get",
+		path: "/user/preferences",
+		alias: "GetAllUserConversationPreferences",
+		description: `Returns all conversation notification preferences for the authenticated user`,
+		requestFormat: "json",
+		response: z.array(UserConversationPreferences),
+	},
+	{
+		method: "get",
+		path: "/user/preferences/conversation/:conversation_id",
+		alias: "GetUserPreferenceForConversation",
+		description: `Returns the notification preferences for a specific conversation`,
+		requestFormat: "json",
+		response: UserConversationPreferences,
+	},
+	{
+		method: "put",
+		path: "/user/preferences/conversation/:conversation_id",
+		alias: "UpdateUserPreferenceForConversation",
+		description: `Updates notification preferences for a specific conversation`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: UpdateUserConversationPreferences
+			},
+		],
+		response: UserConversationPreferences,
+	},
+	{
+		method: "get",
 		path: "/user/roles",
 		alias: "GetUserRoles",
 		description: `Gets a list of roles the current user has`,
 		requestFormat: "json",
 		response: z.array(UserRoles),
+	},
+	{
+		method: "put",
+		path: "/user/upgrade",
+		alias: "UpgradeAccount",
+		description: `Upgrade anonymous account to email/password account`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: UpgradeAccountRequest
+			},
+		],
+		response: User,
 	},
 	{
 		method: "post",

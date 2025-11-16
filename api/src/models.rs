@@ -8,6 +8,7 @@ pub mod pagination;
 pub mod report;
 pub mod report_impact;
 pub mod resource;
+pub mod user_conversation_preferences;
 pub mod user_participation;
 pub mod user_progress;
 pub mod users;
