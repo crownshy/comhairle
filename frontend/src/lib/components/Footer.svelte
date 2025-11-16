@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages';
+	import Logo from '$lib/assets/comhairle_logo.svg';
 </script>
 
 <div class="bg-primary inline-flex w-full flex-col items-center justify-center gap-2.5">
@@ -9,8 +10,9 @@
 				<div class="flex flex-1 flex-col items-center justify-start gap-6 md:flex-row">
 					<div class="flex items-center justify-start gap-3">
 						<div
-							class="justify-start text-center font-['Inter'] text-2xl leading-7 font-medium text-lime-50"
+							class="flex flex-row justify-start gap-x-5 text-center font-['Inter'] text-2xl leading-7 font-medium text-lime-50"
 						>
+							<img class="w-8" src={Logo} alt="Comhairle Logo" />
 							Comhairle
 						</div>
 					</div>
