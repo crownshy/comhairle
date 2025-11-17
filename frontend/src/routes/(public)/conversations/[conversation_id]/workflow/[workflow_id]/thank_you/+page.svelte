@@ -16,7 +16,7 @@
 <div class="prose mx-auto mt-20">
 	<h1>Thank You For Participating</h1>
 
-	Thank you for taking part in the conversation:<strong>{conversation.title}</strong> <br />
+	Thank you for taking part in the conversation:<strong> {conversation.title}</strong> <br />
 	We value your time and effort.
 
 	{#if user.auth_type === 'annon'}

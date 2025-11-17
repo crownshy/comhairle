@@ -4,6 +4,7 @@
 	import { zodClient, zod } from 'sveltekit-superforms/adapters';
 	import * as Form from '$lib/components/ui/form/index.js';
 	import Input from '$lib/components/ui/input/input.svelte';
+	import { Switch } from '$lib/components/ui/switch';
 	import { apiClient } from '$lib/api/client';
 	import { notifications } from '$lib/notifications.svelte';
 
@@ -16,7 +17,9 @@
 	let registering = $state(false);
 
 	const emailRegistrationSchema = z.object({
-		email: z.string().email('Please enter a valid email address')
+		email: z.string().email('Please enter a valid email address'),
+		receive_updates_by_email: z.boolean().default(false),
+		receive_similar_conversation_updates_by_email: z.boolean().default(false)
 	});
 
 	async function registerEmail() {
@@ -28,7 +31,12 @@
 		try {
 			registering = true;
 			const response = await apiClient.RegisterEmailForUpdates(
-				{ email: result.data.email },
+				{
+					email: result.data.email,
+					receive_updates_by_email: result.data.receive_updates_by_email,
+					receive_similar_conversation_updates_by_email:
+						result.data.receive_similar_conversation_updates_by_email
+				},
 				{ params: { conversation_id } }
 			);
 			notifications.send({ message: response.message });
@@ -54,7 +62,7 @@
 	let { form: formData, enhance, validateForm, message } = form;
 </script>
 
-<form method="POST" class="space-y-4" use:enhance>
+<form class="space-y-4 border-1 bg-white p-5" method="POST" use:enhance>
 	<Form.Field {form} name="email">
 		<Form.Control>
 			{#snippet children({ props })}
@@ -62,10 +70,53 @@
 				<Input type="email" {...props} bind:value={$formData.email} />
 			{/snippet}
 		</Form.Control>
-		<Form.Description class="text-muted-foreground">
-			Register your email to receive updates about this conversation.
-		</Form.Description>
 		<Form.FieldErrors />
+	</Form.Field>
+
+	<Form.Field {form} name="receive_updates_by_email" class="space-y-2">
+		<Form.Control>
+			{#snippet children({ props })}
+				<div class="flex items-center justify-between">
+					<div class="space-y-1 leading-none">
+						<Form.Label class="text-sm font-normal">Receive updates by email</Form.Label>
+						<Form.Description class="text-muted-foreground text-xs">
+							By ticking this box I allow Scottish Government or an organisation acting on behalf of
+							Scottish Government to contact me to provide me updates relating to this engagement.
+						</Form.Description>
+					</div>
+					<Switch
+						{...props}
+						bind:checked={$formData.receive_updates_by_email}
+						disabled={registering}
+					/>
+				</div>
+				<Form.FieldErrors />
+			{/snippet}
+		</Form.Control>
+	</Form.Field>
+
+	<Form.Field {form} name="receive_similar_conversation_updates_by_email" class="space-y-2">
+		<Form.Control>
+			{#snippet children({ props })}
+				<div class="flex items-center justify-between">
+					<div class="space-y-1 leading-none">
+						<Form.Label class="text-sm font-normal"
+							>Receive emails about future engagments</Form.Label
+						>
+						<Form.Description class="text-muted-foreground text-xs">
+							By ticking this box I agree that I am willing to be contacted for future engagement or
+							research purposes relating to the this conversation.
+						</Form.Description>
+					</div>
+					<Switch
+						{...props}
+						bind:checked={$formData.receive_similar_conversation_updates_by_email}
+						disabled={registering}
+					/>
+				</div>
+				<Form.FieldErrors />
+			{/snippet}
+		</Form.Control>
 	</Form.Field>
 
 	<Form.Button class="w-full" disabled={registering}>
@@ -76,4 +127,3 @@
 		<p class="text-destructive text-sm">{$message}</p>
 	{/if}
 </form>
-

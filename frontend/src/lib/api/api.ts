@@ -58,7 +58,7 @@ export const PartialConversation = z.object({ description: z.union([z.string(), 
 export type PartialConversation = z.infer<typeof PartialConversation>;
 export const SendNotificationRequest = z.object({ content: z.string(), delivery_method: z.union([DeliveryMethod, z.null()]).optional(), notification_type: z.union([NotificationType, z.null()]).optional(), title: z.string() }).passthrough();
 export type SendNotificationRequest = z.infer<typeof SendNotificationRequest>;
-export const RegisterEmailRequest = z.object({ email: z.string() }).passthrough();
+export const RegisterEmailRequest = z.object({ email: z.string(), receive_similar_conversation_updates_by_email: z.boolean(), receive_updates_by_email: z.boolean() }).passthrough();
 export type RegisterEmailRequest = z.infer<typeof RegisterEmailRequest>;
 export const RegisterEmailResponse = z.object({ conversation_id: z.string().uuid(), email: z.string(), id: z.string().uuid(), message: z.string() }).passthrough();
 export type RegisterEmailResponse = z.infer<typeof RegisterEmailResponse>;
@@ -414,7 +414,7 @@ const endpoints = makeApi([
 			{
 				name: "body",
 				type: "Body",
-				schema: z.object({ email: z.string() }).passthrough()
+				schema: RegisterEmailRequest
 			},
 		],
 		response: RegisterEmailResponse,
