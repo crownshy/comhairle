@@ -1,10 +1,11 @@
 <script lang="ts">
-	import Logo from '$lib/assets/comhairle_logo.png';
+	// import Logo from '$lib/assets/comhairle_logo.svg';
+	import Logo from '$lib/components/ComhairleLogo.svelte';
 </script>
 
 <div class="align-center mx-auto max-w-xs md:mt-10">
 	<div class="align-center mb-4 hidden flex-col items-center md:flex">
-		<img src={Logo} alt="Comhairle Logo" />
+		<Logo />
 		<a href="/" class="text-xl font-bold">Comhairle</a>
 	</div>
 	<div class="my-8 border border-dotted p-8">

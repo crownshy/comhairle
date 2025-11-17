@@ -98,7 +98,7 @@
 				>
 					{step.name}
 				</h2>
-				<div class="prose-sm prose-p:text-base mx-auto">
+				<div class="prose-sm prose-p:text-base prose-li:text-base mx-auto">
 					{#key step.description}
 						<Markdown {carta} value={step.description} />
 					{/key}

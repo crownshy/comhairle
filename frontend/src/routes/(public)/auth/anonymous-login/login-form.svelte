@@ -2,21 +2,36 @@
 	import * as Form from '$lib/components/ui/form';
 	import { Input } from '$lib/components/ui/input';
 	import { annonLoginFormSchema } from '$lib/profile';
-	import { type SuperValidated, type Infer, superForm } from 'sveltekit-superforms';
-	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { type SuperValidated, superForm, defaults } from 'sveltekit-superforms';
+	import { zodClient, zod } from 'sveltekit-superforms/adapters';
 	import * as m from '$lib/paraglide/messages';
+	import { apiClient } from '$lib/api/client';
+	import { goto, invalidateAll } from '$app/navigation';
 
-	let {
-		data,
-		backTo
-	}: { data: SuperValidated<Infer<typeof annonLoginFormSchema>>; backTo?: string } = $props();
+	let { backTo }: { backTo?: string } = $props();
 
-	console.log('DATA IS ', data);
-	const form = superForm(data, {
-		validators: zodClient(annonLoginFormSchema)
+	const form = superForm(defaults(zod(annonLoginFormSchema)), {
+		validators: zodClient(annonLoginFormSchema),
+		onSubmit: attemptLogin
 	});
 
-	const { form: formData, enhance, message: errMessage } = form;
+	const { form: formData, enhance, message: errMessage, validateForm } = form;
+
+	async function attemptLogin() {
+		let result = await validateForm({ update: true });
+		if (result.valid) {
+			let { username } = result.data;
+			try {
+				await apiClient.LoginAnnonUser({
+					username
+				});
+				await invalidateAll();
+				await goto(backTo ?? '/');
+			} catch (e) {
+				$errMessage = e.response.data.err;
+			}
+		}
+	}
 </script>
 
 <form class="space-y-4" method="POST" use:enhance>
