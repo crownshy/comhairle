@@ -20,12 +20,12 @@ use crate::{
     ComhairleState,
 };
 
-use super::auth::RequiredAdminUser;
+use super::auth::{RequiredAdminUser, RequiredUser};
 
 async fn create_feedback(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
     Json(create_request): Json<CreateFeedbackDTO>,
 ) -> Result<(StatusCode, Json<Feedback>), ComhairleError> {
     let feedback =

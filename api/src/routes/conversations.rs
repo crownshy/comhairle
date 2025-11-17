@@ -115,6 +115,8 @@ pub struct SendNotificationRequest {
 #[derive(Deserialize, JsonSchema)]
 pub struct RegisterEmailRequest {
     pub email: String,
+    pub receive_updates_by_email: bool,
+    pub receive_similar_conversation_updates_by_email: bool,
 }
 
 #[derive(Serialize, JsonSchema)]
@@ -222,6 +224,8 @@ async fn register_email_for_updates(
     let create_request = CreateConversationEmailNotificationRecipients {
         conversation_id,
         email: request.email.clone(),
+        receive_updates_by_email: request.receive_updates_by_email,
+        receive_similar_conversation_updates_by_email: request.receive_similar_conversation_updates_by_email,
     };
 
     let recipient = email_recipients_model::create(&state.db, &create_request).await?;

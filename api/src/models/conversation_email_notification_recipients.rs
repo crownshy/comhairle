@@ -13,6 +13,8 @@ pub struct ConversationEmailNotificationRecipients {
     pub id: Uuid,
     pub conversation_id: Uuid,
     pub email: String,
+    pub receive_updates_by_email: bool,
+    pub receive_similar_conversation_updates_by_email: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -21,12 +23,16 @@ pub struct ConversationEmailNotificationRecipients {
 pub struct CreateConversationEmailNotificationRecipients {
     pub conversation_id: Uuid,
     pub email: String,
+    pub receive_updates_by_email: bool,
+    pub receive_similar_conversation_updates_by_email: bool,
 }
 
-const DEFAULT_COLUMNS: [ConversationEmailNotificationRecipientsIden; 5] = [
+const DEFAULT_COLUMNS: [ConversationEmailNotificationRecipientsIden; 7] = [
     ConversationEmailNotificationRecipientsIden::Id,
     ConversationEmailNotificationRecipientsIden::ConversationId,
     ConversationEmailNotificationRecipientsIden::Email,
+    ConversationEmailNotificationRecipientsIden::ReceiveUpdatesByEmail,
+    ConversationEmailNotificationRecipientsIden::ReceiveSimilarConversationUpdatesByEmail,
     ConversationEmailNotificationRecipientsIden::CreatedAt,
     ConversationEmailNotificationRecipientsIden::UpdatedAt,
 ];
@@ -36,11 +42,18 @@ impl CreateConversationEmailNotificationRecipients {
         vec![
             ConversationEmailNotificationRecipientsIden::ConversationId,
             ConversationEmailNotificationRecipientsIden::Email,
+            ConversationEmailNotificationRecipientsIden::ReceiveUpdatesByEmail,
+            ConversationEmailNotificationRecipientsIden::ReceiveSimilarConversationUpdatesByEmail,
         ]
     }
 
     pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
-        vec![self.conversation_id.into(), self.email.clone().into()]
+        vec![
+            self.conversation_id.into(),
+            self.email.clone().into(),
+            self.receive_updates_by_email.into(),
+            self.receive_similar_conversation_updates_by_email.into(),
+        ]
     }
 }
 
