@@ -9,14 +9,13 @@ use std::sync::{
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        ConnectInfo, Query, State,
+        ConnectInfo, State,
     },
     response::Response,
 };
 use dashmap::DashMap;
 use futures_util::{SinkExt, StreamExt};
 use messages::{NotificationLevel, WebSocketMessage};
-use serde::Deserialize;
 use std::net::SocketAddr;
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
@@ -28,10 +27,7 @@ use mockall::{automock, predicate::*};
 use async_trait::async_trait;
 
 use crate::{
-    error::ComhairleError,
-    models::users::User,
-    routes::auth::{validate_jwt, OptionalUser, RequiredUser, AUTH_KEY},
-    ComhairleState,
+    error::ComhairleError, models::users::User, routes::auth::RequiredUser, ComhairleState,
 };
 
 static NEXT_CONNECTION_ID: AtomicUsize = AtomicUsize::new(1);
@@ -103,10 +99,6 @@ pub struct ComhairleWebSocketService {
 #[async_trait]
 #[cfg_attr(test, automock)]
 pub trait WebSocketService: Send + Sync {
-    fn new() -> Self
-    where
-        Self: Sized;
-
     fn add_connection(&self, connection: WebSocketConnection);
 
     fn remove_connection(&self, connection_id: &ConnectionId) -> Option<WebSocketConnection>;
@@ -137,14 +129,46 @@ pub trait WebSocketService: Send + Sync {
     fn get_connected_user_ids(&self) -> Vec<Uuid>;
 }
 
-#[async_trait]
-impl WebSocketService for ComhairleWebSocketService {
-    fn new() -> Self {
+#[cfg(test)]
+impl MockWebSocketService {
+    pub fn base() -> MockWebSocketService {
+        let mut websockets = MockWebSocketService::new();
+        websockets.expect_add_connection().returning(|_| ());
+        websockets.expect_remove_connection().returning(|_| None);
+        websockets
+            .expect_broadcast_to_all()
+            .returning(|_| Box::pin(async move { Ok(0) }));
+        websockets
+            .expect_broadcast_to_authenticated_users()
+            .returning(|_| Box::pin(async move { Ok(0) }));
+        websockets
+            .expect_send_to_user()
+            .returning(|_, _| Box::pin(async move { Ok(0) }));
+        websockets
+            .expect_send_to_connections()
+            .returning(|_, _| Box::pin(async move { Ok(0) }));
+        websockets.expect_get_connection_count().returning(|| 0);
+        websockets
+            .expect_get_user_connection_count()
+            .returning(|_| 0);
+        websockets
+            .expect_get_connected_user_ids()
+            .returning(|| vec![]);
+        websockets
+    }
+}
+
+impl ComhairleWebSocketService {
+    pub fn new() -> Self {
         Self {
             connections: Arc::new(DashMap::new()),
             user_connections: Arc::new(DashMap::new()),
         }
     }
+}
+
+#[async_trait]
+impl WebSocketService for ComhairleWebSocketService {
 
     fn add_connection(&self, connection: WebSocketConnection) {
         let connection_id = connection.id.clone();

@@ -114,7 +114,7 @@ mod tests {
 
         // Sign up for the workflow
 
-        let url = format!("/conversation/{conversation_id}/workflow/{workflow_id}/participation");
+        let url = format!("/conversation/{conversation_id}/workflow/{workflow_id}/register");
         user_session.post(&app, &url, Body::empty()).await?;
 
         // Update the status for a user on a given step

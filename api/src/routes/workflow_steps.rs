@@ -186,6 +186,7 @@ mod tests {
                 "activation_rule" : "manual",
                 "description": "A manually retired polis workflow step",
                 "is_offline": false,
+                "required":true,
                 "tool_setup": {
                     "type": "polis",
                     "topic": "topic"
@@ -228,6 +229,7 @@ mod tests {
                 "activation_rule" : "manual",
                 "description": "A manually retired polis workflow step",
                 "is_offline": false,
+                "required":true,
                 "tool_setup": polis_tool_config()})
                 .to_string()
                 .into(),
@@ -243,6 +245,7 @@ mod tests {
                     "step_order": 2,
                     "activation_rule" : "manual",
                     "description": "A manually retired learnworkflow step",
+                    "required":true,
                     "is_offline": false,
                     "tool_setup": learn_tool_config()
                 })
@@ -305,6 +308,7 @@ mod tests {
                 "step_order": 1,
                 "activation_rule" : "manual",
                 "description": "A manually retired polis workflow step",
+                "required":true,
                 "is_offline": false,
                 "tool_setup": polis_tool_config()})
                 .to_string()
@@ -320,6 +324,7 @@ mod tests {
                 "name": "Learn Workflow Step",
                 "step_order": 2,
                 "activation_rule" : "manual",
+                "required":true,
                 "description": "A manually retired learnworkflow step",
                 "is_offline": false,
                 "tool_setup": learn_tool_config()})
@@ -384,6 +389,7 @@ mod tests {
                     "step_order": no+1,
                     "activation_rule" : "manual",
                     "description": "A manually retired polis workflow step",
+                    "required":true,
                     "is_offline": false,
                     "tool_setup": learn_tool_config()})
                     .to_string()
@@ -470,6 +476,7 @@ mod tests {
                     "name": format!("{no}"),
                     "step_order": no+1,
                     "activation_rule" : "manual",
+                    "required":true,
                     "description": "A manually retired polis workflow step",
                     "is_offline": false,
                     "tool_setup": learn_tool_config()})
@@ -533,6 +540,7 @@ mod tests {
                 "name": "Polis Workflow Step",
                 "step_order": 1,
                 "activation_rule" : "manual",
+                "required":true,
                 "description": "A manually retired polis workflow step",
                 "is_offline": false,
                 "tool_setup": learn_tool_config()})
@@ -551,6 +559,7 @@ mod tests {
                 "activation_rule" : "manual",
                 "description": "A manually retired learnworkflow step",
                 "is_offline": false,
+                "required":true,
                 "tool_setup": learn_tool_config()})
                 .to_string()
                 .into(),
@@ -623,6 +632,7 @@ mod tests {
                     "step_order": no+1,
                     "activation_rule" : "manual",
                     "description": "A manually retired polis workflow step",
+                    "required":true,
                     "is_offline": false,
                     "tool_setup": learn_tool_config()})
                     .to_string()

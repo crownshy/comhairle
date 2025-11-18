@@ -323,8 +323,9 @@ pub async fn get_stats_for_invite(
 #[cfg(test)]
 mod tests {
     use crate::models::{
-        conversation::{self, CreateConversation},
+        conversation::{self, CreateConversation, PartialConversation},
         users,
+        workflow::{self, CreateWorkflow},
     };
 
     use super::*;
@@ -349,6 +350,29 @@ mod tests {
             user1.id,
         )
         .await?;
+
+        println!("conversation {conversation:#?}");
+
+        let workflow = workflow::create(
+            &db,
+            &CreateWorkflow { ..Faker.fake() },
+            conversation.id,
+            user1.id,
+        )
+        .await?;
+        println!("workflow {workflow:#?}");
+
+        let conversation = conversation::update(
+            &db,
+            &conversation.id,
+            &PartialConversation {
+                default_workflow_id: Some(workflow.id),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+        println!("conversation with default workflow {conversation:#?}");
 
         let invite = create(
             &db,

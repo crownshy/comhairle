@@ -13,7 +13,7 @@ use minijinja::context;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{models::invites::DailyResponseStats, ComhairleState};
+use crate::{models::{invites::DailyResponseStats, workflow}, ComhairleState};
 use crate::{
     error::ComhairleError,
     models::{
@@ -28,13 +28,25 @@ use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser};
 async fn accept_invite(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Path((_, invite_id)): Path<(Uuid, Uuid)>,
+    Path((conversation_id, invite_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<Invite>), ComhairleError> {
     let invite = models::invites::get(&state.db, &invite_id).await?;
+    let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
     // Check to see if the invite is valid
     invite.is_still_valid()?;
     invite.is_for_user(&user)?;
+
+    // Get the workflow to sign up to either explicitly from the invite 
+    // or from the default conversation workflow
+    let workflow_id = match (invite.workflow_id, conversation.default_workflow_id){
+        (Some(invite_workflow), _) => Ok(invite_workflow),
+        (None, Some(conversation_workflow)) => Ok(conversation_workflow),
+        (None, None)=> Err(ComhairleError::NoWorkflowFoundForInvite)
+    }?;
+
+
+    workflow::register_user(&state.db, &workflow_id, &user).await?;
 
     invite
         .accept(&state.db, &user)
@@ -55,7 +67,7 @@ async fn reject_invite(
     invite.is_for_user(&user)?;
 
     invite
-        .accept(&state.db, &user)
+        .reject(&state.db, &user)
         .await
         .map(|new_invite| (StatusCode::OK, Json(new_invite)))
 }
@@ -85,7 +97,7 @@ async fn create_invite(
         models::invites::InviteType::Email(email) => {
             state.mailer.send_email(
             &email,
-            "You have been invited to the conversation",
+            "Invitation to take part in the National Performance Framework consultation",
             "conversation_invite.html",
             context! {
                 conversation_hero => conversation.image_url , 
@@ -212,7 +224,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/{invite_id}/reject",
-            post_with(accept_invite, |op| {
+            post_with(reject_invite, |op| {
                 op.id("RejectInvite")
                     .summary("Reject the invite if you are able")
                     .response::<200, Json<Invite>>()
@@ -394,6 +406,8 @@ mod tests {
                 }),
             )
             .await?;
+        let convo_id: String = extract("id",&conversation );
+        session.create_random_workflow(&app, &convo_id).await?;
 
         let conversation_id: String = extract("id", &conversation);
 
