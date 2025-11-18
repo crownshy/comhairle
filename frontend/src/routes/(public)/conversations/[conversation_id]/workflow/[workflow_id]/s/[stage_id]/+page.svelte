@@ -14,8 +14,9 @@
 	import { apiClient } from '$lib/api/client';
 	import { addDays, parseISO } from 'date-fns';
 	import { video } from 'carta-plugin-video';
-	import { Markdown, Carta } from 'carta-md';
+	import { Markdown, Carta, type Plugin } from 'carta-md';
 	import DOMPurify from 'isomorphic-dompurify';
+	import rehypeRaw from 'rehype-raw';
 
 	import { ws } from '$lib/api/websockets.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -32,9 +33,28 @@
 
 	let description = $derived(step.description);
 
+	const sanitizeOptions = {
+		ADD_ATTR: ['target']
+	};
+
+	const htmlPlugin: Plugin = {
+		transformers: [
+			{
+				execution: 'sync',
+				type: 'rehype',
+				transform({ processor }) {
+					processor.use(rehypeRaw);
+				}
+			}
+		]
+	};
+
 	let carta = new Carta({
-		sanitizer: DOMPurify.sanitize,
-		extensions: [video()]
+		sanitizer: (html) => DOMPurify.sanitize(html, sanitizeOptions),
+		extensions: [video(), htmlPlugin],
+		rehypeOptions: {
+			allowDangerousHtml: true
+		}
 	});
 
 	function goToThankYouPage() {

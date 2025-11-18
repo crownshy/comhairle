@@ -18,8 +18,9 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { report_url } from '$lib/urls.js';
 	import { NotebookText } from 'lucide-svelte';
-	import { Carta, MarkdownEditor } from 'carta-md';
+	import { Carta, MarkdownEditor, type Plugin } from 'carta-md';
 	import DOMPurify from 'isomorphic-dompurify';
+	import rehypeRaw from 'rehype-raw';
 	import 'carta-md/default.css';
 	import '@cartamd/plugin-slash/default.css';
 	import 'carta-plugin-video/default.css';
@@ -30,9 +31,28 @@
 	let report = $derived(data.report);
 	let conversation = $derived(data.conversation);
 
+	const sanitizeOptions = {
+		ADD_ATTR: ['target']
+	};
+
+	const htmlPlugin: Plugin = {
+		transformers: [
+			{
+				execution: 'sync',
+				type: 'rehype',
+				transform({ processor }) {
+					processor.use(rehypeRaw);
+				}
+			}
+		]
+	};
+
 	const carta = new Carta({
-		sanitizer: DOMPurify.sanitize,
-		extensions: [slash(), video()]
+		sanitizer: (html) => DOMPurify.sanitize(html, sanitizeOptions),
+		extensions: [slash(), video(), htmlPlugin],
+		rehypeOptions: {
+			allowDangerousHtml: true
+		}
 	});
 
 	let newImpact = $state({
