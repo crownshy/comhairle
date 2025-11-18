@@ -7,7 +7,6 @@ pub mod report_impacts;
 pub mod reports;
 pub mod user;
 pub mod user_conversation_preferences;
-pub mod user_participation;
 pub mod user_progress;
 pub mod workflow_steps;
 pub mod workflows;

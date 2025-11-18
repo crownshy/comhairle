@@ -36,16 +36,16 @@ use crate::{
     ComhairleState,
 };
 
-use super::auth::{RequiredAdminUser, RequiredUser};
+use super::auth::RequiredAdminUser;
 
 /// Create conversation handler
 async fn create_conversation(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
-    Json(new_converastion): Json<CreateConversation>,
+    Json(new_conversations): Json<CreateConversation>,
 ) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
     info!("Attempting to create conversation");
-    let conversation = conversation::create(&state.db, &new_converastion, user.id).await?;
+    let conversation = conversation::create(&state.db, &new_conversations, user.id).await?;
     Ok((StatusCode::CREATED, Json(conversation)))
 }
 
@@ -56,7 +56,7 @@ async fn update_conversation(
     Path(id): Path<Uuid>,
     Json(conversation): Json<PartialConversation>,
 ) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
-    let conversation = conversation::update(&state.db, id, &conversation).await?;
+    let conversation = conversation::update(&state.db, &id, &conversation).await?;
     Ok((StatusCode::OK, Json(conversation)))
 }
 
@@ -225,7 +225,8 @@ async fn register_email_for_updates(
         conversation_id,
         email: request.email.clone(),
         receive_updates_by_email: request.receive_updates_by_email,
-        receive_similar_conversation_updates_by_email: request.receive_similar_conversation_updates_by_email,
+        receive_similar_conversation_updates_by_email: request
+            .receive_similar_conversation_updates_by_email,
     };
 
     let recipient = email_recipients_model::create(&state.db, &create_request).await?;

@@ -148,6 +148,9 @@ pub enum ComhairleError {
 
     #[error("Serialization error: {0}")]
     SerializationError(String),
+
+    #[error("No workflow specified or default workflow found")]
+    NoWorkflowFoundForInvite,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]

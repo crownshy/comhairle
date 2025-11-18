@@ -25,7 +25,9 @@
 		loginRedirect(url.toString(), 'Login to join the conversation');
 	}
 
-	async function registerAnnonUserAndRedirect() {
+	// Register a new annon user, sign them up for
+	// the workflow and redirect to it
+	async function registerAnnonUserSignupAndRedirect() {
 		await apiClient.SignupAnnonUser(undefined, {});
 
 		await apiClient.RegisterUserForWorkflow(undefined, {
@@ -82,7 +84,7 @@
 					>
 				{/if}
 			{:else if firstWorkflow.auto_login}
-				<Button class="mt-5 w-full md:w-fit" onclick={registerAnnonUserAndRedirect}
+				<Button class="mt-5 w-full md:w-fit" onclick={registerAnnonUserSignupAndRedirect}
 					>{m.join_the_conversation()}</Button
 				>
 			{:else}

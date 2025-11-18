@@ -9,21 +9,54 @@ use axum::{
     http::StatusCode,
     Json,
 };
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use tracing::info;
 use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
-    models::workflow::{
-        self, CreateWorkflow, DailySignupStats, PartialWorkflow, Workflow, WorkflowStats,
+    models::{
+        conversation::{self, PartialConversation},
+        user_participation::{self, UserParticipation},
+        workflow::{self, CreateWorkflow, PartialWorkflow, Workflow, WorkflowStats},
     },
+    routes::auth::{RequiredAdminUser, RequiredUser},
     ComhairleState,
 };
 
-use super::auth::RequiredAdminUser;
-use super::auth::RequiredUser;
+/// Register user on workflow
+/// This end point will create a user participation
+/// entry and a UserProgress entry for each of the
+/// workflow_steps in this workflow
+async fn register_user_for_workflow(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path((_, workflow_id)): Path<(Uuid, Uuid)>,
+) -> Result<(StatusCode, Json<UserParticipation>), ComhairleError> {
+    let user_participation = workflow::register_user(&state.db, &workflow_id, &user).await?;
+
+    Ok((StatusCode::CREATED, Json(user_participation)))
+}
+
+/// Remove a user from a given workflow
+async fn deregister_user_on_workflow(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path((_, workflow_id)): Path<(Uuid, Uuid)>,
+) -> Result<(StatusCode, Json<UserParticipation>), ComhairleError> {
+    let user_participation = user_participation::delete(&state.db, &user.id, &workflow_id).await?;
+    Ok((StatusCode::OK, Json(user_participation)))
+}
+
+/// Returns the participation
+/// status of a user on a workflow
+pub async fn get_user_participation(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path((_, workflow_id)): Path<(Uuid, Uuid)>,
+) -> Result<(StatusCode, Json<Option<UserParticipation>>), ComhairleError> {
+    let user_participation = user_participation::get(&state.db, &user.id, &workflow_id).await?;
+    Ok((StatusCode::OK, Json(user_participation)))
+}
 
 /// Create workflow handler
 async fn create_workflow(
@@ -33,7 +66,22 @@ async fn create_workflow(
     Json(new_workflow): Json<CreateWorkflow>,
 ) -> Result<(StatusCode, Json<Workflow>), ComhairleError> {
     info!("Attempting to create workflow {new_workflow:#?}");
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     let workflow = workflow::create(&state.db, &new_workflow, conversation_id, user.id).await?;
+    // If the conversation does not have a default workflow
+    // set this to be the default workflow
+    if conversation.default_workflow_id.is_none() {
+        conversation::update(
+            &state.db,
+            &conversation.id,
+            &PartialConversation {
+                default_workflow_id: Some(workflow.id),
+                ..Default::default()
+            },
+        )
+        .await?;
+    }
+
     Ok((StatusCode::CREATED, Json(workflow)))
 }
 
@@ -121,6 +169,30 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .api_route(
+            "/{workflow_id}/register",
+            post_with(register_user_for_workflow, |op| {
+                op.id("RegisterUserForWorkflow")
+                    .summary("Register the currently logged in user for this workflow")
+                    .response::<201, Json<UserParticipation>>()
+            }),
+        )
+        .api_route(
+            "/{workflow_id}/leave",
+            delete_with(deregister_user_on_workflow, |op| {
+                op.id("UnregisterUserForWorkflow")
+                    .summary("Unregisters the current user on this workflow")
+                    .response::<200, Json<UserParticipation>>()
+            }),
+        )
+        .api_route(
+            "/participation",
+            get_with(get_user_participation, |op| {
+                op.id("GetUserParticipation")
+                    .summary("Returns the status of the current user on this workflow")
+                    .response::<200, Json<Option<UserParticipation>>>()
+            }),
+        )
+        .api_route(
             "/{workflow_id}",
             put_with(update_workflow, |op| {
                 op.id("UpdateWorkflow")
@@ -175,7 +247,8 @@ mod tests {
                     "name": "simple workflow",
                     "description": "A super simple workflow",
                     "is_active" : true,
-                    "is_public" : true
+                    "is_public" : true,
+                    "auto_login" :false
                 })
                 .to_string()
                 .into(),
@@ -260,7 +333,6 @@ mod tests {
         let mut session = UserSession::new_admin();
 
         session.signup(&app).await?;
-
         let (_, conversation, _) = session.create_random_conversation(&app).await?;
         let (_, conversation2, _) = session.create_random_conversation(&app).await?;
 
@@ -402,7 +474,7 @@ mod tests {
             );
             session.signup(&app).await?;
 
-            let url = format!("/conversation/{id}/workflow/{workflow_id}/participation");
+            let url = format!("/conversation/{id}/workflow/{workflow_id}/register");
             session.post(&app, &url, Body::empty()).await?;
 
             for j in 0..i {
@@ -423,18 +495,19 @@ mod tests {
         assert_eq!(code, StatusCode::OK, "should get response");
         let total: i32 = extract("total_users", &stats);
         assert_eq!(total, 10, "should get correct count of participatnts");
+        let step_stats = stats.get("step_stats").unwrap();
 
-        let step_completion: HashMap<String, i32> = extract("users_completed_step", &stats);
-
-        for (index, step) in steps.iter().enumerate() {
-            let id: String = extract("id", &step);
-            let count = step_completion.get(&id).unwrap();
-
-            assert_eq!(
-                index as i32,
-                9 - count,
-                "should get the correct count for each step"
-            );
+        if let serde_json::Value::Array(step_stats_array) = step_stats {
+            for (index, stats) in step_stats_array.iter().enumerate() {
+                let count: i32 = extract("completed", &stats);
+                assert_eq!(
+                    index as i32,
+                    9 - count,
+                    "should get the correct count for each step"
+                );
+            }
+        } else {
+            panic!("steps stats was not an array");
         }
 
         Ok(())

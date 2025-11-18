@@ -19,11 +19,21 @@ use serde_json::{json, Value};
 use sqlx::PgPool;
 use tower::ServiceExt;
 
-use crate::{config::ComhairleConfig, mailer::MockComhairleMailer, ComhairleState};
+use crate::{
+    config::ComhairleConfig,
+    mailer::MockComhairleMailer,
+    websockets::{MockWebSocketService, WebSocketService},
+    ComhairleState,
+};
 
 pub fn mock_mailer() -> Arc<MockComhairleMailer> {
     let mailer = MockComhairleMailer::base();
     Arc::new(mailer)
+}
+
+pub fn mock_websockets() -> Arc<dyn WebSocketService> {
+    let websockets = MockWebSocketService::base();
+    Arc::new(websockets)
 }
 
 #[builder]
@@ -31,11 +41,13 @@ pub fn test_state(
     db: PgPool,
     mailer: Option<Arc<MockComhairleMailer>>,
     config: Option<ComhairleConfig>,
+    websockets: Option<Arc<dyn WebSocketService>>,
 ) -> Result<ComhairleState, Box<dyn Error>> {
     let state = ComhairleState {
         db,
         mailer: mailer.unwrap_or_else(|| mock_mailer()),
         config: config.unwrap_or_else(|| test_config().unwrap()),
+        websockets: websockets.unwrap_or_else(|| mock_websockets()),
     };
     Ok(state)
 }
@@ -47,8 +59,19 @@ pub fn test_config() -> Result<ComhairleConfig, Box<dyn Error>> {
 }
 
 pub fn extract<T: DeserializeOwned>(target: &str, entity: &serde_json::Value) -> T {
-    let value = entity.get(target).to_owned().unwrap().to_owned();
-    serde_json::from_value(value).unwrap()
+    if let Some(error) = entity.get("err") {
+        println!("Got error {error:#?}");
+    }
+    let value = entity.get(target).to_owned();
+
+    if value.is_none() {
+        println!("Issue with value {entity:#?} {target:#?}");
+    }
+    let value = value.unwrap().to_owned();
+
+    serde_json::from_value(value)
+        .inspect_err(|e| println!("Failed to deserialize error {e:#?}"))
+        .unwrap()
 }
 
 pub fn polis_tool_config() -> serde_json::Value {
@@ -430,6 +453,7 @@ impl UserSession {
                     "step_order": no+1,
                     "activation_rule" : "manual",
                     "description": "A manually retired polis workflow step",
+                    "required":false,
                     "is_offline": false,
                     "tool_setup": learn_tool_config()})
                     .to_string()
@@ -459,7 +483,8 @@ impl UserSession {
                 "name":name,
                 "description": description,
                 "is_active": is_active,
-                "is_public": is_public
+                "is_public": is_public,
+                "auto_login": false,
             })
             .to_string()
             .into(),

@@ -16,6 +16,7 @@ use fake::Dummy;
 #[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone, JsonSchema)]
 #[sqlx(type_name = "TEXT")]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(test, derive(Dummy))]
 pub enum DeliveryMethod {
     #[sqlx(rename = "in_app")]
     InApp,
@@ -568,4 +569,3 @@ pub async fn list_unread_for_user_with_notifications(
         total: deliveries.total,
     })
 }
-

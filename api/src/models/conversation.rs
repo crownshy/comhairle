@@ -20,7 +20,7 @@ use fake::Dummy;
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "conversation")]
-#[partially(derive(Deserialize, Debug, JsonSchema))]
+#[partially(derive(Deserialize, Debug, JsonSchema, Default))]
 pub struct Conversation {
     #[partially(omit)]
     pub id: Uuid,
@@ -38,13 +38,15 @@ pub struct Conversation {
     pub is_invite_only: bool,
     #[partially(transparent)]
     pub slug: Option<String>,
+    #[partially(transparent)]
+    pub default_workflow_id: Option<Uuid>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ConversationIden; 14] = [
+const DEFAULT_COLUMNS: [ConversationIden; 15] = [
     ConversationIden::Id,
     ConversationIden::Title,
     ConversationIden::ShortDescription,
@@ -56,6 +58,7 @@ const DEFAULT_COLUMNS: [ConversationIden; 14] = [
     ConversationIden::IsComplete,
     ConversationIden::IsInviteOnly,
     ConversationIden::Slug,
+    ConversationIden::DefaultWorkflowId,
     ConversationIden::CreatedAt,
     ConversationIden::UpdatedAt,
     ConversationIden::OwnerId,
@@ -102,6 +105,9 @@ impl PartialConversation {
         };
         if let Some(value) = &self.slug {
             values.push((ConversationIden::Slug, value.into()))
+        };
+        if let Some(value) = &self.default_workflow_id {
+            values.push((ConversationIden::DefaultWorkflowId, (*value).into()))
         };
         values
     }
@@ -237,7 +243,7 @@ pub async fn get_by_slug(db: &PgPool, slug: &str) -> Result<Conversation, Comhai
 
 pub async fn update(
     db: &PgPool,
-    id: Uuid,
+    id: &Uuid,
     update: &PartialConversation,
 ) -> Result<Conversation, ComhairleError> {
     info!("Updating conversation {id} with update {update:#?}");
@@ -315,6 +321,8 @@ pub struct CreateConversation {
     pub is_public: bool,
     pub is_invite_only: bool,
     pub slug: Option<String>,
+    #[cfg_attr(test, dummy(expr = "None"))]
+    pub default_workflow_id: Option<Uuid>,
 }
 
 impl CreateConversation {
@@ -367,6 +375,11 @@ pub async fn create(
 
     columns.push(ConversationIden::OwnerId);
     values.push(owner_id.into());
+
+    if let Some(default_workflow_id) = conversation.default_workflow_id {
+        columns.push(ConversationIden::DefaultWorkflowId);
+        values.push(default_workflow_id.into());
+    }
 
     let (sql, values) = Query::insert()
         .into_table(ConversationIden::Table)
