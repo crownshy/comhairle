@@ -21,7 +21,7 @@
 	let content = $derived(currentPageTranslation[0]?.content);
 	let articleElement: HTMLElement | undefined = $state();
 
-	let carta = createCarta(false);
+	let carta = createCarta();
 
 	function nextPage() {
 		currentPageNo += 1;

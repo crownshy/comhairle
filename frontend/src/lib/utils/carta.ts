@@ -22,14 +22,10 @@ const htmlPlugin: Plugin = {
 
 /**
  * Creates a standard Carta instance with consistent configuration across the app
- * @param includeSlash Whether to include the slash plugin (default: true)
  * @returns Configured Carta instance
  */
-export function createCarta(includeSlash: boolean = true): Carta {
-	const extensions = [video(), htmlPlugin];
-	if (includeSlash) {
-		extensions.unshift(slash());
-	}
+export function createCarta(): Carta {
+	const extensions = [slash(), video(), htmlPlugin];
 
 	return new Carta({
 		sanitizer: (html) => DOMPurify.sanitize(html, sanitizeOptions),
