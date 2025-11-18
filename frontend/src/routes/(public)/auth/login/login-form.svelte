@@ -20,7 +20,6 @@
 	});
 
 	let responseMessage = $state(null);
-	let passwordVisible = $state(false);
 
 	const { form: formData, enhance, message, validateForm } = form;
 
@@ -56,13 +55,7 @@
 		<Form.Control>
 			{#snippet children({ props })}
 				<Form.Label>{m.email()}</Form.Label>
-				<Input
-					{...props}
-					bind:value={$formData.email}
-					required
-					class="placeholder:text-gray-400"
-					placeholder="Enter your email address"
-				/>
+				<Input {...props} bind:value={$formData.email} required />
 			{/snippet}
 		</Form.Control>
 		<Form.FieldErrors />
@@ -72,13 +65,7 @@
 		<Form.Control>
 			{#snippet children({ props })}
 				<Form.Label>{m.password()}</Form.Label>
-				<PasswordInput
-					{formData}
-					{...props}
-					required
-					class="placeholder:text-gray-400"
-					placeholder="Enter your password"
-				/>
+				<PasswordInput bind:value={$formData.password} {...props} required />
 			{/snippet}
 		</Form.Control>
 		<Form.FieldErrors />

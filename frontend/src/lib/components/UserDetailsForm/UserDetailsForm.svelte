@@ -98,7 +98,7 @@
 					<Form.Label>Username</Form.Label>
 					<Input
 						{...props}
-						value={$formData.username}
+						bind:value={$formData.username}
 						placeholder="Enter your username"
 						disabled={saving}
 					/>
