@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as Form from '$lib/components/ui/form';
 	import { Input } from '$lib/components/ui/input';
+	import { PasswordInput } from '$lib/components/ui/password-input';
 	import { Button } from '$lib/components/ui/button';
 	import { apiClient } from '$lib/api/client';
 	import { notifications } from '$lib/notifications.svelte';
@@ -41,14 +42,14 @@
 
 		try {
 			saving = true;
-			
+
 			// Prepare the update data, excluding confirmPassword and empty values
 			const updateData: { username?: string; password?: string } = {};
-			
+
 			if (result.data.username && result.data.username !== user?.username) {
 				updateData.username = result.data.username;
 			}
-			
+
 			if (result.data.password) {
 				updateData.password = result.data.password;
 			}
@@ -63,19 +64,19 @@
 			}
 
 			const updatedUser = await apiClient.UpdateUserDetails(updateData);
-			
+
 			// Clear password fields after successful update
 			$formData.password = '';
 			$formData.confirmPassword = '';
-			
+
 			notifications.send({
 				message: 'User details updated successfully!',
 				priority: 'SUCCESS'
 			});
-			
 		} catch (error: any) {
 			notifications.send({
-				message: error?.response?.data?.message || 'Failed to update user details. Please try again.',
+				message:
+					error?.response?.data?.message || 'Failed to update user details. Please try again.',
 				priority: 'ERROR'
 			});
 		} finally {
@@ -97,7 +98,7 @@
 					<Form.Label>Username</Form.Label>
 					<Input
 						{...props}
-						bind:value={$formData.username}
+						value={$formData.username}
 						placeholder="Enter your username"
 						disabled={saving}
 					/>
@@ -110,13 +111,13 @@
 			<Form.Control>
 				{#snippet children({ props })}
 					<Form.Label>New Password</Form.Label>
-					<Input
+					<PasswordInput
 						{...props}
-						type="password"
 						bind:value={$formData.password}
 						placeholder="Enter new password (optional)"
 						disabled={saving}
 					/>
+
 					<Form.FieldErrors />
 				{/snippet}
 			</Form.Control>
@@ -126,9 +127,8 @@
 			<Form.Control>
 				{#snippet children({ props })}
 					<Form.Label>Confirm New Password</Form.Label>
-					<Input
+					<PasswordInput
 						{...props}
-						type="password"
 						bind:value={$formData.confirmPassword}
 						placeholder="Confirm new password"
 						disabled={saving || !$formData.password}
