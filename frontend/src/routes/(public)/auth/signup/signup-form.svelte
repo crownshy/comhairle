@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as Form from '$lib/components/ui/form';
 	import { Input } from '$lib/components/ui/input';
+	import { PasswordInput } from '$lib/components/ui/password-input';
 	import { defaults, superForm } from 'sveltekit-superforms';
 	import { zodClient, zod } from 'sveltekit-superforms/adapters';
 	import { signupFormSchema } from '$lib/profile';
@@ -70,7 +71,7 @@
 		<Form.Control>
 			{#snippet children({ props })}
 				<Form.Label>{m.new_password()}</Form.Label>
-				<Input type="password" {...props} bind:value={$formData.password} />
+				<PasswordInput {...props} bind:value={$formData.password} />
 			{/snippet}
 		</Form.Control>
 		<Form.FieldErrors />
@@ -79,7 +80,7 @@
 		<Form.Control>
 			{#snippet children({ props })}
 				<Form.Label>{m.confirm_password()}</Form.Label>
-				<Input type="password" {...props} bind:value={$formData.password_confirm} />
+				<PasswordInput {...props} bind:value={$formData.password_confirm} />
 			{/snippet}
 		</Form.Control>
 		<Form.FieldErrors />
