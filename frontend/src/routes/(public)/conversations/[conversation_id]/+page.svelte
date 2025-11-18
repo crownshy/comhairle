@@ -17,7 +17,9 @@
 
 	let firstWorkflow = $derived(workflows[0]);
 
-	let firstWorkflowPath = `/conversations/${conversation.id}/workflow/${firstWorkflow.id}/s/1`;
+	let firstWorkflowPath = $derived(
+		`/conversations/${conversation.id}/workflow/${firstWorkflow.id}/next`
+	);
 
 	let url = $derived(page.url);
 
