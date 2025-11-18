@@ -17,6 +17,8 @@
 	import 'carta-plugin-video/default.css';
 	import DOMPurify from 'isomorphic-dompurify';
 	import { Button } from '$lib/components/ui/button';
+	import rehypeRaw from 'rehype-raw';
+	import type { Plugin } from 'carta-md';
 
 	let { conversation_id, workflow_step, pages }: Props = $props();
 
@@ -29,9 +31,28 @@
 
 	let debounceTimeout: NodeJS.Timeout;
 
+	const sanitizeOptions = {
+		ADD_ATTR: ['target']
+	};
+
+	const htmlPlugin: Plugin = {
+		transformers: [
+			{
+				execution: 'sync',
+				type: 'rehype',
+				transform({ processor }) {
+					processor.use(rehypeRaw);
+				}
+			}
+		]
+	};
+
 	const carta = new Carta({
-		sanitizer: DOMPurify.sanitize,
-		extensions: [slash(), video()]
+		sanitizer: (html) => DOMPurify.sanitize(html, sanitizeOptions),
+		extensions: [slash(), video(), htmlPlugin],
+		rehypeOptions: {
+			allowDangerousHtml: true
+		}
 	});
 
 	// Get current translation
