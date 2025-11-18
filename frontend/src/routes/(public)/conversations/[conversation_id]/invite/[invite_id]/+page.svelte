@@ -39,7 +39,7 @@
 		await apiClient.RejectInvite(undefined, {
 			params: { conversation_id: conversation!.id, invite_id: invite!.id }
 		});
-		goto("/")
+		goto('/');
 	}
 </script>
 
@@ -51,10 +51,20 @@
 			</h1>
 			<ConversationSummary {conversation}>
 				{#if !user && invite.login_behaviour === 'manual'}
-					<p class="mb-2">To join this conversation please either</p>
-					<Button onclick={login}>Login</Button>
-					<Button onclick={create_account}>Create an account</Button>
-					<Button onclick={take_part_annon}>Take part anonymously</Button>
+					<p class="mb-5">To join this conversation please either</p>
+					{#if !user && invite.invite_type.email}
+						<div class="mb-5 flex flex-row gap-2">
+							<Button onclick={login}>Login</Button>
+							<Button onclick={create_account}>Create an account</Button>
+						</div>
+						<p>using the email account <span class="font-bold">{invite.invite_type.email}</span></p>
+					{:else}
+						<div class="flex flex-col gap-2">
+							<Button onclick={login}>Login</Button>
+							<Button onclick={create_account}>Create an account</Button>
+							<Button onclick={take_part_annon}>Take part anonymously</Button>
+						</div>
+					{/if}
 				{/if}
 
 				{#if user}
