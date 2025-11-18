@@ -13,6 +13,7 @@ use tracing::warn;
 use uuid::Uuid;
 
 use crate::error::ComhairleError;
+use crate::models::user_progress::{ProgressStatus, UserProgressIden};
 use crate::tools::{ToolConfig, ToolSetup};
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, DbJsonBEnum)]
@@ -363,4 +364,40 @@ pub async fn create(
     transaction.commit().await?;
 
     Ok(workflow_step_result)
+}
+
+pub async fn get_current_active_step_for_user(
+    db: &PgPool,
+    user_id: &Uuid,
+    workflow_id: &Uuid,
+) -> Result<Option<WorkflowStep>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns(DEFAULT_COLUMNS.map(|col| (WorkflowStepIden::Table, col)))
+        .from(WorkflowStepIden::Table)
+        .left_join(
+            UserProgressIden::Table,
+            Expr::col((WorkflowStepIden::Table, WorkflowStepIden::Id))
+                .equals((UserProgressIden::Table, UserProgressIden::WorkflowStepId))
+                .and(Expr::col((UserProgressIden::Table, UserProgressIden::UserId)).eq(*user_id)),
+        )
+        .and_where(
+            Expr::col((WorkflowStepIden::Table, WorkflowStepIden::WorkflowId)).eq(*workflow_id),
+        )
+        .and_where(
+            Expr::col((UserProgressIden::Table, UserProgressIden::Status))
+                .ne(ProgressStatus::Done)
+                .or(Expr::col((UserProgressIden::Table, UserProgressIden::Status)).is_null()),
+        )
+        .order_by(
+            (WorkflowStepIden::Table, WorkflowStepIden::StepOrder),
+            sea_query::Order::Asc,
+        )
+        .limit(1)
+        .build_sqlx(PostgresQueryBuilder);
+
+    let result = sqlx::query_as_with::<_, WorkflowStep, _>(&sql, values)
+        .fetch_optional(db)
+        .await?;
+
+    Ok(result)
 }
