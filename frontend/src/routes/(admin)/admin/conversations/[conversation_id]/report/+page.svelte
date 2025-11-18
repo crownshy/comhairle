@@ -18,22 +18,17 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { report_url } from '$lib/urls.js';
 	import { NotebookText } from 'lucide-svelte';
-	import { Carta, MarkdownEditor } from 'carta-md';
-	import DOMPurify from 'isomorphic-dompurify';
+	import { MarkdownEditor } from 'carta-md';
+	import { createCarta } from '$lib/utils/carta';
 	import 'carta-md/default.css';
 	import '@cartamd/plugin-slash/default.css';
 	import 'carta-plugin-video/default.css';
-	import { slash } from '@cartamd/plugin-slash';
-	import { video } from 'carta-plugin-video';
 
 	let { data } = $props();
 	let report = $derived(data.report);
 	let conversation = $derived(data.conversation);
 
-	const carta = new Carta({
-		sanitizer: DOMPurify.sanitize,
-		extensions: [slash(), video()]
-	});
+	const carta = createCarta();
 
 	let newImpact = $state({
 		title: '',

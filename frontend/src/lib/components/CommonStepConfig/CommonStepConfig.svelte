@@ -12,15 +12,12 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { commonStepSchema } from './schema';
 	import { Switch } from '../ui/switch';
-	import { slash } from '@cartamd/plugin-slash';
-	import { video } from 'carta-plugin-video';
-
-	import { Carta, MarkdownEditor } from 'carta-md';
+	import { MarkdownEditor } from 'carta-md';
+	import { createCarta } from '$lib/utils/carta';
 
 	import 'carta-md/default.css';
 	import '@cartamd/plugin-slash/default.css';
 	import 'carta-plugin-video/default.css';
-	import DOMPurify from 'isomorphic-dompurify';
 
 	type Props = {
 		conversation_id: string;
@@ -41,10 +38,7 @@
 		}
 	);
 
-	const carta = new Carta({
-		sanitizer: DOMPurify.sanitize,
-		extensions: [slash(), video()]
-	});
+	const carta = createCarta();
 
 	let { form, enhance, validateForm, message, submitting } = commonStepForm;
 

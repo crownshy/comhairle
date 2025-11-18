@@ -7,15 +7,13 @@
 	};
 
 	import { apiClient } from '$lib/api/client';
-	import { Carta, MarkdownEditor } from 'carta-md';
-	import { slash } from '@cartamd/plugin-slash';
-	import { video } from 'carta-plugin-video';
+	import { MarkdownEditor } from 'carta-md';
 	import * as Select from '$lib/components/ui/select';
+	import { createCarta } from '$lib/utils/carta';
 
 	import 'carta-md/default.css';
 	import '@cartamd/plugin-slash/default.css';
 	import 'carta-plugin-video/default.css';
-	import DOMPurify from 'isomorphic-dompurify';
 	import { Button } from '$lib/components/ui/button';
 
 	let { conversation_id, workflow_step, pages }: Props = $props();
@@ -29,10 +27,7 @@
 
 	let debounceTimeout: NodeJS.Timeout;
 
-	const carta = new Carta({
-		sanitizer: DOMPurify.sanitize,
-		extensions: [slash(), video()]
-	});
+	const carta = createCarta();
 
 	// Get current translation
 	function getCurrentTranslation() {

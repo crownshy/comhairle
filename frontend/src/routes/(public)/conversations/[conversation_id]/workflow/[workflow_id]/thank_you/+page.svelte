@@ -44,12 +44,12 @@
 	<h2>Keep informed</h2>
 
 	<p>
-		Sometimes we invite people who’ve taken part in Scottish Government research to take part in
-		future research on a related topic. This future research may be carried out by the Scottish
-		Government, other government bodies, or a reputable research organisation working with them. You
-		may never be contacted again, but even if you are, you’ll still be free to decide whether you
-		want to take part in the research or not. Are you willing to be contacted again for future
-		research purposes relating to this topic?
+		Sometimes we invite people who’ve taken part in a Scottish Government engagement to take part in
+		future engagement or research on a related topic. This future engagement or research may be 
+		carried out by the Scottish Government, other government bodies, or a reputable research organisation
+		working with them. You may never be contacted again, but even if you are, you’ll still be free to decide
+		whether you want to take part or not. Are you willing to be contacted again for future engagement or 
+		research relating to the National Performance Framework?
 	</p>
 
 	{#if user.auth_type === 'annon'}

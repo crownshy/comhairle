@@ -3,10 +3,9 @@
 	import * as m from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime.js';
 	import type { Page } from '$lib/api/api';
-	import DOMPurify from 'isomorphic-dompurify';
 	import { tick } from 'svelte';
-	import { video } from 'carta-plugin-video';
-	import { Markdown, Carta } from 'carta-md';
+	import { Markdown } from 'carta-md';
+	import { createCarta } from '$lib/utils/carta';
 
 	let {
 		pages,
@@ -20,12 +19,9 @@
 	let currentPage = $derived(pages[currentPageNo]);
 	let currentPageTranslation = $derived(currentPage.filter((p) => p.lang === getLocale()));
 	let content = $derived(currentPageTranslation[0]?.content);
-
 	let articleElement: HTMLElement | undefined = $state();
-	let carta = new Carta({
-		sanitizer: DOMPurify.sanitize,
-		extensions: [video()]
-	});
+
+	let carta = createCarta();
 
 	function nextPage() {
 		currentPageNo += 1;
