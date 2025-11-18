@@ -2,15 +2,13 @@
 	import { Input } from '$lib/components/ui/input';
 	import { EyeOpen, EyeNone } from 'svelte-radix';
 
-	let props = $props();
-
-	let { formData } = props;
+	let { value = $bindable(), ...restProps } = $props();
 
 	let visible = $state(false);
 </script>
 
 <span class="relative flex">
-	<Input type={visible ? 'text' : 'password'} bind:value={$formData.password} {...props} />
+	<Input bind:value {...restProps} type={visible ? 'text' : 'password'} />
 	<button
 		class="absolute top-1/2 right-1 z-10 -translate-1/2"
 		type="button"
