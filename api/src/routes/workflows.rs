@@ -185,7 +185,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .api_route(
-            "/participation",
+            "/{workflow_id}/participation",
             get_with(get_user_participation, |op| {
                 op.id("GetUserParticipation")
                     .summary("Returns the status of the current user on this workflow")
