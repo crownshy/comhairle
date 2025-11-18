@@ -15,6 +15,7 @@ use fake::Dummy;
 #[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone, JsonSchema)]
 #[sqlx(type_name = "TEXT")]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(test, derive(Dummy))]
 pub enum NotificationType {
     #[sqlx(rename = "info")]
     Info,
@@ -29,6 +30,7 @@ pub enum NotificationType {
 #[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone, JsonSchema)]
 #[sqlx(type_name = "TEXT")]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(test, derive(Dummy))]
 pub enum NotificationContextType {
     #[sqlx(rename = "site")]
     Site,
@@ -206,8 +208,14 @@ impl CreateNotification {
         ]
     }
     pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
-        let notification_type = self.notification_type.clone().unwrap_or(NotificationType::Info);
-        let context_type = self.context_type.clone().unwrap_or(NotificationContextType::Site);
+        let notification_type = self
+            .notification_type
+            .clone()
+            .unwrap_or(NotificationType::Info);
+        let context_type = self
+            .context_type
+            .clone()
+            .unwrap_or(NotificationContextType::Site);
         vec![
             self.title.clone().into(),
             self.content.clone().into(),
@@ -313,3 +321,4 @@ pub async fn list(
 
     Ok(notifications)
 }
+

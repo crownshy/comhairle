@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
+use fake::Dummy;
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{enum_def, Expr, Order, PostgresQueryBuilder, Query};
@@ -13,6 +14,7 @@ use uuid::Uuid;
 use crate::error::ComhairleError;
 
 use super::{
+    user_conversation_preferences,
     user_participation::{self, UserParticipation, UserParticipationIden},
     user_progress::{self, UserProgressIden},
     users::User,
@@ -93,6 +95,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleErro
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[cfg_attr(test, derive(Dummy))]
 pub struct CreateWorkflow {
     pub name: String,
     pub description: String,
@@ -124,9 +127,10 @@ impl CreateWorkflow {
 
 pub async fn register_user(
     db: &PgPool,
-    user: &User,
     workflow_id: &Uuid,
+    user: &User,
 ) -> Result<UserParticipation, ComhairleError> {
+    let workflow = get_by_id(&db, workflow_id).await?;
     let user_participation = user_participation::create(&db, &user.id, &workflow_id).await?;
 
     let workflow_steps = workflow_step::list(&db, workflow_id).await?;
@@ -137,6 +141,25 @@ pub async fn register_user(
             &user.id,
             &step.id,
             user_progress::ProgressStatus::NotStarted,
+        )
+        .await?;
+    }
+
+    // Check to see if the user already has preferences for this
+    // conversastion
+    let user_preferences = user_conversation_preferences::get_by_user_and_conversation(
+        &db,
+        &user.id,
+        &workflow.conversation_id,
+    )
+    .await;
+
+    // If they dont, create some
+    if user_preferences.is_err() {
+        user_conversation_preferences::create_with_defaults(
+            &db,
+            &user.id,
+            &workflow.conversation_id,
         )
         .await?;
     }

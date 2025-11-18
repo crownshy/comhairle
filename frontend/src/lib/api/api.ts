@@ -18,7 +18,7 @@ export const ResourceRole = z.enum(["Admin", "SuperAdmin"]);
 export type ResourceRole = z.infer<typeof ResourceRole>;
 export const UserRoles = z.object({ resource: ResourceType, roles: z.array(ResourceRole) }).passthrough();
 export type UserRoles = z.infer<typeof UserRoles>;
-export const Conversation = z.object({ created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), image_url: z.string(), is_complete: z.boolean(), is_invite_only: z.boolean(), is_public: z.boolean(), owner_id: z.string().uuid(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), tags: z.array(z.string()), title: z.string(), updated_at: z.string().datetime({ offset: true }), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
+export const Conversation = z.object({ created_at: z.string().datetime({ offset: true }), default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string(), id: z.string().uuid(), image_url: z.string(), is_complete: z.boolean(), is_invite_only: z.boolean(), is_public: z.boolean(), owner_id: z.string().uuid(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), tags: z.array(z.string()), title: z.string(), updated_at: z.string().datetime({ offset: true }), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type Conversation = z.infer<typeof Conversation>;
 export const created_after = z.union([z.string(), z.null()]).optional();
 export type created_after = z.infer<typeof created_after>;
@@ -52,9 +52,9 @@ export const UnreadCount = z.object({ count: z.number().int() }).passthrough();
 export type UnreadCount = z.infer<typeof UnreadCount>;
 export const NotificationDelivery = z.object({ created_at: z.string().datetime({ offset: true }), delivered_at: z.string().datetime({ offset: true }), delivery_method: DeliveryMethod, id: z.string().uuid(), notification_id: z.string().uuid(), read_at: z.union([z.string(), z.null()]).optional(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid() }).passthrough();
 export type NotificationDelivery = z.infer<typeof NotificationDelivery>;
-export const CreateConversation = z.object({ description: z.string(), image_url: z.string(), is_invite_only: z.boolean(), is_public: z.boolean(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), tags: z.union([z.array(z.string()), z.null()]).optional(), title: z.string(), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
+export const CreateConversation = z.object({ default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string(), image_url: z.string(), is_invite_only: z.boolean(), is_public: z.boolean(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), tags: z.union([z.array(z.string()), z.null()]).optional(), title: z.string(), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type CreateConversation = z.infer<typeof CreateConversation>;
-export const PartialConversation = z.object({ description: z.union([z.string(), z.null()]), image_url: z.union([z.string(), z.null()]), is_complete: z.union([z.boolean(), z.null()]), is_invite_only: z.union([z.boolean(), z.null()]), is_public: z.union([z.boolean(), z.null()]), short_description: z.union([z.string(), z.null()]), slug: z.union([z.string(), z.null()]), tags: z.union([z.array(z.string()), z.null()]), title: z.union([z.string(), z.null()]), video_url: z.union([z.string(), z.null()]) }).partial().passthrough();
+export const PartialConversation = z.object({ default_workflow_id: z.union([z.string(), z.null()]), description: z.union([z.string(), z.null()]), image_url: z.union([z.string(), z.null()]), is_complete: z.union([z.boolean(), z.null()]), is_invite_only: z.union([z.boolean(), z.null()]), is_public: z.union([z.boolean(), z.null()]), short_description: z.union([z.string(), z.null()]), slug: z.union([z.string(), z.null()]), tags: z.union([z.array(z.string()), z.null()]), title: z.union([z.string(), z.null()]), video_url: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialConversation = z.infer<typeof PartialConversation>;
 export const SendNotificationRequest = z.object({ content: z.string(), delivery_method: z.union([DeliveryMethod, z.null()]).optional(), notification_type: z.union([NotificationType, z.null()]).optional(), title: z.string() }).passthrough();
 export type SendNotificationRequest = z.infer<typeof SendNotificationRequest>;
@@ -74,6 +74,8 @@ export const WorkflowStats = z.object({ signup_stats: z.array(DailySignupStats),
 export type WorkflowStats = z.infer<typeof WorkflowStats>;
 export const PartialWorkflow = z.object({ auto_login: z.union([z.boolean(), z.null()]), description: z.union([z.string(), z.null()]), is_active: z.union([z.boolean(), z.null()]), is_public: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialWorkflow = z.infer<typeof PartialWorkflow>;
+export const UserParticipation = z.object({ created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid(), workflow_id: z.string().uuid() }).passthrough();
+export type UserParticipation = z.infer<typeof UserParticipation>;
 export const ActivationRule = z.literal("manual");
 export type ActivationRule = z.infer<typeof ActivationRule>;
 export const LocalisedPage = z.object({ content: z.string(), type: z.literal("markdown") }).passthrough();
@@ -90,8 +92,6 @@ export const CreateWorkflowStep = z.object({ activation_rule: ActivationRule, de
 export type CreateWorkflowStep = z.infer<typeof CreateWorkflowStep>;
 export const PartialWorkflowStep = z.object({ activation_rule: z.union([ActivationRule, z.null()]), description: z.union([z.string(), z.null()]), is_offline: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]), required: z.union([z.boolean(), z.null()]), step_order: z.union([z.number(), z.null()]), tool_config: z.union([ToolConfig, z.null()]) }).partial().passthrough();
 export type PartialWorkflowStep = z.infer<typeof PartialWorkflowStep>;
-export const UserParticipation = z.object({ created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid(), workflow_id: z.string().uuid() }).passthrough();
-export type UserParticipation = z.infer<typeof UserParticipation>;
 export const ProgressStatus = z.enum(["not_started", "in_progress", "done"]);
 export type ProgressStatus = z.infer<typeof ProgressStatus>;
 export const UserProgress = z.object({ created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), status: ProgressStatus, updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid(), workflow_step_id: z.string().uuid() }).passthrough();
@@ -189,6 +189,7 @@ export const schemas = {
 	WorkflowStepStats,
 	WorkflowStats,
 	PartialWorkflow,
+	UserParticipation,
 	ActivationRule,
 	LocalisedPage,
 	Page,
@@ -197,7 +198,6 @@ export const schemas = {
 	ToolSetup,
 	CreateWorkflowStep,
 	PartialWorkflowStep,
-	UserParticipation,
 	ProgressStatus,
 	UserProgress,
 	InviteType,
@@ -638,25 +638,18 @@ const endpoints = makeApi([
 		response: Workflow,
 	},
 	{
+		method: "delete",
+		path: "/conversation/:conversation_id/workflow/:workflow_id/leave",
+		alias: "UnregisterUserForWorkflow",
+		requestFormat: "json",
+		response: UserParticipation,
+	},
+	{
 		method: "get",
 		path: "/conversation/:conversation_id/workflow/:workflow_id/participation",
 		alias: "GetUserParticipation",
 		requestFormat: "json",
 		response: z.union([UserParticipation, z.null()]),
-	},
-	{
-		method: "post",
-		path: "/conversation/:conversation_id/workflow/:workflow_id/participation",
-		alias: "RegisterUserForWorkflow",
-		requestFormat: "json",
-		response: UserParticipation,
-	},
-	{
-		method: "delete",
-		path: "/conversation/:conversation_id/workflow/:workflow_id/participation",
-		alias: "UnregisterUserForWorkflow",
-		requestFormat: "json",
-		response: UserParticipation,
 	},
 	{
 		method: "get",
@@ -679,6 +672,13 @@ const endpoints = makeApi([
 			},
 		],
 		response: UserProgress,
+	},
+	{
+		method: "post",
+		path: "/conversation/:conversation_id/workflow/:workflow_id/register",
+		alias: "RegisterUserForWorkflow",
+		requestFormat: "json",
+		response: UserParticipation,
 	},
 	{
 		method: "get",
