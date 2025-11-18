@@ -1,4 +1,4 @@
-import { redirect } from "@sveltejs/kit";
+import { isRedirect, redirect } from "@sveltejs/kit";
 import type { PageLoad } from "./$types"
 import { conversation_url } from "$lib/urls";
 
@@ -13,9 +13,15 @@ export const load: PageLoad = async ({ params, parent }) => {
 			await api.SignupAnnonUser(undefined, {})
 			redirect(307, conversation_url(conversation.id))
 		}
+		if (user && invite.status === "accepted") {
+			return redirect(307, conversation_url(conversation.id))
+		}
 		return { invite, conversation, user };
 	}
 	catch (e) {
+		if (isRedirect(e)) {
+			throw e
+		}
 		return { error: e.response.data.err, conversation }
 	}
 }
