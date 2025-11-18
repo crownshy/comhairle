@@ -31,7 +31,7 @@
 
 	let description = $derived(step.description);
 
-	let carta = createCarta(false);
+	let carta = createCarta();
 
 	function goToThankYouPage() {
 		goto(thank_you_page(conversation.id, step.id));
