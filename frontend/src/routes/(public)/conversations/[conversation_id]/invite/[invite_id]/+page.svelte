@@ -39,6 +39,7 @@
 		await apiClient.RejectInvite(undefined, {
 			params: { conversation_id: conversation!.id, invite_id: invite!.id }
 		});
+		goto("/")
 	}
 </script>
 
