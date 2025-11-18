@@ -18,42 +18,17 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { report_url } from '$lib/urls.js';
 	import { NotebookText } from 'lucide-svelte';
-	import { Carta, MarkdownEditor, type Plugin } from 'carta-md';
-	import DOMPurify from 'isomorphic-dompurify';
-	import rehypeRaw from 'rehype-raw';
+	import { MarkdownEditor } from 'carta-md';
+	import { createCarta } from '$lib/utils/carta';
 	import 'carta-md/default.css';
 	import '@cartamd/plugin-slash/default.css';
 	import 'carta-plugin-video/default.css';
-	import { slash } from '@cartamd/plugin-slash';
-	import { video } from 'carta-plugin-video';
 
 	let { data } = $props();
 	let report = $derived(data.report);
 	let conversation = $derived(data.conversation);
 
-	const sanitizeOptions = {
-		ADD_ATTR: ['target']
-	};
-
-	const htmlPlugin: Plugin = {
-		transformers: [
-			{
-				execution: 'sync',
-				type: 'rehype',
-				transform({ processor }) {
-					processor.use(rehypeRaw);
-				}
-			}
-		]
-	};
-
-	const carta = new Carta({
-		sanitizer: (html) => DOMPurify.sanitize(html, sanitizeOptions),
-		extensions: [slash(), video(), htmlPlugin],
-		rehypeOptions: {
-			allowDangerousHtml: true
-		}
-	});
+	const carta = createCarta();
 
 	let newImpact = $state({
 		title: '',

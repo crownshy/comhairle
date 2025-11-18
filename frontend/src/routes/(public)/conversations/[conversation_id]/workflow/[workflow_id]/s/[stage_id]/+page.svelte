@@ -13,10 +13,8 @@
 	import { report_url, workflow_step_url } from '$lib/urls';
 	import { apiClient } from '$lib/api/client';
 	import { addDays, parseISO } from 'date-fns';
-	import { video } from 'carta-plugin-video';
-	import { Markdown, Carta, type Plugin } from 'carta-md';
-	import DOMPurify from 'isomorphic-dompurify';
-	import rehypeRaw from 'rehype-raw';
+	import { Markdown } from 'carta-md';
+	import { createCarta } from '$lib/utils/carta';
 
 	import { ws } from '$lib/api/websockets.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -33,29 +31,7 @@
 
 	let description = $derived(step.description);
 
-	const sanitizeOptions = {
-		ADD_ATTR: ['target']
-	};
-
-	const htmlPlugin: Plugin = {
-		transformers: [
-			{
-				execution: 'sync',
-				type: 'rehype',
-				transform({ processor }) {
-					processor.use(rehypeRaw);
-				}
-			}
-		]
-	};
-
-	let carta = new Carta({
-		sanitizer: (html) => DOMPurify.sanitize(html, sanitizeOptions),
-		extensions: [video(), htmlPlugin],
-		rehypeOptions: {
-			allowDangerousHtml: true
-		}
-	});
+	let carta = createCarta(false);
 
 	function goToThankYouPage() {
 		goto(thank_you_page(conversation.id, step.id));
