@@ -66,16 +66,6 @@ export const Workflow = z.object({ auto_login: z.boolean(), conversation_id: z.s
 export type Workflow = z.infer<typeof Workflow>;
 export const CreateWorkflow = z.object({ auto_login: z.boolean(), description: z.string(), is_active: z.boolean(), is_public: z.boolean(), name: z.string() }).passthrough();
 export type CreateWorkflow = z.infer<typeof CreateWorkflow>;
-export const DailySignupStats = z.object({ day: z.string().datetime({ offset: true }), users: z.number().int() }).passthrough();
-export type DailySignupStats = z.infer<typeof DailySignupStats>;
-export const WorkflowStepStats = z.object({ completed: z.number().int(), id: z.string().uuid(), started: z.number().int() }).passthrough();
-export type WorkflowStepStats = z.infer<typeof WorkflowStepStats>;
-export const WorkflowStats = z.object({ signup_stats: z.array(DailySignupStats), step_stats: z.array(WorkflowStepStats), total_users: z.number().int() }).passthrough();
-export type WorkflowStats = z.infer<typeof WorkflowStats>;
-export const PartialWorkflow = z.object({ auto_login: z.union([z.boolean(), z.null()]), description: z.union([z.string(), z.null()]), is_active: z.union([z.boolean(), z.null()]), is_public: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]) }).partial().passthrough();
-export type PartialWorkflow = z.infer<typeof PartialWorkflow>;
-export const UserParticipation = z.object({ created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid(), workflow_id: z.string().uuid() }).passthrough();
-export type UserParticipation = z.infer<typeof UserParticipation>;
 export const ActivationRule = z.literal("manual");
 export type ActivationRule = z.infer<typeof ActivationRule>;
 export const LocalisedPage = z.object({ content: z.string(), type: z.literal("markdown") }).passthrough();
@@ -86,6 +76,16 @@ export const ToolConfig = z.union([z.object({ admin_password: z.string(), admin_
 export type ToolConfig = z.infer<typeof ToolConfig>;
 export const WorkflowStep = z.object({ activation_rule: ActivationRule, created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_offline: z.boolean(), name: z.string(), required: z.boolean(), step_order: z.number().int(), tool_config: ToolConfig, updated_at: z.string().datetime({ offset: true }), workflow_id: z.string().uuid() }).passthrough();
 export type WorkflowStep = z.infer<typeof WorkflowStep>;
+export const DailySignupStats = z.object({ day: z.string().datetime({ offset: true }), users: z.number().int() }).passthrough();
+export type DailySignupStats = z.infer<typeof DailySignupStats>;
+export const WorkflowStepStats = z.object({ completed: z.number().int(), id: z.string().uuid(), started: z.number().int() }).passthrough();
+export type WorkflowStepStats = z.infer<typeof WorkflowStepStats>;
+export const WorkflowStats = z.object({ signup_stats: z.array(DailySignupStats), step_stats: z.array(WorkflowStepStats), total_users: z.number().int() }).passthrough();
+export type WorkflowStats = z.infer<typeof WorkflowStats>;
+export const PartialWorkflow = z.object({ auto_login: z.union([z.boolean(), z.null()]), description: z.union([z.string(), z.null()]), is_active: z.union([z.boolean(), z.null()]), is_public: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]) }).partial().passthrough();
+export type PartialWorkflow = z.infer<typeof PartialWorkflow>;
+export const UserParticipation = z.object({ created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid(), workflow_id: z.string().uuid() }).passthrough();
+export type UserParticipation = z.infer<typeof UserParticipation>;
 export const ToolSetup = z.union([z.object({ topic: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ type: z.literal("heyform") }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ type: z.literal("elicitationbot") }).passthrough()]);
 export type ToolSetup = z.infer<typeof ToolSetup>;
 export const CreateWorkflowStep = z.object({ activation_rule: ActivationRule, description: z.string(), is_offline: z.boolean(), name: z.string(), required: z.boolean(), step_order: z.number().int(), tool_setup: ToolSetup }).passthrough();
@@ -185,16 +185,16 @@ export const schemas = {
 	RegisterEmailResponse,
 	Workflow,
 	CreateWorkflow,
-	DailySignupStats,
-	WorkflowStepStats,
-	WorkflowStats,
-	PartialWorkflow,
-	UserParticipation,
 	ActivationRule,
 	LocalisedPage,
 	Page,
 	ToolConfig,
 	WorkflowStep,
+	DailySignupStats,
+	WorkflowStepStats,
+	WorkflowStats,
+	PartialWorkflow,
+	UserParticipation,
 	ToolSetup,
 	CreateWorkflowStep,
 	PartialWorkflowStep,
@@ -643,6 +643,13 @@ const endpoints = makeApi([
 		alias: "UnregisterUserForWorkflow",
 		requestFormat: "json",
 		response: UserParticipation,
+	},
+	{
+		method: "get",
+		path: "/conversation/:conversation_id/workflow/:workflow_id/next",
+		alias: "NextWorkflowStepForUser",
+		requestFormat: "json",
+		response: z.union([WorkflowStep, z.null()]),
 	},
 	{
 		method: "get",

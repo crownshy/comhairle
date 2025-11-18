@@ -18,10 +18,23 @@ use crate::{
         conversation::{self, PartialConversation},
         user_participation::{self, UserParticipation},
         workflow::{self, CreateWorkflow, PartialWorkflow, Workflow, WorkflowStats},
+        workflow_step::{self, WorkflowStep},
     },
     routes::auth::{RequiredAdminUser, RequiredUser},
     ComhairleState,
 };
+
+/// Return the first step in the workflow that is not "done" for the
+/// current user
+async fn active_step_for_user(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path((_, workflow_id)): Path<(Uuid, Uuid)>,
+) -> Result<(StatusCode, Json<Option<WorkflowStep>>), ComhairleError> {
+    let result =
+        workflow_step::get_current_active_step_for_user(&state.db, &user.id, &workflow_id).await?;
+    Ok((StatusCode::OK, Json(result)))
+}
 
 /// Register user on workflow
 /// This end point will create a user participation
@@ -150,6 +163,14 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("ListWorkflows")
                     .summary("List all workflows on this converastion")
                     .response::<200, Json<Vec<Workflow>>>()
+            }),
+        )
+        .api_route(
+            "/{workflow_id}/next",
+            get_with(active_step_for_user, |op| {
+                op.id("NextWorkflowStepForUser")
+                    .summary("Gets the next undone workflow step for the current user")
+                    .response::<201, Json<Option<WorkflowStep>>>()
             }),
         )
         .api_route(

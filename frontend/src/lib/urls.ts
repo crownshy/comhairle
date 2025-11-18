@@ -14,12 +14,16 @@ export function workflow_url(conversation_id: string, workflow_id: string) {
 	return conversation_url(conversation_id) + `/workflow/${workflow_id}`
 }
 
+export function next_workflow_step_url(conversation_id: string, workflow_id: string) {
+	return workflow_url(conversation_id, workflow_id) + `/next`
+}
+
 export function thank_you_page(conversation_id: string, workflow_id: string) {
 	return workflow_url(conversation_id, workflow_id) + "/thank_you"
 }
 
-export function workflow_step_url(conversation_id: string, workflow_id: string, step: number) {
-	return workflow_url(conversation_id, workflow_id) + `/s/${step}`
+export function workflow_step_url(conversation_id: string, workflow_id: string, workflow_step_id: string) {
+	return workflow_url(conversation_id, workflow_id) + `/s/${workflow_step_id}`
 }
 
 export function report_url(conversation_id: string, workflow_id: string) {
