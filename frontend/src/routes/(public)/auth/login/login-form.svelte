@@ -9,6 +9,7 @@
 	import { apiClient } from '$lib/api/client';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { EyeOpen, EyeNone } from 'svelte-radix';
+	import PasswordInput from '$lib/components/ui/password-input/password-input.svelte';
 
 	let { backTo }: { backTo?: string } = $props();
 
@@ -71,27 +72,13 @@
 		<Form.Control>
 			{#snippet children({ props })}
 				<Form.Label>{m.password()}</Form.Label>
-				<span class="relative flex">
-					<Input
-						type={passwordVisible ? 'text' : 'password'}
-						{...props}
-						bind:value={$formData.password}
-						required
-						class="placeholder:text-gray-400"
-						placeholder="Enter your password"
-					/>
-					<button
-						class="absolute top-1/2 right-1 z-10 -translate-1/2"
-						type="button"
-						onclick={() => (passwordVisible = !passwordVisible)}
-					>
-						{#if passwordVisible}
-							<EyeNone class="h-4 w-4" />
-						{:else}
-							<EyeOpen class="h-4 w-4" />
-						{/if}
-					</button>
-				</span>
+				<PasswordInput
+					{formData}
+					{...props}
+					required
+					class="placeholder:text-gray-400"
+					placeholder="Enter your password"
+				/>
 			{/snippet}
 		</Form.Control>
 		<Form.FieldErrors />
