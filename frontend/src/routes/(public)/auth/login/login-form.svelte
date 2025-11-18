@@ -8,6 +8,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { apiClient } from '$lib/api/client';
 	import { goto, invalidateAll } from '$app/navigation';
+	import { EyeOpen, EyeNone } from 'svelte-radix';
 
 	let { backTo }: { backTo?: string } = $props();
 
@@ -18,6 +19,7 @@
 	});
 
 	let responseMessage = $state(null);
+	let passwordVisible = $state(false);
 
 	const { form: formData, enhance, message, validateForm } = form;
 
@@ -53,7 +55,13 @@
 		<Form.Control>
 			{#snippet children({ props })}
 				<Form.Label>{m.email()}</Form.Label>
-				<Input {...props} bind:value={$formData.email} required />
+				<Input
+					{...props}
+					bind:value={$formData.email}
+					required
+					class="placeholder:text-gray-400"
+					placeholder="Enter your email address"
+				/>
 			{/snippet}
 		</Form.Control>
 		<Form.FieldErrors />
@@ -63,7 +71,27 @@
 		<Form.Control>
 			{#snippet children({ props })}
 				<Form.Label>{m.password()}</Form.Label>
-				<Input type="password" {...props} bind:value={$formData.password} required />
+				<span class="relative flex">
+					<Input
+						type={passwordVisible ? 'text' : 'password'}
+						{...props}
+						bind:value={$formData.password}
+						required
+						class="placeholder:text-gray-400"
+						placeholder="Enter your password"
+					/>
+					<button
+						class="absolute top-1/2 right-1 z-10 -translate-1/2"
+						type="button"
+						onclick={() => (passwordVisible = !passwordVisible)}
+					>
+						{#if passwordVisible}
+							<EyeNone class="h-4 w-4" />
+						{:else}
+							<EyeOpen class="h-4 w-4" />
+						{/if}
+					</button>
+				</span>
 			{/snippet}
 		</Form.Control>
 		<Form.FieldErrors />
@@ -71,7 +99,7 @@
 
 	<Form.Button class="w-full" variant="secondary">{m.submit()}</Form.Button>
 
-	<Button href={`/auth/anonymous-login?backTo=${backTo ?? '/'}`} variant="link" class={'w-full'}>
+	<Button href={`/auth/anonymous-login?backTo=${backTo ?? '/'}`} variant="link" class="w-full">
 		{m.login_with_anonymous_id()}
 	</Button>
 
