@@ -40,6 +40,11 @@ pub struct Invite {
 impl Invite {
     #[instrument(err(Debug))]
     pub fn is_still_valid(&self) -> Result<(), ComhairleError> {
+        // If the invite is accepted we still want to return it
+        if (self.status == InviteStatus::Accepted) {
+            return Ok(());
+        }
+
         if !(self.status == InviteStatus::Pending || self.status == InviteStatus::Open) {
             return Err(ComhairleError::InviteExpired);
         }
