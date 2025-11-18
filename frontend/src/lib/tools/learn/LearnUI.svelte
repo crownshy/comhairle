@@ -7,6 +7,8 @@
 	import { tick } from 'svelte';
 	import { video } from 'carta-plugin-video';
 	import { Markdown, Carta } from 'carta-md';
+	import rehypeRaw from 'rehype-raw';
+	import type { Plugin } from 'carta-md';
 
 	let {
 		pages,
@@ -20,11 +22,30 @@
 	let currentPage = $derived(pages[currentPageNo]);
 	let currentPageTranslation = $derived(currentPage.filter((p) => p.lang === getLocale()));
 	let content = $derived(currentPageTranslation[0]?.content);
-
 	let articleElement: HTMLElement | undefined = $state();
+
+	const sanitizeOptions = {
+		ADD_ATTR: ['target']
+	};
+
+	const htmlPlugin: Plugin = {
+		transformers: [
+			{
+				execution: 'sync',
+				type: 'rehype',
+				transform({ processor }) {
+					processor.use(rehypeRaw);
+				}
+			}
+		]
+	};
+
 	let carta = new Carta({
-		sanitizer: DOMPurify.sanitize,
-		extensions: [video()]
+		sanitizer: (html) => DOMPurify.sanitize(html, sanitizeOptions),
+		extensions: [video(), htmlPlugin],	
+		rehypeOptions: {
+			allowDangerousHtml: true
+		}
 	});
 
 	function nextPage() {
