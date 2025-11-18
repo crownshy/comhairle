@@ -97,7 +97,7 @@ async fn create_invite(
         models::invites::InviteType::Email(email) => {
             state.mailer.send_email(
             &email,
-            "You have been invited to the conversation",
+            "Invitation to take part in the National Performance Framework consultation",
             "conversation_invite.html",
             context! {
                 conversation_hero => conversation.image_url , 
