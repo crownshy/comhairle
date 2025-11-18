@@ -13,9 +13,8 @@
 	import { report_url, workflow_step_url } from '$lib/urls';
 	import { apiClient } from '$lib/api/client';
 	import { addDays, parseISO } from 'date-fns';
-	import { video } from 'carta-plugin-video';
-	import { Markdown, Carta } from 'carta-md';
-	import DOMPurify from 'isomorphic-dompurify';
+	import { Markdown } from 'carta-md';
+	import { createCarta } from '$lib/utils/carta';
 
 	import { ws } from '$lib/api/websockets.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -32,10 +31,7 @@
 
 	let description = $derived(step.description);
 
-	let carta = new Carta({
-		sanitizer: DOMPurify.sanitize,
-		extensions: [video()]
-	});
+	let carta = createCarta();
 
 	function goToThankYouPage() {
 		goto(thank_you_page(conversation.id, step.id));
