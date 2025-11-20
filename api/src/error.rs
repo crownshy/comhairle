@@ -80,6 +80,9 @@ pub enum ComhairleError {
     #[error("Cant log this type of user in with this flow")]
     WrongUserType,
 
+    #[error("User's email address is already verified")]
+    EmailAlreadyVerified,
+
     #[error("No user logged in")]
     NoLogedInUser,
 
