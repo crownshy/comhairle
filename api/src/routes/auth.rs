@@ -65,6 +65,11 @@ struct AnnonLoginRequest {
     username: String,
 }
 
+#[derive(Deserialize, JsonSchema)]
+struct VerifyEmailTokenRequest {
+    token: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EmailVerificationClaims {
     sub: String,
@@ -222,6 +227,31 @@ async fn login_annon(
         .secure(true)
         .http_only(true);
     Ok((cookies.add(cookie), (StatusCode::OK, Json(user))))
+}
+
+#[instrument(err(Debug), skip(state, payload))]
+async fn verify_email_token(
+    State(state): State<Arc<ComhairleState>>,
+    cookies: CookieJar,
+    Json(payload): Json<VerifyEmailTokenRequest>,
+) -> Result<(CookieJar, (StatusCode, Json<User>)), ComhairleError> {
+    let current_user = validate_jwt(&state, &payload.token).await?;
+
+    if current_user.auth_type == UserAuthType::Annon {
+        return Err(ComhairleError::WrongUserType);
+    }
+    
+    // TODO: update validated column for user
+    // return error if already validated?
+    // refactor validate_jwt to allow use of correct claims
+
+    let session_token = generate_jwt(&current_user.clone(), &state.config.jwt_secret);
+    let cookie = Cookie::build((AUTH_KEY, session_token))
+        .path("/")
+        .secure(true)
+        .http_only(true);
+
+    Ok((cookies.add(cookie), (StatusCode::OK, Json(current_user))))
 }
 
 /// Decode a JWT
@@ -544,6 +574,14 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("LogoutUser")
                     .summary("Logout the current user")
                     .response::<200, Json<HashMap<String, String>>>()
+            }),
+        )
+        .api_route(
+            "/verify_email_token",
+            post_with(verify_email_token, |op| {
+                op.id("VerifyEmailToken")
+                    .summary("Verify token from email verification link")
+                    .response::<200, Json<User>>()
             }),
         )
         .api_route(
