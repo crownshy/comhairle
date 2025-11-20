@@ -65,6 +65,36 @@ struct AnnonLoginRequest {
     username: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EmailVerificationClaims {
+    sub: String,
+    exp: usize,
+    id: String,
+    email: Option<String>,
+}
+
+// TODO: dry up this code so there is only one function required
+fn generate_email_verification_jwt(user: &User, secret: &str) -> String {
+    let expiration = chrono::Utc::now()
+        .checked_add_signed(chrono::Duration::hours(24))
+        .expect("valid timestamp")
+        .timestamp() as usize;
+
+    let claims = EmailVerificationClaims {
+        sub: user.id.to_string(),
+        exp: expiration,
+        id: user.id.to_string(),
+        email: user.email.clone(),
+    };
+
+    encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret.as_ref()),
+    )
+    .unwrap()
+}
+
 /// JWT Claims
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
@@ -115,22 +145,14 @@ async fn signup(
     State(state): State<Arc<ComhairleState>>,
     jar: CookieJar,
     Json(payload): Json<SignupRequest>,
-) -> Result<(CookieJar, (StatusCode, Json<User>)), ComhairleError> {
+) -> Result<(StatusCode, Json<User>), ComhairleError> {
     let user = create_user(&payload, &state.db).await?;
-    let token = generate_jwt(&user, &state.config.jwt_secret);
+    let token = generate_email_verification_jwt(&user, &state.config.jwt_secret);
+    let verify_link = format!("{}/auth/verify-user?token={}", state.config.domain, token);
 
-    let cookie = Cookie::build((AUTH_KEY, token))
-        .path("/")
-        .secure(true)
-        .http_only(true);
+    state.mailer.send_verification_email(&user, verify_link)?;
 
-    if let Some(email) = &user.email {
-        state.mailer.send_welcome_email(email, &user)?;
-    } else {
-        error!("Trying to send email to user without an address");
-    }
-
-    Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
+    Ok((StatusCode::CREATED, Json(user)))
 }
 
 /// Signup handler for annon

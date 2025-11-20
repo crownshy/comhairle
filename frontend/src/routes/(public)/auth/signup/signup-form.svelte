@@ -19,20 +19,24 @@
 		onSubmit: attemptLogin
 	});
 
-	let { form: formData, validateForm, submitting, enhance } = form;
+	let { form: formData, validateForm, enhance } = form;
 
 	async function attemptLogin() {
 		let result = await validateForm({ update: true });
 		if (result.valid) {
 			let { username, password, email } = result.data;
 			try {
-				await apiClient.SignUp({
+				const user = await apiClient.SignUp({
 					username,
 					password,
 					email
 				});
 				await invalidateAll();
-				await goto(backTo ?? '/');
+				if (user.auth_type === 'annon') {
+					await goto(backTo ?? '/');
+				} else {
+					await goto('/auth/verification-message');
+				}
 			} catch (e) {
 				responseMessage = e.response.data.err;
 			}
