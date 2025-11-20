@@ -129,6 +129,7 @@ pub struct User {
     pub avatar_url: Option<String>,
     pub auth_type: UserAuthType,
     pub email: Option<String>,
+    pub verified: bool,
 }
 
 /// Create a user from a signup request
@@ -158,6 +159,7 @@ pub async fn create_user(user: &SignupRequest, db: &PgPool) -> Result<User, Comh
             UserIden::AuthType,
             UserIden::AvatarUrl,
             UserIden::Email,
+            UserIden::Verified,
         ]))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -240,6 +242,7 @@ pub async fn get_user_by_id(id: &Uuid, db: &PgPool) -> Result<User, ComhairleErr
             UserIden::AvatarUrl,
             UserIden::AuthType,
             UserIden::Email,
+            UserIden::Verified,
         ])
         .from(UserIden::Table)
         .and_where(Expr::col(UserIden::Id).eq(id.to_owned()))
@@ -262,6 +265,7 @@ pub async fn get_user_by_email(email: &str, db: &PgPool) -> Result<User, Comhair
             UserIden::AvatarUrl,
             UserIden::AuthType,
             UserIden::Email,
+            UserIden::Verified,
         ])
         .from(UserIden::Table)
         .and_where(Expr::col(UserIden::Email).ilike(email))
@@ -362,6 +366,7 @@ pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, C
             UserIden::AvatarUrl,
             UserIden::AuthType,
             UserIden::Email,
+            UserIden::Verified,
         ])
         .from(UserIden::Table)
         .and_where(Expr::col(UserIden::Username).eq(username))
@@ -377,6 +382,7 @@ pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, C
 pub struct UpdateUserRequest {
     pub username: Option<String>,
     pub password: Option<String>,
+    pub verified: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
@@ -407,6 +413,10 @@ pub async fn update_user(
         query.value(UserIden::Password, hashed_password);
         has_updates = true;
     }
+    if let Some(verified) = &update_request.verified {
+        query.value(UserIden::Verified, *verified);
+        has_updates = true;
+    }
 
     if !has_updates {
         return get_user_by_id(user_id, db).await;
@@ -421,6 +431,7 @@ pub async fn update_user(
             UserIden::AvatarUrl,
             UserIden::AuthType,
             UserIden::Email,
+            UserIden::Verified,
         ]))
         .build_sqlx(PostgresQueryBuilder);
 

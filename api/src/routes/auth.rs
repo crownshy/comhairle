@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::marker::PhantomData;
 use std::{collections::HashMap, sync::Arc};
-use tracing::{error, instrument, warn};
+use tracing::{instrument, warn};
 use uuid::Uuid;
 // use tower_cookies::{Cookie, Cookies};
 
@@ -30,7 +30,8 @@ use crate::{
     error::ComhairleError,
     models::users::{
         create_annon_user, create_user, get_user_by_email, get_user_by_id, get_user_by_username,
-        get_user_resource_roles, Resource, Role, User, UserAuthType, UserResourceRole,
+        get_user_resource_roles, update_user, Resource, Role, UpdateUserRequest, User,
+        UserAuthType, UserResourceRole,
     },
     ComhairleState,
 };
@@ -107,6 +108,7 @@ pub struct Claims {
     exp: usize,
     id: String,
     username: Option<String>,
+    //verified: bool,
     sudo_user: Option<String>,
 }
 
@@ -122,6 +124,7 @@ fn generate_jwt(user: &User, secret: &str) -> String {
         exp: expiration,
         username: user.username.clone(),
         id: user.id.to_string(),
+        //verified: user.verified,
         sudo_user: None,
     };
 
@@ -240,18 +243,32 @@ async fn verify_email_token(
     if current_user.auth_type == UserAuthType::Annon {
         return Err(ComhairleError::WrongUserType);
     }
-    
-    // TODO: update validated column for user
-    // return error if already validated?
-    // refactor validate_jwt to allow use of correct claims
 
-    let session_token = generate_jwt(&current_user.clone(), &state.config.jwt_secret);
-    let cookie = Cookie::build((AUTH_KEY, session_token))
+    if current_user.verified {
+        return Err(ComhairleError::EmailAlreadyVerified);
+    }
+
+    let updated_verified_status = UpdateUserRequest {
+        username: None,
+        password: None,
+        verified: Some(true),
+    };
+
+    let updated_user = update_user(&current_user.id, &updated_verified_status, &state.db).await?;
+
+    // TODO:
+    // refactor validate_jwt to allow use of correct claims
+    // add verified into jwt claims
+
+    let session_token = generate_jwt(&updated_user.clone(), &state.config.jwt_secret);
+    let cookie = Cookie::build((AUTH_KEY, session_token.clone()))
         .path("/")
         .secure(true)
         .http_only(true);
 
-    Ok((cookies.add(cookie), (StatusCode::OK, Json(current_user))))
+    let decoded = decode_jwt(&session_token, &state.config.jwt_secret);
+
+    Ok((cookies.add(cookie), (StatusCode::OK, Json(updated_user))))
 }
 
 /// Decode a JWT
