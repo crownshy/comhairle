@@ -1,0 +1,9 @@
+<h1>Hi {% if user.username %}{{user.username}}{% endif %}</h1>
+
+<p>We&apos;re excited to have you with us. Before you get started, just confirm your email address by clicking the link below</p>
+
+<br />
+
+<a href="{{ verify_link }}" target="_blank">Verify Email Address</a>
+
+<p>If you did not request this, you can safely ignore this email</p>

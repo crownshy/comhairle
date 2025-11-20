@@ -26,6 +26,12 @@ pub trait ComhairleMailer: Send + Sync {
         user: User,
         token: &str,
     ) -> Result<(), ComhairleError>;
+
+    fn send_verification_email(
+        &self,
+        user: &User,
+        verify_link: String,
+    ) -> Result<(), ComhairleError>;
 }
 
 #[derive(Debug)]
@@ -103,9 +109,26 @@ impl ComhairleMailer for Mailer {
         if let Some(email) = &user.email {
             self.send_email(
                 email,
-                "Welcome to Comhairle".into(),
+                "Welcome to Comhairle",
                 "welcome.html",
                 context! {user => user, subject=>"Welcome to Comhairle"},
+            )
+        } else {
+            Err(ComhairleError::WrongUserType)
+        }
+    }
+
+    fn send_verification_email(
+        &self,
+        user: &User,
+        verify_link: String,
+    ) -> Result<(), ComhairleError> {
+        if let Some(email) = &user.email {
+            self.send_email(
+                email,
+                "Confirm your email address",
+                "verify_email.html",
+                context! { user, verify_link },
             )
         } else {
             Err(ComhairleError::WrongUserType)
