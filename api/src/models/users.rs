@@ -129,7 +129,7 @@ pub struct User {
     pub avatar_url: Option<String>,
     pub auth_type: UserAuthType,
     pub email: Option<String>,
-    pub verified: bool,
+    pub email_verified: bool,
 }
 
 /// Create a user from a signup request
@@ -159,7 +159,7 @@ pub async fn create_user(user: &SignupRequest, db: &PgPool) -> Result<User, Comh
             UserIden::AuthType,
             UserIden::AvatarUrl,
             UserIden::Email,
-            UserIden::Verified,
+            UserIden::EmailVerified,
         ]))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -242,7 +242,7 @@ pub async fn get_user_by_id(id: &Uuid, db: &PgPool) -> Result<User, ComhairleErr
             UserIden::AvatarUrl,
             UserIden::AuthType,
             UserIden::Email,
-            UserIden::Verified,
+            UserIden::EmailVerified,
         ])
         .from(UserIden::Table)
         .and_where(Expr::col(UserIden::Id).eq(id.to_owned()))
@@ -265,7 +265,7 @@ pub async fn get_user_by_email(email: &str, db: &PgPool) -> Result<User, Comhair
             UserIden::AvatarUrl,
             UserIden::AuthType,
             UserIden::Email,
-            UserIden::Verified,
+            UserIden::EmailVerified,
         ])
         .from(UserIden::Table)
         .and_where(Expr::col(UserIden::Email).ilike(email))
@@ -366,7 +366,7 @@ pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, C
             UserIden::AvatarUrl,
             UserIden::AuthType,
             UserIden::Email,
-            UserIden::Verified,
+            UserIden::EmailVerified,
         ])
         .from(UserIden::Table)
         .and_where(Expr::col(UserIden::Username).eq(username))
@@ -414,7 +414,7 @@ pub async fn update_user(
         has_updates = true;
     }
     if let Some(verified) = &update_request.verified {
-        query.value(UserIden::Verified, *verified);
+        query.value(UserIden::EmailVerified, *verified);
         has_updates = true;
     }
 
@@ -431,7 +431,7 @@ pub async fn update_user(
             UserIden::AvatarUrl,
             UserIden::AuthType,
             UserIden::Email,
-            UserIden::Verified,
+            UserIden::EmailVerified,
         ]))
         .build_sqlx(PostgresQueryBuilder);
 
