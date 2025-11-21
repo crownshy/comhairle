@@ -109,8 +109,12 @@ impl Invite {
     pub fn is_for_user(&self, user: &User) -> Result<(), ComhairleError> {
         match &self.invite_type {
             InviteType::Email(email) => {
-                if Some(email) == user.email.as_ref() {
-                    Ok(())
+                if let Some(user_email) = user.email.as_ref() {
+                    if email.to_lowercase() == user_email.to_lowercase() {
+                        Ok(())
+                    } else {
+                        Err(ComhairleError::InviteDoesNotMatchUser)
+                    }
                 } else {
                     Err(ComhairleError::InviteDoesNotMatchUser)
                 }
@@ -338,6 +342,39 @@ mod tests {
     use sqlx::PgPool;
     use std::error::Error;
 
+    #[test]
+    fn invite_check_for_user_should_be_case_insensitive() -> Result<(), Box<dyn Error>> {
+        let user = User {
+            id: Uuid::new_v4(),
+            username: Some("Name".into()),
+            password: Some("some password".into()),
+            avatar_url: Some("".into()),
+            auth_type: users::UserAuthType::EmailPassword,
+            email: Some("TestEmail@gmail.com".into()),
+        };
+
+        let invite = Invite {
+            id: Uuid::new_v4(),
+            invite_type: InviteType::Email("testemail@gmail.com".into()),
+            created_by: Uuid::new_v4(),
+            status: InviteStatus::Pending,
+            expires_at: None,
+            conversation_id: Uuid::new_v4(),
+            workflow_id: None,
+            workflow_step_id: None,
+            login_behaviour: LoginBehaviour::Manual,
+            tags: vec![],
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            accept_count: 0,
+        };
+
+        assert!(
+            invite.is_for_user(&user).is_ok(),
+            "User should be identified even if their emails dont match"
+        );
+        Ok(())
+    }
     #[sqlx::test]
     async fn should_get_correct_stats_for_invite(db: PgPool) -> Result<(), Box<dyn Error>> {
         let user1 = users::create_user(&Faker.fake(), &db).await?;
