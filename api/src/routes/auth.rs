@@ -18,7 +18,7 @@ use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, 
 use rand_core::OsRng;
 use regex::Regex;
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::json;
 use std::marker::PhantomData;
 use std::{collections::HashMap, sync::Arc};
@@ -73,47 +73,37 @@ struct VerifyEmailTokenRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EmailVerificationClaims {
-    sub: String,
-    exp: usize,
-    id: String,
     email: Option<String>,
 }
 
-// TODO: dry up this code so there is only one function required
-fn generate_email_verification_jwt(user: &User, secret: &str) -> String {
-    let expiration = chrono::Utc::now()
-        .checked_add_signed(chrono::Duration::hours(24))
-        .expect("valid timestamp")
-        .timestamp() as usize;
-
-    let claims = EmailVerificationClaims {
-        sub: user.id.to_string(),
-        exp: expiration,
-        id: user.id.to_string(),
-        email: user.email.clone(),
-    };
-
-    encode(
-        &Header::default(),
-        &claims,
-        &EncodingKey::from_secret(secret.as_ref()),
-    )
-    .unwrap()
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionClaims {
+    username: Option<String>,
+    sudo_user: Option<String>, // TODO: Remove at some point
+    email_verified: bool,
+    roles: Vec<String>,
 }
 
 /// JWT Claims
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Claims {
+#[serde(bound = "T: Serialize + DeserializeOwned")]
+pub struct Claims<T>
+where
+    T: Serialize + DeserializeOwned,
+{
     sub: String,
     exp: usize,
     id: String,
-    username: Option<String>,
-    //verified: bool,
-    sudo_user: Option<String>,
+    #[serde(flatten)]
+    details: T,
 }
 
 /// Generate JWT
-fn generate_jwt(user: &User, secret: &str) -> String {
+fn generate_jwt<T: Serialize + DeserializeOwned>(
+    user: &User,
+    custom_claims: T,
+    secret: &str,
+) -> String {
     let expiration = chrono::Utc::now()
         .checked_add_signed(chrono::Duration::hours(24))
         .expect("valid timestamp")
@@ -122,10 +112,8 @@ fn generate_jwt(user: &User, secret: &str) -> String {
     let claims = Claims {
         sub: user.id.to_string(),
         exp: expiration,
-        username: user.username.clone(),
         id: user.id.to_string(),
-        //verified: user.verified,
-        sudo_user: None,
+        details: custom_claims,
     };
 
     encode(
@@ -155,7 +143,10 @@ async fn signup(
     Json(payload): Json<SignupRequest>,
 ) -> Result<(StatusCode, Json<User>), ComhairleError> {
     let user = create_user(&payload, &state.db).await?;
-    let token = generate_email_verification_jwt(&user, &state.config.jwt_secret);
+    let claims = EmailVerificationClaims {
+        email: user.email.clone(),
+    };
+    let token = generate_jwt(&user, claims, &state.config.jwt_secret);
     let verify_link = format!("{}/auth/verify-user?token={}", state.config.domain, token);
 
     state.mailer.send_verification_email(&user, verify_link)?;
@@ -170,7 +161,13 @@ async fn signup_annon(
     jar: CookieJar,
 ) -> Result<(CookieJar, (StatusCode, Json<User>)), ComhairleError> {
     let user = create_annon_user(&state.db).await?;
-    let token = generate_jwt(&user, &state.config.jwt_secret);
+    let claims = SessionClaims {
+        username: user.username.clone(),
+        sudo_user: None,
+        email_verified: user.email_verified,
+        roles: Vec::new(),
+    };
+    let token = generate_jwt(&user, claims, &state.config.jwt_secret);
 
     let cookie = Cookie::build((AUTH_KEY, token))
         .path("/")
@@ -203,7 +200,13 @@ async fn login(
         return Err(ComhairleError::WrongPassword);
     }
 
-    let token = generate_jwt(&user.clone(), &state.config.jwt_secret);
+    let claims = SessionClaims {
+        username: user.username.clone(),
+        sudo_user: None,
+        email_verified: user.email_verified,
+        roles: Vec::new(),
+    };
+    let token = generate_jwt(&user.clone(), claims, &state.config.jwt_secret);
     let cookie = Cookie::build((AUTH_KEY, token))
         .path("/")
         .secure(true)
@@ -224,7 +227,13 @@ async fn login_annon(
         return Err(ComhairleError::NoUserFound);
     }
 
-    let token = generate_jwt(&user.clone(), &state.config.jwt_secret);
+    let claims = SessionClaims {
+        username: user.username.clone(),
+        sudo_user: None,
+        email_verified: user.email_verified,
+        roles: Vec::new(),
+    };
+    let token = generate_jwt(&user.clone(), claims, &state.config.jwt_secret);
     let cookie = Cookie::build((AUTH_KEY, token))
         .path("/")
         .secure(true)
@@ -238,13 +247,13 @@ async fn verify_email_token(
     cookies: CookieJar,
     Json(payload): Json<VerifyEmailTokenRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<User>)), ComhairleError> {
-    let current_user = validate_jwt(&state, &payload.token).await?;
+    let current_user = validate_jwt::<EmailVerificationClaims>(&state, &payload.token).await?;
 
     if current_user.auth_type == UserAuthType::Annon {
         return Err(ComhairleError::WrongUserType);
     }
 
-    if current_user.verified {
+    if current_user.email_verified {
         return Err(ComhairleError::EmailAlreadyVerified);
     }
 
@@ -257,23 +266,28 @@ async fn verify_email_token(
     let updated_user = update_user(&current_user.id, &updated_verified_status, &state.db).await?;
 
     // TODO:
-    // refactor validate_jwt to allow use of correct claims
-    // add verified into jwt claims
 
-    let session_token = generate_jwt(&updated_user.clone(), &state.config.jwt_secret);
+    let claims = SessionClaims {
+        username: updated_user.username.clone(),
+        sudo_user: None,
+        email_verified: updated_user.email_verified,
+        roles: Vec::new(),
+    };
+    let session_token = generate_jwt(&updated_user.clone(), claims, &state.config.jwt_secret);
     let cookie = Cookie::build((AUTH_KEY, session_token.clone()))
         .path("/")
         .secure(true)
         .http_only(true);
 
-    let decoded = decode_jwt(&session_token, &state.config.jwt_secret);
-
     Ok((cookies.add(cookie), (StatusCode::OK, Json(updated_user))))
 }
 
 /// Decode a JWT
-pub fn decode_jwt(jwt: &str, secret: &str) -> Result<TokenData<Claims>, StatusCode> {
-    let result: Result<TokenData<Claims>, StatusCode> = decode(
+pub fn decode_jwt<T: Serialize + DeserializeOwned>(
+    jwt: &str,
+    secret: &str,
+) -> Result<TokenData<Claims<T>>, StatusCode> {
+    let result: Result<TokenData<Claims<T>>, StatusCode> = decode(
         &jwt,
         &DecodingKey::from_secret(secret.as_ref()),
         &Validation::default(),
@@ -486,7 +500,7 @@ impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
 
         if let Some(token_cookie) = jar.get(AUTH_KEY) {
             let token_str = token_cookie.value();
-            let poss_user = validate_jwt(state, token_str).await.ok();
+            let poss_user = validate_jwt::<SessionClaims>(state, token_str).await.ok();
             Ok(OptionalUser(poss_user))
         } else {
             Ok(OptionalUser(None))
@@ -497,11 +511,11 @@ impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
 /// Ensure the JTW is valid and if it is return the associated user
 /// May break this out in future for routes that require a valid
 /// user but dont care who they are
-pub async fn validate_jwt(
+pub async fn validate_jwt<T: Serialize + DeserializeOwned>(
     state: &Arc<ComhairleState>,
     token: &str,
 ) -> Result<User, ComhairleError> {
-    let token_data = match decode_jwt(token, &state.config.jwt_secret) {
+    let token_data = match decode_jwt::<T>(token, &state.config.jwt_secret) {
         Ok(data) => data,
         Err(e) => {
             warn!("unable to decode {e}");
