@@ -7,7 +7,7 @@ export const load: LayoutServerLoad = async (event) => {
 			user: null
 		};
 	}
-	
+
 	const resp = await event.fetch(`/api/auth/current_user`, {
 		method: 'GET',
 		headers: { Accept: 'application/json' }
@@ -20,5 +20,5 @@ export const load: LayoutServerLoad = async (event) => {
 	if (!body.id) return { user: null };
 
 	// console.log("Returning with token ", tk)
-	return { user: body, token:tk };
+	return { user: body, token: tk };
 };
