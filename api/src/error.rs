@@ -181,6 +181,7 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::NoLogedInUser => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates => StatusCode::UNPROCESSABLE_ENTITY,
             ComhairleError::UserNotAuthorized => StatusCode::FORBIDDEN,
+            ComhairleError::EmailAlreadyVerified => StatusCode::CONFLICT,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
