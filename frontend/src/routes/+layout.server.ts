@@ -24,5 +24,5 @@ export const load: LayoutServerLoad = async (event) => {
 	if (!body.id) return { user: null, ...common };
 
 	// console.log("Returning with token ", tk)
-	return { user: body, token: tk, ...common };
+	return { user: body, token: tk };
 };

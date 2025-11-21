@@ -71,6 +71,11 @@ struct VerifyEmailTokenRequest {
     token: String,
 }
 
+#[derive(Deserialize, JsonSchema)]
+struct ResendVerificationEmailRequest {
+    user: User,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EmailVerificationClaims {
     email: Option<String>,
@@ -141,7 +146,7 @@ async fn signup(
     State(state): State<Arc<ComhairleState>>,
     jar: CookieJar,
     Json(payload): Json<SignupRequest>,
-) -> Result<(StatusCode, Json<User>), ComhairleError> {
+) -> Result<(CookieJar, (StatusCode, Json<User>)), ComhairleError> {
     let user = create_user(&payload, &state.db).await?;
     let claims = EmailVerificationClaims {
         email: user.email.clone(),
@@ -151,7 +156,19 @@ async fn signup(
 
     state.mailer.send_verification_email(&user, verify_link)?;
 
-    Ok((StatusCode::CREATED, Json(user)))
+    let claims = SessionClaims {
+        username: user.username.clone(),
+        sudo_user: None,
+        email_verified: user.email_verified,
+        roles: Vec::new(),
+    };
+    let token = generate_jwt(&user, claims, &state.config.jwt_secret);
+    let cookie = Cookie::build((AUTH_KEY, token))
+        .path("/")
+        .secure(true)
+        .http_only(true);
+
+    Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
 }
 
 /// Signup handler for annon
@@ -239,6 +256,24 @@ async fn login_annon(
         .secure(true)
         .http_only(true);
     Ok((cookies.add(cookie), (StatusCode::OK, Json(user))))
+}
+
+#[instrument(err(Debug), skip(state, payload))]
+async fn resend_verification_email(
+    State(state): State<Arc<ComhairleState>>,
+    Json(payload): Json<ResendVerificationEmailRequest>,
+) -> Result<StatusCode, ComhairleError> {
+    println!();
+    println!("    >>>>    Entered handler");
+    println!();
+    let user = payload.user;
+    let claims = EmailVerificationClaims {
+        email: user.email.clone(),
+    };
+    let token = generate_jwt(&user, claims, &state.config.jwt_secret);
+    let verify_link = format!("{}/auth/verify-user?token={}", state.config.domain, token);
+    state.mailer.send_verification_email(&user, verify_link)?;
+    Ok(StatusCode::OK)
 }
 
 #[instrument(err(Debug), skip(state, payload))]
@@ -613,6 +648,14 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("VerifyEmailToken")
                     .summary("Verify token from email verification link")
                     .response::<200, Json<User>>()
+            }),
+        )
+        .api_route(
+            "/resend_verification_email",
+            post_with(resend_verification_email, |op| {
+                op.id("ResendVerificationEmail")
+                    .summary("Resend email verification link to user")
+                    .response::<200, ()>()
             }),
         )
         .api_route(
