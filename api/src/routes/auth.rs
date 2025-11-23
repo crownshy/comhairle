@@ -678,6 +678,27 @@ mod tests {
     }
 
     #[sqlx::test]
+    async fn user_should_be_able_to_login_with_email_with_different_case(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let username = "test_user";
+        let password = "test_password";
+        let email = "test_email@email.com";
+
+        let mut session = UserSession::new(username, password, email);
+        session.signup(&app).await?;
+        session.logout(&app).await?;
+
+        let mut session = UserSession::new(username, "test_password", "test_Email@email.com");
+        let (status, res, _) = session.login(&app).await?;
+        assert_eq!(status, StatusCode::OK, "API should return authorized");
+        Ok(())
+    }
+
+    #[sqlx::test]
     fn other_user_types_should_not_be_able_to_annon_login(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {

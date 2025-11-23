@@ -6,7 +6,7 @@ use crate::{
     tools::id::gen_id,
 };
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
+use sea_query::{enum_def, extension::postgres::PgExpr, Expr, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
@@ -264,7 +264,7 @@ pub async fn get_user_by_email(email: &str, db: &PgPool) -> Result<User, Comhair
             UserIden::Email,
         ])
         .from(UserIden::Table)
-        .and_where(Expr::col(UserIden::Email).eq(email))
+        .and_where(Expr::col(UserIden::Email).ilike(email))
         .build_sqlx(PostgresQueryBuilder);
 
     let user = sqlx::query_as_with::<_, User, _>(&sql, values)
@@ -394,24 +394,24 @@ pub async fn update_user(
 ) -> Result<User, ComhairleError> {
     let mut query = Query::update();
     query.table(UserIden::Table);
-    
+
     let mut has_updates = false;
-    
+
     if let Some(username) = &update_request.username {
         query.value(UserIden::Username, username.clone());
         has_updates = true;
     }
-    
+
     if let Some(password) = &update_request.password {
         let hashed_password = hash_pw(password)?;
         query.value(UserIden::Password, hashed_password);
         has_updates = true;
     }
-    
+
     if !has_updates {
         return get_user_by_id(user_id, db).await;
     }
-    
+
     let (sql, values) = query
         .and_where(Expr::col(UserIden::Id).eq(user_id.to_owned()))
         .returning(Query::returning().columns([
@@ -423,11 +423,11 @@ pub async fn update_user(
             UserIden::Email,
         ]))
         .build_sqlx(PostgresQueryBuilder);
-    
+
     let user_result = sqlx::query_as_with::<_, User, _>(&sql, values)
         .fetch_one(db)
         .await;
-    
+
     match user_result {
         Ok(user) => Ok(user),
         Err(sqlx::Error::Database(db_err)) => {
@@ -436,7 +436,7 @@ pub async fn update_user(
                 if let Some(constraint) = pg_err.constraint() {
                     if constraint.contains("username") {
                         return Err(ComhairleError::DuplicateUsername(
-                            update_request.username.clone().unwrap_or_default()
+                            update_request.username.clone().unwrap_or_default(),
                         ));
                     }
                 }
@@ -455,13 +455,13 @@ pub async fn upgrade_account(
 ) -> Result<User, ComhairleError> {
     // First verify the user exists and is an anonymous account
     let current_user = get_user_by_id(user_id, db).await?;
-    
+
     if current_user.auth_type != UserAuthType::Annon {
         return Err(ComhairleError::WrongUserType);
     }
-    
+
     let hashed_password = hash_pw(&upgrade_request.password)?;
-    
+
     let (sql, values) = Query::update()
         .table(UserIden::Table)
         .values([
@@ -480,11 +480,11 @@ pub async fn upgrade_account(
             UserIden::Email,
         ]))
         .build_sqlx(PostgresQueryBuilder);
-    
+
     let user_result = sqlx::query_as_with::<_, User, _>(&sql, values)
         .fetch_one(db)
         .await;
-    
+
     match user_result {
         Ok(user) => Ok(user),
         Err(sqlx::Error::Database(db_err)) => {
@@ -493,11 +493,11 @@ pub async fn upgrade_account(
                 if let Some(constraint) = pg_err.constraint() {
                     if constraint.contains("username") {
                         return Err(ComhairleError::DuplicateUsername(
-                            upgrade_request.username.clone()
+                            upgrade_request.username.clone(),
                         ));
                     } else if constraint.contains("email") {
                         return Err(ComhairleError::DuplicateEmail(
-                            upgrade_request.email.clone()
+                            upgrade_request.email.clone(),
                         ));
                     }
                 }
