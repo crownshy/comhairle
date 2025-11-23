@@ -20,7 +20,7 @@ use crate::{
     models::{
         conversation::{
             self, Conversation, ConversationFilterOptions, ConversationOrderOptions,
-            CreateConversation, PartialConversation,
+            CreateConversation, LocalisedConversation, PartialConversation,
         },
         conversation_email_notification_recipients::{
             self as email_recipients_model, ConversationEmailNotificationRecipients,
@@ -66,9 +66,15 @@ async fn list_conversations(
     OrderParams(order_options): OrderParams<ConversationOrderOptions>,
     Query(filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
-) -> Result<(StatusCode, Json<PaginatedResults<Conversation>>), ComhairleError> {
-    let conversations =
-        conversation::list(&state.db, page_options, order_options, filter_options).await?;
+) -> Result<(StatusCode, Json<PaginatedResults<LocalisedConversation>>), ComhairleError> {
+    let conversations = conversation::list(
+        &state.db,
+        page_options,
+        order_options,
+        filter_options,
+        Some("en".to_string()),
+    )
+    .await?;
     Ok((StatusCode::OK, Json(conversations)))
 }
 
@@ -84,7 +90,7 @@ enum IdOrSlug {
 async fn get_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_ident): Path<IdOrSlug>,
-) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
+) -> Result<(StatusCode, Json<LocalisedConversation>), ComhairleError> {
     info!("Attempting to get conversation {conversation_ident:#?}");
 
     let conversation = match conversation_ident {
@@ -250,7 +256,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("CreateConversation")
                     .summary("Create a new conversation")
                     .description("Creates a new conversation")
-                    .response::<201, Json<Conversation>>()
+                    .response::<201, Json<LocalisedConversation>>()
             }),
         )
         .api_route(
@@ -259,7 +265,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("ListConverastions")
                     .summary("List conversations with optional filtering and ordering")
                     .description("List conversations")
-                    .response::<200, Json<PaginatedResults<Conversation>>>()
+                    .response::<200, Json<PaginatedResults<LocalisedConversation>>>()
             }),
         )
         .api_route(
@@ -267,8 +273,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(get_conversation, |op| {
                 op.id("GetConversation")
                     .summary("Get a conversation by id or slug")
-                    .description("Get a converation by id or slug")
-                    .response::<200, Json<Conversation>>()
+                    .description("Get a conversation by id or slug")
+                    .response::<200, Json<LocalisedConversation>>()
             }),
         )
         .api_route(
@@ -277,7 +283,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("UpdateConversation")
                     .summary("Update a conversation")
                     .description("Update a conversation")
-                    .response::<200, Json<Conversation>>()
+                    .response::<200, Json<LocalisedConversation>>()
             }),
         )
         .api_route(
@@ -286,7 +292,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("DeleteConversation")
                     .summary("Delete the conversation and all related content")
                     .description("Delete the conversation and all related content")
-                    .response::<200, Json<Conversation>>()
+                    .response::<200, Json<LocalisedConversation>>()
             }),
         )
         .api_route(

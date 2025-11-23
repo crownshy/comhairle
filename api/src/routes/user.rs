@@ -40,6 +40,7 @@ pub async fn get_user_owned_conversations(
         page_options,
         order_options,
         filter_options,
+        Some("en".to_string()),
     )
     .await?;
     Ok((StatusCode::OK, Json(conversations)))

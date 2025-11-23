@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput};
+use syn::{parse_macro_input, Data, DeriveInput, Fields, Type};
 
 /// Macro used to allow an enum to be
 /// saved as jsonb in the database
@@ -141,4 +141,150 @@ pub fn db_enum_derive(input: TokenStream) -> TokenStream {
     };
 
     gen.into()
+}
+
+/// Macro to generate a localized version of a struct and query functions for translation
+/// 
+/// This macro generates:
+/// 1. A `Localised{StructName}` struct where `TextContentId` fields are replaced with `String`
+/// 2. A `query_to_localisation` function that modifies queries to join with translation tables
+/// 
+/// Usage:
+/// ```rust
+/// #[derive(Translatable)]
+/// struct MyStruct {
+///     id: Uuid,
+///     title: TextContentId,
+///     description: TextContentId,
+///     other_field: String,
+/// }
+/// ```
+/// 
+/// This will generate `LocalisedMyStruct` and associated functions.
+#[proc_macro_derive(Translatable)]
+pub fn derive_translatable(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    
+    let struct_name = &input.ident;
+    let localised_struct_name = syn::Ident::new(&format!("Localised{}", struct_name), struct_name.span());
+    
+    let fields = match &input.data {
+        Data::Struct(data_struct) => match &data_struct.fields {
+            Fields::Named(fields_named) => &fields_named.named,
+            _ => panic!("Translatable only supports structs with named fields"),
+        },
+        _ => panic!("Translatable only supports structs"),
+    };
+
+    let mut localised_fields = Vec::new();
+    let mut text_content_fields = Vec::new();
+    
+    for field in fields {
+        let field_name = field.ident.as_ref().unwrap();
+        let field_type = &field.ty;
+        
+        // Check if this field is a TextContentId
+        if is_text_content_id_type(field_type) {
+            text_content_fields.push(field_name);
+            // Replace TextContentId with String
+            localised_fields.push(quote! {
+                pub #field_name: String
+            });
+        } else {
+            // Keep other fields as-is
+            localised_fields.push(quote! {
+                pub #field_name: #field_type
+            });
+        }
+    }
+    
+    // Generate the table identifier enum name by convention
+    let table_iden_name = syn::Ident::new(&format!("{}Iden", struct_name), struct_name.span());
+    
+    // Create field capitalized identifiers for the table enum (following PascalCase convention)
+    let text_content_field_caps: Vec<_> = text_content_fields.iter().map(|field| {
+        let field_str = field.to_string();
+        // Convert snake_case to PascalCase
+        let pascal_case = field_str
+            .split('_')
+            .map(|word| {
+                let mut chars: Vec<char> = word.chars().collect();
+                if !chars.is_empty() {
+                    chars[0] = chars[0].to_uppercase().next().unwrap();
+                }
+                chars.into_iter().collect::<String>()
+            })
+            .collect::<String>();
+        syn::Ident::new(&pascal_case, field.span())
+    }).collect();
+
+    let expanded = quote! {
+        #[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema, sqlx::FromRow, Debug, PartialEq, Clone)]
+        pub struct #localised_struct_name {
+            #(#localised_fields,)*
+        }
+        
+        impl #localised_struct_name {
+            /// Modifies a query to join with translation tables and return localized text
+            /// This function takes a partial query and a locale, and returns a modified query
+            /// that joins with the translation tables to fetch the localized text content.
+            pub fn query_to_localisation(
+                mut query: sea_query::SelectStatement,
+                locale: &str,
+            ) -> sea_query::SelectStatement {
+                use sea_query::{Expr, JoinType, Alias};
+                use crate::models::translations::{TextContentIden, TextTranslationIden};
+                
+                #(
+                    {
+                        // Create unique aliases for each text content field
+                        let tc_alias = Alias::new(&format!("tc_{}", stringify!(#text_content_fields)));
+                        let tt_alias = Alias::new(&format!("tt_{}", stringify!(#text_content_fields)));
+                        
+                        // Join with text_content table
+                        query = query
+                            .join(
+                                JoinType::LeftJoin,
+                                TextContentIden::Table,
+                                Expr::col((#table_iden_name::Table, #table_iden_name::#text_content_field_caps))
+                                    .equals((TextContentIden::Table, TextContentIden::Id))
+                            )
+                            // Join with text_translation table for the specific locale  
+                            .join(
+                                JoinType::LeftJoin,
+                                TextTranslationIden::Table,
+                                Expr::col((TextContentIden::Table, TextContentIden::Id))
+                                    .equals((TextTranslationIden::Table, TextTranslationIden::ContentId))
+                                    .and(Expr::col((TextTranslationIden::Table, TextTranslationIden::Locale)).eq(locale))
+                            )
+                            .to_owned();
+                        
+                        // Select the translated content with the original field name as alias
+                        query = query.expr_as(
+                            Expr::col((TextTranslationIden::Table, TextTranslationIden::Content)),
+                            Alias::new(stringify!(#text_content_fields))
+                        ).to_owned();
+                    }
+                )*
+                
+                query
+            }
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
+/// Helper function to check if a type is TextContentId
+fn is_text_content_id_type(ty: &Type) -> bool {
+    match ty {
+        Type::Path(type_path) => {
+            if let Some(segment) = type_path.path.segments.last() {
+                segment.ident == "TextContentId"
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
 }

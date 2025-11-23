@@ -1,10 +1,12 @@
 use super::{
     pagination::{Order, PageOptions, PaginatedResults},
+    translations::{new_translation, TextContentId, TextFormat},
     user_participation::UserParticipationIden,
     workflow::WorkflowIden,
 };
 use crate::error::ComhairleError;
 use chrono::{DateTime, Utc};
+use comhairle_macros::Translatable;
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
@@ -18,15 +20,15 @@ use uuid::Uuid;
 #[cfg(test)]
 use fake::Dummy;
 
-#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
+#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "conversation")]
 #[partially(derive(Deserialize, Debug, JsonSchema, Default))]
 pub struct Conversation {
     #[partially(omit)]
     pub id: Uuid,
-    pub title: String,
-    pub short_description: String,
-    pub description: String,
+    pub title: TextContentId,
+    pub short_description: TextContentId,
+    pub description: TextContentId,
     #[partially(transparent)]
     pub video_url: Option<String>,
     pub image_url: String,
@@ -40,13 +42,15 @@ pub struct Conversation {
     pub slug: Option<String>,
     #[partially(transparent)]
     pub default_workflow_id: Option<Uuid>,
+    pub primary_locale: String,
+    pub supported_languages: Vec<String>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ConversationIden; 15] = [
+const DEFAULT_COLUMNS: [ConversationIden; 17] = [
     ConversationIden::Id,
     ConversationIden::Title,
     ConversationIden::ShortDescription,
@@ -59,6 +63,8 @@ const DEFAULT_COLUMNS: [ConversationIden; 15] = [
     ConversationIden::IsInviteOnly,
     ConversationIden::Slug,
     ConversationIden::DefaultWorkflowId,
+    ConversationIden::PrimaryLocale,
+    ConversationIden::SupportedLanguages,
     ConversationIden::CreatedAt,
     ConversationIden::UpdatedAt,
     ConversationIden::OwnerId,
@@ -108,6 +114,23 @@ impl PartialConversation {
         };
         if let Some(value) = &self.default_workflow_id {
             values.push((ConversationIden::DefaultWorkflowId, (*value).into()))
+        };
+
+        if let Some(value) = &self.primary_locale {
+            values.push((ConversationIden::PrimaryLocale, value.into()))
+        };
+
+        if let Some(value) = &self.supported_languages {
+            values.push((
+                ConversationIden::SupportedLanguages,
+                sea_query::Value::Array(
+                    sea_query::ArrayType::String,
+                    Some(Box::new(
+                        value.into_iter().map(sea_query::Value::from).collect(),
+                    )),
+                )
+                .into(),
+            ))
         };
         values
     }
@@ -211,14 +234,17 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Conversation, ComhairleErr
     Ok(conversation)
 }
 /// Get a conversation by ID
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Conversation, ComhairleError> {
-    let (sql, values) = Query::select()
+pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<LocalisedConversation, ComhairleError> {
+    let select_query = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(ConversationIden::Table)
         .and_where(Expr::col(ConversationIden::Id).eq(id.to_owned()))
+        .to_owned();
+
+    let (sql, values) = LocalisedConversation::query_to_localisation(select_query, "en")
         .build_sqlx(PostgresQueryBuilder);
 
-    let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
+    let conversation = sqlx::query_as_with::<_, LocalisedConversation, _>(&sql, values)
         .fetch_one(db)
         .await
         .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
@@ -226,14 +252,17 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Conversation, Comhairle
     Ok(conversation)
 }
 
-pub async fn get_by_slug(db: &PgPool, slug: &str) -> Result<Conversation, ComhairleError> {
-    let (sql, values) = Query::select()
+pub async fn get_by_slug(db: &PgPool, slug: &str) -> Result<LocalisedConversation, ComhairleError> {
+    let select_query = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(ConversationIden::Table)
         .and_where(Expr::col(ConversationIden::Slug).eq(slug.to_owned()))
+        .to_owned();
+
+    let (sql, values) = LocalisedConversation::query_to_localisation(select_query, "en")
         .build_sqlx(PostgresQueryBuilder);
 
-    let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
+    let conversation = sqlx::query_as_with::<_, LocalisedConversation, _>(&sql, values)
         .fetch_one(db)
         .await
         .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
@@ -323,33 +352,33 @@ pub struct CreateConversation {
     pub slug: Option<String>,
     #[cfg_attr(test, dummy(expr = "None"))]
     pub default_workflow_id: Option<Uuid>,
+    pub primary_locale: String,
+    pub supported_languages: Vec<String>,
 }
 
 impl CreateConversation {
     pub fn columns(&self) -> Vec<ConversationIden> {
         vec![
-            ConversationIden::Title,
-            ConversationIden::ShortDescription,
-            ConversationIden::Description,
             ConversationIden::VideoUrl,
             ConversationIden::ImageUrl,
             ConversationIden::Tags,
             ConversationIden::IsPublic,
             ConversationIden::IsInviteOnly,
+            ConversationIden::PrimaryLocale,
+            ConversationIden::SupportedLanguages,
         ]
     }
     pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
         let tags = self.tags.to_owned().unwrap_or_else(|| vec![]);
 
         vec![
-            self.title.to_owned().into(),
-            self.short_description.to_owned().into(),
-            self.description.to_owned().into(),
             self.video_url.to_owned().into(),
             self.image_url.to_owned().into(),
             tags.into(),
             self.is_public.into(),
             self.is_invite_only.into(),
+            self.primary_locale.to_owned().into(),
+            self.supported_languages.to_owned().into(),
         ]
     }
 }
@@ -359,8 +388,49 @@ pub async fn create(
     conversation: &CreateConversation,
     owner_id: Uuid,
 ) -> Result<Conversation, ComhairleError> {
+    let conversation_id = Uuid::new_v4();
+
+    // Generate Translations
+    let title = new_translation(
+        &db,
+        &conversation.primary_locale,
+        &conversation.title,
+        TextFormat::Plain,
+        &conversation_id,
+    )
+    .await?;
+
+    let description = new_translation(
+        &db,
+        &conversation.primary_locale,
+        &conversation.description,
+        TextFormat::Rich,
+        &conversation_id,
+    )
+    .await?;
+
+    let short_description = new_translation(
+        &db,
+        &conversation.primary_locale,
+        &conversation.short_description,
+        TextFormat::Rich,
+        &conversation_id,
+    )
+    .await?;
+
     let mut columns = conversation.columns();
     let mut values = conversation.values();
+
+    columns.push(ConversationIden::Title);
+    values.push(title.id.into());
+
+    columns.push(ConversationIden::Description);
+    values.push(description.id.into());
+
+    columns.push(ConversationIden::ShortDescription);
+    values.push(short_description.id.into());
+
+    // Generate Slug
 
     let slug = conversation
         .slug
@@ -369,6 +439,9 @@ pub async fn create(
 
     columns.push(ConversationIden::Slug);
     values.push(slug.clone().into());
+
+    columns.push(ConversationIden::Id);
+    values.push(conversation_id.into());
 
     columns.push(ConversationIden::IsComplete);
     values.push(false.into());
@@ -416,6 +489,7 @@ pub async fn list_owned(
     page_options: PageOptions,
     order_options: ConversationOrderOptions,
     filter_options: ConversationFilterOptions,
+    locale: Option<String>,
 ) -> Result<PaginatedResults<Conversation>, ComhairleError> {
     let query = Query::select()
         .from(ConversationIden::Table)
@@ -425,6 +499,7 @@ pub async fn list_owned(
 
     let query = filter_options.apply(query);
     let query = order_options.apply(query);
+    let query = LocalisedConversation::query_to_localisation(query, &locale.unwrap_or("en".into()));
 
     let conversations = page_options.fetch_paginated_results(db, query).await?;
 
@@ -436,7 +511,8 @@ pub async fn list(
     page_options: PageOptions,
     order_options: ConversationOrderOptions,
     filter_options: ConversationFilterOptions,
-) -> Result<PaginatedResults<Conversation>, ComhairleError> {
+    locale: Option<String>,
+) -> Result<PaginatedResults<LocalisedConversation>, ComhairleError> {
     let query = Query::select()
         .from(ConversationIden::Table)
         .columns(DEFAULT_COLUMNS)
@@ -445,6 +521,7 @@ pub async fn list(
 
     let query = filter_options.apply(query);
     let query = order_options.apply(query);
+    let query = LocalisedConversation::query_to_localisation(query, &locale.unwrap_or("en".into()));
 
     let conversations = page_options.fetch_paginated_results(db, query).await?;
 
