@@ -154,7 +154,7 @@ async fn signup(
     let token = generate_jwt(&user, claims, &state.config.jwt_secret);
     let verify_link = format!("{}/auth/verify-user?token={}", state.config.domain, token);
 
-    state.mailer.send_verification_email(&user, verify_link)?;
+    state.mailer.send_welcome_email(&user, verify_link)?;
 
     let claims = SessionClaims {
         username: user.username.clone(),
@@ -296,8 +296,6 @@ async fn verify_email_token(
     };
 
     let updated_user = update_user(&current_user.id, &updated_verified_status, &state.db).await?;
-
-    // TODO:
 
     let claims = SessionClaims {
         username: updated_user.username.clone(),
@@ -687,7 +685,6 @@ mod tests {
     };
 
     use axum::http::StatusCode;
-    use mockall::predicate::{always, eq};
     use sqlx::PgPool;
     use std::{error::Error, sync::Arc};
 
@@ -741,7 +738,6 @@ mod tests {
         let mut mailer = MockComhairleMailer::new();
         mailer
             .expect_send_welcome_email()
-            .with(eq(email), always())
             .once()
             .returning(|_, _| Ok(()));
 

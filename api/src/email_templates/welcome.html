@@ -1,4 +1,10 @@
 {% extends "email_layout.html" %}
 {% block content %}
   <p>Hello {{ user.username }}!</p>
+
+  <p>We&apos;re excited to have you with us. Before you get started, just confirm your email address by clicking the link below</p>
+
+  <a href="{{ verify_link }}" target="_blank">Verify Email Address</a>
+
+  <p>If you did not request this, you can safely ignore this email</p>
 {% endblock %}
