@@ -273,14 +273,14 @@ impl UserSession {
     ) -> Result<
         (
             StatusCode,
-            HashMap<String, Option<String>>,
+            HashMap<String, Option<Value>>,
             Option<HeaderValue>,
         ),
         Box<dyn Error>,
     > {
         let (status, value, cookie) = self.get(app, "/auth/current_user").await?;
 
-        let user: HashMap<String, Option<String>> = serde_json::from_value(value).unwrap();
+        let user: HashMap<String, Option<Value>> = serde_json::from_value(value).unwrap();
         Ok((status, user, cookie))
     }
 
@@ -316,15 +316,17 @@ impl UserSession {
     ) -> Result<
         (
             StatusCode,
-            HashMap<String, Option<String>>,
+            HashMap<String, Option<Value>>,
             Option<HeaderValue>,
         ),
         Box<dyn Error>,
     > {
         let (status, value, cookie) = self.post(&app, "/auth/signup_annon", Body::empty()).await?;
-        let user: HashMap<String, Option<String>> = serde_json::from_value(value)?;
-        self.username = user.get("username").unwrap().clone();
-        self.id = Some(Uuid::parse_str(&user.get("id").unwrap().clone().unwrap()).unwrap());
+        let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
+        let username: String = serde_json::from_value(user.get("username").unwrap().clone().unwrap()).unwrap(); 
+        self.username = Some(username);
+        let id :String = serde_json::from_value(user.get("id").unwrap().clone().unwrap()).unwrap();
+        self.id = Some(Uuid::parse_str(&id).unwrap());
         Ok((status, user, cookie))
     }
 
@@ -334,7 +336,7 @@ impl UserSession {
     ) -> Result<
         (
             StatusCode,
-            HashMap<String, Option<String>>,
+            HashMap<String, Option<Value>>,
             Option<HeaderValue>,
         ),
         Box<dyn Error>,
@@ -349,12 +351,13 @@ impl UserSession {
 
         let (status, value, cookie) = self.post(app, "/auth/signup", body).await?;
 
-        let user: HashMap<String, Option<String>> = serde_json::from_value(value)?;
+        let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
 
         self.cookie = cookie.clone();
         if let Some(id) = user.get("id") {
             if let Some(id) = id {
-                self.id = Some(Uuid::parse_str(id).unwrap());
+                let id :String = serde_json::from_value(id.clone()).unwrap();
+                self.id = Some(Uuid::parse_str(&id).unwrap());
             }
         }
 

@@ -206,6 +206,7 @@ pub async fn create_annon_user(db: &PgPool) -> Result<User, ComhairleError> {
                 UserIden::Password,
                 UserIden::AvatarUrl,
                 UserIden::Email,
+                UserIden::EmailVerified,
             ]))
             .build_sqlx(PostgresQueryBuilder);
 
@@ -489,6 +490,7 @@ pub async fn upgrade_account(
             UserIden::AvatarUrl,
             UserIden::AuthType,
             UserIden::Email,
+            UserIden::EmailVerified,
         ]))
         .build_sqlx(PostgresQueryBuilder);
 
