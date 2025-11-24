@@ -18,7 +18,7 @@ pub trait ComhairleMailer: Send + Sync {
         context: Value,
     ) -> Result<(), ComhairleError>;
 
-    fn send_welcome_email(&self, to: &str, user: &User) -> Result<(), ComhairleError>;
+    fn send_welcome_email(&self, user: &User, verify_link: String) -> Result<(), ComhairleError>;
 
     fn send_password_reset_email(
         &self,
@@ -105,13 +105,13 @@ impl ComhairleMailer for Mailer {
         Ok(())
     }
 
-    fn send_welcome_email(&self, to: &str, user: &User) -> Result<(), ComhairleError> {
+    fn send_welcome_email(&self, user: &User, verify_link: String) -> Result<(), ComhairleError> {
         if let Some(email) = &user.email {
             self.send_email(
                 email,
                 "Welcome to Comhairle",
                 "welcome.html",
-                context! {user => user, subject=>"Welcome to Comhairle"},
+                context! {user => user, subject=>"Welcome to Comhairle", verify_link},
             )
         } else {
             Err(ComhairleError::WrongUserType)
@@ -128,7 +128,7 @@ impl ComhairleMailer for Mailer {
                 email,
                 "Confirm your email address",
                 "verify_email.html",
-                context! { user, verify_link },
+                context! { user, verify_link }
             )
         } else {
             Err(ComhairleError::WrongUserType)
