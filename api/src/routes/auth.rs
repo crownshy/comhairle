@@ -263,9 +263,6 @@ async fn resend_verification_email(
     State(state): State<Arc<ComhairleState>>,
     Json(payload): Json<ResendVerificationEmailRequest>,
 ) -> Result<StatusCode, ComhairleError> {
-    println!();
-    println!("    >>>>    Entered handler");
-    println!();
     let user = payload.user;
     let claims = EmailVerificationClaims {
         email: user.email.clone(),
@@ -713,18 +710,18 @@ mod tests {
 
         assert_eq!(
             *user.get("username").unwrap(),
-            Some(username.to_owned()),
+            Some(serde_json::Value::String(username.to_owned())),
             "current user should contain the right username"
         );
 
         assert_eq!(
             *user.get("auth_type").unwrap(),
-            Some("email_password".to_owned()),
+            Some(serde_json::Value::String("email_password".to_owned())),
             "current user should have auth_type email password"
         );
         assert_eq!(
             *user.get("email").unwrap(),
-            Some(email.to_owned()),
+            Some(serde_json::Value::String(email.to_owned())),
             "current user should contain the right email"
         );
 
@@ -748,6 +745,7 @@ mod tests {
             .once()
             .returning(|_, _| Ok(()));
 
+        mailer.expect_send_verification_email().times(0);
         mailer.expect_send_password_reset_email().times(0);
 
         let state = test_state().db(pool).mailer(Arc::new(mailer)).call()?;
@@ -763,18 +761,18 @@ mod tests {
 
         assert_eq!(
             *user.get("username").unwrap(),
-            Some(username.to_owned()),
+            Some(serde_json::Value::String(username.to_owned())),
             "current user should contain the right username"
         );
 
         assert_eq!(
             *user.get("auth_type").unwrap(),
-            Some("email_password".to_owned()),
+            Some(serde_json::Value::String("email_password".to_owned())),
             "current user should have auth_type email password"
         );
         assert_eq!(
             *user.get("email").unwrap(),
-            Some(email.to_owned()),
+            Some(serde_json::Value::String(email.to_owned())),
             "current user should contain the right email"
         );
 
@@ -938,13 +936,13 @@ mod tests {
 
         assert_eq!(
             *user.get("username").unwrap(),
-            Some(username.to_owned()),
+            Some(serde_json::Value::String(username.to_owned())),
             "current user should contain the right username"
         );
 
         assert_eq!(
             *user.get("email").unwrap(),
-            Some(email.to_owned()),
+            Some(serde_json::Value::String(email.to_owned())),
             "current user should contain the right email"
         );
 
@@ -976,7 +974,7 @@ mod tests {
 
         assert_eq!(
             *user_response.get("auth_type").unwrap(),
-            Some("annon".to_owned()),
+            Some(serde_json::Value::String("annon".to_owned())),
             "current annon user should have a username"
         );
 
