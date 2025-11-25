@@ -14,7 +14,7 @@ export const SignupRequest = z.object({ avatar_url: z.union([z.string(), z.null(
 export type SignupRequest = z.infer<typeof SignupRequest>;
 export const VerifyEmailTokenRequest = z.object({ token: z.string() }).passthrough();
 export type VerifyEmailTokenRequest = z.infer<typeof VerifyEmailTokenRequest>;
-export const ResendVerificationEmailRequest = z.object({ user: User }).passthrough();
+export const ResendVerificationEmailRequest = z.object({ username: z.string() }).passthrough();
 export type ResendVerificationEmailRequest = z.infer<typeof ResendVerificationEmailRequest>;
 export const ResourceType = z.union([z.literal("Site"), z.object({ Conversation: z.string().uuid() })]);
 export type ResourceType = z.infer<typeof ResourceType>;
@@ -289,7 +289,7 @@ const endpoints = makeApi([
 			{
 				name: "body",
 				type: "Body",
-				schema: ResendVerificationEmailRequest
+				schema: z.object({ username: z.string() }).passthrough()
 			},
 		],
 		response: z.void(),

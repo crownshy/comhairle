@@ -73,7 +73,7 @@ struct VerifyEmailTokenRequest {
 
 #[derive(Deserialize, JsonSchema)]
 struct ResendVerificationEmailRequest {
-    user: User,
+    username: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -263,7 +263,7 @@ async fn resend_verification_email(
     State(state): State<Arc<ComhairleState>>,
     Json(payload): Json<ResendVerificationEmailRequest>,
 ) -> Result<StatusCode, ComhairleError> {
-    let user = payload.user;
+    let user = get_user_by_username(&payload.username, &state.db).await?;
     let claims = EmailVerificationClaims {
         email: user.email.clone(),
     };
