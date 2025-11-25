@@ -29,7 +29,8 @@ pub trait ComhairleMailer: Send + Sync {
 
     fn send_verification_email(
         &self,
-        user: &User,
+        username: &Option<String>,
+        email: &Option<String>,
         verify_link: String,
     ) -> Result<(), ComhairleError>;
 }
@@ -120,15 +121,16 @@ impl ComhairleMailer for Mailer {
 
     fn send_verification_email(
         &self,
-        user: &User,
+        username: &Option<String>,
+        email: &Option<String>,
         verify_link: String,
     ) -> Result<(), ComhairleError> {
-        if let Some(email) = &user.email {
+        if let Some(email) = email {
             self.send_email(
                 email,
                 "Confirm your email address",
                 "verify_email.html",
-                context! { user, verify_link }
+                context! { username, verify_link },
             )
         } else {
             Err(ComhairleError::WrongUserType)

@@ -269,7 +269,9 @@ async fn resend_verification_email(
     };
     let token = generate_jwt(&user, claims, &state.config.jwt_secret);
     let verify_link = format!("{}/auth/verify-user?token={}", state.config.domain, token);
-    state.mailer.send_verification_email(&user, verify_link)?;
+    state
+        .mailer
+        .send_verification_email(&user.username, &user.email, verify_link)?;
     Ok(StatusCode::OK)
 }
 
@@ -685,7 +687,7 @@ mod tests {
     };
 
     use axum::http::StatusCode;
-    use mockall::predicate::always;
+    use mockall::predicate::{always, eq};
     use sqlx::PgPool;
     use std::{error::Error, sync::Arc};
 
@@ -790,9 +792,13 @@ mod tests {
 
         mailer
             .expect_send_verification_email()
-            .with(always(), always())
+            .with(
+                eq(Some("test_user".to_string())),
+                eq(Some("test_email".to_string())),
+                always(),
+            )
             .once()
-            .returning(|_, _| Ok(()));
+            .returning(|_, _, _| Ok(()));
 
         mailer.expect_send_password_reset_email().times(0);
 
