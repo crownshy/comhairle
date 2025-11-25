@@ -780,6 +780,23 @@ mod tests {
     }
 
     #[sqlx::test]
+    async fn user_should_receive_verification_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let username = "test_user";
+        let password = "test_password";
+        let email = "test_email";
+
+        let mut session = UserSession::new(username, password, email);
+        let (status, _, _) = session.resend_verification_email(&app).await?;
+
+        assert_eq!(status, StatusCode::OK, "should send verification email");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
     async fn user_should_not_be_able_to_login_with_wrong_password(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
