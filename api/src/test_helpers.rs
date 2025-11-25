@@ -323,9 +323,10 @@ impl UserSession {
     > {
         let (status, value, cookie) = self.post(&app, "/auth/signup_annon", Body::empty()).await?;
         let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
-        let username: String = serde_json::from_value(user.get("username").unwrap().clone().unwrap()).unwrap(); 
+        let username: String =
+            serde_json::from_value(user.get("username").unwrap().clone().unwrap()).unwrap();
         self.username = Some(username);
-        let id :String = serde_json::from_value(user.get("id").unwrap().clone().unwrap()).unwrap();
+        let id: String = serde_json::from_value(user.get("id").unwrap().clone().unwrap()).unwrap();
         self.id = Some(Uuid::parse_str(&id).unwrap());
         Ok((status, user, cookie))
     }
@@ -356,12 +357,24 @@ impl UserSession {
         self.cookie = cookie.clone();
         if let Some(id) = user.get("id") {
             if let Some(id) = id {
-                let id :String = serde_json::from_value(id.clone()).unwrap();
+                let id: String = serde_json::from_value(id.clone()).unwrap();
                 self.id = Some(Uuid::parse_str(&id).unwrap());
             }
         }
 
         Ok((status, user, cookie))
+    }
+
+    pub async fn resend_verification_email(
+        &mut self,
+        app: &Router,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            "/auth/resend_verification_email",
+            json!({ "username": self.username }).to_string().into(),
+        )
+        .await
     }
 
     pub async fn create_conversation(
