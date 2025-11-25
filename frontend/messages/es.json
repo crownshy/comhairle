@@ -72,8 +72,12 @@
 	"terms_of_service": "Términos de servicio",
 	"cookies_settings": "Configuración de cookies",
 	"explore_conversations":"Explorar conversaciones",
-	"signup": "Registrarse",
-	"welcome_to_comhairle_community_server": "Bienvenido al Servidor Comunitario de Comhairle",
-	"community_server_description_1": "En CrownShy, creemos que las comunidades de todas las formas y tamaños se benefician al escuchar más de cerca a sus miembros y aprender a gobernarse de manera más efectiva.",
-	"community_server_description_2": "Para ayudar a realizar este futuro, operamos este servidor comunitario."
+	"verification_message_heading": "Te hemos enviado un correo electrónico",
+	"verification_message_body": "Haz clic en el enlace de verificación que hemos enviado a tu correo electrónico",
+	"verification_email_sent": "Correo de verificación reenviado. Por favor, revisa tu bandeja de entrada",
+	"verification_email_missing": "¿No has recibido el correo electrónico todavía? Revisa tu carpeta de spam o",
+	"verify_error_message": "Algo salió mal al reenviar el correo de verificación",
+	"verify_missing_user": "\nPor favor, intenta iniciar sesión. Se te notificará más adelante para volver a intentar la verificación del correo electrónico",
+	"send_again": "Enviar de nuevo",
+	"signup": "Registrarse"
 }

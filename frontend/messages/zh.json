@@ -72,8 +72,12 @@
 	"terms_of_service": "服务条款",
 	"cookies_settings": "Cookie设置",
 	"explore_conversations":"探索对话",
-	"welcome_to_comhairle_community_server": "欢迎来到Comhairle社区服务器",
-	"community_server_description_1": "在CrownShy，我们相信各种规模和形式的社区都能从更密切地倾听其成员并学习更有效地自我治理中受益。",
-	"community_server_description_2": "为了帮助实现这一未来，我们运营这个社区服务器。"
+	"verification_message_heading": "我们已向您发送了一封电子邮件",
+	"verification_message_body": "点击我们发送到您邮箱的验证链接",
+	"verification_email_sent": "验证邮件已重新发送。请检查您的收件箱",
+	"verification_email_missing": "还没有收到邮件？请检查您的垃圾邮件文件夹或",
+	"verify_error_message": "重新发送验证邮件时出现错误",
+	"verify_missing_user": "\n请尝试登录。稍后您将收到通知以重新尝试验证电子邮件",
+	"send_again": "再次发送",
 
 }
