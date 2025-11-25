@@ -78,5 +78,12 @@
 	"verification_email_missing": "Vous n’avez pas encore reçu l’e-mail ? Vérifiez votre dossier de spam ou",
 	"verify_error_message": "Une erreur est survenue lors du renvoi de l’e-mail de vérification",
 	"verify_missing_user": "\nVeuillez essayer de vous connecter. Vous serez informé ultérieurement pour tenter à nouveau la vérification de l’e-mail",
-	"send_again": "Renvoyer",
+	"verify_user_pending_heading": "Vérification de votre e-mail",
+	"verify_user_pending_body": "Cliquez sur le lien de vérification que nous avons envoyé à votre adresse e-mail.",
+	"verify_user_success_heading": "Votre e-mail a été vérifié avec succès",
+	"verify_user_success_body": "Veuillez <a href=\"/auth/login\" class=\"underline\">vous connecter</a> à votre compte vérifié pour rejoindre une conversation.",
+	"verify_user_error_heading": "Une erreur est survenue",
+	"verify_user_error_body": "Une erreur est survenue lors de la vérification de votre adresse e-mail. Essayez de <a href=\"/auth/login\" class=\"underline\">vous connecter.</a>",
+	"verify_user_conflict_error_body": "Votre adresse e-mail a déjà été vérifiée. Vous pouvez maintenant voir et <a href=\"/conversations\" class=\"underline\">rejoindre des conversations.</a>",
+	"send_again": "Renvoyer"
 }
