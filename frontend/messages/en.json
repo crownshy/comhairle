@@ -79,6 +79,13 @@
 	"verification_email_missing": "Didn't receive the email yet? Check your spam folder or",
 	"verify_error_message": "Something went wrong re-sending verification email.",
 	"verify_missing_user": "\nPlease try logging in. You will be notified at a later date to re-attempt email verification.",
+	"verify_user_pending_heading": "Verifying your email",
+	"verify_user_pending_body": "Click on the verification link we have sent to your email address.",
+	"verify_user_success_heading": "Successfully verified your email",
+	"verify_user_success_body": "Please <a href=\"/auth/login\" class=\"underline\">log in</a> to your verified account to join a conversation.",
+	"verify_user_error_heading": "Something went wrong",
+	"verify_user_error_body": "Something went wrong verifying your email address. Try <a href=\"/auth/login\" class=\"underline\">logging in.</a>",
+	"verify_user_conflict_error_body": "Your email address has already been verified. You can now view and <a href=\"/conversations\" class=\"underline\">join conversations.</a>",
 	"send_again": "Send again",
 	"signup": "Signup"
 	
