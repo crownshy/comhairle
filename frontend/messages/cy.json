@@ -72,6 +72,13 @@
 	"terms_of_service": "Telerau Gwasanaeth",
 	"cookies_settings": "Gosodiadau cwcis",
 	"explore_conversations": "Archwilio Sgyrsiau",
+	"verification_message_heading": "Rydyn ni wedi anfon e-bost atoch chi",
+	"verification_message_body": "Cliciwch ar y ddolen gwirio a anfonwyd atom i’ch cyfeiriad e-bost",
+	"verification_email_sent": "E-bost gwirio wedi’i anfon eto. Gwiriwch eich blwch derbyn",
+	"verification_email_missing": "Wyt ti heb dderbyn yr e-bost eto? Gwiriwch eich ffolder sbam neu",
+	"verify_error_message": "Aeth rhywbeth o’i le wrth ail-anfon e-bost gwirio",
+	"verify_missing_user": "\nCeisiwch fewngofnodi os gwelwch yn dda. Byddwch yn cael hysbysiad yn nes ymlaen i geisio gwirio’r e-bost eto",
+	"send_again": "Anfon eto",
 	"signup": "Cofrestru"
 
 }

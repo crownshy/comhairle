@@ -73,6 +73,13 @@
 	"terms_of_service": "Terms Of Service",
 	"cookies_settings": "Cookies Settings",
 	"explore_conversations":"Explore Conversations",
+	"verification_message_heading": "We have sent you an email",
+	"verification_message_body": "Click on the verification link we have sent to your email address.",
+	"verification_email_sent": "Verification email re-sent. Please check your inbox.",
+	"verification_email_missing": "Didn't receive the email yet? Check your spam folder or",
+	"verify_error_message": "Something went wrong re-sending verification email.",
+	"verify_missing_user": "\nPlease try logging in. You will be notified at a later date to re-attempt email verification.",
+	"send_again": "Send again",
 	"signup": "Signup"
 	
 }

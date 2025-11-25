@@ -71,6 +71,13 @@
 	"privacy_policy": "سياسة الخصوصية",
 	"terms_of_service": "شروط الخدمة",
 	"cookies_settings": "إعدادات ملفات تعريف الارتباط",
-	"explore_conversations":"استكشف المحادثات"
+	"explore_conversations":"استكشف المحادثات",
+	"verification_message_heading": "لقد أرسلنا إليك بريدًا إلكترونيًا",
+	"verification_message_body": "انقر على رابط التحقق الذي أرسلناه إلى بريدك الإلكتروني.",
+	"verification_email_sent": "تم إعادة إرسال بريد التحقق. يرجى التحقق من صندوق الوارد الخاص بك.",
+	"verification_email_missing": "لم تستلم البريد الإلكتروني بعد؟ تحقق من مجلد الرسائل غير المرغوب فيها أو…",
+	"verify_error_message": "حدث خطأ أثناء إعادة إرسال بريد التحقق.",
+	"verify_missing_user": "\nيرجى محاولة تسجيل الدخول. سيتم إشعارك لاحقًا لإعادة محاولة التحقق من البريد الإلكتروني.",
+	"send_again": "أعد الإرسال",
 
 }

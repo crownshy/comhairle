@@ -71,6 +71,12 @@
 	"privacy_policy": "Politique de confidentialité",
 	"terms_of_service": "Conditions d'utilisation",
 	"cookies_settings": "Paramètres des cookies",
-	"explore_conversations":"Explorer les conversations"
-
+	"explore_conversations":"Explorer les conversations",
+	"verification_message_heading": "Nous vous avons envoyé un e-mail",
+	"verification_message_body": "Cliquez sur le lien de vérification que nous avons envoyé à votre adresse e-mail",
+	"verification_email_sent": "E-mail de vérification renvoyé. Veuillez vérifier votre boîte de réception",
+	"verification_email_missing": "Vous n’avez pas encore reçu l’e-mail ? Vérifiez votre dossier de spam ou",
+	"verify_error_message": "Une erreur est survenue lors du renvoi de l’e-mail de vérification",
+	"verify_missing_user": "\nVeuillez essayer de vous connecter. Vous serez informé ultérieurement pour tenter à nouveau la vérification de l’e-mail",
+	"send_again": "Renvoyer",
 }

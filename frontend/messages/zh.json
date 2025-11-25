@@ -71,6 +71,13 @@
 	"privacy_policy": "隐私政策",
 	"terms_of_service": "服务条款",
 	"cookies_settings": "Cookie设置",
-	"explore_conversations":"探索对话"
+	"explore_conversations":"探索对话",
+	"verification_message_heading": "我们已向您发送了一封电子邮件",
+	"verification_message_body": "点击我们发送到您邮箱的验证链接",
+	"verification_email_sent": "验证邮件已重新发送。请检查您的收件箱",
+	"verification_email_missing": "还没有收到邮件？请检查您的垃圾邮件文件夹或",
+	"verify_error_message": "重新发送验证邮件时出现错误",
+	"verify_missing_user": "\n请尝试登录。稍后您将收到通知以重新尝试验证电子邮件",
+	"send_again": "再次发送",
 
 }

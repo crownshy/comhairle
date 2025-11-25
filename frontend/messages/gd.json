@@ -72,7 +72,13 @@
 	"terms_of_service": "Teirmichean na seirbheise",
 	"cookies_settings": "Roghainnean bhriosgaidean",
   	"explore_conversations": "Rannsaich Còmhraidhean",
+	"verification_message_heading": "Tha sinn air post-d a chuir thugad",
+	"verification_message_body": "Cliog air an ceangal dearbhaidh a chuir sinn chun do sheòladh post-d",
+	"verification_email_sent": "Chaidh post-d dearbhaidh a chuir a-rithist. Thoir sùil air do bhogsa a-steach",
+	"verification_email_missing": "Nach d’fhuair thu am post-d fhathast? Thoir sùil air do phasgan sgudail no",
+	"verify_error_message": "Chaidh rudeigin ceàrr leis an ath-chuir post-d dearbhaidh",
+	"verify_missing_user": "\nFeuch ri logadh a-steach, mas e do thoil e. Thèid innse dhut nas fhaide air adhart gus feuchainn ris an dearbhadh post-d a-rithist",
+	"send_again": "Cuir a-rithist",
 	"signup": "Clàraich"
-
 }
 
