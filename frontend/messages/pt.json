@@ -81,7 +81,7 @@
 	"verify_user_pending_heading": "Verificando seu e-mail",
 	"verify_user_pending_body": "Clique no link de verificação que enviamos para o seu endereço de e-mail.",
 	"verify_user_success_heading": "Seu e-mail foi verificado com sucesso",
-	"verify_user_success_body": "Por favor, <a href=\"/auth/login\" class=\"underline\">faça login</a> na sua conta verificada para participar de uma conversa.",
+	"verify_user_success_body": "Agora você pode <a href=\"/conversations\" class=\"underline\">participar de uma conversa</a>",
 	"verify_user_error_heading": "Algo deu errado",
 	"verify_user_error_body": "Ocorreu um erro ao verificar seu endereço de e-mail. Tente <a href=\"/auth/login\" class=\"underline\">fazer login.</a>",
 	"verify_user_conflict_error_body": "Seu endereço de e-mail já foi verificado. Agora você pode ver e <a href=\"/conversations\" class=\"underline\">participar de conversas.</a>",

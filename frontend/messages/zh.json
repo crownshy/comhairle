@@ -81,7 +81,7 @@
 	"verify_user_pending_heading": "正在验证您的邮箱",
 	"verify_user_pending_body": "请点击我们发送到您邮箱的验证链接。",
 	"verify_user_success_heading": "邮箱验证成功",
-	"verify_user_success_body": "请 <a href=\"/auth/login\" class=\"underline\">登录</a> 您已验证的账户以加入对话。",
+	"verify_user_success_body": "您现在可以 <a href=\"/conversations\" class=\"underline\">加入对话</a>",
 	"verify_user_error_heading": "出现错误",
 	"verify_user_error_body": "验证邮箱时出现错误。请尝试 <a href=\"/auth/login\" class=\"underline\">登录</a>。",
 	"verify_user_conflict_error_body": "您的邮箱已验证。您现在可以查看并 <a href=\"/conversations\" class=\"underline\">加入对话</a>。",
