@@ -9,7 +9,7 @@
 
 	async function resendVerificationEmail() {
 		try {
-			await apiClient.ResendVerificationEmail({ user });
+			await apiClient.ResendVerificationEmail({ username: user.username });
 			toast.success(m.verification_email_sent());
 		} catch (e) {
 			responseMessage = m.verify_error_message();
