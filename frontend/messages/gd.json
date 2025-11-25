@@ -81,7 +81,7 @@
 	"verify_user_pending_heading": "A’ dearbhadh do phost-d",
 	"verify_user_pending_body": "Briog air an ceangal dearbhaidh a chuir sinn chun do sheòladh post-d.",
 	"verify_user_success_heading": "Chaidh do phost-d a dhearbhadh gu soirbheachail",
-	"verify_user_success_body": "Feuch <a href=\"/auth/login\" class=\"underline\">log a-steach</a> don chunntas a chaidh a dhearbhadh gus pàirt a ghabhail ann an còmhradh.",
+	"verify_user_success_body": "Faodaidh tu a-nis <a href=\"/conversations\" class=\"underline\">pàirt a ghabhail ann an còmhradh</a>",
 	"verify_user_error_heading": "Bha rudeigin ceàrr",
 	"verify_user_error_body": "Bha rudeigin ceàrr fhad ‘s a bha sinn a’ dearbhadh do sheòladh post-d. Feuch <a href=\"/auth/login\" class=\"underline\">log a-steach.</a>",
 	"verify_user_conflict_error_body": "Tha do sheòladh post-d air a dhearbhadh mu thràth. Faodaidh tu a-nis coimhead agus <a href=\"/conversations\" class=\"underline\">pàirt a ghabhail ann an còmhraidhean.</a>",
