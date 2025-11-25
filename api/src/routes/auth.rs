@@ -685,6 +685,7 @@ mod tests {
     };
 
     use axum::http::StatusCode;
+    use mockall::predicate::always;
     use sqlx::PgPool;
     use std::{error::Error, sync::Arc};
 
@@ -781,7 +782,21 @@ mod tests {
 
     #[sqlx::test]
     async fn user_should_receive_verification_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let state = test_state().db(pool).call()?;
+        let mut mailer = MockComhairleMailer::new();
+        mailer
+            .expect_send_welcome_email()
+            .once()
+            .returning(|_, _| Ok(()));
+
+        mailer
+            .expect_send_verification_email()
+            .with(always(), always())
+            .once()
+            .returning(|_, _| Ok(()));
+
+        mailer.expect_send_password_reset_email().times(0);
+
+        let state = test_state().db(pool).mailer(Arc::new(mailer)).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
         let username = "test_user";
@@ -789,6 +804,7 @@ mod tests {
         let email = "test_email";
 
         let mut session = UserSession::new(username, password, email);
+        session.signup(&app).await?;
         let (status, _, _) = session.resend_verification_email(&app).await?;
 
         assert_eq!(status, StatusCode::OK, "should send verification email");
