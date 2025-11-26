@@ -372,7 +372,7 @@ impl UserSession {
         self.post(
             app,
             "/auth/resend_verification_email",
-            json!({ "username": self.username }).to_string().into(),
+            json!({ "id": self.id }).to_string().into(),
         )
         .await
     }

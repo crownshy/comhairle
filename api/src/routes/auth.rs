@@ -73,7 +73,7 @@ struct VerifyEmailTokenRequest {
 
 #[derive(Deserialize, JsonSchema)]
 struct ResendVerificationEmailRequest {
-    username: String,
+    id: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -263,7 +263,8 @@ async fn resend_verification_email(
     State(state): State<Arc<ComhairleState>>,
     Json(payload): Json<ResendVerificationEmailRequest>,
 ) -> Result<StatusCode, ComhairleError> {
-    let user = get_user_by_username(&payload.username, &state.db).await?;
+    let id = Uuid::parse_str(&payload.id).map_err(|_| ComhairleError::InvalidUserId)?;
+    let user = get_user_by_id(&id, &state.db).await?;
     let claims = EmailVerificationClaims {
         email: user.email.clone(),
     };
@@ -292,9 +293,8 @@ async fn verify_email_token(
     }
 
     let updated_verified_status = UpdateUserRequest {
-        username: None,
-        password: None,
         verified: Some(true),
+        ..Default::default()
     };
 
     let updated_user = update_user(&current_user.id, &updated_verified_status, &state.db).await?;
