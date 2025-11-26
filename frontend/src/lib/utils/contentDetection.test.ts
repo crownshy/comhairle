@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { detectContentType } from './contentDetection';
-import { CONTENT_TYPES } from '$lib/components/extensions/richTextEditor.types';
+import { CONTENT_TYPES } from '$lib/components/RichTextEditor/types';
 
 describe('detectContentType', () => {
 	describe('empty or invalid content', () => {
