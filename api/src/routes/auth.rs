@@ -293,7 +293,7 @@ async fn verify_email_token(
     }
 
     let updated_verified_status = UpdateUserRequest {
-        verified: Some(true),
+        email_verified: Some(true),
         ..Default::default()
     };
 
@@ -681,7 +681,9 @@ mod tests {
 
     use crate::{
         mailer::MockComhairleMailer,
-        models::users::{add_user_resource_role, Resource, Role, User, UserAuthType},
+        models::users::{
+            add_user_resource_role, Resource, Role, UpdateUserRequest, User, UserAuthType,
+        },
         routes::auth::{generate_jwt, SessionClaims},
         setup_server,
         test_helpers::{test_state, UserSession},
@@ -908,7 +910,6 @@ mod tests {
     }
 
     #[sqlx::test]
-    #[ignore] // TODO: fix test and remove
     async fn user_cannot_be_verified_twice(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
         let password = "test_password";
@@ -919,8 +920,13 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new(username, password, email);
         session.signup(&app).await?;
-        session.email_verified = true;
-        let (_, user, _) = session.current_user(&app).await?;
+        let updated_user_values = UpdateUserRequest {
+            email_verified: Some(true),
+            ..Default::default()
+        };
+        let (_, user, _) = session
+            .update_user_details(&app, updated_user_values)
+            .await?;
 
         let id = user.get("id").unwrap().as_ref().unwrap().as_str().unwrap();
         let email_verified = user

@@ -383,7 +383,7 @@ pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, C
 pub struct UpdateUserRequest {
     pub username: Option<String>,
     pub password: Option<String>,
-    pub verified: Option<bool>,
+    pub email_verified: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
@@ -414,8 +414,9 @@ pub async fn update_user(
         query.value(UserIden::Password, hashed_password);
         has_updates = true;
     }
-    if let Some(verified) = &update_request.verified {
-        query.value(UserIden::EmailVerified, *verified);
+
+    if let Some(email_verified) = &update_request.email_verified {
+        query.value(UserIden::EmailVerified, *email_verified);
         has_updates = true;
     }
 
