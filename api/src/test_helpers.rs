@@ -22,6 +22,7 @@ use tower::ServiceExt;
 use crate::{
     config::ComhairleConfig,
     mailer::MockComhairleMailer,
+    models::users::UpdateUserRequest,
     websockets::{MockWebSocketService, WebSocketService},
     ComhairleState,
 };
@@ -394,6 +395,29 @@ impl UserSession {
         .await
     }
 
+    pub async fn update_user_details(
+        &mut self,
+        app: &Router,
+        update_user: UpdateUserRequest,
+    ) -> Result<
+        (
+            StatusCode,
+            HashMap<String, Option<Value>>,
+            Option<HeaderValue>,
+        ),
+        Box<dyn Error>,
+    > {
+        let (status, value, cookie) = self.put(
+            app,
+            "/user/details",
+            json!({ "username": update_user.username, "password": update_user.password, "email_verified": update_user.email_verified }).to_string().into()
+        ).await?;
+
+        let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
+
+        Ok((status, user, cookie))
+    }
+
     pub async fn create_conversation(
         &mut self,
         app: &Router,
@@ -471,7 +495,7 @@ impl UserSession {
         app: &Router,
         conversation_id: &str,
         workflow_id: &str,
-        no: i32,
+        _no: i32,
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let url = format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step");
         let mut workflow_steps: Vec<serde_json::Value> = vec![];
