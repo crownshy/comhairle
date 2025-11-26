@@ -1,4 +1,4 @@
-script lang="ts">
+<script lang="ts">
 	import { onMount } from 'svelte';
 	import * as Popover from '$lib/components/ui/popover';
 	import { Button } from '$lib/components/ui/button';
