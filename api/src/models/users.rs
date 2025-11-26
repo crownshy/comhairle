@@ -379,7 +379,7 @@ pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, C
         .map_err(|_| ComhairleError::NoUserFound)
 }
 
-#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Deserialize, Default, Serialize, JsonSchema)]
 pub struct UpdateUserRequest {
     pub username: Option<String>,
     pub password: Option<String>,

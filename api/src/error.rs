@@ -137,6 +137,9 @@ pub enum ComhairleError {
     #[error("Failed to send email")]
     FailedToSendEmail(#[from] lettre::transport::smtp::Error),
 
+    #[error("User id must be a valid uuid")]
+    InvalidUserId,
+
     #[error("User is not authorized to perform this action")]
     UserNotAuthorized,
 
