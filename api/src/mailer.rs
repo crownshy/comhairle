@@ -48,6 +48,7 @@ impl MockComhairleMailer {
         let mut mailer = MockComhairleMailer::new();
 
         mailer.expect_send_welcome_email().returning(|_, _| Ok(()));
+        mailer.expect_send_verification_email().returning(|_, _, _| Ok(()));
         mailer.expect_send_email().returning(|_, _, _, _| Ok(()));
         mailer
             .expect_send_password_reset_email()

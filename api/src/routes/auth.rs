@@ -77,7 +77,7 @@ struct ResendVerificationEmailRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct EmailVerificationClaims {
+struct EmailVerificationClaims {
     email: Option<String>,
 }
 
@@ -104,7 +104,7 @@ where
 }
 
 /// Generate JWT
-fn generate_jwt<T: Serialize + DeserializeOwned>(
+pub fn generate_jwt<T: Serialize + DeserializeOwned>(
     user: &User,
     custom_claims: T,
     secret: &str,
@@ -681,7 +681,8 @@ mod tests {
 
     use crate::{
         mailer::MockComhairleMailer,
-        models::users::{add_user_resource_role, Resource, Role},
+        models::users::{add_user_resource_role, Resource, Role, User, UserAuthType},
+        routes::auth::{generate_jwt, SessionClaims},
         setup_server,
         test_helpers::{test_state, UserSession},
     };
@@ -690,6 +691,7 @@ mod tests {
     use mockall::predicate::{always, eq};
     use sqlx::PgPool;
     use std::{error::Error, sync::Arc};
+    use uuid::Uuid;
 
     #[sqlx::test]
     async fn user_should_be_able_to_sign_up(pool: PgPool) -> Result<(), Box<dyn Error>> {
@@ -814,6 +816,139 @@ mod tests {
         let (status, _, _) = session.resend_verification_email(&app).await?;
 
         assert_eq!(status, StatusCode::OK, "should send verification email");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn unverified_user_should_be_verified(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let username = "test_user";
+        let password = "test_password";
+        let email = "test_email";
+
+        let state = test_state().db(pool).call()?;
+        let secret = &state.config.jwt_secret.clone();
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new(username, password, email);
+        let (_, user, _) = session.signup(&app).await?;
+
+        // Extract id from signed-up user
+        let id = user.get("id").unwrap().as_ref().unwrap().as_str().unwrap();
+        let user = User {
+            id: Uuid::parse_str(id).unwrap(),
+            email: Some(email.to_string()),
+            password: Some(password.to_string()),
+            username: Some(username.to_string()),
+            auth_type: UserAuthType::EmailPassword,
+            avatar_url: None,
+            email_verified: false,
+        };
+        let claims = SessionClaims {
+            username: user.username.clone(),
+            sudo_user: None,
+            email_verified: user.email_verified,
+            roles: Vec::new(),
+        };
+        let token = generate_jwt(&user, claims, secret);
+        let (status, user, _) = session.verify_email_token(&app, token).await?;
+
+        assert_eq!(status, StatusCode::OK, "Token successfully verified");
+        assert_eq!(
+            *user.get("email_verified").unwrap(),
+            true,
+            "user email_verified status updated"
+        );
+        assert_eq!(
+            *user.get("email").unwrap(),
+            serde_json::Value::String(email.to_owned()),
+            "current user should contain the right email"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn annon_user_cannot_be_verified(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let username = "test_user";
+        let password = "test_password";
+        let email = "test_email";
+
+        let state = test_state().db(pool).call()?;
+        let secret = &state.config.jwt_secret.clone();
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new(username, password, email);
+        let (_, user, _) = session.signup_annon(&app).await?;
+
+        let id = user.get("id").unwrap().as_ref().unwrap().as_str().unwrap();
+        let user = User {
+            id: Uuid::parse_str(id).unwrap(),
+            email: Some(email.to_string()),
+            password: Some(password.to_string()),
+            username: Some(username.to_string()),
+            auth_type: UserAuthType::Annon,
+            avatar_url: None,
+            email_verified: false,
+        };
+        let claims = SessionClaims {
+            username: user.username.clone(),
+            sudo_user: None,
+            email_verified: user.email_verified,
+            roles: Vec::new(),
+        };
+        let token = generate_jwt(&user, claims, secret);
+        let (status, _, _) = session.verify_email_token(&app, token).await?;
+
+        assert_eq!(
+            status,
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "cannot verify annonymous user"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    #[ignore] // TODO: fix test and remove
+    async fn user_cannot_be_verified_twice(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let username = "test_user";
+        let password = "test_password";
+        let email = "test_email";
+
+        let state = test_state().db(pool).call()?;
+        let secret = &state.config.jwt_secret.clone();
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new(username, password, email);
+        session.signup(&app).await?;
+        session.email_verified = true;
+        let (_, user, _) = session.current_user(&app).await?;
+
+        let id = user.get("id").unwrap().as_ref().unwrap().as_str().unwrap();
+        let email_verified = user
+            .get("email_verified")
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .as_bool()
+            .unwrap();
+        let user = User {
+            id: Uuid::parse_str(id).unwrap(),
+            email: Some(email.to_string()),
+            password: Some(password.to_string()),
+            username: Some(username.to_string()),
+            auth_type: UserAuthType::Annon,
+            avatar_url: None,
+            email_verified,
+        };
+        let claims = SessionClaims {
+            username: user.username.clone(),
+            sudo_user: None,
+            email_verified: user.email_verified,
+            roles: Vec::new(),
+        };
+        let token = generate_jwt(&user, claims, secret);
+        let (status, _, _) = session.verify_email_token(&app, token).await?;
+
+        assert_eq!(status, StatusCode::CONFLICT, "user email already verified");
 
         Ok(())
     }
