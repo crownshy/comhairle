@@ -45,7 +45,7 @@ pub fn test_state(
 ) -> Result<ComhairleState, Box<dyn Error>> {
     let state = ComhairleState {
         db,
-        mailer: mailer.unwrap_or_else(|| mock_mailer()),
+        mailer: mailer.unwrap_or_else(mock_mailer),
         config: config.unwrap_or_else(|| test_config().unwrap()),
         websockets: websockets.unwrap_or_else(|| mock_websockets()),
     };
@@ -107,6 +107,7 @@ pub struct UserSession {
     pub username: Option<String>,
     pub password: Option<String>,
     pub email: Option<String>,
+    pub email_verified: bool,
     pub cookie: Option<HeaderValue>,
 }
 
@@ -117,6 +118,7 @@ impl UserSession {
             username: None,
             password: None,
             email: None,
+            email_verified: false,
             cookie: None,
         }
     }
@@ -127,6 +129,7 @@ impl UserSession {
             username: Some("admin".into()),
             password: Some("admin".into()),
             email: Some("admin@crown-shy.com".into()),
+            email_verified: true,
             cookie: None,
         }
     }
@@ -137,6 +140,7 @@ impl UserSession {
             username: Some(username.to_owned()),
             password: Some(password.to_owned()),
             email: Some(email.to_owned()),
+            email_verified: false,
             cookie: None,
         }
     }
@@ -321,7 +325,7 @@ impl UserSession {
         ),
         Box<dyn Error>,
     > {
-        let (status, value, cookie) = self.post(&app, "/auth/signup_annon", Body::empty()).await?;
+        let (status, value, cookie) = self.post(app, "/auth/signup_annon", Body::empty()).await?;
         let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
         let username: String =
             serde_json::from_value(user.get("username").unwrap().clone().unwrap()).unwrap();
@@ -373,6 +377,19 @@ impl UserSession {
             app,
             "/auth/resend_verification_email",
             json!({ "id": self.id }).to_string().into(),
+        )
+        .await
+    }
+
+    pub async fn verify_email_token(
+        &mut self,
+        app: &Router,
+        token: String,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            "/auth/verify_email_token",
+            json!({ "token": token }).to_string().into(),
         )
         .await
     }
