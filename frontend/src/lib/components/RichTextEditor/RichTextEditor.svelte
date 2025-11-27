@@ -192,38 +192,11 @@
 	/>
 {/if}
 
-<div class="tiptap-editor-container {className}">
-	<div bind:this={editorElement} class="tiptap-editor"></div>
+<div class="bg-white border border-gray-300 rounded-b-lg md:rounded-b-lg md:border-t {className}">
+	<div bind:this={editorElement} class="p-4 min-h-[200px]"></div>
 </div>
 
 <style>
-	.tiptap-editor-container {
-		border: 1px solid #e5e7eb;
-		border-radius: 0 0 0.5rem 0.5rem;
-		background: white;
-	}
-
-	.tiptap-editor {
-		padding: 1rem;
-		min-height: 200px;
-	}
-
-	.copy-btn {
-		padding: 0.25rem 0.75rem;
-		border: 1px solid #ddd;
-		border-radius: 0.25rem;
-		background: white;
-		cursor: pointer;
-		font-size: 0.75rem;
-		color: #495057;
-		transition: all 0.15s ease;
-	}
-
-	.copy-btn:hover {
-		background: #e9ecef;
-	}
-
-	/* Tiptap editor content styles */
 	:global(.tiptap) {
 		outline: none;
 		min-height: 200px;
@@ -335,13 +308,5 @@
 		width: 100%;
 		height: 100%;
 		border-radius: 0.5rem;
-	}
-
-	/* Mobile styles */
-	@media (max-width: 768px) {
-		.tiptap-editor-container {
-			border-radius: 0.5rem;
-			border-top: 1px solid #e5e7eb;
-		}
 	}
 </style>
