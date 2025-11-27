@@ -331,7 +331,8 @@
 
 		<div class="hidden xl:block w-px h-5 bg-gray-300 mx-1 flex-shrink-0"></div>
 
-		<!-- Code - Do we need this? Works if you type `code` but maybe we don't need an explicit button? I don't see a use case for it? -->
+		<!-- Code --!> 
+        <!-- Do we need this? Works if you type `code` but maybe we don't need an explicit button? I don't see a use case for it? -->
 		<div class="flex items-center gap-0.5">
 			<button
 				type="button"
