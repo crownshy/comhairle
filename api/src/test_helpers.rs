@@ -418,6 +418,19 @@ impl UserSession {
         Ok((status, user, cookie))
     }
 
+    pub async fn create_password_reset(
+        &mut self,
+        app: &Router,
+        email: String,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            "/auth/create_password_reset",
+            json!({ "email": email }).to_string().into(),
+        )
+        .await
+    }
+
     pub async fn create_conversation(
         &mut self,
         app: &Router,

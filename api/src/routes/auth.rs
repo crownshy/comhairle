@@ -76,8 +76,13 @@ struct ResendVerificationEmailRequest {
     id: String,
 }
 
+#[derive(Deserialize, JsonSchema)]
+struct CreatePasswordResetRequest {
+    email: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
-struct EmailVerificationClaims {
+struct EmailLinkClaims {
     email: Option<String>,
 }
 
@@ -148,7 +153,7 @@ async fn signup(
     Json(payload): Json<SignupRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<User>)), ComhairleError> {
     let user = create_user(&payload, &state.db).await?;
-    let claims = EmailVerificationClaims {
+    let claims = EmailLinkClaims {
         email: user.email.clone(),
     };
     let token = generate_jwt(&user, claims, &state.config.jwt_secret);
@@ -265,7 +270,7 @@ async fn resend_verification_email(
 ) -> Result<StatusCode, ComhairleError> {
     let id = Uuid::parse_str(&payload.id).map_err(|_| ComhairleError::InvalidUserId)?;
     let user = get_user_by_id(&id, &state.db).await?;
-    let claims = EmailVerificationClaims {
+    let claims = EmailLinkClaims {
         email: user.email.clone(),
     };
     let token = generate_jwt(&user, claims, &state.config.jwt_secret);
@@ -282,7 +287,7 @@ async fn verify_email_token(
     cookies: CookieJar,
     Json(payload): Json<VerifyEmailTokenRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<User>)), ComhairleError> {
-    let current_user = validate_jwt::<EmailVerificationClaims>(&state, &payload.token).await?;
+    let current_user = validate_jwt::<EmailLinkClaims>(&state, &payload.token).await?;
 
     if current_user.auth_type == UserAuthType::Annon {
         return Err(ComhairleError::WrongUserType);
@@ -312,6 +317,28 @@ async fn verify_email_token(
         .http_only(true);
 
     Ok((cookies.add(cookie), (StatusCode::OK, Json(updated_user))))
+}
+
+#[instrument(err(Debug), skip(state, payload))]
+async fn create_password_reset(
+    State(state): State<Arc<ComhairleState>>,
+    Json(payload): Json<CreatePasswordResetRequest>,
+) -> Result<StatusCode, ComhairleError> {
+    let user = get_user_by_email(&payload.email, &state.db).await?;
+    let claims = EmailLinkClaims {
+        email: user.email.clone(),
+    };
+    let token = generate_jwt(&user, claims, &state.config.jwt_secret);
+    let reset_link = format!(
+        "{}/auth/password-reset/update?token={}",
+        state.config.domain, token
+    );
+
+    state
+        .mailer
+        .send_password_reset_email(&user.email, &user.username, reset_link)?;
+
+    Ok(StatusCode::OK)
 }
 
 /// Decode a JWT
@@ -656,6 +683,14 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .api_route(
+            "/create_password_reset",
+            post_with(create_password_reset, |op| {
+                op.id("CreatePasswordReset")
+                    .summary("Create password reset flow by sending reset link to user email")
+                    .response::<200, ()>()
+            }),
+        )
+        .api_route(
             "/current_user",
             get_with(current_user, |op| {
                 op.id("CurrentUser")
@@ -729,10 +764,7 @@ mod tests {
             "current user should contain the right email"
         );
 
-        assert!(
-            user.get("id").is_some(),
-            "current user should contain an id"
-        );
+        assert!(user.contains_key("id"), "current user should contain an id");
         Ok(())
     }
 
@@ -1157,6 +1189,74 @@ mod tests {
         assert!(
             user_response.get("id").unwrap().is_some(),
             "current annon user should have an id"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn user_should_receive_password_reset_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let username = "test_user";
+        let password = "test_password";
+        let email = "test_email";
+
+        let mut mailer = MockComhairleMailer::new();
+        mailer
+            .expect_send_welcome_email()
+            .once()
+            .returning(|_, _| Ok(()));
+        mailer
+            .expect_send_password_reset_email()
+            .once()
+            .with(
+                eq(Some("test_email".to_string())),
+                eq(Some("test_user".to_string())),
+                always(),
+            )
+            .returning(|_, _, _| Ok(()));
+        mailer.expect_send_verification_email().times(0);
+
+        let state = test_state().db(pool).mailer(Arc::new(mailer)).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new(username, password, email);
+        session.signup(&app).await?;
+
+        let (status, _, _) = session
+            .create_password_reset(&app, email.to_string())
+            .await?;
+
+        assert_eq!(status, StatusCode::OK, "reset link sent to user email");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn unknown_user_returns_not_found(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let username = "test_user";
+        let password = "test_password";
+        let email = "test_email";
+
+        let mut mailer = MockComhairleMailer::new();
+        mailer
+            .expect_send_welcome_email()
+            .once()
+            .returning(|_, _| Ok(()));
+        mailer.expect_send_password_reset_email().times(0);
+        mailer.expect_send_verification_email().times(0);
+
+        let state = test_state().db(pool).mailer(Arc::new(mailer)).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new(username, password, email);
+        session.signup(&app).await?;
+
+        let (status, _, _) = session
+            .create_password_reset(&app, "unknown_user".to_string())
+            .await?;
+
+        assert_eq!(
+            status,
+            StatusCode::NOT_FOUND,
+            "unknown user returns not found"
         );
 
         Ok(())
