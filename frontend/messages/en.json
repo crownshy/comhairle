@@ -73,6 +73,7 @@
 	"terms_of_service": "Terms Of Service",
 	"cookies_settings": "Cookies Settings",
 	"explore_conversations":"Explore Conversations",
+	"verifying": "Verifying email address",
 	"verification_message_heading": "We have sent you an email",
 	"verification_message_body": "Click on the verification link we have sent to your email address.",
 	"verification_email_sent": "Verification email re-sent. Please check your inbox.",

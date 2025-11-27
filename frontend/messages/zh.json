@@ -72,6 +72,7 @@
 	"terms_of_service": "服务条款",
 	"cookies_settings": "Cookie设置",
 	"explore_conversations": "探索对话",
+	"verifying": "正在验证电子邮箱地址",
 	"verification_message_heading": "我们已向您发送了一封电子邮件",
 	"verification_message_body": "点击我们发送到您邮箱的验证链接",
 	"verification_email_sent": "验证邮件已重新发送。请检查您的收件箱",
