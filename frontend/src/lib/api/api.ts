@@ -16,6 +16,8 @@ export const VerifyEmailTokenRequest = z.object({ token: z.string() }).passthrou
 export type VerifyEmailTokenRequest = z.infer<typeof VerifyEmailTokenRequest>;
 export const ResendVerificationEmailRequest = z.object({ id: z.string() }).passthrough();
 export type ResendVerificationEmailRequest = z.infer<typeof ResendVerificationEmailRequest>;
+export const CreatePasswordResetRequest = z.object({ email: z.string() }).passthrough();
+export type CreatePasswordResetRequest = z.infer<typeof CreatePasswordResetRequest>;
 export const ResourceType = z.union([z.literal("Site"), z.object({ Conversation: z.string().uuid() })]);
 export type ResourceType = z.infer<typeof ResourceType>;
 export const ResourceRole = z.enum(["Admin", "SuperAdmin"]);
@@ -32,7 +34,7 @@ export const limit = z.union([z.number(), z.null()]).optional();
 export type limit = z.infer<typeof limit>;
 export const PaginatedResults_for_Conversation = z.object({ records: z.array(Conversation), total: z.number().int() }).passthrough();
 export type PaginatedResults_for_Conversation = z.infer<typeof PaginatedResults_for_Conversation>;
-export const UpdateUserRequest = z.object({ password: z.union([z.string(), z.null()]), username: z.union([z.string(), z.null()]), verified: z.union([z.boolean(), z.null()]) }).partial().passthrough();
+export const UpdateUserRequest = z.object({ email_verified: z.union([z.boolean(), z.null()]), password: z.union([z.string(), z.null()]), username: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type UpdateUserRequest = z.infer<typeof UpdateUserRequest>;
 export const UpgradeAccountRequest = z.object({ email: z.string(), password: z.string(), username: z.string() }).passthrough();
 export type UpgradeAccountRequest = z.infer<typeof UpgradeAccountRequest>;
@@ -164,6 +166,7 @@ export const schemas = {
 	SignupRequest,
 	VerifyEmailTokenRequest,
 	ResendVerificationEmailRequest,
+	CreatePasswordResetRequest,
 	ResourceType,
 	ResourceRole,
 	UserRoles,
@@ -236,6 +239,20 @@ export const schemas = {
 };
 
 const endpoints = makeApi([
+	{
+		method: "post",
+		path: "/auth/create_password_reset",
+		alias: "CreatePasswordReset",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: z.object({ email: z.string() }).passthrough()
+			},
+		],
+		response: z.void(),
+	},
 	{
 		method: "get",
 		path: "/auth/current_user",

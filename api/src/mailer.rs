@@ -22,9 +22,9 @@ pub trait ComhairleMailer: Send + Sync {
 
     fn send_password_reset_email(
         &self,
-        to: String,
-        user: User,
-        token: &str,
+        to: &Option<String>,
+        username: &Option<String>,
+        reset_link: String,
     ) -> Result<(), ComhairleError>;
 
     fn send_verification_email(
@@ -48,7 +48,9 @@ impl MockComhairleMailer {
         let mut mailer = MockComhairleMailer::new();
 
         mailer.expect_send_welcome_email().returning(|_, _| Ok(()));
-        mailer.expect_send_verification_email().returning(|_, _, _| Ok(()));
+        mailer
+            .expect_send_verification_email()
+            .returning(|_, _, _| Ok(()));
         mailer.expect_send_email().returning(|_, _, _, _| Ok(()));
         mailer
             .expect_send_password_reset_email()
@@ -140,10 +142,19 @@ impl ComhairleMailer for Mailer {
 
     fn send_password_reset_email(
         &self,
-        to: String,
-        user: User,
-        token: &str,
+        to: &Option<String>,
+        username: &Option<String>,
+        reset_link: String,
     ) -> Result<(), ComhairleError> {
-        Ok(())
+        if let Some(email) = to {
+            self.send_email(
+                email,
+                "Reset your Comhairle password",
+                "password_reset.html",
+                context! { username, reset_link },
+            )
+        } else {
+            Err(ComhairleError::WrongUserType)
+        }
     }
 }
