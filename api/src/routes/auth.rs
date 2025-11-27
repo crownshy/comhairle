@@ -18,11 +18,11 @@ use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, 
 use rand_core::OsRng;
 use regex::Regex;
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::json;
 use std::marker::PhantomData;
 use std::{collections::HashMap, sync::Arc};
-use tracing::{error, instrument, warn};
+use tracing::{instrument, warn};
 use uuid::Uuid;
 // use tower_cookies::{Cookie, Cookies};
 
@@ -30,7 +30,8 @@ use crate::{
     error::ComhairleError,
     models::users::{
         create_annon_user, create_user, get_user_by_email, get_user_by_id, get_user_by_username,
-        get_user_resource_roles, Resource, Role, User, UserAuthType, UserResourceRole,
+        get_user_resource_roles, update_user, Resource, Role, UpdateUserRequest, User,
+        UserAuthType, UserResourceRole,
     },
     ComhairleState,
 };
@@ -65,18 +66,49 @@ struct AnnonLoginRequest {
     username: String,
 }
 
+#[derive(Deserialize, JsonSchema)]
+struct VerifyEmailTokenRequest {
+    token: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
+struct ResendVerificationEmailRequest {
+    id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct EmailVerificationClaims {
+    email: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionClaims {
+    username: Option<String>,
+    sudo_user: Option<String>, // TODO: Remove at some point
+    email_verified: bool,
+    roles: Vec<String>,
+}
+
 /// JWT Claims
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Claims {
+#[serde(bound = "T: Serialize + DeserializeOwned")]
+pub struct Claims<T>
+where
+    T: Serialize + DeserializeOwned,
+{
     sub: String,
     exp: usize,
     id: String,
-    username: Option<String>,
-    sudo_user: Option<String>,
+    #[serde(flatten)]
+    details: T,
 }
 
 /// Generate JWT
-fn generate_jwt(user: &User, secret: &str) -> String {
+pub fn generate_jwt<T: Serialize + DeserializeOwned>(
+    user: &User,
+    custom_claims: T,
+    secret: &str,
+) -> String {
     let expiration = chrono::Utc::now()
         .checked_add_signed(chrono::Duration::hours(24))
         .expect("valid timestamp")
@@ -85,9 +117,8 @@ fn generate_jwt(user: &User, secret: &str) -> String {
     let claims = Claims {
         sub: user.id.to_string(),
         exp: expiration,
-        username: user.username.clone(),
         id: user.id.to_string(),
-        sudo_user: None,
+        details: custom_claims,
     };
 
     encode(
@@ -117,18 +148,25 @@ async fn signup(
     Json(payload): Json<SignupRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<User>)), ComhairleError> {
     let user = create_user(&payload, &state.db).await?;
-    let token = generate_jwt(&user, &state.config.jwt_secret);
+    let claims = EmailVerificationClaims {
+        email: user.email.clone(),
+    };
+    let token = generate_jwt(&user, claims, &state.config.jwt_secret);
+    let verify_link = format!("{}/auth/verify-user?token={}", state.config.domain, token);
 
+    state.mailer.send_welcome_email(&user, verify_link)?;
+
+    let claims = SessionClaims {
+        username: user.username.clone(),
+        sudo_user: None,
+        email_verified: user.email_verified,
+        roles: Vec::new(),
+    };
+    let token = generate_jwt(&user, claims, &state.config.jwt_secret);
     let cookie = Cookie::build((AUTH_KEY, token))
         .path("/")
         .secure(true)
         .http_only(true);
-
-    if let Some(email) = &user.email {
-        state.mailer.send_welcome_email(email, &user)?;
-    } else {
-        error!("Trying to send email to user without an address");
-    }
 
     Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
 }
@@ -140,7 +178,13 @@ async fn signup_annon(
     jar: CookieJar,
 ) -> Result<(CookieJar, (StatusCode, Json<User>)), ComhairleError> {
     let user = create_annon_user(&state.db).await?;
-    let token = generate_jwt(&user, &state.config.jwt_secret);
+    let claims = SessionClaims {
+        username: user.username.clone(),
+        sudo_user: None,
+        email_verified: user.email_verified,
+        roles: Vec::new(),
+    };
+    let token = generate_jwt(&user, claims, &state.config.jwt_secret);
 
     let cookie = Cookie::build((AUTH_KEY, token))
         .path("/")
@@ -173,7 +217,13 @@ async fn login(
         return Err(ComhairleError::WrongPassword);
     }
 
-    let token = generate_jwt(&user.clone(), &state.config.jwt_secret);
+    let claims = SessionClaims {
+        username: user.username.clone(),
+        sudo_user: None,
+        email_verified: user.email_verified,
+        roles: Vec::new(),
+    };
+    let token = generate_jwt(&user.clone(), claims, &state.config.jwt_secret);
     let cookie = Cookie::build((AUTH_KEY, token))
         .path("/")
         .secure(true)
@@ -194,7 +244,13 @@ async fn login_annon(
         return Err(ComhairleError::NoUserFound);
     }
 
-    let token = generate_jwt(&user.clone(), &state.config.jwt_secret);
+    let claims = SessionClaims {
+        username: user.username.clone(),
+        sudo_user: None,
+        email_verified: user.email_verified,
+        roles: Vec::new(),
+    };
+    let token = generate_jwt(&user.clone(), claims, &state.config.jwt_secret);
     let cookie = Cookie::build((AUTH_KEY, token))
         .path("/")
         .secure(true)
@@ -202,9 +258,68 @@ async fn login_annon(
     Ok((cookies.add(cookie), (StatusCode::OK, Json(user))))
 }
 
+#[instrument(err(Debug), skip(state, payload))]
+async fn resend_verification_email(
+    State(state): State<Arc<ComhairleState>>,
+    Json(payload): Json<ResendVerificationEmailRequest>,
+) -> Result<StatusCode, ComhairleError> {
+    let id = Uuid::parse_str(&payload.id).map_err(|_| ComhairleError::InvalidUserId)?;
+    let user = get_user_by_id(&id, &state.db).await?;
+    let claims = EmailVerificationClaims {
+        email: user.email.clone(),
+    };
+    let token = generate_jwt(&user, claims, &state.config.jwt_secret);
+    let verify_link = format!("{}/auth/verify-user?token={}", state.config.domain, token);
+    state
+        .mailer
+        .send_verification_email(&user.username, &user.email, verify_link)?;
+    Ok(StatusCode::OK)
+}
+
+#[instrument(err(Debug), skip(state, payload))]
+async fn verify_email_token(
+    State(state): State<Arc<ComhairleState>>,
+    cookies: CookieJar,
+    Json(payload): Json<VerifyEmailTokenRequest>,
+) -> Result<(CookieJar, (StatusCode, Json<User>)), ComhairleError> {
+    let current_user = validate_jwt::<EmailVerificationClaims>(&state, &payload.token).await?;
+
+    if current_user.auth_type == UserAuthType::Annon {
+        return Err(ComhairleError::WrongUserType);
+    }
+
+    if current_user.email_verified {
+        return Err(ComhairleError::EmailAlreadyVerified);
+    }
+
+    let updated_verified_status = UpdateUserRequest {
+        email_verified: Some(true),
+        ..Default::default()
+    };
+
+    let updated_user = update_user(&current_user.id, &updated_verified_status, &state.db).await?;
+
+    let claims = SessionClaims {
+        username: updated_user.username.clone(),
+        sudo_user: None,
+        email_verified: updated_user.email_verified,
+        roles: Vec::new(),
+    };
+    let session_token = generate_jwt(&updated_user.clone(), claims, &state.config.jwt_secret);
+    let cookie = Cookie::build((AUTH_KEY, session_token.clone()))
+        .path("/")
+        .secure(true)
+        .http_only(true);
+
+    Ok((cookies.add(cookie), (StatusCode::OK, Json(updated_user))))
+}
+
 /// Decode a JWT
-pub fn decode_jwt(jwt: &str, secret: &str) -> Result<TokenData<Claims>, StatusCode> {
-    let result: Result<TokenData<Claims>, StatusCode> = decode(
+pub fn decode_jwt<T: Serialize + DeserializeOwned>(
+    jwt: &str,
+    secret: &str,
+) -> Result<TokenData<Claims<T>>, StatusCode> {
+    let result: Result<TokenData<Claims<T>>, StatusCode> = decode(
         &jwt,
         &DecodingKey::from_secret(secret.as_ref()),
         &Validation::default(),
@@ -417,7 +532,7 @@ impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
 
         if let Some(token_cookie) = jar.get(AUTH_KEY) {
             let token_str = token_cookie.value();
-            let poss_user = validate_jwt(state, token_str).await.ok();
+            let poss_user = validate_jwt::<SessionClaims>(state, token_str).await.ok();
             Ok(OptionalUser(poss_user))
         } else {
             Ok(OptionalUser(None))
@@ -428,11 +543,11 @@ impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
 /// Ensure the JTW is valid and if it is return the associated user
 /// May break this out in future for routes that require a valid
 /// user but dont care who they are
-pub async fn validate_jwt(
+pub async fn validate_jwt<T: Serialize + DeserializeOwned>(
     state: &Arc<ComhairleState>,
     token: &str,
 ) -> Result<User, ComhairleError> {
-    let token_data = match decode_jwt(token, &state.config.jwt_secret) {
+    let token_data = match decode_jwt::<T>(token, &state.config.jwt_secret) {
         Ok(data) => data,
         Err(e) => {
             warn!("unable to decode {e}");
@@ -525,6 +640,22 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .api_route(
+            "/verify_email_token",
+            post_with(verify_email_token, |op| {
+                op.id("VerifyEmailToken")
+                    .summary("Verify token from email verification link")
+                    .response::<200, Json<User>>()
+            }),
+        )
+        .api_route(
+            "/resend_verification_email",
+            post_with(resend_verification_email, |op| {
+                op.id("ResendVerificationEmail")
+                    .summary("Resend email verification link to user")
+                    .response::<200, ()>()
+            }),
+        )
+        .api_route(
             "/current_user",
             get_with(current_user, |op| {
                 op.id("CurrentUser")
@@ -550,7 +681,10 @@ mod tests {
 
     use crate::{
         mailer::MockComhairleMailer,
-        models::users::{add_user_resource_role, Resource, Role},
+        models::users::{
+            add_user_resource_role, Resource, Role, UpdateUserRequest, User, UserAuthType,
+        },
+        routes::auth::{generate_jwt, SessionClaims},
         setup_server,
         test_helpers::{test_state, UserSession},
     };
@@ -559,6 +693,7 @@ mod tests {
     use mockall::predicate::{always, eq};
     use sqlx::PgPool;
     use std::{error::Error, sync::Arc};
+    use uuid::Uuid;
 
     #[sqlx::test]
     async fn user_should_be_able_to_sign_up(pool: PgPool) -> Result<(), Box<dyn Error>> {
@@ -579,18 +714,18 @@ mod tests {
 
         assert_eq!(
             *user.get("username").unwrap(),
-            Some(username.to_owned()),
+            Some(serde_json::Value::String(username.to_owned())),
             "current user should contain the right username"
         );
 
         assert_eq!(
             *user.get("auth_type").unwrap(),
-            Some("email_password".to_owned()),
+            Some(serde_json::Value::String("email_password".to_owned())),
             "current user should have auth_type email password"
         );
         assert_eq!(
             *user.get("email").unwrap(),
-            Some(email.to_owned()),
+            Some(serde_json::Value::String(email.to_owned())),
             "current user should contain the right email"
         );
 
@@ -610,10 +745,10 @@ mod tests {
         let mut mailer = MockComhairleMailer::new();
         mailer
             .expect_send_welcome_email()
-            .with(eq(email), always())
             .once()
             .returning(|_, _| Ok(()));
 
+        mailer.expect_send_verification_email().times(0);
         mailer.expect_send_password_reset_email().times(0);
 
         let state = test_state().db(pool).mailer(Arc::new(mailer)).call()?;
@@ -629,18 +764,18 @@ mod tests {
 
         assert_eq!(
             *user.get("username").unwrap(),
-            Some(username.to_owned()),
+            Some(serde_json::Value::String(username.to_owned())),
             "current user should contain the right username"
         );
 
         assert_eq!(
             *user.get("auth_type").unwrap(),
-            Some("email_password".to_owned()),
+            Some(serde_json::Value::String("email_password".to_owned())),
             "current user should have auth_type email password"
         );
         assert_eq!(
             *user.get("email").unwrap(),
-            Some(email.to_owned()),
+            Some(serde_json::Value::String(email.to_owned())),
             "current user should contain the right email"
         );
 
@@ -648,6 +783,179 @@ mod tests {
             user.get("id").is_some(),
             "current user should contain an id"
         );
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn user_should_receive_verification_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let mut mailer = MockComhairleMailer::new();
+        mailer
+            .expect_send_welcome_email()
+            .once()
+            .returning(|_, _| Ok(()));
+
+        mailer
+            .expect_send_verification_email()
+            .with(
+                eq(Some("test_user".to_string())),
+                eq(Some("test_email".to_string())),
+                always(),
+            )
+            .once()
+            .returning(|_, _, _| Ok(()));
+
+        mailer.expect_send_password_reset_email().times(0);
+
+        let state = test_state().db(pool).mailer(Arc::new(mailer)).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let username = "test_user";
+        let password = "test_password";
+        let email = "test_email";
+
+        let mut session = UserSession::new(username, password, email);
+        session.signup(&app).await?;
+        let (status, _, _) = session.resend_verification_email(&app).await?;
+
+        assert_eq!(status, StatusCode::OK, "should send verification email");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn unverified_user_should_be_verified(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let username = "test_user";
+        let password = "test_password";
+        let email = "test_email";
+
+        let state = test_state().db(pool).call()?;
+        let secret = &state.config.jwt_secret.clone();
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new(username, password, email);
+        let (_, user, _) = session.signup(&app).await?;
+
+        // Extract id from signed-up user
+        let id = user.get("id").unwrap().as_ref().unwrap().as_str().unwrap();
+        let user = User {
+            id: Uuid::parse_str(id).unwrap(),
+            email: Some(email.to_string()),
+            password: Some(password.to_string()),
+            username: Some(username.to_string()),
+            auth_type: UserAuthType::EmailPassword,
+            avatar_url: None,
+            email_verified: false,
+        };
+        let claims = SessionClaims {
+            username: user.username.clone(),
+            sudo_user: None,
+            email_verified: user.email_verified,
+            roles: Vec::new(),
+        };
+        let token = generate_jwt(&user, claims, secret);
+        let (status, user, _) = session.verify_email_token(&app, token).await?;
+
+        assert_eq!(status, StatusCode::OK, "Token successfully verified");
+        assert_eq!(
+            *user.get("email_verified").unwrap(),
+            true,
+            "user email_verified status updated"
+        );
+        assert_eq!(
+            *user.get("email").unwrap(),
+            serde_json::Value::String(email.to_owned()),
+            "current user should contain the right email"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn annon_user_cannot_be_verified(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let username = "test_user";
+        let password = "test_password";
+        let email = "test_email";
+
+        let state = test_state().db(pool).call()?;
+        let secret = &state.config.jwt_secret.clone();
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new(username, password, email);
+        let (_, user, _) = session.signup_annon(&app).await?;
+
+        let id = user.get("id").unwrap().as_ref().unwrap().as_str().unwrap();
+        let user = User {
+            id: Uuid::parse_str(id).unwrap(),
+            email: Some(email.to_string()),
+            password: Some(password.to_string()),
+            username: Some(username.to_string()),
+            auth_type: UserAuthType::Annon,
+            avatar_url: None,
+            email_verified: false,
+        };
+        let claims = SessionClaims {
+            username: user.username.clone(),
+            sudo_user: None,
+            email_verified: user.email_verified,
+            roles: Vec::new(),
+        };
+        let token = generate_jwt(&user, claims, secret);
+        let (status, _, _) = session.verify_email_token(&app, token).await?;
+
+        assert_eq!(
+            status,
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "cannot verify annonymous user"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn user_cannot_be_verified_twice(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let username = "test_user";
+        let password = "test_password";
+        let email = "test_email";
+
+        let state = test_state().db(pool).call()?;
+        let secret = &state.config.jwt_secret.clone();
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new(username, password, email);
+        session.signup(&app).await?;
+        let updated_user_values = UpdateUserRequest {
+            email_verified: Some(true),
+            ..Default::default()
+        };
+        let (_, user, _) = session
+            .update_user_details(&app, updated_user_values)
+            .await?;
+
+        let id = user.get("id").unwrap().as_ref().unwrap().as_str().unwrap();
+        let email_verified = user
+            .get("email_verified")
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .as_bool()
+            .unwrap();
+        let user = User {
+            id: Uuid::parse_str(id).unwrap(),
+            email: Some(email.to_string()),
+            password: Some(password.to_string()),
+            username: Some(username.to_string()),
+            auth_type: UserAuthType::Annon,
+            avatar_url: None,
+            email_verified,
+        };
+        let claims = SessionClaims {
+            username: user.username.clone(),
+            sudo_user: None,
+            email_verified: user.email_verified,
+            roles: Vec::new(),
+        };
+        let token = generate_jwt(&user, claims, secret);
+        let (status, _, _) = session.verify_email_token(&app, token).await?;
+
+        assert_eq!(status, StatusCode::CONFLICT, "user email already verified");
+
         Ok(())
     }
 
@@ -804,13 +1112,13 @@ mod tests {
 
         assert_eq!(
             *user.get("username").unwrap(),
-            Some(username.to_owned()),
+            Some(serde_json::Value::String(username.to_owned())),
             "current user should contain the right username"
         );
 
         assert_eq!(
             *user.get("email").unwrap(),
-            Some(email.to_owned()),
+            Some(serde_json::Value::String(email.to_owned())),
             "current user should contain the right email"
         );
 
@@ -842,7 +1150,7 @@ mod tests {
 
         assert_eq!(
             *user_response.get("auth_type").unwrap(),
-            Some("annon".to_owned()),
+            Some(serde_json::Value::String("annon".to_owned())),
             "current annon user should have a username"
         );
 

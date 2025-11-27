@@ -71,6 +71,21 @@
 	"privacy_policy": "سياسة الخصوصية",
 	"terms_of_service": "شروط الخدمة",
 	"cookies_settings": "إعدادات ملفات تعريف الارتباط",
-	"explore_conversations":"استكشف المحادثات"
+	"explore_conversations":"استكشف المحادثات",
+	"verifying": "جارٍ التحقق من عنوان البريد الإلكتروني",
+	"verification_message_heading": "لقد أرسلنا إليك بريدًا إلكترونيًا",
+	"verification_message_body": "انقر على رابط التحقق الذي أرسلناه إلى بريدك الإلكتروني.",
+	"verification_email_sent": "تم إعادة إرسال بريد التحقق. يرجى التحقق من صندوق الوارد الخاص بك.",
+	"verification_email_missing": "لم تستلم البريد الإلكتروني بعد؟ تحقق من مجلد الرسائل غير المرغوب فيها أو…",
+	"verify_error_message": "حدث خطأ أثناء إعادة إرسال بريد التحقق.",
+	"verify_missing_user": "\nيرجى محاولة تسجيل الدخول. سيتم إشعارك لاحقًا لإعادة محاولة التحقق من البريد الإلكتروني.",
+	"verify_user_pending_heading": "جاري التحقق من بريدك الإلكتروني",
+	"verify_user_pending_body": "انقر على رابط التحقق الذي أرسلناه إلى بريدك الإلكتروني.",
+	"verify_user_success_heading": "تم التحقق من بريدك الإلكتروني بنجاح",
+	"verify_user_success_body": "يمكنك الآن <a href=\"/conversations\" class=\"underline\">الانضمام إلى محادثة</a>",
+	"verify_user_error_heading": "حدث خطأ ما",
+	"verify_user_error_body": "حدث خطأ ما أثناء التحقق من بريدك الإلكتروني. حاول <a href=\"/auth/login\" class=\"underline\">تسجيل الدخول.</a>",
+	"verify_user_conflict_error_body": "تم التحقق من بريدك الإلكتروني مسبقًا. يمكنك الآن عرض و <a href=\"/conversations\" class=\"underline\">الانضمام إلى المحادثات.</a>",
+	"send_again": "أعد الإرسال"
 
 }

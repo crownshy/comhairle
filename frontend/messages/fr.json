@@ -71,6 +71,20 @@
 	"privacy_policy": "Politique de confidentialité",
 	"terms_of_service": "Conditions d'utilisation",
 	"cookies_settings": "Paramètres des cookies",
-	"explore_conversations":"Explorer les conversations"
-
+	"explore_conversations":"Explorer les conversations",
+	"verifying": "Vérification de l’adresse e-mail",
+	"verification_message_heading": "Nous vous avons envoyé un e-mail",
+	"verification_message_body": "Cliquez sur le lien de vérification que nous avons envoyé à votre adresse e-mail",
+	"verification_email_sent": "E-mail de vérification renvoyé. Veuillez vérifier votre boîte de réception",
+	"verification_email_missing": "Vous n’avez pas encore reçu l’e-mail ? Vérifiez votre dossier de spam ou",
+	"verify_error_message": "Une erreur est survenue lors du renvoi de l’e-mail de vérification",
+	"verify_missing_user": "\nVeuillez essayer de vous connecter. Vous serez informé ultérieurement pour tenter à nouveau la vérification de l’e-mail",
+	"verify_user_pending_heading": "Vérification de votre e-mail",
+	"verify_user_pending_body": "Cliquez sur le lien de vérification que nous avons envoyé à votre adresse e-mail.",
+	"verify_user_success_heading": "Votre e-mail a été vérifié avec succès",
+	"verify_user_success_body": "Vous pouvez maintenant <a href=\"/conversations\" class=\"underline\">rejoindre une conversation</a>",
+	"verify_user_error_heading": "Une erreur est survenue",
+	"verify_user_error_body": "Une erreur est survenue lors de la vérification de votre adresse e-mail. Essayez de <a href=\"/auth/login\" class=\"underline\">vous connecter.</a>",
+	"verify_user_conflict_error_body": "Votre adresse e-mail a déjà été vérifiée. Vous pouvez maintenant voir et <a href=\"/conversations\" class=\"underline\">rejoindre des conversations.</a>",
+	"send_again": "Renvoyer"
 }

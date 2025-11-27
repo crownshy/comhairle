@@ -129,6 +129,7 @@ pub struct User {
     pub avatar_url: Option<String>,
     pub auth_type: UserAuthType,
     pub email: Option<String>,
+    pub email_verified: bool,
 }
 
 /// Create a user from a signup request
@@ -158,6 +159,7 @@ pub async fn create_user(user: &SignupRequest, db: &PgPool) -> Result<User, Comh
             UserIden::AuthType,
             UserIden::AvatarUrl,
             UserIden::Email,
+            UserIden::EmailVerified,
         ]))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -204,6 +206,7 @@ pub async fn create_annon_user(db: &PgPool) -> Result<User, ComhairleError> {
                 UserIden::Password,
                 UserIden::AvatarUrl,
                 UserIden::Email,
+                UserIden::EmailVerified,
             ]))
             .build_sqlx(PostgresQueryBuilder);
 
@@ -240,6 +243,7 @@ pub async fn get_user_by_id(id: &Uuid, db: &PgPool) -> Result<User, ComhairleErr
             UserIden::AvatarUrl,
             UserIden::AuthType,
             UserIden::Email,
+            UserIden::EmailVerified,
         ])
         .from(UserIden::Table)
         .and_where(Expr::col(UserIden::Id).eq(id.to_owned()))
@@ -262,6 +266,7 @@ pub async fn get_user_by_email(email: &str, db: &PgPool) -> Result<User, Comhair
             UserIden::AvatarUrl,
             UserIden::AuthType,
             UserIden::Email,
+            UserIden::EmailVerified,
         ])
         .from(UserIden::Table)
         .and_where(Expr::col(UserIden::Email).ilike(email))
@@ -362,6 +367,7 @@ pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, C
             UserIden::AvatarUrl,
             UserIden::AuthType,
             UserIden::Email,
+            UserIden::EmailVerified,
         ])
         .from(UserIden::Table)
         .and_where(Expr::col(UserIden::Username).eq(username))
@@ -373,10 +379,11 @@ pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, C
         .map_err(|_| ComhairleError::NoUserFound)
 }
 
-#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Deserialize, Default, Serialize, JsonSchema)]
 pub struct UpdateUserRequest {
     pub username: Option<String>,
     pub password: Option<String>,
+    pub email_verified: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
@@ -408,6 +415,11 @@ pub async fn update_user(
         has_updates = true;
     }
 
+    if let Some(email_verified) = &update_request.email_verified {
+        query.value(UserIden::EmailVerified, *email_verified);
+        has_updates = true;
+    }
+
     if !has_updates {
         return get_user_by_id(user_id, db).await;
     }
@@ -421,6 +433,7 @@ pub async fn update_user(
             UserIden::AvatarUrl,
             UserIden::AuthType,
             UserIden::Email,
+            UserIden::EmailVerified,
         ]))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -478,6 +491,7 @@ pub async fn upgrade_account(
             UserIden::AvatarUrl,
             UserIden::AuthType,
             UserIden::Email,
+            UserIden::EmailVerified,
         ]))
         .build_sqlx(PostgresQueryBuilder);
 

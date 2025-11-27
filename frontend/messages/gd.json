@@ -72,7 +72,21 @@
 	"terms_of_service": "Teirmichean na seirbheise",
 	"cookies_settings": "Roghainnean bhriosgaidean",
   	"explore_conversations": "Rannsaich Còmhraidhean",
+	"verifying": "A’ dearbhadh seòladh a’ phuist-d",
+	"verification_message_heading": "Tha sinn air post-d a chuir thugad",
+	"verification_message_body": "Cliog air an ceangal dearbhaidh a chuir sinn chun do sheòladh post-d",
+	"verification_email_sent": "Chaidh post-d dearbhaidh a chuir a-rithist. Thoir sùil air do bhogsa a-steach",
+	"verification_email_missing": "Nach d’fhuair thu am post-d fhathast? Thoir sùil air do phasgan sgudail no",
+	"verify_error_message": "Chaidh rudeigin ceàrr leis an ath-chuir post-d dearbhaidh",
+	"verify_missing_user": "\nFeuch ri logadh a-steach, mas e do thoil e. Thèid innse dhut nas fhaide air adhart gus feuchainn ris an dearbhadh post-d a-rithist",
+	"verify_user_pending_heading": "A’ dearbhadh do phost-d",
+	"verify_user_pending_body": "Briog air an ceangal dearbhaidh a chuir sinn chun do sheòladh post-d.",
+	"verify_user_success_heading": "Chaidh do phost-d a dhearbhadh gu soirbheachail",
+	"verify_user_success_body": "Faodaidh tu a-nis <a href=\"/conversations\" class=\"underline\">pàirt a ghabhail ann an còmhradh</a>",
+	"verify_user_error_heading": "Bha rudeigin ceàrr",
+	"verify_user_error_body": "Bha rudeigin ceàrr fhad ‘s a bha sinn a’ dearbhadh do sheòladh post-d. Feuch <a href=\"/auth/login\" class=\"underline\">log a-steach.</a>",
+	"verify_user_conflict_error_body": "Tha do sheòladh post-d air a dhearbhadh mu thràth. Faodaidh tu a-nis coimhead agus <a href=\"/conversations\" class=\"underline\">pàirt a ghabhail ann an còmhraidhean.</a>",
+	"send_again": "Cuir a-rithist",
 	"signup": "Clàraich"
-
 }
 

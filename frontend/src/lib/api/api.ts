@@ -6,12 +6,16 @@ export const AnnonLoginRequest = z.object({ username: z.string() }).passthrough(
 export type AnnonLoginRequest = z.infer<typeof AnnonLoginRequest>;
 export const UserAuthType = z.enum(["annon", "email_password", "scot_account"]);
 export type UserAuthType = z.infer<typeof UserAuthType>;
-export const User = z.object({ auth_type: UserAuthType, avatar_url: z.union([z.string(), z.null()]).optional(), email: z.union([z.string(), z.null()]).optional(), id: z.string().uuid(), password: z.union([z.string(), z.null()]).optional(), username: z.union([z.string(), z.null()]).optional() }).passthrough();
+export const User = z.object({ auth_type: UserAuthType, avatar_url: z.union([z.string(), z.null()]).optional(), email: z.union([z.string(), z.null()]).optional(), email_verified: z.boolean(), id: z.string().uuid(), password: z.union([z.string(), z.null()]).optional(), username: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type User = z.infer<typeof User>;
 export const LoginRequest = z.object({ email: z.string(), password: z.string() }).passthrough();
 export type LoginRequest = z.infer<typeof LoginRequest>;
 export const SignupRequest = z.object({ avatar_url: z.union([z.string(), z.null()]).optional(), email: z.string(), password: z.string(), username: z.string() }).passthrough();
 export type SignupRequest = z.infer<typeof SignupRequest>;
+export const VerifyEmailTokenRequest = z.object({ token: z.string() }).passthrough();
+export type VerifyEmailTokenRequest = z.infer<typeof VerifyEmailTokenRequest>;
+export const ResendVerificationEmailRequest = z.object({ id: z.string() }).passthrough();
+export type ResendVerificationEmailRequest = z.infer<typeof ResendVerificationEmailRequest>;
 export const ResourceType = z.union([z.literal("Site"), z.object({ Conversation: z.string().uuid() })]);
 export type ResourceType = z.infer<typeof ResourceType>;
 export const ResourceRole = z.enum(["Admin", "SuperAdmin"]);
@@ -28,7 +32,7 @@ export const limit = z.union([z.number(), z.null()]).optional();
 export type limit = z.infer<typeof limit>;
 export const PaginatedResults_for_Conversation = z.object({ records: z.array(Conversation), total: z.number().int() }).passthrough();
 export type PaginatedResults_for_Conversation = z.infer<typeof PaginatedResults_for_Conversation>;
-export const UpdateUserRequest = z.object({ password: z.union([z.string(), z.null()]), username: z.union([z.string(), z.null()]) }).partial().passthrough();
+export const UpdateUserRequest = z.object({ password: z.union([z.string(), z.null()]), username: z.union([z.string(), z.null()]), verified: z.union([z.boolean(), z.null()]) }).partial().passthrough();
 export type UpdateUserRequest = z.infer<typeof UpdateUserRequest>;
 export const UpgradeAccountRequest = z.object({ email: z.string(), password: z.string(), username: z.string() }).passthrough();
 export type UpgradeAccountRequest = z.infer<typeof UpgradeAccountRequest>;
@@ -158,6 +162,8 @@ export const schemas = {
 	User,
 	LoginRequest,
 	SignupRequest,
+	VerifyEmailTokenRequest,
+	ResendVerificationEmailRequest,
 	ResourceType,
 	ResourceRole,
 	UserRoles,
@@ -276,6 +282,20 @@ const endpoints = makeApi([
 	},
 	{
 		method: "post",
+		path: "/auth/resend_verification_email",
+		alias: "ResendVerificationEmail",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: z.object({ id: z.string() }).passthrough()
+			},
+		],
+		response: z.void(),
+	},
+	{
+		method: "post",
 		path: "/auth/signup",
 		alias: "SignUp",
 		requestFormat: "json",
@@ -301,6 +321,20 @@ const endpoints = makeApi([
 		path: "/auth/test_requires_roles/:conversation_id",
 		alias: "TestRequiresRoles",
 		requestFormat: "json",
+		response: User,
+	},
+	{
+		method: "post",
+		path: "/auth/verify_email_token",
+		alias: "VerifyEmailToken",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: z.object({ token: z.string() }).passthrough()
+			},
+		],
 		response: User,
 	},
 	{

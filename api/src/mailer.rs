@@ -18,13 +18,20 @@ pub trait ComhairleMailer: Send + Sync {
         context: Value,
     ) -> Result<(), ComhairleError>;
 
-    fn send_welcome_email(&self, to: &str, user: &User) -> Result<(), ComhairleError>;
+    fn send_welcome_email(&self, user: &User, verify_link: String) -> Result<(), ComhairleError>;
 
     fn send_password_reset_email(
         &self,
         to: String,
         user: User,
         token: &str,
+    ) -> Result<(), ComhairleError>;
+
+    fn send_verification_email(
+        &self,
+        username: &Option<String>,
+        email: &Option<String>,
+        verify_link: String,
     ) -> Result<(), ComhairleError>;
 }
 
@@ -41,6 +48,7 @@ impl MockComhairleMailer {
         let mut mailer = MockComhairleMailer::new();
 
         mailer.expect_send_welcome_email().returning(|_, _| Ok(()));
+        mailer.expect_send_verification_email().returning(|_, _, _| Ok(()));
         mailer.expect_send_email().returning(|_, _, _, _| Ok(()));
         mailer
             .expect_send_password_reset_email()
@@ -99,13 +107,31 @@ impl ComhairleMailer for Mailer {
         Ok(())
     }
 
-    fn send_welcome_email(&self, to: &str, user: &User) -> Result<(), ComhairleError> {
+    fn send_welcome_email(&self, user: &User, verify_link: String) -> Result<(), ComhairleError> {
         if let Some(email) = &user.email {
             self.send_email(
                 email,
-                "Welcome to Comhairle".into(),
+                "Welcome to Comhairle",
                 "welcome.html",
-                context! {user => user, subject=>"Welcome to Comhairle"},
+                context! {user => user, subject=>"Welcome to Comhairle", verify_link},
+            )
+        } else {
+            Err(ComhairleError::WrongUserType)
+        }
+    }
+
+    fn send_verification_email(
+        &self,
+        username: &Option<String>,
+        email: &Option<String>,
+        verify_link: String,
+    ) -> Result<(), ComhairleError> {
+        if let Some(email) = email {
+            self.send_email(
+                email,
+                "Confirm your email address",
+                "verify_email.html",
+                context! { username, verify_link },
             )
         } else {
             Err(ComhairleError::WrongUserType)

@@ -80,6 +80,9 @@ pub enum ComhairleError {
     #[error("Cant log this type of user in with this flow")]
     WrongUserType,
 
+    #[error("User's email address is already verified")]
+    EmailAlreadyVerified,
+
     #[error("No user logged in")]
     NoLogedInUser,
 
@@ -134,6 +137,9 @@ pub enum ComhairleError {
     #[error("Failed to send email")]
     FailedToSendEmail(#[from] lettre::transport::smtp::Error),
 
+    #[error("User id must be a valid uuid")]
+    InvalidUserId,
+
     #[error("User is not authorized to perform this action")]
     UserNotAuthorized,
 
@@ -178,6 +184,7 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::NoLogedInUser => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates => StatusCode::UNPROCESSABLE_ENTITY,
             ComhairleError::UserNotAuthorized => StatusCode::FORBIDDEN,
+            ComhairleError::EmailAlreadyVerified => StatusCode::CONFLICT,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

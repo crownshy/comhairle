@@ -22,6 +22,7 @@ use tower::ServiceExt;
 use crate::{
     config::ComhairleConfig,
     mailer::MockComhairleMailer,
+    models::users::UpdateUserRequest,
     websockets::{MockWebSocketService, WebSocketService},
     ComhairleState,
 };
@@ -45,7 +46,7 @@ pub fn test_state(
 ) -> Result<ComhairleState, Box<dyn Error>> {
     let state = ComhairleState {
         db,
-        mailer: mailer.unwrap_or_else(|| mock_mailer()),
+        mailer: mailer.unwrap_or_else(mock_mailer),
         config: config.unwrap_or_else(|| test_config().unwrap()),
         websockets: websockets.unwrap_or_else(|| mock_websockets()),
     };
@@ -107,6 +108,7 @@ pub struct UserSession {
     pub username: Option<String>,
     pub password: Option<String>,
     pub email: Option<String>,
+    pub email_verified: bool,
     pub cookie: Option<HeaderValue>,
 }
 
@@ -117,6 +119,7 @@ impl UserSession {
             username: None,
             password: None,
             email: None,
+            email_verified: false,
             cookie: None,
         }
     }
@@ -127,6 +130,7 @@ impl UserSession {
             username: Some("admin".into()),
             password: Some("admin".into()),
             email: Some("admin@crown-shy.com".into()),
+            email_verified: true,
             cookie: None,
         }
     }
@@ -137,6 +141,7 @@ impl UserSession {
             username: Some(username.to_owned()),
             password: Some(password.to_owned()),
             email: Some(email.to_owned()),
+            email_verified: false,
             cookie: None,
         }
     }
@@ -273,14 +278,14 @@ impl UserSession {
     ) -> Result<
         (
             StatusCode,
-            HashMap<String, Option<String>>,
+            HashMap<String, Option<Value>>,
             Option<HeaderValue>,
         ),
         Box<dyn Error>,
     > {
         let (status, value, cookie) = self.get(app, "/auth/current_user").await?;
 
-        let user: HashMap<String, Option<String>> = serde_json::from_value(value).unwrap();
+        let user: HashMap<String, Option<Value>> = serde_json::from_value(value).unwrap();
         Ok((status, user, cookie))
     }
 
@@ -316,15 +321,18 @@ impl UserSession {
     ) -> Result<
         (
             StatusCode,
-            HashMap<String, Option<String>>,
+            HashMap<String, Option<Value>>,
             Option<HeaderValue>,
         ),
         Box<dyn Error>,
     > {
-        let (status, value, cookie) = self.post(&app, "/auth/signup_annon", Body::empty()).await?;
-        let user: HashMap<String, Option<String>> = serde_json::from_value(value)?;
-        self.username = user.get("username").unwrap().clone();
-        self.id = Some(Uuid::parse_str(&user.get("id").unwrap().clone().unwrap()).unwrap());
+        let (status, value, cookie) = self.post(app, "/auth/signup_annon", Body::empty()).await?;
+        let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
+        let username: String =
+            serde_json::from_value(user.get("username").unwrap().clone().unwrap()).unwrap();
+        self.username = Some(username);
+        let id: String = serde_json::from_value(user.get("id").unwrap().clone().unwrap()).unwrap();
+        self.id = Some(Uuid::parse_str(&id).unwrap());
         Ok((status, user, cookie))
     }
 
@@ -334,7 +342,7 @@ impl UserSession {
     ) -> Result<
         (
             StatusCode,
-            HashMap<String, Option<String>>,
+            HashMap<String, Option<Value>>,
             Option<HeaderValue>,
         ),
         Box<dyn Error>,
@@ -349,14 +357,63 @@ impl UserSession {
 
         let (status, value, cookie) = self.post(app, "/auth/signup", body).await?;
 
-        let user: HashMap<String, Option<String>> = serde_json::from_value(value)?;
+        let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
 
         self.cookie = cookie.clone();
         if let Some(id) = user.get("id") {
             if let Some(id) = id {
-                self.id = Some(Uuid::parse_str(id).unwrap());
+                let id: String = serde_json::from_value(id.clone()).unwrap();
+                self.id = Some(Uuid::parse_str(&id).unwrap());
             }
         }
+
+        Ok((status, user, cookie))
+    }
+
+    pub async fn resend_verification_email(
+        &mut self,
+        app: &Router,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            "/auth/resend_verification_email",
+            json!({ "id": self.id }).to_string().into(),
+        )
+        .await
+    }
+
+    pub async fn verify_email_token(
+        &mut self,
+        app: &Router,
+        token: String,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            "/auth/verify_email_token",
+            json!({ "token": token }).to_string().into(),
+        )
+        .await
+    }
+
+    pub async fn update_user_details(
+        &mut self,
+        app: &Router,
+        update_user: UpdateUserRequest,
+    ) -> Result<
+        (
+            StatusCode,
+            HashMap<String, Option<Value>>,
+            Option<HeaderValue>,
+        ),
+        Box<dyn Error>,
+    > {
+        let (status, value, cookie) = self.put(
+            app,
+            "/user/details",
+            json!({ "username": update_user.username, "password": update_user.password, "email_verified": update_user.email_verified }).to_string().into()
+        ).await?;
+
+        let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
 
         Ok((status, user, cookie))
     }
@@ -438,7 +495,7 @@ impl UserSession {
         app: &Router,
         conversation_id: &str,
         workflow_id: &str,
-        no: i32,
+        _no: i32,
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let url = format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step");
         let mut workflow_steps: Vec<serde_json::Value> = vec![];
