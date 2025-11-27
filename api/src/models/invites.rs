@@ -351,6 +351,7 @@ mod tests {
             avatar_url: Some("".into()),
             auth_type: users::UserAuthType::EmailPassword,
             email: Some("TestEmail@gmail.com".into()),
+            email_verified: false,
         };
 
         let invite = Invite {
