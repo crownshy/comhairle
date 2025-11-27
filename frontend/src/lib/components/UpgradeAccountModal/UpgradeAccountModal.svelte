@@ -2,6 +2,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Form from '$lib/components/ui/form';
 	import { Input } from '$lib/components/ui/input';
+	import { PasswordInput } from '$lib/components/ui/password-input';
 	import { Button } from '$lib/components/ui/button';
 	import { apiClient } from '$lib/api/client';
 	import { notifications } from '$lib/notifications.svelte';
@@ -134,9 +135,8 @@
 							<Lock class="h-4 w-4" />
 							Password
 						</Form.Label>
-						<Input
+						<PasswordInput
 							{...props}
-							type="password"
 							bind:value={$formData.password}
 							placeholder="Create a secure password"
 							disabled={saving}
@@ -153,9 +153,8 @@
 							<Lock class="h-4 w-4" />
 							Confirm Password
 						</Form.Label>
-						<Input
+						<PasswordInput
 							{...props}
-							type="password"
 							bind:value={$formData.confirmPassword}
 							placeholder="Confirm your password"
 							disabled={saving}

@@ -8,7 +8,7 @@ pg:
     -e POSTGRES_PASSWORD=comhairle \
     -e POSTGRES_DB=comhairle \
     -v $(pwd)/pg_data:/var/lib/postgresql/data \
-    postgres
+    postgres:16
 
 psql:
     psql -U comhairle -d comhairle  -h localhost -p 5434

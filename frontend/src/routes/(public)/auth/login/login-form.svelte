@@ -8,6 +8,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import { apiClient } from '$lib/api/client';
 	import { goto, invalidateAll } from '$app/navigation';
+	import { EyeOpen, EyeNone } from 'svelte-radix';
+	import PasswordInput from '$lib/components/ui/password-input/password-input.svelte';
 
 	let { backTo }: { backTo?: string } = $props();
 
@@ -63,7 +65,7 @@
 		<Form.Control>
 			{#snippet children({ props })}
 				<Form.Label>{m.password()}</Form.Label>
-				<Input type="password" {...props} bind:value={$formData.password} required />
+				<PasswordInput bind:value={$formData.password} {...props} required />
 			{/snippet}
 		</Form.Control>
 		<Form.FieldErrors />
@@ -71,7 +73,7 @@
 
 	<Form.Button class="w-full" variant="secondary">{m.submit()}</Form.Button>
 
-	<Button href={`/auth/anonymous-login?backTo=${backTo ?? '/'}`} variant="link" class={'w-full'}>
+	<Button href={`/auth/anonymous-login?backTo=${backTo ?? '/'}`} variant="link" class="w-full">
 		{m.login_with_anonymous_id()}
 	</Button>
 
