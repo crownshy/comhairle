@@ -18,6 +18,8 @@ export const ResendVerificationEmailRequest = z.object({ id: z.string() }).passt
 export type ResendVerificationEmailRequest = z.infer<typeof ResendVerificationEmailRequest>;
 export const CreatePasswordResetRequest = z.object({ email: z.string() }).passthrough();
 export type CreatePasswordResetRequest = z.infer<typeof CreatePasswordResetRequest>;
+export const PasswordResetUpdateRequest = z.object({ confirm_password: z.string(), password: z.string(), token: z.string() }).passthrough();
+export type PasswordResetUpdateRequest = z.infer<typeof PasswordResetUpdateRequest>;
 export const ResourceType = z.union([z.literal("Site"), z.object({ Conversation: z.string().uuid() })]);
 export type ResourceType = z.infer<typeof ResourceType>;
 export const ResourceRole = z.enum(["Admin", "SuperAdmin"]);
@@ -167,6 +169,7 @@ export const schemas = {
 	VerifyEmailTokenRequest,
 	ResendVerificationEmailRequest,
 	CreatePasswordResetRequest,
+	PasswordResetUpdateRequest,
 	ResourceType,
 	ResourceRole,
 	UserRoles,
@@ -296,6 +299,20 @@ const endpoints = makeApi([
 		alias: "LogoutUser",
 		requestFormat: "json",
 		response: z.record(z.string()),
+	},
+	{
+		method: "post",
+		path: "/auth/password_reset_update",
+		alias: "PasswordResetUpdate",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: PasswordResetUpdateRequest
+			},
+		],
+		response: z.void(),
 	},
 	{
 		method: "post",

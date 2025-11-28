@@ -81,6 +81,13 @@ struct CreatePasswordResetRequest {
     email: String,
 }
 
+#[derive(Deserialize, JsonSchema)]
+struct PasswordResetUpdateRequest {
+    token: String,
+    password: String,
+    confirm_password: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 struct EmailLinkClaims {
     email: Option<String>,
@@ -338,7 +345,32 @@ async fn create_password_reset(
         .mailer
         .send_password_reset_email(&user.email, &user.username, reset_link)?;
 
-    Ok(StatusCode::OK)
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[instrument(err(Debug), skip(state, payload))]
+async fn password_reset_update(
+    State(state): State<Arc<ComhairleState>>,
+    Json(payload): Json<PasswordResetUpdateRequest>,
+) -> Result<StatusCode, ComhairleError> {
+    let user = validate_jwt::<EmailLinkClaims>(&state, &payload.token).await?;
+
+    if user.auth_type == UserAuthType::Annon {
+        return Err(ComhairleError::WrongUserType);
+    }
+
+    if payload.password != payload.confirm_password {
+        return Err(ComhairleError::PasswordConfirmationMismatch);
+    }
+
+    let updated_password = UpdateUserRequest {
+        password: Some(payload.password),
+        ..Default::default()
+    };
+
+    update_user(&user.id, &updated_password, &state.db).await?;
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// Decode a JWT
@@ -687,7 +719,15 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(create_password_reset, |op| {
                 op.id("CreatePasswordReset")
                     .summary("Create password reset flow by sending reset link to user email")
-                    .response::<200, ()>()
+                    .response::<204, ()>()
+            }),
+        )
+        .api_route(
+            "/password_reset_update",
+            post_with(password_reset_update, |op| {
+                op.id("PasswordResetUpdate")
+                    .summary("Update password of user in reset flow")
+                    .response::<204, ()>()
             }),
         )
         .api_route(
@@ -719,11 +759,12 @@ mod tests {
         models::users::{
             add_user_resource_role, Resource, Role, UpdateUserRequest, User, UserAuthType,
         },
-        routes::auth::{generate_jwt, SessionClaims},
+        routes::auth::{generate_jwt, EmailLinkClaims, SessionClaims},
         setup_server,
         test_helpers::{test_state, UserSession},
     };
 
+    use aide::generate;
     use axum::http::StatusCode;
     use mockall::predicate::{always, eq};
     use sqlx::PgPool;
@@ -1225,7 +1266,11 @@ mod tests {
             .create_password_reset(&app, email.to_string())
             .await?;
 
-        assert_eq!(status, StatusCode::OK, "reset link sent to user email");
+        assert_eq!(
+            status,
+            StatusCode::NO_CONTENT,
+            "reset link sent to user email"
+        );
 
         Ok(())
     }
@@ -1257,6 +1302,126 @@ mod tests {
             status,
             StatusCode::NOT_FOUND,
             "unknown user returns not found"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn users_password_should_be_updated(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let username = "test_user";
+        let password = "test_password";
+        let email = "test_email";
+
+        let state = test_state().db(pool).call()?;
+        let secret = state.config.jwt_secret.clone();
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new(username, password, email);
+        let (_, user, _) = session.signup(&app).await?;
+        session.logout(&app).await?;
+
+        let id = user.get("id").unwrap().as_ref().unwrap().as_str().unwrap();
+        let user = User {
+            id: Uuid::parse_str(id).unwrap(),
+            email: Some(email.to_string()),
+            password: Some(password.to_string()),
+            username: Some(username.to_string()),
+            auth_type: UserAuthType::EmailPassword,
+            avatar_url: None,
+            email_verified: false,
+        };
+        let claims = EmailLinkClaims {
+            email: Some(email.to_string()),
+        };
+        let token = generate_jwt(&user, claims, &secret);
+
+        let updated_password = "updated_password";
+        let (status, _, _) = session
+            .password_reset_update(&app, &token, updated_password, updated_password)
+            .await?;
+
+        assert_eq!(
+            status,
+            StatusCode::NO_CONTENT,
+            "success returned after update"
+        );
+        // TODO: figure out how to read updated password from test db
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn password_and_confirmation_should_match(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let username = "test_username";
+        let email = "test_email";
+        let password = "test_password";
+
+        let state = test_state().db(pool).call()?;
+        let secret = state.config.jwt_secret.clone();
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new(username, password, email);
+        let (_, user, _) = session.signup(&app).await?;
+        session.logout(&app).await?;
+
+        let id = user.get("id").unwrap().as_ref().unwrap().as_str().unwrap();
+        let user = User {
+            id: Uuid::parse_str(id).unwrap(),
+            email: Some(email.to_string()),
+            username: Some(username.to_string()),
+            password: Some(password.to_string()),
+            avatar_url: None,
+            auth_type: UserAuthType::EmailPassword,
+            email_verified: false,
+        };
+        let claims = EmailLinkClaims {
+            email: Some(email.to_string()),
+        };
+        let token = generate_jwt(&user, claims, &secret);
+        let (status, _, _) = session
+            .password_reset_update(&app, &token, "foo", "bar")
+            .await?;
+
+        assert_eq!(status, StatusCode::BAD_REQUEST, "can't update password if confirmation password doesn't match");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn annon_users_cannot_reset_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let secret = state.config.jwt_secret.clone();
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new_anon();
+        let (_, user, _) = session.signup_annon(&app).await?;
+
+        let id = user.get("id").unwrap().as_ref().unwrap().as_str().unwrap();
+        let username = user
+            .get("username")
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .as_str()
+            .unwrap();
+        let user = User {
+            id: Uuid::parse_str(id).unwrap(),
+            email: None,
+            password: None,
+            username: Some(username.to_string()),
+            auth_type: UserAuthType::Annon,
+            avatar_url: None,
+            email_verified: false,
+        };
+        let claims = EmailLinkClaims { email: None };
+        let token = generate_jwt(&user, claims, &secret);
+        let password = "updated_password";
+        let (status, _, _) = session
+            .password_reset_update(&app, &token, password, password)
+            .await?;
+
+        assert_eq!(
+            status,
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "annon users cannot reset password"
         );
 
         Ok(())
