@@ -34,6 +34,7 @@
 	"reset_password_body": "Enter the email address associated with your account and we'll send an email with instructions to reset your password.",
 	"password_reset_instructions_heading": "Check your email",
 	"password_reset_instructions_body": "We have sent a password reset link to your email address.",
+	"forgotten_password": "Forgotten your password?",
 	"previous": "Previous",
 	"pseudnymous_id": "Pseudonymous id",
 	"sign_up_anonymously": "Sign up anonymously",

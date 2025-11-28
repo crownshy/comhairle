@@ -34,6 +34,7 @@
 	"reset_password_body": "Rhowch y cyfeiriad e-bost sy’n gysylltiedig â’ch cyfrif a byddwn yn anfon e-bost gyda chyfarwyddiadau i ailosod eich cyfrinair.",
 	"password_reset_instructions_heading": "Gwiriwch eich e-bost",
 	"password_reset_instructions_body": "Rydym wedi anfon dolen ailosod cyfrinair i’ch cyfeiriad e-bost.",
+	"forgotten_password": "Wedi anghofio eich cyfrinair?",
 	"previous": "Blaenorol",
 	"pseudnymous_id": "ID ffug",
 	"sign_up_anonymously": "Cofrestrwch yn ddienw",

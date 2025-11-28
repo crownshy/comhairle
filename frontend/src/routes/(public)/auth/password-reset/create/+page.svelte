@@ -65,16 +65,16 @@
 						/>
 					{/snippet}
 				</Form.Control>
-				<Button type="submit"
-					>{#if loading}
-						<span class="flex w-12 justify-center">
-							<Spinner />
-						</span>
-					{:else}
-						{m.submit()}
-					{/if}
-				</Button>
 			</Form.Field>
+			<Button type="submit"
+				>{#if loading}
+					<span class="flex w-12 justify-center">
+						<Spinner />
+					</span>
+				{:else}
+					{m.submit()}
+				{/if}
+			</Button>
 		</form>
 	</section>
 </AuthPage>

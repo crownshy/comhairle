@@ -34,6 +34,7 @@
 	"reset_password_body": "Cuir a-steach an seòladh post-d co-cheangailte ris a’ chunntas agad agus cuiridh sinn post-d thugad le stiùireadh gus am facal-faire agad ath-shuidheachadh.",
 	"password_reset_instructions_heading": "Thoir sùil air do phost-d",
 	"password_reset_instructions_body": "Chuir sinn ceangal ath-shuidheachaidh facal-faire gu do sheòladh post-d.",
+	"forgotten_password": "An do dhìochuimhnich thu am facal-faire agad?",
 	"previous": "Air ais",
 	"pseudnymous_id": "ID ainm-brèige",
 	"sign_up_anonymously": "Clàraich gun urra",
