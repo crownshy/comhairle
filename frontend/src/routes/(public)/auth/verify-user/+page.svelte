@@ -15,7 +15,7 @@
 			<h1 class="mb-2 text-xl font-bold">{m.verify_user_success_heading()}</h1>
 			<p class="mb-4">{@html m.verify_user_success_body()}</p>
 		{:else if status === 'error' && errorMessage !== null}
-			<h1 class="mb-2 text-xl font-bold">{m.verify_user_error_heading()}</h1>
+			<h1 class="mb-2 text-xl font-bold">{m.something_went_wrong()}</h1>
 			<p class="mb-4">
 				{@html errorMessage}
 			</p>

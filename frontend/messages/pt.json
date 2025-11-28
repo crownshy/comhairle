@@ -9,6 +9,7 @@
 	"dont_have_an_account_signup": "Não tem uma conta? Registre-se",
 	"email": "E-mail",
 	"email_placeholder": "Endereço de e-mail",
+	"email_address_not_found": "Endereço de e-mail não encontrado",
 	"enter_your_details_below_to_login": "Digite seus detalhes abaixo para entrar",
 	"enter_your_password_below": "Digite sua senha abaixo",
 	"generate_anonymous_id": "Gerar ID anônimo",
@@ -89,9 +90,9 @@
 	"verify_user_pending_body": "Clique no link de verificação que enviamos para o seu endereço de e-mail.",
 	"verify_user_success_heading": "Seu e-mail foi verificado com sucesso",
 	"verify_user_success_body": "Agora você pode <a href=\"/conversations\" class=\"underline\">participar de uma conversa</a>",
-	"verify_user_error_heading": "Algo deu errado",
 	"verify_user_error_body": "Ocorreu um erro ao verificar seu endereço de e-mail. Tente <a href=\"/auth/login\" class=\"underline\">fazer login.</a>",
 	"verify_user_conflict_error_body": "Seu endereço de e-mail já foi verificado. Agora você pode ver e <a href=\"/conversations\" class=\"underline\">participar de conversas.</a>",
+	"something_went_wrong": "Algo deu errado",
 	"send_again": "Enviar novamente"
 
 }
