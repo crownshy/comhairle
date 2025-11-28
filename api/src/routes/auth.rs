@@ -327,7 +327,7 @@ async fn verify_email_token(
 }
 
 #[instrument(err(Debug), skip(state, payload))]
-async fn create_password_reset(
+async fn password_reset_create(
     State(state): State<Arc<ComhairleState>>,
     Json(payload): Json<CreatePasswordResetRequest>,
 ) -> Result<StatusCode, ComhairleError> {
@@ -715,9 +715,9 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .api_route(
-            "/create_password_reset",
-            post_with(create_password_reset, |op| {
-                op.id("CreatePasswordReset")
+            "/password_reset_create",
+            post_with(password_reset_create, |op| {
+                op.id("PasswordResetCreate")
                     .summary("Create password reset flow by sending reset link to user email")
                     .response::<204, ()>()
             }),
@@ -1263,7 +1263,7 @@ mod tests {
         session.signup(&app).await?;
 
         let (status, _, _) = session
-            .create_password_reset(&app, email.to_string())
+            .password_reset_create(&app, email.to_string())
             .await?;
 
         assert_eq!(
@@ -1295,7 +1295,7 @@ mod tests {
         session.signup(&app).await?;
 
         let (status, _, _) = session
-            .create_password_reset(&app, "unknown_user".to_string())
+            .password_reset_create(&app, "unknown_user".to_string())
             .await?;
 
         assert_eq!(
@@ -1381,7 +1381,11 @@ mod tests {
             .password_reset_update(&app, &token, "foo", "bar")
             .await?;
 
-        assert_eq!(status, StatusCode::BAD_REQUEST, "can't update password if confirmation password doesn't match");
+        assert_eq!(
+            status,
+            StatusCode::BAD_REQUEST,
+            "can't update password if confirmation password doesn't match"
+        );
 
         Ok(())
     }

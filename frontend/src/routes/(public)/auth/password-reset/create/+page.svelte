@@ -28,7 +28,7 @@
 		if (result.valid) {
 			let { email } = result.data;
 			try {
-				await apiClient.CreatePasswordReset({ email });
+				await apiClient.PasswordResetCreate({ email });
 				await invalidateAll();
 				await goto(resolve('/auth/password-reset/sent'));
 			} catch (e) {
