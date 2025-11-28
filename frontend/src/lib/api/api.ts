@@ -243,20 +243,6 @@ export const schemas = {
 
 const endpoints = makeApi([
 	{
-		method: "post",
-		path: "/auth/create_password_reset",
-		alias: "CreatePasswordReset",
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "body",
-				type: "Body",
-				schema: z.object({ email: z.string() }).passthrough()
-			},
-		],
-		response: z.void(),
-	},
-	{
 		method: "get",
 		path: "/auth/current_user",
 		alias: "CurrentUser",
@@ -299,6 +285,20 @@ const endpoints = makeApi([
 		alias: "LogoutUser",
 		requestFormat: "json",
 		response: z.record(z.string()),
+	},
+	{
+		method: "post",
+		path: "/auth/password_reset_create",
+		alias: "PasswordResetCreate",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: z.object({ email: z.string() }).passthrough()
+			},
+		],
+		response: z.void(),
 	},
 	{
 		method: "post",
