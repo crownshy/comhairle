@@ -9,6 +9,7 @@
 	import { apiClient } from '$lib/api/client';
 	import { goto, invalidateAll } from '$app/navigation';
 	import PasswordInput from '$lib/components/ui/password-input/password-input.svelte';
+	import { resolve } from '$app/paths';
 
 	let { backTo }: { backTo?: string } = $props();
 
@@ -32,7 +33,7 @@
 					password
 				});
 				await invalidateAll();
-				await goto(backTo ?? '/');
+				await goto(resolve(backTo ?? '/'));
 			} catch (e) {
 				responseMessage = e.response.data.err;
 			}
@@ -77,6 +78,10 @@
 	</Button>
 
 	<p class="text-sm">
-		<a href={`/auth/signup?backTo=${backTo ?? '/'}`}>{m.dont_have_an_account_signup()}</a>
+		<a href={resolve(`/auth/password-reset/create`)}>{m.forgotten_password()}</a>
+	</p>
+
+	<p class="text-sm">
+		<a href={resolve(`/auth/signup?backTo=${backTo ?? '/'}`)}>{m.dont_have_an_account_signup()}</a>
 	</p>
 </form>

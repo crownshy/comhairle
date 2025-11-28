@@ -34,6 +34,7 @@
 	"reset_password_body": "Introduce la dirección de correo electrónico asociada a tu cuenta y te enviaremos un correo con instrucciones para restablecer tu contraseña.",
 	"password_reset_instructions_heading": "Revisa tu correo electrónico",
 	"password_reset_instructions_body": "Hemos enviado un enlace para restablecer tu contraseña a tu correo electrónico.",
+	"forgotten_password": "¿Olvidaste tu contraseña?",
 	"previous": "Anterior",
 	"pseudnymous_id": "ID seudónimo",
 	"sign_up_anonymously": "Registrarse anónimamente",
