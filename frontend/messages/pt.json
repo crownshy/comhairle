@@ -34,6 +34,8 @@
 	"reset_password_body": "Insira o endereço de e-mail associado à sua conta e enviaremos um e-mail com instruções para redefinir sua senha.",
 	"password_reset_instructions_heading": "Verifique seu e-mail",
 	"password_reset_instructions_body": "Enviamos um link para redefinir sua senha para o seu endereço de e-mail.",
+	"password_reset_success_heading": "Senha atualizada",
+	"password_reset_success_body": "Sua senha foi atualizada com sucesso. Agora você pode <a href=\"/auth/login\" class=\"underline\">fazer login</a> para participar de uma conversa.",
 	"forgotten_password": "Esqueceu sua senha?",
 	"previous": "Anterior",
 	"pseudnymous_id": "ID pseudônimo",

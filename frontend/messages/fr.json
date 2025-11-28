@@ -34,6 +34,8 @@
 	"reset_password_body": "Saisissez l’adresse e-mail associée à votre compte et nous vous enverrons un e-mail contenant les instructions pour réinitialiser votre mot de passe.",
 	"password_reset_instructions_heading": "Vérifiez votre e-mail",
 	"password_reset_instructions_body": "Nous avons envoyé un lien de réinitialisation du mot de passe à votre adresse e-mail.",
+	"password_reset_success_heading": "Mot de passe mis à jour",
+	"password_reset_success_body": "Votre mot de passe a été mis à jour avec succès. Vous pouvez maintenant <a href=\"/auth/login\" class=\"underline\">vous connecter</a> pour rejoindre une conversation.",
 	"forgotten_password": "Mot de passe oublié ?",
 	"previous": "Précédent",
 	"pseudnymous_id": "ID pseudonyme",
