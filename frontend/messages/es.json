@@ -34,6 +34,8 @@
 	"reset_password_body": "Introduce la dirección de correo electrónico asociada a tu cuenta y te enviaremos un correo con instrucciones para restablecer tu contraseña.",
 	"password_reset_instructions_heading": "Revisa tu correo electrónico",
 	"password_reset_instructions_body": "Hemos enviado un enlace para restablecer tu contraseña a tu correo electrónico.",
+	"password_reset_success_heading": "Contraseña actualizada",
+	"password_reset_success_body": "Tu contraseña se ha actualizado correctamente. Ahora puedes <a href=\"/auth/login\" class=\"underline\">iniciar sesión</a> para unirte a una conversación.",
 	"forgotten_password": "¿Olvidaste tu contraseña?",
 	"previous": "Anterior",
 	"pseudnymous_id": "ID seudónimo",

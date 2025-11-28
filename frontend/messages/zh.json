@@ -34,6 +34,8 @@
 	"reset_password_body": "请输入与您的账户关联的电子邮箱地址，我们将向您发送一封包含重置密码说明的邮件。",
 	"password_reset_instructions_heading": "请检查您的邮箱",
 	"password_reset_instructions_body": "我们已向您的电子邮箱地址发送了一个重置密码链接。",
+	"password_reset_success_heading": "密码已更新",
+	"password_reset_success_body": "您的密码已成功更新。您现在可以 <a href=\"/auth/login\" class=\"underline\">登录</a> 以加入对话。",
 	"forgotten_password": "忘记密码了吗？",
 	"previous": "上一页",
 	"pseudnymous_id": "化名ID",

@@ -34,6 +34,8 @@
 	"reset_password_body": "أدخل عنوان البريد الإلكتروني المرتبط بحسابك وسنرسل إليك رسالة بريد إلكتروني تحتوي على تعليمات لإعادة تعيين كلمة المرور.",
 	"password_reset_instructions_heading": "تحقق من بريدك الإلكتروني",
 	"password_reset_instructions_body": "لقد أرسلنا رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني.",
+	"password_reset_success_heading": "تم تحديث كلمة المرور",
+	"password_reset_success_body": "تم تحديث كلمة المرور بنجاح. يمكنك الآن <a href=\"/auth/login\" class=\"underline\">تسجيل الدخول</a> للانضمام إلى محادثة.",
 	"forgotten_password": "هل نسيت كلمة المرور؟",
 	"previous": "السابق",
 	"pseudnymous_id": "معرف مستعار",
