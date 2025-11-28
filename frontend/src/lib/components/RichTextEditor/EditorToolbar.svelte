@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Editor } from '@tiptap/core';
-	import type { ActiveStates } from './richTextEditor.types';
+	import type { ActiveStates } from './types';
 	import { validateUrl, validateIframeUrl, DEFAULT_ALLOWED_DOMAINS } from '$lib/utils/urlValidation';
 	import UrlInputPopover from '$lib/components/UrlInputPopover/UrlInputPopover.svelte';
 	
