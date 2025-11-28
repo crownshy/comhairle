@@ -9,6 +9,7 @@
 	"dont_have_an_account_signup": "Don't have an account? Sign up",
 	"email": "Email",
 	"email_placeholder": "Email address",
+	"email_address_not_found": "Email address not found",
 	"enter_your_details_below_to_login": "Enter your details below to login",
 	"enter_your_password_below": "Enter your details below to login",
 	"generate_anonymous_id": "Generate Anonymous Id",
@@ -90,9 +91,9 @@
 	"verify_user_pending_body": "Click on the verification link we have sent to your email address.",
 	"verify_user_success_heading": "Successfully verified your email",
 	"verify_user_success_body": "You can now <a href=\"/conversations\" class=\"underline\">join a conversation</a>",
-	"verify_user_error_heading": "Something went wrong",
 	"verify_user_error_body": "Something went wrong verifying your email address. Try <a href=\"/auth/login\" class=\"underline\">logging in.</a>",
 	"verify_user_conflict_error_body": "Your email address has already been verified. You can now view and <a href=\"/conversations\" class=\"underline\">join conversations.</a>",
 	"send_again": "Send again",
+	"something_went_wrong": "Something went wrong",
 	"signup": "Signup"
 }

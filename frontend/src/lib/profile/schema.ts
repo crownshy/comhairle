@@ -24,3 +24,8 @@ export const annonLoginFormSchema = z.object({
 	username: z.string().min(1)
 });
 export type AnnonLoginFrom = z.infer<typeof annonLoginFormSchema>;
+
+export const passwordResetCreateFormSchema = z.object({
+	email: z.string().email(m.please_enter_a_valid_email())
+});
+export type PasswordResetCreateForm = z.infer<typeof passwordResetCreateFormSchema>;

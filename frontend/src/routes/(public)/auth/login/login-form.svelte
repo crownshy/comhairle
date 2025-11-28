@@ -2,13 +2,12 @@
 	import * as Form from '$lib/components/ui/form';
 	import { Input } from '$lib/components/ui/input';
 	import { loginFormSchema } from '$lib/profile';
-	import { type SuperValidated, type Infer, superForm, defaults } from 'sveltekit-superforms';
+	import { superForm, defaults } from 'sveltekit-superforms';
 	import { zod, zodClient } from 'sveltekit-superforms/adapters';
 	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { apiClient } from '$lib/api/client';
 	import { goto, invalidateAll } from '$app/navigation';
-	import { EyeOpen, EyeNone } from 'svelte-radix';
 	import PasswordInput from '$lib/components/ui/password-input/password-input.svelte';
 
 	let { backTo }: { backTo?: string } = $props();
@@ -21,7 +20,7 @@
 
 	let responseMessage = $state(null);
 
-	const { form: formData, enhance, message, validateForm } = form;
+	const { form: formData, enhance, validateForm } = form;
 
 	async function attemptLogin() {
 		let result = await validateForm({ update: true });

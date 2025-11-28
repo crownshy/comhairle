@@ -1,22 +1,80 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
+	import * as Form from '$lib/components/ui/form';
 	import { AuthPage } from '$lib/profile';
 	import * as m from '$lib/paraglide/messages';
 	import Input from '$lib/components/ui/input/input.svelte';
-	import Label from '$lib/components/ui/label/label.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
+	import { passwordResetCreateFormSchema } from '$lib/profile/schema';
+	import { defaults, superForm } from 'sveltekit-superforms';
+	import { zod, zodClient } from 'sveltekit-superforms/adapters';
+	import { apiClient } from '$lib/api/client';
+	import { goto, invalidateAll } from '$app/navigation';
+	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
+
+	let responseMessage: string | null = $state(null);
+
+	const form = superForm(defaults(zod(passwordResetCreateFormSchema)), {
+		validators: zodClient(passwordResetCreateFormSchema),
+		taintedMessage: false,
+		onSubmit: passwordResetCreate
+	});
+	const { form: formData, errors, validateForm, enhance } = form;
+	let loading = $state(false);
+
+	async function passwordResetCreate() {
+		loading = true;
+		let result = await validateForm({ update: true });
+		if (result.valid) {
+			let { email } = result.data;
+			try {
+				await apiClient.CreatePasswordReset({ email });
+				await invalidateAll();
+				await goto(resolve('/auth/password-reset/sent'));
+			} catch (e) {
+				if (e.response?.status === 404) {
+					responseMessage = m.email_address_not_found();
+				} else {
+					responseMessage = m.something_went_wrong();
+				}
+			}
+		}
+		loading = false;
+	}
 </script>
 
 <AuthPage>
 	<section>
-		<div class="mb-4 space-y-4">
+		<form class="space-y-4" method="POST" use:enhance>
 			<h1 class="text-xl font-bold">{m.reset_password_heading()}</h1>
 			<p class="text-muted-foreground mb-4 text-sm">{m.reset_password_body()}</p>
-		</div>
-		<form class="space-y-4" method="POST">
-			<!-- TODO: enhance -->
-			<Label>{m.email()}</Label>
-			<Input placeholder={m.email_placeholder()} />
-			<Button type="submit">{m.submit()}</Button>
+			{#if responseMessage}
+				<p class="text-destructive text-sm">{responseMessage}</p>
+			{:else if $errors.email}
+				<p class="text-destructive text-sm">{$errors.email}</p>
+			{/if}
+			<Form.Field {form} name="email">
+				<Form.Control>
+					{#snippet children({ props })}
+						<Form.Label>{m.email()}</Form.Label>
+						<Input
+							bind:value={$formData.email}
+							placeholder={m.email_placeholder()}
+							{...props}
+							required
+						/>
+					{/snippet}
+				</Form.Control>
+				<Button type="submit"
+					>{#if loading}
+						<span class="flex w-12 justify-center">
+							<Spinner />
+						</span>
+					{:else}
+						{m.submit()}
+					{/if}
+				</Button>
+			</Form.Field>
 		</form>
 	</section>
 </AuthPage>
