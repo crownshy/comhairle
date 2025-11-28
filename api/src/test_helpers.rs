@@ -292,11 +292,13 @@ impl UserSession {
     pub async fn login(
         &mut self,
         app: &Router,
+        email: &str,
+        password: &str,
     ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
             "/auth/login",
-            json!({"email":self.email, "password": self.password})
+            json!({ "email": email, "password": password })
                 .to_string()
                 .into(),
         )

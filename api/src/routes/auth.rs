@@ -757,14 +757,15 @@ mod tests {
     use crate::{
         mailer::MockComhairleMailer,
         models::users::{
-            add_user_resource_role, Resource, Role, UpdateUserRequest, User, UserAuthType,
+            add_user_resource_role, get_user_by_email, Resource, Role, UpdateUserRequest, User,
+            UserAuthType,
         },
         routes::auth::{generate_jwt, EmailLinkClaims, SessionClaims},
         setup_server,
         test_helpers::{test_state, UserSession},
     };
 
-    use aide::generate;
+    use argon2::{Argon2, PasswordHash, PasswordVerifier};
     use axum::http::StatusCode;
     use mockall::predicate::{always, eq};
     use sqlx::PgPool;
@@ -1048,7 +1049,7 @@ mod tests {
         session.logout(&app).await?;
 
         let mut session = UserSession::new(username, "wrong password", email);
-        let (status, _, _) = session.login(&app).await?;
+        let (status, _, _) = session.login(&app, email, "wrong_password").await?;
 
         assert_eq!(
             status,
@@ -1074,7 +1075,7 @@ mod tests {
         session.logout(&app).await?;
 
         let mut session = UserSession::new(username, "test_password", "test_Email@email.com");
-        let (status, res, _) = session.login(&app).await?;
+        let (status, _, _) = session.login(&app, email, password).await?;
         assert_eq!(status, StatusCode::OK, "API should return authorized");
         Ok(())
     }
@@ -1314,6 +1315,7 @@ mod tests {
         let email = "test_email";
 
         let state = test_state().db(pool).call()?;
+        let db = &state.db.clone();
         let secret = state.config.jwt_secret.clone();
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new(username, password, email);
@@ -1336,16 +1338,30 @@ mod tests {
         let token = generate_jwt(&user, claims, &secret);
 
         let updated_password = "updated_password";
-        let (status, _, _) = session
+        let (reset_status, _, _) = session
             .password_reset_update(&app, &token, updated_password, updated_password)
             .await?;
+        let (login_status, _, _) = session.login(&app, email, updated_password).await?;
+
+        let user = get_user_by_email(email, db).await?;
+        let hashed_user_password = PasswordHash::new(user.password.as_ref().unwrap()).unwrap();
 
         assert_eq!(
-            status,
+            reset_status,
             StatusCode::NO_CONTENT,
             "success returned after update"
         );
-        // TODO: figure out how to read updated password from test db
+        assert_eq!(
+            login_status,
+            StatusCode::OK,
+            "success returned after login with new password"
+        );
+        assert!(
+            Argon2::default()
+                .verify_password(updated_password.as_bytes(), &hashed_user_password)
+                .is_ok(),
+            "updated password matches hashed value in the database"
+        );
 
         Ok(())
     }
