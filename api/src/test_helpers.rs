@@ -431,6 +431,23 @@ impl UserSession {
         .await
     }
 
+    pub async fn password_reset_update(
+        &mut self,
+        app: &Router,
+        token: &str,
+        password: &str,
+        confirm_password: &str,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            "/auth/password_reset_update",
+            json!({ "token": token, "password": password, "confirm_password": confirm_password})
+                .to_string()
+                .into(),
+        )
+        .await
+    }
+
     pub async fn create_conversation(
         &mut self,
         app: &Router,

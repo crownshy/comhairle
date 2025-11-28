@@ -41,6 +41,9 @@ pub enum ComhairleError {
     #[error("The password and email don't match")]
     WrongPassword,
 
+    #[error("The password and password confirmation don't match")]
+    PasswordConfirmationMismatch,
+
     #[error("User Required for this route")]
     UserRequired,
 
@@ -185,6 +188,7 @@ impl IntoResponse for ComhairleError {
             ComhairleError::NoValidUpdates => StatusCode::UNPROCESSABLE_ENTITY,
             ComhairleError::UserNotAuthorized => StatusCode::FORBIDDEN,
             ComhairleError::EmailAlreadyVerified => StatusCode::CONFLICT,
+            ComhairleError::PasswordConfirmationMismatch => StatusCode::BAD_REQUEST,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
