@@ -1,0 +1,605 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "RAGFlow API",
+    "version": "0.1.0",
+    "description": "Schema derived from RAGFlow HTTP API reference (DEV)."
+  },
+  "servers": [
+    {
+      "url": "https://YOUR-RAGFLOW-HOST"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Message": {
+        "type": "object",
+        "properties": {
+          "role": { "type": "string" },
+          "content": { "type": "string" }
+        },
+        "required": ["role", "content"]
+      },
+      "ChatCompletionRequest": {
+        "type": "object",
+        "properties": {
+          "model": { "type": "string" },
+          "messages": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Message" }
+          },
+          "stream": { "type": "boolean" }
+        },
+        "required": ["model", "messages"]
+      },
+      "ApiResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer" },
+          "message": { "type": "string" },
+          "data": { "type": "object" }
+        },
+        "required": ["code"]
+      },
+      "CreateDatasetRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "avatar": { "type": "string" },
+          "description": { "type": "string" },
+          "embedding_model": { "type": "string" },
+          "permission": { "type": "string" },
+          "chunk_method": { "type": "string" },
+          "parser_config": { "type": "object" },
+          "parse_type": { "type": "integer" },
+          "pipeline_id": { "type": "string" }
+        },
+        "required": ["name"]
+      },
+      "UpdateDocumentRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "meta_fields": { "type": "object" },
+          "chunk_method": { "type": "string" },
+          "parser_config": { "type": "object" }
+        }
+      },
+      "DeleteDocumentsRequest": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "required": ["ids"]
+      },
+      "ParseChunksRequest": {
+        "type": "object",
+        "properties": {
+          "document_ids": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "required": ["document_ids"]
+      }
+    }
+  },
+  "security": [
+    { "BearerAuth": [] }
+  ],
+  "paths": {
+    "/api/v1/chats_openai/{chat_id}/chat/completions": {
+      "post": {
+        "summary": "Create chat completion (OpenAI-compatible)",
+        "operationId": "createOpenAIChatCompletion",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ChatCompletionRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Chat completion result",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/agents_openai/{agent_id}/chat/completions": {
+      "post": {
+        "summary": "Create agent completion (OpenAI-compatible)",
+        "operationId": "createOpenAIAgentCompletion",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ChatCompletionRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent chat completion",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/datasets": {
+      "post": {
+        "summary": "Create dataset",
+        "operationId": "createDataset",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateDatasetRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Dataset created",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiResponse" } }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List datasets",
+        "operationId": "listDatasets",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "page_size", "in": "query", "schema": { "type": "integer" } },
+          { "name": "orderby", "in": "query", "schema": { "type": "string" } },
+          { "name": "desc", "in": "query", "schema": { "type": "boolean" } },
+          { "name": "name", "in": "query", "schema": { "type": "string" } },
+          { "name": "id", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dataset list",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiResponse" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete datasets",
+        "operationId": "deleteDatasets",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  }
+                },
+                "required": ["ids"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Delete result",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiResponse" } }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/datasets/{dataset_id}": {
+      "put": {
+        "summary": "Update dataset",
+        "operationId": "updateDataset",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "avatar": { "type": "string" },
+                  "description": { "type": "string" },
+                  "embedding_model": { "type": "string" },
+                  "permission": { "type": "string" },
+                  "chunk_method": { "type": "string" },
+                  "pagerank": { "type": "integer" },
+                  "parser_config": { "type": "object" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Update result",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiResponse" } }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/datasets/{dataset_id}/documents": {
+      "post": {
+        "summary": "Upload documents",
+        "operationId": "uploadDocuments",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Upload result",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiResponse" } }
+            }
+          }
+        }
+      },
+
+      "get": {
+        "summary": "List documents",
+        "operationId": "listDocuments",
+        "parameters": [
+          { "name": "dataset_id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "page_size", "in": "query", "schema": { "type": "integer" } },
+          { "name": "orderby", "in": "query", "schema": { "type": "string" } },
+          { "name": "desc", "in": "query", "schema": { "type": "boolean" } },
+          { "name": "keywords", "in": "query", "schema": { "type": "string" } },
+          { "name": "id", "in": "query", "schema": { "type": "string" } },
+          { "name": "name", "in": "query", "schema": { "type": "string" } },
+          { "name": "create_time_from", "in": "query", "schema": { "type": "integer" } },
+          { "name": "create_time_to", "in": "query", "schema": { "type": "integer" } },
+          { "name": "suffix", "in": "query", "schema": { "type": "string" } },
+          { "name": "run", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "List",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiResponse" } }
+            }
+          }
+        }
+      },
+
+      "delete": {
+        "summary": "Delete documents",
+        "operationId": "deleteDocuments",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DeleteDocumentsRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Delete result",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiResponse" } }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/datasets/{dataset_id}/documents/{document_id}": {
+      "get": {
+        "summary": "Download document",
+        "operationId": "downloadDocument",
+        "parameters": [
+          { "name": "dataset_id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "document_id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Binary file",
+            "content": {
+              "application/octet-stream": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiResponse" } }
+            }
+          }
+        }
+      },
+
+      "put": {
+        "summary": "Update document",
+        "operationId": "updateDocument",
+        "parameters": [
+          { "name": "dataset_id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "document_id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateDocumentRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Update OK",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiResponse" } }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/datasets/{dataset_id}/chunks": {
+      "post": {
+        "summary": "Parse documents into chunks",
+        "operationId": "parseDocumentsToChunks",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ParseChunksRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Task created",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiResponse" } }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/datasets/{dataset_id}/documents/{document_id}/chunks": {
+      "get": {
+        "summary": "List chunks",
+        "operationId": "listDocumentChunks",
+        "parameters": [
+          { "name": "dataset_id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "document_id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "keywords", "in": "query", "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } },
+          { "name": "page_size", "in": "query", "schema": { "type": "integer" } },
+          { "name": "id", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chunk list",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiResponse" } }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/datasets/{dataset_id}/knowledge_graph": {
+      "get": {
+        "summary": "Get knowledge graph",
+        "operationId": "getKnowledgeGraph",
+        "parameters": [
+          { "name": "dataset_id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Graph",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiResponse" } }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete knowledge graph",
+        "operationId": "deleteKnowledgeGraph",
+        "parameters": [
+          { "name": "dataset_id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiResponse" } }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/datasets/{dataset_id}/run_graphrag": {
+      "post": {
+        "summary": "Run GraphRAG",
+        "operationId": "runGraphRAG",
+        "parameters": [
+          { "name": "dataset_id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "GraphRAG started",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiResponse" } }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/datasets/{dataset_id}/trace_graphrag": {
+      "get": {
+        "summary": "Trace GraphRAG",
+        "operationId": "traceGraphRAG",
+        "parameters": [
+          { "name": "dataset_id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiResponse" } }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/datasets/{dataset_id}/run_raptor": {
+      "post": {
+        "summary": "Run RAPTOR",
+        "operationId": "runRAPTOR",
+        "parameters": [
+          { "name": "dataset_id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "RAPTOR started",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiResponse" } }
+            }
+          }
+        }
+      }
+    },
+
+    "/api/v1/datasets/{dataset_id}/trace_raptor": {
+      "get": {
+        "summary": "Trace RAPTOR",
+        "operationId": "traceRAPTOR",
+        "parameters": [
+          { "name": "dataset_id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ApiResponse" } }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
