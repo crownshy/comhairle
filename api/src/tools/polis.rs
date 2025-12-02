@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use aide::axum::{routing::get_with, ApiRouter};
 use axum::{
@@ -392,7 +392,7 @@ pub async fn proxy(req: Request) -> Result<Response, ComhairleError> {
 
     for (key, value) in response.headers() {
         info!("{key} : {value:#?}");
-        if (key == "content-type") {
+        if key == "content-type" {
             response_builder = response_builder.header(key, value);
         }
     }
