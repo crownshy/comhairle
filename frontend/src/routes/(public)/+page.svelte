@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages';
 	import Button from '$lib/components/ui/button/button.svelte';
+	import ChatbotWrapper from '$lib/components/ChatBotWrapper.svelte';
 </script>
 
 <div class="flex h-full flex-col items-center justify-around pt-50">
@@ -12,5 +13,11 @@
 		</h1>
 		<p class="text-center text-2xl md:text-left">{m.a_platfrom_about_what_people_want()}</p>
 		<Button size="lg" href="/conversations">{m.explore_conversations()}</Button>
+	</div>
+
+	<div class="w-full">
+		<div class="mx-auto max-w-4xl px-6">
+			<ChatbotWrapper />
+		</div>
 	</div>
 </div>
