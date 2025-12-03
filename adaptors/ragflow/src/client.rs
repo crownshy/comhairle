@@ -146,6 +146,24 @@ impl RagflowClient {
         self.get(&path, query, None).await
     }
 
+    pub async fn download_document(
+        &self,
+        document_id: &str,
+        dataset_id: &str,
+    ) -> reqwest::Result<reqwest::Response> {
+        let url = format!(
+            "{}/datasets/{}/documents/{}",
+            self.base_url, dataset_id, document_id
+        );
+
+        // Returning direct reqwest response so that large file contents are streamed
+        self.http_client
+            .get(url)
+            .header("Authorization", self.auth_header())
+            .send()
+            .await
+    }
+
     pub async fn upload_documents(
         &self,
         dataset_id: &str,
@@ -453,6 +471,30 @@ mod tests {
         let (status, _) = client.get(&req_path, Some(&query), None).await?;
 
         assert_eq!(status, StatusCode::OK, "success from get documents");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn downloads_document_as_streamed_bytes() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("GET"))
+            .and(path(format!(
+                "{}/datasets/123/documents/456",
+                client.path_prefix
+            )))
+            .respond_with(ResponseTemplate::new(200).set_body_string("mock file content"))
+            .mount(&mock_server)
+            .await;
+
+        let response = client.download_document("456", "123").await?;
+        let status = response.status();        
+        let text = response.text().await.unwrap();
+
+        assert_eq!(status, StatusCode::OK, "success from file download");
+        assert_eq!(text, "mock file content", "file body matches");
 
         Ok(())
     }
