@@ -1,13 +1,7 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import type { PageData } from './$types';
-	let { data }: PageData = $props();
-	let { isCommunity } = data;
-
-	function openCommunityModal() {
-		HeyForm.openModal('PmIqc0hc');
-	}
+	import ChatbotWrapper from '$lib/components/ChatBotWrapper.svelte';
 </script>
 
 <svelte:head>
@@ -56,6 +50,12 @@
 				</div>
 			{/if}
 			<Button size="lg" href="/conversations">{m.explore_conversations()}</Button>
+		</div>
+	</div>
+
+	<div class="w-full">
+		<div class="mx-auto max-w-4xl px-6">
+			<ChatbotWrapper />
 		</div>
 	</div>
 </div>
