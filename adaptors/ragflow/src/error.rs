@@ -11,6 +11,9 @@ pub enum RagflowError {
     #[error("Server returned non-200: {status} - {body}")]
     Api { status: StatusCode, body: String },
 
+    #[error("Serialization error: {0}")]
+    Serde(#[from] serde_json::Error),
+
     #[error("Not found: {0}")]
     NotFound(String),
 }
