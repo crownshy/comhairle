@@ -24,3 +24,24 @@ export const annonLoginFormSchema = z.object({
 	username: z.string().min(1)
 });
 export type AnnonLoginFrom = z.infer<typeof annonLoginFormSchema>;
+
+export const passwordResetCreateFormSchema = z.object({
+	email: z.string().email(m.please_enter_a_valid_email())
+});
+export type PasswordResetCreateForm = z.infer<typeof passwordResetCreateFormSchema>;
+
+export const passwordResetUpdateFormSchema = z
+	.object({
+		password: z.string().min(8),
+		confirmPassword: z.string().min(8)
+	})
+	.superRefine(({ confirmPassword, password }, ctx) => {
+		if (confirmPassword !== password) {
+			ctx.addIssue({
+				code: 'custom',
+				message: 'The passwords did not match',
+				path: ['confirmPassword']
+			});
+		}
+	});
+export type PasswordResetUpdateForm = z.infer<typeof passwordResetUpdateFormSchema>;

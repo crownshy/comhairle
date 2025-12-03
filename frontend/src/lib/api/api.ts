@@ -16,6 +16,10 @@ export const VerifyEmailTokenRequest = z.object({ token: z.string() }).passthrou
 export type VerifyEmailTokenRequest = z.infer<typeof VerifyEmailTokenRequest>;
 export const ResendVerificationEmailRequest = z.object({ id: z.string() }).passthrough();
 export type ResendVerificationEmailRequest = z.infer<typeof ResendVerificationEmailRequest>;
+export const CreatePasswordResetRequest = z.object({ email: z.string() }).passthrough();
+export type CreatePasswordResetRequest = z.infer<typeof CreatePasswordResetRequest>;
+export const PasswordResetUpdateRequest = z.object({ confirm_password: z.string(), password: z.string(), token: z.string() }).passthrough();
+export type PasswordResetUpdateRequest = z.infer<typeof PasswordResetUpdateRequest>;
 export const ResourceType = z.union([z.literal("Site"), z.object({ Conversation: z.string().uuid() })]);
 export type ResourceType = z.infer<typeof ResourceType>;
 export const ResourceRole = z.enum(["Admin", "SuperAdmin"]);
@@ -32,7 +36,7 @@ export const limit = z.union([z.number(), z.null()]).optional();
 export type limit = z.infer<typeof limit>;
 export const PaginatedResults_for_Conversation = z.object({ records: z.array(Conversation), total: z.number().int() }).passthrough();
 export type PaginatedResults_for_Conversation = z.infer<typeof PaginatedResults_for_Conversation>;
-export const UpdateUserRequest = z.object({ password: z.union([z.string(), z.null()]), username: z.union([z.string(), z.null()]), verified: z.union([z.boolean(), z.null()]) }).partial().passthrough();
+export const UpdateUserRequest = z.object({ email_verified: z.union([z.boolean(), z.null()]), password: z.union([z.string(), z.null()]), username: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type UpdateUserRequest = z.infer<typeof UpdateUserRequest>;
 export const UpgradeAccountRequest = z.object({ email: z.string(), password: z.string(), username: z.string() }).passthrough();
 export type UpgradeAccountRequest = z.infer<typeof UpgradeAccountRequest>;
@@ -164,6 +168,8 @@ export const schemas = {
 	SignupRequest,
 	VerifyEmailTokenRequest,
 	ResendVerificationEmailRequest,
+	CreatePasswordResetRequest,
+	PasswordResetUpdateRequest,
 	ResourceType,
 	ResourceRole,
 	UserRoles,
@@ -279,6 +285,34 @@ const endpoints = makeApi([
 		alias: "LogoutUser",
 		requestFormat: "json",
 		response: z.record(z.string()),
+	},
+	{
+		method: "post",
+		path: "/auth/password_reset_create",
+		alias: "PasswordResetCreate",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: z.object({ email: z.string() }).passthrough()
+			},
+		],
+		response: z.void(),
+	},
+	{
+		method: "post",
+		path: "/auth/password_reset_update",
+		alias: "PasswordResetUpdate",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: PasswordResetUpdateRequest
+			},
+		],
+		response: z.void(),
 	},
 	{
 		method: "post",

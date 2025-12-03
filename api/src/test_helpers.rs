@@ -292,11 +292,13 @@ impl UserSession {
     pub async fn login(
         &mut self,
         app: &Router,
+        email: &str,
+        password: &str,
     ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
             "/auth/login",
-            json!({"email":self.email, "password": self.password})
+            json!({ "email": email, "password": password })
                 .to_string()
                 .into(),
         )
@@ -416,6 +418,36 @@ impl UserSession {
         let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
 
         Ok((status, user, cookie))
+    }
+
+    pub async fn password_reset_create(
+        &mut self,
+        app: &Router,
+        email: String,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            "/auth/password_reset_create",
+            json!({ "email": email }).to_string().into(),
+        )
+        .await
+    }
+
+    pub async fn password_reset_update(
+        &mut self,
+        app: &Router,
+        token: &str,
+        password: &str,
+        confirm_password: &str,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            "/auth/password_reset_update",
+            json!({ "token": token, "password": password, "confirm_password": confirm_password})
+                .to_string()
+                .into(),
+        )
+        .await
     }
 
     pub async fn create_conversation(
