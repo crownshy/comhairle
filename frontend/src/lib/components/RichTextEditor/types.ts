@@ -18,4 +18,3 @@ export type ActiveStates = {
 	heading: 'p' | '1' | '2' | '3';
 	textAlign: 'left' | 'center' | 'right' | 'justify';
 };
-
