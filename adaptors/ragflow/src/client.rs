@@ -137,6 +137,38 @@ impl RagflowClient {
         Ok((status, json))
     }
 
+    async fn put<B: Serialize + ?Sized>(
+        &self,
+        path: &str,
+        body: &B,
+        headers: Option<&[(HeaderName, HeaderValue)]>,
+    ) -> Result<(StatusCode, Value)> {
+        let url = format!("{}{}", self.base_url, path);
+
+        let mut request = self
+            .http_client
+            .put(&url)
+            .header("Authorization", self.auth_header())
+            .json(body);
+
+        if let Some(headers) = headers {
+            for (name, value) in headers {
+                request = request.header(name, value);
+            }
+        }
+
+        let response = request.send().await?;
+        let status = response.status();
+
+        if !status.is_success() {
+            let text = response.text().await?;
+            return Err(RagflowError::Api { status, body: text });
+        }
+
+        let json = response.json().await?;
+        Ok((status, json))
+    }
+
     pub async fn get_documents(
         &self,
         dataset_id: &str,
@@ -447,6 +479,83 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_update_document() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("PUT"))
+            .and(path(format!("{}/test-update", client.path_prefix)))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "success": true })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let (status, value) = client
+            .put("/test-update", &json!({ "email": "foo@bar.com"}), None)
+            .await?;
+
+        assert_eq!(status, StatusCode::OK, "success from update");
+        assert!(
+            value.get("success").and_then(|v| v.as_bool()).unwrap(),
+            "valid json response"
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn put_returns_api_error() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("PUT"))
+            .and(path(format!("{}/test-post-error", client.path_prefix)))
+            .respond_with(ResponseTemplate::new(404).set_body_string("not found"))
+            .mount(&mock_server)
+            .await;
+
+        let err = client
+            .put("/test-put-error", &json!({}), None)
+            .await
+            .unwrap_err();
+
+        match err {
+            RagflowError::Api { status, body: _ } => {
+                assert_eq!(status, StatusCode::NOT_FOUND, "put returns 404 status");
+            }
+            _ => panic!("Expected RagflowError::Api"),
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn put_returns_reqwest_error() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("PUT"))
+            .and(path(format!("{}/test-put-error", client.path_prefix)))
+            .respond_with(ResponseTemplate::new(200).set_body_string("not json"))
+            .mount(&mock_server)
+            .await;
+
+        let err = client
+            .put("/test-put-error", &json!({}), None)
+            .await
+            .unwrap_err();
+
+        match err {
+            RagflowError::Http(e) => {
+                assert!(e.is_decode());
+            }
+            _ => panic!("Expected RagflowError::Http"),
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn retrieves_documents_from_dataset() -> Result<(), Box<dyn Error>> {
         let api_key = "test_key";
         let mock_server = MockServer::start().await;
@@ -490,7 +599,7 @@ mod tests {
             .await;
 
         let response = client.download_document("456", "123").await?;
-        let status = response.status();        
+        let status = response.status();
         let text = response.text().await.unwrap();
 
         assert_eq!(status, StatusCode::OK, "success from file download");
