@@ -1,6 +1,6 @@
 use crate::{
     error::{RagflowError, Result},
-    types::{GetDocumentsQueryParams, UpdateDocument, UploadFile},
+    types::{DeleteDocument, GetDocumentsQueryParams, UpdateDocument, UploadFile},
 };
 use reqwest::{
     Client as HttpClient, StatusCode,
@@ -170,6 +170,60 @@ impl RagflowClient {
 
         let json = response.json().await?;
         Ok((status, json))
+    }
+
+    async fn delete<B: Serialize + ?Sized>(
+        &self,
+        path: &str,
+        body: &B,
+        headers: Option<&[(HeaderName, HeaderValue)]>,
+    ) -> Result<StatusCode> {
+        let url = format!("{}{}", self.base_url, path);
+
+        let mut request = self
+            .http_client
+            .delete(&url)
+            .header("Authorization", self.auth_header())
+            .json(body);
+
+        if let Some(headers) = headers {
+            for (name, value) in headers {
+                request = request.header(name, value);
+            }
+        }
+
+        let response = request.send().await?;
+        let status = response.status();
+
+        if !status.is_success() {
+            let text = response.text().await?;
+            return Err(RagflowError::Api { status, body: text });
+        }
+
+        let json = response.json::<Value>().await?;
+
+        // TODO: extract and add to each crud method
+        // Required error handling for Ragflow
+        let code = json
+            .get("code")
+            .and_then(|v| v.as_i64())
+            .ok_or_else(|| RagflowError::Api {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                body: "Missing or invalid 'code' field in response".into(),
+            })?;
+
+        if code != 0 {
+            let message = json
+                .get("message")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Something went wrong");
+            return Err(RagflowError::Api {
+                status, // TODO: what should the status be here?
+                body: message.to_string(),
+            });
+        }
+
+        Ok(status)
     }
 
     pub async fn get_documents(
@@ -548,6 +602,118 @@ mod tests {
                 assert!(e.is_decode());
             }
             _ => panic!("Expected RagflowError::Http"),
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn delete_ragflow_resources() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("DELETE"))
+            .and(path(format!("{}/test-delete-success", client.path_prefix)))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(json!({ "code": 0,  "success": true })),
+            )
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let body = json!({ "ids": vec!["123", "456"]});
+        let status = client.delete("/test-delete-success", &body, None).await?;
+
+        assert_eq!(status, StatusCode::OK, "success from delete method");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn delete_error_from_api() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("DELETE"))
+            .and(path(format!(
+                "{}/test-delete-api-error",
+                client.path_prefix
+            )))
+            .respond_with(ResponseTemplate::new(404).set_body_string("error from api"))
+            .mount(&mock_server)
+            .await;
+
+        let err = client
+            .delete("/test-delete-api-error", &json!({}), None)
+            .await
+            .unwrap_err();
+
+        match err {
+            RagflowError::Api { status, body: _ } => {
+                assert_eq!(status, StatusCode::NOT_FOUND, "delete returns 404 status");
+            }
+            _ => panic!("Expected RagflowError::Api"),
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn delete_returns_reqwest_error() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("DELETE"))
+            .and(path(format!("{}/test-delete-error", client.path_prefix)))
+            .respond_with(ResponseTemplate::new(200).set_body_string("not json"))
+            .mount(&mock_server)
+            .await;
+
+        let err = client
+            .delete("/test-delete-error", &json!({}), None)
+            .await
+            .unwrap_err();
+
+        match err {
+            RagflowError::Http(e) => {
+                assert!(e.is_decode());
+            }
+            _ => panic!("Expected RagflowError::Http"),
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn delete_returns_error_from_ragflow_code() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("DELETE"))
+            .and(path(format!(
+                "{}/test-delete-from-code",
+                client.path_prefix
+            )))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({ "code": 102, "message": "You do not own the dataset"})),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let err = client
+            .delete("/test-delete-from-code", &json!({}), None)
+            .await
+            .unwrap_err();
+
+        match err {
+            RagflowError::Api { status: _, body } => {
+                assert_eq!(
+                    body, "You do not own the dataset",
+                    "error json from response"
+                );
+            }
+            _ => panic!("Expected RagflowError::Api"),
         }
 
         Ok(())
