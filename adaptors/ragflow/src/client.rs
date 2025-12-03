@@ -2,6 +2,7 @@ use crate::error::{RagflowError, Result};
 use reqwest::{
     Client as HttpClient, StatusCode,
     header::{HeaderName, HeaderValue},
+    multipart::{Form, Part},
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -9,6 +10,7 @@ use serde_json::Value;
 #[derive(Clone)]
 pub struct RagflowClient {
     base_url: String,
+    path_prefix: String,
     api_key: String,
     http_client: HttpClient,
 }
@@ -16,8 +18,11 @@ pub struct RagflowClient {
 impl RagflowClient {
     pub fn new<S: Into<String>>(base_url: S, api_key: S) -> Self {
         let client = HttpClient::new();
+        let path_prefix = "/api/v1".to_string();
+
         RagflowClient {
-            base_url: format!("{}/api/v1", base_url.into()),
+            base_url: format!("{}{}", base_url.into(), path_prefix),
+            path_prefix,
             api_key: api_key.into(),
             http_client: client,
         }
@@ -27,7 +32,7 @@ impl RagflowClient {
         format!("Bearer {}", self.api_key)
     }
 
-    pub async fn get<Q>(
+    async fn get<Q>(
         &self,
         path: &str,
         query: Option<&Q>,
@@ -67,6 +72,71 @@ impl RagflowClient {
         Ok((status, json))
     }
 
+    async fn post<B: Serialize + ?Sized>(
+        &self,
+        path: &str,
+        body: &B,
+        headers: Option<&[(HeaderName, HeaderValue)]>,
+    ) -> Result<(StatusCode, Value)> {
+        let url = format!("{}{}", self.base_url, path);
+
+        let mut request = self
+            .http_client
+            .post(&url)
+            .header("Authorization", self.auth_header())
+            .json(body);
+
+        if let Some(headers) = headers {
+            for (name, value) in headers {
+                request = request.header(name, value);
+            }
+        }
+
+        let response = request.send().await?;
+        let status = response.status();
+
+        // TODO: not convinced by this
+        if !status.is_success() {
+            let text = response.text().await?;
+            return Err(RagflowError::Api { status, body: text });
+        }
+
+        let json = response.json().await?;
+        Ok((status, json))
+    }
+
+    async fn post_multipart(
+        &self,
+        path: &str,
+        form: Form,
+        headers: Option<&[(HeaderName, HeaderValue)]>,
+    ) -> Result<(StatusCode, Value)> {
+        let url = format!("{}{}", self.base_url, path);
+
+        let mut request = self
+            .http_client
+            .post(&url)
+            .header("Authorization", self.auth_header())
+            .multipart(form);
+
+        if let Some(headers) = headers {
+            for (name, value) in headers {
+                request = request.header(name, value);
+            }
+        }
+
+        let response = request.send().await?;
+        let status = response.status();
+
+        if !status.is_success() {
+            let text = response.text().await?;
+            return Err(RagflowError::Api { status, body: text });
+        }
+
+        let json = response.json().await?;
+        Ok((status, json))
+    }
+
     pub async fn get_documents(
         &self,
         dataset_id: &str,
@@ -74,6 +144,22 @@ impl RagflowClient {
     ) -> Result<(StatusCode, Value)> {
         let path = format!("/datasets/{dataset_id}/documents");
         self.get(&path, query, None).await
+    }
+
+    pub async fn upload_documents(
+        &self,
+        dataset_id: &str,
+        files: Vec<UploadFile>,
+    ) -> Result<(StatusCode, Value)> {
+        let path = format!("/datasets/{dataset_id}/documents");
+        let mut form = Form::new();
+
+        for file in files {
+            let part = Part::bytes(file.bytes).file_name(file.filename);
+            form = form.part("file", part);
+        }
+
+        self.post_multipart(&path, form, None).await
     }
 }
 
@@ -90,15 +176,21 @@ pub struct GetDocumentsQueryParams {
     // run: Option<Vec<String>>,
 }
 
+#[derive(Serialize)]
+pub struct UploadFile {
+    filename: String,
+    bytes: Vec<u8>,
+}
+
 #[cfg(test)]
 mod tests {
     use std::error::Error;
 
     use crate::{
-        client::{GetDocumentsQueryParams, RagflowClient},
+        client::{GetDocumentsQueryParams, RagflowClient, UploadFile},
         error::RagflowError,
     };
-    use reqwest::StatusCode;
+    use reqwest::{StatusCode, multipart::Form};
     use serde_json::json;
     use wiremock::{
         Mock, MockServer, ResponseTemplate,
@@ -112,7 +204,7 @@ mod tests {
         let client = RagflowClient::new(mock_server.uri(), api_key.to_string());
 
         Mock::given(method("GET"))
-            .and(path("/"))
+            .and(path(format!("{}/", client.path_prefix)))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({"ok": true})))
             .expect(1)
             .mount(&mock_server)
@@ -130,14 +222,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_returns_not_found() -> Result<(), Box<dyn Error>> {
+    async fn get_returns_api_error() -> Result<(), Box<dyn Error>> {
         let mock_server = MockServer::start().await;
         let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
 
         Mock::given(method("GET"))
-            .and(path("/test"))
+            .and(path(format!("{}/test", client.path_prefix)))
             .respond_with(ResponseTemplate::new(404).set_body_string("not found"))
-            // .expect(1)
             .mount(&mock_server)
             .await;
 
@@ -159,7 +250,7 @@ mod tests {
         let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
 
         Mock::given(method("GET"))
-            .and(path("/api/v1/test"))
+            .and(path(format!("{}/test", client.path_prefix)))
             .respond_with(ResponseTemplate::new(200).set_body_string("not json"))
             .mount(&mock_server)
             .await;
@@ -170,7 +261,168 @@ mod tests {
             RagflowError::Http(e) => {
                 assert!(e.is_decode());
             }
-            _ => panic!("Expected reqwest error"),
+            _ => panic!("Expected RagflowError::Http"),
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn sends_successful_post() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("POST"))
+            .and(path(format!("{}/test-post", client.path_prefix)))
+            .respond_with(ResponseTemplate::new(201).set_body_json(json!({ "success": true })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let (status, value) = client.post("/test-post", &json!({}), None).await?;
+
+        let success_field = value.get("success").and_then(|v| v.as_bool()).unwrap();
+        assert_eq!(status, StatusCode::CREATED, "success status from post");
+        assert!(success_field, "json response is valid");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn post_returns_api_error() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("POST"))
+            .and(path(format!("{}/test-post-error", client.path_prefix)))
+            .respond_with(ResponseTemplate::new(404).set_body_string("not found"))
+            .mount(&mock_server)
+            .await;
+
+        let err = client
+            .post("/test-post-error", &json!({}), None)
+            .await
+            .unwrap_err();
+
+        match err {
+            RagflowError::Api { status, body: _ } => {
+                assert_eq!(status, StatusCode::NOT_FOUND, "post returns 404 status");
+            }
+            _ => panic!("Expected RagflowError::Api"),
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn post_returns_reqwest_error() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("POST"))
+            .and(path(format!("{}/test-post-error", client.path_prefix)))
+            .respond_with(ResponseTemplate::new(200).set_body_string("not json"))
+            .mount(&mock_server)
+            .await;
+
+        let err = client
+            .post("/test-post-error", &json!({}), None)
+            .await
+            .unwrap_err();
+
+        match err {
+            RagflowError::Http(e) => {
+                assert!(e.is_decode());
+            }
+            _ => panic!("Expected RagflowError::Http"),
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn sends_multipart_post_request() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("POST"))
+            .and(path(format!("{}/test-multipart-post", client.path_prefix)))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "success": true })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let form = Form::new()
+            .text("email", "foo@bar.com")
+            .text("phone", "70123456789");
+        let (status, value) = client
+            .post_multipart("/test-multipart-post", form, None)
+            .await?;
+
+        assert_eq!(status, StatusCode::OK, "success from multipart post");
+        assert!(
+            value.get("success").and_then(|v| v.as_bool()).unwrap(),
+            "valid json response"
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn post_multipart_returns_api_error() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("POST"))
+            .and(path(format!(
+                "{}/test-multipart-api-error",
+                client.path_prefix
+            )))
+            .respond_with(ResponseTemplate::new(404).set_body_string("api error"))
+            .mount(&mock_server)
+            .await;
+
+        let form = Form::new().text("test", "error");
+        let err = client
+            .post_multipart("/test-multipart-api-error", form, None)
+            .await
+            .unwrap_err();
+
+        match err {
+            RagflowError::Api { status, body: _ } => {
+                assert_eq!(status, StatusCode::NOT_FOUND, "Error from api");
+            }
+            _ => panic!("Expected RagflowError::Api"),
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn post_multipart_returns_reqwest_error() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("POST"))
+            .and(path(format!(
+                "{}/test-multipart-reqwest-error",
+                client.path_prefix
+            )))
+            .respond_with(ResponseTemplate::new(200).set_body_string("not json"))
+            .mount(&mock_server)
+            .await;
+
+        let form = Form::new().text("email", "foo@bar.com");
+        let err = client
+            .post_multipart("/test-multipart-reqwest-error", form, None)
+            .await
+            .unwrap_err();
+
+        match err {
+            RagflowError::Http(e) => {
+                assert!(e.is_decode())
+            }
+            _ => panic!("Expected RagflowError::Http"),
         }
 
         Ok(())
@@ -185,7 +437,7 @@ mod tests {
         let req_path = format!("/datasets/{dataset_id}/documents");
 
         Mock::given(method("GET"))
-            .and(path(format!("/api/v1{req_path}")))
+            .and(path(format!("{}{}", client.path_prefix, req_path)))
             .and(query_param("page", "1"))
             .and(query_param("page_size", "12"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
@@ -200,7 +452,38 @@ mod tests {
         };
         let (status, _) = client.get(&req_path, Some(&query), None).await?;
 
-        assert_eq!(status, StatusCode::OK);
+        assert_eq!(status, StatusCode::OK, "success from get documents");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn uploads_documents_to_dataset() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("POST"))
+            .and(path(format!(
+                "{}/datasets/123/documents",
+                client.path_prefix
+            )))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "success": true })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let file = UploadFile {
+            filename: "foo".to_string(),
+            bytes: "bar".as_bytes().into(),
+        };
+        let files = vec![file];
+        let (status, value) = client.upload_documents("123", files).await?;
+
+        assert_eq!(status, StatusCode::OK, "success from doc upload");
+        assert!(
+            value.get("success").and_then(|v| v.as_bool()).unwrap(),
+            "valid response json"
+        );
 
         Ok(())
     }
