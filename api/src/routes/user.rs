@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use aide::axum::{routing::{get_with, put_with}, ApiRouter};
+use aide::axum::{
+    routing::{get_with, put_with},
+    ApiRouter,
+};
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -15,7 +18,10 @@ use crate::{
     error::ComhairleError,
     models::{
         self,
-        conversation::{Conversation, ConversationFilterOptions, ConversationOrderOptions},
+        conversation::{
+            Conversation, ConversationFilterOptions, ConversationOrderOptions,
+            LocalisedConversation,
+        },
         pagination::{OrderParams, PageOptions, PaginatedResults},
         users::{UpdateUserRequest, UpgradeAccountRequest, User},
     },
@@ -33,7 +39,7 @@ pub async fn get_user_owned_conversations(
     OrderParams(order_options): OrderParams<ConversationOrderOptions>,
     Query(filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
-) -> Result<(StatusCode, Json<PaginatedResults<Conversation>>), ComhairleError> {
+) -> Result<(StatusCode, Json<PaginatedResults<LocalisedConversation>>), ComhairleError> {
     let conversations = models::conversation::list_owned(
         &state.db,
         user.id,
@@ -106,7 +112,8 @@ pub async fn upgrade_account(
     RequiredUser(user): RequiredUser,
     Json(upgrade_request): Json<UpgradeAccountRequest>,
 ) -> Result<(StatusCode, Json<User>), ComhairleError> {
-    let upgraded_user = models::users::upgrade_account(&user.id, &upgrade_request, &state.db).await?;
+    let upgraded_user =
+        models::users::upgrade_account(&user.id, &upgrade_request, &state.db).await?;
     Ok((StatusCode::OK, Json(upgraded_user)))
 }
 
@@ -135,7 +142,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(get_user_owned_conversations, |op| {
                 op.id("GetOwnedConversations")
                     .description("Gets a list of the conversations a user owns")
-                    .response::<201, Json<PaginatedResults<Conversation>>>()
+                    .response::<201, Json<PaginatedResults<LocalisedConversation>>>()
             }),
         )
         .api_route(

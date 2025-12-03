@@ -260,9 +260,7 @@ mod tests {
     use tracing_test::traced_test;
 
     use crate::{
-        mailer::MockComhairleMailer,
-        setup_server,
-        test_helpers::{extract, test_state, UserSession},
+        mailer::MockComhairleMailer, models::conversation, setup_server, test_helpers::{extract, test_state, UserSession}
     };
 
     use super::*;
@@ -294,21 +292,7 @@ mod tests {
 
         session.signup(&app).await?;
 
-        let (_, conversation, _) = session
-            .create_conversation(
-                &app,
-                json! ({
-                    "title" : "Test conversation",
-                    "short_description" : "A test conversation",
-                    "description" : "A longer description",
-                    "image_url" : "http://someimage.png",
-                    "tags" : ["one", "two", "three"],
-                    "is_public" : false,
-                    "is_invite_only" : false,
-                    "slug" : "new_conversation"
-                }),
-            )
-            .await?;
+        let (_,conversation,_) = session.create_random_conversation(&app).await?;
 
         let conversation_id: String = extract("id", &conversation);
         let (status, invite, _) = session
@@ -340,21 +324,8 @@ mod tests {
 
         session.signup(&app).await?;
 
-        let (_, conversation, _) = session
-            .create_conversation(
-                &app,
-                json! ({
-                    "title" : "Test conversation",
-                    "short_description" : "A test conversation",
-                    "description" : "A longer description",
-                    "image_url" : "http://someimage.png",
-                    "tags" : ["one", "two", "three"],
-                    "is_public" : false,
-                    "is_invite_only" : false,
-                    "slug" : "new_conversation"
-                }),
-            )
-            .await?;
+        let (_,conversation,_) = session.create_random_conversation(&app).await?;
+
 
         let conversation_id: String = extract("id", &conversation);
         let mut regular_user_session = UserSession::new("bob", "bob", "bob@gmail.com");
@@ -391,21 +362,7 @@ mod tests {
 
         session.signup(&app).await?;
 
-        let (_, conversation, _) = session
-            .create_conversation(
-                &app,
-                json! ({
-                    "title" : "Test conversation",
-                    "short_description" : "A test conversation",
-                    "description" : "A longer description",
-                    "image_url" : "http://someimage.png",
-                    "tags" : ["one", "two", "three"],
-                    "is_public" : false,
-                    "is_invite_only" : false,
-                    "slug" : "new_conversation"
-                }),
-            )
-            .await?;
+        let (_,conversation,_) = session.create_random_conversation(&app).await?;
         let convo_id: String = extract("id",&conversation );
         session.create_random_workflow(&app, &convo_id).await?;
 
