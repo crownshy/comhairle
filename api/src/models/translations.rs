@@ -95,13 +95,13 @@ impl From<TextContentId> for Uuid {
 
 impl Into<sea_query::Value> for TextContentId {
     fn into(self) -> sea_query::Value {
-        self.0.to_string().into()
+        self.0.into()
     }
 }
 
 impl Into<sea_query::Value> for &TextContentId {
     fn into(self) -> sea_query::Value {
-        self.0.to_string().into()
+        self.0.into()
     }
 }
 
@@ -181,9 +181,8 @@ impl fmt::Display for TextFormat {
 /// Represents text content that can be translated into multiple languages.
 ///
 /// TextContent serves as the main container for content that needs to be available
-/// in multiple locales. It defines the primary locale, format, and associates the
-/// content with a conversation. Individual translations are stored separately in
-/// TextTranslation records that reference this content.
+/// in multiple locales. It defines the primary locale and format.
+/// Individual translations are stored separately in TextTranslation records that reference this content.
 #[derive(Serialize, Deserialize, JsonSchema, FromRow, Debug, PartialEq, Clone)]
 #[enum_def(table_name = "text_content")]
 pub struct TextContent {
@@ -193,8 +192,6 @@ pub struct TextContent {
     pub primary_locale: String,
     /// The format of the text content (plain, markdown, or rich)
     pub format: TextFormat,
-    /// The conversation this content belongs to
-    pub conversation_id: Uuid,
     /// Timestamp when this content was created
     pub created_at: DateTime<Utc>,
     /// Timestamp when this content was last updated
@@ -228,11 +225,10 @@ pub struct TextTranslation {
     pub updated_at: DateTime<Utc>,
 }
 
-const TEXT_CONTENT_DEFAULT_COLUMNS: [TextContentIden; 6] = [
+const TEXT_CONTENT_DEFAULT_COLUMNS: [TextContentIden; 5] = [
     TextContentIden::Id,
     TextContentIden::PrimaryLocale,
     TextContentIden::Format,
-    TextContentIden::ConversationId,
     TextContentIden::CreatedAt,
     TextContentIden::UpdatedAt,
 ];
@@ -258,8 +254,6 @@ pub struct CreateTextContent {
     pub primary_locale: String,
     /// The format of the text content
     pub format: TextFormat,
-    /// The conversation this content belongs to
-    pub conversation_id: Uuid,
 }
 
 impl CreateTextContent {
@@ -272,7 +266,6 @@ impl CreateTextContent {
         vec![
             TextContentIden::PrimaryLocale,
             TextContentIden::Format,
-            TextContentIden::ConversationId,
         ]
     }
 
@@ -285,7 +278,6 @@ impl CreateTextContent {
         vec![
             self.primary_locale.clone().into(),
             self.format.to_string().into(),
-            self.conversation_id.into(),
         ]
     }
 }
@@ -436,7 +428,6 @@ impl UpdateTextTranslation {
 ///
 /// This function will return an error if:
 /// * The database operation fails
-/// * The conversation_id references a non-existent conversation
 pub async fn create_text_content(
     db: &PgPool,
     text_content: &CreateTextContent,
@@ -488,34 +479,6 @@ pub async fn get_text_content_by_id(
     Ok(text_content)
 }
 
-/// Retrieves all text content records for a specific conversation.
-///
-/// # Arguments
-///
-/// * `db` - Database connection pool
-/// * `conversation_id` - The unique identifier of the conversation
-///
-/// # Returns
-///
-/// Returns a `Result` containing a vector of `TextContent` records,
-/// or a `ComhairleError` on database failure. Returns an empty vector
-/// if no content is found for the conversation.
-pub async fn get_text_contents_by_conversation_id(
-    db: &PgPool,
-    conversation_id: &Uuid,
-) -> Result<Vec<TextContent>, ComhairleError> {
-    let (sql, values) = Query::select()
-        .columns(TEXT_CONTENT_DEFAULT_COLUMNS)
-        .from(TextContentIden::Table)
-        .and_where(Expr::col(TextContentIden::ConversationId).eq(conversation_id.to_owned()))
-        .build_sqlx(PostgresQueryBuilder);
-
-    let text_contents = sqlx::query_as_with::<_, TextContent, _>(&sql, values)
-        .fetch_all(db)
-        .await?;
-
-    Ok(text_contents)
-}
 
 /// Updates an existing text content record.
 ///
@@ -859,14 +822,12 @@ pub async fn new_translation(
     locale: &str,
     content: &str,
     format: TextFormat,
-    conversation_id: &Uuid,
 ) -> Result<TextContent, ComhairleError> {
     let translation = create_text_content(
         db,
         &CreateTextContent {
             primary_locale: locale.to_owned(),
             format,
-            conversation_id: conversation_id.to_owned(),
         },
     )
     .await?;

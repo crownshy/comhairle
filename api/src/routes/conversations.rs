@@ -351,7 +351,9 @@ mod tests {
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
@@ -380,7 +382,9 @@ mod tests {
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
@@ -435,7 +439,9 @@ mod tests {
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
@@ -482,12 +488,14 @@ mod tests {
                     "tags" : ["one", "two", "three"],
                     "is_public" : true,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
 
-        session
+        let (status, result, _) = session
             .create_conversation(
                 &app,
                 json! ({
@@ -497,11 +505,15 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : true,
+                    "primary_locale": "en",
+                    "supported_languages":["en"],
                     "is_invite_only" : false,
                     "slug" : "new_new_conversation"
                 }),
             )
             .await?;
+
+        println!("{status:#?} {result:#?}");
 
         let (status, conversations, _) = session.list_conversations(&app, 0, 10).await?;
 
@@ -547,7 +559,9 @@ mod tests {
                         "tags" : ["one", "two", "three"],
                         "is_public" : true,
                         "is_invite_only" : false,
-                        "slug" : format!("{i}")
+                        "slug" : format!("{i}"),
+                        "primary_locale" : "en",
+                        "supported_languages" : ["en"]
                     }),
                 )
                 .await?;
@@ -564,13 +578,16 @@ mod tests {
                     "tags" : ["one", "two", "three"],
                     "is_public" : true,
                     "is_invite_only" : false,
-                    "slug" : format!("target_slug")
+                    "slug" : format!("target_slug"),
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
 
         let url = format!("/conversation?title=target&offset={}&limit={}", 0, 10);
         let (status, conversations, _) = session.get(&app, &url).await?;
+        println!("{conversations:#?}");
 
         let conversations: Vec<serde_json::Value> =
             serde_json::from_value(conversations.get("records").to_owned().unwrap().to_owned())?;
@@ -603,7 +620,9 @@ mod tests {
                         "tags" : ["one", "two", "three"],
                         "is_public" : true,
                         "is_invite_only" : false,
-                        "slug" : format!("{i}")
+                        "slug" : format!("{i}"),
+                        "primary_locale" : "en",
+                        "supported_languages" : ["en"]
                     }),
                 )
                 .await?;
@@ -674,7 +693,9 @@ mod tests {
                         "tags" : ["one", "two", "three"],
                         "is_public" : true,
                         "is_invite_only" : false,
-                        "slug" : format!("{i}")
+                        "slug" : format!("{i}"),
+                        "primary_locale" : "en",
+                        "supported_languages" : ["en"]
                     }),
                 )
                 .await?;
@@ -729,10 +750,13 @@ mod tests {
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
+        println!("{convo1:#?}");
 
         let (_, convo2, _) = session
             .create_conversation(
@@ -745,11 +769,14 @@ mod tests {
                     "tags" : ["one", "three"],
                     "is_public" : false,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation_two"
+                    "slug" : "new_conversation_two",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
 
+        println!("{convo2:#?}");
         let convo1: HashMap<String, Option<serde_json::Value>> = serde_json::from_value(convo1)?;
         let convo2: HashMap<String, Option<serde_json::Value>> = serde_json::from_value(convo2)?;
 
@@ -763,6 +790,7 @@ mod tests {
             serde_json::from_value(convo2.get("slug").unwrap().clone().unwrap()).unwrap();
 
         let (status, value, _) = session.get_conversation(&app, &id1).await?;
+        println!("{value:#?}");
 
         assert_eq!(status, StatusCode::OK, "Sould get it fine");
 
@@ -802,7 +830,9 @@ mod tests {
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
@@ -843,7 +873,9 @@ mod tests {
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
@@ -859,7 +891,9 @@ mod tests {
                     "tags" : ["one", "three"],
                     "is_public" : false,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;

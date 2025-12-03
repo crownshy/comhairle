@@ -241,27 +241,29 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
                         let tc_alias = Alias::new(&format!("tc_{}", stringify!(#text_content_fields)));
                         let tt_alias = Alias::new(&format!("tt_{}", stringify!(#text_content_fields)));
                         
-                        // Join with text_content table
+                        // Join with text_content table using alias
                         query = query
-                            .join(
+                            .join_as(
                                 JoinType::LeftJoin,
                                 TextContentIden::Table,
+                                tc_alias.clone(),
                                 Expr::col((#table_iden_name::Table, #table_iden_name::#text_content_field_caps))
-                                    .equals((TextContentIden::Table, TextContentIden::Id))
+                                    .equals((tc_alias.clone(), TextContentIden::Id))
                             )
-                            // Join with text_translation table for the specific locale  
-                            .join(
+                            // Join with text_translation table for the specific locale using alias
+                            .join_as(
                                 JoinType::LeftJoin,
                                 TextTranslationIden::Table,
-                                Expr::col((TextContentIden::Table, TextContentIden::Id))
-                                    .equals((TextTranslationIden::Table, TextTranslationIden::ContentId))
-                                    .and(Expr::col((TextTranslationIden::Table, TextTranslationIden::Locale)).eq(locale))
+                                tt_alias.clone(),
+                                Expr::col((tc_alias.clone(), TextContentIden::Id))
+                                    .equals((tt_alias.clone(), TextTranslationIden::ContentId))
+                                    .and(Expr::col((tt_alias.clone(), TextTranslationIden::Locale)).eq(locale))
                             )
                             .to_owned();
                         
                         // Select the translated content with the original field name as alias
                         query = query.expr_as(
-                            Expr::col((TextTranslationIden::Table, TextTranslationIden::Content)),
+                            Expr::col((tt_alias, TextTranslationIden::Content)),
                             Alias::new(stringify!(#text_content_fields))
                         ).to_owned();
                     }
