@@ -1,4 +1,7 @@
-use crate::error::{RagflowError, Result};
+use crate::{
+    error::{RagflowError, Result},
+    types::{GetDocumentsQueryParams, UpdateDocument, UploadFile},
+};
 use reqwest::{
     Client as HttpClient, StatusCode,
     header::{HeaderName, HeaderValue},
@@ -211,25 +214,16 @@ impl RagflowClient {
 
         self.post_multipart(&path, form, None).await
     }
-}
 
-#[derive(Serialize, Default)]
-pub struct GetDocumentsQueryParams {
-    pub page: Option<i32>,
-    pub page_size: Option<i32>,
-    pub orderby: Option<String>,
-    pub desc: Option<bool>,
-    pub id: Option<String>,
-    pub create_time_from: Option<i32>,
-    // keywords: Option<String>, // TODO: find way to implement these
-    // suffix: Option<Vec<String>>,
-    // run: Option<Vec<String>>,
-}
-
-#[derive(Serialize)]
-pub struct UploadFile {
-    filename: String,
-    bytes: Vec<u8>,
+    pub async fn update_document(
+        &self,
+        document_id: &str,
+        dataset_id: &str,
+        body: UpdateDocument,
+    ) -> Result<(StatusCode, Value)> {
+        let path = format!("/datasets/{dataset_id}/documents/{document_id}");
+        self.put(&path, &body, None).await
+    }
 }
 
 #[cfg(test)]
@@ -237,8 +231,12 @@ mod tests {
     use std::error::Error;
 
     use crate::{
-        client::{GetDocumentsQueryParams, RagflowClient, UploadFile},
+        client::RagflowClient,
         error::RagflowError,
+        types::{
+            ChunkMethod, EmptyParserConfig, GetDocumentsQueryParams, ParserConfig, UpdateDocument,
+            UploadFile,
+        },
     };
     use reqwest::{StatusCode, multipart::Form};
     use serde_json::json;
@@ -634,6 +632,39 @@ mod tests {
         assert!(
             value.get("success").and_then(|v| v.as_bool()).unwrap(),
             "valid response json"
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn updates_document_in_dataset() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("PUT"))
+            .and(path(format!(
+                "{}/datasets/123/documents/456",
+                client.path_prefix
+            )))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "success": true })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let update_doc = UpdateDocument {
+            name: Some("foo".to_string()),
+            enabled: None,
+            meta_fields: None,
+            chunk_method: Some(ChunkMethod::Table),
+            parser_config: Some(ParserConfig::Empty(EmptyParserConfig)),
+        };
+        let (status, value) = client.update_document("456", "123", update_doc).await?;
+
+        assert_eq!(status, StatusCode::OK, "success from document update");
+        assert!(
+            value.get("success").and_then(|v| v.as_bool()).unwrap(),
+            "valid json response"
         );
 
         Ok(())
