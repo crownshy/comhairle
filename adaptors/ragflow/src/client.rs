@@ -278,6 +278,16 @@ impl RagflowClient {
         let path = format!("/datasets/{dataset_id}/documents/{document_id}");
         self.put(&path, &body, None).await
     }
+
+    pub async fn delete_document(
+        &self,
+        document_id: &str,
+        dataset_id: &str,
+        body: DeleteDocument<'_>,
+    ) -> Result<StatusCode> {
+        let path = format!("/datasets/{dataset_id}/documents/{document_id}");
+        self.delete(&path, &body, None).await
+    }
 }
 
 #[cfg(test)]
@@ -288,8 +298,8 @@ mod tests {
         client::RagflowClient,
         error::RagflowError,
         types::{
-            ChunkMethod, EmptyParserConfig, GetDocumentsQueryParams, ParserConfig, UpdateDocument,
-            UploadFile,
+            ChunkMethod, DeleteDocument, EmptyParserConfig, GetDocumentsQueryParams, ParserConfig,
+            UpdateDocument, UploadFile,
         },
     };
     use reqwest::{StatusCode, multipart::Form};
@@ -720,7 +730,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn retrieves_documents_from_dataset() -> Result<(), Box<dyn Error>> {
+    async fn should_get_documents_from_dataset() -> Result<(), Box<dyn Error>> {
         let api_key = "test_key";
         let mock_server = MockServer::start().await;
         let client = RagflowClient::new(mock_server.uri(), api_key.to_string());
@@ -749,7 +759,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn downloads_document_as_streamed_bytes() -> Result<(), Box<dyn Error>> {
+    async fn should_download_document_as_streamed_bytes() -> Result<(), Box<dyn Error>> {
         let mock_server = MockServer::start().await;
         let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
 
@@ -773,7 +783,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn uploads_documents_to_dataset() -> Result<(), Box<dyn Error>> {
+    async fn should_upload_documents_to_dataset() -> Result<(), Box<dyn Error>> {
         let mock_server = MockServer::start().await;
         let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
 
@@ -804,7 +814,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn updates_document_in_dataset() -> Result<(), Box<dyn Error>> {
+    async fn should_update_document_in_dataset() -> Result<(), Box<dyn Error>> {
         let mock_server = MockServer::start().await;
         let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
 
@@ -832,6 +842,29 @@ mod tests {
             value.get("success").and_then(|v| v.as_bool()).unwrap(),
             "valid json response"
         );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn should_delete_document() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("DELETE"))
+            .and(path(format!(
+                "{}/datasets/123/documents/456",
+                client.path_prefix
+            )))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "code": 0 })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let body = DeleteDocument { ids: vec!["123"] };
+        let status = client.delete_document("456", "123", body).await?;
+
+        assert_eq!(status, StatusCode::OK, "success from document delete");
 
         Ok(())
     }

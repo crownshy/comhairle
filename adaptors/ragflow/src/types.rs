@@ -73,3 +73,8 @@ pub struct EmptyParserConfig;
 pub struct RaptorSettings {
     use_raptor: bool,
 }
+
+#[derive(Serialize)]
+pub struct DeleteDocument<'a> {
+    pub ids: Vec<&'a str>,
+}
