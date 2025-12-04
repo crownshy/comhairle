@@ -1,12 +1,9 @@
 use comhairle::{
-    config::TranslatorConfig,
-    db::setup_db,
-    mailer::Mailer,
-    setup_server,
-    translation_service::GoogleTranslateService,
-    websockets::ComhairleWebSocketService,
+    config::TranslatorConfig, db::setup_db, mailer::Mailer, setup_server,
+    translation_service::GoogleTranslateService, websockets::ComhairleWebSocketService,
     ComhairleState,
 };
+use ragflow::client::RagflowClient;
 use std::{error::Error, sync::Arc};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -51,19 +48,26 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Setup Translation Service
     //
     let translation_service = match &config.translator {
-        Some(TranslatorConfig::Google(google_config)) => Some(Arc::new(
-            GoogleTranslateService::new(google_config.api_key.to_owned()),
-        ) as Arc<dyn comhairle::translation_service::TranslationService>),
+        Some(TranslatorConfig::Google(google_config)) => Some(
+            Arc::new(GoogleTranslateService::new(
+                google_config.api_key.to_owned(),
+            )) as Arc<dyn comhairle::translation_service::TranslationService>,
+        ),
         None => None,
     };
 
     let websockets = Arc::new(ComhairleWebSocketService::new());
+    let bot_service = Arc::new(RagflowClient::new(
+        config.bot_service_host,
+        config.bot_service_api_key,
+    ));
     let state = Arc::new(ComhairleState {
         db,
         mailer,
         config,
         websockets,
         translation_service,
+        bot_service,
     });
 
     let app = setup_server(state).await?;

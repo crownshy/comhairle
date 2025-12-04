@@ -1,5 +1,11 @@
 use serde::Serialize;
 
+#[derive(Serialize)]
+pub struct CreateDataset {
+    pub name: String,
+    pub description: String,
+}
+
 #[derive(Serialize, Default)]
 pub struct GetDocumentsQueryParams {
     pub page: Option<i32>,

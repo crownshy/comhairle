@@ -1,7 +1,12 @@
 use crate::{
     error::{RagflowError, Result},
-    types::{DeleteDocument, GetDocumentsQueryParams, ParseDocuments, UpdateDocument, UploadFile},
+    types::{
+        CreateDataset, DeleteDocument, GetDocumentsQueryParams, ParseDocuments, UpdateDocument,
+        UploadFile,
+    },
 };
+use service_traits::ComhairleBotService;
+
 use reqwest::{
     Client as HttpClient, StatusCode,
     header::{HeaderName, HeaderValue},
@@ -15,7 +20,22 @@ pub struct RagflowClient {
     base_url: String,
     path_prefix: String,
     api_key: String,
-    http_client: HttpClient,
+    http: HttpClient,
+}
+
+impl ComhairleBotService for RagflowClient {
+    type KnowledgeBase = Value;
+    type Error = RagflowError;
+
+    async fn create_knowledge_base(
+        &self,
+        name: String,
+        description: String,
+    ) -> std::result::Result<(StatusCode, Self::KnowledgeBase), Self::Error> {
+        let path = "/datasets";
+        let body = CreateDataset { name, description };
+        self.post(path, &body, None).await
+    }
 }
 
 impl RagflowClient {
@@ -27,7 +47,7 @@ impl RagflowClient {
             base_url: format!("{}{}", base_url.into(), path_prefix),
             path_prefix,
             api_key: api_key.into(),
-            http_client: client,
+            http: client,
         }
     }
 
@@ -47,7 +67,7 @@ impl RagflowClient {
         let url = format!("{}{}", self.base_url, path);
 
         let mut request = self
-            .http_client
+            .http
             .get(&url)
             .header("Authorization", self.auth_header());
 
@@ -84,7 +104,7 @@ impl RagflowClient {
         let url = format!("{}{}", self.base_url, path);
 
         let mut request = self
-            .http_client
+            .http
             .post(&url)
             .header("Authorization", self.auth_header())
             .json(body);
@@ -117,7 +137,7 @@ impl RagflowClient {
         let url = format!("{}{}", self.base_url, path);
 
         let mut request = self
-            .http_client
+            .http
             .post(&url)
             .header("Authorization", self.auth_header())
             .multipart(form);
@@ -149,7 +169,7 @@ impl RagflowClient {
         let url = format!("{}{}", self.base_url, path);
 
         let mut request = self
-            .http_client
+            .http
             .put(&url)
             .header("Authorization", self.auth_header())
             .json(body);
@@ -181,7 +201,7 @@ impl RagflowClient {
         let url = format!("{}{}", self.base_url, path);
 
         let mut request = self
-            .http_client
+            .http
             .delete(&url)
             .header("Authorization", self.auth_header())
             .json(body);
@@ -246,7 +266,7 @@ impl RagflowClient {
         );
 
         // Returning direct reqwest response so that large file contents are streamed
-        self.http_client
+        self.http
             .get(url)
             .header("Authorization", self.auth_header())
             .send()
