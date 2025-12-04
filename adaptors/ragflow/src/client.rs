@@ -1,6 +1,6 @@
 use crate::{
     error::{RagflowError, Result},
-    types::{DeleteDocument, GetDocumentsQueryParams, UpdateDocument, UploadFile},
+    types::{DeleteDocument, GetDocumentsQueryParams, ParseDocuments, UpdateDocument, UploadFile},
 };
 use reqwest::{
     Client as HttpClient, StatusCode,
@@ -288,6 +288,24 @@ impl RagflowClient {
         let path = format!("/datasets/{dataset_id}/documents/{document_id}");
         self.delete(&path, &body, None).await
     }
+
+    pub async fn parse_documents(
+        &self,
+        dataset_id: &str,
+        body: ParseDocuments<'_>,
+    ) -> Result<(StatusCode, Value)> {
+        let path = format!("/datasets/{dataset_id}/chunks");
+        self.post(&path, &body, None).await
+    }
+
+    pub async fn stop_parsing_documents(
+        &self,
+        dataset_id: &str,
+        body: ParseDocuments<'_>,
+    ) -> Result<StatusCode> {
+        let path = format!("/datasets/{dataset_id}/chunks");
+        self.delete(&path, &body, None).await
+    }
 }
 
 #[cfg(test)]
@@ -298,8 +316,8 @@ mod tests {
         client::RagflowClient,
         error::RagflowError,
         types::{
-            ChunkMethod, DeleteDocument, EmptyParserConfig, GetDocumentsQueryParams, ParserConfig,
-            UpdateDocument, UploadFile,
+            ChunkMethod, DeleteDocument, EmptyParserConfig, GetDocumentsQueryParams,
+            ParseDocuments, ParserConfig, UpdateDocument, UploadFile,
         },
     };
     use reqwest::{StatusCode, multipart::Form};
@@ -865,6 +883,59 @@ mod tests {
         let status = client.delete_document("456", "123", body).await?;
 
         assert_eq!(status, StatusCode::OK, "success from document delete");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn should_parse_documents() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("POST"))
+            .and(path(format!("{}/datasets/123/chunks", client.path_prefix)))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "code": 0 })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let body = ParseDocuments {
+            document_ids: vec!["456", "789"],
+        };
+        let (status, value) = client.parse_documents("123", body).await?;
+
+        assert_eq!(status, StatusCode::OK, "success from document parsing");
+        assert_eq!(
+            value.get("code").and_then(|v| v.as_i64()).unwrap(),
+            0,
+            "valid json response"
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn should_top_parsing_documents() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("DELETE"))
+            .and(path(format!("{}/datasets/123/chunks", client.path_prefix)))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "code": 0 })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let body = ParseDocuments {
+            document_ids: vec!["456", "789"],
+        };
+        let status = client.stop_parsing_documents("123", body).await?;
+
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "success from stopping document parsing"
+        );
 
         Ok(())
     }

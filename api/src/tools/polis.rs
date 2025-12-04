@@ -140,7 +140,7 @@ impl PolisClient {
             gatekeeperTosPrivacy: true,
         };
 
-        let res = self
+        let _res = self
             .client
             .post(format!("{POLIS_BASE_URL}/api/v3/auth/new"))
             .json(&new_user)
@@ -161,7 +161,7 @@ impl PolisClient {
         Ok((new_user.email, new_user.password))
     }
 
-    async fn login(&self, login: &PolisLogin) -> Result<(String), PolisError> {
+    async fn login(&self, login: &PolisLogin) -> Result<String, PolisError> {
         info!("Logging in to polis");
         let url = format!("{POLIS_BASE_URL}/api/v3/auth/login");
         println!("format {url}");

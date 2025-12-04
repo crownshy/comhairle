@@ -78,3 +78,8 @@ pub struct RaptorSettings {
 pub struct DeleteDocument<'a> {
     pub ids: Vec<&'a str>,
 }
+
+#[derive(Serialize)]
+pub struct ParseDocuments<'a> {
+    pub document_ids: Vec<&'a str>,
+}
