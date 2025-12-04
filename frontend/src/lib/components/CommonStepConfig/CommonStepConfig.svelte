@@ -96,7 +96,7 @@
 						{#snippet children({ props })}
 							<Form.Label class="text-xl">Description</Form.Label>
 							<div class="h-96 overflow-y-auto">
-								<RichTextEditor bind:value={$form.description} />
+								<RichTextEditor value={$form.description} onChange={(v) => ($form.description = v)} />
 							</div>
 						{/snippet}
 					</Form.Control>

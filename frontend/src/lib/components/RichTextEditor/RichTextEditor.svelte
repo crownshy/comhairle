@@ -21,7 +21,7 @@
 	};
 
 	let {
-		value = $bindable(''),
+		value = '',
 		placeholder = 'Start typing...',
 		editable = true,
 		class: className = '',
@@ -81,11 +81,9 @@
 				if (editor && !isInitializing) {
 					updateActiveStates();
 					
-					value = JSON.stringify(editor.getJSON());
-					previousValue = value; 
-					if (onChange) {
-						onChange(value);
-					}
+					const newValue = JSON.stringify(editor.getJSON());
+					previousValue = newValue;
+					onChange?.(newValue);
 				}
 			},
 			onSelectionUpdate: () => {
