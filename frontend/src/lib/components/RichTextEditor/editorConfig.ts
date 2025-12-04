@@ -2,7 +2,7 @@ import { StarterKit } from '@tiptap/starter-kit';
 import { Link } from '@tiptap/extension-link';
 import { Image } from '@tiptap/extension-image';
 import { Markdown } from '@tiptap/markdown';
-import { Iframe } from '$lib/components/Extensions/iframe';
+import { Iframe } from '$lib/components/RichTextEditor/extensions/iframe';
 import type { Extensions } from '@tiptap/core';
 
 export const EDITOR_HTML_ATTRIBUTES = {
