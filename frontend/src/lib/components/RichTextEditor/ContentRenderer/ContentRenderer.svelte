@@ -1,12 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { Editor } from '@tiptap/core';
-	import { StarterKit } from '@tiptap/starter-kit';
-	import { Link } from '@tiptap/extension-link';
-	import { Image } from '@tiptap/extension-image';
-	import { Markdown } from '@tiptap/markdown';
-	import { Iframe } from '$lib/components/extensions/iframe';
 	import { detectContentType } from '$lib/utils/contentDetection';
+	import { getBaseExtensions, getEditorProps } from '../editorConfig';
 
 	type Props = {
 		content?: string;
@@ -26,36 +22,11 @@
 
 			editor = new Editor({
 				element: editorElement,
-				extensions: [
-					Link.configure({
-						openOnClick: true,
-						HTMLAttributes: {
-							class: 'text-blue-600 underline hover:text-blue-800',
-							target: '_blank',
-							rel: 'noopener noreferrer'
-						}
-					}),
-					Image.configure({
-						HTMLAttributes: {
-							class: 'max-w-full h-auto rounded-lg'
-						}
-					}),
-					Iframe,
-					StarterKit.configure({
-						heading: {
-							levels: [1, 2, 3, 4, 5, 6]
-						}
-					}),
-					Markdown
-				],
+				extensions: getBaseExtensions({ mode: 'renderer' }),
 				content: detected.content,
 				contentType: detected.type,
 				editable: false,
-				editorProps: {
-					attributes: {
-						class: 'prose prose-sm max-w-none focus:outline-none'
-					}
-				}
+				editorProps: getEditorProps()
 			});
 		} catch (error) {
 			//how should we log things? UX: how should we handle it? 
