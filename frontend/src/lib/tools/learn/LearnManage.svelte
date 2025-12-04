@@ -7,13 +7,8 @@
 	};
 
 	import { apiClient } from '$lib/api/client';
-	import { MarkdownEditor } from 'carta-md';
+	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
 	import * as Select from '$lib/components/ui/select';
-	import { createCarta } from '$lib/utils/carta';
-
-	import 'carta-md/default.css';
-	import '@cartamd/plugin-slash/default.css';
-	import 'carta-plugin-video/default.css';
 	import { Button } from '$lib/components/ui/button';
 
 	let { conversation_id, workflow_step, pages }: Props = $props();
@@ -26,8 +21,6 @@
 	let content = $state('');
 
 	let debounceTimeout: NodeJS.Timeout;
-
-	const carta = createCarta();
 
 	// Get current translation
 	function getCurrentTranslation() {
@@ -45,6 +38,8 @@
 			const t = getCurrentTranslation();
 			if (t) {
 				t.content = content;
+				// Keep type as markdown - TipTap handles conversion
+				t.type = 'markdown';
 			} else {
 				// Add new language to current page if not present
 				pages[currentPageIndex].push({
@@ -80,13 +75,13 @@
 		pages.push([
 			{
 				lang: 'en',
-				content: `#Page ${pages.length - 1}`,
+				content: `# Page ${pages.length + 1}`,
 				type: 'markdown'
 			},
 
 			{
 				lang: 'gd',
-				content: `#Duilleag ${pages.length - 1}`,
+				content: `# Duilleag ${pages.length + 1}`,
 				type: 'markdown'
 			}
 		]);
@@ -98,7 +93,7 @@
 			pages[currentPageIndex].push({
 				lang: currentLang,
 				type: 'markdown',
-				content: ''
+				content
 			});
 			content = '';
 		}
@@ -142,16 +137,7 @@
 	</div>
 
 	<!-- Editor -->
-	<div class="grow bg-white">
-		<MarkdownEditor {carta} bind:value={content} />
+	<div class="grow">
+		<RichTextEditor value={content} onChange={(v) => (content = v)} />
 	</div>
 </div>
-
-<style>
-	:global(.carta-font-code) {
-		font-family: '...', monospace;
-		font-size: 1.1rem;
-		line-height: 1.1rem;
-		letter-spacing: normal;
-	}
-</style>
