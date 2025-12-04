@@ -1,10 +1,27 @@
 /**
- * URL validation utilities for secure content embedding - maybe worth using a library here instead? Thoughts?
+ * URL validation utilities for secure content embedding.
+ * Uses URL.parse() (returns null for invalid URLs) and Zod for schema validation.
  */
 
+import { z } from 'zod';
+
 const MAX_URL_LENGTH = 2048;
+const DANGEROUS_PROTOCOLS = ['javascript:', 'data:', 'file:', 'vbscript:'];
+
+export const urlSchema = z
+	.string()
+	.max(MAX_URL_LENGTH)
+	.url()
+	.refine((url) => url.startsWith('https://'), { message: 'URL must use HTTPS' })
+	.refine(
+		(url) => !DANGEROUS_PROTOCOLS.some((p) => url.toLowerCase().startsWith(p)),
+		{ message: 'Dangerous protocol detected' }
+	);
 
 /**
+ * Validates a URL string for security and format.
+ * Uses URL.parse() which returns null for invalid URLs (no try/catch needed).
+ *
  * @example
  * validateUrl('https://example.com/image.jpg') // Returns 'https://example.com/image.jpg'
  * validateUrl('javascript:alert(1)') // Returns null
@@ -19,37 +36,24 @@ export function validateUrl(url: string | null | undefined): string | null {
 	const trimmed = url.trim();
 
 	if (trimmed.length > MAX_URL_LENGTH) {
-		console.warn('[URL Validation] Blocked excessively long URL:', trimmed.length, 'characters');
 		return null;
 	}
-	const dangerousProtocols = ['javascript:', 'data:', 'file:', 'vbscript:'];
+
 	const lowerUrl = trimmed.toLowerCase();
-
-	if (dangerousProtocols.some((protocol) => lowerUrl.startsWith(protocol))) {
-		console.warn('[URL Validation] Blocked dangerous protocol:', trimmed);
+	if (DANGEROUS_PROTOCOLS.some((protocol) => lowerUrl.startsWith(protocol))) {
 		return null;
 	}
 
-	// Do we want to enforce https?
 	if (!trimmed.startsWith('https://')) {
-        // how do we want to log? I know console.warn isn't good practice
-		console.warn('[URL Validation] Blocked non-HTTPS URL:', trimmed);
 		return null;
 	}
 
-	try {
-		new URL(trimmed);
-		return trimmed;
-	} catch {
-        // 2  how do we want to log? I know console.warn isn't good practice
-		console.warn('[URL Validation] Invalid URL format:', trimmed);
-		return null;
-	}
+	return URL.parse(trimmed) ? trimmed : null;
 }
 
 /**
- * Stricter validation with domain whitelist
- * 
+ * Stricter validation with domain whitelist.
+ *
  * @example
  * validateIframeUrl('https://youtube.com/embed/abc', ['youtube.com']) // Valid
  * validateIframeUrl('https://evil.com/embed/abc', ['youtube.com']) // Returns null
@@ -65,37 +69,24 @@ export function validateIframeUrl(
 	}
 
 	if (!allowedDomains || allowedDomains.length === 0) {
-       // 3 how do we want to log? I know console.warn isn't good practice
-		console.warn('[Iframe Validation] No allowed domains configured - blocking iframe');
 		return null;
 	}
 
-	try {
-		const urlObj = new URL(validUrl);
-		const isAllowed = allowedDomains.some((domain) => {
-			// Support wildcards like *.youtube.com
-			if (domain.startsWith('*.')) {
-				const baseDomain = domain.slice(2);
-				return (
-					urlObj.hostname === baseDomain || urlObj.hostname.endsWith(`.${baseDomain}`)
-				);
-			}
-			return urlObj.hostname === domain;
-		});
+	const urlObj = URL.parse(validUrl);
+	if (!urlObj) {
+		return null;
+	}
 
-		if (!isAllowed) {
-			console.warn(
-				'[Iframe Validation] Blocked URL from non-whitelisted domain:',
-				urlObj.hostname
-			);
-			return null;
+	const isAllowed = allowedDomains.some((domain) => {
+		// Support wildcards like *.youtube.com
+		if (domain.startsWith('*.')) {
+			const baseDomain = domain.slice(2);
+			return urlObj.hostname === baseDomain || urlObj.hostname.endsWith(`.${baseDomain}`);
 		}
+		return urlObj.hostname === domain;
+	});
 
-		return validUrl;
-	} catch (error) {
-		console.warn('[Iframe Validation] Failed to parse URL:', error);
-		return null;
-	}
+	return isAllowed ? validUrl : null;
 }
 
 export const DEFAULT_ALLOWED_DOMAINS = [
