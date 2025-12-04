@@ -1,6 +1,8 @@
 <script lang="ts">
 	import {
-		ArrowRight
+		Send,
+		Mic,
+		Sparkles
 	} from 'lucide-svelte';
 
 	interface ChatMessage {
@@ -19,6 +21,8 @@
 	interface ChatBotProps {
 		title?: string;
 		subtitle?: string;
+		botName?: string;
+		botSubtitle?: string;
 		messages?: ChatMessage[];
 		placeholder?: string;
 		initialQuestions?: InitialQuestion[];
@@ -28,22 +32,30 @@
 	}
 
 	let {
-		title = "Deep dive",
-		subtitle = "Try answer some questions from the chatbot and explore your views.",
+		title = "Chat with Bot",
+		subtitle = "Try answer some questions from Comhairle and explore your views.",
+		botName = "Tutor bot",
+		botSubtitle = "Ask questions",
 		messages: initialMessages = [
 			{
 				id: "1",
-				content: "Hello! I'm here to help you explore topics. What would you like to discuss?",
+				content: "Hi, you can ask me anything.",
+				isBot: true,
+				timestamp: new Date()
+			},
+			{
+				id: "2",
+				content: "I suggest you some names you can ask me..",
 				isBot: true,
 				timestamp: new Date()
 			}
 		],
-		placeholder = "Type here",
+		placeholder = "Ask questions...",
 		initialQuestions = [
 			{ id: "1", text: "Explain this to me", variant: "default" },
-			{ id: "2", text: "Give me some context", variant: "default" },
-			{ id: "3", text: "What decisions will this influence?", variant: "default" },
-			{ id: "4", text: "Ask something else", variant: "primary" }
+			{ id: "2", text: "How did NPF come about?", variant: "default" },
+			{ id: "3", text: "What decisions will this influence", variant: "primary" },
+			{ id: "4", text: "Ask something else", variant: "default" }
 		],
 		showInitialQuestions = true,
 		onSendMessage = (message: string) => console.log("Message sent:", message),
@@ -150,99 +162,104 @@
 </script>
 
 
-<div class="bg-white rounded-[14px] shadow-sm border p-10">
-    <div class="text-center mb-6">
-        <div class="flex items-center justify-center gap-2 mb-3">
-            <div class="bg-pink-500 text-white text-xs font-medium px-2.5 py-1 rounded-full shadow-sm">
-                AI
-            </div>
-            <h2 class="text-xl font-semibold text-gray-900">Ask "Bot"</h2>
-        </div>
-        <p class="text-sm text-gray-600">{subtitle}</p>
+<div class="bg-cs-blue-100 rounded-2xl shadow-md border border-cs-grey-200 p-6 max-w-lg mx-auto">
+    <!-- Header -->
+    <div class=" text-center mb-6">
+        <p class="text-xs text-cs-grey-500 mb-2">Deep dive</p>
+        <h2 class="text-2xl font-semibold text-cs-grey-900">{title}</h2>
     </div>
 
-    <div bind:this={chatContainer} class="space-y-4 mb-6 h-96 overflow-y-auto">
-        {#each chatMessages as message (message.id)}
-            <div class="flex items-start space-x-3 {message.isBot ? '' : 'flex-row-reverse'}">
-                <div class="flex-shrink-0">
+    <!-- Bot Info Card -->
+    <div class="bg red-pink-500 flex items-center gap-3 mb-6 p-4 bg-cs-grey-50 rounded-xl">
+        <div class="w-10 h-10 bg-cs-blue-800 rounded-full flex items-center justify-center flex-shrink-0">
+            <Sparkles class="w-5 h-5 text-white" />
+        </div>
+        <div>
+            <p class="font-semibold text-cs-grey-900">{botName}</p>
+            <p class="text-sm text-cs-blue-600">{botSubtitle}</p>
+        </div>
+    </div>
+
+    <!-- Chat Messages -->
+    <div bind:this={chatContainer} class="space-y-4 mb-6 max-h-96 overflow-y-auto pr-2">
+        {#each chatMessages as message, index (message.id)}
+            <div class="{message.isBot ? '' : 'flex justify-end'}">
+                <!-- Message Content -->
+                <div class="inline-block {message.isBot ? 'bg-white' : 'bg-cs-blue-800'} rounded-[16px] px-4 py-3 max-w-sm">
                     {#if message.isBot}
-                        <div class="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center">
-                            <span class="text-white text-sm font-medium">AI</span>
+                        <div class="flex items-start gap-2 ">
+                            {#if index < 2}
+                                <Sparkles class="w-4 h-4 text-cs-blue-600 mt-0.5 flex-shrink-0" />
+                            {/if}
+                            <p class="text-cs-grey-900 text-sm">{message.content}</p>
+							
+							<!-- Quick Reply Buttons - Show after second bot message -->
+							  {#if message.isBot && showInitialQuestions && initialQuestions.length > 0 && !hasStartedConversation && index === chatMessages.length - 1}
+								<div class="mt-3">
+									<div class="flex flex-wrap gap-2 max-w-sm">
+										{#each initialQuestions as question (question.id)}
+											<button
+												onclick={() => handleQuestionClick(question)}
+												class="{question.variant === 'primary' 
+													? 'bg-cs-blue-800 text-white hover:bg-cs-blue-700 border-cs-blue-800' 
+													: 'bg-white text-cs-grey-900 hover:bg-cs-grey-50 border-cs-grey-300'
+												} px-4 py-2 rounded-full text-xs font-medium transition-colors border"
+											>
+												{question.text}
+											</button>
+										{/each}
+									</div>
+								</div>
+							{/if}
+
+
                         </div>
                     {:else}
-                        <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                            <span class="text-white text-sm font-medium">U</span>
-                        </div>
+                        <p class="text-white text-sm">{message.content}</p>
                     {/if}
                 </div>
                 
-                <div class="flex-1">
-                    <div class=" {message.isBot ? 'bg-gray-50' : 'bg-blue-500 text-white'} rounded-[8px] px-6 py-3 max-w-md {message.isBot ? '' : 'ml-auto mr-2'}">
-                        <p class="{message.isBot ? 'text-gray-900' : 'text-white'} text-sm">{message.content}</p>
-                    </div>
-                    
-                    {#if message.isBot && showInitialQuestions && initialQuestions.length > 0 && !hasStartedConversation && chatMessages.indexOf(message) === 0}
-                        <div class="mt-4 ml-0">
-                            <div class="flex flex-wrap gap-2 max-w-md">
-                                {#each initialQuestions as question (question.id)}
-                                    <button
-                                        onclick={() => handleQuestionClick(question)}
-                                        class="{question.variant === 'primary' 
-                                            ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                                            : 'bg-blue-50 text-gray-900 hover:bg-blue-100'
-                                        } px-3 py-2 rounded-full text-xs font-medium transition-colors shadow-sm"
-                                    >
-                                        {question.text}
-                                    </button>
-                                {/each}
-                            </div>
-                        </div>
-                    {/if}
-                </div>
+              
             </div>
         {/each}
         
+        <!-- Typing Indicator -->
         {#if isTyping}
-            <div class="flex items-start space-x-3">
-                <div class="flex-shrink-0">
-                    <div class="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center">
-                        <span class="text-white text-sm font-medium">AI</span>
-                    </div>
-                </div>
-                <div class="flex-1">
-                    <div class="bg-gray-50 rounded-[8px] p-5 max-w-md">
-                        <div class="flex space-x-1">
-                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                        </div>
+            <div>
+                <div class="bg-cs-grey-100 rounded-[16px] px-4 py-3 inline-block">
+                    <div class="flex items-center gap-1">
+                        <div class="w-2 h-2 bg-cs-blue-400 rounded-full animate-bounce"></div>
+                        <div class="w-2 h-2 bg-cs-blue-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                        <div class="w-2 h-2 bg-cs-blue-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
                     </div>
                 </div>
             </div>
         {/if}
     </div>
 
-    <div class="border-t pt-4">
-        <div class="flex items-center space-x-3">
-            <div class="flex-1 relative">
-                <input
-                    bind:value={inputValue}
-                    onkeypress={handleKeyPress}
-                    type="text"
-                    placeholder={placeholder}
-                    class="w-full px-4 py-3 border border-gray-300 rounded-[8px] focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                />
-            </div>
-            <button
-                onclick={sendMessage}
-                class="bg-black text-white p-3 rounded-full hover:opacity-80 transition-colors disabled:cursor-not-allowed"
-                disabled={!inputValue.trim()}
-                aria-label="Send message"
-            >
-             
-				<ArrowRight />
-            </button>
-        </div>
+    <!-- Input Area -->
+    <div class="flex items-center gap-2 p-2 bg-cs-grey-50 rounded-full border border-cs-grey-200">
+        <input
+            bind:value={inputValue}
+            onkeypress={handleKeyPress}
+            type="text"
+            placeholder={placeholder}
+            class="flex-1 px-4 py-2 bg-transparent text-sm text-cs-grey-900 placeholder:text-cs-grey-400 outline-none"
+        />
+        <button
+            class="p-2.5 text-cs-grey-400 hover:text-cs-grey-600 transition-colors"
+            aria-label="Voice input"
+        >
+            <Mic class="w-5 h-5" />
+        </button>
+        <button
+            onclick={sendMessage}
+            class="p-2.5 bg-cs-blue-800 text-white rounded-full hover:bg-cs-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!inputValue.trim()}
+            aria-label="Send message"
+        >
+            <Send class="w-5 h-5" />
+        </button>
     </div>
 </div>
 
