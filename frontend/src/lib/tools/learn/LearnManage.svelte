@@ -138,6 +138,6 @@
 
 	<!-- Editor -->
 	<div class="grow">
-		<RichTextEditor bind:value={content} />
+		<RichTextEditor value={content} onChange={(v) => (content = v)} />
 	</div>
 </div>
