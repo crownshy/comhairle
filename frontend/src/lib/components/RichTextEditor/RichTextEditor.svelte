@@ -1,19 +1,15 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { Editor } from '@tiptap/core';
-	import { StarterKit } from '@tiptap/starter-kit';
 	import { Color } from '@tiptap/extension-color';
 	import { ListItem } from '@tiptap/extension-list-item';
 	import { TextStyle } from '@tiptap/extension-text-style';
-	import { Link } from '@tiptap/extension-link';
-	import { Image } from '@tiptap/extension-image';
 	import { Underline } from '@tiptap/extension-underline';
 	import { TextAlign } from '@tiptap/extension-text-align';
-	import { Markdown } from '@tiptap/markdown';
-	import { Iframe } from '$lib/components/extensions/iframe';
 	import EditorToolbar from './EditorToolbar.svelte';
 	import { CONTENT_TYPES, type ContentType, type ActiveStates } from '$lib/components/RichTextEditor/types';
 	import { detectContentType } from '$lib/utils/contentDetection';
+	import { getBaseExtensions, getEditorProps } from './editorConfig';
 	import './editor-content.css';
 
 	type Props = {
@@ -66,40 +62,21 @@
 		editor = new Editor({
 			element: editorElement,
 			extensions: [
+				// Editor-specific extensions
 				Color.configure({ types: ['textStyle', 'listItem'] }),
 				TextStyle,
 				ListItem,
-				Link.configure({
-					openOnClick: false,
-					HTMLAttributes: {
-						class: 'text-blue-600 underline hover:text-blue-800'
-					}
-				}),
-				Image.configure({
-					HTMLAttributes: {
-						class: 'max-w-full h-auto rounded-lg'
-					}
-				}),
 				Underline,
 				TextAlign.configure({
 					types: ['heading', 'paragraph']
 				}),
-				Iframe,
-				StarterKit.configure({
-					heading: {
-						levels: [1, 2, 3, 4, 5, 6]
-					}
-				}),
-				Markdown
+				// Shared base extensions
+				...getBaseExtensions({ mode: 'editor' })
 			],
 			content: detected.content,
 			contentType: detected.type,
 			editable: editable,
-			editorProps: {
-				attributes: {
-					class: 'prose prose-sm max-w-none focus:outline-none'
-				}
-			},
+			editorProps: getEditorProps(),
 			onTransaction: () => {
 				if (editor && !isInitializing) {
 					updateActiveStates();
