@@ -3,17 +3,14 @@ use chrono::{DateTime, Utc};
 use comhairle_macros::{DbJsonBEnum, DbStringEnum};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, Alias, Expr, Func, Order, PostgresQueryBuilder, Query};
+use sea_query::{enum_def, Expr, Order, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
 use tracing::instrument;
 use uuid::Uuid;
 
-use super::{
-    invite_response::{self, InviteResponseIden},
-    users::User,
-};
+use super::{invite_response, users::User};
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "invite")]
@@ -41,7 +38,7 @@ impl Invite {
     #[instrument(err(Debug))]
     pub fn is_still_valid(&self) -> Result<(), ComhairleError> {
         // If the invite is accepted we still want to return it
-        if (self.status == InviteStatus::Accepted) {
+        if self.status == InviteStatus::Accepted {
             return Ok(());
         }
 
@@ -82,7 +79,7 @@ impl Invite {
             .fetch_one(db)
             .await?;
 
-        invite_response::create(&db, &user.id, &invite.id, invite_response::Response::Accept)
+        invite_response::create(db, &user.id, &invite.id, invite_response::Response::Accept)
             .await?;
         Ok(invite)
     }
@@ -100,7 +97,7 @@ impl Invite {
             .fetch_one(db)
             .await?;
 
-        invite_response::create(&db, &user.id, &invite.id, invite_response::Response::Reject)
+        invite_response::create(db, &user.id, &invite.id, invite_response::Response::Reject)
             .await?;
         Ok(invite)
     }
