@@ -12,12 +12,7 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { commonStepSchema } from './schema';
 	import { Switch } from '../ui/switch';
-	import { MarkdownEditor } from 'carta-md';
-	import { createCarta } from '$lib/utils/carta';
-
-	import 'carta-md/default.css';
-	import '@cartamd/plugin-slash/default.css';
-	import 'carta-plugin-video/default.css';
+	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
 
 	type Props = {
 		conversation_id: string;
@@ -37,8 +32,6 @@
 			onSubmit: updateStep
 		}
 	);
-
-	const carta = createCarta();
 
 	let { form, enhance, validateForm, message, submitting } = commonStepForm;
 
@@ -102,8 +95,8 @@
 					<Form.Control>
 						{#snippet children({ props })}
 							<Form.Label class="text-xl">Description</Form.Label>
-							<div class="h-96 overflow-y-auto rounded-lg border">
-								<MarkdownEditor {carta} bind:value={$form.description} />
+							<div class="h-96 overflow-y-auto">
+								<RichTextEditor bind:value={$form.description} />
 							</div>
 						{/snippet}
 					</Form.Control>
