@@ -92,7 +92,6 @@ dashmap = "6.1.0"
 
 heyform-sdk = {path="../adaptors/heyform-rust-sdk"}
 ragflow = {path="../adaptors/ragflow"}
-service_traits = {path="../service_traits"}
 
 # Macros
 comhairle-macros = {path="../comhairle_macros"}

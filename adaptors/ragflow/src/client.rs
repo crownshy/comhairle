@@ -1,11 +1,11 @@
 use crate::{
+    Dataset,
     error::{RagflowError, Result},
     types::{
         CreateDataset, DeleteDocument, GetDocumentsQueryParams, ParseDocuments, UpdateDocument,
         UploadFile,
     },
 };
-use service_traits::ComhairleBotService;
 
 use reqwest::{
     Client as HttpClient, StatusCode,
@@ -21,21 +21,6 @@ pub struct RagflowClient {
     path_prefix: String,
     api_key: String,
     http: HttpClient,
-}
-
-impl ComhairleBotService for RagflowClient {
-    type KnowledgeBase = Value;
-    type Error = RagflowError;
-
-    async fn create_knowledge_base(
-        &self,
-        name: String,
-        description: String,
-    ) -> std::result::Result<(StatusCode, Self::KnowledgeBase), Self::Error> {
-        let path = "/datasets";
-        let body = CreateDataset { name, description };
-        self.post(path, &body, None).await
-    }
 }
 
 impl RagflowClient {
@@ -55,7 +40,7 @@ impl RagflowClient {
         format!("Bearer {}", self.api_key)
     }
 
-    async fn get<Q>(
+    pub async fn get<Q>(
         &self,
         path: &str,
         query: Option<&Q>,
@@ -95,7 +80,7 @@ impl RagflowClient {
         Ok((status, json))
     }
 
-    async fn post<B: Serialize + ?Sized>(
+    pub async fn post<B: Serialize + ?Sized>(
         &self,
         path: &str,
         body: &B,
@@ -128,7 +113,7 @@ impl RagflowClient {
         Ok((status, json))
     }
 
-    async fn post_multipart(
+    pub async fn post_multipart(
         &self,
         path: &str,
         form: Form,
@@ -160,7 +145,7 @@ impl RagflowClient {
         Ok((status, json))
     }
 
-    async fn put<B: Serialize + ?Sized>(
+    pub async fn put<B: Serialize + ?Sized>(
         &self,
         path: &str,
         body: &B,
@@ -192,7 +177,7 @@ impl RagflowClient {
         Ok((status, json))
     }
 
-    async fn delete<B: Serialize + ?Sized>(
+    pub async fn delete<B: Serialize + ?Sized>(
         &self,
         path: &str,
         body: &B,
@@ -244,6 +229,20 @@ impl RagflowClient {
         }
 
         Ok(status)
+    }
+
+    pub async fn create_dataset(
+        &self,
+        name: String,
+        description: String,
+    ) -> Result<(StatusCode, Dataset)> {
+        let path = "/datasets";
+        let body = CreateDataset { name, description };
+        let (status, value) = self.post(path, &body, None).await?;
+
+        let knowledge_base: Dataset = serde_json::from_value(value)?;
+
+        Ok((status, knowledge_base))
     }
 
     pub async fn get_documents(
@@ -333,6 +332,7 @@ mod tests {
     use std::error::Error;
 
     use crate::{
+        Dataset,
         client::RagflowClient,
         error::RagflowError,
         types::{
@@ -763,6 +763,36 @@ mod tests {
             }
             _ => panic!("Expected RagflowError::Api"),
         }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn should_create_dataset() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        let dataset = Dataset {
+            name: "test_dataset".to_string(),
+            ..Default::default()
+        };
+        Mock::given(method("POST"))
+            .and(path(format!("{}/datasets", client.path_prefix)))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!(dataset)))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let (status, value) = client
+            .create_dataset("test_dataset".to_string(), "a new test dataset".to_string())
+            .await?;
+
+        assert!(status.is_success(), "status code not success");
+        assert_eq!(
+            value.name,
+            "test_dataset".to_string(),
+            "response json incorrect"
+        );
 
         Ok(())
     }
