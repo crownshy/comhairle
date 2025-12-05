@@ -243,7 +243,7 @@ impl RagflowClient {
     pub async fn create_dataset(
         &self,
         name: String,
-        description: String,
+        description: Option<String>,
     ) -> Result<(StatusCode, Dataset)> {
         let path = "/datasets";
         let body = CreateDataset {

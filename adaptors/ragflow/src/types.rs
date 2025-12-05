@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize)]
 pub struct CreateDataset {
     pub name: String,
-    pub description: String,
+    pub description: Option<String>,
     pub permission: Option<String>,
 }
 
@@ -18,8 +18,8 @@ pub struct Dataset {
     pub avatar: Option<String>,
     pub chunk_count: i32,
     pub chunk_method: ChunkMethod,
-    pub create_date: String, // TODO: maybe a better type
-    pub create_time: String,
+    pub create_date: String,
+    pub create_time: i64,
     pub created_by: String,
     pub description: Option<String>,
     pub document_count: i32,
@@ -28,7 +28,7 @@ pub struct Dataset {
     pub language: String,
     pub name: String,
     pub pagerank: i32,
-    pub parser_config: (), // TODO:
+    // pub parser_config: (), // TODO:
     pub permission: String,
     pub similarity_threshold: f64,
     pub status: String,

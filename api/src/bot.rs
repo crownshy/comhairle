@@ -26,7 +26,7 @@ pub trait ComhairleBotService: Send + Sync {
     async fn create_knowledge_base(
         &self,
         name: String,
-        description: String,
+        description: Option<String>,
     ) -> Result<(StatusCode, Dataset), ComhairleError>;
 
     async fn delete_knowledge_base(&self, id: String) -> Result<StatusCode, ComhairleError>;
@@ -41,7 +41,7 @@ impl ComhairleBotService for ComhairleRagBotService {
     async fn create_knowledge_base(
         &self,
         name: String,
-        description: String,
+        description: Option<String>,
     ) -> Result<(StatusCode, Dataset), ComhairleError> {
         let (status, knowledge_base) = self.client.create_dataset(name, description).await?;
 
