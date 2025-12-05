@@ -4,13 +4,14 @@ use serde::{Deserialize, Serialize};
 pub struct CreateDataset {
     pub name: String,
     pub description: String,
+    pub permission: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct Dataset {
     pub avatar: Option<String>,
     pub chunk_count: i32,
-    pub chunk_method: Option<ChunkMethod>,
+    pub chunk_method: ChunkMethod,
     pub create_date: String, // TODO: maybe a better type
     pub create_time: String,
     pub created_by: String,
@@ -60,9 +61,10 @@ pub struct UpdateDocument {
     pub parser_config: Option<ParserConfig>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ChunkMethod {
+    #[default]
     Naive,
     Manual,
     QA,
@@ -107,7 +109,7 @@ pub struct RaptorSettings {
 }
 
 #[derive(Serialize)]
-pub struct DeleteDocument<'a> {
+pub struct DeleteResources<'a> {
     pub ids: Vec<&'a str>,
 }
 

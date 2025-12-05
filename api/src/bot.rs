@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use ragflow::{client::RagflowClient, Dataset};
 use reqwest::StatusCode;
 
+#[cfg(test)]
 use mockall::{automock, predicate::*};
 
 use crate::error::ComhairleError;
@@ -27,6 +28,8 @@ pub trait ComhairleBotService: Send + Sync {
         name: String,
         description: String,
     ) -> Result<(StatusCode, Dataset), ComhairleError>;
+
+    async fn delete_knowledge_base(&self, id: String) -> Result<StatusCode, ComhairleError>;
 }
 
 pub struct ComhairleRagBotService {
@@ -44,26 +47,34 @@ impl ComhairleBotService for ComhairleRagBotService {
 
         Ok((status, knowledge_base))
     }
+
+    async fn delete_knowledge_base(&self, id: String) -> Result<StatusCode, ComhairleError> {
+        let status = self.client.delete_dataset(&id).await?;
+        Ok(status)
+    }
 }
 
-// create struct for knowledgebase
-// struct {
-//   author
-//   created_at
-//   conversation_id
-// }
-//
-// create struct for document
-// struct {
-//   external_document_id
-//   title
-//   description
-//   format
-// }
-//
-// create knowledgebase for conversation
-// get knowledgebase
-//
-// add document to knowledgebase
-// view document
-// delete document
+#[cfg(test)]
+impl MockComhairleBotService {
+    pub fn base() -> MockComhairleBotService {
+        let mut bot_service = MockComhairleBotService::new();
+
+        bot_service
+            .expect_create_knowledge_base()
+            .returning(|_, _| {
+                Box::pin(async move {
+                    Ok((
+                        StatusCode::OK,
+                        Dataset {
+                            ..Default::default()
+                        },
+                    ))
+                })
+            });
+        bot_service
+            .expect_delete_knowledge_base()
+            .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
+
+        bot_service
+    }
+}

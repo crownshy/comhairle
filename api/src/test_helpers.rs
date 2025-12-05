@@ -21,7 +21,7 @@ use sqlx::PgPool;
 use tower::ServiceExt;
 
 use crate::{
-    bot::{ComhairleBotService, ComhairleRagBotService},
+    bot::{ComhairleBotService, MockComhairleBotService},
     config::ComhairleConfig,
     mailer::MockComhairleMailer,
     models::users::UpdateUserRequest,
@@ -46,7 +46,7 @@ pub fn mock_translation_service() -> Option<Arc<dyn TranslationService>> {
 }
 
 pub fn mock_bot_service() -> Arc<dyn ComhairleBotService> {
-    let bot_service = ComhairleRagBotService::new("127.0.0.1:0", "test_key");
+    let bot_service = MockComhairleBotService::base();
     Arc::new(bot_service)
 }
 
