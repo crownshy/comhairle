@@ -1,5 +1,5 @@
 use crate::{
-    CreateDatasetResponse, Dataset,
+    CreateDatasetResponse, Dataset, Document, GetDocumentsResponse,
     error::{RagflowError, Result},
     types::{
         CreateDataset, DeleteResources, GetDocumentsQueryParams, ParseDocuments, UpdateDocument,
@@ -268,10 +268,14 @@ impl RagflowClient {
     pub async fn get_documents(
         &self,
         dataset_id: &str,
-        query: Option<&GetDocumentsQueryParams>,
-    ) -> Result<(StatusCode, Value)> {
+        query: Option<GetDocumentsQueryParams>,
+    ) -> Result<(StatusCode, Vec<Document>)> {
         let path = format!("/datasets/{dataset_id}/documents");
-        self.get(&path, query, None).await
+        let (status, value) = self.get(&path, query.as_ref(), None).await?;
+
+        let json: GetDocumentsResponse = serde_json::from_value(value)?;
+
+        Ok((status, json.data.docs))
     }
 
     pub async fn download_document(
@@ -318,11 +322,10 @@ impl RagflowClient {
         self.put(&path, &body, None).await
     }
 
-    pub async fn delete_document(
-        &self,
-        dataset_id: &str,
-        body: DeleteResources<'_>,
-    ) -> Result<StatusCode> {
+    pub async fn delete_document(&self, document_id: &str, dataset_id: &str) -> Result<StatusCode> {
+        let body = DeleteResources {
+            ids: vec![document_id],
+        };
         let path = format!("/datasets/{dataset_id}/documents");
         self.delete(&path, &body, None).await
     }
@@ -814,7 +817,10 @@ mod tests {
             .await;
 
         let (status, value) = client
-            .create_dataset("test_dataset".to_string(), "a new test dataset".to_string())
+            .create_dataset(
+                "test_dataset".to_string(),
+                Some("a new test dataset".to_string()),
+            )
             .await?;
 
         assert!(status.is_success(), "status code not success");
@@ -985,8 +991,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let body = DeleteResources { ids: vec!["456"] };
-        let status = client.delete_document("123", body).await?;
+        let status = client.delete_document("456", "123").await?;
 
         assert_eq!(status, StatusCode::OK, "success from document delete");
 
