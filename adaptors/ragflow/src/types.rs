@@ -39,6 +39,45 @@ pub struct Dataset {
     pub vector_similarity_weight: f64,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct GetDocumentsResponse {
+    pub code: i32,
+    pub data: DocumentList,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct DocumentList {
+    pub docs: Vec<Document>,
+    pub total: Option<i32>,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct Document {
+    pub chunk_count: i32,
+    pub create_date: String,
+    pub create_time: i64,
+    pub created_by: String,
+    pub knowledgebase_id: String,
+    pub location: String,
+    pub name: String,
+    // pub parser_config: (),
+    pub chunk_method: ChunkMethod,
+    pub process_begin_at: Option<String>,
+    pub process_duration: f64,
+    pub progress: f64,
+    pub progress_message: Option<String>,
+    pub run: String,
+    pub size: i64,
+    pub source_type: String,
+    pub status: i32,
+    pub suffix: Option<String>,
+    pub thumbnail: Option<String>,
+    pub token_count: i32,
+    pub r#type: Option<String>,
+    pub update_date: String,
+    pub update_time: i64,
+}
+
 #[derive(Serialize, Default)]
 pub struct GetDocumentsQueryParams {
     pub page: Option<i32>,

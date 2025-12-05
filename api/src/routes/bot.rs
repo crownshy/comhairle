@@ -20,14 +20,14 @@ struct CreateKnowledgeBaseRequest {
 }
 
 #[instrument(err(Debug), skip(state))]
-async fn create_knowledge_base(
+async fn create_knowledgebase(
     State(state): State<Arc<ComhairleState>>,
     jar: CookieJar,
     Json(payload): Json<CreateKnowledgeBaseRequest>,
 ) -> Result<(CookieJar, StatusCode), ComhairleError> {
     let _result = state
         .bot_service
-        .create_knowledge_base(payload.name, payload.description)
+        .create_knowledgebase(payload.name, payload.description)
         .await?;
 
     Ok((jar, StatusCode::CREATED))
@@ -36,8 +36,8 @@ async fn create_knowledge_base(
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
-            "/create_knowledge_base",
-            post_with(create_knowledge_base, |op| {
+            "/create_knowledgebase",
+            post_with(create_knowledgebase, |op| {
                 op.id("CreateKnowledgeBase")
                     .summary("Create a knowledge base in RAG system")
                     .response::<204, ()>()
