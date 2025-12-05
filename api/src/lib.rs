@@ -10,6 +10,7 @@ mod tools;
 pub mod translation_service;
 pub mod websockets;
 
+use bot::ComhairleBotService;
 use docs::docs_routes;
 use mailer::ComhairleMailer;
 pub use routes::auth::hash_pw;

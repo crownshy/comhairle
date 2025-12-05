@@ -1,3 +1,4 @@
+use ragflow::Dataset;
 use std::{collections::HashMap, error::Error, sync::Arc};
 use uuid::Uuid;
 
@@ -20,6 +21,7 @@ use sqlx::PgPool;
 use tower::ServiceExt;
 
 use crate::{
+    bot::{ComhairleBotService, ComhairleRagBotService},
     config::ComhairleConfig,
     mailer::MockComhairleMailer,
     models::users::UpdateUserRequest,
@@ -43,6 +45,11 @@ pub fn mock_translation_service() -> Option<Arc<dyn TranslationService>> {
     Some(Arc::new(translation_service))
 }
 
+pub fn mock_bot_service() -> Arc<dyn ComhairleBotService> {
+    let bot_service = ComhairleRagBotService::new("127.0.0.1:0", "test_key");
+    Arc::new(bot_service)
+}
+
 #[builder]
 pub fn test_state(
     db: PgPool,
@@ -50,6 +57,7 @@ pub fn test_state(
     config: Option<ComhairleConfig>,
     websockets: Option<Arc<dyn WebSocketService>>,
     translation_service: Option<Arc<dyn TranslationService>>,
+    bot_service: Option<Arc<dyn ComhairleBotService>>,
 ) -> Result<ComhairleState, Box<dyn Error>> {
     let state = ComhairleState {
         db,
@@ -59,6 +67,7 @@ pub fn test_state(
         translation_service: translation_service
             .map(|s| Some(s))
             .unwrap_or_else(|| mock_translation_service()),
+        bot_service: bot_service.unwrap_or_else(|| mock_bot_service()),
     };
     Ok(state)
 }

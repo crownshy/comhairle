@@ -1,9 +1,8 @@
 use comhairle::{
-    config::TranslatorConfig, db::setup_db, mailer::Mailer, setup_server,
-    translation_service::GoogleTranslateService, websockets::ComhairleWebSocketService,
-    ComhairleState,
+    bot::ComhairleRagBotService, config::TranslatorConfig, db::setup_db, mailer::Mailer,
+    setup_server, translation_service::GoogleTranslateService,
+    websockets::ComhairleWebSocketService, ComhairleState,
 };
-use ragflow::client::RagflowClient;
 use std::{error::Error, sync::Arc};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -57,9 +56,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let websockets = Arc::new(ComhairleWebSocketService::new());
-    let bot_service = Arc::new(RagflowClient::new(
-        config.bot_service_host,
-        config.bot_service_api_key,
+    let bot_service = Arc::new(ComhairleRagBotService::new(
+        &config.bot_service_host,
+        &config.bot_service_api_key,
     ));
     let state = Arc::new(ComhairleState {
         db,

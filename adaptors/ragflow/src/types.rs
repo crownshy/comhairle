@@ -1,9 +1,35 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
 pub struct CreateDataset {
     pub name: String,
     pub description: String,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct Dataset {
+    pub avatar: Option<String>,
+    pub chunk_count: i32,
+    pub chunk_method: Option<ChunkMethod>,
+    pub create_date: String, // TODO: maybe a better type
+    pub create_time: String,
+    pub created_by: String,
+    pub description: Option<String>,
+    pub document_count: i32,
+    pub embedding_model: String,
+    pub id: String,
+    pub language: String,
+    pub name: String,
+    pub pagerank: i32,
+    pub parser_config: (), // TODO:
+    pub permission: String,
+    pub similarity_threshold: f64,
+    pub status: String,
+    pub tenant_id: String,
+    pub token_num: i32,
+    pub update_date: String,
+    pub update_time: i64,
+    pub vector_similarity_weight: f64,
 }
 
 #[derive(Serialize, Default)]
@@ -34,7 +60,7 @@ pub struct UpdateDocument {
     pub parser_config: Option<ParserConfig>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ChunkMethod {
     Naive,

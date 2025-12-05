@@ -1391,7 +1391,6 @@ dependencies = [
  "sea-query-binder",
  "serde",
  "serde_json",
- "service_traits",
  "slugify",
  "sqlx",
  "sqlx-postgres",
@@ -4304,7 +4303,6 @@ dependencies = [
  "reqwest 0.12.15",
  "serde",
  "serde_json",
- "service_traits",
  "thiserror 1.0.69",
  "tokio",
  "wiremock",
@@ -5228,17 +5226,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.111",
-]
-
-[[package]]
-name = "service_traits"
-version = "0.1.0"
-dependencies = [
- "aide",
- "async-trait",
- "mockall",
- "serde",
- "serde_json",
 ]
 
 [[package]]
