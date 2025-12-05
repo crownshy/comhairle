@@ -2,7 +2,7 @@ use crate::{
     Dataset,
     error::{RagflowError, Result},
     types::{
-        CreateDataset, DeleteDocument, GetDocumentsQueryParams, ParseDocuments, UpdateDocument,
+        CreateDataset, DeleteResources, GetDocumentsQueryParams, ParseDocuments, UpdateDocument,
         UploadFile,
     },
 };
@@ -237,12 +237,23 @@ impl RagflowClient {
         description: String,
     ) -> Result<(StatusCode, Dataset)> {
         let path = "/datasets";
-        let body = CreateDataset { name, description };
+        let body = CreateDataset {
+            name,
+            description,
+            permission: Some("team".to_string()),
+        };
         let (status, value) = self.post(path, &body, None).await?;
 
         let knowledge_base: Dataset = serde_json::from_value(value)?;
 
         Ok((status, knowledge_base))
+    }
+
+    pub async fn delete_dataset(&self, dataset_id: &str) -> Result<StatusCode> {
+        let body = DeleteResources {
+            ids: vec![dataset_id],
+        };
+        self.delete("/datasets", &body, None).await
     }
 
     pub async fn get_documents(
@@ -300,11 +311,10 @@ impl RagflowClient {
 
     pub async fn delete_document(
         &self,
-        document_id: &str,
         dataset_id: &str,
-        body: DeleteDocument<'_>,
+        body: DeleteResources<'_>,
     ) -> Result<StatusCode> {
-        let path = format!("/datasets/{dataset_id}/documents/{document_id}");
+        let path = format!("/datasets/{dataset_id}/documents");
         self.delete(&path, &body, None).await
     }
 
@@ -336,7 +346,7 @@ mod tests {
         client::RagflowClient,
         error::RagflowError,
         types::{
-            ChunkMethod, DeleteDocument, EmptyParserConfig, GetDocumentsQueryParams,
+            ChunkMethod, DeleteResources, EmptyParserConfig, GetDocumentsQueryParams,
             ParseDocuments, ParserConfig, UpdateDocument, UploadFile,
         },
     };
@@ -774,6 +784,7 @@ mod tests {
 
         let dataset = Dataset {
             name: "test_dataset".to_string(),
+            permission: "team".to_string(),
             ..Default::default()
         };
         Mock::given(method("POST"))
@@ -793,6 +804,25 @@ mod tests {
             "test_dataset".to_string(),
             "response json incorrect"
         );
+        assert_eq!(value.permission, "team".to_string(), "permission incorrect");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn should_delete_dataset() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("DELETE"))
+            .and(path(format!("{}/datasets", client.path_prefix)))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "code": 0 })))
+            .mount(&mock_server)
+            .await;
+
+        let status = client.delete_dataset("123").await?;
+
+        assert!(status.is_success(), "dataset deletion status");
 
         Ok(())
     }
@@ -929,8 +959,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let body = DeleteDocument { ids: vec!["123"] };
-        let status = client.delete_document("456", "123", body).await?;
+        let body = DeleteResources { ids: vec!["123"] };
+        let status = client.delete_document("456", body).await?;
 
         assert_eq!(status, StatusCode::OK, "success from document delete");
 
