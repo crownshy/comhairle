@@ -1,5 +1,5 @@
 use crate::{
-    Dataset,
+    CreateDatasetResponse, Dataset,
     error::{RagflowError, Result},
     types::{
         CreateDataset, DeleteResources, GetDocumentsQueryParams, ParseDocuments, UpdateDocument,
@@ -40,6 +40,33 @@ impl RagflowClient {
         format!("Bearer {}", self.api_key)
     }
 
+    /// Method required to validate a-typical error handling from ragflow api.
+    /// All Ragflow endpoints return 200 code and a json response body. The json
+    /// includes a `code` field, which is 0 if successful and 10* if unsuccessful.
+    fn validate_ragflow_response(&self, _status: StatusCode, json: &Value) -> Result<()> {
+        let code = json
+            .get("code")
+            .and_then(|v| v.as_i64())
+            .ok_or_else(|| RagflowError::Api {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                body: "Missing or invalid 'code' field in response".into(),
+            })?;
+
+        if code != 0 {
+            let message = json
+                .get("message")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Something went wrong");
+            return Err(RagflowError::Api {
+                // status code from ragflow unhelpful as always 200
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                body: message.to_string(),
+            });
+        }
+
+        Ok(())
+    }
+
     pub async fn get<Q>(
         &self,
         path: &str,
@@ -69,14 +96,13 @@ impl RagflowClient {
         let response = request.send().await?;
         let status = response.status();
 
-        // TODO: look at if there is a better way to handle this
         if !status.is_success() {
             let text = response.text().await?;
             return Err(RagflowError::Api { status, body: text });
         }
-        // TODO: will need another way to handle 200 responses that are still errors
 
         let json: serde_json::Value = response.json().await?;
+        self.validate_ragflow_response(status, &json)?;
         Ok((status, json))
     }
 
@@ -103,13 +129,13 @@ impl RagflowClient {
         let response = request.send().await?;
         let status = response.status();
 
-        // TODO: not convinced by this
         if !status.is_success() {
             let text = response.text().await?;
             return Err(RagflowError::Api { status, body: text });
         }
 
         let json = response.json().await?;
+        self.validate_ragflow_response(status, &json)?;
         Ok((status, json))
     }
 
@@ -142,6 +168,7 @@ impl RagflowClient {
         }
 
         let json = response.json().await?;
+        self.validate_ragflow_response(status, &json)?;
         Ok((status, json))
     }
 
@@ -174,6 +201,7 @@ impl RagflowClient {
         }
 
         let json = response.json().await?;
+        self.validate_ragflow_response(status, &json)?;
         Ok((status, json))
     }
 
@@ -207,26 +235,7 @@ impl RagflowClient {
 
         let json = response.json::<Value>().await?;
 
-        // TODO: extract and add to each crud method
-        // Required error handling for Ragflow
-        let code = json
-            .get("code")
-            .and_then(|v| v.as_i64())
-            .ok_or_else(|| RagflowError::Api {
-                status: StatusCode::INTERNAL_SERVER_ERROR,
-                body: "Missing or invalid 'code' field in response".into(),
-            })?;
-
-        if code != 0 {
-            let message = json
-                .get("message")
-                .and_then(|v| v.as_str())
-                .unwrap_or("Something went wrong");
-            return Err(RagflowError::Api {
-                status, // TODO: what should the status be here?
-                body: message.to_string(),
-            });
-        }
+        self.validate_ragflow_response(status, &json)?;
 
         Ok(status)
     }
@@ -244,9 +253,9 @@ impl RagflowClient {
         };
         let (status, value) = self.post(path, &body, None).await?;
 
-        let knowledge_base: Dataset = serde_json::from_value(value)?;
+        let json: CreateDatasetResponse = serde_json::from_value(value)?;
 
-        Ok((status, knowledge_base))
+        Ok((status, json.data))
     }
 
     pub async fn delete_dataset(&self, dataset_id: &str) -> Result<StatusCode> {
@@ -342,7 +351,7 @@ mod tests {
     use std::error::Error;
 
     use crate::{
-        Dataset,
+        CreateDatasetResponse, Dataset,
         client::RagflowClient,
         error::RagflowError,
         types::{
@@ -365,7 +374,7 @@ mod tests {
 
         Mock::given(method("GET"))
             .and(path(format!("{}/", client.path_prefix)))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!({"ok": true})))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({"code": 0})))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -373,9 +382,10 @@ mod tests {
         let (status, value) = client.get::<()>("/", None, None).await?;
 
         assert_eq!(status, StatusCode::OK, "success status from get request");
-        assert!(
-            value.get("ok").and_then(|v| v.as_bool()).unwrap(),
-            "response body should contain ok field"
+        assert_eq!(
+            value.get("code").and_then(|v| v.as_i64()).unwrap(),
+            0,
+            "incorrect json response"
         );
 
         Ok(())
@@ -434,16 +444,19 @@ mod tests {
 
         Mock::given(method("POST"))
             .and(path(format!("{}/test-post", client.path_prefix)))
-            .respond_with(ResponseTemplate::new(201).set_body_json(json!({ "success": true })))
+            .respond_with(ResponseTemplate::new(201).set_body_json(json!({ "code": 0 })))
             .expect(1)
             .mount(&mock_server)
             .await;
 
         let (status, value) = client.post("/test-post", &json!({}), None).await?;
 
-        let success_field = value.get("success").and_then(|v| v.as_bool()).unwrap();
         assert_eq!(status, StatusCode::CREATED, "success status from post");
-        assert!(success_field, "json response is valid");
+        assert_eq!(
+            value.get("code").and_then(|v| v.as_i64()).unwrap(),
+            0,
+            "incorrect json response"
+        );
 
         Ok(())
     }
@@ -507,7 +520,7 @@ mod tests {
 
         Mock::given(method("POST"))
             .and(path(format!("{}/test-multipart-post", client.path_prefix)))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "success": true })))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "code": 0 })))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -520,9 +533,10 @@ mod tests {
             .await?;
 
         assert_eq!(status, StatusCode::OK, "success from multipart post");
-        assert!(
-            value.get("success").and_then(|v| v.as_bool()).unwrap(),
-            "valid json response"
+        assert_eq!(
+            value.get("code").and_then(|v| v.as_i64()).unwrap(),
+            0,
+            "incorrect json response"
         );
 
         Ok(())
@@ -595,7 +609,7 @@ mod tests {
 
         Mock::given(method("PUT"))
             .and(path(format!("{}/test-update", client.path_prefix)))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "success": true })))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "code": 0 })))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -605,9 +619,10 @@ mod tests {
             .await?;
 
         assert_eq!(status, StatusCode::OK, "success from update");
-        assert!(
-            value.get("success").and_then(|v| v.as_bool()).unwrap(),
-            "valid json response"
+        assert_eq!(
+            value.get("code").and_then(|v| v.as_i64()).unwrap(),
+            0,
+            "incorrect json response"
         );
 
         Ok(())
@@ -787,9 +802,13 @@ mod tests {
             permission: "team".to_string(),
             ..Default::default()
         };
+        let json = CreateDatasetResponse {
+            code: 0,
+            data: dataset,
+        };
         Mock::given(method("POST"))
             .and(path(format!("{}/datasets", client.path_prefix)))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!(dataset)))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!(json)))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -839,7 +858,7 @@ mod tests {
             .and(path(format!("{}{}", client.path_prefix, req_path)))
             .and(query_param("page", "1"))
             .and(query_param("page_size", "12"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "code": 0 })))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -849,9 +868,14 @@ mod tests {
             page_size: Some(12),
             ..Default::default()
         };
-        let (status, _) = client.get(&req_path, Some(&query), None).await?;
+        let (status, value) = client.get(&req_path, Some(&query), None).await?;
 
-        assert_eq!(status, StatusCode::OK, "success from get documents");
+        assert!(status.is_success(), "success from get documents");
+        assert_eq!(
+            value.get("code").and_then(|v| v.as_i64()).unwrap(),
+            0,
+            "incorrect json response"
+        );
 
         Ok(())
     }
@@ -890,7 +914,7 @@ mod tests {
                 "{}/datasets/123/documents",
                 client.path_prefix
             )))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "success": true })))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "code": 0 })))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -903,9 +927,10 @@ mod tests {
         let (status, value) = client.upload_documents("123", files).await?;
 
         assert_eq!(status, StatusCode::OK, "success from doc upload");
-        assert!(
-            value.get("success").and_then(|v| v.as_bool()).unwrap(),
-            "valid response json"
+        assert_eq!(
+            value.get("code").and_then(|v| v.as_i64()).unwrap(),
+            0,
+            "incorrect json response"
         );
 
         Ok(())
@@ -921,7 +946,7 @@ mod tests {
                 "{}/datasets/123/documents/456",
                 client.path_prefix
             )))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "success": true })))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "code": 0 })))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -936,9 +961,10 @@ mod tests {
         let (status, value) = client.update_document("456", "123", update_doc).await?;
 
         assert_eq!(status, StatusCode::OK, "success from document update");
-        assert!(
-            value.get("success").and_then(|v| v.as_bool()).unwrap(),
-            "valid json response"
+        assert_eq!(
+            value.get("code").and_then(|v| v.as_i64()).unwrap(),
+            0,
+            "incorrect json response"
         );
 
         Ok(())
@@ -951,7 +977,7 @@ mod tests {
 
         Mock::given(method("DELETE"))
             .and(path(format!(
-                "{}/datasets/123/documents/456",
+                "{}/datasets/123/documents",
                 client.path_prefix
             )))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "code": 0 })))
@@ -959,8 +985,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let body = DeleteResources { ids: vec!["123"] };
-        let status = client.delete_document("456", body).await?;
+        let body = DeleteResources { ids: vec!["456"] };
+        let status = client.delete_document("123", body).await?;
 
         assert_eq!(status, StatusCode::OK, "success from document delete");
 
