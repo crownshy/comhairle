@@ -7,6 +7,12 @@ pub struct CreateDataset {
     pub permission: Option<String>,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct CreateDatasetResponse {
+    pub code: i32,
+    pub data: Dataset,
+}
+
 #[derive(Serialize, Deserialize, Default)]
 pub struct Dataset {
     pub avatar: Option<String>,
