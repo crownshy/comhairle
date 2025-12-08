@@ -184,6 +184,8 @@ export const BroadcastResponse = z.object({ message: z.string(), sent_to: z.numb
 export type BroadcastResponse = z.infer<typeof BroadcastResponse>;
 export const SendToUserMessage = z.object({ message: z.string(), user_id: z.string().uuid() }).passthrough();
 export type SendToUserMessage = z.infer<typeof SendToUserMessage>;
+export const CreateKnowledgeBaseRequest = z.object({ description: z.union([z.string(), z.null()]).optional(), name: z.string(), permission: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type CreateKnowledgeBaseRequest = z.infer<typeof CreateKnowledgeBaseRequest>;
 
 
 export const schemas = {
@@ -278,6 +280,7 @@ export const schemas = {
 	BroadcastMessage,
 	BroadcastResponse,
 	SendToUserMessage,
+	CreateKnowledgeBaseRequest,
 };
 
 const endpoints = makeApi([
@@ -409,6 +412,20 @@ const endpoints = makeApi([
 			},
 		],
 		response: User,
+	},
+	{
+		method: "post",
+		path: "/bot/create_knowledgebase",
+		alias: "CreateKnowledgeBase",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: CreateKnowledgeBaseRequest
+			},
+		],
+		response: z.void(),
 	},
 	{
 		method: "get",
