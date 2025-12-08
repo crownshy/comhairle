@@ -9,6 +9,7 @@
 	import { afterNavigate } from '$app/navigation';
 	import UserNavMenu from './UserNavMenu.svelte';
 
+	import ThemeSwitcher from './ThemeSwitcher.svelte';
 	let links = [
 		{
 			href: '/',
@@ -48,6 +49,8 @@
 
 		<!-- Desktop Navigation -->
 		<div class="hidden space-x-6 md:flex lg:space-x-5">
+				<ThemeSwitcher />
+
 			{#each links as link}
 				<Button href={link.href} variant="nav">{link.name}</Button>
 			{/each}
