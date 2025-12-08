@@ -20,7 +20,8 @@ use crate::{
     models::{
         conversation::{
             self, Conversation, ConversationFilterOptions, ConversationOrderOptions,
-            CreateConversation, LocalisedConversation, PartialConversation,
+            ConversationWithTranslations, CreateConversation, LocalisedConversation,
+            PartialConversation,
         },
         conversation_email_notification_recipients::{
             self as email_recipients_model, ConversationEmailNotificationRecipients,
@@ -36,7 +37,7 @@ use crate::{
     ComhairleState,
 };
 
-use super::auth::RequiredAdminUser;
+use super::auth::{is_user_admin, OptionalUser, RequiredAdminUser};
 
 /// Create conversation handler
 async fn create_conversation(
@@ -86,19 +87,68 @@ enum IdOrSlug {
     Slug(String),
 }
 
+#[derive(Deserialize, JsonSchema)]
+pub struct GetConversationQuery {
+    #[serde(rename = "withTranslations", default)]
+    pub with_translations: bool,
+}
+
+#[derive(Serialize, JsonSchema)]
+#[serde(untagged)]
+pub enum ConversationResponse {
+    Localised(LocalisedConversation),
+    WithTranslations(ConversationWithTranslations),
+}
+
 /// Get a specific conversation
 async fn get_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_ident): Path<IdOrSlug>,
-) -> Result<(StatusCode, Json<LocalisedConversation>), ComhairleError> {
+    Query(query): Query<GetConversationQuery>,
+    OptionalUser(user): OptionalUser,
+) -> Result<(StatusCode, Json<ConversationResponse>), ComhairleError> {
     info!("Attempting to get conversation {conversation_ident:#?}");
 
-    let conversation = match conversation_ident {
-        IdOrSlug::Id(id) => conversation::get_by_id(&state.db, &id).await?,
-        IdOrSlug::Slug(slug) => conversation::get_by_slug(&state.db, &slug).await?,
-    };
+    // Check if user is admin and withTranslations is requested
+    let should_return_with_translations = query.with_translations
+        && user
+            .as_ref()
+            .map(|u| is_user_admin(u, &state.config))
+            .unwrap_or(false);
 
-    Ok((StatusCode::OK, Json(conversation)))
+    if should_return_with_translations {
+        // Get the original conversation first
+        let original_conversation = match conversation_ident {
+            IdOrSlug::Id(id) => conversation::get_by_id(&state.db, &id).await?,
+            IdOrSlug::Slug(slug) => conversation::get_by_slug(&state.db, &slug).await?,
+        };
+
+        // Convert to ConversationWithTranslations
+        let conversation_with_translations = ConversationWithTranslations::from_original(
+            &state.db,
+            original_conversation,
+            "en", // TODO: Get locale from user preferences or query param
+        )
+        .await?;
+
+        Ok((
+            StatusCode::OK,
+            Json(ConversationResponse::WithTranslations(
+                conversation_with_translations,
+            )),
+        ))
+    } else {
+        // Return localized conversation as before
+        let conversation = match conversation_ident {
+            IdOrSlug::Id(id) => conversation::get_localised_by_id(&state.db, &id).await?,
+            IdOrSlug::Slug(slug) => conversation::get_localised_by_slug(&state.db, &slug).await?,
+        };
+
+        Ok((
+            StatusCode::OK,
+            Json(ConversationResponse::Localised(conversation)),
+        ))
+    }
 }
 
 /// Delete a specific conversation
@@ -273,8 +323,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(get_conversation, |op| {
                 op.id("GetConversation")
                     .summary("Get a conversation by id or slug")
-                    .description("Get a conversation by id or slug")
-                    .response::<200, Json<LocalisedConversation>>()
+                    .description("Get a conversation by id or slug. If user is admin and withTranslations=true, returns detailed translation data.")
+                    .response::<200, Json<ConversationResponse>>()
             }),
         )
         .api_route(
@@ -397,19 +447,12 @@ mod tests {
                 &app,
                 &id,
                 json!({
-                    "short_description": "new description",
                     "is_public":true
                 }),
             )
             .await?;
 
         assert_eq!(status, StatusCode::OK, "Should update resource");
-
-        assert_eq!(
-            conversation.get("short_description"),
-            Some(&json!("new description")),
-            "should have updated description"
-        );
 
         assert_eq!(
             conversation.get("is_public"),

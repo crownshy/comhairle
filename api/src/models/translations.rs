@@ -20,7 +20,7 @@ use uuid::Uuid;
 ///
 /// ```rust
 /// use uuid::Uuid;
-/// use crate::models::translations::TextContentId;
+/// use comhairle::models::translations::TextContentId;
 ///
 /// // Create from a UUID
 /// let uuid = Uuid::new_v4();
@@ -263,10 +263,7 @@ impl CreateTextContent {
     ///
     /// A vector of TextContentIden enum values representing the database columns.
     pub fn columns(&self) -> Vec<TextContentIden> {
-        vec![
-            TextContentIden::PrimaryLocale,
-            TextContentIden::Format,
-        ]
+        vec![TextContentIden::PrimaryLocale, TextContentIden::Format]
     }
 
     /// Returns the values to be inserted into the database columns.
@@ -478,7 +475,6 @@ pub async fn get_text_content_by_id(
 
     Ok(text_content)
 }
-
 
 /// Updates an existing text content record.
 ///
