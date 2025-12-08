@@ -97,9 +97,9 @@
   function getStatusBadgeVariant(status: TranslationStatus) {
     switch (status) {
       case 'primary':
-        return 'newPrimary' as const;
+        return 'primary' as const;
       case 'draft':
-        return 'newSecondary' as const;
+        return 'secondary' as const;
       case 'approved':
         return 'newApproved' as const;
     }
@@ -182,7 +182,7 @@
                 <div class="justify-start text-base-card-foreground text-base font-semibold leading-6">
                   {primaryTranslation?.languageName}
                 </div>
-                <Badge variant="newPrimary">Primary</Badge>
+                <Badge variant="primary">Primary</Badge>
               </div>
             </div>
             
@@ -225,7 +225,7 @@
               </div>
 
               {#if onAiTranslate && activeTranslation?.status !== 'primary'}
-                <Button variant="newPrimary" onclick={handleAiTranslate} disabled={isTranslating}>
+                <Button onclick={handleAiTranslate} disabled={isTranslating}>
                   {isTranslating ? 'Translating...' : 'AI translation'}
                   <Sparkles class="size-4" />
                 </Button>
