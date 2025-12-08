@@ -90,4 +90,6 @@ jobs:
           DATABASE_URL: postgres://test_user:test_password@localhost:5432/test_db
           RESOURCE_BUCKET: comhairle_resources
           CARGO_HOME: ~/.cargo
+          BOT_SERVICE_HOST: ${{ secrets.BOT_SERVICE_HOST }}
+          BOT_SERVICE_API_KEY: ${{ secrets.BOT_SERVICE_API_KEY }}
         run: cargo test --verbose
