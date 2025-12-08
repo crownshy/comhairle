@@ -175,7 +175,7 @@
 					<Form.Label class="w-60 font-bold">Title</Form.Label>
 					<div class="grow flex-col gap-2">
 						<Input class="max-w-5xl" {...props} bind:value={$form.title} />
-						<Button class="mt-2" variant="newSecondary" onclick={() => (modalOpen = true)}>
+						<Button class="mt-2" variant="secondary" onclick={() => (modalOpen = true)}>
 							Edit Translations
 						</Button>
 						<Form.FieldErrors />
@@ -196,7 +196,7 @@
 							{...props} 
 							bind:value={$form.short_description} 
 						/>
-						<Button class="mt-2" variant="newSecondary" onclick={() => (modalOpen = true)}>
+						<Button class="mt-2" variant="secondary" onclick={() => (modalOpen = true)}>
 							Edit Translations
 						</Button>
 						<Form.FieldErrors />
@@ -217,7 +217,7 @@
 							{...props}
 							bind:value={$form.description}
 						/>
-						<Button class="mt-2" variant="newSecondary" onclick={() => (modalOpen = true)}>
+						<Button class="mt-2" variant="secondary" onclick={() => (modalOpen = true)}>
 							Edit Translations
 						</Button>
 						<Form.FieldErrors />

@@ -15,7 +15,7 @@
 				// New variants from Figma design
 				newPrimary:
 					"bg-[var(--base-white)] text-foreground border-[var(--border)] rounded-full shadow-xs [a&]:hover:bg-[var(--cs-grey-50)]",
-				newSecondary:
+				secondary:
 					"bg-[var(--cs-grey-200)] text-foreground border-transparent rounded-full shadow-xs [a&]:hover:bg-[var(--cs-grey-300)]",
 				newApproved:
 					"bg-[var(--cs-blue-200)] text-foreground border-transparent rounded-full shadow-xs [a&]:hover:bg-[var(--cs-blue-300)]",
