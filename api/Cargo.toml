@@ -19,7 +19,7 @@ name = "comhairle_data_loader"
 path = "src/data_loader/main.rs"
 
 [dependencies]
-axum = { version = "0.8.3", features = ["ws"] }
+axum = { version = "0.8.3", features = ["ws", "multipart"] }
 async-trait = "0.1.83"
 config = "0.15.8"
 sea-query = {version = "0.32.3", features=["attr","postgres-array"] }

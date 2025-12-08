@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use ragflow::{client::RagflowClient, Dataset, Document, GetDocumentsQueryParams};
+use ragflow::{client::RagflowClient, Dataset, Document, GetDocumentsQueryParams, UploadFile};
 use reqwest::StatusCode;
 
 #[cfg(test)]
@@ -42,6 +42,12 @@ pub trait ComhairleBotService: Send + Sync {
         id: String,
         knowledgebase_id: String,
     ) -> Result<StatusCode, ComhairleError>;
+
+    async fn upload_documents(
+        &self,
+        knowledgebase_id: &str,
+        files: Vec<UploadFile>,
+    ) -> Result<StatusCode, ComhairleError>;
 }
 
 pub struct ComhairleRagBotService {
@@ -79,6 +85,18 @@ impl ComhairleBotService for ComhairleRagBotService {
         knowledgebase_id: String,
     ) -> Result<StatusCode, ComhairleError> {
         let status = self.client.delete_document(&id, &knowledgebase_id).await?;
+        Ok(status)
+    }
+
+    async fn upload_documents(
+        &self,
+        knowledgebase_id: &str,
+        files: Vec<UploadFile>,
+    ) -> Result<StatusCode, ComhairleError> {
+        let (status, _) = self
+            .client
+            .upload_documents(knowledgebase_id, files)
+            .await?;
         Ok(status)
     }
 }

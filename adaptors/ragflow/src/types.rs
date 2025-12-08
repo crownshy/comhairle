@@ -28,7 +28,6 @@ pub struct Dataset {
     pub language: String,
     pub name: String,
     pub pagerank: i32,
-    // pub parser_config: (), // TODO:
     pub permission: String,
     pub similarity_threshold: f64,
     pub status: String,
@@ -60,7 +59,6 @@ pub struct Document {
     pub knowledgebase_id: String,
     pub location: String,
     pub name: String,
-    // pub parser_config: (),
     pub chunk_method: ChunkMethod,
     pub process_begin_at: Option<String>,
     pub process_duration: f64,
@@ -86,9 +84,6 @@ pub struct GetDocumentsQueryParams {
     pub desc: Option<bool>,
     pub id: Option<String>,
     pub create_time_from: Option<i32>,
-    // keywords: Option<String>, // TODO: find way to implement these
-    // suffix: Option<Vec<String>>,
-    // run: Option<Vec<String>>,
 }
 
 #[derive(Serialize)]
@@ -100,9 +95,7 @@ pub struct UploadFile {
 #[derive(Serialize)]
 pub struct UpdateDocument {
     pub name: Option<String>,
-    pub enabled: Option<i32>, // TODO: limit to 1 or 0
     pub chunk_method: Option<ChunkMethod>,
-    pub meta_fields: Option<()>, // TODO: find fields in docs
     pub parser_config: Option<ParserConfig>,
 }
 

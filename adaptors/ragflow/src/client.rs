@@ -959,8 +959,6 @@ mod tests {
 
         let update_doc = UpdateDocument {
             name: Some("foo".to_string()),
-            enabled: None,
-            meta_fields: None,
             chunk_method: Some(ChunkMethod::Table),
             parser_config: Some(ParserConfig::Empty(EmptyParserConfig)),
         };
