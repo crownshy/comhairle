@@ -9,7 +9,6 @@ use axum::{
     http::StatusCode,
     Json,
 };
-use regex::Regex;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -28,10 +27,7 @@ use crate::{
     ComhairleState,
 };
 
-use super::{
-    auth::{RequiredAdminUser, RequiredUser},
-    conversations,
-};
+use super::auth::{is_user_admin, RequiredAdminUser, RequiredUser};
 
 pub async fn get_user_owned_conversations(
     State(state): State<Arc<ComhairleState>>,
@@ -84,16 +80,13 @@ pub async fn get_user_roles(
     RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<Vec<UserRoles>>), ComhairleError> {
     let mut roles = vec![];
-    let re = Regex::new(r"^test(?:[1-9]|10)@crown-shy\.com$").unwrap();
 
-    if let (Some(admin_users), Some(email)) = (&state.config.admin_users, &user.email) {
-        if admin_users.contains(&email) || re.is_match(&email) {
-            roles.push(UserRoles {
-                resource: ResourceType::Site,
-                roles: vec![ResourceRole::Admin],
-            });
-        }
-    };
+    if is_user_admin(&user, &state.config) {
+        roles.push(UserRoles {
+            resource: ResourceType::Site,
+            roles: vec![ResourceRole::Admin],
+        });
+    }
 
     Ok((StatusCode::OK, Json(roles)))
 }
