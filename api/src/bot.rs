@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use ragflow::{
-    client::RagflowClient, Chat, ChatSession, CreateChat, CreateChatSession, Dataset, Document,
-    GetDocumentsQueryParams, UploadFile,
+    client::RagflowClient, Chat, ChatSession, CreateChat, CreateChatSession, Dataset,
+    DeleteResources, Document, GetDocumentsQueryParams, UploadFile,
 };
 use reqwest::StatusCode;
 
@@ -52,13 +52,21 @@ pub trait ComhairleBotService: Send + Sync {
         files: Vec<UploadFile>,
     ) -> Result<StatusCode, ComhairleError>;
 
-    async fn create_chat(&self, payload: CreateChat) -> Result<(StatusCode, Chat), ComhairleError>;
+    async fn create_chat(&self, boyd: CreateChat) -> Result<(StatusCode, Chat), ComhairleError>;
+
+    async fn delete_chats(&self, body: DeleteResources<'_>) -> Result<StatusCode, ComhairleError>;
 
     async fn create_chat_session(
         &self,
         chat_id: &str,
         body: CreateChatSession,
     ) -> Result<(StatusCode, ChatSession), ComhairleError>;
+
+    async fn delete_chat_sessions(
+        &self,
+        chat_id: &str,
+        body: DeleteResources<'_>,
+    ) -> Result<StatusCode, ComhairleError>;
 }
 
 pub struct ComhairleRagBotService {
@@ -111,9 +119,14 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok(status)
     }
 
-    async fn create_chat(&self, payload: CreateChat) -> Result<(StatusCode, Chat), ComhairleError> {
-        let (status, chat) = self.client.create_chat(payload).await?;
+    async fn create_chat(&self, body: CreateChat) -> Result<(StatusCode, Chat), ComhairleError> {
+        let (status, chat) = self.client.create_chat(body).await?;
         Ok((status, chat))
+    }
+
+    async fn delete_chats(&self, body: DeleteResources<'_>) -> Result<StatusCode, ComhairleError> {
+        let status = self.client.delete_chats(body).await?;
+        Ok(status)
     }
 
     async fn create_chat_session(
@@ -123,6 +136,15 @@ impl ComhairleBotService for ComhairleRagBotService {
     ) -> Result<(StatusCode, ChatSession), ComhairleError> {
         let (status, chat_session) = self.client.create_chat_session(chat_id, body).await?;
         Ok((status, chat_session))
+    }
+
+    async fn delete_chat_sessions(
+        &self,
+        chat_id: &str,
+        body: DeleteResources<'_>,
+    ) -> Result<StatusCode, ComhairleError> {
+        let status = self.client.delete_chat_sessions(chat_id, body).await?;
+        Ok(status)
     }
 }
 
