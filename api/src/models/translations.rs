@@ -8,6 +8,7 @@ use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
+use tracing::instrument;
 use uuid::Uuid;
 
 /// A type-safe wrapper around Uuid for referencing text content.
@@ -149,6 +150,7 @@ impl<'q> sqlx::Encode<'q, sqlx::Postgres> for TextContentId {
 /// Each format determines how the content should be processed and displayed.
 #[derive(PartialEq, Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, sqlx::Type)]
 #[sqlx(type_name = "TEXT")]
+#[serde(rename_all = "camelCase")]
 pub enum TextFormat {
     /// Plain text format - no special formatting or markup
     #[sqlx(rename = "plain")]
@@ -369,7 +371,7 @@ impl UpdateTextContent {
 ///
 /// This struct contains optional fields that can be updated on a TextTranslation record.
 /// Only the provided (Some) fields will be updated in the database.
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Default)]
 pub struct UpdateTextTranslation {
     /// The new locale/language code for this translation
     pub locale: Option<String>,
@@ -425,6 +427,7 @@ impl UpdateTextTranslation {
 ///
 /// This function will return an error if:
 /// * The database operation fails
+#[instrument(err(Debug))]
 pub async fn create_text_content(
     db: &PgPool,
     text_content: &CreateTextContent,
@@ -458,6 +461,8 @@ pub async fn create_text_content(
 ///
 /// Returns a `Result` containing the `TextContent` if found,
 /// or a `ComhairleError::ResourceNotFound` if not found.
+
+#[instrument(err(Debug))]
 pub async fn get_text_content_by_id(
     db: &PgPool,
     id: &TextContentId,
@@ -495,9 +500,10 @@ pub async fn get_text_content_by_id(
 /// * No valid updates are provided (all fields are None)
 /// * The text content with the given ID does not exist
 /// * The database operation fails
+#[instrument(err(Debug))]
 pub async fn update_text_content(
     db: &PgPool,
-    id: TextContentId,
+    id: &TextContentId,
     update: &UpdateTextContent,
 ) -> Result<TextContent, ComhairleError> {
     let values = update.to_values();
@@ -515,7 +521,11 @@ pub async fn update_text_content(
 
     let text_content = sqlx::query_as_with::<_, TextContent, _>(&sql, values)
         .fetch_one(db)
-        .await?;
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("TextContent".into()),
+            _ => ComhairleError::DatabaseError(e),
+        })?;
 
     Ok(text_content)
 }
@@ -534,6 +544,7 @@ pub async fn update_text_content(
 ///
 /// Returns a `Result` containing the deleted `TextContent` on success,
 /// or a `ComhairleError::ResourceNotFound` if the content doesn't exist.
+#[instrument(err(Debug))]
 pub async fn delete_text_content(
     db: &PgPool,
     id: &TextContentId,
@@ -572,6 +583,7 @@ pub async fn delete_text_content(
 /// * The database operation fails
 /// * The content_id references a non-existent text content
 /// * A translation for the same content_id and locale already exists
+#[instrument(err(Debug))]
 pub async fn create_text_translation(
     db: &PgPool,
     text_translation: &CreateTextTranslation,
@@ -605,6 +617,7 @@ pub async fn create_text_translation(
 ///
 /// Returns a `Result` containing the `TextTranslation` if found,
 /// or a `ComhairleError::ResourceNotFound` if not found.
+#[instrument(err(Debug))]
 pub async fn get_text_translation_by_id(
     db: &PgPool,
     id: &Uuid,
@@ -635,6 +648,7 @@ pub async fn get_text_translation_by_id(
 /// Returns a `Result` containing a vector of `TextTranslation` records,
 /// or a `ComhairleError` on database failure. Returns an empty vector
 /// if no translations are found for the content.
+#[instrument(err(Debug))]
 pub async fn get_text_translations_by_content_id(
     db: &PgPool,
     content_id: &TextContentId,
@@ -668,6 +682,7 @@ pub async fn get_text_translations_by_content_id(
 /// Returns a `Result` containing the `TextTranslation` if found,
 /// or a `ComhairleError::ResourceNotFound` if no translation exists
 /// for the given content and locale combination.
+#[instrument(err(Debug))]
 pub async fn get_text_translation_by_content_and_locale(
     db: &PgPool,
     content_id: &TextContentId,
@@ -708,9 +723,10 @@ pub async fn get_text_translation_by_content_and_locale(
 /// * The text translation with the given ID does not exist
 /// * The database operation fails
 /// * The updated locale would create a duplicate (content_id, locale) pair
+#[instrument(err(Debug))]
 pub async fn update_text_translation(
     db: &PgPool,
-    id: Uuid,
+    id: &Uuid,
     update: &UpdateTextTranslation,
 ) -> Result<TextTranslation, ComhairleError> {
     let values = update.to_values();
@@ -744,6 +760,7 @@ pub async fn update_text_translation(
 ///
 /// Returns a `Result` containing the deleted `TextTranslation` on success,
 /// or a `ComhairleError::ResourceNotFound` if the translation doesn't exist.
+#[instrument(err(Debug))]
 pub async fn delete_text_translation(
     db: &PgPool,
     id: &Uuid,
@@ -778,6 +795,7 @@ pub async fn delete_text_translation(
 ///
 /// Returns a `Result` containing the `TextContentId` of the created content,
 /// or a `ComhairleError` on failure.
+#[instrument(err(Debug))]
 pub async fn create_text_content_and_get_id(
     db: &PgPool,
     text_content: &CreateTextContent,
@@ -801,6 +819,7 @@ pub async fn create_text_content_and_get_id(
 ///
 /// Returns a `Result` containing `Some(TextTranslation)` if found,
 /// `None` if no translation exists, or a `ComhairleError` on database failure.
+#[instrument(err(Debug))]
 pub async fn get_text_translation_optional(
     db: &PgPool,
     content_id: &TextContentId,
@@ -813,6 +832,7 @@ pub async fn get_text_translation_optional(
     }
 }
 
+#[instrument(err(Debug))]
 pub async fn new_translation(
     db: &PgPool,
     locale: &str,

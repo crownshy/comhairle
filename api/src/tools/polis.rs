@@ -23,7 +23,7 @@ use super::{ToolConfig, ToolConfigSanitize};
 
 pub const POLIS_BASE_URL: &str = "https://polis.comhairle.scot";
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
 pub struct PolisToolConfig {
     pub server_url: String,
     pub poll_id: String,

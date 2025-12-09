@@ -1,6 +1,7 @@
+use crate::models::translations::{new_translation, TextContentId, TextFormat};
 use crate::tools;
 use chrono::{DateTime, Utc};
-use comhairle_macros::DbJsonBEnum;
+use comhairle_macros::{DbJsonBEnum, Translatable};
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::PostgresQueryBuilder;
@@ -16,13 +17,13 @@ use crate::error::ComhairleError;
 use crate::models::user_progress::{ProgressStatus, UserProgressIden};
 use crate::tools::{ToolConfig, ToolSetup};
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, DbJsonBEnum)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, DbJsonBEnum, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ActivationRule {
     Manual,
 }
 
-#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
+#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "workflow_step")]
 #[partially(derive(Deserialize, Debug, JsonSchema))]
 pub struct WorkflowStep {
@@ -30,10 +31,10 @@ pub struct WorkflowStep {
     pub id: Uuid,
     #[partially(omit)]
     pub workflow_id: Uuid,
-    pub name: String,
+    pub name: TextContentId,
     pub step_order: i32,
     pub activation_rule: ActivationRule,
-    pub description: String,
+    pub description: TextContentId,
     pub is_offline: bool,
     pub required: bool,
     pub tool_config: ToolConfig,
@@ -175,10 +176,8 @@ pub struct CreateWorkflowStep {
 impl CreateWorkflowStep {
     pub fn columns(&self) -> Vec<WorkflowStepIden> {
         vec![
-            WorkflowStepIden::Name,
             WorkflowStepIden::StepOrder,
             WorkflowStepIden::ActivationRule,
-            WorkflowStepIden::Description,
             WorkflowStepIden::IsOffline,
             WorkflowStepIden::Required,
         ]
@@ -186,19 +185,17 @@ impl CreateWorkflowStep {
 
     pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
         vec![
-            self.name.to_owned().into(),
             self.step_order.into(),
             serde_json::to_value(self.activation_rule.clone())
                 .unwrap()
                 .into(),
-            self.description.to_owned().into(),
             self.is_offline.into(),
             self.required.into(),
         ]
     }
 }
 
-/// Get a workflow_step by ID
+/// Get a workflow_step by ID (original struct, not localized)
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<WorkflowStep, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -207,6 +204,29 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<WorkflowStep, Comhairle
         .build_sqlx(PostgresQueryBuilder);
 
     let workflow_step = sqlx::query_as_with::<_, WorkflowStep, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .map_err(|_| ComhairleError::ResourceNotFound("WorkflowStep".into()))?;
+
+    Ok(workflow_step)
+}
+
+/// Get a workflow_step by ID (localized)
+pub async fn get_localised_by_id(
+    db: &PgPool,
+    id: &Uuid,
+    locale: &str,
+) -> Result<LocalisedWorkflowStep, ComhairleError> {
+    let select_query = Query::select()
+        .columns(DEFAULT_COLUMNS.map(|col| (WorkflowStepIden::Table, col)))
+        .from(WorkflowStepIden::Table)
+        .and_where(Expr::col((WorkflowStepIden::Table, WorkflowStepIden::Id)).eq(id.to_owned()))
+        .to_owned();
+
+    let (sql, values) = LocalisedWorkflowStep::query_to_localisation(select_query, locale)
+        .build_sqlx(PostgresQueryBuilder);
+
+    let workflow_step = sqlx::query_as_with::<_, LocalisedWorkflowStep, _>(&sql, values)
         .fetch_one(db)
         .await
         .map_err(|_| ComhairleError::ResourceNotFound("WorkflowStep".into()))?;
@@ -297,13 +317,64 @@ pub async fn list(db: &PgPool, workflow_id: &Uuid) -> Result<Vec<WorkflowStep>, 
     Ok(workflow_steps)
 }
 
+pub async fn list_localised(
+    db: &PgPool,
+    workflow_id: &Uuid,
+    locale: &str,
+) -> Result<Vec<LocalisedWorkflowStep>, ComhairleError> {
+    let query = Query::select()
+        .from(WorkflowStepIden::Table)
+        .columns(DEFAULT_COLUMNS.map(|col| (WorkflowStepIden::Table, col)))
+        .and_where(
+            Expr::col((WorkflowStepIden::Table, WorkflowStepIden::WorkflowId)).eq(*workflow_id),
+        )
+        .order_by(
+            (WorkflowStepIden::Table, WorkflowStepIden::StepOrder),
+            Order::Asc,
+        )
+        .to_owned();
+
+    let (sql, values) = LocalisedWorkflowStep::query_to_localisation(query, locale)
+        .build_sqlx(PostgresQueryBuilder);
+
+    let workflow_steps = sqlx::query_as_with::<_, LocalisedWorkflowStep, _>(&sql, values)
+        .fetch_all(db)
+        .await?;
+
+    Ok(workflow_steps)
+}
+
 pub async fn create(
     db: &PgPool,
     new_workflow_step: &CreateWorkflowStep,
     workflow_id: Uuid,
+    primary_locale: &str,
 ) -> Result<WorkflowStep, ComhairleError> {
+    // Generate Translations
+    let name_translation = new_translation(
+        &db,
+        &primary_locale,
+        &new_workflow_step.name,
+        TextFormat::Plain,
+    )
+    .await?;
+
+    let description_translation = new_translation(
+        &db,
+        &primary_locale,
+        &new_workflow_step.description,
+        TextFormat::Rich,
+    )
+    .await?;
+
     let mut columns = new_workflow_step.columns();
     let mut values = new_workflow_step.values();
+
+    columns.push(WorkflowStepIden::Name);
+    values.push(name_translation.id.into());
+
+    columns.push(WorkflowStepIden::Description);
+    values.push(description_translation.id.into());
 
     let tool_config = match &new_workflow_step.tool_setup {
         ToolSetup::Polis(polis_tool_setup) => ToolConfig::Polis(
@@ -396,6 +467,45 @@ pub async fn get_current_active_step_for_user(
         .build_sqlx(PostgresQueryBuilder);
 
     let result = sqlx::query_as_with::<_, WorkflowStep, _>(&sql, values)
+        .fetch_optional(db)
+        .await?;
+
+    Ok(result)
+}
+
+pub async fn get_current_active_step_for_user_localised(
+    db: &PgPool,
+    user_id: &Uuid,
+    workflow_id: &Uuid,
+) -> Result<Option<LocalisedWorkflowStep>, ComhairleError> {
+    let query = Query::select()
+        .columns(DEFAULT_COLUMNS.map(|col| (WorkflowStepIden::Table, col)))
+        .from(WorkflowStepIden::Table)
+        .left_join(
+            UserProgressIden::Table,
+            Expr::col((WorkflowStepIden::Table, WorkflowStepIden::Id))
+                .equals((UserProgressIden::Table, UserProgressIden::WorkflowStepId))
+                .and(Expr::col((UserProgressIden::Table, UserProgressIden::UserId)).eq(*user_id)),
+        )
+        .and_where(
+            Expr::col((WorkflowStepIden::Table, WorkflowStepIden::WorkflowId)).eq(*workflow_id),
+        )
+        .and_where(
+            Expr::col((UserProgressIden::Table, UserProgressIden::Status))
+                .ne(ProgressStatus::Done)
+                .or(Expr::col((UserProgressIden::Table, UserProgressIden::Status)).is_null()),
+        )
+        .order_by(
+            (WorkflowStepIden::Table, WorkflowStepIden::StepOrder),
+            sea_query::Order::Asc,
+        )
+        .limit(1)
+        .to_owned();
+
+    let (sql, values) =
+        LocalisedWorkflowStep::query_to_localisation(query, "en").build_sqlx(PostgresQueryBuilder);
+
+    let result = sqlx::query_as_with::<_, LocalisedWorkflowStep, _>(&sql, values)
         .fetch_optional(db)
         .await?;
 

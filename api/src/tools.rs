@@ -43,7 +43,7 @@ pub trait ToolConfigSanitize {
     fn sanatize(&self) -> Self;
 }
 
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, DbJsonBEnum)]
+#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, DbJsonBEnum, PartialEq)]
 #[serde(rename_all = "lowercase", tag = "type")]
 #[enum_dispatch(ToolConfigSanitize)]
 pub enum ToolConfig {
