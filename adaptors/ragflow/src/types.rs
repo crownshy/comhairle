@@ -156,7 +156,7 @@ pub struct ParseDocuments<'a> {
     pub document_ids: Vec<&'a str>,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct CreateChat {
     pub name: String,
     pub avatar: Option<String>,
@@ -165,13 +165,13 @@ pub struct CreateChat {
     pub prompt: Prompt,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct Llm {
     pub model_name: String,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug)]
-struct Prompt {
+#[derive(Serialize, Deserialize, Default)]
+pub struct Prompt {
     pub opener: Option<String>,
     pub empty_response: Option<String>,
     pub prompt: Option<String>,
@@ -203,8 +203,38 @@ pub struct Chat {
     pub prompt: Prompt,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct Variable {
+#[derive(Serialize, Deserialize)]
+pub struct Variable {
     key: String,
     optional: bool,
+}
+
+#[derive(Serialize, Default)]
+pub struct CreateChatSession {
+    pub name: String,
+    pub user_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct ChatSession {
+    pub chat_id: String,
+    pub create_date: String,
+    pub create_time: i64,
+    pub id: String,
+    pub name: Option<String>,
+    pub update_date: String,
+    pub update_time: i64,
+    pub messages: Vec<ChatSessionMessage>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ChatSessionMessage {
+    content: String,
+    role: String,
+}
+
+#[derive(Deserialize)]
+pub struct CreateChatSessionResponse {
+    code: i32,
+    pub data: ChatSession,
 }

@@ -1,6 +1,6 @@
 use crate::{
-    Chat, CreateChat, CreateChatResponse, CreateDatasetResponse, Dataset, Document,
-    GetDocumentsResponse,
+    Chat, ChatSession, CreateChat, CreateChatResponse, CreateChatSession,
+    CreateChatSessionResponse, CreateDatasetResponse, Dataset, Document, GetDocumentsResponse,
     error::{RagflowError, Result},
     types::{
         CreateDataset, DeleteResources, GetDocumentsQueryParams, ParseDocuments, UpdateDocument,
@@ -356,6 +356,19 @@ impl RagflowClient {
 
         Ok((status, json.data))
     }
+
+    pub async fn create_chat_session(
+        &self,
+        chat_id: &str,
+        body: CreateChatSession,
+    ) -> Result<(StatusCode, ChatSession)> {
+        let path = format!("/chats/{chat_id}/sessions");
+        let (status, value) = self.post(&path, &body, None).await?;
+
+        let json: CreateChatSessionResponse = serde_json::from_value(value)?;
+
+        Ok((status, json.data))
+    }
 }
 
 #[cfg(test)]
@@ -363,10 +376,13 @@ mod tests {
     use std::error::Error;
 
     use crate::{
-        client::RagflowClient, error::RagflowError, types::{
+        Chat, ChatSession, CreateChat, CreateChatSession, CreateDatasetResponse, Dataset, Llm,
+        client::RagflowClient,
+        error::RagflowError,
+        types::{
             ChunkMethod, EmptyParserConfig, GetDocumentsQueryParams, ParseDocuments, ParserConfig,
             UpdateDocument, UploadFile,
-        }, Chat, CreateChat, CreateDatasetResponse, Dataset, Llm
+        },
     };
     use reqwest::{StatusCode, multipart::Form};
     use serde_json::json;
@@ -1087,6 +1103,41 @@ mod tests {
         assert_eq!(
             value.name,
             "new chat".to_string(),
+            "incorrect json response"
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn should_create_chat_session() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        let chat_session = ChatSession {
+            name: Some("test_session".to_string()),
+            ..Default::default()
+        };
+        Mock::given(method("POST"))
+            .and(path(format!("{}/chats/123/sessions", client.path_prefix)))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({ "code": 0, "data": chat_session })),
+            )
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let create_session = CreateChatSession {
+            name: "test_session".to_string(),
+            user_id: None,
+        };
+        let (status, value) = client.create_chat_session("123", create_session).await?;
+
+        assert!(status.is_success(), "error status from request");
+        assert_eq!(
+            value.name,
+            Some("test_session".to_string()),
             "incorrect json response"
         );
 
