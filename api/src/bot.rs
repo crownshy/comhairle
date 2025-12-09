@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use ragflow::{
     client::RagflowClient, Chat, ChatSession, CreateChat, CreateUpdateChatSession, Dataset,
-    DeleteResources, Document, GetDocumentsQueryParams, UpdateChat, UploadFile,
+    DeleteResources, Document, GetQueryParams, UpdateChat, UploadFile,
 };
 use reqwest::StatusCode;
 
@@ -37,7 +37,7 @@ pub trait ComhairleBotService: Send + Sync {
     async fn get_documents(
         &self,
         knowledgebase_id: String,
-        query: Option<GetDocumentsQueryParams>,
+        query: Option<GetQueryParams>,
     ) -> Result<(StatusCode, Vec<Document>), ComhairleError>;
 
     async fn delete_document(
@@ -52,11 +52,16 @@ pub trait ComhairleBotService: Send + Sync {
         files: Vec<UploadFile>,
     ) -> Result<StatusCode, ComhairleError>;
 
-    async fn create_chat(&self, boyd: CreateChat) -> Result<(StatusCode, Chat), ComhairleError>;
+    async fn create_chat(&self, body: CreateChat) -> Result<(StatusCode, Chat), ComhairleError>;
 
     async fn update_chat(&self, id: &str, body: UpdateChat) -> Result<StatusCode, ComhairleError>;
 
     async fn delete_chats(&self, body: DeleteResources<'_>) -> Result<StatusCode, ComhairleError>;
+
+    async fn get_chats(
+        &self,
+        params: Option<GetQueryParams>,
+    ) -> Result<(StatusCode, Vec<Chat>), ComhairleError>;
 
     async fn create_chat_session(
         &self,
@@ -76,6 +81,12 @@ pub trait ComhairleBotService: Send + Sync {
         chat_id: &str,
         body: DeleteResources<'_>,
     ) -> Result<StatusCode, ComhairleError>;
+
+    async fn get_chat_sessions(
+        &self,
+        chat_id: &str,
+        params: Option<GetQueryParams>,
+    ) -> Result<(StatusCode, Vec<ChatSession>), ComhairleError>;
 }
 
 pub struct ComhairleRagBotService {
@@ -101,7 +112,7 @@ impl ComhairleBotService for ComhairleRagBotService {
     async fn get_documents(
         &self,
         knowledgebase_id: String,
-        query: Option<GetDocumentsQueryParams>,
+        query: Option<GetQueryParams>,
     ) -> Result<(StatusCode, Vec<Document>), ComhairleError> {
         let (status, documents) = self.client.get_documents(&knowledgebase_id, query).await?;
         Ok((status, documents))
@@ -143,6 +154,14 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok(status)
     }
 
+    async fn get_chats(
+        &self,
+        params: Option<GetQueryParams>,
+    ) -> Result<(StatusCode, Vec<Chat>), ComhairleError> {
+        let (status, chats) = self.client.get_chats(params).await?;
+        Ok((status, chats))
+    }
+
     async fn create_chat_session(
         &self,
         chat_id: &str,
@@ -173,6 +192,15 @@ impl ComhairleBotService for ComhairleRagBotService {
         let status = self.client.delete_chat_sessions(chat_id, body).await?;
         Ok(status)
     }
+
+    async fn get_chat_sessions(
+        &self,
+        chat_id: &str,
+        params: Option<GetQueryParams>,
+    ) -> Result<(StatusCode, Vec<ChatSession>), ComhairleError> {
+        let (status, chat_sessions) = self.client.get_chat_sessions(chat_id, params).await?;
+        Ok((status, chat_sessions))
+    }
 }
 
 #[cfg(test)]
@@ -199,6 +227,44 @@ impl MockComhairleBotService {
         bot_service
             .expect_delete_document()
             .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
+        bot_service.expect_create_chat().returning(|_| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::OK,
+                    Chat {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service
+            .expect_update_chat()
+            .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
+        bot_service
+            .expect_delete_chats()
+            .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
+        bot_service
+            .expect_get_chats()
+            .returning(|_| Box::pin(async move { Ok((StatusCode::OK, Vec::new())) }));
+        bot_service.expect_create_chat_session().returning(|_, _| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::OK,
+                    ChatSession {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service
+            .expect_update_chat_session()
+            .returning(|_, _, _| Box::pin(async move { Ok(StatusCode::OK) }));
+        bot_service
+            .expect_delete_chat_sessions()
+            .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
+        bot_service
+            .expect_get_chat_sessions()
+            .returning(|_, _| Box::pin(async move { Ok((StatusCode::OK, Vec::new())) }));
 
         bot_service
     }
