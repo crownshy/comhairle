@@ -77,13 +77,13 @@ pub struct Document {
 }
 
 #[derive(Serialize, Default)]
-pub struct GetDocumentsQueryParams {
+pub struct GetQueryParams {
     pub page: Option<i32>,
     pub page_size: Option<i32>,
     pub orderby: Option<String>,
     pub desc: Option<bool>,
+    pub name: Option<String>,
     pub id: Option<String>,
-    pub create_time_from: Option<i32>,
 }
 
 #[derive(Serialize)]
@@ -212,6 +212,12 @@ pub struct UpdateChat {
     pub prompt: Prompt,
 }
 
+#[derive(Deserialize)]
+pub struct GetChatResponse {
+    code: i32,
+    pub data: Vec<Chat>,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Variable {
     key: String,
@@ -246,4 +252,10 @@ pub struct ChatSessionMessage {
 pub struct CreateChatSessionResponse {
     code: i32,
     pub data: ChatSession,
+}
+
+#[derive(Deserialize)]
+pub struct GetChatSessionResponse {
+    code: i32,
+    pub data: Vec<ChatSession>,
 }

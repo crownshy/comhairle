@@ -1,11 +1,10 @@
 use crate::{
     Chat, ChatSession, CreateChat, CreateChatResponse, CreateChatSessionResponse,
-    CreateDatasetResponse, CreateUpdateChatSession, Dataset, Document, GetDocumentsResponse,
-    UpdateChat,
+    CreateDatasetResponse, CreateUpdateChatSession, Dataset, Document, GetChatResponse,
+    GetChatSessionResponse, GetDocumentsResponse, UpdateChat,
     error::{RagflowError, Result},
     types::{
-        CreateDataset, DeleteResources, GetDocumentsQueryParams, ParseDocuments, UpdateDocument,
-        UploadFile,
+        CreateDataset, DeleteResources, GetQueryParams, ParseDocuments, UpdateDocument, UploadFile,
     },
 };
 
@@ -270,7 +269,7 @@ impl RagflowClient {
     pub async fn get_documents(
         &self,
         dataset_id: &str,
-        query: Option<GetDocumentsQueryParams>,
+        query: Option<GetQueryParams>,
     ) -> Result<(StatusCode, Vec<Document>)> {
         let path = format!("/datasets/{dataset_id}/documents");
         let (status, value) = self.get(&path, query.as_ref(), None).await?;
@@ -371,6 +370,17 @@ impl RagflowClient {
         Ok(status)
     }
 
+    pub async fn get_chats(
+        &self,
+        params: Option<GetQueryParams>,
+    ) -> Result<(StatusCode, Vec<Chat>)> {
+        let (status, value) = self.get("/chats", params.as_ref(), None).await?;
+
+        let json: GetChatResponse = serde_json::from_value(value)?;
+
+        Ok((status, json.data))
+    }
+
     pub async fn create_chat_session(
         &self,
         chat_id: &str,
@@ -406,6 +416,19 @@ impl RagflowClient {
 
         Ok(status)
     }
+
+    pub async fn get_chat_sessions(
+        &self,
+        chat_id: &str,
+        params: Option<GetQueryParams>,
+    ) -> Result<(StatusCode, Vec<ChatSession>)> {
+        let path = format!("/chats/{chat_id}/sessions");
+        let (status, value) = self.get(&path, params.as_ref(), None).await?;
+
+        let json: GetChatSessionResponse = serde_json::from_value(value)?;
+
+        Ok((status, json.data))
+    }
 }
 
 #[cfg(test)]
@@ -418,7 +441,7 @@ mod tests {
         client::RagflowClient,
         error::RagflowError,
         types::{
-            ChunkMethod, EmptyParserConfig, GetDocumentsQueryParams, ParseDocuments, ParserConfig,
+            ChunkMethod, EmptyParserConfig, GetQueryParams, ParseDocuments, ParserConfig,
             UpdateDocument, UploadFile,
         },
     };
@@ -929,7 +952,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let query = GetDocumentsQueryParams {
+        let query = GetQueryParams {
             page: Some(1),
             page_size: Some(12),
             ..Default::default()
@@ -1191,6 +1214,37 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_return_list_of_chats() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        let chat = Chat {
+            name: "test_chat".to_string(),
+            ..Default::default()
+        };
+
+        Mock::given(method("GET"))
+            .and(path(format!("{}/chats", client.path_prefix)))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(json!({ "code": 0, "data": vec![chat] })),
+            )
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let (status, chats) = client.get_chats(None).await?;
+
+        assert!(status.is_success(), "error status from request");
+        assert_eq!(
+            chats[0].name,
+            "test_chat".to_string(),
+            "incorrect json response"
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn should_create_chat_session() -> Result<(), Box<dyn Error>> {
         let mock_server = MockServer::start().await;
         let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
@@ -1269,6 +1323,38 @@ mod tests {
         let status = client.delete_chat_sessions("123", delete_resources).await?;
 
         assert!(status.is_success(), "error status from request");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn should_return_list_of_chat_sessions() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        let chat_session = ChatSession {
+            name: Some("test_chat_session".to_string()),
+            ..Default::default()
+        };
+
+        Mock::given(method("GET"))
+            .and(path(format!("{}/chats/123/sessions", client.path_prefix)))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({ "code": 0, "data": vec![chat_session] })),
+            )
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let (status, chat_sessions) = client.get_chat_sessions("123", None).await?;
+
+        assert!(status.is_success(), "error status from request");
+        assert_eq!(
+            chat_sessions[0].name,
+            Some("test_chat_session".to_string()),
+            "incorrect json response"
+        );
 
         Ok(())
     }
