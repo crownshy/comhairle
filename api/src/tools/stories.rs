@@ -17,7 +17,7 @@ use crate::{error::ComhairleError, ComhairleState};
 
 use super::ToolConfigSanitize;
 
-#[derive(Debug, Default, JsonSchema, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, JsonSchema, Serialize, Deserialize, Clone, PartialEq)]
 pub struct StoriesToolConfig {
     pub max_time: i32,
     pub to_see: i32,

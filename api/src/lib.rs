@@ -92,6 +92,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
             "/notifications",
             routes::notifications::router(state.clone()),
         )
+        .nest_api_service("/translations", routes::translations::router(state.clone()))
         .nest_api_service("/tools", tools::router(state.clone()))
         .nest_api_service(
             "/conversation",
@@ -132,10 +133,6 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
         .finish_api_with(&mut api, api_docs)
         .layer(Extension(Arc::new(api.clone()))) // Arc is very important here or you will face massive memory and performance issues
         .layer(cors);
-
-    let json_str = serde_json::to_string_pretty(&api.clone()).unwrap();
-
-    // println!("{json_str}");
 
     Ok(app)
 }
