@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use ragflow::{client::RagflowClient, Dataset, Document, GetDocumentsQueryParams, UploadFile};
+use ragflow::{
+    client::RagflowClient, Chat, CreateChat, Dataset, Document, GetDocumentsQueryParams, UploadFile,
+};
 use reqwest::StatusCode;
 
 #[cfg(test)]
@@ -48,6 +50,8 @@ pub trait ComhairleBotService: Send + Sync {
         knowledgebase_id: &str,
         files: Vec<UploadFile>,
     ) -> Result<StatusCode, ComhairleError>;
+
+    async fn create_chat(&self, payload: CreateChat) -> Result<(StatusCode, Chat), ComhairleError>;
 }
 
 pub struct ComhairleRagBotService {
@@ -98,6 +102,11 @@ impl ComhairleBotService for ComhairleRagBotService {
             .upload_documents(knowledgebase_id, files)
             .await?;
         Ok(status)
+    }
+
+    async fn create_chat(&self, payload: CreateChat) -> Result<(StatusCode, Chat), ComhairleError> {
+        let (status, value) = self.client.create_chat(payload).await?;
+        Ok((status, value))
     }
 }
 
