@@ -203,6 +203,15 @@ pub struct Chat {
     pub prompt: Prompt,
 }
 
+#[derive(Serialize, Default)]
+pub struct UpdateChat {
+    pub name: String,
+    pub avatar: String,
+    pub dataset_ids: Vec<String>,
+    pub llm: Llm,
+    pub prompt: Prompt,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Variable {
     key: String,
@@ -210,8 +219,8 @@ pub struct Variable {
 }
 
 #[derive(Serialize, Default)]
-pub struct CreateChatSession {
-    pub name: String,
+pub struct CreateUpdateChatSession {
+    pub name: Option<String>,
     pub user_id: Option<String>,
 }
 
@@ -228,7 +237,7 @@ pub struct ChatSession {
 }
 
 #[derive(Serialize, Deserialize)]
-struct ChatSessionMessage {
+pub struct ChatSessionMessage {
     content: String,
     role: String,
 }

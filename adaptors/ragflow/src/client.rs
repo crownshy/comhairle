@@ -1,6 +1,7 @@
 use crate::{
-    Chat, ChatSession, CreateChat, CreateChatResponse, CreateChatSession,
-    CreateChatSessionResponse, CreateDatasetResponse, Dataset, Document, GetDocumentsResponse,
+    Chat, ChatSession, CreateChat, CreateChatResponse, CreateChatSessionResponse,
+    CreateDatasetResponse, CreateUpdateChatSession, Dataset, Document, GetDocumentsResponse,
+    UpdateChat,
     error::{RagflowError, Result},
     types::{
         CreateDataset, DeleteResources, GetDocumentsQueryParams, ParseDocuments, UpdateDocument,
@@ -357,6 +358,13 @@ impl RagflowClient {
         Ok((status, json.data))
     }
 
+    pub async fn update_chat(&self, id: &str, body: UpdateChat) -> Result<StatusCode> {
+        let path = format!("/chats/{id}");
+        let (status, _) = self.put(&path, &body, None).await?;
+
+        Ok(status)
+    }
+
     pub async fn delete_chats(&self, body: DeleteResources<'_>) -> Result<StatusCode> {
         let status = self.delete("/chats", &body, None).await?;
 
@@ -366,7 +374,7 @@ impl RagflowClient {
     pub async fn create_chat_session(
         &self,
         chat_id: &str,
-        body: CreateChatSession,
+        body: CreateUpdateChatSession,
     ) -> Result<(StatusCode, ChatSession)> {
         let path = format!("/chats/{chat_id}/sessions");
         let (status, value) = self.post(&path, &body, None).await?;
@@ -374,6 +382,18 @@ impl RagflowClient {
         let json: CreateChatSessionResponse = serde_json::from_value(value)?;
 
         Ok((status, json.data))
+    }
+
+    pub async fn update_chat_session(
+        &self,
+        session_id: &str,
+        chat_id: &str,
+        body: CreateUpdateChatSession,
+    ) -> Result<StatusCode> {
+        let path = format!("/chats/{chat_id}/sessions/{session_id}");
+        let (status, _) = self.put(&path, &body, None).await?;
+
+        Ok(status)
     }
 
     pub async fn delete_chat_sessions(
@@ -393,8 +413,8 @@ mod tests {
     use std::error::Error;
 
     use crate::{
-        Chat, ChatSession, CreateChat, CreateChatSession, CreateDatasetResponse, Dataset,
-        DeleteResources, Llm,
+        Chat, ChatSession, CreateChat, CreateDatasetResponse, CreateUpdateChatSession, Dataset,
+        DeleteResources, Llm, UpdateChat,
         client::RagflowClient,
         error::RagflowError,
         types::{
@@ -1128,6 +1148,29 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_update_chat() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_server".to_string());
+
+        Mock::given(method("PUT"))
+            .and(path(format!("{}/chats/123", client.path_prefix)))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "code": 0 })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let update_chat = UpdateChat {
+            name: "something_new".to_string(),
+            ..Default::default()
+        };
+        let status = client.update_chat("123", update_chat).await?;
+
+        assert!(status.is_success(), "error status from request");
+
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn should_delete_chat() -> Result<(), Box<dyn Error>> {
         let mock_server = MockServer::start().await;
         let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
@@ -1166,8 +1209,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let create_session = CreateChatSession {
-            name: "test_session".to_string(),
+        let create_session = CreateUpdateChatSession {
+            name: Some("test_session".to_string()),
             user_id: None,
         };
         let (status, value) = client.create_chat_session("123", create_session).await?;
@@ -1178,6 +1221,34 @@ mod tests {
             Some("test_session".to_string()),
             "incorrect json response"
         );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn should_update_chat_session() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_server".to_string());
+
+        Mock::given(method("PUT"))
+            .and(path(format!(
+                "{}/chats/123/sessions/456",
+                client.path_prefix
+            )))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "code": 0 })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let update_chat = CreateUpdateChatSession {
+            name: Some("something_new".to_string()),
+            user_id: None,
+        };
+        let status = client
+            .update_chat_session("456", "123", update_chat)
+            .await?;
+
+        assert!(status.is_success(), "error status from request");
 
         Ok(())
     }
