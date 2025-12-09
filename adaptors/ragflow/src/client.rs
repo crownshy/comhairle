@@ -357,6 +357,12 @@ impl RagflowClient {
         Ok((status, json.data))
     }
 
+    pub async fn delete_chats(&self, body: DeleteResources<'_>) -> Result<StatusCode> {
+        let status = self.delete("/chats", &body, None).await?;
+
+        Ok(status)
+    }
+
     pub async fn create_chat_session(
         &self,
         chat_id: &str,
@@ -369,6 +375,17 @@ impl RagflowClient {
 
         Ok((status, json.data))
     }
+
+    pub async fn delete_chat_sessions(
+        &self,
+        chat_id: &str,
+        body: DeleteResources<'_>,
+    ) -> Result<StatusCode> {
+        let path = format!("/chats/{chat_id}/sessions");
+        let status = self.delete(&path, &body, None).await?;
+
+        Ok(status)
+    }
 }
 
 #[cfg(test)]
@@ -376,7 +393,8 @@ mod tests {
     use std::error::Error;
 
     use crate::{
-        Chat, ChatSession, CreateChat, CreateChatSession, CreateDatasetResponse, Dataset, Llm,
+        Chat, ChatSession, CreateChat, CreateChatSession, CreateDatasetResponse, Dataset,
+        DeleteResources, Llm,
         client::RagflowClient,
         error::RagflowError,
         types::{
@@ -1110,6 +1128,26 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_delete_chat() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("DELETE"))
+            .and(path(format!("{}/chats", client.path_prefix)))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "code": 0 })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let delete_resources = DeleteResources { ids: vec!["123"] };
+        let status = client.delete_chats(delete_resources).await?;
+
+        assert!(status.is_success(), "error status from request");
+
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn should_create_chat_session() -> Result<(), Box<dyn Error>> {
         let mock_server = MockServer::start().await;
         let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
@@ -1140,6 +1178,26 @@ mod tests {
             Some("test_session".to_string()),
             "incorrect json response"
         );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn should_delete_chat_sessions() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("DELETE"))
+            .and(path(format!("{}/chats/123/sessions", client.path_prefix)))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "code": 0 })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let delete_resources = DeleteResources { ids: vec!["456"] };
+        let status = client.delete_chat_sessions("123", delete_resources).await?;
+
+        assert!(status.is_success(), "error status from request");
 
         Ok(())
     }
