@@ -1,5 +1,6 @@
 use crate::{
-    CreateDatasetResponse, Dataset, Document, GetDocumentsResponse,
+    Chat, CreateChat, CreateChatResponse, CreateDatasetResponse, Dataset, Document,
+    GetDocumentsResponse,
     error::{RagflowError, Result},
     types::{
         CreateDataset, DeleteResources, GetDocumentsQueryParams, ParseDocuments, UpdateDocument,
@@ -347,6 +348,14 @@ impl RagflowClient {
         let path = format!("/datasets/{dataset_id}/chunks");
         self.delete(&path, &body, None).await
     }
+
+    pub async fn create_chat(&self, body: CreateChat) -> Result<(StatusCode, Chat)> {
+        let (status, value) = self.post("/chats", &body, None).await?;
+
+        let json: CreateChatResponse = serde_json::from_value(value)?;
+
+        Ok((status, json.data))
+    }
 }
 
 #[cfg(test)]
@@ -354,13 +363,10 @@ mod tests {
     use std::error::Error;
 
     use crate::{
-        CreateDatasetResponse, Dataset,
-        client::RagflowClient,
-        error::RagflowError,
-        types::{
-            ChunkMethod, DeleteResources, EmptyParserConfig, GetDocumentsQueryParams,
-            ParseDocuments, ParserConfig, UpdateDocument, UploadFile,
-        },
+        client::RagflowClient, error::RagflowError, types::{
+            ChunkMethod, EmptyParserConfig, GetDocumentsQueryParams, ParseDocuments, ParserConfig,
+            UpdateDocument, UploadFile,
+        }, Chat, CreateChat, CreateDatasetResponse, Dataset, Llm
     };
     use reqwest::{StatusCode, multipart::Form};
     use serde_json::json;
@@ -1044,6 +1050,44 @@ mod tests {
             status,
             StatusCode::OK,
             "success from stopping document parsing"
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn should_create_chat() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        let chat = Chat {
+            name: "new chat".to_string(),
+            ..Default::default()
+        };
+
+        Mock::given(method("POST"))
+            .and(path(format!("{}/chats", client.path_prefix)))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(json!({ "code": 0, "data": chat })),
+            )
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let chat = CreateChat {
+            name: "new chat".to_string(),
+            llm: Llm {
+                model_name: "gtp-4@OpenAI".to_string(),
+            },
+            ..Default::default()
+        };
+        let (status, value) = client.create_chat(chat).await?;
+
+        assert!(status.is_success(), "error status from request");
+        assert_eq!(
+            value.name,
+            "new chat".to_string(),
+            "incorrect json response"
         );
 
         Ok(())

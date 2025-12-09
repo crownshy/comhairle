@@ -155,3 +155,56 @@ pub struct DeleteResources<'a> {
 pub struct ParseDocuments<'a> {
     pub document_ids: Vec<&'a str>,
 }
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct CreateChat {
+    pub name: String,
+    pub avatar: Option<String>,
+    pub dataset_ids: Vec<String>,
+    pub llm: Llm,
+    pub prompt: Prompt,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct Llm {
+    pub model_name: String,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+struct Prompt {
+    pub opener: Option<String>,
+    pub empty_response: Option<String>,
+    pub prompt: Option<String>,
+    pub keywords_similarity_weight: Option<f64>,
+    pub rerank_model: Option<String>,
+    pub similarity_threshold: Option<f64>,
+    pub top_n: i32,
+    pub variables: Option<Vec<Variable>>,
+}
+
+#[derive(Deserialize)]
+pub struct CreateChatResponse {
+    code: i32,
+    pub data: Chat,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct Chat {
+    pub name: String,
+    pub avatar: Option<String>,
+    pub create_date: String,
+    pub create_time: i64,
+    pub dataset_ids: Vec<String>,
+    pub description: Option<String>,
+    pub do_refer: Option<String>,
+    pub id: String,
+    pub language: Option<String>,
+    pub llm: Llm,
+    pub prompt: Prompt,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Variable {
+    key: String,
+    optional: bool,
+}
