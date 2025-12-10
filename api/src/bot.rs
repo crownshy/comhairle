@@ -1,11 +1,11 @@
 use std::{pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
+use axum::body::Bytes;
 use futures::{Stream, StreamExt};
 use ragflow::{
-    client::RagflowClient, Chat, ChatSession, ConvoEvent, ConvoQuestion, CreateChat,
-    CreateUpdateChatSession, Dataset, DeleteResources, Document, GetQueryParams, UpdateChat,
-    UploadFile,
+    client::RagflowClient, Chat, ChatSession, ConvoQuestion, CreateChat, CreateUpdateChatSession,
+    Dataset, DeleteResources, Document, GetQueryParams, UpdateChat, UploadFile,
 };
 use reqwest::StatusCode;
 
@@ -95,7 +95,7 @@ pub trait ComhairleBotService: Send + Sync {
         chat_id: &str,
         body: ConvoQuestion,
     ) -> Result<
-        Pin<Box<dyn Stream<Item = Result<ConvoEvent, ComhairleError>> + Send + 'static>>,
+        Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
         ComhairleError,
     >;
 }
@@ -218,10 +218,11 @@ impl ComhairleBotService for ComhairleRagBotService {
         chat_id: &str,
         body: ConvoQuestion,
     ) -> Result<
-        Pin<Box<dyn Stream<Item = Result<ConvoEvent, ComhairleError>> + Send + 'static>>,
+        Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
         ComhairleError,
     > {
         let stream = self.client.stream_chat_conversation(chat_id, body).await?;
+
         let mapped_stream = stream.map(|item| item.map_err(ComhairleError::from));
 
         Ok(Box::pin(mapped_stream))
@@ -292,7 +293,7 @@ impl MockComhairleBotService {
             .returning(|_, _| Box::pin(async move { Ok((StatusCode::OK, Vec::new())) }));
         bot_service.expect_converse_with_chat().returning(|_, _| {
             Box::pin(async move {
-                let stream: Pin<Box<dyn Stream<Item = Result<ConvoEvent, ComhairleError>> + Send>> =
+                let stream: Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send>> =
                     Box::pin(futures::stream::empty());
 
                 Ok(stream)
