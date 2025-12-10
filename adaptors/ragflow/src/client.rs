@@ -1,13 +1,16 @@
 use crate::{
-    Chat, ChatSession, CreateChat, CreateChatResponse, CreateChatSessionResponse,
-    CreateDatasetResponse, CreateUpdateChatSession, Dataset, Document, GetChatResponse,
-    GetChatSessionResponse, GetDocumentsResponse, UpdateChat,
+    Chat, ChatSession, ConvoChunkResponse, ConvoDoneResponse, ConvoEvent, ConvoQuestion,
+    CreateChat, CreateChatResponse, CreateChatSessionResponse, CreateDatasetResponse,
+    CreateUpdateChatSession, Dataset, Document, GetChatResponse, GetChatSessionResponse,
+    GetDocumentsResponse, UpdateChat,
     error::{RagflowError, Result},
     types::{
         CreateDataset, DeleteResources, GetQueryParams, ParseDocuments, UpdateDocument, UploadFile,
     },
 };
 
+use async_stream::try_stream;
+use futures::{Stream, StreamExt};
 use reqwest::{
     Client as HttpClient, StatusCode,
     header::{HeaderName, HeaderValue},
@@ -429,6 +432,49 @@ impl RagflowClient {
 
         Ok((status, json.data))
     }
+
+    pub async fn stream_chat_conversation(
+        &self,
+        chat_id: &str,
+        body: ConvoQuestion,
+    ) -> Result<impl Stream<Item = Result<ConvoEvent>> + use<>> {
+        let url = format!("{}/chats/{chat_id}/completions", self.base_url);
+
+        let response = self
+            .http
+            .post(&url)
+            .header("Authorization", self.auth_header())
+            .json(&body)
+            .send()
+            .await?;
+
+        let stream = try_stream! {
+            let mut byte_stream = response.bytes_stream();
+
+            while let Some(chunk) = byte_stream.next().await {
+                let chunk = chunk?;
+                let text = String::from_utf8_lossy(&chunk);
+
+                for line in text.lines() {
+                    if !line.starts_with("data:") { continue; }
+
+                    // Remove `data:` so it is not nested when re-added by axum SSE
+                    let trimmed = line.trim_start_matches("data:").trim();
+                    let json: Value = serde_json::from_str(trimmed)?;
+                    if json["data"] == true {
+                        let done:ConvoDoneResponse = serde_json::from_value(json)?;
+                        yield ConvoEvent::Done(done);
+                        continue;
+                    }
+
+                    let parsed: ConvoChunkResponse = serde_json::from_str(trimmed).map_err(RagflowError::Serde)?;
+                    yield ConvoEvent::Chunk(parsed)
+                }
+            }
+        };
+
+        Ok(stream)
+    }
 }
 
 #[cfg(test)]
@@ -436,8 +482,8 @@ mod tests {
     use std::error::Error;
 
     use crate::{
-        Chat, ChatSession, CreateChat, CreateDatasetResponse, CreateUpdateChatSession, Dataset,
-        DeleteResources, Llm, UpdateChat,
+        Chat, ChatSession, ConvoAnswer, ConvoChunkResponse, ConvoEvent, ConvoQuestion, CreateChat,
+        CreateDatasetResponse, CreateUpdateChatSession, Dataset, DeleteResources, Llm, UpdateChat,
         client::RagflowClient,
         error::RagflowError,
         types::{
@@ -445,6 +491,7 @@ mod tests {
             UpdateDocument, UploadFile,
         },
     };
+    use futures::StreamExt;
     use reqwest::{StatusCode, multipart::Form};
     use serde_json::json;
     use wiremock::{
@@ -1355,6 +1402,82 @@ mod tests {
             Some("test_chat_session".to_string()),
             "incorrect json response"
         );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn should_stream_answer_to_question() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+        let chat_id = "123";
+        let session_id = "456";
+
+        let chunk_1 = ConvoChunkResponse {
+            code: 0,
+            data: ConvoAnswer {
+                answer: "Lorem".to_string(),
+                session_id: session_id.to_string(),
+                ..Default::default()
+            },
+        };
+        let chunk_2 = ConvoChunkResponse {
+            code: 0,
+            data: ConvoAnswer {
+                answer: "Lorem ipsum".to_string(),
+                session_id: session_id.to_string(),
+                ..Default::default()
+            },
+        };
+        let chunk_1 = serde_json::to_string(&json!(chunk_1))?;
+        let chunk_2 = serde_json::to_string(&json!(chunk_2))?;
+        let chunk_3 = serde_json::to_string(&json!({ "code": 0, "data": true }))?;
+
+        let sse_events = format!("data:{chunk_1}\n\ndata:{chunk_2}\n\ndata:{chunk_3}\n\n");
+
+        Mock::given(method("POST"))
+            .and(path(format!(
+                "{}/chats/{}/completions",
+                client.path_prefix, chat_id
+            )))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(sse_events))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let body = ConvoQuestion {
+            question: "tell me something".to_string(),
+            session_id: Some(session_id.to_string()),
+            stream: Some(true),
+            user_id: None,
+        };
+        let stream = client.stream_chat_conversation(chat_id, body).await?;
+
+        let events: Vec<_> = stream.collect().await;
+
+        assert_eq!(events.len(), 3, "incorrect number of events in stream");
+
+        let last_event = events.last().unwrap().as_ref().unwrap();
+
+        match last_event {
+            ConvoEvent::Done(event_data) => {
+                assert!(event_data.data);
+            }
+            _ => panic!("Expected ConvoEvent::Done"),
+        }
+
+        for event in &events[..2] {
+            let event = event.as_ref().unwrap();
+            match event {
+                ConvoEvent::Chunk(event_data) => {
+                    assert_eq!(
+                        event_data.data.session_id, session_id,
+                        "incorrect event data"
+                    );
+                }
+                _ => panic!("Expected ConvoEvent::Chunk"),
+            }
+        }
 
         Ok(())
     }

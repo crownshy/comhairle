@@ -259,3 +259,45 @@ pub struct GetChatSessionResponse {
     code: i32,
     pub data: Vec<ChatSession>,
 }
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct ConvoQuestion {
+    pub question: String,
+    pub stream: Option<bool>,
+    pub session_id: Option<String>,
+    pub user_id: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub enum ConvoEvent {
+    Chunk(ConvoChunkResponse),
+    Done(ConvoDoneResponse),
+}
+
+#[derive(Deserialize)]
+pub struct ConvoDoneResponse {
+    code: i32,
+    pub data: bool,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct ConvoChunkResponse {
+    pub code: i32,
+    pub data: ConvoAnswer
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct ConvoAnswer {
+    pub answer: String,
+    pub reference: Reference,
+    pub id: Option<String>,
+    pub session_id: String,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct Reference {
+    pub chunks: Vec<Chunk>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Chunk;

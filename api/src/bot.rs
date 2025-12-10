@@ -1,9 +1,11 @@
-use std::sync::Arc;
+use std::{pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
+use futures::{Stream, StreamExt};
 use ragflow::{
-    client::RagflowClient, Chat, ChatSession, CreateChat, CreateUpdateChatSession, Dataset,
-    DeleteResources, Document, GetQueryParams, UpdateChat, UploadFile,
+    client::RagflowClient, Chat, ChatSession, ConvoEvent, ConvoQuestion, CreateChat,
+    CreateUpdateChatSession, Dataset, DeleteResources, Document, GetQueryParams, UpdateChat,
+    UploadFile,
 };
 use reqwest::StatusCode;
 
@@ -87,6 +89,15 @@ pub trait ComhairleBotService: Send + Sync {
         chat_id: &str,
         params: Option<GetQueryParams>,
     ) -> Result<(StatusCode, Vec<ChatSession>), ComhairleError>;
+
+    async fn converse_with_chat(
+        &self,
+        chat_id: &str,
+        body: ConvoQuestion,
+    ) -> Result<
+        Pin<Box<dyn Stream<Item = Result<ConvoEvent, ComhairleError>> + Send + 'static>>,
+        ComhairleError,
+    >;
 }
 
 pub struct ComhairleRagBotService {
@@ -201,6 +212,20 @@ impl ComhairleBotService for ComhairleRagBotService {
         let (status, chat_sessions) = self.client.get_chat_sessions(chat_id, params).await?;
         Ok((status, chat_sessions))
     }
+
+    async fn converse_with_chat(
+        &self,
+        chat_id: &str,
+        body: ConvoQuestion,
+    ) -> Result<
+        Pin<Box<dyn Stream<Item = Result<ConvoEvent, ComhairleError>> + Send + 'static>>,
+        ComhairleError,
+    > {
+        let stream = self.client.stream_chat_conversation(chat_id, body).await?;
+        let mapped_stream = stream.map(|item| item.map_err(ComhairleError::from));
+
+        Ok(Box::pin(mapped_stream))
+    }
 }
 
 #[cfg(test)]
@@ -265,6 +290,14 @@ impl MockComhairleBotService {
         bot_service
             .expect_get_chat_sessions()
             .returning(|_, _| Box::pin(async move { Ok((StatusCode::OK, Vec::new())) }));
+        bot_service.expect_converse_with_chat().returning(|_, _| {
+            Box::pin(async move {
+                let stream: Pin<Box<dyn Stream<Item = Result<ConvoEvent, ComhairleError>> + Send>> =
+                    Box::pin(futures::stream::empty());
+
+                Ok(stream)
+            })
+        });
 
         bot_service
     }
