@@ -149,11 +149,6 @@ pub struct ConversationFilterOptions {
 
 impl ConversationFilterOptions {
     fn apply(&self, mut query: sea_query::SelectStatement) -> sea_query::SelectStatement {
-        // NOTE: Title filtering is not supported in the old apply method
-        // because it would try to filter on UUID. Use apply_to_localized instead.
-        if let Some(_value) = &self.title {
-            panic!("Title filtering requires localized query. Use apply_to_localized() instead of apply().");
-        };
         if let Some(value) = self.is_public {
             query = query
                 .and_where(
@@ -227,58 +222,8 @@ impl ConversationFilterOptions {
                 )
                 .to_owned();
         };
-        if let Some(value) = self.is_public {
-            query = query
-                .and_where(
-                    Expr::col((ConversationIden::Table, ConversationIden::IsPublic)).eq(value),
-                )
-                .to_owned();
-        };
-        if let Some(value) = self.is_invite_only {
-            query = query
-                .and_where(
-                    Expr::col((ConversationIden::Table, ConversationIden::IsInviteOnly)).eq(value),
-                )
-                .to_owned();
-        };
-        if let Some(value) = self.is_complete {
-            query = query
-                .and_where(
-                    Expr::col((ConversationIden::Table, ConversationIden::IsComplete)).eq(value),
-                )
-                .to_owned();
-        };
-        if let Some(value) = &self.owner_id {
-            query = query
-                .and_where(
-                    Expr::col((ConversationIden::Table, ConversationIden::OwnerId))
-                        .eq(value.to_string()),
-                )
-                .to_owned();
-        }
-        if let Some(value) = &self.created_before {
-            query = query
-                .and_where(
-                    Expr::col((ConversationIden::Table, ConversationIden::CreatedAt)).lt(
-                        sea_query::SimpleExpr::Value(sea_query::Value::ChronoDateTime(Some(
-                            Box::new(value.naive_utc()),
-                        ))),
-                    ),
-                )
-                .to_owned();
-        };
-        if let Some(value) = &self.created_after {
-            query = query
-                .and_where(
-                    Expr::col((ConversationIden::Table, ConversationIden::CreatedAt)).gt(
-                        sea_query::SimpleExpr::Value(sea_query::Value::ChronoDateTime(Some(
-                            Box::new(value.naive_utc()),
-                        ))),
-                    ),
-                )
-                .to_owned();
-        };
-        query.to_owned()
+
+        self.apply(query)
     }
 }
 
@@ -290,12 +235,6 @@ pub struct ConversationOrderOptions {
 
 impl ConversationOrderOptions {
     pub fn apply(&self, mut query: sea_query::SelectStatement) -> sea_query::SelectStatement {
-        if let Some(order) = &self.title {
-            query = query
-                .order_by(ConversationIden::Title, order.into())
-                .to_owned()
-        }
-
         if let Some(order) = &self.created_at {
             query = query
                 .order_by(
@@ -323,16 +262,7 @@ impl ConversationOrderOptions {
                 .order_by((tt_title_alias, TextTranslationIden::Content), order.into())
                 .to_owned()
         }
-
-        if let Some(order) = &self.created_at {
-            query = query
-                .order_by(
-                    (ConversationIden::Table, ConversationIden::CreatedAt),
-                    order.into(),
-                )
-                .to_owned()
-        }
-        query
+        self.apply(query)
     }
 }
 
