@@ -2,12 +2,15 @@ use std::sync::Arc;
 
 use aide::axum::{routing::post_with, ApiRouter};
 use axum::{
+    body::Body,
     extract::{Json, Multipart, Path, State},
     http::StatusCode,
     routing::post,
 };
 use axum_extra::extract::CookieJar;
-use ragflow::UploadFile;
+use futures::StreamExt;
+use hyper::body::Bytes;
+use ragflow::{ConvoQuestion, UploadFile};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use tracing::instrument;
@@ -62,6 +65,20 @@ async fn upload_documents(
     Ok(StatusCode::OK)
 }
 
+#[instrument(err(Debug), skip(state))]
+async fn converse_with_chat(
+    State(state): State<Arc<ComhairleState>>,
+    Path(chat_id): Path<String>,
+    Json(payload): Json<ConvoQuestion>,
+) -> Result<impl axum::response::IntoResponse, ComhairleError> {
+    let stream = state
+        .bot_service
+        .converse_with_chat(&chat_id, payload)
+        .await?;
+
+    Ok(Body::from_stream(stream))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -76,5 +93,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/upload_documents/{knowledgebase_id}",
             post(upload_documents),
         )
+        .route("/chats/{chat_id}", post(converse_with_chat))
         .with_state(state)
 }
