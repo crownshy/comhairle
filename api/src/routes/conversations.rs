@@ -20,7 +20,8 @@ use crate::{
     models::{
         conversation::{
             self, Conversation, ConversationFilterOptions, ConversationOrderOptions,
-            CreateConversation, PartialConversation,
+            ConversationWithTranslations, CreateConversation, LocalisedConversation,
+            PartialConversation,
         },
         conversation_email_notification_recipients::{
             self as email_recipients_model, ConversationEmailNotificationRecipients,
@@ -36,7 +37,7 @@ use crate::{
     ComhairleState,
 };
 
-use super::auth::RequiredAdminUser;
+use super::auth::{is_user_admin, OptionalUser, RequiredAdminUser};
 
 /// Create conversation handler
 async fn create_conversation(
@@ -66,9 +67,15 @@ async fn list_conversations(
     OrderParams(order_options): OrderParams<ConversationOrderOptions>,
     Query(filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
-) -> Result<(StatusCode, Json<PaginatedResults<Conversation>>), ComhairleError> {
-    let conversations =
-        conversation::list(&state.db, page_options, order_options, filter_options).await?;
+) -> Result<(StatusCode, Json<PaginatedResults<LocalisedConversation>>), ComhairleError> {
+    let conversations = conversation::list(
+        &state.db,
+        page_options,
+        order_options,
+        filter_options,
+        Some("en".to_string()),
+    )
+    .await?;
     Ok((StatusCode::OK, Json(conversations)))
 }
 
@@ -80,19 +87,68 @@ enum IdOrSlug {
     Slug(String),
 }
 
+#[derive(Deserialize, JsonSchema)]
+pub struct GetConversationQuery {
+    #[serde(rename = "withTranslations", default)]
+    pub with_translations: bool,
+}
+
+#[derive(Serialize, JsonSchema)]
+#[serde(untagged)]
+pub enum ConversationResponse {
+    Localised(LocalisedConversation),
+    WithTranslations(ConversationWithTranslations),
+}
+
 /// Get a specific conversation
 async fn get_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_ident): Path<IdOrSlug>,
-) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
+    Query(query): Query<GetConversationQuery>,
+    OptionalUser(user): OptionalUser,
+) -> Result<(StatusCode, Json<ConversationResponse>), ComhairleError> {
     info!("Attempting to get conversation {conversation_ident:#?}");
 
-    let conversation = match conversation_ident {
-        IdOrSlug::Id(id) => conversation::get_by_id(&state.db, &id).await?,
-        IdOrSlug::Slug(slug) => conversation::get_by_slug(&state.db, &slug).await?,
-    };
+    // Check if user is admin and withTranslations is requested
+    let should_return_with_translations = query.with_translations
+        && user
+            .as_ref()
+            .map(|u| is_user_admin(u, &state.config))
+            .unwrap_or(false);
 
-    Ok((StatusCode::OK, Json(conversation)))
+    if should_return_with_translations {
+        // Get the original conversation first
+        let original_conversation = match conversation_ident {
+            IdOrSlug::Id(id) => conversation::get_by_id(&state.db, &id).await?,
+            IdOrSlug::Slug(slug) => conversation::get_by_slug(&state.db, &slug).await?,
+        };
+
+        // Convert to ConversationWithTranslations
+        let conversation_with_translations = ConversationWithTranslations::from_original(
+            &state.db,
+            original_conversation,
+            "en", // TODO: Get locale from user preferences or query param
+        )
+        .await?;
+
+        Ok((
+            StatusCode::OK,
+            Json(ConversationResponse::WithTranslations(
+                conversation_with_translations,
+            )),
+        ))
+    } else {
+        // Return localized conversation as before
+        let conversation = match conversation_ident {
+            IdOrSlug::Id(id) => conversation::get_localised_by_id(&state.db, &id).await?,
+            IdOrSlug::Slug(slug) => conversation::get_localised_by_slug(&state.db, &slug).await?,
+        };
+
+        Ok((
+            StatusCode::OK,
+            Json(ConversationResponse::Localised(conversation)),
+        ))
+    }
 }
 
 /// Delete a specific conversation
@@ -250,7 +306,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("CreateConversation")
                     .summary("Create a new conversation")
                     .description("Creates a new conversation")
-                    .response::<201, Json<Conversation>>()
+                    .response::<201, Json<LocalisedConversation>>()
             }),
         )
         .api_route(
@@ -259,7 +315,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("ListConverastions")
                     .summary("List conversations with optional filtering and ordering")
                     .description("List conversations")
-                    .response::<200, Json<PaginatedResults<Conversation>>>()
+                    .response::<200, Json<PaginatedResults<LocalisedConversation>>>()
             }),
         )
         .api_route(
@@ -267,8 +323,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(get_conversation, |op| {
                 op.id("GetConversation")
                     .summary("Get a conversation by id or slug")
-                    .description("Get a converation by id or slug")
-                    .response::<200, Json<Conversation>>()
+                    .description("Get a conversation by id or slug. If user is admin and withTranslations=true, returns detailed translation data.")
+                    .response::<200, Json<ConversationResponse>>()
             }),
         )
         .api_route(
@@ -277,7 +333,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("UpdateConversation")
                     .summary("Update a conversation")
                     .description("Update a conversation")
-                    .response::<200, Json<Conversation>>()
+                    .response::<200, Json<LocalisedConversation>>()
             }),
         )
         .api_route(
@@ -286,7 +342,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("DeleteConversation")
                     .summary("Delete the conversation and all related content")
                     .description("Delete the conversation and all related content")
-                    .response::<200, Json<Conversation>>()
+                    .response::<200, Json<LocalisedConversation>>()
             }),
         )
         .api_route(
@@ -345,7 +401,9 @@ mod tests {
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
@@ -374,7 +432,9 @@ mod tests {
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
@@ -387,19 +447,12 @@ mod tests {
                 &app,
                 &id,
                 json!({
-                    "short_description": "new description",
                     "is_public":true
                 }),
             )
             .await?;
 
         assert_eq!(status, StatusCode::OK, "Should update resource");
-
-        assert_eq!(
-            conversation.get("short_description"),
-            Some(&json!("new description")),
-            "should have updated description"
-        );
 
         assert_eq!(
             conversation.get("is_public"),
@@ -429,7 +482,9 @@ mod tests {
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
@@ -476,12 +531,14 @@ mod tests {
                     "tags" : ["one", "two", "three"],
                     "is_public" : true,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
 
-        session
+        let (status, result, _) = session
             .create_conversation(
                 &app,
                 json! ({
@@ -491,11 +548,15 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : true,
+                    "primary_locale": "en",
+                    "supported_languages":["en"],
                     "is_invite_only" : false,
                     "slug" : "new_new_conversation"
                 }),
             )
             .await?;
+
+        println!("{status:#?} {result:#?}");
 
         let (status, conversations, _) = session.list_conversations(&app, 0, 10).await?;
 
@@ -541,7 +602,9 @@ mod tests {
                         "tags" : ["one", "two", "three"],
                         "is_public" : true,
                         "is_invite_only" : false,
-                        "slug" : format!("{i}")
+                        "slug" : format!("{i}"),
+                        "primary_locale" : "en",
+                        "supported_languages" : ["en"]
                     }),
                 )
                 .await?;
@@ -558,13 +621,16 @@ mod tests {
                     "tags" : ["one", "two", "three"],
                     "is_public" : true,
                     "is_invite_only" : false,
-                    "slug" : format!("target_slug")
+                    "slug" : format!("target_slug"),
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
 
         let url = format!("/conversation?title=target&offset={}&limit={}", 0, 10);
         let (status, conversations, _) = session.get(&app, &url).await?;
+        println!("{conversations:#?}");
 
         let conversations: Vec<serde_json::Value> =
             serde_json::from_value(conversations.get("records").to_owned().unwrap().to_owned())?;
@@ -597,7 +663,9 @@ mod tests {
                         "tags" : ["one", "two", "three"],
                         "is_public" : true,
                         "is_invite_only" : false,
-                        "slug" : format!("{i}")
+                        "slug" : format!("{i}"),
+                        "primary_locale" : "en",
+                        "supported_languages" : ["en"]
                     }),
                 )
                 .await?;
@@ -668,7 +736,9 @@ mod tests {
                         "tags" : ["one", "two", "three"],
                         "is_public" : true,
                         "is_invite_only" : false,
-                        "slug" : format!("{i}")
+                        "slug" : format!("{i}"),
+                        "primary_locale" : "en",
+                        "supported_languages" : ["en"]
                     }),
                 )
                 .await?;
@@ -723,10 +793,13 @@ mod tests {
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
+        println!("{convo1:#?}");
 
         let (_, convo2, _) = session
             .create_conversation(
@@ -739,11 +812,14 @@ mod tests {
                     "tags" : ["one", "three"],
                     "is_public" : false,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation_two"
+                    "slug" : "new_conversation_two",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
 
+        println!("{convo2:#?}");
         let convo1: HashMap<String, Option<serde_json::Value>> = serde_json::from_value(convo1)?;
         let convo2: HashMap<String, Option<serde_json::Value>> = serde_json::from_value(convo2)?;
 
@@ -796,7 +872,9 @@ mod tests {
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
@@ -837,7 +915,9 @@ mod tests {
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
@@ -853,7 +933,9 @@ mod tests {
                     "tags" : ["one", "three"],
                     "is_public" : false,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;

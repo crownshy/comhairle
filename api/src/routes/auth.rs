@@ -17,6 +17,18 @@ use axum_extra::extract::cookie::{Cookie, CookieJar};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
 use rand_core::OsRng;
 use regex::Regex;
+
+/// Helper function to check if a user is admin
+pub fn is_user_admin(user: &crate::models::users::User, config: &crate::config::ComhairleConfig) -> bool {
+    let re = Regex::new(r"^test(?:[1-9]|10)@crown-shy\.com$").unwrap();
+    if let (Some(admin_users), Some(email)) = (&config.admin_users, &user.email) {
+        let downcase_admin_users: Vec<String> =
+            admin_users.into_iter().map(|a| a.to_lowercase()).collect();
+        return downcase_admin_users.contains(&email.to_lowercase())
+            || re.is_match(&email.to_lowercase());
+    }
+    false
+}
 use schemars::JsonSchema;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::json;
@@ -534,17 +546,12 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
         state: &Arc<ComhairleState>,
     ) -> Result<Self, Self::Rejection> {
         let user = parts.extract_with_state::<RequiredUser, _>(state).await?;
-        let re = Regex::new(r"^test(?:[1-9]|10)@crown-shy\.com$").unwrap();
-        if let (Some(admin_users), Some(email)) = (&state.config.admin_users, &user.0.email) {
-            let downcase_admin_users: Vec<String> =
-                admin_users.into_iter().map(|a| a.to_lowercase()).collect();
-            if downcase_admin_users.contains(&email.to_lowercase())
-                || re.is_match(&email.to_lowercase())
-            {
-                return Ok(RequiredAdminUser(user.0.clone()));
-            }
+        
+        if is_user_admin(&user.0, &state.config) {
+            Ok(RequiredAdminUser(user.0.clone()))
+        } else {
+            Err(ComhairleError::RequiresAuthUser)
         }
-        Err(ComhairleError::RequiresAuthUser)
     }
 }
 

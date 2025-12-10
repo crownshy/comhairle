@@ -516,7 +516,9 @@ impl UserSession {
                 "image_url": image_url,
                 "tags" : tags,
                 "is_public": is_public,
-                "is_invite_only" : is_invite_only
+                "is_invite_only" : is_invite_only,
+                "primary_locale" : "en",
+                "supported_languages" : ["en"]
             }),
         )
         .await
