@@ -89,6 +89,7 @@
     "@cartamd/plugin-slash": "^4.2.0",
     "@dnd-kit-svelte/core": "^0.0.11",
     "@internationalized/date": "^3.9.0",
+    "@storybook/test": "^8.6.14",
     "@sveltejs/adapter-node": "^5.2.12",
     "@thisux/sveltednd": "^0.0.20",
     "@zodios/core": "^10.9.6",

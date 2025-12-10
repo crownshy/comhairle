@@ -1,14 +1,18 @@
-import type { Preview } from '@storybook/sveltekit'
+import type { StorybookConfig } from '@storybook/sveltekit';
 
-const preview: Preview = {
-  parameters: {
-    controls: {
-      matchers: {
-       color: /(background|color)$/i,
-       date: /Date$/i,
-      },
-    },
-  },
+const config: StorybookConfig = {
+  "stories": [
+    "../src/**/*.mdx",
+    "../src/**/*.stories.@(js|ts|svelte)"
+  ],
+  "addons": [
+    "@storybook/addon-svelte-csf",
+    "@chromatic-com/storybook",
+    "@storybook/addon-docs"
+  ],
+  "framework": {
+    "name": "@storybook/sveltekit",
+    "options": {}
+  }
 };
-
-export default preview;
+export default config;
