@@ -6,12 +6,14 @@ pub mod mailer;
 pub mod models;
 mod routes;
 mod tools;
+pub mod translation_service;
 pub mod websockets;
 
 use docs::docs_routes;
 use mailer::ComhairleMailer;
 pub use routes::auth::hash_pw;
 use routes::auth::AUTH_KEY;
+use translation_service::TranslationService;
 use websockets::WebSocketService;
 
 #[cfg(test)]
@@ -35,6 +37,7 @@ pub struct ComhairleState {
     pub config: ComhairleConfig,
     pub mailer: Arc<dyn ComhairleMailer>,
     pub websockets: Arc<dyn WebSocketService>,
+    pub translation_service: Arc<dyn TranslationService>,
 }
 
 fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
