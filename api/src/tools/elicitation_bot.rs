@@ -5,7 +5,7 @@ use crate::error::ComhairleError;
 
 use super::ToolConfigSanitize;
 
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
+#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
 pub struct ElicitationBotToolConfig;
 
 impl ToolConfigSanitize for ElicitationBotToolConfig {

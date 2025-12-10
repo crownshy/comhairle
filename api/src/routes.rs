@@ -5,6 +5,7 @@ pub mod invites;
 pub mod notifications;
 pub mod report_impacts;
 pub mod reports;
+pub mod translations;
 pub mod user;
 pub mod user_conversation_preferences;
 pub mod user_progress;

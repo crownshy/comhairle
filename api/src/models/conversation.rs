@@ -1,10 +1,12 @@
 use super::{
     pagination::{Order, PageOptions, PaginatedResults},
+    translations::{new_translation, TextContentId, TextFormat},
     user_participation::UserParticipationIden,
     workflow::WorkflowIden,
 };
 use crate::error::ComhairleError;
 use chrono::{DateTime, Utc};
+use comhairle_macros::Translatable;
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
@@ -18,15 +20,15 @@ use uuid::Uuid;
 #[cfg(test)]
 use fake::Dummy;
 
-#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
+#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "conversation")]
 #[partially(derive(Deserialize, Debug, JsonSchema, Default))]
 pub struct Conversation {
     #[partially(omit)]
     pub id: Uuid,
-    pub title: String,
-    pub short_description: String,
-    pub description: String,
+    pub title: TextContentId,
+    pub short_description: TextContentId,
+    pub description: TextContentId,
     #[partially(transparent)]
     pub video_url: Option<String>,
     pub image_url: String,
@@ -40,13 +42,15 @@ pub struct Conversation {
     pub slug: Option<String>,
     #[partially(transparent)]
     pub default_workflow_id: Option<Uuid>,
+    pub primary_locale: String,
+    pub supported_languages: Vec<String>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ConversationIden; 15] = [
+const DEFAULT_COLUMNS: [ConversationIden; 17] = [
     ConversationIden::Id,
     ConversationIden::Title,
     ConversationIden::ShortDescription,
@@ -59,6 +63,8 @@ const DEFAULT_COLUMNS: [ConversationIden; 15] = [
     ConversationIden::IsInviteOnly,
     ConversationIden::Slug,
     ConversationIden::DefaultWorkflowId,
+    ConversationIden::PrimaryLocale,
+    ConversationIden::SupportedLanguages,
     ConversationIden::CreatedAt,
     ConversationIden::UpdatedAt,
     ConversationIden::OwnerId,
@@ -109,6 +115,23 @@ impl PartialConversation {
         if let Some(value) = &self.default_workflow_id {
             values.push((ConversationIden::DefaultWorkflowId, (*value).into()))
         };
+
+        if let Some(value) = &self.primary_locale {
+            values.push((ConversationIden::PrimaryLocale, value.into()))
+        };
+
+        if let Some(value) = &self.supported_languages {
+            values.push((
+                ConversationIden::SupportedLanguages,
+                sea_query::Value::Array(
+                    sea_query::ArrayType::String,
+                    Some(Box::new(
+                        value.into_iter().map(sea_query::Value::from).collect(),
+                    )),
+                )
+                .into(),
+            ))
+        };
         values
     }
 }
@@ -126,50 +149,81 @@ pub struct ConversationFilterOptions {
 
 impl ConversationFilterOptions {
     fn apply(&self, mut query: sea_query::SelectStatement) -> sea_query::SelectStatement {
-        if let Some(value) = &self.title {
-            query = query
-                .and_where(Expr::col(ConversationIden::Title).like(format!("%{value}%")))
-                .to_owned();
-        };
         if let Some(value) = self.is_public {
             query = query
-                .and_where(Expr::col(ConversationIden::IsPublic).eq(value))
+                .and_where(
+                    Expr::col((ConversationIden::Table, ConversationIden::IsPublic)).eq(value),
+                )
                 .to_owned();
         };
         if let Some(value) = self.is_invite_only {
             query = query
-                .and_where(Expr::col(ConversationIden::IsInviteOnly).eq(value))
+                .and_where(
+                    Expr::col((ConversationIden::Table, ConversationIden::IsInviteOnly)).eq(value),
+                )
                 .to_owned();
         };
         if let Some(value) = self.is_complete {
             query = query
-                .and_where(Expr::col(ConversationIden::IsComplete).eq(value))
+                .and_where(
+                    Expr::col((ConversationIden::Table, ConversationIden::IsComplete)).eq(value),
+                )
                 .to_owned();
         };
         if let Some(value) = &self.owner_id {
             query = query
-                .and_where(Expr::col(ConversationIden::OwnerId).eq(value.to_string()))
+                .and_where(
+                    Expr::col((ConversationIden::Table, ConversationIden::OwnerId))
+                        .eq(value.to_string()),
+                )
                 .to_owned();
         }
         if let Some(value) = &self.created_before {
             query = query
                 .and_where(
-                    Expr::col(ConversationIden::CreatedAt).lt(sea_query::SimpleExpr::Value(
-                        sea_query::Value::ChronoDateTime(Some(Box::new(value.naive_utc()))),
-                    )),
+                    Expr::col((ConversationIden::Table, ConversationIden::CreatedAt)).lt(
+                        sea_query::SimpleExpr::Value(sea_query::Value::ChronoDateTime(Some(
+                            Box::new(value.naive_utc()),
+                        ))),
+                    ),
                 )
                 .to_owned();
         };
         if let Some(value) = &self.created_after {
             query = query
                 .and_where(
-                    Expr::col(ConversationIden::CreatedAt).gt(sea_query::SimpleExpr::Value(
-                        sea_query::Value::ChronoDateTime(Some(Box::new(value.naive_utc()))),
-                    )),
+                    Expr::col((ConversationIden::Table, ConversationIden::CreatedAt)).gt(
+                        sea_query::SimpleExpr::Value(sea_query::Value::ChronoDateTime(Some(
+                            Box::new(value.naive_utc()),
+                        ))),
+                    ),
                 )
                 .to_owned();
         };
         query.to_owned()
+    }
+
+    /// Apply filters after localization joins have been made
+    /// This version can filter on the localized text content
+    fn apply_to_localized(
+        &self,
+        mut query: sea_query::SelectStatement,
+    ) -> sea_query::SelectStatement {
+        use crate::models::translations::TextTranslationIden;
+        use sea_query::Alias;
+
+        if let Some(value) = &self.title {
+            // Filter on the actual translation table column, not the alias
+            let tt_title_alias = Alias::new("tt_title");
+            query = query
+                .and_where(
+                    Expr::col((tt_title_alias, TextTranslationIden::Content))
+                        .like(format!("%{value}%")),
+                )
+                .to_owned();
+        };
+
+        self.apply(query)
     }
 }
 
@@ -181,18 +235,34 @@ pub struct ConversationOrderOptions {
 
 impl ConversationOrderOptions {
     pub fn apply(&self, mut query: sea_query::SelectStatement) -> sea_query::SelectStatement {
-        if let Some(order) = &self.title {
-            query = query
-                .order_by(ConversationIden::Title, order.into())
-                .to_owned()
-        }
-
         if let Some(order) = &self.created_at {
             query = query
-                .order_by(ConversationIden::CreatedAt, order.into())
+                .order_by(
+                    (ConversationIden::Table, ConversationIden::CreatedAt),
+                    order.into(),
+                )
                 .to_owned()
         }
         query
+    }
+
+    /// Apply ordering after localization joins have been made
+    /// This version can order by the localized text content
+    pub fn apply_to_localized(
+        &self,
+        mut query: sea_query::SelectStatement,
+    ) -> sea_query::SelectStatement {
+        use crate::models::translations::TextTranslationIden;
+        use sea_query::Alias;
+
+        if let Some(order) = &self.title {
+            // Order by the actual translation table column, not the alias
+            let tt_title_alias = Alias::new("tt_title");
+            query = query
+                .order_by((tt_title_alias, TextTranslationIden::Content), order.into())
+                .to_owned()
+        }
+        self.apply(query)
     }
 }
 
@@ -210,7 +280,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Conversation, ComhairleErr
 
     Ok(conversation)
 }
-/// Get a conversation by ID
+/// Get a conversation by ID (original struct, not localized)
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Conversation, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -226,6 +296,32 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Conversation, Comhairle
     Ok(conversation)
 }
 
+/// Get a conversation by ID
+pub async fn get_localised_by_id(
+    db: &PgPool,
+    id: &Uuid,
+) -> Result<LocalisedConversation, ComhairleError> {
+    let select_query = Query::select()
+        .columns(DEFAULT_COLUMNS.map(|col| (ConversationIden::Table, col)))
+        .from(ConversationIden::Table)
+        .and_where(Expr::col((ConversationIden::Table, ConversationIden::Id)).eq(id.to_owned()))
+        .to_owned();
+
+    let (sql, values) = LocalisedConversation::query_to_localisation(select_query, "en")
+        .build_sqlx(PostgresQueryBuilder);
+
+    println!("SQL: {sql}");
+
+    let conversation = sqlx::query_as_with::<_, LocalisedConversation, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .inspect_err(|e| println!("{e:#?}"))
+        .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
+
+    Ok(conversation)
+}
+
+/// Get a conversation by slug (original struct, not localized)
 pub async fn get_by_slug(db: &PgPool, slug: &str) -> Result<Conversation, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -234,6 +330,27 @@ pub async fn get_by_slug(db: &PgPool, slug: &str) -> Result<Conversation, Comhai
         .build_sqlx(PostgresQueryBuilder);
 
     let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
+
+    Ok(conversation)
+}
+
+pub async fn get_localised_by_slug(
+    db: &PgPool,
+    slug: &str,
+) -> Result<LocalisedConversation, ComhairleError> {
+    let select_query = Query::select()
+        .columns(DEFAULT_COLUMNS.map(|col| (ConversationIden::Table, col)))
+        .from(ConversationIden::Table)
+        .and_where(Expr::col((ConversationIden::Table, ConversationIden::Slug)).eq(slug.to_owned()))
+        .to_owned();
+
+    let (sql, values) = LocalisedConversation::query_to_localisation(select_query, "en")
+        .build_sqlx(PostgresQueryBuilder);
+
+    let conversation = sqlx::query_as_with::<_, LocalisedConversation, _>(&sql, values)
         .fetch_one(db)
         .await
         .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
@@ -323,33 +440,33 @@ pub struct CreateConversation {
     pub slug: Option<String>,
     #[cfg_attr(test, dummy(expr = "None"))]
     pub default_workflow_id: Option<Uuid>,
+    pub primary_locale: String,
+    pub supported_languages: Vec<String>,
 }
 
 impl CreateConversation {
     pub fn columns(&self) -> Vec<ConversationIden> {
         vec![
-            ConversationIden::Title,
-            ConversationIden::ShortDescription,
-            ConversationIden::Description,
             ConversationIden::VideoUrl,
             ConversationIden::ImageUrl,
             ConversationIden::Tags,
             ConversationIden::IsPublic,
             ConversationIden::IsInviteOnly,
+            ConversationIden::PrimaryLocale,
+            ConversationIden::SupportedLanguages,
         ]
     }
     pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
         let tags = self.tags.to_owned().unwrap_or_else(|| vec![]);
 
         vec![
-            self.title.to_owned().into(),
-            self.short_description.to_owned().into(),
-            self.description.to_owned().into(),
             self.video_url.to_owned().into(),
             self.image_url.to_owned().into(),
             tags.into(),
             self.is_public.into(),
             self.is_invite_only.into(),
+            self.primary_locale.to_owned().into(),
+            self.supported_languages.to_owned().into(),
         ]
     }
 }
@@ -359,8 +476,46 @@ pub async fn create(
     conversation: &CreateConversation,
     owner_id: Uuid,
 ) -> Result<Conversation, ComhairleError> {
+    let conversation_id = Uuid::new_v4();
+
+    // Generate Translations
+    let title = new_translation(
+        &db,
+        &conversation.primary_locale,
+        &conversation.title,
+        TextFormat::Plain,
+    )
+    .await?;
+
+    let description = new_translation(
+        &db,
+        &conversation.primary_locale,
+        &conversation.description,
+        TextFormat::Rich,
+    )
+    .await?;
+
+    let short_description = new_translation(
+        &db,
+        &conversation.primary_locale,
+        &conversation.short_description,
+        TextFormat::Rich,
+    )
+    .await?;
+
     let mut columns = conversation.columns();
     let mut values = conversation.values();
+
+    columns.push(ConversationIden::Title);
+    values.push(title.id.into());
+
+    columns.push(ConversationIden::Description);
+    values.push(description.id.into());
+
+    columns.push(ConversationIden::ShortDescription);
+    values.push(short_description.id.into());
+
+    // Generate Slug
 
     let slug = conversation
         .slug
@@ -369,6 +524,9 @@ pub async fn create(
 
     columns.push(ConversationIden::Slug);
     values.push(slug.clone().into());
+
+    columns.push(ConversationIden::Id);
+    values.push(conversation_id.into());
 
     columns.push(ConversationIden::IsComplete);
     values.push(false.into());
@@ -416,15 +574,23 @@ pub async fn list_owned(
     page_options: PageOptions,
     order_options: ConversationOrderOptions,
     filter_options: ConversationFilterOptions,
-) -> Result<PaginatedResults<Conversation>, ComhairleError> {
+    locale: Option<String>,
+) -> Result<PaginatedResults<LocalisedConversation>, ComhairleError> {
+    // 1. Build base query with conversation table columns
     let query = Query::select()
         .from(ConversationIden::Table)
-        .columns(DEFAULT_COLUMNS)
-        .and_where(Expr::col(ConversationIden::OwnerId).eq(owner_id.to_owned()))
+        .columns(DEFAULT_COLUMNS.map(|col| (ConversationIden::Table, col)))
+        .and_where(
+            Expr::col((ConversationIden::Table, ConversationIden::OwnerId)).eq(owner_id.to_owned()),
+        )
         .to_owned();
 
-    let query = filter_options.apply(query);
-    let query = order_options.apply(query);
+    // 2. Apply localization joins first to get text content
+    let query = LocalisedConversation::query_to_localisation(query, &locale.unwrap_or("en".into()));
+
+    // 3. Apply filters and ordering to the localized data
+    let query = filter_options.apply_to_localized(query);
+    let query = order_options.apply_to_localized(query);
 
     let conversations = page_options.fetch_paginated_results(db, query).await?;
 
@@ -436,15 +602,21 @@ pub async fn list(
     page_options: PageOptions,
     order_options: ConversationOrderOptions,
     filter_options: ConversationFilterOptions,
-) -> Result<PaginatedResults<Conversation>, ComhairleError> {
+    locale: Option<String>,
+) -> Result<PaginatedResults<LocalisedConversation>, ComhairleError> {
+    // 1. Build base query with conversation table columns
     let query = Query::select()
         .from(ConversationIden::Table)
-        .columns(DEFAULT_COLUMNS)
-        .and_where(Expr::col(ConversationIden::IsPublic).eq(true))
+        .columns(DEFAULT_COLUMNS.map(|col| (ConversationIden::Table, col)))
+        .and_where(Expr::col((ConversationIden::Table, ConversationIden::IsPublic)).eq(true))
         .to_owned();
 
-    let query = filter_options.apply(query);
-    let query = order_options.apply(query);
+    // 2. Apply localization joins first to get text content
+    let query = LocalisedConversation::query_to_localisation(query, &locale.unwrap_or("en".into()));
+
+    // 3. Apply filters and ordering to the localized data
+    let query = filter_options.apply_to_localized(query);
+    let query = order_options.apply_to_localized(query);
 
     let conversations = page_options.fetch_paginated_results(db, query).await?;
 

@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
-use aide::axum::{routing::{get_with, put_with}, ApiRouter};
+use aide::axum::{
+    routing::{get_with, put_with},
+    ApiRouter,
+};
 use axum::{
     extract::{Query, State},
     http::StatusCode,
     Json,
 };
-use regex::Regex;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -15,17 +17,17 @@ use crate::{
     error::ComhairleError,
     models::{
         self,
-        conversation::{Conversation, ConversationFilterOptions, ConversationOrderOptions},
+        conversation::{
+            Conversation, ConversationFilterOptions, ConversationOrderOptions,
+            LocalisedConversation,
+        },
         pagination::{OrderParams, PageOptions, PaginatedResults},
         users::{UpdateUserRequest, UpgradeAccountRequest, User},
     },
     ComhairleState,
 };
 
-use super::{
-    auth::{RequiredAdminUser, RequiredUser},
-    conversations,
-};
+use super::auth::{is_user_admin, RequiredAdminUser, RequiredUser};
 
 pub async fn get_user_owned_conversations(
     State(state): State<Arc<ComhairleState>>,
@@ -33,13 +35,14 @@ pub async fn get_user_owned_conversations(
     OrderParams(order_options): OrderParams<ConversationOrderOptions>,
     Query(filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
-) -> Result<(StatusCode, Json<PaginatedResults<Conversation>>), ComhairleError> {
+) -> Result<(StatusCode, Json<PaginatedResults<LocalisedConversation>>), ComhairleError> {
     let conversations = models::conversation::list_owned(
         &state.db,
         user.id,
         page_options,
         order_options,
         filter_options,
+        Some("en".to_string()),
     )
     .await?;
     Ok((StatusCode::OK, Json(conversations)))
@@ -77,16 +80,13 @@ pub async fn get_user_roles(
     RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<Vec<UserRoles>>), ComhairleError> {
     let mut roles = vec![];
-    let re = Regex::new(r"^test(?:[1-9]|10)@crown-shy\.com$").unwrap();
 
-    if let (Some(admin_users), Some(email)) = (&state.config.admin_users, &user.email) {
-        if admin_users.contains(&email) || re.is_match(&email) {
-            roles.push(UserRoles {
-                resource: ResourceType::Site,
-                roles: vec![ResourceRole::Admin],
-            });
-        }
-    };
+    if is_user_admin(&user, &state.config) {
+        roles.push(UserRoles {
+            resource: ResourceType::Site,
+            roles: vec![ResourceRole::Admin],
+        });
+    }
 
     Ok((StatusCode::OK, Json(roles)))
 }
@@ -105,7 +105,8 @@ pub async fn upgrade_account(
     RequiredUser(user): RequiredUser,
     Json(upgrade_request): Json<UpgradeAccountRequest>,
 ) -> Result<(StatusCode, Json<User>), ComhairleError> {
-    let upgraded_user = models::users::upgrade_account(&user.id, &upgrade_request, &state.db).await?;
+    let upgraded_user =
+        models::users::upgrade_account(&user.id, &upgrade_request, &state.db).await?;
     Ok((StatusCode::OK, Json(upgraded_user)))
 }
 
@@ -134,7 +135,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(get_user_owned_conversations, |op| {
                 op.id("GetOwnedConversations")
                     .description("Gets a list of the conversations a user owns")
-                    .response::<201, Json<PaginatedResults<Conversation>>>()
+                    .response::<201, Json<PaginatedResults<LocalisedConversation>>>()
             }),
         )
         .api_route(
