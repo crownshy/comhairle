@@ -16,6 +16,7 @@
 	afterNavigate(() => {
 		notifications.showFlash();
 	});
+
 	let theme = {
 		background: 'hsla(0, 0%, 100%, 1)',
 		foreground: 'hsl(30 10% 3.9%)',
@@ -53,4 +54,3 @@
 	<NotificationsToaster closeButton />
 	{@render children()}
 </div>
-
