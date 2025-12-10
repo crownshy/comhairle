@@ -36,6 +36,17 @@ pub struct MailerConfig {
     pub from_email: String,
 }
 
+#[derive(Clone, Debug, Deserialize, Default)]
+pub struct GoogleTranslateConfig {
+    pub api_key: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum TranslatorConfig {
+    Google(GoogleTranslateConfig),
+}
+
 #[derive(Clone, Debug, Deserialize)]
 pub struct ComhairleConfig {
     pub database_url: String,
@@ -44,4 +55,5 @@ pub struct ComhairleConfig {
     pub admin_users: Option<Vec<String>>,
     pub mailer: MailerConfig,
     pub domain: String,
+    pub translator: TranslatorConfig,
 }

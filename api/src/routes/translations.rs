@@ -195,6 +195,41 @@ async fn update_text_translation(
     Ok((StatusCode::OK, Json(updated_translation)))
 }
 
+// Automatically translate a specific translation
+async fn auto_translate(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_, translation_id)): Path<(TextContentId, Uuid)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<TextTranslation>), ComhairleError> {
+    let new_translation = translations::auto_generate_translation(
+        &state.db,
+        &state.translation_service,
+        &translation_id,
+    )
+    .await?;
+    Ok((StatusCode::OK, Json(new_translation)))
+}
+
+// Automatically translate all languages for this text content
+async fn auto_translate_all(
+    State(state): State<Arc<ComhairleState>>,
+    Path(text_content_id): Path<TextContentId>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<TextContentWithTranslations>), ComhairleError> {
+    let text_content = translations::get_text_content_by_id(&state.db, &text_content_id).await?;
+    let translations = translations::auto_generate_all_translations(
+        &state.db,
+        &state.translation_service,
+        &text_content_id,
+    )
+    .await?;
+    let result = TextContentWithTranslations {
+        text_content,
+        translations,
+    };
+    Ok((StatusCode::OK, Json(result)))
+}
+
 /// Delete a specific translation
 async fn delete_text_translation(
     State(state): State<Arc<ComhairleState>>,
@@ -224,6 +259,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/",
             post_with(create_text_content, |op| {
                 op.id("CreateTextContent")
+                    .tag("Translations")
                     .summary("Create new TextContent")
                     .description("Create a new TextContent entry that can hold translations")
                     .response::<201, Json<TextContent>>()
@@ -233,6 +269,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{text_content_id}",
             get_with(get_text_content_with_translations, |op| {
                 op.id("GetTextContentWithTranslations")
+                    .tag("Translations")
                     .summary("Get TextContent with all translations")
                     .description("Get a TextContent entry with all its translations")
                     .response::<200, Json<TextContentWithTranslations>>()
@@ -242,6 +279,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{text_content_id}",
             put_with(update_text_content, |op| {
                 op.id("UpdateTextContent")
+                    .tag("Translations")
                     .summary("Update TextContent")
                     .description("Update a TextContent entry")
                     .response::<200, Json<TextContent>>()
@@ -251,6 +289,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{text_content_id}",
             delete_with(delete_text_content, |op| {
                 op.id("DeleteTextContent")
+                    .tag("Translations")
                     .summary("Delete TextContent")
                     .description("Delete a TextContent entry and all its translations")
                     .response::<200, Json<TextContent>>()
@@ -261,6 +300,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{text_content_id}/{locale}",
             get_with(get_text_translation, |op| {
                 op.id("GetTextTranslation")
+                    .tag("Translations")
                     .summary("Get translation for specific locale")
                     .description("Get a translation for a specific TextContent and locale")
                     .response::<200, Json<TextTranslation>>()
@@ -270,6 +310,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{text_content_id}/{locale}",
             post_with(create_or_update_text_translation, |op| {
                 op.id("CreateOrUpdateTextTranslation")
+                    .tag("Translations")
                     .summary("Create or update translation")
                     .description(
                         "Create a new translation or update existing one for a specific locale",
@@ -282,6 +323,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{text_content_id}/{locale}",
             put_with(update_text_translation, |op| {
                 op.id("UpdateTextTranslation")
+                    .tag("Translations")
                     .summary("Update translation")
                     .description("Update an existing translation for a specific locale")
                     .response::<200, Json<TextTranslation>>()
@@ -291,8 +333,29 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{text_content_id}/{locale}",
             delete_with(delete_text_translation, |op| {
                 op.id("DeleteTextTranslation")
+                    .tag("Translations")
                     .summary("Delete translation")
                     .description("Delete a translation for a specific locale")
+                    .response::<200, Json<TextTranslation>>()
+            }),
+        )
+        .api_route(
+            "/{text_content_id}/translate",
+            post_with(auto_translate_all, |op| {
+                op.id("GenerateAllTranslations")
+                    .tag("Translations")
+                    .summary("Generate all translations for this Text Content")
+                    .description("Use the default locale content as the reference text and generate automatic translations for each language form it")
+                    .response::<200, Json<TextContentWithTranslations>>()
+            }),
+        )
+        .api_route(
+            "/{text_content_id}/{locale}/translate",
+            post_with(auto_translate_all, |op| {
+                op.id("AutomaticallyGenerateTranslation")
+                    .tag("Translations")
+                    .summary("Automatically generate this language")
+                    .description("Use the primary_locale language and translate this language from it using the tarnslation service")
                     .response::<200, Json<TextTranslation>>()
             }),
         )
