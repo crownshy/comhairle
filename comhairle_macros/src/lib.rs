@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput};
+use syn::{parse_macro_input, Data, DeriveInput, Fields, Type};
 
 /// Macro used to allow an enum to be
 /// saved as jsonb in the database
@@ -141,4 +141,256 @@ pub fn db_enum_derive(input: TokenStream) -> TokenStream {
     };
 
     gen.into()
+}
+
+/// Macro to generate a localized version of a struct and query functions for translation
+///
+/// This macro generates:
+/// 1. A `Localised{StructName}` struct where `TextContentId` fields are replaced with `String`
+/// 2. A `{StructName}WithTranslations` struct where `TextContentId` fields are replaced with `TextContent` and includes a `translations` field
+/// 3. A `query_to_localisation` function that modifies queries to join with translation tables
+///
+/// Usage:
+/// ```rust,ignore
+/// use comhairle_macros::Translatable;
+/// use uuid::Uuid;
+/// use comhairle::models::translations::TextContentId;
+///
+/// #[derive(Translatable)]
+/// struct MyStruct {
+///     id: Uuid,
+///     title: TextContentId,
+///     description: TextContentId,
+///     other_field: String,
+/// }
+/// ```
+///
+/// This will generate `LocalisedMyStruct`, `MyStructWithTranslations` and associated functions.
+#[proc_macro_derive(Translatable)]
+pub fn derive_translatable(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    let struct_name = &input.ident;
+    let localised_struct_name =
+        syn::Ident::new(&format!("Localised{}", struct_name), struct_name.span());
+    let with_translations_struct_name = syn::Ident::new(
+        &format!("{}WithTranslations", struct_name),
+        struct_name.span(),
+    );
+
+    let fields = match &input.data {
+        Data::Struct(data_struct) => match &data_struct.fields {
+            Fields::Named(fields_named) => &fields_named.named,
+            _ => panic!("Translatable only supports structs with named fields"),
+        },
+        _ => panic!("Translatable only supports structs"),
+    };
+
+    let mut localised_fields = Vec::new();
+    let mut text_content_fields = Vec::new();
+    let mut non_text_content_fields = Vec::new();
+
+    for field in fields {
+        let field_name = field.ident.as_ref().unwrap();
+        let field_type = &field.ty;
+
+        // Check if this field is a TextContentId
+        if is_text_content_id_type(field_type) {
+            text_content_fields.push(field_name);
+            // Replace TextContentId with String for both structs
+            localised_fields.push(quote! {
+                pub #field_name: String
+            });
+        } else {
+            non_text_content_fields.push(field_name);
+            // Keep other fields as-is in both structs
+            localised_fields.push(quote! {
+                pub #field_name: #field_type
+            });
+        }
+    }
+
+    // Generate the table identifier enum name by convention
+    let table_iden_name = syn::Ident::new(&format!("{}Iden", struct_name), struct_name.span());
+
+    // Create field capitalized identifiers for the table enum (following PascalCase convention)
+    let text_content_field_caps: Vec<_> = text_content_fields
+        .iter()
+        .map(|field| {
+            let field_str = field.to_string();
+            // Convert snake_case to PascalCase
+            let pascal_case = field_str
+                .split('_')
+                .map(|word| {
+                    let mut chars: Vec<char> = word.chars().collect();
+                    if !chars.is_empty() {
+                        chars[0] = chars[0].to_uppercase().next().unwrap();
+                    }
+                    chars.into_iter().collect::<String>()
+                })
+                .collect::<String>();
+            syn::Ident::new(&pascal_case, field.span())
+        })
+        .collect();
+
+    let expanded = quote! {
+        #[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema, sqlx::FromRow, Debug, PartialEq, Clone)]
+        pub struct #localised_struct_name {
+            #(#localised_fields,)*
+        }
+
+        #[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema, Debug, PartialEq, Clone)]
+        pub struct Translation {
+            pub text_content: crate::models::translations::TextContent,
+            pub text_translations: Vec<crate::models::translations::TextTranslation>,
+        }
+
+        #[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema, Debug, PartialEq, Clone)]
+        pub struct #with_translations_struct_name {
+            #(#localised_fields,)*
+            pub translations: std::collections::HashMap<String, Translation>,
+        }
+
+        impl #localised_struct_name {
+            /// Modifies a query to join with translation tables and return localized text
+            /// This function takes a partial query and a locale, and returns a modified query
+            /// that joins with the translation tables to fetch the localized text content.
+            pub fn query_to_localisation(
+                mut query: sea_query::SelectStatement,
+                locale: &str,
+            ) -> sea_query::SelectStatement {
+                use sea_query::{Expr, JoinType, Alias};
+                use crate::models::translations::{TextContentIden, TextTranslationIden};
+
+                #(
+                    {
+                        // Create unique aliases for each text content field
+                        let tc_alias = Alias::new(&format!("tc_{}", stringify!(#text_content_fields)));
+                        let tt_alias = Alias::new(&format!("tt_{}", stringify!(#text_content_fields)));
+
+                        // Join with text_content table using alias
+                        query = query
+                            .join_as(
+                                JoinType::LeftJoin,
+                                TextContentIden::Table,
+                                tc_alias.clone(),
+                                Expr::col((#table_iden_name::Table, #table_iden_name::#text_content_field_caps))
+                                    .equals((tc_alias.clone(), TextContentIden::Id))
+                            )
+                            // Join with text_translation table for the specific locale using alias
+                            .join_as(
+                                JoinType::LeftJoin,
+                                TextTranslationIden::Table,
+                                tt_alias.clone(),
+                                Expr::col((tc_alias.clone(), TextContentIden::Id))
+                                    .equals((tt_alias.clone(), TextTranslationIden::ContentId))
+                                    .and(Expr::col((tt_alias.clone(), TextTranslationIden::Locale)).eq(locale))
+                            )
+                            .to_owned();
+
+                        // Select the translated content with the original field name as alias
+                        query = query.expr_as(
+                            Expr::col((tt_alias, TextTranslationIden::Content)),
+                            Alias::new(stringify!(#text_content_fields))
+                        ).to_owned();
+                    }
+                )*
+
+                query
+            }
+        }
+
+        impl #with_translations_struct_name {
+            /// Creates a new instance from the original struct and loads all translations
+            pub async fn from_original(
+                db: &sqlx::PgPool,
+                original: #struct_name,
+                locale: &str,
+            ) -> Result<Self, crate::error::ComhairleError> {
+                use crate::models::translations::{get_text_content_by_id, get_text_translations_by_content_id, get_text_translation_by_content_and_locale};
+                use std::collections::HashMap;
+
+                let mut translations = HashMap::new();
+
+                #(
+                    {
+                        // Get the TextContent for this field
+                        let text_content = get_text_content_by_id(db, &original.#text_content_fields).await?;
+
+                        // Get all translations for this content
+                        let text_translations = get_text_translations_by_content_id(db, &original.#text_content_fields).await?;
+
+                        // Create Translation struct for this field
+                        let translation = Translation {
+                            text_content,
+                            text_translations,
+                        };
+
+                        translations.insert(stringify!(#text_content_fields).to_string(), translation);
+                    }
+                )*
+
+                Ok(Self {
+                    #(
+                        #text_content_fields: {
+                            // Get the translated text for this locale, fallback to primary locale if needed
+                            match get_text_translation_by_content_and_locale(db, &original.#text_content_fields, locale).await {
+                                Ok(translation) => translation.content,
+                                Err(_) => {
+                                    // Try to get the text content to access primary locale
+                                    let text_content = get_text_content_by_id(db, &original.#text_content_fields).await?;
+                                    match get_text_translation_by_content_and_locale(db, &original.#text_content_fields, &text_content.primary_locale).await {
+                                        Ok(translation) => translation.content,
+                                        Err(_) => String::new(), // Fallback to empty string if no translation found
+                                    }
+                                }
+                            }
+                        },
+                    )*
+                    // Copy non-TextContentId fields as-is
+                    #(
+                        #non_text_content_fields: original.#non_text_content_fields,
+                    )*
+                    translations,
+                })
+            }
+
+            /// Get the Translation struct for a specific field
+            pub fn get_field_translation_data(&self, field_name: &str) -> Option<&Translation> {
+                self.translations.get(field_name)
+            }
+
+            /// Get translation text for a specific field and locale
+            pub fn get_field_translation(&self, field_name: &str, locale: &str) -> Option<&str> {
+                self.translations.get(field_name)?
+                    .text_translations
+                    .iter()
+                    .find(|t| t.locale == locale)
+                    .map(|t| t.content.as_str())
+            }
+
+            /// Get all available locales for a specific field
+            pub fn get_field_locales(&self, field_name: &str) -> Vec<&str> {
+                self.translations.get(field_name)
+                    .map(|t| t.text_translations.iter().map(|tt| tt.locale.as_str()).collect())
+                    .unwrap_or_else(Vec::new)
+            }
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
+/// Helper function to check if a type is TextContentId
+fn is_text_content_id_type(ty: &Type) -> bool {
+    match ty {
+        Type::Path(type_path) => {
+            if let Some(segment) = type_path.path.segments.last() {
+                segment.ident == "TextContentId"
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
 }
