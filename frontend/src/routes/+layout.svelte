@@ -4,7 +4,6 @@
 	import '../app.css';
 	import { afterNavigate } from '$app/navigation';
 	import { notifications, NotificationsToaster } from '$lib/notifications.svelte';
-	import ThemeProvider from '$lib/components/ThemeProvider.svelte';
 
 	let { children }: LayoutProps = $props();
 
@@ -15,6 +14,27 @@
 	afterNavigate(() => {
 		notifications.showFlash();
 	});
+	let theme = {
+		background: 'hsla(0, 0%, 100%, 1)',
+		foreground: 'hsl(30 10% 3.9%)',
+		primary: 'hsl(88, 33%, 9%)',
+		secondary: 'hsl(102, 34%, 30%)',
+		radius: '6.25rem',
+		'secondary-foreground': 'white',
+		'muted-foreground': '#272f1d',
+		'nav-background': 'hsla(78, 60%, 89%, 0.08)',
+		'nav-text': 'hsla(79, 100%, 96%, 1)',
+		'font-serif': 'inter',
+		'font-sans': 'inter',
+		'font-mono': 'inter',
+		sidebar: 'hsl(88, 33%, 9%)',
+		'sidebar-radius': '10px',
+		'sidebar-foreground': 'hsla(79, 100%, 96%, 1)',
+		'admin-background': 'hsla(60, 67%, 98%, 1)',
+		mutted: 'hsla(100, 29%, 10%, 1)'
+	};
+	let themeCss = '';
+	// let themeCss = Object.entries(theme).reduce((a, b) => (a = a + `--${b[0]} : ${b[1]};`), '');
 </script>
 
 <svelte:head>
@@ -26,10 +46,9 @@
 	/>
 </svelte:head>
 
-<ThemeProvider defaultTheme="comhairle">
-	<div class="w-full bg-background">
-		<CookieConsent />
-		<NotificationsToaster closeButton />
-		{@render children()}
-	</div>
-</ThemeProvider>
+<div style={themeCss} class="scot-gov w-full bg-stone-50">
+	<CookieConsent />
+	<NotificationsToaster closeButton />
+	{@render children()}
+</div>
+
