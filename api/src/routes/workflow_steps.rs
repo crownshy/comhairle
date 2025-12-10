@@ -276,8 +276,6 @@ mod tests {
         let workflows: Vec<serde_json::Value> = serde_json::from_value(workflows)?;
         assert_eq!(workflows.len(), 2, "Should have two workflows");
 
-        println!("{workflows:#?}");
-
         let workflow_1_return_name: String = extract("name", workflows.get(0).unwrap());
         let workflow_2_return_name: String = extract("name", workflows.get(1).unwrap());
 
@@ -287,7 +285,7 @@ mod tests {
         );
         assert_eq!(
             "Learn Workflow Step", workflow_2_return_name,
-            "Seccond workflow step should have the right name"
+            "Second workflow step should have the right name"
         );
         Ok(())
     }

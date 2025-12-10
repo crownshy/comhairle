@@ -833,7 +833,6 @@ mod tests {
             serde_json::from_value(convo2.get("slug").unwrap().clone().unwrap()).unwrap();
 
         let (status, value, _) = session.get_conversation(&app, &id1).await?;
-        println!("{value:#?}");
 
         assert_eq!(status, StatusCode::OK, "Sould get it fine");
 
