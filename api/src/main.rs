@@ -1,9 +1,11 @@
 use comhairle::{
-    db::setup_db, 
-    mailer::Mailer, 
-    setup_server, 
-    websockets::{ComhairleWebSocketService, WebSocketService}, 
-    ComhairleState
+    config::TranslatorConfig,
+    db::setup_db,
+    mailer::Mailer,
+    setup_server,
+    translation_service::GoogleTranslateService,
+    websockets::{ComhairleWebSocketService, WebSocketService},
+    ComhairleState,
 };
 use std::{error::Error, sync::Arc};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -39,7 +41,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Setup DB
     let db = setup_db(&config.database_url).await?;
 
-    println!("config {config:#?}");
     // Setup Mailer
     let mailer = Arc::new(Mailer::new(
         &config.mailer.host,
@@ -47,12 +48,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
         &config.mailer.password,
     ));
 
+    // Setup Translation Service
+    //
+    let translation_service = match &config.translator {
+        TranslatorConfig::Google(google_config) => Arc::new(GoogleTranslateService::new(
+            google_config.api_key.to_owned(),
+        )),
+    };
+
     let websockets = Arc::new(ComhairleWebSocketService::new());
     let state = Arc::new(ComhairleState {
         db,
         mailer,
         config,
         websockets,
+        translation_service,
     });
 
     let app = setup_server(state).await?;

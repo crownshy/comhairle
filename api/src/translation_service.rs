@@ -11,8 +11,8 @@ pub enum TranslationError {
     TranslationFailed(String),
 }
 
-#[async_trait]
 #[cfg_attr(test, automock)]
+#[async_trait]
 pub trait TranslationService: Send + Sync {
     async fn translate_from_to(
         &self,
@@ -45,6 +45,19 @@ struct GoogleTranslateResponse {
 impl GoogleTranslateService {
     pub fn new(api_key: String) -> Self {
         Self { api_key }
+    }
+}
+
+#[cfg(test)]
+impl MockTranslationService {
+    pub fn base() -> MockTranslationService {
+        let mut translator = MockTranslationService::new();
+
+        translator
+            .expect_translate_from_to()
+            .returning(|_, _, _| Ok("Translated String".into()));
+
+        translator
     }
 }
 
