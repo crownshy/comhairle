@@ -364,6 +364,11 @@ pub async fn update(
     update: &PartialConversation,
 ) -> Result<Conversation, ComhairleError> {
     info!("Updating conversation {id} with update {update:#?}");
+
+    //TODO we need something here to generate new translations
+    //if the supported lanagues change
+    //or I guess if primary_locale changes
+
     let values = update.to_values();
 
     if values.len() == 0 {
