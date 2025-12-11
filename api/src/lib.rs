@@ -24,7 +24,10 @@ mod test_helpers;
 
 use std::sync::Arc;
 
-use axum::{http::Method, Extension, Router};
+use axum::{
+    http::{header, Method},
+    Extension, Router,
+};
 
 use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
 
@@ -73,6 +76,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
     let cors = CorsLayer::new()
         .allow_credentials(true)
         .allow_methods([Method::GET, Method::POST])
+        .allow_headers([header::CONTENT_TYPE])
         .allow_origin([
             "http://localhost".parse().unwrap(),
             "http://localhost:3000".parse().unwrap(),
