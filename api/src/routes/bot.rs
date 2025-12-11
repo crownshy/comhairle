@@ -8,7 +8,7 @@ use axum::{
     routing::post,
 };
 use axum_extra::extract::CookieJar;
-use ragflow::{ConvoQuestion, UploadFile};
+use ragflow::{chat::session::ConvoQuestion, document::UploadFile};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use tracing::instrument;
