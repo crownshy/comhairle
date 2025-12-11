@@ -4,8 +4,8 @@ use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::{Stream, StreamExt};
 use ragflow::{
-    client::RagflowClient, Chat, ChatSession, ConvoQuestion, CreateChat, CreateUpdateChatSession,
-    Dataset, DeleteResources, Document, GetQueryParams, UpdateChat, UploadFile,
+    chat::session::*, chat::*, client::RagflowClient, dataset::*, document::*, DeleteResources,
+    GetQueryParams,
 };
 use reqwest::StatusCode;
 
@@ -111,12 +111,13 @@ impl ComhairleBotService for ComhairleRagBotService {
         name: String,
         description: Option<String>,
     ) -> Result<(StatusCode, Dataset), ComhairleError> {
-        let (status, knowledgebase) = self.client.create_dataset(name, description).await?;
+        let (status, knowledgebase) =
+            ragflow::dataset::create(&self.client, name, description).await?;
         Ok((status, knowledgebase))
     }
 
     async fn delete_knowledgebase(&self, id: String) -> Result<StatusCode, ComhairleError> {
-        let status = self.client.delete_dataset(&id).await?;
+        let status = ragflow::dataset::delete(&self.client, &id).await?;
         Ok(status)
     }
 
@@ -125,7 +126,8 @@ impl ComhairleBotService for ComhairleRagBotService {
         knowledgebase_id: String,
         query: Option<GetQueryParams>,
     ) -> Result<(StatusCode, Vec<Document>), ComhairleError> {
-        let (status, documents) = self.client.get_documents(&knowledgebase_id, query).await?;
+        let (status, documents) =
+            ragflow::document::list(&self.client, &knowledgebase_id, query).await?;
         Ok((status, documents))
     }
 
@@ -134,7 +136,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         id: String,
         knowledgebase_id: String,
     ) -> Result<StatusCode, ComhairleError> {
-        let status = self.client.delete_document(&id, &knowledgebase_id).await?;
+        let status = ragflow::document::delete(&self.client, &id, &knowledgebase_id).await?;
         Ok(status)
     }
 
@@ -143,25 +145,22 @@ impl ComhairleBotService for ComhairleRagBotService {
         knowledgebase_id: &str,
         files: Vec<UploadFile>,
     ) -> Result<StatusCode, ComhairleError> {
-        let (status, _) = self
-            .client
-            .upload_documents(knowledgebase_id, files)
-            .await?;
+        let (status, _) = ragflow::document::upload(&self.client, knowledgebase_id, files).await?;
         Ok(status)
     }
 
     async fn create_chat(&self, body: CreateChat) -> Result<(StatusCode, Chat), ComhairleError> {
-        let (status, chat) = self.client.create_chat(body).await?;
+        let (status, chat) = ragflow::chat::create(&self.client, body).await?;
         Ok((status, chat))
     }
 
     async fn update_chat(&self, id: &str, body: UpdateChat) -> Result<StatusCode, ComhairleError> {
-        let status = self.client.update_chat(id, body).await?;
+        let status = ragflow::chat::update(&self.client, id, body).await?;
         Ok(status)
     }
 
     async fn delete_chats(&self, body: DeleteResources<'_>) -> Result<StatusCode, ComhairleError> {
-        let status = self.client.delete_chats(body).await?;
+        let status = ragflow::chat::delete(&self.client, body).await?;
         Ok(status)
     }
 
@@ -169,7 +168,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         &self,
         params: Option<GetQueryParams>,
     ) -> Result<(StatusCode, Vec<Chat>), ComhairleError> {
-        let (status, chats) = self.client.get_chats(params).await?;
+        let (status, chats) = ragflow::chat::list(&self.client, params).await?;
         Ok((status, chats))
     }
 
@@ -178,7 +177,8 @@ impl ComhairleBotService for ComhairleRagBotService {
         chat_id: &str,
         body: CreateUpdateChatSession,
     ) -> Result<(StatusCode, ChatSession), ComhairleError> {
-        let (status, chat_session) = self.client.create_chat_session(chat_id, body).await?;
+        let (status, chat_session) =
+            ragflow::chat::session::create(&self.client, chat_id, body).await?;
         Ok((status, chat_session))
     }
 
@@ -188,10 +188,8 @@ impl ComhairleBotService for ComhairleRagBotService {
         chat_id: &str,
         body: CreateUpdateChatSession,
     ) -> Result<StatusCode, ComhairleError> {
-        let status = self
-            .client
-            .update_chat_session(session_id, chat_id, body)
-            .await?;
+        let status =
+            ragflow::chat::session::update(&self.client, session_id, chat_id, body).await?;
         Ok(status)
     }
 
@@ -200,7 +198,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         chat_id: &str,
         body: DeleteResources<'_>,
     ) -> Result<StatusCode, ComhairleError> {
-        let status = self.client.delete_chat_sessions(chat_id, body).await?;
+        let status = ragflow::chat::session::delete(&self.client, chat_id, body).await?;
         Ok(status)
     }
 
@@ -209,7 +207,8 @@ impl ComhairleBotService for ComhairleRagBotService {
         chat_id: &str,
         params: Option<GetQueryParams>,
     ) -> Result<(StatusCode, Vec<ChatSession>), ComhairleError> {
-        let (status, chat_sessions) = self.client.get_chat_sessions(chat_id, params).await?;
+        let (status, chat_sessions) =
+            ragflow::chat::session::list(&self.client, chat_id, params).await?;
         Ok((status, chat_sessions))
     }
 
@@ -221,7 +220,8 @@ impl ComhairleBotService for ComhairleRagBotService {
         Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
         ComhairleError,
     > {
-        let stream = self.client.stream_chat_conversation(chat_id, body).await?;
+        let stream =
+            ragflow::chat::session::stream_chat_conversation(&self.client, chat_id, body).await?;
 
         let mapped_stream = stream.map(|item| item.map_err(ComhairleError::from));
 
