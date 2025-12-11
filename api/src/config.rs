@@ -55,5 +55,5 @@ pub struct ComhairleConfig {
     pub admin_users: Option<Vec<String>>,
     pub mailer: MailerConfig,
     pub domain: String,
-    pub translator: TranslatorConfig,
+    pub translator: Option<TranslatorConfig>,
 }

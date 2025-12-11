@@ -37,7 +37,7 @@ pub struct ComhairleState {
     pub config: ComhairleConfig,
     pub mailer: Arc<dyn ComhairleMailer>,
     pub websockets: Arc<dyn WebSocketService>,
-    pub translation_service: Arc<dyn TranslationService>,
+    pub translation_service: Option<Arc<dyn TranslationService>>,
 }
 
 fn api_docs(api: TransformOpenApi) -> TransformOpenApi {

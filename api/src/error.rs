@@ -26,6 +26,9 @@ pub enum ComhairleError {
     #[error("Translation error: {0}")]
     TranslationError(#[from] TranslationError),
 
+    #[error("No translation service configured")]
+    NoTranslationServiceConfigured,
+
     #[error("HeyForm error: {0}")]
     HeyFormError(#[from] HeyFormError),
 

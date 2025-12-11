@@ -38,9 +38,9 @@ pub fn mock_websockets() -> Arc<dyn WebSocketService> {
     Arc::new(websockets)
 }
 
-pub fn mock_translation_service() -> Arc<dyn TranslationService> {
+pub fn mock_translation_service() -> Option<Arc<dyn TranslationService>> {
     let translation_service = MockTranslationService::base();
-    Arc::new(translation_service)
+    Some(Arc::new(translation_service))
 }
 
 #[builder]
@@ -56,7 +56,9 @@ pub fn test_state(
         mailer: mailer.unwrap_or_else(mock_mailer),
         config: config.unwrap_or_else(|| test_config().unwrap()),
         websockets: websockets.unwrap_or_else(|| mock_websockets()),
-        translation_service: translation_service.unwrap_or_else(|| mock_translation_service()),
+        translation_service: translation_service
+            .map(|s| Some(s))
+            .unwrap_or_else(|| mock_translation_service()),
     };
     Ok(state)
 }
