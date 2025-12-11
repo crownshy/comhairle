@@ -8,8 +8,6 @@ use axum::{
     routing::post,
 };
 use axum_extra::extract::CookieJar;
-use futures::StreamExt;
-use hyper::body::Bytes;
 use ragflow::{ConvoQuestion, UploadFile};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -65,16 +63,26 @@ async fn upload_documents(
     Ok(StatusCode::OK)
 }
 
+#[derive(Deserialize, Debug, JsonSchema)]
+struct ChatConversationRequest {
+    question: String,
+    session_id: Option<String>,
+    user_id: Option<String>,
+}
+
 #[instrument(err(Debug), skip(state))]
 async fn converse_with_chat(
     State(state): State<Arc<ComhairleState>>,
     Path(chat_id): Path<String>,
-    Json(payload): Json<ConvoQuestion>,
+    Json(payload): Json<ChatConversationRequest>,
 ) -> Result<impl axum::response::IntoResponse, ComhairleError> {
-    let stream = state
-        .bot_service
-        .converse_with_chat(&chat_id, payload)
-        .await?;
+    let body = ConvoQuestion {
+        question: payload.question,
+        stream: Some(true),
+        session_id: payload.session_id,
+        user_id: payload.user_id,
+    };
+    let stream = state.bot_service.converse_with_chat(&chat_id, body).await?;
 
     Ok(Body::from_stream(stream))
 }
