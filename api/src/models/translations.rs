@@ -838,6 +838,9 @@ pub async fn get_text_translation_optional(
 /// text content. Will use the primary_locale as the
 /// base line and use the translator service to generate
 /// all of the others
+// TODO This can be improved, it currently looks up
+// the text content for each translation. We can
+// make this smoother
 #[instrument(err(Debug), skip(translator))]
 pub async fn auto_generate_all_translations(
     db: &PgPool,
