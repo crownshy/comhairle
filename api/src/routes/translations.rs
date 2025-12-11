@@ -201,13 +201,17 @@ async fn auto_translate(
     Path((_, translation_id)): Path<(TextContentId, Uuid)>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextTranslation>), ComhairleError> {
-    let new_translation = translations::auto_generate_translation(
-        &state.db,
-        &state.translation_service,
-        &translation_id,
-    )
-    .await?;
-    Ok((StatusCode::OK, Json(new_translation)))
+    if let Some(translation_service) = &state.translation_service {
+        let new_translation = translations::auto_generate_translation(
+            &state.db,
+            &translation_service,
+            &translation_id,
+        )
+        .await?;
+        Ok((StatusCode::OK, Json(new_translation)))
+    } else {
+        Err(ComhairleError::NoTranslationServiceConfigured)
+    }
 }
 
 // Automatically translate all languages for this text content
@@ -216,18 +220,23 @@ async fn auto_translate_all(
     Path(text_content_id): Path<TextContentId>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextContentWithTranslations>), ComhairleError> {
-    let text_content = translations::get_text_content_by_id(&state.db, &text_content_id).await?;
-    let translations = translations::auto_generate_all_translations(
-        &state.db,
-        &state.translation_service,
-        &text_content_id,
-    )
-    .await?;
-    let result = TextContentWithTranslations {
-        text_content,
-        translations,
-    };
-    Ok((StatusCode::OK, Json(result)))
+    if let Some(translation_service) = &state.translation_service {
+        let text_content =
+            translations::get_text_content_by_id(&state.db, &text_content_id).await?;
+        let translations = translations::auto_generate_all_translations(
+            &state.db,
+            &translation_service,
+            &text_content_id,
+        )
+        .await?;
+        let result = TextContentWithTranslations {
+            text_content,
+            translations,
+        };
+        Ok((StatusCode::OK, Json(result)))
+    } else {
+        Err(ComhairleError::NoTranslationServiceConfigured)
+    }
 }
 
 /// Delete a specific translation

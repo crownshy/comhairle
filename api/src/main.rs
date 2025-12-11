@@ -4,7 +4,7 @@ use comhairle::{
     mailer::Mailer,
     setup_server,
     translation_service::GoogleTranslateService,
-    websockets::{ComhairleWebSocketService, WebSocketService},
+    websockets::ComhairleWebSocketService,
     ComhairleState,
 };
 use std::{error::Error, sync::Arc};
@@ -51,9 +51,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Setup Translation Service
     //
     let translation_service = match &config.translator {
-        TranslatorConfig::Google(google_config) => Arc::new(GoogleTranslateService::new(
-            google_config.api_key.to_owned(),
-        )),
+        Some(TranslatorConfig::Google(google_config)) => Some(Arc::new(
+            GoogleTranslateService::new(google_config.api_key.to_owned()),
+        ) as Arc<dyn comhairle::translation_service::TranslationService>),
+        None => None,
     };
 
     let websockets = Arc::new(ComhairleWebSocketService::new());
