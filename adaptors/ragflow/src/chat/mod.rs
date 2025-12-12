@@ -2,6 +2,7 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 
 use crate::client::RagflowClient;
+use crate::dataset::Dataset;
 use crate::error::Result;
 use crate::{DeleteResources, GetQueryParams};
 
@@ -44,13 +45,13 @@ pub struct CreateChat {
     pub name: String,
     pub avatar: Option<String>,
     pub dataset_ids: Vec<String>,
-    pub llm: Llm,
-    pub prompt: Prompt,
+    pub llm: Option<Llm>,
+    pub prompt: Option<Prompt>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct Llm {
-    pub model_name: String,
+    pub model_name: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -77,7 +78,8 @@ pub struct Chat {
     pub avatar: Option<String>,
     pub create_date: String,
     pub create_time: i64,
-    pub dataset_ids: Vec<String>,
+    pub datasets: Option<Vec<Dataset>>,
+    pub dataset_ids: Option<Vec<String>>,
     pub description: Option<String>,
     pub do_refer: Option<String>,
     pub id: String,
@@ -88,11 +90,16 @@ pub struct Chat {
 
 #[derive(Serialize, Default)]
 pub struct UpdateChat {
-    pub name: String,
-    pub avatar: String,
-    pub dataset_ids: Vec<String>,
-    pub llm: Llm,
-    pub prompt: Prompt,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dataset_ids: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub llm: Option<Llm>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt: Option<Prompt>,
 }
 
 #[derive(Deserialize)]
@@ -141,9 +148,9 @@ mod tests {
 
         let chat = CreateChat {
             name: "new chat".to_string(),
-            llm: Llm {
-                model_name: "gtp-4@OpenAI".to_string(),
-            },
+            llm: Some(Llm {
+                model_name: Some("gtp-4@OpenAI".to_string()),
+            }),
             ..Default::default()
         };
         let (status, value) = create(&client, chat).await?;
@@ -171,7 +178,7 @@ mod tests {
             .await;
 
         let update_chat = UpdateChat {
-            name: "something_new".to_string(),
+            name: Some("something_new".to_string()),
             ..Default::default()
         };
         let status = update(&client, "123", update_chat).await?;

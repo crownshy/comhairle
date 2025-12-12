@@ -46,26 +46,26 @@ pub struct CreateDatasetResponse {
 #[derive(Serialize, Deserialize, Default)]
 pub struct Dataset {
     pub avatar: Option<String>,
-    pub chunk_count: i32,
-    pub chunk_method: ChunkMethod,
+    pub chunk_count: Option<i32>,
+    pub chunk_method: Option<ChunkMethod>,
     pub create_date: String,
     pub create_time: i64,
     pub created_by: String,
     pub description: Option<String>,
-    pub document_count: i32,
-    pub embedding_model: String,
+    pub document_count: Option<i32>,
+    pub embedding_model: Option<String>,
     pub id: String,
-    pub language: String,
+    pub language: Option<String>,
     pub name: String,
-    pub pagerank: i32,
-    pub permission: String,
-    pub similarity_threshold: f64,
-    pub status: String,
-    pub tenant_id: String,
-    pub token_num: i32,
-    pub update_date: String,
-    pub update_time: i64,
-    pub vector_similarity_weight: f64,
+    pub pagerank: Option<i32>,
+    pub permission: Option<String>,
+    pub similarity_threshold: Option<f64>,
+    pub status: Option<String>,
+    pub tenant_id: Option<String>,
+    pub token_num: Option<i32>,
+    pub update_date: Option<String>,
+    pub update_time: Option<i64>,
+    pub vector_similarity_weight: Option<f64>,
 }
 
 #[cfg(test)]
@@ -88,7 +88,7 @@ mod tests {
 
         let dataset = Dataset {
             name: "test_dataset".to_string(),
-            permission: "team".to_string(),
+            permission: Some("team".to_string()),
             ..Default::default()
         };
         let json = CreateDatasetResponse {
@@ -115,7 +115,11 @@ mod tests {
             "test_dataset".to_string(),
             "response json incorrect"
         );
-        assert_eq!(value.permission, "team".to_string(), "permission incorrect");
+        assert_eq!(
+            value.permission,
+            Some("team".to_string()),
+            "permission incorrect"
+        );
 
         Ok(())
     }

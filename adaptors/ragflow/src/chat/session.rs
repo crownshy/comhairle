@@ -10,7 +10,7 @@ use crate::{DeleteResources, GetQueryParams, RagflowError};
 pub async fn create(
     client: &RagflowClient,
     chat_id: &str,
-    body: CreateUpdateChatSession,
+    body: CreateChatSession,
 ) -> Result<(StatusCode, ChatSession)> {
     let path = format!("/chats/{chat_id}/sessions");
     let (status, value) = client.post(&path, &body, None).await?;
@@ -24,9 +24,10 @@ pub async fn update(
     client: &RagflowClient,
     session_id: &str,
     chat_id: &str,
-    body: CreateUpdateChatSession,
+    body: UpdateChatSession,
 ) -> Result<StatusCode> {
     let path = format!("/chats/{chat_id}/sessions/{session_id}");
+
     let (status, _) = client.put(&path, &body, None).await?;
 
     Ok(status)
@@ -75,8 +76,17 @@ pub async fn stream_chat_conversation(
 }
 
 #[derive(Serialize, Default)]
-pub struct CreateUpdateChatSession {
+pub struct CreateChatSession {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_id: Option<String>,
+}
+
+#[derive(Serialize, Default)]
+pub struct UpdateChatSession {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub user_id: Option<String>,
 }
 
@@ -158,8 +168,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let create_session = CreateUpdateChatSession {
-            name: Some("test_session".to_string()),
+        let create_session = CreateChatSession {
+            name: "test_session".to_string(),
             user_id: None,
         };
         let (status, value) = create(&client, "123", create_session).await?;
@@ -189,7 +199,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let update_chat = CreateUpdateChatSession {
+        let update_chat = UpdateChatSession {
             name: Some("something_new".to_string()),
             user_id: None,
         };

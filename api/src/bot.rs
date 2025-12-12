@@ -68,14 +68,14 @@ pub trait ComhairleBotService: Send + Sync {
     async fn create_chat_session(
         &self,
         chat_id: &str,
-        body: CreateUpdateChatSession,
+        body: CreateChatSession,
     ) -> Result<(StatusCode, ChatSession), ComhairleError>;
 
     async fn update_chat_session(
         &self,
         session_id: &str,
         chat_id: &str,
-        body: CreateUpdateChatSession,
+        body: UpdateChatSession,
     ) -> Result<StatusCode, ComhairleError>;
 
     async fn delete_chat_sessions(
@@ -175,7 +175,7 @@ impl ComhairleBotService for ComhairleRagBotService {
     async fn create_chat_session(
         &self,
         chat_id: &str,
-        body: CreateUpdateChatSession,
+        body: CreateChatSession,
     ) -> Result<(StatusCode, ChatSession), ComhairleError> {
         let (status, chat_session) =
             ragflow::chat::session::create(&self.client, chat_id, body).await?;
@@ -186,7 +186,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         &self,
         session_id: &str,
         chat_id: &str,
-        body: CreateUpdateChatSession,
+        body: UpdateChatSession,
     ) -> Result<StatusCode, ComhairleError> {
         let status =
             ragflow::chat::session::update(&self.client, session_id, chat_id, body).await?;
