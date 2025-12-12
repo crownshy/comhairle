@@ -11,8 +11,13 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use axum_extra::extract::CookieJar;
-use ragflow::chat::session::ConvoQuestion;
+use ragflow::{
+    chat::session::{
+        ChatSession, ConvoQuestion, CreateChatSession as CreateRagflowSession,
+        UpdateChatSession as UpdateRagflowSession,
+    },
+    DeleteResources as DeleteRagflowResources, GetQueryParams as RagflowQueryParams,
+};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use tracing::instrument;
@@ -22,24 +27,38 @@ use crate::{error::ComhairleError, routes::bot::GetQueryParams, ComhairleState};
 #[instrument(err(Debug), skip(state))]
 async fn get(
     State(state): State<Arc<ComhairleState>>,
-    jar: CookieJar,
-    params: Query<GetQueryParams>,
-) -> Result<(CookieJar, StatusCode), ComhairleError> {
-    todo!();
+    Path(chat_id): Path<String>,
+    Query(params): Query<GetQueryParams>,
+) -> Result<(StatusCode, Json<Vec<ChatSession>>), ComhairleError> {
+    let ragflow_params: RagflowQueryParams = params.into();
+
+    let (_, sessions) = state
+        .bot_service
+        .get_chat_sessions(&chat_id, Some(ragflow_params))
+        .await?;
+
+    Ok((StatusCode::OK, Json(sessions)))
 }
 
 #[derive(Deserialize, Debug, JsonSchema)]
 struct CreateChatSessionRequest {
-    name: Option<String>,
+    name: String,
     user_id: Option<String>,
 }
 
 async fn create(
     State(state): State<Arc<ComhairleState>>,
-    jar: CookieJar,
+    Path(chat_id): Path<String>,
     Json(payload): Json<CreateChatSessionRequest>,
-) -> Result<(CookieJar, StatusCode), ComhairleError> {
-    todo!();
+) -> Result<(StatusCode, Json<ChatSession>), ComhairleError> {
+    let body: CreateRagflowSession = payload.into();
+
+    let (_, session) = state
+        .bot_service
+        .create_chat_session(&chat_id, body)
+        .await?;
+
+    Ok((StatusCode::CREATED, Json(session)))
 }
 
 #[derive(Deserialize, Debug, JsonSchema)]
@@ -50,19 +69,33 @@ struct UpdateChatSessionRequest {
 
 async fn update(
     State(state): State<Arc<ComhairleState>>,
-    jar: CookieJar,
-    Path(session_id): Path<String>,
+    Path((chat_id, session_id)): Path<(String, String)>,
     Json(payload): Json<UpdateChatSessionRequest>,
-) -> Result<(CookieJar, StatusCode), ComhairleError> {
-    todo!();
+) -> Result<StatusCode, ComhairleError> {
+    let body: UpdateRagflowSession = payload.into();
+
+    let _ = state
+        .bot_service
+        .update_chat_session(&session_id, &chat_id, body)
+        .await?;
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn delete(
     State(state): State<Arc<ComhairleState>>,
-    jar: CookieJar,
-    Path(session_id): Path<String>,
-) -> Result<(CookieJar, StatusCode), ComhairleError> {
-    todo!();
+    Path((chat_id, session_id)): Path<(String, String)>,
+) -> Result<StatusCode, ComhairleError> {
+    let body = DeleteRagflowResources {
+        ids: vec![&session_id],
+    };
+
+    let _ = state
+        .bot_service
+        .delete_chat_sessions(&chat_id, body)
+        .await?;
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Deserialize, Debug, JsonSchema)]
@@ -87,6 +120,24 @@ async fn converse_with_chat(
     let stream = state.bot_service.converse_with_chat(&chat_id, body).await?;
 
     Ok(Body::from_stream(stream))
+}
+
+impl From<CreateChatSessionRequest> for CreateRagflowSession {
+    fn from(input: CreateChatSessionRequest) -> Self {
+        Self {
+            name: input.name,
+            user_id: input.user_id,
+        }
+    }
+}
+
+impl From<UpdateChatSessionRequest> for UpdateRagflowSession {
+    fn from(input: UpdateChatSessionRequest) -> Self {
+        Self {
+            name: input.name,
+            user_id: input.user_id,
+        }
+    }
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
