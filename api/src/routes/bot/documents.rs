@@ -9,7 +9,7 @@ use axum::{
     http::StatusCode,
 };
 use axum_extra::extract::CookieJar;
-use ragflow::{document::Document, GetQueryParams as RagflowQueryParams};
+use ragflow::document::Document;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use tracing::instrument;
@@ -20,10 +20,8 @@ use crate::{error::ComhairleError, routes::bot::GetQueryParams, ComhairleState};
 async fn get(
     State(state): State<Arc<ComhairleState>>,
     Path(knowledge_base_id): Path<String>,
-    Query(params): Query<GetQueryParams>,
+    Query(params): Query<GetQueryParams>, // TODO: should the params be optional here?
 ) -> Result<(StatusCode, Json<Vec<Document>>), ComhairleError> {
-    let params: RagflowQueryParams = params.into();
-
     let (_, documents) = state
         .bot_service
         .get_documents(knowledge_base_id, Some(params))

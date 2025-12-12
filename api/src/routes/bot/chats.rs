@@ -11,7 +11,7 @@ use axum::{
 };
 use ragflow::{
     chat::{Chat, CreateChat as CreateRagflowChat, Llm, Prompt, UpdateChat as UpdateRagflowChat},
-    DeleteResources as DeleteRagflowResources, GetQueryParams as RagflowGetParams,
+    DeleteResources as DeleteRagflowResources,
 };
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -24,9 +24,7 @@ async fn get(
     State(state): State<Arc<ComhairleState>>,
     Query(params): Query<GetQueryParams>,
 ) -> Result<(StatusCode, Json<Vec<Chat>>), ComhairleError> {
-    let ragflow_params: RagflowGetParams = params.into();
-
-    let (_, chats) = state.bot_service.get_chats(Some(ragflow_params)).await?;
+    let (_, chats) = state.bot_service.get_chats(Some(params)).await?;
 
     Ok((StatusCode::OK, Json(chats)))
 }

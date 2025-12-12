@@ -14,24 +14,11 @@ pub mod sessions;
 
 #[derive(Deserialize, Debug, JsonSchema)]
 pub struct GetQueryParams {
-    page: Option<i32>,
-    page_size: Option<i32>,
-    order_by: Option<String>,
-    name: Option<String>,
-    id: Option<String>,
-}
-
-impl From<GetQueryParams> for RagflowGetParams {
-    fn from(params: GetQueryParams) -> Self {
-        Self {
-            page: params.page,
-            page_size: params.page_size,
-            orderby: params.order_by,
-            name: params.name,
-            id: params.id,
-            desc: None, // TODO: 
-        }
-    }
+    pub page: Option<i32>,
+    pub page_size: Option<i32>,
+    pub order_by: Option<String>,
+    pub name: Option<String>,
+    pub id: Option<String>,
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {

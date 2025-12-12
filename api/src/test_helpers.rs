@@ -20,7 +20,7 @@ use sqlx::PgPool;
 use tower::ServiceExt;
 
 use crate::{
-    bot::{ComhairleBotService, MockComhairleBotService},
+    bot_service::{ComhairleBotService, MockComhairleBotService},
     config::ComhairleConfig,
     mailer::MockComhairleMailer,
     models::users::UpdateUserRequest,
