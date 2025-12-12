@@ -36,7 +36,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/knowledge_bases",
             post_with(create, |op| {
                 op.id("CreateKnowledgeBase")
-                    .summary("Create a knowledgebase in RAG system")
+                    .summary("Create a knowledge base in RAG system")
                     .response::<201, ()>()
             }),
         )

@@ -28,29 +28,29 @@ impl ComhairleRagBotService {
 #[async_trait]
 #[cfg_attr(test, automock)]
 pub trait ComhairleBotService: Send + Sync {
-    async fn create_knowledgebase(
+    async fn create_knowledge_base(
         &self,
         name: String,
         description: Option<String>,
     ) -> Result<(StatusCode, Dataset), ComhairleError>;
 
-    async fn delete_knowledgebase(&self, id: String) -> Result<StatusCode, ComhairleError>;
+    async fn delete_knowledge_base(&self, id: String) -> Result<StatusCode, ComhairleError>;
 
     async fn get_documents(
         &self,
-        knowledgebase_id: String,
+        knowledge_base_id: String,
         query: Option<GetQueryParams>,
     ) -> Result<(StatusCode, Vec<Document>), ComhairleError>;
 
     async fn delete_document(
         &self,
         id: String,
-        knowledgebase_id: String,
+        knowledge_base_id: String,
     ) -> Result<StatusCode, ComhairleError>;
 
     async fn upload_documents(
         &self,
-        knowledgebase_id: &str,
+        knowledge_base_id: &str,
         files: Vec<UploadFile>,
     ) -> Result<StatusCode, ComhairleError>;
 
@@ -106,46 +106,46 @@ pub struct ComhairleRagBotService {
 
 #[async_trait]
 impl ComhairleBotService for ComhairleRagBotService {
-    async fn create_knowledgebase(
+    async fn create_knowledge_base(
         &self,
         name: String,
         description: Option<String>,
     ) -> Result<(StatusCode, Dataset), ComhairleError> {
-        let (status, knowledgebase) =
+        let (status, knowledge_base) =
             ragflow::dataset::create(&self.client, name, description).await?;
-        Ok((status, knowledgebase))
+        Ok((status, knowledge_base))
     }
 
-    async fn delete_knowledgebase(&self, id: String) -> Result<StatusCode, ComhairleError> {
+    async fn delete_knowledge_base(&self, id: String) -> Result<StatusCode, ComhairleError> {
         let status = ragflow::dataset::delete(&self.client, &id).await?;
         Ok(status)
     }
 
     async fn get_documents(
         &self,
-        knowledgebase_id: String,
+        knowledge_base_id: String,
         query: Option<GetQueryParams>,
     ) -> Result<(StatusCode, Vec<Document>), ComhairleError> {
         let (status, documents) =
-            ragflow::document::list(&self.client, &knowledgebase_id, query).await?;
+            ragflow::document::list(&self.client, &knowledge_base_id, query).await?;
         Ok((status, documents))
     }
 
     async fn delete_document(
         &self,
         id: String,
-        knowledgebase_id: String,
+        knowledge_base_id: String,
     ) -> Result<StatusCode, ComhairleError> {
-        let status = ragflow::document::delete(&self.client, &id, &knowledgebase_id).await?;
+        let status = ragflow::document::delete(&self.client, &id, &knowledge_base_id).await?;
         Ok(status)
     }
 
     async fn upload_documents(
         &self,
-        knowledgebase_id: &str,
+        knowledge_base_id: &str,
         files: Vec<UploadFile>,
     ) -> Result<StatusCode, ComhairleError> {
-        let (status, _) = ragflow::document::upload(&self.client, knowledgebase_id, files).await?;
+        let (status, _) = ragflow::document::upload(&self.client, knowledge_base_id, files).await?;
         Ok(status)
     }
 
@@ -234,7 +234,7 @@ impl MockComhairleBotService {
     pub fn base() -> MockComhairleBotService {
         let mut bot_service = MockComhairleBotService::new();
 
-        bot_service.expect_create_knowledgebase().returning(|_, _| {
+        bot_service.expect_create_knowledge_base().returning(|_, _| {
             Box::pin(async move {
                 Ok((
                     StatusCode::OK,
@@ -245,7 +245,7 @@ impl MockComhairleBotService {
             })
         });
         bot_service
-            .expect_delete_knowledgebase()
+            .expect_delete_knowledge_base()
             .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
         bot_service
             .expect_get_documents()
