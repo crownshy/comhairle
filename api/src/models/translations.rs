@@ -560,6 +560,7 @@ pub async fn delete_text_content(
     let text_content = sqlx::query_as_with::<_, TextContent, _>(&sql, values)
         .fetch_one(db)
         .await
+        .inspect_err(|e| println!("{e:#?}"))
         .map_err(|_| ComhairleError::ResourceNotFound("TextContent".into()))?;
 
     Ok(text_content)
@@ -853,7 +854,8 @@ pub async fn auto_generate_all_translations(
     for translation in translations.iter() {
         if translation.locale != text_content.primary_locale {
             let new_translation =
-                auto_generate_translation(db, translator, &translation.id).await?;
+                auto_generate_translation(db, translator, &text_content_id, &translation.locale)
+                    .await?;
             result.push(new_translation);
         }
     }
@@ -866,10 +868,16 @@ pub async fn auto_generate_all_translations(
 pub async fn auto_generate_translation(
     db: &PgPool,
     translator: &Arc<dyn TranslationService>,
-    text_translation_id: &Uuid,
+    text_content_id: &TextContentId,
+    locale: &str,
 ) -> Result<TextTranslation, ComhairleError> {
-    let translation = get_text_translation_by_id(db, text_translation_id).await?;
-    let text_content = get_text_content_by_id(db, &translation.content_id).await?;
+    let text_content = get_text_content_by_id(db, &text_content_id).await?;
+
+    println!("Trying to get translation with {text_content_id:#?} and {locale}");
+
+    let translation =
+        get_text_translation_by_content_and_locale(db, &text_content_id, locale).await?;
+
     let reference_text = get_text_translation_by_content_and_locale(
         db,
         &text_content.id,
