@@ -394,8 +394,6 @@ mod tests {
         )
         .await?;
 
-        println!("conversation {conversation:#?}");
-
         let workflow = workflow::create(
             &db,
             &CreateWorkflow { ..Faker.fake() },
@@ -403,7 +401,6 @@ mod tests {
             user1.id,
         )
         .await?;
-        println!("workflow {workflow:#?}");
 
         let conversation = conversation::update(
             &db,
@@ -414,8 +411,6 @@ mod tests {
             },
         )
         .await?;
-
-        println!("conversation with default workflow {conversation:#?}");
 
         let invite = create(
             &db,

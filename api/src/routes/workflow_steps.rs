@@ -205,7 +205,6 @@ mod tests {
                 .into(),
             )
             .await?;
-        println!("{workflow_step:#?}");
         assert_eq!(status, StatusCode::CREATED, "should have been created");
         Ok(())
     }

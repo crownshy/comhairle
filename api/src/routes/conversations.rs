@@ -556,8 +556,6 @@ mod tests {
             )
             .await?;
 
-        println!("{status:#?} {result:#?}");
-
         let (status, conversations, _) = session.list_conversations(&app, 0, 10).await?;
 
         assert_eq!(status, StatusCode::OK, "Should be found");
@@ -630,7 +628,6 @@ mod tests {
 
         let url = format!("/conversation?title=target&offset={}&limit={}", 0, 10);
         let (status, conversations, _) = session.get(&app, &url).await?;
-        println!("{conversations:#?}");
 
         let conversations: Vec<serde_json::Value> =
             serde_json::from_value(conversations.get("records").to_owned().unwrap().to_owned())?;
@@ -799,7 +796,6 @@ mod tests {
                 }),
             )
             .await?;
-        println!("{convo1:#?}");
 
         let (_, convo2, _) = session
             .create_conversation(
@@ -819,7 +815,6 @@ mod tests {
             )
             .await?;
 
-        println!("{convo2:#?}");
         let convo1: HashMap<String, Option<serde_json::Value>> = serde_json::from_value(convo1)?;
         let convo2: HashMap<String, Option<serde_json::Value>> = serde_json::from_value(convo2)?;
 
