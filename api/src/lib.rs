@@ -1,4 +1,4 @@
-pub mod bot;
+pub mod bot_service;
 pub mod config;
 pub mod db;
 mod docs;
@@ -10,7 +10,7 @@ mod tools;
 pub mod translation_service;
 pub mod websockets;
 
-use bot::ComhairleBotService;
+use bot_service::ComhairleBotService;
 use docs::docs_routes;
 use mailer::ComhairleMailer;
 pub use routes::auth::hash_pw;
