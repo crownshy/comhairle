@@ -44,7 +44,9 @@
 					tags: [],
 					image_url: PlaceholderConvo,
 					is_public: false,
-					is_invite_only: false
+					is_invite_only: false,
+					primary_locale: 'en',
+					supported_languages: ['en']
 				};
 
 				let conversation = await apiClient.CreateConversation(fullConversation);

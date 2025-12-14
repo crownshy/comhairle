@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { Input } from '$lib/components/ui/input';
-	import { Textarea } from '$lib/components/ui/textarea';
 	import { Switch } from '$lib/components/ui/switch';
 	import * as Form from '$lib/components/ui/form/';
 	import { notifications } from '$lib/notifications.svelte';
@@ -11,48 +10,72 @@
 	import { conversationConfigSchema } from './schema';
 	import TeamManager from '$lib/components/TeamManager.svelte';
 	import TranslationDialog from '$lib/components/Translation/TranslationDialog.svelte';
+	import TranslatableFormField from '$lib/components/Translation/TranslatableFormField.svelte';
+	import { createTranslationManager } from '$lib/components/Translation/useTranslations.svelte';
 	import { TerminalSquare } from 'lucide-svelte';
-	import { Button } from '$lib/components/ui/button';
+	import { LanguageSelector } from '$lib/components/ui/language-selector';
 
 	let { data } = $props();
 	let conversation = $derived(data.conversation);
 	let workflow = $derived(data.workflows[0]);
 
-	let modalOpen = $state(false);
-	let translations = $state([
-		{
-			language: 'en' as const,
-			languageName: 'English',
-			status: 'primary' as const,
-			content: conversation.description || 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quis lobortis nisl cursus bibendum sit nulla accumsan sodales ornare. At urna viverra non suspendisse neque, lorem. Pretium condimentum pellentesque gravida id etiam sit sed arcu euismod. Rhoncus proin orci duis scelerisque molestie cursus tincidunt aliquam.',
-			lastSaved: new Date(),
-		},
-		{
-			language: 'gd' as const,
-			languageName: 'Gaelic',
-			status: 'draft' as const,
-			content: '',
-			lastSaved: new Date(),
-			isAutoSaved: true,
-		},
-		{
-			language: 'cy' as const,
-			languageName: 'Welsh',
-			status: 'approved' as const,
-			content: 'Welsh translation here...',
-			lastSaved: new Date(),
+	let primaryLanguage = $state(data.conversation.primary_locale ?? 'en');
+	let supportedLanguages = $state(data.conversation.supported_languages ?? ['en']);
+
+	const translations = createTranslationManager(() => conversation);
+
+	function updateFormForLanguage(newLanguage: string) {
+		const fields = ['title', 'short_description', 'description'] as const;
+		
+		for (const field of fields) {
+			const content = translations.getFieldContentForLocale(field, newLanguage);
+			$form[field] = content ?? '';
 		}
-	]);
+	}
+
+	async function handlePrimaryLanguageChange(newPrimary: string) {
+		updateFormForLanguage(newPrimary);
+		
+		try {
+			await apiClient.UpdateConversation(
+				{
+					primary_locale: newPrimary,
+					supported_languages: supportedLanguages
+				},
+				{ params: { conversation_id: conversation.id } }
+			);
+			await invalidateAll();
+			notifications.send({ message: 'Primary language updated', priority: 'INFO' });
+		} catch (e) {
+			notifications.send({ message: 'Failed to update primary language', priority: 'ERROR' });
+		}
+	}
+
+	async function handleSupportedLanguagesChange(newSupported: string[]) {
+		try {
+			await apiClient.UpdateConversation(
+				{
+					primary_locale: primaryLanguage,
+					supported_languages: newSupported
+				},
+				{ params: { conversation_id: conversation.id } }
+			);
+			await invalidateAll();
+			notifications.send({ message: 'Languages updated', priority: 'INFO' });
+		} catch (e) {
+			notifications.send({ message: 'Failed to update languages', priority: 'ERROR' });
+		}
+	}
 
 	let conversationForm = superForm(
 		{
-			title: conversation.title,
-			short_description: conversation.short_description,
-			description: conversation.description,
-			image_url: conversation.image_url,
-			is_public: conversation.is_public,
-			is_invite_only: conversation.is_invite_only,
-			auto_login: workflow.auto_login
+			title: data.conversation.title,
+			short_description: data.conversation.short_description,
+			description: data.conversation.description,
+			image_url: data.conversation.image_url,
+			is_public: data.conversation.is_public,
+			is_invite_only: data.conversation.is_invite_only,
+			auto_login: data.workflows[0].auto_login
 		},
 		{
 			validators: zodClient(conversationConfigSchema),
@@ -69,9 +92,14 @@
 		if (!result.valid) return;
 
 		try {
-			await apiClient.UpdateConversation(result.data, {
-				params: { conversation_id: conversation.id }
-			});
+			await apiClient.UpdateConversation(
+				{
+					...result.data,
+					primary_locale: primaryLanguage,
+					supported_languages: supportedLanguages
+				},
+				{ params: { conversation_id: conversation.id } }
+			);
 
 			await apiClient.UpdateWorkflow(
 				{ auto_login: result.data.auto_login },
@@ -85,67 +113,26 @@
 		}
 	}
 
-	function handleTranslationSave(updatedTranslations: typeof translations) {
-		translations = updatedTranslations;
-		console.log('Saved translations:', updatedTranslations);
-		
-		// TODO: Make API call to save translations
-		// await apiClient.SaveTranslations(updatedTranslations, {
-		//   params: { conversation_id: conversation.id }
-		// });
-		
-		notifications.send({ 
-			message: 'Translations saved successfully', 
-			priority: 'INFO' 
-		});
+	async function handleLanguageToggle(language: string, enabled: boolean) {
+		translations.handleLanguageToggle(
+			language, 
+			enabled, 
+			supportedLanguages, 
+			(newSupported) => { supportedLanguages = newSupported; }
+		);
 	}
-	
-	async function handleAiTranslate(
-		sourceLanguage: string, 
-		targetLanguage: string
-	): Promise<string> {
-		try {
-			const sourceTranslation = translations.find(t => t.language === sourceLanguage);
-			
-			if (!sourceTranslation) {
-				throw new Error('Source translation not found');
-			}
 
-			// TODO: Replace with your actual AI translation API endpoint
-			const response = await fetch('/api/translate', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					source: sourceLanguage,
-					target: targetLanguage,
-					content: sourceTranslation.content
-				})
-			});
-			
-			if (!response.ok) {
-				throw new Error('Translation failed');
-			}
-			
-			const { translatedContent } = await response.json();
-			
-			notifications.send({ 
-				message: 'Translation completed', 
-				priority: 'INFO' 
-			});
-			
-			return translatedContent;
-		} catch (error) {
-			notifications.send({ 
-				message: 'AI translation failed', 
-				priority: 'ERROR' 
-			});
-			throw error;
+	function handlePrimaryContentChange(content: string) {
+		const field = translations.activeField;
+		if (field === 'title') {
+			$form.title = content;
+		} else if (field === 'short_description') {
+			$form.short_description = content;
+		} else if (field === 'description') {
+			$form.description = content;
 		}
 	}
 
-	function handleTranslationClose() {
-		console.log('Translation dialog closed');
-	}
 </script>
 
 <h1 class="mb-10 flex flex-row items-center gap-2 text-4xl">
@@ -155,78 +142,70 @@
 
 
 <TranslationDialog
-	bind:open={modalOpen}
-	{translations}
-	onSave={handleTranslationSave}
-	onAiTranslate={handleAiTranslate}
-	onClose={handleTranslationClose}
+	bind:open={translations.modalOpen}
+	translations={translations.activeTranslations}
+	initialLanguage={translations.initialLanguage}
+	onSave={translations.handleSave}
+	onAutoSave={translations.handleAutoSave}
+	onAiTranslate={translations.handleAiTranslate}
+	onLanguageToggle={handleLanguageToggle}
+	onClose={translations.closeDialog}
+	onPrimaryContentChange={handlePrimaryContentChange}
 />
 
 <form 
 	method="POST" 
 	onsubmit={updateConversation} 
-	class="flex flex-col gap-4" 
+	class="flex flex-col" 
 	use:enhance
 >
-	<Form.Field form={conversationForm} name="title">
-		<Form.Control>
-			{#snippet children({ props })}
-				<div class="flex w-full flex-row justify-between border-t-1 py-5">
-					<Form.Label class="w-60 font-bold">Title</Form.Label>
-					<div class="grow flex-col gap-2">
-						<Input class="max-w-5xl" {...props} bind:value={$form.title} />
-						<Button class="mt-2" variant="secondary" onclick={() => (modalOpen = true)}>
-							Edit Translations
-						</Button>
-						<Form.FieldErrors />
-					</div>
-				</div>
-			{/snippet}
-		</Form.Control>
-	</Form.Field>
+	<TranslatableFormField
+		form={conversationForm}
+		name="title"
+		label="Title"
+		value={$form.title}
+		onValueChange={(v) => $form.title = v}
+		onEditTranslations={(lang) => translations.openDialog('title', lang)}
+		onPrimaryChange={() => translations.handlePrimaryContentChange('title')}
+		translations={translations.getFieldTranslations('title')}
+	/>
 
-	<Form.Field form={conversationForm} name="short_description">
-		<Form.Control>
-			{#snippet children({ props })}
-				<div class="flex w-full flex-row justify-between border-t-1 py-5">
-					<Form.Label class="w-60 font-bold">Short Description</Form.Label>
-					<div class="grow flex-col gap-2">
-						<Textarea 
-							class="max-w-3xl bg-white" 
-							{...props} 
-							bind:value={$form.short_description} 
-						/>
-						<Button class="mt-2" variant="secondary" onclick={() => (modalOpen = true)}>
-							Edit Translations
-						</Button>
-						<Form.FieldErrors />
-					</div>
-				</div>
-			{/snippet}
-		</Form.Control>
-	</Form.Field>
+	<TranslatableFormField
+		form={conversationForm}
+		name="short_description"
+		label="Short Description"
+		value={$form.short_description}
+		onValueChange={(v) => $form.short_description = v}
+		onEditTranslations={(lang) => translations.openDialog('short_description', lang)}
+		onPrimaryChange={() => translations.handlePrimaryContentChange('short_description')}
+		translations={translations.getFieldTranslations('short_description')}
+		inputType="textarea"
+	/>
 
-	<Form.Field form={conversationForm} name="description">
-		<Form.Control>
-			{#snippet children({ props })}
-				<div class="flex w-full flex-row justify-between border-t-1 py-5">
-					<Form.Label class="w-60 font-bold">Description</Form.Label>
-					<div class="grow flex-col gap-2">
-						<Textarea
-							class="w-full min-w-2xl bg-white"
-							{...props}
-							bind:value={$form.description}
-						/>
-						<Button class="mt-2" variant="secondary" onclick={() => (modalOpen = true)}>
-							Edit Translations
-						</Button>
-						<Form.FieldErrors />
-					</div>
-				</div>
-			{/snippet}
-		</Form.Control>
-	
-	</Form.Field>
+	<TranslatableFormField
+		form={conversationForm}
+		name="description"
+		label="Description"
+		value={$form.description}
+		onValueChange={(v) => $form.description = v}
+		onEditTranslations={(lang) => translations.openDialog('description', lang)}
+		onPrimaryChange={() => translations.handlePrimaryContentChange('description')}
+		translations={translations.getFieldTranslations('description')}
+		inputType="textarea"
+	/>
+
+
+	<div class="grid grid-cols-[200px_1fr] gap-6 border-t py-6">
+		<p class="font-semibold pt-2">Language options</p>
+		<div class="max-w-md">
+			<LanguageSelector
+				bind:primaryLanguage
+				bind:supportedLanguages
+				onPrimaryChange={handlePrimaryLanguageChange}
+				onSupportedChange={handleSupportedLanguagesChange}
+			/>
+		</div>
+	</div>
 
 	<div class="flex flex-row gap-4">
 		<div class="grow">
