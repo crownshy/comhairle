@@ -13,12 +13,13 @@ use reqwest::StatusCode;
 
 use crate::{
     bot_service::{
-        ComhairleBotService, ComhairleChat, ComhairleChatSession, ComhairleLlm, ComhairlePrompt,
-        ComhairleRagBotService,
+        ComhairleBotService, ComhairleChat, ComhairleChatSession, ComhairleKnowledgeBase,
+        ComhairleLlm, ComhairlePrompt, ComhairleRagBotService,
     },
     error::ComhairleError,
     routes::bot::{
         chats::{CreateChatRequest, UpdateChatRequest},
+        knowledge_bases::UpdateKnowledgeBaseRequest,
         sessions::{
             ChatConversationRequest, CreateChatSessionRequest as ApiCreateChatSessionRequest,
             UpdateChatSessionRequest as ApiUpdateChatSessionRequest,
@@ -29,18 +30,87 @@ use crate::{
 
 #[async_trait]
 impl ComhairleBotService for ComhairleRagBotService {
+    async fn get_knowledge_base(
+        &self,
+        knowledge_base_id: &str,
+    ) -> Result<(StatusCode, ComhairleKnowledgeBase), ComhairleError> {
+        let params = GetQueryParams {
+            id: Some(knowledge_base_id.to_string()),
+            ..Default::default()
+        };
+
+        let (status, knowledge_bases) = ragflow::dataset::list(&self.client, Some(params)).await?;
+
+        let knowledge_base: ComhairleKnowledgeBase = (&knowledge_bases[0]).into();
+
+        Ok((status, knowledge_base))
+    }
+
+    async fn list_knowledge_bases(
+        &self,
+        params: Option<ApiGetQueryParams>,
+    ) -> Result<(StatusCode, Vec<ComhairleKnowledgeBase>), ComhairleError> {
+        let params: Option<GetQueryParams> = params.map(|p| p.into());
+
+        let (status, knowledge_bases) = ragflow::dataset::list(&self.client, params).await?;
+
+        let knowledge_bases: Vec<ComhairleKnowledgeBase> =
+            knowledge_bases.into_iter().map(Into::into).collect();
+
+        Ok((status, knowledge_bases))
+    }
+
     async fn create_knowledge_base(
         &self,
         name: String,
         description: Option<String>,
-    ) -> Result<(StatusCode, Dataset), ComhairleError> {
+    ) -> Result<(StatusCode, ComhairleKnowledgeBase), ComhairleError> {
         let (status, knowledge_base) =
             ragflow::dataset::create(&self.client, name, description).await?;
+
+        let knowledge_base: ComhairleKnowledgeBase = knowledge_base.into();
+
         Ok((status, knowledge_base))
     }
 
-    async fn delete_knowledge_base(&self, id: String) -> Result<StatusCode, ComhairleError> {
-        let status = ragflow::dataset::delete(&self.client, &id).await?;
+    async fn update_knowledge_base(
+        &self,
+        knowledge_base_id: &str,
+        body: UpdateKnowledgeBaseRequest,
+    ) -> Result<(StatusCode, ComhairleKnowledgeBase), ComhairleError> {
+        let body: UpdateDataset = body.into();
+
+        let status = ragflow::dataset::update(&self.client, knowledge_base_id, body).await?;
+
+        let params = GetQueryParams {
+            id: Some(knowledge_base_id.to_string()),
+            ..Default::default()
+        };
+
+        let (_, knowledge_bases) = ragflow::dataset::list(&self.client, Some(params)).await?;
+
+        if knowledge_bases.is_empty() || knowledge_bases.len() > 1 {
+            return Err(ComhairleError::RagflowError(RagflowError::Api {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                body: "error retrieving knowledge base after update".to_string(),
+            }));
+        }
+
+        let knowledge_base: ComhairleKnowledgeBase = (&knowledge_bases[0]).into();
+
+        Ok((status, knowledge_base))
+    }
+
+    async fn delete_knowledge_base(
+        &self,
+        knowledge_base_id: String,
+    ) -> Result<StatusCode, ComhairleError> {
+        let body = DeleteResources {
+            ids: vec![&knowledge_base_id],
+        };
+
+        let status = ragflow::dataset::delete(&self.client, body).await?;
+
         Ok(status)
     }
 
@@ -262,6 +332,10 @@ impl ComhairleBotService for ComhairleRagBotService {
     }
 }
 
+//
+// From conversions
+//
+
 impl From<ApiGetQueryParams> for GetQueryParams {
     fn from(params: ApiGetQueryParams) -> Self {
         Self {
@@ -271,6 +345,33 @@ impl From<ApiGetQueryParams> for GetQueryParams {
             name: params.name,
             id: None,
             desc: None,
+        }
+    }
+}
+
+impl From<Dataset> for ComhairleKnowledgeBase {
+    fn from(input: Dataset) -> Self {
+        Self {
+            id: input.id,
+            name: input.name,
+        }
+    }
+}
+
+impl From<&Dataset> for ComhairleKnowledgeBase {
+    fn from(input: &Dataset) -> Self {
+        Self {
+            id: input.id.clone(),
+            name: input.name.clone(),
+        }
+    }
+}
+
+impl From<UpdateKnowledgeBaseRequest> for UpdateDataset {
+    fn from(input: UpdateKnowledgeBaseRequest) -> Self {
+        Self {
+            name: input.name,
+            description: None,
         }
     }
 }

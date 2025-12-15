@@ -3,7 +3,7 @@ use std::{pin::Pin, sync::Arc};
 use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::Stream;
-use ragflow::{client::RagflowClient, dataset::*, document::*};
+use ragflow::{client::RagflowClient, document::*};
 use reqwest::StatusCode;
 
 #[cfg(test)]
@@ -15,6 +15,7 @@ use crate::{
     error::ComhairleError,
     routes::bot::{
         chats::{CreateChatRequest, UpdateChatRequest},
+        knowledge_bases::UpdateKnowledgeBaseRequest,
         sessions::{ChatConversationRequest, CreateChatSessionRequest, UpdateChatSessionRequest},
         GetQueryParams,
     },
@@ -40,13 +41,32 @@ impl ComhairleRagBotService {
 #[async_trait]
 #[cfg_attr(test, automock)]
 pub trait ComhairleBotService: Send + Sync {
+    async fn get_knowledge_base(
+        &self,
+        knowledge_base_id: &str,
+    ) -> Result<(StatusCode, ComhairleKnowledgeBase), ComhairleError>;
+
+    async fn list_knowledge_bases(
+        &self,
+        params: Option<GetQueryParams>,
+    ) -> Result<(StatusCode, Vec<ComhairleKnowledgeBase>), ComhairleError>;
+
     async fn create_knowledge_base(
         &self,
         name: String,
         description: Option<String>,
-    ) -> Result<(StatusCode, Dataset), ComhairleError>;
+    ) -> Result<(StatusCode, ComhairleKnowledgeBase), ComhairleError>;
 
-    async fn delete_knowledge_base(&self, id: String) -> Result<StatusCode, ComhairleError>;
+    async fn update_knowledge_base(
+        &self,
+        knowledge_base_id: &str,
+        body: UpdateKnowledgeBaseRequest,
+    ) -> Result<(StatusCode, ComhairleKnowledgeBase), ComhairleError>;
+
+    async fn delete_knowledge_base(
+        &self,
+        knowledge_base_id: String,
+    ) -> Result<StatusCode, ComhairleError>;
 
     async fn get_documents(
         &self,
@@ -127,15 +147,12 @@ pub trait ComhairleBotService: Send + Sync {
     >;
 }
 
-/// Comhairle specific chat session type
 #[derive(Serialize, JsonSchema, Default, Debug)]
-pub struct ComhairleChatSession {
+pub struct ComhairleKnowledgeBase {
     pub id: String,
-    pub chat_id: String,
-    pub name: Option<String>,
+    pub name: String,
 }
 
-/// Comhairle specific chat session type
 #[derive(Serialize, JsonSchema, Default, Debug, Clone)]
 pub struct ComhairleChat {
     pub id: String,
@@ -156,23 +173,58 @@ pub struct ComhairleLlm {
     pub model_name: Option<String>,
 }
 
+#[derive(Serialize, JsonSchema, Default, Debug)]
+pub struct ComhairleChatSession {
+    pub id: String,
+    pub chat_id: String,
+    pub name: Option<String>,
+}
+
 #[cfg(test)]
 impl MockComhairleBotService {
     pub fn base() -> MockComhairleBotService {
         let mut bot_service = MockComhairleBotService::new();
 
         bot_service
+            .expect_list_knowledge_bases()
+            .returning(|_| Box::pin(async move { Ok((StatusCode::OK, Vec::new())) }));
+        bot_service.expect_get_knowledge_base().returning(|_| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::OK,
+                    ComhairleKnowledgeBase {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service
             .expect_create_knowledge_base()
             .returning(|_, _| {
                 Box::pin(async move {
                     Ok((
                         StatusCode::OK,
-                        Dataset {
+                        ComhairleKnowledgeBase {
                             ..Default::default()
                         },
                     ))
                 })
             });
+        bot_service
+            .expect_update_knowledge_base()
+            .returning(|_, _| {
+                Box::pin(async move {
+                    Ok((
+                        StatusCode::OK,
+                        ComhairleKnowledgeBase {
+                            ..Default::default()
+                        },
+                    ))
+                })
+            });
+        bot_service
+            .expect_delete_knowledge_base()
+            .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
         bot_service
             .expect_delete_knowledge_base()
             .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
