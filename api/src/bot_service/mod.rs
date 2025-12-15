@@ -3,17 +3,18 @@ use std::{pin::Pin, sync::Arc};
 use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::Stream;
-use ragflow::{chat::*, client::RagflowClient, dataset::*, document::*, DeleteResources};
+use ragflow::{client::RagflowClient, dataset::*, document::*};
 use reqwest::StatusCode;
 
 #[cfg(test)]
 use mockall::{automock, predicate::*};
 use schemars::JsonSchema;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     error::ComhairleError,
     routes::bot::{
+        chats::{CreateChatRequest, UpdateChatRequest},
         sessions::{ChatConversationRequest, CreateChatSessionRequest, UpdateChatSessionRequest},
         GetQueryParams,
     },
@@ -65,16 +66,25 @@ pub trait ComhairleBotService: Send + Sync {
         files: Vec<UploadFile>,
     ) -> Result<StatusCode, ComhairleError>;
 
-    async fn create_chat(&self, body: CreateChat) -> Result<(StatusCode, Chat), ComhairleError>;
+    async fn get_chat(&self, chat_id: &str) -> Result<(StatusCode, ComhairleChat), ComhairleError>;
 
-    async fn update_chat(&self, id: &str, body: UpdateChat) -> Result<StatusCode, ComhairleError>;
-
-    async fn delete_chats(&self, body: DeleteResources<'_>) -> Result<StatusCode, ComhairleError>;
-
-    async fn get_chats(
+    async fn list_chats(
         &self,
         params: Option<GetQueryParams>,
-    ) -> Result<(StatusCode, Vec<Chat>), ComhairleError>;
+    ) -> Result<(StatusCode, Vec<ComhairleChat>), ComhairleError>;
+
+    async fn create_chat(
+        &self,
+        body: CreateChatRequest,
+    ) -> Result<(StatusCode, ComhairleChat), ComhairleError>;
+
+    async fn update_chat(
+        &self,
+        chat_id: &str,
+        body: UpdateChatRequest,
+    ) -> Result<(StatusCode, ComhairleChat), ComhairleError>;
+
+    async fn delete_chat(&self, chat_id: &str) -> Result<StatusCode, ComhairleError>;
 
     async fn get_chat_session(
         &self,
@@ -125,6 +135,27 @@ pub struct ComhairleChatSession {
     pub name: Option<String>,
 }
 
+/// Comhairle specific chat session type
+#[derive(Serialize, JsonSchema, Default, Debug, Clone)]
+pub struct ComhairleChat {
+    pub id: String,
+    pub name: String,
+    pub llm_model: Option<ComhairleLlm>,
+    pub prompt: Option<ComhairlePrompt>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone)]
+pub struct ComhairlePrompt {
+    pub llm_prompt: Option<String>,
+    pub opener: Option<String>,
+    pub empty_response: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone)]
+pub struct ComhairleLlm {
+    pub model_name: Option<String>,
+}
+
 #[cfg(test)]
 impl MockComhairleBotService {
     pub fn base() -> MockComhairleBotService {
@@ -151,25 +182,42 @@ impl MockComhairleBotService {
         bot_service
             .expect_delete_document()
             .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
-        bot_service.expect_create_chat().returning(|_| {
+        bot_service.expect_get_chat().returning(|_| {
             Box::pin(async move {
                 Ok((
                     StatusCode::OK,
-                    Chat {
+                    ComhairleChat {
                         ..Default::default()
                     },
                 ))
             })
         });
         bot_service
-            .expect_update_chat()
-            .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
-        bot_service
-            .expect_delete_chats()
-            .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
-        bot_service
-            .expect_get_chats()
+            .expect_list_chats()
             .returning(|_| Box::pin(async move { Ok((StatusCode::OK, Vec::new())) }));
+        bot_service.expect_create_chat().returning(|_| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::OK,
+                    ComhairleChat {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service.expect_update_chat().returning(|_, _| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::OK,
+                    ComhairleChat {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service
+            .expect_delete_chat()
+            .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
         bot_service.expect_create_chat_session().returning(|_, _| {
             Box::pin(async move {
                 Ok((

@@ -4,14 +4,21 @@ use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::{Stream, StreamExt};
 use ragflow::{
-    chat::session::*, chat::*, dataset::*, document::*, DeleteResources, GetQueryParams,
+    chat::{session::*, *},
+    dataset::*,
+    document::*,
+    DeleteResources, GetQueryParams, RagflowError,
 };
 use reqwest::StatusCode;
 
 use crate::{
-    bot_service::{ComhairleBotService, ComhairleChatSession, ComhairleRagBotService},
+    bot_service::{
+        ComhairleBotService, ComhairleChat, ComhairleChatSession, ComhairleLlm, ComhairlePrompt,
+        ComhairleRagBotService,
+    },
     error::ComhairleError,
     routes::bot::{
+        chats::{CreateChatRequest, UpdateChatRequest},
         sessions::{
             ChatConversationRequest, CreateChatSessionRequest as ApiCreateChatSessionRequest,
             UpdateChatSessionRequest as ApiUpdateChatSessionRequest,
@@ -68,30 +75,79 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok(status)
     }
 
-    async fn create_chat(&self, body: CreateChat) -> Result<(StatusCode, Chat), ComhairleError> {
-        let (status, chat) = ragflow::chat::create(&self.client, body).await?;
+    async fn get_chat(&self, chat_id: &str) -> Result<(StatusCode, ComhairleChat), ComhairleError> {
+        let params = GetQueryParams {
+            id: Some(chat_id.to_string()),
+            ..Default::default()
+        };
+
+        let (status, chats) = ragflow::chat::list(&self.client, Some(params)).await?;
+
+        let chat: ComhairleChat = (&chats[0]).into();
+
         Ok((status, chat))
     }
 
-    async fn update_chat(&self, id: &str, body: UpdateChat) -> Result<StatusCode, ComhairleError> {
-        let status = ragflow::chat::update(&self.client, id, body).await?;
-        Ok(status)
-    }
-
-    async fn delete_chats(&self, body: DeleteResources<'_>) -> Result<StatusCode, ComhairleError> {
-        let status = ragflow::chat::delete(&self.client, body).await?;
-        Ok(status)
-    }
-
-    async fn get_chats(
+    async fn list_chats(
         &self,
         params: Option<ApiGetQueryParams>,
-    ) -> Result<(StatusCode, Vec<Chat>), ComhairleError> {
+    ) -> Result<(StatusCode, Vec<ComhairleChat>), ComhairleError> {
         let params: Option<GetQueryParams> = params.map(|p| p.into());
 
         let (status, chats) = ragflow::chat::list(&self.client, params).await?;
 
+        let chats: Vec<ComhairleChat> = chats.into_iter().map(Into::into).collect();
+
         Ok((status, chats))
+    }
+
+    async fn create_chat(
+        &self,
+        body: CreateChatRequest,
+    ) -> Result<(StatusCode, ComhairleChat), ComhairleError> {
+        let body: CreateChat = body.into();
+
+        let (status, chat) = ragflow::chat::create(&self.client, body).await?;
+
+        let chat: ComhairleChat = chat.into();
+
+        Ok((status, chat))
+    }
+
+    async fn update_chat(
+        &self,
+        chat_id: &str,
+        body: UpdateChatRequest,
+    ) -> Result<(StatusCode, ComhairleChat), ComhairleError> {
+        let body: UpdateChat = body.into();
+
+        let status = ragflow::chat::update(&self.client, chat_id, body).await?;
+
+        let params = GetQueryParams {
+            id: Some(chat_id.to_string()),
+            ..Default::default()
+        };
+
+        let (_, chats) = ragflow::chat::list(&self.client, Some(params)).await?;
+
+        if chats.is_empty() || chats.len() > 1 {
+            return Err(ComhairleError::RagflowError(RagflowError::Api {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                body: "error retrieving chat after update".to_string(),
+            }));
+        }
+
+        let chat: ComhairleChat = (&chats[0]).into();
+
+        Ok((status, chat))
+    }
+
+    async fn delete_chat(&self, chat_id: &str) -> Result<StatusCode, ComhairleError> {
+        let body = DeleteResources { ids: vec![chat_id] };
+
+        let status = ragflow::chat::delete(&self.client, body).await?;
+
+        Ok(status)
     }
 
     async fn get_chat_session(
@@ -214,7 +270,99 @@ impl From<ApiGetQueryParams> for GetQueryParams {
             orderby: params.order_by,
             name: params.name,
             id: None,
-            desc: None, // TODO:
+            desc: None,
+        }
+    }
+}
+
+impl From<&Chat> for ComhairleChat {
+    fn from(chat: &Chat) -> Self {
+        Self {
+            id: chat.id.clone(),
+            name: chat.name.clone(),
+            llm_model: chat.llm.as_ref().map(Into::into),
+            prompt: chat.prompt.as_ref().map(Into::into),
+        }
+    }
+}
+
+impl From<Chat> for ComhairleChat {
+    fn from(chat: Chat) -> Self {
+        Self {
+            id: chat.id,
+            name: chat.name,
+            llm_model: chat.llm.map(Into::into),
+            prompt: chat.prompt.map(Into::into),
+        }
+    }
+}
+
+impl From<Llm> for ComhairleLlm {
+    fn from(input: Llm) -> Self {
+        Self {
+            model_name: input.model_name,
+        }
+    }
+}
+
+impl From<&Llm> for ComhairleLlm {
+    fn from(input: &Llm) -> Self {
+        Self {
+            model_name: input.model_name.clone(),
+        }
+    }
+}
+
+impl From<Prompt> for ComhairlePrompt {
+    fn from(input: Prompt) -> Self {
+        Self {
+            llm_prompt: input.prompt,
+            opener: input.opener,
+            empty_response: input.empty_response,
+        }
+    }
+}
+
+impl From<&Prompt> for ComhairlePrompt {
+    fn from(input: &Prompt) -> Self {
+        Self {
+            llm_prompt: input.prompt.clone(),
+            opener: input.opener.clone(),
+            empty_response: input.empty_response.clone(),
+        }
+    }
+}
+
+impl From<CreateChatRequest> for CreateChat {
+    fn from(input: CreateChatRequest) -> Self {
+        Self {
+            name: input.name,
+            avatar: None,
+            dataset_ids: input.knowledge_base_ids.unwrap_or_default(),
+            llm: input.llm_model.map(|model| Llm {
+                model_name: model.model_name,
+            }),
+            prompt: input.prompt.map(|prompt| Prompt {
+                prompt: prompt.llm_prompt,
+                ..Default::default()
+            }),
+        }
+    }
+}
+
+impl From<UpdateChatRequest> for UpdateChat {
+    fn from(input: UpdateChatRequest) -> Self {
+        Self {
+            name: input.name,
+            dataset_ids: input.knowledge_base_ids,
+            llm: input.llm_model.map(|model| Llm {
+                model_name: model.model_name,
+            }),
+            prompt: input.prompt.map(|prompt| Prompt {
+                prompt: prompt.llm_prompt,
+                ..Default::default()
+            }),
+            ..Default::default()
         }
     }
 }
