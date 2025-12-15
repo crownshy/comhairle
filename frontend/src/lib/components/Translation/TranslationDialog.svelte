@@ -16,7 +16,7 @@
 	}
 	
 	let { 
-		open = $bindable(false),
+		open = false,
 		translations = [],
 		initialLanguage = null,
 		onClose,
@@ -47,7 +47,6 @@
 	let activeTranslation = $derived(translations.find(t => t.language === activeLanguage));
 	
 	function handleClose() {
-		open = false;
 		onClose?.();
 	}
 	
@@ -181,10 +180,9 @@
 							</div>
 						</div>
 						
-						<!-- Editor Box (Primary - read only reference) -->
+						<!-- Editor Box (Primary)-->
 						<div class="self-stretch bg-white rounded-md outline outline-1 outline-offset-[-1px] outline-colors-CS_grey-300 flex flex-col justify-start items-start overflow-hidden">
 							
-							<!-- TODO: we need to be able to render tiptap or textarea depending on the type of text? -->
 							<!-- Content -->
 							<div class="self-stretch px-4 pt-3 pb-4 flex flex-col justify-start items-start overflow-hidden">
 							  <textarea
