@@ -121,28 +121,23 @@
 		}
 	}
 
-	async function handleLanguageToggle(language: string, enabled: boolean) {
-		translations.handleLanguageToggle(
-			language, 
-			enabled, 
-			supportedLanguages, 
-			(newSupported) => { supportedLanguages = newSupported; }
-		);
-	}
-
-	function handlePrimaryContentChange(content: string) {
+	function handleTranslationUpdate(language: string, content: string, status: string) {
 		const field = translations.activeField;
-		if (field === 'title') {
-			$form.title = content;
-		} else if (field === 'short_description') {
-			$form.short_description = content;
-		} else if (field === 'description') {
-			$form.description = content;
+		const isPrimary = language === primaryLanguage;
+		
+		// Update form if primary content changed
+		if (isPrimary && field) {
+			if (field === 'title') {
+				$form.title = content;
+			} else if (field === 'short_description') {
+				$form.short_description = content;
+			} else if (field === 'description') {
+				$form.description = content;
+			}
 		}
 		
-		if (field) {
-			translations.handlePrimaryContentChange(field);
-		}
+		// Delegate to translation manager for API call
+		translations.handleUpdate(language, content, status as any);
 	}
 
 </script>
@@ -157,12 +152,9 @@
 	bind:open={translations.modalOpen}
 	translations={translations.activeTranslations}
 	initialLanguage={translations.initialLanguage}
-	onSave={translations.handleSave}
-	onAutoSave={translations.handleAutoSave}
+	onUpdate={handleTranslationUpdate}
 	onAiTranslate={translations.handleAiTranslate}
-	onLanguageToggle={handleLanguageToggle}
 	onClose={translations.closeDialog}
-	onPrimaryContentChange={handlePrimaryContentChange}
 />
 
 <form 
@@ -282,9 +274,9 @@
 					{#snippet children({ props })}
 						<div class="flex items-center space-x-2">
 							<Switch {...props} bind:checked={$form.auto_login} />
-							<Form.Label>
-								Automatically log in a user with an anon account if not logged in
-							</Form.Label>
+							<Form.Label
+								>Automatically log in a user with an annon account if not logged in</Form.Label
+							>
 						</div>
 					{/snippet}
 				</Form.Control>

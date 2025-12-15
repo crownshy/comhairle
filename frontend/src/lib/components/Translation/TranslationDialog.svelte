@@ -11,62 +11,40 @@
 		translations?: TranslationEntry[];
 		initialLanguage?: string | null;
 		onClose?: () => void;
-		onAutoSave?: (language: string, content: string, status: TranslationStatus) => void;
+		onUpdate?: (language: string, content: string, status: TranslationStatus) => void;
 		onAiTranslate?: (sourceLanguage: string, targetLanguage: string) => Promise<string>;
-		onLanguageToggle?: (language: string, enabled: boolean) => void;
-		onPrimaryContentChange?: (content: string) => void;
 	}
 	
 	let { 
 		open = $bindable(false),
-		translations: propTranslations = [],
+		translations = [],
 		initialLanguage = null,
 		onClose,
-		onAutoSave,
-		onAiTranslate,
-		onLanguageToggle,
-		onPrimaryContentChange
+		onUpdate,
+		onAiTranslate
 	}: Props = $props();
 	
-	let translations = $state<TranslationEntry[]>([...propTranslations]);
 	let activeLanguage = $state<string | null>(null);
 	let isTranslating = $state(false);
 	let hasEdited = $state(false);
-	let debounceTimeout: ReturnType<typeof setTimeout>;
 	let previousOpen = false;
 
-	function isLanguageEnabled(code: string): boolean {
-		return translations.some(t => t.language === code);
-	}
-
-	function initializeDialog() {
-		translations = [...propTranslations];
-		if (initialLanguage && propTranslations.some(t => t.language === initialLanguage)) {
-			activeLanguage = initialLanguage;
-		} else {
-			const nonPrimary = propTranslations.find(t => t.status !== 'primary');
-			activeLanguage = nonPrimary?.language ?? null;
-		}
-	}
-	
 	$effect(() => {
 		if (open && !previousOpen) {
-			initializeDialog();
+			// Initialize active language when dialog opens
+			if (initialLanguage && translations.some(t => t.language === initialLanguage)) {
+				activeLanguage = initialLanguage;
+			} else {
+				const nonPrimary = translations.find(t => t.status !== 'primary');
+				activeLanguage = nonPrimary?.language ?? null;
+			}
+			hasEdited = false;
 		}
 		previousOpen = open;
-		
-		return () => {
-			clearTimeout(debounceTimeout);
-		};
 	});
 	
-	let primaryTranslation = $derived(
-		translations.find(t => t.status === 'primary')
-	);
-	
-	let activeTranslation = $derived(
-		translations.find(t => t.language === activeLanguage)
-	);
+	let primaryTranslation = $derived(translations.find(t => t.status === 'primary'));
+	let activeTranslation = $derived(translations.find(t => t.language === activeLanguage));
 	
 	function handleClose() {
 		open = false;
@@ -79,71 +57,29 @@
 		hasEdited = false;
 	}
 	
-	function updateContent(language: string | null, content: string) {
+	function handleContentChange(language: string | null, content: string) {
 		if (!language) return;
-		const index = translations.findIndex(t => t.language === language);
-		if (index !== -1) {
-			const isPrimary = translations[index].status === 'primary';
-			const newStatus = isPrimary ? 'primary' : 'draft';
-			
-			translations[index] = {
-				...translations[index],
-				content,
-				status: newStatus,
-				lastSaved: new Date()
-			};
-			hasEdited = true;
-
-			if (isPrimary) {
-				translations = translations.map(t => 
-					t.status === 'primary' 
-						? t 
-						: { ...t, status: 'draft' as const }
-				);
-			}
-
-			if (onAutoSave) {
-				clearTimeout(debounceTimeout);
-				debounceTimeout = setTimeout(() => {
-					onAutoSave(language, content, newStatus);
-				}, 500);
-			}
-
-			if (isPrimary && onPrimaryContentChange) {
-				onPrimaryContentChange(content);
-			}
-		}
+		const translation = translations.find(t => t.language === language);
+		if (!translation) return;
+		
+		const newStatus = translation.status === 'primary' ? 'primary' : 'draft';
+		hasEdited = true;
+		onUpdate?.(language, content, newStatus);
 	}
 
 	function approveTranslation(language: string | null) {
 		if (!language) return;
-		const index = translations.findIndex(t => t.language === language);
-		if (index !== -1 && translations[index].status !== 'primary') {
-			translations[index] = {
-				...translations[index],
-				status: 'approved',
-				lastSaved: new Date()
-			};
-
-			if (onAutoSave) {
-				onAutoSave(language, translations[index].content, 'approved');
-			}
+		const translation = translations.find(t => t.language === language);
+		if (translation && translation.status !== 'primary') {
+			onUpdate?.(language, translation.content, 'approved');
 		}
 	}
 
 	function unapproveTranslation(language: string | null) {
 		if (!language) return;
-		const index = translations.findIndex(t => t.language === language);
-		if (index !== -1 && translations[index].status === 'approved') {
-			translations[index] = {
-				...translations[index],
-				status: 'draft',
-				lastSaved: new Date()
-			};
-
-			if (onAutoSave) {
-				onAutoSave(language, translations[index].content, 'draft');
-			}
+		const translation = translations.find(t => t.language === language);
+		if (translation && translation.status === 'approved') {
+			onUpdate?.(language, translation.content, 'draft');
 		}
 	}
 	
@@ -156,7 +92,7 @@
 				primaryTranslation.language,
 				activeTranslation.language
 			);
-			updateContent(activeLanguage, translated);
+			handleContentChange(activeLanguage, translated);
 		} catch (error) {
 			console.error('Translation failed:', error);
 		} finally {
@@ -254,7 +190,7 @@
 							  <textarea
 							    class="self-stretch min-h-[200px] w-full resize-none border-none outline-none text-neutral-800 text-sm font-normal leading-5 bg-transparent"
 							    bind:value={primaryTranslation.content}
-							    oninput={(e) => updateContent(primaryTranslation.language, e.currentTarget.value)}
+							    oninput={(e) => handleContentChange(primaryTranslation.language, e.currentTarget.value)}
 							    placeholder="Primary content..."
 							  ></textarea>
 							</div>
@@ -299,7 +235,7 @@
 							    <textarea
 							      class="self-stretch min-h-[200px] w-full resize-none border-none outline-none text-neutral-800 text-sm font-normal leading-5 bg-transparent"
 							      bind:value={activeTranslation.content}
-							      oninput={(e) => updateContent(activeLanguage, e.currentTarget.value)}
+							      oninput={(e) => handleContentChange(activeLanguage, e.currentTarget.value)}
 							      placeholder="Translation content..."
 							    ></textarea>
 							  </div>

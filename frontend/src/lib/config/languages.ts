@@ -1,4 +1,3 @@
-// Shared language configuration
 export const allLanguages = [
 	{ code: 'en', name: 'English' },
 	{ code: 'gd', name: 'Gaelic' },
