@@ -9,6 +9,7 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
+    routing::post,
     Json,
 };
 use schemars::JsonSchema;
@@ -160,5 +161,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<204, ()>()
             }),
         )
+        .route("/{session_id}", post(converse_with_chat))
         .with_state(state)
 }
