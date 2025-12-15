@@ -160,32 +160,33 @@
 
 							<!-- Approve Button & Menu -->
 								<div class="self-stretch flex justify-center items-center gap-2 pt-4">
-								  <Button 
-								    onclick={() => onStatusChange(activeTranslation.language, 'approved')}
-								    disabled={activeTranslation.status === 'approved' || !activeTranslation.content}
-								    class="gap-2"
-								    variant={activeTranslation.status === 'approved' ? 'outline' : 'default'}
-								  >
-								    <Check class="size-4" />
-								    {activeTranslation.status === 'approved' ? 'Approved' : 'Approve'}
-								  </Button>
-
-								  <!-- Three dots menu -->
-								  <DropdownMenu.Root>
-								    <DropdownMenu.Trigger>
-								      <Button variant="outline" size="icon" class="h-10 w-10">
-								        <MoreHorizontal class="size-4" />
-								      </Button>
-								    </DropdownMenu.Trigger>
-								    <DropdownMenu.Content>
-								      <DropdownMenu.Item 
-								        onclick={() => onStatusChange(activeTranslation.language, 'draft')}
-								        disabled={activeTranslation.status !== 'approved'}
-								      >
-								        Mark as draft
-								      </DropdownMenu.Item>
-								    </DropdownMenu.Content>
-								  </DropdownMenu.Root>
+								  {#if activeTranslation.status === 'approved'}
+								    <Button disabled variant="outline" class="gap-2">
+								      <Check class="size-4" />
+								      Approved
+								    </Button>
+								    <DropdownMenu.Root>
+								      <DropdownMenu.Trigger>
+								        <Button variant="outline" size="icon" class="h-10 w-10">
+								          <MoreHorizontal class="size-4" />
+								        </Button>
+								      </DropdownMenu.Trigger>
+								      <DropdownMenu.Content>
+								        <DropdownMenu.Item onclick={() => onStatusChange(activeTranslation.language, 'draft')}>
+								          Mark as draft
+								        </DropdownMenu.Item>
+								      </DropdownMenu.Content>
+								    </DropdownMenu.Root>
+								  {:else}
+								    <Button 
+								      onclick={() => onStatusChange(activeTranslation.language, 'approved')}
+								      disabled={!activeTranslation.content}
+								      class="gap-2"
+								    >
+								      <Check class="size-4" />
+								      Approve
+								    </Button>
+								  {/if}
 								</div>
 						{/if}
 					</div>
