@@ -70,7 +70,9 @@ html,body{
   --background: hsla(0, 0%, 100%, 1);
   --foreground: hsl(30 10% 3.9%);
   --primary: #0065bd;
+  --primary-200: #D5E3FF;
   --secondary: #333e48;
+  --secondary-200: #E5E7EB;
   --radius: 6.25rem;
   --secondary-foreground: white;
   --muted-foreground: #272f1d;
@@ -203,8 +205,10 @@ html,body{
   --color-border: var(--border);
   --color-input: var(--input);
   --color-primary: var(--primary);
+  --color-primary-200: var(--primary-200);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
+  --color-secondary-200: var(--secondary-200);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
