@@ -123,14 +123,14 @@
 		<div class="self-stretch relative inline-flex flex-col justify-center items-start gap-7 overflow-y-auto max-h-[calc(90vh-120px)]">
 			
 			<!-- Language Tabs -->
-			<div class="self-stretch border-b flex flex-col justify-start items-center gap-6 overflow-hidden">
+			<div class="self-stretch flex flex-col justify-start items-center gap-6">
 				<div class="self-stretch px-3 border-b border-base-border inline-flex justify-center items-start">
 					<div class="flex-1 max-w-[1304px] flex justify-start items-center">
 						
 						{#each translations as translation (translation.language)}
 							<button
 							  type="button"
-							  class="py-1.5 border-b-[3px] {activeLanguage === translation.language ? 'border-primary' : 'border-transparent'} flex justify-center items-center gap-2"
+							  class="py-1.5 border-b-[3px] -mb-[1px] {activeLanguage === translation.language ? 'border-primary' : 'border-transparent'} flex justify-center items-center gap-2"
 							  onclick={() => setActiveLanguage(translation.language)}
 							>
 							  <div class="px-3 py-2 rounded-lg flex justify-center items-center gap-2">
