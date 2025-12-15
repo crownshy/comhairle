@@ -22,7 +22,15 @@
 	let primaryLanguage = $state(data.conversation.primary_locale ?? 'en');
 	let supportedLanguages = $state(data.conversation.supported_languages ?? ['en']);
 
-	const translations = createTranslationManager(() => conversation);
+	const translations = createTranslationManager(
+		() => conversation,
+		(field) => {
+			if (field === 'title') return $form.title;
+			if (field === 'short_description') return $form.short_description;
+			if (field === 'description') return $form.description;
+			return undefined;
+		}
+	);
 
 	function updateFormForLanguage(newLanguage: string) {
 		const fields = ['title', 'short_description', 'description'] as const;
@@ -106,7 +114,7 @@
 				{ params: { conversation_id: conversation.id, workflow_id: workflow.id } }
 			);
 
-			invalidateAll();
+			await invalidateAll();
 			notifications.send({ message: 'Updated conversation', priority: 'INFO' });
 		} catch (e) {
 			notifications.send({ message: 'Failed to save changes', priority: 'ERROR' });
@@ -130,6 +138,10 @@
 			$form.short_description = content;
 		} else if (field === 'description') {
 			$form.description = content;
+		}
+		
+		if (field) {
+			translations.handlePrimaryContentChange(field);
 		}
 	}
 

@@ -30,7 +30,19 @@ export interface TranslatableConversation {
 	translations?: Record<string, TranslationField>;
 }
 
-export function createTranslationManager(getConversation: () => TranslatableConversation) {
+function deriveTranslationStatus(
+	isPrimary: boolean,
+	existing?: { requires_validation: boolean }
+): TranslationStatus {
+	if (isPrimary) return 'primary';
+	if (!existing) return 'draft';
+	return existing.requires_validation ? 'draft' : 'approved';
+}
+
+export function createTranslationManager(
+	getConversation: () => TranslatableConversation,
+	getFormValue?: (field: string) => string | undefined
+) {
 	let modalOpen = $state(false);
 	let activeField = $state<string | null>(null);
 	let initialLanguage = $state<string | null>(null);
@@ -55,13 +67,18 @@ export function createTranslationManager(getConversation: () => TranslatableConv
 
 		return sortedLanguages.map((locale: string) => {
 			const existing = existingTranslations.get(locale);
+			const isPrimary = locale === primaryLocale;
+			
+			// For primary language, use current form value if available
+			const content = isPrimary && getFormValue 
+				? (getFormValue(field) ?? existing?.content ?? '')
+				: (existing?.content ?? '');
+			
 			return {
 				language: locale,
 				languageName: getLanguageName(locale),
-				status: locale === primaryLocale ? 'primary' as const :
-					existing?.requires_validation ? 'draft' as const : 
-					existing ? 'approved' as const : 'draft' as const,
-				content: existing?.content ?? '',
+				status: deriveTranslationStatus(isPrimary, existing),
+				content,
 				lastSaved: existing ? new Date(existing.updated_at) : undefined
 			};
 		});
@@ -94,42 +111,43 @@ export function createTranslationManager(getConversation: () => TranslatableConv
 
 	let primaryContentDebounce: ReturnType<typeof setTimeout>;
 
-	async function handlePrimaryContentChange(field: string) {
-		const conversation = getConversation();
-		const fieldData = conversation.translations?.[field];
-		const textContentId = fieldData?.text_content.id;
-		const primaryLocale = conversation.primary_locale ?? 'en';
-		
-		if (!textContentId || !fieldData?.text_translations) return;
+	function handlePrimaryContentChange(field: string) {
+		clearTimeout(primaryContentDebounce);
+		primaryContentDebounce = setTimeout(async () => {
+			const conversation = getConversation();
+			const fieldData = conversation.translations?.[field];
+			const textContentId = fieldData?.text_content.id;
+			const primaryLocale = conversation.primary_locale ?? 'en';
+			
+			if (!textContentId || !fieldData?.text_translations) return;
 
 			try {
-				// Update all non-primary translations to require validation
-				for (const tt of fieldData.text_translations!) {
-					if (tt.locale !== primaryLocale) {
-						await apiClient.CreateOrUpdateTextTranslation(
-							{
-								content: tt.content,
-								ai_generated: false,
-								requires_validation: true
-							},
-							{
-								params: {
-									text_content_id: textContentId,
-									locale: tt.locale
-								}
+				const translationsToUpdate = fieldData.text_translations.filter(
+					tt => tt.locale !== primaryLocale && !tt.requires_validation
+				);
+				
+				if (translationsToUpdate.length === 0) return;
+				
+				await Promise.all(
+					translationsToUpdate.map(tt => apiClient.CreateOrUpdateTextTranslation(
+						{
+							content: tt.content,
+							ai_generated: false,
+							requires_validation: true
+						},
+						{
+							params: {
+								text_content_id: textContentId,
+								locale: tt.locale
 							}
-						);
-					}
-				}
+						}
+					))
+				);
 				await invalidateAll();
 			} catch (e) {
 				console.error('Failed to mark translations as draft:', e);
 			}
-			
-		// clearTimeout(primaryContentDebounce);
-		// primaryContentDebounce = setTimeout(async () => {
-		
-		// }, 1000); // Debounce for 1 second to avoid too many API calls
+		}, 1000);
 	}
 
 	async function openDialog(field: string, language?: string) {
@@ -148,8 +166,8 @@ export function createTranslationManager(getConversation: () => TranslatableConv
 		if (!activeTextContentId) return;
 
 		try {
-			for (const t of updatedTranslations) {
-				await apiClient.CreateOrUpdateTextTranslation(
+			await Promise.all(
+				updatedTranslations.map(t => apiClient.CreateOrUpdateTextTranslation(
 					{
 						content: t.content,
 						ai_generated: false,
@@ -161,8 +179,8 @@ export function createTranslationManager(getConversation: () => TranslatableConv
 							locale: t.language
 						}
 					}
-				);
-			}
+				))
+			);
 
 			await invalidateAll();
 			notifications.send({
@@ -194,6 +212,7 @@ export function createTranslationManager(getConversation: () => TranslatableConv
 					}
 				}
 			);
+			await invalidateAll();
 		} catch (e) {
 			console.error('Auto-save failed:', e);
 		}
