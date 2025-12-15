@@ -3,7 +3,7 @@ use std::{pin::Pin, sync::Arc};
 use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::Stream;
-use ragflow::{client::RagflowClient, document::*};
+use ragflow::client::RagflowClient;
 use reqwest::StatusCode;
 
 #[cfg(test)]
@@ -15,6 +15,7 @@ use crate::{
     error::ComhairleError,
     routes::bot::{
         chats::{CreateChatRequest, UpdateChatRequest},
+        documents::{UpdateDocumentRequest, UploadFileRequest},
         knowledge_bases::UpdateKnowledgeBaseRequest,
         sessions::{ChatConversationRequest, CreateChatSessionRequest, UpdateChatSessionRequest},
         GetQueryParams,
@@ -68,22 +69,35 @@ pub trait ComhairleBotService: Send + Sync {
         knowledge_base_id: String,
     ) -> Result<StatusCode, ComhairleError>;
 
-    async fn get_documents(
+    async fn list_documents(
         &self,
-        knowledge_base_id: String,
+        knowledge_base_id: &str,
         params: Option<GetQueryParams>,
-    ) -> Result<(StatusCode, Vec<Document>), ComhairleError>;
+    ) -> Result<(StatusCode, Vec<ComhairleDocument>), ComhairleError>;
 
-    async fn delete_document(
+    async fn get_document(
         &self,
-        id: String,
-        knowledge_base_id: String,
-    ) -> Result<StatusCode, ComhairleError>;
+        document_id: &str,
+        knowledge_base_id: &str,
+    ) -> Result<(StatusCode, ComhairleDocument), ComhairleError>;
 
     async fn upload_documents(
         &self,
         knowledge_base_id: &str,
-        files: Vec<UploadFile>,
+        files: Vec<UploadFileRequest>,
+    ) -> Result<StatusCode, ComhairleError>;
+
+    async fn update_document(
+        &self,
+        document_id: &str,
+        knowledge_base_id: &str,
+        body: UpdateDocumentRequest,
+    ) -> Result<(StatusCode, ComhairleDocument), ComhairleError>;
+
+    async fn delete_document(
+        &self,
+        document_id: String,
+        knowledge_base_id: String,
     ) -> Result<StatusCode, ComhairleError>;
 
     async fn get_chat(&self, chat_id: &str) -> Result<(StatusCode, ComhairleChat), ComhairleError>;
@@ -151,6 +165,13 @@ pub trait ComhairleBotService: Send + Sync {
 pub struct ComhairleKnowledgeBase {
     pub id: String,
     pub name: String,
+}
+
+#[derive(Serialize, JsonSchema, Default, Debug)]
+pub struct ComhairleDocument {
+    pub id: String,
+    pub name: String,
+    // TODO: figure out what fields we require
 }
 
 #[derive(Serialize, JsonSchema, Default, Debug, Clone)]
@@ -229,7 +250,7 @@ impl MockComhairleBotService {
             .expect_delete_knowledge_base()
             .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
         bot_service
-            .expect_get_documents()
+            .expect_list_documents()
             .returning(|_, _| Box::pin(async move { Ok((StatusCode::OK, Vec::new())) }));
         bot_service
             .expect_delete_document()

@@ -13,12 +13,13 @@ use reqwest::StatusCode;
 
 use crate::{
     bot_service::{
-        ComhairleBotService, ComhairleChat, ComhairleChatSession, ComhairleKnowledgeBase,
-        ComhairleLlm, ComhairlePrompt, ComhairleRagBotService,
+        ComhairleBotService, ComhairleChat, ComhairleChatSession, ComhairleDocument,
+        ComhairleKnowledgeBase, ComhairleLlm, ComhairlePrompt, ComhairleRagBotService,
     },
     error::ComhairleError,
     routes::bot::{
         chats::{CreateChatRequest, UpdateChatRequest},
+        documents::{UpdateDocumentRequest, UploadFileRequest},
         knowledge_bases::UpdateKnowledgeBaseRequest,
         sessions::{
             ChatConversationRequest, CreateChatSessionRequest as ApiCreateChatSessionRequest,
@@ -114,34 +115,90 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok(status)
     }
 
-    async fn get_documents(
+    async fn list_documents(
         &self,
-        knowledge_base_id: String,
+        knowledge_base_id: &str,
         params: Option<ApiGetQueryParams>,
-    ) -> Result<(StatusCode, Vec<Document>), ComhairleError> {
+    ) -> Result<(StatusCode, Vec<ComhairleDocument>), ComhairleError> {
         let params: Option<GetQueryParams> = params.map(|p| p.into());
 
         let (status, documents) =
-            ragflow::document::list(&self.client, &knowledge_base_id, params).await?;
+            ragflow::document::list(&self.client, knowledge_base_id, params).await?;
+
+        let documents: Vec<ComhairleDocument> = documents.into_iter().map(Into::into).collect();
 
         Ok((status, documents))
     }
 
-    async fn delete_document(
+    async fn get_document(
         &self,
-        id: String,
-        knowledge_base_id: String,
-    ) -> Result<StatusCode, ComhairleError> {
-        let status = ragflow::document::delete(&self.client, &id, &knowledge_base_id).await?;
-        Ok(status)
+        document_id: &str,
+        knowledge_base_id: &str,
+    ) -> Result<(StatusCode, ComhairleDocument), ComhairleError> {
+        let params = GetQueryParams {
+            id: Some(document_id.to_string()),
+            ..Default::default()
+        };
+
+        let (status, documents) =
+            ragflow::document::list(&self.client, knowledge_base_id, Some(params)).await?;
+
+        let document: ComhairleDocument = (&documents[0]).into();
+
+        Ok((status, document))
     }
 
     async fn upload_documents(
         &self,
         knowledge_base_id: &str,
-        files: Vec<UploadFile>,
+        files: Vec<UploadFileRequest>,
     ) -> Result<StatusCode, ComhairleError> {
+        let files: Vec<UploadFile> = files.into_iter().map(Into::into).collect();
+
         let (status, _) = ragflow::document::upload(&self.client, knowledge_base_id, files).await?;
+
+        Ok(status)
+    }
+
+    async fn update_document(
+        &self,
+        document_id: &str,
+        knowledge_base_id: &str,
+        body: UpdateDocumentRequest,
+    ) -> Result<(StatusCode, ComhairleDocument), ComhairleError> {
+        let body: UpdateDocument = body.into();
+
+        let (status, _) =
+            ragflow::document::update(&self.client, document_id, knowledge_base_id, body).await?;
+
+        let params = GetQueryParams {
+            id: Some(document_id.to_string()),
+            ..Default::default()
+        };
+
+        let (_, documents) =
+            ragflow::document::list(&self.client, knowledge_base_id, Some(params)).await?;
+
+        if documents.is_empty() || documents.len() > 1 {
+            return Err(ComhairleError::RagflowError(ragflow::RagflowError::Api {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                body: "error retrieving document after update".to_string(),
+            }));
+        }
+
+        let document: ComhairleDocument = (&documents[0]).into();
+
+        Ok((status, document))
+    }
+
+    async fn delete_document(
+        &self,
+        document_id: String,
+        knowledge_base_id: String,
+    ) -> Result<StatusCode, ComhairleError> {
+        let status =
+            ragflow::document::delete(&self.client, &document_id, &knowledge_base_id).await?;
+
         Ok(status)
     }
 
@@ -372,6 +429,42 @@ impl From<UpdateKnowledgeBaseRequest> for UpdateDataset {
         Self {
             name: input.name,
             description: None,
+        }
+    }
+}
+
+impl From<Document> for ComhairleDocument {
+    fn from(input: Document) -> Self {
+        Self {
+            id: input.id,
+            name: input.name,
+        }
+    }
+}
+
+impl From<&Document> for ComhairleDocument {
+    fn from(input: &Document) -> Self {
+        Self {
+            id: input.id.clone(),
+            name: input.name.clone(),
+        }
+    }
+}
+
+impl From<UploadFileRequest> for UploadFile {
+    fn from(input: UploadFileRequest) -> Self {
+        Self {
+            filename: input.filename,
+            bytes: input.bytes,
+        }
+    }
+}
+
+impl From<UpdateDocumentRequest> for UpdateDocument {
+    fn from(input: UpdateDocumentRequest) -> Self {
+        Self {
+            name: input.name,
+            ..Default::default()
         }
     }
 }
