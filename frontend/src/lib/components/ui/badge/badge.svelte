@@ -11,14 +11,7 @@
 					"bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90 border-transparent",
 				destructive:
 					"bg-destructive [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/70 border-transparent text-white",
-				outline: "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
-				// New variants from Figma design
-				newPrimary:
-					"bg-[var(--base-white)] text-foreground border-[var(--border)] rounded-full shadow-xs [a&]:hover:bg-[var(--cs-grey-50)]",
-				secondary:
-					"bg-[var(--cs-grey-200)] text-foreground border-transparent rounded-full shadow-xs [a&]:hover:bg-[var(--cs-grey-300)]",
-				newApproved:
-					"bg-[var(--cs-blue-200)] text-foreground border-transparent rounded-full shadow-xs [a&]:hover:bg-[var(--cs-blue-300)]",
+				outline: "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground"
 			},
 		},
 		defaultVariants: {

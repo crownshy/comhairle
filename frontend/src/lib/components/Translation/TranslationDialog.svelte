@@ -47,7 +47,6 @@
 	let activeTranslation = $derived(translations.find(t => t.language === activeLanguage));
 	
 	function handleClose() {
-		open = false;
 		onClose?.();
 	}
 	
@@ -101,9 +100,9 @@
 	}
 
 	const statusToBadgeVariant = {
-		primary: 'newPrimary',
+		primary: 'outline',
 		draft: 'secondary',
-		approved: 'newApproved'
+		approved: 'default'
 	} as const;
 </script>
 
@@ -177,7 +176,7 @@
 							  <div class="justify-start text-base-card-foreground text-base font-semibold leading-6">
 							    {primaryTranslation.languageName}
 							  </div>
-							  <Badge variant="newPrimary">Primary</Badge>
+							  <Badge variant="outline">Primary</Badge>
 							</div>
 						</div>
 						

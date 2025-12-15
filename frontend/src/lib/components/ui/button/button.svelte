@@ -15,9 +15,7 @@
 				secondary: 'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80',
 				ghost: 'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
 				link: 'text-primary underline-offset-4 hover:underline',
-				nav: 'bg-nav-background text-nav-text shadow-xs hover:bg-secondary/80',
-				newSecondary: 'h-10 px-4 py-2 bg-cs-grey-100 text-cs-blue-600 rounded-full shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] inline-flex justify-center items-center gap-2 font-medium hover:bg-cs-grey-200',
-				newPrimary: 'px-3 py-2 bg-cs-blue-600 text-white rounded-full text-xs font-medium inline-flex justify-center items-center gap-1.5 hover:bg-cs-blue-700'
+				nav: 'bg-nav-background text-nav-text shadow-xs hover:bg-secondary/80'
 			},
 			size: {
 				default: 'h-9 px-4 py-2 has-[>svg]:px-3',
