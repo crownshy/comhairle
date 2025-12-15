@@ -10,18 +10,11 @@
 
 	let { language, languageName, status, onclick }: Props = $props();
 
-	const statusColors = {
-		// TODO: revisit
-		draft: 'bg-colors-CS_grey-200',
-		approved: 'bg-colors-CS_Blue-200',
-		primary: 'bg-green-200'
-	};
-
-	const statusLabels = {
-		draft: 'Draft',
-		approved: 'Approved',
-		primary: 'Primary'
-	};
+	const statusConfig = {
+		draft: { color: 'bg-colors-CS_grey-200', label: 'Draft' },
+		approved: { color: 'bg-colors-CS_Blue-200', label: 'Approved' },
+		primary: { color: 'bg-green-200', label: 'Primary' }
+	} as const;
 </script>
 
 <button 
@@ -31,7 +24,7 @@
 >
 	<Check class="w-3 h-3 text-base-foreground" />
 	<span class="text-base-foreground text-xs font-normal leading-4">{languageName}</span>
-	<div class="h-5 px-2 {statusColors[status]} rounded-full shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] outline outline-1 outline-offset-[-1px] flex justify-center items-center gap-1 overflow-hidden">
-		<span class="text-base-foreground text-xs font-normal leading-4">{statusLabels[status]}</span>
+	<div class="h-5 px-2 {statusConfig[status].color} rounded-full shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] outline outline-1 outline-offset-[-1px] flex justify-center items-center">
+		<span class="text-base-foreground text-xs font-normal leading-4">{statusConfig[status].label}</span>
 	</div>
 </button>

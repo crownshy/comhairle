@@ -6,7 +6,7 @@
 	import LanguageStatusBadge from './LanguageStatusBadge.svelte';
 	import type { TranslationEntry } from './useTranslations.svelte';
 	import type { SuperForm } from 'sveltekit-superforms';
-	import {Languages} from 'lucide-svelte';
+	import { Languages } from 'lucide-svelte';
 
 	interface Props {
 		form: SuperForm<any>;
@@ -20,23 +20,14 @@
 		inputType?: 'input' | 'textarea';
 	}
 
-	let { 
-		form, 
-		name, 
-		label, 
-		value,
-		onValueChange,
-		onEditTranslations,
-		onPrimaryChange,
-		translations,
-		inputType = 'input'
-	}: Props = $props();
+	let { form, name, label, value, onValueChange, onEditTranslations, onPrimaryChange, translations, inputType = 'input' }: Props = $props();
 
-	function handleInput(newValue: string) {
+	const hasTranslations = $derived(translations.length > 0);
+
+	function handleInput(e: Event) {
+		const newValue = (e.currentTarget as HTMLInputElement | HTMLTextAreaElement).value;
 		onValueChange(newValue);
-		if (translations.length > 0) {
-			onPrimaryChange?.();
-		}
+		if (hasTranslations) onPrimaryChange?.();
 	}
 </script>
 
@@ -48,40 +39,20 @@
 				<div class="flex flex-col gap-2">
 					<div class="relative">
 						{#if inputType === 'textarea'}
-							<Textarea 
-								class="bg-white pr-32" 
-								{...props} 
-								{value}
-								oninput={(e) => handleInput(e.currentTarget.value)}
-							/>
+							<Textarea class="bg-white pr-32" {...props} {value} oninput={handleInput} />
 						{:else}
-							<Input 
-								class="pr-32"
-								{...props} 
-								{value}
-								oninput={(e) => handleInput(e.currentTarget.value)}
-							/>
+							<Input class="pr-32" {...props} {value} oninput={handleInput} />
 						{/if}
-						{#if translations.length > 0}
-							<Button
-								type="button"
-                                variant="link"
-								class="absolute right-0 top-0 focus:outline-none"
-								onclick={onEditTranslations}
-							>
-                                <Languages />					
-                            </Button>
+						{#if hasTranslations}
+							<Button type="button" variant="link" class="absolute right-0 top-0" onclick={() => onEditTranslations()}>
+								<Languages />
+							</Button>
 						{/if}
 					</div>
-					{#if translations.length > 0}
+					{#if hasTranslations}
 						<div class="flex items-center gap-2 flex-wrap">
 							{#each translations as t (t.language)}
-								<LanguageStatusBadge 
-									language={t.language} 
-									languageName={t.languageName} 
-									status={t.status} 
-									onclick={(lang) => onEditTranslations(lang)}
-								/>
+								<LanguageStatusBadge {...t} onclick={(lang) => onEditTranslations(lang)} />
 							{/each}
 						</div>
 					{/if}
