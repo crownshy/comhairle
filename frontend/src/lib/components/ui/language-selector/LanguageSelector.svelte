@@ -24,19 +24,16 @@
 	let searchQuery = $state('');
 	let popoverOpen = $state(false);
 
-	// Filter languages for the "Other languages" dropdown (exclude primary)
 	let otherLanguageOptions = $derived(
 		allLanguages.filter(lang => lang.code !== primaryLanguage)
 	);
 
-	// Filtered by search
 	let filteredLanguages = $derived(
 		otherLanguageOptions.filter(lang => 
 			lang.name.toLowerCase().includes(searchQuery.toLowerCase())
 		)
 	);
 
-	// Currently selected other languages (excluding primary)
 	let selectedOtherLanguages = $derived(
 		supportedLanguages.filter(code => code !== primaryLanguage)
 	);
@@ -45,7 +42,6 @@
 		if (!value) return;
 		primaryLanguage = value;
 		
-		// Ensure primary is always in supported languages
 		if (!supportedLanguages.includes(value)) {
 			supportedLanguages = [value, ...supportedLanguages];
 		}
@@ -55,10 +51,8 @@
 
 	function toggleLanguage(code: string) {
 		if (selectedOtherLanguages.includes(code)) {
-			// Remove it
 			supportedLanguages = supportedLanguages.filter(c => c !== code);
 		} else {
-			// Add it
 			supportedLanguages = [...supportedLanguages, code];
 		}
 		onSupportedChange?.(supportedLanguages);
