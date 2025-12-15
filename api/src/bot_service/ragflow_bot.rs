@@ -94,7 +94,25 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, chats))
     }
 
-    async fn get_chat_sessions(
+    async fn get_chat_session(
+        &self,
+        session_id: &str,
+        chat_id: &str,
+    ) -> Result<(StatusCode, ComhairleChatSession), ComhairleError> {
+        let params = GetQueryParams {
+            id: Some(session_id.to_string()),
+            ..Default::default()
+        };
+
+        let (status, chat_sessions) =
+            ragflow::chat::session::list(&self.client, chat_id, Some(params)).await?;
+
+        let chat_session: ComhairleChatSession = (&chat_sessions[0]).into();
+
+        Ok((status, chat_session))
+    }
+
+    async fn list_chat_sessions(
         &self,
         chat_id: &str,
         params: Option<ApiGetQueryParams>,
@@ -130,13 +148,29 @@ impl ComhairleBotService for ComhairleRagBotService {
         session_id: &str,
         chat_id: &str,
         body: ApiUpdateChatSessionRequest,
-    ) -> Result<StatusCode, ComhairleError> {
+    ) -> Result<(StatusCode, ComhairleChatSession), ComhairleError> {
         let body: UpdateChatSession = body.into();
 
         let status =
             ragflow::chat::session::update(&self.client, session_id, chat_id, body).await?;
 
-        Ok(status)
+        let params = GetQueryParams {
+            id: Some(session_id.to_string()),
+            ..Default::default()
+        };
+        let (_, chat_sessions) =
+            ragflow::chat::session::list(&self.client, chat_id, Some(params)).await?;
+
+        if chat_sessions.is_empty() || chat_sessions.len() > 1 {
+            return Err(ComhairleError::RagflowError(ragflow::RagflowError::Api {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                body: "error retrieving session after update".to_string(),
+            }));
+        }
+
+        let chat_session: ComhairleChatSession = (&chat_sessions[0]).into();
+
+        Ok((status, chat_session))
     }
 
     async fn delete_chat_sessions(
@@ -179,7 +213,7 @@ impl From<ApiGetQueryParams> for GetQueryParams {
             page_size: params.page_size,
             orderby: params.order_by,
             name: params.name,
-            id: params.id,
+            id: None,
             desc: None, // TODO:
         }
     }
@@ -191,6 +225,16 @@ impl From<ChatSession> for ComhairleChatSession {
             id: session.id,
             chat_id: session.chat_id,
             name: session.name,
+        }
+    }
+}
+
+impl From<&ChatSession> for ComhairleChatSession {
+    fn from(session: &ChatSession) -> Self {
+        Self {
+            id: session.id.clone(),
+            chat_id: session.chat_id.clone(),
+            name: session.name.clone(),
         }
     }
 }

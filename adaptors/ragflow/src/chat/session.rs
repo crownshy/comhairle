@@ -90,7 +90,7 @@ pub struct UpdateChatSession {
     pub user_id: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct ChatSession {
     pub chat_id: String,
     pub create_date: String,
@@ -102,7 +102,7 @@ pub struct ChatSession {
     pub messages: Vec<ChatSessionMessage>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ChatSessionMessage {
     content: String,
     role: String,

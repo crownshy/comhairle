@@ -5,7 +5,6 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::ComhairleState;
-use ragflow::GetQueryParams as RagflowGetParams;
 
 pub mod chats;
 pub mod documents;
@@ -18,7 +17,6 @@ pub struct GetQueryParams {
     pub page_size: Option<i32>,
     pub order_by: Option<String>,
     pub name: Option<String>,
-    pub id: Option<String>,
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
