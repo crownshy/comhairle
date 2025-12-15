@@ -84,8 +84,8 @@ pub struct Chat {
     pub do_refer: Option<String>,
     pub id: String,
     pub language: Option<String>,
-    pub llm: Llm,
-    pub prompt: Prompt,
+    pub llm: Option<Llm>,
+    pub prompt: Option<Prompt>,
 }
 
 #[derive(Serialize, Default)]
