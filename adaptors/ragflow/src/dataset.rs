@@ -3,7 +3,18 @@ use serde::{Deserialize, Serialize};
 
 use crate::client::RagflowClient;
 use crate::error::Result;
-use crate::{ChunkMethod, DeleteResources};
+use crate::{ChunkMethod, DeleteResources, GetQueryParams};
+
+pub async fn list(
+    client: &RagflowClient,
+    params: Option<GetQueryParams>,
+) -> Result<(StatusCode, Vec<Dataset>)> {
+    let (status, value) = client.get("/datasets", params.as_ref(), None).await?;
+
+    let json: GetDatasetResponse = serde_json::from_value(value)?;
+
+    Ok((status, json.data))
+}
 
 pub async fn create(
     client: &RagflowClient,
@@ -23,11 +34,26 @@ pub async fn create(
     Ok((status, json.data))
 }
 
-pub async fn delete(client: &RagflowClient, dataset_id: &str) -> Result<StatusCode> {
-    let body = DeleteResources {
-        ids: vec![dataset_id],
-    };
+pub async fn update(
+    client: &RagflowClient,
+    dataset_id: &str,
+    body: UpdateDataset,
+) -> Result<StatusCode> {
+    let path = format!("/datasets/{dataset_id}");
+
+    let (status, _) = client.put(&path, &body, None).await?;
+
+    Ok(status)
+}
+
+pub async fn delete(client: &RagflowClient, body: DeleteResources<'_>) -> Result<StatusCode> {
     client.delete("/datasets", &body, None).await
+}
+
+#[derive(Deserialize)]
+struct GetDatasetResponse {
+    code: i32,
+    data: Vec<Dataset>,
 }
 
 #[derive(Serialize)]
@@ -41,6 +67,12 @@ pub struct CreateDataset {
 pub struct CreateDatasetResponse {
     pub code: i32,
     pub data: Dataset,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct UpdateDataset {
+    pub name: Option<String>,
+    pub description: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -135,7 +167,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let status = delete(&client, "123").await?;
+        let body = DeleteResources { ids: vec!["123"] };
+        let status = delete(&client, body).await?;
 
         assert!(status.is_success(), "dataset deletion status");
 
