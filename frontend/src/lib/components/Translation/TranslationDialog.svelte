@@ -11,7 +11,6 @@
 		translations?: TranslationEntry[];
 		initialLanguage?: string | null;
 		onClose?: () => void;
-		onSave?: (translations: TranslationEntry[]) => void;
 		onAutoSave?: (language: string, content: string, status: TranslationStatus) => void;
 		onAiTranslate?: (sourceLanguage: string, targetLanguage: string) => Promise<string>;
 		onLanguageToggle?: (language: string, enabled: boolean) => void;
@@ -23,7 +22,6 @@
 		translations: propTranslations = [],
 		initialLanguage = null,
 		onClose,
-		onSave,
 		onAutoSave,
 		onAiTranslate,
 		onLanguageToggle,
@@ -166,11 +164,6 @@
 		}
 	}
 
-	function handleSave() {
-		onSave?.(translations);
-		handleClose();
-	}
-	
 	const statusToBadgeVariant = {
 		primary: 'newPrimary',
 		draft: 'secondary',

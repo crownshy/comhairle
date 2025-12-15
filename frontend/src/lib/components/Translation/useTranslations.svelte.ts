@@ -162,39 +162,6 @@ export function createTranslationManager(
 		await invalidateAll();
 	}
 
-	async function handleSave(updatedTranslations: TranslationEntry[]) {
-		if (!activeTextContentId) return;
-
-		try {
-			await Promise.all(
-				updatedTranslations.map(t => apiClient.CreateOrUpdateTextTranslation(
-					{
-						content: t.content,
-						ai_generated: false,
-						requires_validation: t.status === 'draft'
-					},
-					{
-						params: {
-							text_content_id: activeTextContentId,
-							locale: t.language
-						}
-					}
-				))
-			);
-
-			await invalidateAll();
-			notifications.send({
-				message: 'Translations saved successfully',
-				priority: 'INFO'
-			});
-		} catch (e) {
-			notifications.send({
-				message: 'Failed to save translations',
-				priority: 'ERROR'
-			});
-		}
-	}
-
 	async function handleAutoSave(language: string, content: string, status: string) {
 		if (!activeTextContentId) return;
 
