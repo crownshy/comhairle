@@ -111,6 +111,7 @@ export function createTranslationManager(
 
 	let primaryContentDebounce: ReturnType<typeof setTimeout>;
 
+	// NOTE: This function is debounced (1s). If the user types and refreshes quickly, changes may be lost.
 	function handlePrimaryContentChange(field: string) {
 		clearTimeout(primaryContentDebounce);
 		primaryContentDebounce = setTimeout(async () => {
@@ -119,33 +120,56 @@ export function createTranslationManager(
 			const textContentId = fieldData?.text_content.id;
 			const primaryLocale = conversation.primary_locale ?? 'en';
 			
-			if (!textContentId || !fieldData?.text_translations) return;
+			if (!textContentId) return;
+
+			// Get the current primary content from the form
+			const primaryContent = getFormValue?.(field);
+			if (primaryContent === undefined) return;
 
 			try {
-				const translationsToUpdate = fieldData.text_translations.filter(
-					tt => tt.locale !== primaryLocale && !tt.requires_validation
-				);
-				
-				if (translationsToUpdate.length === 0) return;
-				
-				await Promise.all(
-					translationsToUpdate.map(tt => apiClient.CreateOrUpdateTextTranslation(
-						{
-							content: tt.content,
-							ai_generated: false,
-							requires_validation: true
-						},
-						{
-							params: {
-								text_content_id: textContentId,
-								locale: tt.locale
-							}
+				// Save the primary content
+				await apiClient.CreateOrUpdateTextTranslation(
+					{
+						content: primaryContent,
+						ai_generated: false,
+						requires_validation: false
+					},
+					{
+						params: {
+							text_content_id: textContentId,
+							locale: primaryLocale
 						}
-					))
+					}
 				);
+
+				// Mark other approved translations as needing validation
+				if (fieldData?.text_translations) {
+					const translationsToUpdate = fieldData.text_translations.filter(
+						tt => tt.locale !== primaryLocale && !tt.requires_validation
+					);
+					
+					if (translationsToUpdate.length > 0) {
+						await Promise.all(
+							translationsToUpdate.map(tt => apiClient.CreateOrUpdateTextTranslation(
+								{
+									content: tt.content,
+									ai_generated: false,
+									requires_validation: true
+								},
+								{
+									params: {
+										text_content_id: textContentId,
+										locale: tt.locale
+									}
+								}
+							))
+						);
+					}
+				}
+
 				await invalidateAll();
 			} catch (e) {
-				console.error('Failed to mark translations as draft:', e);
+				console.error('Failed to save primary content:', e);
 			}
 		}, 1000);
 	}

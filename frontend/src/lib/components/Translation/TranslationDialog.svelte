@@ -16,7 +16,7 @@
 	}
 	
 	let { 
-		open = false,
+		open = $bindable(false),
 		translations = [],
 		initialLanguage = null,
 		onClose,
@@ -47,6 +47,7 @@
 	let activeTranslation = $derived(translations.find(t => t.language === activeLanguage));
 	
 	function handleClose() {
+		open = false;
 		onClose?.();
 	}
 	
