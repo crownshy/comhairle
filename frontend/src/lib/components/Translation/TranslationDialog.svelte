@@ -107,7 +107,7 @@
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Content class="max-h-[90vh] min-w-[70vw] p-12" showCloseButton={false}>
+	<Dialog.Content class="scot-gov max-h-[90vh] min-w-[70vw] p-12 rounded-[12px]" showCloseButton={false}>
 		
 		<!-- Header -->
 		<Dialog.Header class="flex items-center justify-between pr-0 flex-row">
@@ -125,7 +125,7 @@
 		</Dialog.Header>
 		
 		{#if primaryTranslation}
-		<div class="self-stretch relative inline-flex flex-col justify-center items-start gap-7">
+		<div class="self-stretch relative inline-flex flex-col justify-center items-start gap-7 overflow-y-auto max-h-[calc(90vh-120px)]">
 			
 			<!-- Language Tabs -->
 			<div class="self-stretch border-b flex flex-col justify-start items-center gap-6 overflow-hidden">
@@ -135,7 +135,7 @@
 						{#each translations as translation (translation.language)}
 							<button
 							  type="button"
-							  class="py-1.5 border-b-[3px] {activeLanguage === translation.language ? 'border-colors-CS_Blue-500' : 'border-transparent'} flex justify-center items-center gap-2"
+							  class="py-1.5 border-b-[3px] {activeLanguage === translation.language ? 'border-primary' : 'border-transparent'} flex justify-center items-center gap-2"
 							  onclick={() => setActiveLanguage(translation.language)}
 							>
 							  <div class="px-3 py-2 rounded-lg flex justify-center items-center gap-2">
@@ -171,17 +171,15 @@
 					
 					<!-- Left Column: Primary Language -->
 					<div class="flex-1 inline-flex flex-col justify-start items-start gap-6">
-						<div class="self-stretch flex flex-col justify-start items-start gap-2">
-							<div class="inline-flex justify-start items-center gap-2">
-							  <div class="justify-start text-base-card-foreground text-base font-semibold leading-6">
-							    {primaryTranslation.languageName}
-							  </div>
-							  <Badge variant="outline">Primary</Badge>
+						<div class="self-stretch h-7 flex justify-start items-center gap-2">
+							<div class="justify-start text-base-card-foreground text-base font-semibold leading-6">
+							  {primaryTranslation.languageName}
 							</div>
+							<Badge variant="outline">Primary</Badge>
 						</div>
 						
 						<!-- Editor Box (Primary)-->
-						<div class="self-stretch bg-white rounded-md outline outline-1 outline-offset-[-1px] outline-colors-CS_grey-300 flex flex-col justify-start items-start overflow-hidden">
+						<div class="self-stretch bg-white rounded-[12px] outline outline-1 outline-offset-[-1px] outline-colors-CS_grey-300 flex flex-col justify-start items-start overflow-hidden">
 							
 							<!-- Content -->
 							<div class="self-stretch px-4 pt-3 pb-4 flex flex-col justify-start items-start overflow-hidden">
@@ -195,7 +193,7 @@
 						</div>
 					</div>
 
-					<!-- Right Column: Active Translation or Empty State -->
+					<!-- Right Column: Active Translation   -->
 					<div class="flex-1 self-stretch inline-flex flex-col justify-start items-start gap-6">
 						{#if activeTranslation}
 							<!-- Header with Auto-save indicator and AI button -->
@@ -226,7 +224,7 @@
 							</div>
 							
 							<!-- Editor Box (Active/Editable) -->
-							<div class="self-stretch flex-1 bg-white rounded-md outline outline-[1.50px] outline-offset-[-1.50px] outline-colors-CS_Blue-500 flex flex-col justify-start items-start overflow-hidden">
+							<div class="self-stretch flex-1 bg-white rounded-[12px] outline outline-[1.50px] outline-offset-[-1.50px] outline-colors-CS_Blue-500 flex flex-col justify-start items-start overflow-hidden">
 							  
 							  <!-- Content (Editable) -->
 							  <div class="self-stretch px-4 pt-3 pb-4 flex flex-col justify-start items-start overflow-hidden">
@@ -268,24 +266,12 @@
 							    </DropdownMenu.Content>
 							  </DropdownMenu.Root>
 							</div>
-						{:else}
-							<!-- Empty State: No translation language selected -->
-							<div class="self-stretch flex-1 flex flex-col items-center justify-center gap-4 min-h-[300px] bg-gray-50 rounded-md border-2 border-dashed border-gray-200">
-							  <div class="text-gray-400 text-center">
-							    <p class="text-lg font-medium">No translation selected</p>
-							    <p class="text-sm mt-1">Select a language tab above to edit its translation</p>
-							  </div>
-							</div>
 						{/if}
 					</div>
 
 				</div>
 			</div>
 		</div>
-		{:else}
-			<div class="p-8 text-center text-gray-500">
-				No translations available
-			</div>
 		{/if}
 
 	</Dialog.Content>
