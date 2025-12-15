@@ -162,27 +162,40 @@ export function createTranslationManager(
 		await invalidateAll();
 	}
 
-	async function handleAutoSave(language: string, content: string, status: string) {
-		if (!activeTextContentId) return;
+	let updateDebounceTimeout: ReturnType<typeof setTimeout>;
 
-		try {
-			await apiClient.CreateOrUpdateTextTranslation(
-				{
-					content,
-					ai_generated: false,
-					requires_validation: status !== 'approved'
-				},
-				{
-					params: {
-						text_content_id: activeTextContentId,
-						locale: language
+	function handleUpdate(language: string, content: string, status: TranslationStatus) {
+		if (!activeTextContentId) return;
+		
+		const conversation = getConversation();
+		const isPrimary = language === conversation.primary_locale;
+
+		clearTimeout(updateDebounceTimeout);
+		updateDebounceTimeout = setTimeout(async () => {
+			try {
+				await apiClient.CreateOrUpdateTextTranslation(
+					{
+						content,
+						ai_generated: false,
+						requires_validation: status !== 'approved' && status !== 'primary'
+					},
+					{
+						params: {
+							text_content_id: activeTextContentId,
+							locale: language
+						}
 					}
+				);
+				await invalidateAll();
+				
+				// If primary content changed, mark other translations as needing validation
+				if (isPrimary && activeField) {
+					handlePrimaryContentChange(activeField);
 				}
-			);
-			await invalidateAll();
-		} catch (e) {
-			console.error('Auto-save failed:', e);
-		}
+			} catch (e) {
+				console.error('Update failed:', e);
+			}
+		}, 500);
 	}
 
 	async function handleLanguageToggle(
@@ -264,8 +277,7 @@ export function createTranslationManager(
 		getFieldContentForLocale,
 		openDialog,
 		closeDialog,
-		handleSave,
-		handleAutoSave,
+		handleUpdate,
 		handleLanguageToggle,
 		handleAiTranslate,
 		handlePrimaryContentChange
