@@ -21,17 +21,30 @@ use crate::{
 };
 
 #[instrument(err(Debug), skip(state))]
-async fn get(
+async fn list(
     State(state): State<Arc<ComhairleState>>,
     Path(chat_id): Path<String>,
     Query(params): Query<GetQueryParams>,
 ) -> Result<(StatusCode, Json<Vec<ComhairleChatSession>>), ComhairleError> {
     let (_, sessions) = state
         .bot_service
-        .get_chat_sessions(&chat_id, Some(params))
+        .list_chat_sessions(&chat_id, Some(params))
         .await?;
 
     Ok((StatusCode::OK, Json(sessions)))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get(
+    State(state): State<Arc<ComhairleState>>,
+    Path((chat_id, session_id)): Path<(String, String)>,
+) -> Result<(StatusCode, Json<ComhairleChatSession>), ComhairleError> {
+    let (_, session) = state
+        .bot_service
+        .get_chat_session(&session_id, &chat_id)
+        .await?;
+
+    Ok((StatusCode::OK, Json(session)))
 }
 
 #[derive(Deserialize, Debug, JsonSchema)]
@@ -63,13 +76,13 @@ async fn update(
     State(state): State<Arc<ComhairleState>>,
     Path((chat_id, session_id)): Path<(String, String)>,
     Json(payload): Json<UpdateChatSessionRequest>,
-) -> Result<StatusCode, ComhairleError> {
-    let _ = state
+) -> Result<(StatusCode, Json<ComhairleChatSession>), ComhairleError> {
+    let (_, session) = state
         .bot_service
         .update_chat_session(&session_id, &chat_id, payload)
         .await?;
 
-    Ok(StatusCode::NO_CONTENT)
+    Ok((StatusCode::OK, Json(session)))
 }
 
 async fn delete(
@@ -109,10 +122,18 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            get_with(get, |op| {
-                op.id("GetSessions")
+            get_with(list, |op| {
+                op.id("GetChatSessions")
                     .summary("Get a list of chat sessions")
                     .response::<200, Json<Vec<ComhairleChatSession>>>()
+            }),
+        )
+        .api_route(
+            "/{session_id}",
+            get_with(get, |op| {
+                op.id("GetChatSession")
+                    .summary("Get a chat session by id")
+                    .response::<200, Json<ComhairleChatSession>>()
             }),
         )
         .api_route(
@@ -128,8 +149,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             put_with(update, |op| {
                 op.id("UpdateChatSession")
                     .summary("Update a chat bot session")
-                    .response::<200, ()>() // TODO: adjust ragflow update functions so there is a
-                                           // json return type
+                    .response::<200, Json<ComhairleChatSession>>()
             }),
         )
         .api_route(
