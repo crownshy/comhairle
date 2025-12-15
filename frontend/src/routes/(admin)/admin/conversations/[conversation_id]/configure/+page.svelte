@@ -125,7 +125,6 @@
 		const field = translations.activeField;
 		const isPrimary = language === primaryLanguage;
 		
-		// Update form if primary content changed
 		if (isPrimary && field) {
 			if (field === 'title') {
 				$form.title = content;
