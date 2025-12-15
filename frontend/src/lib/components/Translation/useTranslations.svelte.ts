@@ -16,7 +16,6 @@ export interface TranslationEntry {
 	languageName: string;
 	status: TranslationStatus;
 	content: string;
-	lastSaved?: Date;
 }
 
 export interface TranslationField {
@@ -45,15 +44,26 @@ function deriveTranslationStatus(
 	return existing.requires_validation ? 'draft' : 'approved';
 }
 
+/**
+ * Creates a translation manager with parent-managed state.
+ * The dialog receives a working copy that the parent mutates.
+ * API calls are debounced and happen in the background.
+ */
 export function createTranslationManager(
 	getConversation: () => TranslatableConversation,
 	getFormValue?: (field: string) => string | undefined
 ) {
 	let modalOpen = $state(false);
 	let activeField = $state<string | null>(null);
-	let initialLanguage = $state<string | null>(null);
+	let activeLanguage = $state<string | null>(null);
+	let isTranslating = $state(false);
+	
+	let workingTranslations = $state<TranslationEntry[]>([]);
 
-	function transformToDialogFormat(field: string): TranslationEntry[] {
+	// Debounce timer for API saves
+	let saveDebounceTimeout: ReturnType<typeof setTimeout>;
+
+	function buildTranslationsFromServer(field: string): TranslationEntry[] {
 		const conversation = getConversation();
 		const fieldData = conversation.translations?.[field];
 		const primaryLocale = conversation.primary_locale ?? 'en';
@@ -64,60 +74,216 @@ export function createTranslationManager(
 			...supported.filter((l: string) => l !== primaryLocale)
 		];
 
-		const existingTranslations = new Map<string, NonNullable<TranslationField['text_translations']>[number]>();
+		const existingMap = new Map<string, NonNullable<TranslationField['text_translations']>[number]>();
 		if (fieldData?.text_translations) {
 			for (const tt of fieldData.text_translations) {
-				existingTranslations.set(tt.locale, tt);
+				existingMap.set(tt.locale, tt);
 			}
 		}
 
-		// Check if primary content has unsaved changes (for instant UI feedback)
-		const primaryExisting = existingTranslations.get(primaryLocale);
-		const currentFormValue = getFormValue?.(field);
-		const primaryHasUnsavedChanges = currentFormValue !== undefined && 
-			currentFormValue !== (primaryExisting?.content ?? '');
-
 		return sortedLanguages.map((locale: string) => {
-			const existing = existingTranslations.get(locale);
+			const existing = existingMap.get(locale);
 			const isPrimary = locale === primaryLocale;
 			
-			// For primary language, use current form value if available
 			const content = isPrimary && getFormValue 
 				? (getFormValue(field) ?? existing?.content ?? '')
 				: (existing?.content ?? '');
 			
-			// If primary has unsaved changes, show non-primary translations as draft immediately
-			let status = deriveTranslationStatus(isPrimary, existing);
-			if (!isPrimary && primaryHasUnsavedChanges && status === 'approved') {
-				status = 'draft';
-			}
-			
 			return {
 				language: locale,
 				languageName: getLanguageName(locale),
-				status,
-				content,
-				lastSaved: existing ? new Date(existing.updated_at) : undefined
+				status: deriveTranslationStatus(isPrimary, existing),
+				content
 			};
 		});
 	}
 
-	const activeTranslations = $derived(
-		activeField ? transformToDialogFormat(activeField) : []
-	);
-
-	const activeTextContentId = $derived(
-		activeField ? getConversation().translations?.[activeField]?.text_content.id : null
-	);
-
-	function getFieldTranslations(field: string): TranslationEntry[] {
-		return transformToDialogFormat(field).filter(t => t.status !== 'primary');
+	function getTextContentId(): string | null {
+		if (!activeField) return null;
+		return getConversation().translations?.[activeField]?.text_content.id ?? null;
 	}
 
-	/**
-	 * Get the content for a specific field in a specific locale.
-	 * Returns the translation content if it exists, otherwise returns undefined.
-	 */
+	function getPrimaryLocale(): string {
+		return getConversation().primary_locale ?? 'en';
+	}
+
+	// --- Dialog Actions ---
+
+	function openDialog(field: string, language?: string) {
+		activeField = field;
+		workingTranslations = buildTranslationsFromServer(field);
+		
+		// Set initial active language (first non-primary, or provided language)
+		if (language && workingTranslations.some(t => t.language === language)) {
+			activeLanguage = language;
+		} else {
+			const nonPrimary = workingTranslations.find(t => t.status !== 'primary');
+			activeLanguage = nonPrimary?.language ?? null;
+		}
+		
+		modalOpen = true;
+	}
+
+	function closeDialog() {
+		modalOpen = false;
+		activeField = null;
+		activeLanguage = null;
+		workingTranslations = [];
+	}
+
+	function setActiveLanguage(language: string) {
+		const primaryLang = workingTranslations.find(t => t.status === 'primary')?.language;
+		if (language !== primaryLang) {
+			activeLanguage = language;
+		}
+	}
+
+	// --- Content & Status Updates ---
+
+	function updateContent(language: string, content: string) {
+		const idx = workingTranslations.findIndex(t => t.language === language);
+		if (idx === -1) return;
+
+		const translation = workingTranslations[idx];
+		const isPrimary = translation.status === 'primary';
+		
+		// Update local working copy immediately
+		workingTranslations[idx] = {
+			...translation,
+			content,
+			status: isPrimary ? 'primary' : 'draft'
+		};
+
+		// If primary changed, mark all non-primary as draft
+		if (isPrimary) {
+			workingTranslations = workingTranslations.map(t => 
+				t.status === 'primary' ? t : { ...t, status: 'draft' as TranslationStatus }
+			);
+		}
+
+		// Debounced save to API
+		debouncedSave(language, content, isPrimary ? 'primary' : 'draft');
+	}
+
+	function updateStatus(language: string, status: TranslationStatus) {
+		const idx = workingTranslations.findIndex(t => t.language === language);
+		if (idx === -1) return;
+
+		const translation = workingTranslations[idx];
+		if (translation.status === 'primary') return; // Can't change primary status
+
+		// Update local working copy immediately
+		workingTranslations[idx] = { ...translation, status };
+
+		// Save to API immediately (no debounce for status changes)
+		saveToApi(language, translation.content, status);
+	}
+
+	function debouncedSave(language: string, content: string, status: TranslationStatus) {
+		clearTimeout(saveDebounceTimeout);
+		saveDebounceTimeout = setTimeout(() => {
+			saveToApi(language, content, status);
+		}, 500);
+	}
+
+	async function saveToApi(language: string, content: string, status: TranslationStatus) {
+		const textContentId = getTextContentId();
+		if (!textContentId) return;
+
+		try {
+			await apiClient.CreateOrUpdateTextTranslation(
+				{
+					content,
+					ai_generated: false,
+					requires_validation: status === 'draft'
+				},
+				{
+					params: {
+						text_content_id: textContentId,
+						locale: language
+					}
+				}
+			);
+
+			// If primary changed, mark other translations as needing validation
+			if (language === getPrimaryLocale()) {
+				await markOtherTranslationsAsDraft(textContentId, language);
+			}
+
+			// Refresh server data so parent UI updates
+			await invalidateAll();
+		} catch (e) {
+			console.error('Failed to save translation:', e);
+			notifications.send({ message: 'Failed to save translation', priority: 'ERROR' });
+		}
+	}
+
+	async function markOtherTranslationsAsDraft(textContentId: string, primaryLocale: string) {
+		const otherTranslations = workingTranslations.filter(
+			t => t.language !== primaryLocale && t.content
+		);
+
+		await Promise.all(
+			otherTranslations.map(t => 
+				apiClient.CreateOrUpdateTextTranslation(
+					{
+						content: t.content,
+						ai_generated: false,
+						requires_validation: true
+					},
+					{
+						params: {
+							text_content_id: textContentId,
+							locale: t.language
+						}
+					}
+				)
+			)
+		);
+	}
+
+	// --- AI Translation ---
+
+	async function handleAiTranslate() {
+		if (!activeLanguage || isTranslating) return;
+
+		const primaryTranslation = workingTranslations.find(t => t.status === 'primary');
+		if (!primaryTranslation?.content) return;
+
+		isTranslating = true;
+		try {
+			const response = await fetch('/api/translate', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					source: primaryTranslation.language,
+					target: activeLanguage,
+					content: primaryTranslation.content
+				})
+			});
+
+			if (!response.ok) throw new Error('Translation failed');
+
+			const { translatedContent } = await response.json();
+			
+			// Update the working copy with translated content
+			updateContent(activeLanguage, translatedContent);
+			
+			notifications.send({ message: 'Translation completed', priority: 'INFO' });
+		} catch (error) {
+			console.error('AI translation failed:', error);
+			notifications.send({ message: 'AI translation failed', priority: 'ERROR' });
+		} finally {
+			isTranslating = false;
+		}
+	}
+
+	// --- Utilities for parent component ---
+
+	function getFieldTranslations(field: string): TranslationEntry[] {
+		return buildTranslationsFromServer(field).filter(t => t.status !== 'primary');
+	}
+
 	function getFieldContentForLocale(field: string, locale: string): string | undefined {
 		const conversation = getConversation();
 		const fieldData = conversation.translations?.[field];
@@ -129,7 +295,6 @@ export function createTranslationManager(
 
 	let primaryContentDebounce: ReturnType<typeof setTimeout>;
 
-	// NOTE: This function is debounced (1s). If the user types and refreshes quickly, changes may be lost.
 	function handlePrimaryContentChange(field: string) {
 		clearTimeout(primaryContentDebounce);
 		primaryContentDebounce = setTimeout(async () => {
@@ -140,12 +305,10 @@ export function createTranslationManager(
 			
 			if (!textContentId) return;
 
-			// Get the current primary content from the form
 			const primaryContent = getFormValue?.(field);
 			if (primaryContent === undefined) return;
 
 			try {
-				// Save the primary content
 				await apiClient.CreateOrUpdateTextTranslation(
 					{
 						content: primaryContent,
@@ -160,7 +323,6 @@ export function createTranslationManager(
 					}
 				);
 
-				// Mark other approved translations as needing validation
 				if (fieldData?.text_translations) {
 					const translationsToUpdate = fieldData.text_translations.filter(
 						tt => tt.locale !== primaryLocale && !tt.requires_validation
@@ -192,137 +354,26 @@ export function createTranslationManager(
 		}, 1000);
 	}
 
-	async function openDialog(field: string, language?: string) {
-		activeField = field;
-		initialLanguage = language ?? null;
-		await invalidateAll();
-		modalOpen = true;
-	}
-
-	async function closeDialog() {
-		modalOpen = false;
-		activeField = null;
-		await invalidateAll();
-	}
-
-	let updateDebounceTimeout: ReturnType<typeof setTimeout>;
-
-	function handleUpdate(language: string, content: string, status: TranslationStatus) {
-		if (!activeTextContentId) return;
-		
-		const conversation = getConversation();
-		const isPrimary = language === conversation.primary_locale;
-
-		clearTimeout(updateDebounceTimeout);
-		updateDebounceTimeout = setTimeout(async () => {
-			try {
-				await apiClient.CreateOrUpdateTextTranslation(
-					{
-						content,
-						ai_generated: false,
-						requires_validation: status !== 'approved' && status !== 'primary'
-					},
-					{
-						params: {
-							text_content_id: activeTextContentId,
-							locale: language
-						}
-					}
-				);
-				await invalidateAll();
-				
-				// If primary content changed, mark other translations as needing validation
-				if (isPrimary && activeField) {
-					handlePrimaryContentChange(activeField);
-				}
-			} catch (e) {
-				console.error('Update failed:', e);
-			}
-		}, 500);
-	}
-
-	async function handleLanguageToggle(
-		language: string, 
-		enabled: boolean,
-		currentSupported: string[],
-		onUpdate: (newSupported: string[]) => void
-	) {
-		const conversation = getConversation();
-		const newSupported = enabled 
-			? [...currentSupported, language]
-			: currentSupported.filter(l => l !== language);
-		
-		onUpdate(newSupported);
-		
-		try {
-			await apiClient.UpdateConversation(
-				{ supported_languages: newSupported },
-				{ params: { conversation_id: conversation.id } }
-			);
-			notifications.send({ 
-				message: enabled ? `Added ${language}` : `Removed ${language}`, 
-				priority: 'INFO' 
-			});
-		} catch (e) {
-			notifications.send({ message: 'Failed to update languages', priority: 'ERROR' });
-		}
-	}
-
-	async function handleAiTranslate(
-		sourceLanguage: string, 
-		targetLanguage: string
-	): Promise<string> {
-		try {
-			const sourceTranslation = activeTranslations.find(t => t.language === sourceLanguage);
-			
-			if (!sourceTranslation) {
-				throw new Error('Source translation not found');
-			}
-
-			const response = await fetch('/api/translate', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					source: sourceLanguage,
-					target: targetLanguage,
-					content: sourceTranslation.content
-				})
-			});
-			
-			if (!response.ok) {
-				throw new Error('Translation failed');
-			}
-			
-			const { translatedContent } = await response.json();
-			
-			notifications.send({ 
-				message: 'Translation completed', 
-				priority: 'INFO' 
-			});
-			
-			return translatedContent;
-		} catch (error) {
-			notifications.send({ 
-				message: 'AI translation failed', 
-				priority: 'ERROR' 
-			});
-			throw error;
-		}
-	}
-
 	return {
+		// Dialog state (reactive)
 		get modalOpen() { return modalOpen; },
 		set modalOpen(v: boolean) { modalOpen = v; },
 		get activeField() { return activeField; },
-		get activeTranslations() { return activeTranslations; },
-		get initialLanguage() { return initialLanguage; },
-		getFieldTranslations,
-		getFieldContentForLocale,
+		get activeLanguage() { return activeLanguage; },
+		get isTranslating() { return isTranslating; },
+		get workingTranslations() { return workingTranslations; },
+
+		// Dialog actions
 		openDialog,
 		closeDialog,
-		handleUpdate,
-		handleLanguageToggle,
+		setActiveLanguage,
+		updateContent,
+		updateStatus,
 		handleAiTranslate,
+
+		// Utilities for form fields
+		getFieldTranslations,
+		getFieldContentForLocale,
 		handlePrimaryContentChange
 	};
 }

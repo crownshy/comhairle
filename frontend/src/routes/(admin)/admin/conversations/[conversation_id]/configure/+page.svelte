@@ -121,22 +121,18 @@
 		}
 	}
 
-	function handleTranslationUpdate(language: string, content: string, status: string) {
+	function handleContentChange(language: string, content: string) {
 		const field = translations.activeField;
 		const isPrimary = language === primaryLanguage;
 		
+		// Update form if primary language changed
 		if (isPrimary && field) {
-			if (field === 'title') {
-				$form.title = content;
-			} else if (field === 'short_description') {
-				$form.short_description = content;
-			} else if (field === 'description') {
-				$form.description = content;
-			}
+			if (field === 'title') $form.title = content;
+			else if (field === 'short_description') $form.short_description = content;
+			else if (field === 'description') $form.description = content;
 		}
 		
-		// Delegate to translation manager for API call
-		translations.handleUpdate(language, content, status as any);
+		translations.updateContent(language, content);
 	}
 
 </script>
@@ -149,11 +145,14 @@
 
 <TranslationDialog
 	bind:open={translations.modalOpen}
-	translations={translations.activeTranslations}
-	initialLanguage={translations.initialLanguage}
-	onUpdate={handleTranslationUpdate}
-	onAiTranslate={translations.handleAiTranslate}
+	translations={translations.workingTranslations}
+	activeLanguage={translations.activeLanguage}
+	isTranslating={translations.isTranslating}
 	onClose={translations.closeDialog}
+	onContentChange={handleContentChange}
+	onStatusChange={translations.updateStatus}
+	onActiveLanguageChange={translations.setActiveLanguage}
+	onAiTranslate={translations.handleAiTranslate}
 />
 
 <form 
