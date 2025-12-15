@@ -4,7 +4,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { X, Sparkles, Check, MoreHorizontal } from 'lucide-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import type { TranslationEntry, TranslationStatus } from './useTranslations.svelte';
+	import { statusToBadgeVariant, type TranslationEntry, type TranslationStatus } from './useTranslations.svelte';
 
 	interface Props {
 		open?: boolean;
@@ -99,11 +99,6 @@
 		}
 	}
 
-	const statusToBadgeVariant = {
-		primary: 'outline',
-		draft: 'secondary',
-		approved: 'default'
-	} as const;
 </script>
 
 <Dialog.Root bind:open>

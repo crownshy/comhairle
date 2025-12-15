@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Check } from 'lucide-svelte';
 	import { Badge } from '$lib/components/ui/badge';
+	import { statusToBadgeVariant } from './useTranslations.svelte';
 
 	interface Props {
 		language: string;
@@ -10,12 +11,6 @@
 	}
 
 	let { language, languageName, status, onclick }: Props = $props();
-
-	const statusToBadgeVariant = {
-		draft: 'secondary',
-		approved: 'default',
-		primary: 'outline'
-	} as const;
 </script>
 
 <button 

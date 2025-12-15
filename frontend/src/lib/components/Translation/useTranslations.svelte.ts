@@ -5,6 +5,12 @@ import { getLanguageName } from '$lib/config/languages';
 
 export type TranslationStatus = 'primary' | 'draft' | 'approved';
 
+export const statusToBadgeVariant = {
+	primary: 'outline',
+	draft: 'secondary',
+	approved: 'default'
+} as const;
+
 export interface TranslationEntry {
 	language: string;
 	languageName: string;
