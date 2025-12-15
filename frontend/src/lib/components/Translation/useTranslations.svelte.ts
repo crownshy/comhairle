@@ -65,6 +65,12 @@ export function createTranslationManager(
 			}
 		}
 
+		// Check if primary content has unsaved changes (for instant UI feedback)
+		const primaryExisting = existingTranslations.get(primaryLocale);
+		const currentFormValue = getFormValue?.(field);
+		const primaryHasUnsavedChanges = currentFormValue !== undefined && 
+			currentFormValue !== (primaryExisting?.content ?? '');
+
 		return sortedLanguages.map((locale: string) => {
 			const existing = existingTranslations.get(locale);
 			const isPrimary = locale === primaryLocale;
@@ -74,10 +80,16 @@ export function createTranslationManager(
 				? (getFormValue(field) ?? existing?.content ?? '')
 				: (existing?.content ?? '');
 			
+			// If primary has unsaved changes, show non-primary translations as draft immediately
+			let status = deriveTranslationStatus(isPrimary, existing);
+			if (!isPrimary && primaryHasUnsavedChanges && status === 'approved') {
+				status = 'draft';
+			}
+			
 			return {
 				language: locale,
 				languageName: getLanguageName(locale),
-				status: deriveTranslationStatus(isPrimary, existing),
+				status,
 				content,
 				lastSaved: existing ? new Date(existing.updated_at) : undefined
 			};
