@@ -5,18 +5,13 @@
 	import { X, Sparkles, Check, MoreHorizontal } from 'lucide-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import type { TranslationEntry, TranslationStatus } from './useTranslations.svelte';
-	
-	// Extend TranslationEntry with dialog-specific fields
-	interface DialogTranslation extends TranslationEntry {
-		isAutoSaved?: boolean;
-	}
 
 	interface Props {
 		open?: boolean;
-		translations?: DialogTranslation[];
+		translations?: TranslationEntry[];
 		initialLanguage?: string | null;
 		onClose?: () => void;
-		onSave?: (translations: DialogTranslation[]) => void;
+		onSave?: (translations: TranslationEntry[]) => void;
 		onAutoSave?: (language: string, content: string, status: TranslationStatus) => void;
 		onAiTranslate?: (sourceLanguage: string, targetLanguage: string) => Promise<string>;
 		onLanguageToggle?: (language: string, enabled: boolean) => void;
@@ -35,9 +30,10 @@
 		onPrimaryContentChange
 	}: Props = $props();
 	
-	let translations = $state<DialogTranslation[]>([...propTranslations]);
+	let translations = $state<TranslationEntry[]>([...propTranslations]);
 	let activeLanguage = $state<string | null>(null);
 	let isTranslating = $state(false);
+	let hasEdited = $state(false);
 	let debounceTimeout: ReturnType<typeof setTimeout>;
 	let previousOpen = false;
 
@@ -82,6 +78,7 @@
 	function setActiveLanguage(language: string | null) {
 		if (!language || primaryTranslation?.language === language) return;
 		activeLanguage = language;
+		hasEdited = false;
 	}
 	
 	function updateContent(language: string | null, content: string) {
@@ -95,9 +92,9 @@
 				...translations[index],
 				content,
 				status: newStatus,
-				lastSaved: new Date(),
-				isAutoSaved: true
+				lastSaved: new Date()
 			};
+			hasEdited = true;
 
 			if (isPrimary) {
 				translations = translations.map(t => 
@@ -281,7 +278,7 @@
 							      {activeTranslation.languageName}
 							    </div>
 							    
-							    {#if activeTranslation.isAutoSaved}
+							    {#if hasEdited}
 							      <div class="h-7 flex justify-center items-center gap-1 overflow-hidden">
 							        <div class="w-4 h-4 flex justify-center items-center gap-2.5">
 							          <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
