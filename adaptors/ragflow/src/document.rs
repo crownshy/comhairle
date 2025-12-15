@@ -143,7 +143,7 @@ pub struct UploadFile {
     pub bytes: Vec<u8>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
 pub struct UpdateDocument {
     pub name: Option<String>,
     pub chunk_method: Option<ChunkMethod>,
