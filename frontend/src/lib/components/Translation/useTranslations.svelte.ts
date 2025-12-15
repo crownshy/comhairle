@@ -194,6 +194,7 @@ export function createTranslationManager(
 	}
 
 	async function closeDialog() {
+		modalOpen = false;
 		activeField = null;
 		await invalidateAll();
 	}
