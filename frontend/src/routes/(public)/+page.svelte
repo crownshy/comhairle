@@ -52,10 +52,4 @@
 			<Button size="lg" href="/conversations">{m.explore_conversations()}</Button>
 		</div>
 	</div>
-
-	<div class="w-full">
-		<div class="mx-auto max-w-4xl px-6">
-			<ChatbotWrapper />
-		</div>
-	</div>
 </div>
