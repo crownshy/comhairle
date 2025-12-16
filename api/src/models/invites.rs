@@ -1,3 +1,4 @@
+use crate::bot_service::ComhairleBotService;
 use crate::error::ComhairleError;
 use chrono::{DateTime, Utc};
 use comhairle_macros::{DbJsonBEnum, DbStringEnum};
@@ -328,16 +329,20 @@ pub async fn get_stats_for_invite(
 
 #[cfg(test)]
 mod tests {
-    use crate::models::{
-        conversation::{self, CreateConversation, PartialConversation},
-        users,
-        workflow::{self, CreateWorkflow},
+    use crate::{
+        bot_service::{ComhairleBotService, MockComhairleBotService},
+        models::{
+            conversation::{self, CreateConversation, PartialConversation},
+            users,
+            workflow::{self, CreateWorkflow},
+        },
+        test_helpers::test_config,
     };
 
     use super::*;
     use fake::{Fake, Faker};
     use sqlx::PgPool;
-    use std::error::Error;
+    use std::{error::Error, sync::Arc};
 
     #[test]
     fn invite_check_for_user_should_be_case_insensitive() -> Result<(), Box<dyn Error>> {
@@ -380,8 +385,14 @@ mod tests {
         let user3 = users::create_user(&Faker.fake(), &db).await?;
         let user4 = users::create_user(&Faker.fake(), &db).await?;
 
+        let bot_service = MockComhairleBotService::base();
+        let bot_service: Arc<dyn ComhairleBotService> = Arc::new(bot_service);
+        let config = test_config().unwrap();
+
         let conversation = conversation::create(
             &db,
+            &bot_service,
+            &config,
             &CreateConversation {
                 is_public: true,
                 is_invite_only: true,

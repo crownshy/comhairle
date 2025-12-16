@@ -330,14 +330,16 @@ impl MockComhairleBotService {
         bot_service
             .expect_delete_chat_sessions()
             .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
-        bot_service.expect_converse_with_chat().returning(|_, _| {
-            Box::pin(async move {
-                let stream: Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send>> =
-                    Box::pin(futures::stream::empty());
+        bot_service
+            .expect_converse_with_chat()
+            .returning(|_, _, _| {
+                Box::pin(async move {
+                    let stream: Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send>> =
+                        Box::pin(futures::stream::empty());
 
-                Ok(stream)
-            })
-        });
+                    Ok(stream)
+                })
+            });
 
         bot_service
     }

@@ -92,4 +92,5 @@ jobs:
           CARGO_HOME: ~/.cargo
           BOT_SERVICE_HOST: ${{ secrets.BOT_SERVICE_HOST }}
           BOT_SERVICE_API_KEY: ${{ secrets.BOT_SERVICE_API_KEY }}
+          DEFAULT_KNOWLEDGE_BASE_ID: ${{ secrets.DEFAULT_KNOWLEDGE_BASE_ID }}
         run: cargo test --verbose
