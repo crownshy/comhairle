@@ -372,13 +372,15 @@ impl ComhairleBotService for ComhairleRagBotService {
 
     async fn converse_with_chat(
         &self,
+        session_id: &str,
         chat_id: &str,
         body: ChatConversationRequest,
     ) -> Result<
         Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
         ComhairleError,
     > {
-        let body: ConvoQuestion = body.into();
+        let mut body: ConvoQuestion = body.into();
+        body.session_id = Some(session_id.to_string());
 
         let stream =
             ragflow::chat::session::stream_chat_conversation(&self.client, chat_id, body).await?;
@@ -603,7 +605,7 @@ impl From<ChatConversationRequest> for ConvoQuestion {
     fn from(input: ChatConversationRequest) -> Self {
         Self {
             question: input.question,
-            session_id: input.session_id,
+            session_id: None,
             user_id: input.user_id,
             stream: Some(true),
         }
