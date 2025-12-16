@@ -24,8 +24,7 @@ use crate::{
             PartialConversation,
         },
         conversation_email_notification_recipients::{
-            self as email_recipients_model, ConversationEmailNotificationRecipients,
-            CreateConversationEmailNotificationRecipients,
+            self as email_recipients_model, CreateConversationEmailNotificationRecipients,
         },
         notification::{self as notification_model, CreateNotification, NotificationContextType},
         notification_delivery::{
@@ -46,7 +45,14 @@ async fn create_conversation(
     Json(new_conversations): Json<CreateConversation>,
 ) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
     info!("Attempting to create conversation");
-    let conversation = conversation::create(&state.db, &new_conversations, user.id).await?;
+    let conversation = conversation::create(
+        &state.db,
+        &state.bot_service,
+        &state.config,
+        &new_conversations,
+        user.id,
+    )
+    .await?;
     Ok((StatusCode::CREATED, Json(conversation)))
 }
 

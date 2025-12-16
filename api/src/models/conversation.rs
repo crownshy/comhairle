@@ -1,10 +1,15 @@
+use std::sync::Arc;
+
 use super::{
     pagination::{Order, PageOptions, PaginatedResults},
     translations::{new_translation, TextContentId, TextFormat},
     user_participation::UserParticipationIden,
     workflow::WorkflowIden,
 };
-use crate::error::ComhairleError;
+use crate::{
+    bot_service::ComhairleBotService, config::ComhairleConfig, error::ComhairleError,
+    routes::bot::chats::CreateChatRequest,
+};
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
 use partially::Partial;
@@ -43,8 +48,9 @@ pub struct Conversation {
     #[partially(transparent)]
     pub default_workflow_id: Option<Uuid>,
     pub primary_locale: String,
-    pub knowledge_base_id: Option<Uuid>,
-    pub chat_bot_id: Option<Uuid>,
+    pub knowledge_base_id: Option<String>,
+    pub chat_bot_id: Option<String>,
+    pub enable_qa_chat_bot: bool,
     pub supported_languages: Vec<String>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
@@ -52,7 +58,7 @@ pub struct Conversation {
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ConversationIden; 17] = [
+const DEFAULT_COLUMNS: [ConversationIden; 20] = [
     ConversationIden::Id,
     ConversationIden::Title,
     ConversationIden::ShortDescription,
@@ -66,6 +72,9 @@ const DEFAULT_COLUMNS: [ConversationIden; 17] = [
     ConversationIden::Slug,
     ConversationIden::DefaultWorkflowId,
     ConversationIden::PrimaryLocale,
+    ConversationIden::KnowledgeBaseId,
+    ConversationIden::ChatBotId,
+    ConversationIden::EnableQaChatBot,
     ConversationIden::SupportedLanguages,
     ConversationIden::CreatedAt,
     ConversationIden::UpdatedAt,
@@ -449,6 +458,7 @@ pub struct CreateConversation {
     pub default_workflow_id: Option<Uuid>,
     pub primary_locale: String,
     pub supported_languages: Vec<String>,
+    pub enable_qa_chat_bot: Option<bool>,
 }
 
 impl CreateConversation {
@@ -480,6 +490,8 @@ impl CreateConversation {
 
 pub async fn create(
     db: &PgPool,
+    bot_service: &Arc<dyn ComhairleBotService>,
+    config: &ComhairleConfig,
     conversation: &CreateConversation,
     owner_id: Uuid,
 ) -> Result<Conversation, ComhairleError> {
@@ -510,8 +522,31 @@ pub async fn create(
     )
     .await?;
 
+    let (_, knowledge_base) = bot_service
+        .create_knowledge_base(conversation.title.clone(), None)
+        .await?;
+
+    let create_chat = CreateChatRequest {
+        name: conversation.title.clone(),
+        knowledge_base_ids: Some(vec![config.default_knowledge_base_id.clone()]),
+        ..Default::default()
+    };
+
+    let (_, chat) = bot_service.create_chat(create_chat).await?;
+
     let mut columns = conversation.columns();
     let mut values = conversation.values();
+
+    columns.push(ConversationIden::KnowledgeBaseId);
+    values.push(knowledge_base.id.into());
+
+    columns.push(ConversationIden::ChatBotId);
+    values.push(chat.id.into());
+
+    if let Some(enable_qa_chat_bot) = conversation.enable_qa_chat_bot {
+        columns.push(ConversationIden::EnableQaChatBot);
+        values.push(enable_qa_chat_bot.into());
+    }
 
     columns.push(ConversationIden::Title);
     values.push(title.id.into());

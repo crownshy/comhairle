@@ -40,7 +40,7 @@ pub async fn list(
     Ok((status, json.data))
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct CreateChat {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -52,12 +52,12 @@ pub struct CreateChat {
     pub prompt: Option<Prompt>,
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Llm {
     pub model_name: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Prompt {
     pub opener: Option<String>,
     pub empty_response: Option<String>,
@@ -111,7 +111,7 @@ pub struct GetChatResponse {
     pub data: Vec<Chat>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Variable {
     key: String,
     optional: bool,

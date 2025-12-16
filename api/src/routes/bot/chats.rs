@@ -40,7 +40,7 @@ async fn list(
     Ok((StatusCode::OK, Json(chats)))
 }
 
-#[derive(Deserialize, Debug, JsonSchema)]
+#[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct CreateChatRequest {
     pub name: String,
     pub knowledge_base_ids: Option<Vec<String>>,
