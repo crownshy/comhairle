@@ -5,34 +5,8 @@
 		Sparkles
 	} from 'lucide-svelte';
 	import { ChatClient } from '$lib/api/chatClient.svelte';
-
-	interface ChatMessage {
-		id: string;
-		content: string;
-		isBot: boolean;
-		timestamp: Date;
-	}
-
-	interface InitialQuestion {
-		id: string;
-		text: string;
-		variant?: 'default' | 'primary';
-	}
-
-	interface ChatBotProps {
-		chatId?: string;
-		knowledgeBaseIds?: string[];
-		title?: string;
-		subtitle?: string;
-		botName?: string;
-		botSubtitle?: string;
-		messages?: ChatMessage[];
-		placeholder?: string;
-		initialQuestions?: InitialQuestion[];
-		showInitialQuestions?: boolean;
-		onSendMessage?: (message: string) => void;
-		onQuestionClick?: (question: string) => void;
-	}
+	import MessageWithReferences from '$lib/components/Chatbot/MessageWithReferences.svelte';
+	import type { ChatMessage, InitialQuestion, ChatBotProps } from './types';
 
 	let {
 		chatId,
@@ -64,7 +38,6 @@
 	let inputValue = $state("");
 	let chatContainer: HTMLDivElement;
 	let chatMessages = $state([...initialMessages]);
-	let isTyping = $state(false);
 	let hasStartedConversation = $state(false);
 	let selectedQuestionId = $state<string | null>(null);
 	let chatError = $state<string | null>(null);
@@ -74,7 +47,6 @@
 	let client = $state<ChatClient | null>(null);
 	let initialized = false;
 
-	// Initialize chat and session
 	$effect(() => {
 		if (initialized) return;
 		initialized = true;
@@ -82,28 +54,11 @@
 		async function init() {
 			try {
 				isInitializing = true;
-				
-				// Create chat if no chatId provided
+
 				if (!actualChatId) {
-					const response = await fetch('/api/bot/chats', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						credentials: 'include',
-						body: JSON.stringify({
-							name: `Chat ${Date.now()}`,
-							knowledge_base_ids: knowledgeBaseIds.length > 0 ? knowledgeBaseIds : undefined
-						})
-					});
-
-					if (!response.ok) {
-						throw new Error('Failed to create chat');
-					}
-
-					const chat = await response.json();
-					actualChatId = chat.id;
+					return;
 				}
 
-				// Create client and session
 				client = new ChatClient(actualChatId);
 				await client.createSession(`session-${Date.now()}`);
 				
@@ -129,15 +84,19 @@
 		}
 	}
 
+	// Auto-scroll when streaming content updates
+	$effect(() => {
+		if (client?.isStreaming && client?.currentAnswer) {
+			scrollToBottom();
+		}
+	});
+
 	async function addBotResponse(userMessage: string) {
 		if (!client) return;
 		
-		isTyping = true;
 		scrollToBottom();
 		
 		await client.send(userMessage);
-		
-		isTyping = false;
 		
 		if (client.error) {
 			chatError = client.error;
@@ -147,7 +106,8 @@
 				id: `bot-${Date.now()}`,
 				content: client.currentAnswer,
 				isBot: true,
-				timestamp: new Date()
+				timestamp: new Date(),
+				reference: client.currentReference
 			};
 			chatMessages = [...chatMessages, botResponse];
 		}
@@ -207,14 +167,14 @@
 	}
 </script>
 
-    <!-- DEBUGGING: Remove later - Error Message -->
+    <!-- DEBUGGING: Remove later? -->
     {#if chatError}
         <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
             <p class="text-sm text-red-600">{chatError}</p>
         </div>
     {/if}
 
-    <!-- DEBUGGING: Remove later - Initializing Message -->
+    <!-- DEBUGGING: Remove later? -->
     {#if isInitializing}
         <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p class="text-sm text-blue-600">Setting up chat...</p>
@@ -224,7 +184,7 @@
 <div class="bg-cs-blue-100 max-w-xxxl rounded-2xl shadow-md border border-cs-grey-200 p-6 mx-auto">
     <!-- Header -->
     <div class="text-center mb-6">
-        <p class="text-xs text-cs-grey-500 mb-2">12/23/23</p>
+        <p class="text-xs text-cs-grey-500 mb-2">{new Date().toISOString().slice(0, 10).replace(/-/g, '.')}</p>
     </div>
 
 
@@ -240,7 +200,9 @@
                                 {#if index < 1}
                                     <Sparkles class="w-4 h-4 text-cs-blue-600 mt-0.5 flex-shrink-0" />
                                 {/if}
-                                <p class="text-cs-grey-900 text-sm">{message.content}</p>
+                                <span class="text-cs-grey-900 text-sm">
+										<MessageWithReferences content={message.content} reference={message.reference} />
+									</span>
                             </div>
 							
                             <!-- Quick Reply Buttons -->
@@ -273,14 +235,25 @@
             </div>
         {/each}
         
-        <!-- Typing Indicator -->
-        {#if isTyping}
+        <!-- Streaming Response -->
+        {#if client?.isStreaming}
             <div>
-                <div class="bg-cs-grey-100 rounded-[16px] px-4 py-3 inline-block">
-                    <div class="flex items-center gap-1">
-                        <div class="w-2 h-2 bg-cs-blue-400 rounded-full animate-bounce"></div>
-                        <div class="w-2 h-2 bg-cs-blue-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-                        <div class="w-2 h-2 bg-cs-blue-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                <div class="bg-white rounded-br-[16px] w-fit max-w-xxl rounded-tl-[16px] rounded-tr-[16px] px-3 py-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)]">
+                    <div class="flex items-start gap-2">
+                        <span class="text-cs-grey-900 text-sm">
+                            {#if client.currentAnswer}
+                                <MessageWithReferences content={client.currentAnswer} reference={client.currentReference} />
+                            {:else}
+                                <span class="flex items-center gap-1">
+                                    <span class="w-2 h-2 bg-cs-blue-400 rounded-full animate-bounce"></span>
+                                    <span class="w-2 h-2 bg-cs-blue-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
+                                    <span class="w-2 h-2 bg-cs-blue-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+                                </span>
+                            {/if}
+                        </span>
+                        {#if client.currentAnswer}
+                            <span class="inline-block w-1.5 h-4 bg-cs-blue-600 animate-pulse ml-0.5"></span>
+                        {/if}
                     </div>
                 </div>
             </div>
@@ -289,7 +262,7 @@
 
     <!-- Input Area -->
 	 <div class="flex items-center gap-2">
-		<div class="flex-1 flex items-center gap-2 h-12 px-4 py-2 bg-cs-grey-50 rounded-[12px] border border-cs-grey-200">
+		<div class="flex-1 flex items-center gap-2 h-12 py-2 bg-cs-grey-50 rounded-[12px] border border-cs-grey-200">
 			<input
 				bind:value={inputValue}
 				onkeypress={handleKeyPress}
@@ -309,7 +282,7 @@
 		 <button
             onclick={sendMessage}
             class="p-2.5 bg-cs-blue-800 text-white rounded-full hover:bg-cs-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!inputValue.trim() || isInitializing}
+            disabled={!inputValue.trim() || isInitializing || client?.isStreaming}
             aria-label="Send message"
         >
             <Send class="w-5 h-5" />
