@@ -54,12 +54,12 @@
 			{#if chunk}
 				<HoverCard.Root openDelay={200} closeDelay={100}>
 					<HoverCard.Trigger class="inline-flex items-center">
-						<span class="inline-flex items-center justify-center w-4 h-4 text-[10px] font-medium text-cs-blue-600 bg-cs-blue-100 rounded-full cursor-pointer hover:bg-cs-blue-200 transition-colors mx-0.5">
+						<span class="inline-flex items-center justify-center w-4 h-4 text-[10px] font-medium text-chat-primary bg-chat-primary-lighter rounded-full cursor-pointer hover:bg-chat-primary-light transition-colors mx-0.5">
 							<Info class="w-3 h-3" />
 						</span>
 					</HoverCard.Trigger>
 					<HoverCard.Content 
-						class="w-96 max-h-96 overflow-y-auto p-0 bg-white border border-cs-grey-200 shadow-lg rounded-lg"
+						class="w-96 max-h-96 overflow-y-auto p-0 bg-white border border-chat-border shadow-lg rounded-lg"
 						side="top"
 						sideOffset={8}
 					>
@@ -67,7 +67,7 @@
 					</HoverCard.Content>
 				</HoverCard.Root>
 			{:else}
-				<span class="inline-flex items-center justify-center w-4 h-4 text-[10px] font-medium text-cs-grey-400 bg-cs-grey-100 rounded-full mx-0.5">
+				<span class="inline-flex items-center justify-center w-4 h-4 text-[10px] font-medium text-chat-text-muted bg-chat-bg rounded-full mx-0.5">
 					{parseInt(part.value) + 1}
 				</span>
 			{/if}

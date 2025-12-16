@@ -1,6 +1,5 @@
 @import 'tailwindcss';
 @import "tw-animate-css";
-@import "./lib/styles/design-tokens.css";
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
@@ -44,6 +43,10 @@ html,body{
   --radius: 0.5rem;
   --font-sans: "Inter"; 
   --font-serif: "Inter";
+  
+  /* Chat widget colors - easy to theme */
+  --chat-primary: #2978D1;
+  --chat-neutral: #6B7280;
 }
 
 .comhairle{
@@ -236,52 +239,21 @@ html,body{
   --color-brand-secondary: var(--color-brand-secondary);
 
   /* ==========================================================================
-     CS_Blue Palette - Use as: bg-cs-blue-500, text-cs-blue-700, etc.
+     Chat Widget Colors - Derived from --chat-primary and --chat-neutral
+     Use as: bg-chat-primary, text-chat-muted, border-chat-border, etc.
      ========================================================================== */
-  --color-cs-blue-50: var(--cs-blue-50);
-  --color-cs-blue-100: var(--cs-blue-100);
-  --color-cs-blue-200: var(--cs-blue-200);
-  --color-cs-blue-300: var(--cs-blue-300);
-  --color-cs-blue-400: var(--cs-blue-400);
-  --color-cs-blue-500: var(--cs-blue-500);
-  --color-cs-blue-600: var(--cs-blue-600);
-  --color-cs-blue-700: var(--cs-blue-700);
-  --color-cs-blue-800: var(--cs-blue-800);
-  --color-cs-blue-900: var(--cs-blue-900);
-  --color-cs-blue-950: var(--cs-blue-950);
-
-  /* ==========================================================================
-     CS_Grey Palette - Use as: bg-cs-grey-500, text-cs-grey-700, etc.
-     ========================================================================== */
-  --color-cs-grey-50: var(--cs-grey-50);
-  --color-cs-grey-100: var(--cs-grey-100);
-  --color-cs-grey-200: var(--cs-grey-200);
-  --color-cs-grey-300: var(--cs-grey-300);
-  --color-cs-grey-400: var(--cs-grey-400);
-  --color-cs-grey-500: var(--cs-grey-500);
-  --color-cs-grey-600: var(--cs-grey-600);
-  --color-cs-grey-700: var(--cs-grey-700);
-  --color-cs-grey-800: var(--cs-grey-800);
-  --color-cs-grey-900: var(--cs-grey-900);
-  --color-cs-grey-950: var(--cs-grey-950);
-
-  /* ==========================================================================
-     Material Theme Colors - Use as: bg-material-primary, etc.
-     ========================================================================== */
-  --color-material-primary: var(--material-primary-light);
-  --color-material-secondary: var(--material-secondary-light);
-  --color-material-tertiary: var(--material-tertiary-light);
-  --color-material-error: var(--material-error-light);
-  --color-material-surface: var(--material-surface-light);
-
-  /* ==========================================================================
-     Chart Colors - Use as: bg-chart-1, stroke-chart-2, etc.
-     ========================================================================== */
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
+  --color-chat-primary: var(--chat-primary);
+  --color-chat-primary-light: color-mix(in oklch, var(--chat-primary), white 70%);
+  --color-chat-primary-lighter: color-mix(in oklch, var(--chat-primary), white 85%);
+  --color-chat-primary-dark: color-mix(in oklch, var(--chat-primary), black 20%);
+  --color-chat-primary-darker: color-mix(in oklch, var(--chat-primary), black 40%);
+  
+  --color-chat-neutral: var(--chat-neutral);
+  --color-chat-muted: color-mix(in oklch, var(--chat-neutral), white 40%);
+  --color-chat-border: color-mix(in oklch, var(--chat-neutral), white 70%);
+  --color-chat-bg: color-mix(in oklch, var(--chat-neutral), white 92%);
+  --color-chat-text: color-mix(in oklch, var(--chat-neutral), black 40%);
+  --color-chat-text-muted: var(--chat-neutral);
 }
  
 @layer base {
