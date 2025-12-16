@@ -172,22 +172,24 @@
 	}
 </script>
 
-    <!-- DEBUGGING: Remove later? -->
-    {#if chatError}
-        <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p class="text-sm text-red-600">{chatError}</p>
-        </div>
-    {/if}  
+<!-- DEBUGGING: Remove later? -->
+{#if chatError}
+	<div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+		<p class="text-sm text-red-600">{chatError}</p>
+	</div>
+{/if}  
 
 <div class="bg-chat-primary-lighter max-w-xxxl p-6 mx-auto h-full flex flex-col">
     <!-- Header -->
-    <div class="text-center mb-4 flex-shrink-0">
-        <p class="text-xs text-chat-text-muted">{new Date().toISOString().slice(0, 10).replace(/-/g, '.')}</p>
-    </div>
+ 
 
 
 		<!-- Chat Messages -->
 		<ScrollArea.Root class="flex-1 min-h-0 mb-4">
+			<div class="text-center mb-4 flex-shrink-0">
+				<p class="text-xs text-chat-text-muted">{new Date().toISOString().slice(0, 10).replace(/-/g, '.')}</p>
+			</div>
+			
 			<div bind:this={chatContainer} class="space-y-4 pr-4">
 				{#each chatMessages as message, index (message.id)}
 					<div class="{message.isBot ? '' : 'flex justify-end'}">
