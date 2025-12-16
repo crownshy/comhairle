@@ -43,9 +43,12 @@ pub async fn list(
 #[derive(Serialize, Deserialize, Default)]
 pub struct CreateChat {
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub avatar: Option<String>,
     pub dataset_ids: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub llm: Option<Llm>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt: Option<Prompt>,
 }
 

@@ -43,6 +43,8 @@ pub struct Conversation {
     #[partially(transparent)]
     pub default_workflow_id: Option<Uuid>,
     pub primary_locale: String,
+    pub knowledge_base_id: Option<Uuid>,
+    pub chat_bot_id: Option<Uuid>,
     pub supported_languages: Vec<String>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
