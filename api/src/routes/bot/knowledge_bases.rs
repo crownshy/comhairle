@@ -9,11 +9,13 @@ use axum::{
     http::StatusCode,
 };
 use schemars::JsonSchema;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::{
-    bot_service::ComhairleKnowledgeBase, error::ComhairleError, routes::bot::GetQueryParams,
+    bot_service::ComhairleKnowledgeBase,
+    error::ComhairleError,
+    routes::{auth::RequiredAdminUser, bot::GetQueryParams},
     ComhairleState,
 };
 
@@ -21,6 +23,7 @@ use crate::{
 async fn list(
     State(state): State<Arc<ComhairleState>>,
     Query(params): Query<GetQueryParams>,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<Vec<ComhairleKnowledgeBase>>), ComhairleError> {
     let (_, knowledge_bases) = state.bot_service.list_knowledge_bases(Some(params)).await?;
 
@@ -31,6 +34,7 @@ async fn list(
 async fn get(
     State(state): State<Arc<ComhairleState>>,
     Path(knowledge_base_id): Path<String>,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<ComhairleKnowledgeBase>), ComhairleError> {
     let (_, knowledge_base) = state
         .bot_service
@@ -40,7 +44,7 @@ async fn get(
     Ok((StatusCode::OK, Json(knowledge_base)))
 }
 
-#[derive(Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 struct CreateKnowledgeBaseRequest {
     name: String,
 }
@@ -48,6 +52,7 @@ struct CreateKnowledgeBaseRequest {
 #[instrument(err(Debug), skip(state))]
 async fn create(
     State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(_user): RequiredAdminUser,
     Json(payload): Json<CreateKnowledgeBaseRequest>,
 ) -> Result<(StatusCode, Json<ComhairleKnowledgeBase>), ComhairleError> {
     let (_, knowledge_base) = state
@@ -67,6 +72,7 @@ pub struct UpdateKnowledgeBaseRequest {
 async fn update(
     State(state): State<Arc<ComhairleState>>,
     Path(knowledge_base_id): Path<String>,
+    RequiredAdminUser(_user): RequiredAdminUser,
     Json(payload): Json<UpdateKnowledgeBaseRequest>,
 ) -> Result<(StatusCode, Json<ComhairleKnowledgeBase>), ComhairleError> {
     let (_, knowledge_base) = state
@@ -81,6 +87,7 @@ async fn update(
 async fn delete(
     State(state): State<Arc<ComhairleState>>,
     Path(knowledge_base_id): Path<String>,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<StatusCode, ComhairleError> {
     let _ = state
         .bot_service
@@ -133,4 +140,150 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bot_service::MockComhairleBotService;
+    use crate::{
+        setup_server,
+        test_helpers::{test_state, UserSession},
+    };
+    use std::error::Error;
+    use std::sync::Arc;
+
+    use axum::body::Body;
+    use mockall::predicate::eq;
+    use sqlx::PgPool;
+
+    #[sqlx::test]
+    async fn should_return_knowledge_base_list(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let knowledge_base = ComhairleKnowledgeBase {
+            name: "test_knowledge_base".to_string(),
+            ..Default::default()
+        };
+        let params = GetQueryParams {
+            page: Some(2),
+            ..Default::default()
+        };
+
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_list_knowledge_bases()
+            .once()
+            .with(eq(Some(params)))
+            .returning(move |_| {
+                Box::pin({
+                    let knowledge_base = knowledge_base.clone();
+                    async move { Ok((StatusCode::OK, vec![knowledge_base.clone()])) }
+                })
+            });
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+        let (status, value, _) = admin_session
+            .get(&app, "/bot/knowledge_bases?page=2")
+            .await?;
+        let json: Vec<ComhairleKnowledgeBase> = serde_json::from_value(value)?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(
+            json[0].name,
+            "test_knowledge_base".to_string(),
+            "incorrect json response"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_return_single_knowledge_base(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let knowledge_base = ComhairleKnowledgeBase {
+            name: "test_knowledge_base".to_string(),
+            ..Default::default()
+        };
+
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_get_knowledge_base()
+            .once()
+            .with(eq("123"))
+            .returning(move |_| {
+                Box::pin({
+                    let knowledge_base = knowledge_base.clone();
+                    async move { Ok((StatusCode::OK, knowledge_base.clone())) }
+                })
+            });
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+        let (status, response, _) = admin_session.get(&app, "/bot/knowledge_bases/123").await?;
+        let json: ComhairleKnowledgeBase = serde_json::from_value(response)?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(
+            json.name,
+            "test_knowledge_base".to_string(),
+            "incorrect json response"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_create_and_return_a_knowledgebase(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let knowledge_base = ComhairleKnowledgeBase {
+            name: "test_knowledge_base".to_string(),
+            ..Default::default()
+        };
+
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_create_knowledge_base()
+            .once()
+            .returning(move |_, _| {
+                let knowledge_base = knowledge_base.clone();
+                Box::pin(async move { Ok((StatusCode::OK, knowledge_base.clone())) })
+            });
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        let create_request = CreateKnowledgeBaseRequest {
+            name: "test_knowledge_base".to_string(),
+        };
+        let bytes = serde_json::to_vec(&create_request)?;
+        let body = Body::from(bytes);
+        let (status, response, _) = admin_session
+            .post(&app, "/bot/knowledge_bases", body)
+            .await?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(
+            response.get("name").and_then(|v| v.as_str()).unwrap(),
+            "test_knowledge_base",
+            "incorrect json response"
+        );
+
+        Ok(())
+    }
 }

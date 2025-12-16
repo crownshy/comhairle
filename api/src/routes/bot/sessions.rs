@@ -101,19 +101,18 @@ async fn delete(
 #[derive(Deserialize, Debug, JsonSchema)]
 pub struct ChatConversationRequest {
     pub question: String,
-    pub session_id: Option<String>,
     pub user_id: Option<String>,
 }
 
 #[instrument(err(Debug), skip(state))]
 async fn converse_with_chat(
     State(state): State<Arc<ComhairleState>>,
-    Path(chat_id): Path<String>,
+    Path((chat_id, session_id)): Path<(String, String)>,
     Json(payload): Json<ChatConversationRequest>,
 ) -> Result<impl IntoResponse, ComhairleError> {
     let stream = state
         .bot_service
-        .converse_with_chat(&chat_id, payload)
+        .converse_with_chat(&session_id, &chat_id, payload)
         .await?;
 
     Ok(Body::from_stream(stream))

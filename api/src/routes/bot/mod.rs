@@ -11,7 +11,7 @@ pub mod documents;
 pub mod knowledge_bases;
 pub mod sessions;
 
-#[derive(Deserialize, Debug, JsonSchema)]
+#[derive(Deserialize, Debug, JsonSchema, Default, PartialEq)]
 pub struct GetQueryParams {
     pub page: Option<i32>,
     pub page_size: Option<i32>,

@@ -153,6 +153,7 @@ pub trait ComhairleBotService: Send + Sync {
 
     async fn converse_with_chat(
         &self,
+        session_id: &str,
         chat_id: &str,
         body: ChatConversationRequest,
     ) -> Result<
@@ -161,7 +162,7 @@ pub trait ComhairleBotService: Send + Sync {
     >;
 }
 
-#[derive(Serialize, JsonSchema, Default, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone)]
 pub struct ComhairleKnowledgeBase {
     pub id: String,
     pub name: String,
