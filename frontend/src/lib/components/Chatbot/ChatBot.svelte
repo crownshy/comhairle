@@ -181,7 +181,7 @@
         </div>
     {/if}
 
-<div class="bg-cs-blue-100 max-w-xxxl rounded-2xl shadow-md border border-cs-grey-200 p-6 mx-auto">
+<div class="bg-cs-blue-100 max-w-xxxl p-6 mx-auto">
     <!-- Header -->
     <div class="text-center mb-6">
         <p class="text-xs text-cs-grey-500 mb-2">{new Date().toISOString().slice(0, 10).replace(/-/g, '.')}</p>
