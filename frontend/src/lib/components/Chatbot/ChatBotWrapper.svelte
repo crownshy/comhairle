@@ -1,8 +1,10 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import ChatBot from '$lib/components/ChatBot.svelte';
+	import ChatBot from '$lib/components/Chatbot/ChatBot.svelte'
 
+	// do you think it's a good idea to have this wrapper?
+	
 	function handleSendMessage(message: string) {
 		console.log('Message sent from:', message);
 	}
@@ -19,14 +21,12 @@
 	];
 </script>
 
-	<!-- Hardcoded knowledge base ID for now -->
-	<ChatBot 
-		title="Demo Chat"
-		subtitle="Ask questions and explore different perspectives on topics that matter to you."
-		placeholder="Type your message here..."
-		initialQuestions={wrapperQuestions}
-		showInitialQuestions={true}
-		onSendMessage={handleSendMessage}
-		onQuestionClick={handleQuestionClick}
-		knowledgeBaseIds={["21372960d1dc11f095fbceda8b23386f"]}
-	/>
+<ChatBot 
+	title="Demo Chat"
+	subtitle="Ask questions and explore different perspectives on topics that matter to you."
+	placeholder="Type your message here..."
+	initialQuestions={wrapperQuestions}
+	showInitialQuestions={true}
+	onSendMessage={handleSendMessage}
+	onQuestionClick={handleQuestionClick}
+/>

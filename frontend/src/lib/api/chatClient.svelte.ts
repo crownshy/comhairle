@@ -6,8 +6,30 @@ export interface ChatSession {
 	name?: string;
 }
 
+export interface ReferenceChunk {
+	id: string;
+	content: string;
+	document_id: string;
+	document_name: string;
+	dataset_id: string;
+	image_id?: string;
+	positions?: number[][];
+	url?: string | null;
+	similarity?: number;
+	vector_similarity?: number;
+	term_similarity?: number;
+	doc_type?: string[];
+}
+
+export interface ChatReference {
+	total: number;
+	chunks: ReferenceChunk[];
+	doc_aggs?: { doc_name: string; doc_id: string; count: number }[];
+}
+
 export class ChatClient {
 	currentAnswer = $state('');
+	currentReference = $state<ChatReference | null>(null);
 	error = $state<string | null>(null);
 	isStreaming = $state(false);
 	session = $state<ChatSession | null>(null);
@@ -59,20 +81,20 @@ export class ChatClient {
 		this.abort();
 		this.isStreaming = true;
 		this.currentAnswer = '';
+		this.currentReference = null;
 		this.error = null;
 		this.abortController = new AbortController();
 
 		try {
 			const response = await fetch(
-				`${this.baseUrl}/bot/chats/${this.chatId}/sessions/converse`,
+				`${this.baseUrl}/bot/chats/${this.chatId}/sessions/${this.session.id}`,
 				{
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					credentials: 'include',
 					body: JSON.stringify({
 						question,
-						session_id: this.session.id,
-						stream: true // Backend expects this
+						stream: true
 					}),
 					signal: this.abortController.signal
 				}
@@ -115,10 +137,14 @@ export class ChatClient {
 						try {
 							const jsonStr = line.replace('data:', '').trim();
 							const json = JSON.parse(jsonStr);
-							
+							console.log(json);
+
 							// Update with the answer from the stream
 							if (json.data?.answer) {
 								this.currentAnswer = json.data.answer;
+							}
+							if (json.data?.reference) {
+								this.currentReference = json.data.reference;
 							}
 						} catch (e) {
 							console.warn('Failed to parse SSE chunk:', line);
@@ -135,6 +161,9 @@ export class ChatClient {
 						const json = JSON.parse(jsonStr);
 						if (json.data?.answer) {
 							this.currentAnswer = json.data.answer;
+						}
+						if (json.data?.reference) {
+							this.currentReference = json.data.reference;
 						}
 					} catch (e) {
 						console.warn('Failed to parse final chunk');
@@ -162,6 +191,7 @@ export class ChatClient {
 	reset() {
 		this.abort();
 		this.currentAnswer = '';
+		this.currentReference = null;
 		this.error = null;
 		this.session = null;
 	}
