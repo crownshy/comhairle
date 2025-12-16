@@ -3,7 +3,7 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import ChatBot from '$lib/components/Chatbot/ChatBot.svelte'
 
-	// do you think it's a good idea to have this wrapper?
+	// This is an example of how we can call this
 	
 	function handleSendMessage(message: string) {
 		console.log('Message sent from:', message);
