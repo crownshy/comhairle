@@ -4,6 +4,7 @@
 		Mic,
 		Sparkles
 	} from 'lucide-svelte';
+	import { ChatClient } from '$lib/api/chatClient.svelte';
 
 	interface ChatMessage {
 		id: string;
@@ -19,6 +20,8 @@
 	}
 
 	interface ChatBotProps {
+		chatId?: string;
+		knowledgeBaseIds?: string[];
 		title?: string;
 		subtitle?: string;
 		botName?: string;
@@ -32,6 +35,8 @@
 	}
 
 	let {
+		chatId,
+		knowledgeBaseIds = [],
 		title = "Chat with Bot",
 		subtitle = "Try answer some questions from Comhairle and explore your views.",
 		botName = "Tutor bot",
@@ -39,13 +44,7 @@
 		messages: initialMessages = [
 			{
 				id: "1",
-				content: "Hi, you can ask me anything.",
-				isBot: true,
-				timestamp: new Date()
-			},
-			{
-				id: "2",
-				content: "I suggest you some names you can ask me..",
+				content: "I am here to help you explore your understanding to this bot. You can...",
 				isBot: true,
 				timestamp: new Date()
 			}
@@ -67,23 +66,60 @@
 	let chatMessages = $state([...initialMessages]);
 	let isTyping = $state(false);
 	let hasStartedConversation = $state(false);
+	let selectedQuestionId = $state<string | null>(null);
+	let chatError = $state<string | null>(null);
+	let isInitializing = $state(true);
+	
+	let actualChatId = $state(chatId);
+	let client = $state<ChatClient | null>(null);
+	let initialized = false;
 
-	const mockResponses = [
-		"That's a really interesting perspective! Can you tell me more about what led you to that view?",
-		"I appreciate you sharing that. How do you think others might see this differently?",
-		"That's a thoughtful point. What experiences have shaped your thinking on this?",
-		"Thanks for that insight. What aspects of this topic do you find most important?",
-		"I can see why you'd think that way. What questions do you still have about this?",
-		"That's a valuable contribution to our discussion. How might this affect different communities?",
-		"Your perspective adds depth to this conversation. What would you like to explore further?",
-		"I find that fascinating. What do you think would happen if we approached this differently?",
-		"Thank you for being so open. What hopes do you have regarding this topic?",
-		"That's worth considering. How do you think we could address the challenges you've mentioned?"
-	];
+	// Initialize chat and session
+	$effect(() => {
+		if (initialized) return;
+		initialized = true;
+		
+		async function init() {
+			try {
+				isInitializing = true;
+				
+				// Create chat if no chatId provided
+				if (!actualChatId) {
+					const response = await fetch('/api/bot/chats', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						credentials: 'include',
+						body: JSON.stringify({
+							name: `Chat ${Date.now()}`,
+							knowledge_base_ids: knowledgeBaseIds.length > 0 ? knowledgeBaseIds : undefined
+						})
+					});
 
-	function getRandomResponse(): string {
-		return mockResponses[Math.floor(Math.random() * mockResponses.length)];
-	}
+					if (!response.ok) {
+						throw new Error('Failed to create chat');
+					}
+
+					const chat = await response.json();
+					actualChatId = chat.id;
+				}
+
+				// Create client and session
+				client = new ChatClient(actualChatId);
+				await client.createSession(`session-${Date.now()}`);
+				
+				if (client.error) {
+					chatError = client.error;
+				}
+			} catch (e) {
+				chatError = e instanceof Error ? e.message : 'Failed to initialize chat';
+				console.error('Chat initialization error:', e);
+			} finally {
+				isInitializing = false;
+			}
+		}
+		
+		init();
+	});
 
 	function scrollToBottom() {
 		if (chatContainer) {
@@ -93,26 +129,36 @@
 		}
 	}
 
-	function addBotResponse(userMessage: string) {
+	async function addBotResponse(userMessage: string) {
+		if (!client) return;
+		
 		isTyping = true;
 		scrollToBottom();
 		
-		// Simulate bot typing delay; will be removed
-		setTimeout(() => {
+		await client.send(userMessage);
+		
+		isTyping = false;
+		
+		if (client.error) {
+			chatError = client.error;
+			console.error('Chat error:', client.error);
+		} else if (client.currentAnswer) {
 			const botResponse: ChatMessage = {
 				id: `bot-${Date.now()}`,
-				content: getRandomResponse(),
+				content: client.currentAnswer,
 				isBot: true,
 				timestamp: new Date()
 			};
-			
 			chatMessages = [...chatMessages, botResponse];
-			isTyping = false;
-			scrollToBottom();
-		}, 1000 + Math.random() * 2000); // Random delay between 1-3 seconds
+		}
+		
+		scrollToBottom();
 	}
 
 	function handleQuestionClick(question: InitialQuestion) {
+		if (!client || isInitializing) return;
+		
+		selectedQuestionId = question.id;
 		hasStartedConversation = true;
 		
 		const userMessage: ChatMessage = {
@@ -131,26 +177,26 @@
 	}
 
 	function sendMessage() {
-		if (inputValue.trim()) {
-			hasStartedConversation = true;
-			
-			const userMessage: ChatMessage = {
-				id: `user-${Date.now()}`,
-				content: inputValue.trim(),
-				isBot: false,
-				timestamp: new Date()
-			};
-			
-			chatMessages = [...chatMessages, userMessage];
-			
-			onSendMessage(inputValue.trim());
-			
-			const messageToRespond = inputValue.trim();
-			inputValue = "";
-			
-			scrollToBottom();
-			addBotResponse(messageToRespond);
-		}
+		if (!client || isInitializing || !inputValue.trim()) return;
+		
+		hasStartedConversation = true;
+		
+		const userMessage: ChatMessage = {
+			id: `user-${Date.now()}`,
+			content: inputValue.trim(),
+			isBot: false,
+			timestamp: new Date()
+		};
+		
+		chatMessages = [...chatMessages, userMessage];
+		
+		onSendMessage(inputValue.trim());
+		
+		const messageToRespond = inputValue.trim();
+		inputValue = "";
+		
+		scrollToBottom();
+		addBotResponse(messageToRespond);
 	}
 
 	function handleKeyPress(event: KeyboardEvent) {
@@ -161,65 +207,69 @@
 	}
 </script>
 
+    <!-- DEBUGGING: Remove later - Error Message -->
+    {#if chatError}
+        <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p class="text-sm text-red-600">{chatError}</p>
+        </div>
+    {/if}
 
-<div class="bg-cs-blue-100 rounded-2xl shadow-md border border-cs-grey-200 p-6 max-w-lg mx-auto">
+    <!-- DEBUGGING: Remove later - Initializing Message -->
+    {#if isInitializing}
+        <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p class="text-sm text-blue-600">Setting up chat...</p>
+        </div>
+    {/if}
+
+<div class="bg-cs-blue-100 max-w-xxxl rounded-2xl shadow-md border border-cs-grey-200 p-6 mx-auto">
     <!-- Header -->
-    <div class=" text-center mb-6">
-        <p class="text-xs text-cs-grey-500 mb-2">Deep dive</p>
-        <h2 class="text-2xl font-semibold text-cs-grey-900">{title}</h2>
+    <div class="text-center mb-6">
+        <p class="text-xs text-cs-grey-500 mb-2">12/23/23</p>
     </div>
 
-    <!-- Bot Info Card -->
-    <div class="bg red-pink-500 flex items-center gap-3 mb-6 p-4 bg-cs-grey-50 rounded-xl">
-        <div class="w-10 h-10 bg-cs-blue-800 rounded-full flex items-center justify-center flex-shrink-0">
-            <Sparkles class="w-5 h-5 text-white" />
-        </div>
-        <div>
-            <p class="font-semibold text-cs-grey-900">{botName}</p>
-            <p class="text-sm text-cs-blue-600">{botSubtitle}</p>
-        </div>
-    </div>
 
     <!-- Chat Messages -->
     <div bind:this={chatContainer} class="space-y-4 mb-6 max-h-96 overflow-y-auto pr-2">
         {#each chatMessages as message, index (message.id)}
             <div class="{message.isBot ? '' : 'flex justify-end'}">
                 <!-- Message Content -->
-                <div class="inline-block {message.isBot ? 'bg-white' : 'bg-cs-blue-800'} rounded-[16px] px-4 py-3 max-w-sm">
+                <div class="{message.isBot ? 'bg-white rounded-br-[16px]' : 'bg-cs-blue-800 rounded-bl-[16px]'} w-fit max-w-xxl rounded-tl-[16px] rounded-tr-[16px] px-3 py-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)]">
                     {#if message.isBot}
-                        <div class="flex items-start gap-2 ">
-                            {#if index < 2}
-                                <Sparkles class="w-4 h-4 text-cs-blue-600 mt-0.5 flex-shrink-0" />
-                            {/if}
-                            <p class="text-cs-grey-900 text-sm">{message.content}</p>
+                        <div>
+                            <div class="flex items-start gap-2">
+                                {#if index < 1}
+                                    <Sparkles class="w-4 h-4 text-cs-blue-600 mt-0.5 flex-shrink-0" />
+                                {/if}
+                                <p class="text-cs-grey-900 text-sm">{message.content}</p>
+                            </div>
 							
-							<!-- Quick Reply Buttons - Show after second bot message -->
-							  {#if message.isBot && showInitialQuestions && initialQuestions.length > 0 && !hasStartedConversation && index === chatMessages.length - 1}
-								<div class="mt-3">
-									<div class="flex flex-wrap gap-2 max-w-sm">
-										{#each initialQuestions as question (question.id)}
-											<button
-												onclick={() => handleQuestionClick(question)}
-												class="{question.variant === 'primary' 
-													? 'bg-cs-blue-800 text-white hover:bg-cs-blue-700 border-cs-blue-800' 
-													: 'bg-white text-cs-grey-900 hover:bg-cs-grey-50 border-cs-grey-300'
-												} px-4 py-2 rounded-full text-xs font-medium transition-colors border"
-											>
-												{question.text}
-											</button>
-										{/each}
-									</div>
-								</div>
-							{/if}
-
-
+                            <!-- Quick Reply Buttons -->
+                            {#if showInitialQuestions && initialQuestions.length > 0 && index === 0}
+                                <div class="self-stretch inline-flex flex-col justify-start items-start gap-3 mt-3">
+                                    {#each initialQuestions as question (question.id)}
+                                        <button
+                                            onclick={() => handleQuestionClick(question)}
+                                            disabled={isInitializing}
+                                            class="{selectedQuestionId === question.id 
+                                                ? 'bg-cs-blue-600 outline-cs-blue-600' 
+                                                : 'bg-white outline-cs-blue-300'
+                                            } px-2.5 py-1.5 rounded-2xl outline outline-1 outline-offset-[-0.5px] flex flex-col justify-start items-start gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <div class="inline-flex justify-start items-start gap-2.5">
+                                                <span class="{selectedQuestionId === question.id 
+                                                    ? 'text-white' 
+                                                    : 'text-cs-blue-600'
+                                                } text-xs font-normal leading-4">{question.text}</span>
+                                            </div>
+                                        </button>
+                                    {/each}
+                                </div>
+                            {/if}
                         </div>
                     {:else}
                         <p class="text-white text-sm">{message.content}</p>
                     {/if}
                 </div>
-                
-              
             </div>
         {/each}
         
@@ -238,28 +288,33 @@
     </div>
 
     <!-- Input Area -->
-    <div class="flex items-center gap-2 p-2 bg-cs-grey-50 rounded-full border border-cs-grey-200">
-        <input
-            bind:value={inputValue}
-            onkeypress={handleKeyPress}
-            type="text"
-            placeholder={placeholder}
-            class="flex-1 px-4 py-2 bg-transparent text-sm text-cs-grey-900 placeholder:text-cs-grey-400 outline-none"
-        />
-        <button
-            class="p-2.5 text-cs-grey-400 hover:text-cs-grey-600 transition-colors"
-            aria-label="Voice input"
-        >
-            <Mic class="w-5 h-5" />
-        </button>
-        <button
+	 <div class="flex items-center gap-2">
+		<div class="flex-1 flex items-center gap-2 h-12 px-4 py-2 bg-cs-grey-50 rounded-[12px] border border-cs-grey-200">
+			<input
+				bind:value={inputValue}
+				onkeypress={handleKeyPress}
+				type="text"
+				placeholder={placeholder}
+				disabled={isInitializing}
+				class="flex-1 px-4 py-2 bg-transparent text-sm text-cs-grey-900 placeholder:text-cs-grey-400 outline-none disabled:opacity-50"
+			/>
+			<button
+				class="p-2.5 text-cs-grey-400 hover:text-cs-grey-600 transition-colors disabled:opacity-50"
+				disabled={isInitializing}
+				aria-label="Voice input"
+			>
+				<Mic class="w-5 h-5" />
+			</button>
+		</div>
+		 <button
             onclick={sendMessage}
             class="p-2.5 bg-cs-blue-800 text-white rounded-full hover:bg-cs-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!inputValue.trim()}
+            disabled={!inputValue.trim() || isInitializing}
             aria-label="Send message"
         >
             <Send class="w-5 h-5" />
         </button>
-    </div>
-</div>
+		</div>
 
+
+</div>

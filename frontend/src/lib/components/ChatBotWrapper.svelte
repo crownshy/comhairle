@@ -19,7 +19,7 @@
 	];
 </script>
 
-
+	<!-- Hardcoded knowledge base ID for now -->
 	<ChatBot 
 		title="Demo Chat"
 		subtitle="Ask questions and explore different perspectives on topics that matter to you."
@@ -28,4 +28,5 @@
 		showInitialQuestions={true}
 		onSendMessage={handleSendMessage}
 		onQuestionClick={handleQuestionClick}
+		knowledgeBaseIds={["21372960d1dc11f095fbceda8b23386f"]}
 	/>
