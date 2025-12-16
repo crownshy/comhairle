@@ -8,4 +8,6 @@
 
 {@render children()}
 
-<CollapsibleChat chatId={conversation?.chat_id} />
+<CollapsibleChat
+
+ />
