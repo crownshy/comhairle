@@ -1,4 +1,4 @@
-use crate::tools::polis::PolisError;
+use crate::{tools::polis::PolisError, translation_service::TranslationError};
 use aide::OperationIo;
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use heyform_sdk::HeyFormError;
@@ -22,6 +22,12 @@ pub enum ComhairleError {
 
     #[error("Polis error: {0}")]
     PolisError(#[from] PolisError),
+
+    #[error("Translation error: {0}")]
+    TranslationError(#[from] TranslationError),
+
+    #[error("No translation service configured")]
+    NoTranslationServiceConfigured,
 
     #[error("HeyForm error: {0}")]
     HeyFormError(#[from] HeyFormError),

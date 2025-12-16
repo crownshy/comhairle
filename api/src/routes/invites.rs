@@ -109,7 +109,6 @@ async fn create_invite(
         models::invites::InviteType::User(user_id) => {
             let user = models::users::get_user_by_id(&user_id, &state.db).await?;
             if let Some(email) = &user.email {
-                println!("Sending email");
                 state.mailer.send_email(
                 email,
                 "You have been invited to the conversation",
@@ -307,7 +306,6 @@ mod tests {
             )
             .await?;
 
-        println!("{invite:#?}");
 
         assert_eq!(status, StatusCode::CREATED, "should be created ok");
 
@@ -344,7 +342,6 @@ mod tests {
             )
             .await?;
 
-        println!("{invite:#?}");
 
         assert_eq!(status, StatusCode::UNAUTHORIZED, "should be blocked");
 
@@ -410,8 +407,6 @@ mod tests {
                 Body::empty(),
             )
             .await?;
-        println!("invite id {invite_id}");
-        println!("{accept_response:#?}");
 
         assert_eq!(status, StatusCode::OK, "Should be ok");
 

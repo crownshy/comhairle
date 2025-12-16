@@ -64,7 +64,7 @@ export const NotificationDelivery = z.object({ created_at: z.string().datetime({
 export type NotificationDelivery = z.infer<typeof NotificationDelivery>;
 export const TextFormat = z.union([z.literal("plain"), z.literal("markdown"), z.literal("rich")]);
 export type TextFormat = z.infer<typeof TextFormat>;
-export const CreateTextContentRequest = z.object({ format: TextFormat, primary_locale: z.string() }).passthrough();
+export const CreateTextContentRequest = z.object({ content: z.string(), format: TextFormat, primary_locale: z.string() }).passthrough();
 export type CreateTextContentRequest = z.infer<typeof CreateTextContentRequest>;
 export const TextContent = z.object({ created_at: z.string().datetime({ offset: true }), format: TextFormat, id: z.string().uuid(), primary_locale: z.string(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
 export type TextContent = z.infer<typeof TextContent>;
@@ -1057,6 +1057,22 @@ This struct contains optional fields that can be updated on a TextTranslation re
 		description: `Delete a translation for a specific locale`,
 		requestFormat: "json",
 		response: TextTranslation,
+	},
+	{
+		method: "post",
+		path: "/translations/:text_content_id/:locale/translate",
+		alias: "AutomaticallyGenerateTranslation",
+		description: `Use the primary_locale language and translate this language from it using the tarnslation service`,
+		requestFormat: "json",
+		response: TextTranslation,
+	},
+	{
+		method: "post",
+		path: "/translations/:text_content_id/translate",
+		alias: "GenerateAllTranslations",
+		description: `Use the default locale content as the reference text and generate automatic translations for each language form it`,
+		requestFormat: "json",
+		response: TextContentWithTranslations,
 	},
 	{
 		method: "get",
