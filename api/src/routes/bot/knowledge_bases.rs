@@ -63,7 +63,7 @@ async fn create(
     Ok((StatusCode::CREATED, Json(knowledge_base)))
 }
 
-#[derive(Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
 pub struct UpdateKnowledgeBaseRequest {
     pub name: Option<String>,
 }
@@ -283,6 +283,78 @@ mod tests {
             "test_knowledge_base",
             "incorrect json response"
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_update_and_return_knowledge_base(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let knowledge_base = ComhairleKnowledgeBase {
+            name: "test_knowledge_base".to_string(),
+            ..Default::default()
+        };
+
+        let update_request = UpdateKnowledgeBaseRequest {
+            name: Some("test_knowledge_base".to_string()),
+        };
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_update_knowledge_base()
+            .once()
+            .with(eq("123"), eq(update_request.clone()))
+            .returning(move |_, _| {
+                let knowledge_base = knowledge_base.clone();
+                Box::pin(async move { Ok((StatusCode::OK, knowledge_base.clone())) })
+            });
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        let bytes = serde_json::to_vec(&update_request)?;
+        let body = Body::from(bytes);
+        let (status, response, _) = admin_session
+            .put(&app, "/bot/knowledge_bases/123", body)
+            .await?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(
+            response.get("name").and_then(|v| v.as_str()).unwrap(),
+            "test_knowledge_base",
+            "incorrect json response"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_delete_knowledge_base(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_delete_knowledge_base()
+            .once()
+            .with(eq("123".to_string()))
+            .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        let (status, _, _) = admin_session
+            .delete(&app, "/bot/knowledge_bases/123")
+            .await?;
+
+        assert!(status.is_success(), "error response status");
 
         Ok(())
     }

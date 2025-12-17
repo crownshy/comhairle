@@ -10,11 +10,13 @@ use axum::{
     routing::post,
 };
 use schemars::JsonSchema;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::{
-    bot_service::ComhairleDocument, error::ComhairleError, routes::bot::GetQueryParams,
+    bot_service::ComhairleDocument,
+    error::ComhairleError,
+    routes::{auth::RequiredAdminUser, bot::GetQueryParams},
     ComhairleState,
 };
 
@@ -23,6 +25,7 @@ async fn list(
     State(state): State<Arc<ComhairleState>>,
     Path(knowledge_base_id): Path<String>,
     Query(params): Query<GetQueryParams>,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<Vec<ComhairleDocument>>), ComhairleError> {
     let (_, documents) = state
         .bot_service
@@ -36,6 +39,7 @@ async fn list(
 async fn get(
     State(state): State<Arc<ComhairleState>>,
     Path((knowledge_base_id, document_id)): Path<(String, String)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<ComhairleDocument>), ComhairleError> {
     let (_, document) = state
         .bot_service
@@ -45,7 +49,7 @@ async fn get(
     Ok((StatusCode::OK, Json(document)))
 }
 
-#[derive(Deserialize, JsonSchema, Debug)]
+#[derive(Deserialize, JsonSchema, Debug, PartialEq)]
 pub struct UploadFileRequest {
     pub filename: String,
     pub bytes: Vec<u8>,
@@ -55,6 +59,7 @@ pub struct UploadFileRequest {
 async fn upload(
     State(state): State<Arc<ComhairleState>>,
     Path(knowledge_base_id): Path<String>,
+    RequiredAdminUser(_user): RequiredAdminUser,
     mut form_data: Multipart,
 ) -> Result<StatusCode, ComhairleError> {
     let mut files: Vec<UploadFileRequest> = Vec::new();
@@ -78,7 +83,7 @@ async fn upload(
     Ok(StatusCode::CREATED)
 }
 
-#[derive(Deserialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq, Default)]
 pub struct UpdateDocumentRequest {
     pub name: Option<String>,
 }
@@ -87,6 +92,7 @@ pub struct UpdateDocumentRequest {
 async fn update(
     State(state): State<Arc<ComhairleState>>,
     Path((knowledge_base_id, document_id)): Path<(String, String)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
     Json(payload): Json<UpdateDocumentRequest>,
 ) -> Result<(StatusCode, Json<ComhairleDocument>), ComhairleError> {
     let (_, document) = state
@@ -101,6 +107,7 @@ async fn update(
 async fn delete(
     State(state): State<Arc<ComhairleState>>,
     Path((knowledge_base_id, document_id)): Path<(String, String)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<StatusCode, ComhairleError> {
     let _ = state
         .bot_service
@@ -154,4 +161,218 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bot_service::MockComhairleBotService;
+    use crate::{
+        setup_server,
+        test_helpers::{test_state, UserSession},
+    };
+    use std::error::Error;
+    use std::sync::Arc;
+
+    use axum::body::Body;
+    use mockall::predicate::{always, eq};
+    use sqlx::PgPool;
+
+    #[sqlx::test]
+    async fn should_return_document_list(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let document = ComhairleDocument {
+            id: "456".to_string(),
+            name: "test_document".to_string(),
+            ..Default::default()
+        };
+        let params = GetQueryParams {
+            page: Some(2),
+            ..Default::default()
+        };
+
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_list_documents()
+            .once()
+            .with(eq("123"), eq(Some(params)))
+            .returning(move |_, _| {
+                Box::pin({
+                    let document = document.clone();
+                    async move { Ok((StatusCode::OK, vec![document.clone()])) }
+                })
+            });
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+        let (status, value, _) = admin_session
+            .get(&app, "/bot/knowledge_bases/123/documents?page=2")
+            .await?;
+        let json: Vec<ComhairleDocument> = serde_json::from_value(value)?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(json[0].id, "456".to_string(), "incorrect json response");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_return_single_document(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let document = ComhairleDocument {
+            id: "456".to_string(),
+            name: "test_document".to_string(),
+            ..Default::default()
+        };
+
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_get_document()
+            .once()
+            .with(eq("456"), eq("123"))
+            .returning(move |_, _| {
+                Box::pin({
+                    let document = document.clone();
+                    async move { Ok((StatusCode::OK, document.clone())) }
+                })
+            });
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+        let (status, response, _) = admin_session
+            .get(&app, "/bot/knowledge_bases/123/documents/456")
+            .await?;
+        let json: ComhairleDocument = serde_json::from_value(response)?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(json.id, "456".to_string(), "incorrect json response");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_upload_a_document(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let upload_request = UploadFileRequest {
+            filename: "test.txt".to_string(),
+            bytes: b"test multipart".to_vec(),
+        };
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_upload_documents()
+            .once()
+            .with(eq("123"), eq(vec![upload_request]))
+            .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        let boundary = "test-boundary";
+        let body = format!(
+            "--{boundary}\r\n\
+            Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n\
+            Content-Type: text/plain\r\n\
+            \r\n\
+            test multipart\r\n\
+            --{boundary}--\r\n"
+        );
+        let body = Body::from(body);
+
+        let (status, _, _) = admin_session
+            .post_multipart(&app, "/bot/knowledge_bases/123/documents", boundary, body)
+            .await?;
+
+        assert!(status.is_success());
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_update_and_return_document(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let document = ComhairleDocument {
+            id: "456".to_string(),
+            name: "test_document".to_string(),
+            ..Default::default()
+        };
+
+        let update_request = UpdateDocumentRequest {
+            name: Some("test_document".to_string()),
+            ..Default::default()
+        };
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_update_document()
+            .once()
+            .with(eq("456"), eq("123"), eq(update_request.clone()))
+            .returning(move |_, _, _| {
+                let document = document.clone();
+                Box::pin(async move { Ok((StatusCode::OK, document.clone())) })
+            });
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        let bytes = serde_json::to_vec(&update_request)?;
+        let body = Body::from(bytes);
+        let (status, response, _) = admin_session
+            .put(&app, "/bot/knowledge_bases/123/documents/456", body)
+            .await?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(
+            response.get("name").and_then(|v| v.as_str()).unwrap(),
+            "test_document",
+            "incorrect json response"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_delete_document(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_delete_document()
+            .once()
+            .with(eq("456".to_string()), eq("123".to_string()))
+            .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        let (status, _, _) = admin_session
+            .delete(&app, "/bot/knowledge_bases/123/documents/456")
+            .await?;
+
+        assert!(status.is_success(), "error response status");
+
+        Ok(())
+    }
 }

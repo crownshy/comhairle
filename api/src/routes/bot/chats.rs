@@ -10,13 +10,13 @@ use axum::{
     Json,
 };
 use schemars::JsonSchema;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::{
     bot_service::{ComhairleChat, ComhairleLlm, ComhairlePrompt},
     error::ComhairleError,
-    routes::bot::GetQueryParams,
+    routes::{auth::RequiredAdminUser, bot::GetQueryParams},
     ComhairleState,
 };
 
@@ -24,6 +24,7 @@ use crate::{
 async fn get(
     State(state): State<Arc<ComhairleState>>,
     Path(chat_id): Path<String>,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<ComhairleChat>), ComhairleError> {
     let (_, chat) = state.bot_service.get_chat(&chat_id).await?;
 
@@ -34,13 +35,14 @@ async fn get(
 async fn list(
     State(state): State<Arc<ComhairleState>>,
     Query(params): Query<GetQueryParams>,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<Vec<ComhairleChat>>), ComhairleError> {
     let (_, chats) = state.bot_service.list_chats(Some(params)).await?;
 
     Ok((StatusCode::OK, Json(chats)))
 }
 
-#[derive(Deserialize, Debug, JsonSchema, Default)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Default)]
 pub struct CreateChatRequest {
     pub name: String,
     pub knowledge_base_ids: Option<Vec<String>>,
@@ -51,6 +53,7 @@ pub struct CreateChatRequest {
 #[instrument(err(Debug), skip(state))]
 async fn create(
     State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(_user): RequiredAdminUser,
     Json(payload): Json<CreateChatRequest>,
 ) -> Result<(StatusCode, Json<ComhairleChat>), ComhairleError> {
     let (_, chat) = state.bot_service.create_chat(payload).await?;
@@ -58,7 +61,7 @@ async fn create(
     Ok((StatusCode::CREATED, Json(chat)))
 }
 
-#[derive(Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Default, Clone, PartialEq)]
 pub struct UpdateChatRequest {
     pub name: Option<String>,
     pub knowledge_base_ids: Option<Vec<String>>,
@@ -70,6 +73,7 @@ pub struct UpdateChatRequest {
 async fn update(
     State(state): State<Arc<ComhairleState>>,
     Path(chat_id): Path<String>,
+    RequiredAdminUser(_user): RequiredAdminUser,
     Json(payload): Json<UpdateChatRequest>,
 ) -> Result<(StatusCode, Json<ComhairleChat>), ComhairleError> {
     let (_, chat) = state.bot_service.update_chat(&chat_id, payload).await?;
@@ -81,6 +85,7 @@ async fn update(
 async fn delete(
     State(state): State<Arc<ComhairleState>>,
     Path(chat_id): Path<String>,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<StatusCode, ComhairleError> {
     let _ = state.bot_service.delete_chat(&chat_id).await?;
 
@@ -130,4 +135,212 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::error::Error;
+    use std::sync::Arc;
+
+    use axum::body::Body;
+    use mockall::predicate::eq;
+    use sqlx::PgPool;
+
+    use crate::bot_service::MockComhairleBotService;
+    use crate::{
+        setup_server,
+        test_helpers::{test_state, UserSession},
+    };
+
+    #[sqlx::test]
+    async fn should_get_list_of_chats(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let chat = ComhairleChat {
+            name: "test_chat".to_string(),
+            ..Default::default()
+        };
+        let params = GetQueryParams {
+            page: Some(2),
+            ..Default::default()
+        };
+
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_list_chats()
+            .once()
+            .with(eq(Some(params)))
+            .returning(move |_| {
+                let chat = chat.clone();
+                Box::pin(async move { Ok((StatusCode::OK, vec![chat.clone()])) })
+            });
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+        let (status, response, _) = admin_session.get(&app, "/bot/chats?page=2").await?;
+        let json: Vec<ComhairleChat> = serde_json::from_value(response)?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(
+            json[0].name,
+            "test_chat".to_string(),
+            "incorrect json response"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_return_single_chat(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let chat = ComhairleChat {
+            name: "test_chat".to_string(),
+            ..Default::default()
+        };
+
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_get_chat()
+            .once()
+            .with(eq("123"))
+            .returning(move |_| {
+                Box::pin({
+                    let chat = chat.clone();
+                    async move { Ok((StatusCode::OK, chat.clone())) }
+                })
+            });
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+        let (status, response, _) = admin_session.get(&app, "/bot/chats/123").await?;
+        let json: ComhairleChat = serde_json::from_value(response)?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(
+            json.name,
+            "test_chat".to_string(),
+            "incorrect json response"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_create_and_return_a_chat(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let chat = ComhairleChat {
+            name: "test_chat".to_string(),
+            ..Default::default()
+        };
+
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service.expect_create_chat().once().returning(move |_| {
+            let chat = chat.clone();
+            Box::pin(async move { Ok((StatusCode::OK, chat.clone())) })
+        });
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        let create_request = CreateChatRequest {
+            name: "test_chat".to_string(),
+            ..Default::default()
+        };
+        let bytes = serde_json::to_vec(&create_request)?;
+        let body = Body::from(bytes);
+        let (status, response, _) = admin_session.post(&app, "/bot/chats", body).await?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(
+            response.get("name").and_then(|v| v.as_str()).unwrap(),
+            "test_chat",
+            "incorrect json response"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_update_and_return_chat(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let chat = ComhairleChat {
+            name: "test_chat".to_string(),
+            ..Default::default()
+        };
+
+        let update_request = UpdateChatRequest {
+            name: Some("test_chat".to_string()),
+            ..Default::default()
+        };
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_update_chat()
+            .once()
+            .with(eq("123"), eq(update_request.clone()))
+            .returning(move |_, _| {
+                let chat = chat.clone();
+                Box::pin(async move { Ok((StatusCode::OK, chat.clone())) })
+            });
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        let bytes = serde_json::to_vec(&update_request)?;
+        let body = Body::from(bytes);
+        let (status, response, _) = admin_session.put(&app, "/bot/chats/123", body).await?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(
+            response.get("name").and_then(|v| v.as_str()).unwrap(),
+            "test_chat",
+            "incorrect json response"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_delete_chat(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_delete_chat()
+            .once()
+            .with(eq("123".to_string()))
+            .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        let (status, _, _) = admin_session.delete(&app, "/bot/chats/123").await?;
+
+        assert!(status.is_success(), "error response status");
+
+        Ok(())
+    }
 }

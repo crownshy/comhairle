@@ -145,7 +145,7 @@ pub trait ComhairleBotService: Send + Sync {
         body: UpdateChatSessionRequest,
     ) -> Result<(StatusCode, ComhairleChatSession), ComhairleError>;
 
-    async fn delete_chat_sessions(
+    async fn delete_chat_session(
         &self,
         session_id: &str,
         chat_id: &str,
@@ -168,14 +168,14 @@ pub struct ComhairleKnowledgeBase {
     pub name: String,
 }
 
-#[derive(Serialize, JsonSchema, Default, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone)]
 pub struct ComhairleDocument {
     pub id: String,
     pub name: String,
     // TODO: figure out what fields we require
 }
 
-#[derive(Serialize, JsonSchema, Default, Debug, Clone)]
+#[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone)]
 pub struct ComhairleChat {
     pub id: String,
     pub name: String,
@@ -183,19 +183,19 @@ pub struct ComhairleChat {
     pub prompt: Option<ComhairlePrompt>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone)]
+#[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone, PartialEq)]
 pub struct ComhairlePrompt {
     pub llm_prompt: Option<String>,
     pub opener: Option<String>,
     pub empty_response: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone)]
+#[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone, PartialEq)]
 pub struct ComhairleLlm {
     pub model_name: Option<String>,
 }
 
-#[derive(Serialize, JsonSchema, Default, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone)]
 pub struct ComhairleChatSession {
     pub id: String,
     pub chat_id: String,
@@ -328,7 +328,7 @@ impl MockComhairleBotService {
                 })
             });
         bot_service
-            .expect_delete_chat_sessions()
+            .expect_delete_chat_session()
             .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
         bot_service
             .expect_converse_with_chat()
