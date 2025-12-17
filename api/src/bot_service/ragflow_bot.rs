@@ -356,7 +356,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, chat_session))
     }
 
-    async fn delete_chat_sessions(
+    async fn delete_chat_session(
         &self,
         session_id: &str,
         chat_id: &str,
