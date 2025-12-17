@@ -297,7 +297,7 @@
                 placeholder={placeholder}
                 disabled={isInitializing}
                 rows={1}
-                class="self-center flex-1 px-4 py-2 bg-transparent text-sm text-chat-text placeholder:text-chat-text-muted outline-none disabled:opacity-50 resize-none overflow-y-auto leading-5 min-h-6"
+                class="self-center flex-1 px-4 py-3 bg-transparent text-sm text-chat-text placeholder:text-chat-text-muted outline-none disabled:opacity-50 resize-none overflow-y-auto leading-5 min-h-6"
                 style="max-height: 200px;"
             ></textarea>
             <button
@@ -310,7 +310,7 @@
         </div>
         <button
             onclick={sendMessage}
-            class="p-2.5 bg-chat-primary-dark text-white rounded-full hover:bg-chat-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            class="p-3 bg-chat-primary-dark text-white rounded-full hover:bg-chat-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={!inputValue.trim() || isInitializing || client?.isStreaming}
             aria-label="Send message"
         >
