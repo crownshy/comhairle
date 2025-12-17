@@ -15,7 +15,6 @@ use docs::docs_routes;
 use mailer::ComhairleMailer;
 pub use routes::auth::hash_pw;
 use routes::auth::AUTH_KEY;
-use service_traits::ComhairleBotService;
 use translation_service::TranslationService;
 use websockets::WebSocketService;
 
