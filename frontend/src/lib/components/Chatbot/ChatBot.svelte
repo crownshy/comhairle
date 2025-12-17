@@ -39,6 +39,7 @@
 	let inputValue = $state("");
 	let chatContainer: HTMLDivElement;
 	let scrollAreaRef: HTMLElement | null = $state(null);
+	let textareaRef: HTMLTextAreaElement | null = $state(null);
 	let chatMessages = $state([...initialMessages]);
 	let hasStartedConversation = $state(false);
 	let selectedQuestionId = $state<string | null>(null);
@@ -98,6 +99,21 @@
 		if (client?.isStreaming && client?.currentAnswer) {
 			scrollToBottom();
 		}
+	});
+
+	// Auto-resize textarea
+	function resizeTextarea() {
+		if (!textareaRef) return;
+		textareaRef.style.height = '24px'; 
+		const lineHeight = 20;
+		const maxHeight = lineHeight * 10; // 10 rows max
+		const newHeight = Math.min(textareaRef.scrollHeight, maxHeight);
+		textareaRef.style.height = `${newHeight}px`;
+	}
+
+	$effect(() => {
+		inputValue;
+		resizeTextarea();
 	});
 
 	async function addBotResponse(userMessage: string) {
@@ -189,7 +205,7 @@
 
 
 		<!-- Chat Messages -->
-		<ScrollArea.Root bind:ref={scrollAreaRef} class="flex-1 min-h-0 mb-4">
+		<ScrollArea.Root bind:ref={scrollAreaRef} class="flex-1 min-h-0">
 			<div class="text-center mb-4 flex-shrink-0">
 				<p class="text-xs text-chat-text-muted">{new Date().toISOString().slice(0, 10).replace(/-/g, '.')}</p>
 			</div>
@@ -267,16 +283,23 @@
 		</ScrollArea.Root>
 
     <!-- Input Area -->
-    <div class="flex items-center gap-2 flex-shrink-0 pt-4">
-        <div class="flex-1 flex items-center gap-2 h-12 py-2 bg-white rounded-[12px] border shadow-md border-chat-border">
-            <input
+    <div class="flex items-end gap-2 flex-shrink-0 pt-2">
+        <div class="flex-1 flex items-end gap-2 bg-white rounded-[12px] border shadow-md border-chat-border">
+            <textarea
+                bind:this={textareaRef}
                 bind:value={inputValue}
-                onkeypress={handleKeyPress}
-                type="text"
+                onkeydown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                }}
                 placeholder={placeholder}
                 disabled={isInitializing}
-                class="flex-1 px-4 py-2 bg-transparent text-sm text-chat-text placeholder:text-chat-text-muted outline-none disabled:opacity-50"
-            />
+                rows={1}
+                class="self-center flex-1 px-4 py-2 bg-transparent text-sm text-chat-text placeholder:text-chat-text-muted outline-none disabled:opacity-50 resize-none overflow-y-auto leading-5 min-h-6"
+                style="max-height: 200px;"
+            ></textarea>
             <button
                 class="p-2.5 text-chat-text-muted hover:text-chat-neutral transition-colors disabled:opacity-50"
                 disabled={isInitializing}
