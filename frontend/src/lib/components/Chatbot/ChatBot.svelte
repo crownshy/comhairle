@@ -38,6 +38,7 @@
 
 	let inputValue = $state("");
 	let chatContainer: HTMLDivElement;
+	let scrollAreaRef: HTMLElement | null = $state(null);
 	let chatMessages = $state([...initialMessages]);
 	let hasStartedConversation = $state(false);
 	let selectedQuestionId = $state<string | null>(null);
@@ -82,10 +83,13 @@
 	});
 
 	function scrollToBottom() {
-		if (chatContainer) {
-			setTimeout(() => {
-				chatContainer.scrollTop = chatContainer.scrollHeight;
-			}, 100);
+		if (scrollAreaRef) {
+			const viewport = scrollAreaRef.querySelector('[data-slot="scroll-area-viewport"]');
+			if (viewport) {
+				setTimeout(() => {
+					viewport.scrollTop = viewport.scrollHeight;
+				}, 50);
+			}
 		}
 	}
 
@@ -185,7 +189,7 @@
 
 
 		<!-- Chat Messages -->
-		<ScrollArea.Root class="flex-1 min-h-0 mb-4">
+		<ScrollArea.Root bind:ref={scrollAreaRef} class="flex-1 min-h-0 mb-4">
 			<div class="text-center mb-4 flex-shrink-0">
 				<p class="text-xs text-chat-text-muted">{new Date().toISOString().slice(0, 10).replace(/-/g, '.')}</p>
 			</div>
