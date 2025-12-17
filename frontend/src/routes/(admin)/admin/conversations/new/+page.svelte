@@ -43,6 +43,8 @@
 						'This should be a longer description about the conversation. It should introduce people to what is being discussed and outline-solid the actions that might be taken as a result of the conversation',
 					tags: [],
 					image_url: PlaceholderConvo,
+					primary_locale: "en",
+					supported_languages:["en"],
 					is_public: false,
 					is_invite_only: false
 				};
