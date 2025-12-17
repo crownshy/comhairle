@@ -90,7 +90,7 @@ pub struct UpdateChatSession {
     pub user_id: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct ChatSession {
     pub chat_id: String,
     pub create_date: String,
@@ -102,10 +102,22 @@ pub struct ChatSession {
     pub messages: Vec<ChatSessionMessage>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ChatSessionMessage {
-    content: String,
-    role: String,
+    pub content: String,
+    pub id: String,
+    pub role: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reference: Option<Vec<MessageReference>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MessageReference {
+    pub id: String,
+    pub content: String,
+    pub dataset_id: String,
+    pub document_id: String,
+    pub document_name: String,
 }
 
 #[derive(Deserialize)]

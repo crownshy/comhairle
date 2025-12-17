@@ -14,7 +14,8 @@ use reqwest::StatusCode;
 use crate::{
     bot_service::{
         ComhairleBotService, ComhairleChat, ComhairleChatSession, ComhairleDocument,
-        ComhairleKnowledgeBase, ComhairleLlm, ComhairlePrompt, ComhairleRagBotService,
+        ComhairleKnowledgeBase, ComhairleLlm, ComhairleMessageReference, ComhairlePrompt,
+        ComhairleRagBotService, ComhairleSessionMessage,
     },
     error::ComhairleError,
     routes::bot::{
@@ -569,6 +570,7 @@ impl From<ChatSession> for ComhairleChatSession {
             id: session.id,
             chat_id: session.chat_id,
             name: session.name,
+            messages: session.messages.into_iter().map(Into::into).collect(),
         }
     }
 }
@@ -579,6 +581,63 @@ impl From<&ChatSession> for ComhairleChatSession {
             id: session.id.clone(),
             chat_id: session.chat_id.clone(),
             name: session.name.clone(),
+            messages: session
+                .messages
+                .clone()
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+        }
+    }
+}
+
+impl From<ChatSessionMessage> for ComhairleSessionMessage {
+    fn from(message: ChatSessionMessage) -> Self {
+        Self {
+            id: message.id,
+            content: message.content,
+            role: message.role,
+            reference: message
+                .reference
+                .map(|refs| refs.into_iter().map(Into::into).collect()),
+        }
+    }
+}
+
+impl From<&ChatSessionMessage> for ComhairleSessionMessage {
+    fn from(message: &ChatSessionMessage) -> Self {
+        Self {
+            id: message.id.clone(),
+            content: message.content.clone(),
+            role: message.role.clone(),
+            reference: message
+                .reference
+                .clone()
+                .map(|refs| refs.into_iter().map(Into::into).collect()),
+        }
+    }
+}
+
+impl From<MessageReference> for ComhairleMessageReference {
+    fn from(r: MessageReference) -> Self {
+        Self {
+            id: r.id,
+            content: r.content,
+            dataset_id: r.dataset_id,
+            document_id: r.document_id,
+            document_name: r.document_name,
+        }
+    }
+}
+
+impl From<&MessageReference> for ComhairleMessageReference {
+    fn from(r: &MessageReference) -> Self {
+        Self {
+            id: r.id.clone(),
+            content: r.content.clone(),
+            dataset_id: r.dataset_id.clone(),
+            document_id: r.document_id.clone(),
+            document_name: r.document_name.clone(),
         }
     }
 }
