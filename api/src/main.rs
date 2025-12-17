@@ -1,5 +1,5 @@
 use comhairle::{
-    bot::ComhairleRagBotService, config::TranslatorConfig, db::setup_db, mailer::Mailer,
+    bot_service::ComhairleRagBotService, config::TranslatorConfig, db::setup_db, mailer::Mailer,
     setup_server, translation_service::GoogleTranslateService,
     websockets::ComhairleWebSocketService, ComhairleState,
 };
