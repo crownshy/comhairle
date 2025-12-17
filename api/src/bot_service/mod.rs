@@ -200,6 +200,24 @@ pub struct ComhairleChatSession {
     pub id: String,
     pub chat_id: String,
     pub name: Option<String>,
+    pub messages: Vec<ComhairleSessionMessage>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone)]
+pub struct ComhairleSessionMessage {
+    content: String,
+    id: String,
+    role: String,
+    reference: Option<Vec<ComhairleMessageReference>>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone)]
+pub struct ComhairleMessageReference {
+    pub id: String,
+    pub content: String,
+    pub dataset_id: String,
+    pub document_id: String,
+    pub document_name: String,
 }
 
 #[cfg(test)]
