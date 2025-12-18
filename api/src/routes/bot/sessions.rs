@@ -19,7 +19,10 @@ use tracing::instrument;
 use crate::{
     bot_service::ComhairleChatSession,
     error::ComhairleError,
-    routes::{auth::RequiredAdminUser, bot::GetQueryParams},
+    routes::{
+        auth::{RequiredAdminUser, RequiredUser},
+        bot::GetQueryParams,
+    },
     ComhairleState,
 };
 
@@ -114,7 +117,7 @@ pub struct ChatConversationRequest {
 async fn converse_with_chat(
     State(state): State<Arc<ComhairleState>>,
     Path((chat_id, session_id)): Path<(String, String)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredUser(_user): RequiredUser,
     Json(payload): Json<ChatConversationRequest>,
 ) -> Result<impl IntoResponse, ComhairleError> {
     let stream = state
