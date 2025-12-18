@@ -1,9 +1,25 @@
 import { browser } from '$app/environment';
 
+export interface MessageReference {
+	id: string;
+	content: string;
+	dataset_id: string;
+	document_id: string;
+	document_name: string;
+}
+
+export interface ChatSessionMessage {
+	id?: string;
+	content: string;
+	role: string;
+	reference?: MessageReference[];
+}
+
 export interface ChatSession {
 	id: string;
 	chat_id: string;
 	name?: string;
+	messages?: ChatSessionMessage[];
 }
 
 export interface ReferenceChunk {
@@ -43,6 +59,31 @@ export class ChatClient {
 		this.baseUrl = baseUrl;
 	}
 
+	async getSession(sessionId: string): Promise<ChatSession | null> {
+		try {
+			const response = await fetch(
+				`${this.baseUrl}/bot/chats/${this.chatId}/sessions/${sessionId}`,
+				{
+					method: 'GET',
+					headers: { 'Content-Type': 'application/json' },
+					credentials: 'include'
+				}
+			);
+
+			if (!response.ok) {
+				this.error = `Failed to get session: ${response.statusText}`;
+				return null;
+			}
+
+			const session = await response.json();
+			this.session = session;
+			return session;
+		} catch (e) {
+			this.error = e instanceof Error ? e.message : 'Failed to get session';
+			return null;
+		}
+	}
+
 	async createSession(name: string): Promise<ChatSession | null> {
 		try {
 			const response = await fetch(
@@ -60,7 +101,6 @@ export class ChatClient {
 				return null;
 			}
 
-			// Backend returns the session directly in the response body
 			const session = await response.json();
 			this.session = session;
 			return session;
@@ -128,7 +168,6 @@ export class ChatClient {
 
 				buffer += decoder.decode(value, { stream: true });
 				
-				// FIXED: The backend streams raw bytes, parse SSE format
 				const lines = buffer.split('\n');
 				buffer = lines.pop() || ''; // Keep incomplete line in buffer
 
@@ -137,7 +176,6 @@ export class ChatClient {
 						try {
 							const jsonStr = line.replace('data:', '').trim();
 							const json = JSON.parse(jsonStr);
-							console.log(json);
 
 							// Update with the answer from the stream
 							if (json.data?.answer) {
