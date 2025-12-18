@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{enum_def, PostgresQueryBuilder, Query};
+use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
@@ -31,7 +31,7 @@ pub struct BotServiceUserSession {
     pub updated_at: DateTime<Utc>,
 }
 
-const BOT_SERVICE_USER_SESSION_DEFAULT_COLUMNS: [BotServiceUserSessionIden; 6] = [
+const DEFAULT_COLUMNS: [BotServiceUserSessionIden; 6] = [
     BotServiceUserSessionIden::Id,
     BotServiceUserSessionIden::UserId,
     BotServiceUserSessionIden::ConversationId,
@@ -109,7 +109,7 @@ pub async fn create(
         .into_table(BotServiceUserSessionIden::Table)
         .columns(columns)
         .values(values)?
-        .returning(Query::returning().columns(BOT_SERVICE_USER_SESSION_DEFAULT_COLUMNS))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
     let bot_session_result = sqlx::query_as_with::<_, BotServiceUserSession, _>(&sql, values)
@@ -117,6 +117,37 @@ pub async fn create(
         .await?;
 
     Ok(bot_session_result)
+}
+
+pub async fn get_by_conversation_id(
+    db: &PgPool,
+    user_id: Uuid,
+    conversation_id: Uuid,
+) -> Result<BotServiceUserSession, ComhairleError> {
+    let (sql, values) = Query::select()
+        .from(BotServiceUserSessionIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .and_where(
+            Expr::col((
+                BotServiceUserSessionIden::Table,
+                BotServiceUserSessionIden::ConversationId,
+            ))
+            .eq(conversation_id.to_owned()),
+        )
+        .and_where(
+            Expr::col((
+                BotServiceUserSessionIden::Table,
+                BotServiceUserSessionIden::UserId,
+            ))
+            .eq(user_id.to_owned()),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    let bot_session = sqlx::query_as_with::<_, BotServiceUserSession, _>(&sql, values)
+        .fetch_one(db)
+        .await?;
+
+    Ok(bot_session)
 }
 
 // Data transfer object for bot service user session

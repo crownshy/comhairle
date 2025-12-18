@@ -118,7 +118,7 @@ struct CreateBotUserSessionRequest {
 }
 
 #[instrument(err(Debug), skip(state))]
-async fn create_bot_service_session(
+async fn create_bot_service_user_session(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Path(user_id): Path<Uuid>,
@@ -134,6 +134,20 @@ async fn create_bot_service_session(
 
     let bot_user_session: BotServiceUserSessionDto = bot_user_session.into();
     Ok((StatusCode::CREATED, Json(bot_user_session)))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get_bo_service_user_session(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path((user_id, conversation_id)): Path<(Uuid, Uuid)>,
+) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
+    let session =
+        bot_service_user_session::get_by_conversation_id(&state.db, user_id, conversation_id)
+            .await?;
+    let session: BotServiceUserSessionDto = session.into();
+
+    Ok((StatusCode::OK, Json(session)))
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
@@ -182,10 +196,18 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/{user_id}/bot_service_sessions",
-            post_with(create_bot_service_session, |op| {
-                op.id("CreateBotServiceSession")
+            post_with(create_bot_service_user_session, |op| {
+                op.id("CreateBotServiceUserSession")
                     .summary("Create a chat bot session by conversation id for user")
                     .response::<201, Json<BotServiceUserSessionDto>>() // TODO: return type
+            }),
+        )
+        .api_route(
+            "/{user_id}/bot_service_sessions/{conversation_id}",
+            get_with(get_bo_service_user_session, |op| {
+                op.id("GetServiceUserSession")
+                    .summary("Get a bot service session for a user by conversation if")
+                    .response::<200, Json<BotServiceUserSessionDto>>()
             }),
         )
         .with_state(state)
