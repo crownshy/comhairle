@@ -15,6 +15,9 @@ pub enum ComhairleError {
     #[error("Database Failed to connect: {0}")]
     DbError(String),
 
+    #[error("Database query error: {0}")]
+    DbQueryError(#[from] sea_query::error::Error),
+
     #[error("Failed to load config: {0}")]
     ConfigError(#[from] config::ConfigError),
 
