@@ -9,6 +9,6 @@
 {@render children()}
 
 <CollapsibleChat
-    chatId="08e6c2dcda6d11f09b4f22424bee5982"
+    chatId="b20c102adc0111f09b4f22424bee5982"
     knowledgeBaseIds={["21372960d1dc11f095fbceda8b23386f"]}
  />

@@ -7,7 +7,7 @@
 	import { ChatClient } from '$lib/api/chatClient.svelte';
 	import MessageWithReferences from '$lib/components/Chatbot/MessageWithReferences.svelte';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
-	import type { ChatMessage, InitialQuestion, ChatBotProps } from './types';
+	import type { ChatMessage, InitialQuestion, ChatBotProps, ChatReference } from './types';
 
 	let {
 		chatId,
@@ -46,9 +46,9 @@
 	let chatError = $state<string | null>(null);
 	let isInitializing = $state(true);
 	
-	let actualChatId = $state(chatId);
 	let client = $state<ChatClient | null>(null);
 	let initialized = false;
+	const sessionId = '8deee071898a4cfd9c0a91f2331d1455';
 
 	$effect(() => {
 		if (initialized) return;
@@ -57,24 +57,38 @@
 		async function init() {
 			try {
 				isInitializing = true;
-
-				if (!actualChatId) {
+				client = new ChatClient(chatId);
+				
+				const session = await client.getSession(sessionId);
+				if (!session) {
+					chatError = client.error || 'Failed to load session';
 					return;
 				}
-
-				client = new ChatClient(actualChatId);
-				// TODO: hardcoded session ID 
-				client.session = {
-					id: 'c4d116bcda8811f09b4f22424bee5982',
-					chat_id: actualChatId
-				};
 				
-				if (client.error) {
-					chatError = client.error;
+				if (session.messages?.length) {
+					const historicalMessages: ChatMessage[] = session.messages.map((msg, idx) => ({
+						id: msg.id ? `${msg.id}-${msg.role}` : `msg-${idx}`,
+						content: msg.content,
+						isBot: msg.role === 'assistant',
+						timestamp: new Date(),
+						reference: msg.reference?.length ? {
+							total: msg.reference.length,
+							chunks: msg.reference.map(ref => ({
+								id: ref.id,
+								content: ref.content,
+								document_id: ref.document_id,
+								document_name: ref.document_name,
+								dataset_id: ref.dataset_id
+							}))
+						} : null
+					}));
+					chatMessages = [...initialMessages, ...historicalMessages];
+					hasStartedConversation = true;
+					scrollToBottom();
 				}
 			} catch (e) {
 				chatError = e instanceof Error ? e.message : 'Failed to initialize chat';
-				console.error('Chat initialization error:', e);
+				console.error('Chat init error:', e);
 			} finally {
 				isInitializing = false;
 			}
@@ -200,87 +214,83 @@
 {/if}  
 
 <div class="bg-chat-primary-lighter max-w-xxxl p-6 mx-auto h-full flex flex-col">
-    <!-- Header -->
- 
-
-
-		<!-- Chat Messages -->
-		<ScrollArea.Root bind:ref={scrollAreaRef} class="flex-1 min-h-0">
-			<div class="text-center mb-4 flex-shrink-0">
-				<p class="text-xs text-chat-text-muted">{new Date().toISOString().slice(0, 10).replace(/-/g, '.')}</p>
-			</div>
-			
-			<div bind:this={chatContainer} class="space-y-4 pr-4">
-				{#each chatMessages as message, index (message.id)}
-					<div class="{message.isBot ? '' : 'flex justify-end'}">
-						<!-- Message Content -->
-						<div class="{message.isBot ? 'bg-white rounded-br-[16px]' : 'bg-chat-primary-dark rounded-bl-[16px]'} w-fit max-w-xxl rounded-tl-[16px] rounded-tr-[16px] px-3 py-2.5 ">
-							{#if message.isBot}
-								<div>
-									<div class="flex items-start gap-2">
-										{#if index < 1}
-											<Sparkles class="w-4 h-4 text-chat-primary mt-0.5 flex-shrink-0" />
-										{/if}
-										<span class="text-chat-text text-sm">
-												<MessageWithReferences content={message.content} reference={message.reference} />
-											</span>
-									</div>
-									
-									<!-- Quick Reply Buttons -->
-									{#if showInitialQuestions && initialQuestions.length > 0 && index === 0}
-										<div class="self-stretch inline-flex flex-col justify-start items-start gap-3 mt-3">
-											{#each initialQuestions as question (question.id)}
-												<button
-													onclick={() => handleQuestionClick(question)}
-													disabled={isInitializing}
-													class="{selectedQuestionId === question.id 
-														? 'bg-chat-primary outline-chat-primary' 
-														: 'bg-white outline-chat-primary-light'
-													} px-2.5 py-1.5 rounded-2xl outline outline-1 outline-offset-[-0.5px] flex flex-col justify-start items-start gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-												>
-													<div class="inline-flex justify-start items-start gap-2.5">
-														<span class="{selectedQuestionId === question.id 
-															? 'text-white' 
-															: 'text-chat-primary'
-														} text-xs font-normal leading-4">{question.text}</span>
-													</div>
-												</button>
-											{/each}
-										</div>
+	<!-- Chat Messages -->
+	<ScrollArea.Root bind:ref={scrollAreaRef} class="flex-1 min-h-0">
+		<div class="text-center mb-4 flex-shrink-0">
+			<p class="text-xs text-chat-text-muted">{new Date().toISOString().slice(0, 10).replace(/-/g, '.')}</p>
+		</div>
+		
+		<div bind:this={chatContainer} class="space-y-4 pr-4">
+			{#each chatMessages as message, index (message.id)}
+				<div class="{message.isBot ? '' : 'flex justify-end'}">
+					<!-- Message Content -->
+					<div class="{message.isBot ? 'bg-white rounded-br-[16px]' : 'bg-chat-primary-dark rounded-bl-[16px]'} w-fit max-w-xxl rounded-tl-[16px] rounded-tr-[16px] px-3 py-2.5 ">
+						{#if message.isBot}
+							<div>
+								<div class="flex items-start gap-2">
+									{#if index < 1}
+										<Sparkles class="w-4 h-4 text-chat-primary mt-0.5 flex-shrink-0" />
 									{/if}
+									<span class="text-chat-text text-sm">
+											<MessageWithReferences content={message.content} reference={message.reference} />
+										</span>
 								</div>
-							{:else}
-								<p class="text-white text-sm">{message.content}</p>
+								
+								<!-- Quick Reply Buttons -->
+								{#if showInitialQuestions && initialQuestions.length > 0 && index === 0}
+									<div class="self-stretch inline-flex flex-col justify-start items-start gap-3 mt-3">
+										{#each initialQuestions as question (question.id)}
+											<button
+												onclick={() => handleQuestionClick(question)}
+												disabled={isInitializing}
+												class="{selectedQuestionId === question.id 
+													? 'bg-chat-primary outline-chat-primary' 
+													: 'bg-white outline-chat-primary-light'
+												} px-2.5 py-1.5 rounded-2xl outline outline-1 outline-offset-[-0.5px] flex flex-col justify-start items-start gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+											>
+												<div class="inline-flex justify-start items-start gap-2.5">
+													<span class="{selectedQuestionId === question.id 
+														? 'text-white' 
+														: 'text-chat-primary'
+													} text-xs font-normal leading-4">{question.text}</span>
+												</div>
+											</button>
+										{/each}
+									</div>
+								{/if}
+							</div>
+						{:else}
+							<p class="text-white text-sm">{message.content}</p>
+						{/if}
+					</div>
+				</div>
+			{/each}
+			
+			<!-- Streaming Response -->
+			{#if client?.isStreaming}
+				<div>
+					<div class="bg-white rounded-br-[16px] w-fit max-w-xxl rounded-tl-[16px] rounded-tr-[16px] px-3 py-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)]">
+						<div class="flex items-start gap-2">
+							<span class="text-chat-text text-sm">
+								{#if client.currentAnswer}
+									<MessageWithReferences content={client.currentAnswer} reference={client.currentReference} />
+								{:else}
+									<span class="flex items-center gap-1">
+										<span class="w-2 h-2 bg-chat-primary-light rounded-full animate-bounce"></span>
+										<span class="w-2 h-2 bg-chat-primary-light rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
+										<span class="w-2 h-2 bg-chat-primary-light rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+									</span>
+								{/if}
+							</span>
+							{#if client.currentAnswer}
+								<span class="inline-block w-1.5 h-4 bg-chat-primary animate-pulse ml-0.5"></span>
 							{/if}
 						</div>
 					</div>
-				{/each}
-				
-				<!-- Streaming Response -->
-				{#if client?.isStreaming}
-					<div>
-						<div class="bg-white rounded-br-[16px] w-fit max-w-xxl rounded-tl-[16px] rounded-tr-[16px] px-3 py-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)]">
-							<div class="flex items-start gap-2">
-								<span class="text-chat-text text-sm">
-									{#if client.currentAnswer}
-										<MessageWithReferences content={client.currentAnswer} reference={client.currentReference} />
-									{:else}
-										<span class="flex items-center gap-1">
-											<span class="w-2 h-2 bg-chat-primary-light rounded-full animate-bounce"></span>
-											<span class="w-2 h-2 bg-chat-primary-light rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
-											<span class="w-2 h-2 bg-chat-primary-light rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
-										</span>
-									{/if}
-								</span>
-								{#if client.currentAnswer}
-									<span class="inline-block w-1.5 h-4 bg-chat-primary animate-pulse ml-0.5"></span>
-								{/if}
-							</div>
-						</div>
-					</div>
-				{/if}
-			</div>
-		</ScrollArea.Root>
+				</div>
+			{/if}
+		</div>
+	</ScrollArea.Root>
 
     <!-- Input Area -->
     <div class="flex items-end gap-2 flex-shrink-0 pt-2">
