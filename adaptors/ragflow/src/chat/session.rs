@@ -105,7 +105,7 @@ pub struct ChatSession {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ChatSessionMessage {
     pub content: String,
-    pub id: String,
+    pub id: Option<String>,
     pub role: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reference: Option<Vec<MessageReference>>,

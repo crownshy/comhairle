@@ -594,7 +594,7 @@ impl From<&ChatSession> for ComhairleChatSession {
 impl From<ChatSessionMessage> for ComhairleSessionMessage {
     fn from(message: ChatSessionMessage) -> Self {
         Self {
-            id: message.id,
+            id: message.id.unwrap_or("".to_string()),
             content: message.content,
             role: message.role,
             reference: message
@@ -607,7 +607,7 @@ impl From<ChatSessionMessage> for ComhairleSessionMessage {
 impl From<&ChatSessionMessage> for ComhairleSessionMessage {
     fn from(message: &ChatSessionMessage) -> Self {
         Self {
-            id: message.id.clone(),
+            id: message.id.clone().unwrap_or("".to_string()),
             content: message.content.clone(),
             role: message.role.clone(),
             reference: message
