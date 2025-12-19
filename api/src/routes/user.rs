@@ -143,8 +143,24 @@ async fn get_bo_service_user_session(
     Path((user_id, conversation_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
     let session =
-        bot_service_user_session::get_by_conversation_id(&state.db, user_id, conversation_id)
-            .await?;
+        bot_service_user_session::get_by_conversation_id(&state.db, user_id, conversation_id).await;
+
+    // If we didn't find a session create one
+    let session = match session {
+        Ok(session) => Ok(session),
+        Err(ComhairleError::NoBotUserSession) => {
+            bot_service_user_session::create(
+                &state.db,
+                &state.bot_service,
+                &CreateBotServiceUserSession {
+                    conversation_id: conversation_id,
+                    user_id,
+                },
+            )
+            .await
+        }
+        Err(e) => Err(e),
+    }?;
     let session: BotServiceUserSessionDto = session.into();
 
     Ok((StatusCode::OK, Json(session)))
