@@ -313,7 +313,7 @@
 		</ScrollArea.Root>
 
 		<!-- Input Area -->
-		<div class="flex items-end gap-2 flex-shrink-0 pt-2">
+		<div class="flex items-end gap-2 flex-shrink-0 pt-4">
 			<div class="flex-1 flex items-end gap-2 bg-white rounded-[12px] border shadow-md border-chat-border">
 				<textarea
 					bind:this={textareaRef}
