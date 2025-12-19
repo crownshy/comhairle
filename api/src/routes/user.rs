@@ -1,22 +1,24 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{get_with, put_with},
+    routing::{get_with, post_with, put_with},
     ApiRouter,
 };
 use axum::{
-    extract::{Query, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     Json,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
     models::{
         self,
+        bot_service_user_session::{self, BotServiceUserSessionDto, CreateBotServiceUserSession},
         conversation::{
             Conversation, ConversationFilterOptions, ConversationOrderOptions,
             LocalisedConversation,
@@ -110,6 +112,44 @@ pub async fn upgrade_account(
     Ok((StatusCode::OK, Json(upgraded_user)))
 }
 
+#[derive(Deserialize, JsonSchema, Debug)]
+struct CreateBotUserSessionRequest {
+    conversation_id: Uuid,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn create_bot_service_user_session(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path(user_id): Path<Uuid>,
+    Json(payload): Json<CreateBotUserSessionRequest>,
+) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
+    let create_bot_session = CreateBotServiceUserSession {
+        conversation_id: payload.conversation_id,
+        user_id,
+    };
+    let bot_user_session =
+        bot_service_user_session::create(&state.db, &state.bot_service, &create_bot_session)
+            .await?;
+
+    let bot_user_session: BotServiceUserSessionDto = bot_user_session.into();
+    Ok((StatusCode::CREATED, Json(bot_user_session)))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get_bo_service_user_session(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path((user_id, conversation_id)): Path<(Uuid, Uuid)>,
+) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
+    let session =
+        bot_service_user_session::get_by_conversation_id(&state.db, user_id, conversation_id)
+            .await?;
+    let session: BotServiceUserSessionDto = session.into();
+
+    Ok((StatusCode::OK, Json(session)))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -152,6 +192,22 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("UpgradeAccount")
                     .description("Upgrade anonymous account to email/password account")
                     .response::<200, Json<User>>()
+            }),
+        )
+        .api_route(
+            "/{user_id}/bot_service_sessions",
+            post_with(create_bot_service_user_session, |op| {
+                op.id("CreateBotServiceUserSession")
+                    .summary("Create a chat bot session by conversation id for user")
+                    .response::<201, Json<BotServiceUserSessionDto>>() // TODO: return type
+            }),
+        )
+        .api_route(
+            "/{user_id}/bot_service_sessions/{conversation_id}",
+            get_with(get_bo_service_user_session, |op| {
+                op.id("GetServiceUserSession")
+                    .summary("Get a bot service session for a user by conversation if")
+                    .response::<200, Json<BotServiceUserSessionDto>>()
             }),
         )
         .with_state(state)
