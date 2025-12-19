@@ -49,14 +49,51 @@ export class ChatClient {
 	error = $state<string | null>(null);
 	isStreaming = $state(false);
 	session = $state<ChatSession | null>(null);
+	botServiceSessionId = $state<string | null>(null);
 
 	private chatId: string;
+	private userId?: string;
+	private conversationId?: string;
 	private baseUrl: string;
 	private abortController: AbortController | null = null;
 
-	constructor(chatId: string, baseUrl = '/api') {
+	constructor(chatId: string, userId?: string, conversationId?: string, baseUrl = '/api') {
 		this.chatId = chatId;
+		this.userId = userId;
+		this.conversationId = conversationId;
 		this.baseUrl = baseUrl;
+	}
+
+	/**
+	 * Get or create a bot service user session.
+	 * Returns the bot_service_session_id if successful, null otherwise.
+	 */
+	async getOrCreateUserSession(): Promise<string | null> {
+		if (!this.userId || !this.conversationId) {
+			return null;
+		}
+
+		try {
+			const response = await fetch(
+				`${this.baseUrl}/user/${this.userId}/bot_service_sessions/${this.conversationId}`,
+				{
+					method: 'GET',
+					headers: { 'Content-Type': 'application/json' },
+					credentials: 'include'
+				}
+			);
+
+			if (!response.ok) {
+				return null;
+			}
+
+			const data = await response.json();
+			this.botServiceSessionId = data.bot_service_session_id;
+			return data.bot_service_session_id;
+		} catch (e) {
+			this.error = e instanceof Error ? e.message : 'Failed to get or create session';
+			return null;
+		}
 	}
 
 	async getSession(sessionId: string): Promise<ChatSession | null> {
@@ -84,46 +121,74 @@ export class ChatClient {
 		}
 	}
 
-	async createSession(name: string): Promise<ChatSession | null> {
+	private parseSSELine(line: string): void {
+		if (!line.startsWith('data:')) return;
+		
 		try {
-			const response = await fetch(
-				`${this.baseUrl}/bot/chats/${this.chatId}/sessions`,
-				{
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					credentials: 'include',
-					body: JSON.stringify({ name })
-				}
-			);
-
-			if (!response.ok) {
-				this.error = `Failed to create session: ${response.statusText}`;
-				return null;
+			const jsonStr = line.replace('data:', '').trim();
+			const json = JSON.parse(jsonStr);
+			
+			if (json.data?.answer) {
+				this.currentAnswer = json.data.answer;
 			}
-
-			const session = await response.json();
-			this.session = session;
-			return session;
-		} catch (e) {
-			this.error = e instanceof Error ? e.message : 'Failed to create session';
-			return null;
+			if (json.data?.reference) {
+				this.currentReference = json.data.reference;
+			}
+		} catch {
+			console.warn('Failed to parse SSE chunk:', line);
 		}
 	}
 
-	async send(question: string): Promise<string> {
-		if (!browser) return '';
+	private async readStream(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<void> {
+		const decoder = new TextDecoder('utf-8');
+		let buffer = '';
 
-		if (!this.session?.id) {
-			this.error = 'No session ID. Call createSession() first.';
-			return '';
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+
+			buffer += decoder.decode(value, { stream: true });
+			const lines = buffer.split('\n');
+			buffer = lines.pop() || '';
+
+			for (const line of lines) {
+				this.parseSSELine(line);
+			}
 		}
 
+		if (buffer.trim()) {
+			this.parseSSELine(buffer);
+		}
+	}
+
+	private async handleErrorResponse(response: Response): Promise<void> {
+		const text = await response.text();
+		try {
+			const errorData = JSON.parse(text);
+			this.error = errorData.message || `Request failed: ${response.statusText}`;
+		} catch {
+			this.error = text || `Request failed: ${response.statusText}`;
+		}
+	}
+
+	private resetStreamState(): void {
 		this.abort();
 		this.isStreaming = true;
 		this.currentAnswer = '';
 		this.currentReference = null;
 		this.error = null;
 		this.abortController = new AbortController();
+	}
+
+	async send(question: string): Promise<string> {
+		if (!browser) return '';
+
+		if (!this.session?.id) {
+			this.error = 'No session ID.';
+			return '';
+		}
+
+		this.resetStreamState();
 
 		try {
 			const response = await fetch(
@@ -132,22 +197,13 @@ export class ChatClient {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					credentials: 'include',
-					body: JSON.stringify({
-						question,
-						stream: true
-					}),
-					signal: this.abortController.signal
+					body: JSON.stringify({ question, stream: true }),
+					signal: this.abortController?.signal
 				}
 			);
 
 			if (!response.ok) {
-				const text = await response.text();
-				try {
-					const errorData = JSON.parse(text);
-					this.error = errorData.message || `Request failed: ${response.statusText}`;
-				} catch {
-					this.error = text || `Request failed: ${response.statusText}`;
-				}
+				await this.handleErrorResponse(response);
 				this.isStreaming = false;
 				return '';
 			}
@@ -159,55 +215,7 @@ export class ChatClient {
 				return '';
 			}
 
-			const decoder = new TextDecoder('utf-8');
-			let buffer = '';
-
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
-
-				buffer += decoder.decode(value, { stream: true });
-				
-				const lines = buffer.split('\n');
-				buffer = lines.pop() || ''; // Keep incomplete line in buffer
-
-				for (const line of lines) {
-					if (line.startsWith('data:')) {
-						try {
-							const jsonStr = line.replace('data:', '').trim();
-							const json = JSON.parse(jsonStr);
-
-							// Update with the answer from the stream
-							if (json.data?.answer) {
-								this.currentAnswer = json.data.answer;
-							}
-							if (json.data?.reference) {
-								this.currentReference = json.data.reference;
-							}
-						} catch (e) {
-							console.warn('Failed to parse SSE chunk:', line);
-						}
-					}
-				}
-			}
-
-			// Process any remaining buffer
-			if (buffer.trim()) {
-				if (buffer.startsWith('data:')) {
-					try {
-						const jsonStr = buffer.replace('data:', '').trim();
-						const json = JSON.parse(jsonStr);
-						if (json.data?.answer) {
-							this.currentAnswer = json.data.answer;
-						}
-						if (json.data?.reference) {
-							this.currentReference = json.data.reference;
-						}
-					} catch (e) {
-						console.warn('Failed to parse final chunk');
-					}
-				}
-			}
+			await this.readStream(reader);
 		} catch (e) {
 			if (e instanceof Error && e.name !== 'AbortError') {
 				this.error = e.message;
@@ -232,5 +240,6 @@ export class ChatClient {
 		this.currentReference = null;
 		this.error = null;
 		this.session = null;
+		this.botServiceSessionId = null;
 	}
 }

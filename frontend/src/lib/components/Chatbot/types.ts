@@ -16,6 +16,8 @@ export interface InitialQuestion {
 
 export interface ChatBotProps {
 	chatId?: string;
+	conversationId?: string;
+	userId?: string;
 	knowledgeBaseIds?: string[];
 	title?: string;
 	subtitle?: string;

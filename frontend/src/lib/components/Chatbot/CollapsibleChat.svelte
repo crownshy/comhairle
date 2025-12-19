@@ -4,11 +4,13 @@
 
 	interface Props {
 		chatId?: string;
+		conversationId?: string;
+		userId?: string;
 		botName?: string;
 		botSubtitle?: string;
 	}
 
-	let { chatId, botName = "Tutor bot", botSubtitle = "Ask questions" }: Props = $props();
+	let { chatId, conversationId, userId, botName = "Tutor bot", botSubtitle = "Ask questions" }: Props = $props();
 	
 	let isOpen = $state(false);
 	let isMobile = $state(false);
@@ -64,7 +66,7 @@
 				
 				<!-- Chat content -->
 				<div class="bg-chat-primary-lighter border-l border-r border-b border-chat-primary-light flex flex-col flex-1 min-h-[50vh] max-h-[60vh] overflow-hidden">
-					<ChatBot {chatId} {botName} {botSubtitle} />
+					<ChatBot {chatId} {conversationId} {userId} {botName} {botSubtitle} />
 				</div>
 			</div>
 		</div>
@@ -104,7 +106,7 @@
 				</button>
 
 				<div class="flex-1 min-h-0 overflow-hidden">
-					<ChatBot {chatId} {botName} {botSubtitle} />
+					<ChatBot {chatId} {conversationId} {userId} {botName} {botSubtitle} />
 				</div>
 			</div>
 		{:else}

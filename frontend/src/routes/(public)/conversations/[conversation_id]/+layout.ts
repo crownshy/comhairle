@@ -19,7 +19,7 @@ export const load :LayoutLoad =async ({parent, params})=>{
         participation = null
       }
 
-      return {conversation,workflows,participation, api}
+      return {conversation, workflows, participation, api, user}
 
     }
     catch(e){
