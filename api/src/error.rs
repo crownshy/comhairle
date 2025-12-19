@@ -176,6 +176,9 @@ pub enum ComhairleError {
 
     #[error("No workflow specified or default workflow found")]
     NoWorkflowFoundForInvite,
+
+    #[error("No chat session was found found for this bot on this conversation")]
+    NoBotUserSession,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]

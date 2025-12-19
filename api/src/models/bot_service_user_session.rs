@@ -145,7 +145,11 @@ pub async fn get_by_conversation_id(
 
     let bot_session = sqlx::query_as_with::<_, BotServiceUserSession, _>(&sql, values)
         .fetch_one(db)
-        .await?;
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => ComhairleError::NoBotUserSession,
+            _ => e.into(),
+        })?;
 
     Ok(bot_session)
 }
