@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import {
 		SendHorizontal,
 		Mic,
@@ -11,6 +12,8 @@
 
 	let {
 		chatId,
+		conversationId,
+		userId,
 		knowledgeBaseIds = [],
 		title = "Chat with Bot",
 		subtitle = "Try answer some questions from Comhairle and explore your views.",
@@ -49,7 +52,6 @@
 	
 	let client = $state<ChatClient | null>(null);
 	let initialized = false;
-	const sessionId = '8deee071898a4cfd9c0a91f2331d1455';
 
 	$effect(() => {
 		if (initialized) return;
@@ -58,7 +60,12 @@
 		async function init() {
 			try {
 				isInitializing = true;
-				client = new ChatClient(chatId);
+				client = new ChatClient(chatId, userId, conversationId);
+				
+				const sessionId = await client.getOrCreateUserSession();
+				if (!sessionId) {
+					return;
+				}
 				
 				const session = await client.getSession(sessionId);
 				if (!session) {
@@ -117,9 +124,16 @@
 		}
 	}
 
-	// Auto-scroll when streaming content updates
+	// Auto-scroll when streaming starts or content updates
 	$effect(() => {
-		if (client?.isStreaming && client?.currentAnswer) {
+		if (client?.isStreaming) {
+			scrollToBottom();
+		}
+	});
+
+	// Auto-scroll on each chunk update
+	$effect(() => {
+		if (client?.currentAnswer) {
 			scrollToBottom();
 		}
 	});
@@ -142,6 +156,7 @@
 	async function addBotResponse(userMessage: string) {
 		if (!client) return;
 		
+		await tick();
 		scrollToBottom();
 		
 		await client.send(userMessage);
@@ -160,6 +175,7 @@
 			chatMessages = [...chatMessages, botResponse];
 		}
 		
+		await tick();
 		scrollToBottom();
 	}
 
@@ -184,7 +200,7 @@
 		addBotResponse(question.text);
 	}
 
-	function sendMessage() {
+	async function sendMessage() {
 		if (!client || isInitializing || !inputValue.trim()) return;
 		
 		hasStartedConversation = true;
@@ -203,6 +219,7 @@
 		const messageToRespond = inputValue.trim();
 		inputValue = "";
 		
+		await tick();
 		scrollToBottom();
 		addBotResponse(messageToRespond);
 	}
