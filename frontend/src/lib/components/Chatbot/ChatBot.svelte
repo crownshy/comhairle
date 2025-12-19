@@ -45,6 +45,7 @@
 	let selectedQuestionId = $state<string | null>(null);
 	let chatError = $state<string | null>(null);
 	let isInitializing = $state(true);
+	let needsScroll = $state(false);
 	
 	let client = $state<ChatClient | null>(null);
 	let initialized = false;
@@ -84,26 +85,34 @@
 					}));
 					chatMessages = [...initialMessages, ...historicalMessages];
 					hasStartedConversation = true;
-					scrollToBottom();
 				}
 			} catch (e) {
 				chatError = e instanceof Error ? e.message : 'Failed to initialize chat';
 				console.error('Chat init error:', e);
 			} finally {
 				isInitializing = false;
+				needsScroll = true;
 			}
 		}
 		
 		init();
 	});
 
+	$effect(() => {
+		if (needsScroll && scrollAreaRef) {
+			const viewport = scrollAreaRef.querySelector('[data-slot="scroll-area-viewport"]');
+			if (viewport) {
+				viewport.scrollTop = viewport.scrollHeight;
+				needsScroll = false;
+			}
+		}
+	});
+
 	function scrollToBottom() {
 		if (scrollAreaRef) {
 			const viewport = scrollAreaRef.querySelector('[data-slot="scroll-area-viewport"]');
 			if (viewport) {
-				setTimeout(() => {
-					viewport.scrollTop = viewport.scrollHeight;
-				}, 50);
+				viewport.scrollTop = viewport.scrollHeight;
 			}
 		}
 	}
@@ -206,22 +215,32 @@
 	}
 </script>
 
-<!-- DEBUGGING: Remove later? -->
-{#if chatError}
-	<div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-		<p class="text-sm text-red-600">{chatError}</p>
-	</div>
-{/if}  
 
-<div class="bg-chat-primary-lighter max-w-xxxl p-6 mx-auto h-full flex flex-col">
-	<!-- Chat Messages -->
-	<ScrollArea.Root bind:ref={scrollAreaRef} class="flex-1 min-h-0">
-		<div class="text-center mb-4 flex-shrink-0">
-			<p class="text-xs text-chat-text-muted">{new Date().toISOString().slice(0, 10).replace(/-/g, '.')}</p>
+{#if isInitializing}
+	<div class="bg-chat-primary-lighter max-w-xxxl p-6 mx-auto h-full flex flex-col items-center justify-center">
+		<div class="flex flex-col items-center gap-3">
+			<div class="flex items-center gap-2">
+				<span class="w-2 h-2 bg-chat-primary rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+				<span class="w-2 h-2 bg-chat-primary rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+				<span class="w-2 h-2 bg-chat-primary rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+			</div>
+			<p class="text-sm text-chat-text-muted">Loading chat...</p>
 		</div>
-		
-		<div bind:this={chatContainer} class="space-y-4 pr-4">
-			{#each chatMessages as message, index (message.id)}
+	</div>
+{:else}
+	<div class="bg-chat-primary-lighter max-w-xxxl pt-3 p-6 mx-auto h-full flex flex-col">
+		<ScrollArea.Root bind:ref={scrollAreaRef} class="flex-1 min-h-0">
+			<div class="text-center mt-2 mb-4 flex-shrink-0">
+				<p class="text-xs text-chat-text-muted">{new Date().toISOString().slice(0, 10).replace(/-/g, '.')}</p>
+			</div>
+
+			{#if chatError}
+				<div class="p-3 mb-2 bg-red-50 border border-red-200 rounded-lg">
+					<p class="text-sm text-red-600">{chatError}</p>
+				</div>
+			{:else}
+				<div bind:this={chatContainer} class="space-y-4 pr-4">
+				{#each chatMessages as message, index (message.id)}
 				<div class="{message.isBot ? '' : 'flex justify-end'}">
 					<!-- Message Content -->
 					<div class="{message.isBot ? 'bg-white rounded-br-[16px]' : 'bg-chat-primary-dark rounded-bl-[16px]'} w-fit max-w-xxl rounded-tl-[16px] rounded-tr-[16px] px-3 py-2.5 ">
@@ -264,7 +283,7 @@
 						{/if}
 					</div>
 				</div>
-			{/each}
+			{/each}	
 			
 			<!-- Streaming Response -->
 			{#if client?.isStreaming}
@@ -289,42 +308,44 @@
 					</div>
 				</div>
 			{/if}
-		</div>
-	</ScrollArea.Root>
+				</div>
+			{/if}
+		</ScrollArea.Root>
 
-    <!-- Input Area -->
-    <div class="flex items-end gap-2 flex-shrink-0 pt-2">
-        <div class="flex-1 flex items-end gap-2 bg-white rounded-[12px] border shadow-md border-chat-border">
-            <textarea
-                bind:this={textareaRef}
-                bind:value={inputValue}
-                onkeydown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        sendMessage();
-                    }
-                }}
-                placeholder={placeholder}
-                disabled={isInitializing}
-                rows={1}
-                class="self-center flex-1 px-4 py-3 bg-transparent text-sm text-chat-text placeholder:text-chat-text-muted outline-none disabled:opacity-50 resize-none overflow-y-auto leading-5 min-h-6"
-                style="max-height: 200px;"
-            ></textarea>
-            <button
-                class="p-2.5 text-chat-text-muted hover:text-chat-neutral transition-colors disabled:opacity-50"
-                disabled={isInitializing}
-                aria-label="Voice input"
-            >
-                <Mic class="w-5 h-5" />
-            </button>
-        </div>
-        <button
-            onclick={sendMessage}
-            class="p-3 bg-chat-primary-dark text-white rounded-full hover:bg-chat-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!inputValue.trim() || isInitializing || client?.isStreaming}
-            aria-label="Send message"
-        >
-            <SendHorizontal class="w-5 h-5" />
-        </button>
-    </div>
-</div>
+		<!-- Input Area -->
+		<div class="flex items-end gap-2 flex-shrink-0 pt-2">
+			<div class="flex-1 flex items-end gap-2 bg-white rounded-[12px] border shadow-md border-chat-border">
+				<textarea
+					bind:this={textareaRef}
+					bind:value={inputValue}
+					onkeydown={(e) => {
+						if (e.key === 'Enter' && !e.shiftKey) {
+							e.preventDefault();
+							sendMessage();
+						}
+					}}
+					placeholder={placeholder}
+					disabled={isInitializing}
+					rows={1}
+					class="self-center flex-1 px-4 py-3 bg-transparent text-sm text-chat-text placeholder:text-chat-text-muted outline-none disabled:opacity-50 resize-none overflow-y-auto leading-5 min-h-6"
+					style="max-height: 200px;"
+				></textarea>
+				<button
+					class="p-2.5 text-chat-text-muted hover:text-chat-neutral transition-colors disabled:opacity-50"
+					disabled={isInitializing}
+					aria-label="Voice input"
+				>
+					<Mic class="w-5 h-5" />
+				</button>
+			</div>
+			<button
+				onclick={sendMessage}
+				class="p-3 bg-chat-primary-dark text-white rounded-full hover:bg-chat-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+				disabled={!inputValue.trim() || isInitializing || client?.isStreaming}
+				aria-label="Send message"
+			>
+				<SendHorizontal class="w-5 h-5" />
+			</button>
+		</div>
+	</div>
+{/if}
