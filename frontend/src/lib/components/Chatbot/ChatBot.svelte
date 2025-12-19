@@ -217,7 +217,7 @@
 
 
 {#if isInitializing}
-	<div class="bg-chat-primary-lighter max-w-xxxl p-6 mx-auto h-full flex flex-col items-center justify-center">
+	<div class="bg-chat-primary-lighter max-w-xxxl p-6 mx-auto h-full min-h-[60vh] flex flex-col items-center justify-center">
 		<div class="flex flex-col items-center gap-3">
 			<div class="flex items-center gap-2">
 				<span class="w-2 h-2 bg-chat-primary rounded-full animate-bounce" style="animation-delay: 0ms"></span>
