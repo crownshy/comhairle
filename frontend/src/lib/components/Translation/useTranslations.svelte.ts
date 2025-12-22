@@ -242,34 +242,60 @@ export function createTranslationManager(
 		);
 	}
 
-	// --- AI Translation ---
+	let lastTranslationTime = $state<number>(0);
+	const TRANSLATION_COOLDOWN_MS = 3000;
+
+	function isInCooldown(): boolean {
+		return Date.now() - lastTranslationTime < TRANSLATION_COOLDOWN_MS;
+	}
 
 	async function handleAiTranslate() {
-		if (!activeLanguage || isTranslating) return;
+		if (!activeLanguage || isTranslating || isInCooldown()) return;
+
+		const textContentId = getTextContentId();
+		if (!textContentId) return;
 
 		const primaryTranslation = workingTranslations.find(t => t.status === 'primary');
 		if (!primaryTranslation?.content) return;
 
 		isTranslating = true;
 		try {
-			const response = await fetch('/api/translate', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					source: primaryTranslation.language,
-					target: activeLanguage,
-					content: primaryTranslation.content
-				})
+			const activeTranslation = workingTranslations.find(t => t.language === activeLanguage);
+			await apiClient.CreateOrUpdateTextTranslation(
+				{
+					content: activeTranslation?.content ?? '',
+					ai_generated: true,
+					requires_validation: true
+				},
+				{
+					params: {
+						text_content_id: textContentId,
+						locale: activeLanguage
+					}
+				}
+			);
+
+			const response = await apiClient.AutomaticallyGenerateTranslation(undefined, {
+				params: {
+					text_content_id: textContentId,
+					locale: activeLanguage
+				}
 			});
-
-			if (!response.ok) throw new Error('Translation failed');
-
-			const { translatedContent } = await response.json();
 			
 			// Update the working copy with translated content
-			updateContent(activeLanguage, translatedContent);
+			const idx = workingTranslations.findIndex(t => t.language === activeLanguage);
+			if (idx !== -1) {
+				workingTranslations[idx] = {
+					...workingTranslations[idx],
+					content: response.content,
+					status: response.requires_validation ? 'draft' : 'approved'
+				};
+			}
+
+			await invalidateAll();
 			
 			notifications.send({ message: 'Translation completed', priority: 'INFO' });
+			lastTranslationTime = Date.now();
 		} catch (error) {
 			console.error('AI translation failed:', error);
 			notifications.send({ message: 'AI translation failed', priority: 'ERROR' });
@@ -354,6 +380,46 @@ export function createTranslationManager(
 		}, 1000);
 	}
 
+	// --- Auto-translate for new language ---
+
+	async function autoTranslateNewLanguage(locale: string, textContentIds: string[]) {
+		const results: { field: string; success: boolean }[] = [];
+		
+		for (const textContentId of textContentIds) {
+			try {
+				// First create an empty translation record (required by backend)
+				await apiClient.CreateOrUpdateTextTranslation(
+					{
+						content: '',
+						ai_generated: true,
+						requires_validation: true
+					},
+					{
+						params: {
+							text_content_id: textContentId,
+							locale
+						}
+					}
+				);
+
+				// Then auto-translate it
+				await apiClient.AutomaticallyGenerateTranslation(undefined, {
+					params: {
+						text_content_id: textContentId,
+						locale
+					}
+				});
+				results.push({ field: textContentId, success: true });
+			} catch (error) {
+				console.error(`Failed to auto-translate ${textContentId} to ${locale}:`, error);
+				results.push({ field: textContentId, success: false });
+			}
+		}
+
+		await invalidateAll();
+		return results;
+	}
+
 	return {
 		// Dialog state (reactive)
 		get modalOpen() { return modalOpen; },
@@ -361,6 +427,7 @@ export function createTranslationManager(
 		get activeField() { return activeField; },
 		get activeLanguage() { return activeLanguage; },
 		get isTranslating() { return isTranslating; },
+		get isInCooldown() { return isInCooldown(); },
 		get workingTranslations() { return workingTranslations; },
 
 		// Dialog actions
@@ -374,6 +441,7 @@ export function createTranslationManager(
 		// Utilities for form fields
 		getFieldTranslations,
 		getFieldContentForLocale,
-		handlePrimaryContentChange
+		handlePrimaryContentChange,
+		autoTranslateNewLanguage
 	};
 }

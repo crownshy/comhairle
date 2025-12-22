@@ -11,6 +11,7 @@
 		translations: TranslationEntry[];
 		activeLanguage: string | null;
 		isTranslating?: boolean;
+		isInCooldown?: boolean;
 		onClose: () => void;
 		onContentChange: (language: string, content: string) => void;
 		onStatusChange: (language: string, status: TranslationStatus) => void;
@@ -23,6 +24,7 @@
 		translations,
 		activeLanguage,
 		isTranslating = false,
+		isInCooldown = false,
 		onClose,
 		onContentChange,
 		onStatusChange,
@@ -138,8 +140,14 @@
 							    </div>
 							  </div>
 
-							  <Button onclick={onAiTranslate} disabled={isTranslating}>
-							    {isTranslating ? 'Translating...' : 'AI translation'}
+							  <Button onclick={onAiTranslate} disabled={isTranslating || isInCooldown}>
+							    {#if isTranslating}
+							      Translating...
+							    {:else if isInCooldown}
+							      Just translated
+							    {:else}
+							      AI translation
+							    {/if}
 							    <Sparkles class="size-4" />
 							  </Button>
 							</div>
