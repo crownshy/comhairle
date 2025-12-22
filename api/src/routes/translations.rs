@@ -10,6 +10,7 @@ use axum::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
@@ -23,27 +24,27 @@ use crate::{
 
 use super::auth::RequiredAdminUser;
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct TextContentWithTranslations {
     #[serde(flatten)]
     pub text_content: TextContent,
     pub translations: Vec<TextTranslation>,
 }
 
-#[derive(Deserialize, JsonSchema)]
+#[derive(Deserialize, JsonSchema, Debug)]
 pub struct CreateTextContentRequest {
     pub primary_locale: String,
     pub format: translations::TextFormat,
+    pub content: String,
 }
 
 /// Get a TextContent with all its translations
+#[instrument(err(Debug), skip(state))]
 async fn get_text_content_with_translations(
     State(state): State<Arc<ComhairleState>>,
-    Path(text_content_id): Path<Uuid>,
+    Path(text_content_id): Path<TextContentId>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextContentWithTranslations>), ComhairleError> {
-    let text_content_id = TextContentId::from(text_content_id);
-
     let text_content = translations::get_text_content_by_id(&state.db, &text_content_id).await?;
     let translations =
         translations::get_text_translations_by_content_id(&state.db, &text_content_id).await?;
@@ -58,29 +59,30 @@ async fn get_text_content_with_translations(
 }
 
 /// Create new TextContent
+#[instrument(err(Debug), skip(state))]
 async fn create_text_content(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(request): Json<CreateTextContentRequest>,
 ) -> Result<(StatusCode, Json<TextContent>), ComhairleError> {
-    let create_content = CreateTextContent {
-        primary_locale: request.primary_locale,
-        format: request.format,
-    };
-
-    let text_content = translations::create_text_content(&state.db, &create_content).await?;
-
+    let text_content = translations::new_translation(
+        &state.db,
+        &request.primary_locale,
+        &request.content,
+        request.format,
+    )
+    .await?;
     Ok((StatusCode::CREATED, Json(text_content)))
 }
 
 /// Update TextContent
+#[instrument(err(Debug), skip(state))]
 async fn update_text_content(
     State(state): State<Arc<ComhairleState>>,
-    Path(text_content_id): Path<Uuid>,
+    Path(text_content_id): Path<TextContentId>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(update): Json<UpdateTextContent>,
 ) -> Result<(StatusCode, Json<TextContent>), ComhairleError> {
-    let text_content_id = TextContentId::from(text_content_id);
     let text_content =
         translations::update_text_content(&state.db, &text_content_id, &update).await?;
 
@@ -88,24 +90,24 @@ async fn update_text_content(
 }
 
 /// Delete TextContent and all its translations
+#[instrument(err(Debug), skip(state))]
 async fn delete_text_content(
     State(state): State<Arc<ComhairleState>>,
-    Path(text_content_id): Path<Uuid>,
+    Path(text_content_id): Path<TextContentId>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextContent>), ComhairleError> {
-    let text_content_id = TextContentId::from(text_content_id);
     let text_content = translations::delete_text_content(&state.db, &text_content_id).await?;
 
     Ok((StatusCode::OK, Json(text_content)))
 }
 
 /// Get a specific translation for a TextContent and locale
+#[instrument(err(Debug), skip(state))]
 async fn get_text_translation(
     State(state): State<Arc<ComhairleState>>,
-    Path((text_content_id, locale)): Path<(Uuid, String)>,
+    Path((text_content_id, locale)): Path<(TextContentId, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextTranslation>), ComhairleError> {
-    let text_content_id = TextContentId::from(text_content_id);
     let translation = translations::get_text_translation_by_content_and_locale(
         &state.db,
         &text_content_id,
@@ -126,14 +128,13 @@ pub struct CreateOrUpdateTextTranslationRequest {
 }
 
 /// Create or update a translation for a specific TextContent and locale
+#[instrument(err(Debug), skip(state))]
 async fn create_or_update_text_translation(
     State(state): State<Arc<ComhairleState>>,
-    Path((text_content_id, locale)): Path<(Uuid, String)>,
+    Path((text_content_id, locale)): Path<(TextContentId, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(request): Json<CreateOrUpdateTextTranslationRequest>,
 ) -> Result<(StatusCode, Json<TextTranslation>), ComhairleError> {
-    let text_content_id = TextContentId::from(text_content_id);
-
     // Check if translation already exists
     match translations::get_text_translation_by_content_and_locale(
         &state.db,
@@ -173,14 +174,13 @@ async fn create_or_update_text_translation(
 }
 
 /// Update a specific translation
+#[instrument(err(Debug), skip(state))]
 async fn update_text_translation(
     State(state): State<Arc<ComhairleState>>,
-    Path((text_content_id, locale)): Path<(Uuid, String)>,
+    Path((text_content_id, locale)): Path<(TextContentId, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(update): Json<UpdateTextTranslation>,
 ) -> Result<(StatusCode, Json<TextTranslation>), ComhairleError> {
-    let text_content_id = TextContentId::from(text_content_id);
-
     // First get the existing translation to get its ID
     let existing_translation = translations::get_text_translation_by_content_and_locale(
         &state.db,
@@ -195,14 +195,60 @@ async fn update_text_translation(
     Ok((StatusCode::OK, Json(updated_translation)))
 }
 
-/// Delete a specific translation
-async fn delete_text_translation(
+// Automatically translate a specific translation
+#[instrument(err(Debug), skip(state))]
+async fn auto_translate(
     State(state): State<Arc<ComhairleState>>,
-    Path((text_content_id, locale)): Path<(Uuid, String)>,
+    Path((text_content_id, locale)): Path<(TextContentId, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextTranslation>), ComhairleError> {
-    let text_content_id = TextContentId::from(text_content_id);
+    if let Some(translation_service) = &state.translation_service {
+        let new_translation = translations::auto_generate_translation(
+            &state.db,
+            &translation_service,
+            &text_content_id,
+            &locale,
+        )
+        .await?;
+        Ok((StatusCode::OK, Json(new_translation)))
+    } else {
+        Err(ComhairleError::NoTranslationServiceConfigured)
+    }
+}
 
+// Automatically translate all languages for this text content
+#[instrument(err(Debug), skip(state))]
+async fn auto_translate_all(
+    State(state): State<Arc<ComhairleState>>,
+    Path(text_content_id): Path<TextContentId>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<TextContentWithTranslations>), ComhairleError> {
+    if let Some(translation_service) = &state.translation_service {
+        let text_content =
+            translations::get_text_content_by_id(&state.db, &text_content_id).await?;
+        let translations = translations::auto_generate_all_translations(
+            &state.db,
+            &translation_service,
+            &text_content_id,
+        )
+        .await?;
+        let result = TextContentWithTranslations {
+            text_content,
+            translations,
+        };
+        Ok((StatusCode::OK, Json(result)))
+    } else {
+        Err(ComhairleError::NoTranslationServiceConfigured)
+    }
+}
+
+/// Delete a specific translation
+#[instrument(err(Debug), skip(state))]
+async fn delete_text_translation(
+    State(state): State<Arc<ComhairleState>>,
+    Path((text_content_id, locale)): Path<(TextContentId, String)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<TextTranslation>), ComhairleError> {
     // First get the existing translation to get its ID
     let existing_translation = translations::get_text_translation_by_content_and_locale(
         &state.db,
@@ -224,6 +270,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/",
             post_with(create_text_content, |op| {
                 op.id("CreateTextContent")
+                    .tag("Translations")
                     .summary("Create new TextContent")
                     .description("Create a new TextContent entry that can hold translations")
                     .response::<201, Json<TextContent>>()
@@ -233,6 +280,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{text_content_id}",
             get_with(get_text_content_with_translations, |op| {
                 op.id("GetTextContentWithTranslations")
+                    .tag("Translations")
                     .summary("Get TextContent with all translations")
                     .description("Get a TextContent entry with all its translations")
                     .response::<200, Json<TextContentWithTranslations>>()
@@ -242,6 +290,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{text_content_id}",
             put_with(update_text_content, |op| {
                 op.id("UpdateTextContent")
+                    .tag("Translations")
                     .summary("Update TextContent")
                     .description("Update a TextContent entry")
                     .response::<200, Json<TextContent>>()
@@ -251,6 +300,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{text_content_id}",
             delete_with(delete_text_content, |op| {
                 op.id("DeleteTextContent")
+                    .tag("Translations")
                     .summary("Delete TextContent")
                     .description("Delete a TextContent entry and all its translations")
                     .response::<200, Json<TextContent>>()
@@ -261,6 +311,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{text_content_id}/{locale}",
             get_with(get_text_translation, |op| {
                 op.id("GetTextTranslation")
+                    .tag("Translations")
                     .summary("Get translation for specific locale")
                     .description("Get a translation for a specific TextContent and locale")
                     .response::<200, Json<TextTranslation>>()
@@ -270,6 +321,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{text_content_id}/{locale}",
             post_with(create_or_update_text_translation, |op| {
                 op.id("CreateOrUpdateTextTranslation")
+                    .tag("Translations")
                     .summary("Create or update translation")
                     .description(
                         "Create a new translation or update existing one for a specific locale",
@@ -282,6 +334,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{text_content_id}/{locale}",
             put_with(update_text_translation, |op| {
                 op.id("UpdateTextTranslation")
+                    .tag("Translations")
                     .summary("Update translation")
                     .description("Update an existing translation for a specific locale")
                     .response::<200, Json<TextTranslation>>()
@@ -291,8 +344,29 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{text_content_id}/{locale}",
             delete_with(delete_text_translation, |op| {
                 op.id("DeleteTextTranslation")
+                    .tag("Translations")
                     .summary("Delete translation")
                     .description("Delete a translation for a specific locale")
+                    .response::<200, Json<TextTranslation>>()
+            }),
+        )
+        .api_route(
+            "/{text_content_id}/translate",
+            post_with(auto_translate_all, |op| {
+                op.id("GenerateAllTranslations")
+                    .tag("Translations")
+                    .summary("Generate all translations for this Text Content")
+                    .description("Use the default locale content as the reference text and generate automatic translations for each language form it")
+                    .response::<200, Json<TextContentWithTranslations>>()
+            }),
+        )
+        .api_route(
+            "/{text_content_id}/{locale}/translate",
+            post_with(auto_translate, |op| {
+                op.id("AutomaticallyGenerateTranslation")
+                    .tag("Translations")
+                    .summary("Automatically generate this language")
+                    .description("Use the primary_locale language and translate this language from it using the tarnslation service")
                     .response::<200, Json<TextTranslation>>()
             }),
         )
@@ -305,9 +379,11 @@ mod tests {
     use crate::{
         models::translations::TextFormat,
         setup_server,
-        test_helpers::{test_state, UserSession},
+        test_helpers::{extract, test_state, UserSession},
+        translation_service::MockTranslationService,
     };
-    use axum::http::StatusCode;
+    use axum::{body::Body, http::StatusCode};
+    use mockall::predicate;
     use serde_json::json;
     use std::{error::Error, sync::Arc};
 
@@ -322,7 +398,8 @@ mod tests {
         // Create TextContent
         let create_request = json!({
             "primary_locale": "en",
-            "format": "plain"
+            "format": "plain",
+            "content": "Original Translation"
         });
 
         let (status, response, _) = admin_session
@@ -333,6 +410,22 @@ mod tests {
         let text_content: TextContent = serde_json::from_value(response)?;
         assert_eq!(text_content.primary_locale, "en");
         assert_eq!(text_content.format, TextFormat::Plain);
+
+        let (status, response, _) = admin_session
+            .get(&app, &format!("/translations/{}/en", text_content.id))
+            .await?;
+
+        let translation: TextTranslation = serde_json::from_value(response)?;
+
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "should have created primary translation"
+        );
+        assert_eq!(
+            translation.content, "Original Translation",
+            "should have correct content"
+        );
 
         Ok(())
     }
@@ -350,7 +443,8 @@ mod tests {
         // Create TextContent
         let create_request = json!({
             "primary_locale": "en",
-            "format": "rich"
+            "format": "rich",
+            "content": "Hello World"
         });
 
         let (status, response, _) = admin_session
@@ -362,7 +456,7 @@ mod tests {
         // Add a translation
         let translation_request = json!({
             "content_id": text_content.id,
-            "content": "Hello World",
+            "content": "Bonjour le monde",
             "ai_generated": false,
             "requires_validation": false
         });
@@ -370,7 +464,7 @@ mod tests {
         admin_session
             .post(
                 &app,
-                &format!("/translations/{}/en", text_content.id),
+                &format!("/translations/{}/fr", text_content.id),
                 translation_request.to_string().into(),
             )
             .await?;
@@ -384,9 +478,11 @@ mod tests {
 
         let result: TextContentWithTranslations = serde_json::from_value(response)?;
         assert_eq!(result.text_content.id, text_content.id);
-        assert_eq!(result.translations.len(), 1);
+        assert_eq!(result.translations.len(), 2);
         assert_eq!(result.translations[0].content, "Hello World");
         assert_eq!(result.translations[0].locale, "en");
+        assert_eq!(result.translations[1].content, "Bonjour le monde");
+        assert_eq!(result.translations[1].locale, "fr");
 
         Ok(())
     }
@@ -402,7 +498,8 @@ mod tests {
         // Create TextContent
         let create_request = json!({
             "primary_locale": "en",
-            "format": "plain"
+            "format": "plain",
+            "content": "Original Translation"
         });
 
         let (_, response, _) = admin_session
@@ -414,7 +511,8 @@ mod tests {
         // Update TextContent
         let update_request = json!({
             "primary_locale": "es",
-            "format": "rich"
+            "format": "rich",
+            "content": "Original Translation"
         });
 
         let (status, response, _) = admin_session
@@ -445,10 +543,11 @@ mod tests {
         // Create TextContent
         let create_request = json!({
             "primary_locale": "en",
-            "format": "plain"
+            "format": "plain",
+            "content": "Original Translation"
         });
 
-        let (status, response, _) = admin_session
+        let (_status, response, _) = admin_session
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
@@ -485,7 +584,8 @@ mod tests {
         // Create TextContent first
         let create_request = json!({
             "primary_locale": "en",
-            "format": "plain"
+            "format": "plain",
+            "content": "Original Translation"
         });
 
         let (status, response, _) = admin_session
@@ -521,6 +621,194 @@ mod tests {
     }
 
     #[sqlx::test]
+    async fn test_auto_generate_translation(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
+        let mut mock_translation_service = MockTranslationService::new();
+
+        mock_translation_service
+            .expect_translate_from_to()
+            .with(
+                predicate::eq("Original Translation"),
+                predicate::eq("en"),
+                predicate::eq("fr"),
+            )
+            .once()
+            .returning(|text, from, to| Ok(format!("translated: {text} from {from} to {to}")));
+
+        let state = test_state()
+            .db(pool)
+            .translation_service(Arc::new(mock_translation_service))
+            .call()?;
+
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        // Create TextContent and translation
+        let create_request = json!({
+            "primary_locale": "en",
+            "format": "plain",
+            "content": "Original Translation"
+        });
+
+        let (status, response, _) = admin_session
+            .post(&app, "/translations", create_request.to_string().into())
+            .await?;
+
+        let text_content: TextContent = serde_json::from_value(response)?;
+
+        let translation_request = json!({
+            "content": "empty translation",
+            "ai_generated": false,
+            "requires_validation": false
+        });
+
+        let (status, response, _) = admin_session
+            .post(
+                &app,
+                &format!("/translations/{}/fr", text_content.id),
+                translation_request.to_string().into(),
+            )
+            .await?;
+
+        let (status, response, _) = admin_session
+            .post(
+                &app,
+                &format!("/translations/{}/fr/translate", text_content.id),
+                Body::empty(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::OK, "should successfully translate");
+
+        // Get specific translation
+        let (_, response, _) = admin_session
+            .get(&app, &format!("/translations/{}/fr", text_content.id))
+            .await?;
+
+        let response_text: String = extract("content", &response);
+        assert_eq!(
+            response_text,
+            format!("translated: Original Translation from en to fr"),
+            "should successfully translate"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_auto_generate_all_translations(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
+        let mut mock_translation_service = MockTranslationService::new();
+
+        mock_translation_service
+            .expect_translate_from_to()
+            .with(
+                predicate::eq("Original Translation"),
+                predicate::eq("en"),
+                predicate::eq("fr"),
+            )
+            .once()
+            .returning(|text, from, to| Ok(format!("translated: {text} from {from} to {to}")));
+
+        mock_translation_service
+            .expect_translate_from_to()
+            .with(
+                predicate::eq("Original Translation"),
+                predicate::eq("en"),
+                predicate::eq("gr"),
+            )
+            .once()
+            .returning(|text, from, to| Ok(format!("translated: {text} from {from} to {to}")));
+
+        let state = test_state()
+            .db(pool)
+            .translation_service(Arc::new(mock_translation_service))
+            .call()?;
+
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        // Create TextContent and translation
+        let create_request = json!({
+            "primary_locale": "en",
+            "format": "plain",
+            "content": "Original Translation"
+        });
+
+        let (_, response, _) = admin_session
+            .post(&app, "/translations", create_request.to_string().into())
+            .await?;
+
+        let text_content: TextContent = serde_json::from_value(response)?;
+
+        let translation_request = json!({
+            "content": "empty french translation",
+            "ai_generated": false,
+            "requires_validation": false
+        });
+
+        admin_session
+            .post(
+                &app,
+                &format!("/translations/{}/fr", text_content.id),
+                translation_request.to_string().into(),
+            )
+            .await?;
+
+        let translation_request = json!({
+            "content": "empty galeic translation",
+            "ai_generated": false,
+            "requires_validation": false
+        });
+
+        admin_session
+            .post(
+                &app,
+                &format!("/translations/{}/gr", text_content.id),
+                translation_request.to_string().into(),
+            )
+            .await?;
+
+        let (status, _, _) = admin_session
+            .post(
+                &app,
+                &format!("/translations/{}/translate", text_content.id),
+                Body::empty(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::OK, "should successfully translate");
+
+        // Get specific translation
+        let (_, response, _) = admin_session
+            .get(&app, &format!("/translations/{}/fr", text_content.id))
+            .await?;
+
+        let response_text: String = extract("content", &response);
+        assert_eq!(
+            response_text,
+            format!("translated: Original Translation from en to fr"),
+            "should successfully translate"
+        );
+
+        // Get specific translation
+        let (_, response, _) = admin_session
+            .get(&app, &format!("/translations/{}/gr", text_content.id))
+            .await?;
+
+        let response_text: String = extract("content", &response);
+        assert_eq!(
+            response_text,
+            format!("translated: Original Translation from en to gr"),
+            "should successfully translate"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
     async fn test_get_text_translation(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -531,7 +819,8 @@ mod tests {
         // Create TextContent and translation
         let create_request = json!({
             "primary_locale": "en",
-            "format": "plain"
+            "format": "plain",
+            "content": "Original Text"
         });
 
         let (status, response, _) = admin_session
@@ -581,7 +870,8 @@ mod tests {
         // Create TextContent and translation
         let create_request = json!({
             "primary_locale": "en",
-            "format": "plain"
+            "format": "plain",
+            "content": "Original Translation"
         });
 
         let (status, response, _) = admin_session
@@ -643,7 +933,8 @@ mod tests {
         // Create TextContent and translation
         let create_request = json!({
             "primary_locale": "en",
-            "format": "plain"
+            "format": "plain",
+            "content": "Original Translation"
         });
 
         let (status, response, _) = admin_session
@@ -702,8 +993,9 @@ mod tests {
 
         // Create TextContent and translation
         let create_request = json!({
-            "primary_locale": "en",
-            "format": "plain"
+            "primary_locale": "pt",
+            "format": "plain",
+            "content":"Text to delete"
         });
 
         let (status, response, _) = admin_session
@@ -711,20 +1003,6 @@ mod tests {
             .await?;
 
         let text_content: TextContent = serde_json::from_value(response)?;
-
-        let translation_request = json!({
-            "content": "Text to delete",
-            "ai_generated": false,
-            "requires_validation": false
-        });
-
-        admin_session
-            .post(
-                &app,
-                &format!("/translations/{}/pt", text_content.id),
-                translation_request.to_string().into(),
-            )
-            .await?;
 
         // Delete translation
         let (status, response, _) = admin_session
@@ -757,7 +1035,8 @@ mod tests {
         // Try to create TextContent as regular user
         let create_request = json!({
             "primary_locale": "en",
-            "format": "plain"
+            "format": "plain",
+            "content": "Original Translation"
         });
 
         let (status, response, _) = regular_session
@@ -799,7 +1078,8 @@ mod tests {
         // Create TextContent but no translation
         let create_request = json!({
             "primary_locale": "en",
-            "format": "plain"
+            "format": "plain",
+            "content": "Original Translation"
         });
 
         let (status, response, _) = admin_session
@@ -842,8 +1122,6 @@ mod tests {
             )
             .await?;
 
-        println!("{response:#?}");
-
         assert_eq!(status, StatusCode::NOT_FOUND);
 
         Ok(())
@@ -860,7 +1138,8 @@ mod tests {
         // Create TextContent
         let create_request = json!({
             "primary_locale": "en",
-            "format": "plain"
+            "format": "plain",
+            "content": "Original Translation"
         });
 
         let (status, response, _) = admin_session

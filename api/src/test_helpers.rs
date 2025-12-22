@@ -23,6 +23,7 @@ use crate::{
     config::ComhairleConfig,
     mailer::MockComhairleMailer,
     models::users::UpdateUserRequest,
+    translation_service::{MockTranslationService, TranslationService},
     websockets::{MockWebSocketService, WebSocketService},
     ComhairleState,
 };
@@ -37,18 +38,27 @@ pub fn mock_websockets() -> Arc<dyn WebSocketService> {
     Arc::new(websockets)
 }
 
+pub fn mock_translation_service() -> Option<Arc<dyn TranslationService>> {
+    let translation_service = MockTranslationService::base();
+    Some(Arc::new(translation_service))
+}
+
 #[builder]
 pub fn test_state(
     db: PgPool,
     mailer: Option<Arc<MockComhairleMailer>>,
     config: Option<ComhairleConfig>,
     websockets: Option<Arc<dyn WebSocketService>>,
+    translation_service: Option<Arc<dyn TranslationService>>,
 ) -> Result<ComhairleState, Box<dyn Error>> {
     let state = ComhairleState {
         db,
         mailer: mailer.unwrap_or_else(mock_mailer),
         config: config.unwrap_or_else(|| test_config().unwrap()),
         websockets: websockets.unwrap_or_else(|| mock_websockets()),
+        translation_service: translation_service
+            .map(|s| Some(s))
+            .unwrap_or_else(|| mock_translation_service()),
     };
     Ok(state)
 }

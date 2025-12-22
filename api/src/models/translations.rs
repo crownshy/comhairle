@@ -1,7 +1,7 @@
-use std::fmt;
 use std::str::FromStr;
+use std::{fmt, sync::Arc};
 
-use crate::error::ComhairleError;
+use crate::{error::ComhairleError, translation_service::TranslationService};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
@@ -506,11 +506,13 @@ pub async fn update_text_content(
     id: &TextContentId,
     update: &UpdateTextContent,
 ) -> Result<TextContent, ComhairleError> {
-    let values = update.to_values();
+    let mut values = update.to_values();
 
     if values.is_empty() {
         return Err(ComhairleError::NoValidUpdates);
     }
+
+    values.push((TextContentIden::CreatedAt, Utc::now().into()));
 
     let (sql, values) = Query::update()
         .table(TextContentIden::Table)
@@ -558,6 +560,7 @@ pub async fn delete_text_content(
     let text_content = sqlx::query_as_with::<_, TextContent, _>(&sql, values)
         .fetch_one(db)
         .await
+        .inspect_err(|e| println!("{e:#?}"))
         .map_err(|_| ComhairleError::ResourceNotFound("TextContent".into()))?;
 
     Ok(text_content)
@@ -830,6 +833,78 @@ pub async fn get_text_translation_optional(
         Err(ComhairleError::ResourceNotFound(_)) => Ok(None),
         Err(e) => Err(e),
     }
+}
+
+/// Translate all languages that exist for this
+/// text content. Will use the primary_locale as the
+/// base line and use the translator service to generate
+/// all of the others
+// TODO This can be improved, it currently looks up
+// the text content for each translation. We can
+// make this smoother
+#[instrument(err(Debug), skip(translator))]
+pub async fn auto_generate_all_translations(
+    db: &PgPool,
+    translator: &Arc<dyn TranslationService>,
+    text_content_id: &TextContentId,
+) -> Result<Vec<TextTranslation>, ComhairleError> {
+    let text_content = get_text_content_by_id(db, text_content_id).await?;
+    let translations = get_text_translations_by_content_id(db, text_content_id).await?;
+    let mut result: Vec<TextTranslation> = vec![];
+    for translation in translations.iter() {
+        if translation.locale != text_content.primary_locale {
+            let new_translation =
+                auto_generate_translation(db, translator, &text_content_id, &translation.locale)
+                    .await?;
+            result.push(new_translation);
+        }
+    }
+    return Ok(result);
+}
+
+/// Update this translation using the primary local
+/// as a reference
+#[instrument(err(Debug), skip(translator))]
+pub async fn auto_generate_translation(
+    db: &PgPool,
+    translator: &Arc<dyn TranslationService>,
+    text_content_id: &TextContentId,
+    locale: &str,
+) -> Result<TextTranslation, ComhairleError> {
+    let text_content = get_text_content_by_id(db, &text_content_id).await?;
+
+    println!("Trying to get translation with {text_content_id:#?} and {locale}");
+
+    let translation =
+        get_text_translation_by_content_and_locale(db, &text_content_id, locale).await?;
+
+    let reference_text = get_text_translation_by_content_and_locale(
+        db,
+        &text_content.id,
+        &text_content.primary_locale,
+    )
+    .await?;
+
+    let translated_text = translator
+        .translate_from_to(
+            &reference_text.content,
+            &reference_text.locale,
+            &translation.locale,
+        )
+        .await?;
+
+    let updated_translation = update_text_translation(
+        db,
+        &translation.id,
+        &UpdateTextTranslation {
+            content: Some(translated_text),
+            ai_generated: Some(true),
+            requires_validation: Some(true),
+            ..Default::default()
+        },
+    )
+    .await?;
+    Ok(updated_translation)
 }
 
 #[instrument(err(Debug))]
