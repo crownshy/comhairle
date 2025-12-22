@@ -60,6 +60,9 @@
 	}
 
 	async function handleSupportedLanguagesChange(newSupported: string[]) {
+		const currentSupported = conversation.supported_languages ?? [];
+		const newlyAddedLanguages = newSupported.filter(lang => !currentSupported.includes(lang));
+
 		try {
 			await apiClient.UpdateConversation(
 				{
@@ -70,9 +73,31 @@
 			);
 			await invalidateAll();
 			notifications.send({ message: 'Languages updated', priority: 'INFO' });
+
+			if (newlyAddedLanguages.length > 0) {
+				const textContentIds = getTranslatableTextContentIds();
+				if (textContentIds.length > 0) {
+					notifications.send({ message: 'Generating translations...', priority: 'INFO' });
+					
+					for (const locale of newlyAddedLanguages) {
+						await translations.autoTranslateNewLanguage(locale, textContentIds);
+					}
+					
+					notifications.send({ message: 'Translations generated', priority: 'INFO' });
+				}
+			}
 		} catch (e) {
 			notifications.send({ message: 'Failed to update languages', priority: 'ERROR' });
 		}
+	}
+
+	function getTranslatableTextContentIds(): string[] {
+		const translationsData = conversation.translations;
+		if (!translationsData) return [];
+		
+		return Object.values(translationsData)
+			.map(field => field.text_content?.id)
+			.filter((id): id is string => !!id);
 	}
 
 	let conversationForm = superForm(
@@ -148,6 +173,7 @@
 	translations={translations.workingTranslations}
 	activeLanguage={translations.activeLanguage}
 	isTranslating={translations.isTranslating}
+	isInCooldown={translations.isInCooldown}
 	onClose={translations.closeDialog}
 	onContentChange={handleContentChange}
 	onStatusChange={translations.updateStatus}
