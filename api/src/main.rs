@@ -1,7 +1,7 @@
 use comhairle::{
     bot_service::ComhairleRagBotService, config::TranslatorConfig, db::setup_db, mailer::Mailer,
     setup_server, translation_service::GoogleTranslateService,
-    websockets::ComhairleWebSocketService, ComhairleState,
+    websockets::ComhairleWebSocketService, workers::setup_workers, ComhairleState,
 };
 use std::{error::Error, sync::Arc};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -69,13 +69,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
         bot_service,
     });
 
-    let app = setup_server(state).await?;
+    let app = setup_server(state.clone()).await?;
 
-    // run our app with hyper
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let server_future = async move {
+        // run our app with hyper
+        let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+        tracing::info!("listening on {}", listener.local_addr().unwrap());
+        axum::serve(listener, app).await.unwrap();
+    };
 
-    tracing::info!("listening on {}", listener.local_addr().unwrap());
+    let worker_future = { setup_workers(state.clone()) };
 
-    axum::serve(listener, app).await.unwrap();
+    let _ = tokio::join!(server_future, worker_future);
+
     Ok(())
 }
