@@ -21,14 +21,14 @@ pub struct GetQueryParams {
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
-        .nest_service(
+        .nest_api_service(
             "/chats",
             chats::router(state.clone())
-                .nest_service("/{chat_id}/sessions", sessions::router(state.clone())),
+                .nest_api_service("/{chat_id}/sessions", sessions::router(state.clone())),
         )
-        .nest_service(
+        .nest_api_service(
             "/knowledge_bases",
-            knowledge_bases::router(state.clone()).nest_service(
+            knowledge_bases::router(state.clone()).nest_api_service(
                 "/{knowledge_base_id}/documents",
                 documents::router(state.clone()),
             ),

@@ -98,6 +98,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/",
             get_with(list, |op| {
                 op.id("ListChats")
+                    .tag("Bot Chats")
                     .summary("Get a list of chat bots")
                     .response::<200, Json<Vec<ComhairleChat>>>()
             }),
@@ -106,6 +107,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{chat_id}",
             get_with(get, |op| {
                 op.id("GetChat")
+                    .tag("Bot Chats")
                     .summary("Get a chat bot by id")
                     .response::<200, Json<ComhairleChat>>()
             }),
@@ -114,6 +116,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/",
             post_with(create, |op| {
                 op.id("CreateChat")
+                    .tag("Bot Chats")
                     .summary("Create a new chat bot")
                     .response::<201, Json<ComhairleChat>>()
             }),
@@ -122,6 +125,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{chat_id}",
             put_with(update, |op| {
                 op.id("UpdateChat")
+                    .tag("Bot Chats")
                     .summary("Update a chat bot")
                     .response::<200, Json<ComhairleChat>>()
             }),
@@ -130,6 +134,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{chat_id}",
             delete_with(delete, |op| {
                 op.id("DeleteChat")
+                    .tag("Bot Chats")
                     .summary("Delete a chat bot")
                     .response::<204, ()>()
             }),
