@@ -9,6 +9,7 @@ mod routes;
 mod tools;
 pub mod translation_service;
 pub mod websockets;
+pub mod workers;
 
 use bot_service::ComhairleBotService;
 use docs::docs_routes;
