@@ -42,10 +42,6 @@ export const UpdateUserRequest = z.object({ email_verified: z.union([z.boolean()
 export type UpdateUserRequest = z.infer<typeof UpdateUserRequest>;
 export const UpgradeAccountRequest = z.object({ email: z.string(), password: z.string(), username: z.string() }).passthrough();
 export type UpgradeAccountRequest = z.infer<typeof UpgradeAccountRequest>;
-export const CreateBotUserSessionRequest = z.object({ conversation_id: z.string().uuid() }).passthrough();
-export type CreateBotUserSessionRequest = z.infer<typeof CreateBotUserSessionRequest>;
-export const BotServiceUserSessionDto = z.object({ bot_service_session_id: z.string(), conversation_id: z.string().uuid(), id: z.string().uuid(), user_id: z.string().uuid() }).passthrough();
-export type BotServiceUserSessionDto = z.infer<typeof BotServiceUserSessionDto>;
 export const UserConversationPreferences = z.object({ conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), receive_similar_conversation_updates_by_email: z.boolean(), receive_similar_conversation_updates_by_notification: z.boolean(), receive_updates_by_email: z.boolean(), receive_updates_by_notification: z.boolean(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid() }).passthrough();
 export type UserConversationPreferences = z.infer<typeof UserConversationPreferences>;
 export const UpdateUserConversationPreferences = z.object({ receive_similar_conversation_updates_by_email: z.union([z.boolean(), z.null()]), receive_similar_conversation_updates_by_notification: z.union([z.boolean(), z.null()]), receive_updates_by_email: z.union([z.boolean(), z.null()]), receive_updates_by_notification: z.union([z.boolean(), z.null()]) }).partial().passthrough();
@@ -98,6 +94,8 @@ export const RegisterEmailRequest = z.object({ email: z.string(), receive_simila
 export type RegisterEmailRequest = z.infer<typeof RegisterEmailRequest>;
 export const RegisterEmailResponse = z.object({ conversation_id: z.string().uuid(), email: z.string(), id: z.string().uuid(), message: z.string() }).passthrough();
 export type RegisterEmailResponse = z.infer<typeof RegisterEmailResponse>;
+export const BotServiceUserSessionDto = z.object({ bot_service_session_id: z.string(), conversation_id: z.string().uuid(), id: z.string().uuid(), user_id: z.string().uuid() }).passthrough();
+export type BotServiceUserSessionDto = z.infer<typeof BotServiceUserSessionDto>;
 export const Workflow = z.object({ auto_login: z.boolean(), conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_active: z.boolean(), is_public: z.boolean(), name: z.string(), owner_id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
 export type Workflow = z.infer<typeof Workflow>;
 export const CreateWorkflow = z.object({ auto_login: z.boolean(), description: z.string(), is_active: z.boolean(), is_public: z.boolean(), name: z.string() }).passthrough();
@@ -241,8 +239,6 @@ export const schemas = {
 	PaginatedResults_for_LocalisedConversation,
 	UpdateUserRequest,
 	UpgradeAccountRequest,
-	CreateBotUserSessionRequest,
-	BotServiceUserSessionDto,
 	UserConversationPreferences,
 	UpdateUserConversationPreferences,
 	DeliveryMethod,
@@ -269,6 +265,7 @@ export const schemas = {
 	SendNotificationRequest,
 	RegisterEmailRequest,
 	RegisterEmailResponse,
+	BotServiceUserSessionDto,
 	Workflow,
 	CreateWorkflow,
 	ActivationRule,
@@ -840,6 +837,20 @@ const endpoints = makeApi([
 		response: LocalisedConversation,
 	},
 	{
+		method: "get",
+		path: "/conversation/:conversation_id/bot_service_sessions",
+		alias: "GetConversationBotSession",
+		requestFormat: "json",
+		response: BotServiceUserSessionDto,
+	},
+	{
+		method: "post",
+		path: "/conversation/:conversation_id/bot_service_sessions",
+		alias: "CreateConversationBotSession",
+		requestFormat: "json",
+		response: BotServiceUserSessionDto,
+	},
+	{
 		method: "post",
 		path: "/conversation/:conversation_id/email-updates",
 		alias: "RegisterEmailForUpdates",
@@ -1394,27 +1405,6 @@ This struct contains optional fields that can be updated on a TextTranslation re
 		description: `Use the default locale content as the reference text and generate automatic translations for each language form it`,
 		requestFormat: "json",
 		response: TextContentWithTranslations,
-	},
-	{
-		method: "post",
-		path: "/user/bot_service_sessions",
-		alias: "CreateBotServiceUserSession",
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "body",
-				type: "Body",
-				schema: z.object({ conversation_id: z.string().uuid() }).passthrough()
-			},
-		],
-		response: BotServiceUserSessionDto,
-	},
-	{
-		method: "get",
-		path: "/user/bot_service_sessions/:conversation_id",
-		alias: "GetServiceUserSession",
-		requestFormat: "json",
-		response: BotServiceUserSessionDto,
 	},
 	{
 		method: "get",
