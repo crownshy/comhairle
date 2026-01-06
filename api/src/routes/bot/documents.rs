@@ -123,6 +123,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/",
             get_with(list, |op| {
                 op.id("ListDocuments")
+                    .tag("Bot Documents")
                     .summary("Get a list of documents from a knowledge base")
                     .response::<200, Json<Vec<ComhairleDocument>>>()
             }),
@@ -131,6 +132,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{document_id}",
             get_with(get, |op| {
                 op.id("GetDocuments")
+                    .tag("Bot Documents")
                     .summary("Get a documents from a knowledge base by id")
                     .response::<200, Json<ComhairleDocument>>()
             }),
@@ -148,6 +150,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{document_id}",
             put_with(update, |op| {
                 op.id("UpdateDocument")
+                    .tag("Bot Documents")
                     .summary("Update a document within a knowledge base")
                     .response::<200, Json<ComhairleDocument>>()
             }),
@@ -156,6 +159,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{document_id}",
             delete_with(delete, |op| {
                 op.id("DeleteDocument")
+                    .tag("Bot Documents")
                     .summary("Delete a document from a knowledge base")
                     .response::<204, ()>()
             }),

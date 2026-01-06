@@ -1,3 +1,4 @@
+pub mod bot_service_user_session;
 pub mod conversation;
 pub mod conversation_email_notification_recipients;
 pub mod feedback;

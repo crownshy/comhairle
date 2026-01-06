@@ -103,6 +103,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/",
             get_with(list, |op| {
                 op.id("ListKnowledgeBases")
+                    .tag("Bot Knowledge Bases")
                     .summary("Get a list of knowledge bases from RAG system")
                     .response::<200, Json<Vec<ComhairleKnowledgeBase>>>()
             }),
@@ -111,6 +112,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{knowledge_base_id}",
             get_with(get, |op| {
                 op.id("GetKnowledgeBase")
+                    .tag("Bot Knowledge Bases")
                     .summary("Get a knowledge base from RAG system")
                     .response::<200, Json<ComhairleKnowledgeBase>>()
             }),
@@ -119,6 +121,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/",
             post_with(create, |op| {
                 op.id("CreateKnowledgeBase")
+                    .tag("Bot Knowledge Bases")
                     .summary("Create a knowledge base in RAG system")
                     .response::<201, Json<ComhairleKnowledgeBase>>()
             }),
@@ -127,6 +130,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{knowledge_base_id}",
             put_with(update, |op| {
                 op.id("UpdateKnowledgeBase")
+                    .tag("Bot Knowledge Bases")
                     .summary("Update a knowledge base")
                     .response::<200, Json<ComhairleKnowledgeBase>>()
             }),
@@ -135,6 +139,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{knowledge_base_id}",
             delete_with(delete, |op| {
                 op.id("DeleteKnowledgeBase")
+                    .tag("Bot Knowledge Bases")
                     .summary("Delete a knowledge from from RAG system")
                     .response::<204, ()>()
             }),
