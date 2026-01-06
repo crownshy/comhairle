@@ -37,6 +37,8 @@ use error::ComhairleError;
 use sqlx_postgres::PgPool;
 use tower_http::cors::CorsLayer;
 
+use crate::workers::JobQueues;
+
 #[derive(Clone)]
 pub struct ComhairleState {
     pub db: PgPool,
@@ -45,6 +47,7 @@ pub struct ComhairleState {
     pub websockets: Arc<dyn WebSocketService>,
     pub translation_service: Option<Arc<dyn TranslationService>>,
     pub bot_service: Arc<dyn ComhairleBotService>,
+    pub jobs: Arc<JobQueues>,
 }
 
 fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
