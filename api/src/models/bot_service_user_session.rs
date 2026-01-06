@@ -6,7 +6,6 @@ use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
-use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
@@ -72,7 +71,23 @@ impl CreateBotServiceUserSessionWithSessionId {
     }
 }
 
-// #[instrument(err(Debug))] // TODO: can't add because of ComhairleBotService
+/// Creates a new user session for a conversation tied to a ragflow bot session.
+///
+/// # Arguments
+///
+/// * `db` - Database conncection pool
+/// * `bot_service` - RAG based bot service provider
+/// * `session` - request params containing `user_id` and `conversation_id`
+///
+/// # Returns
+///
+/// Returns a `Result` containing the created `BotServiceUserSession` or  a
+/// `ComhairleError` on failure.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// * The database operation fails
 pub async fn create(
     db: &PgPool,
     bot_service: &Arc<dyn ComhairleBotService>,
@@ -87,10 +102,7 @@ pub async fn create(
 
     let chat_bot_id = conversation
         .chat_bot_id
-        // TODO: use a different error here
-        .ok_or_else(|| {
-            ComhairleError::DbError("Missing chat_bot_id on conversation".to_string())
-        })?;
+        .ok_or_else(|| ComhairleError::NoConversationBotId)?;
 
     let (_, bot_service_session) = bot_service
         .create_chat_session(&chat_bot_id, create_chat_session)
@@ -119,6 +131,18 @@ pub async fn create(
     Ok(bot_session_result)
 }
 
+/// Retrieves a user bot session by user_id and conversation_id.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `user_id` - user's ID
+/// * `conversation_id` - relevant conversation's ID
+///
+/// # Returns
+///
+/// Returns a `Result` containing the `BotServicerUserSession` if found or a
+/// `ComhairleError` if not found.
 pub async fn get_by_conversation_id(
     db: &PgPool,
     user_id: Uuid,
