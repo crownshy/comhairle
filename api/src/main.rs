@@ -1,7 +1,14 @@
+use apalis::prelude::MemoryStorage;
 use comhairle::{
-    bot_service::ComhairleRagBotService, config::TranslatorConfig, db::setup_db, mailer::Mailer,
-    setup_server, translation_service::GoogleTranslateService,
-    websockets::ComhairleWebSocketService, workers::setup_workers, ComhairleState,
+    bot_service::ComhairleRagBotService,
+    config::TranslatorConfig,
+    db::setup_db,
+    mailer::Mailer,
+    setup_server,
+    translation_service::GoogleTranslateService,
+    websockets::ComhairleWebSocketService,
+    workers::{knowledge_bases::KnowledgeBaseJob, setup_workers, JobQueues},
+    ComhairleState,
 };
 use std::{error::Error, sync::Arc};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -60,6 +67,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         &config.bot_service_host,
         &config.bot_service_api_key,
     ));
+
+    let jobs = Arc::new(JobQueues {
+        knowledge_bases: MemoryStorage::new(),
+    });
+
     let state = Arc::new(ComhairleState {
         db,
         mailer,
@@ -67,6 +79,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         websockets,
         translation_service,
         bot_service,
+        jobs,
     });
 
     let app = setup_server(state.clone()).await?;
