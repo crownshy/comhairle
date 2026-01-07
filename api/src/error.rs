@@ -182,6 +182,9 @@ pub enum ComhairleError {
 
     #[error("No bot_id was found for this conversation")]
     NoConversationBotId,
+
+    #[error("Background worker job failed: {0}")]
+    BackgroundJobFailed(String),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]

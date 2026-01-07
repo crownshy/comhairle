@@ -1,0 +1,3 @@
+# Knowledge Base Welcome
+
+This file includes default information to include in a knowledge base. This can be used to connect a chat bot to a conversation's knowledge base.

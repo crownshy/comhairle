@@ -162,12 +162,15 @@ impl ComhairleBotService for ComhairleRagBotService {
         &self,
         knowledge_base_id: &str,
         files: Vec<UploadFileRequest>,
-    ) -> Result<StatusCode, ComhairleError> {
+    ) -> Result<(StatusCode, Vec<ComhairleDocument>), ComhairleError> {
         let files: Vec<UploadFile> = files.into_iter().map(Into::into).collect();
 
-        let (status, _) = ragflow::document::upload(&self.client, knowledge_base_id, files).await?;
+        let (status, documents) =
+            ragflow::document::upload(&self.client, knowledge_base_id, files).await?;
 
-        Ok(status)
+        let documents: Vec<ComhairleDocument> = documents.into_iter().map(Into::into).collect();
+
+        Ok((status, documents))
     }
 
     #[instrument(err(Debug))]
@@ -463,6 +466,8 @@ impl From<Document> for ComhairleDocument {
         Self {
             id: input.id,
             name: input.name,
+            parse_progress: input.progress.unwrap_or(0.0),
+            parse_status: input.run.unwrap_or("RUNNING".to_string()),
         }
     }
 }
@@ -472,6 +477,8 @@ impl From<&Document> for ComhairleDocument {
         Self {
             id: input.id.clone(),
             name: input.name.clone(),
+            parse_progress: input.progress.unwrap_or(0.0),
+            parse_status: input.run.clone().unwrap_or("RUNNING".to_string()),
         }
     }
 }
