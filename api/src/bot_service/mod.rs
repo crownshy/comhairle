@@ -86,7 +86,7 @@ pub trait ComhairleBotService: Send + Sync {
         &self,
         knowledge_base_id: &str,
         files: Vec<UploadFileRequest>,
-    ) -> Result<StatusCode, ComhairleError>;
+    ) -> Result<(StatusCode, Vec<ComhairleDocument>), ComhairleError>;
 
     async fn update_document(
         &self,
@@ -173,6 +173,8 @@ pub struct ComhairleKnowledgeBase {
 pub struct ComhairleDocument {
     pub id: String,
     pub name: String,
+    pub parse_status: String,
+    pub parse_progress: f64,
     // TODO: figure out what fields we require
 }
 

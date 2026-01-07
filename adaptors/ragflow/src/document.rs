@@ -46,7 +46,7 @@ pub async fn upload(
     client: &RagflowClient,
     dataset_id: &str,
     files: Vec<UploadFile>,
-) -> Result<(StatusCode, Value)> {
+) -> Result<(StatusCode, Vec<Document>)> {
     let path = format!("/datasets/{dataset_id}/documents");
     let mut form = Form::new();
 
@@ -55,7 +55,18 @@ pub async fn upload(
         form = form.part("file", part);
     }
 
-    client.post_multipart(&path, form, None).await
+    let (_status, value) = client.post_multipart(&path, form, None).await?;
+
+    let json: UploadDocumentsResponse = serde_json::from_value(value)?;
+    let document_ids: Vec<&str> = json.data.iter().map(|doc| doc.id.as_ref()).collect();
+
+    // Start parsing documents after upload
+    // Can't be done in Ragflow as a single request
+    // TODO: clean up if parsing fails?
+    let parse_params = ParseDocuments { document_ids };
+    let (status, _value) = parse(client, dataset_id, parse_params).await?;
+
+    Ok((status, json.data))
 }
 
 pub async fn update(
@@ -113,9 +124,9 @@ pub struct DocumentList {
 #[derive(Serialize, Deserialize, Default)]
 pub struct Document {
     pub chunk_count: Option<i32>,
-    pub create_date: String,
-    pub create_time: i64,
-    pub created_by: String,
+    pub create_date: Option<String>,
+    pub create_time: Option<i64>,
+    pub created_by: Option<String>,
     pub id: String,
     pub knowledgebase_id: Option<String>,
     pub location: Option<String>,
@@ -133,8 +144,14 @@ pub struct Document {
     pub thumbnail: Option<String>,
     pub token_count: Option<i32>,
     pub r#type: Option<String>,
-    pub update_date: String,
-    pub update_time: i64,
+    pub update_date: Option<String>,
+    pub update_time: Option<i64>,
+}
+
+#[derive(Deserialize)]
+pub struct UploadDocumentsResponse {
+    pub code: i32,
+    pub data: Vec<Document>,
 }
 
 #[derive(Serialize)]
