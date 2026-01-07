@@ -69,13 +69,13 @@ export class ChatClient {
 	 * Returns the ChatSession if successful, null otherwise.
 	 */
 	async getOrCreateUserSession(): Promise<ChatSession | null> {
-		if (!this.userId || !this.conversationId) {
+		if (!this.conversationId) {
 			return null;
 		}
 
 		try {
 			const response = await fetch(
-				`${this.baseUrl}/user/${this.userId}/bot_service_sessions/${this.conversationId}`,
+				`${this.baseUrl}/conversation/${this.conversationId}/bot_service_sessions`,
 				{
 					method: 'GET',
 					headers: { 'Content-Type': 'application/json' },
