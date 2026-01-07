@@ -43,6 +43,10 @@ html,body{
   --radius: 0.5rem;
   --font-sans: "Inter"; 
   --font-serif: "Inter";
+  
+  /* Chat widget colors - easy to theme */
+  --chat-primary: #2978D1;
+  --chat-neutral: #6B7280;
 }
 
 .comhairle{
@@ -229,6 +233,23 @@ html,body{
   --color-brand: var(--color-brand);
   --color-brand-mutted: var(--color-brand)/70;
   --color-brand-secondary: var(--color-brand-secondary);
+
+  /* ==========================================================================
+     Chat Widget Colors - Derived from --chat-primary and --chat-neutral
+     Use as: bg-chat-primary, text-chat-muted, border-chat-border, etc.
+     ========================================================================== */
+  --color-chat-primary: var(--chat-primary);
+  --color-chat-primary-light: color-mix(in oklch, var(--chat-primary), white 70%);
+  --color-chat-primary-lighter: color-mix(in oklch, var(--chat-primary), white 85%);
+  --color-chat-primary-dark: color-mix(in oklch, var(--chat-primary), black 20%);
+  --color-chat-primary-darker: color-mix(in oklch, var(--chat-primary), black 40%);
+  
+  --color-chat-neutral: var(--chat-neutral);
+  --color-chat-muted: color-mix(in oklch, var(--chat-neutral), white 40%);
+  --color-chat-border: color-mix(in oklch, var(--chat-neutral), white 70%);
+  --color-chat-bg: color-mix(in oklch, var(--chat-neutral), white 92%);
+  --color-chat-text: color-mix(in oklch, var(--chat-neutral), black 40%);
+  --color-chat-text-muted: var(--chat-neutral);
 }
  
 @layer base {

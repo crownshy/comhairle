@@ -1,8 +1,9 @@
+use futures::Stream;
 use std::{collections::HashMap, error::Error, sync::Arc};
 use uuid::Uuid;
 
 use axum::{
-    body::Body,
+    body::{Body, Bytes},
     http::{header::COOKIE, HeaderValue, Request, StatusCode},
     response::Response,
     Router,
@@ -20,6 +21,7 @@ use sqlx::PgPool;
 use tower::ServiceExt;
 
 use crate::{
+    bot_service::{ComhairleBotService, MockComhairleBotService},
     config::ComhairleConfig,
     mailer::MockComhairleMailer,
     models::users::UpdateUserRequest,
@@ -43,6 +45,11 @@ pub fn mock_translation_service() -> Option<Arc<dyn TranslationService>> {
     Some(Arc::new(translation_service))
 }
 
+pub fn mock_bot_service() -> Arc<dyn ComhairleBotService> {
+    let bot_service = MockComhairleBotService::base();
+    Arc::new(bot_service)
+}
+
 #[builder]
 pub fn test_state(
     db: PgPool,
@@ -50,6 +57,7 @@ pub fn test_state(
     config: Option<ComhairleConfig>,
     websockets: Option<Arc<dyn WebSocketService>>,
     translation_service: Option<Arc<dyn TranslationService>>,
+    bot_service: Option<Arc<dyn ComhairleBotService>>,
 ) -> Result<ComhairleState, Box<dyn Error>> {
     let state = ComhairleState {
         db,
@@ -59,6 +67,7 @@ pub fn test_state(
         translation_service: translation_service
             .map(|s| Some(s))
             .unwrap_or_else(|| mock_translation_service()),
+        bot_service: bot_service.unwrap_or_else(|| mock_bot_service()),
     };
     Ok(state)
 }
@@ -242,6 +251,72 @@ impl UserSession {
 
         let value = response_to_json(response).await;
         Ok((status, value, cookie))
+    }
+
+    pub async fn post_multipart(
+        &mut self,
+        app: &Router,
+        url: &str,
+        boundary: &str,
+        body: Body,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        let mut request = Request::builder().uri(url).method("POST").header(
+            "content-type",
+            format!("multipart/form-data; boundary={boundary}"),
+        );
+
+        if let Some(cookie) = &self.cookie {
+            request = request.header(COOKIE, cookie)
+        }
+
+        let request = request.body(body).unwrap();
+        let response = app.clone().oneshot(request).await?;
+        let status = response.status();
+
+        let cookie = response
+            .headers()
+            .get(axum::http::header::SET_COOKIE)
+            .map(|cookie| cookie.to_owned());
+
+        if let Some(cookie) = &cookie {
+            self.cookie = Some(cookie.clone());
+        }
+
+        let value = response_to_json(response).await;
+        Ok((status, value, cookie))
+    }
+
+    pub async fn post_raw_response(
+        &mut self,
+        app: &Router,
+        url: &str,
+        body: Body,
+    ) -> Result<(StatusCode, Body, Option<HeaderValue>), Box<dyn Error>> {
+        let mut request = Request::builder()
+            .uri(url)
+            .method("POST")
+            .header("content-type", "application/json");
+
+        if let Some(cookie) = &self.cookie {
+            request = request.header(COOKIE, cookie);
+        }
+
+        let request = request.body(body).unwrap();
+        let response = app.clone().oneshot(request).await?;
+        let status = response.status();
+
+        let cookie = response
+            .headers()
+            .get(axum::http::header::SET_COOKIE)
+            .map(|cookie| cookie.to_owned());
+
+        if let Some(cookie) = &cookie {
+            self.cookie = Some(cookie.clone());
+        }
+
+        let body = response.into_body();
+
+        Ok((status, body, cookie))
     }
 
     pub async fn put(

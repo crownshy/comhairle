@@ -116,7 +116,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/roles",
             get_with(get_user_roles, |op| {
                 op.id("GetUserRoles")
+                    .tag("User")
                     .description("Gets a list of roles the current user has")
+                    .security_requirement("JWT")
                     .response::<201, Json<Vec<UserRoles>>>()
             }),
         )
@@ -124,9 +126,11 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/conversations",
             get_with(get_conversations_user_participating_in, |op| {
                 op.id("GetConversationsUserIsParticipatingIn")
+                    .tag("User")
                     .description(
                         "Returns a list of all the conversations the user has taken part in",
                     )
+                    .security_requirement("JWT")
                     .response::<201, Json<Vec<Conversation>>>()
             }),
         )
@@ -134,7 +138,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/owned_conversations",
             get_with(get_user_owned_conversations, |op| {
                 op.id("GetOwnedConversations")
+                    .tag("User")
                     .description("Gets a list of the conversations a user owns")
+                    .security_requirement("JWT")
                     .response::<201, Json<PaginatedResults<LocalisedConversation>>>()
             }),
         )
@@ -142,7 +148,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/details",
             put_with(update_user_details, |op| {
                 op.id("UpdateUserDetails")
+                    .tag("User")
                     .description("Update user details (username and/or password)")
+                    .security_requirement("JWT")
                     .response::<200, Json<User>>()
             }),
         )
@@ -150,7 +158,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/upgrade",
             put_with(upgrade_account, |op| {
                 op.id("UpgradeAccount")
+                    .tag("User")
                     .description("Upgrade anonymous account to email/password account")
+                    .security_requirement("JWT")
                     .response::<200, Json<User>>()
             }),
         )

@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod bot;
 pub mod conversations;
 pub mod feedback;
 pub mod invites;

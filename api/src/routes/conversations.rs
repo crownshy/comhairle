@@ -12,20 +12,20 @@ use aide::axum::{
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use tracing::info;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
     models::{
+        bot_service_user_session::{self, BotServiceUserSessionDto, CreateBotServiceUserSession},
         conversation::{
             self, Conversation, ConversationFilterOptions, ConversationOrderOptions,
             ConversationWithTranslations, CreateConversation, LocalisedConversation,
             PartialConversation,
         },
         conversation_email_notification_recipients::{
-            self as email_recipients_model, ConversationEmailNotificationRecipients,
-            CreateConversationEmailNotificationRecipients,
+            self as email_recipients_model, CreateConversationEmailNotificationRecipients,
         },
         notification::{self as notification_model, CreateNotification, NotificationContextType},
         notification_delivery::{
@@ -34,6 +34,7 @@ use crate::{
         pagination::{OrderParams, PageOptions, PaginatedResults},
         user_participation::{self},
     },
+    routes::auth::RequiredUser,
     ComhairleState,
 };
 
@@ -46,7 +47,14 @@ async fn create_conversation(
     Json(new_conversations): Json<CreateConversation>,
 ) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
     info!("Attempting to create conversation");
-    let conversation = conversation::create(&state.db, &new_conversations, user.id).await?;
+    let conversation = conversation::create(
+        &state.db,
+        &state.bot_service,
+        &state.config,
+        &new_conversations,
+        user.id,
+    )
+    .await?;
     Ok((StatusCode::CREATED, Json(conversation)))
 }
 
@@ -298,6 +306,54 @@ async fn register_email_for_updates(
     ))
 }
 
+#[instrument(err(Debug), skip(state))]
+async fn create_conversation_bot_session(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path(conversation_id): Path<Uuid>,
+) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
+    let create_bot_session = CreateBotServiceUserSession {
+        conversation_id,
+        user_id: user.id,
+    };
+    let bot_user_session =
+        bot_service_user_session::create(&state.db, &state.bot_service, &create_bot_session)
+            .await?;
+
+    let bot_user_session: BotServiceUserSessionDto = bot_user_session.into();
+    Ok((StatusCode::CREATED, Json(bot_user_session)))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get_conversation_bot_session(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path(conversation_id): Path<Uuid>,
+) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
+    let session =
+        bot_service_user_session::get_by_conversation_id(&state.db, user.id, conversation_id).await;
+
+    // If we didn't find a session create one
+    let session = match session {
+        Ok(session) => Ok(session),
+        Err(ComhairleError::NoBotUserSession) => {
+            bot_service_user_session::create(
+                &state.db,
+                &state.bot_service,
+                &CreateBotServiceUserSession {
+                    conversation_id,
+                    user_id: user.id,
+                },
+            )
+            .await
+        }
+        Err(e) => Err(e),
+    }?;
+    let session: BotServiceUserSessionDto = session.into();
+
+    Ok((StatusCode::OK, Json(session)))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -305,6 +361,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(create_conversation, |op| {
                 op.id("CreateConversation")
                     .summary("Create a new conversation")
+                    .tag("Conversation")
                     .description("Creates a new conversation")
                     .response::<201, Json<LocalisedConversation>>()
             }),
@@ -314,6 +371,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(list_conversations, |op| {
                 op.id("ListConverastions")
                     .summary("List conversations with optional filtering and ordering")
+                    .tag("Conversation")
                     .description("List conversations")
                     .response::<200, Json<PaginatedResults<LocalisedConversation>>>()
             }),
@@ -323,6 +381,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(get_conversation, |op| {
                 op.id("GetConversation")
                     .summary("Get a conversation by id or slug")
+                    .tag("Conversation")
                     .description("Get a conversation by id or slug. If user is admin and withTranslations=true, returns detailed translation data.")
                     .response::<200, Json<ConversationResponse>>()
             }),
@@ -332,6 +391,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             put_with(update_conversation, |op| {
                 op.id("UpdateConversation")
                     .summary("Update a conversation")
+                    .tag("Conversation")
                     .description("Update a conversation")
                     .response::<200, Json<LocalisedConversation>>()
             }),
@@ -341,6 +401,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             delete_with(delete_conversation, |op| {
                 op.id("DeleteConversation")
                     .summary("Delete the conversation and all related content")
+                    .tag("Conversation")
                     .description("Delete the conversation and all related content")
                     .response::<200, Json<LocalisedConversation>>()
             }),
@@ -366,6 +427,26 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Email Notifications")
             }),
         )
+        .api_route(
+            "/{conversation_id}/bot_service_sessions",
+            post_with(create_conversation_bot_session, |op| {
+                op.id("CreateConversationBotSession")
+                    .tag("Conversation")
+                    .summary("Create a user bot session for a conversation")
+                    .security_requirement("JWT")
+                    .response::<201, Json<BotServiceUserSessionDto>>()
+            }),
+        )
+        .api_route(
+            "/{conversation_id}/bot_service_sessions",
+            get_with(get_conversation_bot_session, |op| {
+                op.id("GetConversationBotSession")
+                    .tag("Conversation")
+                    .summary("Get a user bot session for a conversation")
+                    .security_requirement("JWT")
+                    .response::<200, Json<BotServiceUserSessionDto>>()
+            }),
+        )
         .with_state(state)
 }
 
@@ -374,12 +455,13 @@ mod tests {
 
     use crate::test_helpers::test_state;
     use crate::{setup_server, test_helpers::UserSession};
-    use axum::http::StatusCode;
-    use serde_json::json;
+    use axum::{body::Body, http::StatusCode};
+    use serde_json::{json, Value};
     use sqlx::PgPool;
     use std::collections::HashMap;
     use std::error::Error;
     use std::sync::Arc;
+    use uuid::Uuid;
 
     #[sqlx::test]
     fn should_be_able_to_create_conversation(pool: PgPool) -> Result<(), Box<dyn Error>> {
@@ -936,6 +1018,106 @@ mod tests {
             .await?;
 
         assert_eq!(status, StatusCode::CONFLICT, "Slugs should be unique");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_create_bot_session_for_user(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        let conversation_json: Value =
+            serde_json::from_str(include_str!("../../../fixtures/conversation.json"))?;
+        let (_, conversation, _) = admin_session
+            .create_conversation(&app, conversation_json)
+            .await?;
+        let conversation_id = conversation.get("id").and_then(|v| v.as_str()).unwrap();
+        let conversation_id = Uuid::parse_str(conversation_id)?;
+
+        let username = "test";
+        let password = "test_password";
+        let email = "test_email";
+
+        let mut user_session = UserSession::new(username, password, email);
+        user_session.signup(&app).await?;
+
+        let (status, value, _) = user_session
+            .post(
+                &app,
+                &format!("/conversation/{}/bot_service_sessions", conversation_id),
+                Body::empty(),
+            )
+            .await?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(
+            conversation_id,
+            Uuid::parse_str(
+                value
+                    .get("conversation_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap(),
+            )
+            .unwrap(),
+            "response contains incorrect conversation id"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_get_bot_session_for_current_user_by_conversation_id(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        let conversation_json: Value =
+            serde_json::from_str(include_str!("../../../fixtures/conversation.json"))?;
+        let (_, conversation, _) = admin_session
+            .create_conversation(&app, conversation_json)
+            .await?;
+        let conversation_id = conversation.get("id").and_then(|v| v.as_str()).unwrap();
+
+        let username = "test";
+        let password = "test_password";
+        let email = "test_email";
+
+        let mut user_session = UserSession::new(username, password, email);
+        user_session.signup(&app).await?;
+
+        let (status, value, _) = user_session
+            .get(
+                &app,
+                &format!("/conversation/{}/bot_service_sessions", conversation_id),
+            )
+            .await?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(
+            conversation_id,
+            value
+                .get("conversation_id")
+                .and_then(|v| v.as_str())
+                .unwrap(),
+            "response contains incorrect conversation id"
+        );
+        assert_eq!(
+            user_session.id.unwrap().to_string(),
+            value
+                .get("user_id")
+                .and_then(|v| v.as_str())
+                .unwrap()
+                .to_string(),
+            "response contains incorrect user id"
+        );
 
         Ok(())
     }
