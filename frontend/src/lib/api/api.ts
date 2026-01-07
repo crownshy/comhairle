@@ -42,10 +42,6 @@ export const UpdateUserRequest = z.object({ email_verified: z.union([z.boolean()
 export type UpdateUserRequest = z.infer<typeof UpdateUserRequest>;
 export const UpgradeAccountRequest = z.object({ email: z.string(), password: z.string(), username: z.string() }).passthrough();
 export type UpgradeAccountRequest = z.infer<typeof UpgradeAccountRequest>;
-export const CreateBotUserSessionRequest = z.object({ conversation_id: z.string().uuid() }).passthrough();
-export type CreateBotUserSessionRequest = z.infer<typeof CreateBotUserSessionRequest>;
-export const BotServiceUserSessionDto = z.object({ bot_service_session_id: z.string(), conversation_id: z.string().uuid(), id: z.string().uuid(), user_id: z.string().uuid() }).passthrough();
-export type BotServiceUserSessionDto = z.infer<typeof BotServiceUserSessionDto>;
 export const UserConversationPreferences = z.object({ conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), receive_similar_conversation_updates_by_email: z.boolean(), receive_similar_conversation_updates_by_notification: z.boolean(), receive_updates_by_email: z.boolean(), receive_updates_by_notification: z.boolean(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid() }).passthrough();
 export type UserConversationPreferences = z.infer<typeof UserConversationPreferences>;
 export const UpdateUserConversationPreferences = z.object({ receive_similar_conversation_updates_by_email: z.union([z.boolean(), z.null()]), receive_similar_conversation_updates_by_notification: z.union([z.boolean(), z.null()]), receive_updates_by_email: z.union([z.boolean(), z.null()]), receive_updates_by_notification: z.union([z.boolean(), z.null()]) }).partial().passthrough();
@@ -98,6 +94,8 @@ export const RegisterEmailRequest = z.object({ email: z.string(), receive_simila
 export type RegisterEmailRequest = z.infer<typeof RegisterEmailRequest>;
 export const RegisterEmailResponse = z.object({ conversation_id: z.string().uuid(), email: z.string(), id: z.string().uuid(), message: z.string() }).passthrough();
 export type RegisterEmailResponse = z.infer<typeof RegisterEmailResponse>;
+export const BotServiceUserSessionDto = z.object({ bot_service_session_id: z.string(), conversation_id: z.string().uuid(), id: z.string().uuid(), user_id: z.string().uuid() }).passthrough();
+export type BotServiceUserSessionDto = z.infer<typeof BotServiceUserSessionDto>;
 export const Workflow = z.object({ auto_login: z.boolean(), conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_active: z.boolean(), is_public: z.boolean(), name: z.string(), owner_id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
 export type Workflow = z.infer<typeof Workflow>;
 export const CreateWorkflow = z.object({ auto_login: z.boolean(), description: z.string(), is_active: z.boolean(), is_public: z.boolean(), name: z.string() }).passthrough();
@@ -188,6 +186,36 @@ export const BroadcastResponse = z.object({ message: z.string(), sent_to: z.numb
 export type BroadcastResponse = z.infer<typeof BroadcastResponse>;
 export const SendToUserMessage = z.object({ message: z.string(), user_id: z.string().uuid() }).passthrough();
 export type SendToUserMessage = z.infer<typeof SendToUserMessage>;
+export const ComhairleLlm = z.object({ model_name: z.union([z.string(), z.null()]) }).partial().passthrough();
+export type ComhairleLlm = z.infer<typeof ComhairleLlm>;
+export const ComhairlePrompt = z.object({ empty_response: z.union([z.string(), z.null()]), llm_prompt: z.union([z.string(), z.null()]), opener: z.union([z.string(), z.null()]) }).partial().passthrough();
+export type ComhairlePrompt = z.infer<typeof ComhairlePrompt>;
+export const ComhairleChat = z.object({ id: z.string(), llm_model: z.union([ComhairleLlm, z.null()]).optional(), name: z.string(), prompt: z.union([ComhairlePrompt, z.null()]).optional() }).passthrough();
+export type ComhairleChat = z.infer<typeof ComhairleChat>;
+export const CreateChatRequest = z.object({ knowledge_base_ids: z.union([z.array(z.string()), z.null()]).optional(), llm_model: z.union([ComhairleLlm, z.null()]).optional(), name: z.string(), prompt: z.union([ComhairlePrompt, z.null()]).optional() }).passthrough();
+export type CreateChatRequest = z.infer<typeof CreateChatRequest>;
+export const UpdateChatRequest = z.object({ knowledge_base_ids: z.union([z.array(z.string()), z.null()]), llm_model: z.union([ComhairleLlm, z.null()]), name: z.union([z.string(), z.null()]), prompt: z.union([ComhairlePrompt, z.null()]) }).partial().passthrough();
+export type UpdateChatRequest = z.infer<typeof UpdateChatRequest>;
+export const ComhairleMessageReference = z.object({ content: z.string(), dataset_id: z.string(), document_id: z.string(), document_name: z.string(), id: z.string() }).passthrough();
+export type ComhairleMessageReference = z.infer<typeof ComhairleMessageReference>;
+export const ComhairleSessionMessage = z.object({ content: z.string(), id: z.string(), reference: z.union([z.array(ComhairleMessageReference), z.null()]).optional(), role: z.string() }).passthrough();
+export type ComhairleSessionMessage = z.infer<typeof ComhairleSessionMessage>;
+export const ComhairleChatSession = z.object({ chat_id: z.string(), id: z.string(), messages: z.array(ComhairleSessionMessage), name: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type ComhairleChatSession = z.infer<typeof ComhairleChatSession>;
+export const CreateChatSessionRequest = z.object({ name: z.string(), user_id: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type CreateChatSessionRequest = z.infer<typeof CreateChatSessionRequest>;
+export const UpdateChatSessionRequest = z.object({ name: z.union([z.string(), z.null()]), user_id: z.union([z.string(), z.null()]) }).partial().passthrough();
+export type UpdateChatSessionRequest = z.infer<typeof UpdateChatSessionRequest>;
+export const ComhairleKnowledgeBase = z.object({ id: z.string(), name: z.string() }).passthrough();
+export type ComhairleKnowledgeBase = z.infer<typeof ComhairleKnowledgeBase>;
+export const CreateKnowledgeBaseRequest = z.object({ name: z.string() }).passthrough();
+export type CreateKnowledgeBaseRequest = z.infer<typeof CreateKnowledgeBaseRequest>;
+export const UpdateKnowledgeBaseRequest = z.object({ name: z.union([z.string(), z.null()]) }).partial().passthrough();
+export type UpdateKnowledgeBaseRequest = z.infer<typeof UpdateKnowledgeBaseRequest>;
+export const ComhairleDocument = z.object({ id: z.string(), name: z.string() }).passthrough();
+export type ComhairleDocument = z.infer<typeof ComhairleDocument>;
+export const UpdateDocumentRequest = z.object({ name: z.union([z.string(), z.null()]) }).partial().passthrough();
+export type UpdateDocumentRequest = z.infer<typeof UpdateDocumentRequest>;
 
 
 export const schemas = {
@@ -211,8 +239,6 @@ export const schemas = {
 	PaginatedResults_for_LocalisedConversation,
 	UpdateUserRequest,
 	UpgradeAccountRequest,
-	CreateBotUserSessionRequest,
-	BotServiceUserSessionDto,
 	UserConversationPreferences,
 	UpdateUserConversationPreferences,
 	DeliveryMethod,
@@ -239,6 +265,7 @@ export const schemas = {
 	SendNotificationRequest,
 	RegisterEmailRequest,
 	RegisterEmailResponse,
+	BotServiceUserSessionDto,
 	Workflow,
 	CreateWorkflow,
 	ActivationRule,
@@ -284,6 +311,21 @@ export const schemas = {
 	BroadcastMessage,
 	BroadcastResponse,
 	SendToUserMessage,
+	ComhairleLlm,
+	ComhairlePrompt,
+	ComhairleChat,
+	CreateChatRequest,
+	UpdateChatRequest,
+	ComhairleMessageReference,
+	ComhairleSessionMessage,
+	ComhairleChatSession,
+	CreateChatSessionRequest,
+	UpdateChatSessionRequest,
+	ComhairleKnowledgeBase,
+	CreateKnowledgeBaseRequest,
+	UpdateKnowledgeBaseRequest,
+	ComhairleDocument,
+	UpdateDocumentRequest,
 };
 
 const endpoints = makeApi([
@@ -418,6 +460,276 @@ const endpoints = makeApi([
 	},
 	{
 		method: "get",
+		path: "/bot/chats",
+		alias: "ListChats",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "name",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "order_by",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "page",
+				type: "Query",
+				schema: limit
+			},
+			{
+				name: "page_size",
+				type: "Query",
+				schema: limit
+			},
+		],
+		response: z.array(ComhairleChat),
+	},
+	{
+		method: "post",
+		path: "/bot/chats",
+		alias: "CreateChat",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: CreateChatRequest
+			},
+		],
+		response: ComhairleChat,
+	},
+	{
+		method: "get",
+		path: "/bot/chats/:chat_id",
+		alias: "GetChat",
+		requestFormat: "json",
+		response: ComhairleChat,
+	},
+	{
+		method: "put",
+		path: "/bot/chats/:chat_id",
+		alias: "UpdateChat",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: UpdateChatRequest
+			},
+		],
+		response: ComhairleChat,
+	},
+	{
+		method: "delete",
+		path: "/bot/chats/:chat_id",
+		alias: "DeleteChat",
+		requestFormat: "json",
+		response: z.void(),
+	},
+	{
+		method: "get",
+		path: "/bot/chats/:chat_id/sessions",
+		alias: "GetChatSessions",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "name",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "order_by",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "page",
+				type: "Query",
+				schema: limit
+			},
+			{
+				name: "page_size",
+				type: "Query",
+				schema: limit
+			},
+		],
+		response: z.array(ComhairleChatSession),
+	},
+	{
+		method: "post",
+		path: "/bot/chats/:chat_id/sessions",
+		alias: "CreateChatSession",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: CreateChatSessionRequest
+			},
+		],
+		response: ComhairleChatSession,
+	},
+	{
+		method: "get",
+		path: "/bot/chats/:chat_id/sessions/:session_id",
+		alias: "GetChatSession",
+		requestFormat: "json",
+		response: ComhairleChatSession,
+	},
+	{
+		method: "put",
+		path: "/bot/chats/:chat_id/sessions/:session_id",
+		alias: "UpdateChatSession",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: UpdateChatSessionRequest
+			},
+		],
+		response: ComhairleChatSession,
+	},
+	{
+		method: "delete",
+		path: "/bot/chats/:chat_id/sessions/:session_id",
+		alias: "DeleteChatSession",
+		requestFormat: "json",
+		response: z.void(),
+	},
+	{
+		method: "get",
+		path: "/bot/knowledge_bases",
+		alias: "ListKnowledgeBases",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "name",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "order_by",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "page",
+				type: "Query",
+				schema: limit
+			},
+			{
+				name: "page_size",
+				type: "Query",
+				schema: limit
+			},
+		],
+		response: z.array(ComhairleKnowledgeBase),
+	},
+	{
+		method: "post",
+		path: "/bot/knowledge_bases",
+		alias: "CreateKnowledgeBase",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: z.object({ name: z.string() }).passthrough()
+			},
+		],
+		response: ComhairleKnowledgeBase,
+	},
+	{
+		method: "get",
+		path: "/bot/knowledge_bases/:knowledge_base_id",
+		alias: "GetKnowledgeBase",
+		requestFormat: "json",
+		response: ComhairleKnowledgeBase,
+	},
+	{
+		method: "put",
+		path: "/bot/knowledge_bases/:knowledge_base_id",
+		alias: "UpdateKnowledgeBase",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: UpdateKnowledgeBaseRequest
+			},
+		],
+		response: ComhairleKnowledgeBase,
+	},
+	{
+		method: "delete",
+		path: "/bot/knowledge_bases/:knowledge_base_id",
+		alias: "DeleteKnowledgeBase",
+		requestFormat: "json",
+		response: z.void(),
+	},
+	{
+		method: "get",
+		path: "/bot/knowledge_bases/:knowledge_base_id/documents",
+		alias: "ListDocuments",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "name",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "order_by",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "page",
+				type: "Query",
+				schema: limit
+			},
+			{
+				name: "page_size",
+				type: "Query",
+				schema: limit
+			},
+		],
+		response: z.array(ComhairleDocument),
+	},
+	{
+		method: "get",
+		path: "/bot/knowledge_bases/:knowledge_base_id/documents/:document_id",
+		alias: "GetDocuments",
+		requestFormat: "json",
+		response: ComhairleDocument,
+	},
+	{
+		method: "put",
+		path: "/bot/knowledge_bases/:knowledge_base_id/documents/:document_id",
+		alias: "UpdateDocument",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: UpdateDocumentRequest
+			},
+		],
+		response: ComhairleDocument,
+	},
+	{
+		method: "delete",
+		path: "/bot/knowledge_bases/:knowledge_base_id/documents/:document_id",
+		alias: "DeleteDocument",
+		requestFormat: "json",
+		response: z.void(),
+	},
+	{
+		method: "get",
 		path: "/conversation",
 		alias: "ListConverastions",
 		description: `List conversations`,
@@ -523,6 +835,20 @@ const endpoints = makeApi([
 		description: `Delete the conversation and all related content`,
 		requestFormat: "json",
 		response: LocalisedConversation,
+	},
+	{
+		method: "get",
+		path: "/conversation/:conversation_id/bot_service_sessions",
+		alias: "GetConversationBotSession",
+		requestFormat: "json",
+		response: BotServiceUserSessionDto,
+	},
+	{
+		method: "post",
+		path: "/conversation/:conversation_id/bot_service_sessions",
+		alias: "CreateConversationBotSession",
+		requestFormat: "json",
+		response: BotServiceUserSessionDto,
 	},
 	{
 		method: "post",
@@ -1079,27 +1405,6 @@ This struct contains optional fields that can be updated on a TextTranslation re
 		description: `Use the default locale content as the reference text and generate automatic translations for each language form it`,
 		requestFormat: "json",
 		response: TextContentWithTranslations,
-	},
-	{
-		method: "post",
-		path: "/user/:user_id/bot_service_sessions",
-		alias: "CreateBotServiceUserSession",
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "body",
-				type: "Body",
-				schema: z.object({ conversation_id: z.string().uuid() }).passthrough()
-			},
-		],
-		response: BotServiceUserSessionDto,
-	},
-	{
-		method: "get",
-		path: "/user/:user_id/bot_service_sessions/:conversation_id",
-		alias: "GetServiceUserSession",
-		requestFormat: "json",
-		response: BotServiceUserSessionDto,
 	},
 	{
 		method: "get",
