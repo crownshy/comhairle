@@ -1,4 +1,4 @@
-use apalis::prelude::MemoryStorage;
+use apalis::prelude::{MemoryStorage, Monitor, WorkerBuilder, WorkerFactoryFn};
 use comhairle::{
     bot_service::ComhairleRagBotService,
     config::TranslatorConfig,
@@ -7,10 +7,11 @@ use comhairle::{
     setup_server,
     translation_service::GoogleTranslateService,
     websockets::ComhairleWebSocketService,
-    workers::{knowledge_bases::KnowledgeBaseJob, setup_workers, JobQueues},
+    workers::{knowledge_bases::handle_knowledge_base_processing, JobQueues},
     ComhairleState,
 };
 use std::{error::Error, sync::Arc};
+use tokio::sync::Mutex;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -68,8 +69,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         &config.bot_service_api_key,
     ));
 
+    let knowledge_base_storage = MemoryStorage::new();
     let jobs = Arc::new(JobQueues {
-        knowledge_bases: MemoryStorage::new(),
+        knowledge_bases: Arc::new(Mutex::new(knowledge_base_storage.clone())),
     });
 
     let state = Arc::new(ComhairleState {
@@ -91,7 +93,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         axum::serve(listener, app).await.unwrap();
     };
 
-    let worker_future = { setup_workers(state.clone()) };
+    let knowledge_base_worker = WorkerBuilder::new("process_knowledge_base_job")
+        .data(state.clone())
+        .backend(knowledge_base_storage.clone())
+        .build_fn(handle_knowledge_base_processing);
+
+    let worker_future = { Monitor::new().register(knowledge_base_worker).run() };
 
     let _ = tokio::join!(server_future, worker_future);
 

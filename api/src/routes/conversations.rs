@@ -50,6 +50,7 @@ async fn create_conversation(
     let conversation = conversation::create(
         &state.db,
         &state.bot_service,
+        &state.jobs,
         &state.config,
         &new_conversations,
         user.id,
