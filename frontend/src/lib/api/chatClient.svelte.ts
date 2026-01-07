@@ -65,10 +65,10 @@ export class ChatClient {
 	}
 
 	/**
-	 * Get or create a bot service user session.
-	 * Returns the bot_service_session_id if successful, null otherwise.
+	 * Get or create a bot service user session and fetch the full session data.
+	 * Returns the ChatSession if successful, null otherwise.
 	 */
-	async getOrCreateUserSession(): Promise<string | null> {
+	async getOrCreateUserSession(): Promise<ChatSession | null> {
 		if (!this.userId || !this.conversationId) {
 			return null;
 		}
@@ -89,7 +89,9 @@ export class ChatClient {
 
 			const data = await response.json();
 			this.botServiceSessionId = data.bot_service_session_id;
-			return data.bot_service_session_id;
+			
+			// Fetch the full session data
+			return await this.getSession(data.bot_service_session_id);
 		} catch (e) {
 			this.error = e instanceof Error ? e.message : 'Failed to get or create session';
 			return null;

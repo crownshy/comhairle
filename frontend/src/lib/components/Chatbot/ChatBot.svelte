@@ -62,12 +62,7 @@
 				isInitializing = true;
 				client = new ChatClient(chatId, userId, conversationId);
 				
-				const sessionId = await client.getOrCreateUserSession();
-				if (!sessionId) {
-					return;
-				}
-				
-				const session = await client.getSession(sessionId);
+				const session = await client.getOrCreateUserSession();
 				if (!session) {
 					chatError = client.error || 'Failed to load session';
 					return;
@@ -78,7 +73,7 @@
 						id: msg.id ? `${msg.id}-${msg.role}` : `msg-${idx}`,
 						content: msg.content,
 						isBot: msg.role === 'assistant',
-						timestamp: new Date(),
+						timestamp: null,
 						reference: msg.reference?.length ? {
 							total: msg.reference.length,
 							chunks: msg.reference.map(ref => ({
