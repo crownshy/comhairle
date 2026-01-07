@@ -2,27 +2,35 @@ pub mod knowledge_bases;
 
 use std::sync::Arc;
 
-use apalis::prelude::{MemoryStorage, Monitor, WorkerBuilder, WorkerFactoryFn};
+use apalis::prelude::MemoryStorage;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 
-use crate::{
-    workers::knowledge_bases::{handle_knowledge_base_processing, KnowledgeBaseJob},
-    ComhairleState,
-};
+use crate::workers::knowledge_bases::KnowledgeBaseJob;
 
 #[derive(Clone, Debug)]
 pub struct JobQueues {
-    pub knowledge_bases: MemoryStorage<KnowledgeBaseJob>,
+    pub knowledge_bases: Arc<Mutex<MemoryStorage<KnowledgeBaseJob>>>,
 }
 
-pub async fn setup_workers(state: Arc<ComhairleState>) {
-    let knowledge_base_worker = WorkerBuilder::new("process_knowledge_base_job")
-        .data(state.clone())
-        .backend(state.jobs.knowledge_bases.clone())
-        .build_fn(handle_knowledge_base_processing);
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct JobMetadata {
+    pub created_at: DateTime<Utc>,
+    pub finished_at: Option<DateTime<Utc>>,
+    pub error: Option<String>,
+    pub completion_message: Option<String>,
+    pub status: String,
+}
 
-    Monitor::new()
-        .register(knowledge_base_worker)
-        .run()
-        .await
-        .unwrap()
+impl Default for JobMetadata {
+    fn default() -> Self {
+        Self {
+            created_at: Utc::now(),
+            finished_at: None,
+            error: None,
+            completion_message: None,
+            status: "pending".to_string(),
+        }
+    }
 }
