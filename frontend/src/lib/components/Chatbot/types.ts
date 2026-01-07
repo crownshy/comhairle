@@ -4,7 +4,7 @@ export interface ChatMessage {
 	id: string;
 	content: string;
 	isBot: boolean;
-	timestamp: Date;
+	timestamp: Date | null;
 	reference?: ChatReference | null;
 }
 
@@ -16,6 +16,8 @@ export interface InitialQuestion {
 
 export interface ChatBotProps {
 	chatId?: string;
+	conversationId?: string;
+	userId?: string;
 	knowledgeBaseIds?: string[];
 	title?: string;
 	subtitle?: string;
