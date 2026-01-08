@@ -13,6 +13,7 @@ WORKDIR /workspace/
 COPY api/Cargo.toml api/Cargo.lock ./api/
 COPY comhairle_macros/Cargo.toml ./comhairle_macros/Cargo.toml
 COPY adaptors/heyform-rust-sdk/Cargo.toml ./adaptors/heyform-rust-sdk/Cargo.toml
+COPY adaptors/ragflow/Cargo.toml ./adaptors/ragflow/Cargo.toml
 COPY Cargo.toml Cargo.lock ./
 
 # Create dummy source files
