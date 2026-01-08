@@ -19,15 +19,18 @@ use crate::{
         ComhairleRagBotService, ComhairleSessionMessage,
     },
     error::ComhairleError,
-    routes::bot::{
-        chats::{CreateChatRequest, UpdateChatRequest},
-        documents::{UpdateDocumentRequest, UploadFileRequest},
-        knowledge_bases::UpdateKnowledgeBaseRequest,
-        sessions::{
-            ChatConversationRequest, CreateChatSessionRequest as ApiCreateChatSessionRequest,
-            UpdateChatSessionRequest as ApiUpdateChatSessionRequest,
+    routes::{
+        bot::{
+            chats::{CreateChatRequest, UpdateChatRequest},
+            documents::UpdateDocumentRequest,
+            knowledge_bases::UpdateKnowledgeBaseRequest,
+            sessions::{
+                ChatConversationRequest, CreateChatSessionRequest as ApiCreateChatSessionRequest,
+                UpdateChatSessionRequest as ApiUpdateChatSessionRequest,
+            },
+            GetQueryParams as ApiGetQueryParams,
         },
-        GetQueryParams as ApiGetQueryParams,
+        conversations::UploadFileRequest,
     },
 };
 

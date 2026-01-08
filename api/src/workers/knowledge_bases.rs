@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::{
     bot_service::ComhairleDocument,
     error::ComhairleError,
-    routes::bot::{chats::UpdateChatRequest, documents::UploadFileRequest},
+    routes::{bot::chats::UpdateChatRequest, conversations::UploadFileRequest},
     workers::JobMetadata,
     ComhairleState,
 };

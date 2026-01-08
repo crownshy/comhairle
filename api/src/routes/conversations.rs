@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::{Json, Path, Query, State},
+    extract::{Json, Multipart, Path, Query, State},
     http::StatusCode,
+    routing::post,
 };
 
 use aide::axum::{
@@ -50,7 +51,6 @@ async fn create_conversation(
     let conversation = conversation::create(
         &state.db,
         &state.bot_service,
-        &state.jobs,
         &state.config,
         &new_conversations,
         user.id,
@@ -355,6 +355,49 @@ async fn get_conversation_bot_session(
     Ok((StatusCode::OK, Json(session)))
 }
 
+#[derive(Deserialize, JsonSchema, Debug, PartialEq)]
+pub struct UploadFileRequest {
+    pub filename: String,
+    pub bytes: Vec<u8>,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn upload_conversation_bot_document(
+    State(state): State<Arc<ComhairleState>>,
+    Path(conversation_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    mut form_data: Multipart,
+) -> Result<StatusCode, ComhairleError> {
+    let mut files: Vec<UploadFileRequest> = Vec::new();
+
+    while let Some(field) = form_data.next_field().await? {
+        let filename = field.file_name().unwrap_or("<no filename>").to_string();
+        let bytes = field.bytes().await?;
+
+        let file = UploadFileRequest {
+            filename,
+            bytes: bytes.to_vec(),
+        };
+        files.push(file);
+    }
+
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+
+    if let Some(knowledge_base_id) = conversation.knowledge_base_id {
+        let _result = state
+            .bot_service
+            .upload_documents(&knowledge_base_id, files)
+            .await?;
+
+        return Ok(StatusCode::CREATED);
+    } else {
+        // 1. create knowledge_base and attach to the conversation
+        // 2. upload file to the new knowledge_base and begin parsing
+        // 3. once parsing is complete point the chat bot to the new knowledge base
+        todo!()
+    }
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -447,6 +490,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .security_requirement("JWT")
                     .response::<200, Json<BotServiceUserSessionDto>>()
             }),
+        )
+        .route(
+            "/{conversation_id}/upload_document", post(upload_conversation_bot_document)
         )
         .with_state(state)
 }

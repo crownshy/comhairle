@@ -13,12 +13,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     error::ComhairleError,
-    routes::bot::{
-        chats::{CreateChatRequest, UpdateChatRequest},
-        documents::{UpdateDocumentRequest, UploadFileRequest},
-        knowledge_bases::UpdateKnowledgeBaseRequest,
-        sessions::{ChatConversationRequest, CreateChatSessionRequest, UpdateChatSessionRequest},
-        GetQueryParams,
+    routes::{
+        bot::{
+            chats::{CreateChatRequest, UpdateChatRequest},
+            documents::UpdateDocumentRequest,
+            knowledge_bases::UpdateKnowledgeBaseRequest,
+            sessions::{
+                ChatConversationRequest, CreateChatSessionRequest, UpdateChatSessionRequest,
+            },
+            GetQueryParams,
+        },
+        conversations::UploadFileRequest,
     },
 };
 

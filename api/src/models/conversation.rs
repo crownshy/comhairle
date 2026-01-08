@@ -7,13 +7,9 @@ use super::{
     workflow::WorkflowIden,
 };
 use crate::{
-    bot_service::ComhairleBotService,
-    config::ComhairleConfig,
-    error::ComhairleError,
+    bot_service::ComhairleBotService, config::ComhairleConfig, error::ComhairleError,
     routes::bot::chats::CreateChatRequest,
-    workers::{knowledge_bases::KnowledgeBaseJob, JobQueues},
 };
-use apalis::prelude::*;
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
 use partially::Partial;
@@ -495,7 +491,6 @@ impl CreateConversation {
 pub async fn create(
     db: &PgPool,
     bot_service: &Arc<dyn ComhairleBotService>,
-    jobs: &Arc<JobQueues>,
     config: &ComhairleConfig,
     conversation: &CreateConversation,
     owner_id: Uuid,
@@ -527,10 +522,6 @@ pub async fn create(
     )
     .await?;
 
-    let (_, knowledge_base) = bot_service
-        .create_knowledge_base(conversation.title.clone(), None)
-        .await?;
-
     let create_chat = CreateChatRequest {
         name: conversation.title.clone(),
         knowledge_base_ids: Some(vec![config.default_knowledge_base_id.clone()]),
@@ -539,24 +530,8 @@ pub async fn create(
 
     let (_, chat) = bot_service.create_chat(create_chat).await?;
 
-    let job = KnowledgeBaseJob {
-        job_id: Uuid::new_v4(),
-        conversation_id,
-        knowledge_base_id: knowledge_base.id.clone(),
-        chat_bot_id: chat.id.clone(),
-        ..Default::default()
-    };
-
-    let mut lock = jobs.knowledge_bases.lock().await;
-    lock.enqueue(job)
-        .await
-        .map_err(|e| ComhairleError::NoUserFound)?;
-
     let mut columns = conversation.columns();
     let mut values = conversation.values();
-
-    columns.push(ConversationIden::KnowledgeBaseId);
-    values.push(knowledge_base.id.into());
 
     columns.push(ConversationIden::ChatBotId);
     values.push(chat.id.into());
