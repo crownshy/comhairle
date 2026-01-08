@@ -20,6 +20,7 @@ COPY Cargo.toml Cargo.lock ./
 RUN mkdir -p api/src && echo "fn main() {}" > api/src/main.rs && echo "" > api/src/lib.rs && \
     mkdir -p comhairle_macros/src && echo "" > comhairle_macros/src/lib.rs && \
     mkdir -p adaptors/heyform-rust-sdk/src && echo "" > adaptors/heyform-rust-sdk/src/lib.rs && \
+    mkdir -p adaptors/ragflow/src && echo "" > adaptors/ragflow/src/lib.rs && \
 	mkdir -p target/release
 
 # Build dependencies only - keep the target directory intact
