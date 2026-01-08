@@ -49,39 +49,40 @@ async fn get(
     Ok((StatusCode::OK, Json(document)))
 }
 
-#[derive(Deserialize, JsonSchema, Debug, PartialEq)]
-pub struct UploadFileRequest {
-    pub filename: String,
-    pub bytes: Vec<u8>,
-}
-
-#[instrument(err(Debug), skip(state))]
-async fn upload(
-    State(state): State<Arc<ComhairleState>>,
-    Path(knowledge_base_id): Path<String>,
-    RequiredAdminUser(_user): RequiredAdminUser,
-    mut form_data: Multipart,
-) -> Result<StatusCode, ComhairleError> {
-    let mut files: Vec<UploadFileRequest> = Vec::new();
-
-    while let Some(field) = form_data.next_field().await? {
-        let filename = field.file_name().unwrap_or("<no filename>").to_string();
-        let bytes = field.bytes().await?;
-
-        let file = UploadFileRequest {
-            filename,
-            bytes: bytes.to_vec(),
-        };
-        files.push(file);
-    }
-
-    let _result = state
-        .bot_service
-        .upload_documents(&knowledge_base_id, files)
-        .await?;
-
-    Ok(StatusCode::CREATED)
-}
+// // TODO: remove from this router
+// #[derive(Deserialize, JsonSchema, Debug, PartialEq)]
+// pub struct UploadFileRequest {
+//     pub filename: String,
+//     pub bytes: Vec<u8>,
+// }
+//
+// #[instrument(err(Debug), skip(state))]
+// async fn upload(
+//     State(state): State<Arc<ComhairleState>>,
+//     Path(knowledge_base_id): Path<String>,
+//     RequiredAdminUser(_user): RequiredAdminUser,
+//     mut form_data: Multipart,
+// ) -> Result<StatusCode, ComhairleError> {
+//     let mut files: Vec<UploadFileRequest> = Vec::new();
+//
+//     while let Some(field) = form_data.next_field().await? {
+//         let filename = field.file_name().unwrap_or("<no filename>").to_string();
+//         let bytes = field.bytes().await?;
+//
+//         let file = UploadFileRequest {
+//             filename,
+//             bytes: bytes.to_vec(),
+//         };
+//         files.push(file);
+//     }
+//
+//     let _result = state
+//         .bot_service
+//         .upload_documents(&knowledge_base_id, files)
+//         .await?;
+//
+//     Ok(StatusCode::CREATED)
+// }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq, Default)]
 pub struct UpdateDocumentRequest {
@@ -145,7 +146,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         //             .response::<201, Json<ComhairleDocument>>()
         //     }),
         // )
-        .route("/", post(upload))
+        // .route("/", post(upload))
         .api_route(
             "/{document_id}",
             put_with(update, |op| {
@@ -179,7 +180,7 @@ mod tests {
     use std::sync::Arc;
 
     use axum::body::Body;
-    use mockall::predicate::{always, eq};
+    use mockall::predicate::eq;
     use sqlx::PgPool;
 
     #[sqlx::test]
@@ -264,47 +265,47 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
-    async fn should_upload_a_document(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let upload_request = UploadFileRequest {
-            filename: "test.txt".to_string(),
-            bytes: b"test multipart".to_vec(),
-        };
-        let mut bot_service = MockComhairleBotService::new();
-        bot_service
-            .expect_upload_documents()
-            .once()
-            .with(eq("123"), eq(vec![upload_request]))
-            .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
-
-        let state = test_state()
-            .db(pool)
-            .bot_service(Arc::new(bot_service))
-            .call()?;
-        let app = setup_server(Arc::new(state)).await?;
-
-        let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
-
-        let boundary = "test-boundary";
-        let body = format!(
-            "--{boundary}\r\n\
-            Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n\
-            Content-Type: text/plain\r\n\
-            \r\n\
-            test multipart\r\n\
-            --{boundary}--\r\n"
-        );
-        let body = Body::from(body);
-
-        let (status, _, _) = admin_session
-            .post_multipart(&app, "/bot/knowledge_bases/123/documents", boundary, body)
-            .await?;
-
-        assert!(status.is_success());
-
-        Ok(())
-    }
+    // #[sqlx::test]
+    // async fn should_upload_a_document(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    //     let upload_request = UploadFileRequest {
+    //         filename: "test.txt".to_string(),
+    //         bytes: b"test multipart".to_vec(),
+    //     };
+    //     let mut bot_service = MockComhairleBotService::new();
+    //     bot_service
+    //         .expect_upload_documents()
+    //         .once()
+    //         .with(eq("123"), eq(vec![upload_request]))
+    //         .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
+    //
+    //     let state = test_state()
+    //         .db(pool)
+    //         .bot_service(Arc::new(bot_service))
+    //         .call()?;
+    //     let app = setup_server(Arc::new(state)).await?;
+    //
+    //     let mut admin_session = UserSession::new_admin();
+    //     admin_session.signup(&app).await?;
+    //
+    //     let boundary = "test-boundary";
+    //     let body = format!(
+    //         "--{boundary}\r\n\
+    //         Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n\
+    //         Content-Type: text/plain\r\n\
+    //         \r\n\
+    //         test multipart\r\n\
+    //         --{boundary}--\r\n"
+    //     );
+    //     let body = Body::from(body);
+    //
+    //     let (status, _, _) = admin_session
+    //         .post_multipart(&app, "/bot/knowledge_bases/123/documents", boundary, body)
+    //         .await?;
+    //
+    //     assert!(status.is_success());
+    //
+    //     Ok(())
+    // }
 
     #[sqlx::test]
     async fn should_update_and_return_document(pool: PgPool) -> Result<(), Box<dyn Error>> {
