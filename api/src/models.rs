@@ -4,6 +4,7 @@ pub mod conversation_email_notification_recipients;
 pub mod feedback;
 pub mod invite_response;
 pub mod invites;
+pub mod job;
 pub mod notification;
 pub mod notification_delivery;
 pub mod pagination;

@@ -185,6 +185,12 @@ pub enum ComhairleError {
 
     #[error("Background worker job failed: {0}")]
     BackgroundJobFailed(String),
+
+    #[error("Failed to queue background worker job")]
+    BackgroundJobFailedToQueue,
+
+    #[error("Corrupted data: {0}")]
+    CorruptedData(String),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
