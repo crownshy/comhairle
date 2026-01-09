@@ -102,7 +102,7 @@ impl<'q> Encode<'q, Postgres> for ReportSectionConfigs {
     fn encode_by_ref(
         &self,
         buf: &mut PgArgumentBuffer,
-    ) -> Result<IsNull, Box<(dyn std::error::Error + Send + Sync + 'static)>> {
+    ) -> Result<IsNull, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let json = serde_json::to_value(self).unwrap();
         <serde_json::Value as Encode<Postgres>>::encode(json, buf)
     }

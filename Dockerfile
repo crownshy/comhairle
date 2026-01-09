@@ -13,12 +13,14 @@ WORKDIR /workspace/
 COPY api/Cargo.toml api/Cargo.lock ./api/
 COPY comhairle_macros/Cargo.toml ./comhairle_macros/Cargo.toml
 COPY adaptors/heyform-rust-sdk/Cargo.toml ./adaptors/heyform-rust-sdk/Cargo.toml
+COPY adaptors/ragflow/Cargo.toml ./adaptors/ragflow/Cargo.toml
 COPY Cargo.toml Cargo.lock ./
 
 # Create dummy source files
 RUN mkdir -p api/src && echo "fn main() {}" > api/src/main.rs && echo "" > api/src/lib.rs && \
     mkdir -p comhairle_macros/src && echo "" > comhairle_macros/src/lib.rs && \
     mkdir -p adaptors/heyform-rust-sdk/src && echo "" > adaptors/heyform-rust-sdk/src/lib.rs && \
+    mkdir -p adaptors/ragflow/src && echo "" > adaptors/ragflow/src/lib.rs && \
 	mkdir -p target/release
 
 # Build dependencies only - keep the target directory intact

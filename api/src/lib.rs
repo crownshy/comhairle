@@ -1,3 +1,4 @@
+pub mod bot_service;
 pub mod config;
 pub mod db;
 mod docs;
@@ -9,6 +10,7 @@ mod tools;
 pub mod translation_service;
 pub mod websockets;
 
+use bot_service::ComhairleBotService;
 use docs::docs_routes;
 use mailer::ComhairleMailer;
 pub use routes::auth::hash_pw;
@@ -21,7 +23,10 @@ mod test_helpers;
 
 use std::sync::Arc;
 
-use axum::{http::Method, Extension, Router};
+use axum::{
+    http::{header, Method},
+    Extension, Router,
+};
 
 use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
 
@@ -38,6 +43,7 @@ pub struct ComhairleState {
     pub mailer: Arc<dyn ComhairleMailer>,
     pub websockets: Arc<dyn WebSocketService>,
     pub translation_service: Option<Arc<dyn TranslationService>>,
+    pub bot_service: Arc<dyn ComhairleBotService>,
 }
 
 fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
@@ -69,6 +75,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
     let cors = CorsLayer::new()
         .allow_credentials(true)
         .allow_methods([Method::GET, Method::POST])
+        .allow_headers([header::CONTENT_TYPE])
         .allow_origin([
             "http://localhost".parse().unwrap(),
             "http://localhost:3000".parse().unwrap(),
@@ -132,6 +139,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
             "/ws",
             websockets::routes::websocket_routes().with_state(state.clone()),
         )
+        .nest_api_service("/bot", routes::bot::router(state.clone()))
         .nest_api_service("/docs", docs_routes(state.clone()))
         .finish_api_with(&mut api, api_docs)
         .layer(Extension(Arc::new(api.clone()))) // Arc is very important here or you will face massive memory and performance issues

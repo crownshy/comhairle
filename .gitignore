@@ -2,3 +2,4 @@
 .vscode
 .direnv
 **/pg_data
+.env

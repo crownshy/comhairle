@@ -56,4 +56,7 @@ pub struct ComhairleConfig {
     pub mailer: MailerConfig,
     pub domain: String,
     pub translator: Option<TranslatorConfig>,
+    pub bot_service_host: String,
+    pub bot_service_api_key: String,
+    pub default_knowledge_base_id: String,
 }

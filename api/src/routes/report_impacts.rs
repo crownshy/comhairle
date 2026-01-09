@@ -29,7 +29,7 @@ async fn create_impact(
     Json(create_request): Json<CreateImpactDTO>,
 ) -> Result<(StatusCode, Json<ReportImpact>), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
-    if (conversation.owner_id != user.id) {
+    if conversation.owner_id != user.id {
         return Err(ComhairleError::UserIsNotConversationOwner);
     }
 
@@ -56,7 +56,7 @@ async fn list_impacts_for_conversation(
     RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<Vec<ReportImpact>>), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
-    if (conversation.owner_id != user.id) {
+    if conversation.owner_id != user.id {
         return Err(ComhairleError::UserIsNotConversationOwner);
     }
 
