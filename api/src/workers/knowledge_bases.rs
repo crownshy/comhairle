@@ -183,3 +183,81 @@ pub async fn handle_knowledge_base_processing(
 
     Ok(())
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct KBJob {
+    job_id: Uuid,
+    conversation_id: Uuid,
+}
+
+// TODO: rename
+pub async fn handle_kb_processing_alt(
+    job: KBJob,
+    state: Data<Arc<ComhairleState>>,
+) -> Result<(), ComhairleError> {
+    let conversation =
+        models::conversation::get_localised_by_id(&state.db, &job.conversation_id).await?;
+
+    let chat_id = match conversation.chat_bot_id {
+        Some(id) => id,
+        None => {
+            return Err(ComhairleError::CorruptedData(format!(
+                "Missing chat_bot_id on conversation {}",
+                conversation.id
+            )))
+        }
+    };
+    let kb_id = match conversation.knowledge_base_id {
+        Some(id) => id,
+        None => {
+            return Err(ComhairleError::CorruptedData(format!(
+                "Missing knowledge_base_id on conversation {}",
+                conversation.id
+            )))
+        }
+    };
+    let (_, chat) = state.bot_service.get_chat(&chat_id).await?;
+    let (_, knowledge_base) = state.bot_service.get_knowledge_base(&kb_id).await?;
+    let (_, kb_documents) = state
+        .bot_service
+        .list_documents(&knowledge_base.id, None)
+        .await?;
+
+    if kb_documents.is_empty() {
+        // Upload default document to knowledge_base
+    }
+
+    let (_, kb_documents) = state
+        .bot_service
+        .list_documents(&knowledge_base.id, None)
+        .await?;
+
+    let has_parsed_document = kb_documents
+        .iter()
+        .any(|doc| doc.parse_status == "DONE" && doc.parse_progress == 1.0);
+
+    if !has_parsed_document {
+        let unparsed_document = kb_documents
+            .iter()
+            .find(|doc| doc.parse_progress < 1.0 && doc.parse_status == "RUNNING");
+
+        if let Some(document) = unparsed_document {
+            // Poll document
+            // Requires document_id from previous step to persist if job is stopped or retried
+        } else {
+            return Err(ComhairleError::BackgroundJobFailed(
+                "Partially parsed document not found".to_string(),
+            ));
+        }
+    }
+
+    if !chat.knowledge_base_ids.contains(&kb_id) {
+        // connect chat to knowledge base
+    }
+
+    if !conversation.enable_qa_chat_bot {
+        // enable flag on conversation
+    }
+
+    Ok(())
+}

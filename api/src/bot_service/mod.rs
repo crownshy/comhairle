@@ -189,6 +189,7 @@ pub struct ComhairleChat {
     pub name: String,
     pub llm_model: Option<ComhairleLlm>,
     pub prompt: Option<ComhairlePrompt>,
+    pub knowledge_base_ids: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone, PartialEq)]
