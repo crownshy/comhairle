@@ -13,7 +13,7 @@
 	import TranslatableFormField from '$lib/components/Translation/TranslatableFormField.svelte';
 	import { createTranslationManager } from '$lib/components/Translation/useTranslations.svelte';
 	import { TerminalSquare } from 'lucide-svelte';
-	import { LanguageSelector } from '$lib/components/ui/language-selector';
+	import { FileUpload } from '$lib/components/FileUpload';
 
 	let { data } = $props();
 	let conversation = $derived(data.conversation);
@@ -167,108 +167,73 @@
 </h1>
 <p class="mb-10">Use this space to set up the project and manage the team supporting it</p>
 
+<form method="POST" onsubmit={updateConversation} class="flex flex-col gap-4" use:enhance>
+	<Form.Field form={conversationForm} name="title">
+		<Form.Control>
+			{#snippet children({ props })}
+				<div class="flex w-full flex-col lg:flex-row lg:justify-between gap-2 border-t py-5">
+					<Form.Label class="lg:w-60 lg:shrink-0 font-bold">Title</Form.Label>
+					<div class="grow flex-col gap-2">
+						<Input {...props} bind:value={$form.title} />
+						<Form.FieldErrors />
+					</div>
+				</div>
+			{/snippet}
+		</Form.Control>
+	</Form.Field>
 
-<TranslationDialog
-	bind:open={translations.modalOpen}
-	translations={translations.workingTranslations}
-	activeLanguage={translations.activeLanguage}
-	isTranslating={translations.isTranslating}
-	isInCooldown={translations.isInCooldown}
-	onClose={translations.closeDialog}
-	onContentChange={handleContentChange}
-	onStatusChange={translations.updateStatus}
-	onActiveLanguageChange={translations.setActiveLanguage}
-	onAiTranslate={translations.handleAiTranslate}
-/>
+	<Form.Field form={conversationForm} name="short_description">
+		<Form.Control>
+			{#snippet children({ props })}
+				<div class="flex w-full flex-col lg:flex-row lg:justify-between gap-2 border-t py-5">
+					<Form.Label class="lg:w-60 lg:shrink-0 font-bold">Short Description</Form.Label>
+					<div class="grow flex-col gap-2">
+						<Textarea class="bg-white" {...props} bind:value={$form.short_description} />
+						<Form.FieldErrors />
+					</div>
+				</div>
+			{/snippet}
+		</Form.Control>
+	</Form.Field>
 
-<form 
-	method="POST" 
-	onsubmit={updateConversation} 
-	class="flex flex-col" 
-	use:enhance
->
-	<TranslatableFormField
-		form={conversationForm}
-		name="title"
-		label="Title"
-		value={$form.title}
-		onValueChange={(v) => $form.title = v}
-		onEditTranslations={(lang) => translations.openDialog('title', lang)}
-		onPrimaryChange={() => translations.handlePrimaryContentChange('title')}
-		translations={translations.getFieldTranslations('title')}
-	/>
+	<Form.Field form={conversationForm} name="description">
+		<Form.Control>
+			{#snippet children({ props })}
+				<div class="flex w-full flex-col lg:flex-row lg:justify-between gap-2 border-t py-5">
+					<Form.Label class="lg:w-60 lg:shrink-0 font-bold">Description</Form.Label>
+					<div class="grow flex-col gap-2">
+						<Textarea class="bg-white" {...props} bind:value={$form.description} />
+						<Form.FieldErrors />
+					</div>
+				</div>
+			{/snippet}
+		</Form.Control>
+	</Form.Field>
 
-	<TranslatableFormField
-		form={conversationForm}
-		name="short_description"
-		label="Short Description"
-		value={$form.short_description}
-		onValueChange={(v) => $form.short_description = v}
-		onEditTranslations={(lang) => translations.openDialog('short_description', lang)}
-		onPrimaryChange={() => translations.handlePrimaryContentChange('short_description')}
-		translations={translations.getFieldTranslations('short_description')}
-		inputType="textarea"
-	/>
+	<FileUpload conversation_id={conversation.id} />
 
-	<TranslatableFormField
-		form={conversationForm}
-		name="description"
-		label="Description"
-		value={$form.description}
-		onValueChange={(v) => $form.description = v}
-		onEditTranslations={(lang) => translations.openDialog('description', lang)}
-		onPrimaryChange={() => translations.handlePrimaryContentChange('description')}
-		translations={translations.getFieldTranslations('description')}
-		inputType="textarea"
-	/>
+	<Form.Field form={conversationForm} name="image_url">
+		<Form.Control>
+			{#snippet children({ props })}
+				<div class="flex w-full flex-col lg:flex-row lg:justify-between gap-2 border-t py-5">
+					<div class="flex lg:w-60 lg:shrink-0 flex-col gap-2">
+						<Form.Label class="font-bold">Banner Image URL</Form.Label>
+						{#if $form.image_url}
+							<img width="200px" alt="Conversation Banner" src={$form.image_url} />
+						{/if}
+					</div>
+					<div class="grow flex-col gap-2">
+						<Input {...props} bind:value={$form.image_url} />
+						<Form.FieldErrors />
+					</div>
+				</div>
+			{/snippet}
+		</Form.Control>
+	</Form.Field>
 
-
-	<div class="grid grid-cols-[200px_1fr] gap-6 border-t py-6">
-		<p class="font-semibold pt-2">Language options</p>
-		<div class="max-w-md">
-			<LanguageSelector
-				bind:primaryLanguage
-				bind:supportedLanguages
-				onPrimaryChange={handlePrimaryLanguageChange}
-				onSupportedChange={handleSupportedLanguagesChange}
-			/>
-		</div>
-	</div>
-
-	<div class="flex flex-row gap-4">
-		<div class="grow">
-			<Form.Field
-				class="flex w-full flex-row justify-between border-t-1 py-5"
-				form={conversationForm}
-				name="image_url"
-			>
-				<Form.Control>
-					{#snippet children({ props })}
-						<div class="flex w-full flex-row justify-between border-t-1 py-5">
-							<div class="flex w-60 flex-col gap-2">
-								<Form.Label class="font-bold">Banner Image URL</Form.Label>
-								{#if $form.image_url}
-									<img 
-										width="200px" 
-										alt="Conversation Banner" 
-										src={$form.image_url} 
-									/>
-								{/if}
-							</div>
-							<div class="grow flex-col gap-2">
-								<Input {...props} bind:value={$form.image_url} />
-								<Form.FieldErrors />
-							</div>
-						</div>
-					{/snippet}
-				</Form.Control>
-			</Form.Field>
-		</div>
-	</div>
-
-	<div class="flex w-full flex-row justify-between border-t-1 py-5">
-		<p class="font-bold">Access</p>
-		<div class="flex flex-col gap-5">
+	<div class="flex w-full flex-col lg:flex-row lg:justify-between gap-2 border-t py-5">
+		<p class="lg:w-60 lg:shrink-0 font-bold">Access</p>
+		<div class="grow flex flex-col gap-5">
 			<Form.Field form={conversationForm} name="is_public">
 				<Form.Control>
 					{#snippet children({ props })}
