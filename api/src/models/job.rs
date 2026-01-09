@@ -36,6 +36,11 @@ pub struct CreateJob {
 }
 
 impl CreateJob {
+    /// Returns the database columns that will be inserted for this content.
+    ///
+    /// # Returns
+    ///
+    /// A vector of JobIden enum values representing the database columns.
     pub fn columns(&self) -> Vec<JobIden> {
         let mut columns = vec![JobIden::Status];
         if self.step.is_some() {
@@ -44,6 +49,11 @@ impl CreateJob {
         columns
     }
 
+    /// Returns that values to be inserted into the database columns.
+    ///
+    /// # Returns
+    ///
+    /// A vector of sea_query::SimpleExpr values correspoinding to the columns.
     pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
         let mut values = vec!["running".to_string().into()];
         if let Some(value) = &self.step {
@@ -81,6 +91,12 @@ pub struct UpdateJob {
 }
 
 impl UpdateJob {
+    /// Converts the update struct to database columns-value pairs.
+    ///
+    /// Only fields that are Some(..) will be included in the update.
+    ///
+    /// # Returns
+    /// A vector of tuples containing the column identifier and the new value.
     pub fn to_values(&self) -> Vec<(JobIden, sea_query::SimpleExpr)> {
         let mut values = vec![];
         if let Some(value) = &self.finished_at {
