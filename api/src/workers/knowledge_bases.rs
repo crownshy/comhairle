@@ -1,6 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use apalis::prelude::Data;
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
 use tracing::{error, info};
@@ -172,6 +173,7 @@ pub async fn handle_knowledge_base_processing(
 
     let update_job = UpdateJob {
         status: Some("completed".to_string()),
+        finished_at: Some(Utc::now()),
         completion_message: Some("Successfully created knowledge base with parsed document for conversation and connected to chat bot".to_string()),
         ..Default::default()
     };
