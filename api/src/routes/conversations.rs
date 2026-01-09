@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use apalis::prelude::MessageQueue;
 use axum::{
     extract::{Json, Multipart, Path, Query, State},
     http::StatusCode,
@@ -28,6 +29,7 @@ use crate::{
         conversation_email_notification_recipients::{
             self as email_recipients_model, CreateConversationEmailNotificationRecipients,
         },
+        job::{self, CreateJob},
         notification::{self as notification_model, CreateNotification, NotificationContextType},
         notification_delivery::{
             self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
@@ -36,6 +38,7 @@ use crate::{
         user_participation::{self},
     },
     routes::auth::RequiredUser,
+    workers::knowledge_bases::KnowledgeBaseJob,
     ComhairleState,
 };
 
@@ -355,7 +358,7 @@ async fn get_conversation_bot_session(
     Ok((StatusCode::OK, Json(session)))
 }
 
-#[derive(Deserialize, JsonSchema, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, PartialEq, Clone)]
 pub struct UploadFileRequest {
     pub filename: String,
     pub bytes: Vec<u8>,
@@ -383,7 +386,20 @@ async fn upload_conversation_bot_document(
 
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
 
+    let chat_bot_id = match conversation.chat_bot_id {
+        Some(id) => id,
+        None => {
+            return Err(ComhairleError::CorruptedData(format!(
+                "Missing chat_bot_id on conversation {}",
+                conversation.id
+            )));
+        }
+    };
+
     if let Some(knowledge_base_id) = conversation.knowledge_base_id {
+        // TODO: should we:
+        // 1. Create job in db with step skipped
+        // 2. Create worker job to offload work
         let _result = state
             .bot_service
             .upload_documents(&knowledge_base_id, files)
@@ -391,11 +407,28 @@ async fn upload_conversation_bot_document(
 
         return Ok(StatusCode::CREATED);
     } else {
-        // 1. create knowledge_base and attach to the conversation
-        // 2. upload file to the new knowledge_base and begin parsing
-        // 3. once parsing is complete point the chat bot to the new knowledge base
-        todo!()
+        // Create job in db
+        let create_job = CreateJob {
+            step: Some("create_knowledge_base".to_string()),
+        };
+        let job = job::create(&state.db, create_job).await?;
+
+        let worker_job = KnowledgeBaseJob {
+            job_id: job.id,
+            conversation_id,
+            chat_bot_id,
+            step: job.step.unwrap_or("create_knowledge_base".to_string()),
+            documents: files,
+        };
+        let mut lock = state.jobs.knowledge_bases.lock().await;
+        lock.enqueue(worker_job)
+            .await
+            .map_err(|_| ComhairleError::BackgroundJobFailedToQueue)?;
     }
+
+    // TODO: json response notifying FE that background process has begun
+    // and user will be notified when complete
+    Ok(StatusCode::OK)
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
@@ -492,7 +525,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .route(
-            "/{conversation_id}/upload_document", post(upload_conversation_bot_document)
+            "/{conversation_id}/upload_documents", post(upload_conversation_bot_document)
         )
         .with_state(state)
 }
