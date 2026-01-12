@@ -203,6 +203,7 @@ pub trait ComhairleBotService: Send + Sync {
 
     async fn update_agent(
         &self,
+        update_agent: &str,
         body: UpdateAgentRequest,
     ) -> Result<(StatusCode, ComhairleAgent), ComhairleError>;
 

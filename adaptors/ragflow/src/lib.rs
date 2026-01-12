@@ -1,9 +1,9 @@
+pub mod agents;
 pub mod chat;
 pub mod client;
 pub mod dataset;
 pub mod document;
 pub mod error;
-pub mod agents;
 
 pub use error::RagflowError;
 use serde::{Deserialize, Serialize};
@@ -16,6 +16,7 @@ pub struct GetQueryParams {
     pub desc: Option<bool>,
     pub name: Option<String>,
     pub id: Option<String>,
+    pub title: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Default)]

@@ -52,14 +52,14 @@ struct GetAgentResponse {
 }
 
 #[derive(Serialize, Deserialize)]
-struct CreateAgentResponse {
+pub struct CreateAgentResponse {
     pub code: i32,
     pub data: bool,
     pub message: String,
 }
 
 #[derive(Serialize, Deserialize)]
-struct UpdateAgentResponse {
+pub struct UpdateAgentResponse {
     pub code: i32,
     pub data: bool,
     pub message: String,

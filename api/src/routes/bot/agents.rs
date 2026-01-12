@@ -42,7 +42,9 @@ pub async fn list(
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
-pub struct CreateAgentRequest;
+pub struct CreateAgentRequest {
+    pub title: String,
+}
 
 pub async fn create(
     State(state): State<Arc<ComhairleState>>,
@@ -55,14 +57,17 @@ pub async fn create(
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
-pub struct UpdateAgentRequest;
+pub struct UpdateAgentRequest {
+    pub title: Option<String>,
+}
 
 pub async fn update(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(_user): RequiredAdminUser,
+    Path(agent_id): Path<String>,
     Json(payload): Json<UpdateAgentRequest>,
 ) -> Result<(StatusCode, Json<ComhairleAgent>), ComhairleError> {
-    let (_, agent) = state.bot_service.update_agent(payload).await?;
+    let (_, agent) = state.bot_service.update_agent(&agent_id, payload).await?;
 
     Ok((StatusCode::OK, Json(agent)))
 }

@@ -18,6 +18,7 @@ pub struct GetQueryParams {
     pub page_size: Option<i32>,
     pub order_by: Option<String>,
     pub name: Option<String>,
+    pub title: Option<String>,
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
