@@ -24,6 +24,7 @@ use crate::{
 
 pub mod ragflow_bot;
 
+#[derive(Debug)]
 pub struct ComhairleRagBotService {
     client: Arc<RagflowClient>,
 }
