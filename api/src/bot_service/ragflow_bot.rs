@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::{Stream, StreamExt};
 use ragflow::{
+    agents::{Agent, CreateAgent, UpdateAgent},
     chat::{session::*, *},
     dataset::*,
     document::*,
@@ -462,32 +463,96 @@ impl ComhairleBotService for ComhairleRagBotService {
         &self,
         agent_id: &str,
     ) -> Result<(StatusCode, ComhairleAgent), ComhairleError> {
-        todo!();
+        let params = GetQueryParams {
+            id: Some(agent_id.to_string()),
+            ..Default::default()
+        };
+
+        let (status, agents) = ragflow::agents::list(&self.client, Some(params)).await?;
+
+        let agent: ComhairleAgent = (&agents[0]).into();
+
+        Ok((status, agent))
     }
 
     async fn list_agents(
         &self,
         params: Option<ApiGetQueryParams>,
     ) -> Result<(StatusCode, Vec<ComhairleAgent>), ComhairleError> {
-        todo!();
+        let params: Option<GetQueryParams> = params.map(|p| p.into());
+
+        let (status, agents) = ragflow::agents::list(&self.client, params).await?;
+
+        let agents: Vec<ComhairleAgent> = agents.into_iter().map(Into::into).collect();
+
+        Ok((status, agents))
     }
 
     async fn create_agent(
         &self,
         body: CreateAgentRequest,
     ) -> Result<(StatusCode, ComhairleAgent), ComhairleError> {
-        todo!();
+        let body: CreateAgent = body.into();
+        let title = body.title.clone();
+
+        let (status, json) = ragflow::agents::create(&self.client, body).await?;
+
+        if !json.data {
+            return Err(ComhairleError::RagflowError(ragflow::RagflowError::Api {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                body: "Error creating agent".to_string(),
+            }));
+        }
+
+        let params = GetQueryParams {
+            title: Some(title),
+            ..Default::default()
+        };
+        let (_, agents) = ragflow::agents::list(&self.client, Some(params)).await?;
+
+        if agents.is_empty() || agents.len() > 1 {
+            return Err(ComhairleError::RagflowError(ragflow::RagflowError::Api {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                body: "Error retrieving agent after creation".to_string(),
+            }));
+        }
+
+        let agent: ComhairleAgent = (&agents[0]).into();
+
+        Ok((status, agent))
     }
 
     async fn update_agent(
         &self,
+        agent_id: &str,
         body: UpdateAgentRequest,
     ) -> Result<(StatusCode, ComhairleAgent), ComhairleError> {
-        todo!();
+        let body: UpdateAgent = body.into();
+
+        let (status, _) = ragflow::agents::update(&self.client, agent_id, body).await?;
+
+        let params = GetQueryParams {
+            id: Some(agent_id.to_string()),
+            ..Default::default()
+        };
+        let (_, agents) = ragflow::agents::list(&self.client, Some(params)).await?;
+
+        if agents.is_empty() || agents.len() > 1 {
+            return Err(ComhairleError::RagflowError(ragflow::RagflowError::Api {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                body: "error retrieving agent after update".to_string(),
+            }));
+        }
+
+        let agent: ComhairleAgent = (&agents[0]).into();
+
+        Ok((status, agent))
     }
 
     async fn delete_agent(&self, agent_id: &str) -> Result<StatusCode, ComhairleError> {
-        todo!();
+        let status = ragflow::agents::delete(&self.client, agent_id).await?;
+
+        Ok(status)
     }
 }
 
@@ -504,6 +569,7 @@ impl From<ApiGetQueryParams> for GetQueryParams {
             name: params.name,
             id: None,
             desc: None,
+            title: params.title,
         }
     }
 }
@@ -784,6 +850,33 @@ impl From<ChatConversationRequest> for ConvoQuestion {
             session_id: None,
             user_id: input.user_id,
             stream: Some(true),
+        }
+    }
+}
+
+impl From<Agent> for ComhairleAgent {
+    fn from(input: Agent) -> Self {
+        Self {}
+    }
+}
+
+impl From<&Agent> for ComhairleAgent {
+    fn from(input: &Agent) -> Self {
+        Self {}
+    }
+}
+
+impl From<UpdateAgentRequest> for UpdateAgent {
+    fn from(input: UpdateAgentRequest) -> Self {
+        Self { title: input.title }
+    }
+}
+
+impl From<CreateAgentRequest> for CreateAgent {
+    fn from(input: CreateAgentRequest) -> Self {
+        Self {
+            title: input.title,
+            dsl: serde_json::json!({}),
         }
     }
 }
