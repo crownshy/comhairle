@@ -3,6 +3,7 @@ pub mod client;
 pub mod dataset;
 pub mod document;
 pub mod error;
+pub mod agents;
 
 pub use error::RagflowError;
 use serde::{Deserialize, Serialize};

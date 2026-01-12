@@ -47,7 +47,7 @@ pub async fn update(
 }
 
 pub async fn delete(client: &RagflowClient, body: DeleteResources<'_>) -> Result<StatusCode> {
-    client.delete("/datasets", &body, None).await
+    client.delete("/datasets", Some(&body), None).await
 }
 
 #[derive(Deserialize)]
@@ -109,8 +109,8 @@ mod tests {
     use crate::client::RagflowClient;
     use serde_json::json;
     use wiremock::{
-        Mock, MockServer, ResponseTemplate,
         matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
     };
 
     #[tokio::test]

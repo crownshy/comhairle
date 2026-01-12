@@ -39,7 +39,7 @@ pub async fn delete(
     body: DeleteResources<'_>,
 ) -> Result<StatusCode> {
     let path = format!("/chats/{chat_id}/sessions");
-    let status = client.delete(&path, &body, None).await?;
+    let status = client.delete(&path, Some(&body), None).await?;
 
     Ok(status)
 }
@@ -157,8 +157,8 @@ mod tests {
 
     use serde_json::json;
     use wiremock::{
-        Mock, MockServer, ResponseTemplate,
         matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
     };
 
     #[tokio::test]
