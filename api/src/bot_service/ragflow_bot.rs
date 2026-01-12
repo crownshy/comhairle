@@ -10,6 +10,7 @@ use ragflow::{
     DeleteResources, GetQueryParams, RagflowError,
 };
 use reqwest::StatusCode;
+use tracing::instrument;
 
 use crate::{
     bot_service::{
@@ -32,6 +33,7 @@ use crate::{
 
 #[async_trait]
 impl ComhairleBotService for ComhairleRagBotService {
+    #[instrument(err(Debug))]
     async fn get_knowledge_base(
         &self,
         knowledge_base_id: &str,
@@ -48,6 +50,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, knowledge_base))
     }
 
+    #[instrument(err(Debug))]
     async fn list_knowledge_bases(
         &self,
         params: Option<ApiGetQueryParams>,
@@ -62,6 +65,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, knowledge_bases))
     }
 
+    #[instrument(err(Debug))]
     async fn create_knowledge_base(
         &self,
         name: String,
@@ -75,6 +79,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, knowledge_base))
     }
 
+    #[instrument(err(Debug))]
     async fn update_knowledge_base(
         &self,
         knowledge_base_id: &str,
@@ -103,6 +108,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, knowledge_base))
     }
 
+    #[instrument(err(Debug))]
     async fn delete_knowledge_base(
         &self,
         knowledge_base_id: String,
@@ -116,6 +122,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok(status)
     }
 
+    #[instrument(err(Debug))]
     async fn list_documents(
         &self,
         knowledge_base_id: &str,
@@ -131,6 +138,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, documents))
     }
 
+    #[instrument(err(Debug))]
     async fn get_document(
         &self,
         document_id: &str,
@@ -149,6 +157,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, document))
     }
 
+    #[instrument(err(Debug))]
     async fn upload_documents(
         &self,
         knowledge_base_id: &str,
@@ -161,6 +170,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok(status)
     }
 
+    #[instrument(err(Debug))]
     async fn update_document(
         &self,
         document_id: &str,
@@ -192,6 +202,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, document))
     }
 
+    #[instrument(err(Debug))]
     async fn delete_document(
         &self,
         document_id: String,
@@ -203,6 +214,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok(status)
     }
 
+    #[instrument(err(Debug))]
     async fn get_chat(&self, chat_id: &str) -> Result<(StatusCode, ComhairleChat), ComhairleError> {
         let params = GetQueryParams {
             id: Some(chat_id.to_string()),
@@ -216,6 +228,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, chat))
     }
 
+    #[instrument(err(Debug))]
     async fn list_chats(
         &self,
         params: Option<ApiGetQueryParams>,
@@ -229,6 +242,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, chats))
     }
 
+    #[instrument(err(Debug))]
     async fn create_chat(
         &self,
         body: CreateChatRequest,
@@ -242,6 +256,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, chat))
     }
 
+    #[instrument(err(Debug))]
     async fn update_chat(
         &self,
         chat_id: &str,
@@ -270,6 +285,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, chat))
     }
 
+    #[instrument(err(Debug))]
     async fn delete_chat(&self, chat_id: &str) -> Result<StatusCode, ComhairleError> {
         let body = DeleteResources { ids: vec![chat_id] };
 
@@ -278,6 +294,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok(status)
     }
 
+    #[instrument(err(Debug))]
     async fn get_chat_session(
         &self,
         session_id: &str,
@@ -296,6 +313,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, chat_session))
     }
 
+    #[instrument(err(Debug))]
     async fn list_chat_sessions(
         &self,
         chat_id: &str,
@@ -312,6 +330,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, chat_sessions))
     }
 
+    #[instrument(err(Debug))]
     async fn create_chat_session(
         &self,
         chat_id: &str,
@@ -327,6 +346,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, chat_session))
     }
 
+    #[instrument(err(Debug))]
     async fn update_chat_session(
         &self,
         session_id: &str,
@@ -357,6 +377,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, chat_session))
     }
 
+    #[instrument(err(Debug))]
     async fn delete_chat_session(
         &self,
         session_id: &str,
@@ -371,6 +392,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok(status)
     }
 
+    #[instrument(err(Debug))]
     async fn converse_with_chat(
         &self,
         session_id: &str,
