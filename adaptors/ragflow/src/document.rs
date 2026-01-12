@@ -1,13 +1,13 @@
 use reqwest::{
-    StatusCode,
     multipart::{Form, Part},
+    StatusCode,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::DeleteResources;
 use crate::client::RagflowClient;
 use crate::error::Result;
+use crate::DeleteResources;
 use crate::{ChunkMethod, GetQueryParams};
 
 pub async fn list(
@@ -88,7 +88,7 @@ pub async fn delete(
         ids: vec![document_id],
     };
     let path = format!("/datasets/{dataset_id}/documents");
-    client.delete(&path, &body, None).await
+    client.delete(&path, Some(&body), None).await
 }
 
 pub async fn parse(
@@ -106,7 +106,7 @@ pub async fn stop_parse(
     body: ParseDocuments<'_>,
 ) -> Result<StatusCode> {
     let path = format!("/datasets/{dataset_id}/chunks");
-    client.delete(&path, &body, None).await
+    client.delete(&path, Some(&body), None).await
 }
 
 #[derive(Serialize, Deserialize)]
@@ -211,8 +211,8 @@ mod tests {
 
     use serde_json::json;
     use wiremock::{
-        Mock, MockServer, ResponseTemplate,
         matchers::{method, path, query_param},
+        Mock, MockServer, ResponseTemplate,
     };
 
     #[tokio::test]
