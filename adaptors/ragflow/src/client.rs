@@ -1,14 +1,14 @@
 use crate::error::{RagflowError, Result};
 
 use reqwest::{
-    Client as HttpClient, StatusCode,
     header::{HeaderName, HeaderValue},
     multipart::Form,
+    Client as HttpClient, StatusCode,
 };
 use serde::Serialize;
 use serde_json::Value;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RagflowClient {
     pub base_url: String,
     pub path_prefix: String,
@@ -239,11 +239,11 @@ mod tests {
     use std::error::Error;
 
     use crate::{client::RagflowClient, error::RagflowError};
-    use reqwest::{StatusCode, multipart::Form};
+    use reqwest::{multipart::Form, StatusCode};
     use serde_json::json;
     use wiremock::{
-        Mock, MockServer, ResponseTemplate,
         matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
     };
 
     #[tokio::test]
