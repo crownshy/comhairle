@@ -15,6 +15,7 @@ use crate::{
     error::ComhairleError,
     routes::{
         bot::{
+            agents::{CreateAgentRequest, UpdateAgentRequest},
             chats::{CreateChatRequest, UpdateChatRequest},
             documents::UpdateDocumentRequest,
             knowledge_bases::UpdateKnowledgeBaseRequest,
@@ -184,6 +185,28 @@ pub trait ComhairleBotService: Send + Sync {
         Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
         ComhairleError,
     >;
+
+    async fn get_agent(
+        &self,
+        agent_id: &str,
+    ) -> Result<(StatusCode, ComhairleAgent), ComhairleError>;
+
+    async fn list_agents(
+        &self,
+        params: Option<GetQueryParams>,
+    ) -> Result<(StatusCode, Vec<ComhairleAgent>), ComhairleError>;
+
+    async fn create_agent(
+        &self,
+        body: CreateAgentRequest,
+    ) -> Result<(StatusCode, ComhairleAgent), ComhairleError>;
+
+    async fn update_agent(
+        &self,
+        body: UpdateAgentRequest,
+    ) -> Result<(StatusCode, ComhairleAgent), ComhairleError>;
+
+    async fn delete_agent(&self, agent_id: &str) -> Result<StatusCode, ComhairleError>;
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone)]
@@ -247,6 +270,9 @@ pub struct ComhairleMessageReference {
     pub document_id: String,
     pub document_name: String,
 }
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct ComhairleAgent;
 
 #[cfg(test)]
 impl MockComhairleBotService {

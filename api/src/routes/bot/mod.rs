@@ -6,6 +6,7 @@ use serde::Deserialize;
 
 use crate::ComhairleState;
 
+pub mod agents;
 pub mod chats;
 pub mod documents;
 pub mod knowledge_bases;
@@ -21,6 +22,7 @@ pub struct GetQueryParams {
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
+        .nest_api_service("/agents", agents::router(state.clone()))
         .nest_api_service(
             "/chats",
             chats::router(state.clone())

@@ -14,13 +14,14 @@ use tracing::instrument;
 
 use crate::{
     bot_service::{
-        ComhairleBotService, ComhairleChat, ComhairleChatSession, ComhairleDocument,
-        ComhairleKnowledgeBase, ComhairleLlm, ComhairleMessageReference, ComhairlePrompt,
-        ComhairleRagBotService, ComhairleSessionMessage,
+        ComhairleAgent, ComhairleBotService, ComhairleChat, ComhairleChatSession,
+        ComhairleDocument, ComhairleKnowledgeBase, ComhairleLlm, ComhairleMessageReference,
+        ComhairlePrompt, ComhairleRagBotService, ComhairleSessionMessage,
     },
     error::ComhairleError,
     routes::{
         bot::{
+            agents::{CreateAgentRequest, UpdateAgentRequest},
             chats::{CreateChatRequest, UpdateChatRequest},
             documents::UpdateDocumentRequest,
             knowledge_bases::UpdateKnowledgeBaseRequest,
@@ -455,6 +456,38 @@ impl ComhairleBotService for ComhairleRagBotService {
         let mapped_stream = stream.map(|item| item.map_err(ComhairleError::from));
 
         Ok(Box::pin(mapped_stream))
+    }
+
+    async fn get_agent(
+        &self,
+        agent_id: &str,
+    ) -> Result<(StatusCode, ComhairleAgent), ComhairleError> {
+        todo!();
+    }
+
+    async fn list_agents(
+        &self,
+        params: Option<ApiGetQueryParams>,
+    ) -> Result<(StatusCode, Vec<ComhairleAgent>), ComhairleError> {
+        todo!();
+    }
+
+    async fn create_agent(
+        &self,
+        body: CreateAgentRequest,
+    ) -> Result<(StatusCode, ComhairleAgent), ComhairleError> {
+        todo!();
+    }
+
+    async fn update_agent(
+        &self,
+        body: UpdateAgentRequest,
+    ) -> Result<(StatusCode, ComhairleAgent), ComhairleError> {
+        todo!();
+    }
+
+    async fn delete_agent(&self, agent_id: &str) -> Result<StatusCode, ComhairleError> {
+        todo!();
     }
 }
 
