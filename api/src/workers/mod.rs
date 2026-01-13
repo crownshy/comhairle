@@ -1,15 +1,13 @@
-pub mod knowledge_bases;
+pub mod documents;
 
 use std::sync::Arc;
 
 use apalis::prelude::MemoryStorage;
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
-use crate::workers::knowledge_bases::KnowledgeBaseJob;
+use crate::workers::documents::DocumentJob;
 
 #[derive(Clone, Debug)]
 pub struct JobQueues {
-    pub knowledge_bases: Arc<Mutex<MemoryStorage<KnowledgeBaseJob>>>,
+    pub documents: Arc<Mutex<MemoryStorage<DocumentJob>>>,
 }

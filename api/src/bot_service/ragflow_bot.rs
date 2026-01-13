@@ -511,7 +511,12 @@ impl From<&Chat> for ComhairleChat {
             name: chat.name.clone(),
             llm_model: chat.llm.as_ref().map(Into::into),
             prompt: chat.prompt.as_ref().map(Into::into),
-            knowledge_base_ids: chat.dataset_ids.clone().unwrap_or(vec![]),
+            knowledge_base_ids: chat
+                .datasets
+                .iter()
+                .flat_map(|v| v.iter())
+                .map(|d| d.id.clone())
+                .collect(),
         }
     }
 }
@@ -523,7 +528,12 @@ impl From<Chat> for ComhairleChat {
             name: chat.name,
             llm_model: chat.llm.map(Into::into),
             prompt: chat.prompt.map(Into::into),
-            knowledge_base_ids: chat.dataset_ids.unwrap_or(vec![]),
+            knowledge_base_ids: chat
+                .datasets
+                .unwrap_or_default()
+                .iter()
+                .map(|d| d.id.clone())
+                .collect(),
         }
     }
 }
