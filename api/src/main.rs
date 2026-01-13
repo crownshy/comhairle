@@ -7,7 +7,7 @@ use comhairle::{
     setup_server,
     translation_service::GoogleTranslateService,
     websockets::ComhairleWebSocketService,
-    workers::{knowledge_bases::handle_knowledge_base_processing, JobQueues},
+    workers::{documents::handle_document_processing, JobQueues},
     ComhairleState,
 };
 use std::{error::Error, sync::Arc};
@@ -69,9 +69,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         &config.bot_service_api_key,
     ));
 
-    let knowledge_base_storage = MemoryStorage::new();
+    let document_storage = MemoryStorage::new();
     let jobs = Arc::new(JobQueues {
-        knowledge_bases: Arc::new(Mutex::new(knowledge_base_storage.clone())),
+        documents: Arc::new(Mutex::new(document_storage.clone())),
     });
 
     let state = Arc::new(ComhairleState {
@@ -93,10 +93,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         axum::serve(listener, app).await.unwrap();
     };
 
-    let knowledge_base_worker = WorkerBuilder::new("process_knowledge_base_job")
+    let knowledge_base_worker = WorkerBuilder::new("process_document_job")
         .data(state.clone())
-        .backend(knowledge_base_storage.clone())
-        .build_fn(handle_knowledge_base_processing);
+        .backend(document_storage.clone())
+        .build_fn(handle_document_processing);
 
     let worker_future = { Monitor::new().register(knowledge_base_worker).run() };
 

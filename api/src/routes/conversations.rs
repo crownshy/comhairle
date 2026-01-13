@@ -38,7 +38,7 @@ use crate::{
         user_participation::{self},
     },
     routes::auth::RequiredUser,
-    workers::knowledge_bases::KnowledgeBaseJob,
+    workers::documents::DocumentJob,
     ComhairleState,
 };
 
@@ -358,7 +358,7 @@ async fn get_conversation_bot_session(
     Ok((StatusCode::OK, Json(session)))
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, PartialEq, Clone, Default)]
 pub struct UploadFileRequest {
     pub filename: String,
     pub bytes: Vec<u8>,
@@ -384,43 +384,17 @@ async fn upload_conversation_bot_document(
         files.push(file);
     }
 
-    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
-
-    let chat_bot_id = match conversation.chat_bot_id {
-        Some(id) => id,
-        None => {
-            return Err(ComhairleError::CorruptedData(format!(
-                "Missing chat_bot_id on conversation {}",
-                conversation.id
-            )));
-        }
-    };
-
-    if let Some(knowledge_base_id) = conversation.knowledge_base_id {
-        // TODO: should we:
-        // 1. Create job in db with step skipped
-        // 2. Create worker job to offload work
-        let _result = state
-            .bot_service
-            .upload_documents(&knowledge_base_id, files)
-            .await?;
-
-        return Ok(StatusCode::CREATED);
-    } else {
+    for file in files {
         // Create job in db
-        let create_job = CreateJob {
-            step: Some("create_knowledge_base".to_string()),
-        };
+        let create_job = CreateJob { step: None };
         let job = job::create(&state.db, create_job).await?;
 
-        let worker_job = KnowledgeBaseJob {
+        let worker_job = DocumentJob {
             job_id: job.id,
             conversation_id,
-            chat_bot_id,
-            step: job.step.unwrap_or("create_knowledge_base".to_string()),
-            documents: files,
+            document: file,
         };
-        let mut lock = state.jobs.knowledge_bases.lock().await;
+        let mut lock = state.jobs.documents.lock().await;
         lock.enqueue(worker_job)
             .await
             .map_err(|_| ComhairleError::BackgroundJobFailedToQueue)?;

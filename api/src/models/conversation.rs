@@ -527,6 +527,10 @@ pub async fn create(
     )
     .await?;
 
+    let (_, knowledge_base) = bot_service
+        .create_knowledge_base(conversation.title.clone(), None)
+        .await?;
+
     let create_chat = CreateChatRequest {
         name: conversation.title.clone(),
         knowledge_base_ids: Some(vec![config.default_knowledge_base_id.clone()]),
@@ -537,6 +541,9 @@ pub async fn create(
 
     let mut columns = conversation.columns();
     let mut values = conversation.values();
+
+    columns.push(ConversationIden::KnowledgeBaseId);
+    values.push(knowledge_base.id.into());
 
     columns.push(ConversationIden::ChatBotId);
     values.push(chat.id.into());
