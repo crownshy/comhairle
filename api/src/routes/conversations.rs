@@ -370,8 +370,8 @@ pub struct UploadFileResponse {
     job_ids: Vec<Uuid>,
 }
 
-#[instrument(err(Debug), skip(state))]
-async fn upload_conversation_bot_document(
+#[instrument(err(Debug), skip(state, form_data))]
+async fn upload_documents(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     RequiredAdminUser(_user): RequiredAdminUser,
@@ -512,7 +512,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .route(
-            "/{conversation_id}/upload_documents", post(upload_conversation_bot_document)
+            "/{conversation_id}/upload_documents", post(upload_documents)
         )
         .with_state(state)
 }
