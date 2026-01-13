@@ -49,6 +49,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("ListJobs")
                     .tag("Jobs")
                     .summary("List jobs")
+                    .security_requirement("JWT")
                     .response::<200, Json<PaginatedResults<Job>>>()
             }),
         )
@@ -58,6 +59,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("GetJob")
                     .tag("Jobs")
                     .summary("Get a job by id")
+                    .security_requirement("JWT")
                     .response::<200, Json<Job>>()
             }),
         )

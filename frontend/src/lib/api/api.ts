@@ -190,7 +190,7 @@ export const ComhairleLlm = z.object({ model_name: z.union([z.string(), z.null()
 export type ComhairleLlm = z.infer<typeof ComhairleLlm>;
 export const ComhairlePrompt = z.object({ empty_response: z.union([z.string(), z.null()]), llm_prompt: z.union([z.string(), z.null()]), opener: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type ComhairlePrompt = z.infer<typeof ComhairlePrompt>;
-export const ComhairleChat = z.object({ id: z.string(), llm_model: z.union([ComhairleLlm, z.null()]).optional(), name: z.string(), prompt: z.union([ComhairlePrompt, z.null()]).optional() }).passthrough();
+export const ComhairleChat = z.object({ id: z.string(), knowledge_base_ids: z.array(z.string()), llm_model: z.union([ComhairleLlm, z.null()]).optional(), name: z.string(), prompt: z.union([ComhairlePrompt, z.null()]).optional() }).passthrough();
 export type ComhairleChat = z.infer<typeof ComhairleChat>;
 export const CreateChatRequest = z.object({ knowledge_base_ids: z.union([z.array(z.string()), z.null()]).optional(), llm_model: z.union([ComhairleLlm, z.null()]).optional(), name: z.string(), prompt: z.union([ComhairlePrompt, z.null()]).optional() }).passthrough();
 export type CreateChatRequest = z.infer<typeof CreateChatRequest>;
@@ -212,10 +212,14 @@ export const CreateKnowledgeBaseRequest = z.object({ name: z.string() }).passthr
 export type CreateKnowledgeBaseRequest = z.infer<typeof CreateKnowledgeBaseRequest>;
 export const UpdateKnowledgeBaseRequest = z.object({ name: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type UpdateKnowledgeBaseRequest = z.infer<typeof UpdateKnowledgeBaseRequest>;
-export const ComhairleDocument = z.object({ id: z.string(), name: z.string() }).passthrough();
+export const ComhairleDocument = z.object({ id: z.string(), name: z.string(), parse_progress: z.number(), parse_status: z.string() }).passthrough();
 export type ComhairleDocument = z.infer<typeof ComhairleDocument>;
 export const UpdateDocumentRequest = z.object({ name: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type UpdateDocumentRequest = z.infer<typeof UpdateDocumentRequest>;
+export const Job = z.object({ completion_message: z.union([z.string(), z.null()]).optional(), created_at: z.string().datetime({ offset: true }), error: z.union([z.string(), z.null()]).optional(), finished_at: z.union([z.string(), z.null()]).optional(), id: z.string().uuid(), progress: z.union([z.number(), z.null()]).optional(), status: z.union([z.string(), z.null()]).optional(), step: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type Job = z.infer<typeof Job>;
+export const PaginatedResults_for_Job = z.object({ records: z.array(Job), total: z.number().int() }).passthrough();
+export type PaginatedResults_for_Job = z.infer<typeof PaginatedResults_for_Job>;
 
 
 export const schemas = {
@@ -326,6 +330,8 @@ export const schemas = {
 	UpdateKnowledgeBaseRequest,
 	ComhairleDocument,
 	UpdateDocumentRequest,
+	Job,
+	PaginatedResults_for_Job,
 };
 
 const endpoints = makeApi([
@@ -1212,6 +1218,42 @@ const endpoints = makeApi([
 		description: `This documentation page.`,
 		requestFormat: "json",
 		response: z.void(),
+	},
+	{
+		method: "get",
+		path: "/jobs",
+		alias: "ListJobs",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "completion_message",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "status",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "limit",
+				type: "Query",
+				schema: limit
+			},
+			{
+				name: "offset",
+				type: "Query",
+				schema: limit
+			},
+		],
+		response: PaginatedResults_for_Job,
+	},
+	{
+		method: "get",
+		path: "/jobs/:job_id",
+		alias: "GetJob",
+		requestFormat: "json",
+		response: Job,
 	},
 	{
 		method: "get",
