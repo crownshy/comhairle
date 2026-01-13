@@ -7,9 +7,10 @@ CREATE TABLE IF NOT EXISTS job (
     error TEXT DEFAULT NULL,
     completion_message TEXT DEFAULT NULL,
     step TEXT DEFAULT NULL,
+    progress NUMERIC(10,8) DEFAULT NULL,
     status TEXT DEFAULT 'pending'
 );
 
 ALTER TABLE job
-ADD CONSTRAINT jobs_status_check
+ADD CONSTRAINT job_status_check
 CHECK (status in ('pending', 'running', 'error', 'completed'));

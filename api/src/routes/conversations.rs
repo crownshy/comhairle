@@ -364,14 +364,21 @@ pub struct UploadFileRequest {
     pub bytes: Vec<u8>,
 }
 
+#[derive(Serialize, JsonSchema, Debug)]
+pub struct UploadFileResponse {
+    message: String,
+    job_ids: Vec<Uuid>,
+}
+
 #[instrument(err(Debug), skip(state))]
 async fn upload_conversation_bot_document(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     RequiredAdminUser(_user): RequiredAdminUser,
     mut form_data: Multipart,
-) -> Result<StatusCode, ComhairleError> {
+) -> Result<(StatusCode, Json<UploadFileResponse>), ComhairleError> {
     let mut files: Vec<UploadFileRequest> = Vec::new();
+    let mut job_ids = vec![];
 
     while let Some(field) = form_data.next_field().await? {
         let filename = field.file_name().unwrap_or("<no filename>").to_string();
@@ -385,9 +392,12 @@ async fn upload_conversation_bot_document(
     }
 
     for file in files {
-        // Create job in db
-        let create_job = CreateJob { step: None };
+        let create_job = CreateJob {
+            progress: Some(0.0),
+            ..Default::default()
+        };
         let job = job::create(&state.db, create_job).await?;
+        job_ids.push(job.id);
 
         let worker_job = DocumentJob {
             job_id: job.id,
@@ -400,9 +410,12 @@ async fn upload_conversation_bot_document(
             .map_err(|_| ComhairleError::BackgroundJobFailedToQueue)?;
     }
 
-    // TODO: json response notifying FE that background process has begun
-    // and user will be notified when complete
-    Ok(StatusCode::OK)
+    let json_response = UploadFileResponse {
+        message: "Document uploads and parsing moved to background jobs".to_string(),
+        job_ids,
+    };
+
+    Ok((StatusCode::OK, Json(json_response)))
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
