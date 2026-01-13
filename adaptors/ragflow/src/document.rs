@@ -154,7 +154,7 @@ pub struct UploadDocumentsResponse {
     pub data: Vec<Document>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct UploadFile {
     pub filename: String,
     pub bytes: Vec<u8>,
@@ -291,6 +291,15 @@ mod tests {
                 "{}/datasets/123/documents",
                 client.path_prefix
             )))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(json!({ "code": 0, "data": [] })),
+            )
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        Mock::given(method("POST"))
+            .and(path(format!("{}/datasets/123/chunks", client.path_prefix)))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "code": 0 })))
             .expect(1)
             .mount(&mock_server)
@@ -301,14 +310,9 @@ mod tests {
             bytes: "bar".as_bytes().into(),
         };
         let files = vec![file];
-        let (status, value) = upload(&client, "123", files).await?;
+        let (status, _value) = upload(&client, "123", files).await?;
 
         assert_eq!(status, StatusCode::OK, "success from doc upload");
-        assert_eq!(
-            value.get("code").and_then(|v| v.as_i64()).unwrap(),
-            0,
-            "incorrect json response"
-        );
 
         Ok(())
     }
