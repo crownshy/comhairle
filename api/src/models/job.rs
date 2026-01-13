@@ -6,7 +6,10 @@ use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
 use uuid::Uuid;
 
-use crate::error::ComhairleError;
+use crate::{
+    error::ComhairleError,
+    models::pagination::{Order, PageOptions, PaginatedResults},
+};
 
 #[derive(Serialize, Deserialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "job")]
@@ -21,12 +24,13 @@ pub struct Job {
     pub status: Option<String>,
 }
 
-const DEFAULT_COLUMNS: [JobIden; 7] = [
+const DEFAULT_COLUMNS: [JobIden; 8] = [
     JobIden::Id,
     JobIden::CreatedAt,
     JobIden::FinishedAt,
     JobIden::Error,
     JobIden::CompletionMessage,
+    JobIden::Progress,
     JobIden::Step,
     JobIden::Status,
 ];
@@ -179,4 +183,85 @@ pub async fn get_id_id(db: &PgPool, id: &Uuid) -> Result<Job, ComhairleError> {
         .map_err(|_| ComhairleError::ResourceNotFound("Job".into()))?;
 
     Ok(job)
+}
+
+/// Ordering options for listing jobs.
+///
+/// Each field represents an optional ordering to apply to the query.
+/// If a field is `Some`, an `ORDER BY` clause is added for the
+/// corresponding column.
+#[derive(Deserialize, Debug, Default, JsonSchema)]
+pub struct JobOrderOptions {
+    created_at: Option<Order>,
+    finished_at: Option<Order>,
+}
+
+impl JobOrderOptions {
+    /// Applies any configured ordering options to a `SELECT` statement.
+    ///
+    /// For each field that is `Some`, an `ORDER BY` clause is appended
+    /// to the query. Fields that are `None` are ignored.
+    ///
+    /// The modified query is returned.
+    pub fn apply(&self, mut query: sea_query::SelectStatement) -> sea_query::SelectStatement {
+        if let Some(order) = &self.created_at {
+            query = query.order_by(JobIden::CreatedAt, order.into()).to_owned()
+        }
+        if let Some(order) = &self.finished_at {
+            query = query.order_by(JobIden::FinishedAt, order.into()).to_owned()
+        }
+        query
+    }
+}
+
+/// Filtering options for listing jobs.
+///
+/// Each field represents an optional filter condition.
+/// If a field is `Some`, a `WHERE` clause is added to the query
+/// matching the corresponding column.
+#[derive(Deserialize, Debug, JsonSchema, Default)]
+pub struct JobFilterOptions {
+    status: Option<String>,
+    completion_message: Option<String>,
+}
+
+impl JobFilterOptions {
+    /// Applies any configured filters to a `SELECT` statement.
+    ///
+    /// For each field that is `Some`, an `AND` condition is added
+    /// to the query. Fields that are `None` are ignored.
+    ///
+    /// The modified query is returned.
+    pub fn apply(&self, mut query: sea_query::SelectStatement) -> sea_query::SelectStatement {
+        if let Some(value) = &self.status {
+            query = query
+                .and_where(Expr::col(JobIden::Status).eq(value))
+                .to_owned();
+        }
+        if let Some(value) = &self.completion_message {
+            query = query
+                .and_where(Expr::col(JobIden::CompletionMessage).eq(value))
+                .to_owned();
+        }
+        query
+    }
+}
+
+pub async fn list(
+    db: &PgPool,
+    page_options: PageOptions,
+    order_options: JobOrderOptions,
+    filter_options: JobFilterOptions,
+) -> Result<PaginatedResults<Job>, ComhairleError> {
+    let query = Query::select()
+        .from(JobIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .to_owned();
+
+    let query = filter_options.apply(query);
+    let query = order_options.apply(query);
+
+    let jobs = page_options.fetch_paginated_results(db, query).await?;
+
+    Ok(jobs)
 }

@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS job (
     error TEXT DEFAULT NULL,
     completion_message TEXT DEFAULT NULL,
     step TEXT DEFAULT NULL,
-    progress NUMERIC(10,8) DEFAULT NULL,
+    progress FLOAT8 DEFAULT NULL,
     status TEXT DEFAULT 'pending'
 );
 

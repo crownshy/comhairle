@@ -84,7 +84,7 @@ pub async fn handle_document_processing(
         .upload_documents(&knowledge_base_id, vec![job.document])
         .await?;
 
-    let max_attempts = 60; // TODO:
+    let max_attempts = 120; // 20 minutes
     let poll_interval = Duration::from_secs(10);
     let mut attempts = 0;
 
