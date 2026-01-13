@@ -144,6 +144,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
             websockets::routes::websocket_routes().with_state(state.clone()),
         )
         .nest_api_service("/bot", routes::bot::router(state.clone()))
+        .nest_api_service("/jobs", routes::jobs::router(state.clone()))
         .nest_api_service("/docs", docs_routes(state.clone()))
         .finish_api_with(&mut api, api_docs)
         .layer(Extension(Arc::new(api.clone()))) // Arc is very important here or you will face massive memory and performance issues
