@@ -17,6 +17,7 @@ pub struct Job {
     pub error: Option<String>,
     pub completion_message: Option<String>,
     pub step: Option<String>,
+    pub progress: Option<f64>,
     pub status: Option<String>,
 }
 
@@ -33,6 +34,7 @@ const DEFAULT_COLUMNS: [JobIden; 7] = [
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Default)]
 pub struct CreateJob {
     pub step: Option<String>,
+    pub progress: Option<f64>,
 }
 
 impl CreateJob {
@@ -46,6 +48,9 @@ impl CreateJob {
         if self.step.is_some() {
             columns.push(JobIden::Step);
         }
+        if self.progress.is_some() {
+            columns.push(JobIden::Progress);
+        }
         columns
     }
 
@@ -58,6 +63,9 @@ impl CreateJob {
         let mut values = vec!["running".to_string().into()];
         if let Some(value) = &self.step {
             values.push(value.into());
+        }
+        if let Some(value) = &self.progress {
+            values.push((*value).into());
         }
         values
     }
@@ -87,6 +95,7 @@ pub struct UpdateJob {
     pub error: Option<String>,
     pub completion_message: Option<String>,
     pub step: Option<String>,
+    pub progress: Option<f64>,
     pub status: Option<String>,
 }
 
@@ -110,6 +119,9 @@ impl UpdateJob {
         }
         if let Some(value) = &self.step {
             values.push((JobIden::Step, value.into()));
+        }
+        if let Some(value) = &self.progress {
+            values.push((JobIden::Progress, (*value).into()));
         }
         if let Some(value) = &self.status {
             values.push((JobIden::Status, value.into()));

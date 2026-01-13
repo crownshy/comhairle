@@ -40,8 +40,9 @@ pub struct DocumentJob {
 ///
 /// 1. Uploads a document to the conversation’s knowledge base, triggering parsing in Ragflow.
 /// 2. Polls Ragflow to monitor the document’s parsing status.
-/// 3. Once parsing is complete, verifies whether the conversation’s chat bot is connected to the knowledge base.
-/// 4. Connects the chat bot to the knowledge base if it is not already connected.
+/// 3. Updates progress on job in postgres to allow front end to poll parse status from job.
+/// 4. Once parsing is complete, verifies whether the conversation’s chat bot is connected to the knowledge base.
+/// 5. Connects the chat bot to the knowledge base if it is not already connected.
 pub async fn handle_document_processing(
     job: DocumentJob,
     state: Data<Arc<ComhairleState>>,
@@ -99,13 +100,12 @@ pub async fn handle_document_processing(
             .bot_service
             .get_document(&documents[0].id, &knowledge_base_id)
             .await?;
-        // TODO: update progress on job
-        info!(
-            job_id = %job.job_id,
-            document_id = %documents[0].id,
-            parse_progess = %document.parse_progress,
-            "Poll document status"
-        );
+
+        let update_job = UpdateJob {
+            progress: Some(document.parse_progress),
+            ..Default::default()
+        };
+        let _job = models::job::update(&state.db, &job.job_id, update_job).await?;
 
         if document.parse_status == "DONE" && document.parse_progress >= 1.0 {
             info!(
