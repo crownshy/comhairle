@@ -118,6 +118,48 @@ async fn delete(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[instrument(err(Debug), skip(state))]
+async fn parse_document(
+    State(state): State<Arc<ComhairleState>>,
+    Path((knowledge_base_id, document_id)): Path<(String, String)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<StatusCode, ComhairleError> {
+    let _ = state
+        .bot_service
+        .parse_document(document_id, knowledge_base_id)
+        .await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn stop_parsing_document(
+    State(state): State<Arc<ComhairleState>>,
+    Path((knowledge_base_id, document_id)): Path<(String, String)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<StatusCode, ComhairleError> {
+    let _ = state
+        .bot_service
+        .stop_parsing_document(document_id, knowledge_base_id)
+        .await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn download_document(
+    State(state): State<Arc<ComhairleState>>,
+    Path((knowledge_base_id, document_id)): Path<(String, String)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<StatusCode, ComhairleError> {
+    let _ = state
+        .bot_service
+        .download_document(document_id, knowledge_base_id)
+        .await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -126,6 +168,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("ListDocuments")
                     .tag("Bot Documents")
                     .summary("Get a list of documents from a knowledge base")
+                    .security_requirement("JWT")
                     .response::<200, Json<Vec<ComhairleDocument>>>()
             }),
         )
@@ -135,6 +178,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("GetDocument")
                     .tag("Bot Documents")
                     .summary("Get a documents from a knowledge base by id")
+                    .security_requirement("JWT")
                     .response::<200, Json<ComhairleDocument>>()
             }),
         )
@@ -153,6 +197,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("UpdateDocument")
                     .tag("Bot Documents")
                     .summary("Update a document within a knowledge base")
+                    .security_requirement("JWT")
                     .response::<200, Json<ComhairleDocument>>()
             }),
         )
@@ -162,6 +207,37 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("DeleteDocument")
                     .tag("Bot Documents")
                     .summary("Delete a document from a knowledge base")
+                    .security_requirement("JWT")
+                    .response::<204, ()>()
+            }),
+        )
+        .api_route(
+            "/{document_id}/parse",
+            post_with(parse_document, |op| {
+                op.id("ParseDocument")
+                    .tag("Bot Documents")
+                    .summary("Begin parsing a document")
+                    .security_requirement("JWT")
+                    .response::<204, ()>()
+            }),
+        )
+        .api_route(
+            "/{document_id}/stop_parse",
+            post_with(stop_parsing_document, |op| {
+                op.id("StopParsingDocument")
+                    .tag("Bot Documents")
+                    .summary("Stop parsing a document")
+                    .security_requirement("JWT")
+                    .response::<204, ()>()
+            }),
+        )
+        .api_route(
+            "/{document_id}/download",
+            post_with(download_document, |op| {
+                op.id("DownloadDocument")
+                    .tag("Bot Documents")
+                    .summary("Download a document")
+                    .security_requirement("JWT")
                     .response::<204, ()>()
             }),
         )

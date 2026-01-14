@@ -106,6 +106,24 @@ pub trait ComhairleBotService: Send + Sync {
         knowledge_base_id: String,
     ) -> Result<StatusCode, ComhairleError>;
 
+    async fn parse_document(
+        &self,
+        document_id: String,
+        knowledge_base_id: String,
+    ) -> Result<StatusCode, ComhairleError>;
+
+    async fn stop_parsing_document(
+        &self,
+        document_id: String,
+        knowledge_base_id: String,
+    ) -> Result<StatusCode, ComhairleError>;
+
+    async fn download_document(
+        &self,
+        document_id: String,
+        knowledge_base_id: String,
+    ) -> Result<reqwest::Response, ComhairleError>;
+
     async fn get_chat(&self, chat_id: &str) -> Result<(StatusCode, ComhairleChat), ComhairleError>;
 
     async fn list_chats(

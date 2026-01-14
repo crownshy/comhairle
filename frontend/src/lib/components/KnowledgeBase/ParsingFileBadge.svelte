@@ -3,12 +3,13 @@
 	import FileContainer from './FileContainer.svelte';
 	import { File, X } from 'lucide-svelte';
 	import formatFileSize from '$lib/utils/formatFileSize';
-	import { Pause } from 'svelte-radix';
 	import { Progress } from 'bits-ui';
 	import { cubicInOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
 	import { apiClient } from '$lib/api/client';
 	import { onDestroy, onMount } from 'svelte';
+	import { invalidateAll } from '$app/navigation';
+	import { notifications } from '$lib/notifications.svelte';
 
 	type Props = {
 		document: ComhairleDocument;
@@ -68,6 +69,27 @@
 	});
 
 	onDestroy(stopPolling);
+
+	async function stopParsingDocument() {
+		try {
+			await apiClient.StopParsingDocument(undefined, {
+				params: { document_id: document.id, knowledge_base_id: knowledgeBaseId }
+			});
+
+			notifications.send({
+				message: 'Stopped document parsing',
+				priority: 'INFO'
+			});
+		} catch (e) {
+			notifications.send({
+				message: 'Failed to stop document parsing',
+				priority: 'ERROR'
+			});
+			console.error(e);
+		} finally {
+			await invalidateAll();
+		}
+	}
 </script>
 
 <FileContainer>
@@ -80,12 +102,13 @@
 			<span class="text-base-muted-foreground">{formatFileSize(document.size)}</span>
 		</div>
 		<div class="flex gap-2">
-			<button type="button" class="rounded-full bg-gray-200 p-1"
-				><Pause class="h-4 w-4 text-gray-600" /></button
+			<button
+				type="button"
+				class="rounded-full bg-gray-200 p-1"
+				onclick={stopParsingDocument}
 			>
-			<button type="button" class="rounded-full bg-gray-200 p-1"
-				><X class="h-4 w-4 text-gray-600" /></button
-			>
+				<X class="h-4 w-4 text-gray-600" />
+			</button>
 		</div>
 	</div>
 	<div>
