@@ -16,8 +16,16 @@
 	let conversation = $derived(data.conversation);
 	let documents = $derived(data.documents);
 
-	const parsingDocuments = $derived(documents?.filter((doc) => doc.parse_progress < 1));
-	const parsedDocuments = $derived(documents?.filter((doc) => doc.parse_progress >= 1));
+	const parsingDocuments = $derived(
+		documents?.filter((doc) => doc.parse_progress < 1 && doc.parse_progress > 0)
+	);
+	const parsedDocuments = $derived(
+		documents?.filter(
+			(doc) =>
+				doc.parse_progress >= 1 ||
+				(doc.parse_progress === 0 && doc.parse_status === 'CANCEL')
+		)
+	);
 </script>
 
 <h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><Database /> Knowledge Base</h1>

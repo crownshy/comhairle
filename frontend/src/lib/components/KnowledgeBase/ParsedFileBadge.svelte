@@ -35,6 +35,27 @@
 			await invalidateAll();
 		}
 	}
+
+	async function restartParsingFile() {
+		try {
+			await apiClient.ParseDocument(undefined, {
+				params: { document_id: document.id, knowledge_base_id: knowledgeBaseId }
+			});
+
+			notifications.send({
+				message: 'Document parsing restarted',
+				priority: 'INFO'
+			});
+		} catch (e) {
+			notifications.send({
+				message: 'Failed to begin parsing file',
+				priority: 'ERROR'
+			});
+			console.error(e);
+		} finally {
+			await invalidateAll();
+		}
+	}
 </script>
 
 <FileContainer>
@@ -50,8 +71,8 @@
 			{#if document.parse_status === 'DONE'}
 				<Button variant="outline">Download</Button>
 			{/if}
-			{#if document.parse_status === 'FAIL'}
-				<Button variant="outline">
+			{#if document.parse_status !== 'DONE'}
+				<Button variant="outline" onclick={restartParsingFile}>
 					<RefreshCw />
 				</Button>
 			{/if}
@@ -60,4 +81,7 @@
 			</Button>
 		</div>
 	</div>
+	{#if document.parse_status !== 'DONE'}
+		<span class="text-red-600">Parsing stopped or failed</span>
+	{/if}
 </FileContainer>

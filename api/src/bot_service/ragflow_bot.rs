@@ -220,6 +220,44 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok(status)
     }
 
+    async fn parse_document(
+        &self,
+        document_id: String,
+        knowledge_base_id: String,
+    ) -> Result<StatusCode, ComhairleError> {
+        let body = ParseDocuments {
+            document_ids: vec![&document_id],
+        };
+        let (status, _) = ragflow::document::parse(&self.client, &knowledge_base_id, body).await?;
+
+        Ok(status)
+    }
+
+    async fn stop_parsing_document(
+        &self,
+        document_id: String,
+        knowledge_base_id: String,
+    ) -> Result<StatusCode, ComhairleError> {
+        let body = ParseDocuments {
+            document_ids: vec![&document_id],
+        };
+        let status = ragflow::document::stop_parse(&self.client, &knowledge_base_id, body).await?;
+
+        Ok(status)
+    }
+
+    async fn download_document(
+        &self,
+        document_id: String,
+        knowledge_base_id: String,
+    ) -> Result<reqwest::Response, ComhairleError> {
+        let response = ragflow::document::download(&self.client, &document_id, &knowledge_base_id)
+            .await
+            .map_err(RagflowError::from)?;
+
+        Ok(response)
+    }
+
     #[instrument(err(Debug))]
     async fn get_chat(&self, chat_id: &str) -> Result<(StatusCode, ComhairleChat), ComhairleError> {
         let params = GetQueryParams {

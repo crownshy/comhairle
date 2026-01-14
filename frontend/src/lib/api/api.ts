@@ -735,6 +735,27 @@ const endpoints = makeApi([
 		response: z.void(),
 	},
 	{
+		method: "post",
+		path: "/bot/knowledge_bases/:knowledge_base_id/documents/:document_id/download",
+		alias: "DownloadDocument",
+		requestFormat: "json",
+		response: z.void(),
+	},
+	{
+		method: "post",
+		path: "/bot/knowledge_bases/:knowledge_base_id/documents/:document_id/parse",
+		alias: "ParseDocument",
+		requestFormat: "json",
+		response: z.void(),
+	},
+	{
+		method: "post",
+		path: "/bot/knowledge_bases/:knowledge_base_id/documents/:document_id/stop_parse",
+		alias: "StopParsingDocument",
+		requestFormat: "json",
+		response: z.void(),
+	},
+	{
 		method: "get",
 		path: "/conversation",
 		alias: "ListConverastions",
