@@ -212,7 +212,7 @@ export const CreateKnowledgeBaseRequest = z.object({ name: z.string() }).passthr
 export type CreateKnowledgeBaseRequest = z.infer<typeof CreateKnowledgeBaseRequest>;
 export const UpdateKnowledgeBaseRequest = z.object({ name: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type UpdateKnowledgeBaseRequest = z.infer<typeof UpdateKnowledgeBaseRequest>;
-export const ComhairleDocument = z.object({ id: z.string(), name: z.string(), parse_progress: z.number(), parse_status: z.string() }).passthrough();
+export const ComhairleDocument = z.object({ id: z.string(), name: z.string(), parse_progress: z.number(), parse_status: z.string(), size: z.number().int() }).passthrough();
 export type ComhairleDocument = z.infer<typeof ComhairleDocument>;
 export const UpdateDocumentRequest = z.object({ name: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type UpdateDocumentRequest = z.infer<typeof UpdateDocumentRequest>;
@@ -709,7 +709,7 @@ const endpoints = makeApi([
 	{
 		method: "get",
 		path: "/bot/knowledge_bases/:knowledge_base_id/documents/:document_id",
-		alias: "GetDocuments",
+		alias: "GetDocument",
 		requestFormat: "json",
 		response: ComhairleDocument,
 	},
