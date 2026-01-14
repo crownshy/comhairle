@@ -180,6 +180,7 @@ pub struct ComhairleDocument {
     pub name: String,
     pub parse_status: String,
     pub parse_progress: f64,
+    pub size: i64,
     // TODO: figure out what fields we require
 }
 

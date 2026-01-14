@@ -471,6 +471,7 @@ impl From<Document> for ComhairleDocument {
             name: input.name,
             parse_progress: input.progress.unwrap_or(0.0),
             parse_status: input.run.unwrap_or("RUNNING".to_string()),
+            size: input.size,
         }
     }
 }
@@ -482,6 +483,7 @@ impl From<&Document> for ComhairleDocument {
             name: input.name.clone(),
             parse_progress: input.progress.unwrap_or(0.0),
             parse_status: input.run.clone().unwrap_or("RUNNING".to_string()),
+            size: input.size,
         }
     }
 }

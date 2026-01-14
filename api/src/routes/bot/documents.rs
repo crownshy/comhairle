@@ -132,7 +132,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/{document_id}",
             get_with(get, |op| {
-                op.id("GetDocuments")
+                op.id("GetDocument")
                     .tag("Bot Documents")
                     .summary("Get a documents from a knowledge base by id")
                     .response::<200, Json<ComhairleDocument>>()

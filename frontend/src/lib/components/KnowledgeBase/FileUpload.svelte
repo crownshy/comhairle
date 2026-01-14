@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { notifications } from '$lib/notifications.svelte';
+	import { invalidate } from '$app/navigation';
 
 	type Props = {
 		conversation_id: string;
@@ -10,7 +11,11 @@
 		maxSizeMB?: number;
 	};
 
-	let { conversation_id, accept = '.jpeg,.jpg,.png,.pdf,.mp4', maxSizeMB = 50 }: Props = $props();
+	let {
+		conversation_id,
+		accept = '.jpeg,.jpg,.png,.pdf,.mp4,.txt',
+		maxSizeMB = 10
+	}: Props = $props();
 
 	let fileInput: HTMLInputElement | null = $state(null);
 	let urlInput = $state('');
@@ -55,6 +60,7 @@
 			});
 		} finally {
 			isUploading = false;
+			await invalidate((url) => url.toString().includes('knowledge-base'));
 		}
 	}
 
@@ -95,6 +101,7 @@
 			});
 		} finally {
 			isUploading = false;
+			await invalidate((url) => url.toString().includes('knowledge-base'));
 		}
 	}
 
@@ -136,7 +143,6 @@
 </script>
 
 <div class="flex w-full flex-col gap-2 border-t py-5 lg:flex-row lg:justify-between">
-	<div class="font-bold lg:w-60 lg:shrink-0">File upload</div>
 	<div class="flex grow flex-col gap-4">
 		<div
 			role="button"
