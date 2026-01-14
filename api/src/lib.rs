@@ -25,6 +25,7 @@ mod test_helpers;
 use std::sync::Arc;
 
 use axum::{
+    extract::DefaultBodyLimit,
     http::{header, Method},
     Extension, Router,
 };
@@ -148,6 +149,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
         .nest_api_service("/docs", docs_routes(state.clone()))
         .finish_api_with(&mut api, api_docs)
         .layer(Extension(Arc::new(api.clone()))) // Arc is very important here or you will face massive memory and performance issues
+        .layer(DefaultBodyLimit::max(10 * 1024 * 1024))
         .layer(cors);
 
     Ok(app)

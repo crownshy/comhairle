@@ -3,7 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { notifications } from '$lib/notifications.svelte';
-	import { invalidate } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
 
 	type Props = {
 		conversation_id: string;
@@ -60,7 +60,7 @@
 			});
 		} finally {
 			isUploading = false;
-			await invalidate((url) => url.toString().includes('knowledge-base'));
+			await invalidateAll();
 		}
 	}
 
@@ -101,7 +101,7 @@
 			});
 		} finally {
 			isUploading = false;
-			await invalidate((url) => url.toString().includes('knowledge-base'));
+			await invalidateAll();
 		}
 	}
 

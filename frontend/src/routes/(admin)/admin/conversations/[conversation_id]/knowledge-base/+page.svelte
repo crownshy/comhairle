@@ -33,6 +33,6 @@
 {/if}
 {#if parsedDocuments?.length}
 	<section class="mb-8">
-		<ParsedFileList documents={parsedDocuments} />
+		<ParsedFileList documents={parsedDocuments} {conversation} />
 	</section>
 {/if}

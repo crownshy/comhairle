@@ -23,10 +23,12 @@
 		uploadingDoc.parse_progress >= 0 ? uploadingDoc.parse_progress : 1
 	);
 
-	const tween = new Tween(Math.round(parseProgress * 100), {
-		duration: 1000,
-		easing: cubicInOut
-	});
+	const tween = $derived(
+		new Tween(Math.round(parseProgress * 100), {
+			duration: 1000,
+			easing: cubicInOut
+		})
+	);
 
 	async function poll() {
 		if (parseProgress >= 1 || uploadingDoc.parse_status === 'DONE') {
