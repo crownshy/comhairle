@@ -18,21 +18,31 @@ use crate::{
     ComhairleState,
 };
 
-async fn get(
-    State(state): State<Arc<ComhairleState>>,
-    Path((agent_id, session_id)): Path<(String, String)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
-) -> Result<(StatusCode, Json<ComhairleAgentSession>), ComhairleError> {
-    todo!();
-}
-
 async fn list(
     State(state): State<Arc<ComhairleState>>,
     Path(agent_id): Path<String>,
     Query(params): Query<GetQueryParams>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<Vec<ComhairleAgentSession>>), ComhairleError> {
-    todo!();
+    let (_, sessions) = state
+        .bot_service
+        .list_agent_session(&agent_id, Some(params))
+        .await?;
+
+    Ok((StatusCode::OK, Json(sessions)))
+}
+
+async fn get(
+    State(state): State<Arc<ComhairleState>>,
+    Path((agent_id, session_id)): Path<(String, String)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<ComhairleAgentSession>), ComhairleError> {
+    let (_, session) = state
+        .bot_service
+        .get_agent_session(&session_id, &agent_id)
+        .await?;
+
+    Ok((StatusCode::OK, Json(session)))
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Default)]
@@ -47,12 +57,18 @@ async fn create(
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(payload): Json<CreateAgentSessionRequest>,
 ) -> Result<(StatusCode, Json<ComhairleAgentSession>), ComhairleError> {
-    todo!();
+    let (_, session) = state
+        .bot_service
+        .create_agent_session(&agent_id, payload)
+        .await?;
+
+    Ok((StatusCode::CREATED, Json(session)))
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq, Default)]
 pub struct UpdateAgentSessionRequest {
     pub name: Option<String>,
+    pub user_id: Option<String>,
 }
 
 async fn update(
@@ -61,14 +77,30 @@ async fn update(
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(payload): Json<UpdateAgentSessionRequest>,
 ) -> Result<(StatusCode, Json<ComhairleAgentSession>), ComhairleError> {
-    todo!();
+    let (_, session) = state
+        .bot_service
+        .update_agent_session(&session_id, &agent_id, payload)
+        .await?;
+
+    Ok((StatusCode::OK, Json(session)))
 }
 
 async fn delete(
     State(state): State<Arc<ComhairleState>>,
     Path((agent_id, session_id)): Path<(String, String)>,
 ) -> Result<StatusCode, ComhairleError> {
-    todo!();
+    let _ = state
+        .bot_service
+        .delete_agent_session(&session_id, &agent_id)
+        .await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
+pub struct AgentConversationRequest {
+    pub question: String,
+    pub user_id: Option<String>,
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
