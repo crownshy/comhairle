@@ -519,10 +519,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
-
+    use super::*;
+    use crate::bot_service::MockComhairleBotService;
     use crate::test_helpers::test_state;
     use crate::{setup_server, test_helpers::UserSession};
     use axum::{body::Body, http::StatusCode};
+    use mockall::predicate::eq;
     use serde_json::{json, Value};
     use sqlx::PgPool;
     use std::collections::HashMap;
@@ -1188,4 +1190,46 @@ mod tests {
 
         Ok(())
     }
+
+    // #[sqlx::test]
+    // async fn should_upload_a_document(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    //     let upload_request = UploadFileRequest {
+    //         filename: "test.txt".to_string(),
+    //         bytes: b"test multipart".to_vec(),
+    //     };
+    //     let mut bot_service = MockComhairleBotService::new();
+    //     bot_service
+    //         .expect_upload_documents()
+    //         .once()
+    //         .with(eq("123"), eq(vec![upload_request]))
+    //         .returning(|_, _| Box::pin(async move { Ok((StatusCode::OK, Vec::new())) }));
+    //
+    //     let state = test_state()
+    //         .db(pool)
+    //         .bot_service(Arc::new(bot_service))
+    //         .call()?;
+    //     let app = setup_server(Arc::new(state)).await?;
+    //
+    //     let mut admin_session = UserSession::new_admin();
+    //     admin_session.signup(&app).await?;
+    //
+    //     let boundary = "test-boundary";
+    //     let body = format!(
+    //         "--{boundary}\r\n\
+    //         Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n\
+    //         Content-Type: text/plain\r\n\
+    //         \r\n\
+    //         test multipart\r\n\
+    //         --{boundary}--\r\n"
+    //     );
+    //     let body = Body::from(body);
+    //
+    //     let (status, _, _) = admin_session
+    //         .post_multipart(&app, "/conversation/123/upload_documents", boundary, body)
+    //         .await?;
+    //
+    //     assert!(status.is_success());
+    //
+    //     Ok(())
+    // }
 }

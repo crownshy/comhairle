@@ -299,9 +299,49 @@ impl MockComhairleBotService {
         bot_service
             .expect_list_documents()
             .returning(|_, _| Box::pin(async move { Ok((StatusCode::OK, Vec::new())) }));
+        bot_service.expect_get_document().returning(|_, _| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::OK,
+                    ComhairleDocument {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service
+            .expect_upload_documents()
+            .returning(|_, _| Box::pin(async move { Ok((StatusCode::OK, Vec::new())) }));
+        bot_service.expect_update_document().returning(|_, _, _| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::OK,
+                    ComhairleDocument {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
         bot_service
             .expect_delete_document()
             .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
+        bot_service
+            .expect_parse_document()
+            .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
+        bot_service
+            .expect_stop_parsing_document()
+            .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
+        bot_service.expect_download_document().returning(|_, _| {
+            Box::pin(async move {
+                use axum::http;
+                Ok(reqwest::Response::from(
+                    http::Response::builder()
+                        .status(200)
+                        .body(reqwest::Body::from(Vec::<u8>::new()))
+                        .unwrap(),
+                ))
+            })
+        });
         bot_service.expect_get_chat().returning(|_| {
             Box::pin(async move {
                 Ok((
