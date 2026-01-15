@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     bot_service::ComhairleBotService, error::ComhairleError, models::conversation,
-    routes::bot::sessions::CreateChatSessionRequest,
+    routes::bot::chat_sessions::CreateChatSessionRequest,
 };
 
 #[derive(Serialize, Deserialize, FromRow, JsonSchema, Debug, Clone)]
