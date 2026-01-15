@@ -5,8 +5,9 @@ use aide::axum::{
     ApiRouter,
 };
 use axum::{
+    body::Body,
     extract::{Json, Multipart, Path, Query, State},
-    http::StatusCode,
+    http::{Response, StatusCode},
     routing::post,
 };
 use schemars::JsonSchema;
@@ -151,13 +152,27 @@ async fn download_document(
     State(state): State<Arc<ComhairleState>>,
     Path((knowledge_base_id, document_id)): Path<(String, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
-) -> Result<StatusCode, ComhairleError> {
-    let _ = state
+) -> Result<Response<Body>, ComhairleError> {
+    let download_stream = state
         .bot_service
         .download_document(document_id, knowledge_base_id)
         .await?;
 
-    Ok(StatusCode::NO_CONTENT)
+    let status = download_stream.status();
+    let headers = download_stream.headers().clone();
+
+    if !status.is_success() {
+        return Err(ComhairleError::DownloadError(
+            "Unable to download document: {document_id}".to_string(),
+        ));
+    }
+
+    let mut response = Response::new(Body::from_stream(download_stream.bytes_stream()));
+
+    *response.status_mut() = status;
+    *response.headers_mut() = headers;
+
+    Ok(response)
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
@@ -233,12 +248,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/{document_id}/download",
-            post_with(download_document, |op| {
+            get_with(download_document, |op| {
                 op.id("DownloadDocument")
                     .tag("Bot Documents")
                     .summary("Download a document")
                     .security_requirement("JWT")
-                    .response::<204, ()>()
+                    .response::<204, Response<Body>>()
             }),
         )
         .with_state(state)
