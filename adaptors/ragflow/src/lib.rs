@@ -1,4 +1,4 @@
-pub mod agents;
+pub mod agent;
 pub mod chat;
 pub mod client;
 pub mod dataset;
@@ -7,6 +7,14 @@ pub mod error;
 
 pub use error::RagflowError;
 use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct ConvoQuestion {
+    pub question: String,
+    pub stream: Option<bool>,
+    pub session_id: Option<String>,
+    pub user_id: Option<String>,
+}
 
 #[derive(Serialize, Default)]
 pub struct GetQueryParams {

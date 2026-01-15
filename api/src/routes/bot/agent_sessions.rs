@@ -46,10 +46,7 @@ async fn get(
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Default)]
-pub struct CreateAgentSessionRequest {
-    pub name: String,
-    pub user_id: Option<String>,
-}
+pub struct CreateAgentSessionRequest;
 
 async fn create(
     State(state): State<Arc<ComhairleState>>,
@@ -66,10 +63,7 @@ async fn create(
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq, Default)]
-pub struct UpdateAgentSessionRequest {
-    pub name: Option<String>,
-    pub user_id: Option<String>,
-}
+pub struct UpdateAgentSessionRequest;
 
 async fn update(
     State(state): State<Arc<ComhairleState>>,
@@ -100,7 +94,6 @@ async fn delete(
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
 pub struct AgentConversationRequest {
     pub question: String,
-    pub user_id: Option<String>,
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
@@ -135,16 +128,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<201, Json<ComhairleAgentSession>>()
             }),
         )
-        .api_route(
-            "/{session_id}",
-            put_with(update, |op| {
-                op.id("UpdateAgentSessions")
-                    .tag("Bot Agent Sessions")
-                    .security_requirement("JWT")
-                    .summary("Update an agent session")
-                    .response::<200, Json<ComhairleAgentSession>>()
-            }),
-        )
+        // Not supported by current bot provider
+        // .api_route(
+        //     "/{session_id}",
+        //     put_with(update, |op| {
+        //         op.id("UpdateAgentSessions")
+        //             .tag("Bot Agent Sessions")
+        //             .security_requirement("JWT")
+        //             .summary("Update an agent session")
+        //             .response::<200, Json<ComhairleAgentSession>>()
+        //     }),
+        // )
         .api_route(
             "/{session_id}",
             delete_with(delete, |op| {
