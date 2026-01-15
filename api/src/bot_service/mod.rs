@@ -322,7 +322,10 @@ pub struct ComhairleAgent {
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Default, Clone)]
-pub struct ComhairleAgentSession;
+pub struct ComhairleAgentSession {
+    pub agent_id: String,
+    pub dsl: serde_json::Value,
+}
 
 #[cfg(test)]
 impl MockComhairleBotService {

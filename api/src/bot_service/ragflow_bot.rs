@@ -4,11 +4,11 @@ use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::{Stream, StreamExt};
 use ragflow::{
-    agents::{Agent, CreateAgent, UpdateAgent},
+    agent::{session::*, *},
     chat::{session::*, *},
     dataset::*,
     document::*,
-    DeleteResources, GetQueryParams, RagflowError,
+    ConvoQuestion, DeleteResources, GetQueryParams, RagflowError,
 };
 use reqwest::StatusCode;
 use tracing::instrument;
@@ -472,7 +472,7 @@ impl ComhairleBotService for ComhairleRagBotService {
             ..Default::default()
         };
 
-        let (status, agents) = ragflow::agents::list(&self.client, Some(params)).await?;
+        let (status, agents) = ragflow::agent::list(&self.client, Some(params)).await?;
 
         let agent: ComhairleAgent = (&agents[0]).into();
 
@@ -485,7 +485,7 @@ impl ComhairleBotService for ComhairleRagBotService {
     ) -> Result<(StatusCode, Vec<ComhairleAgent>), ComhairleError> {
         let params: Option<GetQueryParams> = params.map(|p| p.into());
 
-        let (status, agents) = ragflow::agents::list(&self.client, params).await?;
+        let (status, agents) = ragflow::agent::list(&self.client, params).await?;
 
         let agents: Vec<ComhairleAgent> = agents.into_iter().map(Into::into).collect();
 
@@ -499,7 +499,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         let body: CreateAgent = body.into();
         let title = body.title.clone();
 
-        let (status, json) = ragflow::agents::create(&self.client, body).await?;
+        let (status, json) = ragflow::agent::create(&self.client, body).await?;
 
         if !json.data {
             return Err(ComhairleError::RagflowError(ragflow::RagflowError::Api {
@@ -512,7 +512,7 @@ impl ComhairleBotService for ComhairleRagBotService {
             title: Some(title),
             ..Default::default()
         };
-        let (_, agents) = ragflow::agents::list(&self.client, Some(params)).await?;
+        let (_, agents) = ragflow::agent::list(&self.client, Some(params)).await?;
 
         if agents.is_empty() || agents.len() > 1 {
             return Err(ComhairleError::RagflowError(ragflow::RagflowError::Api {
@@ -533,13 +533,13 @@ impl ComhairleBotService for ComhairleRagBotService {
     ) -> Result<(StatusCode, ComhairleAgent), ComhairleError> {
         let body: UpdateAgent = body.into();
 
-        let (status, _) = ragflow::agents::update(&self.client, agent_id, body).await?;
+        let (status, _) = ragflow::agent::update(&self.client, agent_id, body).await?;
 
         let params = GetQueryParams {
             id: Some(agent_id.to_string()),
             ..Default::default()
         };
-        let (_, agents) = ragflow::agents::list(&self.client, Some(params)).await?;
+        let (_, agents) = ragflow::agent::list(&self.client, Some(params)).await?;
 
         if agents.is_empty() || agents.len() > 1 {
             return Err(ComhairleError::RagflowError(ragflow::RagflowError::Api {
@@ -554,7 +554,7 @@ impl ComhairleBotService for ComhairleRagBotService {
     }
 
     async fn delete_agent(&self, agent_id: &str) -> Result<StatusCode, ComhairleError> {
-        let status = ragflow::agents::delete(&self.client, agent_id).await?;
+        let status = ragflow::agent::delete(&self.client, agent_id).await?;
 
         Ok(status)
     }
@@ -564,7 +564,17 @@ impl ComhairleBotService for ComhairleRagBotService {
         session_id: &str,
         agent_id: &str,
     ) -> Result<(StatusCode, ComhairleAgentSession), ComhairleError> {
-        todo!();
+        let params = GetQueryParams {
+            id: Some(session_id.to_string()),
+            ..Default::default()
+        };
+
+        let (status, agent_sessions) =
+            ragflow::agent::session::list(&self.client, agent_id, Some(params)).await?;
+
+        let agent_session: ComhairleAgentSession = (&agent_sessions[0]).into();
+
+        Ok((status, agent_session))
     }
 
     async fn list_agent_session(
@@ -572,7 +582,15 @@ impl ComhairleBotService for ComhairleRagBotService {
         agent_id: &str,
         params: Option<ApiGetQueryParams>,
     ) -> Result<(StatusCode, Vec<ComhairleAgentSession>), ComhairleError> {
-        todo!();
+        let params: Option<GetQueryParams> = params.map(|p| p.into());
+
+        let (status, agent_sessions) =
+            ragflow::agent::session::list(&self.client, agent_id, params).await?;
+
+        let agent_sessions: Vec<ComhairleAgentSession> =
+            agent_sessions.into_iter().map(Into::into).collect();
+
+        Ok((status, agent_sessions))
     }
 
     async fn create_agent_session(
@@ -580,16 +598,30 @@ impl ComhairleBotService for ComhairleRagBotService {
         agent_id: &str,
         body: CreateAgentSessionRequest,
     ) -> Result<(StatusCode, ComhairleAgentSession), ComhairleError> {
-        todo!();
+        let body: CreateAgentSession = body.into();
+
+        let (status, agent_session) =
+            ragflow::agent::session::create(&self.client, agent_id, body).await?;
+
+        let agent_session: ComhairleAgentSession = agent_session.into();
+
+        Ok((status, agent_session))
     }
 
+    // Not supported by ragflow
+    // Endpoint currently commented out
     async fn update_agent_session(
         &self,
         session_id: &str,
         agent_id: &str,
         body: UpdateAgentSessionRequest,
     ) -> Result<(StatusCode, ComhairleAgentSession), ComhairleError> {
-        todo!();
+        Ok((
+            StatusCode::OK,
+            ComhairleAgentSession {
+                ..Default::default()
+            },
+        ))
     }
 
     async fn delete_agent_session(
@@ -597,7 +629,13 @@ impl ComhairleBotService for ComhairleRagBotService {
         session_id: &str,
         agent_id: &str,
     ) -> Result<StatusCode, ComhairleError> {
-        todo!();
+        let body = DeleteResources {
+            ids: vec![&session_id],
+        };
+
+        let status = ragflow::agent::session::delete(&self.client, agent_id, body).await?;
+
+        Ok(status)
     }
 
     async fn converse_with_agent(
@@ -609,7 +647,16 @@ impl ComhairleBotService for ComhairleRagBotService {
         Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
         ComhairleError,
     > {
-        todo!();
+        let mut body: ConvoQuestion = body.into();
+        body.session_id = Some(session_id.to_string());
+
+        let stream =
+            ragflow::agent::session::stream_agent_conversation(&self.client, agent_id, body)
+                .await?;
+
+        let mapped_stream = stream.map(|item| item.map_err(ComhairleError::from));
+
+        Ok(Box::pin(mapped_stream))
     }
 }
 
@@ -938,6 +985,41 @@ impl From<CreateAgentRequest> for CreateAgent {
         Self {
             title: input.name,
             dsl: serde_json::json!({}),
+        }
+    }
+}
+
+impl From<AgentSession> for ComhairleAgentSession {
+    fn from(input: AgentSession) -> Self {
+        Self {
+            agent_id: input.agent_id,
+            dsl: input.dsl,
+        }
+    }
+}
+
+impl From<&AgentSession> for ComhairleAgentSession {
+    fn from(input: &AgentSession) -> Self {
+        Self {
+            agent_id: input.agent_id.clone(),
+            dsl: input.dsl.clone(),
+        }
+    }
+}
+
+impl From<CreateAgentSessionRequest> for CreateAgentSession {
+    fn from(input: CreateAgentSessionRequest) -> Self {
+        Self {}
+    }
+}
+
+impl From<AgentConversationRequest> for ConvoQuestion {
+    fn from(input: AgentConversationRequest) -> Self {
+        Self {
+            question: input.question,
+            session_id: None,
+            user_id: None,
+            stream: Some(true),
         }
     }
 }

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::client::RagflowClient;
 use crate::error::Result;
-use crate::{DeleteResources, GetQueryParams, RagflowError};
+use crate::{ConvoQuestion, DeleteResources, GetQueryParams, RagflowError};
 
 pub async fn create(
     client: &RagflowClient,
@@ -130,14 +130,6 @@ pub struct CreateChatSessionResponse {
 pub struct GetChatSessionResponse {
     code: i32,
     pub data: Vec<ChatSession>,
-}
-
-#[derive(Serialize, Deserialize, Default, Debug)]
-pub struct ConvoQuestion {
-    pub question: String,
-    pub stream: Option<bool>,
-    pub session_id: Option<String>,
-    pub user_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Default)]

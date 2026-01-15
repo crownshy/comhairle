@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{client::RagflowClient, error::Result, GetQueryParams};
 
+pub mod session;
+
 pub async fn list(
     client: &RagflowClient,
     params: Option<GetQueryParams>,
