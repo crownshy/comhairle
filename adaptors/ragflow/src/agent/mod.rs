@@ -67,7 +67,7 @@ pub struct UpdateAgentResponse {
     pub message: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct CreateAgent {
     pub title: String,
     pub dsl: serde_json::Value, // TODO:
@@ -81,6 +81,7 @@ pub struct UpdateAgent {
 #[derive(Serialize, Deserialize, Default)]
 pub struct Agent {
     pub title: Option<String>,
+    pub dsl: serde_json::Value,
 }
 
 #[cfg(test)]

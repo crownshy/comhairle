@@ -3,6 +3,7 @@ use std::pin::Pin;
 use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::{Stream, StreamExt};
+use minijinja::context;
 use ragflow::{
     agent::{session::*, *},
     chat::{session::*, *},
@@ -496,8 +497,17 @@ impl ComhairleBotService for ComhairleRagBotService {
         &self,
         body: CreateAgentRequest,
     ) -> Result<(StatusCode, ComhairleAgent), ComhairleError> {
-        let body: CreateAgent = body.into();
+        let mut body: CreateAgent = body.into();
         let title = body.title.clone();
+
+        let content = self.render_agent_config_from_template(
+            "ragflow-elicitation-bot.json",
+            context! { foo => "foo", bar => "bar" },
+        )?;
+        let json: serde_json::Value = serde_json::from_str(&content).map_err(|_| {
+            ComhairleError::CorruptedData("Unable to parse json from agent template".to_string())
+        })?;
+        body.dsl = json;
 
         let (status, json) = ragflow::agent::create(&self.client, body).await?;
 
@@ -524,6 +534,19 @@ impl ComhairleBotService for ComhairleRagBotService {
         let agent: ComhairleAgent = (&agents[0]).into();
 
         Ok((status, agent))
+    }
+
+    fn render_agent_config_from_template(
+        &self,
+        template: &str,
+        context: minijinja::Value,
+    ) -> Result<String, ComhairleError> {
+        let mut env = minijinja::Environment::new();
+        minijinja_embed::load_templates!(&mut env);
+        let template = env.get_template(template)?;
+        let content = template.render(context)?;
+
+        Ok(content)
     }
 
     async fn update_agent(
@@ -962,6 +985,7 @@ impl From<Agent> for ComhairleAgent {
     fn from(input: Agent) -> Self {
         Self {
             name: input.title.unwrap_or_default(),
+            configuration: input.dsl,
         }
     }
 }
@@ -970,6 +994,7 @@ impl From<&Agent> for ComhairleAgent {
     fn from(input: &Agent) -> Self {
         Self {
             name: input.title.clone().unwrap_or_default(),
+            configuration: input.dsl.clone(),
         }
     }
 }

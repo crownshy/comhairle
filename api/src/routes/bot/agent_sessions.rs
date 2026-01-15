@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{delete_with, get_with, post_with, put_with},
+    routing::{delete_with, get_with, post_with},
     ApiRouter,
 };
 use axum::{
