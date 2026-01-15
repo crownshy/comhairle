@@ -519,12 +519,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::bot_service::MockComhairleBotService;
     use crate::test_helpers::test_state;
     use crate::{setup_server, test_helpers::UserSession};
     use axum::{body::Body, http::StatusCode};
-    use mockall::predicate::eq;
     use serde_json::{json, Value};
     use sqlx::PgPool;
     use std::collections::HashMap;
