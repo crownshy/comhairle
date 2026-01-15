@@ -856,13 +856,17 @@ impl From<ChatConversationRequest> for ConvoQuestion {
 
 impl From<Agent> for ComhairleAgent {
     fn from(input: Agent) -> Self {
-        Self {}
+        Self {
+            name: input.title.unwrap_or_default(),
+        }
     }
 }
 
 impl From<&Agent> for ComhairleAgent {
     fn from(input: &Agent) -> Self {
-        Self {}
+        Self {
+            name: input.title.clone().unwrap_or_default(),
+        }
     }
 }
 
@@ -875,7 +879,7 @@ impl From<UpdateAgentRequest> for UpdateAgent {
 impl From<CreateAgentRequest> for CreateAgent {
     fn from(input: CreateAgentRequest) -> Self {
         Self {
-            title: input.title,
+            title: input.name,
             dsl: serde_json::json!({}),
         }
     }

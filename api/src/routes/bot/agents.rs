@@ -43,7 +43,7 @@ pub async fn list(
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
 pub struct CreateAgentRequest {
-    pub title: String,
+    pub name: String,
 }
 
 pub async fn create(
@@ -130,4 +130,61 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        bot_service::MockComhairleBotService,
+        setup_server,
+        test_helpers::{test_state, UserSession},
+    };
+
+    use super::*;
+    use std::error::Error;
+
+    use axum::body::Body;
+    use sqlx::PgPool;
+
+    #[sqlx::test]
+    async fn should_create_agent(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let agent = ComhairleAgent {
+            name: "test_agent".to_string(),
+        };
+
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_create_agent()
+            .once()
+            .returning(move |_| {
+                let agent = agent.clone();
+                Box::pin(async move { Ok((StatusCode::OK, agent)) })
+            });
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        let create_agent = CreateAgentRequest {
+            name: "test_agent".to_string(),
+        };
+        let bytes = serde_json::to_vec(&create_agent)?;
+        let body = Body::from(bytes);
+        let (status, value, _) = admin_session.post(&app, "/bot/agents", body).await?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(
+            value.get("name").and_then(|v| v.as_str()).unwrap(),
+            "test_agent",
+            "incorrect json response"
+        );
+
+        Ok(())
+    }
+    
+    // TODO: more tests
 }

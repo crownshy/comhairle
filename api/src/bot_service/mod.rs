@@ -272,8 +272,10 @@ pub struct ComhairleMessageReference {
     pub document_name: String,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
-pub struct ComhairleAgent;
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Default, Clone)]
+pub struct ComhairleAgent {
+    pub name: String,
+}
 
 #[cfg(test)]
 impl MockComhairleBotService {
@@ -460,6 +462,42 @@ impl MockComhairleBotService {
                     Ok(stream)
                 })
             });
+        bot_service.expect_get_agent().returning(|_| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::OK,
+                    ComhairleAgent {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service
+            .expect_list_agents()
+            .returning(|_| Box::pin(async move { Ok((StatusCode::OK, Vec::new())) }));
+        bot_service.expect_create_agent().returning(|_| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::OK,
+                    ComhairleAgent {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service.expect_update_agent().returning(|_, _| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::OK,
+                    ComhairleAgent {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service
+            .expect_delete_agent()
+            .returning(|_| Box::pin(async move { Ok(StatusCode::NO_CONTENT) }));
 
         bot_service
     }
