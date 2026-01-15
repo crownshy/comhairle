@@ -19,7 +19,7 @@
 	let { document, knowledgeBaseId }: Props = $props();
 
 	let uploadingDoc: ComhairleDocument = $derived(document);
-	let timeout: number | null = null;
+	let timeout: ReturnType<typeof setTimeout> | null = null;
 	let parseProgress = $derived(
 		uploadingDoc.parse_progress >= 0 ? uploadingDoc.parse_progress : 1
 	);
@@ -33,7 +33,8 @@
 
 	async function poll() {
 		if (parseProgress >= 1 || uploadingDoc.parse_status === 'DONE') {
-			return stopPolling();
+			await stopPolling();
+			return;
 		}
 
 		try {
@@ -54,10 +55,11 @@
 		timeout = setTimeout(poll, 10_000);
 	}
 
-	function stopPolling() {
+	async function stopPolling() {
 		if (timeout) {
 			clearTimeout(timeout);
 			timeout = null;
+			await invalidateAll();
 		}
 	}
 
