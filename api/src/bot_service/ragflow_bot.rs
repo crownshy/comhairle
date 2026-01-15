@@ -15,13 +15,17 @@ use tracing::instrument;
 
 use crate::{
     bot_service::{
-        ComhairleAgent, ComhairleBotService, ComhairleChat, ComhairleChatSession,
-        ComhairleDocument, ComhairleKnowledgeBase, ComhairleLlm, ComhairleMessageReference,
-        ComhairlePrompt, ComhairleRagBotService, ComhairleSessionMessage,
+        ComhairleAgent, ComhairleAgentSession, ComhairleBotService, ComhairleChat,
+        ComhairleChatSession, ComhairleDocument, ComhairleKnowledgeBase, ComhairleLlm,
+        ComhairleMessageReference, ComhairlePrompt, ComhairleRagBotService,
+        ComhairleSessionMessage,
     },
     error::ComhairleError,
     routes::{
         bot::{
+            agent_sessions::{
+                AgentConversationRequest, CreateAgentSessionRequest, UpdateAgentSessionRequest,
+            },
             agents::{CreateAgentRequest, UpdateAgentRequest},
             chat_sessions::{
                 ChatConversationRequest, CreateChatSessionRequest as ApiCreateChatSessionRequest,
@@ -553,6 +557,59 @@ impl ComhairleBotService for ComhairleRagBotService {
         let status = ragflow::agents::delete(&self.client, agent_id).await?;
 
         Ok(status)
+    }
+
+    async fn get_agent_session(
+        &self,
+        session_id: &str,
+        agent_id: &str,
+    ) -> Result<(StatusCode, ComhairleAgentSession), ComhairleError> {
+        todo!();
+    }
+
+    async fn list_agent_session(
+        &self,
+        agent_id: &str,
+        params: Option<ApiGetQueryParams>,
+    ) -> Result<(StatusCode, Vec<ComhairleAgentSession>), ComhairleError> {
+        todo!();
+    }
+
+    async fn create_agent_session(
+        &self,
+        agent_id: &str,
+        body: CreateAgentSessionRequest,
+    ) -> Result<(StatusCode, ComhairleAgentSession), ComhairleError> {
+        todo!();
+    }
+
+    async fn update_agent_session(
+        &self,
+        session_id: &str,
+        agent_id: &str,
+        body: UpdateAgentSessionRequest,
+    ) -> Result<(StatusCode, ComhairleAgentSession), ComhairleError> {
+        todo!();
+    }
+
+    async fn delete_agent_session(
+        &self,
+        session_id: &str,
+        agent_id: &str,
+    ) -> Result<StatusCode, ComhairleError> {
+        todo!();
+    }
+
+    async fn converse_with_agent(
+        &self,
+        session_id: &str,
+        agent_id: &str,
+        body: AgentConversationRequest,
+    ) -> Result<
+        Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
+        ComhairleError,
+    > {
+        todo!();
     }
 }
 
