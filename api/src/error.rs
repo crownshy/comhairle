@@ -191,6 +191,9 @@ pub enum ComhairleError {
 
     #[error("Corrupted data: {0}")]
     CorruptedData(String),
+
+    #[error("Download error: {0}")]
+    DownloadError(String),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]

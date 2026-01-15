@@ -69,7 +69,13 @@
 		</div>
 		<div class="flex gap-2">
 			{#if document.parse_status === 'DONE'}
-				<Button variant="outline">Download</Button>
+				<Button
+					variant="outline"
+					href={`/api/bot/knowledge_bases/${knowledgeBaseId}/documents/${document.id}/download`}
+					download
+				>
+					Download
+				</Button>
 			{/if}
 			{#if document.parse_status !== 'DONE'}
 				<Button variant="outline" onclick={restartParsingFile}>
