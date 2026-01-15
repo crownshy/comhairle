@@ -222,6 +222,8 @@ impl JobOrderOptions {
 #[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct JobFilterOptions {
     status: Option<String>,
+    step: Option<String>,
+    progress: Option<String>,
     completion_message: Option<String>,
 }
 
@@ -236,6 +238,16 @@ impl JobFilterOptions {
         if let Some(value) = &self.status {
             query = query
                 .and_where(Expr::col(JobIden::Status).eq(value))
+                .to_owned();
+        }
+        if let Some(value) = &self.step {
+            query = query
+                .and_where(Expr::col(JobIden::Step).eq(value))
+                .to_owned();
+        }
+        if let Some(value) = &self.progress {
+            query = query
+                .and_where(Expr::col(JobIden::Progress).eq(value))
                 .to_owned();
         }
         if let Some(value) = &self.completion_message {
