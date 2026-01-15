@@ -16,12 +16,12 @@ use crate::{
     routes::{
         bot::{
             agents::{CreateAgentRequest, UpdateAgentRequest},
+            chat_sessions::{
+                ChatConversationRequest, CreateChatSessionRequest, UpdateChatSessionRequest,
+            },
             chats::{CreateChatRequest, UpdateChatRequest},
             documents::UpdateDocumentRequest,
             knowledge_bases::UpdateKnowledgeBaseRequest,
-            sessions::{
-                ChatConversationRequest, CreateChatSessionRequest, UpdateChatSessionRequest,
-            },
             GetQueryParams,
         },
         conversations::UploadFileRequest,
@@ -276,6 +276,9 @@ pub struct ComhairleMessageReference {
 pub struct ComhairleAgent {
     pub name: String,
 }
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Default, Clone)]
+pub struct ComhairleAgentSession;
 
 #[cfg(test)]
 impl MockComhairleBotService {

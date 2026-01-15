@@ -23,13 +23,13 @@ use crate::{
     routes::{
         bot::{
             agents::{CreateAgentRequest, UpdateAgentRequest},
-            chats::{CreateChatRequest, UpdateChatRequest},
-            documents::UpdateDocumentRequest,
-            knowledge_bases::UpdateKnowledgeBaseRequest,
-            sessions::{
+            chat_sessions::{
                 ChatConversationRequest, CreateChatSessionRequest as ApiCreateChatSessionRequest,
                 UpdateChatSessionRequest as ApiUpdateChatSessionRequest,
             },
+            chats::{CreateChatRequest, UpdateChatRequest},
+            documents::UpdateDocumentRequest,
+            knowledge_bases::UpdateKnowledgeBaseRequest,
             GetQueryParams as ApiGetQueryParams,
         },
         conversations::UploadFileRequest,
