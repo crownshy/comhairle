@@ -42,6 +42,9 @@ pub enum ComhairleError {
     #[error("Multipart form parse error: {0}")]
     MultipartParseForm(#[from] MultipartError),
 
+    #[error("Template error: {0}")]
+    TemplateError(#[from] minijinja::Error),
+
     #[error("Username {0} already taken")]
     DuplicateUsername(String),
 

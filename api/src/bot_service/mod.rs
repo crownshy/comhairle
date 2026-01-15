@@ -3,6 +3,7 @@ use std::{pin::Pin, sync::Arc};
 use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::Stream;
+use minijinja::Value;
 use ragflow::client::RagflowClient;
 use reqwest::StatusCode;
 
@@ -204,6 +205,12 @@ pub trait ComhairleBotService: Send + Sync {
         body: CreateAgentRequest,
     ) -> Result<(StatusCode, ComhairleAgent), ComhairleError>;
 
+    fn render_agent_config_from_template(
+        &self,
+        template: &str,
+        context: Value,
+    ) -> Result<String, ComhairleError>;
+
     async fn update_agent(
         &self,
         update_agent: &str,
@@ -319,6 +326,7 @@ pub struct ComhairleMessageReference {
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Default, Clone)]
 pub struct ComhairleAgent {
     pub name: String,
+    pub configuration: serde_json::Value,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Default, Clone)]

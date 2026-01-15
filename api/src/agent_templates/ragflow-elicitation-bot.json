@@ -1,0 +1,206 @@
+{
+        "nodes": [
+                {
+                        "data": {
+                                "form": {
+                                        "enablePrologue": true,
+                                        "inputs": {},
+                                        "mode": "conversational",
+                                        "prologue": "你好！ 我是你的助理，有什么可以帮到你的吗？"
+                                },
+                                "label": "Begin",
+                                "name": "begin"
+                        },
+                        "dragging": false,
+                        "id": "begin",
+                        "measured": {
+                                "height": 50,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": -9.569875358221438,
+                                "y": 205.84018385864917
+                        },
+                        "selected": false,
+                        "sourcePosition": "left",
+                        "targetPosition": "right",
+                        "type": "beginNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "content": [
+                                                "{Agent:NewPumasLick@content}"
+                                        ]
+                                },
+                                "label": "Message",
+                                "name": "Response"
+                        },
+                        "dragging": false,
+                        "id": "Message:OrangeYearsShine",
+                        "measured": {
+                                "height": 50,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 713.9061285881053,
+                                "y": 204.4706031723009
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "messageNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "delay_after_error": 1,
+                                        "description": "",
+                                        "exception_comment": "",
+                                        "exception_default_value": "",
+                                        "exception_goto": [],
+                                        "exception_method": null,
+                                        "frequencyPenaltyEnabled": false,
+                                        "frequency_penalty": 0.5,
+                                        "llm_filter": "all",
+                                        "llm_id": "gpt-5@OpenAI",
+                                        "maxTokensEnabled": true,
+                                        "max_retries": 3,
+                                        "max_rounds": 3,
+                                        "max_tokens": 128000,
+                                        "mcp": [],
+                                        "message_history_window_size": 12,
+                                        "outputs": {
+                                                "content": {
+                                                        "type": "string",
+                                                        "value": ""
+                                                }
+                                        },
+                                        "parameter": "Precise",
+                                        "presencePenaltyEnabled": false,
+                                        "presence_penalty": 0.5,
+                                        "prompts": [
+                                                {
+                                                        "content": "# User Query\n {sys.query}",
+                                                        "role": "user"
+                                                }
+                                        ],
+                                        "sys_prompt": "## Role & Task\nYou are a **“Knowledge Base Retrieval Q\\&A Agent”** whose goal is to break down the user’s question into retrievable subtasks, and then produce a multi-source-verified, structured, and actionable research report using the internal knowledge base.\n## Execution Framework (Detailed Steps & Key Points)\n1. **Assessment & Decomposition**\n   * Actions:\n     * Automatically extract: main topic, subtopics, entities (people/organizations/products/technologies), time window, geographic/business scope.\n     * Output as a list: N facts/data points that must be collected (*N* ranges from 5–20 depending on question complexity).\n2. **Query Type Determination (Rule-Based)**\n   * Example rules:\n     * If the question involves a single issue but requests “method comparison/multiple explanations” → use **depth-first**.\n     * If the question can naturally be split into ≥3 independent sub-questions → use **breadth-first**.\n     * If the question can be answered by a single fact/specification/definition → use **simple query**.\n3. **Research Plan Formulation**\n   * Depth-first: define 3–5 perspectives (methodology/stakeholders/time dimension/technical route, etc.), assign search keywords, target document types, and output format for each perspective.\n   * Breadth-first: list subtasks, prioritize them, and assign search terms.\n   * Simple query: directly provide the search sentence and required fields.\n4. **Retrieval Execution**\n   * After retrieval: perform coverage check (does it contain the key facts?) and quality check (source diversity, authority, latest update time).\n   * If standards are not met, automatically loop: rewrite queries (synonyms/cross-domain terms) and retry ≤3 times, or flag as requiring external search.\n5. **Integration & Reasoning**\n   * Build the answer using a **fact–evidence–reasoning** chain. For each conclusion, attach 1–2 strongest pieces of evidence.\n---\n## Quality Gate Checklist (Verify at Each Stage)\n* **Stage 1 (Decomposition)**:\n  * [ ] Key concepts and expected outputs identified\n  * [ ] Required facts/data points listed\n* **Stage 2 (Retrieval)**:\n  * [ ] Meets quality standards (see above)\n  * [ ] If not met: execute query iteration\n* **Stage 3 (Generation)**:\n  * [ ] Each conclusion has at least one direct evidence source\n  * [ ] State assumptions/uncertainties\n  * [ ] Provide next-step suggestions or experiment/retrieval plans\n  * [ ] Final length and depth match user expectations (comply with word count/format if specified)\n---\n## Core Principles\n1. **Strict reliance on the knowledge base**: answers must be **fully bounded** by the content retrieved from the knowledge base.\n2. **No fabrication**: do not generate, infer, or create information that is not explicitly present in the knowledge base.\n3. **Accuracy first**: prefer incompleteness over inaccurate content.\n4. **Output format**:\n   * Hierarchically clear modular structure\n   * Logical grouping according to the MECE principle\n   * Professionally presented formatting\n   * Step-by-step cognitive guidance\n   * Reasonable use of headings and dividers for clarity\n   * *Italicize* key parameters\n   * **Bold** critical information\n5. **LaTeX formula requirements**:\n   * Inline formulas: start and end with `$`\n   * Block formulas: start and end with `$$`, each `$$` on its own line\n   * Block formula content must comply with LaTeX math syntax\n   * Verify formula correctness\n---\n## Additional Notes (Interaction & Failure Strategy)\n* If the knowledge base does not cover critical facts: explicitly inform the user (with sample wording)\n* For time-sensitive issues: enforce time filtering in the search request, and indicate the latest retrieval date in the answer.\n* Language requirement: answer in the user’s preferred language\n",
+                                        "temperature": "0.1",
+                                        "temperatureEnabled": true,
+                                        "tools": [
+                                                {
+                                                        "component_name": "Retrieval",
+                                                        "name": "Retrieval",
+                                                        "params": {
+                                                                "cross_languages": [],
+                                                                "description": "",
+                                                                "empty_response": "",
+                                                                "kb_ids": [
+                                                                        "21372960d1dc11f095fbceda8b23386f"
+                                                                ],
+                                                                "keywords_similarity_weight": 0.7,
+                                                                "meta_data_filter": {},
+                                                                "outputs": {
+                                                                        "formalized_content": {
+                                                                                "type": "string",
+                                                                                "value": ""
+                                                                        }
+                                                                },
+                                                                "rerank_id": "",
+                                                                "similarity_threshold": 0.2,
+                                                                "top_k": 1024,
+                                                                "top_n": 8,
+                                                                "use_kg": false
+                                                        }
+                                                }
+                                        ],
+                                        "topPEnabled": false,
+                                        "top_p": 0.75,
+                                        "user_prompt": "",
+                                        "visual_files_var": ""
+                                },
+                                "label": "Agent",
+                                "name": "Knowledge Base Agent"
+                        },
+                        "dragging": false,
+                        "id": "Agent:NewPumasLick",
+                        "measured": {
+                                "height": 90,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 334.50048227952215,
+                                "y": 118.49109364794631
+                        },
+                        "selected": true,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "agentNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "description": "This is an agent for a specific task.",
+                                        "user_prompt": "This is the order you need to send to the agent."
+                                },
+                                "label": "Tool",
+                                "name": "flow.tool_10"
+                        },
+                        "dragging": false,
+                        "id": "Tool:AllBirdsNail",
+                        "measured": {
+                                "height": 50,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 220.24819746977118,
+                                "y": 403.31576836482583
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "toolNode"
+                }
+        ],
+        "edges": [
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__beginstart-Agent:NewPumasLickend",
+                        "source": "begin",
+                        "sourceHandle": "start",
+                        "target": "Agent:NewPumasLick",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:NewPumasLickstart-Message:OrangeYearsShineend",
+                        "markerEnd": "logo",
+                        "source": "Agent:NewPumasLick",
+                        "sourceHandle": "start",
+                        "style": {
+                                "stroke": "rgba(91, 93, 106, 1)",
+                                "strokeWidth": 1
+                        },
+                        "target": "Message:OrangeYearsShine",
+                        "targetHandle": "end",
+                        "type": "buttonEdge",
+                        "zIndex": 1001
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:NewPumasLicktool-Tool:AllBirdsNailend",
+                        "selected": false,
+                        "source": "Agent:NewPumasLick",
+                        "sourceHandle": "tool",
+                        "target": "Tool:AllBirdsNail",
+                        "targetHandle": "end"
+                }
+        ]
+}
