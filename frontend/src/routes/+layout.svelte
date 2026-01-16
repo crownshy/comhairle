@@ -5,7 +5,9 @@
 	import { afterNavigate } from '$app/navigation';
 	import { notifications, NotificationsToaster } from '$lib/notifications.svelte';
 
-	let { children }: LayoutProps = $props();
+	let { children, data }: LayoutProps = $props();
+
+	let { themeName, isCommunity } = data;
 
 	$effect(() => {
 		notifications.listen();
@@ -47,7 +49,7 @@
 	/>
 </svelte:head>
 
-<div style={themeCss} class="scot-gov w-full bg-stone-50">
+<div style={themeCss} class={`${themeName} w-full bg-stone-50`}>
 	<CookieConsent />
 	<NotificationsToaster closeButton />
 	{@render children()}

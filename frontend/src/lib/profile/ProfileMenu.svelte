@@ -14,11 +14,13 @@
 	let notifications: number | undefined = $state();
 
 	$effect(() => {
-		async function checkNotifications() {
-			notifications = (await apiClient.getNotificationsunreadcount()).count;
+		if (user) {
+			async function checkNotifications() {
+				notifications = (await apiClient.getNotificationsunreadcount()).count;
+			}
+			checkNotifications();
+			setInterval(checkNotifications, 5000);
 		}
-		checkNotifications();
-		setInterval(checkNotifications, 5000);
 	});
 </script>
 
