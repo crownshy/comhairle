@@ -71,6 +71,9 @@
 	"privacy_policy": "Politique de confidentialité",
 	"terms_of_service": "Conditions d'utilisation",
 	"cookies_settings": "Paramètres des cookies",
-	"explore_conversations":"Explorer les conversations"
+	"explore_conversations":"Explorer les conversations",
+	"welcome_to_comhairle_community_server": "Bienvenue sur le serveur communautaire Comhairle",
+	"community_server_description_1": "Chez CrownShy, nous croyons que les communautés de toutes formes et tailles bénéficient d'une écoute plus attentive de leurs membres et d'apprendre à se gouverner plus efficacement.",
+	"community_server_description_2": "Pour aider à réaliser cet avenir, nous exploitons ce serveur communautaire."
 
 }

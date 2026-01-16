@@ -72,7 +72,10 @@
 	"terms_of_service": "Teirmichean na seirbheise",
 	"cookies_settings": "Roghainnean bhriosgaidean",
   	"explore_conversations": "Rannsaich Còmhraidhean",
-	"signup": "Clàraich"
+	"signup": "Clàraich",
+	"welcome_to_comhairle_community_server": "Fàilte gu Frithealaiche Coimhearsnachd Comhairle",
+	"community_server_description_1": "Aig CrownShy, tha sinn a' creidsinn gum bi buannachd aig coimhearsnachdan de gach cumadh is meud bho bhith ag èisteachd nas dlùithe ri am buill agus ag ionnsachadh riaghlachadh orra fhèin nas èifeachdaiche.",
+	"community_server_description_2": "Gus cuideachadh leis an àm ri teachd seo, tha sinn a' ruith am frithealaiche coimhearsnachd seo."
 
 }
 
