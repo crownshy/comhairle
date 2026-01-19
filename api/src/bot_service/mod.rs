@@ -1,10 +1,9 @@
-use std::{pin::Pin, sync::Arc};
+use std::pin::Pin;
 
 use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::Stream;
 use minijinja::Value;
-use ragflow::client::RagflowClient;
 use reqwest::StatusCode;
 
 #[cfg(test)]
@@ -34,25 +33,17 @@ use crate::{
 
 pub mod ragflow_bot;
 
-#[derive(Debug)]
-pub struct ComhairleRagBotService {
-    client: Arc<RagflowClient>,
-}
-
-impl ComhairleRagBotService {
-    pub fn new(base_url: &str, api_key: &str) -> Self {
-        ComhairleRagBotService {
-            client: Arc::new(RagflowClient::new(
-                base_url.to_string(),
-                api_key.to_string(),
-            )),
-        }
-    }
-}
+pub use ragflow_bot::ComhairleRagBotService;
 
 #[async_trait]
 #[cfg_attr(test, automock)]
 pub trait ComhairleBotService: Send + Sync {
+    fn render_from_template(
+        &self,
+        template: &str,
+        context: Value,
+    ) -> Result<String, ComhairleError>;
+
     async fn get_knowledge_base(
         &self,
         knowledge_base_id: &str,
@@ -204,12 +195,6 @@ pub trait ComhairleBotService: Send + Sync {
         &self,
         body: CreateAgentRequest,
     ) -> Result<(StatusCode, ComhairleAgent), ComhairleError>;
-
-    fn render_agent_config_from_template(
-        &self,
-        template: &str,
-        context: Value,
-    ) -> Result<String, ComhairleError>;
 
     async fn update_agent(
         &self,

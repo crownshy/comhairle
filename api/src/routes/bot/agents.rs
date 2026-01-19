@@ -150,6 +150,7 @@ mod tests {
     async fn should_create_agent(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let agent = ComhairleAgent {
             name: "test_agent".to_string(),
+            configuration: serde_json::json!({ "edges": [], "nodes": [] }),
         };
 
         let mut bot_service = MockComhairleBotService::new();
@@ -185,6 +186,6 @@ mod tests {
 
         Ok(())
     }
-    
+
     // TODO: more tests
 }
