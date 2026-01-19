@@ -43,7 +43,7 @@ pub struct DocumentJob {
 /// 3. Updates progress on job in postgres to allow front end to poll parse status from job.
 /// 4. Once parsing is complete, verifies whether the conversation’s chat bot is connected to the knowledge base.
 /// 5. Connects the chat bot to the knowledge base if it is not already connected.
-pub async fn handle_document_processing(
+pub async fn process_document_handler(
     job: DocumentJob,
     state: Data<Arc<ComhairleState>>,
 ) -> Result<(), ComhairleError> {

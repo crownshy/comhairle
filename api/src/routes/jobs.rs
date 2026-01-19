@@ -27,6 +27,7 @@ async fn list(
     OrderParams(order_options): OrderParams<JobOrderOptions>,
     Query(filter_options): Query<JobFilterOptions>,
     Query(page_options): Query<PageOptions>,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<PaginatedResults<Job>>), ComhairleError> {
     let jobs = job::list(&state.db, page_options, order_options, filter_options).await?;
 
