@@ -18,7 +18,7 @@ use crate::{
 pub struct DocumentJob {
     pub job_id: Uuid,
     pub conversation_id: Uuid,
-    pub document: UploadFileRequest,
+    pub document_id: String,
 }
 
 /// Background job for RAG system document processing.
@@ -38,11 +38,17 @@ pub struct DocumentJob {
 ///
 /// # Steps
 ///
-/// 1. Uploads a document to the conversation’s knowledge base, triggering parsing in Ragflow.
-/// 2. Polls Ragflow to monitor the document’s parsing status.
-/// 3. Updates progress on job in postgres to allow front end to poll parse status from job.
-/// 4. Once parsing is complete, verifies whether the conversation’s chat bot is connected to the knowledge base.
-/// 5. Connects the chat bot to the knowledge base if it is not already connected.
+/// 1. Polls Ragflow to monitor the document’s parsing status.
+/// 2. Updates progress on job in postgres.
+/// 3. Once parsing is complete, verifies whether the conversation’s chat bot is connected to the knowledge base.
+/// 4. Connects the chat bot to the knowledge base if it is not already connected.
+///
+/// # NOTE
+///
+/// The current structure means that the bot service api is being polled from 2 places, the
+/// background workers and the front end UI. This shouldn't create enough traffic to cause
+/// performance issues but could be re-structured in the future if performance issues are
+/// discovered at scale.
 pub async fn process_document_handler(
     job: DocumentJob,
     state: Data<Arc<ComhairleState>>,
@@ -73,24 +79,13 @@ pub async fn process_document_handler(
         }
     };
 
-    info!(
-        job_id = %job.job_id,
-        conversation_id = %job.conversation_id,
-        knowledge_base_id = %knowledge_base_id,
-        "Uploading document to knowledge_base"
-    );
-    let (_, documents) = state
-        .bot_service
-        .upload_documents(&knowledge_base_id, vec![job.document])
-        .await?;
-
     let max_attempts = 120; // 20 minutes
     let poll_interval = Duration::from_secs(10);
     let mut attempts = 0;
 
     info!(
         job_id = %job.job_id,
-        document_id = %documents[0].id,
+        document_id = %job.document_id,
         "Polling document for parse status"
     );
     loop {
@@ -98,7 +93,7 @@ pub async fn process_document_handler(
 
         let (_, document) = state
             .bot_service
-            .get_document(&documents[0].id, &knowledge_base_id)
+            .get_document(&job.document_id, &knowledge_base_id)
             .await?;
 
         let update_job = UpdateJob {
@@ -110,7 +105,7 @@ pub async fn process_document_handler(
         if document.parse_status == "DONE" && document.parse_progress >= 1.0 {
             info!(
                 job_id = %job.job_id,
-                document_id = %documents[0].id,
+                document_id = %job.document_id,
                 "Document parsing complete"
             );
 

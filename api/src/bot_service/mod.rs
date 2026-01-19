@@ -87,11 +87,11 @@ pub trait ComhairleBotService: Send + Sync {
         knowledge_base_id: &str,
     ) -> Result<(StatusCode, ComhairleDocument), ComhairleError>;
 
-    async fn upload_documents(
+    async fn upload_document(
         &self,
         knowledge_base_id: &str,
-        files: Vec<UploadFileRequest>,
-    ) -> Result<(StatusCode, Vec<ComhairleDocument>), ComhairleError>;
+        file: UploadFileRequest,
+    ) -> Result<(StatusCode, ComhairleDocument), ComhairleError>;
 
     async fn update_document(
         &self,
@@ -309,9 +309,16 @@ impl MockComhairleBotService {
                 ))
             })
         });
-        bot_service
-            .expect_upload_documents()
-            .returning(|_, _| Box::pin(async move { Ok((StatusCode::OK, Vec::new())) }));
+        bot_service.expect_upload_document().returning(|_, _| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::OK,
+                    ComhairleDocument {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
         bot_service.expect_update_document().returning(|_, _, _| {
             Box::pin(async move {
                 Ok((
