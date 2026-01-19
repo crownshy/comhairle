@@ -1,9 +1,11 @@
-use std::pin::Pin;
+use std::{pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::{Stream, StreamExt};
-use minijinja::context;
+use minijinja::{context, Environment, Value};
+use minijinja_embed::load_templates;
+use ragflow::client::RagflowClient;
 use ragflow::{
     agent::{session::*, *},
     chat::{session::*, *},
@@ -18,8 +20,7 @@ use crate::{
     bot_service::{
         ComhairleAgent, ComhairleAgentSession, ComhairleBotService, ComhairleChat,
         ComhairleChatSession, ComhairleDocument, ComhairleKnowledgeBase, ComhairleLlm,
-        ComhairleMessageReference, ComhairlePrompt, ComhairleRagBotService,
-        ComhairleSessionMessage,
+        ComhairleMessageReference, ComhairlePrompt, ComhairleSessionMessage,
     },
     error::ComhairleError,
     routes::{
@@ -41,8 +42,39 @@ use crate::{
     },
 };
 
+#[derive(Debug)]
+pub struct ComhairleRagBotService {
+    client: Arc<RagflowClient>,
+    template_engine: Environment<'static>,
+}
+
+impl ComhairleRagBotService {
+    pub fn new(base_url: &str, api_key: &str) -> Self {
+        let mut env = Environment::new();
+        load_templates!(&mut env);
+        ComhairleRagBotService {
+            client: Arc::new(RagflowClient::new(
+                base_url.to_string(),
+                api_key.to_string(),
+            )),
+            template_engine: env,
+        }
+    }
+}
+
 #[async_trait]
 impl ComhairleBotService for ComhairleRagBotService {
+    fn render_from_template(
+        &self,
+        template: &str,
+        context: Value,
+    ) -> Result<String, ComhairleError> {
+        let template = self.template_engine.get_template(template)?;
+        let content = template.render(context)?;
+
+        Ok(content)
+    }
+
     #[instrument(err(Debug))]
     async fn get_knowledge_base(
         &self,
@@ -500,14 +532,15 @@ impl ComhairleBotService for ComhairleRagBotService {
         let mut body: CreateAgent = body.into();
         let title = body.title.clone();
 
-        let content = self.render_agent_config_from_template(
+        let content = self.render_from_template(
             "ragflow-elicitation-bot.json",
             context! { foo => "foo", bar => "bar" },
         )?;
-        let json: serde_json::Value = serde_json::from_str(&content).map_err(|_| {
+        let graph_json: serde_json::Value = serde_json::from_str(&content).map_err(|_| {
             ComhairleError::CorruptedData("Unable to parse json from agent template".to_string())
         })?;
-        body.dsl = json;
+        let dsl_json = serde_json::json!({ "graph": graph_json });
+        body.dsl = dsl_json;
 
         let (status, json) = ragflow::agent::create(&self.client, body).await?;
 
@@ -534,19 +567,6 @@ impl ComhairleBotService for ComhairleRagBotService {
         let agent: ComhairleAgent = (&agents[0]).into();
 
         Ok((status, agent))
-    }
-
-    fn render_agent_config_from_template(
-        &self,
-        template: &str,
-        context: minijinja::Value,
-    ) -> Result<String, ComhairleError> {
-        let mut env = minijinja::Environment::new();
-        minijinja_embed::load_templates!(&mut env);
-        let template = env.get_template(template)?;
-        let content = template.render(context)?;
-
-        Ok(content)
     }
 
     async fn update_agent(
