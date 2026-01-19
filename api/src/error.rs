@@ -194,6 +194,9 @@ pub enum ComhairleError {
 
     #[error("Download error: {0}")]
     DownloadError(String),
+
+    #[error("Bad request: {0}")]
+    BadRequest(String),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -222,7 +225,9 @@ impl IntoResponse for ComhairleError {
             ComhairleError::NoValidUpdates => StatusCode::UNPROCESSABLE_ENTITY,
             ComhairleError::UserNotAuthorized => StatusCode::FORBIDDEN,
             ComhairleError::EmailAlreadyVerified => StatusCode::CONFLICT,
-            ComhairleError::PasswordConfirmationMismatch => StatusCode::BAD_REQUEST,
+            ComhairleError::PasswordConfirmationMismatch | ComhairleError::BadRequest(_) => {
+                StatusCode::BAD_REQUEST
+            }
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

@@ -7,7 +7,7 @@ use comhairle::{
     setup_server,
     translation_service::GoogleTranslateService,
     websockets::ComhairleWebSocketService,
-    workers::{documents::handle_document_processing, JobQueues},
+    workers::{process_documents::process_document_handler, JobQueues},
     ComhairleState,
 };
 use std::{error::Error, sync::Arc};
@@ -69,9 +69,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         &config.bot_service_api_key,
     ));
 
-    let document_storage = MemoryStorage::new();
+    let process_documents_storage = MemoryStorage::new();
     let jobs = Arc::new(JobQueues {
-        documents: Arc::new(Mutex::new(document_storage.clone())),
+        process_documents: Arc::new(Mutex::new(process_documents_storage.clone())),
     });
 
     let state = Arc::new(ComhairleState {
@@ -93,12 +93,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         axum::serve(listener, app).await.unwrap();
     };
 
-    let knowledge_base_worker = WorkerBuilder::new("process_document_job")
+    let process_document_worker = WorkerBuilder::new("process_document_job")
         .data(state.clone())
-        .backend(document_storage.clone())
-        .build_fn(handle_document_processing);
+        .backend(process_documents_storage.clone())
+        .build_fn(process_document_handler);
 
-    let worker_future = { Monitor::new().register(knowledge_base_worker).run() };
+    let worker_future = { Monitor::new().register(process_document_worker).run() };
 
     let _ = tokio::join!(server_future, worker_future);
 

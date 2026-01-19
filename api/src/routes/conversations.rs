@@ -38,7 +38,7 @@ use crate::{
         user_participation::{self},
     },
     routes::auth::RequiredUser,
-    workers::documents::DocumentJob,
+    workers::process_documents::DocumentJob,
     ComhairleState,
 };
 
@@ -367,52 +367,51 @@ pub struct UploadFileRequest {
 #[derive(Serialize, JsonSchema, Debug)]
 pub struct UploadFileResponse {
     message: String,
-    job_ids: Vec<Uuid>,
+    job_id: Uuid,
 }
 
 #[instrument(err(Debug), skip(state, form_data))]
-async fn upload_documents(
+async fn upload_document(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     RequiredAdminUser(_user): RequiredAdminUser,
     mut form_data: Multipart,
 ) -> Result<(StatusCode, Json<UploadFileResponse>), ComhairleError> {
-    let mut files: Vec<UploadFileRequest> = Vec::new();
-    let mut job_ids = vec![];
+    let (filename, bytes) = match form_data.next_field().await? {
+        Some(field) => {
+            let filename = field.file_name().unwrap_or("<no filename>").to_string();
+            let bytes = field.bytes().await?.to_vec();
+            (filename, bytes)
+        }
+        None => return Err(ComhairleError::BadRequest("Missing form field".to_string())),
+    };
 
-    while let Some(field) = form_data.next_field().await? {
-        let filename = field.file_name().unwrap_or("<no filename>").to_string();
-        let bytes = field.bytes().await?;
-
-        let file = UploadFileRequest {
-            filename,
-            bytes: bytes.to_vec(),
-        };
-        files.push(file);
+    if form_data.next_field().await?.is_some() {
+        return Err(ComhairleError::BadRequest(
+            "Only one document upload allowed".to_string(),
+        ));
     }
 
-    for file in files {
-        let create_job = CreateJob {
-            progress: Some(0.0),
-            ..Default::default()
-        };
-        let job = job::create(&state.db, create_job).await?;
-        job_ids.push(job.id);
+    let file = UploadFileRequest { filename, bytes };
+    let create_job = CreateJob {
+        progress: Some(0.0),
+        ..Default::default()
+    };
+    let job = job::create(&state.db, create_job).await?;
 
-        let worker_job = DocumentJob {
-            job_id: job.id,
-            conversation_id,
-            document: file,
-        };
-        let mut lock = state.jobs.documents.lock().await;
-        lock.enqueue(worker_job)
-            .await
-            .map_err(|_| ComhairleError::BackgroundJobFailedToQueue)?;
-    }
+    let worker_job = DocumentJob {
+        job_id: job.id,
+        conversation_id,
+        document: file,
+    };
+    let mut lock = state.jobs.process_documents.lock().await;
+    lock.enqueue(worker_job)
+        .await
+        .map_err(|_| ComhairleError::BackgroundJobFailedToQueue)?;
 
     let json_response = UploadFileResponse {
         message: "Document uploads and parsing moved to background jobs".to_string(),
-        job_ids,
+        job_id: job.id,
     };
 
     Ok((StatusCode::OK, Json(json_response)))
@@ -512,7 +511,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .route(
-            "/{conversation_id}/upload_documents", post(upload_documents)
+            "/{conversation_id}/upload_document", post(upload_document)
         )
         .with_state(state)
 }

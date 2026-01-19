@@ -38,7 +38,7 @@
 		formData.append('documents', file);
 
 		try {
-			const response = await fetch(`/api/conversation/${conversation_id}/upload_documents`, {
+			const response = await fetch(`/api/conversation/${conversation_id}/upload_document`, {
 				method: 'POST',
 				body: formData,
 				credentials: 'include'
@@ -75,7 +75,7 @@
 
 		isUploading = true;
 		try {
-			const response = await fetch(`/api/conversation/${conversation_id}/upload_documents`, {
+			const response = await fetch(`/api/conversation/${conversation_id}/upload_document`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'

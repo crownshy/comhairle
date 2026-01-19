@@ -72,7 +72,7 @@ pub fn test_state(
         bot_service: bot_service.unwrap_or_else(|| mock_bot_service()),
         // TODO: can this be mocked?
         jobs: Arc::new(JobQueues {
-            documents: Arc::new(Mutex::new(MemoryStorage::new())),
+            process_documents: Arc::new(Mutex::new(MemoryStorage::new())),
         }),
     };
     Ok(state)
