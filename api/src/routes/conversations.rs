@@ -18,6 +18,7 @@ use tracing::{info, instrument};
 use uuid::Uuid;
 
 use crate::{
+    bot_service::ComhairleDocument,
     error::ComhairleError,
     models::{
         bot_service_user_session::{self, BotServiceUserSessionDto, CreateBotServiceUserSession},
@@ -368,6 +369,7 @@ pub struct UploadFileRequest {
 pub struct UploadFileResponse {
     message: String,
     job_id: Uuid,
+    document: ComhairleDocument,
 }
 
 #[instrument(err(Debug), skip(state, form_data))]
@@ -377,6 +379,18 @@ async fn upload_document(
     RequiredAdminUser(_user): RequiredAdminUser,
     mut form_data: Multipart,
 ) -> Result<(StatusCode, Json<UploadFileResponse>), ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    let knowledge_base_id = match conversation.knowledge_base_id {
+        Some(id) => id,
+        None => {
+            return Err(ComhairleError::CorruptedData(format!(
+                "Missing knowledge_base_id on conversation {}",
+                conversation.id
+            )))
+        }
+    };
+
+    // Get file data and upload document
     let (filename, bytes) = match form_data.next_field().await? {
         Some(field) => {
             let filename = field.file_name().unwrap_or("<no filename>").to_string();
@@ -385,36 +399,40 @@ async fn upload_document(
         }
         None => return Err(ComhairleError::BadRequest("Missing form field".to_string())),
     };
-
     if form_data.next_field().await?.is_some() {
         return Err(ComhairleError::BadRequest(
             "Only one document upload allowed".to_string(),
         ));
     }
-
     let file = UploadFileRequest { filename, bytes };
+    let (_, document) = state
+        .bot_service
+        .upload_document(&knowledge_base_id, file)
+        .await?;
+
+    // Create background job for parsing
     let create_job = CreateJob {
         progress: Some(0.0),
         ..Default::default()
     };
     let job = job::create(&state.db, create_job).await?;
-
     let worker_job = DocumentJob {
         job_id: job.id,
         conversation_id,
-        document: file,
+        document_id: document.id.clone(),
     };
     let mut lock = state.jobs.process_documents.lock().await;
     lock.enqueue(worker_job)
         .await
         .map_err(|_| ComhairleError::BackgroundJobFailedToQueue)?;
 
-    let json_response = UploadFileResponse {
-        message: "Document uploads and parsing moved to background jobs".to_string(),
+    let json = UploadFileResponse {
+        message: "Document parsing moved to background job".to_string(),
         job_id: job.id,
+        document,
     };
 
-    Ok((StatusCode::OK, Json(json_response)))
+    Ok((StatusCode::OK, Json(json)))
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {

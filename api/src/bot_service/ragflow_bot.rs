@@ -161,19 +161,19 @@ impl ComhairleBotService for ComhairleRagBotService {
     }
 
     #[instrument(err(Debug))]
-    async fn upload_documents(
+    async fn upload_document(
         &self,
         knowledge_base_id: &str,
-        files: Vec<UploadFileRequest>,
-    ) -> Result<(StatusCode, Vec<ComhairleDocument>), ComhairleError> {
-        let files: Vec<UploadFile> = files.into_iter().map(Into::into).collect();
+        file: UploadFileRequest,
+    ) -> Result<(StatusCode, ComhairleDocument), ComhairleError> {
+        let file: UploadFile = file.into();
 
         let (status, documents) =
-            ragflow::document::upload(&self.client, knowledge_base_id, files).await?;
+            ragflow::document::upload(&self.client, knowledge_base_id, vec![file]).await?;
 
-        let documents: Vec<ComhairleDocument> = documents.into_iter().map(Into::into).collect();
+        let document: ComhairleDocument = (&documents[0]).into();
 
-        Ok((status, documents))
+        Ok((status, document))
     }
 
     #[instrument(err(Debug))]
