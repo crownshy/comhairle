@@ -64,7 +64,7 @@ pub struct AgentSession {
     pub id: String,
     pub agent_id: String,
     pub dsl: Value, // TODO:
-    pub messages: Vec<SessionMessage>,
+    pub messages: Option<Vec<SessionMessage>>,
     pub duration: Option<f64>,
     pub round: Option<i32>,
     pub source: Option<String>,

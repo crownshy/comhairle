@@ -43,7 +43,7 @@
 			Learn: basic_learn_config,
 			Survey: basic_survey_config,
 			'Lived Experience': basic_lived_experience_config,
-			'Elicitation Bot': basic_elicitation_bot_config
+			'Elicitation Bot': basic_elicitation_bot_config(conversation)
 		}[step];
 
 		let new_step_order =

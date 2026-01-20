@@ -80,6 +80,7 @@ pub struct UpdateAgent {
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct Agent {
+    pub id: String,
     pub title: Option<String>,
     pub dsl: serde_json::Value,
 }

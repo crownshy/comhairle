@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use crate::bot_service::ComhairleBotService;
 use crate::models::translations::{new_translation, TextContentId, TextFormat};
 use crate::tools;
 use chrono::{DateTime, Utc};
@@ -346,6 +349,7 @@ pub async fn list_localised(
 
 pub async fn create(
     db: &PgPool,
+    bot_service: &Arc<dyn ComhairleBotService>,
     new_workflow_step: &CreateWorkflowStep,
     workflow_id: Uuid,
     primary_locale: &str,
@@ -394,9 +398,9 @@ pub async fn create(
         ToolSetup::Stories(stories_tool_setup) => {
             ToolConfig::Stories(tools::stories::setup(&stories_tool_setup).await?)
         }
-        ToolSetup::ElicitationBot(elicitation_bot_setup) => {
-            ToolConfig::ElicitationBot(tools::elicitation_bot::setup(&elicitation_bot_setup).await?)
-        }
+        ToolSetup::ElicitationBot(elicitation_bot_setup) => ToolConfig::ElicitationBot(
+            tools::elicitation_bot::setup(&elicitation_bot_setup, bot_service).await?,
+        ),
     };
 
     columns.push(WorkflowStepIden::WorkflowId);

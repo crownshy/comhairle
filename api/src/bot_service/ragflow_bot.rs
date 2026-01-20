@@ -1017,6 +1017,7 @@ impl From<ChatConversationRequest> for ConvoQuestion {
 impl From<Agent> for ComhairleAgent {
     fn from(input: Agent) -> Self {
         Self {
+            id: input.id,
             name: input.title.unwrap_or_default(),
             configuration: input.dsl,
         }
@@ -1026,6 +1027,7 @@ impl From<Agent> for ComhairleAgent {
 impl From<&Agent> for ComhairleAgent {
     fn from(input: &Agent) -> Self {
         Self {
+            id: input.id.clone(),
             name: input.title.clone().unwrap_or_default(),
             configuration: input.dsl.clone(),
         }
@@ -1053,7 +1055,13 @@ impl From<AgentSession> for ComhairleAgentSession {
             id: input.id,
             agent_id: input.agent_id,
             dsl: input.dsl,
-            messages: input.messages.clone().into_iter().map(Into::into).collect(),
+            messages: input
+                .messages
+                .clone()
+                .unwrap_or_default()
+                .into_iter()
+                .map(Into::into)
+                .collect(),
         }
     }
 }
@@ -1064,7 +1072,13 @@ impl From<&AgentSession> for ComhairleAgentSession {
             id: input.id.clone(),
             agent_id: input.agent_id.clone(),
             dsl: input.dsl.clone(),
-            messages: input.messages.clone().into_iter().map(Into::into).collect(),
+            messages: input
+                .messages
+                .clone()
+                .unwrap_or_default()
+                .into_iter()
+                .map(Into::into)
+                .collect(),
         }
     }
 }
