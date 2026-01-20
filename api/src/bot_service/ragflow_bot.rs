@@ -5,13 +5,13 @@ use axum::body::Bytes;
 use futures::{Stream, StreamExt};
 use minijinja::{context, Environment, Value};
 use minijinja_embed::load_templates;
-use ragflow::client::RagflowClient;
 use ragflow::{
     agent::{session::*, *},
     chat::{session::*, *},
+    client::RagflowClient,
     dataset::*,
     document::*,
-    ConvoQuestion, DeleteResources, GetQueryParams, RagflowError,
+    ConvoQuestion, DeleteResources, GetQueryParams, MessageReference, RagflowError, SessionMessage,
 };
 use reqwest::StatusCode;
 use tracing::instrument;
@@ -934,8 +934,8 @@ impl From<&ChatSession> for ComhairleChatSession {
     }
 }
 
-impl From<ChatSessionMessage> for ComhairleSessionMessage {
-    fn from(message: ChatSessionMessage) -> Self {
+impl From<SessionMessage> for ComhairleSessionMessage {
+    fn from(message: SessionMessage) -> Self {
         Self {
             id: message.id.unwrap_or("".to_string()),
             content: message.content,
@@ -947,8 +947,8 @@ impl From<ChatSessionMessage> for ComhairleSessionMessage {
     }
 }
 
-impl From<&ChatSessionMessage> for ComhairleSessionMessage {
-    fn from(message: &ChatSessionMessage) -> Self {
+impl From<&SessionMessage> for ComhairleSessionMessage {
+    fn from(message: &SessionMessage) -> Self {
         Self {
             id: message.id.clone().unwrap_or("".to_string()),
             content: message.content.clone(),
@@ -1050,8 +1050,10 @@ impl From<CreateAgentRequest> for CreateAgent {
 impl From<AgentSession> for ComhairleAgentSession {
     fn from(input: AgentSession) -> Self {
         Self {
+            id: input.id,
             agent_id: input.agent_id,
             dsl: input.dsl,
+            messages: input.messages.clone().into_iter().map(Into::into).collect(),
         }
     }
 }
@@ -1059,8 +1061,10 @@ impl From<AgentSession> for ComhairleAgentSession {
 impl From<&AgentSession> for ComhairleAgentSession {
     fn from(input: &AgentSession) -> Self {
         Self {
+            id: input.id.clone(),
             agent_id: input.agent_id.clone(),
             dsl: input.dsl.clone(),
+            messages: input.messages.clone().into_iter().map(Into::into).collect(),
         }
     }
 }

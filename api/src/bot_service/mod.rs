@@ -315,8 +315,10 @@ pub struct ComhairleAgent {
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Default, Clone)]
 pub struct ComhairleAgentSession {
+    pub id: String,
     pub agent_id: String,
     pub dsl: serde_json::Value,
+    pub messages: Vec<ComhairleSessionMessage>,
 }
 
 #[cfg(test)]
