@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use crate::client::RagflowClient;
 use crate::error::Result;
-use crate::{ConvoQuestion, DeleteResources, GetQueryParams, RagflowError};
+use crate::{ConvoQuestion, DeleteResources, GetQueryParams, RagflowError, SessionMessage};
 
 pub async fn create(client: &RagflowClient, agent_id: &str) -> Result<(StatusCode, AgentSession)> {
     let path = format!("/agents/{agent_id}/sessions");
@@ -61,8 +61,18 @@ pub async fn stream_agent_conversation(
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct AgentSession {
+    pub id: String,
     pub agent_id: String,
     pub dsl: Value, // TODO:
+    pub messages: Vec<SessionMessage>,
+    pub duration: Option<f64>,
+    pub round: Option<i32>,
+    pub source: Option<String>,
+    pub thumbs_up: Option<i32>,
+    pub tokens: Option<i32>,
+    pub update_date: Option<String>,
+    pub update_time: Option<i64>,
+    pub user_id: Option<String>,
 }
 
 #[derive(Serialize, Default)]

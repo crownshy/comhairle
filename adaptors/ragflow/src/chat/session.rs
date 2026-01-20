@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::client::RagflowClient;
 use crate::error::Result;
-use crate::{ConvoQuestion, DeleteResources, GetQueryParams, RagflowError};
+use crate::{ConvoQuestion, DeleteResources, GetQueryParams, RagflowError, SessionMessage};
 
 pub async fn create(
     client: &RagflowClient,
@@ -99,25 +99,7 @@ pub struct ChatSession {
     pub name: Option<String>,
     pub update_date: String,
     pub update_time: i64,
-    pub messages: Vec<ChatSessionMessage>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ChatSessionMessage {
-    pub content: String,
-    pub id: Option<String>,
-    pub role: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub reference: Option<Vec<MessageReference>>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct MessageReference {
-    pub id: String,
-    pub content: String,
-    pub dataset_id: String,
-    pub document_id: String,
-    pub document_name: String,
+    pub messages: Vec<SessionMessage>,
 }
 
 #[derive(Deserialize)]

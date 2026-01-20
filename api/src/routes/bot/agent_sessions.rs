@@ -5,11 +5,15 @@ use aide::axum::{
     ApiRouter,
 };
 use axum::{
+    body::Body,
     extract::{Json, Path, Query, State},
     http::StatusCode,
+    response::IntoResponse,
+    routing::post,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 use crate::{
     bot_service::ComhairleAgentSession,
@@ -18,6 +22,7 @@ use crate::{
     ComhairleState,
 };
 
+#[instrument(err(Debug), skip(state))]
 async fn list(
     State(state): State<Arc<ComhairleState>>,
     Path(agent_id): Path<String>,
@@ -32,6 +37,7 @@ async fn list(
     Ok((StatusCode::OK, Json(sessions)))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn get(
     State(state): State<Arc<ComhairleState>>,
     Path((agent_id, session_id)): Path<(String, String)>,
@@ -48,6 +54,7 @@ async fn get(
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Default)]
 pub struct CreateAgentSessionRequest;
 
+#[instrument(err(Debug), skip(state))]
 async fn create(
     State(state): State<Arc<ComhairleState>>,
     Path(agent_id): Path<String>,
@@ -61,6 +68,7 @@ async fn create(
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq, Default)]
 pub struct UpdateAgentSessionRequest;
 
+#[instrument(err(Debug), skip(state))]
 async fn update(
     State(state): State<Arc<ComhairleState>>,
     Path((agent_id, session_id)): Path<(String, String)>,
@@ -75,9 +83,11 @@ async fn update(
     Ok((StatusCode::OK, Json(session)))
 }
 
+#[instrument(err(Debug), skip(state))]
 async fn delete(
     State(state): State<Arc<ComhairleState>>,
     Path((agent_id, session_id)): Path<(String, String)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<StatusCode, ComhairleError> {
     let _ = state
         .bot_service
@@ -90,6 +100,21 @@ async fn delete(
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
 pub struct AgentConversationRequest {
     pub question: String,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn converse_with_agent(
+    State(state): State<Arc<ComhairleState>>,
+    Path((agent_id, session_id)): Path<(String, String)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Json(payload): Json<AgentConversationRequest>,
+) -> Result<impl IntoResponse, ComhairleError> {
+    let stream = state
+        .bot_service
+        .converse_with_agent(&session_id, &agent_id, payload)
+        .await?;
+
+    Ok(Body::from_stream(stream))
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
@@ -145,5 +170,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<204, ()>()
             }),
         )
+        .route("/{session_id}", post(converse_with_agent))
         .with_state(state)
 }

@@ -27,6 +27,25 @@ pub struct GetQueryParams {
     pub title: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SessionMessage {
+    pub content: String,
+    pub id: Option<String>,
+    pub role: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reference: Option<Vec<MessageReference>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MessageReference {
+    pub id: String,
+    pub content: String,
+    pub dataset_id: String,
+    pub document_id: String,
+    pub document_name: String,
+}
+
+
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ChunkMethod {
