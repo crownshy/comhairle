@@ -22,7 +22,7 @@ path = "src/data_loader/main.rs"
 axum = { version = "0.8.3", features = ["ws", "multipart"] }
 async-trait = "0.1.83"
 config = "0.15.8"
-sea-query = {version = "0.32.3", features=["attr","postgres-array"] }
+sea-query = {version = "0.32.3", features=["attr","postgres-array","chrono"] }
 sea-query-binder = {version="0.7.0", features=[
     "sqlx-postgres",
     "with-chrono",
@@ -64,6 +64,8 @@ tower-cookies = "0.11.0"
 partially = { version = "0.2.1", features = ["derive"] }
 slugify = "0.1.0"
 clap = { version = "4.5.32", features = ["derive"] }
+futures = "0.3.31"
+apalis = "0.7.4"
 
 #API documentation
 
@@ -99,7 +101,6 @@ tracing-test = "0.2.5"
 dotenvy = "0.15.7"
 fake = { version = "4", features = ["chrono", "derive", "uuid"] }
 enum_dispatch = "0.3.13"
-futures = "0.3.31"
 
 [dev-dependencies]
 fake = { version = "4", features = ["derive"] }

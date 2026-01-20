@@ -11,7 +11,6 @@
 	import { conversationConfigSchema } from './schema';
 	import TeamManager from '$lib/components/TeamManager.svelte';
 	import { TerminalSquare } from 'lucide-svelte';
-	import { FileUpload } from '$lib/components/FileUpload';
 
 	let { data } = $props();
 	let conversation = $derived(data.conversation);
@@ -66,8 +65,8 @@
 	<Form.Field form={conversationForm} name="title">
 		<Form.Control>
 			{#snippet children({ props })}
-				<div class="flex w-full flex-col lg:flex-row lg:justify-between gap-2 border-t py-5">
-					<Form.Label class="lg:w-60 lg:shrink-0 font-bold">Title</Form.Label>
+				<div class="flex w-full flex-col gap-2 border-t py-5 lg:flex-row lg:justify-between">
+					<Form.Label class="font-bold lg:w-60 lg:shrink-0">Title</Form.Label>
 					<div class="grow flex-col gap-2">
 						<Input {...props} bind:value={$form.title} />
 						<Form.FieldErrors />
@@ -80,8 +79,8 @@
 	<Form.Field form={conversationForm} name="short_description">
 		<Form.Control>
 			{#snippet children({ props })}
-				<div class="flex w-full flex-col lg:flex-row lg:justify-between gap-2 border-t py-5">
-					<Form.Label class="lg:w-60 lg:shrink-0 font-bold">Short Description</Form.Label>
+				<div class="flex w-full flex-col gap-2 border-t py-5 lg:flex-row lg:justify-between">
+					<Form.Label class="font-bold lg:w-60 lg:shrink-0">Short Description</Form.Label>
 					<div class="grow flex-col gap-2">
 						<Textarea class="bg-white" {...props} bind:value={$form.short_description} />
 						<Form.FieldErrors />
@@ -94,8 +93,8 @@
 	<Form.Field form={conversationForm} name="description">
 		<Form.Control>
 			{#snippet children({ props })}
-				<div class="flex w-full flex-col lg:flex-row lg:justify-between gap-2 border-t py-5">
-					<Form.Label class="lg:w-60 lg:shrink-0 font-bold">Description</Form.Label>
+				<div class="flex w-full flex-col gap-2 border-t py-5 lg:flex-row lg:justify-between">
+					<Form.Label class="font-bold lg:w-60 lg:shrink-0">Description</Form.Label>
 					<div class="grow flex-col gap-2">
 						<Textarea class="bg-white" {...props} bind:value={$form.description} />
 						<Form.FieldErrors />
@@ -105,13 +104,11 @@
 		</Form.Control>
 	</Form.Field>
 
-	<FileUpload conversation_id={conversation.id} />
-
 	<Form.Field form={conversationForm} name="image_url">
 		<Form.Control>
 			{#snippet children({ props })}
-				<div class="flex w-full flex-col lg:flex-row lg:justify-between gap-2 border-t py-5">
-					<div class="flex lg:w-60 lg:shrink-0 flex-col gap-2">
+				<div class="flex w-full flex-col gap-2 border-t py-5 lg:flex-row lg:justify-between">
+					<div class="flex flex-col gap-2 lg:w-60 lg:shrink-0">
 						<Form.Label class="font-bold">Banner Image URL</Form.Label>
 						{#if $form.image_url}
 							<img width="200px" alt="Conversation Banner" src={$form.image_url} />
@@ -126,9 +123,9 @@
 		</Form.Control>
 	</Form.Field>
 
-	<div class="flex w-full flex-col lg:flex-row lg:justify-between gap-2 border-t py-5">
-		<p class="lg:w-60 lg:shrink-0 font-bold">Access</p>
-		<div class="grow flex flex-col gap-5">
+	<div class="flex w-full flex-col gap-2 border-t py-5 lg:flex-row lg:justify-between">
+		<p class="font-bold lg:w-60 lg:shrink-0">Access</p>
+		<div class="flex grow flex-col gap-5">
 			<Form.Field form={conversationForm} name="is_public">
 				<Form.Control>
 					{#snippet children({ props })}

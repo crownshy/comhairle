@@ -1,8 +1,10 @@
 use std::sync::Arc;
 
+use apalis::prelude::MessageQueue;
 use axum::{
-    extract::{Json, Path, Query, State},
+    extract::{Json, Multipart, Path, Query, State},
     http::StatusCode,
+    routing::post,
 };
 
 use aide::axum::{
@@ -16,6 +18,7 @@ use tracing::{info, instrument};
 use uuid::Uuid;
 
 use crate::{
+    bot_service::ComhairleDocument,
     error::ComhairleError,
     models::{
         bot_service_user_session::{self, BotServiceUserSessionDto, CreateBotServiceUserSession},
@@ -27,6 +30,7 @@ use crate::{
         conversation_email_notification_recipients::{
             self as email_recipients_model, CreateConversationEmailNotificationRecipients,
         },
+        job::{self, CreateJob},
         notification::{self as notification_model, CreateNotification, NotificationContextType},
         notification_delivery::{
             self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
@@ -35,6 +39,7 @@ use crate::{
         user_participation::{self},
     },
     routes::auth::RequiredUser,
+    workers::process_documents::DocumentJob,
     ComhairleState,
 };
 
@@ -354,6 +359,82 @@ async fn get_conversation_bot_session(
     Ok((StatusCode::OK, Json(session)))
 }
 
+#[derive(Serialize, Deserialize, JsonSchema, Debug, PartialEq, Clone, Default)]
+pub struct UploadFileRequest {
+    pub filename: String,
+    pub bytes: Vec<u8>,
+}
+
+#[derive(Serialize, JsonSchema, Debug)]
+pub struct UploadFileResponse {
+    message: String,
+    job_id: Uuid,
+    document: ComhairleDocument,
+}
+
+#[instrument(err(Debug), skip(state, form_data))]
+async fn upload_document(
+    State(state): State<Arc<ComhairleState>>,
+    Path(conversation_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    mut form_data: Multipart,
+) -> Result<(StatusCode, Json<UploadFileResponse>), ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    let knowledge_base_id = match conversation.knowledge_base_id {
+        Some(id) => id,
+        None => {
+            return Err(ComhairleError::CorruptedData(format!(
+                "Missing knowledge_base_id on conversation {}",
+                conversation.id
+            )))
+        }
+    };
+
+    // Get file data and upload document
+    let (filename, bytes) = match form_data.next_field().await? {
+        Some(field) => {
+            let filename = field.file_name().unwrap_or("<no filename>").to_string();
+            let bytes = field.bytes().await?.to_vec();
+            (filename, bytes)
+        }
+        None => return Err(ComhairleError::BadRequest("Missing form field".to_string())),
+    };
+    if form_data.next_field().await?.is_some() {
+        return Err(ComhairleError::BadRequest(
+            "Only one document upload allowed".to_string(),
+        ));
+    }
+    let file = UploadFileRequest { filename, bytes };
+    let (_, document) = state
+        .bot_service
+        .upload_document(&knowledge_base_id, file)
+        .await?;
+
+    // Create background job for parsing
+    let create_job = CreateJob {
+        progress: Some(0.0),
+        ..Default::default()
+    };
+    let job = job::create(&state.db, create_job).await?;
+    let worker_job = DocumentJob {
+        job_id: job.id,
+        conversation_id,
+        document_id: document.id.clone(),
+    };
+    let mut lock = state.jobs.process_documents.lock().await;
+    lock.enqueue(worker_job)
+        .await
+        .map_err(|_| ComhairleError::BackgroundJobFailedToQueue)?;
+
+    let json = UploadFileResponse {
+        message: "Document parsing moved to background job".to_string(),
+        job_id: job.id,
+        document,
+    };
+
+    Ok((StatusCode::OK, Json(json)))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -447,12 +528,14 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<BotServiceUserSessionDto>>()
             }),
         )
+        .route(
+            "/{conversation_id}/upload_document", post(upload_document)
+        )
         .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
-
     use crate::test_helpers::test_state;
     use crate::{setup_server, test_helpers::UserSession};
     use axum::{body::Body, http::StatusCode};
@@ -1121,4 +1204,46 @@ mod tests {
 
         Ok(())
     }
+
+    // #[sqlx::test]
+    // async fn should_upload_a_document(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    //     let upload_request = UploadFileRequest {
+    //         filename: "test.txt".to_string(),
+    //         bytes: b"test multipart".to_vec(),
+    //     };
+    //     let mut bot_service = MockComhairleBotService::new();
+    //     bot_service
+    //         .expect_upload_documents()
+    //         .once()
+    //         .with(eq("123"), eq(vec![upload_request]))
+    //         .returning(|_, _| Box::pin(async move { Ok((StatusCode::OK, Vec::new())) }));
+    //
+    //     let state = test_state()
+    //         .db(pool)
+    //         .bot_service(Arc::new(bot_service))
+    //         .call()?;
+    //     let app = setup_server(Arc::new(state)).await?;
+    //
+    //     let mut admin_session = UserSession::new_admin();
+    //     admin_session.signup(&app).await?;
+    //
+    //     let boundary = "test-boundary";
+    //     let body = format!(
+    //         "--{boundary}\r\n\
+    //         Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n\
+    //         Content-Type: text/plain\r\n\
+    //         \r\n\
+    //         test multipart\r\n\
+    //         --{boundary}--\r\n"
+    //     );
+    //     let body = Body::from(body);
+    //
+    //     let (status, _, _) = admin_session
+    //         .post_multipart(&app, "/conversation/123/upload_documents", boundary, body)
+    //         .await?;
+    //
+    //     assert!(status.is_success());
+    //
+    //     Ok(())
+    // }
 }

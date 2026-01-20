@@ -1,4 +1,3 @@
-use crate::bot_service::ComhairleBotService;
 use crate::error::ComhairleError;
 use chrono::{DateTime, Utc};
 use comhairle_macros::{DbJsonBEnum, DbStringEnum};

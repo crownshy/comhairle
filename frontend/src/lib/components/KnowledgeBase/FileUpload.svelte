@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { notifications } from '$lib/notifications.svelte';
+	import { invalidateAll } from '$app/navigation';
 
 	type Props = {
 		conversation_id: string;
@@ -10,7 +11,11 @@
 		maxSizeMB?: number;
 	};
 
-	let { conversation_id, accept = '.jpeg,.jpg,.png,.pdf,.mp4', maxSizeMB = 50 }: Props = $props();
+	let {
+		conversation_id,
+		accept = '.jpeg,.jpg,.png,.pdf,.mp4,.txt',
+		maxSizeMB = 10
+	}: Props = $props();
 
 	let fileInput: HTMLInputElement | null = $state(null);
 	let urlInput = $state('');
@@ -33,7 +38,7 @@
 		formData.append('documents', file);
 
 		try {
-			const response = await fetch(`/api/conversation/${conversation_id}/upload_knowledge_base_document`, {
+			const response = await fetch(`/api/conversation/${conversation_id}/upload_document`, {
 				method: 'POST',
 				body: formData,
 				credentials: 'include'
@@ -55,6 +60,7 @@
 			});
 		} finally {
 			isUploading = false;
+			await invalidateAll();
 		}
 	}
 
@@ -69,7 +75,7 @@
 
 		isUploading = true;
 		try {
-			const response = await fetch(`/api/conversation/${conversation_id}/upload_knowledge_base_document`, {
+			const response = await fetch(`/api/conversation/${conversation_id}/upload_document`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -95,6 +101,7 @@
 			});
 		} finally {
 			isUploading = false;
+			await invalidateAll();
 		}
 	}
 
@@ -135,13 +142,12 @@
 	}
 </script>
 
-<div class="flex w-full flex-col lg:flex-row lg:justify-between gap-2 border-t py-5">
-	<div class="lg:w-60 lg:shrink-0 font-bold">File upload</div>
-	<div class="grow flex flex-col gap-4">
+<div class="flex w-full flex-col gap-2 border-t py-5 lg:flex-row lg:justify-between">
+	<div class="flex grow flex-col gap-4">
 		<div
 			role="button"
 			tabindex="0"
-			class="p-8 bg-gray-50 rounded-[10px] border border-gray-300 flex flex-col items-center gap-4 cursor-pointer transition-colors"
+			class="flex cursor-pointer flex-col items-center gap-4 rounded-[10px] border border-gray-300 bg-gray-50 p-8 transition-colors"
 			class:bg-gray-100={isDragging}
 			class:border-primary={isDragging}
 			ondrop={handleDrop}
@@ -149,14 +155,14 @@
 			ondragleave={handleDragLeave}
 			onkeydown={(e) => e.key === 'Enter' && triggerFileSelect()}
 		>
-			<div class="w-8 h-8 text-gray-400">
-				<FileText class="w-full h-full" />
+			<div class="h-8 w-8 text-gray-400">
+				<FileText class="h-full w-full" />
 			</div>
 			<div class="flex flex-col items-center gap-2">
-				<div class="text-center text-foreground text-base font-medium">
+				<div class="text-foreground text-center text-base font-medium">
 					{isDragging ? 'Drop your files here' : 'Drag and drop your files'}
 				</div>
-				<div class="text-center text-muted-foreground text-sm">
+				<div class="text-muted-foreground text-center text-sm">
 					JPEG, PNG, PDF, and MP4 formats, up to {maxSizeMB}MB
 				</div>
 			</div>
@@ -173,7 +179,7 @@
 			/>
 		</div>
 		<div class="flex flex-col gap-2">
-			<div class="text-sm text-muted-foreground">or upload from URL</div>
+			<div class="text-muted-foreground text-sm">or upload from URL</div>
 			<div class="flex gap-2">
 				<Input
 					class="flex-1"
@@ -182,7 +188,11 @@
 					bind:value={urlInput}
 					disabled={isUploading}
 				/>
-				<Button variant="outline" onclick={uploadFromUrl} disabled={isUploading || !urlInput.trim()}>
+				<Button
+					variant="outline"
+					onclick={uploadFromUrl}
+					disabled={isUploading || !urlInput.trim()}
+				>
 					Upload
 				</Button>
 			</div>

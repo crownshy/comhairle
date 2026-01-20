@@ -13,12 +13,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     error::ComhairleError,
-    routes::bot::{
-        chats::{CreateChatRequest, UpdateChatRequest},
-        documents::{UpdateDocumentRequest, UploadFileRequest},
-        knowledge_bases::UpdateKnowledgeBaseRequest,
-        sessions::{ChatConversationRequest, CreateChatSessionRequest, UpdateChatSessionRequest},
-        GetQueryParams,
+    routes::{
+        bot::{
+            chats::{CreateChatRequest, UpdateChatRequest},
+            documents::UpdateDocumentRequest,
+            knowledge_bases::UpdateKnowledgeBaseRequest,
+            sessions::{
+                ChatConversationRequest, CreateChatSessionRequest, UpdateChatSessionRequest,
+            },
+            GetQueryParams,
+        },
+        conversations::UploadFileRequest,
     },
 };
 
@@ -82,11 +87,11 @@ pub trait ComhairleBotService: Send + Sync {
         knowledge_base_id: &str,
     ) -> Result<(StatusCode, ComhairleDocument), ComhairleError>;
 
-    async fn upload_documents(
+    async fn upload_document(
         &self,
         knowledge_base_id: &str,
-        files: Vec<UploadFileRequest>,
-    ) -> Result<StatusCode, ComhairleError>;
+        file: UploadFileRequest,
+    ) -> Result<(StatusCode, ComhairleDocument), ComhairleError>;
 
     async fn update_document(
         &self,
@@ -100,6 +105,24 @@ pub trait ComhairleBotService: Send + Sync {
         document_id: String,
         knowledge_base_id: String,
     ) -> Result<StatusCode, ComhairleError>;
+
+    async fn parse_document(
+        &self,
+        document_id: String,
+        knowledge_base_id: String,
+    ) -> Result<StatusCode, ComhairleError>;
+
+    async fn stop_parsing_document(
+        &self,
+        document_id: String,
+        knowledge_base_id: String,
+    ) -> Result<StatusCode, ComhairleError>;
+
+    async fn download_document(
+        &self,
+        document_id: String,
+        knowledge_base_id: String,
+    ) -> Result<reqwest::Response, ComhairleError>;
 
     async fn get_chat(&self, chat_id: &str) -> Result<(StatusCode, ComhairleChat), ComhairleError>;
 
@@ -173,6 +196,9 @@ pub struct ComhairleKnowledgeBase {
 pub struct ComhairleDocument {
     pub id: String,
     pub name: String,
+    pub parse_status: String,
+    pub parse_progress: f64,
+    pub size: i64,
     // TODO: figure out what fields we require
 }
 
@@ -182,6 +208,7 @@ pub struct ComhairleChat {
     pub name: String,
     pub llm_model: Option<ComhairleLlm>,
     pub prompt: Option<ComhairlePrompt>,
+    pub knowledge_base_ids: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone, PartialEq)]
@@ -272,9 +299,56 @@ impl MockComhairleBotService {
         bot_service
             .expect_list_documents()
             .returning(|_, _| Box::pin(async move { Ok((StatusCode::OK, Vec::new())) }));
+        bot_service.expect_get_document().returning(|_, _| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::OK,
+                    ComhairleDocument {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service.expect_upload_document().returning(|_, _| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::OK,
+                    ComhairleDocument {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service.expect_update_document().returning(|_, _, _| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::OK,
+                    ComhairleDocument {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
         bot_service
             .expect_delete_document()
             .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
+        bot_service
+            .expect_parse_document()
+            .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
+        bot_service
+            .expect_stop_parsing_document()
+            .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
+        bot_service.expect_download_document().returning(|_, _| {
+            Box::pin(async move {
+                use axum::http;
+                Ok(reqwest::Response::from(
+                    http::Response::builder()
+                        .status(200)
+                        .body(reqwest::Body::from(Vec::<u8>::new()))
+                        .unwrap(),
+                ))
+            })
+        });
         bot_service.expect_get_chat().returning(|_| {
             Box::pin(async move {
                 Ok((

@@ -19,15 +19,18 @@ use crate::{
         ComhairleRagBotService, ComhairleSessionMessage,
     },
     error::ComhairleError,
-    routes::bot::{
-        chats::{CreateChatRequest, UpdateChatRequest},
-        documents::{UpdateDocumentRequest, UploadFileRequest},
-        knowledge_bases::UpdateKnowledgeBaseRequest,
-        sessions::{
-            ChatConversationRequest, CreateChatSessionRequest as ApiCreateChatSessionRequest,
-            UpdateChatSessionRequest as ApiUpdateChatSessionRequest,
+    routes::{
+        bot::{
+            chats::{CreateChatRequest, UpdateChatRequest},
+            documents::UpdateDocumentRequest,
+            knowledge_bases::UpdateKnowledgeBaseRequest,
+            sessions::{
+                ChatConversationRequest, CreateChatSessionRequest as ApiCreateChatSessionRequest,
+                UpdateChatSessionRequest as ApiUpdateChatSessionRequest,
+            },
+            GetQueryParams as ApiGetQueryParams,
         },
-        GetQueryParams as ApiGetQueryParams,
+        conversations::UploadFileRequest,
     },
 };
 
@@ -158,16 +161,19 @@ impl ComhairleBotService for ComhairleRagBotService {
     }
 
     #[instrument(err(Debug))]
-    async fn upload_documents(
+    async fn upload_document(
         &self,
         knowledge_base_id: &str,
-        files: Vec<UploadFileRequest>,
-    ) -> Result<StatusCode, ComhairleError> {
-        let files: Vec<UploadFile> = files.into_iter().map(Into::into).collect();
+        file: UploadFileRequest,
+    ) -> Result<(StatusCode, ComhairleDocument), ComhairleError> {
+        let file: UploadFile = file.into();
 
-        let (status, _) = ragflow::document::upload(&self.client, knowledge_base_id, files).await?;
+        let (status, documents) =
+            ragflow::document::upload(&self.client, knowledge_base_id, vec![file]).await?;
 
-        Ok(status)
+        let document: ComhairleDocument = (&documents[0]).into();
+
+        Ok((status, document))
     }
 
     #[instrument(err(Debug))]
@@ -212,6 +218,44 @@ impl ComhairleBotService for ComhairleRagBotService {
             ragflow::document::delete(&self.client, &document_id, &knowledge_base_id).await?;
 
         Ok(status)
+    }
+
+    async fn parse_document(
+        &self,
+        document_id: String,
+        knowledge_base_id: String,
+    ) -> Result<StatusCode, ComhairleError> {
+        let body = ParseDocuments {
+            document_ids: vec![&document_id],
+        };
+        let (status, _) = ragflow::document::parse(&self.client, &knowledge_base_id, body).await?;
+
+        Ok(status)
+    }
+
+    async fn stop_parsing_document(
+        &self,
+        document_id: String,
+        knowledge_base_id: String,
+    ) -> Result<StatusCode, ComhairleError> {
+        let body = ParseDocuments {
+            document_ids: vec![&document_id],
+        };
+        let status = ragflow::document::stop_parse(&self.client, &knowledge_base_id, body).await?;
+
+        Ok(status)
+    }
+
+    async fn download_document(
+        &self,
+        document_id: String,
+        knowledge_base_id: String,
+    ) -> Result<reqwest::Response, ComhairleError> {
+        let response = ragflow::document::download(&self.client, &document_id, &knowledge_base_id)
+            .await
+            .map_err(RagflowError::from)?;
+
+        Ok(response)
     }
 
     #[instrument(err(Debug))]
@@ -463,6 +507,9 @@ impl From<Document> for ComhairleDocument {
         Self {
             id: input.id,
             name: input.name,
+            parse_progress: input.progress.unwrap_or(0.0),
+            parse_status: input.run.unwrap_or("RUNNING".to_string()),
+            size: input.size,
         }
     }
 }
@@ -472,6 +519,9 @@ impl From<&Document> for ComhairleDocument {
         Self {
             id: input.id.clone(),
             name: input.name.clone(),
+            parse_progress: input.progress.unwrap_or(0.0),
+            parse_status: input.run.clone().unwrap_or("RUNNING".to_string()),
+            size: input.size,
         }
     }
 }
@@ -501,6 +551,12 @@ impl From<&Chat> for ComhairleChat {
             name: chat.name.clone(),
             llm_model: chat.llm.as_ref().map(Into::into),
             prompt: chat.prompt.as_ref().map(Into::into),
+            knowledge_base_ids: chat
+                .datasets
+                .iter()
+                .flat_map(|v| v.iter())
+                .map(|d| d.id.clone())
+                .collect(),
         }
     }
 }
@@ -512,6 +568,12 @@ impl From<Chat> for ComhairleChat {
             name: chat.name,
             llm_model: chat.llm.map(Into::into),
             prompt: chat.prompt.map(Into::into),
+            knowledge_base_ids: chat
+                .datasets
+                .unwrap_or_default()
+                .iter()
+                .map(|d| d.id.clone())
+                .collect(),
         }
     }
 }

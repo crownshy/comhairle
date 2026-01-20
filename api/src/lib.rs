@@ -9,6 +9,7 @@ mod routes;
 mod tools;
 pub mod translation_service;
 pub mod websockets;
+pub mod workers;
 
 use bot_service::ComhairleBotService;
 use docs::docs_routes;
@@ -24,6 +25,7 @@ mod test_helpers;
 use std::sync::Arc;
 
 use axum::{
+    extract::DefaultBodyLimit,
     http::{header, Method},
     Extension, Router,
 };
@@ -36,6 +38,8 @@ use error::ComhairleError;
 use sqlx_postgres::PgPool;
 use tower_http::cors::CorsLayer;
 
+use crate::workers::JobQueues;
+
 #[derive(Clone)]
 pub struct ComhairleState {
     pub db: PgPool,
@@ -44,6 +48,7 @@ pub struct ComhairleState {
     pub websockets: Arc<dyn WebSocketService>,
     pub translation_service: Option<Arc<dyn TranslationService>>,
     pub bot_service: Arc<dyn ComhairleBotService>,
+    pub jobs: Arc<JobQueues>,
 }
 
 fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
@@ -140,9 +145,11 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
             websockets::routes::websocket_routes().with_state(state.clone()),
         )
         .nest_api_service("/bot", routes::bot::router(state.clone()))
+        .nest_api_service("/jobs", routes::jobs::router(state.clone()))
         .nest_api_service("/docs", docs_routes(state.clone()))
         .finish_api_with(&mut api, api_docs)
         .layer(Extension(Arc::new(api.clone()))) // Arc is very important here or you will face massive memory and performance issues
+        .layer(DefaultBodyLimit::max(10 * 1024 * 1024))
         .layer(cors);
 
     Ok(app)
