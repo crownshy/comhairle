@@ -149,6 +149,7 @@ mod tests {
     #[sqlx::test]
     async fn should_create_agent(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let agent = ComhairleAgent {
+            id: "123".to_string(),
             name: "test_agent".to_string(),
             configuration: serde_json::json!({ "edges": [], "nodes": [] }),
         };

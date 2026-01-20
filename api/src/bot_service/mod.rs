@@ -309,6 +309,7 @@ pub struct ComhairleMessageReference {
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Default, Clone)]
 pub struct ComhairleAgent {
+    pub id: String,
     pub name: String,
     pub configuration: serde_json::Value,
 }

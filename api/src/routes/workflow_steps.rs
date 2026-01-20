@@ -34,6 +34,7 @@ async fn create_workflow_step(
     info!("Attempting to create workflow");
     let workflow = workflow_step::create(
         &state.db,
+        &state.bot_service,
         &new_workflow,
         workflow_id,
         &conversation.primary_locale,
