@@ -539,7 +539,23 @@ impl ComhairleBotService for ComhairleRagBotService {
         let graph_json: serde_json::Value = serde_json::from_str(&content).map_err(|_| {
             ComhairleError::CorruptedData("Unable to parse json from agent template".to_string())
         })?;
-        let dsl_json = serde_json::json!({ "graph": graph_json });
+
+        // Additional json that isn't included in json exported from working agent
+        // but is required to create an agent which allows sessions to be created
+        // without any errors
+        // TODO: clean up
+        let globals = self.render_from_template("ragflow-globals.json", context! {})?;
+        let globals: serde_json::Value = serde_json::from_str(&globals)?;
+        let components = self.render_from_template("ragflow-components.json", context! {})?;
+        let components: serde_json::Value = serde_json::from_str(&components)?;
+        // TODO: currently hard coded to match exported json template
+        // May need to be dynamically calculated from the template
+        let path = self.render_from_template("ragflow-path.json", context! {})?;
+        let path: serde_json::Value = serde_json::from_str(&path)?;
+        let retrieval = self.render_from_template("ragflow-retrieval.json", context! {})?;
+        let retrieval: serde_json::Value = serde_json::from_str(&retrieval)?;
+
+        let dsl_json = serde_json::json!({ "graph": graph_json, "components": components, "globals": globals, "path": path, "history": [], "retrieval": retrieval });
         body.dsl = dsl_json;
 
         let (status, json) = ragflow::agent::create(&self.client, body).await?;
@@ -639,12 +655,9 @@ impl ComhairleBotService for ComhairleRagBotService {
     async fn create_agent_session(
         &self,
         agent_id: &str,
-        body: CreateAgentSessionRequest,
     ) -> Result<(StatusCode, ComhairleAgentSession), ComhairleError> {
-        let body: CreateAgentSession = body.into();
-
         let (status, agent_session) =
-            ragflow::agent::session::create(&self.client, agent_id, body).await?;
+            ragflow::agent::session::create(&self.client, agent_id).await?;
 
         let agent_session: ComhairleAgentSession = agent_session.into();
 

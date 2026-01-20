@@ -52,12 +52,8 @@ async fn create(
     State(state): State<Arc<ComhairleState>>,
     Path(agent_id): Path<String>,
     RequiredAdminUser(_user): RequiredAdminUser,
-    Json(payload): Json<CreateAgentSessionRequest>,
 ) -> Result<(StatusCode, Json<ComhairleAgentSession>), ComhairleError> {
-    let (_, session) = state
-        .bot_service
-        .create_agent_session(&agent_id, payload)
-        .await?;
+    let (_, session) = state.bot_service.create_agent_session(&agent_id).await?;
 
     Ok((StatusCode::CREATED, Json(session)))
 }
