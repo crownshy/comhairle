@@ -79,7 +79,7 @@ pub async fn process_document_handler(
         }
     };
 
-    let max_attempts = 120; // 20 minutes
+    let max_attempts = 360; // 1 hour
     let poll_interval = Duration::from_secs(10);
     let mut attempts = 0;
 
