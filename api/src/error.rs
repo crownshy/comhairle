@@ -45,6 +45,9 @@ pub enum ComhairleError {
     #[error("Template error: {0}")]
     TemplateError(#[from] minijinja::Error),
 
+    #[error("Serde json error: {0}")]
+    SerdeJsonError(#[from] serde_json::Error),
+
     #[error("Username {0} already taken")]
     DuplicateUsername(String),
 

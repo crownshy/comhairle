@@ -8,13 +8,9 @@ use crate::client::RagflowClient;
 use crate::error::Result;
 use crate::{ConvoQuestion, DeleteResources, GetQueryParams, RagflowError};
 
-pub async fn create(
-    client: &RagflowClient,
-    agent_id: &str,
-    body: CreateAgentSession,
-) -> Result<(StatusCode, AgentSession)> {
+pub async fn create(client: &RagflowClient, agent_id: &str) -> Result<(StatusCode, AgentSession)> {
     let path = format!("/agents/{agent_id}/sessions");
-    let (status, value) = client.post(&path, &body, None).await?;
+    let (status, value) = client.post(&path, &(), None).await?;
 
     let json: CreateAgentSessionResponse = serde_json::from_value(value)?;
 

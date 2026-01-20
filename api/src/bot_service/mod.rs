@@ -219,7 +219,6 @@ pub trait ComhairleBotService: Send + Sync {
     async fn create_agent_session(
         &self,
         agent_id: &str,
-        body: CreateAgentSessionRequest,
     ) -> Result<(StatusCode, ComhairleAgentSession), ComhairleError>;
 
     async fn update_agent_session(

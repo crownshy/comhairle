@@ -1,0 +1,10 @@
+{
+        "begin": {
+                "downstream": [],
+                "obj": {
+                        "component_name": "Begin",
+                        "params": {}
+                },
+                "upstream": []
+        }
+}
