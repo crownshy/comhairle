@@ -1,45 +1,47 @@
-# ---- Base Stage ----
-FROM rust:1.92-bookworm AS base
+# ---- Chef Stage ----
+FROM rust:1.92-bookworm AS chef
+WORKDIR /workspace
+
+# Install cargo-chef for dependency caching
+RUN cargo install cargo-chef --locked
+
+# ---- Planner Stage ----
+FROM chef AS planner
+WORKDIR /workspace
+
+# Copy all Cargo files to generate recipe
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+# ---- Builder Stage ----
+FROM chef AS builder
 WORKDIR /workspace
 
 # Install required dependencies
 RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
 
-# ---- Dependencies Caching Stage ----
-FROM base AS deps
-WORKDIR /workspace/
+# Copy the recipe and build dependencies
+COPY --from=planner /workspace/recipe.json recipe.json
 
-# Copy only Cargo files for efficient caching
-COPY api/Cargo.toml api/Cargo.lock ./api/
-COPY comhairle_macros/Cargo.toml ./comhairle_macros/Cargo.toml
-COPY adaptors/heyform-rust-sdk/Cargo.toml ./adaptors/heyform-rust-sdk/Cargo.toml
-COPY adaptors/ragflow/Cargo.toml ./adaptors/ragflow/Cargo.toml
-COPY Cargo.toml Cargo.lock ./
-
-# Create dummy source files
-RUN mkdir -p api/src && echo "fn main() {}" > api/src/main.rs && echo "" > api/src/lib.rs && \
-    mkdir -p comhairle_macros/src && echo "" > comhairle_macros/src/lib.rs && \
-    mkdir -p adaptors/heyform-rust-sdk/src && echo "" > adaptors/heyform-rust-sdk/src/lib.rs && \
-    mkdir -p adaptors/ragflow/src && echo "" > adaptors/ragflow/src/lib.rs && \
-	mkdir -p target/release
-
-# Build dependencies only - keep the target directory intact
+# Build dependencies - this layer is cached unless dependencies change
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/workspace/target \
-    cargo build --bin comhairle_api --release
-
-# ---- Build Stage ----
-FROM base AS build
-WORKDIR /workspace
+    cargo chef cook --release --recipe-path recipe.json --package comhairle_api && \
+    # Copy the built dependencies out of the cache mount
+    mkdir -p /tmp/target && \
+    cp -r target/release/deps /tmp/target/ && \
+    cp -r target/release/build /tmp/target/ 2>/dev/null || true
 
 # Copy source code
-COPY . /workspace
+COPY . .
 
-# Copy cached dependencies and build
-COPY --from=deps /workspace/target /workspace/target
+# Restore built dependencies
+RUN cp -r /tmp/target/* target/release/ 2>/dev/null || true
 
-# Build with cache mounts
+# Build the application
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
     cargo build --release --package comhairle_api
 
 # ---- Production Stage ----
@@ -49,8 +51,8 @@ WORKDIR /app
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y libssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# Copy the compiled binary from the build stage
-COPY --from=build /workspace/target/release/comhairle_api .
+# Copy the compiled binary from the builder stage
+COPY --from=builder /workspace/target/release/comhairle_api .
 
 # Expose the service port (adjust if needed)
 EXPOSE 3000
