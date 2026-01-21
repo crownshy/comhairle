@@ -32,11 +32,18 @@ jobs:
         name: Build and push API image (release)
         uses: docker/build-push-action@v6
         with:
+          context: .
           push: true
-          tags: crownshy/comhairle_api:${{ github.ref_name }}
-          cache-from: type=gha
+          tags: |
+            crownshy/comhairle_api:${{ github.ref_name }}
+            crownshy/comhairle_api:latest
+          cache-from: |
+            type=gha
+            type=registry,ref=crownshy/comhairle_api:latest
           cache-to: type=gha,mode=max
           platforms: linux/amd64
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
       
   build-and-run-staging:
     if: github.ref == 'refs/heads/staging'
@@ -61,11 +68,19 @@ jobs:
         name: Build and push API image (staging)
         uses: docker/build-push-action@v6
         with:
+          context: .
           push: true
-          tags: crownshy/comhairle_api:${{github.sha}}
-          cache-from: type=gha
+          tags: |
+            crownshy/comhairle_api:${{github.sha}}
+            crownshy/comhairle_api:staging
+          cache-from: |
+            type=gha
+            type=registry,ref=crownshy/comhairle_api:staging
+            type=registry,ref=crownshy/comhairle_api:latest
           cache-to: type=gha,mode=max
           platforms: linux/amd64
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
       - 
         name: Update GitOps manifests
         run: |

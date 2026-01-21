@@ -1,9 +1,9 @@
-use futures::Stream;
+use apalis::prelude::MemoryStorage;
 use std::{collections::HashMap, error::Error, sync::Arc};
 use uuid::Uuid;
 
 use axum::{
-    body::{Body, Bytes},
+    body::Body,
     http::{header::COOKIE, HeaderValue, Request, StatusCode},
     response::Response,
     Router,
@@ -16,6 +16,7 @@ use fake::{
 use http_body_util::BodyExt;
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
+use tokio::sync::Mutex;
 
 use sqlx::PgPool;
 use tower::ServiceExt;
@@ -27,6 +28,7 @@ use crate::{
     models::users::UpdateUserRequest,
     translation_service::{MockTranslationService, TranslationService},
     websockets::{MockWebSocketService, WebSocketService},
+    workers::JobQueues,
     ComhairleState,
 };
 
@@ -68,6 +70,10 @@ pub fn test_state(
             .map(|s| Some(s))
             .unwrap_or_else(|| mock_translation_service()),
         bot_service: bot_service.unwrap_or_else(|| mock_bot_service()),
+        // TODO: can this be mocked?
+        jobs: Arc::new(JobQueues {
+            process_documents: Arc::new(Mutex::new(MemoryStorage::new())),
+        }),
     };
     Ok(state)
 }
@@ -675,6 +681,16 @@ impl UserSession {
     ) -> Result<(StatusCode, HashMap<String, Value>, Option<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self.get(app, &format!("/conversation/{id}")).await?;
         let value: HashMap<String, serde_json::Value> = serde_json::from_value(value)?;
+        Ok((status, value, cookie))
+    }
+
+    pub async fn create_job(
+        &mut self,
+        app: &Router,
+        new_job: serde_json::Value,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        let (status, value, cookie) = self.post(app, "/jobs", new_job.to_string().into()).await?;
+
         Ok((status, value, cookie))
     }
 }

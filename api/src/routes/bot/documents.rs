@@ -5,8 +5,9 @@ use aide::axum::{
     ApiRouter,
 };
 use axum::{
+    body::Body,
     extract::{Json, Multipart, Path, Query, State},
-    http::StatusCode,
+    http::{Response, StatusCode},
     routing::post,
 };
 use schemars::JsonSchema;
@@ -49,40 +50,6 @@ async fn get(
     Ok((StatusCode::OK, Json(document)))
 }
 
-#[derive(Deserialize, JsonSchema, Debug, PartialEq)]
-pub struct UploadFileRequest {
-    pub filename: String,
-    pub bytes: Vec<u8>,
-}
-
-#[instrument(err(Debug), skip(state))]
-async fn upload(
-    State(state): State<Arc<ComhairleState>>,
-    Path(knowledge_base_id): Path<String>,
-    RequiredAdminUser(_user): RequiredAdminUser,
-    mut form_data: Multipart,
-) -> Result<StatusCode, ComhairleError> {
-    let mut files: Vec<UploadFileRequest> = Vec::new();
-
-    while let Some(field) = form_data.next_field().await? {
-        let filename = field.file_name().unwrap_or("<no filename>").to_string();
-        let bytes = field.bytes().await?;
-
-        let file = UploadFileRequest {
-            filename,
-            bytes: bytes.to_vec(),
-        };
-        files.push(file);
-    }
-
-    let _result = state
-        .bot_service
-        .upload_documents(&knowledge_base_id, files)
-        .await?;
-
-    Ok(StatusCode::CREATED)
-}
-
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq, Default)]
 pub struct UpdateDocumentRequest {
     pub name: Option<String>,
@@ -117,6 +84,62 @@ async fn delete(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[instrument(err(Debug), skip(state))]
+async fn parse_document(
+    State(state): State<Arc<ComhairleState>>,
+    Path((knowledge_base_id, document_id)): Path<(String, String)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<StatusCode, ComhairleError> {
+    let _ = state
+        .bot_service
+        .parse_document(document_id, knowledge_base_id)
+        .await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn stop_parsing_document(
+    State(state): State<Arc<ComhairleState>>,
+    Path((knowledge_base_id, document_id)): Path<(String, String)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<StatusCode, ComhairleError> {
+    let _ = state
+        .bot_service
+        .stop_parsing_document(document_id, knowledge_base_id)
+        .await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn download_document(
+    State(state): State<Arc<ComhairleState>>,
+    Path((knowledge_base_id, document_id)): Path<(String, String)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<Response<Body>, ComhairleError> {
+    let download_stream = state
+        .bot_service
+        .download_document(document_id, knowledge_base_id)
+        .await?;
+
+    let status = download_stream.status();
+    let headers = download_stream.headers().clone();
+
+    if !status.is_success() {
+        return Err(ComhairleError::DownloadError(
+            "Unable to download document: {document_id}".to_string(),
+        ));
+    }
+
+    let mut response = Response::new(Body::from_stream(download_stream.bytes_stream()));
+
+    *response.status_mut() = status;
+    *response.headers_mut() = headers;
+
+    Ok(response)
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -125,33 +148,27 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("ListDocuments")
                     .tag("Bot Documents")
                     .summary("Get a list of documents from a knowledge base")
+                    .security_requirement("JWT")
                     .response::<200, Json<Vec<ComhairleDocument>>>()
             }),
         )
         .api_route(
             "/{document_id}",
             get_with(get, |op| {
-                op.id("GetDocuments")
+                op.id("GetDocument")
                     .tag("Bot Documents")
                     .summary("Get a documents from a knowledge base by id")
+                    .security_requirement("JWT")
                     .response::<200, Json<ComhairleDocument>>()
             }),
         )
-        // .api_route(
-        //     "/",
-        //     post_with(upload, |op| {
-        //         op.id("UploadDocument")
-        //             .summary("Upload a document to a knowledge base")
-        //             .response::<201, Json<ComhairleDocument>>()
-        //     }),
-        // )
-        .route("/", post(upload))
         .api_route(
             "/{document_id}",
             put_with(update, |op| {
                 op.id("UpdateDocument")
                     .tag("Bot Documents")
                     .summary("Update a document within a knowledge base")
+                    .security_requirement("JWT")
                     .response::<200, Json<ComhairleDocument>>()
             }),
         )
@@ -161,7 +178,38 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("DeleteDocument")
                     .tag("Bot Documents")
                     .summary("Delete a document from a knowledge base")
+                    .security_requirement("JWT")
                     .response::<204, ()>()
+            }),
+        )
+        .api_route(
+            "/{document_id}/parse",
+            post_with(parse_document, |op| {
+                op.id("ParseDocument")
+                    .tag("Bot Documents")
+                    .summary("Begin parsing a document")
+                    .security_requirement("JWT")
+                    .response::<204, ()>()
+            }),
+        )
+        .api_route(
+            "/{document_id}/stop_parse",
+            post_with(stop_parsing_document, |op| {
+                op.id("StopParsingDocument")
+                    .tag("Bot Documents")
+                    .summary("Stop parsing a document")
+                    .security_requirement("JWT")
+                    .response::<204, ()>()
+            }),
+        )
+        .api_route(
+            "/{document_id}/download",
+            get_with(download_document, |op| {
+                op.id("DownloadDocument")
+                    .tag("Bot Documents")
+                    .summary("Download a document")
+                    .security_requirement("JWT")
+                    .response::<204, Response<Body>>()
             }),
         )
         .with_state(state)
@@ -179,7 +227,7 @@ mod tests {
     use std::sync::Arc;
 
     use axum::body::Body;
-    use mockall::predicate::{always, eq};
+    use mockall::predicate::eq;
     use sqlx::PgPool;
 
     #[sqlx::test]
@@ -260,48 +308,6 @@ mod tests {
 
         assert!(status.is_success(), "error response status");
         assert_eq!(json.id, "456".to_string(), "incorrect json response");
-
-        Ok(())
-    }
-
-    #[sqlx::test]
-    async fn should_upload_a_document(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let upload_request = UploadFileRequest {
-            filename: "test.txt".to_string(),
-            bytes: b"test multipart".to_vec(),
-        };
-        let mut bot_service = MockComhairleBotService::new();
-        bot_service
-            .expect_upload_documents()
-            .once()
-            .with(eq("123"), eq(vec![upload_request]))
-            .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
-
-        let state = test_state()
-            .db(pool)
-            .bot_service(Arc::new(bot_service))
-            .call()?;
-        let app = setup_server(Arc::new(state)).await?;
-
-        let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
-
-        let boundary = "test-boundary";
-        let body = format!(
-            "--{boundary}\r\n\
-            Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n\
-            Content-Type: text/plain\r\n\
-            \r\n\
-            test multipart\r\n\
-            --{boundary}--\r\n"
-        );
-        let body = Body::from(body);
-
-        let (status, _, _) = admin_session
-            .post_multipart(&app, "/bot/knowledge_bases/123/documents", boundary, body)
-            .await?;
-
-        assert!(status.is_success());
 
         Ok(())
     }

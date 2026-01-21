@@ -82,6 +82,8 @@ pub struct Chat {
     pub create_date: String,
     pub create_time: i64,
     pub datasets: Option<Vec<Dataset>>,
+    // `dataset_ids` could be deprecated for `datasets`
+    // `dataset_ids` in documentation but `datasets` returned in response
     pub dataset_ids: Option<Vec<String>>,
     pub description: Option<String>,
     pub do_refer: Option<String>,
@@ -126,8 +128,8 @@ mod tests {
 
     use serde_json::json;
     use wiremock::{
-        Mock, MockServer, ResponseTemplate,
         matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
     };
 
     #[tokio::test]

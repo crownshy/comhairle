@@ -94,7 +94,7 @@
     "@thisux/sveltednd": "^0.0.20",
     "@tiptap/core": "^3.11.0",
     "@tiptap/extension-color": "^3.11.0",
-     "@tiptap/extension-image": "^3.11.0",
+    "@tiptap/extension-image": "^3.11.0",
     "@tiptap/extension-link": "^3.11.0",
     "@tiptap/extension-list-item": "^3.11.0",
     "@tiptap/extension-text-align": "^3.11.0",

@@ -10,6 +10,7 @@ use ragflow::{
     DeleteResources, GetQueryParams, RagflowError,
 };
 use reqwest::StatusCode;
+use tracing::instrument;
 
 use crate::{
     bot_service::{
@@ -18,20 +19,24 @@ use crate::{
         ComhairleRagBotService, ComhairleSessionMessage,
     },
     error::ComhairleError,
-    routes::bot::{
-        chats::{CreateChatRequest, UpdateChatRequest},
-        documents::{UpdateDocumentRequest, UploadFileRequest},
-        knowledge_bases::UpdateKnowledgeBaseRequest,
-        sessions::{
-            ChatConversationRequest, CreateChatSessionRequest as ApiCreateChatSessionRequest,
-            UpdateChatSessionRequest as ApiUpdateChatSessionRequest,
+    routes::{
+        bot::{
+            chats::{CreateChatRequest, UpdateChatRequest},
+            documents::UpdateDocumentRequest,
+            knowledge_bases::UpdateKnowledgeBaseRequest,
+            sessions::{
+                ChatConversationRequest, CreateChatSessionRequest as ApiCreateChatSessionRequest,
+                UpdateChatSessionRequest as ApiUpdateChatSessionRequest,
+            },
+            GetQueryParams as ApiGetQueryParams,
         },
-        GetQueryParams as ApiGetQueryParams,
+        conversations::UploadFileRequest,
     },
 };
 
 #[async_trait]
 impl ComhairleBotService for ComhairleRagBotService {
+    #[instrument(err(Debug))]
     async fn get_knowledge_base(
         &self,
         knowledge_base_id: &str,
@@ -48,6 +53,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, knowledge_base))
     }
 
+    #[instrument(err(Debug))]
     async fn list_knowledge_bases(
         &self,
         params: Option<ApiGetQueryParams>,
@@ -62,6 +68,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, knowledge_bases))
     }
 
+    #[instrument(err(Debug))]
     async fn create_knowledge_base(
         &self,
         name: String,
@@ -75,6 +82,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, knowledge_base))
     }
 
+    #[instrument(err(Debug))]
     async fn update_knowledge_base(
         &self,
         knowledge_base_id: &str,
@@ -103,6 +111,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, knowledge_base))
     }
 
+    #[instrument(err(Debug))]
     async fn delete_knowledge_base(
         &self,
         knowledge_base_id: String,
@@ -116,6 +125,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok(status)
     }
 
+    #[instrument(err(Debug))]
     async fn list_documents(
         &self,
         knowledge_base_id: &str,
@@ -131,6 +141,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, documents))
     }
 
+    #[instrument(err(Debug))]
     async fn get_document(
         &self,
         document_id: &str,
@@ -149,18 +160,23 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, document))
     }
 
-    async fn upload_documents(
+    #[instrument(err(Debug))]
+    async fn upload_document(
         &self,
         knowledge_base_id: &str,
-        files: Vec<UploadFileRequest>,
-    ) -> Result<StatusCode, ComhairleError> {
-        let files: Vec<UploadFile> = files.into_iter().map(Into::into).collect();
+        file: UploadFileRequest,
+    ) -> Result<(StatusCode, ComhairleDocument), ComhairleError> {
+        let file: UploadFile = file.into();
 
-        let (status, _) = ragflow::document::upload(&self.client, knowledge_base_id, files).await?;
+        let (status, documents) =
+            ragflow::document::upload(&self.client, knowledge_base_id, vec![file]).await?;
 
-        Ok(status)
+        let document: ComhairleDocument = (&documents[0]).into();
+
+        Ok((status, document))
     }
 
+    #[instrument(err(Debug))]
     async fn update_document(
         &self,
         document_id: &str,
@@ -192,6 +208,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, document))
     }
 
+    #[instrument(err(Debug))]
     async fn delete_document(
         &self,
         document_id: String,
@@ -203,6 +220,45 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok(status)
     }
 
+    async fn parse_document(
+        &self,
+        document_id: String,
+        knowledge_base_id: String,
+    ) -> Result<StatusCode, ComhairleError> {
+        let body = ParseDocuments {
+            document_ids: vec![&document_id],
+        };
+        let (status, _) = ragflow::document::parse(&self.client, &knowledge_base_id, body).await?;
+
+        Ok(status)
+    }
+
+    async fn stop_parsing_document(
+        &self,
+        document_id: String,
+        knowledge_base_id: String,
+    ) -> Result<StatusCode, ComhairleError> {
+        let body = ParseDocuments {
+            document_ids: vec![&document_id],
+        };
+        let status = ragflow::document::stop_parse(&self.client, &knowledge_base_id, body).await?;
+
+        Ok(status)
+    }
+
+    async fn download_document(
+        &self,
+        document_id: String,
+        knowledge_base_id: String,
+    ) -> Result<reqwest::Response, ComhairleError> {
+        let response = ragflow::document::download(&self.client, &document_id, &knowledge_base_id)
+            .await
+            .map_err(RagflowError::from)?;
+
+        Ok(response)
+    }
+
+    #[instrument(err(Debug))]
     async fn get_chat(&self, chat_id: &str) -> Result<(StatusCode, ComhairleChat), ComhairleError> {
         let params = GetQueryParams {
             id: Some(chat_id.to_string()),
@@ -216,6 +272,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, chat))
     }
 
+    #[instrument(err(Debug))]
     async fn list_chats(
         &self,
         params: Option<ApiGetQueryParams>,
@@ -229,6 +286,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, chats))
     }
 
+    #[instrument(err(Debug))]
     async fn create_chat(
         &self,
         body: CreateChatRequest,
@@ -242,6 +300,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, chat))
     }
 
+    #[instrument(err(Debug))]
     async fn update_chat(
         &self,
         chat_id: &str,
@@ -270,6 +329,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, chat))
     }
 
+    #[instrument(err(Debug))]
     async fn delete_chat(&self, chat_id: &str) -> Result<StatusCode, ComhairleError> {
         let body = DeleteResources { ids: vec![chat_id] };
 
@@ -278,6 +338,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok(status)
     }
 
+    #[instrument(err(Debug))]
     async fn get_chat_session(
         &self,
         session_id: &str,
@@ -296,6 +357,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, chat_session))
     }
 
+    #[instrument(err(Debug))]
     async fn list_chat_sessions(
         &self,
         chat_id: &str,
@@ -312,6 +374,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, chat_sessions))
     }
 
+    #[instrument(err(Debug))]
     async fn create_chat_session(
         &self,
         chat_id: &str,
@@ -327,6 +390,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, chat_session))
     }
 
+    #[instrument(err(Debug))]
     async fn update_chat_session(
         &self,
         session_id: &str,
@@ -357,6 +421,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, chat_session))
     }
 
+    #[instrument(err(Debug))]
     async fn delete_chat_session(
         &self,
         session_id: &str,
@@ -371,6 +436,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok(status)
     }
 
+    #[instrument(err(Debug))]
     async fn converse_with_chat(
         &self,
         session_id: &str,
@@ -441,6 +507,9 @@ impl From<Document> for ComhairleDocument {
         Self {
             id: input.id,
             name: input.name,
+            parse_progress: input.progress.unwrap_or(0.0),
+            parse_status: input.run.unwrap_or("RUNNING".to_string()),
+            size: input.size,
         }
     }
 }
@@ -450,6 +519,9 @@ impl From<&Document> for ComhairleDocument {
         Self {
             id: input.id.clone(),
             name: input.name.clone(),
+            parse_progress: input.progress.unwrap_or(0.0),
+            parse_status: input.run.clone().unwrap_or("RUNNING".to_string()),
+            size: input.size,
         }
     }
 }
@@ -479,6 +551,12 @@ impl From<&Chat> for ComhairleChat {
             name: chat.name.clone(),
             llm_model: chat.llm.as_ref().map(Into::into),
             prompt: chat.prompt.as_ref().map(Into::into),
+            knowledge_base_ids: chat
+                .datasets
+                .iter()
+                .flat_map(|v| v.iter())
+                .map(|d| d.id.clone())
+                .collect(),
         }
     }
 }
@@ -490,6 +568,12 @@ impl From<Chat> for ComhairleChat {
             name: chat.name,
             llm_model: chat.llm.map(Into::into),
             prompt: chat.prompt.map(Into::into),
+            knowledge_base_ids: chat
+                .datasets
+                .unwrap_or_default()
+                .iter()
+                .map(|d| d.id.clone())
+                .collect(),
         }
     }
 }

@@ -1,9 +1,17 @@
+use apalis::prelude::{MemoryStorage, Monitor, WorkerBuilder, WorkerFactoryFn};
 use comhairle::{
-    bot_service::ComhairleRagBotService, config::TranslatorConfig, db::setup_db, mailer::Mailer,
-    setup_server, translation_service::GoogleTranslateService,
-    websockets::ComhairleWebSocketService, ComhairleState,
+    bot_service::ComhairleRagBotService,
+    config::TranslatorConfig,
+    db::setup_db,
+    mailer::Mailer,
+    setup_server,
+    translation_service::GoogleTranslateService,
+    websockets::ComhairleWebSocketService,
+    workers::{process_documents::process_document_handler, JobQueues},
+    ComhairleState,
 };
 use std::{error::Error, sync::Arc};
+use tokio::sync::Mutex;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -60,6 +68,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         &config.bot_service_host,
         &config.bot_service_api_key,
     ));
+
+    let process_documents_storage = MemoryStorage::new();
+    let jobs = Arc::new(JobQueues {
+        process_documents: Arc::new(Mutex::new(process_documents_storage.clone())),
+    });
+
     let state = Arc::new(ComhairleState {
         db,
         mailer,
@@ -67,15 +81,26 @@ async fn main() -> Result<(), Box<dyn Error>> {
         websockets,
         translation_service,
         bot_service,
+        jobs,
     });
 
-    let app = setup_server(state).await?;
+    let app = setup_server(state.clone()).await?;
 
-    // run our app with hyper
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let server_future = async move {
+        // run our app with hyper
+        let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+        tracing::info!("listening on {}", listener.local_addr().unwrap());
+        axum::serve(listener, app).await.unwrap();
+    };
 
-    tracing::info!("listening on {}", listener.local_addr().unwrap());
+    let process_document_worker = WorkerBuilder::new("process_document_job")
+        .data(state.clone())
+        .backend(process_documents_storage.clone())
+        .build_fn(process_document_handler);
 
-    axum::serve(listener, app).await.unwrap();
+    let worker_future = { Monitor::new().register(process_document_worker).run() };
+
+    let _ = tokio::join!(server_future, worker_future);
+
     Ok(())
 }

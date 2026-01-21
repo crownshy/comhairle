@@ -126,9 +126,14 @@ impl PartialConversation {
         if let Some(value) = &self.default_workflow_id {
             values.push((ConversationIden::DefaultWorkflowId, (*value).into()))
         };
-
         if let Some(value) = &self.primary_locale {
             values.push((ConversationIden::PrimaryLocale, value.into()))
+        };
+        if let Some(value) = &self.knowledge_base_id {
+            values.push((ConversationIden::KnowledgeBaseId, value.clone().into()))
+        };
+        if let Some(value) = &self.enable_qa_chat_bot {
+            values.push((ConversationIden::EnableQaChatBot, (*value).into()))
         };
 
         if let Some(value) = &self.supported_languages {

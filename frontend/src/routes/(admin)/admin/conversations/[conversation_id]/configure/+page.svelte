@@ -266,9 +266,9 @@
 		</div>
 	</div>
 
-	<div class="flex w-full flex-row justify-between border-t-1 py-5">
-		<p class="font-bold">Access</p>
-		<div class="flex flex-col gap-5">
+	<div class="flex w-full flex-col gap-2 border-t py-5 lg:flex-row lg:justify-between">
+		<p class="font-bold lg:w-60 lg:shrink-0">Access</p>
+		<div class="flex grow flex-col gap-5">
 			<Form.Field form={conversationForm} name="is_public">
 				<Form.Control>
 					{#snippet children({ props })}

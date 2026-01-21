@@ -182,6 +182,21 @@ pub enum ComhairleError {
 
     #[error("No bot_id was found for this conversation")]
     NoConversationBotId,
+
+    #[error("Background worker job failed: {0}")]
+    BackgroundJobFailed(String),
+
+    #[error("Failed to queue background worker job")]
+    BackgroundJobFailedToQueue,
+
+    #[error("Corrupted data: {0}")]
+    CorruptedData(String),
+
+    #[error("Download error: {0}")]
+    DownloadError(String),
+
+    #[error("Bad request: {0}")]
+    BadRequest(String),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -210,7 +225,9 @@ impl IntoResponse for ComhairleError {
             ComhairleError::NoValidUpdates => StatusCode::UNPROCESSABLE_ENTITY,
             ComhairleError::UserNotAuthorized => StatusCode::FORBIDDEN,
             ComhairleError::EmailAlreadyVerified => StatusCode::CONFLICT,
-            ComhairleError::PasswordConfirmationMismatch => StatusCode::BAD_REQUEST,
+            ComhairleError::PasswordConfirmationMismatch | ComhairleError::BadRequest(_) => {
+                StatusCode::BAD_REQUEST
+            }
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
