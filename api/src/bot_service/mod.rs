@@ -194,6 +194,7 @@ pub trait ComhairleBotService: Send + Sync {
     async fn create_agent(
         &self,
         body: CreateAgentRequest,
+        context: minijinja::Value,
     ) -> Result<(StatusCode, ComhairleAgent), ComhairleError>;
 
     async fn update_agent(
@@ -520,7 +521,7 @@ impl MockComhairleBotService {
         bot_service
             .expect_list_agents()
             .returning(|_| Box::pin(async move { Ok((StatusCode::OK, Vec::new())) }));
-        bot_service.expect_create_agent().returning(|_| {
+        bot_service.expect_create_agent().returning(|_, _| {
             Box::pin(async move {
                 Ok((
                     StatusCode::OK,

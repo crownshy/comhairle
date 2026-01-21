@@ -3,7 +3,7 @@ use std::{pin::Pin, sync::Arc};
 use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::{Stream, StreamExt};
-use minijinja::{context, Environment, Value};
+use minijinja::Environment;
 use minijinja_embed::load_templates;
 use ragflow::{
     agent::{session::*, *},
@@ -14,6 +14,7 @@ use ragflow::{
     ConvoQuestion, DeleteResources, GetQueryParams, MessageReference, RagflowError, SessionMessage,
 };
 use reqwest::StatusCode;
+use serde_json::{from_str, Value};
 use tracing::instrument;
 
 use crate::{
@@ -67,7 +68,7 @@ impl ComhairleBotService for ComhairleRagBotService {
     fn render_from_template(
         &self,
         template: &str,
-        context: Value,
+        context: minijinja::Value,
     ) -> Result<String, ComhairleError> {
         let template = self.template_engine.get_template(template)?;
         let content = template.render(context)?;
@@ -528,35 +529,31 @@ impl ComhairleBotService for ComhairleRagBotService {
     async fn create_agent(
         &self,
         body: CreateAgentRequest,
+        context: minijinja::Value,
     ) -> Result<(StatusCode, ComhairleAgent), ComhairleError> {
         let mut body: CreateAgent = body.into();
         let title = body.title.clone();
 
-        let content = self.render_from_template(
-            "ragflow-elicitation-bot.json",
-            context! { foo => "foo", bar => "bar" },
-        )?;
-        let graph_json: serde_json::Value = serde_json::from_str(&content).map_err(|_| {
+        let content = self.render_from_template("ragflow-elicitation-bot.json", context)?;
+        let graph_json: Value = from_str(&content).map_err(|_| {
             ComhairleError::CorruptedData("Unable to parse json from agent template".to_string())
         })?;
 
-        // Additional json that isn't included in json exported from working agent
-        // but is required to create an agent which allows sessions to be created
-        // without any errors
-        // TODO: clean up
-        let globals = self.render_from_template("ragflow-globals.json", context! {})?;
-        let globals: serde_json::Value = serde_json::from_str(&globals)?;
-        let components = self.render_from_template("ragflow-components.json", context! {})?;
-        let components: serde_json::Value = serde_json::from_str(&components)?;
         // TODO: currently hard coded to match exported json template
         // May need to be dynamically calculated from the template
-        let path = self.render_from_template("ragflow-path.json", context! {})?;
-        let path: serde_json::Value = serde_json::from_str(&path)?;
-        let retrieval = self.render_from_template("ragflow-retrieval.json", context! {})?;
-        let retrieval: serde_json::Value = serde_json::from_str(&retrieval)?;
+        let path_json = from_str(include_str!("../agent_templates/ragflow-agent-dsl-path.json"))?;
 
-        let dsl_json = serde_json::json!({ "graph": graph_json, "components": components, "globals": globals, "path": path, "history": [], "retrieval": retrieval });
-        body.dsl = dsl_json;
+        let mut dsl: Value = from_str(include_str!(
+            "../agent_templates/ragflow-agent-static-dsl-content.json"
+        ))?;
+        let obj = dsl.as_object_mut().ok_or(ComhairleError::CorruptedData(
+            "json template must be an object".to_string(),
+        ))?;
+        obj.extend([
+            ("graph".to_string(), graph_json.clone()),
+            ("path".to_string(), path_json),
+        ]);
+        body.dsl = dsl;
 
         let (status, json) = ragflow::agent::create(&self.client, body).await?;
 

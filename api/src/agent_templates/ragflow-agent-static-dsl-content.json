@@ -1,0 +1,29 @@
+{
+        "components": {
+                "begin": {
+                        "downstream": [],
+                        "obj": {
+                                "component_name": "Begin",
+                                "params": {}
+                        },
+                        "upstream": []
+                }
+        },
+        "globals": {
+                "sys.conversation_turns": 0,
+                "sys.files": [],
+                "sys.query": "",
+                "sys.user_id": ""
+        },
+        "retrieval": [
+                {
+                        "chunks": [],
+                        "doc_aggs": []
+                },
+                {
+                        "chunks": {},
+                        "doc_aggs": {}
+                }
+        ],
+        "history": []
+}
