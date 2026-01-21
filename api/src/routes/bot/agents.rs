@@ -8,6 +8,7 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
+use minijinja::context;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -51,7 +52,7 @@ pub async fn create(
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(payload): Json<CreateAgentRequest>,
 ) -> Result<(StatusCode, Json<ComhairleAgent>), ComhairleError> {
-    let (_, agent) = state.bot_service.create_agent(payload).await?;
+    let (_, agent) = state.bot_service.create_agent(payload, context! {}).await?;
 
     Ok((StatusCode::CREATED, Json(agent)))
 }
@@ -158,7 +159,7 @@ mod tests {
         bot_service
             .expect_create_agent()
             .once()
-            .returning(move |_| {
+            .returning(move |_, _| {
                 let agent = agent.clone();
                 Box::pin(async move { Ok((StatusCode::OK, agent)) })
             });
