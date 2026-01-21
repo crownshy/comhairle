@@ -3,7 +3,6 @@ use std::pin::Pin;
 use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::Stream;
-use minijinja::Value;
 use reqwest::StatusCode;
 
 #[cfg(test)]
@@ -15,9 +14,7 @@ use crate::{
     error::ComhairleError,
     routes::{
         bot::{
-            agent_sessions::{
-                AgentConversationRequest, CreateAgentSessionRequest, UpdateAgentSessionRequest,
-            },
+            agent_sessions::{AgentConversationRequest, UpdateAgentSessionRequest},
             agents::{CreateAgentRequest, UpdateAgentRequest},
             chat_sessions::{
                 ChatConversationRequest, CreateChatSessionRequest, UpdateChatSessionRequest,
@@ -41,7 +38,7 @@ pub trait ComhairleBotService: Send + Sync {
     fn render_from_template(
         &self,
         template: &str,
-        context: Value,
+        context: minijinja::Value,
     ) -> Result<String, ComhairleError>;
 
     async fn get_knowledge_base(
@@ -211,7 +208,7 @@ pub trait ComhairleBotService: Send + Sync {
         agent_id: &str,
     ) -> Result<(StatusCode, ComhairleAgentSession), ComhairleError>;
 
-    async fn list_agent_session(
+    async fn list_agent_sessions(
         &self,
         agent_id: &str,
         params: Option<GetQueryParams>,
@@ -544,6 +541,57 @@ impl MockComhairleBotService {
         bot_service
             .expect_delete_agent()
             .returning(|_| Box::pin(async move { Ok(StatusCode::NO_CONTENT) }));
+        bot_service
+            .expect_render_from_template()
+            .returning(|_, _| Ok("".to_string()));
+        bot_service.expect_get_agent_session().returning(|_, _| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::OK,
+                    ComhairleAgentSession {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service
+            .expect_list_agent_sessions()
+            .returning(|_, _| Box::pin(async move { Ok((StatusCode::OK, vec![])) }));
+        bot_service.expect_create_agent_session().returning(|_| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::CREATED,
+                    ComhairleAgentSession {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service
+            .expect_update_agent_session()
+            .returning(|_, _, _| {
+                Box::pin(async move {
+                    Ok((
+                        StatusCode::OK,
+                        ComhairleAgentSession {
+                            ..Default::default()
+                        },
+                    ))
+                })
+            });
+        bot_service
+            .expect_delete_agent_session()
+            .returning(|_, _| Box::pin(async move { Ok(StatusCode::NO_CONTENT) }));
+        bot_service
+            .expect_converse_with_agent()
+            .returning(|_, _, _| {
+                Box::pin(async move {
+                    let stream: Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send>> =
+                        Box::pin(futures::stream::empty());
+
+                    Ok(stream)
+                })
+            });
 
         bot_service
     }

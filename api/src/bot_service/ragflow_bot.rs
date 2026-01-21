@@ -633,7 +633,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         Ok((status, agent_session))
     }
 
-    async fn list_agent_session(
+    async fn list_agent_sessions(
         &self,
         agent_id: &str,
         params: Option<ApiGetQueryParams>,
