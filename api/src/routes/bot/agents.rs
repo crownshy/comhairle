@@ -57,9 +57,10 @@ pub async fn create(
     Ok((StatusCode::CREATED, Json(agent)))
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Default)]
 pub struct UpdateAgentRequest {
     pub title: Option<String>,
+    pub topic: Option<String>,
 }
 
 pub async fn update(

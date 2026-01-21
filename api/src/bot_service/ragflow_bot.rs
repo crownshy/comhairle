@@ -3,7 +3,7 @@ use std::{pin::Pin, sync::Arc};
 use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::{Stream, StreamExt};
-use minijinja::Environment;
+use minijinja::{context, Environment};
 use minijinja_embed::load_templates;
 use ragflow::{
     agent::{session::*, *},
@@ -65,17 +65,6 @@ impl ComhairleRagBotService {
 
 #[async_trait]
 impl ComhairleBotService for ComhairleRagBotService {
-    fn render_from_template(
-        &self,
-        template: &str,
-        context: minijinja::Value,
-    ) -> Result<String, ComhairleError> {
-        let template = self.template_engine.get_template(template)?;
-        let content = template.render(context)?;
-
-        Ok(content)
-    }
-
     #[instrument(err(Debug))]
     async fn get_knowledge_base(
         &self,
@@ -534,25 +523,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         let mut body: CreateAgent = body.into();
         let title = body.title.clone();
 
-        let content = self.render_from_template("ragflow-elicitation-bot.json", context)?;
-        let graph_json: Value = from_str(&content).map_err(|_| {
-            ComhairleError::CorruptedData("Unable to parse json from agent template".to_string())
-        })?;
-
-        // TODO: currently hard coded to match exported json template
-        // May need to be dynamically calculated from the template
-        let path_json = from_str(include_str!("../agent_templates/ragflow-agent-dsl-path.json"))?;
-
-        let mut dsl: Value = from_str(include_str!(
-            "../agent_templates/ragflow-agent-static-dsl-content.json"
-        ))?;
-        let obj = dsl.as_object_mut().ok_or(ComhairleError::CorruptedData(
-            "json template must be an object".to_string(),
-        ))?;
-        obj.extend([
-            ("graph".to_string(), graph_json.clone()),
-            ("path".to_string(), path_json),
-        ]);
+        let dsl = build_agent_dsl(&self.template_engine, context)?;
         body.dsl = dsl;
 
         let (status, json) = ragflow::agent::create(&self.client, body).await?;
@@ -587,7 +558,16 @@ impl ComhairleBotService for ComhairleRagBotService {
         agent_id: &str,
         body: UpdateAgentRequest,
     ) -> Result<(StatusCode, ComhairleAgent), ComhairleError> {
-        let body: UpdateAgent = body.into();
+        let dsl = body
+            .topic
+            .as_ref()
+            .map(|topic| {
+                let context = context! { topic };
+                build_agent_dsl(&self.template_engine, context)
+            })
+            .transpose()?;
+        let mut body: UpdateAgent = body.into();
+        body.dsl = dsl;
 
         let (status, _) = ragflow::agent::update(&self.client, agent_id, body).await?;
 
@@ -711,6 +691,37 @@ impl ComhairleBotService for ComhairleRagBotService {
 
         Ok(Box::pin(mapped_stream))
     }
+}
+
+fn build_agent_dsl(
+    template_engine: &minijinja::Environment,
+    context: minijinja::Value,
+) -> Result<serde_json::Value, ComhairleError> {
+    let template = template_engine.get_template("ragflow-elicitation-bot.json")?;
+    let content = template.render(context)?;
+
+    let graph_json: Value = from_str(&content).map_err(|_| {
+        ComhairleError::CorruptedData("Unable to parse json from agent template".to_string())
+    })?;
+
+    // TODO: currently hard coded to match exported json template
+    // May need to be dynamically calculated from the template
+    let path_json = from_str(include_str!(
+        "../agent_templates/ragflow-agent-dsl-path.json"
+    ))?;
+
+    let mut dsl: Value = from_str(include_str!(
+        "../agent_templates/ragflow-agent-static-dsl-content.json"
+    ))?;
+    let obj = dsl.as_object_mut().ok_or(ComhairleError::CorruptedData(
+        "json template must be an object".to_string(),
+    ))?;
+    obj.extend([
+        ("graph".to_string(), graph_json.clone()),
+        ("path".to_string(), path_json),
+    ]);
+
+    Ok(dsl)
 }
 
 //
@@ -1033,7 +1044,10 @@ impl From<&Agent> for ComhairleAgent {
 
 impl From<UpdateAgentRequest> for UpdateAgent {
     fn from(input: UpdateAgentRequest) -> Self {
-        Self { title: input.title }
+        Self {
+            title: input.title,
+            dsl: None,
+        }
     }
 }
 

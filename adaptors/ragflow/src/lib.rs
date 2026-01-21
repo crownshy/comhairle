@@ -16,7 +16,7 @@ pub struct ConvoQuestion {
     pub user_id: Option<String>,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Debug)]
 pub struct GetQueryParams {
     pub page: Option<i32>,
     pub page_size: Option<i32>,
@@ -44,7 +44,6 @@ pub struct MessageReference {
     pub document_id: String,
     pub document_name: String,
 }
-
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]

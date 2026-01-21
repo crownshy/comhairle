@@ -35,12 +35,6 @@ pub use ragflow_bot::ComhairleRagBotService;
 #[async_trait]
 #[cfg_attr(test, automock)]
 pub trait ComhairleBotService: Send + Sync {
-    fn render_from_template(
-        &self,
-        template: &str,
-        context: minijinja::Value,
-    ) -> Result<String, ComhairleError>;
-
     async fn get_knowledge_base(
         &self,
         knowledge_base_id: &str,
@@ -541,9 +535,6 @@ impl MockComhairleBotService {
         bot_service
             .expect_delete_agent()
             .returning(|_| Box::pin(async move { Ok(StatusCode::NO_CONTENT) }));
-        bot_service
-            .expect_render_from_template()
-            .returning(|_, _| Ok("".to_string()));
         bot_service.expect_get_agent_session().returning(|_, _| {
             Box::pin(async move {
                 Ok((

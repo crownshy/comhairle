@@ -270,7 +270,7 @@
                                         "enablePrologue": true,
                                         "inputs": {},
                                         "mode": "conversational",
-                                        "prologue": "Hello, I am here to help you shape your views and opinions.  What are your views about renewable energy? "
+                                        "prologue": "Hello, I am here to help you shape your views and opinions.  What are your views about {{ topic }}? "
                                 },
                                 "label": "Begin",
                                 "name": "begin"
@@ -313,10 +313,10 @@
                                                         "uuid": "b61de626-dd97-40a1-a9f2-02cbafd7a539"
                                                 },
                                                 {
-                                                        "description": "An input that mentions Renewable Energy in Scotland and is relevant to the topic but can not really count as an opinion. The user seems to need more initial guidance such as prompting questions or teaser stories to expand their thinking. ",
+                                                        "description": "An input that mentions {{ topic }} in Scotland and is relevant to the topic but can not really count as an opinion. The user seems to need more initial guidance such as prompting questions or teaser stories to expand their thinking. ",
                                                         "examples": [
                                                                 {
-                                                                        "value": "“Renewable energy is important, but I don’t know much about it.”"
+                                                                        "value": "“{{ topic }}is important, but I don’t know much about it.”"
                                                                 },
                                                                 {
                                                                         "value": "“This is an interesting topic—can you guide me through the thinking?”"
@@ -326,23 +326,23 @@
                                                         "uuid": "76e6efd5-b632-4185-bdb9-0eb50f1e6a79"
                                                 },
                                                 {
-                                                        "description": "A statement, opinion, or piece of information that directly engages with the discussion topic and adds substantive content relevant to renewable energy in Scotland.",
+                                                        "description": "A statement, opinion, or piece of information that directly engages with the discussion topic and adds substantive content relevant to {{ topic }} in Scotland.",
                                                         "examples": [
                                                                 {
                                                                         "value": "“Scotland has made significant progress in wind energy, but tidal power still faces cost barriers.”"
                                                                 },
                                                                 {
-                                                                        "value": "“Renewable energy infrastructure in the Highlands has expanded rapidly over the past decade.”"
+                                                                        "value": "“{{ topic }} infrastructure in the Highlands has expanded rapidly over the past decade.”"
                                                                 }
                                                         ],
                                                         "name": "On-Topic Contribution",
                                                         "uuid": "0c1daaf8-dd26-465f-80a4-bca3e6f3f9f5"
                                                 },
                                                 {
-                                                        "description": "A question that is clearly related to renewable energy in Scotland and seeks factual information, clarification, or validation.",
+                                                        "description": "A question that is clearly related to {{ topic }} in Scotland and seeks factual information, clarification, or validation.",
                                                         "examples": [
                                                                 {
-                                                                        "value": "“Is offshore wind Scotland’s largest renewable energy resource?”"
+                                                                        "value": "“Is offshore wind Scotland’s largest {{ topic }} resource?”"
                                                                 },
                                                                 {
                                                                         "value": "“How much of Scotland’s electricity comes from renewables?”"
@@ -352,7 +352,7 @@
                                                         "uuid": "fedf9ef3-c7cd-45d8-99cf-40a884dc76b1"
                                                 },
                                                 {
-                                                        "description": "An input that does not relate to renewable energy in Scotland and does not advance the discussion in any meaningful way.",
+                                                        "description": "An input that does not relate to {{ topic }} in Scotland and does not advance the discussion in any meaningful way.",
                                                         "examples": [
                                                                 {
                                                                         "value": "“I like strawberries.”"
@@ -577,7 +577,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "The user’s input is not related to the discussion topic (Renewable Energy in Scotland).\nPolitely acknowledge the input and redirect the conversation back to the main topic.\nDo not answer the off-topic content.\nKeep the response brief and respectful, and invite the user to share a relevant thought or question about renewable energy in Scotland.\n\n\n\nExample: That seems a bit off-topic for now. What are your thoughts on renewable energy?",
+                                        "sys_prompt": "The user’s input is not related to the discussion topic ({{ topic }} in Scotland).\nPolitely acknowledge the input and redirect the conversation back to the main topic.\nDo not answer the off-topic content.\nKeep the response brief and respectful, and invite the user to share a relevant thought or question about {{ topic }} in Scotland.\n\n\n\nExample: That seems a bit off-topic for now. What are your thoughts on {{ topic }}?",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [],
@@ -662,7 +662,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "The user is seeking guidance on how to use this chatbot or how to participate in the discussion.\nExplain the purpose of the chatbot, the discussion topic (Renewable Energy in Scotland), and what kind of input is helpful.\nKeep the explanation short, friendly, and encouraging.\nInvite the user to share a thought, opinion, or question related to the topic.",
+                                        "sys_prompt": "The user is seeking guidance on how to use this chatbot or how to participate in the discussion.\nExplain the purpose of the chatbot, the discussion topic ({{ topic }} in Scotland), and what kind of input is helpful.\nKeep the explanation short, friendly, and encouraging.\nInvite the user to share a thought, opinion, or question related to the topic.",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [],
@@ -752,7 +752,7 @@
                                                                         "value": "\"The government should do X so that Y\""
                                                                 },
                                                                 {
-                                                                        "value": "\"We should invest more in renewable energy so that the energy bill can come down.\""
+                                                                        "value": "\"We should invest more in {{ topic }} so that the energy bill can come down.\""
                                                                 },
                                                                 {
                                                                         "value": "\"We should build more wind farms because we need more energy to develop AI\""
@@ -863,7 +863,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "Help users articulate why the topic matters to them and surface core values. You are a Values Exploration Coach.\nYour role is to help users clarify their values, concerns, and motivations related to renewable energy in Scotland.\nYou do not debate, persuade, or suggest policies.\nYou focus on what matters to the user and why, without asking accusatory “why” questions.\nYour goal is to gently move users from general attitudes to explicit beliefs.\nUse:\n- Open-ended “what” and “how” questions\n- Values clarification\n- Perspective broadening\n- Emotional and ethical framing\n\nGive one affirmative response. Keep it short and ask only 1 question. ",
+                                        "sys_prompt": "Help users articulate why the topic matters to them and surface core values. You are a Values Exploration Coach.\nYour role is to help users clarify their values, concerns, and motivations related to {{ topic }} in Scotland.\nYou do not debate, persuade, or suggest policies.\nYou focus on what matters to the user and why, without asking accusatory “why” questions.\nYour goal is to gently move users from general attitudes to explicit beliefs.\nUse:\n- Open-ended “what” and “how” questions\n- Values clarification\n- Perspective broadening\n- Emotional and ethical framing\n\nGive one affirmative response. Keep it short and ask only 1 question. ",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [],
@@ -923,7 +923,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "Turn values into explicit beliefs and expectations about governance and responsibility.\n\n\n\nYou are a Belief Clarification Coach.\nYour role is to help users articulate and examine their beliefs about what ought to happen in renewable energy decision-making.\nYou help users:\n- Make beliefs explicit\n- Examine assumptions\n- Surface tensions or trade-offs\nYou do not ask for solutions yet.\nYour goal is to prepare the ground for ideas and proposals.\n\nGive one affirmative response. Keep it short and ask only 1 question. \n",
+                                        "sys_prompt": "Turn values into explicit beliefs and expectations about governance and responsibility.\n\n\n\nYou are a Belief Clarification Coach.\nYour role is to help users articulate and examine their beliefs about what ought to happen in {{ topic }} decision-making.\nYou help users:\n- Make beliefs explicit\n- Examine assumptions\n- Surface tensions or trade-offs\nYou do not ask for solutions yet.\nYour goal is to prepare the ground for ideas and proposals.\n\nGive one affirmative response. Keep it short and ask only 1 question. \n",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [],
@@ -1033,7 +1033,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "Help users explore possible actions without forcing commitment or precision.\n\n\n\nYou are an Idea Development Coach.\nYour role is to help users explore tentative ideas related to renewable energy policy.\nYou encourage:\n- Creative thinking\n- Multiple options\n- Low-risk exploration\nYou help users expand and compare ideas, but you do not evaluate feasibility yet.\n\nGive one affirmative response. Keep it short and ask only 1 question. ",
+                                        "sys_prompt": "Help users explore possible actions without forcing commitment or precision.\n\n\n\nYou are an Idea Development Coach.\nYour role is to help users explore tentative ideas related to {{ topic }} policy.\nYou encourage:\n- Creative thinking\n- Multiple options\n- Low-risk exploration\nYou help users expand and compare ideas, but you do not evaluate feasibility yet.\n\nGive one affirmative response. Keep it short and ask only 1 question. ",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [],
@@ -1273,7 +1273,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "You are a Risk & Trade-off Exploration Coach.\nYour role is to help users articulate and examine perceived risks, concerns, and unintended consequences related to renewable energy in Scotland.\nYou:\n- Treat concerns as legitimate signals, not obstacles\n- Help users clarify what exactly feels risky\n- Distinguish between impact, likelihood, and uncertainty\n- Surface who might be affected and how\nYou do not:\n- Argue against the concern\n- Provide reassurance or technical fixes\n- Propose solutions or policies\nYour goal is to transform vague or emotional concerns into clear, discussable risk frames that can later be addressed through reasoning or policy design.\n\nKeep it short and ask only 1 question. ",
+                                        "sys_prompt": "You are a Risk & Trade-off Exploration Coach.\nYour role is to help users articulate and examine perceived risks, concerns, and unintended consequences related to {{ topic }} in Scotland.\nYou:\n- Treat concerns as legitimate signals, not obstacles\n- Help users clarify what exactly feels risky\n- Distinguish between impact, likelihood, and uncertainty\n- Surface who might be affected and how\nYou do not:\n- Argue against the concern\n- Provide reassurance or technical fixes\n- Propose solutions or policies\nYour goal is to transform vague or emotional concerns into clear, discussable risk frames that can later be addressed through reasoning or policy design.\n\nKeep it short and ask only 1 question. ",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [],
@@ -1435,7 +1435,7 @@
                                                         "description": "a broad view that is not yet a full-fledged opinion that needs shaping. ",
                                                         "examples": [
                                                                 {
-                                                                        "value": "\"i think renewable energy is important\""
+                                                                        "value": "\"i think {{ topic }} is important\""
                                                                 },
                                                                 {
                                                                         "value": "\"I belief environment sustainability is more important than economical values\""
@@ -1451,7 +1451,7 @@
                                                                         "value": "\" I believe ...\""
                                                                 },
                                                                 {
-                                                                        "value": "\"the government should move from just producing renewable energy to managing and exporting it efficiently, ensuring that Scotland’s renewable potential translates into real economic and environmental benefits.\""
+                                                                        "value": "\"the government should move from just producing {{ topic }} to managing and exporting it efficiently, ensuring that Scotland’s renewable potential translates into real economic and environmental benefits.\""
                                                                 }
                                                         ],
                                                         "name": "Judgement / Belief",
@@ -1461,7 +1461,7 @@
                                                         "description": "An early-stage idea that gestures toward action but lacks clarity, justification, or feasibility considerations.",
                                                         "examples": [
                                                                 {
-                                                                        "value": "\"I think we should invest more in renewable energy.\""
+                                                                        "value": "\"I think we should invest more in {{ topic }}.\""
                                                                 },
                                                                 {
                                                                         "value": "\"I think we should X\""
