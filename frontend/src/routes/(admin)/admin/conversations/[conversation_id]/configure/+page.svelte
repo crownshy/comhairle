@@ -181,19 +181,17 @@
 		</Form.Control>
 	</Form.Field>
 
-	<Form.Field form={conversationForm} name="short_description">
-		<Form.Control>
-			{#snippet children({ props })}
-				<div class="flex w-full flex-col gap-2 border-t py-5 lg:flex-row lg:justify-between">
-					<Form.Label class="font-bold lg:w-60 lg:shrink-0">Short Description</Form.Label>
-					<div class="grow flex-col gap-2">
-						<Textarea class="bg-white" {...props} bind:value={$form.short_description} />
-						<Form.FieldErrors />
-					</div>
-				</div>
-			{/snippet}
-		</Form.Control>
-	</Form.Field>
+<TranslationDialog
+	bind:open={translations.modalOpen}
+	translations={translations.workingTranslations}
+	activeLanguage={translations.activeLanguage}
+	isTranslating={translations.isTranslating}
+	onClose={translations.closeDialog}
+	onContentChange={handleContentChange}
+	onStatusChange={translations.updateStatus}
+	onActiveLanguageChange={translations.setActiveLanguage}
+	onAiTranslate={translations.handleAiTranslate}
+/>
 
 	<Form.Field form={conversationForm} name="description">
 		<Form.Control>

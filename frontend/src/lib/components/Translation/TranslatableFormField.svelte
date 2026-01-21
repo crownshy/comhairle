@@ -15,7 +15,7 @@
 		value: string;
 		onValueChange: (value: string) => void;
 		onEditTranslations: (language?: string) => void;
-		onPrimaryChange?: () => void;
+		onPrimaryChange: () => void;
 		translations: TranslationEntry[];
 		inputType?: 'input' | 'textarea';
 	}
