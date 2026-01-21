@@ -14,6 +14,7 @@ use super::ToolConfigSanitize;
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
 pub struct ElicitationBotToolConfig {
     pub bot_id: String,
+    pub topic: String,
 }
 
 impl ToolConfigSanitize for ElicitationBotToolConfig {
@@ -39,8 +40,11 @@ pub async fn setup(
         name: config.conversation_id.clone(),
     };
     let (_, bot) = bot_service
-        .create_agent(create_agent, context! { topic => config.topic })
+        .create_agent(create_agent, context! { topic => &config.topic })
         .await?;
 
-    Ok(ElicitationBotToolConfig { bot_id: bot.id })
+    Ok(ElicitationBotToolConfig {
+        bot_id: bot.id,
+        topic: config.topic.clone(),
+    })
 }

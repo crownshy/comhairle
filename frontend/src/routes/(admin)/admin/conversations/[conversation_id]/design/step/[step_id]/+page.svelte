@@ -13,8 +13,6 @@
 	let step_id = $derived(data.step_id);
 	let workflow_steps = $derived(data.workflow_steps);
 	let step = $derived(workflow_steps.find((s: WorkflowStep) => s.id === step_id));
-
-	console.log('step config ', step);
 </script>
 
 <StepNavigation workflowSteps={workflow_steps} />
@@ -58,5 +56,9 @@
 {/if}
 
 {#if step.tool_config.type === 'elicitationbot'}
-	<EliciationBotManage />
+	<EliciationBotManage
+		conversationId={conversation.id}
+		workflowId={step.workflow_id}
+		workflowStep={step}
+	/>
 {/if}

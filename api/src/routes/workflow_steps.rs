@@ -8,6 +8,7 @@ use axum::{
     http::StatusCode,
     Json,
 };
+use minijinja::context;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
@@ -15,7 +16,8 @@ use crate::models::bot_service_user_session::{
     self, BotServiceUserSessionDto, CreateBotServiceUserSession,
 };
 use crate::models::workflow_step::LocalisedWorkflowStep;
-use crate::tools::ToolConfigSanitize;
+use crate::routes::bot::agents::UpdateAgentRequest;
+use crate::tools::{ToolConfig, ToolConfigSanitize};
 use crate::{
     error::ComhairleError,
     models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep, WorkflowStep},
@@ -54,6 +56,37 @@ async fn update_workflow_step(
     Json(workflow): Json<PartialWorkflowStep>,
 ) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
     let workflow = workflow_step::update(&state.db, id, workflow_id, &workflow).await?;
+    Ok((StatusCode::OK, Json(workflow)))
+}
+
+async fn update_elicitation_bot_workflow_step(
+    State(state): State<Arc<ComhairleState>>,
+    Path((conversation_id, workflow_id, id)): Path<(Uuid, Uuid, Uuid)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Json(workflow): Json<PartialWorkflowStep>,
+) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
+    let tool_config = match &workflow.tool_config {
+        Some(ToolConfig::ElicitationBot(config)) => config,
+        _ => {
+            return Err(ComhairleError::ToolConfigError(
+                "Incorrect config type".to_string(),
+            ))
+        }
+    };
+
+    let workflow = workflow_step::update(&state.db, id, workflow_id, &workflow).await?;
+
+    let body = UpdateAgentRequest {
+        // Ragflow returning an error if title omitted even though it successfully saves
+        title: Some(conversation_id.to_string()),
+        topic: Some(tool_config.topic.clone()),
+    };
+    // TODO: make atomic to revert change to workflow_step if bot service request fails
+    let _ = state
+        .bot_service
+        .update_agent(&tool_config.bot_id, body)
+        .await?;
+
     Ok((StatusCode::OK, Json(workflow)))
 }
 
@@ -169,6 +202,16 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("UpdateWorkflowStep")
                     .tag("Workflow step")
                     .summary("Update the specified workflow step")
+                    .security_requirement("JWT")
+                    .response::<200, Json<WorkflowStep>>()
+            }),
+        )
+        .api_route(
+            "/{workflow_step_id}/elicitation_bot",
+            put_with(update_elicitation_bot_workflow_step, |op| {
+                op.id("UpdateElicitationBotWorkflowStep")
+                    .tag("Workflow step")
+                    .summary("Update a workflow step of type elicitation bot")
                     .security_requirement("JWT")
                     .response::<200, Json<WorkflowStep>>()
             }),

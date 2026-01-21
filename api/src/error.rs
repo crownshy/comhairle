@@ -203,6 +203,9 @@ pub enum ComhairleError {
 
     #[error("Bad request: {0}")]
     BadRequest(String),
+
+    #[error("Tool config error: {0}")]
+    ToolConfigError(String),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]

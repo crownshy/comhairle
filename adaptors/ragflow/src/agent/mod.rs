@@ -73,9 +73,12 @@ pub struct CreateAgent {
     pub dsl: serde_json::Value, // TODO:
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct UpdateAgent {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dsl: Option<serde_json::Value>,
 }
 
 #[derive(Serialize, Deserialize, Default)]

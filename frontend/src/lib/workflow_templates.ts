@@ -43,7 +43,7 @@ export const basic_survey_config = {
 
 export const basic_elicitation_bot_config = (conversation: Conversation) => ({
 	type: 'elicitationbot',
-	topic: conversation.title, // TODO: use something else
+	topic: 'comhairle platform',
 	conversation_id: conversation.id
 });
 
