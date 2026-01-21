@@ -85,9 +85,10 @@ export function createTranslationManager(
 			const existing = existingMap.get(locale);
 			const isPrimary = locale === primaryLocale;
 			
+			const fallback = existing?.content ?? '';
 			const content = isPrimary && getFormValue 
-				? (getFormValue(field) ?? existing?.content ?? '')
-				: (existing?.content ?? '');
+				? (getFormValue(field) ?? fallback)
+				: fallback;
 			
 			return {
 				language: locale,
@@ -242,15 +243,8 @@ export function createTranslationManager(
 		);
 	}
 
-	let lastTranslationTime = $state<number>(0);
-	const TRANSLATION_COOLDOWN_MS = 3000;
-
-	function isInCooldown(): boolean {
-		return Date.now() - lastTranslationTime < TRANSLATION_COOLDOWN_MS;
-	}
-
 	async function handleAiTranslate() {
-		if (!activeLanguage || isTranslating || isInCooldown()) return;
+		if (!activeLanguage || isTranslating) return;
 
 		const textContentId = getTextContentId();
 		if (!textContentId) return;
@@ -295,7 +289,6 @@ export function createTranslationManager(
 			await invalidateAll();
 			
 			notifications.send({ message: 'Translation completed', priority: 'INFO' });
-			lastTranslationTime = Date.now();
 		} catch (error) {
 			console.error('AI translation failed:', error);
 			notifications.send({ message: 'AI translation failed', priority: 'ERROR' });
@@ -427,7 +420,6 @@ export function createTranslationManager(
 		get activeField() { return activeField; },
 		get activeLanguage() { return activeLanguage; },
 		get isTranslating() { return isTranslating; },
-		get isInCooldown() { return isInCooldown(); },
 		get workingTranslations() { return workingTranslations; },
 
 		// Dialog actions

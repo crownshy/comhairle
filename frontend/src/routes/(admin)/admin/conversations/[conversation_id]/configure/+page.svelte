@@ -173,7 +173,6 @@
 	translations={translations.workingTranslations}
 	activeLanguage={translations.activeLanguage}
 	isTranslating={translations.isTranslating}
-	isInCooldown={translations.isInCooldown}
 	onClose={translations.closeDialog}
 	onContentChange={handleContentChange}
 	onStatusChange={translations.updateStatus}
