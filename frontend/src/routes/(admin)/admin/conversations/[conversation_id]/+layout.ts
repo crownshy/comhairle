@@ -7,7 +7,7 @@ export const load :PageLoad = async ({params,parent})=>{
   let conversation_id  = params.conversation_id;
   let {api} = await parent();
   try{
-    let conversation = await api.GetConversation({params:{conversation_id}})
+    let conversation = await api.GetConversation({params:{conversation_id}, queries: {withTranslations: true}})
     let workflows = await api.ListWorkflows({params:{conversation_id}});
     let stats = undefined;
     let workflow_steps = undefined;
