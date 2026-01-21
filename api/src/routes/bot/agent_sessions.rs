@@ -31,7 +31,7 @@ async fn list(
 ) -> Result<(StatusCode, Json<Vec<ComhairleAgentSession>>), ComhairleError> {
     let (_, sessions) = state
         .bot_service
-        .list_agent_session(&agent_id, Some(params))
+        .list_agent_sessions(&agent_id, Some(params))
         .await?;
 
     Ok((StatusCode::OK, Json(sessions)))
