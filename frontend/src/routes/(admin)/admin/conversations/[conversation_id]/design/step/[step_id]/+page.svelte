@@ -17,6 +17,8 @@
 	console.log('step config ', step);
 </script>
 
+<StepNavigation workflowSteps={workflow_steps} />
+
 <CommonStepConfig conversation_id={conversation.id} {step} />
 
 {#if step.tool_config.type === 'learn'}
