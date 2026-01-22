@@ -20,6 +20,7 @@
 	import { NotebookText } from 'lucide-svelte';
 	import { MarkdownEditor } from 'carta-md';
 	import { createCarta } from '$lib/utils/carta';
+	import StepNavigation from '$lib/components/StepNavigation.svelte';
 	import 'carta-md/default.css';
 	import '@cartamd/plugin-slash/default.css';
 	import 'carta-plugin-video/default.css';
@@ -69,7 +70,9 @@
 	}
 </script>
 
-<h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><NotebookText /> Monitor</h1>
+<StepNavigation />
+
+<h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><NotebookText /> Report</h1>
 <p class="mb-10">Use this space to edit the report for this conversation</p>
 
 <div class="flex flex-col gap-4">
