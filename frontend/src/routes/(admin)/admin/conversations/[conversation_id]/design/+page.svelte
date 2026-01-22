@@ -39,6 +39,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte.js';
 	import { ChevronUp } from 'svelte-radix';
+	import StepNavigation from '$lib/components/StepNavigation.svelte';
 	let conversation = $derived(data.conversation);
 	let workflow_steps = $derived(data.workflow_steps);
 	let workflow = $derived(data.workflows[0]);
@@ -113,6 +114,8 @@
 		await invalidateAll();
 	}
 </script>
+
+<StepNavigation />
 
 <h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><Share2 /> Design</h1>
 <h2 class="mb-5 text-2xl">Process steps</h2>
