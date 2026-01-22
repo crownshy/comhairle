@@ -9,15 +9,22 @@
 		LayoutDashboard,
 		MessageSquareText,
 		Plus,
-		Settings
+		Settings,
+		TerminalSquare,
+		UsersRound,
+		Bell,
+		Database,
+		ChevronDown
 	} from 'lucide-svelte';
 	import { conversationSteps } from '$lib/config/conversation-steps';
 	import { Button } from './ui/button';
+	import { page } from '$app/state';
 	let props = $props();
 	let path = $derived(props.path);
 	console.log('Path is ', path);
 	let user = $derived(props.user);
 	let conversations = $derived(props.conversations);
+	let workflow_steps = $derived(page.data?.workflow_steps ?? []);
 
 	// TODO We need to use data-sveltekit-reload as the
 	// component isn't relaoading on navigation when we use
@@ -76,19 +83,110 @@
 											{/snippet}
 										</Collapsible.Trigger>
 										<Collapsible.Content>
-											{#each conversationSteps as step}
+											<SideBar.MenuSub>
+												<SideBar.MenuSubItem>
+													<SideBar.MenuSubButton
+														href={`/admin/conversations/${conversation.id}/configure`}
+														class={path.includes('configure') ? 'font-bold' : ''}
+														><TerminalSquare
+															class="stroke-nav-text hover:stroke-sidebar-foreground"
+														/>Configure</SideBar.MenuSubButton
+													>
+												</SideBar.MenuSubItem>
+											</SideBar.MenuSub>
+											<Collapsible.Root open={path.includes('design')} class="group/design">
 												<SideBar.MenuSub>
 													<SideBar.MenuSubItem>
-														<SideBar.MenuSubButton
-															href={`/admin/conversations/${conversation.id}/${step.path}`}
-															class={path.includes(step.path) ? 'font-bold' : ''}
-															><step.icon
-																class="stroke-nav-text hover:stroke-sidebar-foreground"
-															/> {step.name}</SideBar.MenuSubButton
-														>
+														<Collapsible.Trigger class="w-full">
+															<SideBar.MenuSubButton
+																href={`/admin/conversations/${conversation.id}/design`}
+																class={path.includes('design') ? 'font-bold' : ''}
+															>
+																<Pencil class="stroke-nav-text hover:stroke-sidebar-foreground" />
+																<span class="flex-1 text-left">Design</span>
+																<ChevronDown class="h-4 w-4 transition-transform group-data-[state=open]/design:rotate-180" />
+															</SideBar.MenuSubButton>
+														</Collapsible.Trigger>
 													</SideBar.MenuSubItem>
 												</SideBar.MenuSub>
-											{/each}
+												<Collapsible.Content>
+													<div class="relative ml-6 border-l border-sidebar-border pl-2">
+														{#if path.includes(conversation.id) && workflow_steps?.length > 0}
+															{#each workflow_steps as step (step.id)}
+																<a
+																	href={`/admin/conversations/${conversation.id}/design/step/${step.id}`}
+																	class="block rounded-lg px-2 py-1.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent {path.includes(step.id) ? 'font-bold' : ''}"
+																>
+																	{step.name}
+																</a>
+															{/each}
+														{/if}
+														<a
+															href={`/admin/conversations/${conversation.id}/design?addStep=true`}
+															class="block rounded-lg px-2 py-1.5 text-sm text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+														>
+															+ Add new
+														</a>
+													</div>
+												</Collapsible.Content>
+											</Collapsible.Root>
+											<SideBar.MenuSub>
+												<SideBar.MenuSubItem>
+													<SideBar.MenuSubButton
+														href={`/admin/conversations/${conversation.id}/invites`}
+														class={path.includes('invites') ? 'font-bold' : ''}
+														><UsersRound class="stroke-nav-text hover:stroke-sidebar-foreground" /> Recruit</SideBar.MenuSubButton
+													>
+												</SideBar.MenuSubItem>
+											</SideBar.MenuSub>
+											<SideBar.MenuSub>
+												<SideBar.MenuSubItem>
+													<SideBar.MenuSubButton
+														href={`/admin/conversations/${conversation.id}/monitor`}
+														class={path.includes('monitor') ? 'font-bold' : ''}
+														><Binoculars class="stroke-nav-text hover:stroke-sidebar-foreground" /> Monitor</SideBar.MenuSubButton
+													>
+												</SideBar.MenuSubItem>
+											</SideBar.MenuSub>
+											<SideBar.MenuSub>
+												<SideBar.MenuSubItem>
+													<SideBar.MenuSubButton
+														href={`/admin/conversations/${conversation.id}/moderate`}
+														class={path.includes('moderate') ? 'font-bold' : ''}
+														><UsersRound class="stroke-nav-text hover:stroke-sidebar-foreground" /> Moderate</SideBar.MenuSubButton
+													>
+												</SideBar.MenuSubItem>
+											</SideBar.MenuSub>
+											<SideBar.MenuSub>
+												<SideBar.MenuSubItem>
+													<SideBar.MenuSubButton
+														href={`/admin/conversations/${conversation.id}/knowledge-base`}
+														class={path.includes('knowledge-base') ? 'font-bold' : ''}
+														><Database class="stroke-nav-text hover:stroke-sidebar-foreground" /> Knowledge
+														base</SideBar.MenuSubButton
+													>
+												</SideBar.MenuSubItem>
+											</SideBar.MenuSub>
+											<SideBar.MenuSub>
+												<SideBar.MenuSubItem>
+													<SideBar.MenuSubButton
+														href={`/admin/conversations/${conversation.id}/notifications`}
+														class={path.includes('notifications') ? 'font-bold' : ''}
+														><Bell class="stroke-nav-text hover:stroke-sidebar-foreground" /> Notify</SideBar.MenuSubButton
+													>
+												</SideBar.MenuSubItem>
+											</SideBar.MenuSub>
+											<SideBar.MenuSub>
+												<SideBar.MenuSubItem>
+													<SideBar.MenuSubButton
+														href={`/admin/conversations/${conversation.id}/report`}
+														class={path.includes('report') ? 'font-bold' : ''}
+														><NotebookText
+															class="stroke-nav-text hover:stroke-sidebar-foreground"
+														/> Report</SideBar.MenuSubButton
+													>
+												</SideBar.MenuSubItem>
+											</SideBar.MenuSub>
 										</Collapsible.Content>
 									</SideBar.MenuItem>
 								</Collapsible.Root>

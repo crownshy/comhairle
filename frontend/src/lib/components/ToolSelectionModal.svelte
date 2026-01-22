@@ -9,16 +9,15 @@
 		onSelection: (tool: string) => void;
 		children?: Snippet;
 		prompt: string;
+		open?: boolean;
 	};
-	let { onSelection, prompt, children }: Props = $props();
+	let { onSelection, prompt, children, open = $bindable(false) }: Props = $props();
 	let selected: string | null = $state(null);
 
 	function select(selection: string) {
 		onSelection(selection);
 		open = false;
 	}
-
-	let open = $state(false);
 </script>
 
 <Dialog.Root bind:open>
