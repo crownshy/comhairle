@@ -19,6 +19,7 @@
 	let { data } = $props();
 	let conversation = $derived(data.conversation);
 	let workflow = $derived(data.workflows[0]);
+	let workflow_steps = $derived(data.workflow_steps);
 
 	let primaryLanguage = $state(data.conversation.primary_locale ?? 'en');
 	let supportedLanguages = $state(data.conversation.supported_languages ?? ['en']);
@@ -165,7 +166,7 @@
 
 </script>
 
-<StepNavigation />
+<StepNavigation workflowSteps={workflow_steps} />
 
 <h1 class="mb-10 flex flex-row items-center gap-2 text-4xl">
 	<TerminalSquare /> Configure
