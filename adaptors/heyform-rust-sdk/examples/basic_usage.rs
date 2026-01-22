@@ -158,5 +158,15 @@ async fn main() -> Result<()> {
     //     }
     // }
     //
+    // // Example 8: Clone/duplicate the form
+    // match client.clone_form(&poll_id).await {
+    //     Ok(cloned_form_id) => {
+    //         println!("Form cloned successfully! New form ID: {}", cloned_form_id);
+    //     }
+    //     Err(e) => {
+    //         println!("Failed to clone form: {}", e);
+    //     }
+    // }
+    //
     Ok(())
 }
