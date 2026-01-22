@@ -124,9 +124,11 @@
 		if (!result.valid) return;
 
 		try {
+			const { title: _title, short_description: _short_description, description: _description, auto_login, ...conversationData } = result.data;
+			
 			await apiClient.UpdateConversation(
 				{
-					...result.data,
+					...conversationData,
 					primary_locale: primaryLanguage,
 					supported_languages: supportedLanguages
 				},
