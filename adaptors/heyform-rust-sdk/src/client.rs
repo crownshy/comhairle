@@ -294,6 +294,23 @@ impl HeyFormClient {
             .ok_or_else(|| HeyFormError::NotFound("Form not found".to_string()))
     }
 
+    /// Clone/duplicate an existing form
+    pub async fn clone_form(&self, form_id: &str) -> Result<String> {
+        let variables = json!({
+            "input": {
+                "formId": form_id
+            }
+        });
+        let response: HashMap<String, String> = self
+            .execute_graphql(DUPLICATE_FORM_MUTATION, variables, Some("duplicateForm"))
+            .await?;
+
+        response
+            .get("duplicateForm")
+            .cloned()
+            .ok_or_else(|| HeyFormError::GraphQL("No form ID returned".to_string()))
+    }
+
     /// Get current user details
     pub async fn get_user(&self) -> Result<User> {
         let response: HashMap<String, User> = self
