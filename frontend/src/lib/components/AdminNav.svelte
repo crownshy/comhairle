@@ -3,7 +3,6 @@
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import * as SideBar from '$lib/components/ui/sidebar';
 	import * as Collapsible from '$lib/components/ui/collapsible';
-	import * as Tooltip from '$lib/components/ui/tooltip';
 	import {
 		Home,
 		Info,
@@ -35,7 +34,7 @@
 				</div>
 			</a>
 		</SideBar.Header>
-		<SideBar.Content class="radius-nav">
+		<SideBar.Content class="radius-nav overflow-x-hidden">
 			<SideBar.Group>
 				<SideBar.GroupContent>
 					<SideBar.Menu>
@@ -52,9 +51,9 @@
 					</SideBar.Menu>
 				</SideBar.GroupContent>
 			</SideBar.Group>
-			<SideBar.Group>
-				<SideBar.GroupLabel>Conversations</SideBar.GroupLabel>
-				<SideBar.GroupContent>
+			<SideBar.Group class="flex flex-col flex-1 min-h-0">
+				<SideBar.GroupLabel class="shrink-0">Conversations</SideBar.GroupLabel>
+				<SideBar.GroupContent class="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
 					{#if conversations}
 						<SideBar.Menu>
 							{#each conversations.records as conversation}
@@ -62,26 +61,18 @@
 									<SideBar.MenuItem>
 										<Collapsible.Trigger>
 											{#snippet child({ props })}
-												<Tooltip.Provider>
-													<Tooltip.Root>
-														<Tooltip.Trigger>
-															<SideBar.MenuButton class="text-nowrap text-ellipsis " {...props}>
-																{#snippet child({ props })}
-																	<a
-																		{...props}
-																		href={`/admin/conversations/${conversation.id}/configure`}
-																	>
-																		<MessageSquareText />
-																		{conversation.title}
-																	</a>
-																{/snippet}
-															</SideBar.MenuButton>
-														</Tooltip.Trigger>
-														<Tooltip.Content side="right">
-															{conversation.title}
-														</Tooltip.Content>
-													</Tooltip.Root>
-												</Tooltip.Provider>
+												<SideBar.MenuButton class="w-full overflow-hidden" {...props}>
+													{#snippet child({ props })}
+														<a
+															{...props}
+															href={`/admin/conversations/${conversation.id}/configure`}
+															class="flex items-center gap-2 w-full"
+														>
+															<MessageSquareText class="shrink-0" />
+															<span class="break-words whitespace-normal">{conversation.title}</span>
+														</a>
+													{/snippet}
+												</SideBar.MenuButton>
 											{/snippet}
 										</Collapsible.Trigger>
 										<Collapsible.Content>
@@ -102,44 +93,40 @@
 									</SideBar.MenuItem>
 								</Collapsible.Root>
 							{/each}
-							<SideBar.MenuItem>
-								<Button href="/admin/conversations/new" class="w-full" variant="secondary">
-									<Plus />
-									New Conversation
-								</Button>
-							</SideBar.MenuItem>
 						</SideBar.Menu>
 					{/if}
 				</SideBar.GroupContent>
+				<div class="shrink-0 p-2">
+					<Button href="/admin/conversations/new" class="w-full" variant="secondary">
+						<Plus />
+						New Conversation
+					</Button>
+				</div>
 			</SideBar.Group>
-			<SideBar.Group>
-				<SideBar.GroupContent>
-					<SideBar.Menu>
-						<SideBar.MenuItem>
-							<SideBar.MenuButton>
-								{#snippet child({ props })}
-									<a {...props} href="/admin/">
-										<Settings />
-										Settings
-									</a>
-								{/snippet}
-							</SideBar.MenuButton>
-						</SideBar.MenuItem>
-						<SideBar.MenuItem>
-							<SideBar.MenuButton>
-								{#snippet child({ props })}
-									<a {...props} href="/admin/">
-										<Info />
-										About
-									</a>
-								{/snippet}
-							</SideBar.MenuButton>
-						</SideBar.MenuItem>
-					</SideBar.Menu>
-				</SideBar.GroupContent>
-			</SideBar.Group>
-		</SideBar.Content>
-		<SideBar.Footer>
+			</SideBar.Content>
+		<SideBar.Footer class="flex flex-col gap-1">
+			<SideBar.Menu>
+				<SideBar.MenuItem>
+					<SideBar.MenuButton>
+						{#snippet child({ props })}
+							<a {...props} href="/admin/">
+								<Settings />
+								Settings
+							</a>
+						{/snippet}
+					</SideBar.MenuButton>
+				</SideBar.MenuItem>
+				<SideBar.MenuItem>
+					<SideBar.MenuButton>
+						{#snippet child({ props })}
+							<a {...props} href="/admin/">
+								<Info />
+								About
+							</a>
+						{/snippet}
+					</SideBar.MenuButton>
+				</SideBar.MenuItem>
+			</SideBar.Menu>
 			<UserAvatar {user} />
 		</SideBar.Footer>
 	</SideBar.Root>
