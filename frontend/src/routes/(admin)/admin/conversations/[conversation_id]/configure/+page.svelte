@@ -13,6 +13,8 @@
 	import TranslatableFormField from '$lib/components/Translation/TranslatableFormField.svelte';
 	import { createTranslationManager } from '$lib/components/Translation/useTranslations.svelte';
 	import { TerminalSquare } from 'lucide-svelte';
+	import { LanguageSelector } from '$lib/components/ui/language-selector';
+	import StepNavigation from '$lib/components/StepNavigation.svelte';
 
 	let { data } = $props();
 	let conversation = $derived(data.conversation);
@@ -162,6 +164,8 @@
 	}
 
 </script>
+
+<StepNavigation />
 
 <h1 class="mb-10 flex flex-row items-center gap-2 text-4xl">
 	<TerminalSquare /> Configure

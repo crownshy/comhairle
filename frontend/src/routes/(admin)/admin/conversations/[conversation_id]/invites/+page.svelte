@@ -16,6 +16,7 @@
 	import * as Table from '$lib/components/ui/table/index.js';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import { Share2 } from 'lucide-svelte';
+	import StepNavigation from '$lib/components/StepNavigation.svelte';
 	import OpenInviteStatsBarChart from '$lib/components/OpenInviteStatsBarChart.svelte';
 	let sendEmailDiaglogOpen = $state(false);
 
@@ -51,6 +52,8 @@
 		<CopyButton copyText={inviteUrl(invite)}>Link</CopyButton>
 	</div>
 {/snippet}
+
+<StepNavigation />
 
 <h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><Share2 /> Recruit</h1>
 
