@@ -9,16 +9,10 @@
 		Info,
 		LayoutDashboard,
 		MessageSquareText,
-		NotebookText,
-		Pencil,
-		Binoculars,
 		Plus,
-		Settings,
-		TerminalSquare,
-		UsersRound,
-		Bell,
-		Database
+		Settings
 	} from 'lucide-svelte';
+	import { conversationSteps } from '$lib/config/conversation-steps';
 	import { Button } from './ui/button';
 	let props = $props();
 	let path = $derived(props.path);
@@ -91,83 +85,19 @@
 											{/snippet}
 										</Collapsible.Trigger>
 										<Collapsible.Content>
-											<SideBar.MenuSub>
-												<SideBar.MenuSubItem>
-													<SideBar.MenuSubButton
-														href={`/admin/conversations/${conversation.id}/configure`}
-														class={path.includes('configure') ? 'font-bold' : ''}
-														><TerminalSquare
-															class="stroke-nav-text hover:stroke-sidebar-foreground"
-														/>Configure</SideBar.MenuSubButton
-													>
-												</SideBar.MenuSubItem>
-											</SideBar.MenuSub>
-											<SideBar.MenuSub>
-												<SideBar.MenuSubItem>
-													<SideBar.MenuSubButton
-														href={`/admin/conversations/${conversation.id}/design`}
-														class={path.includes('design') ? 'font-bold' : ''}
-														><Pencil class="stroke-nav-text hover:stroke-sidebar-foreground" /> Design</SideBar.MenuSubButton
-													>
-												</SideBar.MenuSubItem>
-											</SideBar.MenuSub>
-											<SideBar.MenuSub>
-												<SideBar.MenuSubItem>
-													<SideBar.MenuSubButton
-														href={`/admin/conversations/${conversation.id}/invites`}
-														class={path.includes('invites') ? 'font-bold' : ''}
-														><UsersRound class="stroke-nav-text hover:stroke-sidebar-foreground" /> Recruit</SideBar.MenuSubButton
-													>
-												</SideBar.MenuSubItem>
-											</SideBar.MenuSub>
-											<SideBar.MenuSub>
-												<SideBar.MenuSubItem>
-													<SideBar.MenuSubButton
-														href={`/admin/conversations/${conversation.id}/monitor`}
-														class={path.includes('monitor') ? 'font-bold' : ''}
-														><Binoculars class="stroke-nav-text hover:stroke-sidebar-foreground" /> Monitor</SideBar.MenuSubButton
-													>
-												</SideBar.MenuSubItem>
-											</SideBar.MenuSub>
-											<SideBar.MenuSub>
-												<SideBar.MenuSubItem>
-													<SideBar.MenuSubButton
-														href={`/admin/conversations/${conversation.id}/moderate`}
-														class={path.includes('moderate') ? 'font-bold' : ''}
-														><UsersRound class="stroke-nav-text hover:stroke-sidebar-foreground" /> Moderate</SideBar.MenuSubButton
-													>
-												</SideBar.MenuSubItem>
-											</SideBar.MenuSub>
-											<SideBar.MenuSub>
-												<SideBar.MenuSubItem>
-													<SideBar.MenuSubButton
-														href={`/admin/conversations/${conversation.id}/knowledge-base`}
-														class={path.includes('knowledge-base') ? 'font-bold' : ''}
-														><Database class="stroke-nav-text hover:stroke-sidebar-foreground" /> Knowledge
-														base</SideBar.MenuSubButton
-													>
-												</SideBar.MenuSubItem>
-											</SideBar.MenuSub>
-											<SideBar.MenuSub>
-												<SideBar.MenuSubItem>
-													<SideBar.MenuSubButton
-														href={`/admin/conversations/${conversation.id}/notifications`}
-														class={path.includes('notifications') ? 'font-bold' : ''}
-														><Bell class="stroke-nav-text hover:stroke-sidebar-foreground" /> Notify</SideBar.MenuSubButton
-													>
-												</SideBar.MenuSubItem>
-											</SideBar.MenuSub>
-											<SideBar.MenuSub>
-												<SideBar.MenuSubItem>
-													<SideBar.MenuSubButton
-														href={`/admin/conversations/${conversation.id}/report`}
-														class={path.includes('report') ? 'font-bold' : ''}
-														><NotebookText
-															class="stroke-nav-text hover:stroke-sidebar-foreground"
-														/> Report</SideBar.MenuSubButton
-													>
-												</SideBar.MenuSubItem>
-											</SideBar.MenuSub>
+											{#each conversationSteps as step}
+												<SideBar.MenuSub>
+													<SideBar.MenuSubItem>
+														<SideBar.MenuSubButton
+															href={`/admin/conversations/${conversation.id}/${step.path}`}
+															class={path.includes(step.path) ? 'font-bold' : ''}
+															><step.icon
+																class="stroke-nav-text hover:stroke-sidebar-foreground"
+															/> {step.name}</SideBar.MenuSubButton
+														>
+													</SideBar.MenuSubItem>
+												</SideBar.MenuSub>
+											{/each}
 										</Collapsible.Content>
 									</SideBar.MenuItem>
 								</Collapsible.Root>

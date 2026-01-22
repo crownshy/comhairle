@@ -1,17 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
-
-	const steps = [
-		{ name: 'Configure', path: 'configure' },
-		{ name: 'Design', path: 'design' },
-		{ name: 'Recruit', path: 'invites' },
-		{ name: 'Monitor', path: 'monitor' },
-		{ name: 'Moderate', path: 'moderate' },
-		{ name: 'Knowledge base', path: 'knowledge-base' },
-		{ name: 'Notify', path: 'notifications' },
-		{ name: 'Report', path: 'report' }
-	];
+	import { conversationSteps } from '$lib/config/conversation-steps';
 
 	let conversationId = $derived($page.params.conversation_id);
 	let currentPath = $derived($page.url.pathname);
@@ -19,11 +9,11 @@
 	let currentIndex = $derived.by(() => {
 		const pathParts = currentPath.split('/');
 		const lastPart = pathParts[pathParts.length - 1];
-		return steps.findIndex(s => s.path === lastPart);
+		return conversationSteps.findIndex(s => s.path === lastPart);
 	});
 
-	let prevStep = $derived(currentIndex > 0 ? steps[currentIndex - 1] : null);
-	let nextStep = $derived(currentIndex < steps.length - 1 ? steps[currentIndex + 1] : null);
+	let prevStep = $derived(currentIndex > 0 ? conversationSteps[currentIndex - 1] : null);
+	let nextStep = $derived(currentIndex < conversationSteps.length - 1 ? conversationSteps[currentIndex + 1] : null);
 
 	function getStepUrl(step: { path: string }) {
 		return `/admin/conversations/${conversationId}/${step.path}`;
