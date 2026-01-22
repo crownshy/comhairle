@@ -4,6 +4,7 @@
 	import ParsedFileList from '$lib/components/KnowledgeBase/ParsedFileList.svelte';
 	import ParsingFileList from '$lib/components/KnowledgeBase/ParsingFileList.svelte';
 	import { Database } from 'lucide-svelte';
+	import StepNavigation from '$lib/components/StepNavigation.svelte';
 
 	type Props = {
 		data: {
@@ -27,6 +28,8 @@
 		)
 	);
 </script>
+
+<StepNavigation />
 
 <h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><Database /> Knowledge Base</h1>
 <p class="mb-10">Use this space to manage your conversation's knowledge base</p>

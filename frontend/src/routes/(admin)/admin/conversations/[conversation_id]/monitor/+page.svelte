@@ -7,6 +7,7 @@
 	import GenderComparison from '$lib/components/GenderComparison.svelte';
 	import GeoComparison from '$lib/components/GeoComparison/GeoComparison.svelte';
 	import * as Card from '$lib/components/ui/card';
+	import StepNavigation from '$lib/components/StepNavigation.svelte';
 
 	import type { PageProps } from './$types';
 
@@ -39,6 +40,8 @@
 		}
 	];
 </script>
+
+<StepNavigation />
 
 <h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><Binoculars /> Monitor</h1>
 <p class="mb-10">
