@@ -183,27 +183,33 @@ pub async fn create_for_conversation(
     let workflows = workflow::list(&db, conversation_id).await?;
     let workflow_steps = workflow_step::list(&db, &workflows[0].id).await?;
 
-    let section_configs: Vec<ReportSectionConfig> = workflow_steps
+    let section_configs: Result<Vec<ReportSectionConfig>, ComhairleError> = workflow_steps
         .iter()
         .map(|step| {
-            let config = match &step.tool_config {
-                ToolConfig::Polis(_) => ReportConfig::Polis(PolisReport),
-                ToolConfig::Learn(_) => ReportConfig::Learn(LearnReport),
-                ToolConfig::HeyForm(_) => ReportConfig::HeyForm(HeyFormReport),
-                ToolConfig::Stories(_) => ReportConfig::Stories(StoriesReport),
-                ToolConfig::ElicitationBot(_) => ReportConfig::ElicitationBot(ElicitationBotReport),
-            };
+            if let Some(tool_config) = &step.tool_config {
+                let config = match tool_config {
+                    ToolConfig::Polis(_) => ReportConfig::Polis(PolisReport),
+                    ToolConfig::Learn(_) => ReportConfig::Learn(LearnReport),
+                    ToolConfig::HeyForm(_) => ReportConfig::HeyForm(HeyFormReport),
+                    ToolConfig::Stories(_) => ReportConfig::Stories(StoriesReport),
+                    ToolConfig::ElicitationBot(_) => {
+                        ReportConfig::ElicitationBot(ElicitationBotReport)
+                    }
+                };
 
-            ReportSectionConfig {
-                workflow_step_id: step.id,
-                config,
-                ai_generated: false,
-                verified: false,
+                Ok(ReportSectionConfig {
+                    workflow_step_id: step.id,
+                    config,
+                    ai_generated: false,
+                    verified: false,
+                })
+            } else {
+                return Err(ComhairleError::ToolConfigMismatch);
             }
         })
         .collect();
 
-    let section_configs = ReportSectionConfigs(section_configs);
+    let section_configs = ReportSectionConfigs(section_configs?);
 
     let values: Vec<sea_query::SimpleExpr> = vec![
         false.into(),

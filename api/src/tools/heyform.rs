@@ -69,6 +69,26 @@ fn generate_password() -> String {
     password.into_iter().collect()
 }
 
+pub async fn launch(
+    preview_config: &HeyFormToolConfig,
+) -> Result<HeyFormToolConfig, ComhairleError> {
+    let preview_client = HeyFormClient::new("https://forms.comhairle.scot")?;
+    let live_client = HeyFormClient::new("https://forms.comhairle.scot")?;
+
+    preview_client
+        .login(LoginInput {
+            email: preview_config.admin_user.clone(),
+            password: preview_config.admin_password.clone(),
+        })
+        .await?;
+
+    let new_form_id = preview_client.clone_form(&preview_config.survey_id).await?;
+    let mut new_config = preview_config.clone();
+    new_config.survey_url = new_form_id;
+
+    Ok(new_config)
+}
+
 pub async fn setup(_setup_config: &HeyFormToolSetup) -> Result<HeyFormToolConfig, ComhairleError> {
     let client = HeyFormClient::new("https://forms.comhairle.scot")?;
 

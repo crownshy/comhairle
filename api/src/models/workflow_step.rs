@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use crate::bot_service::ComhairleBotService;
 use crate::models::translations::{new_translation, TextContentId, TextFormat};
-use crate::tools;
+use crate::tools::{self, ToolConfigSanitize};
+use crate::ComhairleState;
 use chrono::{DateTime, Utc};
 use comhairle_macros::{DbJsonBEnum, Translatable};
 use partially::Partial;
@@ -28,7 +29,7 @@ pub enum ActivationRule {
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "workflow_step")]
-#[partially(derive(Deserialize, Debug, JsonSchema))]
+#[partially(derive(Deserialize, Debug, JsonSchema, Default))]
 pub struct WorkflowStep {
     #[partially(omit)]
     pub id: Uuid,
@@ -40,14 +41,16 @@ pub struct WorkflowStep {
     pub description: TextContentId,
     pub is_offline: bool,
     pub required: bool,
-    pub tool_config: ToolConfig,
+    #[partially(transparent)]
+    pub tool_config: Option<ToolConfig>,
+    pub preview_tool_config: ToolConfig,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [WorkflowStepIden; 11] = [
+const DEFAULT_COLUMNS: [WorkflowStepIden; 12] = [
     WorkflowStepIden::Id,
     WorkflowStepIden::Name,
     WorkflowStepIden::WorkflowId,
@@ -56,6 +59,7 @@ const DEFAULT_COLUMNS: [WorkflowStepIden; 11] = [
     WorkflowStepIden::Description,
     WorkflowStepIden::IsOffline,
     WorkflowStepIden::ToolConfig,
+    WorkflowStepIden::PreviewToolConfig,
     WorkflowStepIden::Required,
     WorkflowStepIden::CreatedAt,
     WorkflowStepIden::UpdatedAt,
@@ -78,6 +82,34 @@ async fn reset_orders(pool: &mut PgConnection, workflow_id: &Uuid) -> Result<(),
     .execute(pool)
     .await?;
 
+    Ok(())
+}
+
+/// Create the live version of this workflow step
+pub async fn launch(db: &PgPool, workflow_step_id: &Uuid) -> Result<(), ComhairleError> {
+    let workflow_step = get_by_id(&db, workflow_step_id).await?;
+    let new_live_config = match workflow_step.preview_tool_config {
+        ToolConfig::Polis(preview_config) => ToolConfig::Polis(preview_config),
+        ToolConfig::Learn(preview_config) => ToolConfig::Learn(preview_config.clone()),
+        ToolConfig::HeyForm(preview_config) => {
+            ToolConfig::HeyForm(tools::heyform::launch(&preview_config).await?)
+        }
+        ToolConfig::Stories(preview_config) => ToolConfig::Stories(preview_config.clone()),
+        ToolConfig::ElicitationBot(elicitation_bot_tool_config) => {
+            ToolConfig::ElicitationBot(elicitation_bot_tool_config.clone())
+        }
+    };
+
+    update(
+        &db,
+        workflow_step_id,
+        &workflow_step.workflow_id,
+        &PartialWorkflowStep {
+            tool_config: Some(new_live_config),
+            ..Default::default()
+        },
+    )
+    .await?;
     Ok(())
 }
 
@@ -152,6 +184,10 @@ impl PartialWorkflowStep {
             values.push((WorkflowStepIden::ToolConfig, value.into()))
         };
 
+        if let Some(value) = &self.tool_config {
+            values.push((WorkflowStepIden::PreviewToolConfig, value.into()))
+        };
+
         if let Some(value) = self.step_order {
             values.push((WorkflowStepIden::StepOrder, value.into()))
         };
@@ -162,6 +198,18 @@ impl PartialWorkflowStep {
             values.push((WorkflowStepIden::Required, value.into()))
         };
         values
+    }
+}
+impl LocalisedWorkflowStep {
+    pub fn sanatize(&mut self) {
+        self.preview_tool_config = self.preview_tool_config.sanatize();
+        self.tool_config = self.tool_config.clone().map(|s| s.sanatize());
+    }
+}
+impl WorkflowStep {
+    pub fn sanatize(&mut self) {
+        self.preview_tool_config = self.preview_tool_config.sanatize();
+        self.tool_config = self.tool_config.clone().map(|s| s.sanatize());
     }
 }
 
@@ -260,8 +308,8 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<WorkflowStep, ComhairleErr
 
 pub async fn update(
     db: &PgPool,
-    workflow_step_id: Uuid,
-    workflow_id: Uuid,
+    workflow_step_id: &Uuid,
+    workflow_id: &Uuid,
     update: &PartialWorkflowStep,
 ) -> Result<WorkflowStep, ComhairleError> {
     let values = update.to_values();
@@ -347,40 +395,11 @@ pub async fn list_localised(
     Ok(workflow_steps)
 }
 
-pub async fn create(
-    db: &PgPool,
-    bot_service: &Arc<dyn ComhairleBotService>,
-    new_workflow_step: &CreateWorkflowStep,
-    workflow_id: Uuid,
-    primary_locale: &str,
-) -> Result<WorkflowStep, ComhairleError> {
-    // Generate Translations
-    let name_translation = new_translation(
-        &db,
-        &primary_locale,
-        &new_workflow_step.name,
-        TextFormat::Plain,
-    )
-    .await?;
-
-    let description_translation = new_translation(
-        &db,
-        &primary_locale,
-        &new_workflow_step.description,
-        TextFormat::Rich,
-    )
-    .await?;
-
-    let mut columns = new_workflow_step.columns();
-    let mut values = new_workflow_step.values();
-
-    columns.push(WorkflowStepIden::Name);
-    values.push(name_translation.id.into());
-
-    columns.push(WorkflowStepIden::Description);
-    values.push(description_translation.id.into());
-
-    let tool_config = match &new_workflow_step.tool_setup {
+pub async fn setup_tool(
+    state: &Arc<ComhairleState>,
+    setup: &ToolSetup,
+) -> Result<ToolConfig, ComhairleError> {
+    let config = match &setup {
         ToolSetup::Polis(polis_tool_setup) => ToolConfig::Polis(
             tools::polis::setup(&polis_tool_setup)
                 .await
@@ -399,17 +418,54 @@ pub async fn create(
             ToolConfig::Stories(tools::stories::setup(&stories_tool_setup).await?)
         }
         ToolSetup::ElicitationBot(elicitation_bot_setup) => ToolConfig::ElicitationBot(
-            tools::elicitation_bot::setup(&elicitation_bot_setup, bot_service).await?,
+            tools::elicitation_bot::setup(&elicitation_bot_setup, &state.bot_service).await?,
         ),
     };
+    Ok(config)
+}
+
+pub async fn create(
+    state: &Arc<ComhairleState>,
+    new_workflow_step: &CreateWorkflowStep,
+    workflow_id: Uuid,
+    primary_locale: &str,
+) -> Result<WorkflowStep, ComhairleError> {
+    // Generate Translations
+    let name_translation = new_translation(
+        &state.db,
+        &primary_locale,
+        &new_workflow_step.name,
+        TextFormat::Plain,
+    )
+    .await?;
+
+    let description_translation = new_translation(
+        &state.db,
+        &primary_locale,
+        &new_workflow_step.description,
+        TextFormat::Rich,
+    )
+    .await?;
+
+    let mut columns = new_workflow_step.columns();
+    let mut values = new_workflow_step.values();
+
+    columns.push(WorkflowStepIden::Name);
+    values.push(name_translation.id.into());
+
+    columns.push(WorkflowStepIden::Description);
+    values.push(description_translation.id.into());
+
+    let tool_config = setup_tool(state, &new_workflow_step.tool_setup).await?;
+    let preview_tool_config = setup_tool(state, &new_workflow_step.tool_setup).await?;
 
     columns.push(WorkflowStepIden::WorkflowId);
     values.push(workflow_id.into());
 
-    columns.push(WorkflowStepIden::ToolConfig);
-    values.push(serde_json::to_value(tool_config).unwrap().into());
+    columns.push(WorkflowStepIden::PreviewToolConfig);
+    values.push(serde_json::to_value(preview_tool_config).unwrap().into());
 
-    let mut transaction = db.begin().await?;
+    let mut transaction = state.db.begin().await?;
 
     // Check to see if there is already a
     // workflow set at this order no and if there

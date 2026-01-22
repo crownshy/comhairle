@@ -7,7 +7,7 @@ use super::{
     workflow::WorkflowIden,
 };
 use crate::{
-    bot_service::ComhairleBotService, config::ComhairleConfig, error::ComhairleError,
+    bot_service::ComhairleBotService, config::ComhairleConfig, error::ComhairleError, models,
     routes::bot::chats::CreateChatRequest,
 };
 use chrono::{DateTime, Utc};
@@ -39,6 +39,7 @@ pub struct Conversation {
     pub image_url: String,
     pub tags: Vec<String>,
     pub is_public: bool,
+    pub is_live: bool,
     pub is_complete: bool,
     #[partially(omit)]
     pub owner_id: Uuid,
@@ -58,7 +59,7 @@ pub struct Conversation {
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ConversationIden; 20] = [
+const DEFAULT_COLUMNS: [ConversationIden; 21] = [
     ConversationIden::Id,
     ConversationIden::Title,
     ConversationIden::ShortDescription,
@@ -67,6 +68,7 @@ const DEFAULT_COLUMNS: [ConversationIden; 20] = [
     ConversationIden::ImageUrl,
     ConversationIden::Tags,
     ConversationIden::IsPublic,
+    ConversationIden::IsLive,
     ConversationIden::IsComplete,
     ConversationIden::IsInviteOnly,
     ConversationIden::Slug,
@@ -113,6 +115,9 @@ impl PartialConversation {
         };
         if let Some(value) = self.is_public {
             values.push((ConversationIden::IsPublic, value.into()))
+        };
+        if let Some(value) = self.is_live {
+            values.push((ConversationIden::IsLive, value.into()))
         };
         if let Some(value) = self.is_complete {
             values.push((ConversationIden::IsComplete, value.into()))
@@ -457,6 +462,7 @@ pub struct CreateConversation {
     pub image_url: String,
     pub tags: Option<Vec<String>>,
     pub is_public: bool,
+    pub is_live: bool,
     pub is_invite_only: bool,
     pub slug: Option<String>,
     #[cfg_attr(test, dummy(expr = "None"))]
@@ -473,6 +479,7 @@ impl CreateConversation {
             ConversationIden::ImageUrl,
             ConversationIden::Tags,
             ConversationIden::IsPublic,
+            ConversationIden::IsLive,
             ConversationIden::IsInviteOnly,
             ConversationIden::PrimaryLocale,
             ConversationIden::SupportedLanguages,
@@ -486,6 +493,7 @@ impl CreateConversation {
             self.image_url.to_owned().into(),
             tags.into(),
             self.is_public.into(),
+            self.is_live.into(),
             self.is_invite_only.into(),
             self.primary_locale.to_owned().into(),
             self.supported_languages.to_owned().into(),
@@ -644,6 +652,29 @@ pub async fn list_owned(
     Ok(conversations)
 }
 
+pub async fn launch(
+    db: &PgPool,
+    conversation_id: Uuid,
+) -> Result<LocalisedConversation, ComhairleError> {
+    let workflows = models::workflow::list(db, conversation_id).await?;
+    for workflow in workflows {
+        models::workflow::launch(&db, &workflow.id).await?;
+    }
+
+    update(
+        &db,
+        &conversation_id,
+        &PartialConversation {
+            is_live: Some(true),
+            ..Default::default()
+        },
+    )
+    .await?;
+
+    let conversation = get_localised_by_id(&db, &conversation_id).await?;
+
+    Ok(conversation)
+}
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,

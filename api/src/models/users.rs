@@ -552,6 +552,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
+                    "is_live" : true,
                     "is_invite_only" : false,
                     "primary_locale" : "en",
                     "supported_languages" : ["en"],

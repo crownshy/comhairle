@@ -37,8 +37,7 @@ async fn create_workflow_step(
 
     info!("Attempting to create workflow");
     let workflow = workflow_step::create(
-        &state.db,
-        &state.bot_service,
+        &state,
         &new_workflow,
         workflow_id,
         &conversation.primary_locale,
@@ -54,7 +53,7 @@ async fn update_workflow_step(
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(workflow): Json<PartialWorkflowStep>,
 ) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
-    let workflow = workflow_step::update(&state.db, id, workflow_id, &workflow).await?;
+    let workflow = workflow_step::update(&state.db, &id, &workflow_id, &workflow).await?;
     Ok((StatusCode::OK, Json(workflow)))
 }
 
@@ -73,7 +72,7 @@ async fn update_elicitation_bot_workflow_step(
         }
     };
 
-    let workflow = workflow_step::update(&state.db, id, workflow_id, &workflow).await?;
+    let workflow = workflow_step::update(&state.db, &id, &workflow_id, &workflow).await?;
 
     let body = UpdateAgentRequest {
         // Ragflow returning an error if title omitted even though it successfully saves
@@ -107,7 +106,7 @@ async fn list_workflows_step(
 
     if !conversation_owner {
         for workflow_step in workflow_steps.iter_mut() {
-            workflow_step.tool_config = workflow_step.tool_config.sanatize()
+            workflow_step.sanatize();
         }
     }
 
@@ -129,7 +128,7 @@ async fn get_workflow_step(
         workflow_step::get_localised_by_id(&state.db, &workflow_step_id, "en").await?;
 
     if !conversation_owner {
-        workflow_step.tool_config = workflow_step.tool_config.sanatize()
+        workflow_step.sanatize();
     }
 
     Ok((StatusCode::OK, Json(workflow_step)))
