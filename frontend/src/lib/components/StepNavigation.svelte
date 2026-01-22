@@ -5,11 +5,10 @@
 
 	let conversationId = $derived($page.params.conversation_id);
 	let currentPath = $derived($page.url.pathname);
-	
+
 	let currentIndex = $derived.by(() => {
 		const pathParts = currentPath.split('/');
-		const lastPart = pathParts[pathParts.length - 1];
-		return conversationSteps.findIndex(s => s.path === lastPart);
+		return conversationSteps.findIndex(s => pathParts.includes(s.path));
 	});
 
 	let prevStep = $derived(currentIndex > 0 ? conversationSteps[currentIndex - 1] : null);

@@ -5,6 +5,7 @@
 	import HeyFormManage from '$lib/tools/heyform/HeyFormManage.svelte';
 	import EliciationBotManage from '$lib/tools/elicitation_bot/ElicitationBotManage.svelte';
 	import LivedExperienceManage from '$lib/tools/lived_experince/LivedExperinceManage.svelte';
+	import StepNavigation from '$lib/components/StepNavigation.svelte';
 	import type { WorkflowStep } from '$lib/api/api.js';
 	import { goto } from '$app/navigation';
 	let { data } = $props();
@@ -16,6 +17,8 @@
 
 	console.log('step config ', step);
 </script>
+
+<StepNavigation />
 
 <CommonStepConfig conversation_id={conversation.id} {step} />
 
