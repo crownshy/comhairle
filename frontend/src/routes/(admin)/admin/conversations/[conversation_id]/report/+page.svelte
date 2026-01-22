@@ -71,7 +71,7 @@
 	}
 </script>
 
-<StepNavigation workflowSteps={workflow_steps} />
+<StepNavigation workflowSteps={workflow_steps} conversationSlug={conversation.slug} />
 
 <h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><NotebookText /> Report</h1>
 <p class="mb-10">Use this space to edit the report for this conversation</p>

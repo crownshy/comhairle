@@ -6,9 +6,10 @@
 
 	interface Props {
 		workflowSteps?: WorkflowStep[];
+		conversationSlug?: string;
 	}
 
-	let { workflowSteps = [] }: Props = $props();
+	let { workflowSteps = [], conversationSlug }: Props = $props();
 
 	let conversationId = $derived($page.params.conversation_id);
 	let currentPath = $derived($page.url.pathname);
@@ -103,33 +104,36 @@
 	let nextItem = $derived(currentIndex < navItems.length - 1 ? navItems[currentIndex + 1] : null);
 </script>
 
-<div class="flex justify-end items-center gap-4">
-	{#if prevItem}
-		<span class="text-sm text-muted-foreground hidden sm:inline">
-			Previous: {prevItem.name}
-		</span>
-	{/if}
-	<a
-		href={prevItem ? prevItem.url : '#'}
-		class="h-10 w-10 rounded-full shadow-sm border flex justify-center items-center transition-colors
-			{prevItem ? 'hover:bg-muted cursor-pointer' : 'opacity-30 cursor-not-allowed pointer-events-none'}"
-		aria-label={prevItem ? `Go to ${prevItem.name}` : 'No previous step'}
-		title={prevItem?.name}
-	>
-		<ChevronLeft class="w-5 h-5" />
-	</a>
-	<a
-		href={nextItem ? nextItem.url : '#'}
-		class="h-10 w-10 rounded-full shadow-sm border flex justify-center items-center transition-colors
-			{nextItem ? 'hover:bg-muted cursor-pointer' : 'opacity-30 cursor-not-allowed pointer-events-none'}"
-		aria-label={nextItem ? `Go to ${nextItem.name}` : 'No next step'}
-		title={nextItem?.name}
-	>
-		<ChevronRight class="w-5 h-5" />
-	</a>
-	{#if nextItem}
-		<span class="text-sm text-muted-foreground hidden sm:inline">
-			{nextItem.label}
-		</span>
-	{/if}
+<div class="flex justify-end items-center mb-4">
+	<div class="inline-flex rounded-full border shadow-sm overflow-hidden">
+		{#if prevItem}
+			<a
+				href={prevItem.url}
+				class="flex items-center gap-2 px-4 py-2 text-sm transition-colors border-r hover:bg-muted"
+				aria-label={`Go to ${prevItem.name}`}
+			>
+				<ChevronLeft class="w-4 h-4" />
+				<span class="hidden sm:inline">Previous: {prevItem.name}</span>
+			</a>
+		{/if}
+		{#if nextItem}
+			<a
+				href={nextItem.url}
+				class="flex items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-muted"
+				aria-label={`Go to ${nextItem.name}`}
+			>
+				<span class="hidden sm:inline">Next: {nextItem.name}</span>
+				<ChevronRight class="w-4 h-4" />
+			</a>
+		{:else if conversationSlug}
+			<a
+				href={`/conversations/${conversationSlug}`}
+				class="flex items-center gap-2 px-4 py-2 text-sm transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
+				aria-label="View conversation"
+			>
+				<span class="hidden sm:inline">Finish</span>
+				<ChevronRight class="w-4 h-4" />
+			</a>
+		{/if}
+	</div>
 </div>
