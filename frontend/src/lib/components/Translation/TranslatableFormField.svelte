@@ -27,7 +27,7 @@
 	function handleInput(e: Event) {
 		const newValue = (e.currentTarget as HTMLInputElement | HTMLTextAreaElement).value;
 		onValueChange(newValue);
-		if (hasTranslations) onPrimaryChange();
+		onPrimaryChange();
 	}
 </script>
 
