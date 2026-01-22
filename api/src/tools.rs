@@ -5,8 +5,6 @@ use comhairle_macros::DbJsonBEnum;
 use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sqlx::{encode::IsNull, prelude::Type, Decode, Encode, Postgres};
-use sqlx_postgres::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef};
 
 use crate::{error::ComhairleError, ComhairleState};
 
@@ -55,9 +53,7 @@ pub enum ToolConfig {
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
-    ApiRouter::new()
-        .nest_api_service("/polis", polis::router(state.clone()))
-        .with_state(state)
+    ApiRouter::new().with_state(state)
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]

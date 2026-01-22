@@ -1,7 +1,8 @@
-use std::collections::HashMap;
-
 use chrono::{DateTime, Utc};
+
+#[cfg(test)]
 use fake::Dummy;
+
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{enum_def, Expr, Order, PostgresQueryBuilder, Query};
@@ -92,6 +93,15 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleErro
         .map_err(|_| ComhairleError::ResourceNotFound("Workflow".into()))?;
 
     Ok(conversation)
+}
+
+pub async fn launch(db: &PgPool, workflow_id: &Uuid) -> Result<(), ComhairleError> {
+    let steps = workflow_step::list(&db, workflow_id).await?;
+    for step in steps {
+        workflow_step::launch(&db, &step.id).await?;
+    }
+
+    return Ok(());
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]

@@ -201,6 +201,9 @@ pub enum ComhairleError {
     #[error("Download error: {0}")]
     DownloadError(String),
 
+    #[error("Preview tool and live tool config dont match type")]
+    ToolConfigMismatch,
+
     #[error("Bad request: {0}")]
     BadRequest(String),
 

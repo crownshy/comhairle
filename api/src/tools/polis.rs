@@ -13,6 +13,7 @@ use rand::{distributions::Alphanumeric, Rng};
 use reqwest::{header::SET_COOKIE, Client};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use thiserror::Error;
 use tracing::{info, warn};
 use uuid::Uuid;
@@ -95,6 +96,15 @@ struct NewPollResp {
 
 pub struct PolisClient {
     client: reqwest::Client,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct PolisComment {
+    pub tid: u32,
+    pub txt: String,
+    pub is_seed: bool,
+    pub is_meta: bool,
+    pub lang: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -235,11 +245,20 @@ impl PolisClient {
         Ok(())
     }
 
-    pub async fn post_seed_comment(&self) -> Result<String, PolisError> {
+    pub async fn post_seed_comment(
+        &self,
+        comment: &str,
+        poll_id: &str,
+    ) -> Result<String, PolisError> {
         let body = self
             .client
             .post(format!("{POLIS_BASE_URL}/api/v3/comments"))
-            .json("")
+            .json(
+                &json!(
+                    {"txt":comment,"pid":"mypid","conversation_id":poll_id,"is_seed":true}
+                )
+                .to_string(),
+            )
             .send()
             .await
             .unwrap()
@@ -247,6 +266,21 @@ impl PolisClient {
             .await
             .unwrap();
         Ok("test".into())
+    }
+
+    pub async fn get_comments(&self, poll_id: &str) -> Result<Vec<PolisComment>, PolisError> {
+        let comments: Vec<PolisComment> = self
+            .client
+            .get(format!(
+                "{POLIS_BASE_URL}/api/v3/comments?conversation_id=${poll_id}"
+            ))
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        Ok(comments)
     }
 }
 
@@ -264,7 +298,7 @@ async fn admin_login(
 ) -> Result<(CookieJar, (StatusCode, Json<String>)), ComhairleError> {
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
 
-    if let ToolConfig::Polis(config) = workflow_step.tool_config {
+    if let ToolConfig::Polis(config) = workflow_step.preview_tool_config {
         let client = PolisClient::new();
         let cookie = client
             .login(&PolisLogin {
@@ -283,159 +317,27 @@ async fn admin_login(
     }
 }
 
-fn rewrite_local_urls(input: &str, prefix: &str) -> String {
-    // Match string literals that start with a single slash ("/...") inside either single or double quotes
-    // This helps avoid JS regexes (which are not inside quotes)
-    let re = Regex::new(r#"(?P<quote>["'])(?P<slash>/)(?P<path>(?!/)[^"']*)"#).unwrap();
+pub async fn launch(preview_config: &PolisToolConfig) -> Result<PolisToolConfig, ComhairleError> {
+    let client = PolisClient::new();
+    client
+        .login(&PolisLogin {
+            email: preview_config.admin_user.clone(),
+            password: preview_config.admin_password.clone(),
+        })
+        .await?;
 
-    re.replace_all(input, |caps: &fancy_regex::Captures| {
-        let quote = &caps["quote"];
-        let path = &caps["path"];
-        let prefix = prefix.trim_end_matches('/');
+    let poll_id = client.create_poll().await?;
 
-        let result = format!("{quote}{}/{path}", prefix);
-        info!("{result}");
-        result
-    })
-    .into_owned()
-}
+    let seed_statements = client.get_comments(&preview_config.poll_id).await?;
 
-pub async fn proxy(req: Request) -> Result<Response, ComhairleError> {
-    let client = Client::new();
-    let (parts, body) = req.into_parts();
-    let method = parts.method;
-    let path = parts.uri.path();
-    let headers = parts.headers;
-
-    let path_query = parts
-        .uri
-        .path_and_query()
-        .map(|v| v.as_str())
-        .unwrap_or(path);
-
-    let new_uri = format!(
-        "http://poliscommunity.crown-shy.com{}",
-        // "http://example.com{}",
-        path_query.replace("/proxy", "")
-    );
-
-    info!("Proxying to {new_uri}");
-
-    let mut new_req = Request::builder().method(method).uri(new_uri.clone());
-
-    // Copy headers
-    for (k, v) in headers.iter() {
-        if k != "host" && k != "content-length" {
-            new_req = new_req.header(k, v.clone());
-        }
+    for comment in seed_statements {
+        client.post_seed_comment(&comment.txt, &poll_id).await?;
     }
 
-    // Finalize request
-    let new_req = match new_req.body(body) {
-        Ok(req) => req,
-        Err(_) => {
-            return Err(PolisError::ProxyError {
-                from: path_query.to_owned(),
-                to: new_uri.clone().to_string(),
-            }
-            .into())
-        }
-    };
+    let mut new_config = preview_config.clone();
+    new_config.poll_id = poll_id;
 
-    let method = new_req.method().clone();
-    let url = new_req.uri().clone().to_string();
-    let headers = new_req.headers().clone();
-
-    let body_bytes = axum::body::to_bytes(new_req.into_body(), usize::MAX)
-        .await
-        .map_err(|e| {
-            warn!("Proxy error {e}");
-            PolisError::ProxyError {
-                from: path_query.to_owned(),
-                to: new_uri.clone().to_string(),
-            }
-        })?;
-
-    // let response = client
-    //     .request(method, url)
-    //     .headers(headers)
-    //     .body(reqwest::Body::from(body_bytes))
-    //     .send()
-    //     .await
-    //     .map_err(|err| {
-    //         warn!("Polis Proxy error: {err:#?}");
-    //         PolisError::ProxyError {
-    //             from: path_query.to_owned(),
-    //             to: new_uri.to_string(),
-    //         }
-    //     })?;
-
-    let response = client
-        .get(new_uri.clone())
-        // .headers(headers)
-        // .body(reqwest::Body::from(body_bytes))
-        .send()
-        .await
-        .map_err(|err| {
-            warn!("Polis Proxy error: {err:#?}");
-            PolisError::ProxyError {
-                from: path_query.to_owned(),
-                to: new_uri.to_string(),
-            }
-        })?;
-
-    info!("Reponse {response:#?}");
-
-    let status = response.status();
-
-    let mut response_builder = Response::builder().status(status);
-
-    for (key, value) in response.headers() {
-        info!("{key} : {value:#?}");
-        if key == "content-type" {
-            response_builder = response_builder.header(key, value);
-        }
-    }
-
-    let body = response.text().await.map_err(|e| {
-        warn!("{e}");
-
-        PolisError::ProxyError {
-            from: path_query.to_owned(),
-            to: new_uri.to_string(),
-        }
-    })?;
-
-    // let replaced = rewrite_local_urls(&body, "/tools/polis/proxy/");
-    // info!("{replaced}");
-
-    response_builder.body(body.into()).map_err(|e| {
-        warn!("Proxy error {e:#?}");
-        PolisError::ProxyError {
-            from: path_query.to_owned(),
-            to: new_uri.to_string(),
-        }
-        .into()
-    })
-    // Ok(Json(json!({"works":"ok"})).into_response())
-}
-
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
-    // let polis_host = axum_proxy::builder_https("poliscommunity.crown-shy.com").unwrap();
-    // let host1 = axum_proxy::builder_http("example.com").unwrap();
-    ApiRouter::new()
-        .route_service("/proxy{*rest}", axum::routing::any(proxy))
-        .api_route(
-            "/admin_login",
-            get_with(admin_login, |op| {
-                op.id("PolisAdminLogin".into())
-                    .description(
-                        "Used to login the current user to the specified workflow id polis",
-                    )
-                    .response::<200, Json<String>>()
-            }),
-        )
-        .with_state(state)
+    Ok(new_config)
 }
 
 pub async fn setup(_setup: &PolisToolSetup) -> Result<PolisToolConfig, ComhairleError> {

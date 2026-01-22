@@ -92,6 +92,15 @@ async fn list_conversations(
     Ok((StatusCode::OK, Json(conversations)))
 }
 
+async fn launch_conversation(
+    State(state): State<Arc<ComhairleState>>,
+    Path(conversation_id): Path<Uuid>,
+    RequiredAdminUser(user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<LocalisedConversation>), ComhairleError> {
+    let conversation = conversation::launch(&state.db, conversation_id).await?;
+    Ok((StatusCode::OK, Json(conversation)))
+}
+
 /// For extracting an id or slug from Path
 #[derive(Deserialize, Debug, JsonSchema)]
 #[serde(untagged)]
@@ -557,7 +566,7 @@ mod tests {
 
         session.signup(&app).await?;
 
-        let (status, _, _) = session
+        let (status, response, _) = session
             .create_conversation(
                 &app,
                 json! ({
@@ -567,6 +576,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
+                    "is_live": true,
                     "is_invite_only" : false,
                     "slug" : "new_conversation",
                     "primary_locale" : "en",
@@ -574,6 +584,7 @@ mod tests {
                 }),
             )
             .await?;
+        println!("{response}");
 
         assert_eq!(status, StatusCode::CREATED, "Should be created");
 
@@ -598,6 +609,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
+                    "is_live": true,
                     "is_invite_only" : false,
                     "slug" : "new_conversation",
                     "primary_locale" : "en",
@@ -648,6 +660,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
+                    "is_live": true,
                     "is_invite_only" : false,
                     "slug" : "new_conversation",
                     "primary_locale" : "en",
@@ -697,6 +710,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : true,
+                    "is_live": true,
                     "is_invite_only" : false,
                     "slug" : "new_conversation",
                     "primary_locale" : "en",
@@ -715,6 +729,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : true,
+                    "is_live" : true,
                     "primary_locale": "en",
                     "supported_languages":["en"],
                     "is_invite_only" : false,
@@ -766,6 +781,7 @@ mod tests {
                         "image_url" : "http://someimage.png",
                         "tags" : ["one", "two", "three"],
                         "is_public" : true,
+                        "is_live" : true,
                         "is_invite_only" : false,
                         "slug" : format!("{i}"),
                         "primary_locale" : "en",
@@ -785,6 +801,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : true,
+                    "is_live" : true,
                     "is_invite_only" : false,
                     "slug" : format!("target_slug"),
                     "primary_locale" : "en",
@@ -826,6 +843,7 @@ mod tests {
                         "image_url" : "http://someimage.png",
                         "tags" : ["one", "two", "three"],
                         "is_public" : true,
+                        "is_live" : true,
                         "is_invite_only" : false,
                         "slug" : format!("{i}"),
                         "primary_locale" : "en",
@@ -899,6 +917,7 @@ mod tests {
                         "image_url" : "http://someimage.png",
                         "tags" : ["one", "two", "three"],
                         "is_public" : true,
+                        "is_live" : true,
                         "is_invite_only" : false,
                         "slug" : format!("{i}"),
                         "primary_locale" : "en",
@@ -956,6 +975,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
+                    "is_live": true,
                     "is_invite_only" : false,
                     "slug" : "new_conversation",
                     "primary_locale" : "en",
@@ -974,6 +994,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "three"],
                     "is_public" : false,
+                    "is_live" : false,
                     "is_invite_only" : false,
                     "slug" : "new_conversation_two",
                     "primary_locale" : "en",
@@ -1033,6 +1054,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
+                    "is_live" : false,
                     "is_invite_only" : false,
                     "slug" : "new_conversation",
                     "primary_locale" : "en",
@@ -1076,6 +1098,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
+                    "is_live" : false,
                     "is_invite_only" : false,
                     "slug" : "new_conversation",
                     "primary_locale" : "en",
@@ -1094,6 +1117,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "three"],
                     "is_public" : false,
+                    "is_live" : false,
                     "is_invite_only" : false,
                     "slug" : "new_conversation",
                     "primary_locale" : "en",
