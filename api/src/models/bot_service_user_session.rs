@@ -96,6 +96,7 @@ impl CreateBotServiceUserSessionWithSessionId {
 ///
 /// This function will return an error if:
 /// * The database operation fails
+/// * bot service request fails
 pub async fn create(
     db: &PgPool,
     bot_service: &Arc<dyn ComhairleBotService>,
@@ -121,6 +122,66 @@ pub async fn create(
         user_id: session.user_id,
         bot_service_session_id: bot_service_session.id,
         workflow_step_id: session.workflow_step_id,
+    };
+
+    let columns = session.columns();
+    let values = session.values();
+
+    let (sql, values) = Query::insert()
+        .into_table(BotServiceUserSessionIden::Table)
+        .columns(columns)
+        .values(values)?
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let bot_session_result = sqlx::query_as_with::<_, BotServiceUserSession, _>(&sql, values)
+        .fetch_one(db)
+        .await?;
+
+    Ok(bot_session_result)
+}
+
+/// Data transfer object for creating a new bot service user session for an
+/// elicitation bot workflow step on a conversation.
+pub struct CreateWorkflowStepBotServiceUserSession {
+    pub conversation_id: Uuid,
+    pub user_id: Uuid,
+    pub workflow_step_id: Uuid,
+    pub agent_id: String,
+}
+
+/// Creates a new user session for an elicitation bot workflow step on a conversation,
+/// tied to a ragflow agent session.
+///
+/// # Arguments
+///
+/// * `db` - Database conncection pool
+/// * `bot_service` - RAG based bot service provider
+/// * `session` - request params containing `user_id`, `conversation_id`, `workflow_step_id` and
+/// `agent_id`
+///
+/// # Returns
+///
+/// Returns a `Result` containing the created `BotServiceUserSession` or  a
+/// `ComhairleError` on failure.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// * The database operation fails
+/// * bot service request fails
+pub async fn create_workflow_step_session(
+    db: &PgPool,
+    bot_service: &Arc<dyn ComhairleBotService>,
+    session: &CreateWorkflowStepBotServiceUserSession,
+) -> Result<BotServiceUserSession, ComhairleError> {
+    let (_, bot_service_session) = bot_service.create_agent_session(&session.agent_id).await?;
+
+    let session = CreateBotServiceUserSessionWithSessionId {
+        conversation_id: session.conversation_id,
+        user_id: session.user_id,
+        bot_service_session_id: bot_service_session.id,
+        workflow_step_id: Some(session.workflow_step_id),
     };
 
     let columns = session.columns();
