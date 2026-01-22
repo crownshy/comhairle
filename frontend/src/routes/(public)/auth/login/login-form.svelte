@@ -33,7 +33,20 @@
 					password
 				});
 				await invalidateAll();
-				await goto(resolve(backTo ?? '/'));
+
+				let redirectTo = backTo ?? '/';
+				if (redirectTo === '/') {
+					try {
+						const userRoles = await apiClient.GetUserRoles();
+						const isAdmin = userRoles?.find((ur) => ur.resource === 'Site')?.roles.includes('Admin');
+						if (isAdmin) {
+							redirectTo = '/admin';
+						}
+					} catch {
+					}
+				}
+
+				await goto(resolve(redirectTo));
 			} catch (e) {
 				responseMessage = e.response.data.err;
 			}
