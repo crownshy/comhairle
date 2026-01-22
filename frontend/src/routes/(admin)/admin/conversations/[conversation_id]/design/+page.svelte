@@ -13,6 +13,17 @@
 	import { Header } from '$lib/components/ui/alert-dialog/index.js';
 	let { data } = $props();
 	import { draggable, droppable, type DragDropState } from '@thisux/sveltednd';
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+
+	let addStepModalOpen = $state(false);
+
+	$effect(() => {
+		if (page.url.searchParams.get('addStep') === 'true') {
+			addStepModalOpen = true;
+			goto(page.url.pathname, { replaceState: true });
+		}
+	});
 	import {
 		Plus,
 		Share2,
@@ -162,7 +173,7 @@
 	{/each}
 </div>
 
-<ToolSelectionModal prompt="Select a step to add" onSelection={addStep}>
+<ToolSelectionModal prompt="Select a step to add" onSelection={addStep} bind:open={addStepModalOpen}>
 	<Button variant="secondary"><Plus /> Add Step</Button>
 </ToolSelectionModal>
 

@@ -17,14 +17,17 @@
 		TerminalSquare,
 		UsersRound,
 		Bell,
-		Database
+		Database,
+		ChevronDown
 	} from 'lucide-svelte';
 	import { Button } from './ui/button';
+	import { page } from '$app/state';
 	let props = $props();
 	let path = $derived(props.path);
 	console.log('Path is ', path);
 	let user = $derived(props.user);
 	let conversations = $derived(props.conversations);
+	let workflow_steps = $derived(page.data?.workflow_steps ?? []);
 
 	// TODO We need to use data-sveltekit-reload as the
 	// component isn't relaoading on navigation when we use
@@ -102,15 +105,42 @@
 													>
 												</SideBar.MenuSubItem>
 											</SideBar.MenuSub>
-											<SideBar.MenuSub>
-												<SideBar.MenuSubItem>
-													<SideBar.MenuSubButton
-														href={`/admin/conversations/${conversation.id}/design`}
-														class={path.includes('design') ? 'font-bold' : ''}
-														><Pencil class="stroke-nav-text hover:stroke-sidebar-foreground" /> Design</SideBar.MenuSubButton
-													>
-												</SideBar.MenuSubItem>
-											</SideBar.MenuSub>
+											<Collapsible.Root open={path.includes('design')} class="group/design">
+												<SideBar.MenuSub>
+													<SideBar.MenuSubItem>
+														<Collapsible.Trigger class="w-full">
+															<SideBar.MenuSubButton
+																href={`/admin/conversations/${conversation.id}/design`}
+																class={path.includes('design') ? 'font-bold' : ''}
+															>
+																<Pencil class="stroke-nav-text hover:stroke-sidebar-foreground" />
+																<span class="flex-1 text-left">Design</span>
+																<ChevronDown class="h-4 w-4 transition-transform group-data-[state=open]/design:rotate-180" />
+															</SideBar.MenuSubButton>
+														</Collapsible.Trigger>
+													</SideBar.MenuSubItem>
+												</SideBar.MenuSub>
+												<Collapsible.Content>
+													<div class="relative ml-6 border-l border-sidebar-border pl-2">
+														{#if path.includes(conversation.id) && workflow_steps?.length > 0}
+															{#each workflow_steps as step (step.id)}
+																<a
+																	href={`/admin/conversations/${conversation.id}/design/step/${step.id}`}
+																	class="block rounded-lg px-2 py-1.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent {path.includes(step.id) ? 'font-bold' : ''}"
+																>
+																	{step.name}
+																</a>
+															{/each}
+														{/if}
+														<a
+															href={`/admin/conversations/${conversation.id}/design?addStep=true`}
+															class="block rounded-lg px-2 py-1.5 text-sm text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+														>
+															+ Add new
+														</a>
+													</div>
+												</Collapsible.Content>
+											</Collapsible.Root>
 											<SideBar.MenuSub>
 												<SideBar.MenuSubItem>
 													<SideBar.MenuSubButton
