@@ -3,6 +3,7 @@
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import * as SideBar from '$lib/components/ui/sidebar';
 	import * as Collapsible from '$lib/components/ui/collapsible';
+	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import {
 		Home,
 		Info,
@@ -56,7 +57,8 @@
 			</SideBar.Group>
 			<SideBar.Group class="flex flex-col flex-1 min-h-0">
 				<SideBar.GroupLabel class="shrink-0">Conversations</SideBar.GroupLabel>
-				<SideBar.GroupContent class="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+				<SideBar.GroupContent class="flex-1 min-h-0">
+					<ScrollArea.Root class="h-full" type="always">
 					{#if conversations}
 						<SideBar.Menu>
 							{#each conversations.records as conversation}
@@ -137,6 +139,7 @@
 							{/each}
 						</SideBar.Menu>
 					{/if}
+									</ScrollArea.Root>
 				</SideBar.GroupContent>
 				<div class="shrink-0 p-2">
 					<Button href="/admin/conversations/new" class="w-full" variant="secondary">
