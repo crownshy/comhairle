@@ -10,12 +10,14 @@
 		data: {
 			documents: ComhairleDocument[];
 			conversation: Conversation;
+			workflow_steps?: any[];
 		};
 	};
 
 	let { data }: Props = $props();
 	let conversation = $derived(data.conversation);
 	let documents = $derived(data.documents);
+	let workflow_steps = $derived(data.workflow_steps);
 
 	const parsingDocuments = $derived(
 		documents?.filter((doc) => doc.parse_progress < 1 && doc.parse_progress > 0)
@@ -29,7 +31,7 @@
 	);
 </script>
 
-<StepNavigation />
+<StepNavigation workflowSteps={workflow_steps} />
 
 <h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><Database /> Knowledge Base</h1>
 <p class="mb-10">Use this space to manage your conversation's knowledge base</p>

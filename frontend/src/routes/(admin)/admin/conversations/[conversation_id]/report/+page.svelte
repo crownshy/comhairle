@@ -28,6 +28,7 @@
 	let { data } = $props();
 	let report = $derived(data.report);
 	let conversation = $derived(data.conversation);
+	let workflow_steps = $derived(data.workflow_steps);
 
 	const carta = createCarta();
 
@@ -70,7 +71,7 @@
 	}
 </script>
 
-<StepNavigation />
+<StepNavigation workflowSteps={workflow_steps} conversationSlug={conversation.slug} />
 
 <h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><NotebookText /> Report</h1>
 <p class="mb-10">Use this space to edit the report for this conversation</p>

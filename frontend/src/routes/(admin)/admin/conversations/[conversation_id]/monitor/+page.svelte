@@ -41,7 +41,7 @@
 	];
 </script>
 
-<StepNavigation />
+<StepNavigation workflowSteps={workflow_steps} />
 
 <h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><Binoculars /> Monitor</h1>
 <p class="mb-10">

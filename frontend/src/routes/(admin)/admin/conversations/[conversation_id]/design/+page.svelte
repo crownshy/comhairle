@@ -115,7 +115,7 @@
 	}
 </script>
 
-<StepNavigation />
+<StepNavigation workflowSteps={workflow_steps} />
 
 <h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><Share2 /> Design</h1>
 <h2 class="mb-5 text-2xl">Process steps</h2>

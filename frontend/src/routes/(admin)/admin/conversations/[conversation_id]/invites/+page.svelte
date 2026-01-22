@@ -25,6 +25,7 @@
 	let invites = $derived(data.invites);
 
 	let { conversation } = data;
+	let workflow_steps = $derived(data.workflow_steps);
 
 	async function createInviteLink() {
 		await apiClient.CreateInvite(
@@ -53,7 +54,7 @@
 	</div>
 {/snippet}
 
-<StepNavigation />
+<StepNavigation workflowSteps={workflow_steps} />
 
 <h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><Share2 /> Recruit</h1>
 

@@ -6,9 +6,10 @@
 	
 	let { data } = $props() as { data: PageData };
 	let conversation = $derived(data.conversation);
+	let workflow_steps = $derived(data.workflow_steps);
 </script>
 
-<StepNavigation />
+<StepNavigation workflowSteps={workflow_steps} />
 
 <h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><Bell /> Send Notifications</h1>
 <p class="mb-10">Send notifications to all participants in this conversation. Notifications will be delivered to all users who have participated in workflows within this conversation.</p>

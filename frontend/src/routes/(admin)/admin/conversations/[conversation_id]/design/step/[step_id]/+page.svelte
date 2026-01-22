@@ -18,7 +18,7 @@
 	console.log('step config ', step);
 </script>
 
-<StepNavigation />
+<StepNavigation workflowSteps={workflow_steps} />
 
 <CommonStepConfig conversation_id={conversation.id} {step} />
 
