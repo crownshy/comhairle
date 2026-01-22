@@ -24,7 +24,7 @@ pub async fn update(client: &RagflowClient, id: &str, body: UpdateChat) -> Resul
 }
 
 pub async fn delete(client: &RagflowClient, body: DeleteResources<'_>) -> Result<StatusCode> {
-    let status = client.delete("/chats", &body, None).await?;
+    let status = client.delete("/chats", Some(&body), None).await?;
 
     Ok(status)
 }

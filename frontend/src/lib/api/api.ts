@@ -94,7 +94,7 @@ export const RegisterEmailRequest = z.object({ email: z.string(), receive_simila
 export type RegisterEmailRequest = z.infer<typeof RegisterEmailRequest>;
 export const RegisterEmailResponse = z.object({ conversation_id: z.string().uuid(), email: z.string(), id: z.string().uuid(), message: z.string() }).passthrough();
 export type RegisterEmailResponse = z.infer<typeof RegisterEmailResponse>;
-export const BotServiceUserSessionDto = z.object({ bot_service_session_id: z.string(), conversation_id: z.string().uuid(), id: z.string().uuid(), user_id: z.string().uuid() }).passthrough();
+export const BotServiceUserSessionDto = z.object({ bot_service_session_id: z.string(), conversation_id: z.string().uuid(), id: z.string().uuid(), user_id: z.string().uuid(), workflow_step_id: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type BotServiceUserSessionDto = z.infer<typeof BotServiceUserSessionDto>;
 export const Workflow = z.object({ auto_login: z.boolean(), conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_active: z.boolean(), is_public: z.boolean(), name: z.string(), owner_id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
 export type Workflow = z.infer<typeof Workflow>;
@@ -106,7 +106,7 @@ export const LocalisedPage = z.object({ content: z.string(), type: z.literal("ma
 export type LocalisedPage = z.infer<typeof LocalisedPage>;
 export const Page = z.array(LocalisedPage);
 export type Page = z.infer<typeof Page>;
-export const ToolConfig = z.union([z.object({ admin_password: z.string(), admin_user: z.string(), poll_id: z.string(), server_url: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ admin_password: z.string(), admin_user: z.string(), project_id: z.string(), survey_id: z.string(), survey_url: z.string(), type: z.literal("heyform"), workspace_id: z.string() }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ type: z.literal("elicitationbot") }).passthrough()]);
+export const ToolConfig = z.union([z.object({ admin_password: z.string(), admin_user: z.string(), poll_id: z.string(), server_url: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ admin_password: z.string(), admin_user: z.string(), project_id: z.string(), survey_id: z.string(), survey_url: z.string(), type: z.literal("heyform"), workspace_id: z.string() }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ bot_id: z.string(), topic: z.string(), type: z.literal("elicitationbot") }).passthrough()]);
 export type ToolConfig = z.infer<typeof ToolConfig>;
 export const WorkflowStep = z.object({ activation_rule: ActivationRule, created_at: z.string().datetime({ offset: true }), description: z.string().uuid(), id: z.string().uuid(), is_offline: z.boolean(), name: z.string().uuid(), required: z.boolean(), step_order: z.number().int(), tool_config: ToolConfig, updated_at: z.string().datetime({ offset: true }), workflow_id: z.string().uuid() }).passthrough();
 export type WorkflowStep = z.infer<typeof WorkflowStep>;
@@ -122,7 +122,7 @@ export const UserParticipation = z.object({ created_at: z.string().datetime({ of
 export type UserParticipation = z.infer<typeof UserParticipation>;
 export const LocalisedWorkflowStep = z.object({ activation_rule: ActivationRule, created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_offline: z.boolean(), name: z.string(), required: z.boolean(), step_order: z.number().int(), tool_config: ToolConfig, updated_at: z.string().datetime({ offset: true }), workflow_id: z.string().uuid() }).passthrough();
 export type LocalisedWorkflowStep = z.infer<typeof LocalisedWorkflowStep>;
-export const ToolSetup = z.union([z.object({ topic: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ type: z.literal("heyform") }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ type: z.literal("elicitationbot") }).passthrough()]);
+export const ToolSetup = z.union([z.object({ topic: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ type: z.literal("heyform") }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ conversation_id: z.string(), topic: z.string(), type: z.literal("elicitationbot") }).passthrough()]);
 export type ToolSetup = z.infer<typeof ToolSetup>;
 export const CreateWorkflowStep = z.object({ activation_rule: ActivationRule, description: z.string(), is_offline: z.boolean(), name: z.string(), required: z.boolean(), step_order: z.number().int(), tool_setup: ToolSetup }).passthrough();
 export type CreateWorkflowStep = z.infer<typeof CreateWorkflowStep>;
@@ -186,6 +186,18 @@ export const BroadcastResponse = z.object({ message: z.string(), sent_to: z.numb
 export type BroadcastResponse = z.infer<typeof BroadcastResponse>;
 export const SendToUserMessage = z.object({ message: z.string(), user_id: z.string().uuid() }).passthrough();
 export type SendToUserMessage = z.infer<typeof SendToUserMessage>;
+export const ComhairleAgent = z.object({ configuration: z.unknown(), id: z.string(), name: z.string() }).passthrough();
+export type ComhairleAgent = z.infer<typeof ComhairleAgent>;
+export const CreateAgentRequest = z.object({ name: z.string() }).passthrough();
+export type CreateAgentRequest = z.infer<typeof CreateAgentRequest>;
+export const UpdateAgentRequest = z.object({ title: z.union([z.string(), z.null()]), topic: z.union([z.string(), z.null()]) }).partial().passthrough();
+export type UpdateAgentRequest = z.infer<typeof UpdateAgentRequest>;
+export const ComhairleMessageReference = z.object({ content: z.string(), dataset_id: z.string(), document_id: z.string(), document_name: z.string(), id: z.string() }).passthrough();
+export type ComhairleMessageReference = z.infer<typeof ComhairleMessageReference>;
+export const ComhairleSessionMessage = z.object({ content: z.string(), id: z.string(), reference: z.union([z.array(ComhairleMessageReference), z.null()]).optional(), role: z.string() }).passthrough();
+export type ComhairleSessionMessage = z.infer<typeof ComhairleSessionMessage>;
+export const ComhairleAgentSession = z.object({ agent_id: z.string(), dsl: z.unknown(), id: z.string(), messages: z.array(ComhairleSessionMessage) }).passthrough();
+export type ComhairleAgentSession = z.infer<typeof ComhairleAgentSession>;
 export const ComhairleLlm = z.object({ model_name: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type ComhairleLlm = z.infer<typeof ComhairleLlm>;
 export const ComhairlePrompt = z.object({ empty_response: z.union([z.string(), z.null()]), llm_prompt: z.union([z.string(), z.null()]), opener: z.union([z.string(), z.null()]) }).partial().passthrough();
@@ -196,10 +208,6 @@ export const CreateChatRequest = z.object({ knowledge_base_ids: z.union([z.array
 export type CreateChatRequest = z.infer<typeof CreateChatRequest>;
 export const UpdateChatRequest = z.object({ knowledge_base_ids: z.union([z.array(z.string()), z.null()]), llm_model: z.union([ComhairleLlm, z.null()]), name: z.union([z.string(), z.null()]), prompt: z.union([ComhairlePrompt, z.null()]) }).partial().passthrough();
 export type UpdateChatRequest = z.infer<typeof UpdateChatRequest>;
-export const ComhairleMessageReference = z.object({ content: z.string(), dataset_id: z.string(), document_id: z.string(), document_name: z.string(), id: z.string() }).passthrough();
-export type ComhairleMessageReference = z.infer<typeof ComhairleMessageReference>;
-export const ComhairleSessionMessage = z.object({ content: z.string(), id: z.string(), reference: z.union([z.array(ComhairleMessageReference), z.null()]).optional(), role: z.string() }).passthrough();
-export type ComhairleSessionMessage = z.infer<typeof ComhairleSessionMessage>;
 export const ComhairleChatSession = z.object({ chat_id: z.string(), id: z.string(), messages: z.array(ComhairleSessionMessage), name: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type ComhairleChatSession = z.infer<typeof ComhairleChatSession>;
 export const CreateChatSessionRequest = z.object({ name: z.string(), user_id: z.union([z.string(), z.null()]).optional() }).passthrough();
@@ -220,6 +228,8 @@ export const Job = z.object({ completion_message: z.union([z.string(), z.null()]
 export type Job = z.infer<typeof Job>;
 export const PaginatedResults_for_Job = z.object({ records: z.array(Job), total: z.number().int() }).passthrough();
 export type PaginatedResults_for_Job = z.infer<typeof PaginatedResults_for_Job>;
+export const CreateJob = z.object({ progress: z.union([z.number(), z.null()]), step: z.union([z.string(), z.null()]) }).partial().passthrough();
+export type CreateJob = z.infer<typeof CreateJob>;
 
 
 export const schemas = {
@@ -315,13 +325,17 @@ export const schemas = {
 	BroadcastMessage,
 	BroadcastResponse,
 	SendToUserMessage,
+	ComhairleAgent,
+	CreateAgentRequest,
+	UpdateAgentRequest,
+	ComhairleMessageReference,
+	ComhairleSessionMessage,
+	ComhairleAgentSession,
 	ComhairleLlm,
 	ComhairlePrompt,
 	ComhairleChat,
 	CreateChatRequest,
 	UpdateChatRequest,
-	ComhairleMessageReference,
-	ComhairleSessionMessage,
 	ComhairleChatSession,
 	CreateChatSessionRequest,
 	UpdateChatSessionRequest,
@@ -332,6 +346,7 @@ export const schemas = {
 	UpdateDocumentRequest,
 	Job,
 	PaginatedResults_for_Job,
+	CreateJob,
 };
 
 const endpoints = makeApi([
@@ -466,6 +481,137 @@ const endpoints = makeApi([
 	},
 	{
 		method: "get",
+		path: "/bot/agents",
+		alias: "ListAgents",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "name",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "order_by",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "page",
+				type: "Query",
+				schema: limit
+			},
+			{
+				name: "page_size",
+				type: "Query",
+				schema: limit
+			},
+			{
+				name: "title",
+				type: "Query",
+				schema: created_after
+			},
+		],
+		response: z.array(ComhairleAgent),
+	},
+	{
+		method: "post",
+		path: "/bot/agents",
+		alias: "CreateAgent",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: z.object({ name: z.string() }).passthrough()
+			},
+		],
+		response: ComhairleAgent,
+	},
+	{
+		method: "get",
+		path: "/bot/agents/:agent_id",
+		alias: "GetAgent",
+		requestFormat: "json",
+		response: ComhairleAgent,
+	},
+	{
+		method: "put",
+		path: "/bot/agents/:agent_id",
+		alias: "UpdateAgent",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: UpdateAgentRequest
+			},
+		],
+		response: ComhairleAgent,
+	},
+	{
+		method: "delete",
+		path: "/bot/agents/:agent_id",
+		alias: "DeleteAgent",
+		requestFormat: "json",
+		response: z.void(),
+	},
+	{
+		method: "get",
+		path: "/bot/agents/:agent_id/sessions",
+		alias: "ListAgentSessions",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "name",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "order_by",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "page",
+				type: "Query",
+				schema: limit
+			},
+			{
+				name: "page_size",
+				type: "Query",
+				schema: limit
+			},
+			{
+				name: "title",
+				type: "Query",
+				schema: created_after
+			},
+		],
+		response: z.array(ComhairleAgentSession),
+	},
+	{
+		method: "post",
+		path: "/bot/agents/:agent_id/sessions",
+		alias: "CreateAgentSessions",
+		requestFormat: "json",
+		response: ComhairleAgentSession,
+	},
+	{
+		method: "get",
+		path: "/bot/agents/:agent_id/sessions/:session_id",
+		alias: "GetAgentSession",
+		requestFormat: "json",
+		response: ComhairleAgentSession,
+	},
+	{
+		method: "delete",
+		path: "/bot/agents/:agent_id/sessions/:session_id",
+		alias: "DeleteAgentSessions",
+		requestFormat: "json",
+		response: z.void(),
+	},
+	{
+		method: "get",
 		path: "/bot/chats",
 		alias: "ListChats",
 		requestFormat: "json",
@@ -489,6 +635,11 @@ const endpoints = makeApi([
 				name: "page_size",
 				type: "Query",
 				schema: limit
+			},
+			{
+				name: "title",
+				type: "Query",
+				schema: created_after
 			},
 		],
 		response: z.array(ComhairleChat),
@@ -561,6 +712,11 @@ const endpoints = makeApi([
 				type: "Query",
 				schema: limit
 			},
+			{
+				name: "title",
+				type: "Query",
+				schema: created_after
+			},
 		],
 		response: z.array(ComhairleChatSession),
 	},
@@ -631,6 +787,11 @@ const endpoints = makeApi([
 				name: "page_size",
 				type: "Query",
 				schema: limit
+			},
+			{
+				name: "title",
+				type: "Query",
+				schema: created_after
 			},
 		],
 		response: z.array(ComhairleKnowledgeBase),
@@ -703,6 +864,11 @@ const endpoints = makeApi([
 				type: "Query",
 				schema: limit
 			},
+			{
+				name: "title",
+				type: "Query",
+				schema: created_after
+			},
 		],
 		response: z.array(ComhairleDocument),
 	},
@@ -735,7 +901,7 @@ const endpoints = makeApi([
 		response: z.void(),
 	},
 	{
-		method: "post",
+		method: "get",
 		path: "/bot/knowledge_bases/:knowledge_base_id/documents/:document_id/download",
 		alias: "DownloadDocument",
 		requestFormat: "json",
@@ -1217,6 +1383,27 @@ const endpoints = makeApi([
 		response: WorkflowStep,
 	},
 	{
+		method: "post",
+		path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/bot_service_session",
+		alias: "CreateWorkflowStepBotSession",
+		requestFormat: "json",
+		response: BotServiceUserSessionDto,
+	},
+	{
+		method: "put",
+		path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/elicitation_bot",
+		alias: "UpdateElicitationBotWorkflowStep",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: PartialWorkflowStep
+			},
+		],
+		response: WorkflowStep,
+	},
+	{
 		method: "get",
 		path: "/docs",
 		alias: "getDocs",
@@ -1252,7 +1439,17 @@ const endpoints = makeApi([
 				schema: created_after
 			},
 			{
+				name: "progress",
+				type: "Query",
+				schema: created_after
+			},
+			{
 				name: "status",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "step",
 				type: "Query",
 				schema: created_after
 			},
@@ -1270,11 +1467,32 @@ const endpoints = makeApi([
 		response: PaginatedResults_for_Job,
 	},
 	{
+		method: "post",
+		path: "/jobs",
+		alias: "CreateJob",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: CreateJob
+			},
+		],
+		response: Job,
+	},
+	{
 		method: "get",
 		path: "/jobs/:job_id",
 		alias: "GetJob",
 		requestFormat: "json",
 		response: Job,
+	},
+	{
+		method: "delete",
+		path: "/jobs/:job_id",
+		alias: "DeleteJob",
+		requestFormat: "json",
+		response: z.void(),
 	},
 	{
 		method: "get",

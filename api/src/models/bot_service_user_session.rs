@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     bot_service::ComhairleBotService, error::ComhairleError, models::conversation,
-    routes::bot::sessions::CreateChatSessionRequest,
+    routes::bot::chat_sessions::CreateChatSessionRequest,
 };
 
 #[derive(Serialize, Deserialize, FromRow, JsonSchema, Debug, Clone)]
@@ -22,6 +22,9 @@ pub struct BotServiceUserSession {
     pub user_id: Uuid,
     /// Reference to the conversation the chat session belongs to
     pub conversation_id: Uuid,
+    /// Reference to the workflow step if attached to a particular conversation step tool (i.e.
+    /// elicitation bot)
+    pub workflow_step_id: Option<Uuid>,
     /// Identifier of the session in bot service system
     pub bot_service_session_id: String,
     /// Timestamp when this session was created
@@ -30,27 +33,30 @@ pub struct BotServiceUserSession {
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [BotServiceUserSessionIden; 6] = [
+const DEFAULT_COLUMNS: [BotServiceUserSessionIden; 7] = [
     BotServiceUserSessionIden::Id,
     BotServiceUserSessionIden::UserId,
     BotServiceUserSessionIden::ConversationId,
+    BotServiceUserSessionIden::WorkflowStepId,
     BotServiceUserSessionIden::BotServiceSessionId,
     BotServiceUserSessionIden::CreatedAt,
     BotServiceUserSessionIden::UpdatedAt,
 ];
 
 /// Data transfer object for creating a new bot service user session.
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Default)]
 pub struct CreateBotServiceUserSession {
     pub conversation_id: Uuid,
     pub user_id: Uuid,
+    pub workflow_step_id: Option<Uuid>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Default)]
 struct CreateBotServiceUserSessionWithSessionId {
     conversation_id: Uuid,
     user_id: Uuid,
     bot_service_session_id: String,
+    workflow_step_id: Option<Uuid>,
 }
 
 impl CreateBotServiceUserSessionWithSessionId {
@@ -59,6 +65,7 @@ impl CreateBotServiceUserSessionWithSessionId {
             BotServiceUserSessionIden::ConversationId,
             BotServiceUserSessionIden::UserId,
             BotServiceUserSessionIden::BotServiceSessionId,
+            BotServiceUserSessionIden::WorkflowStepId,
         ]
     }
 
@@ -67,6 +74,7 @@ impl CreateBotServiceUserSessionWithSessionId {
             self.conversation_id.into(),
             self.user_id.into(),
             self.bot_service_session_id.clone().into(),
+            self.workflow_step_id.clone().into(),
         ]
     }
 }
@@ -112,6 +120,7 @@ pub async fn create(
         conversation_id: session.conversation_id,
         user_id: session.user_id,
         bot_service_session_id: bot_service_session.id,
+        workflow_step_id: session.workflow_step_id,
     };
 
     let columns = session.columns();
@@ -185,6 +194,7 @@ pub struct BotServiceUserSessionDto {
     pub user_id: Uuid,
     pub conversation_id: Uuid,
     pub bot_service_session_id: String,
+    pub workflow_step_id: Option<Uuid>,
 }
 
 impl From<BotServiceUserSession> for BotServiceUserSessionDto {
@@ -194,6 +204,7 @@ impl From<BotServiceUserSession> for BotServiceUserSessionDto {
             conversation_id: s.conversation_id,
             user_id: s.user_id,
             bot_service_session_id: s.bot_service_session_id,
+            workflow_step_id: s.workflow_step_id,
         }
     }
 }

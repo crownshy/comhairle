@@ -1,3 +1,4 @@
+pub mod agent;
 pub mod chat;
 pub mod client;
 pub mod dataset;
@@ -7,7 +8,15 @@ pub mod error;
 pub use error::RagflowError;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct ConvoQuestion {
+    pub question: String,
+    pub stream: Option<bool>,
+    pub session_id: Option<String>,
+    pub user_id: Option<String>,
+}
+
+#[derive(Serialize, Default, Debug)]
 pub struct GetQueryParams {
     pub page: Option<i32>,
     pub page_size: Option<i32>,
@@ -15,6 +24,25 @@ pub struct GetQueryParams {
     pub desc: Option<bool>,
     pub name: Option<String>,
     pub id: Option<String>,
+    pub title: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SessionMessage {
+    pub content: String,
+    pub id: Option<String>,
+    pub role: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reference: Option<Vec<MessageReference>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MessageReference {
+    pub id: String,
+    pub content: String,
+    pub dataset_id: String,
+    pub document_id: String,
+    pub document_name: String,
 }
 
 #[derive(Serialize, Deserialize, Default)]

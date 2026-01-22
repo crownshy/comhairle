@@ -320,6 +320,7 @@ async fn create_conversation_bot_session(
     let create_bot_session = CreateBotServiceUserSession {
         conversation_id,
         user_id: user.id,
+        ..Default::default()
     };
     let bot_user_session =
         bot_service_user_session::create(&state.db, &state.bot_service, &create_bot_session)
@@ -348,6 +349,7 @@ async fn get_conversation_bot_session(
                 &CreateBotServiceUserSession {
                     conversation_id,
                     user_id: user.id,
+                    ..Default::default()
                 },
             )
             .await

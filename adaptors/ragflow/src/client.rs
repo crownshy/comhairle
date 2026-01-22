@@ -201,7 +201,7 @@ impl RagflowClient {
     pub async fn delete<B: Serialize + ?Sized>(
         &self,
         path: &str,
-        body: &B,
+        body: Option<&B>,
         headers: Option<&[(HeaderName, HeaderValue)]>,
     ) -> Result<StatusCode> {
         let url = format!("{}{}", self.base_url, path);
@@ -209,8 +209,11 @@ impl RagflowClient {
         let mut request = self
             .http
             .delete(&url)
-            .header("Authorization", self.auth_header())
-            .json(body);
+            .header("Authorization", self.auth_header());
+
+        if let Some(body) = body {
+            request = request.json(body);
+        }
 
         if let Some(headers) = headers {
             for (name, value) in headers {
@@ -575,7 +578,9 @@ mod tests {
             .await;
 
         let body = json!({ "ids": vec!["123", "456"]});
-        let status = client.delete("/test-delete-success", &body, None).await?;
+        let status = client
+            .delete("/test-delete-success", Some(&body), None)
+            .await?;
 
         assert_eq!(status, StatusCode::OK, "success from delete method");
 
@@ -597,7 +602,7 @@ mod tests {
             .await;
 
         let err = client
-            .delete("/test-delete-api-error", &json!({}), None)
+            .delete("/test-delete-api-error", Some(&json!({})), None)
             .await
             .unwrap_err();
 
@@ -623,7 +628,7 @@ mod tests {
             .await;
 
         let err = client
-            .delete("/test-delete-error", &json!({}), None)
+            .delete("/test-delete-error", Some(&json!({})), None)
             .await
             .unwrap_err();
 
@@ -655,7 +660,7 @@ mod tests {
             .await;
 
         let err = client
-            .delete("/test-delete-from-code", &json!({}), None)
+            .delete("/test-delete-from-code", Some(&json!({})), None)
             .await
             .unwrap_err();
 

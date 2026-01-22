@@ -1,0 +1,23 @@
+{
+        "components": {
+                "begin": {
+                        "downstream": [],
+                        "obj": {
+                                "component_name": "Begin",
+                                "params": {}
+                        },
+                        "upstream": []
+                }
+        },
+        "globals": {
+                "sys.conversation_turns": 0,
+                "sys.files": [],
+                "sys.query": "",
+                "sys.user_id": ""
+        },
+        "retrieval": [],
+        "history": [],
+        "path": [],
+        "memory": [],
+        "messages": []
+}

@@ -1,9 +1,8 @@
-use std::{pin::Pin, sync::Arc};
+use std::pin::Pin;
 
 use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::Stream;
-use ragflow::client::RagflowClient;
 use reqwest::StatusCode;
 
 #[cfg(test)]
@@ -15,12 +14,14 @@ use crate::{
     error::ComhairleError,
     routes::{
         bot::{
+            agent_sessions::{AgentConversationRequest, UpdateAgentSessionRequest},
+            agents::{CreateAgentRequest, UpdateAgentRequest},
+            chat_sessions::{
+                ChatConversationRequest, CreateChatSessionRequest, UpdateChatSessionRequest,
+            },
             chats::{CreateChatRequest, UpdateChatRequest},
             documents::UpdateDocumentRequest,
             knowledge_bases::UpdateKnowledgeBaseRequest,
-            sessions::{
-                ChatConversationRequest, CreateChatSessionRequest, UpdateChatSessionRequest,
-            },
             GetQueryParams,
         },
         conversations::UploadFileRequest,
@@ -29,21 +30,7 @@ use crate::{
 
 pub mod ragflow_bot;
 
-#[derive(Debug)]
-pub struct ComhairleRagBotService {
-    client: Arc<RagflowClient>,
-}
-
-impl ComhairleRagBotService {
-    pub fn new(base_url: &str, api_key: &str) -> Self {
-        ComhairleRagBotService {
-            client: Arc::new(RagflowClient::new(
-                base_url.to_string(),
-                api_key.to_string(),
-            )),
-        }
-    }
-}
+pub use ragflow_bot::ComhairleRagBotService;
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -184,6 +171,70 @@ pub trait ComhairleBotService: Send + Sync {
         Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
         ComhairleError,
     >;
+
+    async fn get_agent(
+        &self,
+        agent_id: &str,
+    ) -> Result<(StatusCode, ComhairleAgent), ComhairleError>;
+
+    async fn list_agents(
+        &self,
+        params: Option<GetQueryParams>,
+    ) -> Result<(StatusCode, Vec<ComhairleAgent>), ComhairleError>;
+
+    async fn create_agent(
+        &self,
+        body: CreateAgentRequest,
+        context: minijinja::Value,
+    ) -> Result<(StatusCode, ComhairleAgent), ComhairleError>;
+
+    async fn update_agent(
+        &self,
+        update_agent: &str,
+        body: UpdateAgentRequest,
+    ) -> Result<(StatusCode, ComhairleAgent), ComhairleError>;
+
+    async fn delete_agent(&self, agent_id: &str) -> Result<StatusCode, ComhairleError>;
+
+    async fn get_agent_session(
+        &self,
+        session_id: &str,
+        agent_id: &str,
+    ) -> Result<(StatusCode, ComhairleAgentSession), ComhairleError>;
+
+    async fn list_agent_sessions(
+        &self,
+        agent_id: &str,
+        params: Option<GetQueryParams>,
+    ) -> Result<(StatusCode, Vec<ComhairleAgentSession>), ComhairleError>;
+
+    async fn create_agent_session(
+        &self,
+        agent_id: &str,
+    ) -> Result<(StatusCode, ComhairleAgentSession), ComhairleError>;
+
+    async fn update_agent_session(
+        &self,
+        session_id: &str,
+        agent_id: &str,
+        body: UpdateAgentSessionRequest,
+    ) -> Result<(StatusCode, ComhairleAgentSession), ComhairleError>;
+
+    async fn delete_agent_session(
+        &self,
+        session_id: &str,
+        agent_id: &str,
+    ) -> Result<StatusCode, ComhairleError>;
+
+    async fn converse_with_agent(
+        &self,
+        session_id: &str,
+        agent_id: &str,
+        body: AgentConversationRequest,
+    ) -> Result<
+        Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
+        ComhairleError,
+    >;
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone)]
@@ -246,6 +297,21 @@ pub struct ComhairleMessageReference {
     pub dataset_id: String,
     pub document_id: String,
     pub document_name: String,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Default, Clone)]
+pub struct ComhairleAgent {
+    pub id: String,
+    pub name: String,
+    pub configuration: serde_json::Value,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Default, Clone)]
+pub struct ComhairleAgentSession {
+    pub id: String,
+    pub agent_id: String,
+    pub dsl: serde_json::Value,
+    pub messages: Vec<ComhairleSessionMessage>,
 }
 
 #[cfg(test)]
@@ -425,6 +491,90 @@ impl MockComhairleBotService {
             .returning(|_, _| Box::pin(async move { Ok(StatusCode::OK) }));
         bot_service
             .expect_converse_with_chat()
+            .returning(|_, _, _| {
+                Box::pin(async move {
+                    let stream: Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send>> =
+                        Box::pin(futures::stream::empty());
+
+                    Ok(stream)
+                })
+            });
+        bot_service.expect_get_agent().returning(|_| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::OK,
+                    ComhairleAgent {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service
+            .expect_list_agents()
+            .returning(|_| Box::pin(async move { Ok((StatusCode::OK, Vec::new())) }));
+        bot_service.expect_create_agent().returning(|_, _| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::OK,
+                    ComhairleAgent {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service.expect_update_agent().returning(|_, _| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::OK,
+                    ComhairleAgent {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service
+            .expect_delete_agent()
+            .returning(|_| Box::pin(async move { Ok(StatusCode::NO_CONTENT) }));
+        bot_service.expect_get_agent_session().returning(|_, _| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::OK,
+                    ComhairleAgentSession {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service
+            .expect_list_agent_sessions()
+            .returning(|_, _| Box::pin(async move { Ok((StatusCode::OK, vec![])) }));
+        bot_service.expect_create_agent_session().returning(|_| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::CREATED,
+                    ComhairleAgentSession {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service
+            .expect_update_agent_session()
+            .returning(|_, _, _| {
+                Box::pin(async move {
+                    Ok((
+                        StatusCode::OK,
+                        ComhairleAgentSession {
+                            ..Default::default()
+                        },
+                    ))
+                })
+            });
+        bot_service
+            .expect_delete_agent_session()
+            .returning(|_, _| Box::pin(async move { Ok(StatusCode::NO_CONTENT) }));
+        bot_service
+            .expect_converse_with_agent()
             .returning(|_, _, _| {
                 Box::pin(async move {
                     let stream: Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send>> =

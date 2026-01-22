@@ -1,38 +1,67 @@
-use std::pin::Pin;
+use std::{pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::{Stream, StreamExt};
+use minijinja::{context, Environment};
+use minijinja_embed::load_templates;
 use ragflow::{
+    agent::{session::*, *},
     chat::{session::*, *},
+    client::RagflowClient,
     dataset::*,
     document::*,
-    DeleteResources, GetQueryParams, RagflowError,
+    ConvoQuestion, DeleteResources, GetQueryParams, MessageReference, RagflowError, SessionMessage,
 };
 use reqwest::StatusCode;
+use serde_json::{from_str, Value};
 use tracing::instrument;
 
 use crate::{
     bot_service::{
-        ComhairleBotService, ComhairleChat, ComhairleChatSession, ComhairleDocument,
-        ComhairleKnowledgeBase, ComhairleLlm, ComhairleMessageReference, ComhairlePrompt,
-        ComhairleRagBotService, ComhairleSessionMessage,
+        ComhairleAgent, ComhairleAgentSession, ComhairleBotService, ComhairleChat,
+        ComhairleChatSession, ComhairleDocument, ComhairleKnowledgeBase, ComhairleLlm,
+        ComhairleMessageReference, ComhairlePrompt, ComhairleSessionMessage,
     },
     error::ComhairleError,
     routes::{
         bot::{
-            chats::{CreateChatRequest, UpdateChatRequest},
-            documents::UpdateDocumentRequest,
-            knowledge_bases::UpdateKnowledgeBaseRequest,
-            sessions::{
+            agent_sessions::{
+                AgentConversationRequest, CreateAgentSessionRequest, UpdateAgentSessionRequest,
+            },
+            agents::{CreateAgentRequest, UpdateAgentRequest},
+            chat_sessions::{
                 ChatConversationRequest, CreateChatSessionRequest as ApiCreateChatSessionRequest,
                 UpdateChatSessionRequest as ApiUpdateChatSessionRequest,
             },
+            chats::{CreateChatRequest, UpdateChatRequest},
+            documents::UpdateDocumentRequest,
+            knowledge_bases::UpdateKnowledgeBaseRequest,
             GetQueryParams as ApiGetQueryParams,
         },
         conversations::UploadFileRequest,
     },
 };
+
+#[derive(Debug)]
+pub struct ComhairleRagBotService {
+    client: Arc<RagflowClient>,
+    template_engine: Environment<'static>,
+}
+
+impl ComhairleRagBotService {
+    pub fn new(base_url: &str, api_key: &str) -> Self {
+        let mut env = Environment::new();
+        load_templates!(&mut env);
+        ComhairleRagBotService {
+            client: Arc::new(RagflowClient::new(
+                base_url.to_string(),
+                api_key.to_string(),
+            )),
+            template_engine: env,
+        }
+    }
+}
 
 #[async_trait]
 impl ComhairleBotService for ComhairleRagBotService {
@@ -456,6 +485,235 @@ impl ComhairleBotService for ComhairleRagBotService {
 
         Ok(Box::pin(mapped_stream))
     }
+
+    async fn get_agent(
+        &self,
+        agent_id: &str,
+    ) -> Result<(StatusCode, ComhairleAgent), ComhairleError> {
+        let params = GetQueryParams {
+            id: Some(agent_id.to_string()),
+            ..Default::default()
+        };
+
+        let (status, agents) = ragflow::agent::list(&self.client, Some(params)).await?;
+
+        let agent: ComhairleAgent = (&agents[0]).into();
+
+        Ok((status, agent))
+    }
+
+    async fn list_agents(
+        &self,
+        params: Option<ApiGetQueryParams>,
+    ) -> Result<(StatusCode, Vec<ComhairleAgent>), ComhairleError> {
+        let params: Option<GetQueryParams> = params.map(|p| p.into());
+
+        let (status, agents) = ragflow::agent::list(&self.client, params).await?;
+
+        let agents: Vec<ComhairleAgent> = agents.into_iter().map(Into::into).collect();
+
+        Ok((status, agents))
+    }
+
+    async fn create_agent(
+        &self,
+        body: CreateAgentRequest,
+        context: minijinja::Value,
+    ) -> Result<(StatusCode, ComhairleAgent), ComhairleError> {
+        let mut body: CreateAgent = body.into();
+        let title = body.title.clone();
+
+        let dsl = build_agent_dsl(&self.template_engine, context)?;
+        body.dsl = dsl;
+
+        let (status, json) = ragflow::agent::create(&self.client, body).await?;
+
+        if !json.data {
+            return Err(ComhairleError::RagflowError(ragflow::RagflowError::Api {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                body: "Error creating agent".to_string(),
+            }));
+        }
+
+        let params = GetQueryParams {
+            title: Some(title),
+            ..Default::default()
+        };
+        let (_, agents) = ragflow::agent::list(&self.client, Some(params)).await?;
+
+        if agents.is_empty() || agents.len() > 1 {
+            return Err(ComhairleError::RagflowError(ragflow::RagflowError::Api {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                body: "Error retrieving agent after creation".to_string(),
+            }));
+        }
+
+        let agent: ComhairleAgent = (&agents[0]).into();
+
+        Ok((status, agent))
+    }
+
+    async fn update_agent(
+        &self,
+        agent_id: &str,
+        body: UpdateAgentRequest,
+    ) -> Result<(StatusCode, ComhairleAgent), ComhairleError> {
+        let dsl = body
+            .topic
+            .as_ref()
+            .map(|topic| {
+                let context = context! { topic };
+                build_agent_dsl(&self.template_engine, context)
+            })
+            .transpose()?;
+        let mut body: UpdateAgent = body.into();
+        body.dsl = dsl;
+
+        let (status, _) = ragflow::agent::update(&self.client, agent_id, body).await?;
+
+        let params = GetQueryParams {
+            id: Some(agent_id.to_string()),
+            ..Default::default()
+        };
+        let (_, agents) = ragflow::agent::list(&self.client, Some(params)).await?;
+
+        if agents.is_empty() || agents.len() > 1 {
+            return Err(ComhairleError::RagflowError(ragflow::RagflowError::Api {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                body: "error retrieving agent after update".to_string(),
+            }));
+        }
+
+        let agent: ComhairleAgent = (&agents[0]).into();
+
+        Ok((status, agent))
+    }
+
+    async fn delete_agent(&self, agent_id: &str) -> Result<StatusCode, ComhairleError> {
+        let status = ragflow::agent::delete(&self.client, agent_id).await?;
+
+        Ok(status)
+    }
+
+    async fn get_agent_session(
+        &self,
+        session_id: &str,
+        agent_id: &str,
+    ) -> Result<(StatusCode, ComhairleAgentSession), ComhairleError> {
+        let params = GetQueryParams {
+            id: Some(session_id.to_string()),
+            ..Default::default()
+        };
+
+        let (status, agent_sessions) =
+            ragflow::agent::session::list(&self.client, agent_id, Some(params)).await?;
+
+        let agent_session: ComhairleAgentSession = (&agent_sessions[0]).into();
+
+        Ok((status, agent_session))
+    }
+
+    async fn list_agent_sessions(
+        &self,
+        agent_id: &str,
+        params: Option<ApiGetQueryParams>,
+    ) -> Result<(StatusCode, Vec<ComhairleAgentSession>), ComhairleError> {
+        let params: Option<GetQueryParams> = params.map(|p| p.into());
+
+        let (status, agent_sessions) =
+            ragflow::agent::session::list(&self.client, agent_id, params).await?;
+
+        let agent_sessions: Vec<ComhairleAgentSession> =
+            agent_sessions.into_iter().map(Into::into).collect();
+
+        Ok((status, agent_sessions))
+    }
+
+    async fn create_agent_session(
+        &self,
+        agent_id: &str,
+    ) -> Result<(StatusCode, ComhairleAgentSession), ComhairleError> {
+        let (status, agent_session) =
+            ragflow::agent::session::create(&self.client, agent_id).await?;
+
+        let agent_session: ComhairleAgentSession = agent_session.into();
+
+        Ok((status, agent_session))
+    }
+
+    // Not supported by ragflow
+    // Endpoint currently commented out
+    async fn update_agent_session(
+        &self,
+        session_id: &str,
+        agent_id: &str,
+        body: UpdateAgentSessionRequest,
+    ) -> Result<(StatusCode, ComhairleAgentSession), ComhairleError> {
+        Ok((
+            StatusCode::OK,
+            ComhairleAgentSession {
+                ..Default::default()
+            },
+        ))
+    }
+
+    async fn delete_agent_session(
+        &self,
+        session_id: &str,
+        agent_id: &str,
+    ) -> Result<StatusCode, ComhairleError> {
+        let body = DeleteResources {
+            ids: vec![&session_id],
+        };
+
+        let status = ragflow::agent::session::delete(&self.client, agent_id, body).await?;
+
+        Ok(status)
+    }
+
+    async fn converse_with_agent(
+        &self,
+        session_id: &str,
+        agent_id: &str,
+        body: AgentConversationRequest,
+    ) -> Result<
+        Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
+        ComhairleError,
+    > {
+        let mut body: ConvoQuestion = body.into();
+        body.session_id = Some(session_id.to_string());
+
+        let stream =
+            ragflow::agent::session::stream_agent_conversation(&self.client, agent_id, body)
+                .await?;
+
+        let mapped_stream = stream.map(|item| item.map_err(ComhairleError::from));
+
+        Ok(Box::pin(mapped_stream))
+    }
+}
+
+fn build_agent_dsl(
+    template_engine: &minijinja::Environment,
+    context: minijinja::Value,
+) -> Result<serde_json::Value, ComhairleError> {
+    let template = template_engine.get_template("ragflow-elicitation-bot.json")?;
+    let content = template.render(context)?;
+
+    let graph_json: Value = from_str(&content).map_err(|_| {
+        ComhairleError::CorruptedData("Unable to parse json from agent template".to_string())
+    })?;
+
+    let mut dsl: Value = from_str(include_str!(
+        "../agent_templates/ragflow-agent-static-dsl-content.json"
+    ))?;
+    dsl.as_object_mut()
+        .ok_or(ComhairleError::CorruptedData(
+            "json template must be an object".to_string(),
+        ))?
+        .insert("graph".to_string(), graph_json.clone());
+
+    Ok(dsl)
 }
 
 //
@@ -471,6 +729,7 @@ impl From<ApiGetQueryParams> for GetQueryParams {
             name: params.name,
             id: None,
             desc: None,
+            title: params.title,
         }
     }
 }
@@ -675,8 +934,8 @@ impl From<&ChatSession> for ComhairleChatSession {
     }
 }
 
-impl From<ChatSessionMessage> for ComhairleSessionMessage {
-    fn from(message: ChatSessionMessage) -> Self {
+impl From<SessionMessage> for ComhairleSessionMessage {
+    fn from(message: SessionMessage) -> Self {
         Self {
             id: message.id.unwrap_or("".to_string()),
             content: message.content,
@@ -688,8 +947,8 @@ impl From<ChatSessionMessage> for ComhairleSessionMessage {
     }
 }
 
-impl From<&ChatSessionMessage> for ComhairleSessionMessage {
-    fn from(message: &ChatSessionMessage) -> Self {
+impl From<&SessionMessage> for ComhairleSessionMessage {
+    fn from(message: &SessionMessage) -> Self {
         Self {
             id: message.id.clone().unwrap_or("".to_string()),
             content: message.content.clone(),
@@ -750,6 +1009,95 @@ impl From<ChatConversationRequest> for ConvoQuestion {
             question: input.question,
             session_id: None,
             user_id: input.user_id,
+            stream: Some(true),
+        }
+    }
+}
+
+impl From<Agent> for ComhairleAgent {
+    fn from(input: Agent) -> Self {
+        Self {
+            id: input.id,
+            name: input.title.unwrap_or_default(),
+            configuration: input.dsl,
+        }
+    }
+}
+
+impl From<&Agent> for ComhairleAgent {
+    fn from(input: &Agent) -> Self {
+        Self {
+            id: input.id.clone(),
+            name: input.title.clone().unwrap_or_default(),
+            configuration: input.dsl.clone(),
+        }
+    }
+}
+
+impl From<UpdateAgentRequest> for UpdateAgent {
+    fn from(input: UpdateAgentRequest) -> Self {
+        Self {
+            title: input.title,
+            dsl: None,
+        }
+    }
+}
+
+impl From<CreateAgentRequest> for CreateAgent {
+    fn from(input: CreateAgentRequest) -> Self {
+        Self {
+            title: input.name,
+            dsl: serde_json::json!({}),
+        }
+    }
+}
+
+impl From<AgentSession> for ComhairleAgentSession {
+    fn from(input: AgentSession) -> Self {
+        Self {
+            id: input.id,
+            agent_id: input.agent_id,
+            dsl: input.dsl,
+            messages: input
+                .messages
+                .clone()
+                .unwrap_or_default()
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+        }
+    }
+}
+
+impl From<&AgentSession> for ComhairleAgentSession {
+    fn from(input: &AgentSession) -> Self {
+        Self {
+            id: input.id.clone(),
+            agent_id: input.agent_id.clone(),
+            dsl: input.dsl.clone(),
+            messages: input
+                .messages
+                .clone()
+                .unwrap_or_default()
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+        }
+    }
+}
+
+impl From<CreateAgentSessionRequest> for CreateAgentSession {
+    fn from(input: CreateAgentSessionRequest) -> Self {
+        Self {}
+    }
+}
+
+impl From<AgentConversationRequest> for ConvoQuestion {
+    fn from(input: AgentConversationRequest) -> Self {
+        Self {
+            question: input.question,
+            session_id: None,
+            user_id: None,
             stream: Some(true),
         }
     }

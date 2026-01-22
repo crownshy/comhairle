@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::client::RagflowClient;
 use crate::error::Result;
-use crate::{DeleteResources, GetQueryParams, RagflowError};
+use crate::{ConvoQuestion, DeleteResources, GetQueryParams, RagflowError, SessionMessage};
 
 pub async fn create(
     client: &RagflowClient,
@@ -39,7 +39,7 @@ pub async fn delete(
     body: DeleteResources<'_>,
 ) -> Result<StatusCode> {
     let path = format!("/chats/{chat_id}/sessions");
-    let status = client.delete(&path, &body, None).await?;
+    let status = client.delete(&path, Some(&body), None).await?;
 
     Ok(status)
 }
@@ -99,25 +99,7 @@ pub struct ChatSession {
     pub name: Option<String>,
     pub update_date: String,
     pub update_time: i64,
-    pub messages: Vec<ChatSessionMessage>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ChatSessionMessage {
-    pub content: String,
-    pub id: Option<String>,
-    pub role: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub reference: Option<Vec<MessageReference>>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct MessageReference {
-    pub id: String,
-    pub content: String,
-    pub dataset_id: String,
-    pub document_id: String,
-    pub document_name: String,
+    pub messages: Vec<SessionMessage>,
 }
 
 #[derive(Deserialize)]
@@ -130,14 +112,6 @@ pub struct CreateChatSessionResponse {
 pub struct GetChatSessionResponse {
     code: i32,
     pub data: Vec<ChatSession>,
-}
-
-#[derive(Serialize, Deserialize, Default, Debug)]
-pub struct ConvoQuestion {
-    pub question: String,
-    pub stream: Option<bool>,
-    pub session_id: Option<String>,
-    pub user_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -157,8 +131,8 @@ mod tests {
 
     use serde_json::json;
     use wiremock::{
-        Mock, MockServer, ResponseTemplate,
         matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
     };
 
     #[tokio::test]

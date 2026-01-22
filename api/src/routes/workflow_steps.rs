@@ -8,11 +8,16 @@ use axum::{
     http::StatusCode,
     Json,
 };
-use tracing::info;
+use minijinja::context;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
+use crate::models::bot_service_user_session::{
+    self, BotServiceUserSessionDto, CreateBotServiceUserSession,
+};
 use crate::models::workflow_step::LocalisedWorkflowStep;
-use crate::tools::ToolConfigSanitize;
+use crate::routes::bot::agents::UpdateAgentRequest;
+use crate::tools::{ToolConfig, ToolConfigSanitize};
 use crate::{
     error::ComhairleError,
     models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep, WorkflowStep},
@@ -34,6 +39,7 @@ async fn create_workflow_step(
     info!("Attempting to create workflow");
     let workflow = workflow_step::create(
         &state.db,
+        &state.bot_service,
         &new_workflow,
         workflow_id,
         &conversation.primary_locale,
@@ -50,6 +56,37 @@ async fn update_workflow_step(
     Json(workflow): Json<PartialWorkflowStep>,
 ) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
     let workflow = workflow_step::update(&state.db, id, workflow_id, &workflow).await?;
+    Ok((StatusCode::OK, Json(workflow)))
+}
+
+async fn update_elicitation_bot_workflow_step(
+    State(state): State<Arc<ComhairleState>>,
+    Path((conversation_id, workflow_id, id)): Path<(Uuid, Uuid, Uuid)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Json(workflow): Json<PartialWorkflowStep>,
+) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
+    let tool_config = match &workflow.tool_config {
+        Some(ToolConfig::ElicitationBot(config)) => config,
+        _ => {
+            return Err(ComhairleError::ToolConfigError(
+                "Incorrect config type".to_string(),
+            ))
+        }
+    };
+
+    let workflow = workflow_step::update(&state.db, id, workflow_id, &workflow).await?;
+
+    let body = UpdateAgentRequest {
+        // Ragflow returning an error if title omitted even though it successfully saves
+        title: Some(conversation_id.to_string()),
+        topic: Some(tool_config.topic.clone()),
+    };
+    // TODO: make atomic to revert change to workflow_step if bot service request fails
+    let _ = state
+        .bot_service
+        .update_agent(&tool_config.bot_id, body)
+        .await?;
+
     Ok((StatusCode::OK, Json(workflow)))
 }
 
@@ -109,13 +146,33 @@ async fn delete_workflow_step(
     Ok((StatusCode::OK, Json(workflow)))
 }
 
+#[instrument(err(Debug), skip(state))]
+async fn create_workflow_bot_session(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path((conversation_id, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
+) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
+    let create_session = CreateBotServiceUserSession {
+        conversation_id,
+        workflow_step_id: Some(workflow_step_id),
+        user_id: user.id,
+    };
+    let bot_user_session =
+        bot_service_user_session::create(&state.db, &state.bot_service, &create_session).await?;
+
+    let bot_user_session: BotServiceUserSessionDto = bot_user_session.into();
+    Ok((StatusCode::CREATED, Json(bot_user_session)))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
             post_with(create_workflow_step, |op| {
                 op.id("CreateWorkflowStep")
+                    .tag("Workflow step")
                     .summary("Create a new workflow step")
+                    .security_requirement("JWT")
                     .response::<201, Json<LocalisedWorkflowStep>>()
             }),
         )
@@ -123,7 +180,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/",
             get_with(list_workflows_step, |op| {
                 op.id("ListWorkflowSteps")
+                    .tag("Workflow step")
                     .summary("List the workflow steps associated with this workflow")
+                    .security_requirement("JWT")
                     .response::<200, Json<Vec<LocalisedWorkflowStep>>>()
             }),
         )
@@ -131,7 +190,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{workflow_step_id}",
             get_with(get_workflow_step, |op| {
                 op.id("GetWorkflowStep")
+                    .tag("Workflow step")
                     .summary("Get the specified workflow step")
+                    .security_requirement("JWT")
                     .response::<200, Json<LocalisedWorkflowStep>>()
             }),
         )
@@ -139,7 +200,19 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{workflow_step_id}",
             put_with(update_workflow_step, |op| {
                 op.id("UpdateWorkflowStep")
+                    .tag("Workflow step")
                     .summary("Update the specified workflow step")
+                    .security_requirement("JWT")
+                    .response::<200, Json<WorkflowStep>>()
+            }),
+        )
+        .api_route(
+            "/{workflow_step_id}/elicitation_bot",
+            put_with(update_elicitation_bot_workflow_step, |op| {
+                op.id("UpdateElicitationBotWorkflowStep")
+                    .tag("Workflow step")
+                    .summary("Update a workflow step of type elicitation bot")
+                    .security_requirement("JWT")
                     .response::<200, Json<WorkflowStep>>()
             }),
         )
@@ -147,8 +220,20 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{workflow_step_id}",
             delete_with(delete_workflow_step, |op| {
                 op.id("DeleteWorkflowStep")
+                    .tag("Workflow step")
                     .summary("Delete the specified workflow step")
+                    .security_requirement("JWT")
                     .response::<200, Json<WorkflowStep>>()
+            }),
+        )
+        .api_route(
+            "/{workflow_step_id}/bot_service_session",
+            post_with(create_workflow_bot_session, |op| {
+                op.id("CreateWorkflowStepBotSession")
+                    .tag("Workflow step")
+                    .summary("Create a user bot session for a workflow step")
+                    .security_requirement("JWT")
+                    .response::<200, Json<BotServiceUserSessionDto>>()
             }),
         )
         .with_state(state)

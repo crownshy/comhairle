@@ -42,6 +42,12 @@ pub enum ComhairleError {
     #[error("Multipart form parse error: {0}")]
     MultipartParseForm(#[from] MultipartError),
 
+    #[error("Template error: {0}")]
+    TemplateError(#[from] minijinja::Error),
+
+    #[error("Serde json error: {0}")]
+    SerdeJsonError(#[from] serde_json::Error),
+
     #[error("Username {0} already taken")]
     DuplicateUsername(String),
 
@@ -197,6 +203,9 @@ pub enum ComhairleError {
 
     #[error("Bad request: {0}")]
     BadRequest(String),
+
+    #[error("Tool config error: {0}")]
+    ToolConfigError(String),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
