@@ -14,9 +14,11 @@ use uuid::Uuid;
 
 use crate::models::bot_service_user_session::{
     self, BotServiceUserSessionDto, CreateBotServiceUserSession,
+    CreateWorkflowStepBotServiceUserSession,
 };
 use crate::models::workflow_step::LocalisedWorkflowStep;
 use crate::routes::bot::agents::UpdateAgentRequest;
+use crate::tools::elicitation_bot::ElicitationBotToolConfig;
 use crate::tools::{ToolConfig, ToolConfigSanitize};
 use crate::{
     error::ComhairleError,
@@ -139,7 +141,7 @@ async fn get_workflow_step(
 /// Delete a specific workflow
 async fn delete_workflow_step(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredAdminUser(_user): RequiredAdminUser,
     Path((_, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
     let workflow = workflow_step::delete(&state.db, &workflow_step_id).await?;
@@ -152,13 +154,28 @@ async fn create_workflow_bot_session(
     RequiredUser(user): RequiredUser,
     Path((conversation_id, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
-    let create_session = CreateBotServiceUserSession {
-        conversation_id,
-        workflow_step_id: Some(workflow_step_id),
-        user_id: user.id,
+    let workflow_step = workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
+    let tool_config = match workflow_step.tool_config {
+        ToolConfig::ElicitationBot(config) => config,
+        _ => {
+            return Err(ComhairleError::ToolConfigError(
+                "Incorrect config type".to_string(),
+            ))
+        }
     };
-    let bot_user_session =
-        bot_service_user_session::create(&state.db, &state.bot_service, &create_session).await?;
+
+    let create_session = CreateWorkflowStepBotServiceUserSession {
+        conversation_id,
+        user_id: user.id,
+        workflow_step_id,
+        agent_id: tool_config.bot_id,
+    };
+    let bot_user_session = bot_service_user_session::create_workflow_step_session(
+        &state.db,
+        &state.bot_service,
+        &create_session,
+    )
+    .await?;
 
     let bot_user_session: BotServiceUserSessionDto = bot_user_session.into();
     Ok((StatusCode::CREATED, Json(bot_user_session)))
@@ -244,9 +261,7 @@ mod tests {
 
     use crate::{
         setup_server,
-        test_helpers::{
-            extract, learn_tool_config, polis_tool_config, test_config, test_state, UserSession,
-        },
+        test_helpers::{extract, learn_tool_config, polis_tool_config, test_state, UserSession},
     };
     use axum::http::StatusCode;
     use serde_json::json;
