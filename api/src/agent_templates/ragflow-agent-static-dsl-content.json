@@ -15,15 +15,9 @@
                 "sys.query": "",
                 "sys.user_id": ""
         },
-        "retrieval": [
-                {
-                        "chunks": [],
-                        "doc_aggs": []
-                },
-                {
-                        "chunks": {},
-                        "doc_aggs": {}
-                }
-        ],
-        "history": []
+        "retrieval": [],
+        "history": [],
+        "path": [],
+        "memory": [],
+        "messages": []
 }

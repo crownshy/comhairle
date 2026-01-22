@@ -1,268 +1,4 @@
 {
-        "edges": [
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__beginstart-Categorize:IcyMealsOpenend",
-                        "markerEnd": "logo",
-                        "source": "begin",
-                        "sourceHandle": "start",
-                        "target": "Categorize:IcyMealsOpen",
-                        "targetHandle": "end",
-                        "type": "buttonEdge",
-                        "zIndex": 1001
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Agent:FastMapsWishtool-Tool:FamousDaysHopeend",
-                        "source": "Agent:FastMapsWish",
-                        "sourceHandle": "tool",
-                        "target": "Tool:FamousDaysHope",
-                        "targetHandle": "end"
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Agent:FastMapsWishstart-Message:NiceRocketsTradeend",
-                        "source": "Agent:FastMapsWish",
-                        "sourceHandle": "start",
-                        "target": "Message:NiceRocketsTrade",
-                        "targetHandle": "end"
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Categorize:IcyMealsOpen43e5849b-3e69-461b-bb75-40a54a1a96c8-Agent:FiftyHoundsTrainend",
-                        "source": "Categorize:IcyMealsOpen",
-                        "sourceHandle": "43e5849b-3e69-461b-bb75-40a54a1a96c8",
-                        "target": "Agent:FiftyHoundsTrain",
-                        "targetHandle": "end"
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Agent:FiftyHoundsTrainstart-Message:TidyDaysRelateend",
-                        "source": "Agent:FiftyHoundsTrain",
-                        "sourceHandle": "start",
-                        "target": "Message:TidyDaysRelate",
-                        "targetHandle": "end"
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Categorize:IcyMealsOpenb61de626-dd97-40a1-a9f2-02cbafd7a539-Agent:LegalTurtlesHuntend",
-                        "source": "Categorize:IcyMealsOpen",
-                        "sourceHandle": "b61de626-dd97-40a1-a9f2-02cbafd7a539",
-                        "target": "Agent:LegalTurtlesHunt",
-                        "targetHandle": "end"
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Agent:LegalTurtlesHuntstart-Message:ManyEmusYawnend",
-                        "source": "Agent:LegalTurtlesHunt",
-                        "sourceHandle": "start",
-                        "target": "Message:ManyEmusYawn",
-                        "targetHandle": "end"
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Categorize:IcyMealsOpenfedf9ef3-c7cd-45d8-99cf-40a884dc76b1-Agent:FastMapsWishend",
-                        "markerEnd": "logo",
-                        "source": "Categorize:IcyMealsOpen",
-                        "sourceHandle": "fedf9ef3-c7cd-45d8-99cf-40a884dc76b1",
-                        "target": "Agent:FastMapsWish",
-                        "targetHandle": "end",
-                        "type": "buttonEdge",
-                        "zIndex": 1001
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Categorize:IcyMealsOpen0c1daaf8-dd26-465f-80a4-bca3e6f3f9f5-Categorize:BumpyBarsDropend",
-                        "source": "Categorize:IcyMealsOpen",
-                        "sourceHandle": "0c1daaf8-dd26-465f-80a4-bca3e6f3f9f5",
-                        "target": "Categorize:BumpyBarsDrop",
-                        "targetHandle": "end"
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Agent:StalePawsArrivestart-Message:LightCatsKissend",
-                        "source": "Agent:StalePawsArrive",
-                        "sourceHandle": "start",
-                        "target": "Message:LightCatsKiss",
-                        "targetHandle": "end"
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Agent:PurpleTiresCheckstart-Message:VioletMemesTeachend",
-                        "source": "Agent:PurpleTiresCheck",
-                        "sourceHandle": "start",
-                        "target": "Message:VioletMemesTeach",
-                        "targetHandle": "end"
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Categorize:BumpyBarsDrop0b0b77f8-3ae7-4bc7-bc85-95ba272b2f3a-Agent:FewBushesRunend",
-                        "source": "Categorize:BumpyBarsDrop",
-                        "sourceHandle": "0b0b77f8-3ae7-4bc7-bc85-95ba272b2f3a",
-                        "target": "Agent:FewBushesRun",
-                        "targetHandle": "end"
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Categorize:BumpyBarsDrop21299dfc-e1ff-43cb-ae24-327eed016f7d-Agent:CyanMomentsAllowend",
-                        "source": "Categorize:BumpyBarsDrop",
-                        "sourceHandle": "21299dfc-e1ff-43cb-ae24-327eed016f7d",
-                        "target": "Agent:CyanMomentsAllow",
-                        "targetHandle": "end"
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Categorize:BumpyBarsDropd28adc22-c40c-460a-a033-67935d545b2b-Agent:SixtyDodosBurnend",
-                        "source": "Categorize:BumpyBarsDrop",
-                        "sourceHandle": "d28adc22-c40c-460a-a033-67935d545b2b",
-                        "target": "Agent:SixtyDodosBurn",
-                        "targetHandle": "end"
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Categorize:BumpyBarsDrop77aa01de-a338-4f39-b191-62219028b022-Agent:EveryBarsHuntend",
-                        "source": "Categorize:BumpyBarsDrop",
-                        "sourceHandle": "77aa01de-a338-4f39-b191-62219028b022",
-                        "target": "Agent:EveryBarsHunt",
-                        "targetHandle": "end"
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Agent:MetalBucketsRepairstart-Message:OpenCarsPushend",
-                        "source": "Agent:MetalBucketsRepair",
-                        "sourceHandle": "start",
-                        "target": "Message:OpenCarsPush",
-                        "targetHandle": "end"
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Agent:FewBushesRunstart-Message:NinetyNumbersFlyend",
-                        "source": "Agent:FewBushesRun",
-                        "sourceHandle": "start",
-                        "target": "Message:NinetyNumbersFly",
-                        "targetHandle": "end"
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Agent:CyanMomentsAllowstart-Message:TangyJeansTapend",
-                        "source": "Agent:CyanMomentsAllow",
-                        "sourceHandle": "start",
-                        "target": "Message:TangyJeansTap",
-                        "targetHandle": "end"
-                },
-                {
-                        "id": "xy-edge__Agent:SixtyDodosBurnstart-Message:CoolBatsRescueend",
-                        "source": "Agent:SixtyDodosBurn",
-                        "sourceHandle": "start",
-                        "target": "Message:CoolBatsRescue",
-                        "targetHandle": "end"
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Agent:EveryBarsHuntstart-Message:SlickBarsPushend",
-                        "source": "Agent:EveryBarsHunt",
-                        "sourceHandle": "start",
-                        "target": "Message:SlickBarsPush",
-                        "targetHandle": "end"
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Categorize:IcyMealsOpen76e6efd5-b632-4185-bdb9-0eb50f1e6a79-Categorize:PlainNightsListenend",
-                        "source": "Categorize:IcyMealsOpen",
-                        "sourceHandle": "76e6efd5-b632-4185-bdb9-0eb50f1e6a79",
-                        "target": "Categorize:PlainNightsListen",
-                        "targetHandle": "end"
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Categorize:PlainNightsListene47b34b8-70c6-45d8-817e-b8123f91405a-Agent:PurpleTiresCheckend",
-                        "markerEnd": "logo",
-                        "source": "Categorize:PlainNightsListen",
-                        "sourceHandle": "e47b34b8-70c6-45d8-817e-b8123f91405a",
-                        "target": "Agent:PurpleTiresCheck",
-                        "targetHandle": "end",
-                        "type": "buttonEdge",
-                        "zIndex": 1001
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Categorize:PlainNightsListen577b93e0-ca54-453a-8ca7-3a48ad585b76-Agent:MetalBucketsRepairend",
-                        "markerEnd": "logo",
-                        "source": "Categorize:PlainNightsListen",
-                        "sourceHandle": "577b93e0-ca54-453a-8ca7-3a48ad585b76",
-                        "target": "Agent:MetalBucketsRepair",
-                        "targetHandle": "end",
-                        "type": "buttonEdge",
-                        "zIndex": 1001
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__Categorize:PlainNightsListenb6c66d30-3a5f-4bec-8ee0-aade2e3ef307-Agent:StalePawsArriveend",
-                        "markerEnd": "logo",
-                        "source": "Categorize:PlainNightsListen",
-                        "sourceHandle": "b6c66d30-3a5f-4bec-8ee0-aade2e3ef307",
-                        "target": "Agent:StalePawsArrive",
-                        "targetHandle": "end",
-                        "type": "buttonEdge",
-                        "zIndex": 1001
-                },
-                {
-                        "data": {
-                                "isHovered": false
-                        },
-                        "id": "xy-edge__IterationItem:SlowTeamsFindstart-Message:TrueDrinksDigend",
-                        "source": "IterationItem:SlowTeamsFind",
-                        "sourceHandle": "start",
-                        "target": "Message:TrueDrinksDig",
-                        "targetHandle": "end"
-                }
-        ],
         "nodes": [
                 {
                         "data": {
@@ -278,14 +14,14 @@
                         "dragging": false,
                         "id": "begin",
                         "measured": {
-                                "height": 50,
+                                "height": 82,
                                 "width": 200
                         },
                         "position": {
-                                "x": -183.28039856775217,
-                                "y": 347.86371900712186
+                                "x": -215.36952496155936,
+                                "y": 343.437632607976
                         },
-                        "selected": true,
+                        "selected": false,
                         "sourcePosition": "left",
                         "targetPosition": "right",
                         "type": "beginNode"
@@ -313,10 +49,10 @@
                                                         "uuid": "b61de626-dd97-40a1-a9f2-02cbafd7a539"
                                                 },
                                                 {
-                                                        "description": "An input that mentions {{ topic }} in Scotland and is relevant to the topic but can not really count as an opinion. The user seems to need more initial guidance such as prompting questions or teaser stories to expand their thinking. ",
+                                                        "description": "An input that mentions Renewable Energy in Scotland and is relevant to the topic but can not really count as an opinion. The user seems to need more initial guidance such as prompting questions or teaser stories to expand their thinking. ",
                                                         "examples": [
                                                                 {
-                                                                        "value": "“{{ topic }}is important, but I don’t know much about it.”"
+                                                                        "value": "“Renewable energy is important, but I don’t know much about it.”"
                                                                 },
                                                                 {
                                                                         "value": "“This is an interesting topic—can you guide me through the thinking?”"
@@ -326,23 +62,23 @@
                                                         "uuid": "76e6efd5-b632-4185-bdb9-0eb50f1e6a79"
                                                 },
                                                 {
-                                                        "description": "A statement, opinion, or piece of information that directly engages with the discussion topic and adds substantive content relevant to {{ topic }} in Scotland.",
+                                                        "description": "A statement, opinion, or piece of information that directly engages with the discussion topic and adds substantive content relevant to renewable energy in Scotland.",
                                                         "examples": [
                                                                 {
                                                                         "value": "“Scotland has made significant progress in wind energy, but tidal power still faces cost barriers.”"
                                                                 },
                                                                 {
-                                                                        "value": "“{{ topic }} infrastructure in the Highlands has expanded rapidly over the past decade.”"
+                                                                        "value": "“Renewable energy infrastructure in the Highlands has expanded rapidly over the past decade.”"
                                                                 }
                                                         ],
                                                         "name": "On-Topic Contribution",
                                                         "uuid": "0c1daaf8-dd26-465f-80a4-bca3e6f3f9f5"
                                                 },
                                                 {
-                                                        "description": "A question that is clearly related to {{ topic }} in Scotland and seeks factual information, clarification, or validation.",
+                                                        "description": "A question that is clearly related to renewable energy in Scotland and seeks factual information, clarification, or validation.",
                                                         "examples": [
                                                                 {
-                                                                        "value": "“Is offshore wind Scotland’s largest {{ topic }} resource?”"
+                                                                        "value": "“Is offshore wind Scotland’s largest renewable energy resource?”"
                                                                 },
                                                                 {
                                                                         "value": "“How much of Scotland’s electricity comes from renewables?”"
@@ -352,7 +88,7 @@
                                                         "uuid": "fedf9ef3-c7cd-45d8-99cf-40a884dc76b1"
                                                 },
                                                 {
-                                                        "description": "An input that does not relate to {{ topic }} in Scotland and does not advance the discussion in any meaningful way.",
+                                                        "description": "An input that does not relate to renewable energy in Scotland and does not advance the discussion in any meaningful way.",
                                                         "examples": [
                                                                 {
                                                                         "value": "“I like strawberries.”"
@@ -396,8 +132,8 @@
                                 "width": 200
                         },
                         "position": {
-                                "x": 212.4411578984976,
-                                "y": 252.9998053362081
+                                "x": 260.2604548786868,
+                                "y": 219.79196021107674
                         },
                         "selected": false,
                         "sourcePosition": "right",
@@ -437,7 +173,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "#Role\nYou are a **Docs QA Agent**, a specialized Data set assistant responsible for providing accurate answers based strictly on the connected documentation repository.\n# Core Principles\n1. **Rapid Output**\nRetrieve and answer questions directly from the Data set using the retrieval tool. Immediately return results upon successful retrieval without additional reflection rounds. Prioritize rapid output even before reaching maximum iteration limits.\n2. ** Data set  Only**: Answer questions EXCLUSIVELY based on information retrieved from the connected knowledge base.\n3. **No Content Creation**: Never generate, infer, or create information that is not explicitly present in the retrieved documents.\n4. **Source Transparency**: Always indicate when information comes from the  Data set vs. when it's unavailable.\n5. **Accuracy Over Completeness**: Prefer incomplete but accurate answers over complete but potentially inaccurate ones.\n# Response Guidelines\n## When Information is Available\n- Provide direct answers based on retrieved content\n- Quote relevant sections when helpful\n- Cite the source document/section if available\n- Use phrases like: \"According to the documentation...\" or \"Based on the data set ...\"\n## When Information is Unavailable\n- Clearly state: \"I cannot find this information in the current knowledge base.\"\n- Do NOT attempt to fill gaps with general knowledge\n- Suggest alternative questions that might be covered in the docs\n- Use phrases like: \"The documentation does not cover...\" or \"This information is not available in the knowledge base.\"\n# Response Format\n```markdown\n## Answer\n[Your response based strictly on data set content]\n**Always do these:**\n- Use the Retrieval tool for every question\n- Be transparent about information availability\n- Stick to documented facts only\n- Acknowledge data set  limitations\n",
+                                        "sys_prompt": "#Role\nYou are a **Docs QA Agent**, a specialized Data set assistant responsible for providing accurate answers based strictly on the connected documentation repository.\n# Core Principles\n1. **Rapid Output**\nRetrieve and answer questions directly from the Data set using the retrieval tool. Immediately return results upon successful retrieval without additional reflection rounds. Prioritize rapid output even before reaching maximum iteration limits.\n2. ** Data set  Only**: Answer questions EXCLUSIVELY based on information retrieved from the connected knowledge base.\n3. **No Content Creation**: Never generate, infer, or create information that is not explicitly present in the retrieved documents.\n4. **Source Transparency**: Always indicate when information comes from the  Data set vs. when it's unavailable.\n5. **Accuracy Over Completeness**: Prefer incomplete but accurate answers over complete but potentially inaccurate ones.\n# Response Guidelines\n## When Information is Available\n- Provide direct answers based on retrieved content\n- Quote relevant sections when helpful\n- Cite the source document/section if available\n- Use phrases like: \"According to the documentation...\" or \"Based on the data set ...\"\n## When Information is Unavailable\n- Clearly state: \"I cannot find this information in the current knowledge base.\"\n- Do NOT attempt to fill gaps with general knowledge\n- Suggest alternative questions that might be covered in the docs\n- Use phrases like: \"The documentation does not cover...\" or \"This information is not available in the knowledge base.\"\n\n- and say \"We will bring this question to the Chief Data Officer ({env.GOTOPERSON}) who is running this conversation.\n\n- and also say that the user will hear back from them in {env.TURNOVERDAYS} days. \n# Response Format\n```markdown\n## Answer\n[Your response based strictly on data set content]\n**Always do these:**\n- Use the Retrieval tool for every question\n- Be transparent about information availability\n- Stick to documented facts only\n- Acknowledge data set  limitations\n",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [
@@ -523,7 +259,7 @@
                         "data": {
                                 "form": {
                                         "content": [
-                                                "you had an \n\n\n\n{Agent:FastMapsWish@content}"
+                                                "{Agent:FastMapsWish@content}"
                                         ]
                                 },
                                 "label": "Message",
@@ -532,7 +268,7 @@
                         "dragging": false,
                         "id": "Message:NiceRocketsTrade",
                         "measured": {
-                                "height": 50,
+                                "height": 86,
                                 "width": 200
                         },
                         "position": {
@@ -577,7 +313,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "The user’s input is not related to the discussion topic ({{ topic }} in Scotland).\nPolitely acknowledge the input and redirect the conversation back to the main topic.\nDo not answer the off-topic content.\nKeep the response brief and respectful, and invite the user to share a relevant thought or question about {{ topic }} in Scotland.\n\n\n\nExample: That seems a bit off-topic for now. What are your thoughts on {{ topic }}?",
+                                        "sys_prompt": "The user’s input is not related to the discussion topic (Renewable Energy in Scotland).\nPolitely acknowledge the input and redirect the conversation back to the main topic.\nDo not answer the off-topic content.\nKeep the response brief and respectful, and invite the user to share a relevant thought or question about renewable energy in Scotland.\n\n\n\nExample: That seems a bit off-topic for now. What are your thoughts on renewable energy?",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [],
@@ -617,7 +353,7 @@
                         "dragging": false,
                         "id": "Message:TidyDaysRelate",
                         "measured": {
-                                "height": 50,
+                                "height": 86,
                                 "width": 200
                         },
                         "position": {
@@ -662,7 +398,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "The user is seeking guidance on how to use this chatbot or how to participate in the discussion.\nExplain the purpose of the chatbot, the discussion topic ({{ topic }} in Scotland), and what kind of input is helpful.\nKeep the explanation short, friendly, and encouraging.\nInvite the user to share a thought, opinion, or question related to the topic.",
+                                        "sys_prompt": "The user is seeking guidance on how to use this chatbot or how to participate in the discussion.\nExplain the purpose of the chatbot, the steps, and expected outcome of the discussion topic (Renewable Energy in Scotland), and what kind of input is helpful.\nKeep the explanation short, friendly, and encouraging.\nInvite the user to share a thought, opinion, or question related to the topic.\n# purpose\nThis is an elicitation bot that helps users shape their opinions. \n# steps\nthis will not be the only time you interact with the bot. the bot will be always available in your participation journey. This step in elicitation step, after this step, the user will use Polis and see other people's submitted opinions. After that, they can then come back to the bot and see if they want to make changes. \n# expected outcome\nThis bot helps users to shape their opinions and will store a few opinions generated throughout the dialogue in a private virtual space. Users can revisit these opinions, shape them better, before deciding to submit to the platform.\n# initial question tat can help user explore their mind\n- What's your initial thoughts or opinions about renewable energy?\n- What's the first thing that comes to mind when hearing about the topic of renewable energy in Scotland?\nAt the end of the response always ask 1 and only question. also add a short explanation of the rules of interaction. \n# rules of interaction\n- don't share personal information\n- feel free to share any ideas and views, we won't submit to the system right away. you will have a chance to revise them.  \n- please be respectful even if this is a chatbot\n- please stick to the topic \n\nif the user ask about a person in charge, reveal this information: \n- \"the person in charge of running this conversation is [Shu Yang Lin (shu@crown-shy.com) or ]. You are welcome to contact them.\"\n",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [],
@@ -702,12 +438,12 @@
                         "dragging": false,
                         "id": "Message:ManyEmusYawn",
                         "measured": {
-                                "height": 50,
+                                "height": 86,
                                 "width": 200
                         },
                         "position": {
-                                "x": 896.0692275442832,
-                                "y": -160.13873100746667
+                                "x": 985.1156674356037,
+                                "y": -178.8853499319552
                         },
                         "selected": false,
                         "sourcePosition": "right",
@@ -752,7 +488,7 @@
                                                                         "value": "\"The government should do X so that Y\""
                                                                 },
                                                                 {
-                                                                        "value": "\"We should invest more in {{ topic }} so that the energy bill can come down.\""
+                                                                        "value": "\"We should invest more in renewable energy so that the energy bill can come down.\""
                                                                 },
                                                                 {
                                                                         "value": "\"We should build more wind farms because we need more energy to develop AI\""
@@ -863,7 +599,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "Help users articulate why the topic matters to them and surface core values. You are a Values Exploration Coach.\nYour role is to help users clarify their values, concerns, and motivations related to {{ topic }} in Scotland.\nYou do not debate, persuade, or suggest policies.\nYou focus on what matters to the user and why, without asking accusatory “why” questions.\nYour goal is to gently move users from general attitudes to explicit beliefs.\nUse:\n- Open-ended “what” and “how” questions\n- Values clarification\n- Perspective broadening\n- Emotional and ethical framing\n\nGive one affirmative response. Keep it short and ask only 1 question. ",
+                                        "sys_prompt": "Help users articulate why the topic matters to them and surface core values. You are a Values Exploration Coach.\nYour role is to help users clarify their values, concerns, and motivations related to renewable energy in Scotland.\nYou do not debate, persuade, or suggest policies.\nYou focus on what matters to the user and why, without asking accusatory “why” questions.\nYour goal is to gently move users from general attitudes to explicit beliefs.\nUse:\n- Open-ended “what” and “how” questions\n- Values clarification\n- Perspective broadening\n- Emotional and ethical framing\n\nGive one affirmative response. Keep it short and ask only 1 question. \n\nif {sys.conversation_turns}is still below 2, you can ask  2 questions.",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [],
@@ -923,7 +659,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "Turn values into explicit beliefs and expectations about governance and responsibility.\n\n\n\nYou are a Belief Clarification Coach.\nYour role is to help users articulate and examine their beliefs about what ought to happen in {{ topic }} decision-making.\nYou help users:\n- Make beliefs explicit\n- Examine assumptions\n- Surface tensions or trade-offs\nYou do not ask for solutions yet.\nYour goal is to prepare the ground for ideas and proposals.\n\nGive one affirmative response. Keep it short and ask only 1 question. \n",
+                                        "sys_prompt": "Turn values into explicit beliefs and expectations about governance and responsibility.\n\n\n\nYou are a Belief Clarification Coach.\nYour role is to help users articulate and examine their beliefs about what ought to happen in renewable energy decision-making.\nYou help users:\n- Make beliefs explicit\n- Examine assumptions\n- Surface tensions or trade-offs\nYou do not ask for solutions yet.\nYour goal is to prepare the ground for ideas and proposals.\n\nGive one affirmative response. Keep it short and ask only 1 question. \n",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [],
@@ -963,7 +699,7 @@
                         "dragging": false,
                         "id": "Message:LightCatsKiss",
                         "measured": {
-                                "height": 50,
+                                "height": 86,
                                 "width": 200
                         },
                         "position": {
@@ -988,7 +724,7 @@
                         "dragging": false,
                         "id": "Message:VioletMemesTeach",
                         "measured": {
-                                "height": 50,
+                                "height": 86,
                                 "width": 200
                         },
                         "position": {
@@ -1033,7 +769,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "Help users explore possible actions without forcing commitment or precision.\n\n\n\nYou are an Idea Development Coach.\nYour role is to help users explore tentative ideas related to {{ topic }} policy.\nYou encourage:\n- Creative thinking\n- Multiple options\n- Low-risk exploration\nYou help users expand and compare ideas, but you do not evaluate feasibility yet.\n\nGive one affirmative response. Keep it short and ask only 1 question. ",
+                                        "sys_prompt": "Help users explore possible actions without forcing commitment or precision.\n\n\n\nYou are an Idea Development Coach.\nYour role is to help users explore tentative ideas related to renewable energy policy.\nYou encourage:\n- Creative thinking\n- Multiple options\n- Low-risk exploration\nYou help users expand and compare ideas, but you do not evaluate feasibility yet.\n\nGive one affirmative response. Keep it short and ask only 1 question. ",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [],
@@ -1273,7 +1009,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "You are a Risk & Trade-off Exploration Coach.\nYour role is to help users articulate and examine perceived risks, concerns, and unintended consequences related to {{ topic }} in Scotland.\nYou:\n- Treat concerns as legitimate signals, not obstacles\n- Help users clarify what exactly feels risky\n- Distinguish between impact, likelihood, and uncertainty\n- Surface who might be affected and how\nYou do not:\n- Argue against the concern\n- Provide reassurance or technical fixes\n- Propose solutions or policies\nYour goal is to transform vague or emotional concerns into clear, discussable risk frames that can later be addressed through reasoning or policy design.\n\nKeep it short and ask only 1 question. ",
+                                        "sys_prompt": "You are a Risk & Trade-off Exploration Coach.\nYour role is to help users articulate and examine perceived risks, concerns, and unintended consequences related to renewable energy in Scotland.\nYou:\n- Treat concerns as legitimate signals, not obstacles\n- Help users clarify what exactly feels risky\n- Distinguish between impact, likelihood, and uncertainty\n- Surface who might be affected and how\nYou do not:\n- Argue against the concern\n- Provide reassurance or technical fixes\n- Propose solutions or policies\nYour goal is to transform vague or emotional concerns into clear, discussable risk frames that can later be addressed through reasoning or policy design.\n\nKeep it short and ask only 1 question. ",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [],
@@ -1313,7 +1049,7 @@
                         "dragging": false,
                         "id": "Message:OpenCarsPush",
                         "measured": {
-                                "height": 50,
+                                "height": 86,
                                 "width": 200
                         },
                         "position": {
@@ -1338,7 +1074,7 @@
                         "dragging": false,
                         "id": "Message:NinetyNumbersFly",
                         "measured": {
-                                "height": 50,
+                                "height": 86,
                                 "width": 200
                         },
                         "position": {
@@ -1363,7 +1099,7 @@
                         "dragging": false,
                         "id": "Message:TangyJeansTap",
                         "measured": {
-                                "height": 50,
+                                "height": 86,
                                 "width": 200
                         },
                         "position": {
@@ -1388,7 +1124,7 @@
                         "dragging": false,
                         "id": "Message:CoolBatsRescue",
                         "measured": {
-                                "height": 50,
+                                "height": 86,
                                 "width": 200
                         },
                         "position": {
@@ -1413,7 +1149,7 @@
                         "dragging": false,
                         "id": "Message:SlickBarsPush",
                         "measured": {
-                                "height": 50,
+                                "height": 86,
                                 "width": 200
                         },
                         "position": {
@@ -1435,7 +1171,7 @@
                                                         "description": "a broad view that is not yet a full-fledged opinion that needs shaping. ",
                                                         "examples": [
                                                                 {
-                                                                        "value": "\"i think {{ topic }} is important\""
+                                                                        "value": "\"i think renewable energy is important\""
                                                                 },
                                                                 {
                                                                         "value": "\"I belief environment sustainability is more important than economical values\""
@@ -1451,7 +1187,7 @@
                                                                         "value": "\" I believe ...\""
                                                                 },
                                                                 {
-                                                                        "value": "\"the government should move from just producing {{ topic }} to managing and exporting it efficiently, ensuring that Scotland’s renewable potential translates into real economic and environmental benefits.\""
+                                                                        "value": "\"the government should move from just producing renewable energy to managing and exporting it efficiently, ensuring that Scotland’s renewable potential translates into real economic and environmental benefits.\""
                                                                 }
                                                         ],
                                                         "name": "Judgement / Belief",
@@ -1461,7 +1197,7 @@
                                                         "description": "An early-stage idea that gestures toward action but lacks clarity, justification, or feasibility considerations.",
                                                         "examples": [
                                                                 {
-                                                                        "value": "\"I think we should invest more in {{ topic }}.\""
+                                                                        "value": "\"I think we should invest more in renewable energy.\""
                                                                 },
                                                                 {
                                                                         "value": "\"I think we should X\""
@@ -1509,6 +1245,417 @@
                         "sourcePosition": "right",
                         "targetPosition": "left",
                         "type": "categorizeNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "cite": true,
+                                        "delay_after_error": 1,
+                                        "description": "",
+                                        "exception_default_value": "",
+                                        "exception_goto": [],
+                                        "exception_method": "",
+                                        "frequencyPenaltyEnabled": false,
+                                        "frequency_penalty": 0.7,
+                                        "llm_id": "gpt-4@OpenAI",
+                                        "maxTokensEnabled": false,
+                                        "max_retries": 3,
+                                        "max_rounds": 1,
+                                        "max_tokens": 256,
+                                        "mcp": [],
+                                        "message_history_window_size": 12,
+                                        "outputs": {
+                                                "content": {
+                                                        "type": "string",
+                                                        "value": ""
+                                                }
+                                        },
+                                        "presencePenaltyEnabled": false,
+                                        "presence_penalty": 0.4,
+                                        "prompts": [
+                                                {
+                                                        "content": "{sys.query}",
+                                                        "role": "user"
+                                                }
+                                        ],
+                                        "showStructuredOutput": false,
+                                        "sys_prompt": "You are an Opinion Extraction Bot.\nYour task is to read the user’s message and extract one opinion expressed by the user, rewritten from the user’s own perspective.\nRules:\nWrite the opinion in first person (e.g., “I think…”, “I believe…”, “I feel…”).\nCapture the user’s intent and stance, not their exact wording.\nIf multiple opinions are present, extract the most central one.\nKeep the sentence short, clear, and standalone.\nDo not explain, justify, or add context.\nDo not mention the user or the assistant.",
+                                        "temperature": 0.1,
+                                        "temperatureEnabled": false,
+                                        "tools": [],
+                                        "topPEnabled": false,
+                                        "top_p": 0.3,
+                                        "user_prompt": "",
+                                        "visual_files_var": ""
+                                },
+                                "label": "Agent",
+                                "name": "Opinion Extraction Agent"
+                        },
+                        "dragging": false,
+                        "id": "Agent:EveryTigersMix",
+                        "measured": {
+                                "height": 90,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 1583.2571490795672,
+                                "y": 355.5058490446696
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "agentNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "content": [
+                                                "<br>\n\nopinion:\n\n{Agent:EveryTigersMix@content}"
+                                        ],
+                                        "memory_ids": [
+                                                "a2775828f6d811f0b9ecf2dd9f3a3736"
+                                        ]
+                                },
+                                "label": "Message",
+                                "name": "Message_3"
+                        },
+                        "id": "Message:KhakiGhostsCount",
+                        "measured": {
+                                "height": 86,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 1883.2571490795672,
+                                "y": 355.5058490446696
+                        },
+                        "selected": true,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "messageNode"
+                }
+        ],
+        "edges": [
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__beginstart-Categorize:IcyMealsOpenend",
+                        "markerEnd": "logo",
+                        "source": "begin",
+                        "sourceHandle": "start",
+                        "target": "Categorize:IcyMealsOpen",
+                        "targetHandle": "end",
+                        "type": "buttonEdge",
+                        "zIndex": 1001
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:FastMapsWishtool-Tool:FamousDaysHopeend",
+                        "source": "Agent:FastMapsWish",
+                        "sourceHandle": "tool",
+                        "target": "Tool:FamousDaysHope",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:FastMapsWishstart-Message:NiceRocketsTradeend",
+                        "source": "Agent:FastMapsWish",
+                        "sourceHandle": "start",
+                        "target": "Message:NiceRocketsTrade",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:IcyMealsOpen43e5849b-3e69-461b-bb75-40a54a1a96c8-Agent:FiftyHoundsTrainend",
+                        "source": "Categorize:IcyMealsOpen",
+                        "sourceHandle": "43e5849b-3e69-461b-bb75-40a54a1a96c8",
+                        "target": "Agent:FiftyHoundsTrain",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:FiftyHoundsTrainstart-Message:TidyDaysRelateend",
+                        "source": "Agent:FiftyHoundsTrain",
+                        "sourceHandle": "start",
+                        "target": "Message:TidyDaysRelate",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:IcyMealsOpenb61de626-dd97-40a1-a9f2-02cbafd7a539-Agent:LegalTurtlesHuntend",
+                        "source": "Categorize:IcyMealsOpen",
+                        "sourceHandle": "b61de626-dd97-40a1-a9f2-02cbafd7a539",
+                        "target": "Agent:LegalTurtlesHunt",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:LegalTurtlesHuntstart-Message:ManyEmusYawnend",
+                        "source": "Agent:LegalTurtlesHunt",
+                        "sourceHandle": "start",
+                        "target": "Message:ManyEmusYawn",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:IcyMealsOpenfedf9ef3-c7cd-45d8-99cf-40a884dc76b1-Agent:FastMapsWishend",
+                        "markerEnd": "logo",
+                        "source": "Categorize:IcyMealsOpen",
+                        "sourceHandle": "fedf9ef3-c7cd-45d8-99cf-40a884dc76b1",
+                        "target": "Agent:FastMapsWish",
+                        "targetHandle": "end",
+                        "type": "buttonEdge",
+                        "zIndex": 1001
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:IcyMealsOpen0c1daaf8-dd26-465f-80a4-bca3e6f3f9f5-Categorize:BumpyBarsDropend",
+                        "source": "Categorize:IcyMealsOpen",
+                        "sourceHandle": "0c1daaf8-dd26-465f-80a4-bca3e6f3f9f5",
+                        "target": "Categorize:BumpyBarsDrop",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:StalePawsArrivestart-Message:LightCatsKissend",
+                        "selected": false,
+                        "source": "Agent:StalePawsArrive",
+                        "sourceHandle": "start",
+                        "target": "Message:LightCatsKiss",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:PurpleTiresCheckstart-Message:VioletMemesTeachend",
+                        "source": "Agent:PurpleTiresCheck",
+                        "sourceHandle": "start",
+                        "target": "Message:VioletMemesTeach",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:BumpyBarsDrop0b0b77f8-3ae7-4bc7-bc85-95ba272b2f3a-Agent:FewBushesRunend",
+                        "source": "Categorize:BumpyBarsDrop",
+                        "sourceHandle": "0b0b77f8-3ae7-4bc7-bc85-95ba272b2f3a",
+                        "target": "Agent:FewBushesRun",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:BumpyBarsDrop21299dfc-e1ff-43cb-ae24-327eed016f7d-Agent:CyanMomentsAllowend",
+                        "source": "Categorize:BumpyBarsDrop",
+                        "sourceHandle": "21299dfc-e1ff-43cb-ae24-327eed016f7d",
+                        "target": "Agent:CyanMomentsAllow",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:BumpyBarsDropd28adc22-c40c-460a-a033-67935d545b2b-Agent:SixtyDodosBurnend",
+                        "source": "Categorize:BumpyBarsDrop",
+                        "sourceHandle": "d28adc22-c40c-460a-a033-67935d545b2b",
+                        "target": "Agent:SixtyDodosBurn",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:BumpyBarsDrop77aa01de-a338-4f39-b191-62219028b022-Agent:EveryBarsHuntend",
+                        "source": "Categorize:BumpyBarsDrop",
+                        "sourceHandle": "77aa01de-a338-4f39-b191-62219028b022",
+                        "target": "Agent:EveryBarsHunt",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:MetalBucketsRepairstart-Message:OpenCarsPushend",
+                        "source": "Agent:MetalBucketsRepair",
+                        "sourceHandle": "start",
+                        "target": "Message:OpenCarsPush",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:FewBushesRunstart-Message:NinetyNumbersFlyend",
+                        "source": "Agent:FewBushesRun",
+                        "sourceHandle": "start",
+                        "target": "Message:NinetyNumbersFly",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:CyanMomentsAllowstart-Message:TangyJeansTapend",
+                        "source": "Agent:CyanMomentsAllow",
+                        "sourceHandle": "start",
+                        "target": "Message:TangyJeansTap",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:SixtyDodosBurnstart-Message:CoolBatsRescueend",
+                        "source": "Agent:SixtyDodosBurn",
+                        "sourceHandle": "start",
+                        "target": "Message:CoolBatsRescue",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:EveryBarsHuntstart-Message:SlickBarsPushend",
+                        "source": "Agent:EveryBarsHunt",
+                        "sourceHandle": "start",
+                        "target": "Message:SlickBarsPush",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:IcyMealsOpen76e6efd5-b632-4185-bdb9-0eb50f1e6a79-Categorize:PlainNightsListenend",
+                        "source": "Categorize:IcyMealsOpen",
+                        "sourceHandle": "76e6efd5-b632-4185-bdb9-0eb50f1e6a79",
+                        "target": "Categorize:PlainNightsListen",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:PlainNightsListene47b34b8-70c6-45d8-817e-b8123f91405a-Agent:PurpleTiresCheckend",
+                        "markerEnd": "logo",
+                        "source": "Categorize:PlainNightsListen",
+                        "sourceHandle": "e47b34b8-70c6-45d8-817e-b8123f91405a",
+                        "target": "Agent:PurpleTiresCheck",
+                        "targetHandle": "end",
+                        "type": "buttonEdge",
+                        "zIndex": 1001
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:PlainNightsListen577b93e0-ca54-453a-8ca7-3a48ad585b76-Agent:MetalBucketsRepairend",
+                        "markerEnd": "logo",
+                        "source": "Categorize:PlainNightsListen",
+                        "sourceHandle": "577b93e0-ca54-453a-8ca7-3a48ad585b76",
+                        "target": "Agent:MetalBucketsRepair",
+                        "targetHandle": "end",
+                        "type": "buttonEdge",
+                        "zIndex": 1001
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:PlainNightsListenb6c66d30-3a5f-4bec-8ee0-aade2e3ef307-Agent:StalePawsArriveend",
+                        "markerEnd": "logo",
+                        "source": "Categorize:PlainNightsListen",
+                        "sourceHandle": "b6c66d30-3a5f-4bec-8ee0-aade2e3ef307",
+                        "target": "Agent:StalePawsArrive",
+                        "targetHandle": "end",
+                        "type": "buttonEdge",
+                        "zIndex": 1001
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__IterationItem:SlowTeamsFindstart-Message:TrueDrinksDigend",
+                        "source": "IterationItem:SlowTeamsFind",
+                        "sourceHandle": "start",
+                        "target": "Message:TrueDrinksDig",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:BumpyBarsDrop0b0b77f8-3ae7-4bc7-bc85-95ba272b2f3a-Agent:EveryTigersMixend",
+                        "source": "Categorize:BumpyBarsDrop",
+                        "sourceHandle": "0b0b77f8-3ae7-4bc7-bc85-95ba272b2f3a",
+                        "target": "Agent:EveryTigersMix",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:BumpyBarsDrop21299dfc-e1ff-43cb-ae24-327eed016f7d-Agent:EveryTigersMixend",
+                        "markerEnd": "logo",
+                        "source": "Categorize:BumpyBarsDrop",
+                        "sourceHandle": "21299dfc-e1ff-43cb-ae24-327eed016f7d",
+                        "target": "Agent:EveryTigersMix",
+                        "targetHandle": "end",
+                        "type": "buttonEdge",
+                        "zIndex": 1001
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:BumpyBarsDropd28adc22-c40c-460a-a033-67935d545b2b-Agent:EveryTigersMixend",
+                        "markerEnd": "logo",
+                        "source": "Categorize:BumpyBarsDrop",
+                        "sourceHandle": "d28adc22-c40c-460a-a033-67935d545b2b",
+                        "target": "Agent:EveryTigersMix",
+                        "targetHandle": "end",
+                        "type": "buttonEdge",
+                        "zIndex": 1001
+                },
+                {
+                        "id": "xy-edge__Categorize:BumpyBarsDrop77aa01de-a338-4f39-b191-62219028b022-Agent:EveryTigersMixend",
+                        "markerEnd": "logo",
+                        "source": "Categorize:BumpyBarsDrop",
+                        "sourceHandle": "77aa01de-a338-4f39-b191-62219028b022",
+                        "target": "Agent:EveryTigersMix",
+                        "targetHandle": "end",
+                        "type": "buttonEdge",
+                        "zIndex": 1001
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:EveryTigersMixstart-Message:KhakiGhostsCountend",
+                        "source": "Agent:EveryTigersMix",
+                        "sourceHandle": "start",
+                        "target": "Message:KhakiGhostsCount",
+                        "targetHandle": "end"
                 }
         ]
 }

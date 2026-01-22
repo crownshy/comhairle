@@ -704,22 +704,14 @@ fn build_agent_dsl(
         ComhairleError::CorruptedData("Unable to parse json from agent template".to_string())
     })?;
 
-    // TODO: currently hard coded to match exported json template
-    // May need to be dynamically calculated from the template
-    let path_json = from_str(include_str!(
-        "../agent_templates/ragflow-agent-dsl-path.json"
-    ))?;
-
     let mut dsl: Value = from_str(include_str!(
         "../agent_templates/ragflow-agent-static-dsl-content.json"
     ))?;
-    let obj = dsl.as_object_mut().ok_or(ComhairleError::CorruptedData(
-        "json template must be an object".to_string(),
-    ))?;
-    obj.extend([
-        ("graph".to_string(), graph_json.clone()),
-        ("path".to_string(), path_json),
-    ]);
+    dsl.as_object_mut()
+        .ok_or(ComhairleError::CorruptedData(
+            "json template must be an object".to_string(),
+        ))?
+        .insert("graph".to_string(), graph_json.clone());
 
     Ok(dsl)
 }
