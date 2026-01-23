@@ -20,7 +20,10 @@ use crate::{
     bot_service::ComhairleAgentSession,
     error::ComhairleError,
     models::workflow_step,
-    routes::{auth::RequiredAdminUser, bot::GetQueryParams},
+    routes::{
+        auth::{RequiredAdminUser, RequiredUser},
+        bot::GetQueryParams,
+    },
     tools::ToolConfig,
     ComhairleState,
 };
@@ -117,7 +120,7 @@ pub struct AgentConversationRequestExt {
 async fn converse_with_agent(
     State(state): State<Arc<ComhairleState>>,
     Path((agent_id, session_id)): Path<(String, String)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredUser(_user): RequiredUser,
     Json(payload): Json<AgentConversationRequest>,
 ) -> Result<impl IntoResponse, ComhairleError> {
     let workflow_step = workflow_step::get_by_id(&state.db, &payload.workflow_step_id).await?;
