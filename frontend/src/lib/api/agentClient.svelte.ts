@@ -30,12 +30,22 @@ export interface BotServiceUserSession {
 	workflow_step_id?: string;
 }
 
+export interface ExtractedClaim {
+	id: string;
+	content: string;
+}
+
 export class AgentClient {
 	currentAnswer = $state('');
 	error = $state<string | null>(null);
 	isStreaming = $state(false);
 	session = $state<AgentSession | null>(null);
 	botServiceSession = $state<BotServiceUserSession | null>(null);
+	extractedClaims = $state<ExtractedClaim[]>([]);
+
+	private isParsingOpinion = false;
+	private currentOpinionContent = '';
+	private opinionMarker = '<br>\n\nopinion:\n\n';
 
 	private agentId: string;
 	private conversationId: string;
@@ -192,6 +202,19 @@ export class AgentClient {
 				return;
 			}
 
+			if (json.event === 'message_end') {
+				if (this.isParsingOpinion && this.currentOpinionContent.trim()) {
+					const claimId = `claim-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+					this.extractedClaims = [...this.extractedClaims, {
+						id: claimId,
+						content: this.currentOpinionContent.trim()
+					}];
+				}
+				this.isParsingOpinion = false;
+				this.currentOpinionContent = '';
+				return;
+			}
+
 			if (json.event === 'node_finished' && json.data) {
 				const { component_type, outputs } = json.data;
 				
@@ -213,7 +236,19 @@ export class AgentClient {
 			}
 			
 			if (json.event === 'message' && json.data?.content) {
-				this.currentAnswer += json.data.content;
+				const content = json.data.content as string;
+				
+				if (content.includes('<br>') && content.includes('opinion:')) {
+					this.isParsingOpinion = true;
+					this.currentOpinionContent = '';
+					return;
+				}
+				
+				if (this.isParsingOpinion) {
+					this.currentOpinionContent += content;
+				} else {
+					this.currentAnswer += content;
+				}
 			}
 		} catch {
 			if (jsonStr) {
