@@ -8,17 +8,14 @@ use axum::{
     http::StatusCode,
     Json,
 };
-use minijinja::context;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
 use crate::models::bot_service_user_session::{
-    self, BotServiceUserSessionDto, CreateBotServiceUserSession,
-    CreateWorkflowStepBotServiceUserSession,
+    self, BotServiceUserSessionDto, CreateWorkflowStepBotServiceUserSession,
 };
 use crate::models::workflow_step::LocalisedWorkflowStep;
 use crate::routes::bot::agents::UpdateAgentRequest;
-use crate::tools::elicitation_bot::ElicitationBotToolConfig;
 use crate::tools::{ToolConfig, ToolConfigSanitize};
 use crate::{
     error::ComhairleError,
@@ -149,26 +146,15 @@ async fn delete_workflow_step(
 }
 
 #[instrument(err(Debug), skip(state))]
-async fn create_workflow_bot_session(
+async fn create_workflow_step_bot_session(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Path((conversation_id, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
-    let workflow_step = workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
-    let tool_config = match workflow_step.tool_config {
-        ToolConfig::ElicitationBot(config) => config,
-        _ => {
-            return Err(ComhairleError::ToolConfigError(
-                "Incorrect config type".to_string(),
-            ))
-        }
-    };
-
     let create_session = CreateWorkflowStepBotServiceUserSession {
         conversation_id,
         user_id: user.id,
         workflow_step_id,
-        agent_id: tool_config.bot_id,
     };
     let bot_user_session = bot_service_user_session::create_workflow_step_session(
         &state.db,
@@ -179,6 +165,38 @@ async fn create_workflow_bot_session(
 
     let bot_user_session: BotServiceUserSessionDto = bot_user_session.into();
     Ok((StatusCode::CREATED, Json(bot_user_session)))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get_workflow_step_bot_session(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path((conversation_id, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
+) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
+    let session =
+        bot_service_user_session::get_by_workflow_step_id(&state.db, user.id, workflow_step_id)
+            .await;
+
+    let session = match session {
+        Ok(session) => Ok(session),
+        Err(ComhairleError::NoBotUserSession) => {
+            let create_session = CreateWorkflowStepBotServiceUserSession {
+                conversation_id,
+                user_id: user.id,
+                workflow_step_id,
+            };
+            bot_service_user_session::create_workflow_step_session(
+                &state.db,
+                &state.bot_service,
+                &create_session,
+            )
+            .await
+        }
+        Err(e) => Err(e),
+    }?;
+
+    let session: BotServiceUserSessionDto = session.into();
+    Ok((StatusCode::CREATED, Json(session)))
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
@@ -245,10 +263,20 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/{workflow_step_id}/bot_service_session",
-            post_with(create_workflow_bot_session, |op| {
+            post_with(create_workflow_step_bot_session, |op| {
                 op.id("CreateWorkflowStepBotSession")
                     .tag("Workflow step")
                     .summary("Create a user bot session for a workflow step")
+                    .security_requirement("JWT")
+                    .response::<201, Json<BotServiceUserSessionDto>>()
+            }),
+        )
+        .api_route(
+            "/{workflow_step_id}/bot_service_session",
+            get_with(get_workflow_step_bot_session, |op| {
+                op.id("GetWorkflowStepBotSession")
+                    .tag("Workflow step")
+                    .summary("Get a user bot session for a workflow step")
                     .security_requirement("JWT")
                     .response::<200, Json<BotServiceUserSessionDto>>()
             }),
