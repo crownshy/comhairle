@@ -42,6 +42,13 @@
 	let isMobile = $state(false);
 	let activeTab = $state('chat');
 
+	// Keep chatMessages in sync with external messages prop (for streaming updates)
+	$effect(() => {
+		if (initialMessages.length > 0) {
+			chatMessages = [...initialMessages];
+		}
+	});
+
 	const initialQuestions = [
 		{ id: '1', text: 'Share what I have learned and understood', variant: 'default' as const },
 		{ id: '2', text: 'Share the parts I feel unclear', variant: 'default' as const },
@@ -88,28 +95,9 @@
 
 	function handleQuestionClick(question: { id: string; text: string }) {
 		selectedQuestionId = question.id;
-
-		const userMessage: ElicitationMessage = {
-			id: `user-${Date.now()}`,
-			content: question.text,
-			isBot: false,
-			timestamp: new Date()
-		};
-
-		chatMessages = [...chatMessages, userMessage];
+		// Delegate to external handler - parent manages message state
+		onSendMessage(question.text);
 		scrollToBottom();
-
-		// Simulate bot response
-		setTimeout(() => {
-			const botResponse: ElicitationMessage = {
-				id: `bot-${Date.now()}`,
-				content: getResponseForQuestion(question.text),
-				isBot: true,
-				timestamp: new Date()
-			};
-			chatMessages = [...chatMessages, botResponse];
-			scrollToBottom();
-		}, 500);
 	}
 
 	function getResponseForQuestion(question: string): string {
@@ -126,16 +114,11 @@
 	async function sendMessage() {
 		if (!inputValue.trim()) return;
 
-		const userMessage: ElicitationMessage = {
-			id: `user-${Date.now()}`,
-			content: inputValue.trim(),
-			isBot: false,
-			timestamp: new Date()
-		};
-
-		chatMessages = [...chatMessages, userMessage];
-		onSendMessage(inputValue.trim());
+		const message = inputValue.trim();
 		inputValue = '';
+
+		// Call the external handler - parent will manage message state
+		onSendMessage(message);
 
 		await tick();
 		scrollToBottom();
