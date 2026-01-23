@@ -15,7 +15,6 @@ use crate::models::bot_service_user_session::{
     self, BotServiceUserSessionDto, CreateWorkflowStepBotServiceUserSession,
 };
 use crate::models::workflow_step::LocalisedWorkflowStep;
-use crate::routes::bot::agents::UpdateAgentRequest;
 use crate::tools::{ToolConfig, ToolConfigSanitize};
 use crate::{
     error::ComhairleError,

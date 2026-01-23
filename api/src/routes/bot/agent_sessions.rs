@@ -14,11 +14,14 @@ use axum::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use uuid::Uuid;
 
 use crate::{
     bot_service::ComhairleAgentSession,
     error::ComhairleError,
+    models::workflow_step,
     routes::{auth::RequiredAdminUser, bot::GetQueryParams},
+    tools::ToolConfig,
     ComhairleState,
 };
 
@@ -100,6 +103,14 @@ async fn delete(
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
 pub struct AgentConversationRequest {
     pub question: String,
+    pub workflow_step_id: Uuid,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
+pub struct AgentConversationRequestExt {
+    pub question: String,
+    pub workflow_step_id: Uuid,
+    pub topic: String,
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -109,6 +120,21 @@ async fn converse_with_agent(
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(payload): Json<AgentConversationRequest>,
 ) -> Result<impl IntoResponse, ComhairleError> {
+    let workflow_step = workflow_step::get_by_id(&state.db, &payload.workflow_step_id).await?;
+    let tool_config = match workflow_step.tool_config {
+        ToolConfig::ElicitationBot(config) => config,
+        _ => {
+            return Err(ComhairleError::ToolConfigError(
+                "incorrect config type".to_string(),
+            ))
+        }
+    };
+
+    let payload = AgentConversationRequestExt {
+        question: payload.question,
+        workflow_step_id: payload.workflow_step_id,
+        topic: tool_config.topic.clone(),
+    };
     let stream = state
         .bot_service
         .converse_with_agent(&session_id, &agent_id, payload)
