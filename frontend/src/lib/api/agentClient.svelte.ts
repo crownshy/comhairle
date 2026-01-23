@@ -235,7 +235,7 @@ export class AgentClient {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					credentials: 'include',
-					body: JSON.stringify({ question }),
+					body: JSON.stringify({ question, workflow_step_id: this.workflowStepId }),
 					signal: this.abortController?.signal
 				}
 			);
