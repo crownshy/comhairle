@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use minijinja::context;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -39,9 +38,7 @@ pub async fn setup(
     let create_agent = CreateAgentRequest {
         name: config.conversation_id.clone(),
     };
-    let (_, bot) = bot_service
-        .create_agent(create_agent, context! { topic => &config.topic })
-        .await?;
+    let (_, bot) = bot_service.create_agent(create_agent).await?;
 
     Ok(ElicitationBotToolConfig {
         bot_id: bot.id,

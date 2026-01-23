@@ -8,7 +8,6 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
-use minijinja::context;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -52,7 +51,7 @@ pub async fn create(
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(payload): Json<CreateAgentRequest>,
 ) -> Result<(StatusCode, Json<ComhairleAgent>), ComhairleError> {
-    let (_, agent) = state.bot_service.create_agent(payload, context! {}).await?;
+    let (_, agent) = state.bot_service.create_agent(payload).await?;
 
     Ok((StatusCode::CREATED, Json(agent)))
 }
