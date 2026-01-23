@@ -11,10 +11,11 @@
 		workflowStepId: string;
 		botId: string;
 		userId: string;
+		topic?: string;
 		onDone?: () => void;
 	};
 
-	let { conversationId, workflowId, workflowStepId, botId, userId, onDone }: Props = $props();
+	let { conversationId, workflowId, workflowStepId, botId, userId, topic = 'this topic', onDone }: Props = $props();
 
 	let isLoading = $state(true);
 	let initError = $state<string | null>(null);
@@ -33,12 +34,10 @@
 				return;
 			}
 
-			//TODO get topic
 			chatMessages = [
 				{
 					id: 'welcome',
-					content:
-						"Hello, I am here to help you shape your views and opinions. What is your view on {TOPIC}",
+					content: `Hello, I am here to help you shape your views and opinions. What is your view on ${topic}?`,
 					isBot: true,
 					timestamp: new Date()
 				}

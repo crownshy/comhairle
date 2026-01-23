@@ -147,6 +147,7 @@
 								workflowStepId={workflow_step.id}
 								botId={workflow_step.tool_config.bot_id}
 								userId={user.id}
+								topic={workflow_step.tool_config.topic}
 								onDone={stepComplete}
 							/>
 						{/key}
