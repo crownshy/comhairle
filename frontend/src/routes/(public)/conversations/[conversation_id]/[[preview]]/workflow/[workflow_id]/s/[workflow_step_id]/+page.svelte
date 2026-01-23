@@ -139,8 +139,15 @@
 					{#if tool_config.type === LivedExperience.TOOL_NAME}
 						<LivedExperience.UserUI onDone={stepComplete} />
 					{/if}
-					{#if tool_config.type === ElicitationBot.TOOL_NAME}
-						<ElicitationBot.UserUI onDone={stepComplete} />
+					{#if workflow_step.tool_config.type === ElicitationBot.TOOL_NAME}
+						<ElicitationBot.UserUI
+							conversationId={conversation.id}
+							workflowId={workflow_step.workflow_id}
+							workflowStepId={workflow_step.id}
+							botId={workflow_step.tool_config.bot_id}
+							userId={user.id}
+							onDone={stepComplete}
+						/>
 					{/if}
 				</div>
 			</div>
