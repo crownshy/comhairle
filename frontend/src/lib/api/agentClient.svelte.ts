@@ -90,6 +90,42 @@ export class AgentClient {
 	}
 
 	/**
+	 * Create a new agent session
+	 */
+	async createNewAgentSession(): Promise<AgentSession | null> {
+		try {
+			const response = await fetch(
+				`${this.baseUrl}/bot/agents/${this.agentId}/sessions/`,
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					credentials: 'include'
+				}
+			);
+
+			if (!response.ok) {
+				this.error = `Failed to create agent session: ${response.statusText}`;
+				return null;
+			}
+
+			const session = await response.json();
+			this.session = session;
+
+			this.botServiceSession = {
+				id: session.id,
+				user_id: '',
+				conversation_id: this.conversationId,
+				bot_service_session_id: session.id,
+				workflow_step_id: this.workflowStepId
+			};
+			return session;
+		} catch (e) {
+			this.error = e instanceof Error ? e.message : 'Failed to create agent session';
+			return null;
+		}
+	}
+
+	/**
 	 * Get the agent session details including message history
 	 */
 	async getAgentSession(sessionId: string): Promise<AgentSession | null> {
@@ -127,6 +163,14 @@ export class AgentClient {
 		}
 
 		const agentSession = await this.getAgentSession(botSession.bot_service_session_id);
+		return agentSession !== null;
+	}
+
+	/**
+	 * Initialize the client with a fresh session (no history persistence)
+	 */
+	async initializeFresh(): Promise<boolean> {
+		const agentSession = await this.createNewAgentSession();
 		return agentSession !== null;
 	}
 

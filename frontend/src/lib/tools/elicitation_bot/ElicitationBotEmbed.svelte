@@ -24,36 +24,24 @@
 	onMount(async () => {
 		try {
 			agentClient = new AgentClient(botId, conversationId, workflowId, workflowStepId);
-			const success = await agentClient.initialize();
+			// Always create a fresh session on page load (no history persistence)
+			const success = await agentClient.initializeFresh();
 
 			if (!success) {
 				initError = agentClient.error || 'Failed to initialize chat session';
 				return;
 			}
 
-			if (agentClient.session?.messages) {
-				chatMessages = agentClient.session.messages
-					.filter((msg) => msg.content && msg.content.trim() !== '')
-					.map((msg, idx) => ({
-						id: msg.id || `msg-${idx}`,
-						content: msg.content,
-						isBot: msg.role === 'assistant',
-						timestamp: null
-					}));
-			}
-
-			// If no messages, add a welcome message
-			if (chatMessages.length === 0) {
-				chatMessages = [
-					{
-						id: 'welcome',
-						content:
-							"Hello, I am here to help you shape your views and opinions. What is your view on {TOPIC}",
-						isBot: true,
-						timestamp: new Date()
-					}
-				];
-			}
+			//TODO get topic
+			chatMessages = [
+				{
+					id: 'welcome',
+					content:
+						"Hello, I am here to help you shape your views and opinions. What is your view on {TOPIC}",
+					isBot: true,
+					timestamp: new Date()
+				}
+			];
 		} catch (e) {
 			console.error('ElicitationBot init error:', e);
 			initError = e instanceof Error ? e.message : 'Failed to initialize';
