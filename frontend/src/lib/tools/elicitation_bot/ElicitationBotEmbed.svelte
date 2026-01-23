@@ -48,7 +48,7 @@
 					{
 						id: 'welcome',
 						content:
-							"I'm here to help you explore and articulate your thoughts on this topic. What would you like to share or discuss?",
+							"Hello, I am here to help you shape your views and opinions. What is your view on {TOPIC}",
 						isBot: true,
 						timestamp: new Date()
 					}
@@ -126,10 +126,8 @@
 	</div>
 {:else}
 	<ElicitationBotChat
-		title="Share Your Thoughts"
-		subtitle="Deep dive"
 		botName="Elicitation Bot"
-		botSubtitle="Here to listen"
+		botSubtitle="Here to help you shape your views and opinions"
 		messages={chatMessages}
 		claims={[]}
 		onSendMessage={handleSendMessage}

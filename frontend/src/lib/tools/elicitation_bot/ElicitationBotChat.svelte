@@ -9,8 +9,6 @@
 		chatId,
 		conversationId,
 		userId,
-		title = 'Chat with Bot',
-		subtitle = 'Deep dive',
 		botName = 'Elicitation bot',
 		botSubtitle = 'Ask questions',
 		messages: initialMessages = [
@@ -414,7 +412,6 @@
 		{/if}
 	</div>
 
-	<!-- Continue Button -->
 	<button class="mt-4 px-8 py-3 bg-chat-primary-dark text-white rounded-full font-medium hover:bg-chat-primary transition-colors">
 		Continue
 	</button>
