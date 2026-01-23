@@ -28,18 +28,18 @@
 
 			if (!success) {
 				initError = agentClient.error || 'Failed to initialize chat session';
-				isLoading = false;
 				return;
 			}
 
-			// Load existing messages from the session
 			if (agentClient.session?.messages) {
-				chatMessages = agentClient.session.messages.map((msg, idx) => ({
-					id: msg.id || `msg-${idx}`,
-					content: msg.content,
-					isBot: msg.role === 'assistant',
-					timestamp: null
-				}));
+				chatMessages = agentClient.session.messages
+					.filter((msg) => msg.content && msg.content.trim() !== '')
+					.map((msg, idx) => ({
+						id: msg.id || `msg-${idx}`,
+						content: msg.content,
+						isBot: msg.role === 'assistant',
+						timestamp: null
+					}));
 			}
 
 			// If no messages, add a welcome message
@@ -54,10 +54,10 @@
 					}
 				];
 			}
-
-			isLoading = false;
 		} catch (e) {
+			console.error('ElicitationBot init error:', e);
 			initError = e instanceof Error ? e.message : 'Failed to initialize';
+		} finally {
 			isLoading = false;
 		}
 	});
@@ -80,7 +80,7 @@
 			...chatMessages,
 			{
 				id: botPlaceholderId,
-				content: '',
+				content: '...',
 				isBot: true,
 				timestamp: new Date()
 			}
@@ -89,16 +89,22 @@
 		// Send and stream the response
 		await agentClient.send(message);
 
-		// Update the bot message with the final answer
+		const finalContent = agentClient.currentAnswer || 
+			(agentClient.error ? `Error: ${agentClient.error}` : 'No response received from agent.');
+		
 		chatMessages = chatMessages.map((msg) =>
-			msg.id === botPlaceholderId ? { ...msg, content: agentClient!.currentAnswer } : msg
+			msg.id === botPlaceholderId ? { ...msg, content: finalContent } : msg
 		);
+		
+		console.log('Agent response:', {
+			answer: agentClient.currentAnswer,
+			error: agentClient.error,
+			session: agentClient.session?.id
+		});
 	}
 
-	// Reactive update for streaming content
 	$effect(() => {
 		if (agentClient?.isStreaming && agentClient.currentAnswer) {
-			// Update the last bot message with streaming content
 			const lastBotMsgIndex = chatMessages.findLastIndex((msg) => msg.isBot);
 			if (lastBotMsgIndex >= 0) {
 				chatMessages = chatMessages.map((msg, idx) =>

@@ -133,15 +133,48 @@ export class AgentClient {
 	private parseSSELine(line: string): void {
 		if (!line.startsWith('data:')) return;
 
+		const jsonStr = line.replace('data:', '').trim();
+		
+		if (jsonStr === '[DONE]') {
+			return;
+		}
+
 		try {
-			const jsonStr = line.replace('data:', '').trim();
 			const json = JSON.parse(jsonStr);
+			console.debug('Agent SSE event:', json.event, json.data?.component_type, json.data?.outputs);
 
 			if (json.data?.answer) {
 				this.currentAnswer = json.data.answer;
+				return;
+			}
+
+			if (json.event === 'node_finished' && json.data) {
+				const { component_type, outputs } = json.data;
+				
+				if (component_type === 'Message' && outputs?.content) {
+					const content = Array.isArray(outputs.content) 
+						? outputs.content.join('') 
+						: outputs.content;
+					if (content && typeof content === 'string') {
+						this.currentAnswer = content;
+					}
+				}
+				
+				if (component_type === 'Agent' && outputs?.content) {
+					const content = outputs.content;
+					if (content && typeof content === 'string') {
+						this.currentAnswer = content;
+					}
+				}
+			}
+			
+			if (json.event === 'message' && json.data?.content) {
+				this.currentAnswer += json.data.content;
 			}
 		} catch {
-			console.warn('Failed to parse SSE chunk:', line);
+			if (jsonStr) {
+				console.warn('Failed to parse SSE chunk:', line);
+			}
 		}
 	}
 
