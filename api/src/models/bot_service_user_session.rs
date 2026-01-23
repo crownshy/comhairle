@@ -9,8 +9,11 @@ use sqlx::{prelude::FromRow, PgPool};
 use uuid::Uuid;
 
 use crate::{
-    bot_service::ComhairleBotService, error::ComhairleError, models::conversation,
+    bot_service::ComhairleBotService,
+    error::ComhairleError,
+    models::{conversation, workflow_step},
     routes::bot::chat_sessions::CreateChatSessionRequest,
+    tools::ToolConfig,
 };
 
 #[derive(Serialize, Deserialize, FromRow, JsonSchema, Debug, Clone)]
@@ -96,6 +99,7 @@ impl CreateBotServiceUserSessionWithSessionId {
 ///
 /// This function will return an error if:
 /// * The database operation fails
+/// * bot service request fails
 pub async fn create(
     db: &PgPool,
     bot_service: &Arc<dyn ComhairleBotService>,
@@ -140,6 +144,76 @@ pub async fn create(
     Ok(bot_session_result)
 }
 
+/// Data transfer object for creating a new bot service user session for an
+/// elicitation bot workflow step on a conversation.
+pub struct CreateWorkflowStepBotServiceUserSession {
+    pub conversation_id: Uuid,
+    pub user_id: Uuid,
+    pub workflow_step_id: Uuid,
+}
+
+/// Creates a new user session for an elicitation bot workflow step on a conversation,
+/// tied to a ragflow agent session.
+///
+/// # Arguments
+///
+/// * `db` - Database conncection pool
+/// * `bot_service` - RAG based bot service provider
+/// * `session` - request params containing `user_id`, `conversation_id`, and `workflow_step_id`
+///
+/// # Returns
+///
+/// Returns a `Result` containing the created `BotServiceUserSession` or  a
+/// `ComhairleError` on failure.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// * The database operation fails
+/// * bot service request fails
+pub async fn create_workflow_step_session(
+    db: &PgPool,
+    bot_service: &Arc<dyn ComhairleBotService>,
+    session: &CreateWorkflowStepBotServiceUserSession,
+) -> Result<BotServiceUserSession, ComhairleError> {
+    let workflow_step = workflow_step::get_by_id(db, &session.workflow_step_id).await?;
+    let tool_config = match workflow_step.tool_config {
+        ToolConfig::ElicitationBot(config) => config,
+        _ => {
+            return Err(ComhairleError::ToolConfigError(
+                "Incorrect config type".to_string(),
+            ))
+        }
+    };
+
+    let (_, bot_service_session) = bot_service
+        .create_agent_session(&tool_config.bot_id)
+        .await?;
+
+    let session = CreateBotServiceUserSessionWithSessionId {
+        conversation_id: session.conversation_id,
+        user_id: session.user_id,
+        bot_service_session_id: bot_service_session.id,
+        workflow_step_id: Some(session.workflow_step_id),
+    };
+
+    let columns = session.columns();
+    let values = session.values();
+
+    let (sql, values) = Query::insert()
+        .into_table(BotServiceUserSessionIden::Table)
+        .columns(columns)
+        .values(values)?
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let bot_session_result = sqlx::query_as_with::<_, BotServiceUserSession, _>(&sql, values)
+        .fetch_one(db)
+        .await?;
+
+    Ok(bot_session_result)
+}
+
 /// Retrieves a user bot session by user_id and conversation_id.
 ///
 /// # Arguments
@@ -150,7 +224,7 @@ pub async fn create(
 ///
 /// # Returns
 ///
-/// Returns a `Result` containing the `BotServicerUserSession` if found or a
+/// Returns a `Result` containing the `BotServiceUserSession` if found or a
 /// `ComhairleError` if not found.
 pub async fn get_by_conversation_id(
     db: &PgPool,
@@ -173,6 +247,53 @@ pub async fn get_by_conversation_id(
                 BotServiceUserSessionIden::UserId,
             ))
             .eq(user_id.to_owned()),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    let bot_session = sqlx::query_as_with::<_, BotServiceUserSession, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => ComhairleError::NoBotUserSession,
+            _ => e.into(),
+        })?;
+
+    Ok(bot_session)
+}
+
+/// Retrieves a user bot session by user_id and workflow_step_id.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `user_id` = user's ID
+/// * `workflow_step_id` - relevant workflow_step's ID
+///
+/// # Returns
+///
+/// Returns a `Result` containing the `BotServiceUserSession` if found or a
+/// `ComhairleError` if not found.
+pub async fn get_by_workflow_step_id(
+    db: &PgPool,
+    user_id: Uuid,
+    workflow_step_id: Uuid,
+) -> Result<BotServiceUserSession, ComhairleError> {
+    let (sql, values) = Query::select()
+        .from(BotServiceUserSessionIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .and_where(
+            Expr::col((
+                BotServiceUserSessionIden::Table,
+                BotServiceUserSessionIden::UserId,
+            ))
+            .eq(user_id.to_owned()),
+        )
+        .and_where(
+            Expr::col((
+                BotServiceUserSessionIden::Table,
+                BotServiceUserSessionIden::WorkflowStepId,
+            ))
+            .eq(workflow_step_id.to_owned()),
         )
         .build_sqlx(PostgresQueryBuilder);
 
