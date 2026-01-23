@@ -48,10 +48,7 @@
 	});
 
 	const initialQuestions = [
-		{ id: '1', text: 'Share what I have learned and understood', variant: 'default' as const },
-		{ id: '2', text: 'Share the parts I feel unclear', variant: 'default' as const },
-		{ id: '3', text: 'Share the areas that I am curious about', variant: 'primary' as const },
-		{ id: '4', text: 'Ask something else', variant: 'default' as const }
+		{ id: '1', text: 'What does this bot do?', variant: 'default' as const },
 	];
 
 	let selectedQuestionId = $state<string | null>(null);
