@@ -59,11 +59,11 @@ async fn update_workflow_step(
 
 async fn update_elicitation_bot_workflow_step(
     State(state): State<Arc<ComhairleState>>,
-    Path((conversation_id, workflow_id, id)): Path<(Uuid, Uuid, Uuid)>,
+    Path((_conversation_id, workflow_id, id)): Path<(Uuid, Uuid, Uuid)>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(workflow): Json<PartialWorkflowStep>,
 ) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
-    let tool_config = match &workflow.tool_config {
+    let _tool_config = match &workflow.tool_config {
         Some(ToolConfig::ElicitationBot(config)) => config,
         _ => {
             return Err(ComhairleError::ToolConfigError(
@@ -73,17 +73,6 @@ async fn update_elicitation_bot_workflow_step(
     };
 
     let workflow = workflow_step::update(&state.db, &id, &workflow_id, &workflow).await?;
-
-    let body = UpdateAgentRequest {
-        // Ragflow returning an error if title omitted even though it successfully saves
-        title: Some(conversation_id.to_string()),
-        topic: Some(tool_config.topic.clone()),
-    };
-    // TODO: make atomic to revert change to workflow_step if bot service request fails
-    let _ = state
-        .bot_service
-        .update_agent(&tool_config.bot_id, body)
-        .await?;
 
     Ok((StatusCode::OK, Json(workflow)))
 }

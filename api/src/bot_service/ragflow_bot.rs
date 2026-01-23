@@ -3,8 +3,6 @@ use std::{pin::Pin, sync::Arc};
 use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::{Stream, StreamExt};
-use minijinja::{context, Environment};
-use minijinja_embed::load_templates;
 use ragflow::{
     agent::{session::*, *},
     chat::{session::*, *},
@@ -46,19 +44,15 @@ use crate::{
 #[derive(Debug)]
 pub struct ComhairleRagBotService {
     client: Arc<RagflowClient>,
-    template_engine: Environment<'static>,
 }
 
 impl ComhairleRagBotService {
     pub fn new(base_url: &str, api_key: &str) -> Self {
-        let mut env = Environment::new();
-        load_templates!(&mut env);
         ComhairleRagBotService {
             client: Arc::new(RagflowClient::new(
                 base_url.to_string(),
                 api_key.to_string(),
             )),
-            template_engine: env,
         }
     }
 }
@@ -557,16 +551,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         agent_id: &str,
         body: UpdateAgentRequest,
     ) -> Result<(StatusCode, ComhairleAgent), ComhairleError> {
-        let dsl = body
-            .topic
-            .as_ref()
-            .map(|topic| {
-                let context = context! { topic };
-                build_agent_dsl()
-            })
-            .transpose()?;
         let mut body: UpdateAgent = body.into();
-        body.dsl = dsl;
 
         let (status, _) = ragflow::agent::update(&self.client, agent_id, body).await?;
 
