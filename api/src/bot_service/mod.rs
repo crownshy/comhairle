@@ -185,7 +185,6 @@ pub trait ComhairleBotService: Send + Sync {
     async fn create_agent(
         &self,
         body: CreateAgentRequest,
-        context: minijinja::Value,
     ) -> Result<(StatusCode, ComhairleAgent), ComhairleError>;
 
     async fn update_agent(

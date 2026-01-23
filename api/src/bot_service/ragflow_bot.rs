@@ -518,12 +518,11 @@ impl ComhairleBotService for ComhairleRagBotService {
     async fn create_agent(
         &self,
         body: CreateAgentRequest,
-        context: minijinja::Value,
     ) -> Result<(StatusCode, ComhairleAgent), ComhairleError> {
         let mut body: CreateAgent = body.into();
         let title = body.title.clone();
 
-        let dsl = build_agent_dsl(&self.template_engine, context)?;
+        let dsl = build_agent_dsl()?;
         body.dsl = dsl;
 
         let (status, json) = ragflow::agent::create(&self.client, body).await?;
@@ -563,7 +562,7 @@ impl ComhairleBotService for ComhairleRagBotService {
             .as_ref()
             .map(|topic| {
                 let context = context! { topic };
-                build_agent_dsl(&self.template_engine, context)
+                build_agent_dsl()
             })
             .transpose()?;
         let mut body: UpdateAgent = body.into();
@@ -693,17 +692,10 @@ impl ComhairleBotService for ComhairleRagBotService {
     }
 }
 
-fn build_agent_dsl(
-    template_engine: &minijinja::Environment,
-    context: minijinja::Value,
-) -> Result<serde_json::Value, ComhairleError> {
-    let template = template_engine.get_template("ragflow-elicitation-bot.json")?;
-    let content = template.render(context)?;
-
-    let graph_json: Value = from_str(&content).map_err(|_| {
-        ComhairleError::CorruptedData("Unable to parse json from agent template".to_string())
-    })?;
-
+fn build_agent_dsl() -> Result<serde_json::Value, ComhairleError> {
+    let graph_json: Value = from_str(include_str!(
+        "../agent_templates/ragflow-elicitation-bot.json"
+    ))?;
     let mut dsl: Value = from_str(include_str!(
         "../agent_templates/ragflow-agent-static-dsl-content.json"
     ))?;

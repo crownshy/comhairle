@@ -3,10 +3,20 @@
                 {
                         "data": {
                                 "form": {
-                                        "enablePrologue": true,
-                                        "inputs": {},
+                                        "enablePrologue": false,
+                                        "inputs": {
+                                                "Topic": {
+                                                        "key": "Topic",
+                                                        "name": "Topic",
+                                                        "optional": false,
+                                                        "options": [],
+                                                        "type": "line",
+                                                        "value": "AI chip manufacturing in Taiwan"
+                                                }
+                                        },
                                         "mode": "conversational",
-                                        "prologue": "Hello, I am here to help you shape your views and opinions.  What are your views about {{ topic }}? "
+                                        "outputs": {},
+                                        "prologue": "Hello, I am here to help you shape your views and opinions.  Would you like "
                                 },
                                 "label": "Begin",
                                 "name": "begin"
@@ -14,12 +24,12 @@
                         "dragging": false,
                         "id": "begin",
                         "measured": {
-                                "height": 82,
+                                "height": 110,
                                 "width": 200
                         },
                         "position": {
-                                "x": -215.36952496155936,
-                                "y": 343.437632607976
+                                "x": -103.96882063441024,
+                                "y": 220.3344276900711
                         },
                         "selected": false,
                         "sourcePosition": "left",
@@ -36,68 +46,71 @@
                                                         "description": "An input indicating that the user needs guidance on how the chatbot works or how to participate in the discussion.",
                                                         "examples": [
                                                                 {
-                                                                        "value": "“I’m not sure what I’m supposed to do here.”"
+                                                                        "value": "I’m not sure what I’m supposed to do here."
                                                                 },
                                                                 {
-                                                                        "value": "“How does this chatbot work?”"
+                                                                        "value": "How does this chatbot work?"
                                                                 },
                                                                 {
-                                                                        "value": "“What kind of answers are you looking for?”"
+                                                                        "value": "What kind of answers are you looking for?"
                                                                 }
                                                         ],
                                                         "name": "Orientation / Meta-Interaction Request",
                                                         "uuid": "b61de626-dd97-40a1-a9f2-02cbafd7a539"
                                                 },
                                                 {
-                                                        "description": "An input that mentions {{ topic }} in Scotland and is relevant to the topic but can not really count as an opinion. The user seems to need more initial guidance such as prompting questions or teaser stories to expand their thinking. ",
+                                                        "description": "An input that is relevant to the topic but can not really count as an opinion. The user seems to need more initial guidance such as prompting questions or teaser stories to expand their thinking. ",
                                                         "examples": [
                                                                 {
-                                                                        "value": "“{{ topic }} is important, but I don’t know much about it.”"
+                                                                        "value": "This topic is important, but I don’t know much about it."
                                                                 },
                                                                 {
-                                                                        "value": "“This is an interesting topic—can you guide me through the thinking?”"
+                                                                        "value": "This is an interesting topic—can you guide me through the thinking?"
                                                                 }
                                                         ],
-                                                        "name": "On-Topic but Underspecified",
+                                                        "name": "On-Topic but Underspecified ",
                                                         "uuid": "76e6efd5-b632-4185-bdb9-0eb50f1e6a79"
                                                 },
                                                 {
-                                                        "description": "A statement, opinion, or piece of information that directly engages with the discussion topic and adds substantive content relevant to {{ topic }} in Scotland.",
+                                                        "description": "A statement, opinion, or piece of information that directly engages with the discussion topic {@begin.Topic} and adds substantive content relevant to the topic",
                                                         "examples": [
                                                                 {
-                                                                        "value": "“Scotland has made significant progress in wind energy, but tidal power still faces cost barriers.”"
+                                                                        "value": "I believe this area needs more investment because of the long-term benefits."
                                                                 },
                                                                 {
-                                                                        "value": "“{{ topic }} infrastructure in the Highlands has expanded rapidly over the past decade.”"
+                                                                        "value": "Recent developments in this field have changed how we view the infrastructure."
                                                                 }
                                                         ],
                                                         "name": "On-Topic Contribution",
                                                         "uuid": "0c1daaf8-dd26-465f-80a4-bca3e6f3f9f5"
                                                 },
                                                 {
-                                                        "description": "A question that is clearly related to {{ topic }} in Scotland and seeks factual information, clarification, or validation.",
+                                                        "description": "A question that is clearly related to the topic and seeks factual information, clarification, or validation.",
                                                         "examples": [
                                                                 {
-                                                                        "value": "“Is offshore wind Scotland’s largest {{ topic }} resource?”"
+                                                                        "value": "Within the scope of this topic, what is the largest resource available?"
                                                                 },
                                                                 {
-                                                                        "value": "“How much of Scotland’s electricity comes from renewables?”"
+                                                                        "value": "Who are the stakeholders involved in this topic?"
+                                                                },
+                                                                {
+                                                                        "value": "What are the pros and cons in the near term if we consider a certain direction?"
                                                                 }
                                                         ],
                                                         "name": "Topic-Relevant Question",
                                                         "uuid": "fedf9ef3-c7cd-45d8-99cf-40a884dc76b1"
                                                 },
                                                 {
-                                                        "description": "An input that does not relate to {{ topic }} in Scotland and does not advance the discussion in any meaningful way.",
+                                                        "description": "An input that does not relate to the topic and does not advance the discussion in any meaningful way.",
                                                         "examples": [
                                                                 {
-                                                                        "value": "“I like strawberries.”"
+                                                                        "value": "I like strawberries (a thing that's not relevant to the topic)."
                                                                 },
                                                                 {
-                                                                        "value": "“The sky is blue.”"
+                                                                        "value": "The sky is blue. (a fact that's not relevant to the topic)"
                                                                 },
                                                                 {
-                                                                        "value": "“I don’t want to talk to a chatbot.”"
+                                                                        "value": "I don’t want to talk to a chatbot."
                                                                 }
                                                         ],
                                                         "name": "Off-Topic / Out-of-Scope Input",
@@ -107,7 +120,7 @@
                                         "llm_id": "gpt-4@OpenAI",
                                         "maxTokensEnabled": false,
                                         "max_tokens": 256,
-                                        "message_history_window_size": 1,
+                                        "message_history_window_size": 2,
                                         "outputs": {
                                                 "category_name": {
                                                         "type": "string"
@@ -173,7 +186,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "#Role\nYou are a **Docs QA Agent**, a specialized Data set assistant responsible for providing accurate answers based strictly on the connected documentation repository.\n# Core Principles\n1. **Rapid Output**\nRetrieve and answer questions directly from the Data set using the retrieval tool. Immediately return results upon successful retrieval without additional reflection rounds. Prioritize rapid output even before reaching maximum iteration limits.\n2. ** Data set  Only**: Answer questions EXCLUSIVELY based on information retrieved from the connected knowledge base.\n3. **No Content Creation**: Never generate, infer, or create information that is not explicitly present in the retrieved documents.\n4. **Source Transparency**: Always indicate when information comes from the  Data set vs. when it's unavailable.\n5. **Accuracy Over Completeness**: Prefer incomplete but accurate answers over complete but potentially inaccurate ones.\n# Response Guidelines\n## When Information is Available\n- Provide direct answers based on retrieved content\n- Quote relevant sections when helpful\n- Cite the source document/section if available\n- Use phrases like: \"According to the documentation...\" or \"Based on the data set ...\"\n## When Information is Unavailable\n- Clearly state: \"I cannot find this information in the current knowledge base.\"\n- Do NOT attempt to fill gaps with general knowledge\n- Suggest alternative questions that might be covered in the docs\n- Use phrases like: \"The documentation does not cover...\" or \"This information is not available in the knowledge base.\"\n\n- and say \"We will bring this question to the Chief Data Officer ({env.GOTOPERSON}) who is running this conversation.\n\n- and also say that the user will hear back from them in {env.TURNOVERDAYS} days. \n# Response Format\n```markdown\n## Answer\n[Your response based strictly on data set content]\n**Always do these:**\n- Use the Retrieval tool for every question\n- Be transparent about information availability\n- Stick to documented facts only\n- Acknowledge data set  limitations\n",
+                                        "sys_prompt": "#Role\nYou are a **Docs QA Agent**, a specialized Data set assistant responsible for providing accurate answers based strictly on the connected documentation repository.\n# Core Principles\n1. **Rapid Output**\nRetrieve and answer questions directly from the Data set using the retrieval tool. Immediately return results upon successful retrieval without additional reflection rounds. Prioritize rapid output even before reaching maximum iteration limits.\n2. ** Data set  Only**: Answer questions EXCLUSIVELY based on information retrieved from the connected knowledge base.\n3. **No Content Creation**: Never generate, infer, or create information that is not explicitly present in the retrieved documents.\n4. **Source Transparency**: Always indicate when information comes from the  Data set vs. when it's unavailable.\n5. **Accuracy Over Completeness**: Prefer incomplete but accurate answers over complete but potentially inaccurate ones.\n# Response Guidelines\n## When Information is Available\n- Provide direct answers based on retrieved content\n- Quote relevant sections when helpful\n- Cite the source document/section if available\n- Use phrases like: \"According to the documentation...\" or \"Based on the data set ...\"\n## When Information is Unavailable\n- Clearly state: \"I cannot find this information in the current knowledge base.\"\n- Do NOT attempt to fill gaps with general knowledge\n- Suggest alternative questions that might be covered in the docs\n- Use phrases like: \"The documentation does not cover...\" or \"This information is not available in the knowledge base.\"\n\n- and say \"We will bring this question to the person in charge who is running this conversation.\n\n\n\n\n# Response Format\n```markdown\n## Answer\n[Your response based strictly on data set content]\n**Always do these:**\n- Use the Retrieval tool for every question\n- Be transparent about information availability\n- Stick to documented facts only\n- Acknowledge data set  limitations\n",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [
@@ -313,7 +326,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "The user’s input is not related to the discussion topic ({{ topic }} in Scotland).\nPolitely acknowledge the input and redirect the conversation back to the main topic.\nDo not answer the off-topic content.\nKeep the response brief and respectful, and invite the user to share a relevant thought or question about {{ topic }} in Scotland.\n\n\n\nExample: That seems a bit off-topic for now. What are your thoughts on {{ topic }}?",
+                                        "sys_prompt": "The user’s input is not related to the discussion topic {begin@Topic}\nPolitely acknowledge the input and redirect the conversation back to the main topic.\nDo not answer the off-topic content.\nKeep the response brief and respectful, and invite the user to share a relevant thought or question about {begin@Topic}\n\n\n\nExample: That seems a bit off-topic for now. What are your thoughts on {begin@Topic}",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [],
@@ -398,7 +411,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "The user is seeking guidance on how to use this chatbot or how to participate in the discussion.\nExplain the purpose of the chatbot, the steps, and expected outcome of the discussion topic ({{ topic }} in Scotland), and what kind of input is helpful.\nKeep the explanation short, friendly, and encouraging.\nInvite the user to share a thought, opinion, or question related to the topic.\n# purpose\nThis is an elicitation bot that helps users shape their opinions. \n# steps\nthis will not be the only time you interact with the bot. the bot will be always available in your participation journey. This step in elicitation step, after this step, the user will use Polis and see other people's submitted opinions. After that, they can then come back to the bot and see if they want to make changes. \n# expected outcome\nThis bot helps users to shape their opinions and will store a few opinions generated throughout the dialogue in a private virtual space. Users can revisit these opinions, shape them better, before deciding to submit to the platform.\n# initial question tat can help user explore their mind\n- What's your initial thoughts or opinions about {{ topic }}?\n- What's the first thing that comes to mind when hearing about the topic of {{ topic }} in Scotland?\nAt the end of the response always ask 1 and only question. also add a short explanation of the rules of interaction. \n# rules of interaction\n- don't share personal information\n- feel free to share any ideas and views, we won't submit to the system right away. you will have a chance to revise them.  \n- please be respectful even if this is a chatbot\n- please stick to the topic \n\nif the user ask about a person in charge, reveal this information: \n- \"the person in charge of running this conversation is [Shu Yang Lin (shu@crown-shy.com) or ]. You are welcome to contact them.\"\n",
+                                        "sys_prompt": "The user is seeking guidance on how to use this chatbot or how to participate in the discussion.\nExplain the purpose of the chatbot, the steps, and expected outcome of the discussion topic ({begin@Topic}), and what kind of input is helpful.\nKeep the explanation short, friendly, and encouraging.\nInvite the user to share a thought, opinion, or question related to the topic.\n# purpose\nThis is an elicitation bot that helps users shape their opinions. \n# steps\nthis will not be the only time you interact with the bot. the bot will be always available in your participation journey. This step in elicitation step, after this step, the user will use Polis and see other people's submitted opinions. After that, they can then come back to the bot and see if they want to make changes. \n# expected outcome\nThis bot helps users to shape their opinions and will store a few opinions generated throughout the dialogue in a private virtual space. Users can revisit these opinions, shape them better, before deciding to submit to the platform.\n# initial question tat can help user explore their mind\n- What's your initial thoughts or opinions about renewable energy?\n- What's the first thing that comes to mind when hearing about the topic of renewable energy in Scotland?\nAt the end of the response always ask 1 and only question. also add a short explanation of the rules of interaction. \n# rules of interaction\n- don't share personal information\n- feel free to share any ideas and views, we won't submit to the system right away. you will have a chance to revise them.  \n- please be respectful even if this is a chatbot\n- please stick to the topic \n\n\n",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [],
@@ -442,8 +455,8 @@
                                 "width": 200
                         },
                         "position": {
-                                "x": 985.1156674356037,
-                                "y": -178.8853499319552
+                                "x": 960.0783140506808,
+                                "y": -177.69309500886362
                         },
                         "selected": false,
                         "sourcePosition": "right",
@@ -460,19 +473,10 @@
                                                         "description": "A clear, assertive proposal for action or policy direction, but with limited or implicit reasoning.",
                                                         "examples": [
                                                                 {
-                                                                        "value": "\"We should do X\""
+                                                                        "value": "The authorities need to implement stricter regulations."
                                                                 },
                                                                 {
-                                                                        "value": "“Government should X”"
-                                                                },
-                                                                {
-                                                                        "value": "\"Government to balance economics benefits with environmental impact.\""
-                                                                },
-                                                                {
-                                                                        "value": "“We need to…”"
-                                                                },
-                                                                {
-                                                                        "value": "\"we must ... \""
+                                                                        "value": "We should prioritise long-term sustainability over short-term gains."
                                                                 }
                                                         ],
                                                         "name": "Advocacy Statement / Prescriptive Position",
@@ -482,16 +486,16 @@
                                                         "description": "A policy position explicitly linked to reasons, evidence, or causal logic.\nReasoned Decision that presents strong link between the proposed decision  to the reasons behind. ",
                                                         "examples": [
                                                                 {
-                                                                        "value": "\"We should do X because Y and Z\""
+                                                                        "value": "We should do X because Y and Z"
                                                                 },
                                                                 {
-                                                                        "value": "\"The government should do X so that Y\""
+                                                                        "value": "The government should do X so that Y"
                                                                 },
                                                                 {
-                                                                        "value": "\"We should invest more in {{ topic }} so that the energy bill can come down.\""
+                                                                        "value": "We should increase investment in this area because it will reduce overall costs for the public in the future."
                                                                 },
                                                                 {
-                                                                        "value": "\"We should build more wind farms because we need more energy to develop AI\""
+                                                                        "value": "We should speed up development because it will benefit more people."
                                                                 }
                                                         ],
                                                         "name": "Reasoned Argument / Justified Position",
@@ -501,13 +505,16 @@
                                                         "description": "Actionable Proposal that has strong measurements which can be used to assess the success of outcomes after implementation.  \n\nA fully formed proposal that includes:\n- A specific action\n- A clear rationale\n- Implementation elements or measurable outcomes",
                                                         "examples": [
                                                                 {
-                                                                        "value": "“The government should X by doing Y in order to achieve Z”"
+                                                                        "value": "The government should X by doing Y in order to achieve Z"
                                                                 },
                                                                 {
-                                                                        "value": "“Success should be measured by…”"
+                                                                        "value": "Success should be measured by…"
                                                                 },
                                                                 {
-                                                                        "value": "“This would be implemented through…”"
+                                                                        "value": "This would be implemented through…"
+                                                                },
+                                                                {
+                                                                        "value": "The governing body should implement [Action] by [Date] to ensure [Measurable Outcome] is reached."
                                                                 }
                                                         ],
                                                         "name": "Actionable Proposal / Policy Recommendation",
@@ -517,13 +524,13 @@
                                                         "description": "Expressions focused on risks, unintended consequences, or trade-offs—can appear at any stage.",
                                                         "examples": [
                                                                 {
-                                                                        "value": "“Wind farms could harm tourism.”"
+                                                                        "value": "Changing the current system might negatively impact local businesses."
                                                                 },
                                                                 {
-                                                                        "value": "“Grid upgrades might increase bills.”"
+                                                                        "value": "This transition could lead to higher costs for low-income households."
                                                                 },
                                                                 {
-                                                                        "value": "“Communities are being overwhelmed.”"
+                                                                        "value": "Local communities and stakeholders are being overwhelmed and that's concerning."
                                                                 }
                                                         ],
                                                         "name": "Concern / Risk Framing",
@@ -599,7 +606,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "Help users articulate why the topic matters to them and surface core values. You are a Values Exploration Coach.\nYour role is to help users clarify their values, concerns, and motivations related to {{ topic }} in Scotland.\nYou do not debate, persuade, or suggest policies.\nYou focus on what matters to the user and why, without asking accusatory “why” questions.\nYour goal is to gently move users from general attitudes to explicit beliefs.\nUse:\n- Open-ended “what” and “how” questions\n- Values clarification\n- Perspective broadening\n- Emotional and ethical framing\n\nGive one affirmative response. Keep it short and ask only 1 question. \n\nif {sys.conversation_turns}is still below 2, you can ask  2 questions.",
+                                        "sys_prompt": "Help users articulate why the topic matters to them and surface core values. You are a Values Exploration Coach.\nYour role is to help users clarify their values, concerns, and motivations related to renewable energy in Scotland.\nYou do not debate, persuade, or suggest policies.\nYou focus on what matters to the user and why, without asking accusatory “why” questions.\nYour goal is to gently move users from general attitudes to explicit beliefs.\nUse:\n- Open-ended “what” and “how” questions\n- Values clarification\n- Perspective broadening\n- Emotional and ethical framing\n\nGive one affirmative response. Keep it short and ask only 1 question. \n",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [],
@@ -659,7 +666,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "Turn values into explicit beliefs and expectations about governance and responsibility.\n\n\n\nYou are a Belief Clarification Coach.\nYour role is to help users articulate and examine their beliefs about what ought to happen in {{ topic }} decision-making.\nYou help users:\n- Make beliefs explicit\n- Examine assumptions\n- Surface tensions or trade-offs\nYou do not ask for solutions yet.\nYour goal is to prepare the ground for ideas and proposals.\n\nGive one affirmative response. Keep it short and ask only 1 question. \n",
+                                        "sys_prompt": "Turn values into explicit beliefs and expectations about governance and responsibility.\n\n\n\nYou are a Belief Clarification Coach.\nYour role is to help users articulate and examine their beliefs about what ought to happen in renewable energy decision-making.\nYou help users:\n- Make beliefs explicit\n- Examine assumptions\n- Surface tensions or trade-offs\nYou do not ask for solutions yet.\nYour goal is to prepare the ground for ideas and proposals.\n\nGive one affirmative response. Keep it short and ask only 1 question. \n",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [],
@@ -769,7 +776,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "Help users explore possible actions without forcing commitment or precision.\n\n\n\nYou are an Idea Development Coach.\nYour role is to help users explore tentative ideas related to {{ topic }} policy.\nYou encourage:\n- Creative thinking\n- Multiple options\n- Low-risk exploration\nYou help users expand and compare ideas, but you do not evaluate feasibility yet.\n\nGive one affirmative response. Keep it short and ask only 1 question. ",
+                                        "sys_prompt": "Help users explore possible actions without forcing commitment or precision.\n\n\n\nYou are an Idea Development Coach.\nYour role is to help users explore tentative ideas related to renewable energy policy.\nYou encourage:\n- Creative thinking\n- Multiple options\n- Low-risk exploration\nYou help users expand and compare ideas, but you do not evaluate feasibility yet.\n\nGive one affirmative response. Keep it short and ask only 1 question. ",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [],
@@ -1009,7 +1016,7 @@
                                                 }
                                         ],
                                         "showStructuredOutput": false,
-                                        "sys_prompt": "You are a Risk & Trade-off Exploration Coach.\nYour role is to help users articulate and examine perceived risks, concerns, and unintended consequences related to {{ topic }} in Scotland.\nYou:\n- Treat concerns as legitimate signals, not obstacles\n- Help users clarify what exactly feels risky\n- Distinguish between impact, likelihood, and uncertainty\n- Surface who might be affected and how\nYou do not:\n- Argue against the concern\n- Provide reassurance or technical fixes\n- Propose solutions or policies\nYour goal is to transform vague or emotional concerns into clear, discussable risk frames that can later be addressed through reasoning or policy design.\n\nKeep it short and ask only 1 question. ",
+                                        "sys_prompt": "You are a Risk & Trade-off Exploration Coach.\nYour role is to help users articulate and examine perceived risks, concerns, and unintended consequences related to renewable energy in Scotland.\nYou:\n- Treat concerns as legitimate signals, not obstacles\n- Help users clarify what exactly feels risky\n- Distinguish between impact, likelihood, and uncertainty\n- Surface who might be affected and how\nYou do not:\n- Argue against the concern\n- Provide reassurance or technical fixes\n- Propose solutions or policies\nYour goal is to transform vague or emotional concerns into clear, discussable risk frames that can later be addressed through reasoning or policy design.\n\nKeep it short and ask only 1 question. ",
                                         "temperature": 0.1,
                                         "temperatureEnabled": false,
                                         "tools": [],
@@ -1171,10 +1178,10 @@
                                                         "description": "a broad view that is not yet a full-fledged opinion that needs shaping. ",
                                                         "examples": [
                                                                 {
-                                                                        "value": "\"i think {{ topic }} is important\""
+                                                                        "value": "I believe that fairness is the most important factor in this discussion."
                                                                 },
                                                                 {
-                                                                        "value": "\"I belief environment sustainability is more important than economical values\""
+                                                                        "value": "I belief environment sustainability is more important than economical values"
                                                                 }
                                                         ],
                                                         "name": "Orientation / Value position",
@@ -1184,10 +1191,10 @@
                                                         "description": "an opinion made by the user that has strong statement, claim and a proposal for policy making",
                                                         "examples": [
                                                                 {
-                                                                        "value": "\" I believe ...\""
+                                                                        "value": "I believe XYZ"
                                                                 },
                                                                 {
-                                                                        "value": "\"the government should move from just producing {{ topic }} to managing and exporting it efficiently, ensuring that Scotland’s renewable potential translates into real economic and environmental benefits.\""
+                                                                        "value": "The focus should be on managing resources efficiently so that the potential of this project leads to tangible community benefits."
                                                                 }
                                                         ],
                                                         "name": "Judgement / Belief",
@@ -1197,13 +1204,13 @@
                                                         "description": "An early-stage idea that gestures toward action but lacks clarity, justification, or feasibility considerations.",
                                                         "examples": [
                                                                 {
-                                                                        "value": "\"I think we should invest more in {{ topic }}.\""
+                                                                        "value": "I wonder if we could try a different approach to how this is funded."
                                                                 },
                                                                 {
-                                                                        "value": "\"I think we should X\""
+                                                                        "value": "I think we should X"
                                                                 },
                                                                 {
-                                                                        "value": "\"I guess we can X\""
+                                                                        "value": "I guess we can X"
                                                                 }
                                                         ],
                                                         "name": "Exploratory Idea / Emerging Thought",
@@ -1328,7 +1335,7 @@
                                 "x": 1883.2571490795672,
                                 "y": 355.5058490446696
                         },
-                        "selected": true,
+                        "selected": false,
                         "sourcePosition": "right",
                         "targetPosition": "left",
                         "type": "messageNode"
@@ -1341,6 +1348,7 @@
                         },
                         "id": "xy-edge__beginstart-Categorize:IcyMealsOpenend",
                         "markerEnd": "logo",
+                        "selected": false,
                         "source": "begin",
                         "sourceHandle": "start",
                         "target": "Categorize:IcyMealsOpen",
@@ -1638,6 +1646,9 @@
                         "zIndex": 1001
                 },
                 {
+                        "data": {
+                                "isHovered": false
+                        },
                         "id": "xy-edge__Categorize:BumpyBarsDrop77aa01de-a338-4f39-b191-62219028b022-Agent:EveryTigersMixend",
                         "markerEnd": "logo",
                         "source": "Categorize:BumpyBarsDrop",
