@@ -159,7 +159,7 @@ mod tests {
         bot_service
             .expect_create_agent()
             .once()
-            .returning(move |_, _| {
+            .returning(move |_| {
                 let agent = agent.clone();
                 Box::pin(async move { Ok((StatusCode::OK, agent)) })
             });

@@ -5,6 +5,8 @@ pub mod dataset;
 pub mod document;
 pub mod error;
 
+use std::collections::HashMap;
+
 pub use error::RagflowError;
 use serde::{Deserialize, Serialize};
 
@@ -14,6 +16,14 @@ pub struct ConvoQuestion {
     pub stream: Option<bool>,
     pub session_id: Option<String>,
     pub user_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inputs: Option<HashMap<String, Input>>,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct Input {
+    pub r#type: String,
+    pub value: String,
 }
 
 #[derive(Serialize, Default, Debug)]

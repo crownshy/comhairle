@@ -1,4 +1,4 @@
-use std::{pin::Pin, sync::Arc};
+use std::{collections::HashMap, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
 use axum::body::Bytes;
@@ -9,7 +9,8 @@ use ragflow::{
     client::RagflowClient,
     dataset::*,
     document::*,
-    ConvoQuestion, DeleteResources, GetQueryParams, MessageReference, RagflowError, SessionMessage,
+    ConvoQuestion, DeleteResources, GetQueryParams, Input, MessageReference, RagflowError,
+    SessionMessage,
 };
 use reqwest::StatusCode;
 use serde_json::{from_str, Value};
@@ -25,7 +26,7 @@ use crate::{
     routes::{
         bot::{
             agent_sessions::{
-                AgentConversationRequest, CreateAgentSessionRequest, UpdateAgentSessionRequest,
+                AgentConversationRequestExt, CreateAgentSessionRequest, UpdateAgentSessionRequest,
             },
             agents::{CreateAgentRequest, UpdateAgentRequest},
             chat_sessions::{
@@ -551,7 +552,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         agent_id: &str,
         body: UpdateAgentRequest,
     ) -> Result<(StatusCode, ComhairleAgent), ComhairleError> {
-        let mut body: UpdateAgent = body.into();
+        let body: UpdateAgent = body.into();
 
         let (status, _) = ragflow::agent::update(&self.client, agent_id, body).await?;
 
@@ -659,7 +660,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         &self,
         session_id: &str,
         agent_id: &str,
-        body: AgentConversationRequest,
+        body: AgentConversationRequestExt,
     ) -> Result<
         Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
         ComhairleError,
@@ -987,6 +988,7 @@ impl From<ChatConversationRequest> for ConvoQuestion {
             session_id: None,
             user_id: input.user_id,
             stream: Some(true),
+            inputs: None,
         }
     }
 }
@@ -1069,13 +1071,22 @@ impl From<CreateAgentSessionRequest> for CreateAgentSession {
     }
 }
 
-impl From<AgentConversationRequest> for ConvoQuestion {
-    fn from(input: AgentConversationRequest) -> Self {
+impl From<AgentConversationRequestExt> for ConvoQuestion {
+    fn from(a: AgentConversationRequestExt) -> Self {
+        let mut inputs = HashMap::new();
+        inputs.insert(
+            "Topic".to_string(),
+            Input {
+                r#type: "line".to_string(),
+                value: a.topic,
+            },
+        );
         Self {
-            question: input.question,
+            question: a.question,
             session_id: None,
             user_id: None,
             stream: Some(true),
+            inputs: Some(inputs),
         }
     }
 }

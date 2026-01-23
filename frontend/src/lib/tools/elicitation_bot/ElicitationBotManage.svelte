@@ -1,6 +1,5 @@
 <script lang="ts">
 	import * as Form from '$lib/components/ui/form';
-	import TextArea from '$lib/components/ui/textarea/textarea.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
@@ -19,20 +18,11 @@
 
 	const elicitationBotSchema = z.object({
 		topic: z.string().min(3, 'Please provide at least 3 characters for your topic')
-		// objective: z.string().min(10, 'Please provide at least 10 characters for your objective'),
-		// vital_to_collect: z
-		// 	.string()
-		// 	.min(10, 'Please provide at least 10 characters for what is vital to collect'),
-		// other_context: z
-		// 	.string()
-		// 	.min(10, 'Please provide at least 10 characters for other important context')
 	});
 
 	const form = superForm(
 		{
-			objective: '',
-			vital_to_collect: '',
-			other_context: ''
+			topic: workflowStep.tool_config.topic
 		},
 		{
 			SPA: true,
@@ -103,62 +93,6 @@
 			</Form.Control>
 			<Form.FieldErrors />
 		</Form.Field>
-
-		<!--
-		<Form.Field {form} name="objective">
-			<Form.Control>
-				{#snippet children({ props })}
-					<Form.Label>What is your objective?</Form.Label>
-					<TextArea
-						{...props}
-						bind:value={$formData.objective}
-						class="min-h-[100px]"
-						placeholder="Describe the main goal or purpose of your elicitation process..."
-					/>
-				{/snippet}
-			</Form.Control>
-			<Form.Description>
-				Clearly outline what you hope to achieve through this elicitation process.
-			</Form.Description>
-			<Form.FieldErrors />
-		</Form.Field>
-
-		<Form.Field {form} name="vital_to_collect">
-			<Form.Control>
-				{#snippet children({ props })}
-					<Form.Label>What is vital to collect?</Form.Label>
-					<TextArea
-						{...props}
-						bind:value={$formData.vital_to_collect}
-						class="min-h-[100px]"
-						placeholder="Specify the critical information, data points, or insights that must be gathered..."
-					/>
-				{/snippet}
-			</Form.Control>
-			<Form.Description>
-				Identify the essential information that must be collected to meet your objectives.
-			</Form.Description>
-			<Form.FieldErrors />
-		</Form.Field>
-
-		<Form.Field {form} name="other_context">
-			<Form.Control>
-				{#snippet children({ props })}
-					<Form.Label>What other context is important?</Form.Label>
-					<TextArea
-						{...props}
-						bind:value={$formData.other_context}
-						class="min-h-[100px]"
-						placeholder="Provide any additional context, constraints, or considerations that should guide the elicitation process..."
-					/>
-				{/snippet}
-			</Form.Control>
-			<Form.Description>
-				Share any additional context, background information, or special considerations.
-			</Form.Description>
-			<Form.FieldErrors />
-		</Form.Field>
-		-->
 
 		<Button type="submit" disabled={$submitting} class="w-full">
 			{$submitting ? 'Saving...' : 'Save Configuration'}
