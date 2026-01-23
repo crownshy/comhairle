@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import ElicitationBotChat from './ElicitationBotChat.svelte';
 	import { AgentClient } from '$lib/api/agentClient.svelte';
-	import type { ElicitationMessage } from './types';
+	import type { ElicitationMessage, ExtractedClaim } from './types';
 	import { Loader2 } from 'lucide-svelte';
 
 	type Props = {
@@ -20,6 +20,7 @@
 	let initError = $state<string | null>(null);
 	let agentClient = $state<AgentClient | null>(null);
 	let chatMessages = $state<ElicitationMessage[]>([]);
+	let claims = $state<ExtractedClaim[]>([]);
 
 	onMount(async () => {
 		try {
@@ -93,12 +94,28 @@
 
 	$effect(() => {
 		if (agentClient?.isStreaming && agentClient.currentAnswer) {
-			const lastBotMsgIndex = chatMessages.findLastIndex((msg) => msg.isBot);
-			if (lastBotMsgIndex >= 0) {
-				chatMessages = chatMessages.map((msg, idx) =>
-					idx === lastBotMsgIndex ? { ...msg, content: agentClient!.currentAnswer } : msg
-				);
-			}
+			// Use untrack to read chatMessages without creating a dependency
+			// This prevents an infinite loop where writing to chatMessages re-triggers the effect
+			untrack(() => {
+				const lastBotMsgIndex = chatMessages.findLastIndex((msg) => msg.isBot);
+				if (lastBotMsgIndex >= 0) {
+					chatMessages = chatMessages.map((msg, idx) =>
+						idx === lastBotMsgIndex ? { ...msg, content: agentClient!.currentAnswer } : msg
+					);
+				}
+			});
+		}
+	});
+
+	$effect(() => {
+		if (agentClient?.extractedClaims) {
+			untrack(() => {
+				claims = agentClient!.extractedClaims.map((claim) => ({
+					id: claim.id,
+					content: claim.content,
+					status: 'pending' as const
+				}));
+			});
 		}
 	});
 </script>
@@ -123,7 +140,7 @@
 		botName="Elicitation Bot"
 		botSubtitle="Here to help you shape your views and opinions"
 		messages={chatMessages}
-		claims={[]}
+		{claims}
 		onSendMessage={handleSendMessage}
 	/>
 {/if}
