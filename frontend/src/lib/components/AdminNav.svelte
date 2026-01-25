@@ -114,10 +114,9 @@
 																			)
 																				? 'font-bold'
 																				: ''} hover:text-black"
-																			aria-disabled={!(
-																				step.activeOnLive &&
-																				conversation.is_live
-																			)}
+																			aria-disabled={conversation.is_live
+																				? !step.activeOnLive
+																				: step.activeOnLive}
 																		>
 																			<step.icon
 																				class="stroke-nav-text group-hover/menu-button:stroke-black"
@@ -165,6 +164,9 @@
 															<SideBar.MenuSubItem>
 																<SideBar.MenuSubButton
 																	href={`/admin/conversations/${conversation.id}/${step.path}`}
+																	aria-disabled={conversation.is_live
+																		? !step.activeOnLive
+																		: step.activeOnLive}
 																	class="{path.includes(step.path)
 																		? 'font-bold'
 																		: ''} hover:text-black"
