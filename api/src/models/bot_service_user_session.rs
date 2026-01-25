@@ -105,7 +105,9 @@ pub async fn create(
     bot_service: &Arc<dyn ComhairleBotService>,
     session: &CreateBotServiceUserSession,
 ) -> Result<BotServiceUserSession, ComhairleError> {
-    let conversation = conversation::get_localised_by_id(db, &session.conversation_id).await?;
+    //TODO need to make this default to the local of the conversation
+    let conversation =
+        conversation::get_localised_by_id(db, &session.conversation_id, "en").await?;
 
     let create_chat_session = CreateChatSessionRequest {
         name: conversation.title.clone(),

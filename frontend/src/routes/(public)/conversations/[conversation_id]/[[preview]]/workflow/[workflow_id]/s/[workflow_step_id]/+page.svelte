@@ -7,20 +7,23 @@
 	import type { PageProps } from './$types';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '$lib/api/client';
-	import { addDays, parseISO } from 'date-fns';
 	import { Markdown } from 'carta-md';
 	import { createCarta } from '$lib/utils/carta';
 
-	import { ws } from '$lib/api/websockets.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
-	import { thank_you_page, next_workflow_step_url } from '$lib/urls';
+	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
 
 	let { data }: PageProps = $props();
 	let { user } = data;
+	let workflow_id = $derived(data.workflow_id);
 	let workflow_step = $derived(data.workflow_step);
 	let conversation = $derived(data.conversation);
 	let workflow_steps = $derived(data.workflow_steps);
+
+	let tool_config = $derived(
+		conversation.is_live ? workflow_step.tool_config : workflow_step.preview_tool_config
+	);
 
 	let carta = createCarta();
 
@@ -30,16 +33,33 @@
 
 	async function stepComplete() {
 		try {
-			await apiClient.SetUserProgress('done', {
-				params: {
-					workflow_id: workflow_step.workflow_id,
-					conversation_id: conversation.id,
-					workflow_step_id: workflow_step.id
-				},
-				headers: { 'Content-Type': 'application/json' }
-			});
+			if (conversation.is_live) {
+				await apiClient.SetUserProgress('done', {
+					params: {
+						workflow_id: workflow_step.workflow_id,
+						conversation_id: conversation.id,
+						workflow_step_id: workflow_step.id
+					},
+					headers: { 'Content-Type': 'application/json' }
+				});
 
-			goto(next_workflow_step_url(conversation.id, workflow_step.workflow_id));
+				goto(next_workflow_step_url(conversation.id, workflow_step.workflow_id));
+			} else {
+				let next = workflow_steps.find(
+					(w) => w.step_order === workflow_step.step_order + 1
+				);
+				if (next) {
+					let next_step_url = workflow_step_url(
+						conversation.id,
+						workflow_id,
+						next.id,
+						!conversation.is_live
+					);
+					goto(next_step_url);
+				} else {
+					goToThankYouPage();
+				}
+			}
 		} catch (e) {
 			if (e instanceof Error) {
 				console.warn(e.message);
@@ -61,7 +81,9 @@
 					class:bg-brand={workflow_step.id === step.id}
 					class:bg-sky-500={workflow_step.id !== step.id}
 				>
-					<div class="border-secondary h-[24px] w-[24px] rounded-[100%] border-8 bg-white"></div>
+					<div
+						class="border-secondary h-[24px] w-[24px] rounded-[100%] border-8 bg-white"
+					></div>
 					<p class="text-center">
 						{step.name}
 					</p>
@@ -84,38 +106,40 @@
 			</div>
 			<div class="flex grow flex-col md:row-start-2">
 				{#if !workflow_step.required}
-					<Button onclick={stepComplete} class="mx-auto" variant="secondary">Skip this step</Button>
+					<Button onclick={stepComplete} class="mx-auto" variant="secondary"
+						>Skip this step</Button
+					>
 				{/if}
 				<div class="my-10 w-full grow">
-					{#if workflow_step.tool_config.type === Learn.TOOL_NAME}
+					{#if tool_config.type === Learn.TOOL_NAME}
 						<Learn.UserUI
 							onDone={stepComplete}
-							pages={workflow_step.tool_config.pages}
+							pages={tool_config.pages}
 							user_id={user.id}
 						/>
 					{/if}
-					{#if workflow_step.tool_config.type === Polis.TOOL_NAME}
+					{#if tool_config.type === Polis.TOOL_NAME}
 						<Polis.UserUI
 							user_id={user.id}
-							polis_id={workflow_step.tool_config.poll_id}
-							polis_url={workflow_step.tool_config.server_url}
+							polis_id={tool_config.poll_id}
+							polis_url={tool_config.server_url}
 							onDone={goToThankYouPage}
 						/>
 					{/if}
-					{#if workflow_step.tool_config.type === HeyForm.TOOL_NAME}
+					{#if tool_config.type === HeyForm.TOOL_NAME}
 						{#key workflow_step.id}
 							<HeyForm.UserUI
 								userId={user.id}
-								surveyId={workflow_step.tool_config.survey_id}
-								surveyURL={workflow_step.tool_config.survey_url}
+								surveyId={tool_config.survey_id}
+								surveyURL={tool_config.survey_url}
 								onDone={stepComplete}
 							/>
 						{/key}
 					{/if}
-					{#if workflow_step.tool_config.type === LivedExperience.TOOL_NAME}
+					{#if tool_config.type === LivedExperience.TOOL_NAME}
 						<LivedExperience.UserUI onDone={stepComplete} />
 					{/if}
-					{#if workflow_step.tool_config.type === ElicitationBot.TOOL_NAME}
+					{#if tool_config.type === ElicitationBot.TOOL_NAME}
 						<ElicitationBot.UserUI onDone={stepComplete} />
 					{/if}
 				</div>

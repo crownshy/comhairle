@@ -19,7 +19,7 @@
 			signups: s.users,
 			active: s.users
 		}));
-		if (stats.length < 30) {
+		if (stats.length < 30 && stats.length > 0) {
 			let start = mapped[0].day;
 			let buffer_before = [];
 			for (let i = 0; i < 30; i++) {

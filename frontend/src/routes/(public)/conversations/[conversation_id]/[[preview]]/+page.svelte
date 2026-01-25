@@ -1,10 +1,5 @@
 <script lang="ts">
 	import type { PageProps } from '../$types.js';
-
-	let { data }: PageProps = $props();
-	let { conversation, workflows, participation } = data;
-	let user = $derived(data.user);
-
 	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as m from '$lib/paraglide/messages';
@@ -15,13 +10,15 @@
 	import ConversationSummary from '$lib/components/ConversationSummary.svelte';
 	import { loginRedirect, signupRedirect } from '$lib/urls.js';
 
+	let { data }: PageProps = $props();
+	let { conversation, workflows, participation } = data;
+	let user = $derived(data.user);
+
 	let firstWorkflow = $derived(workflows[0]);
 
-	let firstWorkflowPath = $derived(
-		`/conversations/${conversation.id}/workflow/${firstWorkflow.id}/next`
-	);
-
 	let url = $derived(page.url);
+
+	let firstWorkflowPath = $derived(`${url}/workflow/${firstWorkflow.id}/next`);
 
 	async function redirectToLogin() {
 		loginRedirect(url.toString(), 'Login to join the conversation');
@@ -79,7 +76,9 @@
 		<ConversationSummary {conversation}>
 			{#if user}
 				{#if participation}
-					<Button class="mt-5 w-full md:w-fit" href={firstWorkflowPath}>{m.jump_back_in()}</Button>
+					<Button class="mt-5 w-full md:w-fit" href={firstWorkflowPath}
+						>{m.jump_back_in()}</Button
+					>
 				{:else}
 					<Button class="mt-5 w-full md:w-fit" onclick={registerUser}
 						>{m.join_the_conversation()}</Button

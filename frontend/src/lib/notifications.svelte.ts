@@ -1,11 +1,11 @@
 import { toast, type ExternalToast } from 'svelte-sonner';
 export { Toaster as NotificationsToaster } from '$lib/components/ui/sonner';
-import {z} from 'zod'
+import { z } from 'zod'
 
 // Use to serialize and deserialize the flash notifications
-let FlashString : z.ZodType<Array<SendOpts>> = z.array(z.object({
-	message:z.string(),
-	priority: z.optional(z.enum(['INFO' ,'WARNING' , 'ERROR' , 'SUCCESS'])),
+let FlashString: z.ZodType<Array<SendOpts>> = z.array(z.object({
+	message: z.string(),
+	priority: z.optional(z.enum(['INFO', 'WARNING', 'ERROR', 'SUCCESS'])),
 	duration: z.optional(z.number())
 }))
 
@@ -20,7 +20,6 @@ class NotificationsManager {
 	}
 
 	public async listen() {
-		console.log('listening for server notifications (not implemented');
 		// TODO: implement
 
 		// // hacky testing snippet:
@@ -46,29 +45,29 @@ class NotificationsManager {
 	// TODO this doesn't work when running on server side
 	// need to perhaps move to cookies to store and
 	// retrive the flash notifications 
-	public addFlash(opts: SendOpts){
-		try{
+	public addFlash(opts: SendOpts) {
+		try {
 			let flashString = sessionStorage.getItem('comhairle_flash_notfifications');
 			let flash;
-			if(flashString){
+			if (flashString) {
 				flash = FlashString.parse(JSON.parse(flashString))
 			}
-			else{
+			else {
 				flash = [opts]
 			}
 			sessionStorage.setItem("comhairle_flash_notfifications", JSON.stringify(flash))
 		}
-		catch(e){
+		catch (e) {
 			console.warn("Failed to set session storage, probably on server")
 		}
 	}
 
-	public showFlash(){
-		if(!sessionStorage) return;
+	public showFlash() {
+		if (!sessionStorage) return;
 		let flashString = sessionStorage.getItem('comhairle_flash_notfifications');
 		if (flashString) {
 			let flash = FlashString.parse(JSON.parse(flashString))
-			for (let message of flash){
+			for (let message of flash) {
 				this.send(message)
 			}
 		}

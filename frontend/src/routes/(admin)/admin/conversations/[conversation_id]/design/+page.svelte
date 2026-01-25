@@ -2,6 +2,7 @@
 	import type { WorkflowStep } from '$lib/api/api.js';
 	import { infoURLForTool } from '$lib/utils';
 	import { flip } from 'svelte/animate';
+	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import {
 		basic_learn_config,
 		basic_polis_config,
@@ -10,12 +11,19 @@
 		basic_elicitation_bot_config
 	} from '$lib/workflow_templates.js';
 	import ToolSelectionModal from '$lib/components/ToolSelectionModal.svelte';
-	import { Header } from '$lib/components/ui/alert-dialog/index.js';
-	let { data } = $props();
-	import { draggable, droppable, type DragDropState } from '@thisux/sveltednd';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { Plus, BookOpen, ListChecks, Video, MessagesSquare, ChevronDown } from 'lucide-svelte';
+	import * as Card from '$lib/components/ui/card';
+	import Button from '$lib/components/ui/button/button.svelte';
+	import { apiClient } from '$lib/api/client';
+	import { invalidateAll } from '$app/navigation';
+	import { notifications } from '$lib/notifications.svelte.js';
+	import { ChevronUp } from 'svelte-radix';
+	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte.js';
+	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 
+	let { data } = $props();
 	let addStepModalOpen = $state(false);
 
 	$effect(() => {
@@ -24,32 +32,13 @@
 			goto(page.url.pathname, { replaceState: true });
 		}
 	});
-	import {
-		Plus,
-		Share2,
-		BookOpen,
-		ListChecks,
-		Video,
-		MessagesSquare,
-		ChevronDown
-	} from 'lucide-svelte';
-	import * as Card from '$lib/components/ui/card';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { apiClient } from '$lib/api/client';
-	import { invalidateAll } from '$app/navigation';
-	import { notifications } from '$lib/notifications.svelte.js';
-	import { ChevronUp } from 'svelte-radix';
-	import StepNavigation from '$lib/components/StepNavigation.svelte';
+
 	let conversation = $derived(data.conversation);
 	let workflow_steps = $derived(data.workflow_steps);
 	let workflow = $derived(data.workflows[0]);
-
-	function handleDrop(state: DragDropState<WorkflowStep>) {
-		console.log('drop ', state);
-	}
+	let firstStep = $derived(workflow_steps.find((s) => s.step_order === 1));
 
 	async function addStep(step: string) {
-		console.log('step ', step);
 		let tool_setup = {
 			Polis: basic_polis_config,
 			Learn: basic_learn_config,
@@ -85,7 +74,6 @@
 	}
 
 	async function decrementStep(step_id: string) {
-		console.log('decrimenting ');
 		let step = workflow_steps.find((ws: WorkflowStep) => ws.id === step_id);
 		await apiClient.UpdateWorkflowStep(
 			{ step_order: step.step_order - 2 },
@@ -99,6 +87,7 @@
 		);
 		await invalidateAll();
 	}
+
 	async function incrementStep(step_id: string) {
 		let step = workflow_steps.find((ws: WorkflowStep) => ws.id === step_id);
 		await apiClient.UpdateWorkflowStep(
@@ -113,11 +102,31 @@
 		);
 		await invalidateAll();
 	}
+
+	function activeToolConfig(step: WorkflowStep) {
+		return conversation.is_live ? step.tool_config : step.preview_tool_config;
+	}
+	useAdminLayoutSlots({
+		title: titleSnippet,
+		breadcrumbs: breadcrumbSnippet
+	});
 </script>
 
-<StepNavigation workflowSteps={workflow_steps} />
+{#snippet titleSnippet()}
+	<h1 class="text-4xl font-bold">Design</h1>
+	<AdminPrevNextControls
+		next={firstStep && {
+			name: firstStep.name,
+			url: `/admin/conversations/${conversation.id}/design/step/${firstStep.id}`
+		}}
+		prev={{ name: 'Configure', url: `/admin/conversations/${conversation.id}/configure` }}
+	/>
+{/snippet}
 
-<h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><Share2 /> Design</h1>
+{#snippet breadcrumbSnippet()}
+	<Breadcrumb.Item>Design</Breadcrumb.Item>
+{/snippet}
+
 <h2 class="mb-5 text-2xl">Process steps</h2>
 
 <p class="mb-10">
@@ -134,16 +143,16 @@
 				<Card.Header>
 					<div class="flex flex-row items-center justify-between">
 						<div class="flex flex-row items-center gap-x-5">
-							{#if step.tool_config.type === 'polis'}
+							{#if activeToolConfig(step).type === 'polis'}
 								<MessagesSquare />
 							{/if}
-							{#if step.tool_config.type === 'stories'}
+							{#if activeToolConfig(step).type === 'stories'}
 								<Video />
 							{/if}
-							{#if step.tool_config.type === 'heyform'}
+							{#if activeToolConfig(step).type === 'heyform'}
 								<ListChecks />
 							{/if}
-							{#if step.tool_config.type === 'learn'}
+							{#if activeToolConfig(step).type === 'learn'}
 								<BookOpen />
 							{/if}
 							<h1 class="text-xl">{step.name}</h1>
@@ -164,7 +173,9 @@
 				</Card.Header>
 				<Card.Footer>
 					<div class="flex w-full flex-row items-end justify-between capitalize">
-						<a href={infoURLForTool(step.tool_config.type)}>{step.tool_config.type}</a>
+						<a href={infoURLForTool(activeToolConfig(step).type)}
+							>{activeToolConfig(step).type}</a
+						>
 						<Button
 							href={`/admin/conversations/${conversation.id}/design/step/${step.id}`}
 							class="secondary">Configure step</Button
@@ -176,7 +187,11 @@
 	{/each}
 </div>
 
-<ToolSelectionModal prompt="Select a step to add" onSelection={addStep} bind:open={addStepModalOpen}>
+<ToolSelectionModal
+	prompt="Select a step to add"
+	onSelection={addStep}
+	bind:open={addStepModalOpen}
+>
 	<Button variant="secondary"><Plus /> Add Step</Button>
 </ToolSelectionModal>
 

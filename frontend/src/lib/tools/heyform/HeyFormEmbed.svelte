@@ -32,7 +32,6 @@
 		let params = new URLSearchParams(extraSurveyParams).toString();
 		url = url + '&' + params;
 	}
-	console.log('URL IS ', url);
 </script>
 
 <iframe

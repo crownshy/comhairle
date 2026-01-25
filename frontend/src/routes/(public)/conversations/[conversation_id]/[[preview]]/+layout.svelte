@@ -4,6 +4,7 @@
 	import type { LayoutProps } from './$types';
 
 	let { children, data }: LayoutProps = $props();
+	let preview = $derived(data.preview);
 
 	beforeNavigate(({ to, cancel }) => {
 		const isEmbed = $derived(page.url.searchParams.get('embed') === 'true');
@@ -21,5 +22,9 @@
 	});
 </script>
 
+{#if preview}
+	<div class="bg-secondary mt-3 w-full py-3 text-center text-white">
+		This is a preview of the conversation
+	</div>
+{/if}
 {@render children()}
-

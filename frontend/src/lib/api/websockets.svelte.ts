@@ -10,7 +10,6 @@ export class WSConnection {
 			const host = window.location.host;
 			const token = document.cookie.split('; ').find(row => row.startsWith('access_token='))?.split('=')[1];
 			const url = `${protocol}//${host}/api/ws${token ? `?token=${token}` : ''}`;
-			console.log("trying to connect ", url)
 			this.socket = new WebSocket(url);
 			this.socket.onopen = () => {
 				console.log("Connection opened")

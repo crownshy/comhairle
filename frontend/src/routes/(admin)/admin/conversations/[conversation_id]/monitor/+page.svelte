@@ -7,13 +7,13 @@
 	import GenderComparison from '$lib/components/GenderComparison.svelte';
 	import GeoComparison from '$lib/components/GeoComparison/GeoComparison.svelte';
 	import * as Card from '$lib/components/ui/card';
-	import StepNavigation from '$lib/components/StepNavigation.svelte';
 
 	import type { PageProps } from './$types';
+	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb';
+	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 
 	let { data }: PageProps = $props();
 	let { workflow_steps, workflowStats } = data;
-	console.log('workflw stats', workflowStats);
 
 	let stats = [
 		{
@@ -39,11 +39,21 @@
 			unit: null
 		}
 	];
+
+	useAdminLayoutSlots({
+		title: titleSnippet,
+		breadcrumbs: breadcrumbSnippet
+	});
 </script>
 
-<StepNavigation workflowSteps={workflow_steps} />
+{#snippet titleSnippet()}
+	<h1 class="text-4xl font-bold">Monitor</h1>
+{/snippet}
 
-<h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><Binoculars /> Monitor</h1>
+{#snippet breadcrumbSnippet()}
+	<BreadcrumbItem>Monitor</BreadcrumbItem>
+{/snippet}
+
 <p class="mb-10">
 	See how your conversation is working, monitor recruitment and user progress and check out your
 	reach
@@ -93,13 +103,16 @@
 						<h1 class="pt-[70px] text-3xl">1 Minute</h1>
 						<p>median</p>
 					{:else}
-						<h1 class="pt-[70px] text-center text-2xl">No users have completed this step yet</h1>
+						<h1 class="pt-[70px] text-center text-2xl">
+							No users have completed this step yet
+						</h1>
 					{/if}
 				</div>
 			</Card.Content>
 			<Card.Footer class="flex-col gap-2 text-sm">
 				{#if workflowStats.step_stats.find((s) => s.id == step.id).completed > 0}
-					Most users completed this step in 1 minute. The longest it took someone was 3 minutes.
+					Most users completed this step in 1 minute. The longest it took someone was 3
+					minutes.
 				{/if}
 			</Card.Footer>
 		</Card.Root>

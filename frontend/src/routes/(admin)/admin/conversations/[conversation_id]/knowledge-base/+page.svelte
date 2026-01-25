@@ -1,10 +1,11 @@
 <script lang="ts">
 	import type { ComhairleDocument, Conversation } from '$lib/api/api.js';
+	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import FileUpload from '$lib/components/KnowledgeBase/FileUpload.svelte';
 	import ParsedFileList from '$lib/components/KnowledgeBase/ParsedFileList.svelte';
 	import ParsingFileList from '$lib/components/KnowledgeBase/ParsingFileList.svelte';
-	import { Database } from 'lucide-svelte';
-	import StepNavigation from '$lib/components/StepNavigation.svelte';
+	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb';
+	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 
 	type Props = {
 		data: {
@@ -29,12 +30,31 @@
 				(doc.parse_progress === 0 && doc.parse_status === 'CANCEL')
 		)
 	);
+
+	useAdminLayoutSlots({
+		title: titleSnippet,
+		breadcrumbs: breadcrumbSnippet
+	});
 </script>
 
-<StepNavigation workflowSteps={workflow_steps} />
+{#snippet titleSnippet()}
+	<h1 class="text-4xl font-bold">Knowledge Base</h1>
 
-<h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><Database /> Knowledge Base</h1>
+	<AdminPrevNextControls
+		prev={{ name: 'Design', url: `/admin/conversations/${conversation.id}/design` }}
+	/>
+{/snippet}
+
+{#snippet breadcrumbSnippet()}
+	<BreadcrumbItem>Knowledge Base</BreadcrumbItem>
+{/snippet}
+
 <p class="mb-10">Use this space to manage your conversation's knowledge base</p>
+<p>
+	The knowledge base is a set of documents that you can use to provide users information about the
+	topic at hand. They are used for a variety of tasks including influcencing the helper bot and
+	the elicitation bot steps
+</p>
 
 <section class="mb-4">
 	<FileUpload conversation_id={conversation.id} />

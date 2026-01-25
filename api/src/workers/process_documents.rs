@@ -59,7 +59,7 @@ pub async fn process_document_handler(
     );
 
     let conversation =
-        models::conversation::get_localised_by_id(&state.db, &job.conversation_id).await?;
+        models::conversation::get_localised_by_id(&state.db, &job.conversation_id, "en").await?;
     let knowledge_base_id = match conversation.knowledge_base_id {
         Some(id) => id,
         None => {
