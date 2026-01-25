@@ -1,8 +1,4 @@
 <script lang="ts">
-	import Label from '$lib/components/ui/label/label.svelte';
-	import Input from '$lib/components/ui/input/input.svelte';
-	import { apiClient } from '$lib/api/client';
-	import { notifications } from '$lib/notifications.svelte';
 	let {
 		survey_id,
 		admin_user,

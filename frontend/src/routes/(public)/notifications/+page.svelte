@@ -82,7 +82,6 @@
 	async function markAsRead(deliveryId: string) {
 		if (markingAsRead.has(deliveryId)) return;
 
-		console.log('Marking ', deliveryId, ' as read');
 		markingAsRead.add(deliveryId);
 		try {
 			await apiClient.MarkNotificationAsRead({}, { params: { delivery_id: deliveryId } });
@@ -139,7 +138,8 @@
 
 			{#if hasUnread}
 				<p class="text-black">
-					You have {data.unreadCount.count} unread notification{data.unreadCount.count !== 1
+					You have {data.unreadCount.count} unread notification{data.unreadCount.count !==
+					1
 						? 's'
 						: ''}
 				</p>
@@ -163,7 +163,11 @@
 			</Button>
 
 			{#if hasUnread}
-				<Button onclick={markAllAsRead} disabled={markingAllAsRead} class="flex items-center gap-2">
+				<Button
+					onclick={markAllAsRead}
+					disabled={markingAllAsRead}
+					class="flex items-center gap-2"
+				>
 					<CheckCheck class="h-4 w-4" />
 					{markingAllAsRead ? 'Marking...' : 'Mark All Read'}
 				</Button>
@@ -212,14 +216,21 @@
 											{notification.notification.notification_type}
 										</Badge>
 										{#if isUnread(notification)}
-											<Badge variant="secondary" class="bg-blue-100 text-blue-800">Unread</Badge>
+											<Badge
+												variant="secondary"
+												class="bg-blue-100 text-blue-800">Unread</Badge
+											>
 										{/if}
 									</div>
 									<CardDescription class="flex items-center gap-2 text-sm">
 										<Calendar class="h-4 w-4" />
-										{formatDistanceToNow(notification.delivered_at, { addSuffix: true })}
+										{formatDistanceToNow(notification.delivered_at, {
+											addSuffix: true
+										})}
 										{#if notification.read_at}
-											• Read {formatDistanceToNow(notification.read_at, { addSuffix: true })}
+											• Read {formatDistanceToNow(notification.read_at, {
+												addSuffix: true
+											})}
 										{/if}
 									</CardDescription>
 								</div>
@@ -234,7 +245,9 @@
 									class="flex shrink-0 items-center gap-1.5"
 								>
 									<Check class="h-3.5 w-3.5" />
-									{markingAsRead.has(notification.id) ? 'Marking...' : 'Mark Read'}
+									{markingAsRead.has(notification.id)
+										? 'Marking...'
+										: 'Mark Read'}
 								</Button>
 							{/if}
 						</div>
@@ -242,7 +255,9 @@
 					<CardContent>
 						<div class="flex flex-row items-center gap-2">
 							{#if notification.notification.context_type == 'conversation'}
-								<ConversationContextImage conversation_id={notification.notification.context_id} />
+								<ConversationContextImage
+									conversation_id={notification.notification.context_id}
+								/>
 							{/if}
 							<div class="prose prose-sm max-w-none">
 								<p class="text-muted-foreground text-sm whitespace-pre-wrap">
@@ -253,9 +268,16 @@
 
 						<Separator class="my-4" />
 
-						<div class="text-muted-foreground flex items-center justify-between text-xs">
+						<div
+							class="text-muted-foreground flex items-center justify-between text-xs"
+						>
 							<div class="flex items-center gap-4">
-								<span>Delivered via {notification.delivery_method.replace('_', ' ')}</span>
+								<span
+									>Delivered via {notification.delivery_method.replace(
+										'_',
+										' '
+									)}</span
+								>
 							</div>
 						</div>
 					</CardContent>

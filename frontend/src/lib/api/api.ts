@@ -26,7 +26,7 @@ export const ResourceRole = z.enum(["Admin", "SuperAdmin"]);
 export type ResourceRole = z.infer<typeof ResourceRole>;
 export const UserRoles = z.object({ resource: ResourceType, roles: z.array(ResourceRole) }).passthrough();
 export type UserRoles = z.infer<typeof UserRoles>;
-export const Conversation = z.object({ chat_bot_id: z.union([z.string(), z.null()]).optional(), created_at: z.string().datetime({ offset: true }), default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string().uuid(), enable_qa_chat_bot: z.boolean(), id: z.string().uuid(), image_url: z.string(), is_complete: z.boolean(), is_invite_only: z.boolean(), is_public: z.boolean(), knowledge_base_id: z.union([z.string(), z.null()]).optional(), owner_id: z.string().uuid(), primary_locale: z.string(), short_description: z.string().uuid(), slug: z.union([z.string(), z.null()]).optional(), supported_languages: z.array(z.string()), tags: z.array(z.string()), title: z.string().uuid(), updated_at: z.string().datetime({ offset: true }), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
+export const Conversation = z.object({ chat_bot_id: z.union([z.string(), z.null()]).optional(), created_at: z.string().datetime({ offset: true }), default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string().uuid(), enable_qa_chat_bot: z.boolean(), id: z.string().uuid(), image_url: z.string(), is_complete: z.boolean(), is_invite_only: z.boolean(), is_live: z.boolean(), is_public: z.boolean(), knowledge_base_id: z.union([z.string(), z.null()]).optional(), owner_id: z.string().uuid(), primary_locale: z.string(), short_description: z.string().uuid(), slug: z.union([z.string(), z.null()]).optional(), supported_languages: z.array(z.string()), tags: z.array(z.string()), title: z.string().uuid(), updated_at: z.string().datetime({ offset: true }), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type Conversation = z.infer<typeof Conversation>;
 export const created_after = z.union([z.string(), z.null()]).optional();
 export type created_after = z.infer<typeof created_after>;
@@ -34,7 +34,7 @@ export const is_complete = z.union([z.boolean(), z.null()]).optional();
 export type is_complete = z.infer<typeof is_complete>;
 export const limit = z.union([z.number(), z.null()]).optional();
 export type limit = z.infer<typeof limit>;
-export const LocalisedConversation = z.object({ chat_bot_id: z.union([z.string(), z.null()]).optional(), created_at: z.string().datetime({ offset: true }), default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string(), enable_qa_chat_bot: z.boolean(), id: z.string().uuid(), image_url: z.string(), is_complete: z.boolean(), is_invite_only: z.boolean(), is_public: z.boolean(), knowledge_base_id: z.union([z.string(), z.null()]).optional(), owner_id: z.string().uuid(), primary_locale: z.string(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), supported_languages: z.array(z.string()), tags: z.array(z.string()), title: z.string(), updated_at: z.string().datetime({ offset: true }), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
+export const LocalisedConversation = z.object({ chat_bot_id: z.union([z.string(), z.null()]).optional(), created_at: z.string().datetime({ offset: true }), default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string(), enable_qa_chat_bot: z.boolean(), id: z.string().uuid(), image_url: z.string(), is_complete: z.boolean(), is_invite_only: z.boolean(), is_live: z.boolean(), is_public: z.boolean(), knowledge_base_id: z.union([z.string(), z.null()]).optional(), owner_id: z.string().uuid(), primary_locale: z.string(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), supported_languages: z.array(z.string()), tags: z.array(z.string()), title: z.string(), updated_at: z.string().datetime({ offset: true }), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type LocalisedConversation = z.infer<typeof LocalisedConversation>;
 export const PaginatedResults_for_LocalisedConversation = z.object({ records: z.array(LocalisedConversation), total: z.number().int() }).passthrough();
 export type PaginatedResults_for_LocalisedConversation = z.infer<typeof PaginatedResults_for_LocalisedConversation>;
@@ -78,15 +78,15 @@ export const UpdateTextTranslation = z.object({ ai_generated: z.union([z.boolean
 export type UpdateTextTranslation = z.infer<typeof UpdateTextTranslation>;
 export const CreateOrUpdateTextTranslationRequest = z.object({ ai_generated: z.union([z.boolean(), z.null()]).optional(), content: z.string(), requires_validation: z.union([z.boolean(), z.null()]).optional() }).passthrough();
 export type CreateOrUpdateTextTranslationRequest = z.infer<typeof CreateOrUpdateTextTranslationRequest>;
-export const CreateConversation = z.object({ default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string(), enable_qa_chat_bot: z.union([z.boolean(), z.null()]).optional(), image_url: z.string(), is_invite_only: z.boolean(), is_public: z.boolean(), primary_locale: z.string(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), supported_languages: z.array(z.string()), tags: z.union([z.array(z.string()), z.null()]).optional(), title: z.string(), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
+export const CreateConversation = z.object({ default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string(), enable_qa_chat_bot: z.union([z.boolean(), z.null()]).optional(), image_url: z.string(), is_invite_only: z.boolean(), is_live: z.boolean(), is_public: z.boolean(), primary_locale: z.string(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), supported_languages: z.array(z.string()), tags: z.union([z.array(z.string()), z.null()]).optional(), title: z.string(), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type CreateConversation = z.infer<typeof CreateConversation>;
 export const Translation = z.object({ text_content: TextContent, text_translations: z.array(TextTranslation) }).passthrough();
 export type Translation = z.infer<typeof Translation>;
-export const ConversationWithTranslations = z.object({ chat_bot_id: z.union([z.string(), z.null()]).optional(), created_at: z.string().datetime({ offset: true }), default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string(), enable_qa_chat_bot: z.boolean(), id: z.string().uuid(), image_url: z.string(), is_complete: z.boolean(), is_invite_only: z.boolean(), is_public: z.boolean(), knowledge_base_id: z.union([z.string(), z.null()]).optional(), owner_id: z.string().uuid(), primary_locale: z.string(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), supported_languages: z.array(z.string()), tags: z.array(z.string()), title: z.string(), translations: z.record(Translation), updated_at: z.string().datetime({ offset: true }), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
+export const ConversationWithTranslations = z.object({ chat_bot_id: z.union([z.string(), z.null()]).optional(), created_at: z.string().datetime({ offset: true }), default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string(), enable_qa_chat_bot: z.boolean(), id: z.string().uuid(), image_url: z.string(), is_complete: z.boolean(), is_invite_only: z.boolean(), is_live: z.boolean(), is_public: z.boolean(), knowledge_base_id: z.union([z.string(), z.null()]).optional(), owner_id: z.string().uuid(), primary_locale: z.string(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), supported_languages: z.array(z.string()), tags: z.array(z.string()), title: z.string(), translations: z.record(Translation), updated_at: z.string().datetime({ offset: true }), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type ConversationWithTranslations = z.infer<typeof ConversationWithTranslations>;
 export const ConversationResponse = z.union([LocalisedConversation, ConversationWithTranslations]);
 export type ConversationResponse = z.infer<typeof ConversationResponse>;
-export const PartialConversation = z.object({ chat_bot_id: z.union([z.string(), z.null()]), default_workflow_id: z.union([z.string(), z.null()]), description: z.union([z.string(), z.null()]), enable_qa_chat_bot: z.union([z.boolean(), z.null()]), image_url: z.union([z.string(), z.null()]), is_complete: z.union([z.boolean(), z.null()]), is_invite_only: z.union([z.boolean(), z.null()]), is_public: z.union([z.boolean(), z.null()]), knowledge_base_id: z.union([z.string(), z.null()]), primary_locale: z.union([z.string(), z.null()]), short_description: z.union([z.string(), z.null()]), slug: z.union([z.string(), z.null()]), supported_languages: z.union([z.array(z.string()), z.null()]), tags: z.union([z.array(z.string()), z.null()]), title: z.union([z.string(), z.null()]), video_url: z.union([z.string(), z.null()]) }).partial().passthrough();
+export const PartialConversation = z.object({ chat_bot_id: z.union([z.string(), z.null()]), default_workflow_id: z.union([z.string(), z.null()]), description: z.union([z.string(), z.null()]), enable_qa_chat_bot: z.union([z.boolean(), z.null()]), image_url: z.union([z.string(), z.null()]), is_complete: z.union([z.boolean(), z.null()]), is_invite_only: z.union([z.boolean(), z.null()]), is_live: z.union([z.boolean(), z.null()]), is_public: z.union([z.boolean(), z.null()]), knowledge_base_id: z.union([z.string(), z.null()]), primary_locale: z.union([z.string(), z.null()]), short_description: z.union([z.string(), z.null()]), slug: z.union([z.string(), z.null()]), supported_languages: z.union([z.array(z.string()), z.null()]), tags: z.union([z.array(z.string()), z.null()]), title: z.union([z.string(), z.null()]), video_url: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialConversation = z.infer<typeof PartialConversation>;
 export const SendNotificationRequest = z.object({ content: z.string(), delivery_method: z.union([DeliveryMethod, z.null()]).optional(), notification_type: z.union([NotificationType, z.null()]).optional(), title: z.string() }).passthrough();
 export type SendNotificationRequest = z.infer<typeof SendNotificationRequest>;
@@ -108,7 +108,7 @@ export const Page = z.array(LocalisedPage);
 export type Page = z.infer<typeof Page>;
 export const ToolConfig = z.union([z.object({ admin_password: z.string(), admin_user: z.string(), poll_id: z.string(), server_url: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ admin_password: z.string(), admin_user: z.string(), project_id: z.string(), survey_id: z.string(), survey_url: z.string(), type: z.literal("heyform"), workspace_id: z.string() }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ bot_id: z.string(), topic: z.string(), type: z.literal("elicitationbot") }).passthrough()]);
 export type ToolConfig = z.infer<typeof ToolConfig>;
-export const WorkflowStep = z.object({ activation_rule: ActivationRule, created_at: z.string().datetime({ offset: true }), description: z.string().uuid(), id: z.string().uuid(), is_offline: z.boolean(), name: z.string().uuid(), required: z.boolean(), step_order: z.number().int(), tool_config: ToolConfig, updated_at: z.string().datetime({ offset: true }), workflow_id: z.string().uuid() }).passthrough();
+export const WorkflowStep = z.object({ activation_rule: ActivationRule, created_at: z.string().datetime({ offset: true }), description: z.string().uuid(), id: z.string().uuid(), is_offline: z.boolean(), name: z.string().uuid(), preview_tool_config: ToolConfig, required: z.boolean(), step_order: z.number().int(), tool_config: z.union([ToolConfig, z.null()]).optional(), updated_at: z.string().datetime({ offset: true }), workflow_id: z.string().uuid() }).passthrough();
 export type WorkflowStep = z.infer<typeof WorkflowStep>;
 export const DailySignupStats = z.object({ day: z.string().datetime({ offset: true }), users: z.number().int() }).passthrough();
 export type DailySignupStats = z.infer<typeof DailySignupStats>;
@@ -120,13 +120,13 @@ export const PartialWorkflow = z.object({ auto_login: z.union([z.boolean(), z.nu
 export type PartialWorkflow = z.infer<typeof PartialWorkflow>;
 export const UserParticipation = z.object({ created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid(), workflow_id: z.string().uuid() }).passthrough();
 export type UserParticipation = z.infer<typeof UserParticipation>;
-export const LocalisedWorkflowStep = z.object({ activation_rule: ActivationRule, created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_offline: z.boolean(), name: z.string(), required: z.boolean(), step_order: z.number().int(), tool_config: ToolConfig, updated_at: z.string().datetime({ offset: true }), workflow_id: z.string().uuid() }).passthrough();
+export const LocalisedWorkflowStep = z.object({ activation_rule: ActivationRule, created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_offline: z.boolean(), name: z.string(), preview_tool_config: ToolConfig, required: z.boolean(), step_order: z.number().int(), tool_config: z.union([ToolConfig, z.null()]).optional(), updated_at: z.string().datetime({ offset: true }), workflow_id: z.string().uuid() }).passthrough();
 export type LocalisedWorkflowStep = z.infer<typeof LocalisedWorkflowStep>;
 export const ToolSetup = z.union([z.object({ topic: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ type: z.literal("heyform") }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ conversation_id: z.string(), topic: z.string(), type: z.literal("elicitationbot") }).passthrough()]);
 export type ToolSetup = z.infer<typeof ToolSetup>;
 export const CreateWorkflowStep = z.object({ activation_rule: ActivationRule, description: z.string(), is_offline: z.boolean(), name: z.string(), required: z.boolean(), step_order: z.number().int(), tool_setup: ToolSetup }).passthrough();
 export type CreateWorkflowStep = z.infer<typeof CreateWorkflowStep>;
-export const PartialWorkflowStep = z.object({ activation_rule: z.union([ActivationRule, z.null()]), description: z.union([z.string(), z.null()]), is_offline: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]), required: z.union([z.boolean(), z.null()]), step_order: z.union([z.number(), z.null()]), tool_config: z.union([ToolConfig, z.null()]) }).partial().passthrough();
+export const PartialWorkflowStep = z.object({ activation_rule: z.union([ActivationRule, z.null()]), description: z.union([z.string(), z.null()]), is_offline: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]), preview_tool_config: z.union([ToolConfig, z.null()]), required: z.union([z.boolean(), z.null()]), step_order: z.union([z.number(), z.null()]), tool_config: z.union([ToolConfig, z.null()]) }).partial().passthrough();
 export type PartialWorkflowStep = z.infer<typeof PartialWorkflowStep>;
 export const ProgressStatus = z.enum(["not_started", "in_progress", "done"]);
 export type ProgressStatus = z.infer<typeof ProgressStatus>;
@@ -949,6 +949,11 @@ const endpoints = makeApi([
 				schema: is_complete
 			},
 			{
+				name: "is_live",
+				type: "Query",
+				schema: is_complete
+			},
+			{
 				name: "is_public",
 				type: "Query",
 				schema: is_complete
@@ -1148,6 +1153,14 @@ const endpoints = makeApi([
 		alias: "GetInviteStats",
 		requestFormat: "json",
 		response: z.array(DailyResponseStats),
+	},
+	{
+		method: "put",
+		path: "/conversation/:conversation_id/launch",
+		alias: "LaunchConversation",
+		description: `Makes the conversation live for participants`,
+		requestFormat: "json",
+		response: Conversation,
 	},
 	{
 		method: "post",
@@ -1559,21 +1572,6 @@ const endpoints = makeApi([
 		response: z.object({ count: z.number().int() }).passthrough(),
 	},
 	{
-		method: "get",
-		path: "/tools/polis/admin_login",
-		alias: "PolisAdminLogin",
-		description: `Used to login the current user to the specified workflow id polis`,
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "workflow_step_id",
-				type: "Query",
-				schema: z.string().uuid()
-			},
-		],
-		response: z.string(),
-	},
-	{
 		method: "post",
 		path: "/translations",
 		alias: "CreateTextContent",
@@ -1734,6 +1732,11 @@ This struct contains optional fields that can be updated on a TextTranslation re
 			},
 			{
 				name: "is_invite_only",
+				type: "Query",
+				schema: is_complete
+			},
+			{
+				name: "is_live",
 				type: "Query",
 				schema: is_complete
 			},

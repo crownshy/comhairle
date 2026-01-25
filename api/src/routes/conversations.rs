@@ -24,7 +24,7 @@ use crate::{
         bot_service_user_session::{self, BotServiceUserSessionDto, CreateBotServiceUserSession},
         conversation::{
             self, Conversation, ConversationFilterOptions, ConversationOrderOptions,
-            ConversationWithTranslations, CreateConversation, LocalisedConversation,
+            ConversationWithTranslations, CreateConversation, IdOrSlug, LocalisedConversation,
             PartialConversation,
         },
         conversation_email_notification_recipients::{
@@ -37,6 +37,7 @@ use crate::{
         },
         pagination::{OrderParams, PageOptions, PaginatedResults},
         user_participation::{self},
+        users::User,
     },
     routes::auth::RequiredUser,
     workers::process_documents::DocumentJob,
@@ -78,9 +79,11 @@ async fn update_conversation(
 async fn list_conversations(
     State(state): State<Arc<ComhairleState>>,
     OrderParams(order_options): OrderParams<ConversationOrderOptions>,
-    Query(filter_options): Query<ConversationFilterOptions>,
+    Query(mut filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
 ) -> Result<(StatusCode, Json<PaginatedResults<LocalisedConversation>>), ComhairleError> {
+    filter_options.enforce_live();
+
     let conversations = conversation::list(
         &state.db,
         page_options,
@@ -96,17 +99,13 @@ async fn launch_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     RequiredAdminUser(user): RequiredAdminUser,
-) -> Result<(StatusCode, Json<LocalisedConversation>), ComhairleError> {
+) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    if conversation.is_live{
+        return Err(ComhairleError::ConversationAlreadyLive)
+    }
     let conversation = conversation::launch(&state.db, conversation_id).await?;
     Ok((StatusCode::OK, Json(conversation)))
-}
-
-/// For extracting an id or slug from Path
-#[derive(Deserialize, Debug, JsonSchema)]
-#[serde(untagged)]
-enum IdOrSlug {
-    Id(Uuid),
-    Slug(String),
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -131,6 +130,21 @@ async fn get_conversation(
 ) -> Result<(StatusCode, Json<ConversationResponse>), ComhairleError> {
     info!("Attempting to get conversation {conversation_ident:#?}");
 
+    // Get the original conversation first
+    let original_conversation =
+        conversation::get_by_id_or_slug(&state.db, &conversation_ident).await?;
+
+    // If this isn't a live conversation and the user is not the owner
+    if !original_conversation.is_live {
+        if let Some(user) = &user {
+            if user.id != original_conversation.owner_id {
+                return Err(ComhairleError::UserIsNotConversationOwner);
+            }
+        } else {
+            return Err(ComhairleError::UserIsNotConversationOwner);
+        }
+    }
+
     // Check if user is admin and withTranslations is requested
     let should_return_with_translations = query.with_translations
         && user
@@ -139,12 +153,6 @@ async fn get_conversation(
             .unwrap_or(false);
 
     if should_return_with_translations {
-        // Get the original conversation first
-        let original_conversation = match conversation_ident {
-            IdOrSlug::Id(id) => conversation::get_by_id(&state.db, &id).await?,
-            IdOrSlug::Slug(slug) => conversation::get_by_slug(&state.db, &slug).await?,
-        };
-
         // Convert to ConversationWithTranslations
         let conversation_with_translations = ConversationWithTranslations::from_original(
             &state.db,
@@ -161,10 +169,8 @@ async fn get_conversation(
         ))
     } else {
         // Return localized conversation as before
-        let conversation = match conversation_ident {
-            IdOrSlug::Id(id) => conversation::get_localised_by_id(&state.db, &id).await?,
-            IdOrSlug::Slug(slug) => conversation::get_localised_by_slug(&state.db, &slug).await?,
-        };
+        let conversation =
+            conversation::get_localised_by_id_or_slug(&state.db, &conversation_ident, "en").await?;
 
         Ok((
             StatusCode::OK,
@@ -498,6 +504,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<LocalisedConversation>>()
             }),
         )
+        .api_route(
+            "/{conversation_id}/launch",
+            put_with(launch_conversation, |op| {
+                op.id("LaunchConversation")
+                    .summary("Makes the conversation live")
+                    .tag("Conversation")
+                    .description("Makes the conversation live for participants")
+                    .response::<200, Json<Conversation>>()
+            }),
+        )
+        
         .api_route(
             "/{conversation_id}/notifications",
             post_with(send_notification_to_participants, |op| {
@@ -974,7 +991,7 @@ mod tests {
                     "description" : "A longer description",
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
-                    "is_public" : false,
+                    "is_public" : true,
                     "is_live": true,
                     "is_invite_only" : false,
                     "slug" : "new_conversation",
@@ -994,7 +1011,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "three"],
                     "is_public" : false,
-                    "is_live" : false,
+                    "is_live" : true,
                     "is_invite_only" : false,
                     "slug" : "new_conversation_two",
                     "primary_locale" : "en",

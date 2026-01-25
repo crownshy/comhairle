@@ -19,9 +19,9 @@
 	let themeCss = Object.entries(theme).reduce((a, b) => (a = a + `--${b[0]} : ${b[1]};`), '');
 </script>
 
-<div style={themeCss} class="bg-admin-background grid h-full w-full grid-cols-[500px_1fr]">
+<div style={themeCss} class="bg-grey-100 grid h-full w-full flex-grow grid-cols-[400px_1fr]">
 	<AdminNav user={data.user} {conversations} path={page.url.pathname} />
-	<main class="flex flex-col overflow-y-auto p-12">
+	<main class="flex flex-grow flex-col overflow-y-auto">
 		{@render children()}
 	</main>
 </div>

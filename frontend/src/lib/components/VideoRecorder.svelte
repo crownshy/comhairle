@@ -28,7 +28,6 @@
 	$effect(() => {
 		navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((video_stream) => {
 			stream = video_stream;
-			console.log(previewVideoEl);
 			previewVideoEl!.srcObject = stream;
 		});
 	});
@@ -174,7 +173,9 @@
 			<video controls src={videoUrl} class="w-full rounded-[0.2rem] shadow-sm" />
 			<div class="flex gap-4">
 				<Button onclick={uploadVideo} disabled={isUploading}>Upload</Button>
-				<Button variant="outline" on:click={reset} disabled={isUploading}>Record Again</Button>
+				<Button variant="outline" on:click={reset} disabled={isUploading}
+					>Record Again</Button
+				>
 			</div>
 
 			{#if isUploading}

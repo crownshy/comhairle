@@ -1,9 +1,9 @@
 <script lang="ts">
 	import type { LocalisedPage, ToolConfig, WorkflowStep } from '$lib/api/api';
 	type Props = {
-		pages: Array<LocalisedPage[]>;
 		conversation_id: string;
 		workflow_step: WorkflowStep;
+		isLive: boolean;
 	};
 
 	import { apiClient } from '$lib/api/client';
@@ -11,7 +11,13 @@
 	import * as Select from '$lib/components/ui/select';
 	import { Button } from '$lib/components/ui/button';
 
-	let { conversation_id, workflow_step, pages }: Props = $props();
+	let { conversation_id, workflow_step, isLive }: Props = $props();
+
+	let toolConfig = $derived(
+		isLive ? workflow_step.tool_config : workflow_step.preview_tool_config
+	);
+
+	let pages = $derived(toolConfig.pages);
 
 	// Selection state
 	let currentPageIndex = $state(0);
@@ -53,7 +59,9 @@
 			clearTimeout(debounceTimeout);
 			debounceTimeout = setTimeout(() => {
 				apiClient.UpdateWorkflowStep(
-					{ tool_config: { ...workflow_step.tool_config, pages } },
+					isLive
+						? { tool_config: { ...toolConfig, pages } }
+						: { preview_tool_config: { ...toolConfig, pages } },
 					{
 						params: {
 							workflow_id: workflow_step.workflow_id,
@@ -109,7 +117,9 @@
 				value={currentPageIndex.toString()}
 				onValueChange={(value: string) => (currentPageIndex = parseInt(value))}
 			>
-				<Select.Trigger class="w-[180px] bg-white">Page {currentPageIndex + 1}</Select.Trigger>
+				<Select.Trigger class="w-[180px] bg-white"
+					>Page {currentPageIndex + 1}</Select.Trigger
+				>
 				<Select.Content>
 					{#each pages as _, i}
 						<Select.Item value={i}>Page {i + 1}</Select.Item>

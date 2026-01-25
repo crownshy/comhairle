@@ -11,12 +11,28 @@
 	let { workflow_steps, conversation } = data;
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
-	import StepNavigation from '$lib/components/StepNavigation.svelte';
+	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb/index.js';
+	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte.js';
+	import type { ToolConfig, WorkflowStep } from '$lib/api/api.js';
+
+	function activeToolConfig(step: WorkflowStep): ToolConfig {
+		return conversation.is_live ? activeToolConfig(step) : step.preview_tool_config;
+	}
+
+	useAdminLayoutSlots({
+		title: titleSnippet,
+		breadcrumbs: breadcrumbSnippet
+	});
 </script>
 
-<StepNavigation workflowSteps={workflow_steps} />
+{#snippet titleSnippet()}
+	<h1 class="text-4xl font-bold">Moderate</h1>
+{/snippet}
 
-<h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><Binoculars /> Moderate</h1>
+{#snippet breadcrumbSnippet()}
+	<BreadcrumbItem>Moderate</BreadcrumbItem>
+{/snippet}
+
 <p class="mb-10">Use this space to moderate the conversation</p>
 
 <div class="mb-5 flex flex-col gap-y-5">
@@ -25,16 +41,16 @@
 			<Card.Header>
 				<div class="flex flex-row items-center justify-between">
 					<div class="flex flex-row items-center gap-x-5">
-						{#if step.tool_config.type === 'polis'}
+						{#if activeToolConfig(step).type === 'polis'}
 							<MessagesSquare />
 						{/if}
-						{#if step.tool_config.type === 'stories'}
+						{#if activeToolConfig(step).type === 'stories'}
 							<Video />
 						{/if}
-						{#if step.tool_config.type === 'heyform'}
+						{#if activeToolConfig(step).type === 'heyform'}
 							<ListChecks />
 						{/if}
-						{#if step.tool_config.type === 'learn'}
+						{#if activeToolConfig(step).type === 'learn'}
 							<BookOpen />
 						{/if}
 						<h1 class="text-xl">{step.name}</h1>
@@ -43,7 +59,7 @@
 			</Card.Header>
 			<Card.Footer>
 				<div class="flex w-full flex-row items-end justify-between capitalize">
-					{#if step.tool_config.type === 'polis'}
+					{#if activeToolConfig(step).type === 'polis'}
 						<Button
 							href={`/admin/conversations/${conversation.id}/moderate/step/${step.id}`}
 							class="secondary">Moderate step</Button

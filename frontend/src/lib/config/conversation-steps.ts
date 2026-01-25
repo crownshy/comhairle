@@ -13,15 +13,16 @@ export interface ConversationStep {
 	name: string;
 	path: string;
 	icon: ComponentType;
+	activeOnLive: boolean;
 }
 
 export const conversationSteps: ConversationStep[] = [
-	{ name: 'Configure', path: 'configure', icon: TerminalSquare },
-	{ name: 'Design', path: 'design', icon: Pencil },
-	{ name: 'Recruit', path: 'invites', icon: UsersRound },
-	{ name: 'Monitor', path: 'monitor', icon: Binoculars },
-	{ name: 'Moderate', path: 'moderate', icon: UsersRound },
-	{ name: 'Knowledge base', path: 'knowledge-base', icon: Database },
-	{ name: 'Notify', path: 'notifications', icon: Bell },
-	{ name: 'Report', path: 'report', icon: NotebookText }
+	{ name: 'Configure', path: 'configure', icon: TerminalSquare, activeOnLive: false },
+	{ name: 'Design', path: 'design', icon: Pencil, activeOnLive: false },
+	{ name: 'Knowledge base', path: 'knowledge-base', icon: Database, activeOnLive: false },
+	{ name: 'Recruit', path: 'invites', icon: UsersRound, activeOnLive: true },
+	{ name: 'Monitor', path: 'monitor', icon: Binoculars, activeOnLive: true },
+	{ name: 'Moderate', path: 'moderate', icon: UsersRound, activeOnLive: true },
+	{ name: 'Notify', path: 'notifications', icon: Bell, activeOnLive: true },
+	{ name: 'Report', path: 'report', icon: NotebookText, activeOnLive: true }
 ];

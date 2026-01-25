@@ -8,7 +8,6 @@
 
 	let { onDone }: Props = $props();
 	let phase = $state('PRE');
-	$effect(() => console.log(phase));
 </script>
 
 {#if phase == 'PRE'}
@@ -18,7 +17,8 @@
 			experience of the topic being discussed.
 		</p>
 		<p>
-			After you are done you will get a chance to record your own video to be shared with others
+			After you are done you will get a chance to record your own video to be shared with
+			others
 		</p>
 
 		<Button variant="secondary" onclick={() => (phase = 'FirstVideo')}>Begin</Button>
@@ -63,13 +63,14 @@
 
 {#if phase == 'Recording'}
 	<p class="mb-5">
-		You just heard three other peoples views on the issue. Would you like to record your own to let
-		others know what you think?
+		You just heard three other peoples views on the issue. Would you like to record your own to
+		let others know what you think?
 	</p>
 	<p>
-		We will only show this video to other people signed up to take part in this conversation. Like
-		with any platform on the internet we can't 100% guarantee that someone wont download this video
-		and use it elsewhere. If your comfortable with that go ahead if not feel free to skip this step.
+		We will only show this video to other people signed up to take part in this conversation.
+		Like with any platform on the internet we can't 100% guarantee that someone wont download
+		this video and use it elsewhere. If your comfortable with that go ahead if not feel free to
+		skip this step.
 	</p>
 	<VideoRecorder onDone={() => (phase = 'Done')} />
 {/if}

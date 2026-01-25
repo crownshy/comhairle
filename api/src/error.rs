@@ -209,6 +209,9 @@ pub enum ComhairleError {
 
     #[error("Tool config error: {0}")]
     ToolConfigError(String),
+
+    #[error("Conversation already live")]
+    ConversationAlreadyLive,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -233,9 +236,11 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::WrongPassword
             | ComhairleError::RequiresAuthUser
             | ComhairleError::InviteDoesNotMatchUser
+            | ComhairleError::UserIsNotConversationOwner
             | ComhairleError::NoLogedInUser => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates => StatusCode::UNPROCESSABLE_ENTITY,
             ComhairleError::UserNotAuthorized => StatusCode::FORBIDDEN,
+            ComhairleError::ConversationAlreadyLive => StatusCode::CONFLICT,
             ComhairleError::EmailAlreadyVerified => StatusCode::CONFLICT,
             ComhairleError::PasswordConfirmationMismatch | ComhairleError::BadRequest(_) => {
                 StatusCode::BAD_REQUEST

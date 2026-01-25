@@ -17,13 +17,13 @@
 	import Delete from 'lucide-svelte/icons/delete';
 	import { Separator } from '$lib/components/ui/separator';
 	import { report_url } from '$lib/urls.js';
-	import { NotebookText } from 'lucide-svelte';
 	import { MarkdownEditor } from 'carta-md';
 	import { createCarta } from '$lib/utils/carta';
-	import StepNavigation from '$lib/components/StepNavigation.svelte';
 	import 'carta-md/default.css';
 	import '@cartamd/plugin-slash/default.css';
 	import 'carta-plugin-video/default.css';
+	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte.js';
+	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb/index.js';
 
 	let { data } = $props();
 	let report = $derived(data.report);
@@ -69,11 +69,20 @@
 			notifications.send({ message: 'Failed to save impact', priority: 'ERROR' });
 		}
 	}
+	useAdminLayoutSlots({
+		title: titleSnippet,
+		breadcrumbs: breadcrumbSnippet
+	});
 </script>
 
-<StepNavigation workflowSteps={workflow_steps} conversationSlug={conversation.slug} />
+{#snippet titleSnippet()}
+	<h1 class="text-4xl font-bold">Report</h1>
+{/snippet}
 
-<h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><NotebookText /> Report</h1>
+{#snippet breadcrumbSnippet()}
+	<BreadcrumbItem>Report</BreadcrumbItem>
+{/snippet}
+
 <p class="mb-10">Use this space to edit the report for this conversation</p>
 
 <div class="flex flex-col gap-4">
@@ -138,7 +147,9 @@
 					<Dialog.Content class="sm:max-w-[425px]">
 						<Dialog.Header>
 							<Dialog.Title>Add an impact</Dialog.Title>
-							<Dialog.Description>Record an impact that this report has had</Dialog.Description>
+							<Dialog.Description
+								>Record an impact that this report has had</Dialog.Description
+							>
 						</Dialog.Header>
 						<div class="grid gap-4 py-4">
 							<div class="flex flex-col gap-4">
@@ -166,7 +177,10 @@
 									<Select.Content class="w-56">
 										<Select.Item value="policy" label="Policy" />
 										<Select.Item value="debate" label="Debate" />
-										<Select.Item value="followup_conversation" label="Followup Conversation" />
+										<Select.Item
+											value="followup_conversation"
+											label="Followup Conversation"
+										/>
 									</Select.Content>
 								</Select.Root>
 							</div>

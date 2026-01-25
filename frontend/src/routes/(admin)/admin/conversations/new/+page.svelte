@@ -43,9 +43,10 @@
 						'This should be a longer description about the conversation. It should introduce people to what is being discussed and outline-solid the actions that might be taken as a result of the conversation',
 					tags: [],
 					image_url: PlaceholderConvo,
-					primary_locale: "en",
-					supported_languages:["en"],
+					primary_locale: 'en',
+					supported_languages: ['en'],
 					is_public: false,
+					is_live: false,
 					is_invite_only: false,
 					primary_locale: 'en',
 					supported_languages: ['en']
@@ -116,8 +117,8 @@
 
 	<h2 class="text-xl font-bold">Select a workflow template</h2>
 	<p>
-		Select a workflow template from the options bellow. You will have the opertunity to customise
-		the workflow in the next step
+		Select a workflow template from the options bellow. You will have the opertunity to
+		customise the workflow in the next step
 	</p>
 	<div class="m:grid-cols-3 grid h-auto w-full grid-cols-2 gap-4">
 		<Card.Root
@@ -144,7 +145,8 @@
 				<Card.Title>Learn step + Polis</Card.Title>
 			</Card.Header>
 			<Card.Content class="line-clamp4">
-				For when you want to introduce a topic and then map out the landscape of opinions on it
+				For when you want to introduce a topic and then map out the landscape of opinions on
+				it
 			</Card.Content>
 		</Card.Root>
 
@@ -158,8 +160,8 @@
 				<Card.Title>Learn step + survey</Card.Title>
 			</Card.Header>
 			<Card.Content class="line-clamp4">
-				A more traditional workflow where we want to ask a introduce participants to a specific
-				subject and then conduct a survey
+				A more traditional workflow where we want to ask a introduce participants to a
+				specific subject and then conduct a survey
 			</Card.Content>
 		</Card.Root>
 
@@ -173,8 +175,8 @@
 				<Card.Title>Learn step + survey + polis</Card.Title>
 			</Card.Header>
 			<Card.Content class="line-clamp4">
-				A full end to end workflow where we do a little teaching a survey and then a opinion mapping
-				step
+				A full end to end workflow where we do a little teaching a survey and then a opinion
+				mapping step
 			</Card.Content>
 		</Card.Root>
 	</div>

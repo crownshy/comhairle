@@ -59,172 +59,131 @@
 					</SideBar.Menu>
 				</SideBar.GroupContent>
 			</SideBar.Group>
-			<SideBar.Group class="flex flex-col flex-1 min-h-0">
+			<SideBar.Group class="flex min-h-0 flex-1 flex-col">
 				<SideBar.GroupLabel class="shrink-0">Conversations</SideBar.GroupLabel>
-				<SideBar.GroupContent class="flex-1 min-h-0">
+				<SideBar.GroupContent class="min-h-0 flex-1">
 					<ScrollArea.Root class="h-full" type="always">
-					{#if conversations}
-						<SideBar.Menu>
-							{#each conversations.records as conversation}
-								<Collapsible.Root open={path.includes(conversation.id)} class="group/collapsible">
-									<SideBar.MenuItem>
-										<Collapsible.Trigger>
-											{#snippet child({ props })}
-												<SideBar.MenuButton class="w-full overflow-hidden" {...props}>
-													{#snippet child({ props })}
-														<a
-															{...props}
-															href={`/admin/conversations/${conversation.id}/configure`}
-															class="flex items-start gap-2 w-full"
+						{#if conversations}
+							<SideBar.Menu>
+								{#each conversations.records as conversation}
+									<Collapsible.Root
+										open={path.includes(conversation.id)}
+										class="group/collapsible"
+									>
+										<SideBar.MenuItem>
+											<Collapsible.Trigger>
+												{#snippet child({ props })}
+													<SideBar.MenuButton
+														class="w-full overflow-hidden"
+														{...props}
+													>
+														{#snippet child({ props })}
+															<a
+																{...props}
+																href={`/admin/conversations/${conversation.id}/configure`}
+																class="flex w-full items-start gap-2"
+															>
+																<MessageSquareText
+																	class="shrink-0"
+																/>
+																<span
+																	class="break-words whitespace-normal"
+																	>{conversation.title}</span
+																>
+															</a>
+														{/snippet}
+													</SideBar.MenuButton>
+												{/snippet}
+											</Collapsible.Trigger>
+											<Collapsible.Content>
+												{#each conversationSteps as step}
+													{#if step.path === 'design'}
+														<Collapsible.Root
+															open={path.includes('design')}
+															class="group/design"
 														>
-															<MessageSquareText class="shrink-0" />
-															<span class="break-words whitespace-normal">{conversation.title}</span>
-														</a>
-													{/snippet}
-												</SideBar.MenuButton>
-											{/snippet}
-										</Collapsible.Trigger>
-										<Collapsible.Content>
-											{#each conversationSteps as step}
-												{#if step.path === 'design'}
-													<Collapsible.Root open={path.includes('design')} class="group/design">
+															<SideBar.MenuSub>
+																<SideBar.MenuSubItem>
+																	<Collapsible.Trigger
+																		class="w-full"
+																	>
+																		<SideBar.MenuSubButton
+																			href={`/admin/conversations/${conversation.id}/design`}
+																			class="{path.includes(
+																				'design'
+																			)
+																				? 'font-bold'
+																				: ''} hover:text-black"
+																			aria-disabled={!(
+																				step.activeOnLive &&
+																				conversation.is_live
+																			)}
+																		>
+																			<step.icon
+																				class="stroke-nav-text group-hover/menu-button:stroke-black"
+																			/>
+																			<span
+																				class="flex-1 text-left"
+																				>{step.name}</span
+																			>
+																			<ChevronDown
+																				class="h-4 w-4 stroke-white transition-transform group-hover/menu-button:stroke-black group-data-[state=open]/design:rotate-180"
+																			/>
+																		</SideBar.MenuSubButton>
+																	</Collapsible.Trigger>
+																</SideBar.MenuSubItem>
+															</SideBar.MenuSub>
+															<Collapsible.Content>
+																<div
+																	class="border-sidebar-border relative mr-6 ml-6 border-l pl-2"
+																>
+																	{#if path.includes(conversation.id) && workflow_steps?.length > 0}
+																		{#each workflow_steps as wfStep (wfStep.id)}
+																			<a
+																				href={`/admin/conversations/${conversation.id}/design/step/${wfStep.id}`}
+																				class="text-sidebar-foreground hover:bg-sidebar-accent block rounded-lg px-2 py-1.5 text-sm hover:text-black {path.includes(
+																					wfStep.id
+																				)
+																					? 'font-bold'
+																					: ''}"
+																			>
+																				{wfStep.name}
+																			</a>
+																		{/each}
+																	{/if}
+																	<a
+																		href={`/admin/conversations/${conversation.id}/design?addStep=true`}
+																		class="text-sidebar-foreground/40 hover:bg-sidebar-accent block rounded-lg px-2 py-1.5 text-sm hover:text-black"
+																	>
+																		+ Add new
+																	</a>
+																</div>
+															</Collapsible.Content>
+														</Collapsible.Root>
+													{:else}
 														<SideBar.MenuSub>
 															<SideBar.MenuSubItem>
-																<Collapsible.Trigger class="w-full">
-																	<SideBar.MenuSubButton
-																		href={`/admin/conversations/${conversation.id}/design`}
-																		class="{path.includes('design') ? 'font-bold' : ''} hover:text-black"
-																	>
-																		<step.icon class="stroke-nav-text group-hover/menu-button:stroke-black" />
-																		<span class="flex-1 text-left">{step.name}</span>
-																		<ChevronDown class="h-4 w-4 stroke-white transition-transform group-data-[state=open]/design:rotate-180 group-hover/menu-button:stroke-black" />
-																	</SideBar.MenuSubButton>
-																</Collapsible.Trigger>
+																<SideBar.MenuSubButton
+																	href={`/admin/conversations/${conversation.id}/${step.path}`}
+																	class="{path.includes(step.path)
+																		? 'font-bold'
+																		: ''} hover:text-black"
+																	><step.icon
+																		class="stroke-nav-text group-hover/menu-button:stroke-black"
+																	/>
+																	{step.name}</SideBar.MenuSubButton
+																>
 															</SideBar.MenuSubItem>
 														</SideBar.MenuSub>
-														<Collapsible.Content>
-															<div class="relative ml-6 mr-6 border-l border-sidebar-border pl-2">
-																{#if path.includes(conversation.id) && workflow_steps?.length > 0}
-																	{#each workflow_steps as wfStep (wfStep.id)}
-																		<a
-																			href={`/admin/conversations/${conversation.id}/design/step/${wfStep.id}`}
-																			class="block rounded-lg px-2 py-1.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent hover:text-black {path.includes(wfStep.id) ? 'font-bold' : ''}"
-																		>
-																			{wfStep.name}
-																		</a>
-																	{/each}
-																{/if}
-																<a
-																	href={`/admin/conversations/${conversation.id}/design?addStep=true`}
-																	class="block rounded-lg px-2 py-1.5 text-sm text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-black"
-																>
-																	+ Add new
-																</a>
-															</div>
-														</Collapsible.Content>
-													</Collapsible.Root>
-												{:else}
-													<SideBar.MenuSub>
-														<SideBar.MenuSubItem>
-															<SideBar.MenuSubButton
-																href={`/admin/conversations/${conversation.id}/${step.path}`}
-																class="{path.includes(step.path) ? 'font-bold' : ''} hover:text-black"
-															><step.icon
-																class="stroke-nav-text group-hover/menu-button:stroke-black"
-															/> {step.name}</SideBar.MenuSubButton
-															>
-																<Pencil class="stroke-nav-text hover:stroke-sidebar-foreground" />
-																<span class="flex-1 text-left">Design</span>
-																<ChevronDown class="h-4 w-4 transition-transform group-data-[state=open]/design:rotate-180" />
-															</SideBar.MenuSubButton>
-														</Collapsible.Trigger>
-													</SideBar.MenuSubItem>
-												</SideBar.MenuSub>
-												<Collapsible.Content>
-													<div class="relative ml-6 border-l border-sidebar-border pl-2">
-														{#if path.includes(conversation.id) && workflow_steps?.length > 0}
-															{#each workflow_steps as step (step.id)}
-																<a
-																	href={`/admin/conversations/${conversation.id}/design/step/${step.id}`}
-																	class="block rounded-lg px-2 py-1.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent {path.includes(step.id) ? 'font-bold' : ''}"
-																>
-																	{step.name}
-																</a>
-															{/each}
-														{/if}
-														<a
-															href={`/admin/conversations/${conversation.id}/design?addStep=true`}
-															class="block rounded-lg px-2 py-1.5 text-sm text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-														>
-															+ Add new
-														</a>
-													</div>
-												</Collapsible.Content>
-											</Collapsible.Root>
-											<SideBar.MenuSub>
-												<SideBar.MenuSubItem>
-													<SideBar.MenuSubButton
-														href={`/admin/conversations/${conversation.id}/invites`}
-														class={path.includes('invites') ? 'font-bold' : ''}
-														><UsersRound class="stroke-nav-text hover:stroke-sidebar-foreground" /> Recruit</SideBar.MenuSubButton
-													>
-												</SideBar.MenuSubItem>
-											</SideBar.MenuSub>
-											<SideBar.MenuSub>
-												<SideBar.MenuSubItem>
-													<SideBar.MenuSubButton
-														href={`/admin/conversations/${conversation.id}/monitor`}
-														class={path.includes('monitor') ? 'font-bold' : ''}
-														><Binoculars class="stroke-nav-text hover:stroke-sidebar-foreground" /> Monitor</SideBar.MenuSubButton
-													>
-												</SideBar.MenuSubItem>
-											</SideBar.MenuSub>
-											<SideBar.MenuSub>
-												<SideBar.MenuSubItem>
-													<SideBar.MenuSubButton
-														href={`/admin/conversations/${conversation.id}/moderate`}
-														class={path.includes('moderate') ? 'font-bold' : ''}
-														><UsersRound class="stroke-nav-text hover:stroke-sidebar-foreground" /> Moderate</SideBar.MenuSubButton
-													>
-												</SideBar.MenuSubItem>
-											</SideBar.MenuSub>
-											<SideBar.MenuSub>
-												<SideBar.MenuSubItem>
-													<SideBar.MenuSubButton
-														href={`/admin/conversations/${conversation.id}/knowledge-base`}
-														class={path.includes('knowledge-base') ? 'font-bold' : ''}
-														><Database class="stroke-nav-text hover:stroke-sidebar-foreground" /> Knowledge
-														base</SideBar.MenuSubButton
-													>
-												</SideBar.MenuSubItem>
-											</SideBar.MenuSub>
-											<SideBar.MenuSub>
-												<SideBar.MenuSubItem>
-													<SideBar.MenuSubButton
-														href={`/admin/conversations/${conversation.id}/notifications`}
-														class={path.includes('notifications') ? 'font-bold' : ''}
-														><Bell class="stroke-nav-text hover:stroke-sidebar-foreground" /> Notify</SideBar.MenuSubButton
-													>
-												</SideBar.MenuSubItem>
-											</SideBar.MenuSub>
-											<SideBar.MenuSub>
-												<SideBar.MenuSubItem>
-													<SideBar.MenuSubButton
-														href={`/admin/conversations/${conversation.id}/report`}
-														class={path.includes('report') ? 'font-bold' : ''}
-														><NotebookText
-															class="stroke-nav-text hover:stroke-sidebar-foreground"
-														/> Report</SideBar.MenuSubButton
-													>
-												</SideBar.MenuSubItem>
-											</SideBar.MenuSub>
-										</Collapsible.Content>
-									</SideBar.MenuItem>
-								</Collapsible.Root>
-							{/each}
-						</SideBar.Menu>
-					{/if}
-									</ScrollArea.Root>
+													{/if}
+												{/each}
+											</Collapsible.Content>
+										</SideBar.MenuItem>
+									</Collapsible.Root>
+								{/each}
+							</SideBar.Menu>
+						{/if}
+					</ScrollArea.Root>
 				</SideBar.GroupContent>
 				<div class="shrink-0 p-2">
 					<Button href="/admin/conversations/new" class="w-full" variant="secondary">
@@ -233,7 +192,7 @@
 					</Button>
 				</div>
 			</SideBar.Group>
-			</SideBar.Content>
+		</SideBar.Content>
 		<SideBar.Footer class="flex flex-col gap-1">
 			<SideBar.Menu>
 				<SideBar.MenuItem>
