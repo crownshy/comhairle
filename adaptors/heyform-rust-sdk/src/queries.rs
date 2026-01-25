@@ -41,6 +41,12 @@ mutation createFormHiddenField($input: CreateHiddenFieldInput!) {
 }
 "#;
 
+pub const DUPLICATE_FORM_MUTATION: &str = r#"
+mutation duplicateForm($input: FormDetailInput!) {
+  duplicateForm(input: $input)
+}
+"#;
+
 pub const FORM_DETAIL_QUERY: &str = r#"
 query formDetail($input: FormDetailInput!) {
   form(input: $input) {

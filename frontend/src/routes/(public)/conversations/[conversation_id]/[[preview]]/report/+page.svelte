@@ -11,7 +11,6 @@
 	import { marked } from 'marked';
 
 	let { data } = $props();
-	console.log(data);
 	let { conversation, workflow_steps, workflow_stats, report } = data;
 
 	let markdown = $derived(marked.parse(report.summary));

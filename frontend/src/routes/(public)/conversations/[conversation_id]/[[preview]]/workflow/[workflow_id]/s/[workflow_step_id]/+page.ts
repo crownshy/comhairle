@@ -4,29 +4,32 @@ import { notifications } from '$lib/notifications.svelte';
 import { next_workflow_step_url } from "$lib/urls";
 
 export const load: PageLoad = async (event) => {
-	let { api, conversation } = await event.parent();
+	let { api, conversation, preview } = await event.parent();
 
 	let conversation_id = conversation.id;
 	let { workflow_id, workflow_step_id } = event.params
 	try {
 
 		let current_step = await api.NextWorkflowStepForUser({ params: { conversation_id: conversation.id, workflow_id: workflow_id } })
+		// If we are in preview mode then let the user see this step regardless of if it 
+		// is next. Also dont capture progress
+		if (conversation.is_live) {
+			if (current_step && (current_step.id !== workflow_step_id)) {
+				return redirect(302, next_workflow_step_url(conversation_id, workflow_id, preview))
+			}
 
-		if (current_step && (current_step.id !== workflow_step_id)) {
-			return redirect(302, next_workflow_step_url(conversation_id, workflow_id))
+			await api.SetUserProgress("in_progress", {
+				params: { conversation_id, workflow_id, workflow_step_id }
+				,
+
+				headers: { 'Content-Type': 'application/json' }
+			})
+
 		}
-
-		await api.SetUserProgress("in_progress", {
-			params: { conversation_id, workflow_id, workflow_step_id }
-			,
-
-			headers: { 'Content-Type': 'application/json' }
-		})
-
 		let workflow_steps = await api.ListWorkflowSteps({ params: { conversation_id, workflow_id } })
 		let workflow_step = await api.GetWorkflowStep({ params: { conversation_id: conversation_id, workflow_id: workflow_id, workflow_step_id: workflow_step_id } })
 
-		return { conversation, workflow_step, api, workflow_steps }
+		return { conversation, workflow_step, api, workflow_steps, workflow_id }
 	}
 	//TODO figure out how to type this from the generated api
 	catch (e: any) {

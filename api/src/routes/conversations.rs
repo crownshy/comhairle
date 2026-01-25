@@ -24,7 +24,7 @@ use crate::{
         bot_service_user_session::{self, BotServiceUserSessionDto, CreateBotServiceUserSession},
         conversation::{
             self, Conversation, ConversationFilterOptions, ConversationOrderOptions,
-            ConversationWithTranslations, CreateConversation, LocalisedConversation,
+            ConversationWithTranslations, CreateConversation, IdOrSlug, LocalisedConversation,
             PartialConversation,
         },
         conversation_email_notification_recipients::{
@@ -37,6 +37,7 @@ use crate::{
         },
         pagination::{OrderParams, PageOptions, PaginatedResults},
         user_participation::{self},
+        users::User,
     },
     routes::auth::RequiredUser,
     workers::process_documents::DocumentJob,
@@ -78,9 +79,11 @@ async fn update_conversation(
 async fn list_conversations(
     State(state): State<Arc<ComhairleState>>,
     OrderParams(order_options): OrderParams<ConversationOrderOptions>,
-    Query(filter_options): Query<ConversationFilterOptions>,
+    Query(mut filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
 ) -> Result<(StatusCode, Json<PaginatedResults<LocalisedConversation>>), ComhairleError> {
+    filter_options.enforce_live();
+
     let conversations = conversation::list(
         &state.db,
         page_options,
@@ -92,12 +95,17 @@ async fn list_conversations(
     Ok((StatusCode::OK, Json(conversations)))
 }
 
-/// For extracting an id or slug from Path
-#[derive(Deserialize, Debug, JsonSchema)]
-#[serde(untagged)]
-enum IdOrSlug {
-    Id(Uuid),
-    Slug(String),
+async fn launch_conversation(
+    State(state): State<Arc<ComhairleState>>,
+    Path(conversation_id): Path<Uuid>,
+    RequiredAdminUser(user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    if conversation.is_live{
+        return Err(ComhairleError::ConversationAlreadyLive)
+    }
+    let conversation = conversation::launch(&state.db, conversation_id).await?;
+    Ok((StatusCode::OK, Json(conversation)))
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -122,6 +130,21 @@ async fn get_conversation(
 ) -> Result<(StatusCode, Json<ConversationResponse>), ComhairleError> {
     info!("Attempting to get conversation {conversation_ident:#?}");
 
+    // Get the original conversation first
+    let original_conversation =
+        conversation::get_by_id_or_slug(&state.db, &conversation_ident).await?;
+
+    // If this isn't a live conversation and the user is not the owner
+    if !original_conversation.is_live {
+        if let Some(user) = &user {
+            if user.id != original_conversation.owner_id {
+                return Err(ComhairleError::UserIsNotConversationOwner);
+            }
+        } else {
+            return Err(ComhairleError::UserIsNotConversationOwner);
+        }
+    }
+
     // Check if user is admin and withTranslations is requested
     let should_return_with_translations = query.with_translations
         && user
@@ -130,12 +153,6 @@ async fn get_conversation(
             .unwrap_or(false);
 
     if should_return_with_translations {
-        // Get the original conversation first
-        let original_conversation = match conversation_ident {
-            IdOrSlug::Id(id) => conversation::get_by_id(&state.db, &id).await?,
-            IdOrSlug::Slug(slug) => conversation::get_by_slug(&state.db, &slug).await?,
-        };
-
         // Convert to ConversationWithTranslations
         let conversation_with_translations = ConversationWithTranslations::from_original(
             &state.db,
@@ -152,10 +169,8 @@ async fn get_conversation(
         ))
     } else {
         // Return localized conversation as before
-        let conversation = match conversation_ident {
-            IdOrSlug::Id(id) => conversation::get_localised_by_id(&state.db, &id).await?,
-            IdOrSlug::Slug(slug) => conversation::get_localised_by_slug(&state.db, &slug).await?,
-        };
+        let conversation =
+            conversation::get_localised_by_id_or_slug(&state.db, &conversation_ident, "en").await?;
 
         Ok((
             StatusCode::OK,
@@ -490,6 +505,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .api_route(
+            "/{conversation_id}/launch",
+            put_with(launch_conversation, |op| {
+                op.id("LaunchConversation")
+                    .summary("Makes the conversation live")
+                    .tag("Conversation")
+                    .description("Makes the conversation live for participants")
+                    .response::<200, Json<Conversation>>()
+            }),
+        )
+        
+        .api_route(
             "/{conversation_id}/notifications",
             post_with(send_notification_to_participants, |op| {
                 op.id("SendNotificationToParticipants")
@@ -557,7 +583,7 @@ mod tests {
 
         session.signup(&app).await?;
 
-        let (status, _, _) = session
+        let (status, response, _) = session
             .create_conversation(
                 &app,
                 json! ({
@@ -567,6 +593,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
+                    "is_live": true,
                     "is_invite_only" : false,
                     "slug" : "new_conversation",
                     "primary_locale" : "en",
@@ -574,6 +601,7 @@ mod tests {
                 }),
             )
             .await?;
+        println!("{response}");
 
         assert_eq!(status, StatusCode::CREATED, "Should be created");
 
@@ -598,6 +626,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
+                    "is_live": true,
                     "is_invite_only" : false,
                     "slug" : "new_conversation",
                     "primary_locale" : "en",
@@ -648,6 +677,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
+                    "is_live": true,
                     "is_invite_only" : false,
                     "slug" : "new_conversation",
                     "primary_locale" : "en",
@@ -697,6 +727,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : true,
+                    "is_live": true,
                     "is_invite_only" : false,
                     "slug" : "new_conversation",
                     "primary_locale" : "en",
@@ -715,6 +746,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : true,
+                    "is_live" : true,
                     "primary_locale": "en",
                     "supported_languages":["en"],
                     "is_invite_only" : false,
@@ -766,6 +798,7 @@ mod tests {
                         "image_url" : "http://someimage.png",
                         "tags" : ["one", "two", "three"],
                         "is_public" : true,
+                        "is_live" : true,
                         "is_invite_only" : false,
                         "slug" : format!("{i}"),
                         "primary_locale" : "en",
@@ -785,6 +818,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : true,
+                    "is_live" : true,
                     "is_invite_only" : false,
                     "slug" : format!("target_slug"),
                     "primary_locale" : "en",
@@ -826,6 +860,7 @@ mod tests {
                         "image_url" : "http://someimage.png",
                         "tags" : ["one", "two", "three"],
                         "is_public" : true,
+                        "is_live" : true,
                         "is_invite_only" : false,
                         "slug" : format!("{i}"),
                         "primary_locale" : "en",
@@ -899,6 +934,7 @@ mod tests {
                         "image_url" : "http://someimage.png",
                         "tags" : ["one", "two", "three"],
                         "is_public" : true,
+                        "is_live" : true,
                         "is_invite_only" : false,
                         "slug" : format!("{i}"),
                         "primary_locale" : "en",
@@ -955,7 +991,8 @@ mod tests {
                     "description" : "A longer description",
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
-                    "is_public" : false,
+                    "is_public" : true,
+                    "is_live": true,
                     "is_invite_only" : false,
                     "slug" : "new_conversation",
                     "primary_locale" : "en",
@@ -974,6 +1011,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "three"],
                     "is_public" : false,
+                    "is_live" : true,
                     "is_invite_only" : false,
                     "slug" : "new_conversation_two",
                     "primary_locale" : "en",
@@ -1033,6 +1071,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
+                    "is_live" : false,
                     "is_invite_only" : false,
                     "slug" : "new_conversation",
                     "primary_locale" : "en",
@@ -1076,6 +1115,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
+                    "is_live" : false,
                     "is_invite_only" : false,
                     "slug" : "new_conversation",
                     "primary_locale" : "en",
@@ -1094,6 +1134,7 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "three"],
                     "is_public" : false,
+                    "is_live" : false,
                     "is_invite_only" : false,
                     "slug" : "new_conversation",
                     "primary_locale" : "en",

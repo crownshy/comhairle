@@ -105,7 +105,9 @@ pub async fn create(
     bot_service: &Arc<dyn ComhairleBotService>,
     session: &CreateBotServiceUserSession,
 ) -> Result<BotServiceUserSession, ComhairleError> {
-    let conversation = conversation::get_localised_by_id(db, &session.conversation_id).await?;
+    //TODO need to make this default to the local of the conversation
+    let conversation =
+        conversation::get_localised_by_id(db, &session.conversation_id, "en").await?;
 
     let create_chat_session = CreateChatSessionRequest {
         name: conversation.title.clone(),
@@ -177,8 +179,11 @@ pub async fn create_workflow_step_session(
     session: &CreateWorkflowStepBotServiceUserSession,
 ) -> Result<BotServiceUserSession, ComhairleError> {
     let workflow_step = workflow_step::get_by_id(db, &session.workflow_step_id).await?;
-    let tool_config = match workflow_step.tool_config {
-        ToolConfig::ElicitationBot(config) => config,
+
+    // TODO think a bit harder here about if this is in preview mode or not
+    let tool_config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
+        (Some(ToolConfig::ElicitationBot(config)), _) => config,
+        (None, ToolConfig::ElicitationBot(config)) => config,
         _ => {
             return Err(ComhairleError::ToolConfigError(
                 "Incorrect config type".to_string(),

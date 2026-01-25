@@ -1,18 +1,30 @@
 <script lang="ts">
-	import { Bell } from 'lucide-svelte';
 	import NotificationForm from '$lib/components/NotificationForm.svelte';
-	import StepNavigation from '$lib/components/StepNavigation.svelte';
 	import type { PageData } from './$types';
-	
+	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb';
+	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
+
 	let { data } = $props() as { data: PageData };
 	let conversation = $derived(data.conversation);
-	let workflow_steps = $derived(data.workflow_steps);
+
+	useAdminLayoutSlots({
+		title: titleSnippet,
+		breadcrumbs: breadcrumbSnippet
+	});
 </script>
 
-<StepNavigation workflowSteps={workflow_steps} />
+{#snippet titleSnippet()}
+	<h1 class="text-4xl font-bold">Notifications</h1>
+{/snippet}
 
-<h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><Bell /> Send Notifications</h1>
-<p class="mb-10">Send notifications to all participants in this conversation. Notifications will be delivered to all users who have participated in workflows within this conversation.</p>
+{#snippet breadcrumbSnippet()}
+	<BreadcrumbItem>Notifications</BreadcrumbItem>
+{/snippet}
+
+<p class="mb-10">
+	Send notifications to all participants in this conversation. Notifications will be delivered to
+	all users who have participated in workflows within this conversation.
+</p>
 
 <div class="max-w-2xl">
 	<NotificationForm conversationId={conversation.id} />

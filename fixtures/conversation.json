@@ -9,6 +9,7 @@
                 "three"
         ],
         "is_public": false,
+		"is_live":true,
         "is_invite_only": false,
         "slug": "new_conversation",
         "primary_locale": "en",

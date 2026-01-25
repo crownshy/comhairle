@@ -30,7 +30,6 @@
 					...s,
 					day: parseISO(s.day)
 				}));
-				console.log(transformed_stats);
 				chartData = transformed_stats;
 			});
 	});

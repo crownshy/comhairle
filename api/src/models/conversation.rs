@@ -7,7 +7,7 @@ use super::{
     workflow::WorkflowIden,
 };
 use crate::{
-    bot_service::ComhairleBotService, config::ComhairleConfig, error::ComhairleError,
+    bot_service::ComhairleBotService, config::ComhairleConfig, error::ComhairleError, models,
     routes::bot::chats::CreateChatRequest,
 };
 use chrono::{DateTime, Utc};
@@ -19,11 +19,19 @@ use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
 use sqlx::{prelude::FromRow, PgPool};
-use tracing::info;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 #[cfg(test)]
 use fake::Dummy;
+
+/// For extracting an id or slug from Path
+#[derive(Deserialize, Debug, JsonSchema)]
+#[serde(untagged)]
+pub enum IdOrSlug {
+    Id(Uuid),
+    Slug(String),
+}
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "conversation")]
@@ -39,6 +47,7 @@ pub struct Conversation {
     pub image_url: String,
     pub tags: Vec<String>,
     pub is_public: bool,
+    pub is_live: bool,
     pub is_complete: bool,
     #[partially(omit)]
     pub owner_id: Uuid,
@@ -58,7 +67,7 @@ pub struct Conversation {
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ConversationIden; 20] = [
+const DEFAULT_COLUMNS: [ConversationIden; 21] = [
     ConversationIden::Id,
     ConversationIden::Title,
     ConversationIden::ShortDescription,
@@ -67,6 +76,7 @@ const DEFAULT_COLUMNS: [ConversationIden; 20] = [
     ConversationIden::ImageUrl,
     ConversationIden::Tags,
     ConversationIden::IsPublic,
+    ConversationIden::IsLive,
     ConversationIden::IsComplete,
     ConversationIden::IsInviteOnly,
     ConversationIden::Slug,
@@ -114,6 +124,9 @@ impl PartialConversation {
         if let Some(value) = self.is_public {
             values.push((ConversationIden::IsPublic, value.into()))
         };
+        if let Some(value) = self.is_live {
+            values.push((ConversationIden::IsLive, value.into()))
+        };
         if let Some(value) = self.is_complete {
             values.push((ConversationIden::IsComplete, value.into()))
         };
@@ -156,6 +169,7 @@ impl PartialConversation {
 pub struct ConversationFilterOptions {
     title: Option<String>,
     is_public: Option<bool>,
+    is_live: Option<bool>,
     is_complete: Option<bool>,
     is_invite_only: Option<bool>,
     owner_id: Option<Uuid>,
@@ -164,12 +178,21 @@ pub struct ConversationFilterOptions {
 }
 
 impl ConversationFilterOptions {
+    pub fn enforce_live(&mut self) {
+        self.is_live = Some(true)
+    }
+
     fn apply(&self, mut query: sea_query::SelectStatement) -> sea_query::SelectStatement {
         if let Some(value) = self.is_public {
             query = query
                 .and_where(
                     Expr::col((ConversationIden::Table, ConversationIden::IsPublic)).eq(value),
                 )
+                .to_owned();
+        };
+        if let Some(value) = self.is_live {
+            query = query
+                .and_where(Expr::col((ConversationIden::Table, ConversationIden::IsLive)).eq(value))
                 .to_owned();
         };
         if let Some(value) = self.is_invite_only {
@@ -296,7 +319,32 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Conversation, ComhairleErr
 
     Ok(conversation)
 }
+
+pub async fn get_by_id_or_slug(
+    db: &PgPool,
+    id_or_slug: &IdOrSlug,
+) -> Result<Conversation, ComhairleError> {
+    let conversation = match id_or_slug {
+        IdOrSlug::Id(id) => get_by_id(&db, &id).await?,
+        IdOrSlug::Slug(slug) => get_by_slug(&db, &slug).await?,
+    };
+    Ok(conversation)
+}
+
+#[instrument(err(Debug))]
+pub async fn get_localised_by_id_or_slug(
+    db: &PgPool,
+    id_or_slug: &IdOrSlug,
+    lang_code: &str,
+) -> Result<LocalisedConversation, ComhairleError> {
+    let original_conversation = match id_or_slug {
+        IdOrSlug::Id(id) => get_localised_by_id(&db, &id, lang_code).await?,
+        IdOrSlug::Slug(slug) => get_localised_by_slug(&db, &slug, lang_code).await?,
+    };
+    Ok(original_conversation)
+}
 /// Get a conversation by ID (original struct, not localized)
+#[instrument(err(Debug))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Conversation, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -313,9 +361,11 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Conversation, Comhairle
 }
 
 /// Get a conversation by ID
+#[instrument(err(Debug))]
 pub async fn get_localised_by_id(
     db: &PgPool,
     id: &Uuid,
+    lang_code: &str,
 ) -> Result<LocalisedConversation, ComhairleError> {
     let select_query = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (ConversationIden::Table, col)))
@@ -323,7 +373,7 @@ pub async fn get_localised_by_id(
         .and_where(Expr::col((ConversationIden::Table, ConversationIden::Id)).eq(id.to_owned()))
         .to_owned();
 
-    let (sql, values) = LocalisedConversation::query_to_localisation(select_query, "en")
+    let (sql, values) = LocalisedConversation::query_to_localisation(select_query, lang_code)
         .build_sqlx(PostgresQueryBuilder);
 
     println!("SQL: {sql}");
@@ -338,6 +388,7 @@ pub async fn get_localised_by_id(
 }
 
 /// Get a conversation by slug (original struct, not localized)
+#[instrument(err(Debug))]
 pub async fn get_by_slug(db: &PgPool, slug: &str) -> Result<Conversation, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -353,9 +404,11 @@ pub async fn get_by_slug(db: &PgPool, slug: &str) -> Result<Conversation, Comhai
     Ok(conversation)
 }
 
+#[instrument(err(Debug))]
 pub async fn get_localised_by_slug(
     db: &PgPool,
     slug: &str,
+    lang_code: &str,
 ) -> Result<LocalisedConversation, ComhairleError> {
     let select_query = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (ConversationIden::Table, col)))
@@ -363,7 +416,7 @@ pub async fn get_localised_by_slug(
         .and_where(Expr::col((ConversationIden::Table, ConversationIden::Slug)).eq(slug.to_owned()))
         .to_owned();
 
-    let (sql, values) = LocalisedConversation::query_to_localisation(select_query, "en")
+    let (sql, values) = LocalisedConversation::query_to_localisation(select_query, lang_code)
         .build_sqlx(PostgresQueryBuilder);
 
     let conversation = sqlx::query_as_with::<_, LocalisedConversation, _>(&sql, values)
@@ -374,6 +427,7 @@ pub async fn get_localised_by_slug(
     Ok(conversation)
 }
 
+#[instrument(err(Debug))]
 pub async fn update(
     db: &PgPool,
     id: &Uuid,
@@ -405,6 +459,7 @@ pub async fn update(
     Ok(conversation)
 }
 
+#[instrument(err(Debug))]
 pub async fn list_for_user_participation(
     db: &PgPool,
     user_id: &Uuid,
@@ -457,6 +512,7 @@ pub struct CreateConversation {
     pub image_url: String,
     pub tags: Option<Vec<String>>,
     pub is_public: bool,
+    pub is_live: bool,
     pub is_invite_only: bool,
     pub slug: Option<String>,
     #[cfg_attr(test, dummy(expr = "None"))]
@@ -473,6 +529,7 @@ impl CreateConversation {
             ConversationIden::ImageUrl,
             ConversationIden::Tags,
             ConversationIden::IsPublic,
+            ConversationIden::IsLive,
             ConversationIden::IsInviteOnly,
             ConversationIden::PrimaryLocale,
             ConversationIden::SupportedLanguages,
@@ -486,6 +543,7 @@ impl CreateConversation {
             self.image_url.to_owned().into(),
             tags.into(),
             self.is_public.into(),
+            self.is_live.into(),
             self.is_invite_only.into(),
             self.primary_locale.to_owned().into(),
             self.supported_languages.to_owned().into(),
@@ -644,6 +702,26 @@ pub async fn list_owned(
     Ok(conversations)
 }
 
+pub async fn launch(db: &PgPool, conversation_id: Uuid) -> Result<Conversation, ComhairleError> {
+    let workflows = models::workflow::list(db, conversation_id).await?;
+    for workflow in workflows {
+        models::workflow::launch(&db, &workflow.id).await?;
+    }
+
+    update(
+        &db,
+        &conversation_id,
+        &PartialConversation {
+            is_live: Some(true),
+            ..Default::default()
+        },
+    )
+    .await?;
+
+    let conversation = get_by_id(&db, &conversation_id).await?;
+
+    Ok(conversation)
+}
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,
@@ -656,6 +734,7 @@ pub async fn list(
         .from(ConversationIden::Table)
         .columns(DEFAULT_COLUMNS.map(|col| (ConversationIden::Table, col)))
         .and_where(Expr::col((ConversationIden::Table, ConversationIden::IsPublic)).eq(true))
+        .and_where(Expr::col((ConversationIden::Table, ConversationIden::IsLive)).eq(true))
         .to_owned();
 
     // 2. Apply localization joins first to get text content

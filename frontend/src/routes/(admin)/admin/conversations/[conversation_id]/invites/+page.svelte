@@ -15,9 +15,9 @@
 
 	import * as Table from '$lib/components/ui/table/index.js';
 	import CopyButton from '$lib/components/CopyButton.svelte';
-	import { Share2 } from 'lucide-svelte';
-	import StepNavigation from '$lib/components/StepNavigation.svelte';
 	import OpenInviteStatsBarChart from '$lib/components/OpenInviteStatsBarChart.svelte';
+	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb';
+	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte.js';
 	let sendEmailDiaglogOpen = $state(false);
 
 	let url = $page.url;
@@ -46,6 +46,10 @@
 		sendEmailDiaglogOpen = false;
 		invalidateAll();
 	}
+	useAdminLayoutSlots({
+		title: titleContentSnippet,
+		breadcrumbs: breadcrumbSnippet
+	});
 </script>
 
 {#snippet InviteLink(invite: Invite, label: string)}
@@ -54,9 +58,13 @@
 	</div>
 {/snippet}
 
-<StepNavigation workflowSteps={workflow_steps} />
+{#snippet breadcrumbSnippet()}
+	<BreadcrumbItem>Recruit</BreadcrumbItem>
+{/snippet}
 
-<h1 class="mb-10 flex flex-row items-center gap-2 text-4xl"><Share2 /> Recruit</h1>
+{#snippet titleContentSnippet()}
+	<h1 class="text-4xl font-bold">Recruit</h1>
+{/snippet}
 
 <Tabs.Root value="Email">
 	<Tabs.List>
@@ -85,7 +93,9 @@
 					<Table.Body>
 						{#each email_invites as invite}
 							<Table.Row>
-								<Table.Cell class="font-medium">{invite.invite_type.email}</Table.Cell>
+								<Table.Cell class="font-medium"
+									>{invite.invite_type.email}</Table.Cell
+								>
 								<Table.Cell>
 									{@render InviteLink(invite, 'Link')}
 								</Table.Cell>
@@ -95,7 +105,9 @@
 								</Table.Cell>
 								<Table.Cell>
 									{invite.expires_at
-										? formatDistanceToNow(invite.expires_at, { addSuffix: true })
+										? formatDistanceToNow(invite.expires_at, {
+												addSuffix: true
+											})
 										: 'Never'}
 								</Table.Cell>
 								<Table.Cell>{invite.status}</Table.Cell>
@@ -139,7 +151,10 @@
 								: 'Never'}
 						</Table.Cell>
 						<Table.Cell>
-							<OpenInviteStatsBarChart conversation_id={conversation.id} invite_id={invite.id} />
+							<OpenInviteStatsBarChart
+								conversation_id={conversation.id}
+								invite_id={invite.id}
+							/>
 						</Table.Cell>
 
 						<Table.Cell>
