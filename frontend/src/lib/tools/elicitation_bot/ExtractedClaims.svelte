@@ -25,6 +25,18 @@
 	let editingClaims = $state<Record<string, string>>({});
 	let scrollAreaRef: HTMLElement | null = $state(null);
 
+	$effect(() => {
+		const claimsLength = claims.length;
+		if (claimsLength > 0 && scrollAreaRef) {
+			tick().then(() => {
+				const viewport = scrollAreaRef?.querySelector('[data-slot="scroll-area-viewport"]');
+				if (viewport) {
+					viewport.scrollTop = viewport.scrollHeight;
+				}
+			});
+		}
+	});
+
 	async function handleAdd() {
 		onAdd();
 		await tick();
@@ -66,11 +78,15 @@
 					<div class="self-stretch flex flex-col justify-start items-start gap-2">
 						<div class="self-stretch p-4 bg-white rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)] flex flex-col justify-start items-start gap-3 overflow-hidden">
 							<div class="justify-start text-chat-primary text-sm font-medium leading-5">
-								Option {index + 1}
+								Opinion {index + 1}
 							</div>
 							
 							<div class="self-stretch flex flex-col justify-start items-start gap-1">
-								{#if isEditing(claim.id) || claim.status === 'editing'}
+								{#if claim.status === 'streaming'}
+									<div class="self-stretch justify-start text-chat-text-muted text-base font-semibold leading-6">
+										{claim.content}<span class="inline-block w-1.5 h-4 ml-0.5 bg-chat-primary animate-pulse"></span>
+									</div>
+								{:else if isEditing(claim.id) || claim.status === 'editing'}
 									<div class="self-stretch h-10 px-3 py-1 bg-white rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border inline-flex justify-start items-center gap-2 overflow-hidden">
 										<input
 											type="text"
@@ -87,7 +103,11 @@
 							</div>
 							
 							<div class="inline-flex justify-start items-center gap-2 flex-wrap content-center">
-								{#if isEditing(claim.id) || claim.status === 'editing'}
+								{#if claim.status === 'streaming'}
+									<div class="h-8 px-3 py-2 bg-chat-primary-lighter rounded-[8px] flex justify-center items-center gap-2">
+										<span class="justify-center text-chat-primary text-xs font-medium leading-4">Streaming...</span>
+									</div>
+								{:else if isEditing(claim.id) || claim.status === 'editing'}
 									<button
 										onclick={() => handleSave(claim.id)}
 										class="h-8 px-3 py-2 bg-white rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border flex justify-center items-center gap-2 hover:bg-gray-50 transition-colors"
