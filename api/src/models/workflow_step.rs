@@ -14,7 +14,7 @@ use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::PgConnection;
 use sqlx::{prelude::FromRow, PgPool};
-use tracing::warn;
+use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::error::ComhairleError;
@@ -263,6 +263,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<WorkflowStep, Comhairle
 }
 
 /// Get a workflow_step by ID (localized)
+#[instrument(err(Debug))]
 pub async fn get_localised_by_id(
     db: &PgPool,
     id: &Uuid,
