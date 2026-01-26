@@ -66,6 +66,7 @@
 {#if toolConfig.type === 'learn'}
 	<LearnManage
 		conversation_id={conversation.id}
+		{conversation}
 		isLive={conversation.is_live}
 		workflow_step={step}
 	/>
