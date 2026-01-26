@@ -40,11 +40,14 @@
 	let isMobile = $state(false);
 	let activeTab = $state('chat');
 
-	// Keep chatMessages in sync with external messages prop (for streaming updates)
 	$effect(() => {
 		if (initialMessages.length > 0) {
 			chatMessages = [...initialMessages];
 		}
+	});
+
+	$effect(() => {
+		extractedClaims = [...initialClaims];
 	});
 
 	const initialQuestions = [
