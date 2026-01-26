@@ -22,6 +22,7 @@
 	let agentClient = $state<AgentClient | null>(null);
 	let chatMessages = $state<ElicitationMessage[]>([]);
 	let claims = $state<ExtractedClaim[]>([]);
+	let activeRequestId = $state<string | null>(null);
 
 	onMount(async () => {
 		try {
@@ -83,6 +84,8 @@
 
 		// Add a placeholder for the bot response
 		const botPlaceholderId = `bot-${Date.now()}`;
+		activeRequestId = botPlaceholderId;
+		
 		chatMessages = [
 			...chatMessages,
 			{
@@ -96,7 +99,11 @@
 		// Send and stream the response
 		await agentClient.send(message);
 		
-		// Finalize any streaming claim (opinion section doesn't have a message_end event)
+		// Only update if this request is still the active one (not superseded by a newer request)
+		if (activeRequestId !== botPlaceholderId) {
+			return;
+		}
+		
 		agentClient.finalizeStreamingClaim();
 
 		const finalContent = agentClient.currentAnswer || 
@@ -105,19 +112,19 @@
 		chatMessages = chatMessages.map((msg) =>
 			msg.id === botPlaceholderId ? { ...msg, content: finalContent } : msg
 		);
+		
+		activeRequestId = null;
 	}
 
 	$effect(() => {
-		if (agentClient?.isStreaming && agentClient.currentAnswer) {
-			// Use untrack to read chatMessages without creating a dependency
-			// This prevents an infinite loop where writing to chatMessages re-triggers the effect
+		const currentAnswer = agentClient?.currentAnswer;
+		const reqId = activeRequestId;
+		
+		if (currentAnswer && reqId) {
 			untrack(() => {
-				const lastBotMsgIndex = chatMessages.findLastIndex((msg) => msg.isBot);
-				if (lastBotMsgIndex >= 0) {
-					chatMessages = chatMessages.map((msg, idx) =>
-						idx === lastBotMsgIndex ? { ...msg, content: agentClient!.currentAnswer } : msg
-					);
-				}
+				chatMessages = chatMessages.map((msg) =>
+					msg.id === reqId ? { ...msg, content: agentClient!.currentAnswer } : msg
+				);
 			});
 		}
 	});
