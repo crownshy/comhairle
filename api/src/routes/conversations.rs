@@ -18,9 +18,7 @@ use tracing::{info, instrument};
 use uuid::Uuid;
 
 use crate::{
-    bot_service::ComhairleDocument,
-    error::ComhairleError,
-    models::{
+    ComhairleState, bot_service::ComhairleDocument, error::ComhairleError, models::{
         bot_service_user_session::{self, BotServiceUserSessionDto, CreateBotServiceUserSession},
         conversation::{
             self, Conversation, ConversationFilterOptions, ConversationOrderOptions,
@@ -37,11 +35,7 @@ use crate::{
         },
         pagination::{OrderParams, PageOptions, PaginatedResults},
         user_participation::{self},
-        users::User,
-    },
-    routes::auth::RequiredUser,
-    workers::process_documents::DocumentJob,
-    ComhairleState,
+    }, routes::{auth::RequiredUser, translations::LocaleExtractor}, workers::process_documents::DocumentJob
 };
 
 use super::auth::{is_user_admin, OptionalUser, RequiredAdminUser};
@@ -108,7 +102,7 @@ async fn launch_conversation(
     Ok((StatusCode::OK, Json(conversation)))
 }
 
-#[derive(Deserialize, JsonSchema)]
+#[derive(Deserialize, JsonSchema,Debug)]
 pub struct GetConversationQuery {
     #[serde(rename = "withTranslations", default)]
     pub with_translations: bool,
@@ -122,11 +116,13 @@ pub enum ConversationResponse {
 }
 
 /// Get a specific conversation
+#[instrument(err(Debug), skip(state))]
 async fn get_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_ident): Path<IdOrSlug>,
     Query(query): Query<GetConversationQuery>,
     OptionalUser(user): OptionalUser,
+    LocaleExtractor(locale): LocaleExtractor
 ) -> Result<(StatusCode, Json<ConversationResponse>), ComhairleError> {
     info!("Attempting to get conversation {conversation_ident:#?}");
 
@@ -157,7 +153,7 @@ async fn get_conversation(
         let conversation_with_translations = ConversationWithTranslations::from_original(
             &state.db,
             original_conversation,
-            "en", // TODO: Get locale from user preferences or query param
+            &locale,
         )
         .await?;
 
@@ -169,8 +165,9 @@ async fn get_conversation(
         ))
     } else {
         // Return localized conversation as before
+        info!("Trying to get localized translations for {locale}");
         let conversation =
-            conversation::get_localised_by_id_or_slug(&state.db, &conversation_ident, "en").await?;
+            conversation::get_localised_by_id_or_slug(&state.db, &conversation_ident, &locale).await?;
 
         Ok((
             StatusCode::OK,
