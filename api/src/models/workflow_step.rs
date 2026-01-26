@@ -456,7 +456,7 @@ pub async fn create(
     columns.push(WorkflowStepIden::Description);
     values.push(description_translation.id.into());
 
-    let tool_config = setup_tool(state, &new_workflow_step.tool_setup).await?;
+    // let tool_config = setup_tool(state, &new_workflow_step.tool_setup).await?;
     let preview_tool_config = setup_tool(state, &new_workflow_step.tool_setup).await?;
 
     columns.push(WorkflowStepIden::WorkflowId);
