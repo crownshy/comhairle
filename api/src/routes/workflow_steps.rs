@@ -62,8 +62,9 @@ async fn update_elicitation_bot_workflow_step(
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(workflow): Json<PartialWorkflowStep>,
 ) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
-    let _tool_config = match &workflow.tool_config {
-        Some(ToolConfig::ElicitationBot(config)) => config,
+    let _tool_config = match (&workflow.tool_config, &workflow.preview_tool_config) {
+        (Some(ToolConfig::ElicitationBot(config)), _) => config,
+        (None, Some(ToolConfig::ElicitationBot(config))) => config,
         _ => {
             return Err(ComhairleError::ToolConfigError(
                 "Incorrect config type".to_string(),
