@@ -255,11 +255,12 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
             /// Modifies a query to join with translation tables and return localized text
             /// This function takes a partial query and a locale, and returns a modified query
             /// that joins with the translation tables to fetch the localized text content.
+            /// Falls back to the primary locale if the requested locale is not available.
             pub fn query_to_localisation(
                 mut query: sea_query::SelectStatement,
                 locale: &str,
             ) -> sea_query::SelectStatement {
-                use sea_query::{Expr, JoinType, Alias};
+                use sea_query::{Expr, JoinType, Alias, Func};
                 use crate::models::translations::{TextContentIden, TextTranslationIden};
 
                 #(
@@ -267,6 +268,7 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
                         // Create unique aliases for each text content field
                         let tc_alias = Alias::new(&format!("tc_{}", stringify!(#text_content_fields)));
                         let tt_alias = Alias::new(&format!("tt_{}", stringify!(#text_content_fields)));
+                        let tt_primary_alias = Alias::new(&format!("tt_primary_{}", stringify!(#text_content_fields)));
 
                         // Join with text_content table using alias
                         query = query
@@ -286,11 +288,26 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
                                     .equals((tt_alias.clone(), TextTranslationIden::ContentId))
                                     .and(Expr::col((tt_alias.clone(), TextTranslationIden::Locale)).eq(locale))
                             )
+                            // Join with text_translation table for the primary locale as fallback
+                            .join_as(
+                                JoinType::LeftJoin,
+                                TextTranslationIden::Table,
+                                tt_primary_alias.clone(),
+                                Expr::col((tc_alias.clone(), TextContentIden::Id))
+                                    .equals((tt_primary_alias.clone(), TextTranslationIden::ContentId))
+                                    .and(
+                                        Expr::col((tt_primary_alias.clone(), TextTranslationIden::Locale))
+                                            .equals((tc_alias.clone(), TextContentIden::PrimaryLocale))
+                                    )
+                            )
                             .to_owned();
 
-                        // Select the translated content with the original field name as alias
+                        // Select the translated content with COALESCE fallback to primary locale
                         query = query.expr_as(
-                            Expr::col((tt_alias, TextTranslationIden::Content)),
+                            Func::coalesce([
+                                Expr::col((tt_alias, TextTranslationIden::Content)).into(),
+                                Expr::col((tt_primary_alias, TextTranslationIden::Content)).into(),
+                            ]),
                             Alias::new(stringify!(#text_content_fields))
                         ).to_owned();
                     }

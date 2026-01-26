@@ -19,7 +19,10 @@ use rand_core::OsRng;
 use regex::Regex;
 
 /// Helper function to check if a user is admin
-pub fn is_user_admin(user: &crate::models::users::User, config: &crate::config::ComhairleConfig) -> bool {
+pub fn is_user_admin(
+    user: &crate::models::users::User,
+    config: &crate::config::ComhairleConfig,
+) -> bool {
     let re = Regex::new(r"^test(?:[1-9]|10)@crown-shy\.com$").unwrap();
     if let (Some(admin_users), Some(email)) = (&config.admin_users, &user.email) {
         let downcase_admin_users: Vec<String> =
@@ -546,7 +549,7 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
         state: &Arc<ComhairleState>,
     ) -> Result<Self, Self::Rejection> {
         let user = parts.extract_with_state::<RequiredUser, _>(state).await?;
-        
+
         if is_user_admin(&user.0, &state.config) {
             Ok(RequiredAdminUser(user.0.clone()))
         } else {
