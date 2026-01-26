@@ -147,7 +147,7 @@
 								conversationId={conversation.id}
 								workflowId={workflow_step.workflow_id}
 								workflowStepId={workflow_step.id}
-								botId={tool_config.bot_id}
+								botId={"567ef1a5f7b411f08b0e6259607da439"} <!-- TODO: remove after session bug resolved -->
 								userId={user.id}
 								topic={tool_config.topic}
 								onDone={stepComplete}
