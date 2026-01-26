@@ -36,7 +36,6 @@
 	let scrollAreaRef: HTMLElement | null = $state(null);
 	let textareaRef: HTMLTextAreaElement | null = $state(null);
 	let chatMessages = $state<ElicitationMessage[]>([...initialMessages]);
-	let extractedClaims = $state<ExtractedClaim[]>([...initialClaims]);
 	let isMobile = $state(false);
 	let activeTab = $state('chat');
 
@@ -44,10 +43,6 @@
 		if (initialMessages.length > 0) {
 			chatMessages = [...initialMessages];
 		}
-	});
-
-	$effect(() => {
-		extractedClaims = [...initialClaims];
 	});
 
 	const initialQuestions = [
@@ -123,31 +118,18 @@
 	}
 
 	function handleClaimApprove(claimId: string) {
-		extractedClaims = extractedClaims.map((c) =>
-			c.id === claimId ? { ...c, status: 'approved' as const } : c
-		);
 		onClaimApprove(claimId);
 	}
 
 	function handleClaimSave(claimId: string, content: string) {
-		extractedClaims = extractedClaims.map((c) =>
-			c.id === claimId ? { ...c, content, status: 'pending' as const } : c
-		);
 		onClaimEdit(claimId, content);
 	}
 
 	function handleClaimRemove(claimId: string) {
-		extractedClaims = extractedClaims.filter((c) => c.id !== claimId);
 		onClaimRemove(claimId);
 	}
 
 	function handleAddClaim() {
-		const newClaim: ExtractedClaim = {
-			id: `claim-${Date.now()}`,
-			content: '',
-			status: 'editing'
-		};
-		extractedClaims = [...extractedClaims, newClaim];
 		onAddClaim();
 	}
 </script>
@@ -183,7 +165,7 @@
 						class="py-3 text-sm font-medium transition-colors {activeTab === 'claims' ? 'bg-white text-chat-primary' : 'text-chat-text-muted hover:text-chat-text'}"
 						onclick={() => activeTab = 'claims'}
 					>
-						Claims ({extractedClaims.length})
+						Claims ({initialClaims.length})
 					</button>
 				</div>
 
@@ -289,7 +271,7 @@
 				{:else}
 					<div class="h-[60vh] overflow-auto">
 						<ExtractedClaims
-							claims={extractedClaims}
+							claims={initialClaims}
 							onApprove={handleClaimApprove}
 							onSave={handleClaimSave}
 							onRemove={handleClaimRemove}
@@ -402,7 +384,7 @@
 
 				<!-- Claims Panel -->
 				<ExtractedClaims
-					claims={extractedClaims}
+					claims={initialClaims}
 					onApprove={handleClaimApprove}
 					onSave={handleClaimSave}
 					onRemove={handleClaimRemove}
