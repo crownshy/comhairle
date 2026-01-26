@@ -75,6 +75,7 @@ async fn list_conversations(
     OrderParams(order_options): OrderParams<ConversationOrderOptions>,
     Query(mut filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
+    LocaleExtractor(locale): LocaleExtractor
 ) -> Result<(StatusCode, Json<PaginatedResults<LocalisedConversation>>), ComhairleError> {
     filter_options.enforce_live();
 
@@ -83,7 +84,7 @@ async fn list_conversations(
         page_options,
         order_options,
         filter_options,
-        Some("en".to_string()),
+        locale,
     )
     .await?;
     Ok((StatusCode::OK, Json(conversations)))
