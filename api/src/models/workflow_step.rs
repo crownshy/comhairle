@@ -184,7 +184,7 @@ impl PartialWorkflowStep {
             values.push((WorkflowStepIden::ToolConfig, value.into()))
         };
 
-        if let Some(value) = &self.tool_config {
+        if let Some(value) = &self.preview_tool_config {
             values.push((WorkflowStepIden::PreviewToolConfig, value.into()))
         };
 
