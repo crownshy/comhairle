@@ -1,7 +1,7 @@
 export interface ExtractedClaim {
 	id: string;
 	content: string;
-	status: 'pending' | 'approved' | 'editing';
+	status: 'pending' | 'approved' | 'editing' | 'streaming';
 }
 
 export interface ElicitationMessage {

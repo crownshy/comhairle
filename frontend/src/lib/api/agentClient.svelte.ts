@@ -42,9 +42,11 @@ export class AgentClient {
 	session = $state<AgentSession | null>(null);
 	botServiceSession = $state<BotServiceUserSession | null>(null);
 	extractedClaims = $state<ExtractedClaim[]>([]);
+	streamingClaim = $state<ExtractedClaim | null>(null);
 
 	private isParsingOpinion = false;
 	private currentOpinionContent = '';
+	private streamingClaimId = '';
 	private opinionMarker = '<br>\n\nopinion:\n\n';
 
 	private agentId: string;
@@ -53,6 +55,8 @@ export class AgentClient {
 	private workflowStepId: string;
 	private baseUrl: string;
 	private abortController: AbortController | null = null;
+	
+	onClaimUpdate?: (streamingClaim: ExtractedClaim | null, extractedClaims: ExtractedClaim[]) => void;
 
 	constructor(
 		agentId: string,
@@ -195,7 +199,6 @@ export class AgentClient {
 
 		try {
 			const json = JSON.parse(jsonStr);
-			console.debug('Agent SSE event:', json.event, json.data?.component_type, json.data?.outputs);
 
 			if (json.data?.answer) {
 				this.currentAnswer = json.data.answer;
@@ -204,14 +207,16 @@ export class AgentClient {
 
 			if (json.event === 'message_end') {
 				if (this.isParsingOpinion && this.currentOpinionContent.trim()) {
-					const claimId = `claim-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 					this.extractedClaims = [...this.extractedClaims, {
-						id: claimId,
+						id: this.streamingClaimId,
 						content: this.currentOpinionContent.trim()
 					}];
 				}
 				this.isParsingOpinion = false;
 				this.currentOpinionContent = '';
+				this.streamingClaim = null;
+				this.streamingClaimId = '';
+				this.onClaimUpdate?.(null, this.extractedClaims);
 				return;
 			}
 
@@ -241,19 +246,47 @@ export class AgentClient {
 				if (content.includes('<br>') && content.includes('opinion:')) {
 					this.isParsingOpinion = true;
 					this.currentOpinionContent = '';
+					this.streamingClaimId = `claim-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+					this.streamingClaim = {
+						id: this.streamingClaimId,
+						content: ''
+					};
+					this.onClaimUpdate?.(this.streamingClaim, this.extractedClaims);
 					return;
 				}
 				
 				if (this.isParsingOpinion) {
 					this.currentOpinionContent += content;
+					const trimmedContent = this.currentOpinionContent.trim();
+					
+					// Check if claim ends with sentence-ending punctuation
+					const endsWithPunctuation = /[.!?]$/.test(trimmedContent);
+					
+					if (endsWithPunctuation && trimmedContent.length > 10) {
+						// Finalize the claim immediately when sentence ends
+						this.extractedClaims = [...this.extractedClaims, {
+							id: this.streamingClaimId,
+							content: trimmedContent
+						}];
+						this.isParsingOpinion = false;
+						this.currentOpinionContent = '';
+						this.streamingClaim = null;
+						this.streamingClaimId = '';
+						this.onClaimUpdate?.(null, this.extractedClaims);
+					} else {
+						// Still streaming
+						this.streamingClaim = {
+							id: this.streamingClaimId,
+							content: trimmedContent
+						};
+						this.onClaimUpdate?.(this.streamingClaim, this.extractedClaims);
+					}
 				} else {
 					this.currentAnswer += content;
 				}
 			}
 		} catch {
-			if (jsonStr) {
-				console.warn('Failed to parse SSE chunk:', line);
-			}
+			// Silently ignore parse errors for incomplete chunks
 		}
 	}
 
@@ -349,6 +382,24 @@ export class AgentClient {
 		this.abortController?.abort();
 		this.abortController = null;
 		this.isStreaming = false;
+	}
+
+	/**
+	 * Finalize any streaming claim that hasn't been finalized yet.
+	 * Call this after send() completes since the opinion section doesn't have a message_end event.
+	 */
+	finalizeStreamingClaim() {
+		if (this.isParsingOpinion && this.currentOpinionContent.trim()) {
+			this.extractedClaims = [...this.extractedClaims, {
+				id: this.streamingClaimId,
+				content: this.currentOpinionContent.trim()
+			}];
+		}
+		this.isParsingOpinion = false;
+		this.currentOpinionContent = '';
+		this.streamingClaim = null;
+		this.streamingClaimId = '';
+		this.onClaimUpdate?.(null, this.extractedClaims);
 	}
 
 	reset() {

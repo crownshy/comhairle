@@ -26,6 +26,25 @@
 	onMount(async () => {
 		try {
 			agentClient = new AgentClient(botId, conversationId, workflowId, workflowStepId);
+			
+			agentClient.onClaimUpdate = (streamingClaim, extractedClaims) => {
+				const finalizedClaims: ExtractedClaim[] = extractedClaims.map((claim) => ({
+					id: claim.id,
+					content: claim.content,
+					status: 'pending' as const
+				}));
+
+				if (streamingClaim && streamingClaim.content) {
+					finalizedClaims.push({
+						id: streamingClaim.id,
+						content: streamingClaim.content,
+						status: 'streaming' as const
+					});
+				}
+
+				claims = finalizedClaims;
+			};
+			
 			// Always create a fresh session on page load (no history persistence)
 			const success = await agentClient.initializeFresh();
 
@@ -76,6 +95,9 @@
 
 		// Send and stream the response
 		await agentClient.send(message);
+		
+		// Finalize any streaming claim (opinion section doesn't have a message_end event)
+		agentClient.finalizeStreamingClaim();
 
 		const finalContent = agentClient.currentAnswer || 
 			(agentClient.error ? `Error: ${agentClient.error}` : 'No response received from agent.');
@@ -83,12 +105,6 @@
 		chatMessages = chatMessages.map((msg) =>
 			msg.id === botPlaceholderId ? { ...msg, content: finalContent } : msg
 		);
-		
-		console.log('Agent response:', {
-			answer: agentClient.currentAnswer,
-			error: agentClient.error,
-			session: agentClient.session?.id
-		});
 	}
 
 	$effect(() => {
@@ -102,18 +118,6 @@
 						idx === lastBotMsgIndex ? { ...msg, content: agentClient!.currentAnswer } : msg
 					);
 				}
-			});
-		}
-	});
-
-	$effect(() => {
-		if (agentClient?.extractedClaims) {
-			untrack(() => {
-				claims = agentClient!.extractedClaims.map((claim) => ({
-					id: claim.id,
-					content: claim.content,
-					status: 'pending' as const
-				}));
 			});
 		}
 	});
