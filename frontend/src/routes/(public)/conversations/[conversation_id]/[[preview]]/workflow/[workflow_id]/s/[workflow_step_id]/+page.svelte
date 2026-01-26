@@ -13,6 +13,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
+	import type { ToolConfig, WorkflowStep } from '$lib/api/api';
 
 	let { data }: PageProps = $props();
 	let { user } = data;
@@ -24,6 +25,7 @@
 	let tool_config = $derived(
 		conversation.is_live ? workflow_step.tool_config : workflow_step.preview_tool_config
 	);
+
 
 	let carta = createCarta();
 
@@ -139,15 +141,15 @@
 					{#if tool_config.type === LivedExperience.TOOL_NAME}
 						<LivedExperience.UserUI onDone={stepComplete} />
 					{/if}
-					{#if workflow_step.tool_config.type === ElicitationBot.TOOL_NAME}
+					{#if tool_config.type === ElicitationBot.TOOL_NAME}
 						{#key workflow_step.id}
 							<ElicitationBot.UserUI
 								conversationId={conversation.id}
 								workflowId={workflow_step.workflow_id}
 								workflowStepId={workflow_step.id}
-								botId={workflow_step.tool_config.bot_id}
+								botId={tool_config.bot_id}
 								userId={user.id}
-								topic={workflow_step.tool_config.topic}
+								topic={tool_config.topic}
 								onDone={stepComplete}
 							/>
 						{/key}
