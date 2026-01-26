@@ -115,8 +115,8 @@ pub struct GetChatResponse {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Variable {
-    key: String,
-    optional: bool,
+    pub key: String,
+    pub optional: bool,
 }
 
 #[cfg(test)]
