@@ -104,5 +104,6 @@
 		conversationId={conversation.id}
 		workflowId={step.workflow_id}
 		workflowStep={step}
+		isLive={conversation.isLive}
 	/>
 {/if}
