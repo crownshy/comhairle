@@ -84,7 +84,7 @@ async fn list_conversations(
         page_options,
         order_options,
         filter_options,
-        locale,
+        Some(locale),
     )
     .await?;
     Ok((StatusCode::OK, Json(conversations)))
