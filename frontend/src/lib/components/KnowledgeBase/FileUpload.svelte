@@ -14,7 +14,7 @@
 	let {
 		conversation_id,
 		accept = '.jpeg,.jpg,.png,.pdf,.mp4,.txt',
-		maxSizeMB = 10
+		maxSizeMB = 50
 	}: Props = $props();
 
 	let fileInput: HTMLInputElement | null = $state(null);
