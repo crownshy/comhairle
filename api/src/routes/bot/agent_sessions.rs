@@ -124,8 +124,12 @@ async fn converse_with_agent(
     Json(payload): Json<AgentConversationRequest>,
 ) -> Result<impl IntoResponse, ComhairleError> {
     let workflow_step = workflow_step::get_by_id(&state.db, &payload.workflow_step_id).await?;
-    let tool_config = match workflow_step.tool_config {
-        ToolConfig::ElicitationBot(config) => config,
+
+    //TODO think more creafully how we handle this in preview mode
+    let tool_config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
+        (Some(ToolConfig::ElicitationBot(config)), _) => config,
+        (None, ToolConfig::ElicitationBot(config)) => config,
+
         _ => {
             return Err(ComhairleError::ToolConfigError(
                 "incorrect config type".to_string(),
