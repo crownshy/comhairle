@@ -4,6 +4,12 @@
 	import { AgentClient } from '$lib/api/agentClient.svelte';
 	import type { ElicitationMessage, ExtractedClaim } from './types';
 	import { Loader2 } from 'lucide-svelte';
+	import {
+		loadClaimModifications,
+		saveClaimModifications,
+		mergeClaimsWithModifications,
+		type ClaimModification
+	} from './claimStorage';
 
 	type Props = {
 		conversationId: string;
@@ -23,9 +29,13 @@
 	let chatMessages = $state<ElicitationMessage[]>([]);
 	let claims = $state<ExtractedClaim[]>([]);
 	let activeRequestId = $state<string | null>(null);
+	let aiExtractedClaims = $state<ExtractedClaim[]>([]);
+	let claimModifications = $state<ClaimModification | null>(null);
 
 	onMount(async () => {
 		try {
+			claimModifications = loadClaimModifications(botId, conversationId);
+
 			agentClient = new AgentClient(botId, conversationId, workflowId, workflowStepId);
 			
 			agentClient.onClaimUpdate = (streamingClaim, extractedClaims) => {
@@ -43,10 +53,14 @@
 					});
 				}
 
-				claims = finalizedClaims;
+				aiExtractedClaims = finalizedClaims;
+				if (claimModifications) {
+					claims = mergeClaimsWithModifications(finalizedClaims, claimModifications);
+				} else {
+					claims = finalizedClaims;
+				}
 			};
 			
-			// Always create a fresh session on page load (no history persistence)
 			const success = await agentClient.initializeFresh();
 
 			if (!success) {
@@ -73,7 +87,6 @@
 	async function handleSendMessage(message: string) {
 		if (!agentClient) return;
 
-		// Add user message immediately
 		const userMessage: ElicitationMessage = {
 			id: `user-${Date.now()}`,
 			content: message,
@@ -82,7 +95,6 @@
 		};
 		chatMessages = [...chatMessages, userMessage];
 
-		// Add a placeholder for the bot response
 		const botPlaceholderId = `bot-${Date.now()}`;
 		activeRequestId = botPlaceholderId;
 		
@@ -96,10 +108,8 @@
 			}
 		];
 
-		// Send and stream the response
 		await agentClient.send(message);
 		
-		// Only update if this request is still the active one (not superseded by a newer request)
 		if (activeRequestId !== botPlaceholderId) {
 			return;
 		}
@@ -128,6 +138,56 @@
 			});
 		}
 	});
+
+	function persistModifications() {
+		if (claimModifications) {
+			saveClaimModifications(botId, conversationId, claimModifications);
+			claims = mergeClaimsWithModifications(aiExtractedClaims, claimModifications);
+		}
+	}
+
+	function handleClaimApprove(claimId: string) {
+		if (!claimModifications) return;
+		claimModifications.approvedClaimIds.add(claimId);
+		persistModifications();
+	}
+
+	function handleClaimEdit(claimId: string, newContent: string) {
+		if (!claimModifications) return;
+		
+		const addedClaimIndex = claimModifications.addedClaims.findIndex((c) => c.id === claimId);
+		if (addedClaimIndex !== -1) {
+			claimModifications.addedClaims[addedClaimIndex].content = newContent;
+			claimModifications.addedClaims[addedClaimIndex].status = 'pending';
+		} else {
+			claimModifications.editedClaims[claimId] = newContent;
+		}
+		persistModifications();
+	}
+
+	function handleClaimRemove(claimId: string) {
+		if (!claimModifications) return;
+		
+		const addedClaimIndex = claimModifications.addedClaims.findIndex((c) => c.id === claimId);
+		if (addedClaimIndex !== -1) {
+			claimModifications.addedClaims.splice(addedClaimIndex, 1);
+		} else {
+			claimModifications.removedClaimIds.add(claimId);
+		}
+		persistModifications();
+	}
+
+	function handleAddClaim() {
+		if (!claimModifications) return;
+		
+		const newClaim: ExtractedClaim = {
+			id: `user-claim-${Date.now()}`,
+			content: '',
+			status: 'editing'
+		};
+		claimModifications.addedClaims.push(newClaim);
+		persistModifications();
+	}
 </script>
 
 {#if isLoading}
@@ -152,5 +212,9 @@
 		messages={chatMessages}
 		{claims}
 		onSendMessage={handleSendMessage}
+		onClaimApprove={handleClaimApprove}
+		onClaimEdit={handleClaimEdit}
+		onClaimRemove={handleClaimRemove}
+		onAddClaim={handleAddClaim}
 	/>
 {/if}
