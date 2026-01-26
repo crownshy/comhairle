@@ -13,16 +13,19 @@
 		conversationId: string;
 		workflowId: string;
 		workflowStep: WorkflowStep;
+		isLive: boolean;
 	};
-	let { conversationId, workflowId, workflowStep }: Props = $props();
+	let { conversationId, workflowId, workflowStep, isLive }: Props = $props();
 
 	const elicitationBotSchema = z.object({
 		topic: z.string().min(3, 'Please provide at least 3 characters for your topic')
 	});
 
+	let toolConfig = $derived(isLive ? workflowStep.tool_config : workflowStep.preview_tool_config);
+
 	const form = superForm(
 		{
-			topic: workflowStep.tool_config.topic
+			topic: toolConfig.topic
 		},
 		{
 			SPA: true,
@@ -37,19 +40,19 @@
 	async function handleSubmit(e: Event) {
 		// e.preventDefault();
 		const result = await validateForm();
+		let update = isLive
+			? { tool_config: { ...workflowStep.tool_config, ...result.data } }
+			: { preview_tool_config: { ...workflowStep.preview_tool_config, ...result.data } };
 
 		if (result.valid) {
 			try {
-				await apiClient.UpdateElicitationBotWorkflowStep(
-					{ tool_config: { ...workflowStep.tool_config, ...result.data } },
-					{
-						params: {
-							conversation_id: conversationId,
-							workflow_id: workflowId,
-							workflow_step_id: workflowStep.id
-						}
+				await apiClient.UpdateElicitationBotWorkflowStep(update, {
+					params: {
+						conversation_id: conversationId,
+						workflow_id: workflowId,
+						workflow_step_id: workflowStep.id
 					}
-				);
+				});
 				notifications.send({
 					message: 'Elicitation bot configuration saved successfully',
 					priority: 'INFO'
