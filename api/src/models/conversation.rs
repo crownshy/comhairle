@@ -7,7 +7,13 @@ use super::{
     workflow::WorkflowIden,
 };
 use crate::{
-    bot_service::ComhairleBotService, config::ComhairleConfig, error::ComhairleError, models,
+    bot_service::{
+        ComhairleBotService, ComhairlePrompt, DEFAULT_CHAT_NOT_FOUND_RESPONSE, DEFAULT_CHAT_OPENER,
+        DEFAULT_CHAT_PROMPT,
+    },
+    config::ComhairleConfig,
+    error::ComhairleError,
+    models,
     routes::bot::chats::CreateChatRequest,
 };
 use chrono::{DateTime, Utc};
@@ -592,6 +598,11 @@ pub async fn create(
     let create_chat = CreateChatRequest {
         name: conversation.title.clone(),
         knowledge_base_ids: Some(vec![config.default_knowledge_base_id.clone()]),
+        prompt: Some(ComhairlePrompt {
+            llm_prompt: Some(DEFAULT_CHAT_PROMPT.to_string()),
+            opener: Some(DEFAULT_CHAT_OPENER.to_string()),
+            empty_response: Some(DEFAULT_CHAT_NOT_FOUND_RESPONSE.to_string()),
+        }),
         ..Default::default()
     };
 

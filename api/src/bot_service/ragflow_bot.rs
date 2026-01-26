@@ -862,6 +862,10 @@ impl From<CreateChatRequest> for CreateChat {
             }),
             prompt: input.prompt.map(|prompt| Prompt {
                 prompt: prompt.llm_prompt,
+                variables: Some(vec![Variable {
+                    key: "knowledge".to_string(),
+                    optional: false,
+                }]),
                 ..Default::default()
             }),
         }

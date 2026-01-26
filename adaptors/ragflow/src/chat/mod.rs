@@ -59,13 +59,21 @@ pub struct Llm {
 
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Prompt {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub opener: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub empty_response: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub keywords_similarity_weight: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rerank_model: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub similarity_threshold: Option<f64>,
-    pub top_n: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_n: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub variables: Option<Vec<Variable>>,
 }
 
@@ -115,8 +123,8 @@ pub struct GetChatResponse {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Variable {
-    key: String,
-    optional: bool,
+    pub key: String,
+    pub optional: bool,
 }
 
 #[cfg(test)]
