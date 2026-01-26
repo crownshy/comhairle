@@ -1,17 +1,16 @@
-use std::{pin::Pin, sync::Arc};
+use std::{collections::HashMap, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
 use axum::body::Bytes;
 use futures::{Stream, StreamExt};
-use minijinja::{context, Environment};
-use minijinja_embed::load_templates;
 use ragflow::{
     agent::{session::*, *},
     chat::{session::*, *},
     client::RagflowClient,
     dataset::*,
     document::*,
-    ConvoQuestion, DeleteResources, GetQueryParams, MessageReference, RagflowError, SessionMessage,
+    ConvoQuestion, DeleteResources, GetQueryParams, Input, MessageReference, RagflowError,
+    SessionMessage,
 };
 use reqwest::StatusCode;
 use serde_json::{from_str, Value};
@@ -27,7 +26,7 @@ use crate::{
     routes::{
         bot::{
             agent_sessions::{
-                AgentConversationRequest, CreateAgentSessionRequest, UpdateAgentSessionRequest,
+                AgentConversationRequestExt, CreateAgentSessionRequest, UpdateAgentSessionRequest,
             },
             agents::{CreateAgentRequest, UpdateAgentRequest},
             chat_sessions::{
@@ -46,19 +45,15 @@ use crate::{
 #[derive(Debug)]
 pub struct ComhairleRagBotService {
     client: Arc<RagflowClient>,
-    template_engine: Environment<'static>,
 }
 
 impl ComhairleRagBotService {
     pub fn new(base_url: &str, api_key: &str) -> Self {
-        let mut env = Environment::new();
-        load_templates!(&mut env);
         ComhairleRagBotService {
             client: Arc::new(RagflowClient::new(
                 base_url.to_string(),
                 api_key.to_string(),
             )),
-            template_engine: env,
         }
     }
 }
@@ -518,12 +513,11 @@ impl ComhairleBotService for ComhairleRagBotService {
     async fn create_agent(
         &self,
         body: CreateAgentRequest,
-        context: minijinja::Value,
     ) -> Result<(StatusCode, ComhairleAgent), ComhairleError> {
         let mut body: CreateAgent = body.into();
         let title = body.title.clone();
 
-        let dsl = build_agent_dsl(&self.template_engine, context)?;
+        let dsl = build_agent_dsl()?;
         body.dsl = dsl;
 
         let (status, json) = ragflow::agent::create(&self.client, body).await?;
@@ -558,16 +552,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         agent_id: &str,
         body: UpdateAgentRequest,
     ) -> Result<(StatusCode, ComhairleAgent), ComhairleError> {
-        let dsl = body
-            .topic
-            .as_ref()
-            .map(|topic| {
-                let context = context! { topic };
-                build_agent_dsl(&self.template_engine, context)
-            })
-            .transpose()?;
-        let mut body: UpdateAgent = body.into();
-        body.dsl = dsl;
+        let body: UpdateAgent = body.into();
 
         let (status, _) = ragflow::agent::update(&self.client, agent_id, body).await?;
 
@@ -675,7 +660,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         &self,
         session_id: &str,
         agent_id: &str,
-        body: AgentConversationRequest,
+        body: AgentConversationRequestExt,
     ) -> Result<
         Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
         ComhairleError,
@@ -693,17 +678,10 @@ impl ComhairleBotService for ComhairleRagBotService {
     }
 }
 
-fn build_agent_dsl(
-    template_engine: &minijinja::Environment,
-    context: minijinja::Value,
-) -> Result<serde_json::Value, ComhairleError> {
-    let template = template_engine.get_template("ragflow-elicitation-bot.json")?;
-    let content = template.render(context)?;
-
-    let graph_json: Value = from_str(&content).map_err(|_| {
-        ComhairleError::CorruptedData("Unable to parse json from agent template".to_string())
-    })?;
-
+fn build_agent_dsl() -> Result<serde_json::Value, ComhairleError> {
+    let graph_json: Value = from_str(include_str!(
+        "../agent_templates/ragflow-elicitation-bot.json"
+    ))?;
     let mut dsl: Value = from_str(include_str!(
         "../agent_templates/ragflow-agent-static-dsl-content.json"
     ))?;
@@ -1010,6 +988,7 @@ impl From<ChatConversationRequest> for ConvoQuestion {
             session_id: None,
             user_id: input.user_id,
             stream: Some(true),
+            inputs: None,
         }
     }
 }
@@ -1092,13 +1071,22 @@ impl From<CreateAgentSessionRequest> for CreateAgentSession {
     }
 }
 
-impl From<AgentConversationRequest> for ConvoQuestion {
-    fn from(input: AgentConversationRequest) -> Self {
+impl From<AgentConversationRequestExt> for ConvoQuestion {
+    fn from(a: AgentConversationRequestExt) -> Self {
+        let mut inputs = HashMap::new();
+        inputs.insert(
+            "Topic".to_string(),
+            Input {
+                r#type: "line".to_string(),
+                value: a.topic,
+            },
+        );
         Self {
-            question: input.question,
+            question: a.question,
             session_id: None,
             user_id: None,
             stream: Some(true),
+            inputs: Some(inputs),
         }
     }
 }

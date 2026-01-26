@@ -14,7 +14,7 @@ use crate::{
     error::ComhairleError,
     routes::{
         bot::{
-            agent_sessions::{AgentConversationRequest, UpdateAgentSessionRequest},
+            agent_sessions::{AgentConversationRequestExt, UpdateAgentSessionRequest},
             agents::{CreateAgentRequest, UpdateAgentRequest},
             chat_sessions::{
                 ChatConversationRequest, CreateChatSessionRequest, UpdateChatSessionRequest,
@@ -185,7 +185,6 @@ pub trait ComhairleBotService: Send + Sync {
     async fn create_agent(
         &self,
         body: CreateAgentRequest,
-        context: minijinja::Value,
     ) -> Result<(StatusCode, ComhairleAgent), ComhairleError>;
 
     async fn update_agent(
@@ -230,7 +229,7 @@ pub trait ComhairleBotService: Send + Sync {
         &self,
         session_id: &str,
         agent_id: &str,
-        body: AgentConversationRequest,
+        body: AgentConversationRequestExt,
     ) -> Result<
         Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
         ComhairleError,
@@ -512,7 +511,7 @@ impl MockComhairleBotService {
         bot_service
             .expect_list_agents()
             .returning(|_| Box::pin(async move { Ok((StatusCode::OK, Vec::new())) }));
-        bot_service.expect_create_agent().returning(|_, _| {
+        bot_service.expect_create_agent().returning(|_| {
             Box::pin(async move {
                 Ok((
                     StatusCode::OK,

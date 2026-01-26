@@ -1396,6 +1396,13 @@ const endpoints = makeApi([
 		response: WorkflowStep,
 	},
 	{
+		method: "get",
+		path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/bot_service_session",
+		alias: "GetWorkflowStepBotSession",
+		requestFormat: "json",
+		response: BotServiceUserSessionDto,
+	},
+	{
 		method: "post",
 		path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/bot_service_session",
 		alias: "CreateWorkflowStepBotSession",
