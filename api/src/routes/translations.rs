@@ -1,28 +1,59 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    routing::{delete_with, get_with, post_with, put_with},
-    ApiRouter,
+use aide::{
+    axum::{
+        routing::{delete_with, get_with, post_with, put_with},
+        ApiRouter,
+    },
+    OperationIo,
 };
 use axum::{
-    extract::{Json, Path, State},
-    http::StatusCode,
+    extract::{FromRequestParts, Json, Path, State},
+    http::{request::Parts, StatusCode},
+    RequestPartsExt,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use uuid::Uuid;
+
+use axum_extra::extract::cookie::CookieJar;
 
 use crate::{
     error::ComhairleError,
     models::translations::{
-        self, CreateTextContent, CreateTextTranslation, TextContent, TextContentId,
-        TextTranslation, UpdateTextContent, UpdateTextTranslation,
+        self, CreateTextTranslation, TextContent, TextContentId, TextTranslation,
+        UpdateTextContent, UpdateTextTranslation,
     },
     ComhairleState,
 };
 
 use super::auth::RequiredAdminUser;
+
+/// An extractor to get the user's locale preference from the COMHAIRLE_LOCALE cookie
+/// Returns "en" as default if the cookie is not present or invalid
+#[derive(Debug, Clone, OperationIo)]
+pub struct LocaleExtractor(pub String);
+
+impl FromRequestParts<Arc<ComhairleState>> for LocaleExtractor {
+    type Rejection = ComhairleError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self, Self::Rejection> {
+        let jar = parts
+            .extract::<CookieJar>()
+            .await
+            .map_err(|e| ComhairleError::LocaleError(e.to_string()))?;
+
+        let locale = jar
+            .get("COMHAIRLE_LOCALE")
+            .map(|cookie| cookie.value().to_string())
+            .unwrap_or_else(|| "en".to_string());
+
+        Ok(LocaleExtractor(locale))
+    }
+}
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct TextContentWithTranslations {

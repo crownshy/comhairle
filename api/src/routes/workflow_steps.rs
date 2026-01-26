@@ -15,6 +15,7 @@ use crate::models::bot_service_user_session::{
     self, BotServiceUserSessionDto, CreateWorkflowStepBotServiceUserSession,
 };
 use crate::models::workflow_step::LocalisedWorkflowStep;
+use crate::routes::translations::LocaleExtractor;
 use crate::tools::{ToolConfig, ToolConfigSanitize};
 use crate::{
     error::ComhairleError,
@@ -82,6 +83,7 @@ async fn list_workflows_step(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Path((conversation_id, workflow_id)): Path<(Uuid, Uuid)>,
+    LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<(StatusCode, Json<Vec<LocalisedWorkflowStep>>), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     let conversation_owner = user.id == conversation.owner_id;
@@ -91,7 +93,8 @@ async fn list_workflows_step(
         .await
         .map_err(|_| ComhairleError::UserIsNotParticipatingInTheConversation)?;
 
-    let mut workflow_steps = workflow_step::list_localised(&state.db, &workflow_id, "en").await?;
+    let mut workflow_steps =
+        workflow_step::list_localised(&state.db, &workflow_id, &locale).await?;
 
     if !conversation_owner {
         for workflow_step in workflow_steps.iter_mut() {
@@ -107,6 +110,7 @@ async fn get_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Path((conversation_id, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
+    LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<(StatusCode, Json<LocalisedWorkflowStep>), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
 
@@ -114,7 +118,7 @@ async fn get_workflow_step(
 
     info!("Attempting to get workflow step  {workflow_step_id:#?}");
     let mut workflow_step =
-        workflow_step::get_localised_by_id(&state.db, &workflow_step_id, "en").await?;
+        workflow_step::get_localised_by_id(&state.db, &workflow_step_id, &locale).await?;
 
     if !conversation_owner {
         workflow_step.sanatize();

@@ -72,6 +72,9 @@ pub enum ComhairleError {
     #[error("Auth Error {0}")]
     AuthJWTError(String),
 
+    #[error("Locale Error {0}")]
+    LocaleError(String),
+
     #[error("No user with email {0}")]
     NoUserFoundForEmail(String),
 
