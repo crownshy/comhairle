@@ -339,7 +339,7 @@ pub struct ComhairleAgent {
 pub struct ComhairleAgentSession {
     pub id: String,
     pub agent_id: String,
-    pub dsl: serde_json::Value,
+    pub configuration: serde_json::Value,
     pub messages: Vec<ComhairleSessionMessage>,
 }
 
