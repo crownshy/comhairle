@@ -1042,7 +1042,7 @@ impl From<AgentSession> for ComhairleAgentSession {
         Self {
             id: input.id,
             agent_id: input.agent_id,
-            dsl: input.dsl,
+            configuration: input.dsl,
             messages: input
                 .messages
                 .clone()
@@ -1059,7 +1059,7 @@ impl From<&AgentSession> for ComhairleAgentSession {
         Self {
             id: input.id.clone(),
             agent_id: input.agent_id.clone(),
-            dsl: input.dsl.clone(),
+            configuration: input.dsl.clone(),
             messages: input
                 .messages
                 .clone()
