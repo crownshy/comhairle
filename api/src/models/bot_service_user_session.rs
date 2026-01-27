@@ -10,6 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     bot_service::ComhairleBotService,
+    config::ComhairleConfig,
     error::ComhairleError,
     models::{conversation, workflow_step},
     routes::bot::chat_sessions::CreateChatSessionRequest,
@@ -176,12 +177,13 @@ pub struct CreateWorkflowStepBotServiceUserSession {
 pub async fn create_workflow_step_session(
     db: &PgPool,
     bot_service: &Arc<dyn ComhairleBotService>,
+    config: &ComhairleConfig,
     session: &CreateWorkflowStepBotServiceUserSession,
 ) -> Result<BotServiceUserSession, ComhairleError> {
     let workflow_step = workflow_step::get_by_id(db, &session.workflow_step_id).await?;
 
-    // TODO think a bit harder here about if this is in preview mode or not
-    let tool_config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
+    // TODO: think a bit harder here about if this is in preview mode or not
+    let _tool_config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::ElicitationBot(config)), _) => config,
         (None, ToolConfig::ElicitationBot(config)) => config,
         _ => {
@@ -192,7 +194,7 @@ pub async fn create_workflow_step_session(
     };
 
     let (_, bot_service_session) = bot_service
-        .create_agent_session(&tool_config.bot_id)
+        .create_agent_session(&config.elicitation_bot_agent_id)
         .await?;
 
     let session = CreateBotServiceUserSessionWithSessionId {

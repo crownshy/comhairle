@@ -24,7 +24,10 @@ export const load: PageLoad = async ({ params, parent }) => {
 		}
 		return { conversation, workflows, stats, workflow_steps };
 	} catch (e) {
-		notifications.addFlash({ message: 'No such conversation', priority: 'WARNING' });
+		notifications.addFlash({
+			message: 'Problem loading conversation assets',
+			priority: 'WARNING'
+		});
 		redirect(302, '/admin');
 	}
 };

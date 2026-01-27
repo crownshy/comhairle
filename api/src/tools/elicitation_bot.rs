@@ -1,18 +1,12 @@
-use std::sync::Arc;
-
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    bot_service::ComhairleBotService, error::ComhairleError,
-    routes::bot::agents::CreateAgentRequest,
-};
+use crate::error::ComhairleError;
 
 use super::ToolConfigSanitize;
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
 pub struct ElicitationBotToolConfig {
-    pub bot_id: String,
     pub topic: String,
 }
 
@@ -33,15 +27,8 @@ pub struct ElicitationBotReport;
 
 pub async fn setup(
     config: &ElicitationBotToolSetup,
-    bot_service: &Arc<dyn ComhairleBotService>,
 ) -> Result<ElicitationBotToolConfig, ComhairleError> {
-    let create_agent = CreateAgentRequest {
-        name: config.conversation_id.clone(),
-    };
-    let (_, bot) = bot_service.create_agent(create_agent).await?;
-
     Ok(ElicitationBotToolConfig {
-        bot_id: bot.id,
         topic: config.topic.clone(),
     })
 }
