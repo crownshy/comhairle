@@ -395,10 +395,7 @@ pub async fn list_localised(
     Ok(workflow_steps)
 }
 
-pub async fn setup_tool(
-    state: &Arc<ComhairleState>,
-    setup: &ToolSetup,
-) -> Result<ToolConfig, ComhairleError> {
+pub async fn setup_tool(setup: &ToolSetup) -> Result<ToolConfig, ComhairleError> {
     let config = match &setup {
         ToolSetup::Polis(polis_tool_setup) => {
             ToolConfig::Polis(tools::polis::setup(polis_tool_setup).await.map_err(|err| {
@@ -415,9 +412,9 @@ pub async fn setup_tool(
         ToolSetup::Stories(stories_tool_setup) => {
             ToolConfig::Stories(tools::stories::setup(stories_tool_setup).await?)
         }
-        ToolSetup::ElicitationBot(elicitation_bot_setup) => ToolConfig::ElicitationBot(
-            tools::elicitation_bot::setup(elicitation_bot_setup, &state.bot_service).await?,
-        ),
+        ToolSetup::ElicitationBot(elicitation_bot_setup) => {
+            ToolConfig::ElicitationBot(tools::elicitation_bot::setup(elicitation_bot_setup).await?)
+        }
     };
     Ok(config)
 }
@@ -454,8 +451,8 @@ pub async fn create(
     columns.push(WorkflowStepIden::Description);
     values.push(description_translation.id.into());
 
-    // let tool_config = setup_tool(state, &new_workflow_step.tool_setup).await?;
-    let preview_tool_config = setup_tool(state, &new_workflow_step.tool_setup).await?;
+    // let tool_config = setup_tool(&new_workflow_step.tool_setup).await?;
+    let preview_tool_config = setup_tool(&new_workflow_step.tool_setup).await?;
 
     columns.push(WorkflowStepIden::WorkflowId);
     values.push(workflow_id.into());

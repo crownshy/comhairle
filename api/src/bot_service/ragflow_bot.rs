@@ -25,7 +25,7 @@ use crate::{
     error::ComhairleError,
     routes::{
         bot::{
-            agent_sessions::{AgentConversationRequestExt, CreateAgentSessionRequest},
+            agent_sessions::CreateAgentSessionRequest,
             agents::{CreateAgentRequest, UpdateAgentRequest},
             chat_sessions::{
                 ChatConversationRequest, CreateChatSessionRequest as ApiCreateChatSessionRequest,
@@ -37,6 +37,7 @@ use crate::{
             GetQueryParams as ApiGetQueryParams,
         },
         conversations::UploadFileRequest,
+        workflow_steps::AgentConversationRequestExt,
     },
 };
 

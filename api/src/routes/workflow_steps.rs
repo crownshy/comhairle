@@ -4,10 +4,15 @@ use aide::axum::routing::{delete_with, get_with, post_with, put_with};
 use aide::axum::ApiRouter;
 
 use axum::{
+    body::Body,
     extract::{Path, State},
     http::StatusCode,
+    response::IntoResponse,
+    routing::post,
     Json,
 };
+use schemars::JsonSchema;
+use serde::Deserialize;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
@@ -151,6 +156,7 @@ async fn create_workflow_step_bot_session(
     let bot_user_session = bot_service_user_session::create_workflow_step_session(
         &state.db,
         &state.bot_service,
+        &state.config,
         &create_session,
     )
     .await?;
@@ -180,6 +186,7 @@ async fn get_workflow_step_bot_session(
             bot_service_user_session::create_workflow_step_session(
                 &state.db,
                 &state.bot_service,
+                &state.config,
                 &create_session,
             )
             .await
@@ -189,6 +196,76 @@ async fn get_workflow_step_bot_session(
 
     let session: BotServiceUserSessionDto = session.into();
     Ok((StatusCode::CREATED, Json(session)))
+}
+
+#[derive(Deserialize, Debug, JsonSchema, Clone, PartialEq)]
+pub struct AgentConversationRequest {
+    pub question: String,
+}
+
+#[derive(Deserialize, Debug, JsonSchema, Clone, PartialEq)]
+pub struct AgentConversationRequestExt {
+    pub question: String,
+    pub topic: String,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn converse_with_agent(
+    State(state): State<Arc<ComhairleState>>,
+    Path((conversation_id, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
+    RequiredUser(user): RequiredUser,
+    Json(payload): Json<AgentConversationRequest>,
+) -> Result<impl IntoResponse, ComhairleError> {
+    let workflow_step = workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
+
+    // TODO: think more creafully how we handle this in preview mode
+    let tool_config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
+        (Some(ToolConfig::ElicitationBot(config)), _) => config,
+        (None, ToolConfig::ElicitationBot(config)) => config,
+
+        _ => {
+            return Err(ComhairleError::ToolConfigError(
+                "incorrect config type".to_string(),
+            ))
+        }
+    };
+
+    let session =
+        bot_service_user_session::get_by_workflow_step_id(&state.db, user.id, workflow_step_id)
+            .await;
+    let session = match session {
+        Ok(session) => Ok(session),
+        Err(ComhairleError::NoBotUserSession) => {
+            let create_session = CreateWorkflowStepBotServiceUserSession {
+                conversation_id,
+                user_id: user.id,
+                workflow_step_id,
+            };
+            bot_service_user_session::create_workflow_step_session(
+                &state.db,
+                &state.bot_service,
+                &state.config,
+                &create_session,
+            )
+            .await
+        }
+        Err(e) => Err(e),
+    }?;
+
+    let payload = AgentConversationRequestExt {
+        question: payload.question,
+        topic: tool_config.topic.clone(),
+    };
+    let stream = state
+        .bot_service
+        .converse_with_agent(
+            &session.bot_service_session_id,
+            &state.config.elicitation_bot_agent_id,
+            payload,
+        )
+        .await?;
+
+    Ok(Body::from_stream(stream))
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
@@ -272,6 +349,10 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .security_requirement("JWT")
                     .response::<200, Json<BotServiceUserSessionDto>>()
             }),
+        )
+        .route(
+            "/{workflow_step_id}/converse_elicitation_bot",
+            post(converse_with_agent),
         )
         .with_state(state)
 }

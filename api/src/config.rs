@@ -59,4 +59,5 @@ pub struct ComhairleConfig {
     pub bot_service_host: String,
     pub bot_service_api_key: String,
     pub default_knowledge_base_id: String,
+    pub elicitation_bot_agent_id: String,
 }
