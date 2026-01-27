@@ -336,7 +336,7 @@ pub async fn update(
 ) -> Result<NotificationDelivery, ComhairleError> {
     let values = update.to_values();
 
-    if values.len() == 0 {
+    if values.is_empty() {
         return Err(ComhairleError::NoValidUpdates);
     }
 

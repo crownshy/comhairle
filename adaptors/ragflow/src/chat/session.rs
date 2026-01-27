@@ -104,13 +104,11 @@ pub struct ChatSession {
 
 #[derive(Deserialize)]
 pub struct CreateChatSessionResponse {
-    code: i32,
     pub data: ChatSession,
 }
 
 #[derive(Deserialize)]
 pub struct GetChatSessionResponse {
-    code: i32,
     pub data: Vec<ChatSession>,
 }
 

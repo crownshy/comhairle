@@ -41,7 +41,7 @@ async fn main() -> Result<()> {
         members: None,
     };
 
-    let workspace_id = match client.create_workspace(workspace_input).await {
+    let _workspace_id = match client.create_workspace(workspace_input).await {
         Ok(id) => {
             println!("Workspace created with ID: {}", id);
             id

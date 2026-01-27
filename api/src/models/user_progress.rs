@@ -3,7 +3,7 @@ use core::fmt;
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, ConditionalStatement, Expr, JoinType, PostgresQueryBuilder, Query};
+use sea_query::{enum_def, Expr, JoinType, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};

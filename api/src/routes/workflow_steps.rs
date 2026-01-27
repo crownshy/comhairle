@@ -16,7 +16,7 @@ use crate::models::bot_service_user_session::{
 };
 use crate::models::workflow_step::LocalisedWorkflowStep;
 use crate::routes::translations::LocaleExtractor;
-use crate::tools::{ToolConfig, ToolConfigSanitize};
+use crate::tools::ToolConfig;
 use crate::{
     error::ComhairleError,
     models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep, WorkflowStep},
@@ -306,7 +306,7 @@ mod tests {
             .await?;
 
         let workflow_id: String = extract("id", &workflow);
-        let (status, workflow_step, _) = session
+        let (status, _workflow_step, _) = session
             .post(
                 &app,
                 &format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step"),
@@ -395,7 +395,7 @@ mod tests {
         let workflows: Vec<serde_json::Value> = serde_json::from_value(workflows)?;
         assert_eq!(workflows.len(), 2, "Should have two workflows");
 
-        let workflow_1_return_name: String = extract("name", workflows.get(0).unwrap());
+        let workflow_1_return_name: String = extract("name", workflows.first().unwrap());
         let workflow_2_return_name: String = extract("name", workflows.get(1).unwrap());
 
         assert_eq!(
@@ -597,7 +597,7 @@ mod tests {
 
         let mut workflow_steps: Vec<serde_json::Value> = vec![];
         for no in (0..10).rev() {
-            let (status, step, _) = session
+            let (_status, step, _) = session
                 .post(
                     &app,
                     &url,
@@ -773,10 +773,10 @@ mod tests {
         }
 
         // Update the fifth step to be the 7th
-        let step_to_update = workflow_steps.get(0).expect("the 4th step to exisit");
+        let step_to_update = workflow_steps.first().expect("the 4th step to exisit");
         let update_id: String = extract("id", step_to_update);
 
-        let (status, new_step, _) = session
+        let (status, _new_step, _) = session
             .put(
                 &app,
                 &format!("{url}/{update_id}"),

@@ -121,7 +121,7 @@ impl PartialConversation {
                 sea_query::Value::Array(
                     sea_query::ArrayType::String,
                     Some(Box::new(
-                        value.into_iter().map(sea_query::Value::from).collect(),
+                        value.iter().map(sea_query::Value::from).collect(),
                     )),
                 )
                 .into(),
@@ -161,7 +161,7 @@ impl PartialConversation {
                 sea_query::Value::Array(
                     sea_query::ArrayType::String,
                     Some(Box::new(
-                        value.into_iter().map(sea_query::Value::from).collect(),
+                        value.iter().map(sea_query::Value::from).collect(),
                     )),
                 )
                 .into(),
@@ -331,8 +331,8 @@ pub async fn get_by_id_or_slug(
     id_or_slug: &IdOrSlug,
 ) -> Result<Conversation, ComhairleError> {
     let conversation = match id_or_slug {
-        IdOrSlug::Id(id) => get_by_id(&db, &id).await?,
-        IdOrSlug::Slug(slug) => get_by_slug(&db, &slug).await?,
+        IdOrSlug::Id(id) => get_by_id(db, id).await?,
+        IdOrSlug::Slug(slug) => get_by_slug(db, slug).await?,
     };
     Ok(conversation)
 }
@@ -344,8 +344,8 @@ pub async fn get_localised_by_id_or_slug(
     lang_code: &str,
 ) -> Result<LocalisedConversation, ComhairleError> {
     let original_conversation = match id_or_slug {
-        IdOrSlug::Id(id) => get_localised_by_id(&db, &id, lang_code).await?,
-        IdOrSlug::Slug(slug) => get_localised_by_slug(&db, &slug, lang_code).await?,
+        IdOrSlug::Id(id) => get_localised_by_id(db, id, lang_code).await?,
+        IdOrSlug::Slug(slug) => get_localised_by_slug(db, slug, lang_code).await?,
     };
     Ok(original_conversation)
 }
@@ -447,7 +447,7 @@ pub async fn update(
 
     let values = update.to_values();
 
-    if values.len() == 0 {
+    if values.is_empty() {
         return Err(ComhairleError::NoValidUpdates);
     }
 
@@ -542,7 +542,7 @@ impl CreateConversation {
         ]
     }
     pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
-        let tags = self.tags.to_owned().unwrap_or_else(|| vec![]);
+        let tags = self.tags.to_owned().unwrap_or_default();
 
         vec![
             self.video_url.to_owned().into(),
@@ -568,7 +568,7 @@ pub async fn create(
 
     // Generate Translations
     let title = new_translation(
-        &db,
+        db,
         &conversation.primary_locale,
         &conversation.title,
         TextFormat::Plain,
@@ -576,7 +576,7 @@ pub async fn create(
     .await?;
 
     let description = new_translation(
-        &db,
+        db,
         &conversation.primary_locale,
         &conversation.description,
         TextFormat::Rich,
@@ -584,7 +584,7 @@ pub async fn create(
     .await?;
 
     let short_description = new_translation(
-        &db,
+        db,
         &conversation.primary_locale,
         &conversation.short_description,
         TextFormat::Rich,
@@ -716,11 +716,11 @@ pub async fn list_owned(
 pub async fn launch(db: &PgPool, conversation_id: Uuid) -> Result<Conversation, ComhairleError> {
     let workflows = models::workflow::list(db, conversation_id).await?;
     for workflow in workflows {
-        models::workflow::launch(&db, &workflow.id).await?;
+        models::workflow::launch(db, &workflow.id).await?;
     }
 
     update(
-        &db,
+        db,
         &conversation_id,
         &PartialConversation {
             is_live: Some(true),
@@ -729,7 +729,7 @@ pub async fn launch(db: &PgPool, conversation_id: Uuid) -> Result<Conversation, 
     )
     .await?;
 
-    let conversation = get_by_id(&db, &conversation_id).await?;
+    let conversation = get_by_id(db, &conversation_id).await?;
 
     Ok(conversation)
 }

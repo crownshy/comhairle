@@ -310,7 +310,7 @@ pub async fn get_user_resource_roles(
     sqlx::query_as_with::<_, UserResourceRole, _>(&sql, values)
         .fetch_all(db)
         .await
-        .map_err(|e| ComhairleError::DatabaseError(e))
+        .map_err(ComhairleError::DatabaseError)
 }
 
 pub async fn user_has_resource_role(
@@ -345,9 +345,9 @@ pub async fn add_user_resource_role(
         ])
         .values_panic([
             resource_kind.into(),
-            resource_id.clone().into(),
+            (*resource_id).into(),
             resource_role.into(),
-            user_id.clone().into(),
+            (*user_id).into(),
         ])
         .into_table(UserResourceRoleIden::Table)
         .build_sqlx(PostgresQueryBuilder);
@@ -527,7 +527,7 @@ mod tests {
     use crate::{
         models::users::{add_user_resource_role, user_has_resource_role, Resource, Role},
         setup_server,
-        test_helpers::{test_config, test_state, UserSession},
+        test_helpers::{test_state, UserSession},
     };
     use sqlx::PgPool;
     use std::error::Error;
@@ -563,11 +563,7 @@ mod tests {
         assert_eq!(status, 201, "should be able to create a conversation");
         let conversation_id = Uuid::parse_str(conversation["id"].as_str().unwrap())?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new("test_user", "test_password", "test.user@gmail.com");
         session.signup(&app).await?;
 
         add_user_resource_role(
@@ -579,7 +575,7 @@ mod tests {
         )
         .await?;
 
-        assert_eq!(
+        assert!(
             user_has_resource_role(
                 Resource::Conversation,
                 &conversation_id,
@@ -588,11 +584,10 @@ mod tests {
                 &pool.clone(),
             )
             .await?,
-            true,
             "true when user has role",
         );
-        assert_eq!(
-            user_has_resource_role(
+        assert!(
+            !user_has_resource_role(
                 Resource::Conversation,
                 &conversation_id,
                 &[Role::Contributor],
@@ -600,11 +595,10 @@ mod tests {
                 &pool.clone(),
             )
             .await?,
-            false,
             "false when no user with that ID",
         );
-        assert_eq!(
-            user_has_resource_role(
+        assert!(
+            !user_has_resource_role(
                 Resource::Conversation,
                 &Uuid::parse_str("5FDFC2CE-C7F5-43DB-AA1F-0A8698E76D2E").unwrap(),
                 &[Role::Contributor],
@@ -612,11 +606,10 @@ mod tests {
                 &pool.clone(),
             )
             .await?,
-            false,
             "false when no conversation with that ID",
         );
-        assert_eq!(
-            user_has_resource_role(
+        assert!(
+            !user_has_resource_role(
                 Resource::Conversation,
                 &conversation_id,
                 &[Role::Owner],
@@ -624,10 +617,9 @@ mod tests {
                 &pool.clone(),
             )
             .await?,
-            false,
             "false when wrong role kind",
         );
-        assert_eq!(
+        assert!(
             user_has_resource_role(
                 Resource::Conversation,
                 &conversation_id,
@@ -636,7 +628,6 @@ mod tests {
                 &pool.clone(),
             )
             .await?,
-            true,
             "true when user could be multiple roles and has one",
         );
 
@@ -649,7 +640,7 @@ mod tests {
         )
         .await?;
 
-        assert_eq!(
+        assert!(
             user_has_resource_role(
                 Resource::Conversation,
                 &conversation_id,
@@ -658,7 +649,6 @@ mod tests {
                 &pool.clone(),
             )
             .await?,
-            true,
             "true when user has multiple roles and one is required",
         );
 

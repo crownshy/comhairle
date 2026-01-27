@@ -5,7 +5,7 @@ use aide::axum::{
     ApiRouter,
 };
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, State},
     http::StatusCode,
     Json,
 };
@@ -110,7 +110,7 @@ async fn get_workflow_stats(
 async fn update_workflow(
     State(state): State<Arc<ComhairleState>>,
     Path((_, id)): Path<(Uuid, Uuid)>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredAdminUser(_user): RequiredAdminUser,
     Json(workflow): Json<PartialWorkflow>,
 ) -> Result<Json<Workflow>, ComhairleError> {
     let workflow = workflow::update(&state.db, id, &workflow).await?;
@@ -141,7 +141,7 @@ async fn get_workflow(
 async fn delete_workflow(
     State(state): State<Arc<ComhairleState>>,
     Path((_, id)): Path<(Uuid, Uuid)>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<Workflow>), ComhairleError> {
     let workflow = workflow::delete(&state.db, &id).await?;
     Ok((StatusCode::OK, Json(workflow)))
@@ -242,7 +242,7 @@ mod tests {
     use axum::{body::Body, http::StatusCode};
     use serde_json::json;
     use sqlx::PgPool;
-    use std::{collections::HashMap, error::Error, sync::Arc};
+    use std::{error::Error, sync::Arc};
 
     #[sqlx::test]
     fn should_be_able_to_create_a_workflow_on_a_conversatin(
@@ -490,7 +490,7 @@ mod tests {
         for i in 0..10 {
             let mut session = UserSession::new(
                 &format!("test_user_{i}"),
-                "test_password".into(),
+                "test_password",
                 &format!("test.user_{i}@gmail.com"),
             );
             session.signup(&app).await?;
@@ -520,7 +520,7 @@ mod tests {
 
         if let serde_json::Value::Array(step_stats_array) = step_stats {
             for (index, stats) in step_stats_array.iter().enumerate() {
-                let count: i32 = extract("completed", &stats);
+                let count: i32 = extract("completed", stats);
                 assert_eq!(
                     index as i32,
                     9 - count,

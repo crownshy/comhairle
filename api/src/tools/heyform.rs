@@ -5,7 +5,6 @@ use heyform_sdk::{
 use rand::{distributions::Alphanumeric, seq::SliceRandom, thread_rng, Rng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 use crate::error::ComhairleError;
 
@@ -73,7 +72,7 @@ pub async fn launch(
     preview_config: &HeyFormToolConfig,
 ) -> Result<HeyFormToolConfig, ComhairleError> {
     let preview_client = HeyFormClient::new("https://forms.comhairle.scot")?;
-    let live_client = HeyFormClient::new("https://forms.comhairle.scot")?;
+    let _live_client = HeyFormClient::new("https://forms.comhairle.scot")?;
 
     preview_client
         .login(LoginInput {
