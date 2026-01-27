@@ -176,7 +176,7 @@ mod tests {
             .with(eq(Some(params)))
             .returning(move |_| {
                 let chat = chat.clone();
-                Box::pin(async move { Ok((StatusCode::OK, vec![chat.clone()])) })
+                Box::pin(async move { Ok((StatusCode::OK, vec![chat])) })
             });
 
         let state = test_state()
@@ -215,7 +215,7 @@ mod tests {
             .returning(move |_| {
                 Box::pin({
                     let chat = chat.clone();
-                    async move { Ok((StatusCode::OK, chat.clone())) }
+                    async move { Ok((StatusCode::OK, chat)) }
                 })
             });
 
@@ -250,7 +250,7 @@ mod tests {
         let mut bot_service = MockComhairleBotService::new();
         bot_service.expect_create_chat().once().returning(move |_| {
             let chat = chat.clone();
-            Box::pin(async move { Ok((StatusCode::OK, chat.clone())) })
+            Box::pin(async move { Ok((StatusCode::OK, chat)) })
         });
 
         let state = test_state()
@@ -298,7 +298,7 @@ mod tests {
             .with(eq("123"), eq(update_request.clone()))
             .returning(move |_, _| {
                 let chat = chat.clone();
-                Box::pin(async move { Ok((StatusCode::OK, chat.clone())) })
+                Box::pin(async move { Ok((StatusCode::OK, chat)) })
             });
 
         let state = test_state()

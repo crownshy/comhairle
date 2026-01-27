@@ -1020,7 +1020,7 @@ impl From<&Agent> for ComhairleAgent {
 impl From<UpdateAgentRequest> for UpdateAgent {
     fn from(input: UpdateAgentRequest) -> Self {
         Self {
-            title: input.title,
+            title: input.name,
             dsl: None,
         }
     }
