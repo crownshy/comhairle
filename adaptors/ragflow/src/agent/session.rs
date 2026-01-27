@@ -80,13 +80,11 @@ pub struct CreateAgentSession;
 
 #[derive(Deserialize, Default)]
 pub struct CreateAgentSessionResponse {
-    code: i32,
     data: AgentSession,
 }
 
 #[derive(Deserialize, Default)]
 pub struct GetAgentSessionResponse {
-    code: i32,
     data: Vec<AgentSession>,
 }
 

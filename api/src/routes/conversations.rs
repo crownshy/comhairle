@@ -61,7 +61,7 @@ async fn create_conversation(
 /// Update conversation handler
 async fn update_conversation(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredAdminUser(_user): RequiredAdminUser,
     Path(id): Path<Uuid>,
     Json(conversation): Json<PartialConversation>,
 ) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
@@ -93,7 +93,7 @@ async fn list_conversations(
 async fn launch_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     if conversation.is_live{
@@ -281,7 +281,7 @@ async fn register_email_for_updates(
     Json(request): Json<RegisterEmailRequest>,
 ) -> Result<(StatusCode, Json<RegisterEmailResponse>), ComhairleError> {
     // Verify conversation exists and is public
-    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    let _conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
 
     // Check if email is already registered for this conversation
     if let Ok(_existing) = email_recipients_model::get_by_conversation_and_email(
@@ -734,7 +734,7 @@ mod tests {
             )
             .await?;
 
-        let (status, result, _) = session
+        let (_status, _result, _) = session
             .create_conversation(
                 &app,
                 json! ({
@@ -869,8 +869,8 @@ mod tests {
         }
 
         // Testing ASC
-        let url = format!("/conversation?sort=created_at+asc&limit=20");
-        let (status, conversations, _) = session.get(&app, &url).await?;
+        let url = "/conversation?sort=created_at+asc&limit=20";
+        let (status, conversations, _) = session.get(&app, url).await?;
 
         let conversations: Vec<HashMap<String, serde_json::Value>> =
             serde_json::from_value(conversations.get("records").to_owned().unwrap().to_owned())
@@ -890,8 +890,8 @@ mod tests {
         );
 
         // Testing DESC
-        let url = format!("/conversation?sort=created_at+desc&limit=20");
-        let (status, conversations, _) = session.get(&app, &url).await?;
+        let url = "/conversation?sort=created_at+desc&limit=20";
+        let (status, conversations, _) = session.get(&app, url).await?;
 
         let conversations: Vec<HashMap<String, serde_json::Value>> =
             serde_json::from_value(conversations.get("records").to_owned().unwrap().to_owned())

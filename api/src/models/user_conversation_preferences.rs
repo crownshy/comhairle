@@ -79,8 +79,8 @@ pub async fn create_with_defaults(
     create(
         db,
         &CreateUserConversationPreferences {
-            user_id: user_id.clone(),
-            conversation_id: conversation_id.clone(),
+            user_id: (*user_id),
+            conversation_id: (*conversation_id),
             receive_updates_by_notification: Some(false),
             receive_updates_by_email: Some(false),
             receive_similar_conversation_updates_by_email: Some(false),
@@ -236,4 +236,3 @@ pub async fn delete(
 
     Ok(preferences)
 }
-

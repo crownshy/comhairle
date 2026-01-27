@@ -68,7 +68,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/",
             get_with(get_report, |op| {
-                op.id("GetReportForConversation".into())
+                op.id("GetReportForConversation")
                     .summary("Return the report of a given conversation")
                     .response::<200, Json<FullReportDTO>>()
             }),

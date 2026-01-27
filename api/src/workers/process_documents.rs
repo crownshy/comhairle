@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::{
     error::ComhairleError,
     models::{self, job::UpdateJob},
-    routes::{bot::chats::UpdateChatRequest, conversations::UploadFileRequest},
+    routes::bot::chats::UpdateChatRequest,
     ComhairleState,
 };
 

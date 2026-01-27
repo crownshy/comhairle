@@ -1,14 +1,10 @@
 use std::sync::Arc;
 
-use aide::axum::{routing::get_with, ApiRouter};
 use axum::{
-    extract::{Query, Request, State},
+    extract::{Json, Query, State},
     http::StatusCode,
-    response::Response,
-    Json,
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar};
-use fancy_regex::Regex;
 use rand::{distributions::Alphanumeric, Rng};
 use reqwest::{header::SET_COOKIE, Client};
 use schemars::JsonSchema;
@@ -250,7 +246,7 @@ impl PolisClient {
         comment: &str,
         poll_id: &str,
     ) -> Result<String, PolisError> {
-        let body = self
+        let _body = self
             .client
             .post(format!("{POLIS_BASE_URL}/api/v3/comments"))
             .json(
@@ -426,7 +422,7 @@ mod tests {
     async fn set_topic() -> Result<(), Box<dyn std::error::Error>> {
         let client = PolisClient::new();
 
-        let login = PolisLogin {
+        let _login = PolisLogin {
             email: "xVHTX2@comhairle.com".into(),
             password: "GNgTWJ".into(),
         };

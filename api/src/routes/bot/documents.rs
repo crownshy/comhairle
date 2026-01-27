@@ -6,9 +6,8 @@ use aide::axum::{
 };
 use axum::{
     body::Body,
-    extract::{Json, Multipart, Path, Query, State},
+    extract::{Json, Path, Query, State},
     http::{Response, StatusCode},
-    routing::post,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

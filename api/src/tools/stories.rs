@@ -55,22 +55,22 @@ pub struct Story {
 }
 
 async fn get_stories(
-    State(state): State<Arc<ComhairleState>>,
-    Path(workflow_step_id): Path<Uuid>,
+    State(_state): State<Arc<ComhairleState>>,
+    Path(_workflow_step_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<Vec<Story>>), ComhairleError> {
     Ok((StatusCode::OK, Json(vec![])))
 }
 
 async fn save_story(
-    State(state): State<Arc<ComhairleState>>,
-    Path(workflow_step_id): Path<Uuid>,
+    State(_state): State<Arc<ComhairleState>>,
+    Path(_workflow_step_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<Vec<Story>>), ComhairleError> {
     Ok((StatusCode::OK, Json(vec![])))
 }
 
 async fn get_story(
-    State(state): State<Arc<ComhairleState>>,
-    Path(workflow_step_id): Path<Uuid>,
+    State(_state): State<Arc<ComhairleState>>,
+    Path(_workflow_step_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<Vec<Story>>), ComhairleError> {
     Ok((StatusCode::OK, Json(vec![])))
 }
@@ -90,7 +90,7 @@ pub fn routes(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<201, Json<Vec<Story>>>()
             }),
         )
-       .api_route(
+        .api_route(
             "/tools/stories/workflow_step/{workflow_step_id}",
             post_with(save_story, |op| {
                 op.id("SaveStory")

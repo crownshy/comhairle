@@ -96,7 +96,7 @@ async fn create_invite(
     match &invite.invite_type {
         models::invites::InviteType::Email(email) => {
             state.mailer.send_email(
-            &email,
+            email,
             "Invitation to take part in the National Performance Framework consultation",
             "conversation_invite.html",
             context! {
@@ -107,7 +107,7 @@ async fn create_invite(
         )?;
         }
         models::invites::InviteType::User(user_id) => {
-            let user = models::users::get_user_by_id(&user_id, &state.db).await?;
+            let user = models::users::get_user_by_id(user_id, &state.db).await?;
             if let Some(email) = &user.email {
                 state.mailer.send_email(
                 email,
@@ -240,7 +240,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/",
             get_with(list_invites_for_conversation, |op| {
-                op.id("ListInvitesForConversation".into())
+                op.id("ListInvitesForConversation")
                     .summary("Return a list of invites statements for a conversation")
                     .response::<200, Json<Vec<Invite>>>()
             }),
@@ -259,7 +259,7 @@ mod tests {
     use tracing_test::traced_test;
 
     use crate::{
-        mailer::MockComhairleMailer, models::conversation, setup_server, test_helpers::{extract, test_state, UserSession}
+        mailer::MockComhairleMailer, setup_server, test_helpers::{extract, test_state, UserSession}
     };
 
     use super::*;
@@ -294,7 +294,7 @@ mod tests {
         let (_,conversation,_) = session.create_random_conversation(&app).await?;
 
         let conversation_id: String = extract("id", &conversation);
-        let (status, invite, _) = session
+        let (status, _invite, _) = session
             .post(
                 &app,
                 &format!("/conversation/{conversation_id}/invite"),
@@ -330,7 +330,7 @@ mod tests {
 
         regular_user_session.signup(&app).await?;
 
-        let (status, invite, _) = regular_user_session
+        let (status, _invite, _) = regular_user_session
             .post(
                 &app,
                 &format!("/conversation/{conversation_id}/invite"),
@@ -400,7 +400,7 @@ mod tests {
             "Should not be able to accept invite"
         );
 
-        let (status, accept_response, _) = regular_user_session
+        let (status, _accept_response, _) = regular_user_session
             .post(
                 &app,
                 &format!("/conversation/{conversation_id}/invite/{invite_id}/accept"),

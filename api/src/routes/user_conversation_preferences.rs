@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{get_with, post_with, put_with},
+    routing::{get_with, put_with},
     ApiRouter,
 };
 use axum::{
@@ -14,10 +14,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    error::ComhairleError,
-    models::user_conversation_preferences::{
-        CreateUserConversationPreferences, UserConversationPreferences,
-    },
+    error::ComhairleError, models::user_conversation_preferences::UserConversationPreferences,
     ComhairleState,
 };
 
@@ -134,4 +131,3 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .with_state(state)
 }
-

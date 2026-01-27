@@ -80,7 +80,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/",
             get_with(list_feedback_for_conversation, |op| {
-                op.id("ListFeedbackForConversation".into())
+                op.id("ListFeedbackForConversation")
                     .summary("Return a list of feedback statements for a conversation")
                     .response::<200, Json<Feedback>>()
             }),
