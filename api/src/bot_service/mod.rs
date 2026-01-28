@@ -296,8 +296,6 @@ pub struct ComhairlePrompt {
     pub llm_prompt: Option<String>,
     pub opener: Option<String>,
     pub empty_response: Option<String>,
-    pub use_kg: Option<bool>,
-    pub keyword: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone, PartialEq)]
