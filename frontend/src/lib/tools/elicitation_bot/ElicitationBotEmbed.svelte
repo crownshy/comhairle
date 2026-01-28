@@ -15,13 +15,19 @@
 		conversationId: string;
 		workflowId: string;
 		workflowStepId: string;
-		botId: string;
 		userId: string;
 		topic?: string;
 		onDone?: () => void;
 	};
 
-	let { conversationId, workflowId, workflowStepId, botId, userId, topic = 'this topic', onDone }: Props = $props();
+	let {
+		conversationId,
+		workflowId,
+		workflowStepId,
+		userId,
+		topic = 'this topic',
+		onDone
+	}: Props = $props();
 
 	let isLoading = $state(true);
 	let initError = $state<string | null>(null);
@@ -34,10 +40,10 @@
 
 	onMount(async () => {
 		try {
-			claimModifications = loadClaimModifications(botId, conversationId);
+			claimModifications = loadClaimModifications(workflowStepId, conversationId);
 
-			agentClient = new AgentClient(botId, conversationId, workflowId, workflowStepId);
-			
+			agentClient = new AgentClient(conversationId, workflowId, workflowStepId);
+
 			agentClient.onClaimUpdate = (streamingClaim, extractedClaims) => {
 				const finalizedClaims: ExtractedClaim[] = extractedClaims.map((claim) => ({
 					id: claim.id,
@@ -60,13 +66,6 @@
 					claims = finalizedClaims;
 				}
 			};
-			
-			const success = await agentClient.initializeFresh();
-
-			if (!success) {
-				initError = agentClient.error || 'Failed to initialize chat session';
-				return;
-			}
 
 			chatMessages = [
 				{
@@ -95,9 +94,10 @@
 		};
 		chatMessages = [...chatMessages, userMessage];
 
+		// TODO: does this need to change?
 		const botPlaceholderId = `bot-${Date.now()}`;
 		activeRequestId = botPlaceholderId;
-		
+
 		chatMessages = [
 			...chatMessages,
 			{
@@ -109,27 +109,30 @@
 		];
 
 		await agentClient.send(message);
-		
+
 		if (activeRequestId !== botPlaceholderId) {
 			return;
 		}
-		
+
 		agentClient.finalizeStreamingClaim();
 
-		const finalContent = agentClient.currentAnswer || 
-			(agentClient.error ? `Error: ${agentClient.error}` : 'No response received from agent.');
-		
+		const finalContent =
+			agentClient.currentAnswer ||
+			(agentClient.error
+				? `Error: ${agentClient.error}`
+				: 'No response received from agent.');
+
 		chatMessages = chatMessages.map((msg) =>
 			msg.id === botPlaceholderId ? { ...msg, content: finalContent } : msg
 		);
-		
+
 		activeRequestId = null;
 	}
 
 	$effect(() => {
 		const currentAnswer = agentClient?.currentAnswer;
 		const reqId = activeRequestId;
-		
+
 		if (currentAnswer && reqId) {
 			untrack(() => {
 				chatMessages = chatMessages.map((msg) =>
@@ -141,7 +144,7 @@
 
 	function persistModifications() {
 		if (claimModifications) {
-			saveClaimModifications(botId, conversationId, claimModifications);
+			saveClaimModifications(workflowStepId, conversationId, claimModifications);
 			claims = mergeClaimsWithModifications(aiExtractedClaims, claimModifications);
 		}
 	}
@@ -154,7 +157,7 @@
 
 	function handleClaimEdit(claimId: string, newContent: string) {
 		if (!claimModifications) return;
-		
+
 		const addedClaimIndex = claimModifications.addedClaims.findIndex((c) => c.id === claimId);
 		if (addedClaimIndex !== -1) {
 			claimModifications.addedClaims[addedClaimIndex].content = newContent;
@@ -167,7 +170,7 @@
 
 	function handleClaimRemove(claimId: string) {
 		if (!claimModifications) return;
-		
+
 		const addedClaimIndex = claimModifications.addedClaims.findIndex((c) => c.id === claimId);
 		if (addedClaimIndex !== -1) {
 			claimModifications.addedClaims.splice(addedClaimIndex, 1);
@@ -179,7 +182,7 @@
 
 	function handleAddClaim() {
 		if (!claimModifications) return;
-		
+
 		const newClaim: ExtractedClaim = {
 			id: `user-claim-${Date.now()}`,
 			content: '',
@@ -192,14 +195,14 @@
 
 {#if isLoading}
 	<div class="flex h-96 items-center justify-center">
-		<Loader2 class="h-8 w-8 animate-spin text-chat-primary" />
-		<span class="ml-2 text-chat-text-muted">Loading chat...</span>
+		<Loader2 class="text-chat-primary h-8 w-8 animate-spin" />
+		<span class="text-chat-text-muted ml-2">Loading chat...</span>
 	</div>
 {:else if initError}
 	<div class="flex h-96 flex-col items-center justify-center gap-4">
 		<p class="text-destructive">{initError}</p>
 		<button
-			class="rounded-lg bg-chat-primary px-4 py-2 text-white hover:bg-chat-primary-dark"
+			class="bg-chat-primary hover:bg-chat-primary-dark rounded-lg px-4 py-2 text-white"
 			onclick={() => window.location.reload()}
 		>
 			Try Again

@@ -40,7 +40,6 @@ export class AgentClient {
 	error = $state<string | null>(null);
 	isStreaming = $state(false);
 	session = $state<AgentSession | null>(null);
-	botServiceSession = $state<BotServiceUserSession | null>(null);
 	extractedClaims = $state<ExtractedClaim[]>([]);
 	streamingClaim = $state<ExtractedClaim | null>(null);
 
@@ -49,150 +48,34 @@ export class AgentClient {
 	private streamingClaimId = '';
 	private opinionMarker = '<br>\n\nopinion:\n\n';
 
-	private agentId: string;
 	private conversationId: string;
 	private workflowId: string;
 	private workflowStepId: string;
 	private baseUrl: string;
 	private abortController: AbortController | null = null;
-	
-	onClaimUpdate?: (streamingClaim: ExtractedClaim | null, extractedClaims: ExtractedClaim[]) => void;
+
+	onClaimUpdate?: (
+		streamingClaim: ExtractedClaim | null,
+		extractedClaims: ExtractedClaim[]
+	) => void;
 
 	constructor(
-		agentId: string,
 		conversationId: string,
 		workflowId: string,
 		workflowStepId: string,
 		baseUrl = '/api'
 	) {
-		this.agentId = agentId;
 		this.conversationId = conversationId;
 		this.workflowId = workflowId;
 		this.workflowStepId = workflowStepId;
 		this.baseUrl = baseUrl;
 	}
 
-	/**
-	 * Get or create a bot service user session for this workflow step.
-	 * This links the user to an agent session in the bot service.
-	 */
-	async getOrCreateWorkflowStepSession(): Promise<BotServiceUserSession | null> {
-		try {
-			const response = await fetch(
-				`${this.baseUrl}/conversation/${this.conversationId}/workflow/${this.workflowId}/workflow_step/${this.workflowStepId}/bot_service_session`,
-				{
-					method: 'GET',
-					headers: { 'Content-Type': 'application/json' },
-					credentials: 'include'
-				}
-			);
-
-			if (!response.ok) {
-				this.error = `Failed to get session: ${response.statusText}`;
-				return null;
-			}
-
-			const data = await response.json();
-			this.botServiceSession = data;
-
-			// Now fetch the full agent session
-			return data;
-		} catch (e) {
-			this.error = e instanceof Error ? e.message : 'Failed to get or create session';
-			return null;
-		}
-	}
-
-	/**
-	 * Create a new agent session
-	 */
-	async createNewAgentSession(): Promise<AgentSession | null> {
-		try {
-			const response = await fetch(
-				`${this.baseUrl}/bot/agents/${this.agentId}/sessions/`,
-				{
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					credentials: 'include'
-				}
-			);
-
-			if (!response.ok) {
-				this.error = `Failed to create agent session: ${response.statusText}`;
-				return null;
-			}
-
-			const session = await response.json();
-			this.session = session;
-
-			this.botServiceSession = {
-				id: session.id,
-				user_id: '',
-				conversation_id: this.conversationId,
-				bot_service_session_id: session.id,
-				workflow_step_id: this.workflowStepId
-			};
-			return session;
-		} catch (e) {
-			this.error = e instanceof Error ? e.message : 'Failed to create agent session';
-			return null;
-		}
-	}
-
-	/**
-	 * Get the agent session details including message history
-	 */
-	async getAgentSession(sessionId: string): Promise<AgentSession | null> {
-		try {
-			const response = await fetch(
-				`${this.baseUrl}/bot/agents/${this.agentId}/sessions/${sessionId}`,
-				{
-					method: 'GET',
-					headers: { 'Content-Type': 'application/json' },
-					credentials: 'include'
-				}
-			);
-
-			if (!response.ok) {
-				this.error = `Failed to get agent session: ${response.statusText}`;
-				return null;
-			}
-
-			const session = await response.json();
-			this.session = session;
-			return session;
-		} catch (e) {
-			this.error = e instanceof Error ? e.message : 'Failed to get agent session';
-			return null;
-		}
-	}
-
-	/**
-	 * Initialize the client by getting the workflow step session and agent session
-	 */
-	async initialize(): Promise<boolean> {
-		const botSession = await this.getOrCreateWorkflowStepSession();
-		if (!botSession) {
-			return false;
-		}
-
-		const agentSession = await this.getAgentSession(botSession.bot_service_session_id);
-		return agentSession !== null;
-	}
-
-	/**
-	 * Initialize the client with a fresh session (no history persistence)
-	 */
-	async initializeFresh(): Promise<boolean> {
-		const agentSession = await this.createNewAgentSession();
-		return agentSession !== null;
-	}
-
 	private parseSSELine(line: string): void {
 		if (!line.startsWith('data:')) return;
 
 		const jsonStr = line.replace('data:', '').trim();
-		
+
 		if (jsonStr === '[DONE]') {
 			return;
 		}
@@ -207,10 +90,13 @@ export class AgentClient {
 
 			if (json.event === 'message_end') {
 				if (this.isParsingOpinion && this.currentOpinionContent.trim()) {
-					this.extractedClaims = [...this.extractedClaims, {
-						id: this.streamingClaimId,
-						content: this.currentOpinionContent.trim()
-					}];
+					this.extractedClaims = [
+						...this.extractedClaims,
+						{
+							id: this.streamingClaimId,
+							content: this.currentOpinionContent.trim()
+						}
+					];
 				}
 				this.isParsingOpinion = false;
 				this.currentOpinionContent = '';
@@ -222,16 +108,16 @@ export class AgentClient {
 
 			if (json.event === 'node_finished' && json.data) {
 				const { component_type, outputs } = json.data;
-				
+
 				if (component_type === 'Message' && outputs?.content) {
-					const content = Array.isArray(outputs.content) 
-						? outputs.content.join('') 
+					const content = Array.isArray(outputs.content)
+						? outputs.content.join('')
 						: outputs.content;
 					if (content && typeof content === 'string') {
 						this.currentAnswer = content;
 					}
 				}
-				
+
 				if (component_type === 'Agent' && outputs?.content) {
 					const content = outputs.content;
 					if (content && typeof content === 'string') {
@@ -239,10 +125,10 @@ export class AgentClient {
 					}
 				}
 			}
-			
+
 			if (json.event === 'message' && json.data?.content) {
 				const content = json.data.content as string;
-				
+
 				if (content.includes('<br>') && content.includes('opinion:')) {
 					this.isParsingOpinion = true;
 					this.currentOpinionContent = '';
@@ -254,20 +140,23 @@ export class AgentClient {
 					this.onClaimUpdate?.(this.streamingClaim, this.extractedClaims);
 					return;
 				}
-				
+
 				if (this.isParsingOpinion) {
 					this.currentOpinionContent += content;
 					const trimmedContent = this.currentOpinionContent.trim();
-					
+
 					// Check if claim ends with sentence-ending punctuation
 					const endsWithPunctuation = /[.!?]$/.test(trimmedContent);
-					
+
 					if (endsWithPunctuation && trimmedContent.length > 10) {
 						// Finalize the claim immediately when sentence ends
-						this.extractedClaims = [...this.extractedClaims, {
-							id: this.streamingClaimId,
-							content: trimmedContent
-						}];
+						this.extractedClaims = [
+							...this.extractedClaims,
+							{
+								id: this.streamingClaimId,
+								content: trimmedContent
+							}
+						];
 						this.isParsingOpinion = false;
 						this.currentOpinionContent = '';
 						this.streamingClaim = null;
@@ -333,21 +222,16 @@ export class AgentClient {
 	async send(question: string): Promise<string> {
 		if (!browser) return '';
 
-		if (!this.botServiceSession?.bot_service_session_id) {
-			this.error = 'No session ID. Call initialize() first.';
-			return '';
-		}
-
 		this.resetStreamState();
 
 		try {
 			const response = await fetch(
-				`${this.baseUrl}/bot/agents/${this.agentId}/sessions/${this.botServiceSession.bot_service_session_id}`,
+				`${this.baseUrl}/conversation/${this.conversationId}/workflow/${this.workflowId}/workflow_step/${this.workflowStepId}/converse_elicitation_bot`,
 				{
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					credentials: 'include',
-					body: JSON.stringify({ question, workflow_step_id: this.workflowStepId }),
+					body: JSON.stringify({ question }),
 					signal: this.abortController?.signal
 				}
 			);
@@ -390,10 +274,13 @@ export class AgentClient {
 	 */
 	finalizeStreamingClaim() {
 		if (this.isParsingOpinion && this.currentOpinionContent.trim()) {
-			this.extractedClaims = [...this.extractedClaims, {
-				id: this.streamingClaimId,
-				content: this.currentOpinionContent.trim()
-			}];
+			this.extractedClaims = [
+				...this.extractedClaims,
+				{
+					id: this.streamingClaimId,
+					content: this.currentOpinionContent.trim()
+				}
+			];
 		}
 		this.isParsingOpinion = false;
 		this.currentOpinionContent = '';
@@ -407,6 +294,5 @@ export class AgentClient {
 		this.currentAnswer = '';
 		this.error = null;
 		this.session = null;
-		this.botServiceSession = null;
 	}
 }
