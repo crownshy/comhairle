@@ -75,6 +75,8 @@ pub struct Prompt {
     pub top_n: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub variables: Option<Vec<Variable>>,
+    pub use_kg: Option<bool>,
+    pub keyword: Option<bool>,
 }
 
 #[derive(Deserialize)]

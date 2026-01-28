@@ -602,6 +602,8 @@ pub async fn create(
             llm_prompt: Some(DEFAULT_CHAT_PROMPT.to_string()),
             opener: Some(DEFAULT_CHAT_OPENER.to_string()),
             empty_response: Some(DEFAULT_CHAT_NOT_FOUND_RESPONSE.to_string()),
+            keyword: Some(false),
+            use_kg: Some(false),
         }),
         ..Default::default()
     };
