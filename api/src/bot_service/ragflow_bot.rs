@@ -837,6 +837,8 @@ impl From<Prompt> for ComhairlePrompt {
             llm_prompt: input.prompt,
             opener: input.opener,
             empty_response: input.empty_response,
+            use_kg: input.use_kg,
+            keyword: input.keyword,
         }
     }
 }
@@ -847,6 +849,8 @@ impl From<&Prompt> for ComhairlePrompt {
             llm_prompt: input.prompt.clone(),
             opener: input.opener.clone(),
             empty_response: input.empty_response.clone(),
+            use_kg: input.use_kg,
+            keyword: input.keyword,
         }
     }
 }
