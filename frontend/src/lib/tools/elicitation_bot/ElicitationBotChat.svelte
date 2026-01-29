@@ -38,11 +38,20 @@
 	let chatMessages = $state<ElicitationMessage[]>([...initialMessages]);
 	let isMobile = $state(false);
 	let activeTab = $state('chat');
+	let hasUnseenClaims = $state(false);
+	let previousClaimsCount = $state(initialClaims.length);
 
 	$effect(() => {
 		if (initialMessages.length > 0) {
 			chatMessages = [...initialMessages];
 		}
+	});
+
+	$effect(() => {
+		if (initialClaims.length > previousClaimsCount && activeTab === 'chat' && isMobile) {
+			hasUnseenClaims = true;
+		}
+		previousClaimsCount = initialClaims.length;
 	});
 
 	const initialQuestions = [
@@ -162,10 +171,18 @@
 						Chat
 					</button>
 					<button
-						class="py-3 text-sm font-medium transition-colors {activeTab === 'claims' ? 'bg-white text-chat-primary' : 'text-chat-text-muted hover:text-chat-text'}"
-						onclick={() => activeTab = 'claims'}
+						class="relative py-3 text-sm font-medium transition-colors {activeTab === 'claims' ? 'bg-white text-chat-primary' : 'text-chat-text-muted hover:text-chat-text'}"
+						onclick={() => { activeTab = 'claims'; hasUnseenClaims = false; }}
 					>
-						Claims ({initialClaims.length})
+						<span class="inline-flex items-center gap-1.5">
+							Claims ({initialClaims.length})
+							{#if hasUnseenClaims}
+								<span class="relative flex h-2.5 w-2.5">
+									<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-chat-primary opacity-75"></span>
+									<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-chat-primary"></span>
+								</span>
+							{/if}
+						</span>
 					</button>
 				</div>
 
