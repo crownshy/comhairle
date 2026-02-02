@@ -360,27 +360,8 @@ async fn get_conversation_bot_session(
     Path(conversation_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
     let session =
-        bot_service_user_session::get_by_conversation_id(&state.db, user.id, conversation_id).await;
+        bot_service_user_session::get_or_create(&state, BotServiceSessionContext::QaBot, user.id, Some(conversation_id), None).await?;
 
-    // If we didn't find a session create one
-    let session = match session {
-        Ok(session) => Ok(session),
-        Err(ComhairleError::NoBotUserSession) => {
-            bot_service_user_session::create(
-                &state.db,
-                &state.bot_service,
-                &state.config,
-                &CreateBotServiceUserSession {
-                    context: BotServiceSessionContext::QaBot,
-                    conversation_id: Some(conversation_id),
-                    user_id: user.id,
-                    workflow_step_id: None,
-                },
-            )
-            .await
-        }
-        Err(e) => Err(e),
-    }?;
     let session: BotServiceUserSessionDto = session.into();
 
     Ok((StatusCode::OK, Json(session)))
