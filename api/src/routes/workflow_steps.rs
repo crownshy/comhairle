@@ -17,7 +17,7 @@ use tracing::{info, instrument};
 use uuid::Uuid;
 
 use crate::models::bot_service_user_session::{
-    self, BotServiceUserSessionDto, CreateWorkflowStepBotServiceUserSession,
+    self, BotServiceSessionContext, BotServiceUserSessionDto, CreateBotServiceUserSession,
 };
 use crate::models::workflow_step::LocalisedWorkflowStep;
 use crate::routes::translations::LocaleExtractor;
@@ -148,12 +148,13 @@ async fn create_workflow_step_bot_session(
     RequiredUser(user): RequiredUser,
     Path((conversation_id, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
-    let create_session = CreateWorkflowStepBotServiceUserSession {
-        conversation_id,
+    let create_session = CreateBotServiceUserSession {
+        context: BotServiceSessionContext::ElicitationBot,
         user_id: user.id,
-        workflow_step_id,
+        workflow_step_id: Some(workflow_step_id),
+        conversation_id: None,
     };
-    let bot_user_session = bot_service_user_session::create_workflow_step_session(
+    let bot_user_session = bot_service_user_session::create(
         &state.db,
         &state.bot_service,
         &state.config,
@@ -178,12 +179,13 @@ async fn get_workflow_step_bot_session(
     let session = match session {
         Ok(session) => Ok(session),
         Err(ComhairleError::NoBotUserSession) => {
-            let create_session = CreateWorkflowStepBotServiceUserSession {
-                conversation_id,
+            let create_session = CreateBotServiceUserSession {
+                context: BotServiceSessionContext::ElicitationBot,
                 user_id: user.id,
-                workflow_step_id,
+                workflow_step_id: Some(workflow_step_id),
+                conversation_id: None,
             };
-            bot_service_user_session::create_workflow_step_session(
+            bot_service_user_session::create(
                 &state.db,
                 &state.bot_service,
                 &state.config,
@@ -236,12 +238,13 @@ async fn converse_with_agent(
     let session = match session {
         Ok(session) => Ok(session),
         Err(ComhairleError::NoBotUserSession) => {
-            let create_session = CreateWorkflowStepBotServiceUserSession {
-                conversation_id,
+            let create_session = CreateBotServiceUserSession {
+                context: BotServiceSessionContext::ElicitationBot,
                 user_id: user.id,
-                workflow_step_id,
+                workflow_step_id: Some(workflow_step_id),
+                conversation_id: None,
             };
-            bot_service_user_session::create_workflow_step_session(
+            bot_service_user_session::create(
                 &state.db,
                 &state.bot_service,
                 &state.config,
