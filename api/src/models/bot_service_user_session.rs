@@ -15,6 +15,7 @@ use crate::{
     models::{conversation, workflow_step},
     routes::bot::chat_sessions::CreateChatSessionRequest,
     tools::ToolConfig,
+    ComhairleState,
 };
 
 #[cfg(test)]
@@ -165,7 +166,7 @@ pub async fn create(
                 Some(id) => id,
                 None => {
                     return Err(ComhairleError::CorruptedData(
-                        "Missing conversation_id".to_string(),
+                        "Missing conversation_id for qa_bot session".to_string(),
                     ))
                 }
             };
@@ -193,7 +194,7 @@ pub async fn create(
                 Some(id) => id,
                 None => {
                     return Err(ComhairleError::CorruptedData(
-                        "Missing workflow_step_id".to_string(),
+                        "Missing workflow_step_id for elicitation_bot session".to_string(),
                     ))
                 }
             };
@@ -337,6 +338,95 @@ pub async fn get_by_workflow_step_id(
         })?;
 
     Ok(bot_session)
+}
+
+/// Retrieves a user bot session by context, user_id and either conversation_id or
+/// workflow_step_id. Will create and return a new entry if none found.
+///
+/// # Arguments
+///
+/// * `state` - Comhairle state, including Database connection pool, bot service implementation and
+///   config
+/// * `context` - type of bot service session
+/// * `user_id` - user's ID
+/// * `conversation_id` - conversation's ID if for `qa_bot` type
+/// * `workflow_step_id` - workflow_step's ID if for `elicitation_bot` type
+///
+/// # Returns
+///
+/// Returns a `Result` containing the `BotServiceUserSession` or a `ComhairleError` if a database
+/// error occurs.
+pub async fn get_or_create(
+    state: &ComhairleState,
+    context: BotServiceSessionContext,
+    user_id: Uuid,
+    conversation_id: Option<Uuid>,
+    workflow_step_id: Option<Uuid>,
+) -> Result<BotServiceUserSession, ComhairleError> {
+    let mut query = Query::select();
+    query
+        .from(BotServiceUserSessionIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .and_where(
+            Expr::col((
+                BotServiceUserSessionIden::Table,
+                BotServiceUserSessionIden::UserId,
+            ))
+            .eq(user_id.to_owned()),
+        )
+        .and_where(
+            Expr::col((
+                BotServiceUserSessionIden::Table,
+                BotServiceUserSessionIden::Context,
+            ))
+            .eq(context.to_owned()),
+        );
+
+    if let Some(conversation_id) = conversation_id {
+        query.and_where(
+            Expr::col((
+                BotServiceUserSessionIden::Table,
+                BotServiceUserSessionIden::ConversationId,
+            ))
+            .eq(conversation_id.to_owned()),
+        );
+    }
+
+    if let Some(workflow_step_id) = workflow_step_id {
+        query.and_where(
+            Expr::col((
+                BotServiceUserSessionIden::Table,
+                BotServiceUserSessionIden::WorkflowStepId,
+            ))
+            .eq(workflow_step_id.to_owned()),
+        );
+    }
+
+    let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
+
+    let session = match sqlx::query_as_with(&sql, values)
+        .fetch_optional(&state.db)
+        .await?
+    {
+        Some(session) => session,
+        None => {
+            let create_session = CreateBotServiceUserSession {
+                context,
+                user_id,
+                conversation_id,
+                workflow_step_id,
+            };
+            create(
+                &state.db,
+                &state.bot_service,
+                &state.config,
+                &create_session,
+            )
+            .await?
+        }
+    };
+
+    Ok(session)
 }
 
 // Data transfer object for bot service user session
