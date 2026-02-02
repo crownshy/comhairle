@@ -394,7 +394,7 @@ pub fn decode_jwt<T: Serialize + DeserializeOwned>(
     secret: &str,
 ) -> Result<TokenData<Claims<T>>, StatusCode> {
     let result: Result<TokenData<Claims<T>>, StatusCode> = decode(
-        &jwt,
+        jwt,
         &DecodingKey::from_secret(secret.as_ref()),
         &Validation::default(),
     )

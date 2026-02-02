@@ -81,7 +81,6 @@ pub struct Prompt {
 
 #[derive(Deserialize)]
 pub struct CreateChatResponse {
-    code: i32,
     pub data: Chat,
 }
 
@@ -119,7 +118,6 @@ pub struct UpdateChat {
 
 #[derive(Deserialize)]
 pub struct GetChatResponse {
-    code: i32,
     pub data: Vec<Chat>,
 }
 

@@ -153,7 +153,7 @@ impl MockWebSocketService {
             .returning(|_| 0);
         websockets
             .expect_get_connected_user_ids()
-            .returning(|| vec![]);
+            .returning(Vec::new);
         websockets
     }
 }
@@ -169,7 +169,6 @@ impl ComhairleWebSocketService {
 
 #[async_trait]
 impl WebSocketService for ComhairleWebSocketService {
-
     fn add_connection(&self, connection: WebSocketConnection) {
         let connection_id = connection.id.clone();
 

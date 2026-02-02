@@ -57,7 +57,7 @@ pub async fn update(
     sqlx::query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| ComhairleError::FailedToUpdateFeedback)
+        .map_err(|_e| ComhairleError::FailedToUpdateFeedback)
 }
 
 pub async fn create(
@@ -85,7 +85,7 @@ pub async fn create(
     sqlx::query_as_with::<_, Feedback, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| ComhairleError::FailedToCreateFeedback)
+        .map_err(|_e| ComhairleError::FailedToCreateFeedback)
 }
 pub async fn list_for_conversation(
     db: &PgPool,

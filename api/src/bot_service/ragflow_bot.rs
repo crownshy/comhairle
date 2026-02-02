@@ -630,9 +630,9 @@ impl ComhairleBotService for ComhairleRagBotService {
     // Endpoint currently commented out
     async fn update_agent_session(
         &self,
-        session_id: &str,
-        agent_id: &str,
-        body: UpdateAgentSessionRequest,
+        _session_id: &str,
+        _agent_id: &str,
+        _body: UpdateAgentSessionRequest,
     ) -> Result<(StatusCode, ComhairleAgentSession), ComhairleError> {
         Ok((
             StatusCode::OK,
@@ -1072,7 +1072,7 @@ impl From<&AgentSession> for ComhairleAgentSession {
 }
 
 impl From<CreateAgentSessionRequest> for CreateAgentSession {
-    fn from(input: CreateAgentSessionRequest) -> Self {
+    fn from(_input: CreateAgentSessionRequest) -> Self {
         Self {}
     }
 }

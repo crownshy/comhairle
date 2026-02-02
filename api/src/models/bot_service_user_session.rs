@@ -77,7 +77,7 @@ impl CreateBotServiceUserSessionWithSessionId {
             self.conversation_id.into(),
             self.user_id.into(),
             self.bot_service_session_id.clone().into(),
-            self.workflow_step_id.clone().into(),
+            self.workflow_step_id.into(),
         ]
     }
 }

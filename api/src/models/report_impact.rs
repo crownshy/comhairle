@@ -110,7 +110,7 @@ pub async fn create(
     sqlx::query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| ComhairleError::FailedToCreateImpact)
+        .map_err(|_e| ComhairleError::FailedToCreateImpact)
 }
 
 pub async fn get_for_report(

@@ -67,7 +67,7 @@ pub fn test_state(
         config: config.unwrap_or_else(|| test_config().unwrap()),
         websockets: websockets.unwrap_or_else(|| mock_websockets()),
         translation_service: translation_service
-            .map(|s| Some(s))
+            .map(Some)
             .unwrap_or_else(|| mock_translation_service()),
         bot_service: bot_service.unwrap_or_else(|| mock_bot_service()),
         // TODO: can this be mocked?
@@ -453,11 +453,9 @@ impl UserSession {
         let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
 
         self.cookie = cookie.clone();
-        if let Some(id) = user.get("id") {
-            if let Some(id) = id {
-                let id: String = serde_json::from_value(id.clone()).unwrap();
-                self.id = Some(Uuid::parse_str(&id).unwrap());
-            }
+        if let Some(Some(id)) = user.get("id") {
+            let id: String = serde_json::from_value(id.clone()).unwrap();
+            self.id = Some(Uuid::parse_str(&id).unwrap());
         }
 
         Ok((status, user, cookie))
@@ -629,7 +627,7 @@ impl UserSession {
         for no in 0..10 {
             let (_, step, _) = self
                 .post(
-                    &app,
+                    app,
                     &url,
                     json!({
                     "name": format!("{}", no+1),

@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::bot_service::ComhairleBotService;
 use crate::models::translations::{new_translation, TextContentId, TextFormat};
 use crate::tools::{self, ToolConfigSanitize};
 use crate::ComhairleState;
@@ -101,7 +100,7 @@ pub async fn launch(db: &PgPool, workflow_step_id: &Uuid) -> Result<(), Comhairl
     };
 
     update(
-        &db,
+        db,
         workflow_step_id,
         &workflow_step.workflow_id,
         &PartialWorkflowStep {
@@ -401,25 +400,23 @@ pub async fn setup_tool(
     setup: &ToolSetup,
 ) -> Result<ToolConfig, ComhairleError> {
     let config = match &setup {
-        ToolSetup::Polis(polis_tool_setup) => ToolConfig::Polis(
-            tools::polis::setup(&polis_tool_setup)
-                .await
-                .map_err(|err| {
-                    warn!("Polis error {err:#?}");
-                    err
-                })?,
-        ),
+        ToolSetup::Polis(polis_tool_setup) => {
+            ToolConfig::Polis(tools::polis::setup(polis_tool_setup).await.map_err(|err| {
+                warn!("Polis error {err:#?}");
+                err
+            })?)
+        }
         ToolSetup::Learn(learn_tool_setup) => {
-            ToolConfig::Learn(tools::learn::setup(&learn_tool_setup).await?)
+            ToolConfig::Learn(tools::learn::setup(learn_tool_setup).await?)
         }
         ToolSetup::HeyForm(hey_form_tool_setup) => {
-            ToolConfig::HeyForm(tools::heyform::setup(&hey_form_tool_setup).await?)
+            ToolConfig::HeyForm(tools::heyform::setup(hey_form_tool_setup).await?)
         }
         ToolSetup::Stories(stories_tool_setup) => {
-            ToolConfig::Stories(tools::stories::setup(&stories_tool_setup).await?)
+            ToolConfig::Stories(tools::stories::setup(stories_tool_setup).await?)
         }
         ToolSetup::ElicitationBot(elicitation_bot_setup) => ToolConfig::ElicitationBot(
-            tools::elicitation_bot::setup(&elicitation_bot_setup, &state.bot_service).await?,
+            tools::elicitation_bot::setup(elicitation_bot_setup, &state.bot_service).await?,
         ),
     };
     Ok(config)
@@ -434,7 +431,7 @@ pub async fn create(
     // Generate Translations
     let name_translation = new_translation(
         &state.db,
-        &primary_locale,
+        primary_locale,
         &new_workflow_step.name,
         TextFormat::Plain,
     )
@@ -442,7 +439,7 @@ pub async fn create(
 
     let description_translation = new_translation(
         &state.db,
-        &primary_locale,
+        primary_locale,
         &new_workflow_step.description,
         TextFormat::Rich,
     )

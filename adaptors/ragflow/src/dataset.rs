@@ -52,7 +52,6 @@ pub async fn delete(client: &RagflowClient, body: DeleteResources<'_>) -> Result
 
 #[derive(Deserialize)]
 struct GetDatasetResponse {
-    code: i32,
     data: Vec<Dataset>,
 }
 

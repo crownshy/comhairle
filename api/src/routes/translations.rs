@@ -236,7 +236,7 @@ async fn auto_translate(
     if let Some(translation_service) = &state.translation_service {
         let new_translation = translations::auto_generate_translation(
             &state.db,
-            &translation_service,
+            translation_service,
             &text_content_id,
             &locale,
         )
@@ -259,7 +259,7 @@ async fn auto_translate_all(
             translations::get_text_content_by_id(&state.db, &text_content_id).await?;
         let translations = translations::auto_generate_all_translations(
             &state.db,
-            &translation_service,
+            translation_service,
             &text_content_id,
         )
         .await?;
@@ -478,7 +478,7 @@ mod tests {
             "content": "Hello World"
         });
 
-        let (status, response, _) = admin_session
+        let (_status, response, _) = admin_session
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
@@ -595,7 +595,7 @@ mod tests {
         assert_eq!(deleted_content.id, text_content.id);
 
         // Verify it's deleted
-        let (status, response, _) = admin_session
+        let (status, _response, _) = admin_session
             .get(&app, &format!("/translations/{}", text_content.id))
             .await?;
 
@@ -1007,9 +1007,9 @@ mod tests {
 
         let translation: TextTranslation = serde_json::from_value(response)?;
         assert_eq!(translation.content, "Testo aggiornato");
-        assert_eq!(translation.ai_generated, true);
+        assert!(translation.ai_generated);
         // requires_validation should remain unchanged
-        assert_eq!(translation.requires_validation, false);
+        assert!(!translation.requires_validation);
 
         Ok(())
     }
@@ -1029,7 +1029,7 @@ mod tests {
             "content":"Text to delete"
         });
 
-        let (status, response, _) = admin_session
+        let (_status, response, _) = admin_session
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
@@ -1046,7 +1046,7 @@ mod tests {
         assert_eq!(deleted_translation.content, "Text to delete");
 
         // Verify it's deleted
-        let (status, response, _) = admin_session
+        let (status, _response, _) = admin_session
             .get(&app, &format!("/translations/{}/pt", text_content.id))
             .await?;
 
@@ -1070,7 +1070,7 @@ mod tests {
             "content": "Original Translation"
         });
 
-        let (status, response, _) = regular_session
+        let (status, _response, _) = regular_session
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
@@ -1089,7 +1089,7 @@ mod tests {
         admin_session.signup(&app).await?;
 
         let fake_uuid = uuid::Uuid::new_v4();
-        let (status, response, _) = admin_session
+        let (status, _response, _) = admin_session
             .get(&app, &format!("/translations/{}", fake_uuid))
             .await?;
 
@@ -1113,14 +1113,14 @@ mod tests {
             "content": "Original Translation"
         });
 
-        let (status, response, _) = admin_session
+        let (_status, response, _) = admin_session
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
         let text_content: TextContent = serde_json::from_value(response)?;
 
         // Try to get non-existent translation
-        let (status, response, _) = admin_session
+        let (status, _response, _) = admin_session
             .get(
                 &app,
                 &format!("/translations/{}/nonexistent", text_content.id),
@@ -1145,7 +1145,7 @@ mod tests {
             "primary_locale": "es"
         });
 
-        let (status, response, _) = admin_session
+        let (status, _response, _) = admin_session
             .put(
                 &app,
                 &format!("/translations/{}", fake_uuid),
@@ -1173,7 +1173,7 @@ mod tests {
             "content": "Original Translation"
         });
 
-        let (status, response, _) = admin_session
+        let (_status, response, _) = admin_session
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
@@ -1182,7 +1182,7 @@ mod tests {
         // Try to update with empty object
         let empty_update = json!({});
 
-        let (status, response, _) = admin_session
+        let (status, _response, _) = admin_session
             .put(
                 &app,
                 &format!("/translations/{}", text_content.id),

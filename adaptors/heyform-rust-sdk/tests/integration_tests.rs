@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
     use heyform_sdk::{
-        CreateFormInput, CreateTeamInput, FormKind, FormTheme, HeyFormClient, InteractiveMode,
-        LoginInput, SignUpInput, UpdateFormThemeInput,
+        CreateFormInput, FormKind, FormTheme, HeyFormClient, InteractiveMode, LoginInput,
+        SignUpInput,
     };
 
     // Note: These are integration tests that would require a running HeyForm instance
