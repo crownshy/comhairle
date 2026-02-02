@@ -110,13 +110,12 @@ mod tests {
             agent_id: "123".to_string(),
             ..Default::default()
         };
-        let response = GetAgentSessionResponse {
-            code: 0,
-            data: vec![session],
-        };
         Mock::given(method("GET"))
             .and(path(format!("{}/agents/123/sessions", client.path_prefix)))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!(response)))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({ "code": 0, "data": vec![session] })),
+            )
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -142,13 +141,11 @@ mod tests {
             agent_id: "123".to_string(),
             ..Default::default()
         };
-        let response = CreateAgentSessionResponse {
-            code: 0,
-            data: session,
-        };
         Mock::given(method("POST"))
             .and(path(format!("{}/agents/123/sessions", client.path_prefix)))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!(response)))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(json!({ "code": 0, "data": session })),
+            )
             .expect(1)
             .mount(&mock_server)
             .await;
