@@ -17,6 +17,9 @@ use crate::{
     tools::ToolConfig,
 };
 
+#[cfg(test)]
+use fake::Dummy;
+
 #[derive(Serialize, Deserialize, FromRow, JsonSchema, Debug, Clone)]
 #[enum_def(table_name = "bot_service_user_session")]
 pub struct BotServiceUserSession {
@@ -24,8 +27,10 @@ pub struct BotServiceUserSession {
     pub id: Uuid,
     /// Reference to the user the session belongs to
     pub user_id: Uuid,
+    /// Determines session type for bot service
+    pub context: String,
     /// Reference to the conversation the chat session belongs to
-    pub conversation_id: Uuid,
+    pub conversation_id: Option<Uuid>,
     /// Reference to the workflow step if attached to a particular conversation step tool (i.e.
     /// elicitation bot)
     pub workflow_step_id: Option<Uuid>,
@@ -37,9 +42,37 @@ pub struct BotServiceUserSession {
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [BotServiceUserSessionIden; 7] = [
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq, PartialOrd, sqlx::Type)]
+#[sqlx(type_name = "TEXT")]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(test, derive(Dummy))]
+pub enum BotServiceSessionContext {
+    #[sqlx(rename = "qa_bot")]
+    QaBot,
+    #[sqlx(rename = "elicitation_bot")]
+    ElicitationBot,
+}
+
+impl From<BotServiceSessionContext> for sea_query::Value {
+    fn from(session: BotServiceSessionContext) -> sea_query::Value {
+        sea_query::Value::String(Some(Box::new(session.to_string())))
+    }
+}
+
+impl std::fmt::Display for BotServiceSessionContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = match self {
+            BotServiceSessionContext::QaBot => "qa_bot",
+            BotServiceSessionContext::ElicitationBot => "elicitation_bot",
+        };
+        write!(f, "{}", value)
+    }
+}
+
+const DEFAULT_COLUMNS: [BotServiceUserSessionIden; 8] = [
     BotServiceUserSessionIden::Id,
     BotServiceUserSessionIden::UserId,
+    BotServiceUserSessionIden::Context,
     BotServiceUserSessionIden::ConversationId,
     BotServiceUserSessionIden::WorkflowStepId,
     BotServiceUserSessionIden::BotServiceSessionId,
@@ -48,38 +81,56 @@ const DEFAULT_COLUMNS: [BotServiceUserSessionIden; 7] = [
 ];
 
 /// Data transfer object for creating a new bot service user session.
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Default)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct CreateBotServiceUserSession {
-    pub conversation_id: Uuid,
+    pub context: BotServiceSessionContext,
     pub user_id: Uuid,
+    pub conversation_id: Option<Uuid>,
     pub workflow_step_id: Option<Uuid>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Default)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 struct CreateBotServiceUserSessionWithSessionId {
-    conversation_id: Uuid,
+    context: BotServiceSessionContext,
     user_id: Uuid,
     bot_service_session_id: String,
+    conversation_id: Option<Uuid>,
     workflow_step_id: Option<Uuid>,
 }
 
 impl CreateBotServiceUserSessionWithSessionId {
     fn columns(&self) -> Vec<BotServiceUserSessionIden> {
-        vec![
-            BotServiceUserSessionIden::ConversationId,
+        let mut columns = vec![
+            BotServiceUserSessionIden::Context,
             BotServiceUserSessionIden::UserId,
             BotServiceUserSessionIden::BotServiceSessionId,
-            BotServiceUserSessionIden::WorkflowStepId,
-        ]
+        ];
+
+        if self.conversation_id.is_some() {
+            columns.push(BotServiceUserSessionIden::ConversationId);
+        }
+        if self.workflow_step_id.is_some() {
+            columns.push(BotServiceUserSessionIden::WorkflowStepId);
+        }
+
+        columns
     }
 
     fn values(&self) -> Vec<sea_query::SimpleExpr> {
-        vec![
-            self.conversation_id.into(),
+        let mut values: Vec<sea_query::SimpleExpr> = vec![
+            self.context.clone().into(),
             self.user_id.into(),
             self.bot_service_session_id.clone().into(),
-            self.workflow_step_id.into(),
-        ]
+        ];
+
+        if let Some(value) = self.conversation_id {
+            values.push(value.into());
+        }
+        if let Some(value) = self.workflow_step_id {
+            values.push(value.into());
+        }
+
+        values
     }
 }
 
@@ -89,6 +140,7 @@ impl CreateBotServiceUserSessionWithSessionId {
 ///
 /// * `db` - Database conncection pool
 /// * `bot_service` - RAG based bot service provider
+/// * `config` - Comhairle config state
 /// * `session` - request params containing `user_id` and `conversation_id`
 ///
 /// # Returns
@@ -104,104 +156,76 @@ impl CreateBotServiceUserSessionWithSessionId {
 pub async fn create(
     db: &PgPool,
     bot_service: &Arc<dyn ComhairleBotService>,
+    config: &ComhairleConfig,
     session: &CreateBotServiceUserSession,
 ) -> Result<BotServiceUserSession, ComhairleError> {
-    //TODO need to make this default to the local of the conversation
-    let conversation =
-        conversation::get_localised_by_id(db, &session.conversation_id, "en").await?;
+    let bot_service_session_id = match session.context {
+        BotServiceSessionContext::QaBot => {
+            let conversation_id = match session.conversation_id {
+                Some(id) => id,
+                None => {
+                    return Err(ComhairleError::CorruptedData(
+                        "Missing conversation_id".to_string(),
+                    ))
+                }
+            };
+            // TODO: need to make this default to the local of the conversation
+            let conversation =
+                conversation::get_localised_by_id(db, &conversation_id, "en").await?;
 
-    let create_chat_session = CreateChatSessionRequest {
-        name: conversation.title.clone(),
-        ..Default::default()
-    };
+            let create_chat_session = CreateChatSessionRequest {
+                name: conversation.title.clone(),
+                ..Default::default()
+            };
 
-    let chat_bot_id = conversation
-        .chat_bot_id
-        .ok_or_else(|| ComhairleError::NoConversationBotId)?;
+            let chat_bot_id = conversation
+                .chat_bot_id
+                .ok_or_else(|| ComhairleError::NoConversationBotId)?;
 
-    let (_, bot_service_session) = bot_service
-        .create_chat_session(&chat_bot_id, create_chat_session)
-        .await?;
+            let (_, bot_service_session) = bot_service
+                .create_chat_session(&chat_bot_id, create_chat_session)
+                .await?;
 
-    let session = CreateBotServiceUserSessionWithSessionId {
-        conversation_id: session.conversation_id,
-        user_id: session.user_id,
-        bot_service_session_id: bot_service_session.id,
-        workflow_step_id: session.workflow_step_id,
-    };
+            bot_service_session.id
+        }
+        BotServiceSessionContext::ElicitationBot => {
+            let workflow_step_id = match session.workflow_step_id {
+                Some(id) => id,
+                None => {
+                    return Err(ComhairleError::CorruptedData(
+                        "Missing workflow_step_id".to_string(),
+                    ))
+                }
+            };
 
-    let columns = session.columns();
-    let values = session.values();
+            let workflow_step = workflow_step::get_by_id(db, &workflow_step_id).await?;
 
-    let (sql, values) = Query::insert()
-        .into_table(BotServiceUserSessionIden::Table)
-        .columns(columns)
-        .values(values)?
-        .returning(Query::returning().columns(DEFAULT_COLUMNS))
-        .build_sqlx(PostgresQueryBuilder);
+            // TODO: think a bit harder here about if this is in preview mode or not
+            let _tool_config = match (workflow_step.tool_config, workflow_step.preview_tool_config)
+            {
+                (Some(ToolConfig::ElicitationBot(config)), _) => config,
+                (None, ToolConfig::ElicitationBot(config)) => config,
+                _ => {
+                    return Err(ComhairleError::ToolConfigError(
+                        "Incorrect config type".to_string(),
+                    ))
+                }
+            };
 
-    let bot_session_result = sqlx::query_as_with::<_, BotServiceUserSession, _>(&sql, values)
-        .fetch_one(db)
-        .await?;
+            let (_, bot_service_session) = bot_service
+                .create_agent_session(&config.elicitation_bot_agent_id)
+                .await?;
 
-    Ok(bot_session_result)
-}
-
-/// Data transfer object for creating a new bot service user session for an
-/// elicitation bot workflow step on a conversation.
-pub struct CreateWorkflowStepBotServiceUserSession {
-    pub conversation_id: Uuid,
-    pub user_id: Uuid,
-    pub workflow_step_id: Uuid,
-}
-
-/// Creates a new user session for an elicitation bot workflow step on a conversation,
-/// tied to a ragflow agent session.
-///
-/// # Arguments
-///
-/// * `db` - Database conncection pool
-/// * `bot_service` - RAG based bot service provider
-/// * `session` - request params containing `user_id`, `conversation_id`, and `workflow_step_id`
-///
-/// # Returns
-///
-/// Returns a `Result` containing the created `BotServiceUserSession` or  a
-/// `ComhairleError` on failure.
-///
-/// # Errors
-///
-/// This function will return an error if:
-/// * The database operation fails
-/// * bot service request fails
-pub async fn create_workflow_step_session(
-    db: &PgPool,
-    bot_service: &Arc<dyn ComhairleBotService>,
-    config: &ComhairleConfig,
-    session: &CreateWorkflowStepBotServiceUserSession,
-) -> Result<BotServiceUserSession, ComhairleError> {
-    let workflow_step = workflow_step::get_by_id(db, &session.workflow_step_id).await?;
-
-    // TODO: think a bit harder here about if this is in preview mode or not
-    let _tool_config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
-        (Some(ToolConfig::ElicitationBot(config)), _) => config,
-        (None, ToolConfig::ElicitationBot(config)) => config,
-        _ => {
-            return Err(ComhairleError::ToolConfigError(
-                "Incorrect config type".to_string(),
-            ))
+            bot_service_session.id
         }
     };
 
-    let (_, bot_service_session) = bot_service
-        .create_agent_session(&config.elicitation_bot_agent_id)
-        .await?;
-
     let session = CreateBotServiceUserSessionWithSessionId {
-        conversation_id: session.conversation_id,
+        context: session.context.clone(),
         user_id: session.user_id,
-        bot_service_session_id: bot_service_session.id,
-        workflow_step_id: Some(session.workflow_step_id),
+        conversation_id: session.conversation_id,
+        workflow_step_id: session.workflow_step_id,
+        bot_service_session_id,
     };
 
     let columns = session.columns();
@@ -320,19 +344,21 @@ pub async fn get_by_workflow_step_id(
 pub struct BotServiceUserSessionDto {
     pub id: Uuid,
     pub user_id: Uuid,
-    pub conversation_id: Uuid,
-    pub bot_service_session_id: String,
+    pub context: String,
+    pub conversation_id: Option<Uuid>,
     pub workflow_step_id: Option<Uuid>,
+    pub bot_service_session_id: String,
 }
 
 impl From<BotServiceUserSession> for BotServiceUserSessionDto {
     fn from(s: BotServiceUserSession) -> Self {
         Self {
             id: s.id,
-            conversation_id: s.conversation_id,
             user_id: s.user_id,
-            bot_service_session_id: s.bot_service_session_id,
+            context: s.context,
+            conversation_id: s.conversation_id,
             workflow_step_id: s.workflow_step_id,
+            bot_service_session_id: s.bot_service_session_id,
         }
     }
 }
