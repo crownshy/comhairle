@@ -3,6 +3,7 @@ use futures::{Stream, TryStreamExt};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tracing::instrument;
 
 use crate::client::RagflowClient;
 use crate::error::Result;
@@ -41,6 +42,7 @@ pub async fn list(
     Ok((status, json.data))
 }
 
+#[instrument(err(Debug), skip(client))]
 pub async fn stream_agent_conversation(
     client: &RagflowClient,
     agent_id: &str,

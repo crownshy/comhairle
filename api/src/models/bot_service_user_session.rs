@@ -30,7 +30,7 @@ pub struct BotServiceUserSession {
     pub user_id: Uuid,
     /// Determines session type for bot service
     pub context: String,
-    /// Reference to the conversation the chat session belongs to
+    /// Reference to the conversation the chat session belongs to if `context` is `qa_bot`
     pub conversation_id: Option<Uuid>,
     /// Reference to the workflow step if attached to a particular conversation step tool (i.e.
     /// elicitation bot)
