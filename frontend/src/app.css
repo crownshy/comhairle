@@ -6,6 +6,7 @@
 
 html,body{
   width: 100%;
+  max-width: 100dvw;
   height:100vh;
 }
 
