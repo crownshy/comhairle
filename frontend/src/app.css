@@ -5,7 +5,8 @@
 @custom-variant dark (&:is(.dark *));
 
 html,body{
-  width:100vw;
+  width: 100%;
+  max-width: 100dvw;
   height:100vh;
 }
 
