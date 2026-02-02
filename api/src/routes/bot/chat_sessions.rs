@@ -196,7 +196,7 @@ mod tests {
     use sqlx::PgPool;
 
     #[sqlx::test]
-    async fn should_return_session_list(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn should_return_chat_session_list(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let session = ComhairleChatSession {
             chat_id: "123".to_string(),
             name: Some("test_session".to_string()),
@@ -215,7 +215,7 @@ mod tests {
             .returning(move |_, _| {
                 Box::pin({
                     let session = session.clone();
-                    async move { Ok((StatusCode::OK, vec![session.clone()])) }
+                    async move { Ok((StatusCode::OK, vec![session])) }
                 })
             });
 
@@ -243,7 +243,7 @@ mod tests {
     }
 
     #[sqlx::test]
-    async fn should_return_single_session(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn should_return_single_chat_session(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let session = ComhairleChatSession {
             id: "456".to_string(),
             name: Some("test_session".to_string()),
@@ -258,7 +258,7 @@ mod tests {
             .returning(move |_, _| {
                 Box::pin({
                     let session = session.clone();
-                    async move { Ok((StatusCode::OK, session.clone())) }
+                    async move { Ok((StatusCode::OK, session)) }
                 })
             });
 
@@ -282,7 +282,7 @@ mod tests {
     }
 
     #[sqlx::test]
-    async fn should_create_and_return_a_session(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn should_create_and_return_a_chat_session(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let session = ComhairleChatSession {
             chat_id: "123".to_string(),
             name: Some("test_session".to_string()),
@@ -295,7 +295,7 @@ mod tests {
             .once()
             .returning(move |_, _| {
                 let session = session.clone();
-                Box::pin(async move { Ok((StatusCode::OK, session.clone())) })
+                Box::pin(async move { Ok((StatusCode::OK, session)) })
             });
 
         let state = test_state()
@@ -328,7 +328,7 @@ mod tests {
     }
 
     #[sqlx::test]
-    async fn should_update_and_return_session(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn should_update_and_return_chat_session(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let session = ComhairleChatSession {
             chat_id: "123".to_string(),
             name: Some("test_session".to_string()),
@@ -346,7 +346,7 @@ mod tests {
             .with(eq("456"), eq("123"), eq(update_request.clone()))
             .returning(move |_, _, _| {
                 let session = session.clone();
-                Box::pin(async move { Ok((StatusCode::OK, session.clone())) })
+                Box::pin(async move { Ok((StatusCode::OK, session)) })
             });
 
         let state = test_state()
@@ -375,7 +375,7 @@ mod tests {
     }
 
     #[sqlx::test]
-    async fn should_delete_session(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn should_delete_chat_session(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let mut bot_service = MockComhairleBotService::new();
         bot_service
             .expect_delete_chat_session()

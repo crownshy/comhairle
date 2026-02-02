@@ -78,16 +78,151 @@ pub struct AgentSession {
 #[derive(Serialize, Default)]
 pub struct CreateAgentSession;
 
-#[derive(Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct CreateAgentSessionResponse {
     code: i32,
     data: AgentSession,
 }
 
-#[derive(Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct GetAgentSessionResponse {
     code: i32,
     data: Vec<AgentSession>,
 }
 
-// TODO: Tests
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{error::Error, result::Result};
+
+    use crate::client::RagflowClient;
+    use futures::StreamExt;
+    use serde_json::json;
+    use wiremock::{
+        matchers::{method, path},
+        Mock, MockServer, ResponseTemplate,
+    };
+
+    #[tokio::test]
+    async fn should_get_list_of_agent_sessions() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        let session = AgentSession {
+            agent_id: "123".to_string(),
+            ..Default::default()
+        };
+        let response = GetAgentSessionResponse {
+            code: 0,
+            data: vec![session],
+        };
+        Mock::given(method("GET"))
+            .and(path(format!("{}/agents/123/sessions", client.path_prefix)))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!(response)))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let (status, sessions) = list(&client, "123", None).await?;
+
+        assert!(status.is_success(), "error status code");
+        assert_eq!(
+            sessions[0].agent_id,
+            "123".to_string(),
+            "incorrect json response"
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn should_create_agent_session() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        let session = AgentSession {
+            agent_id: "123".to_string(),
+            ..Default::default()
+        };
+        let response = CreateAgentSessionResponse {
+            code: 0,
+            data: session,
+        };
+        Mock::given(method("POST"))
+            .and(path(format!("{}/agents/123/sessions", client.path_prefix)))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!(response)))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let (status, session) = create(&client, "123").await?;
+
+        assert!(status.is_success(), "error status code");
+        assert_eq!(
+            session.agent_id,
+            "123".to_string(),
+            "incorrect json response"
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn should_delete_agent_session() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        Mock::given(method("DELETE"))
+            .and(path(format!("{}/agents/123/sessions", client.path_prefix)))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({ "code": 0, "message": "success" })),
+            )
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let body = DeleteResources { ids: vec!["456"] };
+        let status = delete(&client, "123", body).await?;
+
+        assert!(status.is_success(), "error status code");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn should_stream_agent_conversation() -> Result<(), Box<dyn Error>> {
+        let mock_server = MockServer::start().await;
+        let client = RagflowClient::new(mock_server.uri(), "test_key".to_string());
+
+        let streamed_body = "chunk1\nchunk2\nchunk3";
+        Mock::given(method("POST"))
+            .and(path(format!(
+                "{}/agents/123/completions",
+                client.path_prefix
+            )))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(streamed_body, "test/plain"))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let body = ConvoQuestion {
+            question: "hello".to_string(),
+            ..Default::default()
+        };
+        let stream = stream_agent_conversation(&client, "123", body).await?;
+        let bytes: Vec<u8> = stream
+            .map(|chunk| chunk.unwrap())
+            .fold(Vec::new(), |mut acc, bytes| async move {
+                acc.extend_from_slice(&bytes);
+                acc
+            })
+            .await;
+
+        let result = String::from_utf8(bytes)?;
+
+        assert_eq!(result, streamed_body);
+
+        Ok(())
+    }
+}

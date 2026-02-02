@@ -219,7 +219,7 @@ pub trait ComhairleBotService: Send + Sync {
 
     async fn update_agent(
         &self,
-        update_agent: &str,
+        agent_id: &str,
         body: UpdateAgentRequest,
     ) -> Result<(StatusCode, ComhairleAgent), ComhairleError>;
 
@@ -339,7 +339,7 @@ pub struct ComhairleAgent {
 pub struct ComhairleAgentSession {
     pub id: String,
     pub agent_id: String,
-    pub dsl: serde_json::Value,
+    pub configuration: serde_json::Value,
     pub messages: Vec<ComhairleSessionMessage>,
 }
 

@@ -56,9 +56,9 @@ pub async fn create(
     Ok((StatusCode::CREATED, Json(agent)))
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema, Default)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Default, Clone, PartialEq)]
 pub struct UpdateAgentRequest {
-    pub title: Option<String>,
+    pub name: Option<String>,
     pub topic: Option<String>,
 }
 
@@ -145,6 +145,8 @@ mod tests {
     use std::error::Error;
 
     use axum::body::Body;
+    use mockall::predicate::eq;
+    use serde_json::json;
     use sqlx::PgPool;
 
     #[sqlx::test]
@@ -189,5 +191,156 @@ mod tests {
         Ok(())
     }
 
-    // TODO: more tests
+    #[sqlx::test]
+    async fn should_get_list_of_agents(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let agent = ComhairleAgent {
+            id: "123".to_string(),
+            name: "test_agent".to_string(),
+            configuration: json!({ "graph": {}, "components": {} }),
+        };
+        let params = GetQueryParams {
+            page: Some(2),
+            ..Default::default()
+        };
+
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_list_agents()
+            .once()
+            .with(eq(Some(params)))
+            .returning(move |_| {
+                let agent = agent.clone();
+                Box::pin(async move { Ok((StatusCode::OK, vec![agent])) })
+            });
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+        let (status, response, _) = admin_session.get(&app, "/bot/agents?page=2").await?;
+        let json: Vec<ComhairleAgent> = serde_json::from_value(response)?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(
+            json[0].name,
+            "test_agent".to_string(),
+            "incorrect json response"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_return_single_agent_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let agent = ComhairleAgent {
+            id: "123".to_string(),
+            name: "test_agent".to_string(),
+            configuration: json!({ "graph": {}, "components": {} }),
+        };
+
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_get_agent()
+            .once()
+            .with(eq("123"))
+            .returning(move |_| {
+                let agent = agent.clone();
+                Box::pin(async move { Ok((StatusCode::OK, agent)) })
+            });
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+        let (status, response, _) = admin_session.get(&app, "/bot/agents/123").await?;
+        let json: ComhairleAgent = serde_json::from_value(response)?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(
+            json.name,
+            "test_agent".to_string(),
+            "incorrect json response"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_update_an_agent(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let agent = ComhairleAgent {
+            id: "123".to_string(),
+            name: "test_agent".to_string(),
+            configuration: json!({ "graph": {}, "components": {} }),
+        };
+        let update = UpdateAgentRequest {
+            name: Some("test_agent".to_string()),
+            ..Default::default()
+        };
+
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_update_agent()
+            .once()
+            .with(eq("123"), eq(update.clone()))
+            .returning(move |_, _| {
+                let agent = agent.clone();
+                Box::pin(async move { Ok((StatusCode::OK, agent)) })
+            });
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        let bytes = serde_json::to_vec(&update)?;
+        let body = Body::from(bytes);
+        let (status, response, _) = admin_session.put(&app, "/bot/agents/123", body).await?;
+        let json: ComhairleAgent = serde_json::from_value(response)?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(
+            json.name,
+            "test_agent".to_string(),
+            "incorrect json response"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_delete_an_agent(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_delete_agent()
+            .once()
+            .with(eq("123"))
+            .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
+
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        let (status, _, _) = admin_session.delete(&app, "/bot/agents/123").await?;
+
+        assert!(status.is_success(), "error response status");
+
+        Ok(())
+    }
 }
