@@ -91,7 +91,7 @@ async fn delete(
 ) -> Result<StatusCode, ComhairleError> {
     let _ = state
         .bot_service
-        .delete_knowledge_base(knowledge_base_id)
+        .delete_knowledge_base(&knowledge_base_id)
         .await?;
 
     Ok(StatusCode::NO_CONTENT)

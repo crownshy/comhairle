@@ -120,9 +120,7 @@ impl PartialConversation {
                 ConversationIden::Tags,
                 sea_query::Value::Array(
                     sea_query::ArrayType::String,
-                    Some(Box::new(
-                        value.iter().map(sea_query::Value::from).collect(),
-                    )),
+                    Some(Box::new(value.iter().map(sea_query::Value::from).collect())),
                 )
                 .into(),
             ))
@@ -160,9 +158,7 @@ impl PartialConversation {
                 ConversationIden::SupportedLanguages,
                 sea_query::Value::Array(
                     sea_query::ArrayType::String,
-                    Some(Box::new(
-                        value.iter().map(sea_query::Value::from).collect(),
-                    )),
+                    Some(Box::new(value.iter().map(sea_query::Value::from).collect())),
                 )
                 .into(),
             ))
@@ -311,7 +307,11 @@ impl ConversationOrderOptions {
     }
 }
 
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Conversation, ComhairleError> {
+pub async fn delete(
+    db: &PgPool,
+    bot_service: &Arc<dyn ComhairleBotService>,
+    id: &Uuid,
+) -> Result<Conversation, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(ConversationIden::Table)
         .and_where(Expr::col(ConversationIden::Id).eq(id.to_owned()))
@@ -321,7 +321,16 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Conversation, ComhairleErr
     let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
         .fetch_one(db)
         .await
+        .inspect_err(|e| println!("{e:#?}"))
         .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
+
+    if let Some(ref knowledge_base_id) = conversation.knowledge_base_id {
+        let _ = bot_service.delete_knowledge_base(knowledge_base_id).await?;
+    }
+
+    if let Some(ref chat_bot_id) = conversation.chat_bot_id {
+        let _ = bot_service.delete_chat(chat_bot_id).await?;
+    }
 
     Ok(conversation)
 }
