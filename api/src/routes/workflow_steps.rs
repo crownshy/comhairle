@@ -704,8 +704,8 @@ mod tests {
 
         let workflows: Vec<serde_json::Value> = serde_json::from_value(workflows)?;
 
-        let first_name: String = extract("name", workflows.get(0).unwrap());
-        let first_order: i32 = extract("step_order", workflows.get(0).unwrap());
+        let first_name: String = extract("name", workflows.first().unwrap());
+        let first_order: i32 = extract("step_order", workflows.first().unwrap());
         let seccond_name: String = extract("name", workflows.get(1).unwrap());
         let seccond_order: i32 = extract("step_order", workflows.get(1).unwrap());
 

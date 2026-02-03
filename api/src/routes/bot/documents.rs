@@ -321,7 +321,6 @@ mod tests {
 
         let update_request = UpdateDocumentRequest {
             name: Some("test_document".to_string()),
-            ..Default::default()
         };
         let mut bot_service = MockComhairleBotService::new();
         bot_service
