@@ -185,21 +185,16 @@ const DEFAULT_COLUMNS: [InviteIden; 13] = [
 ];
 
 /// Dictates login behaviour on invite accept.
-#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, DbStringEnum)]
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, DbStringEnum, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum LoginBehaviour {
     /// If the user is logged out, then direct them to the login page
     /// to finish the login
+    #[default]
     Manual,
     /// If the user is logged out, automatically create an annon
     /// account to let them access the system  
     AutoCreateAnnon,
-}
-
-impl Default for LoginBehaviour {
-    fn default() -> Self {
-        Self::Manual
-    }
 }
 
 #[instrument(err(Debug))]
@@ -293,7 +288,7 @@ pub async fn create(
     sqlx::query_as_with::<_, Invite, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| ComhairleError::FailedToCreateInvite(e))
+        .map_err(ComhairleError::FailedToCreateInvite)
 }
 
 #[derive(FromRow, Serialize, Deserialize, JsonSchema, Debug, PartialEq, Eq)]
@@ -321,7 +316,7 @@ pub async fn get_stats_for_invite(
     .bind(invite_id)
     .fetch_all(db)
     .await
-    .map_err(|e| ComhairleError::InviteStatsAggregationError(e))?;
+    .map_err(ComhairleError::InviteStatsAggregationError)?;
 
     Ok(result)
 }
