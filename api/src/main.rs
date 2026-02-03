@@ -54,14 +54,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Setup Translation Service
     //
-    let translation_service = match &config.translator {
-        Some(TranslatorConfig::Google(google_config)) => Some(
-            Arc::new(GoogleTranslateService::new(
-                google_config.api_key.to_owned(),
-            )) as Arc<dyn comhairle::translation_service::TranslationService>,
-        ),
-        None => None,
-    };
+    let translation_service =
+        config
+            .translator
+            .as_ref()
+            .map(|TranslatorConfig::Google(google_config)| {
+                Arc::new(GoogleTranslateService::new(
+                    google_config.api_key.to_owned(),
+                )) as Arc<dyn comhairle::translation_service::TranslationService>
+            });
 
     let websockets = Arc::new(ComhairleWebSocketService::new());
     let bot_service = Arc::new(ComhairleRagBotService::new(

@@ -134,19 +134,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 ])
                 .values([
                     conversation.id.into(),
-                    conversation.title.clone().into(),
-                    conversation.short_description.clone().into(),
-                    conversation.description.clone().into(),
+                    conversation.title.into(),
+                    conversation.short_description.into(),
+                    conversation.description.into(),
                     conversation.video_url.clone().into(),
                     conversation.image_url.clone().into(),
                     conversation.tags.clone().into(),
-                    conversation.is_public.clone().into(),
-                    conversation.is_complete.clone().into(),
-                    conversation.owner_id.clone().into(),
-                    conversation.is_invite_only.clone().into(),
+                    conversation.is_public.into(),
+                    conversation.is_complete.into(),
+                    conversation.owner_id.into(),
+                    conversation.is_invite_only.into(),
                     conversation.slug.clone().into(),
-                    conversation.created_at.clone().into(),
-                    conversation.updated_at.clone().into(),
+                    conversation.created_at.into(),
+                    conversation.updated_at.into(),
                 ])
                 .unwrap()
                 .build_sqlx(PostgresQueryBuilder);
@@ -172,15 +172,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     WorkflowIden::UpdatedAt,
                 ])
                 .values([
-                    workflow.id.clone().into(),
-                    workflow.conversation_id.to_owned().clone().into(),
+                    workflow.id.into(),
+                    workflow.conversation_id.to_owned().into(),
                     workflow.name.to_owned().clone().into(),
                     workflow.description.to_owned().clone().into(),
-                    workflow.is_active.to_owned().clone().into(),
-                    workflow.is_public.to_owned().clone().into(),
-                    workflow.owner_id.to_owned().clone().into(),
-                    workflow.created_at.to_owned().clone().into(),
-                    workflow.updated_at.to_owned().clone().into(),
+                    workflow.is_active.to_owned().into(),
+                    workflow.is_public.to_owned().into(),
+                    workflow.owner_id.to_owned().into(),
+                    workflow.created_at.to_owned().into(),
+                    workflow.updated_at.to_owned().into(),
                 ])
                 .unwrap()
                 .build_sqlx(PostgresQueryBuilder);
@@ -206,20 +206,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     WorkflowStepIden::UpdatedAt,
                 ])
                 .values([
-                    workflow_step.id.clone().into(),
+                    workflow_step.id.into(),
                     workflow_step.workflow_id.into(),
-                    workflow_step.name.clone().into(),
-                    workflow_step.step_order.clone().into(),
+                    workflow_step.name.into(),
+                    workflow_step.step_order.into(),
                     serde_json::to_value(&workflow_step.activation_rule)
                         .unwrap()
                         .into(),
-                    workflow_step.description.to_owned().clone().into(),
-                    workflow_step.is_offline.to_owned().clone().into(),
+                    workflow_step.description.to_owned().into(),
+                    workflow_step.is_offline.to_owned().into(),
                     serde_json::to_value(&workflow_step.tool_config)
                         .unwrap()
                         .into(),
-                    workflow_step.created_at.to_owned().clone().into(),
-                    workflow_step.updated_at.to_owned().clone().into(),
+                    workflow_step.created_at.to_owned().into(),
+                    workflow_step.updated_at.to_owned().into(),
                 ])
                 .unwrap()
                 .build_sqlx(PostgresQueryBuilder);
