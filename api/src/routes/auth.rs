@@ -27,7 +27,7 @@ pub fn is_user_admin(
     let re = Regex::new(r"^test(?:[1-9]|10)@crown-shy\.com$").unwrap();
     if let (Some(admin_users), Some(email)) = (&config.admin_users, &user.email) {
         let downcase_admin_users: Vec<String> =
-            admin_users.into_iter().map(|a| a.to_lowercase()).collect();
+            admin_users.iter().map(|a| a.to_lowercase()).collect();
         return downcase_admin_users.contains(&email.to_lowercase())
             || re.is_match(&email.to_lowercase());
     }
@@ -247,9 +247,9 @@ async fn login(
 
     let hash = PasswordHash::new(password).map_err(|_| ComhairleError::PasswordHash)?;
 
-    if !Argon2::default()
+    if Argon2::default()
         .verify_password(&payload.password.into_bytes(), &hash)
-        .is_ok()
+        .is_err()
     {
         return Err(ComhairleError::WrongPassword);
     }
@@ -888,10 +888,7 @@ mod tests {
             "current user should contain the right email"
         );
 
-        assert!(
-            user.get("id").is_some(),
-            "current user should contain an id"
-        );
+        assert!(user.contains_key("id"), "current user should contain an id");
         Ok(())
     }
 
@@ -1231,10 +1228,7 @@ mod tests {
             "current user should contain the right email"
         );
 
-        assert!(
-            user.get("id").is_some(),
-            "current user should contain an id"
-        );
+        assert!(user.contains_key("id"), "current user should contain an id");
         Ok(())
     }
 

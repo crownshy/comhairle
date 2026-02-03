@@ -86,7 +86,7 @@ async fn reset_orders(pool: &mut PgConnection, workflow_id: &Uuid) -> Result<(),
 
 /// Create the live version of this workflow step
 pub async fn launch(db: &PgPool, workflow_step_id: &Uuid) -> Result<(), ComhairleError> {
-    let workflow_step = get_by_id(&db, workflow_step_id).await?;
+    let workflow_step = get_by_id(db, workflow_step_id).await?;
     let new_live_config = match workflow_step.preview_tool_config {
         ToolConfig::Polis(preview_config) => ToolConfig::Polis(preview_config),
         ToolConfig::Learn(preview_config) => ToolConfig::Learn(preview_config.clone()),
@@ -300,7 +300,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<WorkflowStep, ComhairleErr
         .await
         .map_err(|_| ComhairleError::ResourceNotFound("workflow_step".into()))?;
 
-    reset_orders(&mut *transaction, &deleted_step.workflow_id).await?;
+    reset_orders(&mut transaction, &deleted_step.workflow_id).await?;
 
     transaction.commit().await?;
     Ok(deleted_step)
@@ -314,7 +314,7 @@ pub async fn update(
 ) -> Result<WorkflowStep, ComhairleError> {
     let values = update.to_values();
 
-    if values.len() == 0 {
+    if values.is_empty() {
         return Err(ComhairleError::NoValidUpdates);
     }
 
@@ -324,7 +324,7 @@ pub async fn update(
     // shift the existing number up one to accomodate
     // the new position of the step
     if let Some(target_order) = update.step_order {
-        shift_steps_if_in_conflict(&mut *transaction, &workflow_id, target_order, false).await?;
+        shift_steps_if_in_conflict(&mut transaction, workflow_id, target_order, false).await?;
     }
 
     // Check to see if there is already a
@@ -344,7 +344,7 @@ pub async fn update(
     // Reset the orders to plug the gap if needed
 
     if update.step_order.is_some() {
-        reset_orders(&mut *transaction, &workflow_id).await?
+        reset_orders(&mut transaction, workflow_id).await?
     }
 
     transaction.commit().await?;
@@ -470,7 +470,7 @@ pub async fn create(
     // is make space for the new one
 
     shift_steps_if_in_conflict(
-        &mut *transaction,
+        &mut transaction,
         &workflow_id,
         new_workflow_step.step_order,
         true,
