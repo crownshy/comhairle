@@ -89,7 +89,7 @@ pub trait ComhairleBotService: Send + Sync {
 
     async fn delete_knowledge_base(
         &self,
-        knowledge_base_id: String,
+        knowledge_base_id: &str,
     ) -> Result<StatusCode, ComhairleError>;
 
     async fn list_documents(

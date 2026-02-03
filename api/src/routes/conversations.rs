@@ -18,7 +18,9 @@ use tracing::{info, instrument};
 use uuid::Uuid;
 
 use crate::{
-    ComhairleState, bot_service::ComhairleDocument, error::ComhairleError, models::{
+    bot_service::ComhairleDocument,
+    error::ComhairleError,
+    models::{
         bot_service_user_session::{self, BotServiceUserSessionDto, CreateBotServiceUserSession},
         conversation::{
             self, Conversation, ConversationFilterOptions, ConversationOrderOptions,
@@ -35,7 +37,10 @@ use crate::{
         },
         pagination::{OrderParams, PageOptions, PaginatedResults},
         user_participation::{self},
-    }, routes::{auth::RequiredUser, translations::LocaleExtractor}, workers::process_documents::DocumentJob
+    },
+    routes::{auth::RequiredUser, translations::LocaleExtractor},
+    workers::process_documents::DocumentJob,
+    ComhairleState,
 };
 
 use super::auth::{is_user_admin, OptionalUser, RequiredAdminUser};
@@ -75,7 +80,7 @@ async fn list_conversations(
     OrderParams(order_options): OrderParams<ConversationOrderOptions>,
     Query(mut filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
-    LocaleExtractor(locale): LocaleExtractor
+    LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<(StatusCode, Json<PaginatedResults<LocalisedConversation>>), ComhairleError> {
     filter_options.enforce_live();
 
@@ -96,14 +101,14 @@ async fn launch_conversation(
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
-    if conversation.is_live{
-        return Err(ComhairleError::ConversationAlreadyLive)
+    if conversation.is_live {
+        return Err(ComhairleError::ConversationAlreadyLive);
     }
     let conversation = conversation::launch(&state.db, conversation_id).await?;
     Ok((StatusCode::OK, Json(conversation)))
 }
 
-#[derive(Deserialize, JsonSchema,Debug)]
+#[derive(Deserialize, JsonSchema, Debug)]
 pub struct GetConversationQuery {
     #[serde(rename = "withTranslations", default)]
     pub with_translations: bool,
@@ -123,7 +128,7 @@ async fn get_conversation(
     Path(conversation_ident): Path<IdOrSlug>,
     Query(query): Query<GetConversationQuery>,
     OptionalUser(user): OptionalUser,
-    LocaleExtractor(locale): LocaleExtractor
+    LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<(StatusCode, Json<ConversationResponse>), ComhairleError> {
     info!("Attempting to get conversation {conversation_ident:#?}");
 
@@ -151,12 +156,9 @@ async fn get_conversation(
 
     if should_return_with_translations {
         // Convert to ConversationWithTranslations
-        let conversation_with_translations = ConversationWithTranslations::from_original(
-            &state.db,
-            original_conversation,
-            &locale,
-        )
-        .await?;
+        let conversation_with_translations =
+            ConversationWithTranslations::from_original(&state.db, original_conversation, &locale)
+                .await?;
 
         Ok((
             StatusCode::OK,
@@ -168,7 +170,8 @@ async fn get_conversation(
         // Return localized conversation as before
         info!("Trying to get localized translations for {locale}");
         let conversation =
-            conversation::get_localised_by_id_or_slug(&state.db, &conversation_ident, &locale).await?;
+            conversation::get_localised_by_id_or_slug(&state.db, &conversation_ident, &locale)
+                .await?;
 
         Ok((
             StatusCode::OK,
@@ -182,7 +185,7 @@ async fn delete_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
-    let conversation = conversation::delete(&state.db, &id).await?;
+    let conversation = conversation::delete(&state.db, &state.bot_service, &id).await?;
     Ok((StatusCode::OK, Json(conversation)))
 }
 
@@ -512,7 +515,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<Conversation>>()
             }),
         )
-        
         .api_route(
             "/{conversation_id}/notifications",
             post_with(send_notification_to_participants, |op| {
@@ -562,6 +564,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
+    use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
     use crate::test_helpers::test_state;
     use crate::{setup_server, test_helpers::UserSession};
     use axum::{body::Body, http::StatusCode};
@@ -1053,7 +1056,42 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_delete_conversation(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let state = test_state().db(pool).call()?;
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_create_knowledge_base()
+            .once()
+            .returning(|_, _| {
+                Box::pin(async move {
+                    Ok((
+                        StatusCode::CREATED,
+                        ComhairleKnowledgeBase {
+                            ..Default::default()
+                        },
+                    ))
+                })
+            });
+        bot_service.expect_create_chat().once().returning(|_| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::CREATED,
+                    ComhairleChat {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service
+            .expect_delete_knowledge_base()
+            .once()
+            .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
+        bot_service
+            .expect_delete_chat()
+            .once()
+            .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
         let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();

@@ -138,10 +138,10 @@ impl ComhairleBotService for ComhairleRagBotService {
     #[instrument(err(Debug))]
     async fn delete_knowledge_base(
         &self,
-        knowledge_base_id: String,
+        knowledge_base_id: &str,
     ) -> Result<StatusCode, ComhairleError> {
         let body = DeleteResources {
-            ids: vec![&knowledge_base_id],
+            ids: vec![knowledge_base_id],
         };
 
         let status = ragflow::dataset::delete(&self.client, body).await?;
