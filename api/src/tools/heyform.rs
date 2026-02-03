@@ -55,8 +55,8 @@ fn generate_password() -> String {
     // Fill remaining 9 characters from all alphanumeric
     let all_chars: Vec<char> = lowercase
         .into_iter()
-        .chain(uppercase.into_iter())
-        .chain(numbers.into_iter())
+        .chain(uppercase)
+        .chain(numbers)
         .collect();
 
     for _ in 0..9 {

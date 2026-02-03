@@ -181,7 +181,6 @@ async fn create_or_update_text_translation(
                 content: Some(request.content),
                 ai_generated: request.ai_generated,
                 requires_validation: request.requires_validation,
-                ..Default::default()
             };
             let updated_translation =
                 translations::update_text_translation(&state.db, &existing_translation.id, &update)
@@ -619,7 +618,7 @@ mod tests {
             "content": "Original Translation"
         });
 
-        let (status, response, _) = admin_session
+        let (_, response, _) = admin_session
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
@@ -645,8 +644,8 @@ mod tests {
         let translation: TextTranslation = serde_json::from_value(response)?;
         assert_eq!(translation.content, "Hola Mundo");
         assert_eq!(translation.locale, "es");
-        assert_eq!(translation.ai_generated, true);
-        assert_eq!(translation.requires_validation, true);
+        assert!(translation.ai_generated);
+        assert!(translation.requires_validation);
 
         Ok(())
     }
@@ -682,7 +681,7 @@ mod tests {
             "content": "Original Translation"
         });
 
-        let (status, response, _) = admin_session
+        let (_, response, _) = admin_session
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
@@ -694,7 +693,7 @@ mod tests {
             "requires_validation": false
         });
 
-        let (status, response, _) = admin_session
+        let (_, _, _) = admin_session
             .post(
                 &app,
                 &format!("/translations/{}/fr", text_content.id),
@@ -702,7 +701,7 @@ mod tests {
             )
             .await?;
 
-        let (status, response, _) = admin_session
+        let (status, _, _) = admin_session
             .post(
                 &app,
                 &format!("/translations/{}/fr/translate", text_content.id),
@@ -854,7 +853,7 @@ mod tests {
             "content": "Original Text"
         });
 
-        let (status, response, _) = admin_session
+        let (_, response, _) = admin_session
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
@@ -905,7 +904,7 @@ mod tests {
             "content": "Original Translation"
         });
 
-        let (status, response, _) = admin_session
+        let (_, response, _) = admin_session
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
@@ -945,8 +944,8 @@ mod tests {
 
         let translation: TextTranslation = serde_json::from_value(response)?;
         assert_eq!(translation.content, "Updated text");
-        assert_eq!(translation.ai_generated, true);
-        assert_eq!(translation.requires_validation, true);
+        assert!(translation.ai_generated);
+        assert!(translation.requires_validation);
 
         Ok(())
     }
@@ -968,7 +967,7 @@ mod tests {
             "content": "Original Translation"
         });
 
-        let (status, response, _) = admin_session
+        let (_, response, _) = admin_session
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
