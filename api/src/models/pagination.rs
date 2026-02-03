@@ -37,7 +37,7 @@ where
             .await
             .map_err(|e| ComhairleError::FailedToParseOrderParams(e.to_string()))?;
         if let Some(sort_string) = &sort.sort {
-            let order_params = parse_sort_options_to_json(&sort_string);
+            let order_params = parse_sort_options_to_json(sort_string);
             let order_params: T = serde_json::from_value(order_params)
                 .map_err(|e| ComhairleError::FailedToParseOrderParams(e.to_string()))?;
             Ok(OrderParams(order_params))
@@ -71,17 +71,18 @@ impl FromStr for Order {
     }
 }
 
-impl Into<sea_query::Order> for Order {
-    fn into(self) -> sea_query::Order {
-        match self {
+impl From<Order> for sea_query::Order {
+    fn from(val: Order) -> Self {
+        match val {
             Order::Asc => sea_query::Order::Asc,
             Order::Desc => sea_query::Order::Desc,
         }
     }
 }
-impl Into<sea_query::Order> for &Order {
-    fn into(self) -> sea_query::Order {
-        match self {
+
+impl From<&Order> for sea_query::Order {
+    fn from(val: &Order) -> Self {
+        match val {
             Order::Asc => sea_query::Order::Asc,
             Order::Desc => sea_query::Order::Desc,
         }
@@ -92,7 +93,7 @@ fn parse_sort_options_to_json(order_str: &str) -> Value {
     let mut map = serde_json::Map::new();
 
     for part in order_str.split(',') {
-        let mut iter = part.trim().split_whitespace();
+        let mut iter = part.split_whitespace();
         if let (Some(field), Some(order_str)) = (iter.next(), iter.next()) {
             if let Ok(order) = Order::from_str(order_str) {
                 map.insert(field.to_string(), json!(order));

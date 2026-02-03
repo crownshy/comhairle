@@ -69,8 +69,7 @@ struct NewAdminUser {
     pub password: String,
     pub password2: String,
     pub email: String,
-    #[serde(rename = "camelCase")]
-    pub gatekeeper_tos_privacy: bool,
+    pub gatekeeperTosPrivacy: bool,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -144,7 +143,7 @@ impl PolisClient {
             password: password.clone(),
             password2: password,
             email,
-            gatekeeper_tos_privacy: true,
+            gatekeeperTosPrivacy: true,
         };
 
         let _res = self

@@ -28,9 +28,9 @@ pub enum ProgressStatus {
     Done,
 }
 
-impl Into<sea_query::Value> for ProgressStatus {
-    fn into(self) -> sea_query::Value {
-        sea_query::Value::String(Some(Box::new(self.to_string())))
+impl From<ProgressStatus> for sea_query::Value {
+    fn from(val: ProgressStatus) -> Self {
+        sea_query::Value::String(Some(Box::new(val.to_string())))
     }
 }
 

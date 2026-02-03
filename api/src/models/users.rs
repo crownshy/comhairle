@@ -26,9 +26,9 @@ pub enum UserAuthType {
     ScotAccount,
 }
 
-impl Into<sea_query::Value> for UserAuthType {
-    fn into(self) -> sea_query::Value {
-        sea_query::Value::String(Some(Box::new(self.to_string())))
+impl From<UserAuthType> for sea_query::Value {
+    fn from(val: UserAuthType) -> Self {
+        sea_query::Value::String(Some(Box::new(val.to_string())))
     }
 }
 
@@ -60,9 +60,9 @@ impl Resource {
     }
 }
 
-impl Into<sea_query::Value> for Resource {
-    fn into(self) -> sea_query::Value {
-        self.to_str().into()
+impl From<Resource> for sea_query::Value {
+    fn from(val: Resource) -> Self {
+        val.to_str().into()
     }
 }
 
@@ -94,9 +94,9 @@ impl Role {
     }
 }
 
-impl Into<sea_query::Value> for Role {
-    fn into(self) -> sea_query::Value {
-        self.to_str().into()
+impl From<Role> for sea_query::Value {
+    fn from(val: Role) -> Self {
+        val.to_str().into()
     }
 }
 
