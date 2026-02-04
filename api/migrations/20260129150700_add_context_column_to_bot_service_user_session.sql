@@ -30,7 +30,7 @@ ALTER TABLE bot_service_user_session
 ALTER TABLE bot_service_user_session
     ALTER COLUMN conversation_id DROP NOT NULL;
 
-DROP INDEX bot_session_user_conversation_index;
+DROP INDEX IF EXISTS bot_session_user_conversation_index;
 
 CREATE UNIQUE INDEX bot_session_user_qa_conversation_idx
 ON bot_service_user_session (user_id, conversation_id)
