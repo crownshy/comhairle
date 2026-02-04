@@ -14,7 +14,7 @@ use crate::{
     error::ComhairleError,
     routes::{
         bot::{
-            agent_sessions::{AgentConversationRequestExt, UpdateAgentSessionRequest},
+            agent_sessions::AgentConversationRequestExt,
             agents::{CreateAgentRequest, UpdateAgentRequest},
             chat_sessions::{
                 ChatConversationRequest, CreateChatSessionRequest, UpdateChatSessionRequest,
@@ -240,13 +240,6 @@ pub trait ComhairleBotService: Send + Sync {
     async fn create_agent_session(
         &self,
         agent_id: &str,
-    ) -> Result<(StatusCode, ComhairleAgentSession), ComhairleError>;
-
-    async fn update_agent_session(
-        &self,
-        session_id: &str,
-        agent_id: &str,
-        body: UpdateAgentSessionRequest,
     ) -> Result<(StatusCode, ComhairleAgentSession), ComhairleError>;
 
     async fn delete_agent_session(
@@ -587,18 +580,6 @@ impl MockComhairleBotService {
                 ))
             })
         });
-        bot_service
-            .expect_update_agent_session()
-            .returning(|_, _, _| {
-                Box::pin(async move {
-                    Ok((
-                        StatusCode::OK,
-                        ComhairleAgentSession {
-                            ..Default::default()
-                        },
-                    ))
-                })
-            });
         bot_service
             .expect_delete_agent_session()
             .returning(|_, _| Box::pin(async move { Ok(StatusCode::NO_CONTENT) }));

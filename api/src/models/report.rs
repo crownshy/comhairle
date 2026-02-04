@@ -180,8 +180,8 @@ pub async fn create_for_conversation(
     db: &PgPool,
     conversation_id: Uuid,
 ) -> Result<Report, ComhairleError> {
-    let workflows = workflow::list(&db, conversation_id).await?;
-    let workflow_steps = workflow_step::list(&db, &workflows[0].id).await?;
+    let workflows = workflow::list(db, conversation_id).await?;
+    let workflow_steps = workflow_step::list(db, &workflows[0].id).await?;
 
     let section_configs: Result<Vec<ReportSectionConfig>, ComhairleError> = workflow_steps
         .iter()
@@ -204,7 +204,7 @@ pub async fn create_for_conversation(
                     verified: false,
                 })
             } else {
-                return Err(ComhairleError::ToolConfigMismatch);
+                Err(ComhairleError::ToolConfigMismatch)
             }
         })
         .collect();

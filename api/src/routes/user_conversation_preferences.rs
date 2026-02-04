@@ -10,7 +10,7 @@ use axum::{
     Json,
 };
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::{
@@ -71,30 +71,6 @@ pub async fn update_user_conversation_preferences(
     .await?;
 
     Ok((StatusCode::OK, Json(preferences)))
-}
-
-#[derive(Serialize, JsonSchema)]
-pub struct DeletedPreferences {
-    pub message: String,
-    pub deleted_preferences: UserConversationPreferences,
-}
-
-pub async fn delete_user_conversation_preferences(
-    State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
-    Path(conversation_id): Path<Uuid>,
-) -> Result<(StatusCode, Json<DeletedPreferences>), ComhairleError> {
-    let deleted_preferences =
-        crate::models::user_conversation_preferences::delete(&state.db, &user.id, &conversation_id)
-            .await?;
-
-    Ok((
-        StatusCode::OK,
-        Json(DeletedPreferences {
-            message: "Conversation preferences deleted successfully".to_string(),
-            deleted_preferences,
-        }),
-    ))
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {

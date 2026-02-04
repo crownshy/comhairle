@@ -24,9 +24,9 @@ pub enum DeliveryMethod {
     Email,
 }
 
-impl Into<sea_query::Value> for DeliveryMethod {
-    fn into(self) -> sea_query::Value {
-        sea_query::Value::String(Some(Box::new(self.to_string())))
+impl From<DeliveryMethod> for sea_query::Value {
+    fn from(val: DeliveryMethod) -> Self {
+        sea_query::Value::String(Some(Box::new(val.to_string())))
     }
 }
 
@@ -70,17 +70,6 @@ const DEFAULT_COLUMNS: [NotificationDeliveryIden; 8] = [
     NotificationDeliveryIden::DeliveryMethod,
     NotificationDeliveryIden::CreatedAt,
     NotificationDeliveryIden::UpdatedAt,
-];
-
-const NOTIFICATION_COLUMNS: [NotificationIden; 8] = [
-    NotificationIden::Id,
-    NotificationIden::Title,
-    NotificationIden::Content,
-    NotificationIden::NotificationType,
-    NotificationIden::ContextType,
-    NotificationIden::ContextId,
-    NotificationIden::CreatedAt,
-    NotificationIden::UpdatedAt,
 ];
 
 #[derive(Debug, Serialize, Clone, JsonSchema)]

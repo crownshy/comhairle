@@ -71,24 +71,6 @@ async fn create(
     Ok((StatusCode::CREATED, Json(session)))
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq, Default)]
-pub struct UpdateAgentSessionRequest;
-
-#[instrument(err(Debug), skip(state))]
-async fn update(
-    State(state): State<Arc<ComhairleState>>,
-    Path((agent_id, session_id)): Path<(String, String)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
-    Json(payload): Json<UpdateAgentSessionRequest>,
-) -> Result<(StatusCode, Json<ComhairleAgentSession>), ComhairleError> {
-    let (_, session) = state
-        .bot_service
-        .update_agent_session(&session_id, &agent_id, payload)
-        .await?;
-
-    Ok((StatusCode::OK, Json(session)))
-}
-
 #[instrument(err(Debug), skip(state))]
 async fn delete(
     State(state): State<Arc<ComhairleState>>,
@@ -182,17 +164,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<201, Json<ComhairleAgentSession>>()
             }),
         )
-        // Not supported by current bot provider
-        // .api_route(
-        //     "/{session_id}",
-        //     put_with(update, |op| {
-        //         op.id("UpdateAgentSessions")
-        //             .tag("Bot Agent Sessions")
-        //             .security_requirement("JWT")
-        //             .summary("Update an agent session")
-        //             .response::<200, Json<ComhairleAgentSession>>()
-        //     }),
-        // )
         .api_route(
             "/{session_id}",
             delete_with(delete, |op| {

@@ -1,8 +1,10 @@
 use aide::OperationIo;
 use async_trait::async_trait;
-use mockall::{automock, predicate::*};
 use reqwest::Client;
 use serde::Deserialize;
+
+#[cfg(test)]
+use mockall::{automock, predicate::*};
 
 use thiserror::Error;
 #[derive(Error, Debug, OperationIo)]

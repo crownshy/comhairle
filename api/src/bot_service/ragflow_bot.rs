@@ -25,9 +25,7 @@ use crate::{
     error::ComhairleError,
     routes::{
         bot::{
-            agent_sessions::{
-                AgentConversationRequestExt, CreateAgentSessionRequest, UpdateAgentSessionRequest,
-            },
+            agent_sessions::{AgentConversationRequestExt, CreateAgentSessionRequest},
             agents::{CreateAgentRequest, UpdateAgentRequest},
             chat_sessions::{
                 ChatConversationRequest, CreateChatSessionRequest as ApiCreateChatSessionRequest,
@@ -624,22 +622,6 @@ impl ComhairleBotService for ComhairleRagBotService {
         let agent_session: ComhairleAgentSession = agent_session.into();
 
         Ok((status, agent_session))
-    }
-
-    // Not supported by ragflow
-    // Endpoint currently commented out
-    async fn update_agent_session(
-        &self,
-        _session_id: &str,
-        _agent_id: &str,
-        _body: UpdateAgentSessionRequest,
-    ) -> Result<(StatusCode, ComhairleAgentSession), ComhairleError> {
-        Ok((
-            StatusCode::OK,
-            ComhairleAgentSession {
-                ..Default::default()
-            },
-        ))
     }
 
     async fn delete_agent_session(

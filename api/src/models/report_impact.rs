@@ -78,7 +78,7 @@ pub async fn update(
     sqlx::query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| ComhairleError::FailedToUpdateImpact(e))
+        .map_err(ComhairleError::FailedToUpdateImpact)
 }
 
 pub async fn create(

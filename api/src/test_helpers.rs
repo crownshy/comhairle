@@ -133,7 +133,6 @@ pub struct UserSession {
     pub username: Option<String>,
     pub password: Option<String>,
     pub email: Option<String>,
-    pub email_verified: bool,
     pub cookie: Option<HeaderValue>,
 }
 
@@ -144,7 +143,6 @@ impl UserSession {
             username: None,
             password: None,
             email: None,
-            email_verified: false,
             cookie: None,
         }
     }
@@ -155,7 +153,6 @@ impl UserSession {
             username: Some("admin".into()),
             password: Some("admin".into()),
             email: Some("admin@crown-shy.com".into()),
-            email_verified: true,
             cookie: None,
         }
     }
@@ -166,7 +163,6 @@ impl UserSession {
             username: Some(username.to_owned()),
             password: Some(password.to_owned()),
             email: Some(email.to_owned()),
-            email_verified: false,
             cookie: None,
         }
     }
@@ -237,39 +233,6 @@ impl UserSession {
             .uri(url)
             .method("POST")
             .header("content-type", "application/json");
-
-        if let Some(cookie) = &self.cookie {
-            request = request.header(COOKIE, cookie)
-        }
-
-        let request = request.body(body).unwrap();
-        let response = app.clone().oneshot(request).await?;
-        let status = response.status();
-
-        let cookie = response
-            .headers()
-            .get(axum::http::header::SET_COOKIE)
-            .map(|cookie| cookie.to_owned());
-
-        if let Some(cookie) = &cookie {
-            self.cookie = Some(cookie.clone());
-        }
-
-        let value = response_to_json(response).await;
-        Ok((status, value, cookie))
-    }
-
-    pub async fn post_multipart(
-        &mut self,
-        app: &Router,
-        url: &str,
-        boundary: &str,
-        body: Body,
-    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
-        let mut request = Request::builder().uri(url).method("POST").header(
-            "content-type",
-            format!("multipart/form-data; boundary={boundary}"),
-        );
 
         if let Some(cookie) = &self.cookie {
             request = request.header(COOKIE, cookie)

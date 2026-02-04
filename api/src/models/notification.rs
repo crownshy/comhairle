@@ -38,9 +38,9 @@ pub enum NotificationContextType {
     Conversation,
 }
 
-impl Into<sea_query::Value> for NotificationType {
-    fn into(self) -> sea_query::Value {
-        sea_query::Value::String(Some(Box::new(self.to_string())))
+impl From<NotificationType> for sea_query::Value {
+    fn from(val: NotificationType) -> Self {
+        sea_query::Value::String(Some(Box::new(val.to_string())))
     }
 }
 
@@ -56,9 +56,9 @@ impl std::fmt::Display for NotificationType {
     }
 }
 
-impl Into<sea_query::Value> for NotificationContextType {
-    fn into(self) -> sea_query::Value {
-        sea_query::Value::String(Some(Box::new(self.to_string())))
+impl From<NotificationContextType> for sea_query::Value {
+    fn from(val: NotificationContextType) -> Self {
+        sea_query::Value::String(Some(Box::new(val.to_string())))
     }
 }
 
@@ -270,7 +270,7 @@ pub async fn update(
 ) -> Result<Notification, ComhairleError> {
     let values = update.to_values();
 
-    if values.len() == 0 {
+    if values.is_empty() {
         return Err(ComhairleError::NoValidUpdates);
     }
 
@@ -321,4 +321,3 @@ pub async fn list(
 
     Ok(notifications)
 }
-
