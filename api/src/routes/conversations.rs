@@ -21,7 +21,9 @@ use crate::{
     bot_service::ComhairleDocument,
     error::ComhairleError,
     models::{
-        bot_service_user_session::{self, BotServiceUserSessionDto, CreateBotServiceUserSession},
+        bot_service_user_session::{
+            self, BotServiceSessionContext, BotServiceUserSessionDto, CreateBotServiceUserSession,
+        },
         conversation::{
             self, Conversation, ConversationFilterOptions, ConversationOrderOptions,
             ConversationWithTranslations, CreateConversation, IdOrSlug, LocalisedConversation,
@@ -334,13 +336,18 @@ async fn create_conversation_bot_session(
     Path(conversation_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
     let create_bot_session = CreateBotServiceUserSession {
-        conversation_id,
+        context: BotServiceSessionContext::QaBot,
+        conversation_id: Some(conversation_id),
         user_id: user.id,
-        ..Default::default()
+        workflow_step_id: None,
     };
-    let bot_user_session =
-        bot_service_user_session::create(&state.db, &state.bot_service, &create_bot_session)
-            .await?;
+    let bot_user_session = bot_service_user_session::create(
+        &state.db,
+        &state.bot_service,
+        &state.config,
+        &create_bot_session,
+    )
+    .await?;
 
     let bot_user_session: BotServiceUserSessionDto = bot_user_session.into();
     Ok((StatusCode::CREATED, Json(bot_user_session)))
@@ -353,25 +360,8 @@ async fn get_conversation_bot_session(
     Path(conversation_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
     let session =
-        bot_service_user_session::get_by_conversation_id(&state.db, user.id, conversation_id).await;
+        bot_service_user_session::get_or_create(&state, BotServiceSessionContext::QaBot, user.id, Some(conversation_id), None).await?;
 
-    // If we didn't find a session create one
-    let session = match session {
-        Ok(session) => Ok(session),
-        Err(ComhairleError::NoBotUserSession) => {
-            bot_service_user_session::create(
-                &state.db,
-                &state.bot_service,
-                &CreateBotServiceUserSession {
-                    conversation_id,
-                    user_id: user.id,
-                    ..Default::default()
-                },
-            )
-            .await
-        }
-        Err(e) => Err(e),
-    }?;
     let session: BotServiceUserSessionDto = session.into();
 
     Ok((StatusCode::OK, Json(session)))

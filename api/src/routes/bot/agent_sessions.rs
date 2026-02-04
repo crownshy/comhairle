@@ -5,26 +5,17 @@ use aide::axum::{
     ApiRouter,
 };
 use axum::{
-    body::Body,
     extract::{Json, Path, Query, State},
     http::StatusCode,
-    response::IntoResponse,
-    routing::post,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use uuid::Uuid;
 
 use crate::{
     bot_service::ComhairleAgentSession,
     error::ComhairleError,
-    models::workflow_step,
-    routes::{
-        auth::{RequiredAdminUser, RequiredUser},
-        bot::GetQueryParams,
-    },
-    tools::ToolConfig,
+    routes::{auth::RequiredAdminUser, bot::GetQueryParams},
     ComhairleState,
 };
 
@@ -85,53 +76,6 @@ async fn delete(
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
-pub struct AgentConversationRequest {
-    pub question: String,
-    pub workflow_step_id: Uuid,
-}
-
-#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
-pub struct AgentConversationRequestExt {
-    pub question: String,
-    pub workflow_step_id: Uuid,
-    pub topic: String,
-}
-
-#[instrument(err(Debug), skip(state))]
-async fn converse_with_agent(
-    State(state): State<Arc<ComhairleState>>,
-    Path((agent_id, session_id)): Path<(String, String)>,
-    RequiredUser(_user): RequiredUser,
-    Json(payload): Json<AgentConversationRequest>,
-) -> Result<impl IntoResponse, ComhairleError> {
-    let workflow_step = workflow_step::get_by_id(&state.db, &payload.workflow_step_id).await?;
-
-    //TODO think more creafully how we handle this in preview mode
-    let tool_config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
-        (Some(ToolConfig::ElicitationBot(config)), _) => config,
-        (None, ToolConfig::ElicitationBot(config)) => config,
-
-        _ => {
-            return Err(ComhairleError::ToolConfigError(
-                "incorrect config type".to_string(),
-            ))
-        }
-    };
-
-    let payload = AgentConversationRequestExt {
-        question: payload.question,
-        workflow_step_id: payload.workflow_step_id,
-        topic: tool_config.topic.clone(),
-    };
-    let stream = state
-        .bot_service
-        .converse_with_agent(&session_id, &agent_id, payload)
-        .await?;
-
-    Ok(Body::from_stream(stream))
-}
-
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -174,26 +118,22 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<204, ()>()
             }),
         )
-        .route("/{session_id}", post(converse_with_agent))
         .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{error::Error, pin::Pin};
+    use std::error::Error;
 
     use crate::{
-        bot_service::{
-            ComhairleAgent, ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService,
-        },
+        bot_service::MockComhairleBotService,
         setup_server,
-        test_helpers::{extract, test_state, UserSession},
+        test_helpers::{test_state, UserSession},
     };
 
-    use axum::body::{to_bytes, Body, Bytes};
-    use futures::{stream, Stream};
-    use mockall::predicate::{always, eq};
+    use axum::body::Body;
+    use mockall::predicate::eq;
     use serde_json::json;
     use sqlx::PgPool;
 
@@ -343,124 +283,6 @@ mod tests {
             .await?;
 
         assert!(status.is_success(), "error response status");
-
-        Ok(())
-    }
-
-    #[sqlx::test]
-    async fn should_converse_with_agent_and_return_byte_stream(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn Error>> {
-        let mut bot_service = MockComhairleBotService::new();
-        bot_service.expect_create_agent().once().returning(|_| {
-            Box::pin(async move {
-                Ok((
-                    StatusCode::CREATED,
-                    ComhairleAgent {
-                        id: "456".to_string(),
-                        ..Default::default()
-                    },
-                ))
-            })
-        });
-        bot_service
-            .expect_create_knowledge_base()
-            .once()
-            .returning(|_, _| {
-                Box::pin(async move {
-                    Ok((
-                        StatusCode::CREATED,
-                        ComhairleKnowledgeBase {
-                            ..Default::default()
-                        },
-                    ))
-                })
-            });
-        bot_service.expect_create_chat().once().returning(|_| {
-            Box::pin(async move {
-                Ok((
-                    StatusCode::CREATED,
-                    ComhairleChat {
-                        ..Default::default()
-                    },
-                ))
-            })
-        });
-        bot_service
-            .expect_converse_with_agent()
-            .once()
-            .with(eq("456"), eq("123"), always())
-            .returning(move |_, _, _| {
-                Box::pin(async move {
-                    let chunks = vec![
-                        Ok(Bytes::from_static(b"test ")),
-                        Ok(Bytes::from_static(b"stream")),
-                    ];
-                    let stream = stream::iter(chunks);
-                    let stream: Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send>> =
-                        Box::pin(stream);
-
-                    Ok(stream)
-                })
-            });
-
-        let state = test_state()
-            .db(pool)
-            .bot_service(Arc::new(bot_service))
-            .call()?;
-        let app = setup_server(Arc::new(state)).await?;
-
-        let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
-
-        let (_, conversation, _) = admin_session.create_random_conversation(&app).await?;
-        let conversation_id: String = extract("id", &conversation);
-        let (_, workflow, _) = admin_session
-            .create_random_workflow(&app, &conversation_id)
-            .await?;
-        let workflow_id: String = extract("id", &workflow);
-        let (_, workflow_step, _) = admin_session
-            .post(
-                &app,
-                &format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step"),
-                json!({
-                "name": "Workflow step",
-                "step_order": 2,
-                "activation_rule" : "manual",
-                "description": "An elicitaiton bot workflow step",
-                "is_offline": false,
-                "required":true,
-                "tool_setup": {
-                    "type": "elicitationbot",
-                    "bot_id": "123",
-                    "topic": "topic",
-                    "conversation_id": conversation_id,
-                }})
-                .to_string()
-                .into(),
-            )
-            .await?;
-        let workflow_step_id = Uuid::parse_str(&extract::<String>("id", &workflow_step))?;
-
-        let converse_request = AgentConversationRequestExt {
-            question: "Test question?".to_string(),
-            workflow_step_id,
-            topic: "renewable energy".to_string(),
-        };
-        let body = serde_json::to_vec(&converse_request)?;
-        let (status, body, _) = admin_session
-            .post_raw_response(&app, "/bot/agents/123/sessions/456", Body::from(body))
-            .await?;
-
-        let bytes = to_bytes(body, usize::MAX).await?;
-        let text_content = String::from_utf8(bytes.to_vec())?;
-
-        assert!(status.is_success(), "error response status");
-        assert_eq!(
-            text_content,
-            "test stream".to_string(),
-            "incorrect text content"
-        );
 
         Ok(())
     }

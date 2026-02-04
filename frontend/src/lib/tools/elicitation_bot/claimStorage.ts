@@ -9,17 +9,17 @@ export interface ClaimModification {
 
 const STORAGE_KEY_PREFIX = 'elicitation_claims_';
 
-function getStorageKey(botId: string, conversationId: string): string {
-	return `${STORAGE_KEY_PREFIX}${botId}_${conversationId}`;
+function getStorageKey(workflowStepId: string, conversationId: string): string {
+	return `${STORAGE_KEY_PREFIX}${workflowStepId}_${conversationId}`;
 }
 
-export function loadClaimModifications(botId: string, conversationId: string): ClaimModification {
+export function loadClaimModifications(workflowStepId: string, conversationId: string): ClaimModification {
 	if (typeof window === 'undefined') {
 		return createEmptyModifications();
 	}
 
 	try {
-		const key = getStorageKey(botId, conversationId);
+		const key = getStorageKey(workflowStepId, conversationId);
 		const stored = localStorage.getItem(key);
 		if (!stored) {
 			return createEmptyModifications();
@@ -39,14 +39,14 @@ export function loadClaimModifications(botId: string, conversationId: string): C
 }
 
 export function saveClaimModifications(
-	botId: string,
+	workflowStepId: string,
 	conversationId: string,
 	modifications: ClaimModification
 ): void {
 	if (typeof window === 'undefined') return;
 
 	try {
-		const key = getStorageKey(botId, conversationId);
+		const key = getStorageKey(workflowStepId, conversationId);
 		const toStore = {
 			editedClaims: modifications.editedClaims,
 			addedClaims: modifications.addedClaims,
@@ -59,11 +59,11 @@ export function saveClaimModifications(
 	}
 }
 
-export function clearClaimModifications(botId: string, conversationId: string): void {
+export function clearClaimModifications(workflowStepId: string, conversationId: string): void {
 	if (typeof window === 'undefined') return;
 
 	try {
-		const key = getStorageKey(botId, conversationId);
+		const key = getStorageKey(workflowStepId, conversationId);
 		localStorage.removeItem(key);
 	} catch (e) {
 		console.error('Failed to clear claim modifications:', e);
