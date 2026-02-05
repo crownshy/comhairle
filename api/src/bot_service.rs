@@ -15,13 +15,11 @@ use crate::{
     routes::{
         bot::{
             agents::{CreateAgentRequest, UpdateAgentRequest},
-            chat_sessions::{CreateChatSessionRequest, UpdateChatSessionRequest},
             chats::{CreateChatRequest, UpdateChatRequest},
             documents::UpdateDocumentRequest,
             knowledge_bases::UpdateKnowledgeBaseRequest,
             GetQueryParams,
         },
-        chats::ChatConversationRequest,
         conversations::UploadFileRequest,
         workflow_steps::AgentConversationRequestExt,
     },
@@ -333,6 +331,22 @@ pub struct ComhairleAgentSession {
     pub agent_id: String,
     pub configuration: serde_json::Value,
     pub messages: Vec<ComhairleSessionMessage>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Default)]
+pub struct CreateChatSessionRequest {
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq, Default)]
+pub struct UpdateChatSessionRequest {
+    pub name: Option<String>,
+    pub user_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
+pub struct ChatConversationRequest {
+    pub question: String,
 }
 
 #[cfg(test)]

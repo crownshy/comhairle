@@ -228,6 +228,8 @@ export const CreateAgentRequest = z.object({ name: z.string() }).passthrough();
 export type CreateAgentRequest = z.infer<typeof CreateAgentRequest>;
 export const UpdateAgentRequest = z.object({ name: z.union([z.string(), z.null()]), topic: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type UpdateAgentRequest = z.infer<typeof UpdateAgentRequest>;
+export const ComhairleAgentSession = z.object({ agent_id: z.string(), configuration: z.unknown(), id: z.string(), messages: z.array(ComhairleSessionMessage) }).passthrough();
+export type ComhairleAgentSession = z.infer<typeof ComhairleAgentSession>;
 export const ComhairleLlm = z.object({ model_name: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type ComhairleLlm = z.infer<typeof ComhairleLlm>;
 export const ComhairlePrompt = z.object({ empty_response: z.union([z.string(), z.null()]), llm_prompt: z.union([z.string(), z.null()]), opener: z.union([z.string(), z.null()]) }).partial().passthrough();
@@ -238,10 +240,6 @@ export const CreateChatRequest = z.object({ knowledge_base_ids: z.union([z.array
 export type CreateChatRequest = z.infer<typeof CreateChatRequest>;
 export const UpdateChatRequest = z.object({ knowledge_base_ids: z.union([z.array(z.string()), z.null()]), llm_model: z.union([ComhairleLlm, z.null()]), name: z.union([z.string(), z.null()]), prompt: z.union([ComhairlePrompt, z.null()]) }).partial().passthrough();
 export type UpdateChatRequest = z.infer<typeof UpdateChatRequest>;
-export const CreateChatSessionRequest = z.object({ name: z.string() }).passthrough();
-export type CreateChatSessionRequest = z.infer<typeof CreateChatSessionRequest>;
-export const UpdateChatSessionRequest = z.object({ name: z.union([z.string(), z.null()]), user_id: z.union([z.string(), z.null()]) }).partial().passthrough();
-export type UpdateChatSessionRequest = z.infer<typeof UpdateChatSessionRequest>;
 export const ComhairleKnowledgeBase = z.object({ id: z.string(), name: z.string() }).passthrough();
 export type ComhairleKnowledgeBase = z.infer<typeof ComhairleKnowledgeBase>;
 export const CreateKnowledgeBaseRequest = z.object({ name: z.string() }).passthrough();
@@ -374,13 +372,12 @@ export const schemas = {
 	ComhairleAgent,
 	CreateAgentRequest,
 	UpdateAgentRequest,
+	ComhairleAgentSession,
 	ComhairleLlm,
 	ComhairlePrompt,
 	ComhairleChat,
 	CreateChatRequest,
 	UpdateChatRequest,
-	CreateChatSessionRequest,
-	UpdateChatSessionRequest,
 	ComhairleKnowledgeBase,
 	CreateKnowledgeBaseRequest,
 	UpdateKnowledgeBaseRequest,
@@ -599,6 +596,61 @@ const endpoints = makeApi([
 	},
 	{
 		method: "get",
+		path: "/bot/agents/:agent_id/sessions",
+		alias: "ListAgentSessions",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "name",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "order_by",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "page",
+				type: "Query",
+				schema: limit
+			},
+			{
+				name: "page_size",
+				type: "Query",
+				schema: limit
+			},
+			{
+				name: "title",
+				type: "Query",
+				schema: created_after
+			},
+		],
+		response: z.array(ComhairleAgentSession),
+	},
+	{
+		method: "post",
+		path: "/bot/agents/:agent_id/sessions",
+		alias: "CreateAgentSessions",
+		requestFormat: "json",
+		response: ComhairleAgentSession,
+	},
+	{
+		method: "get",
+		path: "/bot/agents/:agent_id/sessions/:session_id",
+		alias: "GetAgentSession",
+		requestFormat: "json",
+		response: ComhairleAgentSession,
+	},
+	{
+		method: "delete",
+		path: "/bot/agents/:agent_id/sessions/:session_id",
+		alias: "DeleteAgentSessions",
+		requestFormat: "json",
+		response: z.void(),
+	},
+	{
+		method: "get",
 		path: "/bot/chats",
 		alias: "ListChats",
 		requestFormat: "json",
@@ -670,82 +722,6 @@ const endpoints = makeApi([
 		method: "delete",
 		path: "/bot/chats/:chat_id",
 		alias: "DeleteChat",
-		requestFormat: "json",
-		response: z.void(),
-	},
-	{
-		method: "get",
-		path: "/bot/chats/:chat_id/sessions",
-		alias: "GetChatSessions",
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "name",
-				type: "Query",
-				schema: created_after
-			},
-			{
-				name: "order_by",
-				type: "Query",
-				schema: created_after
-			},
-			{
-				name: "page",
-				type: "Query",
-				schema: limit
-			},
-			{
-				name: "page_size",
-				type: "Query",
-				schema: limit
-			},
-			{
-				name: "title",
-				type: "Query",
-				schema: created_after
-			},
-		],
-		response: z.array(ComhairleChatSession),
-	},
-	{
-		method: "post",
-		path: "/bot/chats/:chat_id/sessions",
-		alias: "CreateChatSession",
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "body",
-				type: "Body",
-				schema: z.object({ name: z.string() }).passthrough()
-			},
-		],
-		response: ComhairleChatSession,
-	},
-	{
-		method: "get",
-		path: "/bot/chats/:chat_id/sessions/:session_id",
-		alias: "GetChatSession",
-		requestFormat: "json",
-		response: ComhairleChatSession,
-	},
-	{
-		method: "put",
-		path: "/bot/chats/:chat_id/sessions/:session_id",
-		alias: "UpdateChatSession",
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "body",
-				type: "Body",
-				schema: UpdateChatSessionRequest
-			},
-		],
-		response: ComhairleChatSession,
-	},
-	{
-		method: "delete",
-		path: "/bot/chats/:chat_id/sessions/:session_id",
-		alias: "DeleteChatSession",
 		requestFormat: "json",
 		response: z.void(),
 	},

@@ -18,25 +18,21 @@ use tracing::instrument;
 
 use crate::{
     bot_service::{
-        ComhairleAgent, ComhairleAgentSession, ComhairleBotService, ComhairleChat,
-        ComhairleChatSession, ComhairleDocument, ComhairleKnowledgeBase, ComhairleLlm,
-        ComhairleMessageReference, ComhairlePrompt, ComhairleSessionMessage,
+        ChatConversationRequest, ComhairleAgent, ComhairleAgentSession, ComhairleBotService,
+        ComhairleChat, ComhairleChatSession, ComhairleDocument, ComhairleKnowledgeBase,
+        ComhairleLlm, ComhairleMessageReference, ComhairlePrompt, ComhairleSessionMessage,
+        CreateChatSessionRequest, UpdateChatSessionRequest,
     },
     error::ComhairleError,
     routes::{
         bot::{
             agent_sessions::CreateAgentSessionRequest,
             agents::{CreateAgentRequest, UpdateAgentRequest},
-            chat_sessions::{
-                CreateChatSessionRequest as ApiCreateChatSessionRequest,
-                UpdateChatSessionRequest as ApiUpdateChatSessionRequest,
-            },
             chats::{CreateChatRequest, UpdateChatRequest},
             documents::UpdateDocumentRequest,
             knowledge_bases::UpdateKnowledgeBaseRequest,
             GetQueryParams as ApiGetQueryParams,
         },
-        chats::ChatConversationRequest,
         conversations::UploadFileRequest,
         workflow_steps::AgentConversationRequestExt,
     },
@@ -402,7 +398,7 @@ impl ComhairleBotService for ComhairleRagBotService {
     async fn create_chat_session(
         &self,
         chat_id: &str,
-        body: ApiCreateChatSessionRequest,
+        body: CreateChatSessionRequest,
     ) -> Result<(StatusCode, ComhairleChatSession), ComhairleError> {
         let body: CreateChatSession = body.into();
 
@@ -419,7 +415,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         &self,
         session_id: &str,
         chat_id: &str,
-        body: ApiUpdateChatSessionRequest,
+        body: UpdateChatSessionRequest,
     ) -> Result<(StatusCode, ComhairleChatSession), ComhairleError> {
         let body: UpdateChatSession = body.into();
 
@@ -953,8 +949,8 @@ impl From<&MessageReference> for ComhairleMessageReference {
     }
 }
 
-impl From<ApiCreateChatSessionRequest> for CreateChatSession {
-    fn from(input: ApiCreateChatSessionRequest) -> Self {
+impl From<CreateChatSessionRequest> for CreateChatSession {
+    fn from(input: CreateChatSessionRequest) -> Self {
         Self {
             name: input.name,
             user_id: None,
@@ -962,8 +958,8 @@ impl From<ApiCreateChatSessionRequest> for CreateChatSession {
     }
 }
 
-impl From<ApiUpdateChatSessionRequest> for UpdateChatSession {
-    fn from(input: ApiUpdateChatSessionRequest) -> Self {
+impl From<UpdateChatSessionRequest> for UpdateChatSession {
+    fn from(input: UpdateChatSessionRequest) -> Self {
         Self {
             name: input.name,
             user_id: input.user_id,
