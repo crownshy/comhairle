@@ -9,16 +9,16 @@
 	import { invalidateAll } from '$app/navigation';
 
 	type Props = {
-		knowledgeBaseId: string;
+		conversationId: string;
 		document: ComhairleDocument;
 	};
 
-	let { document, knowledgeBaseId }: Props = $props();
+	let { document, conversationId }: Props = $props();
 
 	async function deleteFile() {
 		try {
 			await apiClient.DeleteDocument(undefined, {
-				params: { document_id: document.id, knowledge_base_id: knowledgeBaseId }
+				params: { document_id: document.id, conversation_id: conversationId }
 			});
 
 			notifications.send({
@@ -39,7 +39,7 @@
 	async function restartParsingFile() {
 		try {
 			await apiClient.ParseDocument(undefined, {
-				params: { document_id: document.id, knowledge_base_id: knowledgeBaseId }
+				params: { document_id: document.id, conversation_id: conversationId }
 			});
 
 			notifications.send({
@@ -71,7 +71,7 @@
 			{#if document.parse_status === 'DONE'}
 				<Button
 					variant="outline"
-					href={`/api/bot/knowledge_bases/${knowledgeBaseId}/documents/${document.id}/download`}
+					href={`/api/conversation/${conversationId}/documents/${document.id}/download`}
 					download
 				>
 					Download

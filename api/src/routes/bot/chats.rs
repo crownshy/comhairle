@@ -14,9 +14,9 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::{
-    bot_service::{ComhairleChat, ComhairleLlm, ComhairlePrompt},
+    bot_service::{ComhairleChat, ComhairleLlm, ComhairlePrompt, GetQueryParams},
     error::ComhairleError,
-    routes::{auth::RequiredAdminUser, bot::GetQueryParams},
+    routes::auth::RequiredAdminUser,
     ComhairleState,
 };
 

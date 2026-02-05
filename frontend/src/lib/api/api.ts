@@ -106,8 +106,6 @@ export const RegisterEmailRequest = z.object({ email: z.string(), receive_simila
 export type RegisterEmailRequest = z.infer<typeof RegisterEmailRequest>;
 export const RegisterEmailResponse = z.object({ conversationId: z.string().uuid(), email: z.string(), id: z.string().uuid(), message: z.string() }).passthrough();
 export type RegisterEmailResponse = z.infer<typeof RegisterEmailResponse>;
-export const BotServiceUserSessionDto = z.object({ bot_service_session_id: z.string(), context: z.string(), conversation_id: z.union([z.string(), z.null()]).optional(), id: z.string().uuid(), user_id: z.string().uuid(), workflow_step_id: z.union([z.string(), z.null()]).optional() }).passthrough();
-export type BotServiceUserSessionDto = z.infer<typeof BotServiceUserSessionDto>;
 export const WorkflowDto = z.object({ autoLogin: z.boolean(), conversationId: z.string().uuid(), createdAt: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), isActive: z.boolean(), isPublic: z.boolean(), name: z.string() }).passthrough();
 export type WorkflowDto = z.infer<typeof WorkflowDto>;
 export const CreateWorkflow = z.object({ auto_login: z.boolean(), description: z.string(), is_active: z.boolean(), is_public: z.boolean(), name: z.string() }).passthrough();
@@ -206,14 +204,14 @@ export const CreateFeedbackDTO = z.object({ content: z.string() }).passthrough()
 export type CreateFeedbackDTO = z.infer<typeof CreateFeedbackDTO>;
 export const PartialFeedback = z.object({ content: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialFeedback = z.infer<typeof PartialFeedback>;
-export const ComhairleMessageReference = z.object({ content: z.string(), dataset_id: z.string(), document_id: z.string(), document_name: z.string(), id: z.string() }).passthrough();
-export type ComhairleMessageReference = z.infer<typeof ComhairleMessageReference>;
-export const ComhairleSessionMessage = z.object({ content: z.string(), id: z.string(), reference: z.union([z.array(ComhairleMessageReference), z.null()]).optional(), role: z.string() }).passthrough();
-export type ComhairleSessionMessage = z.infer<typeof ComhairleSessionMessage>;
 export const ComhairleChatSession = z.object({ chat_id: z.string(), id: z.string(), messages: z.array(ComhairleSessionMessage), name: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type ComhairleChatSession = z.infer<typeof ComhairleChatSession>;
 export const ChatConversationRequest = z.object({ question: z.string() }).passthrough();
 export type ChatConversationRequest = z.infer<typeof ChatConversationRequest>;
+export const ComhairleDocument = z.object({ id: z.string(), name: z.string(), parse_progress: z.number(), parse_status: z.string(), size: z.number().int() }).passthrough();
+export type ComhairleDocument = z.infer<typeof ComhairleDocument>;
+export const UploadFileResponse = z.object({ document: ComhairleDocument, job_id: z.string().uuid(), message: z.string() }).passthrough();
+export type UploadFileResponse = z.infer<typeof UploadFileResponse>;
 export const WebSocketStats = z.object({ connected_users: z.array(z.string().uuid()), total_connections: z.number().int().gte(0) }).passthrough();
 export type WebSocketStats = z.infer<typeof WebSocketStats>;
 export const BroadcastMessage = z.object({ authenticated_only: z.union([z.boolean(), z.null()]).optional(), message: z.string() }).passthrough();
@@ -228,8 +226,6 @@ export const CreateAgentRequest = z.object({ name: z.string() }).passthrough();
 export type CreateAgentRequest = z.infer<typeof CreateAgentRequest>;
 export const UpdateAgentRequest = z.object({ name: z.union([z.string(), z.null()]), topic: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type UpdateAgentRequest = z.infer<typeof UpdateAgentRequest>;
-export const ComhairleAgentSession = z.object({ agent_id: z.string(), configuration: z.unknown(), id: z.string(), messages: z.array(ComhairleSessionMessage) }).passthrough();
-export type ComhairleAgentSession = z.infer<typeof ComhairleAgentSession>;
 export const ComhairleLlm = z.object({ model_name: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type ComhairleLlm = z.infer<typeof ComhairleLlm>;
 export const ComhairlePrompt = z.object({ empty_response: z.union([z.string(), z.null()]), llm_prompt: z.union([z.string(), z.null()]), opener: z.union([z.string(), z.null()]) }).partial().passthrough();
@@ -246,10 +242,6 @@ export const CreateKnowledgeBaseRequest = z.object({ name: z.string() }).passthr
 export type CreateKnowledgeBaseRequest = z.infer<typeof CreateKnowledgeBaseRequest>;
 export const UpdateKnowledgeBaseRequest = z.object({ name: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type UpdateKnowledgeBaseRequest = z.infer<typeof UpdateKnowledgeBaseRequest>;
-export const ComhairleDocument = z.object({ id: z.string(), name: z.string(), parse_progress: z.number(), parse_status: z.string(), size: z.number().int() }).passthrough();
-export type ComhairleDocument = z.infer<typeof ComhairleDocument>;
-export const UpdateDocumentRequest = z.object({ name: z.union([z.string(), z.null()]) }).partial().passthrough();
-export type UpdateDocumentRequest = z.infer<typeof UpdateDocumentRequest>;
 export const Job = z.object({ completion_message: z.union([z.string(), z.null()]).optional(), created_at: z.string().datetime({ offset: true }), error: z.union([z.string(), z.null()]).optional(), finished_at: z.union([z.string(), z.null()]).optional(), id: z.string().uuid(), progress: z.union([z.number(), z.null()]).optional(), status: z.union([z.string(), z.null()]).optional(), step: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type Job = z.infer<typeof Job>;
 export const PaginatedResults_for_Job = z.object({ records: z.array(Job), total: z.number().int() }).passthrough();
@@ -311,7 +303,6 @@ export const schemas = {
 	SendEmailNotificationResponse,
 	RegisterEmailRequest,
 	RegisterEmailResponse,
-	BotServiceUserSessionDto,
 	WorkflowDto,
 	CreateWorkflow,
 	ActivationRule,
@@ -361,10 +352,10 @@ export const schemas = {
 	CreateImpactDTO,
 	CreateFeedbackDTO,
 	PartialFeedback,
-	ComhairleMessageReference,
-	ComhairleSessionMessage,
 	ComhairleChatSession,
 	ChatConversationRequest,
+	ComhairleDocument,
+	UploadFileResponse,
 	WebSocketStats,
 	BroadcastMessage,
 	BroadcastResponse,
@@ -372,7 +363,6 @@ export const schemas = {
 	ComhairleAgent,
 	CreateAgentRequest,
 	UpdateAgentRequest,
-	ComhairleAgentSession,
 	ComhairleLlm,
 	ComhairlePrompt,
 	ComhairleChat,
@@ -381,8 +371,6 @@ export const schemas = {
 	ComhairleKnowledgeBase,
 	CreateKnowledgeBaseRequest,
 	UpdateKnowledgeBaseRequest,
-	ComhairleDocument,
-	UpdateDocumentRequest,
 	Job,
 	PaginatedResults_for_Job,
 	CreateJob,
@@ -803,89 +791,6 @@ const endpoints = makeApi([
 	},
 	{
 		method: "get",
-		path: "/bot/knowledge_bases/:knowledge_base_id/documents",
-		alias: "ListDocuments",
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "name",
-				type: "Query",
-				schema: created_after
-			},
-			{
-				name: "order_by",
-				type: "Query",
-				schema: created_after
-			},
-			{
-				name: "page",
-				type: "Query",
-				schema: limit
-			},
-			{
-				name: "page_size",
-				type: "Query",
-				schema: limit
-			},
-			{
-				name: "title",
-				type: "Query",
-				schema: created_after
-			},
-		],
-		response: z.array(ComhairleDocument),
-	},
-	{
-		method: "get",
-		path: "/bot/knowledge_bases/:knowledge_base_id/documents/:document_id",
-		alias: "GetDocument",
-		requestFormat: "json",
-		response: ComhairleDocument,
-	},
-	{
-		method: "put",
-		path: "/bot/knowledge_bases/:knowledge_base_id/documents/:document_id",
-		alias: "UpdateDocument",
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "body",
-				type: "Body",
-				schema: UpdateDocumentRequest
-			},
-		],
-		response: ComhairleDocument,
-	},
-	{
-		method: "delete",
-		path: "/bot/knowledge_bases/:knowledge_base_id/documents/:document_id",
-		alias: "DeleteDocument",
-		requestFormat: "json",
-		response: z.void(),
-	},
-	{
-		method: "get",
-		path: "/bot/knowledge_bases/:knowledge_base_id/documents/:document_id/download",
-		alias: "DownloadDocument",
-		requestFormat: "json",
-		response: z.void(),
-	},
-	{
-		method: "post",
-		path: "/bot/knowledge_bases/:knowledge_base_id/documents/:document_id/parse",
-		alias: "ParseDocument",
-		requestFormat: "json",
-		response: z.void(),
-	},
-	{
-		method: "post",
-		path: "/bot/knowledge_bases/:knowledge_base_id/documents/:document_id/stop_parse",
-		alias: "StopParsingDocument",
-		requestFormat: "json",
-		response: z.void(),
-	},
-	{
-		method: "get",
 		path: "/conversation",
 		alias: "ListConverastions",
 		description: `List conversations`,
@@ -999,20 +904,6 @@ const endpoints = makeApi([
 	},
 	{
 		method: "get",
-		path: "/conversation/:conversation_id/bot_service_sessions",
-		alias: "GetConversationBotSession",
-		requestFormat: "json",
-		response: BotServiceUserSessionDto,
-	},
-	{
-		method: "post",
-		path: "/conversation/:conversation_id/bot_service_sessions",
-		alias: "CreateConversationBotSession",
-		requestFormat: "json",
-		response: BotServiceUserSessionDto,
-	},
-	{
-		method: "get",
 		path: "/conversation/:conversation_id/chat_sessions",
 		alias: "GetChatSessionHistory",
 		requestFormat: "json",
@@ -1035,6 +926,104 @@ Use a raw HTTP request and process the response body incrementally.`,
 				schema: z.object({ question: z.string() }).passthrough()
 			},
 		],
+		response: z.void(),
+	},
+	{
+		method: "get",
+		path: "/conversation/:conversation_id/documents",
+		alias: "ListDocuments",
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "name",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "order_by",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "page",
+				type: "Query",
+				schema: limit
+			},
+			{
+				name: "page_size",
+				type: "Query",
+				schema: limit
+			},
+			{
+				name: "title",
+				type: "Query",
+				schema: created_after
+			},
+		],
+		response: z.array(ComhairleDocument),
+	},
+	{
+		method: "post",
+		path: "/conversation/:conversation_id/documents",
+		alias: "postConversationConversation_iddocuments",
+		description: `⚠️ This endpoint requires multipart/form-data.
+
+Generated API clients may not support file uploads.
+
+Use FormData and a raw HTTP request.
+
+**Example (curl):**
+&#x60;&#x60;&#x60;bash
+curl -X POST \
+-H &#x27;Cookie: auth-token&#x3D;...;&#x27; \
+&#x27;localhost:3000/conversation/__CONVERSATION_ID__/upload_documents&#x27; \
+--form &#x27;file&#x3D;@/path-to-document.pdf&#x27;
+&#x60;&#x60;&#x60;
+                            `,
+		requestFormat: "form-data",
+		parameters: [
+			{
+				name: "body",
+				description: `multipart form data`,
+				type: "Body",
+				schema: z.array(z.any())
+			},
+		],
+		response: UploadFileResponse,
+	},
+	{
+		method: "get",
+		path: "/conversation/:conversation_id/documents/:document_id",
+		alias: "GetDocument",
+		requestFormat: "json",
+		response: ComhairleDocument,
+	},
+	{
+		method: "delete",
+		path: "/conversation/:conversation_id/documents/:document_id",
+		alias: "DeleteDocument",
+		requestFormat: "json",
+		response: z.void(),
+	},
+	{
+		method: "get",
+		path: "/conversation/:conversation_id/documents/:document_id/download",
+		alias: "DownloadDocument",
+		requestFormat: "json",
+		response: z.void(),
+	},
+	{
+		method: "post",
+		path: "/conversation/:conversation_id/documents/:document_id/parse",
+		alias: "ParseDocument",
+		requestFormat: "json",
+		response: z.void(),
+	},
+	{
+		method: "post",
+		path: "/conversation/:conversation_id/documents/:document_id/stop_parse",
+		alias: "StopParsingDocument",
+		requestFormat: "json",
 		response: z.void(),
 	},
 	{

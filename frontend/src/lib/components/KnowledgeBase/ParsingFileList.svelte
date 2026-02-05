@@ -15,7 +15,7 @@
 	{#if conversation.knowledgeBaseId}
 		{#each documents as document (document.id)}
 			<li>
-				<ParsingFileBadge {document} knowledgeBaseId={conversation.knowledgeBaseId} />
+				<ParsingFileBadge {document} conversationId={conversation.id} />
 			</li>
 		{/each}
 	{/if}
