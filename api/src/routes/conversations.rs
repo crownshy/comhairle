@@ -391,8 +391,8 @@ async fn get_conversation_bot_session(
     let session = bot_service_user_session::get_or_create(
         &state,
         BotServiceSessionContext::QaBot,
-        user.id,
-        Some(conversation_id),
+        &user.id,
+        Some(&conversation_id),
         None,
     )
     .await?;

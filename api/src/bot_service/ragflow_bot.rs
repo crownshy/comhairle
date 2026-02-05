@@ -28,7 +28,7 @@ use crate::{
             agent_sessions::CreateAgentSessionRequest,
             agents::{CreateAgentRequest, UpdateAgentRequest},
             chat_sessions::{
-                ChatConversationRequest, CreateChatSessionRequest as ApiCreateChatSessionRequest,
+                CreateChatSessionRequest as ApiCreateChatSessionRequest,
                 UpdateChatSessionRequest as ApiUpdateChatSessionRequest,
             },
             chats::{CreateChatRequest, UpdateChatRequest},
@@ -36,6 +36,7 @@ use crate::{
             knowledge_bases::UpdateKnowledgeBaseRequest,
             GetQueryParams as ApiGetQueryParams,
         },
+        chats::ChatConversationRequest,
         conversations::UploadFileRequest,
         workflow_steps::AgentConversationRequestExt,
     },
@@ -956,7 +957,7 @@ impl From<ApiCreateChatSessionRequest> for CreateChatSession {
     fn from(input: ApiCreateChatSessionRequest) -> Self {
         Self {
             name: input.name,
-            user_id: input.user_id,
+            user_id: None,
         }
     }
 }
@@ -975,7 +976,7 @@ impl From<ChatConversationRequest> for ConvoQuestion {
         Self {
             question: input.question,
             session_id: None,
-            user_id: input.user_id,
+            user_id: None,
             stream: Some(true),
             inputs: None,
         }

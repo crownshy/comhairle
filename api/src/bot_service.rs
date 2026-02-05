@@ -15,14 +15,13 @@ use crate::{
     routes::{
         bot::{
             agents::{CreateAgentRequest, UpdateAgentRequest},
-            chat_sessions::{
-                ChatConversationRequest, CreateChatSessionRequest, UpdateChatSessionRequest,
-            },
+            chat_sessions::{CreateChatSessionRequest, UpdateChatSessionRequest},
             chats::{CreateChatRequest, UpdateChatRequest},
             documents::UpdateDocumentRequest,
             knowledge_bases::UpdateKnowledgeBaseRequest,
             GetQueryParams,
         },
+        chats::ChatConversationRequest,
         conversations::UploadFileRequest,
         workflow_steps::AgentConversationRequestExt,
     },

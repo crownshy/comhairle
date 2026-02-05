@@ -175,9 +175,9 @@ async fn get_agent_session(
     let bot_user_session = bot_service_user_session::get_or_create(
         &state,
         BotServiceSessionContext::ElicitationBot,
-        user.id,
+        &user.id,
         None,
-        Some(workflow_step_id),
+        Some(&workflow_step_id),
     )
     .await?;
 
@@ -227,9 +227,9 @@ async fn converse_with_agent(
     let session = bot_service_user_session::get_or_create(
         &state,
         BotServiceSessionContext::ElicitationBot,
-        user.id,
+        &user.id,
         None,
-        Some(workflow_step_id),
+        Some(&workflow_step_id),
     )
     .await?;
 

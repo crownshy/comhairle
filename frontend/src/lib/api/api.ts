@@ -206,6 +206,14 @@ export const CreateFeedbackDTO = z.object({ content: z.string() }).passthrough()
 export type CreateFeedbackDTO = z.infer<typeof CreateFeedbackDTO>;
 export const PartialFeedback = z.object({ content: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialFeedback = z.infer<typeof PartialFeedback>;
+export const ComhairleMessageReference = z.object({ content: z.string(), dataset_id: z.string(), document_id: z.string(), document_name: z.string(), id: z.string() }).passthrough();
+export type ComhairleMessageReference = z.infer<typeof ComhairleMessageReference>;
+export const ComhairleSessionMessage = z.object({ content: z.string(), id: z.string(), reference: z.union([z.array(ComhairleMessageReference), z.null()]).optional(), role: z.string() }).passthrough();
+export type ComhairleSessionMessage = z.infer<typeof ComhairleSessionMessage>;
+export const ComhairleChatSession = z.object({ chat_id: z.string(), id: z.string(), messages: z.array(ComhairleSessionMessage), name: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type ComhairleChatSession = z.infer<typeof ComhairleChatSession>;
+export const ChatConversationRequest = z.object({ question: z.string() }).passthrough();
+export type ChatConversationRequest = z.infer<typeof ChatConversationRequest>;
 export const WebSocketStats = z.object({ connected_users: z.array(z.string().uuid()), total_connections: z.number().int().gte(0) }).passthrough();
 export type WebSocketStats = z.infer<typeof WebSocketStats>;
 export const BroadcastMessage = z.object({ authenticated_only: z.union([z.boolean(), z.null()]).optional(), message: z.string() }).passthrough();
@@ -230,9 +238,7 @@ export const CreateChatRequest = z.object({ knowledge_base_ids: z.union([z.array
 export type CreateChatRequest = z.infer<typeof CreateChatRequest>;
 export const UpdateChatRequest = z.object({ knowledge_base_ids: z.union([z.array(z.string()), z.null()]), llm_model: z.union([ComhairleLlm, z.null()]), name: z.union([z.string(), z.null()]), prompt: z.union([ComhairlePrompt, z.null()]) }).partial().passthrough();
 export type UpdateChatRequest = z.infer<typeof UpdateChatRequest>;
-export const ComhairleChatSession = z.object({ chat_id: z.string(), id: z.string(), messages: z.array(ComhairleSessionMessage), name: z.union([z.string(), z.null()]).optional() }).passthrough();
-export type ComhairleChatSession = z.infer<typeof ComhairleChatSession>;
-export const CreateChatSessionRequest = z.object({ name: z.string(), user_id: z.union([z.string(), z.null()]).optional() }).passthrough();
+export const CreateChatSessionRequest = z.object({ name: z.string() }).passthrough();
 export type CreateChatSessionRequest = z.infer<typeof CreateChatSessionRequest>;
 export const UpdateChatSessionRequest = z.object({ name: z.union([z.string(), z.null()]), user_id: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type UpdateChatSessionRequest = z.infer<typeof UpdateChatSessionRequest>;
@@ -357,6 +363,10 @@ export const schemas = {
 	CreateImpactDTO,
 	CreateFeedbackDTO,
 	PartialFeedback,
+	ComhairleMessageReference,
+	ComhairleSessionMessage,
+	ComhairleChatSession,
+	ChatConversationRequest,
 	WebSocketStats,
 	BroadcastMessage,
 	BroadcastResponse,
@@ -369,7 +379,6 @@ export const schemas = {
 	ComhairleChat,
 	CreateChatRequest,
 	UpdateChatRequest,
-	ComhairleChatSession,
 	CreateChatSessionRequest,
 	UpdateChatSessionRequest,
 	ComhairleKnowledgeBase,
@@ -590,61 +599,6 @@ const endpoints = makeApi([
 	},
 	{
 		method: "get",
-		path: "/bot/agents/:agent_id/sessions",
-		alias: "ListAgentSessions",
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "name",
-				type: "Query",
-				schema: created_after
-			},
-			{
-				name: "order_by",
-				type: "Query",
-				schema: created_after
-			},
-			{
-				name: "page",
-				type: "Query",
-				schema: limit
-			},
-			{
-				name: "page_size",
-				type: "Query",
-				schema: limit
-			},
-			{
-				name: "title",
-				type: "Query",
-				schema: created_after
-			},
-		],
-		response: z.array(ComhairleAgentSession),
-	},
-	{
-		method: "post",
-		path: "/bot/agents/:agent_id/sessions",
-		alias: "CreateAgentSessions",
-		requestFormat: "json",
-		response: ComhairleAgentSession,
-	},
-	{
-		method: "get",
-		path: "/bot/agents/:agent_id/sessions/:session_id",
-		alias: "GetAgentSession",
-		requestFormat: "json",
-		response: ComhairleAgentSession,
-	},
-	{
-		method: "delete",
-		path: "/bot/agents/:agent_id/sessions/:session_id",
-		alias: "DeleteAgentSessions",
-		requestFormat: "json",
-		response: z.void(),
-	},
-	{
-		method: "get",
 		path: "/bot/chats",
 		alias: "ListChats",
 		requestFormat: "json",
@@ -762,7 +716,7 @@ const endpoints = makeApi([
 			{
 				name: "body",
 				type: "Body",
-				schema: CreateChatSessionRequest
+				schema: z.object({ name: z.string() }).passthrough()
 			},
 		],
 		response: ComhairleChatSession,
@@ -1080,6 +1034,32 @@ const endpoints = makeApi([
 		alias: "CreateConversationBotSession",
 		requestFormat: "json",
 		response: BotServiceUserSessionDto,
+	},
+	{
+		method: "get",
+		path: "/conversation/:conversation_id/chat_sessions",
+		alias: "GetChatSessionHistory",
+		requestFormat: "json",
+		response: ComhairleChatSession,
+	},
+	{
+		method: "post",
+		path: "/conversation/:conversation_id/chat_sessions",
+		alias: "postConversationConversation_idchat_sessions",
+		description: `Streamed LLM response.
+
+⚠️ This endpoint returns a streaming response on success.
+Generated API clients are NOT suitable for consuming this endpoint.
+Use a raw HTTP request and process the response body incrementally.`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: z.object({ question: z.string() }).passthrough()
+			},
+		],
+		response: z.void(),
 	},
 	{
 		method: "post",
