@@ -21,7 +21,7 @@ use crate::{
         ChatConversationRequest, ComhairleAgent, ComhairleAgentSession, ComhairleBotService,
         ComhairleChat, ComhairleChatSession, ComhairleDocument, ComhairleKnowledgeBase,
         ComhairleLlm, ComhairleMessageReference, ComhairlePrompt, ComhairleSessionMessage,
-        CreateChatSessionRequest, UpdateChatSessionRequest,
+        CreateChatSessionRequest, UpdateChatSessionRequest, UploadFileRequest,
     },
     error::ComhairleError,
     routes::{
@@ -33,7 +33,6 @@ use crate::{
             knowledge_bases::UpdateKnowledgeBaseRequest,
             GetQueryParams as ApiGetQueryParams,
         },
-        conversations::UploadFileRequest,
         workflow_steps::AgentConversationRequestExt,
     },
 };

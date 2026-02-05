@@ -142,6 +142,10 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
                 .nest_api_service(
                     "/{conversation_id}/chat_sessions",
                     routes::chat_sessions::router(state.clone()),
+                )
+                .nest_api_service(
+                    "/{conversation_id}/documents",
+                    routes::documents::router(state.clone()),
                 ),
         )
         .nest_api_service(

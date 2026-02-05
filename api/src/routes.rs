@@ -5,6 +5,7 @@ pub mod conversations;
 pub mod feedback;
 pub mod invites;
 pub mod jobs;
+pub mod documents;
 pub mod notifications;
 pub mod report_impacts;
 pub mod reports;

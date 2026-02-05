@@ -289,6 +289,39 @@ impl UserSession {
         Ok((status, body, cookie))
     }
 
+    pub async fn post_multipart(
+        &mut self,
+        app: &Router,
+        url: &str,
+        boundary: &str,
+        body: Body,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        let mut request = Request::builder().uri(url).method("POST").header(
+            "content-type",
+            format!("multipart/form-data; boundary={boundary}"),
+        );
+
+        if let Some(cookie) = &self.cookie {
+            request = request.header(COOKIE, cookie)
+        }
+
+        let request = request.body(body).unwrap();
+        let response = app.clone().oneshot(request).await?;
+        let status = response.status();
+
+        let cookie = response
+            .headers()
+            .get(axum::http::header::SET_COOKIE)
+            .map(|cookie| cookie.to_owned());
+
+        if let Some(cookie) = &cookie {
+            self.cookie = Some(cookie.clone());
+        }
+
+        let value = response_to_json(response).await;
+        Ok((status, value, cookie))
+    }
+
     pub async fn put(
         &mut self,
         app: &Router,
