@@ -13,11 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     error::ComhairleError,
     routes::{
-        bot::{
-            agents::{CreateAgentRequest, UpdateAgentRequest},
-            chats::{CreateChatRequest, UpdateChatRequest},
-            knowledge_bases::UpdateKnowledgeBaseRequest,
-        },
+        bot::agents::{CreateAgentRequest, UpdateAgentRequest},
         workflow_steps::AgentConversationRequestExt,
     },
 };
@@ -364,6 +360,32 @@ pub struct UploadFileRequest {
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq, Default)]
 pub struct UpdateDocumentRequest {
     pub name: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+pub struct CreateKnowledgeBaseRequest {
+    name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
+pub struct UpdateKnowledgeBaseRequest {
+    pub name: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Default)]
+pub struct CreateChatRequest {
+    pub name: String,
+    pub knowledge_base_ids: Option<Vec<String>>,
+    pub llm_model: Option<ComhairleLlm>,
+    pub prompt: Option<ComhairlePrompt>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Default, Clone, PartialEq)]
+pub struct UpdateChatRequest {
+    pub name: Option<String>,
+    pub knowledge_base_ids: Option<Vec<String>>,
+    pub llm_model: Option<ComhairleLlm>,
+    pub prompt: Option<ComhairlePrompt>,
 }
 
 #[cfg(test)]
