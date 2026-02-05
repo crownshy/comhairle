@@ -13,13 +13,11 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
-    bot_service::ComhairleChatSession,
+    bot_service::{ChatConversationRequest, ComhairleChatSession},
     error::ComhairleError,
     models::{
         bot_service_user_session::{self, BotServiceSessionContext},
@@ -60,11 +58,6 @@ pub async fn get_session(
         .await?;
 
     Ok((StatusCode::OK, Json(session)))
-}
-
-#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
-pub struct ChatConversationRequest {
-    pub question: String,
 }
 
 // Wrapper struct required as a workaround to generate documentation for handlers
@@ -349,7 +342,11 @@ mod tests {
 
         let body = serde_json::to_vec(&converse_request)?;
         let (status, body, _) = session
-            .post_raw_response(&app, &format!("/conversation/{id}/chat_sessions"), Body::from(body))
+            .post_raw_response(
+                &app,
+                &format!("/conversation/{id}/chat_sessions"),
+                Body::from(body),
+            )
             .await?;
 
         let bytes = to_bytes(body, usize::MAX).await?;

@@ -9,11 +9,10 @@ use sqlx::{prelude::FromRow, PgPool};
 use uuid::Uuid;
 
 use crate::{
-    bot_service::ComhairleBotService,
+    bot_service::{ComhairleBotService, CreateChatSessionRequest},
     config::ComhairleConfig,
     error::ComhairleError,
     models::{conversation, workflow_step},
-    routes::bot::chat_sessions::CreateChatSessionRequest,
     tools::ToolConfig,
     ComhairleState,
 };
