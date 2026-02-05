@@ -8,14 +8,12 @@ use super::{
 };
 use crate::{
     bot_service::{
-        ComhairleBotService, ComhairlePrompt, DEFAULT_CHAT_NOT_FOUND_RESPONSE, DEFAULT_CHAT_OPENER,
-        DEFAULT_CHAT_PROMPT,
+        ComhairleBotService, ComhairlePrompt, CreateChatRequest, DEFAULT_CHAT_NOT_FOUND_RESPONSE,
+        DEFAULT_CHAT_OPENER, DEFAULT_CHAT_PROMPT,
     },
     config::ComhairleConfig,
     error::ComhairleError,
-    models,
-    routes::bot::chats::CreateChatRequest,
-    ComhairleState,
+    models, ComhairleState,
 };
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;

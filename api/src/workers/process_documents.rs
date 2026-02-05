@@ -8,9 +8,9 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::{
+    bot_service::UpdateChatRequest,
     error::ComhairleError,
     models::{self, job::UpdateJob},
-    routes::bot::chats::UpdateChatRequest,
     ComhairleState,
 };
 
