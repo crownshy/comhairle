@@ -20,7 +20,6 @@ use crate::{
             knowledge_bases::UpdateKnowledgeBaseRequest,
             GetQueryParams,
         },
-        conversations::UploadFileRequest,
         workflow_steps::AgentConversationRequestExt,
     },
 };
@@ -347,6 +346,12 @@ pub struct UpdateChatSessionRequest {
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
 pub struct ChatConversationRequest {
     pub question: String,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug, PartialEq, Clone, Default)]
+pub struct UploadFileRequest {
+    pub filename: String,
+    pub bytes: Vec<u8>,
 }
 
 #[cfg(test)]
