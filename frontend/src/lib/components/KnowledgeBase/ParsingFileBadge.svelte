@@ -13,10 +13,10 @@
 
 	type Props = {
 		document: ComhairleDocument;
-		knowledgeBaseId: string;
+		conversationId: string;
 	};
 
-	let { document, knowledgeBaseId }: Props = $props();
+	let { document, conversationId }: Props = $props();
 
 	let uploadingDoc: ComhairleDocument = $derived(document);
 	let timeout: ReturnType<typeof setTimeout> | null = null;
@@ -39,7 +39,7 @@
 
 		try {
 			const response = await apiClient.GetDocument({
-				params: { document_id: document.id, knowledge_base_id: knowledgeBaseId }
+				params: { document_id: document.id, conversation_id: conversationId }
 			});
 
 			uploadingDoc = response;
@@ -75,7 +75,7 @@
 	async function stopParsingDocument() {
 		try {
 			await apiClient.StopParsingDocument(undefined, {
-				params: { document_id: document.id, knowledge_base_id: knowledgeBaseId }
+				params: { document_id: document.id, conversation_id: conversationId }
 			});
 
 			notifications.send({

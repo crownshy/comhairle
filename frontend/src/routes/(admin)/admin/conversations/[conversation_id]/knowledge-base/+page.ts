@@ -4,14 +4,12 @@ import type { PageLoad } from './$types';
 export const load: PageLoad = async ({ parent }) => {
 	const { conversation } = await parent();
 	let documents;
-	if (conversation.knowledgeBaseId) {
-		try {
-			documents = await apiClient.ListDocuments({
-				params: { knowledge_base_id: conversation.knowledgeBaseId }
-			});
-		} catch (e) {
-			console.error(e);
-		}
+	try {
+		documents = await apiClient.ListDocuments({
+			params: { conversation_id: conversation.id }
+		});
+	} catch (e) {
+		console.error(e);
 	}
 	return { documents, conversation };
 };

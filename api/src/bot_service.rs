@@ -16,9 +16,7 @@ use crate::{
         bot::{
             agents::{CreateAgentRequest, UpdateAgentRequest},
             chats::{CreateChatRequest, UpdateChatRequest},
-            documents::UpdateDocumentRequest,
             knowledge_bases::UpdateKnowledgeBaseRequest,
-            GetQueryParams,
         },
         workflow_steps::AgentConversationRequestExt,
     },
@@ -255,6 +253,15 @@ pub trait ComhairleBotService: Send + Sync {
     >;
 }
 
+#[derive(Deserialize, Debug, JsonSchema, Default, PartialEq)]
+pub struct GetQueryParams {
+    pub page: Option<i32>,
+    pub page_size: Option<i32>,
+    pub order_by: Option<String>,
+    pub name: Option<String>,
+    pub title: Option<String>,
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone)]
 pub struct ComhairleKnowledgeBase {
     pub id: String,
@@ -352,6 +359,11 @@ pub struct ChatConversationRequest {
 pub struct UploadFileRequest {
     pub filename: String,
     pub bytes: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq, Default)]
+pub struct UpdateDocumentRequest {
+    pub name: Option<String>,
 }
 
 #[cfg(test)]
