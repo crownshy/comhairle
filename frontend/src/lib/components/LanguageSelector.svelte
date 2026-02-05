@@ -29,7 +29,7 @@
 </script>
 
 <Select.Root type="single" onValueChange={(locale) => switchToLanguage(locale as Locale)}>
-	<Select.Trigger class="text-nav-text ">
+	<Select.Trigger class="text-nav-text [&_svg]:text-nav-text [&_svg]:opacity-100">
 		<span class="text-nav-text text-center">{labels[currentLanguage]}</span>
 	</Select.Trigger>
 	<Select.Content>
