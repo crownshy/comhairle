@@ -19,7 +19,7 @@
 	Thank you for taking part in the conversation:<strong> {conversation.title}</strong> <br />
 	We value your time and effort.
 
-	{#if user.auth_type === 'annon'}
+	{#if user.authType === 'annon'}
 		<p>You are currently signed in as an anonymous user. Use your anonymous id</p>
 		<h2 class="text-center">{user.username}</h2>
 		<p>to log back in at a later time to see the results of the conversations.</p>
@@ -52,7 +52,7 @@
 		research relating to the National Performance Framework?
 	</p>
 
-	{#if user.auth_type === 'annon'}
+	{#if user.authType === 'annon'}
 		<p>
 			To receive updates on this conversation and future conversations, either update to a full
 			account
@@ -72,7 +72,7 @@
 		</p>
 		<UserConversationPreferencesForm
 			conversationId={conversation.id}
-			isAnnon={user.auth_type === 'annon'}
+			isAnnon={user.authType === 'annon'}
 		/>
 	{/if}
 </div>

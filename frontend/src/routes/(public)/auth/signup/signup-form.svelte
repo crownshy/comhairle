@@ -33,7 +33,7 @@
 					email
 				});
 				await invalidateAll();
-				if (user.auth_type === 'annon') {
+				if (user.authType === 'annon') {
 					await goto(backTo ?? '/');
 				} else {
 					await goto('/auth/verification-message');
