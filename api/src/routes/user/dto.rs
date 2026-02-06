@@ -4,6 +4,15 @@ use uuid::Uuid;
 
 use crate::models::users::{User, UserAuthType};
 
+/// Data transfer object (public API representation) for a User
+///
+/// This DTO is returned by user and auth related endpoints and is safe to expose
+/// to clients. It intentionally omits sensitive and internal-only fields such
+/// as:
+///
+/// * `password`
+///
+/// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct UserDto {
