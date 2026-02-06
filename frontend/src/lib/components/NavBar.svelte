@@ -48,7 +48,7 @@
 
 		<!-- Desktop Navigation -->
 		<div class="hidden space-x-6 md:flex lg:space-x-5">
-			{#each links as link}
+			{#each links as link (link.href)}
 				<Button href={link.href} variant="nav">{link.name}</Button>
 			{/each}
 		</div>

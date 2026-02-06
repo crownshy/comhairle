@@ -6,8 +6,8 @@ export const AnnonLoginRequest = z.object({ username: z.string() }).passthrough(
 export type AnnonLoginRequest = z.infer<typeof AnnonLoginRequest>;
 export const UserAuthType = z.enum(["annon", "email_password", "scot_account"]);
 export type UserAuthType = z.infer<typeof UserAuthType>;
-export const User = z.object({ auth_type: UserAuthType, avatar_url: z.union([z.string(), z.null()]).optional(), email: z.union([z.string(), z.null()]).optional(), email_verified: z.boolean(), id: z.string().uuid(), password: z.union([z.string(), z.null()]).optional(), username: z.union([z.string(), z.null()]).optional() }).passthrough();
-export type User = z.infer<typeof User>;
+export const UserDto = z.object({ authType: UserAuthType, avatarUrl: z.union([z.string(), z.null()]).optional(), email: z.union([z.string(), z.null()]).optional(), emailVerified: z.boolean(), id: z.string().uuid(), username: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type UserDto = z.infer<typeof UserDto>;
 export const LoginRequest = z.object({ email: z.string(), password: z.string() }).passthrough();
 export type LoginRequest = z.infer<typeof LoginRequest>;
 export const SignupRequest = z.object({ avatar_url: z.union([z.string(), z.null()]).optional(), email: z.string(), password: z.string(), username: z.string() }).passthrough();
@@ -235,7 +235,7 @@ export type CreateJob = z.infer<typeof CreateJob>;
 export const schemas = {
 	AnnonLoginRequest,
 	UserAuthType,
-	User,
+	UserDto,
 	LoginRequest,
 	SignupRequest,
 	VerifyEmailTokenRequest,
@@ -355,7 +355,7 @@ const endpoints = makeApi([
 		path: "/auth/current_user",
 		alias: "CurrentUser",
 		requestFormat: "json",
-		response: User,
+		response: UserDto,
 	},
 	{
 		method: "post",
@@ -370,7 +370,7 @@ const endpoints = makeApi([
 				schema: LoginRequest
 			},
 		],
-		response: User,
+		response: UserDto,
 	},
 	{
 		method: "post",
@@ -385,7 +385,7 @@ const endpoints = makeApi([
 				schema: z.object({ username: z.string() }).passthrough()
 			},
 		],
-		response: User,
+		response: UserDto,
 	},
 	{
 		method: "post",
@@ -449,21 +449,21 @@ const endpoints = makeApi([
 				schema: SignupRequest
 			},
 		],
-		response: User,
+		response: UserDto,
 	},
 	{
 		method: "post",
 		path: "/auth/signup_annon",
 		alias: "SignupAnnonUser",
 		requestFormat: "json",
-		response: User,
+		response: UserDto,
 	},
 	{
 		method: "get",
 		path: "/auth/test_requires_roles/:conversation_id",
 		alias: "TestRequiresRoles",
 		requestFormat: "json",
-		response: User,
+		response: UserDto,
 	},
 	{
 		method: "post",
@@ -477,7 +477,7 @@ const endpoints = makeApi([
 				schema: z.object({ token: z.string() }).passthrough()
 			},
 		],
-		response: User,
+		response: UserDto,
 	},
 	{
 		method: "get",
@@ -1713,7 +1713,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 				schema: UpdateUserRequest
 			},
 		],
-		response: User,
+		response: UserDto,
 	},
 	{
 		method: "get",
@@ -1827,7 +1827,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 				schema: UpgradeAccountRequest
 			},
 		],
-		response: User,
+		response: UserDto,
 	},
 	{
 		method: "post",
