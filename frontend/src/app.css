@@ -274,3 +274,10 @@ html,body{
 button, a {
   cursor: pointer; 
 }
+
+[data-sonner-toast] [data-close-button] {
+  position: absolute !important;
+  top: 0.5rem !important;
+  right: 0.5rem !important;
+  left: auto !important;
+}
