@@ -80,6 +80,12 @@ export const CreateOrUpdateTextTranslationRequest = z.object({ ai_generated: z.u
 export type CreateOrUpdateTextTranslationRequest = z.infer<typeof CreateOrUpdateTextTranslationRequest>;
 export const Story = z.object({ id: z.string().uuid(), transcript_id: z.union([z.string(), z.null()]).optional(), user_id: z.string().uuid(), video_id: z.string().uuid(), workflow_step_id: z.string().uuid() }).passthrough();
 export type Story = z.infer<typeof Story>;
+export const TranslatableField = z.union([z.string(), z.string()]);
+export type TranslatableField = z.infer<typeof TranslatableField>;
+export const ConversationDto = z.object({ chatBotId: z.union([z.string(), z.null()]).optional(), description: TranslatableField, enableQaChatBot: z.boolean(), id: z.string().uuid(), imageUrl: z.string(), isComplete: z.boolean(), isInviteOnly: z.boolean(), isLive: z.boolean(), isPublic: z.boolean(), knowledgeBaseId: z.union([z.string(), z.null()]).optional(), primaryLocale: z.string(), shortDescription: TranslatableField, slug: z.union([z.string(), z.null()]).optional(), supportedLanguages: z.array(z.string()), tags: z.array(z.string()), title: TranslatableField, videoUrl: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type ConversationDto = z.infer<typeof ConversationDto>;
+export const PaginatedResults_for_ConversationDto = z.object({ records: z.array(ConversationDto), total: z.number().int() }).passthrough();
+export type PaginatedResults_for_ConversationDto = z.infer<typeof PaginatedResults_for_ConversationDto>;
 export const CreateConversation = z.object({ default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string(), enable_qa_chat_bot: z.union([z.boolean(), z.null()]).optional(), image_url: z.string(), is_invite_only: z.boolean(), is_live: z.boolean(), is_public: z.boolean(), primary_locale: z.string(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), supported_languages: z.array(z.string()), tags: z.union([z.array(z.string()), z.null()]).optional(), title: z.string(), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type CreateConversation = z.infer<typeof CreateConversation>;
 export const Translation = z.object({ text_content: TextContent, text_translations: z.array(TextTranslation) }).passthrough();
@@ -276,6 +282,9 @@ export const schemas = {
 	UpdateTextTranslation,
 	CreateOrUpdateTextTranslationRequest,
 	Story,
+	TranslatableField,
+	ConversationDto,
+	PaginatedResults_for_ConversationDto,
 	CreateConversation,
 	Translation,
 	ConversationWithTranslations,
@@ -985,7 +994,7 @@ const endpoints = makeApi([
 				schema: limit
 			},
 		],
-		response: PaginatedResults_for_LocalisedConversation,
+		response: PaginatedResults_for_ConversationDto,
 	},
 	{
 		method: "post",

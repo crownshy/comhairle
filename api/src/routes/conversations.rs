@@ -40,12 +40,16 @@ use crate::{
         pagination::{OrderParams, PageOptions, PaginatedResults},
         user_participation::{self},
     },
-    routes::{auth::RequiredUser, translations::LocaleExtractor},
+    routes::{
+        auth::RequiredUser, conversations::dto::ConversationDto, translations::LocaleExtractor,
+    },
     workers::process_documents::DocumentJob,
     ComhairleState,
 };
 
 use super::auth::{is_user_admin, OptionalUser, RequiredAdminUser};
+
+pub mod dto;
 
 /// Create conversation handler
 async fn create_conversation(
@@ -83,7 +87,7 @@ async fn list_conversations(
     Query(mut filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
     LocaleExtractor(locale): LocaleExtractor,
-) -> Result<(StatusCode, Json<PaginatedResults<LocalisedConversation>>), ComhairleError> {
+) -> Result<(StatusCode, Json<PaginatedResults<ConversationDto>>), ComhairleError> {
     filter_options.enforce_live();
 
     let conversations = conversation::list(
@@ -94,6 +98,11 @@ async fn list_conversations(
         Some(locale),
     )
     .await?;
+
+    let conversations: PaginatedResults<ConversationDto> = PaginatedResults {
+        total: conversations.total,
+        records: conversations.records.into_iter().map(Into::into).collect(),
+    };
     Ok((StatusCode::OK, Json(conversations)))
 }
 
@@ -359,8 +368,14 @@ async fn get_conversation_bot_session(
     RequiredUser(user): RequiredUser,
     Path(conversation_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
-    let session =
-        bot_service_user_session::get_or_create(&state, BotServiceSessionContext::QaBot, user.id, Some(conversation_id), None).await?;
+    let session = bot_service_user_session::get_or_create(
+        &state,
+        BotServiceSessionContext::QaBot,
+        user.id,
+        Some(conversation_id),
+        None,
+    )
+    .await?;
 
     let session: BotServiceUserSessionDto = session.into();
 
@@ -462,7 +477,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("List conversations with optional filtering and ordering")
                     .tag("Conversation")
                     .description("List conversations")
-                    .response::<200, Json<PaginatedResults<LocalisedConversation>>>()
+                    .response::<200, Json<PaginatedResults<ConversationDto>>>()
             }),
         )
         .api_route(
@@ -555,6 +570,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 #[cfg(test)]
 mod tests {
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
+    use crate::routes::conversations::dto::{ConversationDto, TranslatableField};
     use crate::test_helpers::test_state;
     use crate::{setup_server, test_helpers::UserSession};
     use axum::{body::Body, http::StatusCode};
@@ -755,16 +771,19 @@ mod tests {
                 .unwrap();
         assert_eq!(total, 2, "Should have the right number of entries");
 
-        let conversations: Vec<HashMap<String, serde_json::Value>> =
+        let conversations: Vec<ConversationDto> =
             serde_json::from_value(conversations.get("records").to_owned().unwrap().to_owned())
                 .unwrap();
 
         assert_eq!(
-            conversations[0].get("title"),
-            Some(&json!("Test conversation"))
+            conversations[0].title,
+            TranslatableField::Localized("Test conversation".to_string()),
         );
 
-        assert_eq!(conversations[1].get("title"), Some(&json!("Another Test")));
+        assert_eq!(
+            conversations[1].title,
+            TranslatableField::Localized("Another Test".to_string())
+        );
 
         Ok(())
     }
