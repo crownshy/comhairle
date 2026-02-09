@@ -1,4 +1,7 @@
 import { browser } from '$app/environment';
+import { notifications } from '$lib/notifications.svelte';
+import type { ComhairleAgentSession } from './api';
+import { apiClient } from './client';
 
 export interface AgentMessageReference {
 	id: string;
@@ -69,6 +72,24 @@ export class AgentClient {
 		this.workflowId = workflowId;
 		this.workflowStepId = workflowStepId;
 		this.baseUrl = baseUrl;
+	}
+
+	async getSessionHistory(): Promise<ComhairleAgentSession | null> {
+		try {
+			const session = await apiClient.GetAgentSessionHistory({
+				params: {
+					conversation_id: this.conversationId,
+					workflow_id: this.workflowId,
+					workflow_step_id: this.workflowStepId
+				}
+			});
+
+			return session;
+		} catch (e) {
+			console.error(e);
+			notifications.send({ priority: 'ERROR', message: 'Error retrieving session history ' });
+			return null;
+		}
 	}
 
 	private parseSSELine(line: string): void {

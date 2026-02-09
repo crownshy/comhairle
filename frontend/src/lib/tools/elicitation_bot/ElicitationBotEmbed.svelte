@@ -10,6 +10,7 @@
 		mergeClaimsWithModifications,
 		type ClaimModification
 	} from './claimStorage';
+	import { ComhairleAgentSession } from '$lib/api/api';
 
 	type Props = {
 		conversationId: string;
@@ -37,12 +38,15 @@
 	let activeRequestId = $state<string | null>(null);
 	let aiExtractedClaims = $state<ExtractedClaim[]>([]);
 	let claimModifications = $state<ClaimModification | null>(null);
+	let sessionHistory = $state<ComhairleAgentSession | null>(null);
 
 	onMount(async () => {
 		try {
 			claimModifications = loadClaimModifications(workflowStepId, conversationId);
 
 			agentClient = new AgentClient(conversationId, workflowId, workflowStepId);
+
+			sessionHistory = await agentClient.getSessionHistory();
 
 			agentClient.onClaimUpdate = (streamingClaim, extractedClaims) => {
 				const finalizedClaims: ExtractedClaim[] = extractedClaims.map((claim) => ({
