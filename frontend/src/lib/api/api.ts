@@ -128,6 +128,12 @@ export const CreateWorkflowStep = z.object({ activation_rule: ActivationRule, de
 export type CreateWorkflowStep = z.infer<typeof CreateWorkflowStep>;
 export const PartialWorkflowStep = z.object({ activation_rule: z.union([ActivationRule, z.null()]), description: z.union([z.string(), z.null()]), is_offline: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]), preview_tool_config: z.union([ToolConfig, z.null()]), required: z.union([z.boolean(), z.null()]), step_order: z.union([z.number(), z.null()]), tool_config: z.union([ToolConfig, z.null()]) }).partial().passthrough();
 export type PartialWorkflowStep = z.infer<typeof PartialWorkflowStep>;
+export const ComhairleMessageReference = z.object({ content: z.string(), dataset_id: z.string(), document_id: z.string(), document_name: z.string(), id: z.string() }).passthrough();
+export type ComhairleMessageReference = z.infer<typeof ComhairleMessageReference>;
+export const ComhairleSessionMessage = z.object({ content: z.string(), id: z.string(), reference: z.union([z.array(ComhairleMessageReference), z.null()]).optional(), role: z.string() }).passthrough();
+export type ComhairleSessionMessage = z.infer<typeof ComhairleSessionMessage>;
+export const ComhairleAgentSession = z.object({ agent_id: z.string(), configuration: z.unknown(), id: z.string(), messages: z.array(ComhairleSessionMessage) }).passthrough();
+export type ComhairleAgentSession = z.infer<typeof ComhairleAgentSession>;
 export const ProgressStatus = z.enum(["not_started", "in_progress", "done"]);
 export type ProgressStatus = z.infer<typeof ProgressStatus>;
 export const UserProgress = z.object({ created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), status: ProgressStatus, updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid(), workflow_step_id: z.string().uuid() }).passthrough();
@@ -192,12 +198,6 @@ export const CreateAgentRequest = z.object({ name: z.string() }).passthrough();
 export type CreateAgentRequest = z.infer<typeof CreateAgentRequest>;
 export const UpdateAgentRequest = z.object({ name: z.union([z.string(), z.null()]), topic: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type UpdateAgentRequest = z.infer<typeof UpdateAgentRequest>;
-export const ComhairleMessageReference = z.object({ content: z.string(), dataset_id: z.string(), document_id: z.string(), document_name: z.string(), id: z.string() }).passthrough();
-export type ComhairleMessageReference = z.infer<typeof ComhairleMessageReference>;
-export const ComhairleSessionMessage = z.object({ content: z.string(), id: z.string(), reference: z.union([z.array(ComhairleMessageReference), z.null()]).optional(), role: z.string() }).passthrough();
-export type ComhairleSessionMessage = z.infer<typeof ComhairleSessionMessage>;
-export const ComhairleAgentSession = z.object({ agent_id: z.string(), configuration: z.unknown(), id: z.string(), messages: z.array(ComhairleSessionMessage) }).passthrough();
-export type ComhairleAgentSession = z.infer<typeof ComhairleAgentSession>;
 export const ComhairleLlm = z.object({ model_name: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type ComhairleLlm = z.infer<typeof ComhairleLlm>;
 export const ComhairlePrompt = z.object({ empty_response: z.union([z.string(), z.null()]), llm_prompt: z.union([z.string(), z.null()]), opener: z.union([z.string(), z.null()]) }).partial().passthrough();
@@ -296,6 +296,9 @@ export const schemas = {
 	ToolSetup,
 	CreateWorkflowStep,
 	PartialWorkflowStep,
+	ComhairleMessageReference,
+	ComhairleSessionMessage,
+	ComhairleAgentSession,
 	ProgressStatus,
 	UserProgress,
 	InviteType,
@@ -328,9 +331,6 @@ export const schemas = {
 	ComhairleAgent,
 	CreateAgentRequest,
 	UpdateAgentRequest,
-	ComhairleMessageReference,
-	ComhairleSessionMessage,
-	ComhairleAgentSession,
 	ComhairleLlm,
 	ComhairlePrompt,
 	ComhairleChat,
@@ -1398,16 +1398,9 @@ const endpoints = makeApi([
 	{
 		method: "get",
 		path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/bot_service_session",
-		alias: "GetWorkflowStepBotSession",
+		alias: "GetAgentSessionHistory",
 		requestFormat: "json",
-		response: BotServiceUserSessionDto,
-	},
-	{
-		method: "post",
-		path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/bot_service_session",
-		alias: "CreateWorkflowStepBotSession",
-		requestFormat: "json",
-		response: BotServiceUserSessionDto,
+		response: ComhairleAgentSession,
 	},
 	{
 		method: "put",
