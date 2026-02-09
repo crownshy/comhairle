@@ -42,9 +42,9 @@ export const UpdateUserRequest = z.object({ email_verified: z.union([z.boolean()
 export type UpdateUserRequest = z.infer<typeof UpdateUserRequest>;
 export const UpgradeAccountRequest = z.object({ email: z.string(), password: z.string(), username: z.string() }).passthrough();
 export type UpgradeAccountRequest = z.infer<typeof UpgradeAccountRequest>;
-export const UserConversationPreferences = z.object({ conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), receive_similar_conversation_updates_by_email: z.boolean(), receive_similar_conversation_updates_by_notification: z.boolean(), receive_updates_by_email: z.boolean(), receive_updates_by_notification: z.boolean(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid() }).passthrough();
-export type UserConversationPreferences = z.infer<typeof UserConversationPreferences>;
-export const UpdateUserConversationPreferences = z.object({ receive_similar_conversation_updates_by_email: z.union([z.boolean(), z.null()]), receive_similar_conversation_updates_by_notification: z.union([z.boolean(), z.null()]), receive_updates_by_email: z.union([z.boolean(), z.null()]), receive_updates_by_notification: z.union([z.boolean(), z.null()]) }).partial().passthrough();
+export const UserConversationPreferencesDto = z.object({ conversationId: z.string().uuid(), id: z.string().uuid(), receiveSimilarConversationUpdatesByEmail: z.boolean(), receiveSimilarConversationUpdatesByNotification: z.boolean(), receiveUpdatesByEmail: z.boolean(), receiveUpdatesByNotification: z.boolean(), userId: z.string().uuid() }).passthrough();
+export type UserConversationPreferencesDto = z.infer<typeof UserConversationPreferencesDto>;
+export const UpdateUserConversationPreferences = z.object({ receiveSimilarConversationUpdatesByEmail: z.union([z.boolean(), z.null()]), receiveSimilarConversationUpdatesByNotification: z.union([z.boolean(), z.null()]), receiveUpdatesByEmail: z.union([z.boolean(), z.null()]), receiveUpdatesByNotification: z.union([z.boolean(), z.null()]) }).partial().passthrough();
 export type UpdateUserConversationPreferences = z.infer<typeof UpdateUserConversationPreferences>;
 export const DeliveryMethod = z.enum(["in_app", "email"]);
 export type DeliveryMethod = z.infer<typeof DeliveryMethod>;
@@ -253,7 +253,7 @@ export const schemas = {
 	PaginatedResults_for_LocalisedConversation,
 	UpdateUserRequest,
 	UpgradeAccountRequest,
-	UserConversationPreferences,
+	UserConversationPreferencesDto,
 	UpdateUserConversationPreferences,
 	DeliveryMethod,
 	NotificationContextType,
@@ -1774,7 +1774,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 		alias: "GetAllUserConversationPreferences",
 		description: `Returns all conversation notification preferences for the authenticated user`,
 		requestFormat: "json",
-		response: z.array(UserConversationPreferences),
+		response: z.array(UserConversationPreferencesDto),
 	},
 	{
 		method: "get",
@@ -1782,7 +1782,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 		alias: "GetUserPreferenceForConversation",
 		description: `Returns the notification preferences for a specific conversation`,
 		requestFormat: "json",
-		response: UserConversationPreferences,
+		response: UserConversationPreferencesDto,
 	},
 	{
 		method: "put",
@@ -1797,7 +1797,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 				schema: UpdateUserConversationPreferences
 			},
 		],
-		response: UserConversationPreferences,
+		response: UserConversationPreferencesDto,
 	},
 	{
 		method: "get",
