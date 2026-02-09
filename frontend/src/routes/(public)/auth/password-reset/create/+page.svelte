@@ -11,6 +11,7 @@
 	import { apiClient } from '$lib/api/client';
 	import { goto, invalidateAll } from '$app/navigation';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
+	import { useLoading } from '$lib/hooks/use-loading.svelte';
 
 	let responseMessage: string | null = $state(null);
 
@@ -20,26 +21,26 @@
 		onSubmit: passwordResetCreate
 	});
 	const { form: formData, errors, validateForm, enhance } = form;
-	let loading = $state(false);
+	const loader = useLoading();
 
 	async function passwordResetCreate() {
-		loading = true;
 		let result = await validateForm({ update: true });
 		if (result.valid) {
 			let { email } = result.data;
-			try {
-				await apiClient.PasswordResetCreate({ email });
-				await invalidateAll();
-				await goto(resolve('/auth/password-reset/sent'));
-			} catch (e) {
-				if (e.response?.status === 404) {
-					responseMessage = m.email_address_not_found();
-				} else {
-					responseMessage = m.something_went_wrong();
+			await loader.run(async () => {
+				try {
+					await apiClient.PasswordResetCreate({ email });
+					await invalidateAll();
+					await goto(resolve('/auth/password-reset/sent'));
+				} catch (e) {
+					if (e.response?.status === 404) {
+						responseMessage = m.email_address_not_found();
+					} else {
+						responseMessage = m.something_went_wrong();
+					}
 				}
-			}
+			});
 		}
-		loading = false;
 	}
 </script>
 
@@ -67,7 +68,7 @@
 				</Form.Control>
 			</Form.Field>
 			<Button type="submit"
-				>{#if loading}
+				>{#if loader.loading}
 					<span class="flex w-12 justify-center">
 						<Spinner />
 					</span>

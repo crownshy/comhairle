@@ -12,6 +12,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
+	import { useLoading } from '$lib/hooks/use-loading.svelte';
 
 	let { data }: PageProps = $props();
 
@@ -23,26 +24,26 @@
 
 	const { form: formData, errors, validateForm, enhance } = form;
 	let responseMessage: string | null = $state(null);
-	let loading = $state(false);
+	const loader = useLoading();
 
 	async function passwordResetUpdate() {
-		loading = true;
 		let result = await validateForm({ update: true });
 		if (result.valid) {
 			let { password, confirmPassword } = result.data;
-			try {
-				await apiClient.PasswordResetUpdate({
-					password,
-					confirm_password: confirmPassword,
-					token: data.token
-				});
-				await invalidateAll();
-				await goto(resolve('/auth/password-reset/success'));
-			} catch (e) {
-				responseMessage = m.something_went_wrong();
-			}
+			await loader.run(async () => {
+				try {
+					await apiClient.PasswordResetUpdate({
+						password,
+						confirm_password: confirmPassword,
+						token: data.token
+					});
+					await invalidateAll();
+					await goto(resolve('/auth/password-reset/success'));
+				} catch (e) {
+					responseMessage = m.something_went_wrong();
+				}
+			});
 		}
-		loading = false;
 	}
 </script>
 
@@ -84,7 +85,7 @@
 				<p class="text-destructive text-sm">{$errors.confirmPassword}</p>
 			{/if}
 			<Button type="submit">
-				{#if loading}
+				{#if loader.loading}
 					<span class="flex w-12 justify-center">
 						<Spinner />
 					</span>
