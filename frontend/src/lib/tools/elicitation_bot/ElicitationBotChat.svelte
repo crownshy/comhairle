@@ -41,10 +41,21 @@
 	let hasUnseenClaims = $state(false);
 	let previousClaimsCount = $state(initialClaims.length);
 
+	function formatTime(date: Date): string {
+		return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+	}
+
+	let currentTime = $state(formatTime(new Date()));
+
 	$effect(() => {
 		if (initialMessages.length > 0) {
 			chatMessages = [...initialMessages];
 		}
+	});
+
+	$effect(() => {
+		chatMessages;
+		tick().then(() => scrollToBottom());
 	});
 
 	$effect(() => {
@@ -211,7 +222,15 @@
 															{#if index < 1}
 																<Sparkles class="w-4 h-4 text-chat-primary mt-0.5 flex-shrink-0" />
 															{/if}
-															<span class="text-chat-text text-sm">{message.content}</span>
+															{#if message.content === '...'}
+																<span class="flex items-center gap-1">
+																	<span class="w-2 h-2 bg-chat-primary rounded-full animate-bounce"></span>
+																	<span class="w-2 h-2 bg-chat-primary rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
+																	<span class="w-2 h-2 bg-chat-primary rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+																</span>
+															{:else}
+																<span class="text-chat-text text-sm">{message.content}</span>
+															{/if}
 														</div>
 
 														{#if index === 0}
@@ -247,7 +266,7 @@
 								</div>
 
 								<div class="mt-2">
-									<p class="text-xs text-chat-text-muted">10:35AM</p>
+									<p class="text-xs text-chat-text-muted">{currentTime}</p>
 								</div>
 							</div>
 						</ScrollArea.Root>
@@ -324,7 +343,15 @@
 														{#if index < 1}
 															<Sparkles class="w-4 h-4 text-chat-primary mt-0.5 flex-shrink-0" />
 														{/if}
-														<span class="text-chat-text text-sm">{message.content}</span>
+														{#if message.content === '...'}
+																<span class="flex items-center gap-1">
+																	<span class="w-2 h-2 bg-chat-primary rounded-full animate-bounce"></span>
+																	<span class="w-2 h-2 bg-chat-primary rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
+																	<span class="w-2 h-2 bg-chat-primary rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+																</span>
+															{:else}
+																<span class="text-chat-text text-sm">{message.content}</span>
+															{/if}
 													</div>
 
 													{#if index === 0}
@@ -360,7 +387,7 @@
 							</div>
 
 							<div class="mt-2">
-								<p class="text-xs text-chat-text-muted">10:35AM</p>
+								<p class="text-xs text-chat-text-muted">{currentTime}</p>
 							</div>
 						</div>
 					</ScrollArea.Root>
