@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
 	import ElicitationBotChat from './ElicitationBotChat.svelte';
-	import { AgentClient } from '$lib/api/agentClient.svelte';
+	import { AgentClient, parseSessionHistory } from '$lib/api/agentClient.svelte';
 	import type { ElicitationMessage, ExtractedClaim } from './types';
 	import { Loader2 } from 'lucide-svelte';
 	import {
@@ -212,61 +212,6 @@
 		persistModifications();
 	}
 
-	/**
-	 * Parse session history from the API response and extract messages and claims.
-	 * The configuration field contains a stringified JSON with history data.
-	 * Opinions/claims are extracted from assistant messages containing the opinion marker.
-	 */
-	function parseSessionHistory(
-		session: ComhairleAgentSession,
-		topicName: string
-	): { messages: ElicitationMessage[]; claims: ExtractedClaim[] } {
-		const messages: ElicitationMessage[] = [];
-		const extractedClaims: ExtractedClaim[] = [];
-		const opinionMarker = '<br>\n\nopinion:\n\n';
-
-		messages.push({
-			id: 'welcome',
-			content: `Hello, I am here to help you shape your views and opinions. What is your view on ${topicName}?`,
-			isBot: true,
-			timestamp: null
-		});
-
-		if (session.messages && session.messages.length > 0) {
-			for (let i = 0; i < session.messages.length; i++) {
-				const msg = session.messages[i];
-				const isBot = msg.role === 'assistant';
-				let content = msg.content;
-
-				const uniqueId = `${msg.role}-${i}-${msg.id || Date.now()}`;
-
-				if (isBot && content.includes(opinionMarker)) {
-					const parts = content.split(opinionMarker);
-					const mainContent = parts[0].trim();
-					const opinionContent = parts[1]?.trim();
-
-					if (opinionContent) {
-						extractedClaims.push({
-							id: `claim-${i}-${extractedClaims.length}`,
-							content: opinionContent,
-							status: 'pending'
-						});
-					}
-
-					content = mainContent || content;
-				}
-
-				messages.push({
-					id: uniqueId,
-					content,
-					isBot,
-					timestamp: null
-				});
-			}
-		}
-
-		return { messages, claims: extractedClaims };
-	}
 </script>
 
 {#if isLoading}

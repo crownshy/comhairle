@@ -3,6 +3,75 @@ import { notifications } from '$lib/notifications.svelte';
 import type { ComhairleAgentSession } from './api';
 import { apiClient } from './client';
 
+export interface ParsedSessionMessage {
+	id: string;
+	content: string;
+	isBot: boolean;
+	timestamp: Date | null;
+}
+
+export interface ParsedSessionClaim {
+	id: string;
+	content: string;
+	status: 'pending' | 'approved' | 'editing' | 'streaming';
+}
+
+export interface ParsedSessionHistory {
+	messages: ParsedSessionMessage[];
+	claims: ParsedSessionClaim[];
+}
+
+export function parseSessionHistory(
+	session: ComhairleAgentSession,
+	topicName: string
+): ParsedSessionHistory {
+	const messages: ParsedSessionMessage[] = [];
+	const claims: ParsedSessionClaim[] = [];
+	const opinionMarker = '<br>\n\nopinion:\n\n';
+
+	messages.push({
+		id: 'welcome',
+		content: `Hello, I am here to help you shape your views and opinions. What is your view on ${topicName}?`,
+		isBot: true,
+		timestamp: null
+	});
+
+	if (session.messages && session.messages.length > 0) {
+		for (let i = 0; i < session.messages.length; i++) {
+			const msg = session.messages[i];
+			const isBot = msg.role === 'assistant';
+			let content = msg.content;
+
+			const uniqueId = `${msg.role}-${i}-${msg.id || Date.now()}`;
+
+			if (isBot && content.includes(opinionMarker)) {
+				const parts = content.split(opinionMarker);
+				const mainContent = parts[0].trim();
+				const opinionContent = parts[1]?.trim();
+
+				if (opinionContent) {
+					claims.push({
+						id: `claim-${i}-${claims.length}`,
+						content: opinionContent,
+						status: 'pending'
+					});
+				}
+
+				content = mainContent || content;
+			}
+
+			messages.push({
+				id: uniqueId,
+				content,
+				isBot,
+				timestamp: null
+			});
+		}
+	}
+
+	return { messages, claims };
+}
+
 export interface AgentMessageReference {
 	id: string;
 	content: string;
