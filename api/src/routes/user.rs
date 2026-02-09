@@ -22,10 +22,13 @@ use crate::{
             LocalisedConversation,
         },
         pagination::{OrderParams, PageOptions, PaginatedResults},
-        users::{UpdateUserRequest, UpgradeAccountRequest, User},
+        users::{UpdateUserRequest, UpgradeAccountRequest},
     },
+    routes::user::dto::UserDto,
     ComhairleState,
 };
+
+pub mod dto;
 
 use super::auth::{is_user_admin, RequiredAdminUser, RequiredUser};
 
@@ -95,19 +98,21 @@ pub async fn update_user_details(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Json(update_request): Json<UpdateUserRequest>,
-) -> Result<(StatusCode, Json<User>), ComhairleError> {
+) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
     let updated_user = models::users::update_user(&user.id, &update_request, &state.db).await?;
-    Ok((StatusCode::OK, Json(updated_user)))
+    let user: UserDto = updated_user.into();
+    Ok((StatusCode::OK, Json(user)))
 }
 
 pub async fn upgrade_account(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Json(upgrade_request): Json<UpgradeAccountRequest>,
-) -> Result<(StatusCode, Json<User>), ComhairleError> {
+) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
     let upgraded_user =
         models::users::upgrade_account(&user.id, &upgrade_request, &state.db).await?;
-    Ok((StatusCode::OK, Json(upgraded_user)))
+    let user: UserDto = upgraded_user.into();
+    Ok((StatusCode::OK, Json(user)))
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
@@ -151,7 +156,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("User")
                     .description("Update user details (username and/or password)")
                     .security_requirement("JWT")
-                    .response::<200, Json<User>>()
+                    .response::<200, Json<UserDto>>()
             }),
         )
         .api_route(
@@ -161,7 +166,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("User")
                     .description("Upgrade anonymous account to email/password account")
                     .security_requirement("JWT")
-                    .response::<200, Json<User>>()
+                    .response::<200, Json<UserDto>>()
             }),
         )
         .with_state(state)

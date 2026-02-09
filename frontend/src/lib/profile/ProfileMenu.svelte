@@ -8,9 +8,14 @@
 	import { apiClient } from '$lib/api/client';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Bell, LogOut, Settings } from 'lucide-svelte';
-	const { user } = $props();
+	import type { UserDto } from '$lib/api/api';
 
-	let user_initials = $derived(userInitials(user?.username));
+	type Props = {
+		user: UserDto;
+	};
+	const { user }: Props = $props();
+
+	let user_initials = $derived(userInitials(user?.username ?? ''));
 	let notifications: number | undefined = $state();
 
 	$effect(() => {
@@ -26,13 +31,13 @@
 	<DropdownMenu.Root>
 		<DropdownMenu.Trigger class={buttonVariants({ variant: 'outline' })}>
 			<Avatar.Root class="mr-4 h-6 w-6">
-				{#if user.avatar_url}
-					<Avatar.Image src={user.avatar_url} alt="@shadcn" />
+				{#if user.avatarUrl}
+					<Avatar.Image src={user.avatarUrl} alt="@shadcn" />
 				{/if}
 				<Avatar.Fallback class="text-foreground">{user_initials}</Avatar.Fallback>
 			</Avatar.Root>
 			<p class="text-foreground">
-				{#if user.auth_type === 'annon'}
+				{#if user.authType === 'annon'}
 					Anonymous
 				{:else}
 					{user.username}
@@ -45,12 +50,14 @@
 		<DropdownMenu.Content>
 			<DropdownMenu.Group>
 				<DropdownMenu.Item>
-					{#if user.auth_type === 'annon'}
+					{#if user.authType === 'annon'}
 						<h2>Your ID: {user.username}</h2>
 					{/if}
 				</DropdownMenu.Item>
 				<DropdownMenu.Item>
-					<Button href="/settings" type="submit" variant="ghost"><Settings />Settings</Button>
+					<Button href="/settings" type="submit" variant="ghost"
+						><Settings />Settings</Button
+					>
 				</DropdownMenu.Item>
 				<DropdownMenu.Item>
 					<Button href="/notifications" type="submit" variant="ghost"
