@@ -6,6 +6,7 @@
 	import { zod, zodClient } from 'sveltekit-superforms/adapters';
 	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import { apiClient } from '$lib/api/client';
 	import { goto, invalidateAll } from '$app/navigation';
 	import PasswordInput from '$lib/components/ui/password-input/password-input.svelte';
@@ -20,6 +21,7 @@
 	});
 
 	let responseMessage = $state(null);
+	let loading = $state(false);
 
 	const { form: formData, enhance, validateForm } = form;
 
@@ -27,6 +29,7 @@
 		let result = await validateForm({ update: true });
 		if (result.valid) {
 			let { email, password } = result.data;
+			loading = true;
 			try {
 				await apiClient.LoginUser({
 					email,
@@ -49,6 +52,8 @@
 				await goto(resolve(redirectTo));
 			} catch (e) {
 				responseMessage = e.response.data.err;
+			} finally {
+				loading = false;
 			}
 		}
 	}
@@ -84,7 +89,12 @@
 		<Form.FieldErrors />
 	</Form.Field>
 
-	<Form.Button class="w-full" variant="secondary">{m.submit()}</Form.Button>
+	<Button type="submit" class="w-full" variant="secondary" disabled={loading}>
+		{#if loading}
+			<Spinner />
+		{/if}
+		{m.submit()}
+	</Button>
 
 	<Button href={`/auth/anonymous-login?backTo=${backTo ?? '/'}`} variant="link" class="w-full">
 		{m.login_with_anonymous_id()}
