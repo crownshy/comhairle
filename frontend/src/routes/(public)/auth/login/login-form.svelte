@@ -7,6 +7,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 	import { Spinner } from '$lib/components/ui/spinner';
+	import { useLoading } from '$lib/hooks/use-loading.svelte';
 	import { apiClient } from '$lib/api/client';
 	import { goto, invalidateAll } from '$app/navigation';
 	import PasswordInput from '$lib/components/ui/password-input/password-input.svelte';
@@ -21,7 +22,7 @@
 	});
 
 	let responseMessage = $state(null);
-	let loading = $state(false);
+	const loader = useLoading();
 
 	const { form: formData, enhance, validateForm } = form;
 
@@ -29,32 +30,31 @@
 		let result = await validateForm({ update: true });
 		if (result.valid) {
 			let { email, password } = result.data;
-			loading = true;
-			try {
-				await apiClient.LoginUser({
-					email,
-					password
-				});
-				await invalidateAll();
+			await loader.run(async () => {
+				try {
+					await apiClient.LoginUser({
+						email,
+						password
+					});
+					await invalidateAll();
 
-				let redirectTo = backTo ?? '/';
-				if (redirectTo === '/') {
-					try {
-						const userRoles = await apiClient.GetUserRoles();
-						const isAdmin = userRoles?.find((ur) => ur.resource === 'Site')?.roles.includes('Admin');
-						if (isAdmin) {
-							redirectTo = '/admin';
+					let redirectTo = backTo ?? '/';
+					if (redirectTo === '/') {
+						try {
+							const userRoles = await apiClient.GetUserRoles();
+							const isAdmin = userRoles?.find((ur) => ur.resource === 'Site')?.roles.includes('Admin');
+							if (isAdmin) {
+								redirectTo = '/admin';
+							}
+						} catch {
 						}
-					} catch {
 					}
-				}
 
-				await goto(resolve(redirectTo));
-			} catch (e) {
-				responseMessage = e.response.data.err;
-			} finally {
-				loading = false;
-			}
+					await goto(resolve(redirectTo));
+				} catch (e) {
+					responseMessage = e.response.data.err;
+				}
+			});
 		}
 	}
 </script>
@@ -89,8 +89,8 @@
 		<Form.FieldErrors />
 	</Form.Field>
 
-	<Button type="submit" class="w-full" variant="secondary" disabled={loading}>
-		{#if loading}
+	<Button type="submit" class="w-full" variant="secondary" disabled={loader.loading}>
+		{#if loader.loading}
 			<Spinner />
 		{/if}
 		{m.submit()}

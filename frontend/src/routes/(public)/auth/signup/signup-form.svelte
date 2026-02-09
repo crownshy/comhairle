@@ -10,9 +10,13 @@
 	import * as m from '$lib/paraglide/messages';
 	import { apiClient } from '$lib/api/client';
 	import { goto, invalidateAll } from '$app/navigation';
+	import { Button } from '$lib/components/ui/button';
+	import { Spinner } from '$lib/components/ui/spinner';
+	import { useLoading } from '$lib/hooks/use-loading.svelte';
 
 	let { backTo } = $props();
 	let responseMessage = $state(null);
+	const loader = useLoading();
 
 	const form = superForm(defaults(zod(signupFormSchema)), {
 		validators: zodClient(signupFormSchema),
@@ -26,21 +30,23 @@
 		let result = await validateForm({ update: true });
 		if (result.valid) {
 			let { username, password, email } = result.data;
-			try {
-				const user = await apiClient.SignUp({
-					username,
-					password,
-					email
-				});
-				await invalidateAll();
-				if (user.auth_type === 'annon') {
-					await goto(backTo ?? '/');
-				} else {
-					await goto('/auth/verification-message');
+			await loader.run(async () => {
+				try {
+					const user = await apiClient.SignUp({
+						username,
+						password,
+						email
+					});
+					await invalidateAll();
+					if (user.auth_type === 'annon') {
+						await goto(backTo ?? '/');
+					} else {
+						await goto('/auth/verification-message');
+					}
+				} catch (e) {
+					responseMessage = e.response.data.err;
 				}
-			} catch (e) {
-				responseMessage = e.response.data.err;
-			}
+			});
 		}
 	}
 </script>
@@ -89,7 +95,12 @@
 		</Form.Control>
 		<Form.FieldErrors />
 	</Form.Field>
-	<Form.Button class="w-full" variant="secondary">Submit</Form.Button>
+	<Button type="submit" class="w-full" variant="secondary" disabled={loader.loading}>
+		{#if loader.loading}
+			<Spinner />
+		{/if}
+		{m.submit()}
+	</Button>
 	<a
 		href={`/auth/anonymous-signup?backTo=${backTo}`}
 		class={cn('w-full', buttonVariants({ variant: 'outline' }))}>{m.sign_up_anonymously()}</a
