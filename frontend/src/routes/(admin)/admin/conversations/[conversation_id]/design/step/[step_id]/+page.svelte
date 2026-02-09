@@ -17,12 +17,12 @@
 
 	let step = $derived(workflow_steps.find((s: WorkflowStep) => s.id === step_id));
 	let nextStep = $derived(
-		workflow_steps.find((s: WorkflowStep) => s.step_order === step.step_order + 1)
+		step ? workflow_steps.find((s: WorkflowStep) => s.step_order === step.step_order + 1) : undefined
 	);
 	let prevStep = $derived(
-		workflow_steps.find((s: WorkflowStep) => s.step_order === step.step_order - 1)
+		step ? workflow_steps.find((s: WorkflowStep) => s.step_order === step.step_order - 1) : undefined
 	);
-	let toolConfig = $derived(conversation.is_live ? step.tool_config : step.preview_tool_config);
+	let toolConfig = $derived(step ? (conversation.is_live ? step.tool_config : step.preview_tool_config) : null);
 
 	useAdminLayoutSlots({
 		title: titleSnippet,
@@ -31,7 +31,7 @@
 </script>
 
 {#snippet titleSnippet()}
-	<h1 class="text-4xl font-bold">Design: {step.name}</h1>
+	<h1 class="text-4xl font-bold">Design: {step?.name}</h1>
 	<AdminPrevNextControls
 		next={nextStep
 			? {
@@ -58,12 +58,12 @@
 		</Breadcrumb.Link>
 	</Breadcrumb.Item>
 	<Breadcrumb.Separator />
-	<Breadcrumb.Item>{step.name}</Breadcrumb.Item>
+	<Breadcrumb.Item>{step?.name}</Breadcrumb.Item>
 {/snippet}
 
 <CommonStepConfig conversation_id={conversation.id} {step} />
 
-{#if toolConfig.type === 'learn'}
+{#if toolConfig?.type === 'learn'}
 	<LearnManage
 		conversation_id={conversation.id}
 		{conversation}
@@ -72,7 +72,7 @@
 	/>
 {/if}
 
-{#if toolConfig.type === 'polis'}
+{#if toolConfig?.type === 'polis'}
 	<PolisManage
 		polis_id={toolConfig.poll_id}
 		polis_url={toolConfig.server_url}
@@ -82,7 +82,7 @@
 	/>
 {/if}
 
-{#if toolConfig.type === 'heyform'}
+{#if toolConfig?.type === 'heyform'}
 	<HeyFormManage
 		conversation_id={conversation.id}
 		workflow_id={step.workflow_id}
@@ -96,11 +96,11 @@
 	/>
 {/if}
 
-{#if toolConfig.type === 'stories'}
+{#if toolConfig?.type === 'stories'}
 	<LivedExperienceManage />
 {/if}
 
-{#if toolConfig.type === 'elicitationbot'}
+{#if toolConfig?.type === 'elicitationbot'}
 	<EliciationBotManage
 		conversationId={conversation.id}
 		workflowId={step.workflow_id}
