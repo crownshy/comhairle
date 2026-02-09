@@ -10,7 +10,7 @@
 		mergeClaimsWithModifications,
 		type ClaimModification
 	} from './claimStorage';
-	import { ComhairleAgentSession } from '$lib/api/api';
+	import type { ComhairleAgentSession, ComhairleSessionMessage } from '$lib/api/api';
 
 	type Props = {
 		conversationId: string;
@@ -43,10 +43,25 @@
 	onMount(async () => {
 		try {
 			claimModifications = loadClaimModifications(workflowStepId, conversationId);
-
 			agentClient = new AgentClient(conversationId, workflowId, workflowStepId);
-
 			sessionHistory = await agentClient.getSessionHistory();
+		
+			if (sessionHistory) {
+				const { messages: loadedMessages, claims: loadedClaims } = parseSessionHistory(
+					sessionHistory,
+					topic
+				);
+				chatMessages = loadedMessages;
+				aiExtractedClaims = loadedClaims;
+
+				agentClient.extractedClaims = loadedClaims.map((c) => ({ id: c.id, content: c.content }));
+
+				if (claimModifications) {
+					claims = mergeClaimsWithModifications(loadedClaims, claimModifications);
+				} else {
+					claims = loadedClaims;
+				}
+			} 
 
 			agentClient.onClaimUpdate = (streamingClaim, extractedClaims) => {
 				const finalizedClaims: ExtractedClaim[] = extractedClaims.map((claim) => ({
@@ -71,16 +86,17 @@
 				}
 			};
 
-			chatMessages = [
-				{
-					id: 'welcome',
-					content: `Hello, I am here to help you shape your views and opinions. What is your view on ${topic}?`,
-					isBot: true,
-					timestamp: new Date()
-				}
-			];
+			if (!sessionHistory || chatMessages.length === 0) {
+				chatMessages = [
+					{
+						id: 'welcome',
+						content: `Hello, I am here to help you shape your views and opinions. What is your view on ${topic}?`,
+						isBot: true,
+						timestamp: new Date()
+					}
+				];
+			}		
 		} catch (e) {
-			console.error('ElicitationBot init error:', e);
 			initError = e instanceof Error ? e.message : 'Failed to initialize';
 		} finally {
 			isLoading = false;
@@ -194,6 +210,62 @@
 		};
 		claimModifications.addedClaims.push(newClaim);
 		persistModifications();
+	}
+
+	/**
+	 * Parse session history from the API response and extract messages and claims.
+	 * The configuration field contains a stringified JSON with history data.
+	 * Opinions/claims are extracted from assistant messages containing the opinion marker.
+	 */
+	function parseSessionHistory(
+		session: ComhairleAgentSession,
+		topicName: string
+	): { messages: ElicitationMessage[]; claims: ExtractedClaim[] } {
+		const messages: ElicitationMessage[] = [];
+		const extractedClaims: ExtractedClaim[] = [];
+		const opinionMarker = '<br>\n\nopinion:\n\n';
+
+		messages.push({
+			id: 'welcome',
+			content: `Hello, I am here to help you shape your views and opinions. What is your view on ${topicName}?`,
+			isBot: true,
+			timestamp: null
+		});
+
+		if (session.messages && session.messages.length > 0) {
+			for (let i = 0; i < session.messages.length; i++) {
+				const msg = session.messages[i];
+				const isBot = msg.role === 'assistant';
+				let content = msg.content;
+
+				const uniqueId = `${msg.role}-${i}-${msg.id || Date.now()}`;
+
+				if (isBot && content.includes(opinionMarker)) {
+					const parts = content.split(opinionMarker);
+					const mainContent = parts[0].trim();
+					const opinionContent = parts[1]?.trim();
+
+					if (opinionContent) {
+						extractedClaims.push({
+							id: `claim-${i}-${extractedClaims.length}`,
+							content: opinionContent,
+							status: 'pending'
+						});
+					}
+
+					content = mainContent || content;
+				}
+
+				messages.push({
+					id: uniqueId,
+					content,
+					isBot,
+					timestamp: null
+				});
+			}
+		}
+
+		return { messages, claims: extractedClaims };
 	}
 </script>
 
