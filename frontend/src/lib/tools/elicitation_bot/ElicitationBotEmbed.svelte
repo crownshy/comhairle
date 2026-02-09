@@ -7,7 +7,6 @@
 	import {
 		loadClaimModifications,
 		saveClaimModifications,
-		mergeClaimsWithModifications,
 		type ClaimModification
 	} from './claimStorage';
 	import type { ComhairleAgentSession, ComhairleSessionMessage } from '$lib/api/api';
@@ -36,66 +35,66 @@
 	let chatMessages = $state<ElicitationMessage[]>([]);
 	let claims = $state<ExtractedClaim[]>([]);
 	let activeRequestId = $state<string | null>(null);
-	let aiExtractedClaims = $state<ExtractedClaim[]>([]);
 	let claimModifications = $state<ClaimModification | null>(null);
-	let sessionHistory = $state<ComhairleAgentSession | null>(null);
 
 	onMount(async () => {
 		try {
-			claimModifications = loadClaimModifications(workflowStepId, conversationId);
-			agentClient = new AgentClient(conversationId, workflowId, workflowStepId);
-			sessionHistory = await agentClient.getSessionHistory();
-		
-			if (sessionHistory) {
-				const { messages: loadedMessages, claims: loadedClaims } = parseSessionHistory(
-					sessionHistory,
-					topic
-				);
-				chatMessages = loadedMessages;
-				aiExtractedClaims = loadedClaims;
-
-				agentClient.extractedClaims = loadedClaims.map((c) => ({ id: c.id, content: c.content }));
-
-				if (claimModifications) {
-					claims = mergeClaimsWithModifications(loadedClaims, claimModifications);
-				} else {
-					claims = loadedClaims;
-				}
-			} 
-
-			agentClient.onClaimUpdate = (streamingClaim, extractedClaims) => {
-				const finalizedClaims: ExtractedClaim[] = extractedClaims.map((claim) => ({
-					id: claim.id,
-					content: claim.content,
-					status: 'pending' as const
+			const mods = loadClaimModifications(workflowStepId, conversationId, userId);
+			claimModifications = mods;
+			claims = mods.addedClaims
+				.filter(c => !mods.removedClaimIds.has(c.id))
+				.map(c => ({
+					...c,
+					status: mods.approvedClaimIds.has(c.id) ? 'approved' as const : c.status
 				}));
 
+			agentClient = new AgentClient(conversationId, workflowId, workflowStepId);
+			const sessionHistory = await agentClient.getSessionHistory();
+		
+			if (sessionHistory) {
+				const { messages: loadedMessages } = parseSessionHistory(sessionHistory, topic);
+				chatMessages = loadedMessages;
+			}
+
+			agentClient.onClaimUpdate = (streamingClaim, extractedClaims) => {
+				const newClaims: ExtractedClaim[] = [];
+
+				for (const claim of extractedClaims) {
+					if (!claimModifications?.addedClaims.some(c => c.id === claim.id)) {
+						const newClaim: ExtractedClaim = {
+							id: claim.id,
+							content: claim.content,
+							status: 'pending'
+						};
+						newClaims.push(newClaim);
+						claimModifications?.addedClaims.push(newClaim);
+					}
+				}
+
+				if (newClaims.length > 0 && claimModifications) {
+					saveClaimModifications(workflowStepId, conversationId, userId, claimModifications);
+				}
+
+				const mods = claimModifications;
+				const displayClaims: ExtractedClaim[] = mods 
+					? mods.addedClaims
+						.filter(c => !mods.removedClaimIds.has(c.id))
+						.map(c => ({
+							...c,
+							status: mods.approvedClaimIds.has(c.id) ? 'approved' as const : c.status
+						}))
+					: [];
+
 				if (streamingClaim && streamingClaim.content) {
-					finalizedClaims.push({
+					displayClaims.push({
 						id: streamingClaim.id,
 						content: streamingClaim.content,
-						status: 'streaming' as const
+						status: 'streaming'
 					});
 				}
 
-				aiExtractedClaims = finalizedClaims;
-				if (claimModifications) {
-					claims = mergeClaimsWithModifications(finalizedClaims, claimModifications);
-				} else {
-					claims = finalizedClaims;
-				}
+				claims = displayClaims;
 			};
-
-			if (!sessionHistory || chatMessages.length === 0) {
-				chatMessages = [
-					{
-						id: 'welcome',
-						content: `Hello, I am here to help you shape your views and opinions. What is your view on ${topic}?`,
-						isBot: true,
-						timestamp: new Date()
-					}
-				];
-			}		
 		} catch (e) {
 			initError = e instanceof Error ? e.message : 'Failed to initialize';
 		} finally {
@@ -114,7 +113,6 @@
 		};
 		chatMessages = [...chatMessages, userMessage];
 
-		// TODO: does this need to change?
 		const botPlaceholderId = `bot-${Date.now()}`;
 		activeRequestId = botPlaceholderId;
 
@@ -130,17 +128,13 @@
 
 		await agentClient.send(message);
 
-		if (activeRequestId !== botPlaceholderId) {
-			return;
-		}
+		if (activeRequestId !== botPlaceholderId) return;
 
 		agentClient.finalizeStreamingClaim();
 
 		const finalContent =
 			agentClient.currentAnswer ||
-			(agentClient.error
-				? `Error: ${agentClient.error}`
-				: 'No response received from agent.');
+			(agentClient.error ? `Error: ${agentClient.error}` : 'No response received from agent.');
 
 		chatMessages = chatMessages.map((msg) =>
 			msg.id === botPlaceholderId ? { ...msg, content: finalContent } : msg
@@ -163,9 +157,15 @@
 	});
 
 	function persistModifications() {
-		if (claimModifications) {
-			saveClaimModifications(workflowStepId, conversationId, claimModifications);
-			claims = mergeClaimsWithModifications(aiExtractedClaims, claimModifications);
+		const mods = claimModifications;
+		if (mods) {
+			saveClaimModifications(workflowStepId, conversationId, userId, mods);
+			claims = mods.addedClaims
+				.filter(c => !mods.removedClaimIds.has(c.id))
+				.map(c => ({
+					...c,
+					status: mods.approvedClaimIds.has(c.id) ? 'approved' as const : c.status
+				}));
 		}
 	}
 
