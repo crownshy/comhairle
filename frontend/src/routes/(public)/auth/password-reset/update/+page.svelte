@@ -3,7 +3,7 @@
 	import type { PageProps } from './$types';
 	import * as m from '$lib/paraglide/messages';
 	import * as Form from '$lib/components/ui/form';
-	import Button from '$lib/components/ui/button/button.svelte';
+	import { LoadingButton } from '$lib/components/ui/button';
 	import PasswordInput from '$lib/components/ui/password-input/password-input.svelte';
 	import { defaults, superForm } from 'sveltekit-superforms';
 	import { zod, zodClient } from 'sveltekit-superforms/adapters';
@@ -11,8 +11,7 @@
 	import { apiClient } from '$lib/api/client';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
-	import { useLoading } from '$lib/hooks/use-loading.svelte';
+		import { useLoading } from '$lib/hooks/use-loading.svelte';
 
 	let { data }: PageProps = $props();
 
@@ -84,15 +83,9 @@
 			{#if $errors.confirmPassword}
 				<p class="text-destructive text-sm">{$errors.confirmPassword}</p>
 			{/if}
-			<Button type="submit">
-				{#if loader.loading}
-					<span class="flex w-12 justify-center">
-						<Spinner />
-					</span>
-				{:else}
-					{m.submit()}
-				{/if}
-			</Button>
+			<LoadingButton type="submit" loading={loader.loading}>
+				{m.submit()}
+			</LoadingButton>
 		</form>
 	</section>
 </AuthPage>

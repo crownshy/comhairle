@@ -5,8 +5,7 @@
 	import { superForm, defaults } from 'sveltekit-superforms';
 	import { zod, zodClient } from 'sveltekit-superforms/adapters';
 	import * as m from '$lib/paraglide/messages';
-	import { Button } from '$lib/components/ui/button';
-	import { Spinner } from '$lib/components/ui/spinner';
+	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
 	import { apiClient } from '$lib/api/client';
 	import { goto, invalidateAll } from '$app/navigation';
@@ -89,12 +88,9 @@
 		<Form.FieldErrors />
 	</Form.Field>
 
-	<Button type="submit" class="w-full" variant="secondary" disabled={loader.loading}>
-		{#if loader.loading}
-			<Spinner />
-		{/if}
+	<LoadingButton type="submit" class="w-full" variant="secondary" loading={loader.loading}>
 		{m.submit()}
-	</Button>
+	</LoadingButton>
 
 	<Button href={`/auth/anonymous-login?backTo=${backTo ?? '/'}`} variant="link" class="w-full">
 		{m.login_with_anonymous_id()}

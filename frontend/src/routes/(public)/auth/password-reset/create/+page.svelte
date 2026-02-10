@@ -4,14 +4,13 @@
 	import { AuthPage } from '$lib/profile';
 	import * as m from '$lib/paraglide/messages';
 	import Input from '$lib/components/ui/input/input.svelte';
-	import Button from '$lib/components/ui/button/button.svelte';
+	import { LoadingButton } from '$lib/components/ui/button';
 	import { passwordResetCreateFormSchema } from '$lib/profile/schema';
 	import { defaults, superForm } from 'sveltekit-superforms';
 	import { zod, zodClient } from 'sveltekit-superforms/adapters';
 	import { apiClient } from '$lib/api/client';
 	import { goto, invalidateAll } from '$app/navigation';
-	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
-	import { useLoading } from '$lib/hooks/use-loading.svelte';
+		import { useLoading } from '$lib/hooks/use-loading.svelte';
 
 	let responseMessage: string | null = $state(null);
 
@@ -67,15 +66,9 @@
 					{/snippet}
 				</Form.Control>
 			</Form.Field>
-			<Button type="submit"
-				>{#if loader.loading}
-					<span class="flex w-12 justify-center">
-						<Spinner />
-					</span>
-				{:else}
-					{m.submit()}
-				{/if}
-			</Button>
+			<LoadingButton type="submit" loading={loader.loading}>
+				{m.submit()}
+			</LoadingButton>
 		</form>
 	</section>
 </AuthPage>
