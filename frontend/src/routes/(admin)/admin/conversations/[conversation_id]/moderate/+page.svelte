@@ -1,12 +1,5 @@
 <script lang="ts">
-	import {
-		Binoculars,
-		BookOpen,
-		ChevronUp,
-		ListChecks,
-		MessagesSquare,
-		Video
-	} from 'lucide-svelte';
+	import { BookOpen, ListChecks, MessagesSquare, Video } from 'lucide-svelte';
 	let { data } = $props();
 	let { workflow_steps, conversation } = data;
 	import * as Card from '$lib/components/ui/card';
@@ -16,7 +9,7 @@
 	import type { ToolConfig, WorkflowStep } from '$lib/api/api.js';
 
 	function activeToolConfig(step: WorkflowStep): ToolConfig {
-		return conversation.is_live ? activeToolConfig(step) : step.preview_tool_config;
+		return conversation.isLive ? activeToolConfig(step) : step.preview_tool_config;
 	}
 
 	useAdminLayoutSlots({

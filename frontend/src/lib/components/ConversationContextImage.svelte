@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Conversation } from '$lib/api/api';
+	import { LocalizedConversationDto } from '$lib/api/api';
 	import { apiClient } from '$lib/api/client';
 	import Spinner from './ui/spinner/spinner.svelte';
 
@@ -9,7 +9,7 @@
 
 	let { conversation_id }: Props = $props();
 
-	let conversation: Conversation | undefined = $state();
+	let conversation: LocalizedConversationDto | undefined = $state();
 
 	$effect(() => {
 		apiClient.GetConversation({ params: { conversation_id } }).then((convo) => {
@@ -24,7 +24,7 @@
 			<img
 				alt={conversation.title}
 				class="h-64 w-full rounded-md object-cover"
-				src={conversation.image_url}
+				src={conversation.imageUrl}
 			/>
 			<div class="absolute inset-0 rounded-md bg-gray-700 opacity-60"></div>
 			<div class="absolute inset-0 flex items-center justify-center">
