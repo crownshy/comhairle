@@ -18,7 +18,6 @@ export interface ParsedSessionClaim {
 
 export interface ParsedSessionHistory {
 	messages: ParsedSessionMessage[];
-	claims: ParsedSessionClaim[];
 }
 
 export function stripOpinionPrefix(content: string): string {
@@ -80,7 +79,7 @@ export function parseSessionHistory(
 		}
 	}
 
-	return { messages, claims: [] };
+	return { messages };
 }
 
 export interface AgentMessageReference {
