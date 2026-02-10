@@ -10,8 +10,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { apiClient } from '$lib/api/client';
 	import { goto, invalidateAll } from '$app/navigation';
-	import { Button } from '$lib/components/ui/button';
-	import { Spinner } from '$lib/components/ui/spinner';
+	import { LoadingButton } from '$lib/components/ui/button';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
 
 	let { backTo } = $props();
@@ -95,12 +94,9 @@
 		</Form.Control>
 		<Form.FieldErrors />
 	</Form.Field>
-	<Button type="submit" class="w-full" variant="secondary" disabled={loader.loading}>
-		{#if loader.loading}
-			<Spinner />
-		{/if}
+	<LoadingButton type="submit" class="w-full" variant="secondary" loading={loader.loading}>
 		{m.submit()}
-	</Button>
+	</LoadingButton>
 	<a
 		href={`/auth/anonymous-signup?backTo=${backTo}`}
 		class={cn('w-full', buttonVariants({ variant: 'outline' }))}>{m.sign_up_anonymously()}</a
