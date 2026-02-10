@@ -1,7 +1,7 @@
 <script lang="ts">
 	import PolisModerate from '$lib/tools/polis/PolisModerate.svelte';
 
-	import type { ToolConfig, WorkflowStep } from '$lib/api/api.js';
+	import type { WorkflowStep } from '$lib/api/api.js';
 	let { data } = $props();
 
 	let conversation = $derived(data.conversation);
@@ -9,7 +9,7 @@
 	let workflow_steps = $derived(data.workflow_steps);
 	let step = $derived(workflow_steps.find((s: WorkflowStep) => s.id === step_id));
 
-	let toolConfig = $derived(conversation.is_live ? step.tool_config : step.preview_tool_config);
+	let toolConfig = $derived(conversation.isLive ? step.tool_config : step.preview_tool_config);
 </script>
 
 {#if toolConfig.type === 'polis'}

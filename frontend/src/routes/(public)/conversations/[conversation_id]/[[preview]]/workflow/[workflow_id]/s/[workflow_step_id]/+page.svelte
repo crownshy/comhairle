@@ -13,7 +13,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
-	import type { ToolConfig, WorkflowStep } from '$lib/api/api';
 
 	let { data }: PageProps = $props();
 	let { user } = data;
@@ -23,7 +22,7 @@
 	let workflow_steps = $derived(data.workflow_steps);
 
 	let tool_config = $derived(
-		conversation.is_live ? workflow_step.tool_config : workflow_step.preview_tool_config
+		conversation.isLive ? workflow_step.tool_config : workflow_step.preview_tool_config
 	);
 
 
@@ -35,7 +34,7 @@
 
 	async function stepComplete() {
 		try {
-			if (conversation.is_live) {
+			if (conversation.isLive) {
 				await apiClient.SetUserProgress('done', {
 					params: {
 						workflow_id: workflow_step.workflow_id,
@@ -55,7 +54,7 @@
 						conversation.id,
 						workflow_id,
 						next.id,
-						!conversation.is_live
+						!conversation.isLive
 					);
 					goto(next_step_url);
 				} else {
@@ -77,7 +76,7 @@
 <div class="flex flex-col items-center pt-10">
 	{#if conversation && workflow_step}
 		<div class="hidden flex-row gap-2 md:flex">
-			{#each workflow_steps as step}
+			{#each workflow_steps as step (step.id)}
 				<div
 					class="bg-brand flex flex-col items-center gap-3 rounded-4xl px-10 py-3 text-sm text-[#ffffff]"
 					class:bg-brand={workflow_step.id === step.id}

@@ -67,7 +67,7 @@
 		</div>
 
 		<div>
-			{#if conversation.is_live}
+			{#if conversation.isLive}
 				<Badge
 					class="bg-primary flex flex-row items-center justify-between rounded-3xl px-8 py-2 text-white"
 					>Launched! <Check class="text-primary rounded-full bg-white" /></Badge

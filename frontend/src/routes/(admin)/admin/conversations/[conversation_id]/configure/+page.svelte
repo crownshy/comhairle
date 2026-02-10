@@ -31,7 +31,6 @@
 	} = $props();
 	let conversation = $derived(data.conversation);
 	let workflow = $derived(data.workflows[0]);
-	let workflow_steps = $derived(data.workflow_steps);
 
 	let primaryLanguage = $state(data.conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $state(data.conversation.supportedLanguages ?? ['en']);
@@ -138,16 +137,14 @@
 		const result = await validateForm({ update: true });
 
 		if (!result.valid) return;
-		delete result.data.title;
-		delete result.data.description;
-		delete result.data.shortDescription;
 
 		try {
 			const {
-				title: _title,
-				shortDescription: _short_description,
-				description: _description,
-				autoLogin,
+				title: _title /* eslint-disable-line @typescript-eslint/no-unused-vars */,
+				shortDescription:
+					_short_description /* eslint-disable-line @typescript-eslint/no-unused-vars */,
+				description: _description, /* eslint-disable-line @typescript-eslint/no-unused-vars */
+				autoLogin: _auto_login, /* eslint-disable-line @typescript-eslint/no-unused-vars */
 				...conversationData
 			} = result.data;
 

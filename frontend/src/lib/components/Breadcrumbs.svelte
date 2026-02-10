@@ -1,10 +1,10 @@
 <script lang="ts">
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
-	import type { Conversation, WorkflowStep } from '$lib/api/api';
+	import type { LocalizedConversationDto, WorkflowStep } from '$lib/api/api';
 	let {
 		conversation,
 		workflow_step
-	}: { conversation?: Conversation; workflow_step?: WorkflowStep } = $props();
+	}: { conversation?: LocalizedConversationDto; workflow_step?: WorkflowStep } = $props();
 </script>
 
 <Breadcrumb.Root class="mb-16">
