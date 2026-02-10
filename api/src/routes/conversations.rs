@@ -135,7 +135,7 @@ pub struct GetConversationQuery {
 #[derive(Serialize, JsonSchema)]
 #[serde(untagged)]
 pub enum ConversationResponse {
-    Localised(LocalisedConversation),
+    Localised(LocalizedConversationDto),
     WithTranslations(ConversationWithTranslations),
 }
 
@@ -187,9 +187,10 @@ async fn get_conversation(
     } else {
         // Return localized conversation as before
         info!("Trying to get localized translations for {locale}");
-        let conversation =
+        let conversation: LocalizedConversationDto =
             conversation::get_localised_by_id_or_slug(&state.db, &conversation_ident, &locale)
-                .await?;
+                .await?
+                .into();
 
         Ok((
             StatusCode::OK,
