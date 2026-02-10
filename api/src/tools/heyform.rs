@@ -1,3 +1,7 @@
+use std::sync::Arc;
+
+use aide::axum::ApiRouter;
+use async_trait::async_trait;
 use heyform_sdk::{
     client::HeyFormClient, CreateFormInput, CreateHiddenFieldInput, CreateTeamInput, FormKind,
     InteractiveMode, LoginInput, SignUpInput,
@@ -6,9 +10,9 @@ use rand::{distributions::Alphanumeric, seq::SliceRandom, thread_rng, Rng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::error::ComhairleError;
+use crate::{error::ComhairleError, ComhairleState};
 
-use super::ToolConfigSanitize;
+use super::{ToolConfigSanitize, ToolImpl};
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
 pub struct HeyFormToolConfig {
@@ -88,7 +92,7 @@ pub async fn launch(
     Ok(new_config)
 }
 
-pub async fn setup(_setup_config: &HeyFormToolSetup) -> Result<HeyFormToolConfig, ComhairleError> {
+async fn heyform_setup(_setup_config: &HeyFormToolSetup) -> Result<HeyFormToolConfig, ComhairleError> {
     let client = HeyFormClient::new("https://forms.comhairle.scot")?;
 
     let username: String = rand::thread_rng()
@@ -178,4 +182,44 @@ pub async fn setup(_setup_config: &HeyFormToolSetup) -> Result<HeyFormToolConfig
         workspace_id,
         project_id,
     })
+}
+
+/// Zero-sized marker type for HeyForm tool implementation
+pub struct HeyFormTool;
+
+#[async_trait]
+impl ToolImpl for HeyFormTool {
+    type Config = HeyFormToolConfig;
+    type Setup = HeyFormToolSetup;
+    type Report = HeyFormReport;
+
+    async fn setup(
+        setup: &Self::Setup,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        // Delegate to existing setup function
+        heyform_setup(setup).await
+    }
+
+    async fn clone_tool(
+        config: &Self::Config,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        // Delegate to existing launch function
+        launch(config).await
+    }
+
+    fn sanitize(config: Self::Config) -> Self::Config {
+        config.sanatize()
+    }
+
+    fn routes(_state: &Arc<ComhairleState>) -> ApiRouter {
+        // HeyForm tool has no routes (external service)
+        ApiRouter::new()
+    }
+}
+
+// Keep public function for backwards compatibility
+pub async fn setup(setup_config: &HeyFormToolSetup) -> Result<HeyFormToolConfig, ComhairleError> {
+    heyform_setup(setup_config).await
 }
