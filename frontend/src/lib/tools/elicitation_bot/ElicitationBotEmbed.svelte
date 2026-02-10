@@ -5,7 +5,7 @@
 	import type { ElicitationMessage, ExtractedClaim } from './types';
 	import { Loader2 } from 'lucide-svelte';
 	import {
-		loadClaimModifications,
+		loadClaims,
 		saveClaimModifications,
 		type ClaimModification
 	} from './claimStorage';
@@ -39,7 +39,7 @@
 
 	onMount(async () => {
 		try {
-			const mods = loadClaimModifications(workflowStepId, conversationId, userId);
+			const mods = loadClaims(workflowStepId, conversationId, userId);
 			claimModifications = mods;
 			claims = mods.addedClaims
 				.filter(c => !mods.removedClaimIds.has(c.id))
