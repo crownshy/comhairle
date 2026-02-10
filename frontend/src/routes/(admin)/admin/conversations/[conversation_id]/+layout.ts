@@ -24,6 +24,7 @@ export const load: PageLoad = async ({ params, parent }) => {
 		}
 		return { conversation, workflows, stats, workflow_steps };
 	} catch (e) {
+		console.error(e);
 		notifications.addFlash({
 			message: 'Problem loading conversation assets',
 			priority: 'WARNING'

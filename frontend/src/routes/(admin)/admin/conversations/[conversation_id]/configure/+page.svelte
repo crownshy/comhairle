@@ -16,27 +16,38 @@
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
+	import type { LocalizedConversationDto, WorkflowStep } from '$lib/api/api';
+	import type { Workflow } from 'lucide-svelte';
+	import { snakeCaseKeys } from '$lib/utils/snakeCaseKeys';
 
-	let { data } = $props();
+	let {
+		data
+	}: {
+		data: {
+			conversation: LocalizedConversationDto;
+			workflows: Workflow[];
+			workflow_steps: WorkflowStep[];
+		};
+	} = $props();
 	let conversation = $derived(data.conversation);
 	let workflow = $derived(data.workflows[0]);
 	let workflow_steps = $derived(data.workflow_steps);
 
-	let primaryLanguage = $state(data.conversation.primary_locale ?? 'en');
-	let supportedLanguages = $state(data.conversation.supported_languages ?? ['en']);
+	let primaryLanguage = $state(data.conversation.primaryLocale ?? 'en');
+	let supportedLanguages = $state(data.conversation.supportedLanguages ?? ['en']);
 
 	const translations = createTranslationManager(
 		() => conversation,
 		(field) => {
 			if (field === 'title') return $form.title;
-			if (field === 'short_description') return $form.short_description;
+			if (field === 'shortDescription') return $form.shortDescription;
 			if (field === 'description') return $form.description;
 			return undefined;
 		}
 	);
 
 	function updateFormForLanguage(newLanguage: string) {
-		const fields = ['title', 'short_description', 'description'] as const;
+		const fields = ['title', 'shortDescription', 'description'] as const;
 
 		for (const field of fields) {
 			const content = translations.getFieldContentForLocale(field, newLanguage);
@@ -63,7 +74,7 @@
 	}
 
 	async function handleSupportedLanguagesChange(newSupported: string[]) {
-		const currentSupported = conversation.supported_languages ?? [];
+		const currentSupported = conversation.supportedLanguages ?? [];
 		const newlyAddedLanguages = newSupported.filter((lang) => !currentSupported.includes(lang));
 
 		try {
@@ -106,12 +117,12 @@
 	let conversationForm = superForm(
 		{
 			title: data.conversation.title,
-			short_description: data.conversation.short_description,
+			shortDescription: data.conversation.shortDescription,
 			description: data.conversation.description,
-			image_url: data.conversation.image_url,
-			is_public: data.conversation.is_public,
-			is_invite_only: data.conversation.is_invite_only,
-			auto_login: data.workflows[0].auto_login
+			imageUrl: data.conversation.imageUrl,
+			isPublic: data.conversation.isPublic,
+			isInviteOnly: data.conversation.isInviteOnly,
+			autoLogin: data.workflows[0].auto_login
 		},
 		{
 			validators: zodClient(conversationConfigSchema),
@@ -129,20 +140,23 @@
 		if (!result.valid) return;
 		delete result.data.title;
 		delete result.data.description;
-		delete result.data.short_description;
+		delete result.data.shortDescription;
 
 		try {
 			const {
 				title: _title,
-				short_description: _short_description,
+				shortDescription: _short_description,
 				description: _description,
-				auto_login,
+				autoLogin,
 				...conversationData
 			} = result.data;
 
+			// Convert to snake case for update params
+			const conversationSnakeCase = snakeCaseKeys(conversationData);
+
 			await apiClient.UpdateConversation(
 				{
-					...conversationData,
+					...conversationSnakeCase,
 					primary_locale: primaryLanguage,
 					supported_languages: supportedLanguages
 				},
@@ -150,7 +164,7 @@
 			);
 
 			await apiClient.UpdateWorkflow(
-				{ auto_login: result.data.auto_login },
+				{ auto_login: result.data.autoLogin },
 				{ params: { conversation_id: conversation.id, workflow_id: workflow.id } }
 			);
 
@@ -168,7 +182,7 @@
 		// Update form if primary language changed
 		if (isPrimary && field) {
 			if (field === 'title') $form.title = content;
-			else if (field === 'short_description') $form.short_description = content;
+			else if (field === 'shortDescription') $form.shortDescription = content;
 			else if (field === 'description') $form.description = content;
 		}
 
@@ -222,11 +236,11 @@
 		form={conversationForm}
 		name="short_description"
 		label="Short Description"
-		value={$form.short_description}
-		onValueChange={(v) => ($form.short_description = v)}
-		onEditTranslations={(lang) => translations.openDialog('short_description', lang)}
-		onPrimaryChange={() => translations.handlePrimaryContentChange('short_description')}
-		translations={translations.getFieldTranslations('short_description')}
+		value={$form.shortDescription}
+		onValueChange={(v) => ($form.shortDescription = v)}
+		onEditTranslations={(lang) => translations.openDialog('shortDescription', lang)}
+		onPrimaryChange={() => translations.handlePrimaryContentChange('shortDescription')}
+		translations={translations.getFieldTranslations('shortDescription')}
 		inputType="textarea"
 	/>
 
@@ -259,23 +273,23 @@
 			<Form.Field
 				class="flex w-full flex-row justify-between border-t-1 py-5"
 				form={conversationForm}
-				name="image_url"
+				name="imageUrl"
 			>
 				<Form.Control>
 					{#snippet children({ props })}
 						<div class="flex w-full flex-row justify-between border-t-1 py-5">
 							<div class="flex w-60 flex-col gap-2">
 								<Form.Label class="font-bold">Banner Image URL</Form.Label>
-								{#if $form.image_url}
+								{#if $form.imageUrl}
 									<img
 										width="200px"
 										alt="Conversation Banner"
-										src={$form.image_url}
+										src={$form.imageUrl}
 									/>
 								{/if}
 							</div>
 							<div class="grow flex-col gap-2">
-								<Input {...props} bind:value={$form.image_url} />
+								<Input {...props} bind:value={$form.imageUrl} />
 								<Form.FieldErrors />
 							</div>
 						</div>
@@ -288,11 +302,11 @@
 	<div class="flex w-full flex-col gap-2 border-t py-5 lg:flex-row lg:justify-between">
 		<p class="font-bold lg:w-60 lg:shrink-0">Access</p>
 		<div class="flex grow flex-col gap-5">
-			<Form.Field form={conversationForm} name="is_public">
+			<Form.Field form={conversationForm} name="isPublic">
 				<Form.Control>
 					{#snippet children({ props })}
 						<div class="flex items-center space-x-2">
-							<Switch {...props} bind:checked={$form.is_public} />
+							<Switch {...props} bind:checked={$form.isPublic} />
 							<Form.Label>Show conversation publicly</Form.Label>
 						</div>
 					{/snippet}
@@ -300,11 +314,11 @@
 				<Form.FieldErrors />
 			</Form.Field>
 
-			<Form.Field form={conversationForm} name="is_invite_only">
+			<Form.Field form={conversationForm} name="isInviteOnly">
 				<Form.Control>
 					{#snippet children({ props })}
 						<div class="flex items-center space-x-2">
-							<Switch {...props} bind:checked={$form.is_invite_only} />
+							<Switch {...props} bind:checked={$form.isInviteOnly} />
 							<Form.Label>Only allow participation by invite</Form.Label>
 						</div>
 					{/snippet}
@@ -312,11 +326,11 @@
 				<Form.FieldErrors />
 			</Form.Field>
 
-			<Form.Field form={conversationForm} name="auto_login">
+			<Form.Field form={conversationForm} name="autoLogin">
 				<Form.Control>
 					{#snippet children({ props })}
 						<div class="flex items-center space-x-2">
-							<Switch {...props} bind:checked={$form.auto_login} />
+							<Switch {...props} bind:checked={$form.autoLogin} />
 							<Form.Label
 								>Automatically log in a user with an annon account if not logged in</Form.Label
 							>

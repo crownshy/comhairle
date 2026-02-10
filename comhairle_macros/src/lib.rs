@@ -246,6 +246,7 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
         }
 
         #[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema, Debug, PartialEq, Clone)]
+        #[serde(rename_all = "camelCase")]
         pub struct #with_translations_struct_name {
             #(#localised_fields,)*
             pub translations: std::collections::HashMap<String, Translation>,
