@@ -25,7 +25,7 @@ use crate::{
             self, BotServiceSessionContext, BotServiceUserSessionDto, CreateBotServiceUserSession,
         },
         conversation::{
-            self, Conversation, ConversationFilterOptions, ConversationOrderOptions,
+            self, ConversationFilterOptions, ConversationOrderOptions,
             ConversationWithTranslations, CreateConversation, IdOrSlug, LocalisedConversation,
             PartialConversation,
         },
@@ -41,7 +41,9 @@ use crate::{
         user_participation::{self},
     },
     routes::{
-        auth::RequiredUser, conversations::dto::ConversationDto, translations::LocaleExtractor,
+        auth::RequiredUser,
+        conversations::dto::{ConversationDto, LocalizedConversationDto},
+        translations::LocaleExtractor,
     },
     workers::process_documents::DocumentJob,
     ComhairleState,
@@ -90,7 +92,7 @@ async fn list_conversations(
     Query(mut filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
     LocaleExtractor(locale): LocaleExtractor,
-) -> Result<(StatusCode, Json<PaginatedResults<ConversationDto>>), ComhairleError> {
+) -> Result<(StatusCode, Json<PaginatedResults<LocalizedConversationDto>>), ComhairleError> {
     filter_options.enforce_live();
 
     let conversations = conversation::list(
@@ -102,7 +104,7 @@ async fn list_conversations(
     )
     .await?;
 
-    let conversations: PaginatedResults<ConversationDto> = PaginatedResults {
+    let conversations: PaginatedResults<LocalizedConversationDto> = PaginatedResults {
         total: conversations.total,
         records: conversations.records.into_iter().map(Into::into).collect(),
     };
@@ -483,7 +485,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("List conversations with optional filtering and ordering")
                     .tag("Conversation")
                     .description("List conversations")
-                    .response::<200, Json<PaginatedResults<ConversationDto>>>()
+                    .response::<200, Json<PaginatedResults<LocalizedConversationDto>>>()
             }),
         )
         .api_route(
@@ -576,7 +578,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 #[cfg(test)]
 mod tests {
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
-    use crate::routes::conversations::dto::{ConversationDto, TranslatableField};
+    use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
     use crate::test_helpers::test_state;
     use crate::{setup_server, test_helpers::UserSession};
     use axum::{body::Body, http::StatusCode};
@@ -779,19 +781,13 @@ mod tests {
                 .unwrap();
         assert_eq!(total, 2, "Should have the right number of entries");
 
-        let conversations: Vec<ConversationDto> =
+        let conversations: Vec<LocalizedConversationDto> =
             serde_json::from_value(conversations.get("records").to_owned().unwrap().to_owned())
                 .unwrap();
 
-        assert_eq!(
-            conversations[0].title,
-            TranslatableField::Localized("Test conversation".to_string()),
-        );
+        assert_eq!(conversations[0].title, "Test conversation".to_string(),);
 
-        assert_eq!(
-            conversations[1].title,
-            TranslatableField::Localized("Another Test".to_string())
-        );
+        assert_eq!(conversations[1].title, "Another Test".to_string());
 
         Ok(())
     }

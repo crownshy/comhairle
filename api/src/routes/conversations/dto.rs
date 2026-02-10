@@ -10,10 +10,14 @@ use crate::models::{
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationDto {
+    #[schemars(example = "example_uuid")]
     pub id: Uuid,
-    pub title: TranslatableField,
-    pub short_description: TranslatableField,
-    pub description: TranslatableField,
+    #[schemars(example = "example_uuid")]
+    pub title: TextContentId,
+    #[schemars(example = "example_uuid")]
+    pub short_description: TextContentId,
+    #[schemars(example = "example_uuid")]
+    pub description: TextContentId,
     pub video_url: Option<String>,
     pub image_url: String,
     pub tags: Vec<String>,
@@ -23,26 +27,49 @@ pub struct ConversationDto {
     pub is_invite_only: bool,
     pub slug: Option<String>,
     pub primary_locale: String,
+    #[schemars(example = "example_bot_service_id")]
     pub knowledge_base_id: Option<String>,
+    #[schemars(example = "example_bot_service_id")]
     pub chat_bot_id: Option<String>,
     pub enable_qa_chat_bot: bool,
     pub supported_languages: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
-#[serde(untagged)]
-pub enum TranslatableField {
-    TextContentId(TextContentId),
-    Localized(String),
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalizedConversationDto {
+    #[schemars(example = "example_uuid")]
+    pub id: Uuid,
+    #[schemars(example = "example_localized_text")]
+    pub title: String,
+    #[schemars(example = "example_localized_text")]
+    pub short_description: String,
+    #[schemars(example = "example_localized_text")]
+    pub description: String,
+    pub video_url: Option<String>,
+    pub image_url: String,
+    pub tags: Vec<String>,
+    pub is_public: bool,
+    pub is_live: bool,
+    pub is_complete: bool,
+    pub is_invite_only: bool,
+    pub slug: Option<String>,
+    pub primary_locale: String,
+    #[schemars(example = "example_bot_service_id")]
+    pub knowledge_base_id: Option<String>,
+    #[schemars(example = "example_bot_service_id")]
+    pub chat_bot_id: Option<String>,
+    pub enable_qa_chat_bot: bool,
+    pub supported_languages: Vec<String>,
 }
 
 impl From<Conversation> for ConversationDto {
     fn from(c: Conversation) -> Self {
         Self {
             id: c.id,
-            title: TranslatableField::TextContentId(c.title),
-            short_description: TranslatableField::TextContentId(c.short_description),
-            description: TranslatableField::TextContentId(c.description),
+            title: c.title,
+            short_description: c.short_description,
+            description: c.description,
             video_url: c.video_url,
             image_url: c.image_url,
             tags: c.tags,
@@ -60,13 +87,13 @@ impl From<Conversation> for ConversationDto {
     }
 }
 
-impl From<LocalisedConversation> for ConversationDto {
+impl From<LocalisedConversation> for LocalizedConversationDto {
     fn from(c: LocalisedConversation) -> Self {
         Self {
             id: c.id,
-            title: TranslatableField::Localized(c.title),
-            short_description: TranslatableField::Localized(c.short_description),
-            description: TranslatableField::Localized(c.description),
+            title: c.title,
+            short_description: c.short_description,
+            description: c.description,
             video_url: c.video_url,
             image_url: c.image_url,
             tags: c.tags,
@@ -82,4 +109,16 @@ impl From<LocalisedConversation> for ConversationDto {
             supported_languages: c.supported_languages,
         }
     }
+}
+
+fn example_localized_text() -> String {
+    "Example localized text".to_string()
+}
+
+fn example_uuid() -> Uuid {
+    Uuid::nil()
+}
+
+fn example_bot_service_id() -> String {
+    "asdqweasdqweasdqwe".to_string()
 }

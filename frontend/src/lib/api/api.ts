@@ -80,14 +80,14 @@ export const CreateOrUpdateTextTranslationRequest = z.object({ ai_generated: z.u
 export type CreateOrUpdateTextTranslationRequest = z.infer<typeof CreateOrUpdateTextTranslationRequest>;
 export const Story = z.object({ id: z.string().uuid(), transcript_id: z.union([z.string(), z.null()]).optional(), user_id: z.string().uuid(), video_id: z.string().uuid(), workflow_step_id: z.string().uuid() }).passthrough();
 export type Story = z.infer<typeof Story>;
-export const TranslatableField = z.union([z.string(), z.string()]);
-export type TranslatableField = z.infer<typeof TranslatableField>;
-export const ConversationDto = z.object({ chatBotId: z.union([z.string(), z.null()]).optional(), description: TranslatableField, enableQaChatBot: z.boolean(), id: z.string().uuid(), imageUrl: z.string(), isComplete: z.boolean(), isInviteOnly: z.boolean(), isLive: z.boolean(), isPublic: z.boolean(), knowledgeBaseId: z.union([z.string(), z.null()]).optional(), primaryLocale: z.string(), shortDescription: TranslatableField, slug: z.union([z.string(), z.null()]).optional(), supportedLanguages: z.array(z.string()), tags: z.array(z.string()), title: TranslatableField, videoUrl: z.union([z.string(), z.null()]).optional() }).passthrough();
-export type ConversationDto = z.infer<typeof ConversationDto>;
-export const PaginatedResults_for_ConversationDto = z.object({ records: z.array(ConversationDto), total: z.number().int() }).passthrough();
-export type PaginatedResults_for_ConversationDto = z.infer<typeof PaginatedResults_for_ConversationDto>;
+export const LocalizedConversationDto = z.object({ chatBotId: z.union([z.string(), z.null()]).optional(), description: z.string(), enableQaChatBot: z.boolean(), id: z.string().uuid(), imageUrl: z.string(), isComplete: z.boolean(), isInviteOnly: z.boolean(), isLive: z.boolean(), isPublic: z.boolean(), knowledgeBaseId: z.union([z.string(), z.null()]).optional(), primaryLocale: z.string(), shortDescription: z.string(), slug: z.union([z.string(), z.null()]).optional(), supportedLanguages: z.array(z.string()), tags: z.array(z.string()), title: z.string(), videoUrl: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type LocalizedConversationDto = z.infer<typeof LocalizedConversationDto>;
+export const PaginatedResults_for_LocalizedConversationDto = z.object({ records: z.array(LocalizedConversationDto), total: z.number().int() }).passthrough();
+export type PaginatedResults_for_LocalizedConversationDto = z.infer<typeof PaginatedResults_for_LocalizedConversationDto>;
 export const CreateConversation = z.object({ default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string(), enable_qa_chat_bot: z.union([z.boolean(), z.null()]).optional(), image_url: z.string(), is_invite_only: z.boolean(), is_live: z.boolean(), is_public: z.boolean(), primary_locale: z.string(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), supported_languages: z.array(z.string()), tags: z.union([z.array(z.string()), z.null()]).optional(), title: z.string(), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type CreateConversation = z.infer<typeof CreateConversation>;
+export const ConversationDto = z.object({ chatBotId: z.union([z.string(), z.null()]).optional(), description: z.string().uuid(), enableQaChatBot: z.boolean(), id: z.string().uuid(), imageUrl: z.string(), isComplete: z.boolean(), isInviteOnly: z.boolean(), isLive: z.boolean(), isPublic: z.boolean(), knowledgeBaseId: z.union([z.string(), z.null()]).optional(), primaryLocale: z.string(), shortDescription: z.string().uuid(), slug: z.union([z.string(), z.null()]).optional(), supportedLanguages: z.array(z.string()), tags: z.array(z.string()), title: z.string().uuid(), videoUrl: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type ConversationDto = z.infer<typeof ConversationDto>;
 export const Translation = z.object({ text_content: TextContent, text_translations: z.array(TextTranslation) }).passthrough();
 export type Translation = z.infer<typeof Translation>;
 export const ConversationWithTranslations = z.object({ chat_bot_id: z.union([z.string(), z.null()]).optional(), created_at: z.string().datetime({ offset: true }), default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string(), enable_qa_chat_bot: z.boolean(), id: z.string().uuid(), image_url: z.string(), is_complete: z.boolean(), is_invite_only: z.boolean(), is_live: z.boolean(), is_public: z.boolean(), knowledge_base_id: z.union([z.string(), z.null()]).optional(), owner_id: z.string().uuid(), primary_locale: z.string(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), supported_languages: z.array(z.string()), tags: z.array(z.string()), title: z.string(), translations: z.record(Translation), updated_at: z.string().datetime({ offset: true }), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
@@ -282,10 +282,10 @@ export const schemas = {
 	UpdateTextTranslation,
 	CreateOrUpdateTextTranslationRequest,
 	Story,
-	TranslatableField,
-	ConversationDto,
-	PaginatedResults_for_ConversationDto,
+	LocalizedConversationDto,
+	PaginatedResults_for_LocalizedConversationDto,
 	CreateConversation,
+	ConversationDto,
 	Translation,
 	ConversationWithTranslations,
 	ConversationResponse,
@@ -994,7 +994,7 @@ const endpoints = makeApi([
 				schema: limit
 			},
 		],
-		response: PaginatedResults_for_ConversationDto,
+		response: PaginatedResults_for_LocalizedConversationDto,
 	},
 	{
 		method: "post",
