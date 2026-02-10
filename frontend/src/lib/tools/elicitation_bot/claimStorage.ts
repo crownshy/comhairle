@@ -9,17 +9,17 @@ export interface ClaimModification {
 
 const STORAGE_KEY_PREFIX = 'elicitation_claims_';
 
-function getStorageKey(workflowStepId: string, conversationId: string): string {
-	return `${STORAGE_KEY_PREFIX}${workflowStepId}_${conversationId}`;
+function getStorageKey(workflowStepId: string, conversationId: string, userId: string): string {
+	return `${STORAGE_KEY_PREFIX}${userId}_${workflowStepId}_${conversationId}`;
 }
 
-export function loadClaimModifications(workflowStepId: string, conversationId: string): ClaimModification {
+export function loadClaims(workflowStepId: string, conversationId: string, userId: string): ClaimModification {
 	if (typeof window === 'undefined') {
 		return createEmptyModifications();
 	}
 
 	try {
-		const key = getStorageKey(workflowStepId, conversationId);
+		const key = getStorageKey(workflowStepId, conversationId, userId);
 		const stored = localStorage.getItem(key);
 		if (!stored) {
 			return createEmptyModifications();
@@ -41,12 +41,13 @@ export function loadClaimModifications(workflowStepId: string, conversationId: s
 export function saveClaimModifications(
 	workflowStepId: string,
 	conversationId: string,
+	userId: string,
 	modifications: ClaimModification
 ): void {
 	if (typeof window === 'undefined') return;
 
 	try {
-		const key = getStorageKey(workflowStepId, conversationId);
+		const key = getStorageKey(workflowStepId, conversationId, userId);
 		const toStore = {
 			editedClaims: modifications.editedClaims,
 			addedClaims: modifications.addedClaims,
@@ -59,11 +60,11 @@ export function saveClaimModifications(
 	}
 }
 
-export function clearClaimModifications(workflowStepId: string, conversationId: string): void {
+export function clearClaimModifications(workflowStepId: string, conversationId: string, userId: string): void {
 	if (typeof window === 'undefined') return;
 
 	try {
-		const key = getStorageKey(workflowStepId, conversationId);
+		const key = getStorageKey(workflowStepId, conversationId, userId);
 		localStorage.removeItem(key);
 	} catch (e) {
 		console.error('Failed to clear claim modifications:', e);

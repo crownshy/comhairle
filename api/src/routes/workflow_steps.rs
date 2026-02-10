@@ -16,9 +16,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-use crate::models::bot_service_user_session::{
-    self, BotServiceSessionContext, BotServiceUserSessionDto, CreateBotServiceUserSession,
-};
+use crate::bot_service::ComhairleAgentSession;
+use crate::models::bot_service_user_session::{self, BotServiceSessionContext};
 use crate::models::workflow_step::LocalisedWorkflowStep;
 use crate::routes::translations::LocaleExtractor;
 use crate::tools::ToolConfig;
@@ -143,36 +142,12 @@ async fn delete_workflow_step(
 }
 
 #[instrument(err(Debug), skip(state))]
-async fn create_workflow_step_bot_session(
+async fn get_agent_session(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Path((conversation_id, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
-    let create_session = CreateBotServiceUserSession {
-        context: BotServiceSessionContext::ElicitationBot,
-        user_id: user.id,
-        workflow_step_id: Some(workflow_step_id),
-        conversation_id: None,
-    };
-    let bot_user_session = bot_service_user_session::create(
-        &state.db,
-        &state.bot_service,
-        &state.config,
-        &create_session,
-    )
-    .await?;
-
-    let bot_user_session: BotServiceUserSessionDto = bot_user_session.into();
-    Ok((StatusCode::CREATED, Json(bot_user_session)))
-}
-
-#[instrument(err(Debug), skip(state))]
-async fn get_workflow_step_bot_session(
-    State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
-    Path((conversation_id, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
-    let session = bot_service_user_session::get_or_create(
+) -> Result<(StatusCode, Json<ComhairleAgentSession>), ComhairleError> {
+    let bot_user_session = bot_service_user_session::get_or_create(
         &state,
         BotServiceSessionContext::ElicitationBot,
         user.id,
@@ -181,8 +156,15 @@ async fn get_workflow_step_bot_session(
     )
     .await?;
 
-    let session: BotServiceUserSessionDto = session.into();
-    Ok((StatusCode::CREATED, Json(session)))
+    let (_, agent_session) = state
+        .bot_service
+        .get_agent_session(
+            &bot_user_session.bot_service_session_id,
+            &state.config.elicitation_bot_agent_id,
+        )
+        .await?;
+
+    Ok((StatusCode::CREATED, Json(agent_session)))
 }
 
 #[derive(Deserialize, Debug, JsonSchema, Clone, PartialEq)]
@@ -306,22 +288,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/{workflow_step_id}/bot_service_session",
-            post_with(create_workflow_step_bot_session, |op| {
-                op.id("CreateWorkflowStepBotSession")
+            get_with(get_agent_session, |op| {
+                op.id("GetAgentSessionHistory")
                     .tag("Workflow step")
-                    .summary("Create a user bot session for a workflow step")
+                    .summary("Get session history for a bot service agent")
                     .security_requirement("JWT")
-                    .response::<201, Json<BotServiceUserSessionDto>>()
-            }),
-        )
-        .api_route(
-            "/{workflow_step_id}/bot_service_session",
-            get_with(get_workflow_step_bot_session, |op| {
-                op.id("GetWorkflowStepBotSession")
-                    .tag("Workflow step")
-                    .summary("Get a user bot session for a workflow step")
-                    .security_requirement("JWT")
-                    .response::<200, Json<BotServiceUserSessionDto>>()
+                    .response::<200, Json<ComhairleAgentSession>>()
             }),
         )
         .route(

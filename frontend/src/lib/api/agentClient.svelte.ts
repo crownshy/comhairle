@@ -1,4 +1,86 @@
 import { browser } from '$app/environment';
+import { notifications } from '$lib/notifications.svelte';
+import type { ComhairleAgentSession } from './api';
+import { apiClient } from './client';
+
+export interface ParsedSessionMessage {
+	id: string;
+	content: string;
+	isBot: boolean;
+	timestamp: Date | null;
+}
+
+export interface ParsedSessionClaim {
+	id: string;
+	content: string;
+	status: 'pending' | 'approved' | 'editing' | 'streaming';
+}
+
+export interface ParsedSessionHistory {
+	messages: ParsedSessionMessage[];
+}
+
+export function stripOpinionPrefix(content: string): string {
+	const patterns = [
+		/^<br>\s*\n*\s*opinion:\s*\n*/i,
+		/^<br>\s*opinion:\s*/i,
+		/^\n*opinion:\s*\n*/i
+	];
+
+	let result = content;
+	for (const pattern of patterns) {
+		result = result.replace(pattern, '');
+	}
+
+	return result.trim();
+}
+
+export function stripOpinionMarker(content: string): string {
+	const patterns = [
+		/<br>\s*opinion:/i,
+		/<br>\n+opinion:\n*/i,
+		/\n+opinion:/i
+	];
+
+	for (const pattern of patterns) {
+		const match = content.match(pattern);
+		if (match && match.index !== undefined) {
+			return content.substring(0, match.index).trim();
+		}
+	}
+
+	return content;
+}
+
+export function parseSessionHistory(
+	session: ComhairleAgentSession,
+	_topicName: string
+): ParsedSessionHistory {
+	const messages: ParsedSessionMessage[] = [];
+
+	if (session.messages && session.messages.length > 0) {
+		for (let i = 0; i < session.messages.length; i++) {
+			const msg = session.messages[i];
+			const isBot = msg.role === 'assistant';
+			let content = msg.content;
+
+			const uniqueId = `${msg.role}-${i}-${msg.id || Date.now()}`;
+
+			if (isBot) {
+				content = stripOpinionMarker(content);
+			}
+
+			messages.push({
+				id: uniqueId,
+				content,
+				isBot,
+				timestamp: null
+			});
+		}
+	}
+
+	return { messages };
+}
 
 export interface AgentMessageReference {
 	id: string;
@@ -44,6 +126,7 @@ export class AgentClient {
 	streamingClaim = $state<ExtractedClaim | null>(null);
 
 	private isParsingOpinion = false;
+	private sawOpinionMarker = false;
 	private currentOpinionContent = '';
 	private streamingClaimId = '';
 	private opinionMarker = '<br>\n\nopinion:\n\n';
@@ -69,6 +152,24 @@ export class AgentClient {
 		this.workflowId = workflowId;
 		this.workflowStepId = workflowStepId;
 		this.baseUrl = baseUrl;
+	}
+
+	async getSessionHistory(): Promise<ComhairleAgentSession | null> {
+		try {
+			const session = await apiClient.GetAgentSessionHistory({
+				params: {
+					conversation_id: this.conversationId,
+					workflow_id: this.workflowId,
+					workflow_step_id: this.workflowStepId
+				}
+			});
+
+			return session;
+		} catch (e) {
+			console.error(e);
+			notifications.send({ priority: 'ERROR', message: 'Error retrieving session history ' });
+			return null;
+		}
 	}
 
 	private parseSSELine(line: string): void {
@@ -107,6 +208,8 @@ export class AgentClient {
 			}
 
 			if (json.event === 'node_finished' && json.data) {
+				if (this.sawOpinionMarker) return;
+
 				const { component_type, outputs } = json.data;
 
 				if (component_type === 'Message' && outputs?.content) {
@@ -114,14 +217,16 @@ export class AgentClient {
 						? outputs.content.join('')
 						: outputs.content;
 					if (content && typeof content === 'string') {
-						this.currentAnswer = content;
+						const stripped = stripOpinionMarker(content);
+						if (stripped) this.currentAnswer = stripped;
 					}
 				}
 
 				if (component_type === 'Agent' && outputs?.content) {
 					const content = outputs.content;
 					if (content && typeof content === 'string') {
-						this.currentAnswer = content;
+						const stripped = stripOpinionMarker(content);
+						if (stripped) this.currentAnswer = stripped;
 					}
 				}
 			}
@@ -131,6 +236,7 @@ export class AgentClient {
 
 				if (content.includes('<br>') && content.includes('opinion:')) {
 					this.isParsingOpinion = true;
+					this.sawOpinionMarker = true;
 					this.currentOpinionContent = '';
 					this.streamingClaimId = `claim-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 					this.streamingClaim = {
@@ -143,13 +249,10 @@ export class AgentClient {
 
 				if (this.isParsingOpinion) {
 					this.currentOpinionContent += content;
-					const trimmedContent = this.currentOpinionContent.trim();
-
-					// Check if claim ends with sentence-ending punctuation
+					const trimmedContent = stripOpinionPrefix(this.currentOpinionContent);
 					const endsWithPunctuation = /[.!?]$/.test(trimmedContent);
 
 					if (endsWithPunctuation && trimmedContent.length > 10) {
-						// Finalize the claim immediately when sentence ends
 						this.extractedClaims = [
 							...this.extractedClaims,
 							{
@@ -163,7 +266,6 @@ export class AgentClient {
 						this.streamingClaimId = '';
 						this.onClaimUpdate?.(null, this.extractedClaims);
 					} else {
-						// Still streaming
 						this.streamingClaim = {
 							id: this.streamingClaimId,
 							content: trimmedContent
@@ -175,7 +277,6 @@ export class AgentClient {
 				}
 			}
 		} catch {
-			// Silently ignore parse errors for incomplete chunks
 		}
 	}
 
@@ -216,6 +317,9 @@ export class AgentClient {
 		this.isStreaming = true;
 		this.currentAnswer = '';
 		this.error = null;
+		this.sawOpinionMarker = false;
+		this.isParsingOpinion = false;
+		this.currentOpinionContent = '';
 		this.abortController = new AbortController();
 	}
 
