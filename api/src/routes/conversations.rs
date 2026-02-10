@@ -77,8 +77,9 @@ async fn update_conversation(
     RequiredAdminUser(_user): RequiredAdminUser,
     Path(id): Path<Uuid>,
     Json(conversation): Json<PartialConversation>,
-) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
+) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     let conversation = conversation::update(&state.db, &id, &conversation).await?;
+    let conversation: ConversationDto = conversation.into();
     Ok((StatusCode::OK, Json(conversation)))
 }
 
@@ -112,12 +113,14 @@ async fn launch_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     RequiredAdminUser(_user): RequiredAdminUser,
-) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
+) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     if conversation.is_live {
         return Err(ComhairleError::ConversationAlreadyLive);
     }
-    let conversation = conversation::launch(&state.db, conversation_id, &state).await?;
+    let conversation: ConversationDto = conversation::launch(&state.db, conversation_id, &state)
+        .await?
+        .into();
     Ok((StatusCode::OK, Json(conversation)))
 }
 
@@ -197,8 +200,9 @@ async fn get_conversation(
 async fn delete_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(id): Path<Uuid>,
-) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
+) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     let conversation = conversation::delete(&state.db, &state.bot_service, &id).await?;
+    let conversation: ConversationDto = conversation.into();
     Ok((StatusCode::OK, Json(conversation)))
 }
 
@@ -499,7 +503,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Update a conversation")
                     .tag("Conversation")
                     .description("Update a conversation")
-                    .response::<200, Json<LocalisedConversation>>()
+                    .response::<200, Json<ConversationDto>>()
             }),
         )
         .api_route(
@@ -509,7 +513,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Delete the conversation and all related content")
                     .tag("Conversation")
                     .description("Delete the conversation and all related content")
-                    .response::<200, Json<LocalisedConversation>>()
+                    .response::<200, Json<ConversationDto>>()
             }),
         )
         .api_route(
@@ -519,7 +523,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Makes the conversation live")
                     .tag("Conversation")
                     .description("Makes the conversation live for participants")
-                    .response::<200, Json<Conversation>>()
+                    .response::<200, Json<ConversationDto>>()
             }),
         )
         .api_route(
@@ -661,14 +665,11 @@ mod tests {
                 }),
             )
             .await?;
+        let conversation: ConversationDto = serde_json::from_value(conversation)?;
 
         assert_eq!(status, StatusCode::OK, "Should update resource");
+        assert!(conversation.is_public, "should have updated public status");
 
-        assert_eq!(
-            conversation.get("is_public"),
-            Some(&json!(true)),
-            "should have updated public status"
-        );
         Ok(())
     }
 

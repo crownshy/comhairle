@@ -1039,7 +1039,7 @@ const endpoints = makeApi([
 				schema: PartialConversation
 			},
 		],
-		response: LocalisedConversation,
+		response: ConversationDto,
 	},
 	{
 		method: "delete",
@@ -1047,7 +1047,7 @@ const endpoints = makeApi([
 		alias: "DeleteConversation",
 		description: `Delete the conversation and all related content`,
 		requestFormat: "json",
-		response: LocalisedConversation,
+		response: ConversationDto,
 	},
 	{
 		method: "get",
@@ -1175,7 +1175,7 @@ const endpoints = makeApi([
 		alias: "LaunchConversation",
 		description: `Makes the conversation live for participants`,
 		requestFormat: "json",
-		response: Conversation,
+		response: ConversationDto,
 	},
 	{
 		method: "post",
