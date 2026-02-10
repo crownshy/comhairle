@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use chrono::{DateTime, Utc};
 
 #[cfg(test)]
@@ -12,7 +14,7 @@ use sqlx::{prelude::FromRow, PgPool};
 use tracing::info;
 use uuid::Uuid;
 
-use crate::error::ComhairleError;
+use crate::{error::ComhairleError, ComhairleState};
 
 use super::{
     user_conversation_preferences,
@@ -95,10 +97,14 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleErro
     Ok(conversation)
 }
 
-pub async fn launch(db: &PgPool, workflow_id: &Uuid) -> Result<(), ComhairleError> {
+pub async fn launch(
+    db: &PgPool,
+    workflow_id: &Uuid,
+    state: &Arc<ComhairleState>,
+) -> Result<(), ComhairleError> {
     let steps = workflow_step::list(db, workflow_id).await?;
     for step in steps {
-        workflow_step::launch(db, &step.id).await?;
+        workflow_step::launch(db, &step.id, state).await?;
     }
 
     Ok(())

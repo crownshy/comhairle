@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use aide::axum::{routing::post_with, ApiRouter};
+use async_trait::async_trait;
 use axum::{
     extract::{Json, Query, State},
     http::StatusCode,
@@ -16,7 +18,7 @@ use uuid::Uuid;
 
 use crate::{error::ComhairleError, models, ComhairleState};
 
-use super::{ToolConfig, ToolConfigSanitize};
+use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 
 pub const POLIS_BASE_URL: &str = "https://polis.comhairle.scot";
 
@@ -47,6 +49,49 @@ pub struct PolisToolSetup {
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct PolisReport;
+
+/// Zero-sized marker type for Polis tool implementation
+pub struct PolisTool;
+
+#[async_trait]
+impl ToolImpl for PolisTool {
+    type Config = PolisToolConfig;
+    type Setup = PolisToolSetup;
+    type Report = PolisReport;
+
+    async fn setup(
+        setup: &Self::Setup,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        // Delegate to existing setup function
+        polis_setup(setup).await
+    }
+
+    async fn clone_tool(
+        config: &Self::Config,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        // Delegate to existing launch function
+        launch(config).await
+    }
+
+    fn sanitize(config: Self::Config) -> Self::Config {
+        config.sanatize()
+    }
+
+    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+        ApiRouter::new()
+            .api_route(
+                "/tools/polis/admin_login",
+                post_with(admin_login, |op| {
+                    op.id("PolisAdminLogin")
+                        .summary("Login as Polis admin and proxy cookie")
+                        .description("Logs into Polis as admin and returns session cookie")
+                }),
+            )
+            .with_state(state.clone())
+    }
+}
 
 #[derive(Error, Debug)]
 pub enum PolisError {
@@ -336,7 +381,7 @@ pub async fn launch(preview_config: &PolisToolConfig) -> Result<PolisToolConfig,
     Ok(new_config)
 }
 
-pub async fn setup(_setup: &PolisToolSetup) -> Result<PolisToolConfig, ComhairleError> {
+async fn polis_setup(_setup: &PolisToolSetup) -> Result<PolisToolConfig, ComhairleError> {
     info!("Attempting to set up polis poll");
     let client = PolisClient::new();
     let (email, password) = client.create_random_admin_user().await?;
@@ -355,6 +400,11 @@ pub async fn setup(_setup: &PolisToolSetup) -> Result<PolisToolConfig, Comhairle
         admin_user: email,
         admin_password: password,
     })
+}
+
+// Keep public function for backwards compatibility
+pub async fn setup(setup: &PolisToolSetup) -> Result<PolisToolConfig, ComhairleError> {
+    polis_setup(setup).await
 }
 
 #[cfg(test)]
