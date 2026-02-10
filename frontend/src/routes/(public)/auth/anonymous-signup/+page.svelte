@@ -3,8 +3,7 @@
 	import { AuthPage } from '$lib/profile';
 	import * as m from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
-	import { Button } from '$lib/components/ui/button';
-	import { Spinner } from '$lib/components/ui/spinner';
+	import { LoadingButton } from '$lib/components/ui/button';
 
 	let { data }: PageData = $props();
 	let loading = $state(false);
@@ -24,12 +23,9 @@
 	>
 		<h1 class="text-xl">{m.sign_up_anonymously()}</h1>
 		<p class="text-foreground mb-4 text-sm">{m.get_started_with_comhairle_right_away()}</p>
-		<Button type="submit" class="w-full" variant="secondary" disabled={loading}>
-			{#if loading}
-				<Spinner />
-			{/if}
+		<LoadingButton type="submit" class="w-full" variant="secondary" loading={loading}>
 			{m.generate_anonymous_id()} →
-		</Button>
+		</LoadingButton>
 
 		<p class="text-muted-foreground mb-4 text-sm">
 			{m.agree_to_tos()}
