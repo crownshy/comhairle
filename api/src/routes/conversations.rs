@@ -56,7 +56,7 @@ async fn create_conversation(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
     Json(new_conversations): Json<CreateConversation>,
-) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
+) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     info!("Attempting to create conversation");
     let conversation = conversation::create(
         &state.db,
@@ -66,6 +66,8 @@ async fn create_conversation(
         user.id,
     )
     .await?;
+
+    let conversation: ConversationDto = conversation.into();
     Ok((StatusCode::CREATED, Json(conversation)))
 }
 
@@ -467,7 +469,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Create a new conversation")
                     .tag("Conversation")
                     .description("Creates a new conversation")
-                    .response::<201, Json<LocalisedConversation>>()
+                    .response::<201, Json<ConversationDto>>()
             }),
         )
         .api_route(
@@ -608,9 +610,14 @@ mod tests {
                 }),
             )
             .await?;
-        println!("{response}");
+        let conversation: ConversationDto = serde_json::from_value(response)?;
 
         assert_eq!(status, StatusCode::CREATED, "Should be created");
+        assert_eq!(
+            conversation.image_url,
+            "http://someimage.png".to_string(),
+            "incorrect json response"
+        );
 
         Ok(())
     }

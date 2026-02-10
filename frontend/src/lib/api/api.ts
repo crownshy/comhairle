@@ -1009,7 +1009,7 @@ const endpoints = makeApi([
 				schema: CreateConversation
 			},
 		],
-		response: LocalisedConversation,
+		response: ConversationDto,
 	},
 	{
 		method: "get",
