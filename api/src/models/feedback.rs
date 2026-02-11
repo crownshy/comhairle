@@ -14,12 +14,12 @@ use crate::error::ComhairleError;
 #[partially(derive(Deserialize, Debug, JsonSchema))]
 pub struct Feedback {
     #[partially(omit)]
-    id: Uuid,
+    pub id: Uuid,
     #[partially(omit)]
     created_by: Uuid,
     #[partially(omit)]
-    conversation_id: Uuid,
-    content: String,
+    pub conversation_id: Uuid,
+    pub content: String,
     #[partially(omit)]
     created_at: DateTime<Utc>,
     #[partially(omit)]

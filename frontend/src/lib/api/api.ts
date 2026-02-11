@@ -182,6 +182,8 @@ export const PartialReportImpact = z.object({ created_at: z.union([z.string(), z
 export type PartialReportImpact = z.infer<typeof PartialReportImpact>;
 export const CreateImpactDTO = z.object({ details: z.string(), kind: z.string(), title: z.string() }).passthrough();
 export type CreateImpactDTO = z.infer<typeof CreateImpactDTO>;
+export const FeedbackDto = z.object({ content: z.string(), conversationId: z.string().uuid(), id: z.string().uuid() }).passthrough();
+export type FeedbackDto = z.infer<typeof FeedbackDto>;
 export const CreateFeedbackDTO = z.object({ content: z.string() }).passthrough();
 export type CreateFeedbackDTO = z.infer<typeof CreateFeedbackDTO>;
 export const PartialFeedback = z.object({ content: z.union([z.string(), z.null()]) }).partial().passthrough();
@@ -325,6 +327,7 @@ export const schemas = {
 	Report,
 	PartialReportImpact,
 	CreateImpactDTO,
+	FeedbackDto,
 	CreateFeedbackDTO,
 	PartialFeedback,
 	WebSocketStats,
@@ -1071,7 +1074,7 @@ const endpoints = makeApi([
 		path: "/conversation/:conversation_id/feedback",
 		alias: "ListFeedbackForConversation",
 		requestFormat: "json",
-		response: Feedback,
+		response: FeedbackDto,
 	},
 	{
 		method: "post",
@@ -1085,7 +1088,7 @@ const endpoints = makeApi([
 				schema: z.object({ content: z.string() }).passthrough()
 			},
 		],
-		response: Feedback,
+		response: FeedbackDto,
 	},
 	{
 		method: "put",
@@ -1099,7 +1102,7 @@ const endpoints = makeApi([
 				schema: PartialFeedback
 			},
 		],
-		response: Feedback,
+		response: FeedbackDto,
 	},
 	{
 		method: "get",
