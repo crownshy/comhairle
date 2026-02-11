@@ -80,6 +80,14 @@ export const CreateOrUpdateTextTranslationRequest = z.object({ ai_generated: z.u
 export type CreateOrUpdateTextTranslationRequest = z.infer<typeof CreateOrUpdateTextTranslationRequest>;
 export const Story = z.object({ id: z.string().uuid(), transcript_id: z.union([z.string(), z.null()]).optional(), user_id: z.string().uuid(), video_id: z.string().uuid(), workflow_step_id: z.string().uuid() }).passthrough();
 export type Story = z.infer<typeof Story>;
+export const ComhairleMessageReference = z.object({ content: z.string(), dataset_id: z.string(), document_id: z.string(), document_name: z.string(), id: z.string() }).passthrough();
+export type ComhairleMessageReference = z.infer<typeof ComhairleMessageReference>;
+export const ComhairleSessionMessage = z.object({ content: z.string(), id: z.string(), reference: z.union([z.array(ComhairleMessageReference), z.null()]).optional(), role: z.string() }).passthrough();
+export type ComhairleSessionMessage = z.infer<typeof ComhairleSessionMessage>;
+export const ComhairleAgentSession = z.object({ agent_id: z.string(), configuration: z.unknown(), id: z.string(), messages: z.array(ComhairleSessionMessage) }).passthrough();
+export type ComhairleAgentSession = z.infer<typeof ComhairleAgentSession>;
+export const ConversationRequest = z.object({ question: z.string() }).passthrough();
+export type ConversationRequest = z.infer<typeof ConversationRequest>;
 export const CreateConversation = z.object({ default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string(), enable_qa_chat_bot: z.union([z.boolean(), z.null()]).optional(), image_url: z.string(), is_invite_only: z.boolean(), is_live: z.boolean(), is_public: z.boolean(), primary_locale: z.string(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), supported_languages: z.array(z.string()), tags: z.union([z.array(z.string()), z.null()]).optional(), title: z.string(), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type CreateConversation = z.infer<typeof CreateConversation>;
 export const Translation = z.object({ textContent: TextContentDto, textTranslations: z.array(TextTranslationDto) }).passthrough();
@@ -144,12 +152,6 @@ export const WorkflowStepDto = z.object({ activationRule: ActivationRule, descri
 export type WorkflowStepDto = z.infer<typeof WorkflowStepDto>;
 export const PartialWorkflowStep = z.object({ activation_rule: z.union([ActivationRule, z.null()]), description: z.union([z.string(), z.null()]), is_offline: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]), preview_tool_config: z.union([ToolConfig, z.null()]), required: z.union([z.boolean(), z.null()]), step_order: z.union([z.number(), z.null()]), tool_config: z.union([ToolConfig, z.null()]) }).partial().passthrough();
 export type PartialWorkflowStep = z.infer<typeof PartialWorkflowStep>;
-export const ComhairleMessageReference = z.object({ content: z.string(), dataset_id: z.string(), document_id: z.string(), document_name: z.string(), id: z.string() }).passthrough();
-export type ComhairleMessageReference = z.infer<typeof ComhairleMessageReference>;
-export const ComhairleSessionMessage = z.object({ content: z.string(), id: z.string(), reference: z.union([z.array(ComhairleMessageReference), z.null()]).optional(), role: z.string() }).passthrough();
-export type ComhairleSessionMessage = z.infer<typeof ComhairleSessionMessage>;
-export const ComhairleAgentSession = z.object({ agent_id: z.string(), configuration: z.unknown(), id: z.string(), messages: z.array(ComhairleSessionMessage) }).passthrough();
-export type ComhairleAgentSession = z.infer<typeof ComhairleAgentSession>;
 export const ProgressStatus = z.enum(["not_started", "in_progress", "done"]);
 export type ProgressStatus = z.infer<typeof ProgressStatus>;
 export const UserProgressDto = z.object({ id: z.string().uuid(), status: ProgressStatus, userId: z.string().uuid(), workflowStepId: z.string().uuid() }).passthrough();
@@ -270,6 +272,10 @@ export const schemas = {
 	UpdateTextTranslation,
 	CreateOrUpdateTextTranslationRequest,
 	Story,
+	ComhairleMessageReference,
+	ComhairleSessionMessage,
+	ComhairleAgentSession,
+	ConversationRequest,
 	CreateConversation,
 	Translation,
 	ConversationTranslations,
@@ -302,9 +308,6 @@ export const schemas = {
 	CreateWorkflowStep,
 	WorkflowStepDto,
 	PartialWorkflowStep,
-	ComhairleMessageReference,
-	ComhairleSessionMessage,
-	ComhairleAgentSession,
 	ProgressStatus,
 	UserProgressDto,
 	InviteType,
@@ -1199,13 +1202,6 @@ curl -X POST \
 		response: WorkflowStepDto,
 	},
 	{
-		method: "get",
-		path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/bot_service_session",
-		alias: "GetAgentSessionHistory",
-		requestFormat: "json",
-		response: ComhairleAgentSession,
-	},
-	{
 		method: "put",
 		path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/elicitation_bot",
 		alias: "UpdateElicitationBotWorkflowStep",
@@ -1373,6 +1369,37 @@ curl -X POST \
 		description: `Returns the count of unread notifications for the authenticated user`,
 		requestFormat: "json",
 		response: z.object({ count: z.number().int() }).passthrough(),
+	},
+	{
+		method: "get",
+		path: "/tools/elicitation_bot/workflow_step/:workflow_step_id",
+		alias: "GetElicitationBotSessionHistory",
+		description: `Returns a user session for an elicitation bot including message history`,
+		requestFormat: "json",
+		response: ComhairleAgentSession,
+	},
+	{
+		method: "post",
+		path: "/tools/elicitation_bot/workflow_step/:workflow_step_id",
+		alias: "postToolselicitation_botworkflow_stepWorkflow_step_id",
+		description: `
+Streamed LLM response.
+
+
+⚠️ This endpoint returns a streaming response on success.
+
+Generated API clients are NOT suitable for consuming this endpoint.
+
+Use a raw HTTP request and process the response body incrementally.`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: z.object({ question: z.string() }).passthrough()
+			},
+		],
+		response: z.void(),
 	},
 	{
 		method: "post",

@@ -18,20 +18,17 @@ use tracing::instrument;
 
 use crate::{
     bot_service::{
-        ChatConversationRequest, ComhairleAgent, ComhairleAgentSession, ComhairleBotService,
-        ComhairleChat, ComhairleChatSession, ComhairleDocument, ComhairleKnowledgeBase,
-        ComhairleLlm, ComhairleMessageReference, ComhairlePrompt, ComhairleSessionMessage,
-        CreateChatRequest, CreateChatSessionRequest, GetQueryParams as ApiGetQueryParams,
-        UpdateChatRequest, UpdateChatSessionRequest, UpdateDocumentRequest,
-        UpdateKnowledgeBaseRequest, UploadFileRequest,
+        AgentConversationRequest, ChatConversationRequest, ComhairleAgent, ComhairleAgentSession,
+        ComhairleBotService, ComhairleChat, ComhairleChatSession, ComhairleDocument,
+        ComhairleKnowledgeBase, ComhairleLlm, ComhairleMessageReference, ComhairlePrompt,
+        ComhairleSessionMessage, CreateChatRequest, CreateChatSessionRequest,
+        GetQueryParams as ApiGetQueryParams, UpdateChatRequest, UpdateChatSessionRequest,
+        UpdateDocumentRequest, UpdateKnowledgeBaseRequest, UploadFileRequest,
     },
     error::ComhairleError,
-    routes::{
-        bot::{
-            agent_sessions::CreateAgentSessionRequest,
-            agents::{CreateAgentRequest, UpdateAgentRequest},
-        },
-        workflow_steps::AgentConversationRequestExt,
+    routes::bot::{
+        agent_sessions::CreateAgentSessionRequest,
+        agents::{CreateAgentRequest, UpdateAgentRequest},
     },
 };
 
@@ -637,7 +634,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         &self,
         session_id: &str,
         agent_id: &str,
-        body: AgentConversationRequestExt,
+        body: AgentConversationRequest,
     ) -> Result<
         Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
         ComhairleError,
@@ -1054,8 +1051,8 @@ impl From<CreateAgentSessionRequest> for CreateAgentSession {
     }
 }
 
-impl From<AgentConversationRequestExt> for ConvoQuestion {
-    fn from(a: AgentConversationRequestExt) -> Self {
+impl From<AgentConversationRequest> for ConvoQuestion {
+    fn from(a: AgentConversationRequest) -> Self {
         let mut inputs = HashMap::new();
         inputs.insert(
             "Topic".to_string(),

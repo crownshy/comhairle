@@ -36,11 +36,7 @@ export function stripOpinionPrefix(content: string): string {
 }
 
 export function stripOpinionMarker(content: string): string {
-	const patterns = [
-		/<br>\s*opinion:/i,
-		/<br>\n+opinion:\n*/i,
-		/\n+opinion:/i
-	];
+	const patterns = [/<br>\s*opinion:/i, /<br>\n+opinion:\n*/i, /\n+opinion:/i];
 
 	for (const pattern of patterns) {
 		const match = content.match(pattern);
@@ -131,8 +127,6 @@ export class AgentClient {
 	private streamingClaimId = '';
 	private opinionMarker = '<br>\n\nopinion:\n\n';
 
-	private conversationId: string;
-	private workflowId: string;
 	private workflowStepId: string;
 	private baseUrl: string;
 	private abortController: AbortController | null = null;
@@ -142,24 +136,15 @@ export class AgentClient {
 		extractedClaims: ExtractedClaim[]
 	) => void;
 
-	constructor(
-		conversationId: string,
-		workflowId: string,
-		workflowStepId: string,
-		baseUrl = '/api'
-	) {
-		this.conversationId = conversationId;
-		this.workflowId = workflowId;
+	constructor(workflowStepId: string, baseUrl = '/api') {
 		this.workflowStepId = workflowStepId;
 		this.baseUrl = baseUrl;
 	}
 
 	async getSessionHistory(): Promise<ComhairleAgentSession | null> {
 		try {
-			const session = await apiClient.GetAgentSessionHistory({
+			const session = await apiClient.GetElicitationBotSessionHistory({
 				params: {
-					conversation_id: this.conversationId,
-					workflow_id: this.workflowId,
 					workflow_step_id: this.workflowStepId
 				}
 			});
@@ -276,8 +261,7 @@ export class AgentClient {
 					this.currentAnswer += content;
 				}
 			}
-		} catch {
-		}
+		} catch {}
 	}
 
 	private async readStream(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<void> {
@@ -330,7 +314,7 @@ export class AgentClient {
 
 		try {
 			const response = await fetch(
-				`${this.baseUrl}/conversation/${this.conversationId}/workflow/${this.workflowId}/workflow_step/${this.workflowStepId}/converse_elicitation_bot`,
+				`${this.baseUrl}/tools/elicitation_bot/workflow_step/${this.workflowStepId}`,
 				{
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
