@@ -26,8 +26,7 @@ use crate::{
         },
         conversation::{
             self, ConversationFilterOptions, ConversationOrderOptions,
-            ConversationWithTranslations, CreateConversation, IdOrSlug, LocalisedConversation,
-            PartialConversation,
+            ConversationWithTranslations, CreateConversation, IdOrSlug, PartialConversation,
         },
         conversation_email_notification_recipients::{
             self as email_recipients_model, CreateConversationEmailNotificationRecipients,

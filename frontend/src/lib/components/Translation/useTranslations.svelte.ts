@@ -21,11 +21,11 @@ export interface TranslationEntry {
 
 function deriveTranslationStatus(
 	isPrimary: boolean,
-	existing?: { requires_validation: boolean }
+	existing?: { requiresValidation: boolean }
 ): TranslationStatus {
 	if (isPrimary) return 'primary';
 	if (!existing) return 'draft';
-	return existing.requires_validation ? 'draft' : 'approved';
+	return existing.requiresValidation ? 'draft' : 'approved';
 }
 
 /**
