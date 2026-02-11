@@ -106,7 +106,7 @@ async fn launch_conversation(
     if conversation.is_live {
         return Err(ComhairleError::ConversationAlreadyLive);
     }
-    let conversation = conversation::launch(&state.db, conversation_id).await?;
+    let conversation = conversation::launch(&state.db, conversation_id, &state).await?;
     Ok((StatusCode::OK, Json(conversation)))
 }
 

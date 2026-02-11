@@ -15,6 +15,7 @@ use crate::{
     error::ComhairleError,
     models,
     routes::bot::chats::CreateChatRequest,
+    ComhairleState,
 };
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
@@ -722,10 +723,14 @@ pub async fn list_owned(
     Ok(conversations)
 }
 
-pub async fn launch(db: &PgPool, conversation_id: Uuid) -> Result<Conversation, ComhairleError> {
+pub async fn launch(
+    db: &PgPool,
+    conversation_id: Uuid,
+    state: &Arc<ComhairleState>,
+) -> Result<Conversation, ComhairleError> {
     let workflows = models::workflow::list(db, conversation_id).await?;
     for workflow in workflows {
-        models::workflow::launch(db, &workflow.id).await?;
+        models::workflow::launch(db, &workflow.id, state).await?;
     }
 
     update(
