@@ -253,8 +253,8 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
         #[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema, Debug, PartialEq, Clone)]
         #[serde(rename_all = "camelCase")]
         pub struct Translation {
-            pub text_content: crate::models::translations::TextContent,
-            pub text_translations: Vec<crate::models::translations::TextTranslation>,
+            pub text_content: crate::routes::translations::dto::TextContentDto,
+            pub text_translations: Vec<crate::routes::translations::dto::TextTranslationDto>,
         }
 
         #[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema, Debug, PartialEq, Clone)]
@@ -370,10 +370,11 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
                         #(
                             #text_content_fields: {
                                 // Get the TextContent for this field
-                                let text_content = get_text_content_by_id(db, &original.#text_content_fields).await?;
+                                let text_content = get_text_content_by_id(db, &original.#text_content_fields).await?.into();
 
                                 // Get all translations for this content
-                                let text_translations = get_text_translations_by_content_id(db, &original.#text_content_fields).await?;
+                                let text_translations =
+                                    (get_text_translations_by_content_id(db, &original.#text_content_fields).await?).into_iter().map(Into::into).collect();
 
                                 // Create Translation struct for this field
                                 Translation {

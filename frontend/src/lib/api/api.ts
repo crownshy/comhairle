@@ -88,7 +88,11 @@ export const CreateConversation = z.object({ default_workflow_id: z.union([z.str
 export type CreateConversation = z.infer<typeof CreateConversation>;
 export const ConversationDto = z.object({ chatBotId: z.union([z.string(), z.null()]).optional(), description: z.string().uuid(), enableQaChatBot: z.boolean(), id: z.string().uuid(), imageUrl: z.string(), isComplete: z.boolean(), isInviteOnly: z.boolean(), isLive: z.boolean(), isPublic: z.boolean(), knowledgeBaseId: z.union([z.string(), z.null()]).optional(), primaryLocale: z.string(), shortDescription: z.string().uuid(), slug: z.union([z.string(), z.null()]).optional(), supportedLanguages: z.array(z.string()), tags: z.array(z.string()), title: z.string().uuid(), videoUrl: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type ConversationDto = z.infer<typeof ConversationDto>;
-export const Translation = z.object({ textContent: TextContent, textTranslations: z.array(TextTranslation) }).passthrough();
+export const TextContentDto = z.object({ format: TextFormat, id: z.string().uuid(), primaryLocale: z.string() }).passthrough();
+export type TextContentDto = z.infer<typeof TextContentDto>;
+export const TextTranslationDto = z.object({ aiGenerated: z.boolean(), content: z.string(), contentId: z.string().uuid(), id: z.string().uuid(), locale: z.string(), requiresValidation: z.boolean() }).passthrough();
+export type TextTranslationDto = z.infer<typeof TextTranslationDto>;
+export const Translation = z.object({ textContent: TextContentDto, textTranslations: z.array(TextTranslationDto) }).passthrough();
 export type Translation = z.infer<typeof Translation>;
 export const ConversationTranslations = z.object({ description: Translation, shortDescription: Translation, title: Translation }).passthrough();
 export type ConversationTranslations = z.infer<typeof ConversationTranslations>;
@@ -288,6 +292,8 @@ export const schemas = {
 	PaginatedResults_for_LocalizedConversationDto,
 	CreateConversation,
 	ConversationDto,
+	TextContentDto,
+	TextTranslationDto,
 	Translation,
 	ConversationTranslations,
 	ConversationWithTranslations,
