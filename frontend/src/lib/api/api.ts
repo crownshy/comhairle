@@ -88,9 +88,11 @@ export const CreateConversation = z.object({ default_workflow_id: z.union([z.str
 export type CreateConversation = z.infer<typeof CreateConversation>;
 export const ConversationDto = z.object({ chatBotId: z.union([z.string(), z.null()]).optional(), description: z.string().uuid(), enableQaChatBot: z.boolean(), id: z.string().uuid(), imageUrl: z.string(), isComplete: z.boolean(), isInviteOnly: z.boolean(), isLive: z.boolean(), isPublic: z.boolean(), knowledgeBaseId: z.union([z.string(), z.null()]).optional(), primaryLocale: z.string(), shortDescription: z.string().uuid(), slug: z.union([z.string(), z.null()]).optional(), supportedLanguages: z.array(z.string()), tags: z.array(z.string()), title: z.string().uuid(), videoUrl: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type ConversationDto = z.infer<typeof ConversationDto>;
-export const Translation = z.object({ text_content: TextContent, text_translations: z.array(TextTranslation) }).passthrough();
+export const Translation = z.object({ textContent: TextContent, textTranslations: z.array(TextTranslation) }).passthrough();
 export type Translation = z.infer<typeof Translation>;
-export const ConversationWithTranslations = z.object({ chatBotId: z.union([z.string(), z.null()]).optional(), createdAt: z.string().datetime({ offset: true }), defaultWorkflowId: z.union([z.string(), z.null()]).optional(), description: z.string(), enableQaChatBot: z.boolean(), id: z.string().uuid(), imageUrl: z.string(), isComplete: z.boolean(), isInviteOnly: z.boolean(), isLive: z.boolean(), isPublic: z.boolean(), knowledgeBaseId: z.union([z.string(), z.null()]).optional(), ownerId: z.string().uuid(), primaryLocale: z.string(), shortDescription: z.string(), slug: z.union([z.string(), z.null()]).optional(), supportedLanguages: z.array(z.string()), tags: z.array(z.string()), title: z.string(), translations: z.record(Translation), updatedAt: z.string().datetime({ offset: true }), videoUrl: z.union([z.string(), z.null()]).optional() }).passthrough();
+export const ConversationTranslations = z.object({ description: Translation, shortDescription: Translation, title: Translation }).passthrough();
+export type ConversationTranslations = z.infer<typeof ConversationTranslations>;
+export const ConversationWithTranslations = z.object({ chatBotId: z.union([z.string(), z.null()]).optional(), createdAt: z.string().datetime({ offset: true }), defaultWorkflowId: z.union([z.string(), z.null()]).optional(), description: z.string(), enableQaChatBot: z.boolean(), id: z.string().uuid(), imageUrl: z.string(), isComplete: z.boolean(), isInviteOnly: z.boolean(), isLive: z.boolean(), isPublic: z.boolean(), knowledgeBaseId: z.union([z.string(), z.null()]).optional(), ownerId: z.string().uuid(), primaryLocale: z.string(), shortDescription: z.string(), slug: z.union([z.string(), z.null()]).optional(), supportedLanguages: z.array(z.string()), tags: z.array(z.string()), title: z.string(), translations: ConversationTranslations, updatedAt: z.string().datetime({ offset: true }), videoUrl: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type ConversationWithTranslations = z.infer<typeof ConversationWithTranslations>;
 export const ConversationResponse = z.union([LocalizedConversationDto, ConversationWithTranslations]);
 export type ConversationResponse = z.infer<typeof ConversationResponse>;
@@ -287,6 +289,7 @@ export const schemas = {
 	CreateConversation,
 	ConversationDto,
 	Translation,
+	ConversationTranslations,
 	ConversationWithTranslations,
 	ConversationResponse,
 	PartialConversation,
