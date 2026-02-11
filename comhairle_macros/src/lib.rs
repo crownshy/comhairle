@@ -234,10 +234,8 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
         .collect();
 
     // Generate the custom translations struct name
-    let translations_struct_name = syn::Ident::new(
-        &format!("{}Translations", struct_name),
-        struct_name.span(),
-    );
+    let translations_struct_name =
+        syn::Ident::new(&format!("{}Translations", struct_name), struct_name.span());
 
     // Generate fields for the translations struct
     let translation_fields = text_content_fields.iter().map(|field| {
@@ -253,6 +251,7 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
         }
 
         #[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema, Debug, PartialEq, Clone)]
+        #[serde(rename_all = "camelCase")]
         pub struct Translation {
             pub text_content: crate::models::translations::TextContent,
             pub text_translations: Vec<crate::models::translations::TextTranslation>,

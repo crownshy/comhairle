@@ -16,7 +16,7 @@
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
-	import type { LocalizedConversationDto, WorkflowStep } from '$lib/api/api';
+	import type { ConversationWithTranslations, WorkflowStep } from '$lib/api/api';
 	import type { Workflow } from 'lucide-svelte';
 	import { snakeCaseKeys } from '$lib/utils/snakeCaseKeys';
 
@@ -24,7 +24,7 @@
 		data
 	}: {
 		data: {
-			conversation: LocalizedConversationDto;
+			conversation: ConversationWithTranslations;
 			workflows: Workflow[];
 			workflow_steps: WorkflowStep[];
 		};
@@ -109,7 +109,7 @@
 		if (!translationsData) return [];
 
 		return Object.values(translationsData)
-			.map((field) => field.text_content?.id)
+			.map((field) => field.textContent?.id)
 			.filter((id): id is string => !!id);
 	}
 
@@ -143,8 +143,9 @@
 				title: _title /* eslint-disable-line @typescript-eslint/no-unused-vars */,
 				shortDescription:
 					_short_description /* eslint-disable-line @typescript-eslint/no-unused-vars */,
-				description: _description, /* eslint-disable-line @typescript-eslint/no-unused-vars */
-				autoLogin: _auto_login, /* eslint-disable-line @typescript-eslint/no-unused-vars */
+				description:
+					_description /* eslint-disable-line @typescript-eslint/no-unused-vars */,
+				autoLogin: _auto_login /* eslint-disable-line @typescript-eslint/no-unused-vars */,
 				...conversationData
 			} = result.data;
 
