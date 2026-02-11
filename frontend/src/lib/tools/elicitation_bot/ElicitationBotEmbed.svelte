@@ -4,12 +4,7 @@
 	import { AgentClient, parseSessionHistory } from '$lib/api/agentClient.svelte';
 	import type { ElicitationMessage, ExtractedClaim } from './types';
 	import { Loader2 } from 'lucide-svelte';
-	import {
-		loadClaims,
-		saveClaimModifications,
-		type ClaimModification
-	} from './claimStorage';
-	import type { ComhairleAgentSession, ComhairleSessionMessage } from '$lib/api/api';
+	import { loadClaims, saveClaimModifications, type ClaimModification } from './claimStorage';
 
 	type Props = {
 		conversationId: string;
@@ -20,14 +15,7 @@
 		onDone?: () => void;
 	};
 
-	let {
-		conversationId,
-		workflowId,
-		workflowStepId,
-		userId,
-		topic = 'this topic',
-		onDone
-	}: Props = $props();
+	let { conversationId, workflowStepId, userId, topic = 'this topic', onDone }: Props = $props();
 
 	let isLoading = $state(true);
 	let initError = $state<string | null>(null);
@@ -42,15 +30,15 @@
 			const mods = loadClaims(workflowStepId, conversationId, userId);
 			claimModifications = mods;
 			claims = mods.addedClaims
-				.filter(c => !mods.removedClaimIds.has(c.id))
-				.map(c => ({
+				.filter((c) => !mods.removedClaimIds.has(c.id))
+				.map((c) => ({
 					...c,
-					status: mods.approvedClaimIds.has(c.id) ? 'approved' as const : c.status
+					status: mods.approvedClaimIds.has(c.id) ? ('approved' as const) : c.status
 				}));
 
-			agentClient = new AgentClient(conversationId, workflowId, workflowStepId);
+			agentClient = new AgentClient(workflowStepId);
 			const sessionHistory = await agentClient.getSessionHistory();
-		
+
 			if (sessionHistory) {
 				const { messages: loadedMessages } = parseSessionHistory(sessionHistory, topic);
 				chatMessages = loadedMessages;
@@ -60,7 +48,7 @@
 				const newClaims: ExtractedClaim[] = [];
 
 				for (const claim of extractedClaims) {
-					if (!claimModifications?.addedClaims.some(c => c.id === claim.id)) {
+					if (!claimModifications?.addedClaims.some((c) => c.id === claim.id)) {
 						const newClaim: ExtractedClaim = {
 							id: claim.id,
 							content: claim.content,
@@ -72,17 +60,24 @@
 				}
 
 				if (newClaims.length > 0 && claimModifications) {
-					saveClaimModifications(workflowStepId, conversationId, userId, claimModifications);
+					saveClaimModifications(
+						workflowStepId,
+						conversationId,
+						userId,
+						claimModifications
+					);
 				}
 
 				const mods = claimModifications;
-				const displayClaims: ExtractedClaim[] = mods 
+				const displayClaims: ExtractedClaim[] = mods
 					? mods.addedClaims
-						.filter(c => !mods.removedClaimIds.has(c.id))
-						.map(c => ({
-							...c,
-							status: mods.approvedClaimIds.has(c.id) ? 'approved' as const : c.status
-						}))
+							.filter((c) => !mods.removedClaimIds.has(c.id))
+							.map((c) => ({
+								...c,
+								status: mods.approvedClaimIds.has(c.id)
+									? ('approved' as const)
+									: c.status
+							}))
 					: [];
 
 				if (streamingClaim && streamingClaim.content) {
@@ -134,7 +129,9 @@
 
 		const finalContent =
 			agentClient.currentAnswer ||
-			(agentClient.error ? `Error: ${agentClient.error}` : 'No response received from agent.');
+			(agentClient.error
+				? `Error: ${agentClient.error}`
+				: 'No response received from agent.');
 
 		chatMessages = chatMessages.map((msg) =>
 			msg.id === botPlaceholderId ? { ...msg, content: finalContent } : msg
@@ -161,10 +158,10 @@
 		if (mods) {
 			saveClaimModifications(workflowStepId, conversationId, userId, mods);
 			claims = mods.addedClaims
-				.filter(c => !mods.removedClaimIds.has(c.id))
-				.map(c => ({
+				.filter((c) => !mods.removedClaimIds.has(c.id))
+				.map((c) => ({
 					...c,
-					status: mods.approvedClaimIds.has(c.id) ? 'approved' as const : c.status
+					status: mods.approvedClaimIds.has(c.id) ? ('approved' as const) : c.status
 				}));
 		}
 	}
@@ -211,7 +208,6 @@
 		claimModifications.addedClaims.push(newClaim);
 		persistModifications();
 	}
-
 </script>
 
 {#if isLoading}

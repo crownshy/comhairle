@@ -12,10 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     error::ComhairleError,
-    routes::{
-        bot::agents::{CreateAgentRequest, UpdateAgentRequest},
-        workflow_steps::AgentConversationRequestExt,
-    },
+    routes::bot::agents::{CreateAgentRequest, UpdateAgentRequest},
 };
 
 pub mod ragflow_bot;
@@ -242,7 +239,7 @@ pub trait ComhairleBotService: Send + Sync {
         &self,
         session_id: &str,
         agent_id: &str,
-        body: AgentConversationRequestExt,
+        body: AgentConversationRequest,
     ) -> Result<
         Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
         ComhairleError,
@@ -386,6 +383,12 @@ pub struct UpdateChatRequest {
     pub knowledge_base_ids: Option<Vec<String>>,
     pub llm_model: Option<ComhairleLlm>,
     pub prompt: Option<ComhairlePrompt>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
+pub struct AgentConversationRequest {
+    pub question: String,
+    pub topic: String,
 }
 
 #[cfg(test)]
