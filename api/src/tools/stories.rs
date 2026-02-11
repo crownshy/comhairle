@@ -122,9 +122,10 @@ async fn get_story(
 fn stories_routes(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
-            "/tools/stories/workflow_step/{workflow_step_id}",
+            "/stories/workflow_step/{workflow_step_id}",
             get_with(get_stories, |op| {
                 op.id("GetStories")
+                    .tag("Tools")
                     .summary(
                         "Returns stories for the current workflow step if it is a stories endpoint",
                     )
@@ -135,17 +136,19 @@ fn stories_routes(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .api_route(
-            "/tools/stories/workflow_step/{workflow_step_id}",
+            "/stories/workflow_step/{workflow_step_id}",
             post_with(save_story, |op| {
                 op.id("SaveStory")
+                    .tag("Tools")
                     .summary("Record a user story for the current user and workflow step")
                     .description("Record a user story for the current user and workflow step")
             }),
         )
         .api_route(
-            "tools/stories/{story_id}",
+            "/stories/{story_id}",
             get_with(get_story, |op| {
                 op.id("GetStory")
+                    .tag("Tools")
                     .summary("Get a story by id")
                     .description("Returns a story by id")
                     .response::<201, Json<Story>>()

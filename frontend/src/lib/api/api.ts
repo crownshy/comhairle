@@ -78,6 +78,8 @@ export const UpdateTextTranslation = z.object({ ai_generated: z.union([z.boolean
 export type UpdateTextTranslation = z.infer<typeof UpdateTextTranslation>;
 export const CreateOrUpdateTextTranslationRequest = z.object({ ai_generated: z.union([z.boolean(), z.null()]).optional(), content: z.string(), requires_validation: z.union([z.boolean(), z.null()]).optional() }).passthrough();
 export type CreateOrUpdateTextTranslationRequest = z.infer<typeof CreateOrUpdateTextTranslationRequest>;
+export const Story = z.object({ id: z.string().uuid(), transcript_id: z.union([z.string(), z.null()]).optional(), user_id: z.string().uuid(), video_id: z.string().uuid(), workflow_step_id: z.string().uuid() }).passthrough();
+export type Story = z.infer<typeof Story>;
 export const CreateConversation = z.object({ default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string(), enable_qa_chat_bot: z.union([z.boolean(), z.null()]).optional(), image_url: z.string(), is_invite_only: z.boolean(), is_live: z.boolean(), is_public: z.boolean(), primary_locale: z.string(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), supported_languages: z.array(z.string()), tags: z.union([z.array(z.string()), z.null()]).optional(), title: z.string(), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type CreateConversation = z.infer<typeof CreateConversation>;
 export const Translation = z.object({ text_content: TextContent, text_translations: z.array(TextTranslation) }).passthrough();
@@ -136,8 +138,8 @@ export const ComhairleAgentSession = z.object({ agent_id: z.string(), configurat
 export type ComhairleAgentSession = z.infer<typeof ComhairleAgentSession>;
 export const ProgressStatus = z.enum(["not_started", "in_progress", "done"]);
 export type ProgressStatus = z.infer<typeof ProgressStatus>;
-export const UserProgress = z.object({ created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), status: ProgressStatus, updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid(), workflow_step_id: z.string().uuid() }).passthrough();
-export type UserProgress = z.infer<typeof UserProgress>;
+export const UserProgressDto = z.object({ id: z.string().uuid(), status: ProgressStatus, userId: z.string().uuid(), workflowStepId: z.string().uuid() }).passthrough();
+export type UserProgressDto = z.infer<typeof UserProgressDto>;
 export const InviteType = z.union([z.object({ email: z.string() }), z.object({ user: z.string().uuid() }), z.literal("singleuse"), z.literal("open")]);
 export type InviteType = z.infer<typeof InviteType>;
 export const LoginBehaviour = z.union([z.literal("manual"), z.literal("auto_create_annon")]);
@@ -271,6 +273,7 @@ export const schemas = {
 	UpdateTextContent,
 	UpdateTextTranslation,
 	CreateOrUpdateTextTranslationRequest,
+	Story,
 	CreateConversation,
 	Translation,
 	ConversationWithTranslations,
@@ -300,7 +303,7 @@ export const schemas = {
 	ComhairleSessionMessage,
 	ComhairleAgentSession,
 	ProgressStatus,
-	UserProgress,
+	UserProgressDto,
 	InviteType,
 	LoginBehaviour,
 	InviteStatus,
@@ -1315,7 +1318,7 @@ const endpoints = makeApi([
 		path: "/conversation/:conversation_id/workflow/:workflow_id/progress",
 		alias: "GetUserProgress",
 		requestFormat: "json",
-		response: z.array(UserProgress),
+		response: z.array(UserProgressDto),
 	},
 	{
 		method: "put",
@@ -1330,7 +1333,7 @@ const endpoints = makeApi([
 				schema: z.enum(["not_started", "in_progress", "done"])
 			},
 		],
-		response: UserProgress,
+		response: UserProgressDto,
 	},
 	{
 		method: "post",
@@ -1570,6 +1573,45 @@ const endpoints = makeApi([
 		description: `Returns the count of unread notifications for the authenticated user`,
 		requestFormat: "json",
 		response: z.object({ count: z.number().int() }).passthrough(),
+	},
+	{
+		method: "post",
+		path: "/tools/polis/admin_login",
+		alias: "PolisAdminLogin",
+		description: `Logs into Polis as admin and returns session cookie`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "workflow_step_id",
+				type: "Query",
+				schema: z.string().uuid()
+			},
+		],
+		response: z.void(),
+	},
+	{
+		method: "get",
+		path: "/tools/stories/:story_id",
+		alias: "GetStory",
+		description: `Returns a story by id`,
+		requestFormat: "json",
+		response: Story,
+	},
+	{
+		method: "get",
+		path: "/tools/stories/workflow_step/:workflow_step_id",
+		alias: "GetStories",
+		description: `Returns stories for the current workflow step if it is a stories endpoint`,
+		requestFormat: "json",
+		response: z.array(Story),
+	},
+	{
+		method: "post",
+		path: "/tools/stories/workflow_step/:workflow_step_id",
+		alias: "SaveStory",
+		description: `Record a user story for the current user and workflow step`,
+		requestFormat: "json",
+		response: z.void(),
 	},
 	{
 		method: "post",

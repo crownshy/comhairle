@@ -124,18 +124,18 @@ impl ToolConfig {
     /// Clone tool to create new instance (used for launch)
     pub async fn clone_tool(&self, state: &Arc<ComhairleState>) -> Result<Self, ComhairleError> {
         match self {
-            ToolConfig::Polis(config) => {
-                Ok(ToolConfig::Polis(polis::PolisTool::clone_tool(config, state).await?))
-            }
-            ToolConfig::Learn(config) => {
-                Ok(ToolConfig::Learn(learn::LearnTool::clone_tool(config, state).await?))
-            }
-            ToolConfig::HeyForm(config) => {
-                Ok(ToolConfig::HeyForm(heyform::HeyFormTool::clone_tool(config, state).await?))
-            }
-            ToolConfig::Stories(config) => {
-                Ok(ToolConfig::Stories(stories::StoriesTool::clone_tool(config, state).await?))
-            }
+            ToolConfig::Polis(config) => Ok(ToolConfig::Polis(
+                polis::PolisTool::clone_tool(config, state).await?,
+            )),
+            ToolConfig::Learn(config) => Ok(ToolConfig::Learn(
+                learn::LearnTool::clone_tool(config, state).await?,
+            )),
+            ToolConfig::HeyForm(config) => Ok(ToolConfig::HeyForm(
+                heyform::HeyFormTool::clone_tool(config, state).await?,
+            )),
+            ToolConfig::Stories(config) => Ok(ToolConfig::Stories(
+                stories::StoriesTool::clone_tool(config, state).await?,
+            )),
             ToolConfig::ElicitationBot(config) => Ok(ToolConfig::ElicitationBot(
                 elicitation_bot::ElicitationBotTool::clone_tool(config, state).await?,
             )),
@@ -190,18 +190,18 @@ impl ToolSetup {
     /// Setup a new tool from setup configuration
     pub async fn setup(&self, state: &Arc<ComhairleState>) -> Result<ToolConfig, ComhairleError> {
         match self {
-            ToolSetup::Polis(setup) => {
-                Ok(ToolConfig::Polis(polis::PolisTool::setup(setup, state).await?))
-            }
-            ToolSetup::Learn(setup) => {
-                Ok(ToolConfig::Learn(learn::LearnTool::setup(setup, state).await?))
-            }
-            ToolSetup::HeyForm(setup) => {
-                Ok(ToolConfig::HeyForm(heyform::HeyFormTool::setup(setup, state).await?))
-            }
-            ToolSetup::Stories(setup) => {
-                Ok(ToolConfig::Stories(stories::StoriesTool::setup(setup, state).await?))
-            }
+            ToolSetup::Polis(setup) => Ok(ToolConfig::Polis(
+                polis::PolisTool::setup(setup, state).await?,
+            )),
+            ToolSetup::Learn(setup) => Ok(ToolConfig::Learn(
+                learn::LearnTool::setup(setup, state).await?,
+            )),
+            ToolSetup::HeyForm(setup) => Ok(ToolConfig::HeyForm(
+                heyform::HeyFormTool::setup(setup, state).await?,
+            )),
+            ToolSetup::Stories(setup) => Ok(ToolConfig::Stories(
+                stories::StoriesTool::setup(setup, state).await?,
+            )),
             ToolSetup::ElicitationBot(setup) => Ok(ToolConfig::ElicitationBot(
                 elicitation_bot::ElicitationBotTool::setup(setup, state).await?,
             )),

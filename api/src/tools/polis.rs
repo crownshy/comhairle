@@ -82,9 +82,10 @@ impl ToolImpl for PolisTool {
     fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
         ApiRouter::new()
             .api_route(
-                "/tools/polis/admin_login",
+                "/polis/admin_login",
                 post_with(admin_login, |op| {
                     op.id("PolisAdminLogin")
+                        .tag("Tools")
                         .summary("Login as Polis admin and proxy cookie")
                         .description("Logs into Polis as admin and returns session cookie")
                 }),
