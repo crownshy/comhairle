@@ -150,6 +150,8 @@ export const Invite = z.object({ accept_count: z.number().int(), conversation_id
 export type Invite = z.infer<typeof Invite>;
 export const CreateInviteDTO = z.object({ expires_at: z.union([z.string(), z.null()]).optional(), invite_type: InviteType, login_behaviour: LoginBehaviour.optional() }).passthrough();
 export type CreateInviteDTO = z.infer<typeof CreateInviteDTO>;
+export const InviteDto = z.object({ acceptCount: z.number().int(), conversationId: z.string().uuid(), createdBy: z.string().uuid(), expiresAt: z.union([z.string(), z.null()]).optional(), id: z.string().uuid(), inviteType: InviteType, loginBehaviour: LoginBehaviour, status: InviteStatus, tags: z.array(z.string()), workflowId: z.union([z.string(), z.null()]).optional(), workflowStepId: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type InviteDto = z.infer<typeof InviteDto>;
 export const DailyResponseStats = z.object({ accept: z.number().int(), day: z.string().datetime({ offset: true }), reject: z.number().int() }).passthrough();
 export type DailyResponseStats = z.infer<typeof DailyResponseStats>;
 export const Feedback = z.object({ content: z.string(), conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), created_by: z.string().uuid(), id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
@@ -311,6 +313,7 @@ export const schemas = {
 	InviteStatus,
 	Invite,
 	CreateInviteDTO,
+	InviteDto,
 	DailyResponseStats,
 	Feedback,
 	ReportImpact,
@@ -1123,7 +1126,7 @@ const endpoints = makeApi([
 				schema: CreateInviteDTO
 			},
 		],
-		response: Invite,
+		response: InviteDto,
 	},
 	{
 		method: "get",
@@ -1137,21 +1140,21 @@ const endpoints = makeApi([
 		path: "/conversation/:conversation_id/invite/:invite_id",
 		alias: "DeleteInvite",
 		requestFormat: "json",
-		response: Invite,
+		response: InviteDto,
 	},
 	{
 		method: "post",
 		path: "/conversation/:conversation_id/invite/:invite_id/accept",
 		alias: "AcceptInvite",
 		requestFormat: "json",
-		response: Invite,
+		response: InviteDto,
 	},
 	{
 		method: "post",
 		path: "/conversation/:conversation_id/invite/:invite_id/reject",
 		alias: "RejectInvite",
 		requestFormat: "json",
-		response: Invite,
+		response: InviteDto,
 	},
 	{
 		method: "get",
