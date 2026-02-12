@@ -158,3 +158,24 @@ impl ComhairleMailer for Mailer {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_load_email_template() {
+        let mailer = Mailer::new("test_host", "test_user", "test_password");
+
+        let template = mailer.template_engine.get_template("welcome.html");
+        assert!(template.is_ok(), "error retrieving welcome template");
+
+        let template = mailer
+            .template_engine
+            .get_template("conversation_invite.html");
+        assert!(template.is_ok(), "error retrieving conversation template");
+
+        let template = mailer.template_engine.get_template("email_layout.html");
+        assert!(template.is_ok(), "error retrieving layout template");
+    }
+}
