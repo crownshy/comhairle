@@ -18,7 +18,7 @@ use crate::{
     error::ComhairleError,
     models::{
         notification_delivery::{
-            NotificationDelivery, NotificationDeliveryOrderOptions, NotificationWithDelivery,
+            self, NotificationDelivery, NotificationDeliveryOrderOptions, NotificationWithDelivery,
         },
         pagination::{OrderParams, PageOptions, PaginatedResults},
     },
@@ -27,13 +27,15 @@ use crate::{
 
 use super::auth::RequiredUser;
 
+pub mod dto;
+
 pub async fn get_unread_notifications(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     OrderParams(order_options): OrderParams<NotificationDeliveryOrderOptions>,
     Query(page_options): Query<PageOptions>,
 ) -> Result<(StatusCode, Json<PaginatedResults<NotificationWithDelivery>>), ComhairleError> {
-    let deliveries = crate::models::notification_delivery::list_unread_for_user_with_notifications(
+    let deliveries = notification_delivery::list_unread_for_user_with_notifications(
         &state.db,
         &user.id,
         page_options,
@@ -106,7 +108,7 @@ pub async fn get_all_notifications(
     OrderParams(order_options): OrderParams<NotificationDeliveryOrderOptions>,
     Query(page_options): Query<PageOptions>,
 ) -> Result<(StatusCode, Json<PaginatedResults<NotificationWithDelivery>>), ComhairleError> {
-    let deliveries = crate::models::notification_delivery::list_for_user_with_notifications(
+    let deliveries = notification_delivery::list_for_user_with_notifications(
         &state.db,
         &user.id,
         page_options,
@@ -123,6 +125,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/unread",
             get_with(get_unread_notifications, |op| {
                 op.summary("Get unread notifications for current user")
+                    .id("GetUnreadNotifications")
                     .description("Returns a paginated list of unread notification deliveries for the authenticated user")
                     .tag("Notifications")
                     .response::<200, Json<PaginatedResults<NotificationWithDelivery>>>()
@@ -132,6 +135,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/unread/count",
             get_with(get_unread_count, |op| {
                 op.summary("Get unread notification count")
+                    .id("GetUnreadNotificationsCount")
                     .description("Returns the count of unread notifications for the authenticated user")
                     .tag("Notifications")
                     .response::<200,Json<UnreadCount>>()
@@ -141,6 +145,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/",
             get_with(get_all_notifications, |op| {
                 op.summary("Get all notifications for current user")
+                    .id("GetAllNotifications")
                     .description("Returns a paginated list of all notification deliveries for the authenticated user")
                     .tag("Notifications")
                     .response::<200, Json<PaginatedResults<NotificationWithDelivery>>>()
@@ -149,7 +154,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/delivery/{delivery_id}/read",
             put_with(mark_notification_as_read, |op| {
-                op.id("MarkNotificationAsRead").summary("Mark a notification as read")
+                op.id("MarkNotificationAsRead")
+                    .summary("Mark a notification as read")
                     .description("Marks a specific notification delivery as read for the current user")
                     .tag("Notifications")
                     .response::<200, Json<NotificationDelivery>>()
@@ -158,7 +164,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/read-all",
             put_with(mark_all_notifications_as_read, |op| {
-                op.id("MarkAllNotificationsAsRead").summary("Mark all notifications as read")
+                op.id("MarkAllNotificationsAsRead")
+                    .summary("Mark all notifications as read")
                     .description("Marks all unread notification deliveries as read for the current user")
                     .tag("Notifications")
                     .response::<200, Json<serde_json::Value>>()

@@ -20,7 +20,7 @@
 
 	$effect(() => {
 		async function checkNotifications() {
-			notifications = (await apiClient.getNotificationsunreadcount()).count;
+			notifications = (await apiClient.GetUnreadNotificationsCount()).count;
 		}
 		checkNotifications();
 		setInterval(checkNotifications, 5000);
