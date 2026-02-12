@@ -52,12 +52,16 @@
 			<ConversationSummary {conversation}>
 				{#if !user && invite.login_behaviour === 'manual'}
 					<p class="mb-5">To join this conversation please either</p>
-					{#if !user && invite.invite_type.email}
+					{#if !user && typeof invite.inviteType !== 'string' && 'email' in invite.inviteType && invite.inviteType.email}
 						<div class="mb-5 flex flex-row gap-2">
 							<Button onclick={login}>Login</Button>
 							<Button onclick={create_account}>Create an account</Button>
 						</div>
-						<p>using the email account <span class="font-bold">{invite.invite_type.email}</span></p>
+						<p>
+							using the email account <span class="font-bold"
+								>{invite.inviteType.email}</span
+							>
+						</p>
 					{:else}
 						<div class="flex flex-col gap-2">
 							<Button onclick={login}>Login</Button>
@@ -72,7 +76,7 @@
 					<Button onclick={rejectInvite}>Reject Invite</Button>
 				{/if}
 
-				{#if !user && invite.login_behaviour === 'auto_create_annon'}
+				{#if !user && invite.loginBehaviour === 'auto_create_annon'}
 					<Button>Join</Button>
 				{/if}
 			</ConversationSummary>
@@ -85,7 +89,9 @@
 		<div class="my-auto text-center">
 			{#if error == 'Invite does not match logged in user'}
 				<h1>You are not the intended user for this invite</h1>
-				<p>If you think you should be, check if you are logged in with the correct account</p>
+				<p>
+					If you think you should be, check if you are logged in with the correct account
+				</p>
 				<Button class="mt-10" href="/conversations">Find Other Conversations</Button>
 			{/if}
 			{#if error == 'This invite has expired'}

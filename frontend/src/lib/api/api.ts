@@ -1133,7 +1133,7 @@ const endpoints = makeApi([
 		path: "/conversation/:conversation_id/invite/:invite_id",
 		alias: "GetInvite",
 		requestFormat: "json",
-		response: Invite,
+		response: InviteDto,
 	},
 	{
 		method: "delete",
