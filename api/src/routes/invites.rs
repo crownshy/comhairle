@@ -131,7 +131,7 @@ async fn get_invite(
     State(state): State<Arc<ComhairleState>>,
     Path((_, invite_id)): Path<(Uuid, Uuid)>,
     OptionalUser(user): OptionalUser,
-) -> Result<(StatusCode, Json<Invite>), ComhairleError> {
+) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
     let invite = models::invites::get(&state.db, &invite_id).await?;
     invite.is_still_valid()?;
 
@@ -139,14 +139,14 @@ async fn get_invite(
     // check to see if this invite is for them
     if let Some(user) = user {
         invite.is_for_user(&user)?;
-        Ok((StatusCode::OK, Json(invite)))
+        Ok((StatusCode::OK, Json(invite.into())))
     } else {
         // Otherwise allow the invite to be seen if it's
         // an email or open invite
         match invite.invite_type {
             models::invites::InviteType::Email(_) |
             models::invites::InviteType::Open |
-            models::invites::InviteType::SingleUse=> Ok((StatusCode::OK, Json(invite))),
+            models::invites::InviteType::SingleUse=> Ok((StatusCode::OK, Json(invite.into()))),
             models::invites::InviteType::User(_) => Err(ComhairleError::UserRequired),
         }
     }
@@ -204,7 +204,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(get_invite, |op| {
                 op.id("GetInvite")
                     .summary("Get a specific invite")
-                    .response::<200, Json<Invite>>()
+                    .response::<200, Json<InviteDto>>()
             }),
         )
         .api_route(
