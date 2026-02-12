@@ -13,7 +13,7 @@ use minijinja::context;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{models::{invites::DailyResponseStats, workflow}, ComhairleState};
+use crate::{models::{invites::DailyResponseStats, workflow}, routes::invites::dto::InviteDto, ComhairleState};
 use crate::{
     error::ComhairleError,
     models::{
@@ -24,12 +24,14 @@ use crate::{
 
 use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser};
 
+pub mod dto;
+
 #[instrument(err(Debug), skip(state))]
 async fn accept_invite(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Path((conversation_id, invite_id)): Path<(Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<Invite>), ComhairleError> {
+) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
     let invite = models::invites::get(&state.db, &invite_id).await?;
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
@@ -51,7 +53,7 @@ async fn accept_invite(
     invite
         .accept(&state.db, &user)
         .await
-        .map(|new_invite| (StatusCode::OK, Json(new_invite)))
+        .map(|new_invite| (StatusCode::OK, Json(new_invite.into())))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -59,7 +61,7 @@ async fn reject_invite(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Path((_, invite_id)): Path<(Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<Invite>), ComhairleError> {
+) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
     let invite = models::invites::get(&state.db, &invite_id).await?;
 
     // Check to see if the invite is valid
@@ -69,7 +71,7 @@ async fn reject_invite(
     invite
         .reject(&state.db, &user)
         .await
-        .map(|new_invite| (StatusCode::OK, Json(new_invite)))
+        .map(|new_invite| (StatusCode::OK, Json(new_invite.into())))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -78,7 +80,7 @@ async fn create_invite(
     Path(conversation_id): Path<Uuid>,
     RequiredAdminUser(user): RequiredAdminUser,
     Json(create_invite): Json<CreateInviteDTO>,
-) -> Result<(StatusCode, Json<Invite>), ComhairleError> {
+) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
     if conversation.owner_id != user.id {
@@ -121,6 +123,7 @@ async fn create_invite(
         
     };
 
+    let invite = invite.into();
     Ok((StatusCode::CREATED, Json(invite)))
 }
 
@@ -171,8 +174,8 @@ async fn delete_invite(
     State(state): State<Arc<ComhairleState>>,
     Path((_, invite_id)): Path<(Uuid, Uuid)>,
     RequiredAdminUser(_): RequiredAdminUser,
-) -> Result<(StatusCode, Json<Invite>), ComhairleError> {
-    let invite = models::invites::delete(&state.db, &invite_id).await?;
+) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
+    let invite = models::invites::delete(&state.db, &invite_id).await?.into();
 
     Ok((StatusCode::OK, Json(invite)))
 }
@@ -194,7 +197,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(create_invite, |op| {
                 op.id("CreateInvite")
                     .summary("Create an invite")
-                    .response::<201, Json<Invite>>()
+                    .response::<201, Json<InviteDto>>()
             }),
         )
         .api_route(
@@ -218,7 +221,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(accept_invite, |op| {
                 op.id("AcceptInvite")
                     .summary("Accept the invite if you are able")
-                    .response::<200, Json<Invite>>()
+                    .response::<200, Json<InviteDto>>()
             }),
         )
         .api_route(
@@ -226,7 +229,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(reject_invite, |op| {
                 op.id("RejectInvite")
                     .summary("Reject the invite if you are able")
-                    .response::<200, Json<Invite>>()
+                    .response::<200, Json<InviteDto>>()
             }),
         )
         .api_route(
@@ -234,7 +237,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             delete_with(delete_invite, |op| {
                 op.id("DeleteInvite")
                     .summary("Destroy and invite")
-                    .response::<201, Json<Invite>>()
+                    .response::<201, Json<InviteDto>>()
             }),
         )
         .api_route(
