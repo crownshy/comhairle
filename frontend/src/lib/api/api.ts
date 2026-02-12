@@ -52,9 +52,9 @@ export const NotificationContextType = z.enum(["site", "conversation"]);
 export type NotificationContextType = z.infer<typeof NotificationContextType>;
 export const NotificationType = z.enum(["info", "warning", "error", "success"]);
 export type NotificationType = z.infer<typeof NotificationType>;
-export const Notification = z.object({ content: z.string(), context_id: z.union([z.string(), z.null()]).optional(), context_type: NotificationContextType, created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), notification_type: NotificationType, title: z.string(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
-export type Notification = z.infer<typeof Notification>;
-export const NotificationWithDelivery = z.object({ created_at: z.string().datetime({ offset: true }), delivered_at: z.string().datetime({ offset: true }), delivery_method: DeliveryMethod, id: z.string().uuid(), notification: Notification, notification_id: z.string().uuid(), read_at: z.union([z.string(), z.null()]).optional(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid() }).passthrough();
+export const NotificationDto = z.object({ content: z.string(), contextId: z.union([z.string(), z.null()]).optional(), contextType: NotificationContextType, createdAt: z.string().datetime({ offset: true }), id: z.string().uuid(), notificationType: NotificationType, title: z.string() }).passthrough();
+export type NotificationDto = z.infer<typeof NotificationDto>;
+export const NotificationWithDelivery = z.object({ createdAt: z.string().datetime({ offset: true }), deliveredAt: z.string().datetime({ offset: true }), deliveryMethod: DeliveryMethod, id: z.string().uuid(), notification: NotificationDto, notificationId: z.string().uuid(), readAt: z.union([z.string(), z.null()]).optional(), userId: z.string().uuid() }).passthrough();
 export type NotificationWithDelivery = z.infer<typeof NotificationWithDelivery>;
 export const PaginatedResults_for_NotificationWithDelivery = z.object({ records: z.array(NotificationWithDelivery), total: z.number().int() }).passthrough();
 export type PaginatedResults_for_NotificationWithDelivery = z.infer<typeof PaginatedResults_for_NotificationWithDelivery>;
@@ -270,7 +270,7 @@ export const schemas = {
 	DeliveryMethod,
 	NotificationContextType,
 	NotificationType,
-	Notification,
+	NotificationDto,
 	NotificationWithDelivery,
 	PaginatedResults_for_NotificationWithDelivery,
 	UnreadCount,
@@ -1528,7 +1528,7 @@ const endpoints = makeApi([
 	{
 		method: "get",
 		path: "/notifications",
-		alias: "getNotifications",
+		alias: "GetAllNotifications",
 		description: `Returns a paginated list of all notification deliveries for the authenticated user`,
 		requestFormat: "json",
 		parameters: [
@@ -1564,7 +1564,7 @@ const endpoints = makeApi([
 	{
 		method: "get",
 		path: "/notifications/unread",
-		alias: "getNotificationsunread",
+		alias: "GetUnreadNotifications",
 		description: `Returns a paginated list of unread notification deliveries for the authenticated user`,
 		requestFormat: "json",
 		parameters: [
@@ -1584,7 +1584,7 @@ const endpoints = makeApi([
 	{
 		method: "get",
 		path: "/notifications/unread/count",
-		alias: "getNotificationsunreadcount",
+		alias: "GetUnreadNotificationsCount",
 		description: `Returns the count of unread notifications for the authenticated user`,
 		requestFormat: "json",
 		response: z.object({ count: z.number().int() }).passthrough(),

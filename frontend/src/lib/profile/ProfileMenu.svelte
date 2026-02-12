@@ -19,12 +19,8 @@
 	let notifications: number | undefined = $state();
 
 	$effect(() => {
-		if (user) {
-			async function checkNotifications() {
-				notifications = (await apiClient.getNotificationsunreadcount()).count;
-			}
-			checkNotifications();
-			setInterval(checkNotifications, 5000);
+		async function checkNotifications() {
+			notifications = (await apiClient.GetUnreadNotificationsCount()).count;
 		}
 	});
 </script>
