@@ -63,6 +63,7 @@
 			notifications.send({ message: 'Emails sent' });
 			onDone();
 		} catch (e) {
+			console.error(e);
 			notifications.send({ priority: 'ERROR', message: 'Failed to send emails' });
 			$message = 'Failed to send emails';
 		}
@@ -85,7 +86,7 @@
 	let customExpire = $derived($form.customExpire ? parseDate($form.customExpire) : undefined);
 </script>
 
-<form method="POST"  class="mt-10 flex flex-col gap-y-10" use:enhance>
+<form method="POST" class="mt-10 flex flex-col gap-y-10" use:enhance>
 	<Form.Field form={emailsForm} name="emails" class="">
 		<Form.Control>
 			{#snippet children({ props })}
@@ -148,12 +149,14 @@
 						<Popover.Trigger
 							{...props}
 							class={cn(
-								buttonVariants({ variant: 'secondary' }),
+								buttonVariants({ variant: 'outline' }),
 								'mt-5 w-[280px] justify-start pl-4 text-left font-normal',
 								!customExpire && 'text-muted-foreground'
 							)}
 						>
-							{customExpire ? df.format(customExpire.toDate(getLocalTimeZone())) : 'Pick a date'}
+							{customExpire
+								? df.format(customExpire.toDate(getLocalTimeZone()))
+								: 'Pick a date'}
 							<CalendarIcon class="ml-auto size-4 opacity-50" />
 						</Popover.Trigger>
 						<Popover.Content class=" w-auto p-0" side="top">
@@ -174,7 +177,7 @@
 					</Popover.Root>
 					<Form.Description>Select a date on which to expire the invite</Form.Description>
 					<Form.FieldErrors />
-					<input hidden value={$form.customExpire} name={'customExpire'} />
+					<input hidden value={$form.customExpire} name="customExpire" />
 				{/snippet}
 			</Form.Control>
 		</Form.Field>

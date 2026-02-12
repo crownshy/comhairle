@@ -120,7 +120,6 @@ async fn create_invite(
             }
         }
         models::invites::InviteType::Open | models::invites::InviteType::SingleUse  => {}
-        
     };
 
     let invite = invite.into();
