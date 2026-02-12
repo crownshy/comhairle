@@ -207,11 +207,20 @@ pub struct RegisterEmailRequest {
 }
 
 #[derive(Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct RegisterEmailResponse {
     pub id: Uuid,
     pub conversation_id: Uuid,
     pub email: String,
     pub message: String,
+}
+
+#[derive(Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SendEmailNotificationResponse {
+    pub notification_id: Uuid,
+    participants_notified: i32,
+    message: String,
 }
 
 /// Send notification to all conversation participants
@@ -220,7 +229,7 @@ async fn send_notification_to_participants(
     RequiredAdminUser(user): RequiredAdminUser,
     Path(conversation_id): Path<Uuid>,
     Json(request): Json<SendNotificationRequest>,
-) -> Result<(StatusCode, Json<serde_json::Value>), ComhairleError> {
+) -> Result<(StatusCode, Json<SendEmailNotificationResponse>), ComhairleError> {
     // Verify conversation exists and user has permission
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
 
@@ -247,11 +256,11 @@ async fn send_notification_to_participants(
     if participant_user_ids.is_empty() {
         return Ok((
             StatusCode::OK,
-            Json(serde_json::json!({
-                "notification_id": notification.id,
-                "participants_notified": 0,
-                "message": "No participants found for this conversation"
-            })),
+            Json(SendEmailNotificationResponse {
+                notification_id: notification.id,
+                participants_notified: 0,
+                message: "No participants found for this conversation".to_string(),
+            }),
         ));
     }
 
@@ -271,11 +280,14 @@ async fn send_notification_to_participants(
 
     Ok((
         StatusCode::CREATED,
-        Json(serde_json::json!({
-            "notification_id": notification.id,
-            "participants_notified": created_deliveries.len(),
-            "message": format!("Notification sent to {} participants", created_deliveries.len())
-        })),
+        Json(SendEmailNotificationResponse {
+            notification_id: notification.id,
+            participants_notified: created_deliveries.len() as i32,
+            message: format!(
+                "Notification sent to {} participants",
+                created_deliveries.len()
+            ),
+        }),
     ))
 }
 
@@ -359,8 +371,14 @@ async fn get_conversation_bot_session(
     RequiredUser(user): RequiredUser,
     Path(conversation_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
-    let session =
-        bot_service_user_session::get_or_create(&state, BotServiceSessionContext::QaBot, user.id, Some(conversation_id), None).await?;
+    let session = bot_service_user_session::get_or_create(
+        &state,
+        BotServiceSessionContext::QaBot,
+        user.id,
+        Some(conversation_id),
+        None,
+    )
+    .await?;
 
     let session: BotServiceUserSessionDto = session.into();
 
@@ -511,7 +529,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("SendNotificationToParticipants")
                     .summary("Send notification to all conversation participants")
                     .description("Creates a notification and sends it to all users participating in workflows within the conversation. Only conversation owners can send notifications.")
-                    .response::<201, Json<serde_json::Value>>()
+                    .response::<201, Json<SendEmailNotificationResponse>>()
                     .tag("Notifications")
             }),
         )

@@ -92,9 +92,11 @@ export const PartialConversation = z.object({ chat_bot_id: z.union([z.string(), 
 export type PartialConversation = z.infer<typeof PartialConversation>;
 export const SendNotificationRequest = z.object({ content: z.string(), delivery_method: z.union([DeliveryMethod, z.null()]).optional(), notification_type: z.union([NotificationType, z.null()]).optional(), title: z.string() }).passthrough();
 export type SendNotificationRequest = z.infer<typeof SendNotificationRequest>;
+export const SendEmailNotificationResponse = z.object({ message: z.string(), notificationId: z.string().uuid(), participantsNotified: z.number().int() }).passthrough();
+export type SendEmailNotificationResponse = z.infer<typeof SendEmailNotificationResponse>;
 export const RegisterEmailRequest = z.object({ email: z.string(), receive_similar_conversation_updates_by_email: z.boolean(), receive_updates_by_email: z.boolean() }).passthrough();
 export type RegisterEmailRequest = z.infer<typeof RegisterEmailRequest>;
-export const RegisterEmailResponse = z.object({ conversation_id: z.string().uuid(), email: z.string(), id: z.string().uuid(), message: z.string() }).passthrough();
+export const RegisterEmailResponse = z.object({ conversationId: z.string().uuid(), email: z.string(), id: z.string().uuid(), message: z.string() }).passthrough();
 export type RegisterEmailResponse = z.infer<typeof RegisterEmailResponse>;
 export const BotServiceUserSessionDto = z.object({ bot_service_session_id: z.string(), context: z.string(), conversation_id: z.union([z.string(), z.null()]).optional(), id: z.string().uuid(), user_id: z.string().uuid(), workflow_step_id: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type BotServiceUserSessionDto = z.infer<typeof BotServiceUserSessionDto>;
@@ -282,6 +284,7 @@ export const schemas = {
 	ConversationResponse,
 	PartialConversation,
 	SendNotificationRequest,
+	SendEmailNotificationResponse,
 	RegisterEmailRequest,
 	RegisterEmailResponse,
 	BotServiceUserSessionDto,
@@ -1181,7 +1184,7 @@ const endpoints = makeApi([
 				schema: SendNotificationRequest
 			},
 		],
-		response: z.unknown(),
+		response: SendEmailNotificationResponse,
 	},
 	{
 		method: "get",
