@@ -146,12 +146,10 @@ export const LoginBehaviour = z.union([z.literal("manual"), z.literal("auto_crea
 export type LoginBehaviour = z.infer<typeof LoginBehaviour>;
 export const InviteStatus = z.union([z.literal("pending"), z.literal("open"), z.literal("accepted"), z.literal("rejected"), z.literal("expired")]);
 export type InviteStatus = z.infer<typeof InviteStatus>;
-export const Invite = z.object({ accept_count: z.number().int(), conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), created_by: z.string().uuid(), expires_at: z.union([z.string(), z.null()]).optional(), id: z.string().uuid(), invite_type: InviteType, login_behaviour: LoginBehaviour, status: InviteStatus, tags: z.array(z.string()), updated_at: z.string().datetime({ offset: true }), workflow_id: z.union([z.string(), z.null()]).optional(), workflow_step_id: z.union([z.string(), z.null()]).optional() }).passthrough();
-export type Invite = z.infer<typeof Invite>;
+export const InviteDto = z.object({ acceptCount: z.number().int(), conversationId: z.string().uuid(), createdAt: z.string().datetime({ offset: true }), createdBy: z.string().uuid(), expiresAt: z.union([z.string(), z.null()]).optional(), id: z.string().uuid(), inviteType: InviteType, loginBehaviour: LoginBehaviour, status: InviteStatus, tags: z.array(z.string()), workflowId: z.union([z.string(), z.null()]).optional(), workflowStepId: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type InviteDto = z.infer<typeof InviteDto>;
 export const CreateInviteDTO = z.object({ expires_at: z.union([z.string(), z.null()]).optional(), invite_type: InviteType, login_behaviour: LoginBehaviour.optional() }).passthrough();
 export type CreateInviteDTO = z.infer<typeof CreateInviteDTO>;
-export const InviteDto = z.object({ acceptCount: z.number().int(), conversationId: z.string().uuid(), createdBy: z.string().uuid(), expiresAt: z.union([z.string(), z.null()]).optional(), id: z.string().uuid(), inviteType: InviteType, loginBehaviour: LoginBehaviour, status: InviteStatus, tags: z.array(z.string()), workflowId: z.union([z.string(), z.null()]).optional(), workflowStepId: z.union([z.string(), z.null()]).optional() }).passthrough();
-export type InviteDto = z.infer<typeof InviteDto>;
 export const DailyResponseStats = z.object({ accept: z.number().int(), day: z.string().datetime({ offset: true }), reject: z.number().int() }).passthrough();
 export type DailyResponseStats = z.infer<typeof DailyResponseStats>;
 export const Feedback = z.object({ content: z.string(), conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), created_by: z.string().uuid(), id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
@@ -311,9 +309,8 @@ export const schemas = {
 	InviteType,
 	LoginBehaviour,
 	InviteStatus,
-	Invite,
-	CreateInviteDTO,
 	InviteDto,
+	CreateInviteDTO,
 	DailyResponseStats,
 	Feedback,
 	ReportImpact,
@@ -1112,7 +1109,7 @@ const endpoints = makeApi([
 		path: "/conversation/:conversation_id/invite",
 		alias: "ListInvitesForConversation",
 		requestFormat: "json",
-		response: z.array(Invite),
+		response: z.array(InviteDto),
 	},
 	{
 		method: "post",
