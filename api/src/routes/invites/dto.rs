@@ -10,7 +10,6 @@ use crate::models::invites::{Invite, InviteStatus, InviteType, LoginBehaviour};
 /// This DTO is returned by invite related endpoints and is safe to expose to
 /// clients. It intentionally omits fields such as:
 ///
-/// * `created_at`
 /// * `updated_at`
 ///
 /// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
@@ -28,6 +27,7 @@ pub struct InviteDto {
     pub login_behaviour: LoginBehaviour,
     pub tags: Vec<String>,
     pub accept_count: i32,
+    pub created_at: DateTime<Utc>,
 }
 
 impl From<Invite> for InviteDto {
@@ -44,6 +44,7 @@ impl From<Invite> for InviteDto {
             login_behaviour: i.login_behaviour,
             tags: i.tags,
             accept_count: i.accept_count,
+            created_at: i.created_at,
         }
     }
 }

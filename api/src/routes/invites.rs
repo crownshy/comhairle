@@ -18,7 +18,7 @@ use crate::{
     error::ComhairleError,
     models::{
         self,
-        invites::{CreateInviteDTO, Invite},
+        invites::CreateInviteDTO,
     },
 };
 
@@ -184,8 +184,8 @@ async fn list_invites_for_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     RequiredAdminUser(_): RequiredAdminUser,
-) -> Result<(StatusCode, Json<Vec<Invite>>), ComhairleError> {
-    let invites = models::invites::list_for_conversation(&state.db, &conversation_id).await?;
+) -> Result<(StatusCode, Json<Vec<InviteDto>>), ComhairleError> {
+    let invites = (models::invites::list_for_conversation(&state.db, &conversation_id).await?).into_iter().map(Into::into).collect();
     Ok((StatusCode::OK, Json(invites)))
 }
 
@@ -196,6 +196,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(create_invite, |op| {
                 op.id("CreateInvite")
                     .summary("Create an invite")
+                    .tag("Invites")
+                    .security_requirement("JWT")
                     .response::<201, Json<InviteDto>>()
             }),
         )
@@ -212,6 +214,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(get_invite_stats, |op| {
                 op.id("GetInviteStats")
                     .summary("Get the daily stats for a specific invite")
+                    .tag("Invites")
+                    .security_requirement("JWT")
                     .response::<200, Json<Vec<DailyResponseStats>>>()
             }),
         )
@@ -220,6 +224,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(accept_invite, |op| {
                 op.id("AcceptInvite")
                     .summary("Accept the invite if you are able")
+                    .tag("Invites")
+                    .security_requirement("JWT")
                     .response::<200, Json<InviteDto>>()
             }),
         )
@@ -228,6 +234,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(reject_invite, |op| {
                 op.id("RejectInvite")
                     .summary("Reject the invite if you are able")
+                    .tag("Invites")
+                    .security_requirement("JWT")
                     .response::<200, Json<InviteDto>>()
             }),
         )
@@ -236,6 +244,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             delete_with(delete_invite, |op| {
                 op.id("DeleteInvite")
                     .summary("Destroy and invite")
+                    .tag("Invites")
+                    .security_requirement("JWT")
                     .response::<201, Json<InviteDto>>()
             }),
         )
@@ -244,7 +254,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(list_invites_for_conversation, |op| {
                 op.id("ListInvitesForConversation")
                     .summary("Return a list of invites statements for a conversation")
-                    .response::<200, Json<Vec<Invite>>>()
+                    .tag("Invites")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Vec<InviteDto>>>()
             }),
         )
         .with_state(state)
