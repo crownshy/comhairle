@@ -20,9 +20,14 @@ use crate::{
         workflow::{self, CreateWorkflow, PartialWorkflow, Workflow, WorkflowStats},
         workflow_step::{self, WorkflowStep},
     },
-    routes::auth::{RequiredAdminUser, RequiredUser},
+    routes::{
+        auth::{RequiredAdminUser, RequiredUser},
+        workflows::dto::WorkflowDto,
+    },
     ComhairleState,
 };
+
+pub mod dto;
 
 /// Return the first step in the workflow that is not "done" for the
 /// current user
@@ -77,7 +82,7 @@ async fn create_workflow(
     RequiredAdminUser(user): RequiredAdminUser,
     Path(conversation_id): Path<Uuid>,
     Json(new_workflow): Json<CreateWorkflow>,
-) -> Result<(StatusCode, Json<Workflow>), ComhairleError> {
+) -> Result<(StatusCode, Json<WorkflowDto>), ComhairleError> {
     info!("Attempting to create workflow {new_workflow:#?}");
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     let workflow = workflow::create(&state.db, &new_workflow, conversation_id, user.id).await?;
@@ -95,7 +100,7 @@ async fn create_workflow(
         .await?;
     }
 
-    Ok((StatusCode::CREATED, Json(workflow)))
+    Ok((StatusCode::CREATED, Json(workflow.into())))
 }
 
 async fn get_workflow_stats(
@@ -112,8 +117,8 @@ async fn update_workflow(
     Path((_, id)): Path<(Uuid, Uuid)>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(workflow): Json<PartialWorkflow>,
-) -> Result<Json<Workflow>, ComhairleError> {
-    let workflow = workflow::update(&state.db, id, &workflow).await?;
+) -> Result<Json<WorkflowDto>, ComhairleError> {
+    let workflow = workflow::update(&state.db, id, &workflow).await?.into();
     Ok(Json(workflow))
 }
 
@@ -142,8 +147,8 @@ async fn delete_workflow(
     State(state): State<Arc<ComhairleState>>,
     Path((_, id)): Path<(Uuid, Uuid)>,
     RequiredAdminUser(_user): RequiredAdminUser,
-) -> Result<(StatusCode, Json<Workflow>), ComhairleError> {
-    let workflow = workflow::delete(&state.db, &id).await?;
+) -> Result<(StatusCode, Json<WorkflowDto>), ComhairleError> {
+    let workflow = workflow::delete(&state.db, &id).await?.into();
     Ok((StatusCode::OK, Json(workflow)))
 }
 
@@ -153,14 +158,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/",
             post_with(create_workflow, |op| {
                 op.id("CreateWorkflow")
+                    .tag("Workflow")
+                    .security_requirement("JWT")
                     .summary("Create a new workflow on the conversation")
-                    .response::<201, Json<Workflow>>()
+                    .response::<201, Json<WorkflowDto>>()
             }),
         )
         .api_route(
             "/",
             get_with(list_workflows, |op| {
                 op.id("ListWorkflows")
+                    .tag("Workflow")
                     .summary("List all workflows on this converastion")
                     .response::<200, Json<Vec<Workflow>>>()
             }),
@@ -169,6 +177,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{workflow_id}/next",
             get_with(active_step_for_user, |op| {
                 op.id("NextWorkflowStepForUser")
+                    .tag("Workflow")
+                    .security_requirement("JWT")
                     .summary("Gets the next undone workflow step for the current user")
                     .response::<201, Json<Option<WorkflowStep>>>()
             }),
@@ -177,6 +187,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{workflow_id}/stats",
             get_with(get_workflow_stats, |op| {
                 op.id("GetWorkflowStats")
+                    .tag("Workflow")
                     .summary("Gets participation stats for a workflow")
                     .response::<201, Json<WorkflowStats>>()
             }),
@@ -185,6 +196,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{workflow_id}",
             get_with(get_workflow, |op| {
                 op.id("GetWorkflow")
+                    .tag("Workflow")
                     .summary("Get the specified workflow")
                     .response::<200, Json<Workflow>>()
             }),
@@ -193,6 +205,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{workflow_id}/register",
             post_with(register_user_for_workflow, |op| {
                 op.id("RegisterUserForWorkflow")
+                    .tag("Workflow")
+                    .security_requirement("JWT")
                     .summary("Register the currently logged in user for this workflow")
                     .response::<201, Json<UserParticipation>>()
             }),
@@ -201,6 +215,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{workflow_id}/leave",
             delete_with(deregister_user_on_workflow, |op| {
                 op.id("UnregisterUserForWorkflow")
+                    .tag("Workflow")
+                    .security_requirement("JWT")
                     .summary("Unregisters the current user on this workflow")
                     .response::<200, Json<UserParticipation>>()
             }),
@@ -209,6 +225,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{workflow_id}/participation",
             get_with(get_user_participation, |op| {
                 op.id("GetUserParticipation")
+                    .tag("Workflow")
+                    .security_requirement("JWT")
                     .summary("Returns the status of the current user on this workflow")
                     .response::<200, Json<Option<UserParticipation>>>()
             }),
@@ -217,16 +235,20 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/{workflow_id}",
             put_with(update_workflow, |op| {
                 op.id("UpdateWorkflow")
+                    .tag("Workflow")
+                    .security_requirement("JWT")
                     .summary("Update the workflow")
-                    .response::<201, Json<Workflow>>()
+                    .response::<201, Json<WorkflowDto>>()
             }),
         )
         .api_route(
             "/{workflow_id}",
             delete_with(delete_workflow, |op| {
                 op.id("DeleteWorkflow")
+                    .tag("Workflow")
+                    .security_requirement("JWT")
                     .summary("Delete the workflow and it's associated workflow steps")
-                    .response::<201, Json<Workflow>>()
+                    .response::<201, Json<WorkflowDto>>()
             }),
         )
         .with_state(state)
@@ -236,6 +258,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 mod tests {
 
     use crate::{
+        routes::workflows::dto::WorkflowDto,
         setup_server,
         test_helpers::{extract, test_state, UserSession},
     };
@@ -275,18 +298,13 @@ mod tests {
                 .into(),
             )
             .await?;
+        let workflow: WorkflowDto = serde_json::from_value(workflow).unwrap();
 
         assert_eq!(status, StatusCode::CREATED, "should have been created");
 
-        let conv_id = workflow
-            .get("conversation_id")
-            .to_owned()
-            .unwrap()
-            .to_owned();
-        let conv_id: String = serde_json::from_value(conv_id).unwrap();
-
         assert_eq!(
-            conv_id, id,
+            workflow.conversation_id.to_string(),
+            id,
             "Should be assigned to the correct conversation"
         );
         Ok(())

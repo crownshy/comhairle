@@ -112,6 +112,8 @@ export const Workflow = z.object({ auto_login: z.boolean(), conversation_id: z.s
 export type Workflow = z.infer<typeof Workflow>;
 export const CreateWorkflow = z.object({ auto_login: z.boolean(), description: z.string(), is_active: z.boolean(), is_public: z.boolean(), name: z.string() }).passthrough();
 export type CreateWorkflow = z.infer<typeof CreateWorkflow>;
+export const WorkflowDto = z.object({ autoLogin: z.boolean(), conversationId: z.string().uuid(), createdAt: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), isActive: z.boolean(), isPublic: z.boolean(), name: z.string() }).passthrough();
+export type WorkflowDto = z.infer<typeof WorkflowDto>;
 export const ActivationRule = z.literal("manual");
 export type ActivationRule = z.infer<typeof ActivationRule>;
 export const LocalisedPage = z.object({ content: z.string(), type: z.literal("markdown") }).passthrough();
@@ -302,6 +304,7 @@ export const schemas = {
 	BotServiceUserSessionDto,
 	Workflow,
 	CreateWorkflow,
+	WorkflowDto,
 	ActivationRule,
 	LocalisedPage,
 	Page,
@@ -1280,7 +1283,7 @@ const endpoints = makeApi([
 				schema: CreateWorkflow
 			},
 		],
-		response: Workflow,
+		response: WorkflowDto,
 	},
 	{
 		method: "get",
@@ -1301,14 +1304,14 @@ const endpoints = makeApi([
 				schema: PartialWorkflow
 			},
 		],
-		response: Workflow,
+		response: WorkflowDto,
 	},
 	{
 		method: "delete",
 		path: "/conversation/:conversation_id/workflow/:workflow_id",
 		alias: "DeleteWorkflow",
 		requestFormat: "json",
-		response: Workflow,
+		response: WorkflowDto,
 	},
 	{
 		method: "delete",
