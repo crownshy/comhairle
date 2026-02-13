@@ -186,8 +186,8 @@ export const FullReportDTO = z.object({ conversation_id: z.string().uuid(), crea
 export type FullReportDTO = z.infer<typeof FullReportDTO>;
 export const PartialReport = z.object({ conversation_id: z.union([z.string(), z.null()]), is_public: z.union([z.boolean(), z.null()]), section_configs: z.union([ReportSectionConfigs, z.null()]), summary: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialReport = z.infer<typeof PartialReport>;
-export const Report = z.object({ conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), is_public: z.boolean(), section_configs: ReportSectionConfigs, summary: z.string(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
-export type Report = z.infer<typeof Report>;
+export const ReportDto = z.object({ conversationId: z.string().uuid(), createdAt: z.string().datetime({ offset: true }), id: z.string().uuid(), isPublic: z.boolean(), sectionConfigs: ReportSectionConfigs, summary: z.string() }).passthrough();
+export type ReportDto = z.infer<typeof ReportDto>;
 export const PartialReportImpact = z.object({ created_at: z.union([z.string(), z.null()]), created_by: z.union([z.string(), z.null()]), details: z.union([z.string(), z.null()]), id: z.union([z.string(), z.null()]), kind: z.union([z.string(), z.null()]), report_id: z.union([z.string(), z.null()]), title: z.union([z.string(), z.null()]), updated_at: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialReportImpact = z.infer<typeof PartialReportImpact>;
 export const CreateImpactDTO = z.object({ details: z.string(), kind: z.string(), title: z.string() }).passthrough();
@@ -339,7 +339,7 @@ export const schemas = {
 	ReportSectionConfigs,
 	FullReportDTO,
 	PartialReport,
-	Report,
+	ReportDto,
 	PartialReportImpact,
 	CreateImpactDTO,
 	FeedbackDto,
@@ -1217,7 +1217,7 @@ const endpoints = makeApi([
 				schema: PartialReport
 			},
 		],
-		response: Report,
+		response: ReportDto,
 	},
 	{
 		method: "post",

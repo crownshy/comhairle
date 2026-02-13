@@ -15,10 +15,13 @@ use crate::{
     error::ComhairleError,
     models::{
         self,
-        report::{FullReportDTO, PartialReport, Report},
+        report::{FullReportDTO, PartialReport},
     },
+    routes::reports::dto::ReportDto,
     ComhairleState,
 };
+
+pub mod dto;
 
 async fn get_report(
     State(state): State<Arc<ComhairleState>>,
@@ -33,8 +36,10 @@ async fn update_report(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     Json(update): Json<PartialReport>,
-) -> Result<(StatusCode, Json<Report>), ComhairleError> {
-    let updated_report = models::report::update(&state.db, conversation_id, update).await?;
+) -> Result<(StatusCode, Json<ReportDto>), ComhairleError> {
+    let updated_report = models::report::update(&state.db, conversation_id, update)
+        .await?
+        .into();
     Ok((StatusCode::OK, Json(updated_report)))
 }
 
@@ -62,7 +67,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             put_with(update_report, |op| {
                 op.id("UpdateReport")
                     .summary("Update a report")
-                    .response::<201, Json<Report>>()
+                    .response::<201, Json<ReportDto>>()
             }),
         )
         .api_route(
