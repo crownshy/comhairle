@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::models::users::{User, UserAuthType};
 
-/// Data transfer object (public API representation) for a User
+/// Data transfer object (public API representation) for a User.
 ///
 /// This DTO is returned by user and auth related endpoints and is safe to expose
 /// to clients. It intentionally omits sensitive and internal-only fields such
