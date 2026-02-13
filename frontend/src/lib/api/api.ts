@@ -68,16 +68,14 @@ export const CreateTextContentRequest = z.object({ content: z.string(), format: 
 export type CreateTextContentRequest = z.infer<typeof CreateTextContentRequest>;
 export const TextContentDto = z.object({ format: TextFormat, id: z.string().uuid(), primaryLocale: z.string() }).passthrough();
 export type TextContentDto = z.infer<typeof TextContentDto>;
-export const TextTranslation = z.object({ ai_generated: z.boolean(), content: z.string(), content_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), locale: z.string(), requires_validation: z.boolean(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
-export type TextTranslation = z.infer<typeof TextTranslation>;
-export const TextContentWithTranslations = z.object({ created_at: z.string().datetime({ offset: true }), format: TextFormat, id: z.string().uuid(), primary_locale: z.string(), translations: z.array(TextTranslation), updated_at: z.string().datetime({ offset: true }) }).passthrough();
+export const TextTranslationDto = z.object({ aiGenerated: z.boolean(), content: z.string(), contentId: z.string().uuid(), id: z.string().uuid(), locale: z.string(), requiresValidation: z.boolean() }).passthrough();
+export type TextTranslationDto = z.infer<typeof TextTranslationDto>;
+export const TextContentWithTranslations = z.object({ format: TextFormat, id: z.string().uuid(), primaryLocale: z.string(), translations: z.array(TextTranslationDto) }).passthrough();
 export type TextContentWithTranslations = z.infer<typeof TextContentWithTranslations>;
 export const UpdateTextContent = z.object({ format: z.union([TextFormat, z.null()]), primary_locale: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type UpdateTextContent = z.infer<typeof UpdateTextContent>;
 export const UpdateTextTranslation = z.object({ ai_generated: z.union([z.boolean(), z.null()]), content: z.union([z.string(), z.null()]), locale: z.union([z.string(), z.null()]), requires_validation: z.union([z.boolean(), z.null()]) }).partial().passthrough();
 export type UpdateTextTranslation = z.infer<typeof UpdateTextTranslation>;
-export const TextTranslationDto = z.object({ aiGenerated: z.boolean(), content: z.string(), contentId: z.string().uuid(), id: z.string().uuid(), locale: z.string(), requiresValidation: z.boolean() }).passthrough();
-export type TextTranslationDto = z.infer<typeof TextTranslationDto>;
 export const CreateOrUpdateTextTranslationRequest = z.object({ ai_generated: z.union([z.boolean(), z.null()]).optional(), content: z.string(), requires_validation: z.union([z.boolean(), z.null()]).optional() }).passthrough();
 export type CreateOrUpdateTextTranslationRequest = z.infer<typeof CreateOrUpdateTextTranslationRequest>;
 export const Story = z.object({ id: z.string().uuid(), transcript_id: z.union([z.string(), z.null()]).optional(), user_id: z.string().uuid(), video_id: z.string().uuid(), workflow_step_id: z.string().uuid() }).passthrough();
@@ -280,11 +278,10 @@ export const schemas = {
 	TextFormat,
 	CreateTextContentRequest,
 	TextContentDto,
-	TextTranslation,
+	TextTranslationDto,
 	TextContentWithTranslations,
 	UpdateTextContent,
 	UpdateTextTranslation,
-	TextTranslationDto,
 	CreateOrUpdateTextTranslationRequest,
 	Story,
 	LocalizedConversationDto,
@@ -1686,7 +1683,7 @@ This struct contains optional fields that can be updated on a TextContent record
 		alias: "GetTextTranslation",
 		description: `Get a translation for a specific TextContent and locale`,
 		requestFormat: "json",
-		response: TextTranslation,
+		response: TextTranslationDto,
 	},
 	{
 		method: "put",
@@ -1727,7 +1724,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 		alias: "DeleteTextTranslation",
 		description: `Delete a translation for a specific locale`,
 		requestFormat: "json",
-		response: TextTranslation,
+		response: TextTranslationDto,
 	},
 	{
 		method: "post",
