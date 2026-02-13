@@ -6,6 +6,7 @@ pub mod error;
 pub mod mailer;
 pub mod models;
 mod routes;
+pub mod schema_helpers;
 mod tools;
 pub mod translation_service;
 pub mod websockets;
