@@ -190,6 +190,8 @@ export const PartialReport = z.object({ conversation_id: z.union([z.string(), z.
 export type PartialReport = z.infer<typeof PartialReport>;
 export const ReportDto = z.object({ conversationId: z.string().uuid(), createdAt: z.string().datetime({ offset: true }), id: z.string().uuid(), isPublic: z.boolean(), sectionConfigs: ReportSectionConfigs, summary: z.string() }).passthrough();
 export type ReportDto = z.infer<typeof ReportDto>;
+export const ReportImpactDto = z.object({ createdAt: z.string().datetime({ offset: true }), createdBy: z.string().uuid(), details: z.string(), id: z.string().uuid(), kind: z.string(), reportId: z.string().uuid(), title: z.string() }).passthrough();
+export type ReportImpactDto = z.infer<typeof ReportImpactDto>;
 export const PartialReportImpact = z.object({ created_at: z.union([z.string(), z.null()]), created_by: z.union([z.string(), z.null()]), details: z.union([z.string(), z.null()]), id: z.union([z.string(), z.null()]), kind: z.union([z.string(), z.null()]), report_id: z.union([z.string(), z.null()]), title: z.union([z.string(), z.null()]), updated_at: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialReportImpact = z.infer<typeof PartialReportImpact>;
 export const CreateImpactDTO = z.object({ details: z.string(), kind: z.string(), title: z.string() }).passthrough();
@@ -343,6 +345,7 @@ export const schemas = {
 	FullReportDTO,
 	PartialReport,
 	ReportDto,
+	ReportImpactDto,
 	PartialReportImpact,
 	CreateImpactDTO,
 	FeedbackDto,
@@ -1234,7 +1237,7 @@ const endpoints = makeApi([
 		path: "/conversation/:conversation_id/report/:report_id/impacts",
 		alias: "ListImpactsForReport",
 		requestFormat: "json",
-		response: ReportImpact,
+		response: z.array(ReportImpactDto),
 	},
 	{
 		method: "put",
@@ -1248,7 +1251,7 @@ const endpoints = makeApi([
 				schema: PartialReportImpact
 			},
 		],
-		response: ReportImpact,
+		response: ReportImpactDto,
 	},
 	{
 		method: "post",
@@ -1262,7 +1265,7 @@ const endpoints = makeApi([
 				schema: CreateImpactDTO
 			},
 		],
-		response: ReportImpact,
+		response: ReportImpactDto,
 	},
 	{
 		method: "get",
