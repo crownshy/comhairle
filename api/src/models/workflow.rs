@@ -242,6 +242,7 @@ pub async fn list(db: &PgPool, conversation_id: Uuid) -> Result<Vec<Workflow>, C
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct WorkflowStats {
     pub total_users: i32,
     pub step_stats: Vec<WorkflowStepStats>,
@@ -249,10 +250,11 @@ pub struct WorkflowStats {
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct WorkflowStepStats {
     id: Uuid,
-    completed: i32,
-    started: i32,
+    pub completed: i32,
+    pub started: i32,
 }
 
 /// Calculate stastistics for the workflow
@@ -336,6 +338,7 @@ pub async fn create(
 }
 
 #[derive(FromRow, Serialize, Deserialize, JsonSchema, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct DailySignupStats {
     pub day: DateTime<Utc>,
     pub users: i32,
