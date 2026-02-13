@@ -108,12 +108,10 @@ export const RegisterEmailResponse = z.object({ conversationId: z.string().uuid(
 export type RegisterEmailResponse = z.infer<typeof RegisterEmailResponse>;
 export const BotServiceUserSessionDto = z.object({ bot_service_session_id: z.string(), context: z.string(), conversation_id: z.union([z.string(), z.null()]).optional(), id: z.string().uuid(), user_id: z.string().uuid(), workflow_step_id: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type BotServiceUserSessionDto = z.infer<typeof BotServiceUserSessionDto>;
-export const Workflow = z.object({ auto_login: z.boolean(), conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_active: z.boolean(), is_public: z.boolean(), name: z.string(), owner_id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
-export type Workflow = z.infer<typeof Workflow>;
-export const CreateWorkflow = z.object({ auto_login: z.boolean(), description: z.string(), is_active: z.boolean(), is_public: z.boolean(), name: z.string() }).passthrough();
-export type CreateWorkflow = z.infer<typeof CreateWorkflow>;
 export const WorkflowDto = z.object({ autoLogin: z.boolean(), conversationId: z.string().uuid(), createdAt: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), isActive: z.boolean(), isPublic: z.boolean(), name: z.string() }).passthrough();
 export type WorkflowDto = z.infer<typeof WorkflowDto>;
+export const CreateWorkflow = z.object({ auto_login: z.boolean(), description: z.string(), is_active: z.boolean(), is_public: z.boolean(), name: z.string() }).passthrough();
+export type CreateWorkflow = z.infer<typeof CreateWorkflow>;
 export const ActivationRule = z.literal("manual");
 export type ActivationRule = z.infer<typeof ActivationRule>;
 export const LocalisedPage = z.object({ content: z.string(), type: z.literal("markdown") }).passthrough();
@@ -130,6 +128,8 @@ export const WorkflowStepStats = z.object({ completed: z.number().int(), id: z.s
 export type WorkflowStepStats = z.infer<typeof WorkflowStepStats>;
 export const WorkflowStats = z.object({ signup_stats: z.array(DailySignupStats), step_stats: z.array(WorkflowStepStats), total_users: z.number().int() }).passthrough();
 export type WorkflowStats = z.infer<typeof WorkflowStats>;
+export const Workflow = z.object({ auto_login: z.boolean(), conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_active: z.boolean(), is_public: z.boolean(), name: z.string(), owner_id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
+export type Workflow = z.infer<typeof Workflow>;
 export const PartialWorkflow = z.object({ auto_login: z.union([z.boolean(), z.null()]), description: z.union([z.string(), z.null()]), is_active: z.union([z.boolean(), z.null()]), is_public: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialWorkflow = z.infer<typeof PartialWorkflow>;
 export const UserParticipation = z.object({ created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid(), workflow_id: z.string().uuid() }).passthrough();
@@ -302,9 +302,8 @@ export const schemas = {
 	RegisterEmailRequest,
 	RegisterEmailResponse,
 	BotServiceUserSessionDto,
-	Workflow,
-	CreateWorkflow,
 	WorkflowDto,
+	CreateWorkflow,
 	ActivationRule,
 	LocalisedPage,
 	Page,
@@ -313,6 +312,7 @@ export const schemas = {
 	DailySignupStats,
 	WorkflowStepStats,
 	WorkflowStats,
+	Workflow,
 	PartialWorkflow,
 	UserParticipation,
 	LocalisedWorkflowStep,
@@ -1269,7 +1269,7 @@ const endpoints = makeApi([
 		path: "/conversation/:conversation_id/workflow",
 		alias: "ListWorkflows",
 		requestFormat: "json",
-		response: z.array(Workflow),
+		response: z.array(WorkflowDto),
 	},
 	{
 		method: "post",

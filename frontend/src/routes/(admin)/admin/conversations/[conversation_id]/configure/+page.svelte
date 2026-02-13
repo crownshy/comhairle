@@ -121,7 +121,7 @@
 			imageUrl: data.conversation.imageUrl,
 			isPublic: data.conversation.isPublic,
 			isInviteOnly: data.conversation.isInviteOnly,
-			autoLogin: data.workflows[0].auto_login
+			autoLogin: data.workflows[0].autoLogin
 		},
 		{
 			validators: zodClient(conversationConfigSchema),

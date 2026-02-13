@@ -1,7 +1,12 @@
 import type { PageLoad } from './$types';
 import { notifications } from '$lib/notifications.svelte';
 import { redirect } from '@sveltejs/kit';
+<<<<<<< HEAD
 import type { ConversationWithTranslations, Workflow, WorkflowStep } from '$lib/api/api';
+||||||| parent of a147df8 (221 update ListWorkflow route and frontend usage to use dto with camelCase fields)
+=======
+import type { WorkflowDto } from '$lib/api/api';
+>>>>>>> a147df8 (221 update ListWorkflow route and frontend usage to use dto with camelCase fields)
 
 export const load: PageLoad = async ({
 	params,
@@ -19,7 +24,13 @@ export const load: PageLoad = async ({
 			params: { conversation_id },
 			queries: { withTranslations: true }
 		});
+<<<<<<< HEAD
 		const workflows = await api.ListWorkflows({ params: { conversation_id } });
+||||||| parent of a147df8 (221 update ListWorkflow route and frontend usage to use dto with camelCase fields)
+		let workflows = await api.ListWorkflows({ params: { conversation_id } });
+=======
+		let workflows: WorkflowDto[] = await api.ListWorkflows({ params: { conversation_id } });
+>>>>>>> a147df8 (221 update ListWorkflow route and frontend usage to use dto with camelCase fields)
 		let stats = undefined;
 		let workflow_steps = undefined;
 
