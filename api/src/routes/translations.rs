@@ -24,6 +24,7 @@ use crate::{
         self, CreateTextTranslation, TextContent, TextContentId, TextTranslation,
         UpdateTextContent, UpdateTextTranslation,
     },
+    routes::translations::dto::{TextContentDto, TextTranslationDto},
     ComhairleState,
 };
 
@@ -97,14 +98,15 @@ async fn create_text_content(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(request): Json<CreateTextContentRequest>,
-) -> Result<(StatusCode, Json<TextContent>), ComhairleError> {
+) -> Result<(StatusCode, Json<TextContentDto>), ComhairleError> {
     let text_content = translations::new_translation(
         &state.db,
         &request.primary_locale,
         &request.content,
         request.format,
     )
-    .await?;
+    .await?
+    .into();
     Ok((StatusCode::CREATED, Json(text_content)))
 }
 
@@ -115,9 +117,10 @@ async fn update_text_content(
     Path(text_content_id): Path<TextContentId>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(update): Json<UpdateTextContent>,
-) -> Result<(StatusCode, Json<TextContent>), ComhairleError> {
-    let text_content =
-        translations::update_text_content(&state.db, &text_content_id, &update).await?;
+) -> Result<(StatusCode, Json<TextContentDto>), ComhairleError> {
+    let text_content = translations::update_text_content(&state.db, &text_content_id, &update)
+        .await?
+        .into();
 
     Ok((StatusCode::OK, Json(text_content)))
 }
@@ -128,8 +131,10 @@ async fn delete_text_content(
     State(state): State<Arc<ComhairleState>>,
     Path(text_content_id): Path<TextContentId>,
     RequiredAdminUser(_user): RequiredAdminUser,
-) -> Result<(StatusCode, Json<TextContent>), ComhairleError> {
-    let text_content = translations::delete_text_content(&state.db, &text_content_id).await?;
+) -> Result<(StatusCode, Json<TextContentDto>), ComhairleError> {
+    let text_content = translations::delete_text_content(&state.db, &text_content_id)
+        .await?
+        .into();
 
     Ok((StatusCode::OK, Json(text_content)))
 }
@@ -167,7 +172,7 @@ async fn create_or_update_text_translation(
     Path((text_content_id, locale)): Path<(TextContentId, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(request): Json<CreateOrUpdateTextTranslationRequest>,
-) -> Result<(StatusCode, Json<TextTranslation>), ComhairleError> {
+) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     // Check if translation already exists
     match translations::get_text_translation_by_content_and_locale(
         &state.db,
@@ -186,7 +191,8 @@ async fn create_or_update_text_translation(
             };
             let updated_translation =
                 translations::update_text_translation(&state.db, &existing_translation.id, &update)
-                    .await?;
+                    .await?
+                    .into();
             Ok((StatusCode::OK, Json(updated_translation)))
         }
         Err(_) => {
@@ -198,8 +204,9 @@ async fn create_or_update_text_translation(
                 ai_generated: request.ai_generated,
                 requires_validation: request.requires_validation,
             };
-            let translation =
-                translations::create_text_translation(&state.db, &create_request).await?;
+            let translation = translations::create_text_translation(&state.db, &create_request)
+                .await?
+                .into();
             Ok((StatusCode::CREATED, Json(translation)))
         }
     }
@@ -212,7 +219,7 @@ async fn update_text_translation(
     Path((text_content_id, locale)): Path<(TextContentId, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(update): Json<UpdateTextTranslation>,
-) -> Result<(StatusCode, Json<TextTranslation>), ComhairleError> {
+) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     // First get the existing translation to get its ID
     let existing_translation = translations::get_text_translation_by_content_and_locale(
         &state.db,
@@ -222,7 +229,9 @@ async fn update_text_translation(
     .await?;
 
     let updated_translation =
-        translations::update_text_translation(&state.db, &existing_translation.id, &update).await?;
+        translations::update_text_translation(&state.db, &existing_translation.id, &update)
+            .await?
+            .into();
 
     Ok((StatusCode::OK, Json(updated_translation)))
 }
@@ -233,7 +242,7 @@ async fn auto_translate(
     State(state): State<Arc<ComhairleState>>,
     Path((text_content_id, locale)): Path<(TextContentId, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
-) -> Result<(StatusCode, Json<TextTranslation>), ComhairleError> {
+) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     if let Some(translation_service) = &state.translation_service {
         let new_translation = translations::auto_generate_translation(
             &state.db,
@@ -241,7 +250,8 @@ async fn auto_translate(
             &text_content_id,
             &locale,
         )
-        .await?;
+        .await?
+        .into();
         Ok((StatusCode::OK, Json(new_translation)))
     } else {
         Err(ComhairleError::NoTranslationServiceConfigured)
@@ -280,7 +290,7 @@ async fn delete_text_translation(
     State(state): State<Arc<ComhairleState>>,
     Path((text_content_id, locale)): Path<(TextContentId, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
-) -> Result<(StatusCode, Json<TextTranslation>), ComhairleError> {
+) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     // First get the existing translation to get its ID
     let existing_translation = translations::get_text_translation_by_content_and_locale(
         &state.db,
@@ -290,7 +300,9 @@ async fn delete_text_translation(
     .await?;
 
     let deleted_translation =
-        translations::delete_text_translation(&state.db, &existing_translation.id).await?;
+        translations::delete_text_translation(&state.db, &existing_translation.id)
+            .await?
+            .into();
 
     Ok((StatusCode::OK, Json(deleted_translation)))
 }
@@ -305,7 +317,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Translations")
                     .summary("Create new TextContent")
                     .description("Create a new TextContent entry that can hold translations")
-                    .response::<201, Json<TextContent>>()
+                    .response::<201, Json<TextContentDto>>()
             }),
         )
         .api_route(
@@ -325,7 +337,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Translations")
                     .summary("Update TextContent")
                     .description("Update a TextContent entry")
-                    .response::<200, Json<TextContent>>()
+                    .response::<200, Json<TextContentDto>>()
             }),
         )
         .api_route(
@@ -335,7 +347,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Translations")
                     .summary("Delete TextContent")
                     .description("Delete a TextContent entry and all its translations")
-                    .response::<200, Json<TextContent>>()
+                    .response::<200, Json<TextContentDto>>()
             }),
         )
         // TextTranslation routes
@@ -358,8 +370,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description(
                         "Create a new translation or update existing one for a specific locale",
                     )
-                    .response::<200, Json<TextTranslation>>()
-                    .response::<201, Json<TextTranslation>>()
+                    .response::<200, Json<TextTranslationDto>>()
+                    .response::<201, Json<TextTranslationDto>>()
             }),
         )
         .api_route(
@@ -369,7 +381,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Translations")
                     .summary("Update translation")
                     .description("Update an existing translation for a specific locale")
-                    .response::<200, Json<TextTranslation>>()
+                    .response::<200, Json<TextTranslationDto>>()
             }),
         )
         .api_route(
@@ -379,7 +391,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Translations")
                     .summary("Delete translation")
                     .description("Delete a translation for a specific locale")
-                    .response::<200, Json<TextTranslation>>()
+                    .response::<200, Json<TextTranslationDto>>()
             }),
         )
         .api_route(
@@ -399,7 +411,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Translations")
                     .summary("Automatically generate this language")
                     .description("Use the primary_locale language and translate this language from it using the tarnslation service")
-                    .response::<200, Json<TextTranslation>>()
+                    .response::<200, Json<TextTranslationDto>>()
             }),
         )
         .with_state(state)
