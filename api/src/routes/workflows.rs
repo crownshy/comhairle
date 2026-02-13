@@ -126,8 +126,11 @@ async fn update_workflow(
 async fn list_workflows(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-) -> Result<(StatusCode, Json<Vec<Workflow>>), ComhairleError> {
-    let workflows = workflow::list(&state.db, conversation_id).await?;
+) -> Result<(StatusCode, Json<Vec<WorkflowDto>>), ComhairleError> {
+    let workflows = (workflow::list(&state.db, conversation_id).await?)
+        .into_iter()
+        .map(Into::into)
+        .collect();
     Ok((StatusCode::OK, Json(workflows)))
 }
 
@@ -170,7 +173,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("ListWorkflows")
                     .tag("Workflow")
                     .summary("List all workflows on this converastion")
-                    .response::<200, Json<Vec<Workflow>>>()
+                    .response::<200, Json<Vec<WorkflowDto>>>()
             }),
         )
         .api_route(
