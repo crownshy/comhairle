@@ -15,7 +15,7 @@ use crate::{
     error::ComhairleError,
     models::{
         self,
-        report::{FullReportDTO, PartialReport},
+        report::{FullReportDto, PartialReport},
     },
     routes::reports::dto::ReportDto,
     ComhairleState,
@@ -26,9 +26,9 @@ pub mod dto;
 async fn get_report(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-) -> Result<(StatusCode, Json<FullReportDTO>), ComhairleError> {
+) -> Result<(StatusCode, Json<FullReportDto>), ComhairleError> {
     let report = models::report::get_for_conversation(&state.db, &conversation_id).await?;
-    let report = FullReportDTO::from_report(&state.db, report).await?;
+    let report = FullReportDto::from_report(&state.db, report).await?;
     Ok((StatusCode::OK, Json(report)))
 }
 
@@ -46,9 +46,9 @@ async fn update_report(
 async fn create_report(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-) -> Result<(StatusCode, Json<FullReportDTO>), ComhairleError> {
+) -> Result<(StatusCode, Json<FullReportDto>), ComhairleError> {
     let report = models::report::create_for_conversation(&state.db, conversation_id).await?;
-    let report = FullReportDTO::from_report(&state.db, report).await?;
+    let report = FullReportDto::from_report(&state.db, report).await?;
     Ok((StatusCode::CREATED, Json(report)))
 }
 
@@ -59,7 +59,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(create_report, |op| {
                 op.id("GenerateReportForConversation")
                     .summary("Generates a report for this conversation")
-                    .response::<201, Json<FullReportDTO>>()
+                    .response::<201, Json<FullReportDto>>()
             }),
         )
         .api_route(
@@ -75,7 +75,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(get_report, |op| {
                 op.id("GetReportForConversation")
                     .summary("Return the report of a given conversation")
-                    .response::<200, Json<FullReportDTO>>()
+                    .response::<200, Json<FullReportDto>>()
             }),
         )
         .with_state(state)

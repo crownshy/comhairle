@@ -15,6 +15,9 @@ use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
+    routes::{
+        feedback::dto::FeedbackDto, report_impacts::dto::ReportImpactDto, reports::dto::ReportDto,
+    },
     tools::{
         elicitation_bot::ElicitationBotReport, heyform::HeyFormReport, learn::LearnReport,
         polis::PolisReport, stories::StoriesReport, ReportConfig, ToolConfig,
@@ -22,26 +25,35 @@ use crate::{
 };
 
 use super::{
-    feedback::{self, Feedback},
-    report_impact::{self, ReportImpact},
+    feedback::{self},
+    report_impact::{self},
     workflow, workflow_step,
 };
 
 #[derive(Serialize, Deserialize, JsonSchema)]
-pub struct FullReportDTO {
+#[serde(rename_all = "camelCase")]
+pub struct FullReportDto {
     #[serde(flatten)]
-    pub report: Report,
-    pub facilitator_feedback: Vec<Feedback>,
-    pub participant_feedback: Vec<Feedback>,
-    pub impacts: Vec<ReportImpact>,
+    pub report: ReportDto,
+    pub facilitator_feedback: Vec<FeedbackDto>,
+    pub participant_feedback: Vec<FeedbackDto>,
+    pub impacts: Vec<ReportImpactDto>,
 }
 
-impl FullReportDTO {
-    pub async fn from_report(db: &PgPool, report: Report) -> Result<FullReportDTO, ComhairleError> {
-        let feedback = feedback::list_for_conversation(db, &report.conversation_id).await?;
-        let impacts = report_impact::get_for_report(db, &report.id).await?;
-        Ok(FullReportDTO {
-            report,
+impl FullReportDto {
+    pub async fn from_report(db: &PgPool, report: Report) -> Result<FullReportDto, ComhairleError> {
+        let feedback = feedback::list_for_conversation(db, &report.conversation_id)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect();
+        let impacts = report_impact::get_for_report(db, &report.id)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect();
+        Ok(FullReportDto {
+            report: report.into(),
             impacts,
             facilitator_feedback: feedback,
             participant_feedback: vec![],

@@ -28,7 +28,6 @@
 	let { data } = $props();
 	let report = $derived(data.report);
 	let conversation = $derived(data.conversation);
-	let workflow_steps = $derived(data.workflow_steps);
 
 	const carta = createCarta();
 
@@ -60,7 +59,7 @@
 	async function createImpact() {
 		try {
 			await apiClient.CreateImpact(newImpact, {
-				params: { report_id: report.id, conversation_id: report.conversation_id }
+				params: { report_id: report.id, conversation_id: report.conversationId }
 			});
 			invalidateAll();
 			impactOpen = false;
@@ -89,7 +88,7 @@
 	<div class="flex w-full flex-row items-center justify-end gap-2">
 		<Button variant="ghost" href={report_url(conversation.id, '')}>View Report</Button>
 		<Label for="published">Publish Report</Label>
-		<Switch name="published" value={report.is_public} />
+		<Switch name="published" value={report.isPublic} />
 	</div>
 
 	<Card.Root>
@@ -140,7 +139,7 @@
 			{/each}
 			<Card.Footer class="flex w-full justify-end">
 				<Dialog.Root bind:open={impactOpen}>
-					<Dialog.Trigger class={buttonVariants({ variant: 'outline-solid' })}
+					<Dialog.Trigger class={buttonVariants({ variant: 'default' })}
 						>Add Impact</Dialog.Trigger
 					>
 
@@ -158,7 +157,7 @@
 								<Label for="title">Details</Label>
 								<Textarea
 									id="details"
-									placeholder={'Describe in detail the impact.'}
+									placeholder="Describe in detail the impact."
 									bind:value={newImpact.details}
 									class="col-span-3"
 								/>
@@ -200,7 +199,7 @@
 			<Card.Description>Notes gathered by facilitators</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			{#each report.facilitator_feedback as impact}
+			{#each report.facilitatorFeedback as impact (impact.id)}
 				<div class="flex w-full flex-row items-center justify-between">
 					<p class="">{impact.title}</p>
 					<div class="flex flex-row">
@@ -231,7 +230,7 @@
 			{/each}
 			<Card.Footer class="flex w-full justify-end">
 				<Dialog.Root bind:open={feedbackOpen}>
-					<Dialog.Trigger class={buttonVariants({ variant: 'primary' })}
+					<Dialog.Trigger class={buttonVariants({ variant: 'default' })}
 						>Add Feedback</Dialog.Trigger
 					>
 
@@ -249,7 +248,7 @@
 								<Label for="title">Details</Label>
 								<Textarea
 									id="details"
-									placeholder={'Describe in detail the impact.'}
+									placeholder="Describe in detail the impact."
 									bind:value={newFeedback.details}
 									class="col-span-3"
 								/>
