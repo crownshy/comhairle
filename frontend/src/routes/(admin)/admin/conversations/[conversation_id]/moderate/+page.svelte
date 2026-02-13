@@ -1,15 +1,16 @@
 <script lang="ts">
 	import { BookOpen, ListChecks, MessagesSquare, Video } from 'lucide-svelte';
-	let { data } = $props();
-	let { workflow_steps, conversation } = data;
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb/index.js';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte.js';
-	import type { ToolConfig, WorkflowStepWithTranslations, ConversationWithTranslations } from '$lib/api/api.js';
+	import type { ToolConfig, WorkflowStepWithTranslations } from '$lib/api/api.js';
+
+	let { data } = $props();
+	let { workflowSteps, conversation } = data;
 
 	function activeToolConfig(step: WorkflowStepWithTranslations): ToolConfig {
-		return (conversation as ConversationWithTranslations).isLive ? step.toolConfig : step.previewToolConfig;
+		return conversation.isLive ? step.toolConfig : step.previewToolConfig;
 	}
 
 	useAdminLayoutSlots({
@@ -29,7 +30,7 @@
 <p class="mb-10">Use this space to moderate the conversation</p>
 
 <div class="mb-5 flex flex-col gap-y-5">
-	{#each workflow_steps as step (step.id)}
+	{#each workflowSteps as step (step.id)}
 		<Card.Root class="transition-all">
 			<Card.Header>
 				<div class="flex flex-row items-center justify-between">

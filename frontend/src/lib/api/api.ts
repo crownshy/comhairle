@@ -132,20 +132,22 @@ export const PartialWorkflow = z.object({ auto_login: z.union([z.boolean(), z.nu
 export type PartialWorkflow = z.infer<typeof PartialWorkflow>;
 export const UserParticipation = z.object({ created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid(), workflow_id: z.string().uuid() }).passthrough();
 export type UserParticipation = z.infer<typeof UserParticipation>;
-export const LocalisedWorkflowStep = z.object({ activation_rule: ActivationRule, created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_offline: z.boolean(), name: z.string(), preview_tool_config: ToolConfig, required: z.boolean(), step_order: z.number().int(), tool_config: z.union([ToolConfig, z.null()]).optional(), updated_at: z.string().datetime({ offset: true }), workflow_id: z.string().uuid() }).passthrough();
-export type LocalisedWorkflowStep = z.infer<typeof LocalisedWorkflowStep>;
+export const LocalizedWorkflowStepDto = z.object({ activationRule: ActivationRule, description: z.string(), id: z.string().uuid(), isOffline: z.boolean(), name: z.string(), previewToolConfig: ToolConfig, required: z.boolean(), stepOrder: z.number().int(), toolConfig: z.union([ToolConfig, z.null()]).optional(), workflowId: z.string().uuid() }).passthrough();
+export type LocalizedWorkflowStepDto = z.infer<typeof LocalizedWorkflowStepDto>;
 export const Translation2 = z.object({ textContent: TextContentDto, textTranslations: z.array(TextTranslationDto) }).passthrough();
 export type Translation2 = z.infer<typeof Translation2>;
 export const WorkflowStepTranslations = z.object({ description: Translation2, name: Translation2 }).passthrough();
 export type WorkflowStepTranslations = z.infer<typeof WorkflowStepTranslations>;
 export const WorkflowStepWithTranslations = z.object({ activationRule: ActivationRule, createdAt: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), isOffline: z.boolean(), name: z.string(), previewToolConfig: ToolConfig, required: z.boolean(), stepOrder: z.number().int(), toolConfig: z.union([ToolConfig, z.null()]).optional(), translations: WorkflowStepTranslations, updatedAt: z.string().datetime({ offset: true }), workflowId: z.string().uuid() }).passthrough();
 export type WorkflowStepWithTranslations = z.infer<typeof WorkflowStepWithTranslations>;
-export const WorkflowStepsListResponse = z.union([z.array(LocalisedWorkflowStep), z.array(WorkflowStepWithTranslations)]);
+export const WorkflowStepsListResponse = z.union([z.array(LocalizedWorkflowStepDto), z.array(WorkflowStepWithTranslations)]);
 export type WorkflowStepsListResponse = z.infer<typeof WorkflowStepsListResponse>;
 export const ToolSetup = z.union([z.object({ topic: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(LearnPageEntry), type: z.literal("learn") }).passthrough(), z.object({ type: z.literal("heyform") }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ conversation_id: z.string(), topic: z.string(), type: z.literal("elicitationbot") }).passthrough()]);
 export type ToolSetup = z.infer<typeof ToolSetup>;
 export const CreateWorkflowStep = z.object({ activation_rule: ActivationRule, description: z.string(), is_offline: z.boolean(), name: z.string(), required: z.boolean(), step_order: z.number().int(), tool_setup: ToolSetup }).passthrough();
 export type CreateWorkflowStep = z.infer<typeof CreateWorkflowStep>;
+export const WorkflowStepDto = z.object({ activationRule: ActivationRule, description: z.string().uuid(), id: z.string().uuid(), isOffline: z.boolean(), name: z.string().uuid(), previewToolConfig: ToolConfig, required: z.boolean(), stepOrder: z.number().int(), toolConfig: z.union([ToolConfig, z.null()]).optional(), workflowId: z.string().uuid() }).passthrough();
+export type WorkflowStepDto = z.infer<typeof WorkflowStepDto>;
 export const PartialWorkflowStep = z.object({ activation_rule: z.union([ActivationRule, z.null()]), description: z.union([z.string(), z.null()]), is_offline: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]), preview_tool_config: z.union([ToolConfig, z.null()]), required: z.union([z.boolean(), z.null()]), step_order: z.union([z.number(), z.null()]), tool_config: z.union([ToolConfig, z.null()]) }).partial().passthrough();
 export type PartialWorkflowStep = z.infer<typeof PartialWorkflowStep>;
 export const ComhairleMessageReference = z.object({ content: z.string(), dataset_id: z.string(), document_id: z.string(), document_name: z.string(), id: z.string() }).passthrough();
@@ -300,13 +302,14 @@ export const schemas = {
 	WorkflowStats,
 	PartialWorkflow,
 	UserParticipation,
-	LocalisedWorkflowStep,
+	LocalizedWorkflowStepDto,
 	Translation2,
 	WorkflowStepTranslations,
 	WorkflowStepWithTranslations,
 	WorkflowStepsListResponse,
 	ToolSetup,
 	CreateWorkflowStep,
+	WorkflowStepDto,
 	PartialWorkflowStep,
 	ComhairleMessageReference,
 	ComhairleSessionMessage,
@@ -1174,14 +1177,14 @@ curl -X POST \
 				schema: CreateWorkflowStep
 			},
 		],
-		response: LocalisedWorkflowStep,
+		response: WorkflowStepDto,
 	},
 	{
 		method: "get",
 		path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id",
 		alias: "GetWorkflowStep",
 		requestFormat: "json",
-		response: LocalisedWorkflowStep,
+		response: LocalizedWorkflowStepDto,
 	},
 	{
 		method: "put",
@@ -1195,14 +1198,14 @@ curl -X POST \
 				schema: PartialWorkflowStep
 			},
 		],
-		response: WorkflowStep,
+		response: WorkflowStepDto,
 	},
 	{
 		method: "delete",
 		path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id",
 		alias: "DeleteWorkflowStep",
 		requestFormat: "json",
-		response: WorkflowStep,
+		response: WorkflowStepDto,
 	},
 	{
 		method: "get",
@@ -1223,7 +1226,7 @@ curl -X POST \
 				schema: PartialWorkflowStep
 			},
 		],
-		response: WorkflowStep,
+		response: WorkflowStepDto,
 	},
 	{
 		method: "get",

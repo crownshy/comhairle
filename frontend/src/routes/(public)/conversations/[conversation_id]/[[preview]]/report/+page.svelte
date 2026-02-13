@@ -9,7 +9,7 @@
 	import { marked } from 'marked';
 
 	let { data } = $props();
-	let { conversation, workflow_steps, report } = data;
+	let { conversation, workflowSteps, report } = data;
 
 	let markdown = $derived(marked.parse(report.summary));
 
@@ -34,7 +34,7 @@
 	<Tabs.Root value="Overview" class="space-y-4">
 		<Tabs.List>
 			<Tabs.Trigger value="Overview">Overview</Tabs.Trigger>
-			{#each workflow_steps as step (step.id)}
+			{#each workflowSteps as step (step.id)}
 				<Tabs.Trigger value={step.id}>{step.name}</Tabs.Trigger>
 			{/each}
 			<Tabs.Trigger value="Feedback">Feedback</Tabs.Trigger>
@@ -73,7 +73,7 @@
 			</ul>
 		</Tabs.Content>
 
-		{#each workflow_steps as step (step.id)}
+		{#each workflowSteps as step (step.id)}
 			<Tabs.Content value={step.id} class="spage-y-4">
 				{#if step.tool_config.type === 'polis'}
 					<iframe

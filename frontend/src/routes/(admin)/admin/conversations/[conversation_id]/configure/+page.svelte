@@ -15,7 +15,7 @@
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
-	import type { ConversationWithTranslations, WorkflowStep, Workflow } from '$lib/api/api';
+	import type { ConversationWithTranslations, Workflow } from '$lib/api/api';
 	import { snakeCaseKeys } from '$lib/utils/snakeCaseKeys';
 
 	let {
@@ -24,7 +24,6 @@
 		data: {
 			conversation: ConversationWithTranslations;
 			workflows: Workflow[];
-			workflow_steps: WorkflowStep[];
 		};
 	} = $props();
 	let conversation = $derived(data.conversation);
@@ -42,7 +41,9 @@
 			description: t.description
 		} as const;
 		for (const [key, field] of Object.entries(fields)) {
-			const trans = field?.textTranslations?.find((tt: { locale: string }) => tt.locale === newLanguage);
+			const trans = field?.textTranslations?.find(
+				(tt: { locale: string }) => tt.locale === newLanguage
+			);
 			if (trans) {
 				$form[key as keyof typeof fields] = trans.content;
 			}
@@ -187,17 +188,21 @@
 {/snippet}
 
 <div class="flex flex-col gap-4">
-	<h2 class="text-xl font-semibold text-card-foreground">Conversation configuration</h2>
-	<p class="text-sm text-muted-foreground">Personal details and general information.</p>
+	<h2 class="text-card-foreground text-xl font-semibold">Conversation configuration</h2>
+	<p class="text-muted-foreground text-sm">Personal details and general information.</p>
 </div>
 
 <form method="POST" onsubmit={updateConversation} class="mt-8 flex flex-col" use:enhance>
 	<!-- Title -->
-	<div class="flex flex-col gap-4 border-t border-border py-6 lg:flex-row lg:items-start lg:gap-6">
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
 		<Form.Field form={conversationForm} name="title" class="contents">
 			<Form.Control>
 				{#snippet children({ props })}
-					<Form.Label class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2">Title</Form.Label>
+					<Form.Label class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2"
+						>Title</Form.Label
+					>
 					<div class="flex-1">
 						<TranslatableField
 							value={$form.title}
@@ -215,11 +220,15 @@
 	</div>
 
 	<!-- Short Description -->
-	<div class="flex flex-col gap-4 border-t border-border py-6 lg:flex-row lg:items-start lg:gap-6">
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
 		<Form.Field form={conversationForm} name="shortDescription" class="contents">
 			<Form.Control>
 				{#snippet children({ props })}
-					<Form.Label class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2">Short description</Form.Label>
+					<Form.Label class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2"
+						>Short description</Form.Label
+					>
 					<div class="flex-1">
 						<TranslatableField
 							value={$form.shortDescription}
@@ -238,11 +247,15 @@
 	</div>
 
 	<!-- Description -->
-	<div class="flex flex-col gap-4 border-t border-border py-6 lg:flex-row lg:items-start lg:gap-6">
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
 		<Form.Field form={conversationForm} name="description" class="contents">
 			<Form.Control>
 				{#snippet children({ props })}
-					<Form.Label class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2">Description</Form.Label>
+					<Form.Label class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2"
+						>Description</Form.Label
+					>
 					<div class="flex-1">
 						<TranslatableField
 							value={$form.description}
@@ -261,9 +274,11 @@
 	</div>
 
 	<!-- Language options -->
-	<div class="flex flex-col gap-4 border-t border-border py-6 lg:flex-row lg:items-start lg:gap-6">
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
 		<p class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2">Language options</p>
-		<div class="flex-1 max-w-md">
+		<div class="max-w-md flex-1">
 			<LanguageSelector
 				bind:primaryLanguage
 				bind:supportedLanguages
@@ -274,17 +289,21 @@
 	</div>
 
 	<!-- Banner Image URL -->
-	<div class="flex flex-col gap-4 border-t border-border py-6 lg:flex-row lg:items-start lg:gap-6">
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
 		<Form.Field form={conversationForm} name="imageUrl" class="contents">
 			<Form.Control>
 				{#snippet children({ props })}
-					<Form.Label class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2">Banner image URL</Form.Label>
-					<div class="flex-1 flex flex-col gap-4">
+					<Form.Label class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2"
+						>Banner image URL</Form.Label
+					>
+					<div class="flex flex-1 flex-col gap-4">
 						<Input {...props} bind:value={$form.imageUrl} />
 						<Form.FieldErrors />
 						{#if $form.imageUrl}
 							<img
-								class="w-full max-w-md rounded-lg bg-muted object-cover"
+								class="bg-muted w-full max-w-md rounded-lg object-cover"
 								alt="Conversation Banner"
 								src={$form.imageUrl}
 							/>
@@ -296,16 +315,22 @@
 	</div>
 
 	<!-- Access / Other configuration -->
-	<div class="flex flex-col gap-4 border-t border-border py-6 lg:flex-row lg:items-start lg:gap-6">
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
 		<p class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2">Other configuration</p>
-		<div class="flex-1 flex flex-col gap-6">
+		<div class="flex flex-1 flex-col gap-6">
 			<Form.Field form={conversationForm} name="isPublic">
 				<Form.Control>
 					{#snippet children({ props })}
 						<div class="flex items-center justify-between gap-4">
 							<div class="flex flex-col gap-1">
-								<Form.Label class="text-sm font-medium">Show conversation publicly</Form.Label>
-								<p class="text-sm text-muted-foreground">Allow export of personal data and backups.</p>
+								<Form.Label class="text-sm font-medium"
+									>Show conversation publicly</Form.Label
+								>
+								<p class="text-muted-foreground text-sm">
+									Allow export of personal data and backups.
+								</p>
 							</div>
 							<Switch {...props} bind:checked={$form.isPublic} />
 						</div>
@@ -319,8 +344,12 @@
 					{#snippet children({ props })}
 						<div class="flex items-center justify-between gap-4">
 							<div class="flex flex-col gap-1">
-								<Form.Label class="text-sm font-medium">Only allow participation by invite</Form.Label>
-								<p class="text-sm text-muted-foreground">Admins can invite and manage members.</p>
+								<Form.Label class="text-sm font-medium"
+									>Only allow participation by invite</Form.Label
+								>
+								<p class="text-muted-foreground text-sm">
+									Admins can invite and manage members.
+								</p>
 							</div>
 							<Switch {...props} bind:checked={$form.isInviteOnly} />
 						</div>
@@ -334,8 +363,12 @@
 					{#snippet children({ props })}
 						<div class="flex items-center justify-between gap-4">
 							<div class="flex flex-col gap-1">
-								<Form.Label class="text-sm font-medium">Automatically log in with an anonymous account</Form.Label>
-								<p class="text-sm text-muted-foreground">Creates a temporary account for unauthenticated users.</p>
+								<Form.Label class="text-sm font-medium"
+									>Automatically log in with an anonymous account</Form.Label
+								>
+								<p class="text-muted-foreground text-sm">
+									Creates a temporary account for unauthenticated users.
+								</p>
 							</div>
 							<Switch {...props} bind:checked={$form.autoLogin} />
 						</div>
@@ -347,7 +380,9 @@
 	</div>
 
 	<!-- Collaborators -->
-	<div class="flex flex-col gap-4 border-t border-border py-6 lg:flex-row lg:items-start lg:gap-6">
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
 		<p class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2">Collaborators</p>
 		<div class="flex-1">
 			<TeamManager />
@@ -355,8 +390,12 @@
 	</div>
 
 	<!-- Save Button -->
-	<div class="flex justify-center border-t border-border py-6">
-		<Form.Button variant="default" class="rounded-full px-12" disabled={$submitting || !$tainted}>
+	<div class="border-border flex justify-center border-t py-6">
+		<Form.Button
+			variant="default"
+			class="rounded-full px-12"
+			disabled={$submitting || !$tainted}
+		>
 			Save Changes
 		</Form.Button>
 	</div>

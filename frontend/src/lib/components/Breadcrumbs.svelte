@@ -1,10 +1,11 @@
 <script lang="ts">
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
-	import type { LocalizedConversationDto, WorkflowStep } from '$lib/api/api';
+	import type { LocalizedConversationDto, LocalizedWorkflowStepDto } from '$lib/api/api';
 	let {
 		conversation,
-		workflow_step
-	}: { conversation?: LocalizedConversationDto; workflow_step?: WorkflowStep } = $props();
+		workflowStep
+	}: { conversation?: LocalizedConversationDto; workflowStep?: LocalizedWorkflowStepDto } =
+		$props();
 </script>
 
 <Breadcrumb.Root class="mb-16">
@@ -24,10 +25,10 @@
 				</Breadcrumb.Link>
 			</Breadcrumb.Item>
 		{/if}
-		{#if workflow_step}
+		{#if workflowStep}
 			<Breadcrumb.Separator class="text-black" />
 			<Breadcrumb.Item class="text-black">
-				<Breadcrumb.Page>{workflow_step.name}</Breadcrumb.Page>
+				<Breadcrumb.Page>{workflowStep.name}</Breadcrumb.Page>
 			</Breadcrumb.Item>
 		{/if}
 	</Breadcrumb.List>
