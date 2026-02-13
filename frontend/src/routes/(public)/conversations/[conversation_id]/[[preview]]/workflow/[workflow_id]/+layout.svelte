@@ -8,9 +8,9 @@
 
 {@render children()}
 
-{#if conversation?.chat_bot_id}
+{#if conversation?.chatBotId}
 	<CollapsibleChat
-		chatId={conversation.chat_bot_id}
+		chatId={conversation.chatBotId}
 		conversationId={conversation.id}
 		userId={user?.id}
 	/>

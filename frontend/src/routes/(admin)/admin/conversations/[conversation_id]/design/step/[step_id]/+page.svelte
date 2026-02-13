@@ -22,7 +22,7 @@
 	let prevStep = $derived(
 		step ? workflow_steps.find((s: WorkflowStep) => s.step_order === step.step_order - 1) : undefined
 	);
-	let toolConfig = $derived(step ? (conversation.is_live ? step.tool_config : step.preview_tool_config) : null);
+	let toolConfig = $derived(step ? (conversation.isLive ? step.tool_config : step.preview_tool_config) : null);
 
 	useAdminLayoutSlots({
 		title: titleSnippet,
@@ -67,7 +67,7 @@
 	<LearnManage
 		conversation_id={conversation.id}
 		{conversation}
-		isLive={conversation.is_live}
+		isLive={conversation.isLive}
 		workflow_step={step}
 	/>
 {/if}
@@ -105,6 +105,6 @@
 		conversationId={conversation.id}
 		workflowId={step.workflow_id}
 		workflowStep={step}
-		isLive={conversation.is_live}
+		isLive={conversation.isLive}
 	/>
 {/if}

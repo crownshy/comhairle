@@ -4,6 +4,11 @@ use uuid::Uuid;
 
 use crate::models::user_conversation_preferences::UserConversationPreferences;
 
+/// Data transfer object (public API representation) for UserConversationPreferences.
+///
+/// This DTO is returned by user conversation preferences routes.
+///
+/// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
 #[derive(Serialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct UserConversationPreferencesDto {

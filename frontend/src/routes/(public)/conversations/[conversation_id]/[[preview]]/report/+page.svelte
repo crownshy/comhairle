@@ -1,9 +1,7 @@
 <script lang="ts">
 	import * as Tabs from '$lib/components/ui/tabs';
-	import * as Card from '$lib/components/ui/card';
 	import '@carbon/charts-svelte/styles.css';
 	import StatsBar from '$lib/components/StatsBar.svelte';
-	import { BarChartSimple } from '@carbon/charts-svelte';
 	import { formatDistanceToNow } from 'date-fns';
 	import Speech from 'lucide-svelte/icons/speech';
 	import Drama from 'lucide-svelte/icons/drama';
@@ -11,7 +9,7 @@
 	import { marked } from 'marked';
 
 	let { data } = $props();
-	let { conversation, workflow_steps, workflow_stats, report } = data;
+	let { conversation, workflow_steps, report } = data;
 
 	let markdown = $derived(marked.parse(report.summary));
 
@@ -36,7 +34,7 @@
 	<Tabs.Root value="Overview" class="space-y-4">
 		<Tabs.List>
 			<Tabs.Trigger value="Overview">Overview</Tabs.Trigger>
-			{#each workflow_steps as step}
+			{#each workflow_steps as step (step.id)}
 				<Tabs.Trigger value={step.id}>{step.name}</Tabs.Trigger>
 			{/each}
 			<Tabs.Trigger value="Feedback">Feedback</Tabs.Trigger>
@@ -52,7 +50,7 @@
 
 			<h2 class="text-xl font-bold">Impacts</h2>
 			<ul class="flex flex-col gap-4 divide-y-3 divide-solid divide-gray-200">
-				{#each report.impacts as impact}
+				{#each report.impacts as impact (impact.id)}
 					<li class="flex flex-col gap-2 border-solid p-4">
 						<div class="flex flex-row justify-between">
 							<div class="flex flex-row gap-2">

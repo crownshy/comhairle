@@ -2,7 +2,6 @@
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { apiClient } from '$lib/api/client';
-	import BarChart from '$lib/components/BarChart.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import * as Card from '$lib/components/ui/card';

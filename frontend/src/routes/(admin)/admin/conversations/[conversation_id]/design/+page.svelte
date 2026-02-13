@@ -104,7 +104,7 @@
 	}
 
 	function activeToolConfig(step: WorkflowStep) {
-		return conversation.is_live ? step.tool_config : step.preview_tool_config;
+		return conversation.isLive ? step.tool_config : step.preview_tool_config;
 	}
 	useAdminLayoutSlots({
 		title: titleSnippet,
