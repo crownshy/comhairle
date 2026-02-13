@@ -1,13 +1,14 @@
 import { notifications } from '$lib/notifications.svelte';
 import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
+import type { FullReportDto } from '$lib/api/api';
 
 export const load: PageLoad = async ({ params, parent }) => {
 	const { api, conversation, workflows } = await parent();
 	const conversation_id = conversation.id;
 
 	try {
-		const report = await api.GetReportForConversation({
+		const report: FullReportDto = await api.GetReportForConversation({
 			params: { conversation_id: conversation.id }
 		});
 		try {

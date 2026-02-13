@@ -162,10 +162,10 @@ export const CreateInviteDTO = z.object({ expires_at: z.union([z.string(), z.nul
 export type CreateInviteDTO = z.infer<typeof CreateInviteDTO>;
 export const DailyResponseStats = z.object({ accept: z.number().int(), day: z.string().datetime({ offset: true }), reject: z.number().int() }).passthrough();
 export type DailyResponseStats = z.infer<typeof DailyResponseStats>;
-export const Feedback = z.object({ content: z.string(), conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), created_by: z.string().uuid(), id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
-export type Feedback = z.infer<typeof Feedback>;
-export const ReportImpact = z.object({ created_at: z.string().datetime({ offset: true }), created_by: z.string().uuid(), details: z.string(), id: z.string().uuid(), kind: z.string(), report_id: z.string().uuid(), title: z.string(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
-export type ReportImpact = z.infer<typeof ReportImpact>;
+export const FeedbackDto = z.object({ content: z.string(), conversationId: z.string().uuid(), id: z.string().uuid() }).passthrough();
+export type FeedbackDto = z.infer<typeof FeedbackDto>;
+export const ReportImpactDto = z.object({ createdAt: z.string().datetime({ offset: true }), createdBy: z.string().uuid(), details: z.string(), id: z.string().uuid(), kind: z.string(), reportId: z.string().uuid(), title: z.string() }).passthrough();
+export type ReportImpactDto = z.infer<typeof ReportImpactDto>;
 export const PolisReport = z.null();
 export type PolisReport = z.infer<typeof PolisReport>;
 export const HeyFormReport = z.null();
@@ -182,20 +182,16 @@ export const ReportSectionConfig = z.object({ ai_generated: z.boolean(), config:
 export type ReportSectionConfig = z.infer<typeof ReportSectionConfig>;
 export const ReportSectionConfigs = z.array(ReportSectionConfig);
 export type ReportSectionConfigs = z.infer<typeof ReportSectionConfigs>;
-export const FullReportDTO = z.object({ conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), facilitator_feedback: z.array(Feedback), id: z.string().uuid(), impacts: z.array(ReportImpact), is_public: z.boolean(), participant_feedback: z.array(Feedback), section_configs: ReportSectionConfigs, summary: z.string(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
-export type FullReportDTO = z.infer<typeof FullReportDTO>;
+export const FullReportDto = z.object({ conversationId: z.string().uuid(), createdAt: z.string().datetime({ offset: true }), facilitatorFeedback: z.array(FeedbackDto), id: z.string().uuid(), impacts: z.array(ReportImpactDto), isPublic: z.boolean(), participantFeedback: z.array(FeedbackDto), sectionConfigs: ReportSectionConfigs, summary: z.string() }).passthrough();
+export type FullReportDto = z.infer<typeof FullReportDto>;
 export const PartialReport = z.object({ conversation_id: z.union([z.string(), z.null()]), is_public: z.union([z.boolean(), z.null()]), section_configs: z.union([ReportSectionConfigs, z.null()]), summary: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialReport = z.infer<typeof PartialReport>;
 export const ReportDto = z.object({ conversationId: z.string().uuid(), createdAt: z.string().datetime({ offset: true }), id: z.string().uuid(), isPublic: z.boolean(), sectionConfigs: ReportSectionConfigs, summary: z.string() }).passthrough();
 export type ReportDto = z.infer<typeof ReportDto>;
-export const ReportImpactDto = z.object({ createdAt: z.string().datetime({ offset: true }), createdBy: z.string().uuid(), details: z.string(), id: z.string().uuid(), kind: z.string(), reportId: z.string().uuid(), title: z.string() }).passthrough();
-export type ReportImpactDto = z.infer<typeof ReportImpactDto>;
 export const PartialReportImpact = z.object({ created_at: z.union([z.string(), z.null()]), created_by: z.union([z.string(), z.null()]), details: z.union([z.string(), z.null()]), id: z.union([z.string(), z.null()]), kind: z.union([z.string(), z.null()]), report_id: z.union([z.string(), z.null()]), title: z.union([z.string(), z.null()]), updated_at: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialReportImpact = z.infer<typeof PartialReportImpact>;
 export const CreateImpactDTO = z.object({ details: z.string(), kind: z.string(), title: z.string() }).passthrough();
 export type CreateImpactDTO = z.infer<typeof CreateImpactDTO>;
-export const FeedbackDto = z.object({ content: z.string(), conversationId: z.string().uuid(), id: z.string().uuid() }).passthrough();
-export type FeedbackDto = z.infer<typeof FeedbackDto>;
 export const CreateFeedbackDTO = z.object({ content: z.string() }).passthrough();
 export type CreateFeedbackDTO = z.infer<typeof CreateFeedbackDTO>;
 export const PartialFeedback = z.object({ content: z.union([z.string(), z.null()]) }).partial().passthrough();
@@ -329,8 +325,8 @@ export const schemas = {
 	InviteDto,
 	CreateInviteDTO,
 	DailyResponseStats,
-	Feedback,
-	ReportImpact,
+	FeedbackDto,
+	ReportImpactDto,
 	PolisReport,
 	HeyFormReport,
 	LearnReport,
@@ -339,13 +335,11 @@ export const schemas = {
 	ReportConfig,
 	ReportSectionConfig,
 	ReportSectionConfigs,
-	FullReportDTO,
+	FullReportDto,
 	PartialReport,
 	ReportDto,
-	ReportImpactDto,
 	PartialReportImpact,
 	CreateImpactDTO,
-	FeedbackDto,
 	CreateFeedbackDTO,
 	PartialFeedback,
 	WebSocketStats,
@@ -1206,7 +1200,7 @@ const endpoints = makeApi([
 		path: "/conversation/:conversation_id/report",
 		alias: "GetReportForConversation",
 		requestFormat: "json",
-		response: FullReportDTO,
+		response: FullReportDto,
 	},
 	{
 		method: "put",
@@ -1227,7 +1221,7 @@ const endpoints = makeApi([
 		path: "/conversation/:conversation_id/report",
 		alias: "GenerateReportForConversation",
 		requestFormat: "json",
-		response: FullReportDTO,
+		response: FullReportDto,
 	},
 	{
 		method: "get",

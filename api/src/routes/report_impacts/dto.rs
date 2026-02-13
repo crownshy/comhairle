@@ -1,11 +1,19 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::models::report_impact::ReportImpact;
 
-#[derive(Serialize, JsonSchema, Debug)]
+/// Data transfer object (public API representation) for a Report Impact.
+///
+/// This DTO is returned by report related endpoints and is safe to expose
+/// to clients. It intentionally omits fields such as:
+///
+/// * `updated_at`
+///
+/// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportImpactDto {
     id: Uuid,
