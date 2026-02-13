@@ -1,5 +1,5 @@
 use schemars::JsonSchema;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
@@ -58,7 +58,7 @@ pub struct WorkflowStepDto {
 /// * `description`
 ///
 /// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
-#[derive(Serialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalizedWorkflowStepDto {
     #[schemars(example = "example_uuid")]

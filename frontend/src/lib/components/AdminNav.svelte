@@ -22,7 +22,7 @@
 	let path = $derived(props.path);
 	let user = $derived(props.user);
 	let conversations = $derived(props.conversations);
-	let workflow_steps = $derived(page.data?.workflow_steps ?? []);
+	let workflowSteps = $derived(page.data?.workflowSteps ?? []);
 	let user_initials = $derived(userInitials(user?.username ?? ''));
 
 	// TODO We need to use data-sveltekit-reload as the
@@ -167,8 +167,8 @@
 																			<div
 																				class="border-sidebar-foreground relative ml-6 mr-2 border-l pl-2 py-0.5"
 																			>
-																				{#if path.includes(conversation.id) && workflow_steps?.length > 0}
-																					{#each workflow_steps as wfStep (wfStep.id)}
+																				{#if path.includes(conversation.id) && workflowSteps?.length > 0}
+																					{#each workflowSteps as wfStep (wfStep.id)}
 																						<a
 																							href={`/admin/conversations/${conversation.id}/design/step/${wfStep.id}`}
 																							class="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground block truncate rounded-lg px-2 py-1 text-sm {path.includes(

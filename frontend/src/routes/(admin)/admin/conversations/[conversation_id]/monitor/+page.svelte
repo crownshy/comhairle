@@ -12,7 +12,7 @@
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 
 	let { data }: PageProps = $props();
-	let { workflow_steps, workflowStats } = data;
+	let { workflowSteps, workflowStats } = data;
 
 	let stats = [
 		{
@@ -69,7 +69,7 @@
 	See how users are making progress through the engagment. Indetify any sticking points
 </p>
 
-{#each workflow_steps as step (step.id)}
+{#each workflowSteps as step (step.id)}
 	<h3 class="my-5 text-xl font-bold">{step.name}</h3>
 	<div class="grid grid-cols-3 gap-10 overflow-x-auto">
 		<StatProgressIndicator

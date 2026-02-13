@@ -7,12 +7,12 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { apiClient } from '$lib/api/client';
-	import type { WorkflowStep } from '$lib/api/api';
+	import type { WorkflowStepWithTranslations } from '$lib/api/api';
 
 	type Props = {
 		conversationId: string;
 		workflowId: string;
-		workflowStep: WorkflowStep;
+		workflowStep: WorkflowStepWithTranslations;
 		isLive: boolean;
 	};
 	let { conversationId, workflowId, workflowStep, isLive }: Props = $props();
