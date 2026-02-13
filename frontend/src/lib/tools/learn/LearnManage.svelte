@@ -1,11 +1,11 @@
 <script lang="ts">
-	import type { LocalisedPage, ToolConfig, WorkflowStep, ConversationWithTranslations, Page } from '$lib/api/api';
-	
+	import type { LocalisedPage, WorkflowStep, ConversationWithTranslations } from '$lib/api/api';
+
 	interface ExtendedLocalisedPage extends LocalisedPage {
 		lang: string;
 		requires_validation?: boolean;
 	}
-	
+
 	type Props = {
 		conversation_id: string;
 		conversation: ConversationWithTranslations;
@@ -26,11 +26,11 @@
 
 	let { conversation_id, conversation, workflow_step, isLive }: Props = $props();
 
-	let primaryLocale = $derived(conversation.primary_locale ?? 'en');
-	let supportedLanguages = $derived(conversation.supported_languages ?? ['en']);
+	let primaryLocale = $derived(conversation.primaryLocale ?? 'en');
+	let supportedLanguages = $derived(conversation.supportedLanguages ?? ['en']);
 
 	type LearnToolConfig = { type: 'learn'; pages: ExtendedLocalisedPage[][] };
-	
+
 	let toolConfig = $derived(
 		(isLive ? workflow_step.tool_config : workflow_step.preview_tool_config) as LearnToolConfig
 	);
@@ -90,7 +90,9 @@
 	});
 
 	function deletePage() {
-		const newPages = pages.filter((_: ExtendedLocalisedPage[], i: number) => i !== currentPageIndex);
+		const newPages = pages.filter(
+			(_: ExtendedLocalisedPage[], i: number) => i !== currentPageIndex
+		);
 		toolConfig.pages = newPages;
 		currentPageIndex = Math.max(currentPageIndex - 1, 0);
 		saveToServer();
@@ -156,9 +158,7 @@
 		clearTimeout(debounceTimeout);
 		try {
 			await apiClient.UpdateWorkflowStep(
-				isLive
-					? { tool_config: toolConfig }
-					: { preview_tool_config: toolConfig },
+				isLive ? { tool_config: toolConfig } : { preview_tool_config: toolConfig },
 				{
 					params: {
 						workflow_id: workflow_step.workflow_id,
@@ -177,9 +177,7 @@
 		clearTimeout(debounceTimeout);
 		try {
 			await apiClient.UpdateWorkflowStep(
-				isLive
-					? { tool_config: toolConfig }
-					: { preview_tool_config: toolConfig },
+				isLive ? { tool_config: toolConfig } : { preview_tool_config: toolConfig },
 				{
 					params: {
 						workflow_id: workflow_step.workflow_id,
@@ -198,7 +196,10 @@
 
 		const primaryTranslation = pages[currentPageIndex]?.find((p) => p.lang === primaryLocale);
 		if (!primaryTranslation?.content) {
-			notifications.send({ message: 'No primary content to translate from', priority: 'WARNING' });
+			notifications.send({
+				message: 'No primary content to translate from',
+				priority: 'WARNING'
+			});
 			return;
 		}
 
@@ -247,7 +248,9 @@
 
 			await saveToServer();
 
-			await apiClient.DeleteTextContent(undefined, { params: { text_content_id: textContent.id } });
+			await apiClient.DeleteTextContent(undefined, {
+				params: { text_content_id: textContent.id }
+			});
 
 			notifications.send({ message: 'Translation completed', priority: 'INFO' });
 		} catch (error) {
@@ -280,12 +283,14 @@
 			</Select.Root>
 
 			<Button onclick={addPage}>+ Add Page</Button>
-			<Button variant="destructive" onclick={deletePage} disabled={pages.length <= 1}>- Delete Page</Button>
+			<Button variant="destructive" onclick={deletePage} disabled={pages.length <= 1}
+				>- Delete Page</Button
+			>
 		</div>
 	</div>
 
 	<!-- Second row: Language selector with status and actions -->
-	<div class="flex items-center justify-between gap-4 rounded-lg bg-muted/50">
+	<div class="bg-muted/50 flex items-center justify-between gap-4 rounded-lg">
 		<div class="flex items-center gap-3">
 			<Select.Root
 				type="single"
@@ -300,22 +305,37 @@
 						<Select.Item value={lang}>
 							{getLanguageName(lang)}
 							{#if lang === primaryLocale}
-								<span class="ml-2 text-xs text-muted-foreground">(Primary)</span>
+								<span class="text-muted-foreground ml-2 text-xs">(Primary)</span>
 							{/if}
 						</Select.Item>
 					{/each}
 				</Select.Content>
 			</Select.Root>
 
-			<Badge variant={translationStatus === 'primary' ? 'outline' : translationStatus === 'approved' ? 'default' : 'secondary'}>
-				{translationStatus === 'primary' ? 'Primary' : translationStatus === 'approved' ? 'Approved' : 'Draft'}
+			<Badge
+				variant={translationStatus === 'primary'
+					? 'outline'
+					: translationStatus === 'approved'
+						? 'default'
+						: 'secondary'}
+			>
+				{translationStatus === 'primary'
+					? 'Primary'
+					: translationStatus === 'approved'
+						? 'Approved'
+						: 'Draft'}
 			</Badge>
 		</div>
 
 		<!-- Actions for non-primary languages -->
 		{#if currentLang !== primaryLocale}
 			<div class="flex items-center gap-2">
-				<Button onclick={handleAiTranslate} disabled={isTranslating} variant="outline" size="sm">
+				<Button
+					onclick={handleAiTranslate}
+					disabled={isTranslating}
+					variant="outline"
+					size="sm"
+				>
 					{#if isTranslating}
 						Translating...
 					{:else}
@@ -342,7 +362,7 @@
 						</DropdownMenu.Content>
 					</DropdownMenu.Root>
 				{:else}
-					<Button 
+					<Button
 						onclick={approveTranslation}
 						disabled={!content}
 						size="sm"

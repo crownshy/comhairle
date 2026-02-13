@@ -29,6 +29,8 @@ use crate::{
 
 use super::auth::RequiredAdminUser;
 
+pub mod dto;
+
 /// An extractor to get the user's locale preference from the COMHAIRLE_LOCALE cookie
 /// Returns "en" as default if the cookie is not present or invalid
 #[derive(Debug, Clone, OperationIo)]

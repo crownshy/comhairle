@@ -8,16 +8,19 @@
 	import Search from './Search.svelte';
 	import { Pager } from '$lib/pagination';
 	import { getSort, setSort, PAGE_SIZE, parseSort, type SortBy } from './utils';
-	import type { Conversation } from '$lib/api/api';
+	import type { ConversationDto } from '$lib/api/api';
 	import { page } from '$app/state';
 	import { buttonVariants } from '$lib/components/ui/button';
-	let { data }: { data: { records: Array<Conversation>; total: number } } = $props();
+	let { data }: { data: { records: Array<ConversationDto>; total: number } } = $props();
 
 	const pageUrl = $derived(page.url);
 </script>
 
 {#snippet sortOption(url: URL, sort: SortBy)}
-	<a href={setSort(url, sort).toString()} aria-current={getSort(url) === sort ? 'page' : undefined}>
+	<a
+		href={setSort(url, sort).toString()}
+		aria-current={getSort(url) === sort ? 'page' : undefined}
+	>
 		<DropdownMenu.Item>
 			<span class="w-6">
 				{#if getSort(url) === sort}
@@ -37,7 +40,9 @@
 		</p>
 		<div class="flex justify-between">
 			<DropdownMenu.Root>
-				<DropdownMenu.Trigger class={buttonVariants({ variant: 'outline-solid', size: 'sm' })}>
+				<DropdownMenu.Trigger
+					class={buttonVariants({ variant: 'outline-solid', size: 'sm' })}
+				>
 					<ChevronDown class="h-4 w-4" />{m.sort()}
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content>
@@ -54,7 +59,7 @@
 	</header>
 
 	<div class="flex w-full grow flex-col items-center gap-20 md:gap-10 md:px-2 lg:items-stretch">
-		{#each data.records as conversation}
+		{#each data.records as conversation (conversation.id)}
 			<a href={`/conversations/${conversation.slug || conversation.id}`}>
 				<ConversationCard {conversation} />
 			</a>

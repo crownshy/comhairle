@@ -1,9 +1,13 @@
+use std::sync::Arc;
+
+use aide::axum::ApiRouter;
+use async_trait::async_trait;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::error::ComhairleError;
+use crate::{error::ComhairleError, ComhairleState};
 
-use super::ToolConfigSanitize;
+use super::{ToolConfigSanitize, ToolImpl};
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
 #[serde(rename_all = "lowercase", tag = "type", content = "content")]
@@ -41,8 +45,47 @@ pub struct LearnToolSetup {
     pub pages: Vec<Page>,
 }
 
-pub async fn setup(setup_config: &LearnToolSetup) -> Result<LearnToolConfig, ComhairleError> {
+async fn learn_setup(setup_config: &LearnToolSetup) -> Result<LearnToolConfig, ComhairleError> {
     Ok(LearnToolConfig {
         pages: setup_config.pages.clone(),
     })
+}
+
+// Keep public function for backwards compatibility
+pub async fn setup(setup_config: &LearnToolSetup) -> Result<LearnToolConfig, ComhairleError> {
+    learn_setup(setup_config).await
+}
+
+/// Zero-sized marker type for Learn tool implementation
+pub struct LearnTool;
+
+#[async_trait]
+impl ToolImpl for LearnTool {
+    type Config = LearnToolConfig;
+    type Setup = LearnToolSetup;
+    type Report = LearnReport;
+
+    async fn setup(
+        setup: &Self::Setup,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        learn_setup(setup).await
+    }
+
+    async fn clone_tool(
+        config: &Self::Config,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        // Learn tool is cloneable as-is (static content)
+        Ok(config.clone())
+    }
+
+    fn sanitize(config: Self::Config) -> Self::Config {
+        config.sanatize()
+    }
+
+    fn routes(_state: &Arc<ComhairleState>) -> ApiRouter {
+        // Learn tool has no routes
+        ApiRouter::new()
+    }
 }

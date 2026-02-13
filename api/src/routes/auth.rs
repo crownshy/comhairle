@@ -49,6 +49,7 @@ use crate::{
         get_user_resource_roles, update_user, Resource, Role, UpdateUserRequest, User,
         UserAuthType, UserResourceRole,
     },
+    routes::user::dto::UserDto,
     ComhairleState,
 };
 
@@ -175,7 +176,7 @@ async fn signup(
     State(state): State<Arc<ComhairleState>>,
     jar: CookieJar,
     Json(payload): Json<SignupRequest>,
-) -> Result<(CookieJar, (StatusCode, Json<User>)), ComhairleError> {
+) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let user = create_user(&payload, &state.db).await?;
     let claims = EmailLinkClaims {
         email: user.email.clone(),
@@ -205,6 +206,7 @@ async fn signup(
         .secure(true)
         .http_only(true);
 
+    let user: UserDto = user.into();
     Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
 }
 
@@ -213,7 +215,7 @@ async fn signup(
 async fn signup_annon(
     State(state): State<Arc<ComhairleState>>,
     jar: CookieJar,
-) -> Result<(CookieJar, (StatusCode, Json<User>)), ComhairleError> {
+) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let user = create_annon_user(&state.db).await?;
     let claims = SessionClaims {
         username: user.username.clone(),
@@ -228,6 +230,7 @@ async fn signup_annon(
         .secure(true)
         .http_only(true);
 
+    let user: UserDto = user.into();
     Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
 }
 
@@ -237,7 +240,7 @@ async fn login(
     State(state): State<Arc<ComhairleState>>,
     jar: CookieJar,
     Json(payload): Json<LoginRequest>,
-) -> Result<(CookieJar, (StatusCode, Json<User>)), ComhairleError> {
+) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let user = get_user_by_email(&payload.email, &state.db).await?;
 
     let password = user
@@ -265,6 +268,8 @@ async fn login(
         .path("/")
         .secure(true)
         .http_only(true);
+
+    let user: UserDto = user.into();
     Ok((jar.add(cookie), (StatusCode::OK, Json(user))))
 }
 
@@ -273,7 +278,7 @@ async fn login_annon(
     State(state): State<Arc<ComhairleState>>,
     cookies: CookieJar,
     Json(payload): Json<AnnonLoginRequest>,
-) -> Result<(CookieJar, (StatusCode, Json<User>)), ComhairleError> {
+) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let user = get_user_by_username(&payload.username, &state.db).await?;
 
     if user.auth_type != UserAuthType::Annon {
@@ -292,6 +297,8 @@ async fn login_annon(
         .path("/")
         .secure(true)
         .http_only(true);
+
+    let user: UserDto = user.into();
     Ok((cookies.add(cookie), (StatusCode::OK, Json(user))))
 }
 
@@ -323,7 +330,7 @@ async fn verify_email_token(
     State(state): State<Arc<ComhairleState>>,
     cookies: CookieJar,
     Json(payload): Json<VerifyEmailTokenRequest>,
-) -> Result<(CookieJar, (StatusCode, Json<User>)), ComhairleError> {
+) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let current_user = validate_jwt::<EmailLinkClaims>(&state, &payload.token).await?;
 
     if current_user.auth_type == UserAuthType::Annon {
@@ -358,7 +365,8 @@ async fn verify_email_token(
         .secure(true)
         .http_only(true);
 
-    Ok((cookies.add(cookie), (StatusCode::OK, Json(updated_user))))
+    let user: UserDto = updated_user.into();
+    Ok((cookies.add(cookie), (StatusCode::OK, Json(user))))
 }
 
 #[instrument(err(Debug), skip(state, payload))]
@@ -676,8 +684,8 @@ pub async fn logout(jar: CookieJar) -> (CookieJar, Response) {
 #[instrument(err(Debug))]
 pub async fn current_user(
     OptionalUser(user): OptionalUser,
-) -> Result<(StatusCode, Json<User>), ComhairleError> {
-    let user = user.ok_or_else(|| ComhairleError::NoLogedInUser)?;
+) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
+    let user: UserDto = (user.ok_or_else(|| ComhairleError::NoLogedInUser)?).into();
 
     Ok((StatusCode::OK, Json(user)))
 }
@@ -686,7 +694,8 @@ pub async fn current_user(
 pub async fn test_requires_roles(
     RequiredRole(_, _, _): RequiredRole<Conversation, (Owner, (Contributor,))>,
     RequiredUser(user): RequiredUser,
-) -> Result<(StatusCode, Json<User>), ComhairleError> {
+) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
+    let user: UserDto = user.into();
     Ok((StatusCode::OK, Json(user)))
 }
 
@@ -697,38 +706,43 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/login_annon",
             post_with(login_annon, |op| {
                 op.id("LoginAnnonUser")
+                    .tag("Auth")
                     .summary("Login an annon user")
-                    .response::<200, Json<User>>()
+                    .response::<200, Json<UserDto>>()
             }),
         )
         .api_route(
             "/login",
             post_with(login, |op| {
                 op.id("LoginUser")
+                    .tag("Auth")
                     .summary("Login a user")
-                    .response::<200, Json<User>>()
+                    .response::<200, Json<UserDto>>()
             }),
         )
         .api_route(
             "/signup",
             post_with(signup, |op| {
                 op.id("SignUp")
+                    .tag("Auth")
                     .summary("Signup a user with email and password")
-                    .response::<201, Json<User>>()
+                    .response::<201, Json<UserDto>>()
             }),
         )
         .api_route(
             "/signup_annon",
             post_with(signup_annon, |op| {
                 op.id("SignupAnnonUser")
+                    .tag("Auth")
                     .summary("Signup and annon user")
-                    .response::<201, Json<User>>()
+                    .response::<201, Json<UserDto>>()
             }),
         )
         .api_route(
             "/logout",
             post_with(logout, |op| {
                 op.id("LogoutUser")
+                    .tag("Auth")
                     .summary("Logout the current user")
                     .response::<200, Json<HashMap<String, String>>>()
             }),
@@ -737,14 +751,16 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/verify_email_token",
             post_with(verify_email_token, |op| {
                 op.id("VerifyEmailToken")
+                    .tag("Auth")
                     .summary("Verify token from email verification link")
-                    .response::<200, Json<User>>()
+                    .response::<200, Json<UserDto>>()
             }),
         )
         .api_route(
             "/resend_verification_email",
             post_with(resend_verification_email, |op| {
                 op.id("ResendVerificationEmail")
+                    .tag("Auth")
                     .summary("Resend email verification link to user")
                     .response::<200, ()>()
             }),
@@ -753,6 +769,7 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/password_reset_create",
             post_with(password_reset_create, |op| {
                 op.id("PasswordResetCreate")
+                    .tag("Auth")
                     .summary("Create password reset flow by sending reset link to user email")
                     .response::<204, ()>()
             }),
@@ -761,6 +778,7 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/password_reset_update",
             post_with(password_reset_update, |op| {
                 op.id("PasswordResetUpdate")
+                    .tag("Auth")
                     .summary("Update password of user in reset flow")
                     .response::<204, ()>()
             }),
@@ -769,8 +787,9 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
             "/current_user",
             get_with(current_user, |op| {
                 op.id("CurrentUser")
+                    .tag("Auth")
                     .summary("Get the current user")
-                    .response::<200, Json<User>>()
+                    .response::<200, Json<UserDto>>()
             }),
         )
         // TODO: this route is used for testing only. Once we have authorisation logic locekd down
@@ -780,7 +799,7 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(test_requires_roles, |op| {
                 op.id("TestRequiresRoles")
                     .summary("Test the requires roles")
-                    .response::<200, Json<User>>()
+                    .response::<200, Json<UserDto>>()
             }),
         )
         .with_state(state)
@@ -795,7 +814,10 @@ mod tests {
             add_user_resource_role, get_user_by_email, Resource, Role, UpdateUserRequest, User,
             UserAuthType,
         },
-        routes::auth::{generate_jwt, EmailLinkClaims, SessionClaims},
+        routes::{
+            auth::{generate_jwt, EmailLinkClaims, SessionClaims},
+            user::dto::UserDto,
+        },
         setup_server,
         test_helpers::{test_state, UserSession},
     };
@@ -825,23 +847,23 @@ mod tests {
         assert_eq!(status, StatusCode::OK, "should get current user");
 
         assert_eq!(
-            *user.get("username").unwrap(),
-            Some(serde_json::Value::String(username.to_owned())),
+            user.username,
+            Some(username.to_owned()),
             "current user should contain the right username"
         );
 
         assert_eq!(
-            *user.get("auth_type").unwrap(),
-            Some(serde_json::Value::String("email_password".to_owned())),
+            user.auth_type,
+            UserAuthType::EmailPassword,
             "current user should have auth_type email password"
         );
         assert_eq!(
-            *user.get("email").unwrap(),
-            Some(serde_json::Value::String(email.to_owned())),
+            user.email,
+            Some(email.to_owned()),
             "current user should contain the right email"
         );
 
-        assert!(user.contains_key("id"), "current user should contain an id");
+        assert_ne!(user.id, Uuid::nil(), "current user should contain an id");
         Ok(())
     }
 
@@ -872,23 +894,23 @@ mod tests {
         assert_eq!(status, StatusCode::OK, "should get current user");
 
         assert_eq!(
-            *user.get("username").unwrap(),
-            Some(serde_json::Value::String(username.to_owned())),
+            user.username,
+            Some(username.to_owned()),
             "current user should contain the right username"
         );
 
         assert_eq!(
-            *user.get("auth_type").unwrap(),
-            Some(serde_json::Value::String("email_password".to_owned())),
+            user.auth_type,
+            UserAuthType::EmailPassword,
             "current user should have auth_type email password"
         );
         assert_eq!(
-            *user.get("email").unwrap(),
-            Some(serde_json::Value::String(email.to_owned())),
+            user.email,
+            Some(email.to_owned()),
             "current user should contain the right email"
         );
 
-        assert!(user.contains_key("id"), "current user should contain an id");
+        assert_ne!(user.id, Uuid::nil(), "current user should contain an id");
         Ok(())
     }
 
@@ -959,16 +981,13 @@ mod tests {
         };
         let token = generate_jwt(&user, claims, secret, None);
         let (status, user, _) = session.verify_email_token(&app, token).await?;
+        let user: UserDto = serde_json::from_value(user)?;
 
         assert_eq!(status, StatusCode::OK, "Token successfully verified");
+        assert!(user.email_verified, "user email_verified status updated");
         assert_eq!(
-            *user.get("email_verified").unwrap(),
-            true,
-            "user email_verified status updated"
-        );
-        assert_eq!(
-            *user.get("email").unwrap(),
-            serde_json::Value::String(email.to_owned()),
+            user.email,
+            Some(email.to_owned()),
             "current user should contain the right email"
         );
 
@@ -1033,23 +1052,16 @@ mod tests {
         let (_, user, _) = session
             .update_user_details(&app, updated_user_values)
             .await?;
+        let user: UserDto = serde_json::from_value(user)?;
 
-        let id = user.get("id").unwrap().as_ref().unwrap().as_str().unwrap();
-        let email_verified = user
-            .get("email_verified")
-            .unwrap()
-            .as_ref()
-            .unwrap()
-            .as_bool()
-            .unwrap();
         let user = User {
-            id: Uuid::parse_str(id).unwrap(),
+            id: user.id,
             email: Some(email.to_string()),
             password: Some(password.to_string()),
             username: Some(username.to_string()),
             auth_type: UserAuthType::Annon,
             avatar_url: None,
-            email_verified,
+            email_verified: user.email_verified,
         };
         let claims = SessionClaims {
             username: user.username.clone(),
@@ -1217,18 +1229,18 @@ mod tests {
         assert_eq!(status, StatusCode::OK, "should get current user");
 
         assert_eq!(
-            *user.get("username").unwrap(),
-            Some(serde_json::Value::String(username.to_owned())),
+            user.username,
+            Some(username.to_owned()),
             "current user should contain the right username"
         );
 
         assert_eq!(
-            *user.get("email").unwrap(),
-            Some(serde_json::Value::String(email.to_owned())),
+            user.email,
+            Some(email.to_owned()),
             "current user should contain the right email"
         );
 
-        assert!(user.contains_key("id"), "current user should contain an id");
+        assert_ne!(user.id, Uuid::nil(), "current user should contain an id");
         Ok(())
     }
 
@@ -1247,18 +1259,19 @@ mod tests {
         assert_eq!(status, StatusCode::OK, "Should be ok ");
 
         assert!(
-            user_response.get("username").unwrap().is_some(),
+            user_response.username.is_some(),
             "current annon user should have a username"
         );
 
         assert_eq!(
-            *user_response.get("auth_type").unwrap(),
-            Some(serde_json::Value::String("annon".to_owned())),
+            user_response.auth_type,
+            UserAuthType::Annon,
             "current annon user should have a username"
         );
 
-        assert!(
-            user_response.get("id").unwrap().is_some(),
+        assert_ne!(
+            user_response.id,
+            Uuid::nil(),
             "current annon user should have an id"
         );
 

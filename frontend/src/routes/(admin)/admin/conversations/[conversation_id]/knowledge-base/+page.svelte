@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ComhairleDocument, Conversation } from '$lib/api/api.js';
+	import type { ComhairleDocument, ConversationWithTranslations } from '$lib/api/api.js';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import FileUpload from '$lib/components/KnowledgeBase/FileUpload.svelte';
 	import ParsedFileList from '$lib/components/KnowledgeBase/ParsedFileList.svelte';
@@ -10,15 +10,13 @@
 	type Props = {
 		data: {
 			documents: ComhairleDocument[];
-			conversation: Conversation;
-			workflow_steps?: any[];
+			conversation: ConversationWithTranslations;
 		};
 	};
 
 	let { data }: Props = $props();
 	let conversation = $derived(data.conversation);
 	let documents = $derived(data.documents);
-	let workflow_steps = $derived(data.workflow_steps);
 
 	const parsingDocuments = $derived(
 		documents?.filter((doc) => doc.parse_progress < 1 && doc.parse_progress > 0)

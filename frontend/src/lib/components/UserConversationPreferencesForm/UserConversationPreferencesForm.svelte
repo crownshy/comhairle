@@ -6,7 +6,7 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { userConversationPreferencesSchema } from './schema';
-	import type { UserConversationPreferences } from '$lib/api/api';
+	import type { UserConversationPreferencesDto } from '$lib/api/api';
 	import { onMount } from 'svelte';
 
 	let {
@@ -23,10 +23,10 @@
 
 	const form = superForm(
 		{
-			receive_updates_by_notification: false,
-			receive_updates_by_email: false,
-			receive_similar_conversation_updates_by_email: false,
-			receive_similar_conversation_updates_by_notification: false
+			receiveUpdatesByNotification: false,
+			receiveUpdatesByEmail: false,
+			receiveSimilarConversationUpdatesByEmail: false,
+			receiveSimilarConversationUpdatesByNotification: false
 		},
 		{
 			validators: zodClient(userConversationPreferencesSchema),
@@ -36,19 +36,19 @@
 		}
 	);
 
-	const { form: formData, enhance, validateForm, errors } = form;
+	const { form: formData, enhance, validateForm } = form;
 
 	onMount(async () => {
 		await loadPreferences();
 	});
 
-	function updateFormWithPreferences(prefs: UserConversationPreferences) {
-		$formData.receive_updates_by_notification = prefs.receive_updates_by_notification;
-		$formData.receive_updates_by_email = prefs.receive_updates_by_email;
-		$formData.receive_similar_conversation_updates_by_email =
-			prefs.receive_similar_conversation_updates_by_email;
-		$formData.receive_similar_conversation_updates_by_notification =
-			prefs.receive_similar_conversation_updates_by_notification;
+	function updateFormWithPreferences(prefs: UserConversationPreferencesDto) {
+		$formData.receiveUpdatesByNotification = prefs.receiveUpdatesByNotification;
+		$formData.receiveUpdatesByEmail = prefs.receiveUpdatesByEmail;
+		$formData.receiveSimilarConversationUpdatesByEmail =
+			prefs.receiveSimilarConversationUpdatesByEmail;
+		$formData.receiveSimilarConversationUpdatesByNotification =
+			prefs.receiveSimilarConversationUpdatesByNotification;
 	}
 
 	async function loadPreferences() {
@@ -60,7 +60,8 @@
 			});
 			updateFormWithPreferences(loadedPreferences);
 		} catch (error: any) {
-			loadError = error?.response?.data?.message || 'Failed to load preferences. Please try again.';
+			loadError =
+				error?.response?.data?.message || 'Failed to load preferences. Please try again.';
 		} finally {
 			loading = false;
 		}
@@ -72,12 +73,18 @@
 
 		try {
 			saving = true;
-			const updatedPreferences = await apiClient.UpdateUserPreferenceForConversation(result.data, {
-				params: { conversation_id: conversationId }
-			});
+			const updatedPreferences = await apiClient.UpdateUserPreferenceForConversation(
+				result.data,
+				{
+					params: { conversation_id: conversationId }
+				}
+			);
 		} catch (error: any) {
+			console.error(error);
 			notifications.send({
-				message: error?.response?.data?.message || 'Failed to save preferences. Please try again.',
+				message:
+					error?.response?.data?.message ||
+					'Failed to save preferences. Please try again.',
 				priority: 'ERROR'
 			});
 		} finally {
@@ -114,14 +121,16 @@
 					Get notified about new activities in this conversation.
 				</p>
 
-				<Form.Field {form} name="receive_updates_by_notification" class="space-y-2">
+				<Form.Field {form} name="receiveUpdatesByNotification" class="space-y-2">
 					<Form.Control>
 						{#snippet children({ props })}
 							<div class="flex items-center justify-between">
-								<Form.Label class="text-sm font-normal">In-app notifications</Form.Label>
+								<Form.Label class="text-sm font-normal"
+									>In-app notifications</Form.Label
+								>
 								<Switch
 									{...props}
-									bind:checked={$formData.receive_updates_by_notification}
+									bind:checked={$formData.receiveUpdatesByNotification}
 									disabled={saving}
 								/>
 							</div>
@@ -130,14 +139,16 @@
 					</Form.Control>
 				</Form.Field>
 				{#if !isAnnon}
-					<Form.Field {form} name="receive_updates_by_email" class="space-y-2">
+					<Form.Field {form} name="receiveUpdatesByEmail" class="space-y-2">
 						<Form.Control>
 							{#snippet children({ props })}
 								<div class="flex items-center justify-between">
-									<Form.Label class="text-sm font-normal">Email notifications</Form.Label>
+									<Form.Label class="text-sm font-normal"
+										>Email notifications</Form.Label
+									>
 									<Switch
 										{...props}
-										bind:checked={$formData.receive_updates_by_email}
+										bind:checked={$formData.receiveUpdatesByEmail}
 										disabled={saving}
 									/>
 								</div>
@@ -156,16 +167,20 @@
 
 				<Form.Field
 					{form}
-					name="receive_similar_conversation_updates_by_notification"
+					name="receiveSimilarConversationUpdatesByNotification"
 					class="space-y-2"
 				>
 					<Form.Control>
 						{#snippet children({ props })}
 							<div class="flex items-center justify-between">
-								<Form.Label class="text-sm font-normal">In-app notifications</Form.Label>
+								<Form.Label class="text-sm font-normal"
+									>In-app notifications</Form.Label
+								>
 								<Switch
 									{...props}
-									bind:checked={$formData.receive_similar_conversation_updates_by_notification}
+									bind:checked={
+										$formData.receiveSimilarConversationUpdatesByNotification
+									}
 									disabled={saving}
 								/>
 							</div>
@@ -175,14 +190,22 @@
 				</Form.Field>
 
 				{#if !isAnnon}
-					<Form.Field {form} name="receive_similar_conversation_updates_by_email" class="space-y-2">
+					<Form.Field
+						{form}
+						name="receive_similar_conversation_updates_by_email"
+						class="space-y-2"
+					>
 						<Form.Control>
 							{#snippet children({ props })}
 								<div class="flex items-center justify-between">
-									<Form.Label class="text-sm font-normal">Email notifications</Form.Label>
+									<Form.Label class="text-sm font-normal"
+										>Email notifications</Form.Label
+									>
 									<Switch
 										{...props}
-										bind:checked={$formData.receive_similar_conversation_updates_by_email}
+										bind:checked={
+											$formData.receiveSimilarConversationUpdatesByEmail
+										}
 										disabled={saving}
 									/>
 								</div>

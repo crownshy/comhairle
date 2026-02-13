@@ -1,4 +1,4 @@
-import type { Conversation } from './api/api';
+import type { LocalizedConversationDto } from './api/api';
 
 export const basic_learn_config = {
 	type: 'learn',
@@ -41,7 +41,7 @@ export const basic_survey_config = {
 	type: 'heyform'
 };
 
-export const basic_elicitation_bot_config = (conversation: Conversation) => ({
+export const basic_elicitation_bot_config = (conversation: LocalizedConversationDto) => ({
 	type: 'elicitationbot',
 	topic: 'comhairle platform',
 	conversation_id: conversation.id

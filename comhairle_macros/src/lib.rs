@@ -233,6 +233,17 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
         })
         .collect();
 
+    // Generate the custom translations struct name
+    let translations_struct_name =
+        syn::Ident::new(&format!("{}Translations", struct_name), struct_name.span());
+
+    // Generate fields for the translations struct
+    let translation_fields = text_content_fields.iter().map(|field| {
+        quote! {
+            pub #field: Translation
+        }
+    });
+
     let expanded = quote! {
         #[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema, sqlx::FromRow, Debug, PartialEq, Clone)]
         pub struct #localised_struct_name {
@@ -240,15 +251,23 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
         }
 
         #[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema, Debug, PartialEq, Clone)]
+        #[serde(rename_all = "camelCase")]
         pub struct Translation {
-            pub text_content: crate::models::translations::TextContent,
-            pub text_translations: Vec<crate::models::translations::TextTranslation>,
+            pub text_content: crate::routes::translations::dto::TextContentDto,
+            pub text_translations: Vec<crate::routes::translations::dto::TextTranslationDto>,
         }
 
         #[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema, Debug, PartialEq, Clone)]
+        #[serde(rename_all = "camelCase")]
+        pub struct #translations_struct_name {
+            #(#translation_fields,)*
+        }
+
+        #[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema, Debug, PartialEq, Clone)]
+        #[serde(rename_all = "camelCase")]
         pub struct #with_translations_struct_name {
             #(#localised_fields,)*
-            pub translations: std::collections::HashMap<String, Translation>,
+            pub translations: #translations_struct_name,
         }
 
         impl #localised_struct_name {
@@ -325,27 +344,6 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
                 locale: &str,
             ) -> Result<Self, crate::error::ComhairleError> {
                 use crate::models::translations::{get_text_content_by_id, get_text_translations_by_content_id, get_text_translation_by_content_and_locale};
-                use std::collections::HashMap;
-
-                let mut translations = HashMap::new();
-
-                #(
-                    {
-                        // Get the TextContent for this field
-                        let text_content = get_text_content_by_id(db, &original.#text_content_fields).await?;
-
-                        // Get all translations for this content
-                        let text_translations = get_text_translations_by_content_id(db, &original.#text_content_fields).await?;
-
-                        // Create Translation struct for this field
-                        let translation = Translation {
-                            text_content,
-                            text_translations,
-                        };
-
-                        translations.insert(stringify!(#text_content_fields).to_string(), translation);
-                    }
-                )*
 
                 Ok(Self {
                     #(
@@ -368,29 +366,25 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
                     #(
                         #non_text_content_fields: original.#non_text_content_fields,
                     )*
-                    translations,
+                    translations: #translations_struct_name {
+                        #(
+                            #text_content_fields: {
+                                // Get the TextContent for this field
+                                let text_content = get_text_content_by_id(db, &original.#text_content_fields).await?.into();
+
+                                // Get all translations for this content
+                                let text_translations =
+                                    (get_text_translations_by_content_id(db, &original.#text_content_fields).await?).into_iter().map(Into::into).collect();
+
+                                // Create Translation struct for this field
+                                Translation {
+                                    text_content,
+                                    text_translations,
+                                }
+                            },
+                        )*
+                    },
                 })
-            }
-
-            /// Get the Translation struct for a specific field
-            pub fn get_field_translation_data(&self, field_name: &str) -> Option<&Translation> {
-                self.translations.get(field_name)
-            }
-
-            /// Get translation text for a specific field and locale
-            pub fn get_field_translation(&self, field_name: &str, locale: &str) -> Option<&str> {
-                self.translations.get(field_name)?
-                    .text_translations
-                    .iter()
-                    .find(|t| t.locale == locale)
-                    .map(|t| t.content.as_str())
-            }
-
-            /// Get all available locales for a specific field
-            pub fn get_field_locales(&self, field_name: &str) -> Vec<&str> {
-                self.translations.get(field_name)
-                    .map(|t| t.text_translations.iter().map(|tt| tt.locale.as_str()).collect())
-                    .unwrap_or_else(Vec::new)
             }
         }
     };

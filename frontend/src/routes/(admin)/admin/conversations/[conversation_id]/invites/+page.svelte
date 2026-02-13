@@ -2,7 +2,6 @@
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { apiClient } from '$lib/api/client';
-	import BarChart from '$lib/components/BarChart.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import * as Card from '$lib/components/ui/card';
@@ -11,13 +10,14 @@
 
 	import { formatDistanceToNow } from 'date-fns';
 	import QrCode from 'svelte-qrcode';
-	import type { Invite } from '$lib/api/api.js';
+	import type { InviteDto } from '$lib/api/api.js';
 
 	import * as Table from '$lib/components/ui/table/index.js';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import OpenInviteStatsBarChart from '$lib/components/OpenInviteStatsBarChart.svelte';
 	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte.js';
+
 	let sendEmailDiaglogOpen = $state(false);
 
 	let url = $page.url;
@@ -25,7 +25,6 @@
 	let invites = $derived(data.invites);
 
 	let { conversation } = data;
-	let workflow_steps = $derived(data.workflow_steps);
 
 	async function createInviteLink() {
 		await apiClient.CreateInvite(
@@ -35,10 +34,17 @@
 		await invalidateAll();
 	}
 
-	let open_invites = $derived(invites.filter((invite) => invite.invite_type == 'open'));
-	let email_invites = $derived(invites.filter((invite) => invite.invite_type.email));
+	let openInvites = $derived(invites.filter((invite) => invite.inviteType == 'open'));
+	let emailInvites = $derived(
+		invites.filter(
+			(invite) =>
+				typeof invite.inviteType !== 'string' &&
+				'email' in invite.inviteType &&
+				invite.inviteType.email
+		)
+	);
 
-	function inviteUrl(invite: Invite) {
+	function inviteUrl(invite: InviteDto) {
 		return `${url.origin}/conversations/${conversation.slug ?? conversation.id}/invite/${invite.id}`;
 	}
 
@@ -52,9 +58,9 @@
 	});
 </script>
 
-{#snippet InviteLink(invite: Invite, label: string)}
+{#snippet InviteLink(invite: InviteDto, label: string)}
 	<div class="flex flex-row gap-x-2">
-		<CopyButton copyText={inviteUrl(invite)}>Link</CopyButton>
+		<CopyButton copyText={inviteUrl(invite)}>{label}</CopyButton>
 	</div>
 {/snippet}
 
@@ -91,21 +97,23 @@
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
-						{#each email_invites as invite}
+						{#each emailInvites as invite (invite.id)}
 							<Table.Row>
-								<Table.Cell class="font-medium"
-									>{invite.invite_type.email}</Table.Cell
-								>
+								<Table.Cell class="font-medium">
+									{typeof invite.inviteType !== 'string' &&
+										'email' in invite.inviteType &&
+										invite.inviteType.email}
+								</Table.Cell>
 								<Table.Cell>
 									{@render InviteLink(invite, 'Link')}
 								</Table.Cell>
 
 								<Table.Cell>
-									{formatDistanceToNow(invite.created_at, { addSuffix: true })}
+									{formatDistanceToNow(invite.createdAt, { addSuffix: true })}
 								</Table.Cell>
 								<Table.Cell>
-									{invite.expires_at
-										? formatDistanceToNow(invite.expires_at, {
+									{invite.expiresAt
+										? formatDistanceToNow(invite.expiresAt, {
 												addSuffix: true
 											})
 										: 'Never'}
@@ -135,19 +143,19 @@
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
-				{#each open_invites as invite}
+				{#each openInvites as invite (invite.id)}
 					<Table.Row>
 						<Table.Cell>
 							{@render InviteLink(invite, 'Link')}
 						</Table.Cell>
 
 						<Table.Cell>
-							{formatDistanceToNow(invite.created_at, { addSuffix: true })}
+							{formatDistanceToNow(invite.createdAt, { addSuffix: true })}
 						</Table.Cell>
 
 						<Table.Cell>
-							{invite.expires_at
-								? formatDistanceToNow(invite.expires_at, { addSuffix: true })
+							{invite.expiresAt
+								? formatDistanceToNow(invite.expiresAt, { addSuffix: true })
 								: 'Never'}
 						</Table.Cell>
 						<Table.Cell>
@@ -158,7 +166,7 @@
 						</Table.Cell>
 
 						<Table.Cell>
-							{invite.accept_count}
+							{invite.acceptCount}
 						</Table.Cell>
 
 						<Table.Cell>

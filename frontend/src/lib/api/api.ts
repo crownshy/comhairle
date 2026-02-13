@@ -6,8 +6,8 @@ export const AnnonLoginRequest = z.object({ username: z.string() }).passthrough(
 export type AnnonLoginRequest = z.infer<typeof AnnonLoginRequest>;
 export const UserAuthType = z.enum(["annon", "email_password", "scot_account"]);
 export type UserAuthType = z.infer<typeof UserAuthType>;
-export const User = z.object({ auth_type: UserAuthType, avatar_url: z.union([z.string(), z.null()]).optional(), email: z.union([z.string(), z.null()]).optional(), email_verified: z.boolean(), id: z.string().uuid(), password: z.union([z.string(), z.null()]).optional(), username: z.union([z.string(), z.null()]).optional() }).passthrough();
-export type User = z.infer<typeof User>;
+export const UserDto = z.object({ authType: UserAuthType, avatarUrl: z.union([z.string(), z.null()]).optional(), email: z.union([z.string(), z.null()]).optional(), emailVerified: z.boolean(), id: z.string().uuid(), username: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type UserDto = z.infer<typeof UserDto>;
 export const LoginRequest = z.object({ email: z.string(), password: z.string() }).passthrough();
 export type LoginRequest = z.infer<typeof LoginRequest>;
 export const SignupRequest = z.object({ avatar_url: z.union([z.string(), z.null()]).optional(), email: z.string(), password: z.string(), username: z.string() }).passthrough();
@@ -42,9 +42,9 @@ export const UpdateUserRequest = z.object({ email_verified: z.union([z.boolean()
 export type UpdateUserRequest = z.infer<typeof UpdateUserRequest>;
 export const UpgradeAccountRequest = z.object({ email: z.string(), password: z.string(), username: z.string() }).passthrough();
 export type UpgradeAccountRequest = z.infer<typeof UpgradeAccountRequest>;
-export const UserConversationPreferences = z.object({ conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), receive_similar_conversation_updates_by_email: z.boolean(), receive_similar_conversation_updates_by_notification: z.boolean(), receive_updates_by_email: z.boolean(), receive_updates_by_notification: z.boolean(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid() }).passthrough();
-export type UserConversationPreferences = z.infer<typeof UserConversationPreferences>;
-export const UpdateUserConversationPreferences = z.object({ receive_similar_conversation_updates_by_email: z.union([z.boolean(), z.null()]), receive_similar_conversation_updates_by_notification: z.union([z.boolean(), z.null()]), receive_updates_by_email: z.union([z.boolean(), z.null()]), receive_updates_by_notification: z.union([z.boolean(), z.null()]) }).partial().passthrough();
+export const UserConversationPreferencesDto = z.object({ conversationId: z.string().uuid(), id: z.string().uuid(), receiveSimilarConversationUpdatesByEmail: z.boolean(), receiveSimilarConversationUpdatesByNotification: z.boolean(), receiveUpdatesByEmail: z.boolean(), receiveUpdatesByNotification: z.boolean(), userId: z.string().uuid() }).passthrough();
+export type UserConversationPreferencesDto = z.infer<typeof UserConversationPreferencesDto>;
+export const UpdateUserConversationPreferences = z.object({ receiveSimilarConversationUpdatesByEmail: z.union([z.boolean(), z.null()]), receiveSimilarConversationUpdatesByNotification: z.union([z.boolean(), z.null()]), receiveUpdatesByEmail: z.union([z.boolean(), z.null()]), receiveUpdatesByNotification: z.union([z.boolean(), z.null()]) }).partial().passthrough();
 export type UpdateUserConversationPreferences = z.infer<typeof UpdateUserConversationPreferences>;
 export const DeliveryMethod = z.enum(["in_app", "email"]);
 export type DeliveryMethod = z.infer<typeof DeliveryMethod>;
@@ -78,13 +78,27 @@ export const UpdateTextTranslation = z.object({ ai_generated: z.union([z.boolean
 export type UpdateTextTranslation = z.infer<typeof UpdateTextTranslation>;
 export const CreateOrUpdateTextTranslationRequest = z.object({ ai_generated: z.union([z.boolean(), z.null()]).optional(), content: z.string(), requires_validation: z.union([z.boolean(), z.null()]).optional() }).passthrough();
 export type CreateOrUpdateTextTranslationRequest = z.infer<typeof CreateOrUpdateTextTranslationRequest>;
+export const Story = z.object({ id: z.string().uuid(), transcript_id: z.union([z.string(), z.null()]).optional(), user_id: z.string().uuid(), video_id: z.string().uuid(), workflow_step_id: z.string().uuid() }).passthrough();
+export type Story = z.infer<typeof Story>;
+export const LocalizedConversationDto = z.object({ chatBotId: z.union([z.string(), z.null()]).optional(), description: z.string(), enableQaChatBot: z.boolean(), id: z.string().uuid(), imageUrl: z.string(), isComplete: z.boolean(), isInviteOnly: z.boolean(), isLive: z.boolean(), isPublic: z.boolean(), knowledgeBaseId: z.union([z.string(), z.null()]).optional(), primaryLocale: z.string(), shortDescription: z.string(), slug: z.union([z.string(), z.null()]).optional(), supportedLanguages: z.array(z.string()), tags: z.array(z.string()), title: z.string(), videoUrl: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type LocalizedConversationDto = z.infer<typeof LocalizedConversationDto>;
+export const PaginatedResults_for_LocalizedConversationDto = z.object({ records: z.array(LocalizedConversationDto), total: z.number().int() }).passthrough();
+export type PaginatedResults_for_LocalizedConversationDto = z.infer<typeof PaginatedResults_for_LocalizedConversationDto>;
 export const CreateConversation = z.object({ default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string(), enable_qa_chat_bot: z.union([z.boolean(), z.null()]).optional(), image_url: z.string(), is_invite_only: z.boolean(), is_live: z.boolean(), is_public: z.boolean(), primary_locale: z.string(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), supported_languages: z.array(z.string()), tags: z.union([z.array(z.string()), z.null()]).optional(), title: z.string(), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type CreateConversation = z.infer<typeof CreateConversation>;
-export const Translation = z.object({ text_content: TextContent, text_translations: z.array(TextTranslation) }).passthrough();
+export const ConversationDto = z.object({ chatBotId: z.union([z.string(), z.null()]).optional(), description: z.string().uuid(), enableQaChatBot: z.boolean(), id: z.string().uuid(), imageUrl: z.string(), isComplete: z.boolean(), isInviteOnly: z.boolean(), isLive: z.boolean(), isPublic: z.boolean(), knowledgeBaseId: z.union([z.string(), z.null()]).optional(), primaryLocale: z.string(), shortDescription: z.string().uuid(), slug: z.union([z.string(), z.null()]).optional(), supportedLanguages: z.array(z.string()), tags: z.array(z.string()), title: z.string().uuid(), videoUrl: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type ConversationDto = z.infer<typeof ConversationDto>;
+export const TextContentDto = z.object({ format: TextFormat, id: z.string().uuid(), primaryLocale: z.string() }).passthrough();
+export type TextContentDto = z.infer<typeof TextContentDto>;
+export const TextTranslationDto = z.object({ aiGenerated: z.boolean(), content: z.string(), contentId: z.string().uuid(), id: z.string().uuid(), locale: z.string(), requiresValidation: z.boolean() }).passthrough();
+export type TextTranslationDto = z.infer<typeof TextTranslationDto>;
+export const Translation = z.object({ textContent: TextContentDto, textTranslations: z.array(TextTranslationDto) }).passthrough();
 export type Translation = z.infer<typeof Translation>;
-export const ConversationWithTranslations = z.object({ chat_bot_id: z.union([z.string(), z.null()]).optional(), created_at: z.string().datetime({ offset: true }), default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string(), enable_qa_chat_bot: z.boolean(), id: z.string().uuid(), image_url: z.string(), is_complete: z.boolean(), is_invite_only: z.boolean(), is_live: z.boolean(), is_public: z.boolean(), knowledge_base_id: z.union([z.string(), z.null()]).optional(), owner_id: z.string().uuid(), primary_locale: z.string(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), supported_languages: z.array(z.string()), tags: z.array(z.string()), title: z.string(), translations: z.record(Translation), updated_at: z.string().datetime({ offset: true }), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
+export const ConversationTranslations = z.object({ description: Translation, shortDescription: Translation, title: Translation }).passthrough();
+export type ConversationTranslations = z.infer<typeof ConversationTranslations>;
+export const ConversationWithTranslations = z.object({ chatBotId: z.union([z.string(), z.null()]).optional(), createdAt: z.string().datetime({ offset: true }), defaultWorkflowId: z.union([z.string(), z.null()]).optional(), description: z.string(), enableQaChatBot: z.boolean(), id: z.string().uuid(), imageUrl: z.string(), isComplete: z.boolean(), isInviteOnly: z.boolean(), isLive: z.boolean(), isPublic: z.boolean(), knowledgeBaseId: z.union([z.string(), z.null()]).optional(), ownerId: z.string().uuid(), primaryLocale: z.string(), shortDescription: z.string(), slug: z.union([z.string(), z.null()]).optional(), supportedLanguages: z.array(z.string()), tags: z.array(z.string()), title: z.string(), translations: ConversationTranslations, updatedAt: z.string().datetime({ offset: true }), videoUrl: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type ConversationWithTranslations = z.infer<typeof ConversationWithTranslations>;
-export const ConversationResponse = z.union([LocalisedConversation, ConversationWithTranslations]);
+export const ConversationResponse = z.union([LocalizedConversationDto, ConversationWithTranslations]);
 export type ConversationResponse = z.infer<typeof ConversationResponse>;
 export const PartialConversation = z.object({ chat_bot_id: z.union([z.string(), z.null()]), default_workflow_id: z.union([z.string(), z.null()]), description: z.union([z.string(), z.null()]), enable_qa_chat_bot: z.union([z.boolean(), z.null()]), image_url: z.union([z.string(), z.null()]), is_complete: z.union([z.boolean(), z.null()]), is_invite_only: z.union([z.boolean(), z.null()]), is_live: z.union([z.boolean(), z.null()]), is_public: z.union([z.boolean(), z.null()]), knowledge_base_id: z.union([z.string(), z.null()]), primary_locale: z.union([z.string(), z.null()]), short_description: z.union([z.string(), z.null()]), slug: z.union([z.string(), z.null()]), supported_languages: z.union([z.array(z.string()), z.null()]), tags: z.union([z.array(z.string()), z.null()]), title: z.union([z.string(), z.null()]), video_url: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialConversation = z.infer<typeof PartialConversation>;
@@ -128,18 +142,24 @@ export const CreateWorkflowStep = z.object({ activation_rule: ActivationRule, de
 export type CreateWorkflowStep = z.infer<typeof CreateWorkflowStep>;
 export const PartialWorkflowStep = z.object({ activation_rule: z.union([ActivationRule, z.null()]), description: z.union([z.string(), z.null()]), is_offline: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]), preview_tool_config: z.union([ToolConfig, z.null()]), required: z.union([z.boolean(), z.null()]), step_order: z.union([z.number(), z.null()]), tool_config: z.union([ToolConfig, z.null()]) }).partial().passthrough();
 export type PartialWorkflowStep = z.infer<typeof PartialWorkflowStep>;
+export const ComhairleMessageReference = z.object({ content: z.string(), dataset_id: z.string(), document_id: z.string(), document_name: z.string(), id: z.string() }).passthrough();
+export type ComhairleMessageReference = z.infer<typeof ComhairleMessageReference>;
+export const ComhairleSessionMessage = z.object({ content: z.string(), id: z.string(), reference: z.union([z.array(ComhairleMessageReference), z.null()]).optional(), role: z.string() }).passthrough();
+export type ComhairleSessionMessage = z.infer<typeof ComhairleSessionMessage>;
+export const ComhairleAgentSession = z.object({ agent_id: z.string(), configuration: z.unknown(), id: z.string(), messages: z.array(ComhairleSessionMessage) }).passthrough();
+export type ComhairleAgentSession = z.infer<typeof ComhairleAgentSession>;
 export const ProgressStatus = z.enum(["not_started", "in_progress", "done"]);
 export type ProgressStatus = z.infer<typeof ProgressStatus>;
-export const UserProgress = z.object({ created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), status: ProgressStatus, updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid(), workflow_step_id: z.string().uuid() }).passthrough();
-export type UserProgress = z.infer<typeof UserProgress>;
+export const UserProgressDto = z.object({ id: z.string().uuid(), status: ProgressStatus, userId: z.string().uuid(), workflowStepId: z.string().uuid() }).passthrough();
+export type UserProgressDto = z.infer<typeof UserProgressDto>;
 export const InviteType = z.union([z.object({ email: z.string() }), z.object({ user: z.string().uuid() }), z.literal("singleuse"), z.literal("open")]);
 export type InviteType = z.infer<typeof InviteType>;
 export const LoginBehaviour = z.union([z.literal("manual"), z.literal("auto_create_annon")]);
 export type LoginBehaviour = z.infer<typeof LoginBehaviour>;
 export const InviteStatus = z.union([z.literal("pending"), z.literal("open"), z.literal("accepted"), z.literal("rejected"), z.literal("expired")]);
 export type InviteStatus = z.infer<typeof InviteStatus>;
-export const Invite = z.object({ accept_count: z.number().int(), conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), created_by: z.string().uuid(), expires_at: z.union([z.string(), z.null()]).optional(), id: z.string().uuid(), invite_type: InviteType, login_behaviour: LoginBehaviour, status: InviteStatus, tags: z.array(z.string()), updated_at: z.string().datetime({ offset: true }), workflow_id: z.union([z.string(), z.null()]).optional(), workflow_step_id: z.union([z.string(), z.null()]).optional() }).passthrough();
-export type Invite = z.infer<typeof Invite>;
+export const InviteDto = z.object({ acceptCount: z.number().int(), conversationId: z.string().uuid(), createdAt: z.string().datetime({ offset: true }), createdBy: z.string().uuid(), expiresAt: z.union([z.string(), z.null()]).optional(), id: z.string().uuid(), inviteType: InviteType, loginBehaviour: LoginBehaviour, status: InviteStatus, tags: z.array(z.string()), workflowId: z.union([z.string(), z.null()]).optional(), workflowStepId: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type InviteDto = z.infer<typeof InviteDto>;
 export const CreateInviteDTO = z.object({ expires_at: z.union([z.string(), z.null()]).optional(), invite_type: InviteType, login_behaviour: LoginBehaviour.optional() }).passthrough();
 export type CreateInviteDTO = z.infer<typeof CreateInviteDTO>;
 export const DailyResponseStats = z.object({ accept: z.number().int(), day: z.string().datetime({ offset: true }), reject: z.number().int() }).passthrough();
@@ -174,6 +194,8 @@ export const PartialReportImpact = z.object({ created_at: z.union([z.string(), z
 export type PartialReportImpact = z.infer<typeof PartialReportImpact>;
 export const CreateImpactDTO = z.object({ details: z.string(), kind: z.string(), title: z.string() }).passthrough();
 export type CreateImpactDTO = z.infer<typeof CreateImpactDTO>;
+export const FeedbackDto = z.object({ content: z.string(), conversationId: z.string().uuid(), id: z.string().uuid() }).passthrough();
+export type FeedbackDto = z.infer<typeof FeedbackDto>;
 export const CreateFeedbackDTO = z.object({ content: z.string() }).passthrough();
 export type CreateFeedbackDTO = z.infer<typeof CreateFeedbackDTO>;
 export const PartialFeedback = z.object({ content: z.union([z.string(), z.null()]) }).partial().passthrough();
@@ -192,12 +214,6 @@ export const CreateAgentRequest = z.object({ name: z.string() }).passthrough();
 export type CreateAgentRequest = z.infer<typeof CreateAgentRequest>;
 export const UpdateAgentRequest = z.object({ name: z.union([z.string(), z.null()]), topic: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type UpdateAgentRequest = z.infer<typeof UpdateAgentRequest>;
-export const ComhairleMessageReference = z.object({ content: z.string(), dataset_id: z.string(), document_id: z.string(), document_name: z.string(), id: z.string() }).passthrough();
-export type ComhairleMessageReference = z.infer<typeof ComhairleMessageReference>;
-export const ComhairleSessionMessage = z.object({ content: z.string(), id: z.string(), reference: z.union([z.array(ComhairleMessageReference), z.null()]).optional(), role: z.string() }).passthrough();
-export type ComhairleSessionMessage = z.infer<typeof ComhairleSessionMessage>;
-export const ComhairleAgentSession = z.object({ agent_id: z.string(), configuration: z.unknown(), id: z.string(), messages: z.array(ComhairleSessionMessage) }).passthrough();
-export type ComhairleAgentSession = z.infer<typeof ComhairleAgentSession>;
 export const ComhairleLlm = z.object({ model_name: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type ComhairleLlm = z.infer<typeof ComhairleLlm>;
 export const ComhairlePrompt = z.object({ empty_response: z.union([z.string(), z.null()]), llm_prompt: z.union([z.string(), z.null()]), opener: z.union([z.string(), z.null()]) }).partial().passthrough();
@@ -235,7 +251,7 @@ export type CreateJob = z.infer<typeof CreateJob>;
 export const schemas = {
 	AnnonLoginRequest,
 	UserAuthType,
-	User,
+	UserDto,
 	LoginRequest,
 	SignupRequest,
 	VerifyEmailTokenRequest,
@@ -253,7 +269,7 @@ export const schemas = {
 	PaginatedResults_for_LocalisedConversation,
 	UpdateUserRequest,
 	UpgradeAccountRequest,
-	UserConversationPreferences,
+	UserConversationPreferencesDto,
 	UpdateUserConversationPreferences,
 	DeliveryMethod,
 	NotificationContextType,
@@ -271,8 +287,15 @@ export const schemas = {
 	UpdateTextContent,
 	UpdateTextTranslation,
 	CreateOrUpdateTextTranslationRequest,
+	Story,
+	LocalizedConversationDto,
+	PaginatedResults_for_LocalizedConversationDto,
 	CreateConversation,
+	ConversationDto,
+	TextContentDto,
+	TextTranslationDto,
 	Translation,
+	ConversationTranslations,
 	ConversationWithTranslations,
 	ConversationResponse,
 	PartialConversation,
@@ -296,12 +319,15 @@ export const schemas = {
 	ToolSetup,
 	CreateWorkflowStep,
 	PartialWorkflowStep,
+	ComhairleMessageReference,
+	ComhairleSessionMessage,
+	ComhairleAgentSession,
 	ProgressStatus,
-	UserProgress,
+	UserProgressDto,
 	InviteType,
 	LoginBehaviour,
 	InviteStatus,
-	Invite,
+	InviteDto,
 	CreateInviteDTO,
 	DailyResponseStats,
 	Feedback,
@@ -319,6 +345,7 @@ export const schemas = {
 	Report,
 	PartialReportImpact,
 	CreateImpactDTO,
+	FeedbackDto,
 	CreateFeedbackDTO,
 	PartialFeedback,
 	WebSocketStats,
@@ -328,9 +355,6 @@ export const schemas = {
 	ComhairleAgent,
 	CreateAgentRequest,
 	UpdateAgentRequest,
-	ComhairleMessageReference,
-	ComhairleSessionMessage,
-	ComhairleAgentSession,
 	ComhairleLlm,
 	ComhairlePrompt,
 	ComhairleChat,
@@ -355,7 +379,7 @@ const endpoints = makeApi([
 		path: "/auth/current_user",
 		alias: "CurrentUser",
 		requestFormat: "json",
-		response: User,
+		response: UserDto,
 	},
 	{
 		method: "post",
@@ -370,7 +394,7 @@ const endpoints = makeApi([
 				schema: LoginRequest
 			},
 		],
-		response: User,
+		response: UserDto,
 	},
 	{
 		method: "post",
@@ -385,7 +409,7 @@ const endpoints = makeApi([
 				schema: z.object({ username: z.string() }).passthrough()
 			},
 		],
-		response: User,
+		response: UserDto,
 	},
 	{
 		method: "post",
@@ -449,21 +473,21 @@ const endpoints = makeApi([
 				schema: SignupRequest
 			},
 		],
-		response: User,
+		response: UserDto,
 	},
 	{
 		method: "post",
 		path: "/auth/signup_annon",
 		alias: "SignupAnnonUser",
 		requestFormat: "json",
-		response: User,
+		response: UserDto,
 	},
 	{
 		method: "get",
 		path: "/auth/test_requires_roles/:conversation_id",
 		alias: "TestRequiresRoles",
 		requestFormat: "json",
-		response: User,
+		response: UserDto,
 	},
 	{
 		method: "post",
@@ -477,7 +501,7 @@ const endpoints = makeApi([
 				schema: z.object({ token: z.string() }).passthrough()
 			},
 		],
-		response: User,
+		response: UserDto,
 	},
 	{
 		method: "get",
@@ -979,7 +1003,7 @@ const endpoints = makeApi([
 				schema: limit
 			},
 		],
-		response: PaginatedResults_for_LocalisedConversation,
+		response: PaginatedResults_for_LocalizedConversationDto,
 	},
 	{
 		method: "post",
@@ -994,7 +1018,7 @@ const endpoints = makeApi([
 				schema: CreateConversation
 			},
 		],
-		response: LocalisedConversation,
+		response: ConversationDto,
 	},
 	{
 		method: "get",
@@ -1024,7 +1048,7 @@ const endpoints = makeApi([
 				schema: PartialConversation
 			},
 		],
-		response: LocalisedConversation,
+		response: ConversationDto,
 	},
 	{
 		method: "delete",
@@ -1032,7 +1056,7 @@ const endpoints = makeApi([
 		alias: "DeleteConversation",
 		description: `Delete the conversation and all related content`,
 		requestFormat: "json",
-		response: LocalisedConversation,
+		response: ConversationDto,
 	},
 	{
 		method: "get",
@@ -1068,7 +1092,7 @@ const endpoints = makeApi([
 		path: "/conversation/:conversation_id/feedback",
 		alias: "ListFeedbackForConversation",
 		requestFormat: "json",
-		response: Feedback,
+		response: FeedbackDto,
 	},
 	{
 		method: "post",
@@ -1082,7 +1106,7 @@ const endpoints = makeApi([
 				schema: z.object({ content: z.string() }).passthrough()
 			},
 		],
-		response: Feedback,
+		response: FeedbackDto,
 	},
 	{
 		method: "put",
@@ -1096,14 +1120,14 @@ const endpoints = makeApi([
 				schema: PartialFeedback
 			},
 		],
-		response: Feedback,
+		response: FeedbackDto,
 	},
 	{
 		method: "get",
 		path: "/conversation/:conversation_id/invite",
 		alias: "ListInvitesForConversation",
 		requestFormat: "json",
-		response: z.array(Invite),
+		response: z.array(InviteDto),
 	},
 	{
 		method: "post",
@@ -1117,35 +1141,35 @@ const endpoints = makeApi([
 				schema: CreateInviteDTO
 			},
 		],
-		response: Invite,
+		response: InviteDto,
 	},
 	{
 		method: "get",
 		path: "/conversation/:conversation_id/invite/:invite_id",
 		alias: "GetInvite",
 		requestFormat: "json",
-		response: Invite,
+		response: InviteDto,
 	},
 	{
 		method: "delete",
 		path: "/conversation/:conversation_id/invite/:invite_id",
 		alias: "DeleteInvite",
 		requestFormat: "json",
-		response: Invite,
+		response: InviteDto,
 	},
 	{
 		method: "post",
 		path: "/conversation/:conversation_id/invite/:invite_id/accept",
 		alias: "AcceptInvite",
 		requestFormat: "json",
-		response: Invite,
+		response: InviteDto,
 	},
 	{
 		method: "post",
 		path: "/conversation/:conversation_id/invite/:invite_id/reject",
 		alias: "RejectInvite",
 		requestFormat: "json",
-		response: Invite,
+		response: InviteDto,
 	},
 	{
 		method: "get",
@@ -1160,7 +1184,7 @@ const endpoints = makeApi([
 		alias: "LaunchConversation",
 		description: `Makes the conversation live for participants`,
 		requestFormat: "json",
-		response: Conversation,
+		response: ConversationDto,
 	},
 	{
 		method: "post",
@@ -1315,7 +1339,7 @@ const endpoints = makeApi([
 		path: "/conversation/:conversation_id/workflow/:workflow_id/progress",
 		alias: "GetUserProgress",
 		requestFormat: "json",
-		response: z.array(UserProgress),
+		response: z.array(UserProgressDto),
 	},
 	{
 		method: "put",
@@ -1330,7 +1354,7 @@ const endpoints = makeApi([
 				schema: z.enum(["not_started", "in_progress", "done"])
 			},
 		],
-		response: UserProgress,
+		response: UserProgressDto,
 	},
 	{
 		method: "post",
@@ -1398,16 +1422,9 @@ const endpoints = makeApi([
 	{
 		method: "get",
 		path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/bot_service_session",
-		alias: "GetWorkflowStepBotSession",
+		alias: "GetAgentSessionHistory",
 		requestFormat: "json",
-		response: BotServiceUserSessionDto,
-	},
-	{
-		method: "post",
-		path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/bot_service_session",
-		alias: "CreateWorkflowStepBotSession",
-		requestFormat: "json",
-		response: BotServiceUserSessionDto,
+		response: ComhairleAgentSession,
 	},
 	{
 		method: "put",
@@ -1580,6 +1597,45 @@ const endpoints = makeApi([
 	},
 	{
 		method: "post",
+		path: "/tools/polis/admin_login",
+		alias: "PolisAdminLogin",
+		description: `Logs into Polis as admin and returns session cookie`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "workflow_step_id",
+				type: "Query",
+				schema: z.string().uuid()
+			},
+		],
+		response: z.void(),
+	},
+	{
+		method: "get",
+		path: "/tools/stories/:story_id",
+		alias: "GetStory",
+		description: `Returns a story by id`,
+		requestFormat: "json",
+		response: Story,
+	},
+	{
+		method: "get",
+		path: "/tools/stories/workflow_step/:workflow_step_id",
+		alias: "GetStories",
+		description: `Returns stories for the current workflow step if it is a stories endpoint`,
+		requestFormat: "json",
+		response: z.array(Story),
+	},
+	{
+		method: "post",
+		path: "/tools/stories/workflow_step/:workflow_step_id",
+		alias: "SaveStory",
+		description: `Record a user story for the current user and workflow step`,
+		requestFormat: "json",
+		response: z.void(),
+	},
+	{
+		method: "post",
 		path: "/translations",
 		alias: "CreateTextContent",
 		description: `Create a new TextContent entry that can hold translations`,
@@ -1713,7 +1769,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 				schema: UpdateUserRequest
 			},
 		],
-		response: User,
+		response: UserDto,
 	},
 	{
 		method: "get",
@@ -1781,7 +1837,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 		alias: "GetAllUserConversationPreferences",
 		description: `Returns all conversation notification preferences for the authenticated user`,
 		requestFormat: "json",
-		response: z.array(UserConversationPreferences),
+		response: z.array(UserConversationPreferencesDto),
 	},
 	{
 		method: "get",
@@ -1789,7 +1845,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 		alias: "GetUserPreferenceForConversation",
 		description: `Returns the notification preferences for a specific conversation`,
 		requestFormat: "json",
-		response: UserConversationPreferences,
+		response: UserConversationPreferencesDto,
 	},
 	{
 		method: "put",
@@ -1804,7 +1860,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 				schema: UpdateUserConversationPreferences
 			},
 		],
-		response: UserConversationPreferences,
+		response: UserConversationPreferencesDto,
 	},
 	{
 		method: "get",
@@ -1827,7 +1883,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 				schema: UpgradeAccountRequest
 			},
 		],
-		response: User,
+		response: UserDto,
 	},
 	{
 		method: "post",

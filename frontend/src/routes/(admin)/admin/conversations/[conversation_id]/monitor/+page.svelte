@@ -2,7 +2,6 @@
 	import DailyStatsChart from '$lib/components/DailyStatsChart.svelte';
 	import StatsBar from '$lib/components/StatsBar.svelte';
 	import StatProgressIndicator from '$lib/components/StatProgressIndicator.svelte';
-	import { Binoculars } from 'lucide-svelte';
 	import PopulationComparison from '$lib/components/PopulationComparison.svelte';
 	import GenderComparison from '$lib/components/GenderComparison.svelte';
 	import GeoComparison from '$lib/components/GeoComparison/GeoComparison.svelte';

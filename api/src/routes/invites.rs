@@ -13,23 +13,25 @@ use minijinja::context;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{models::{invites::DailyResponseStats, workflow}, ComhairleState};
+use crate::{models::{invites::DailyResponseStats, workflow}, routes::invites::dto::InviteDto, ComhairleState};
 use crate::{
     error::ComhairleError,
     models::{
         self,
-        invites::{CreateInviteDTO, Invite},
+        invites::CreateInviteDTO,
     },
 };
 
 use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser};
+
+pub mod dto;
 
 #[instrument(err(Debug), skip(state))]
 async fn accept_invite(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Path((conversation_id, invite_id)): Path<(Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<Invite>), ComhairleError> {
+) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
     let invite = models::invites::get(&state.db, &invite_id).await?;
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
@@ -51,7 +53,7 @@ async fn accept_invite(
     invite
         .accept(&state.db, &user)
         .await
-        .map(|new_invite| (StatusCode::OK, Json(new_invite)))
+        .map(|new_invite| (StatusCode::OK, Json(new_invite.into())))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -59,7 +61,7 @@ async fn reject_invite(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Path((_, invite_id)): Path<(Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<Invite>), ComhairleError> {
+) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
     let invite = models::invites::get(&state.db, &invite_id).await?;
 
     // Check to see if the invite is valid
@@ -69,7 +71,7 @@ async fn reject_invite(
     invite
         .reject(&state.db, &user)
         .await
-        .map(|new_invite| (StatusCode::OK, Json(new_invite)))
+        .map(|new_invite| (StatusCode::OK, Json(new_invite.into())))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -78,7 +80,7 @@ async fn create_invite(
     Path(conversation_id): Path<Uuid>,
     RequiredAdminUser(user): RequiredAdminUser,
     Json(create_invite): Json<CreateInviteDTO>,
-) -> Result<(StatusCode, Json<Invite>), ComhairleError> {
+) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
     if conversation.owner_id != user.id {
@@ -118,9 +120,9 @@ async fn create_invite(
             }
         }
         models::invites::InviteType::Open | models::invites::InviteType::SingleUse  => {}
-        
     };
 
+    let invite = invite.into();
     Ok((StatusCode::CREATED, Json(invite)))
 }
 
@@ -129,7 +131,7 @@ async fn get_invite(
     State(state): State<Arc<ComhairleState>>,
     Path((_, invite_id)): Path<(Uuid, Uuid)>,
     OptionalUser(user): OptionalUser,
-) -> Result<(StatusCode, Json<Invite>), ComhairleError> {
+) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
     let invite = models::invites::get(&state.db, &invite_id).await?;
     invite.is_still_valid()?;
 
@@ -137,14 +139,14 @@ async fn get_invite(
     // check to see if this invite is for them
     if let Some(user) = user {
         invite.is_for_user(&user)?;
-        Ok((StatusCode::OK, Json(invite)))
+        Ok((StatusCode::OK, Json(invite.into())))
     } else {
         // Otherwise allow the invite to be seen if it's
         // an email or open invite
         match invite.invite_type {
             models::invites::InviteType::Email(_) |
             models::invites::InviteType::Open |
-            models::invites::InviteType::SingleUse=> Ok((StatusCode::OK, Json(invite))),
+            models::invites::InviteType::SingleUse=> Ok((StatusCode::OK, Json(invite.into()))),
             models::invites::InviteType::User(_) => Err(ComhairleError::UserRequired),
         }
     }
@@ -171,8 +173,8 @@ async fn delete_invite(
     State(state): State<Arc<ComhairleState>>,
     Path((_, invite_id)): Path<(Uuid, Uuid)>,
     RequiredAdminUser(_): RequiredAdminUser,
-) -> Result<(StatusCode, Json<Invite>), ComhairleError> {
-    let invite = models::invites::delete(&state.db, &invite_id).await?;
+) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
+    let invite = models::invites::delete(&state.db, &invite_id).await?.into();
 
     Ok((StatusCode::OK, Json(invite)))
 }
@@ -182,8 +184,8 @@ async fn list_invites_for_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     RequiredAdminUser(_): RequiredAdminUser,
-) -> Result<(StatusCode, Json<Vec<Invite>>), ComhairleError> {
-    let invites = models::invites::list_for_conversation(&state.db, &conversation_id).await?;
+) -> Result<(StatusCode, Json<Vec<InviteDto>>), ComhairleError> {
+    let invites = (models::invites::list_for_conversation(&state.db, &conversation_id).await?).into_iter().map(Into::into).collect();
     Ok((StatusCode::OK, Json(invites)))
 }
 
@@ -194,7 +196,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(create_invite, |op| {
                 op.id("CreateInvite")
                     .summary("Create an invite")
-                    .response::<201, Json<Invite>>()
+                    .tag("Invites")
+                    .security_requirement("JWT")
+                    .response::<201, Json<InviteDto>>()
             }),
         )
         .api_route(
@@ -202,7 +206,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(get_invite, |op| {
                 op.id("GetInvite")
                     .summary("Get a specific invite")
-                    .response::<200, Json<Invite>>()
+                    .response::<200, Json<InviteDto>>()
             }),
         )
         .api_route(
@@ -210,6 +214,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(get_invite_stats, |op| {
                 op.id("GetInviteStats")
                     .summary("Get the daily stats for a specific invite")
+                    .tag("Invites")
+                    .security_requirement("JWT")
                     .response::<200, Json<Vec<DailyResponseStats>>>()
             }),
         )
@@ -218,7 +224,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(accept_invite, |op| {
                 op.id("AcceptInvite")
                     .summary("Accept the invite if you are able")
-                    .response::<200, Json<Invite>>()
+                    .tag("Invites")
+                    .security_requirement("JWT")
+                    .response::<200, Json<InviteDto>>()
             }),
         )
         .api_route(
@@ -226,7 +234,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(reject_invite, |op| {
                 op.id("RejectInvite")
                     .summary("Reject the invite if you are able")
-                    .response::<200, Json<Invite>>()
+                    .tag("Invites")
+                    .security_requirement("JWT")
+                    .response::<200, Json<InviteDto>>()
             }),
         )
         .api_route(
@@ -234,7 +244,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             delete_with(delete_invite, |op| {
                 op.id("DeleteInvite")
                     .summary("Destroy and invite")
-                    .response::<201, Json<Invite>>()
+                    .tag("Invites")
+                    .security_requirement("JWT")
+                    .response::<201, Json<InviteDto>>()
             }),
         )
         .api_route(
@@ -242,7 +254,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(list_invites_for_conversation, |op| {
                 op.id("ListInvitesForConversation")
                     .summary("Return a list of invites statements for a conversation")
-                    .response::<200, Json<Vec<Invite>>>()
+                    .tag("Invites")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Vec<InviteDto>>>()
             }),
         )
         .with_state(state)

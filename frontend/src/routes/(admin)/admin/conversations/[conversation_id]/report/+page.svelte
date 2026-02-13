@@ -109,7 +109,7 @@
 			<Card.Description>What impacts has this conversation had?</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			{#each report.impacts as impact}
+			{#each report.impacts as impact (impact.id)}
 				<div class="flex w-full flex-row items-center justify-between">
 					<p class="">{impact.title}</p>
 					<div class="flex flex-row">

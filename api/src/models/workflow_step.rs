@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::models::translations::{new_translation, TextContentId, TextFormat};
-use crate::tools::{self, ToolConfigSanitize};
+use crate::tools::ToolConfigSanitize;
 use crate::ComhairleState;
 use chrono::{DateTime, Utc};
 use comhairle_macros::{DbJsonBEnum, Translatable};
@@ -85,19 +85,14 @@ async fn reset_orders(pool: &mut PgConnection, workflow_id: &Uuid) -> Result<(),
 }
 
 /// Create the live version of this workflow step
-pub async fn launch(db: &PgPool, workflow_step_id: &Uuid) -> Result<(), ComhairleError> {
+pub async fn launch(
+    db: &PgPool,
+    workflow_step_id: &Uuid,
+    state: &Arc<ComhairleState>,
+) -> Result<(), ComhairleError> {
     let workflow_step = get_by_id(db, workflow_step_id).await?;
-    let new_live_config = match workflow_step.preview_tool_config {
-        ToolConfig::Polis(preview_config) => ToolConfig::Polis(preview_config),
-        ToolConfig::Learn(preview_config) => ToolConfig::Learn(preview_config.clone()),
-        ToolConfig::HeyForm(preview_config) => {
-            ToolConfig::HeyForm(tools::heyform::launch(&preview_config).await?)
-        }
-        ToolConfig::Stories(preview_config) => ToolConfig::Stories(preview_config.clone()),
-        ToolConfig::ElicitationBot(elicitation_bot_tool_config) => {
-            ToolConfig::ElicitationBot(elicitation_bot_tool_config.clone())
-        }
-    };
+    // Use the new trait method for cloning the tool
+    let new_live_config = workflow_step.preview_tool_config.clone_tool(state).await?;
 
     update(
         db,
@@ -395,28 +390,15 @@ pub async fn list_localised(
     Ok(workflow_steps)
 }
 
-pub async fn setup_tool(setup: &ToolSetup) -> Result<ToolConfig, ComhairleError> {
-    let config = match &setup {
-        ToolSetup::Polis(polis_tool_setup) => {
-            ToolConfig::Polis(tools::polis::setup(polis_tool_setup).await.map_err(|err| {
-                warn!("Polis error {err:#?}");
-                err
-            })?)
-        }
-        ToolSetup::Learn(learn_tool_setup) => {
-            ToolConfig::Learn(tools::learn::setup(learn_tool_setup).await?)
-        }
-        ToolSetup::HeyForm(hey_form_tool_setup) => {
-            ToolConfig::HeyForm(tools::heyform::setup(hey_form_tool_setup).await?)
-        }
-        ToolSetup::Stories(stories_tool_setup) => {
-            ToolConfig::Stories(tools::stories::setup(stories_tool_setup).await?)
-        }
-        ToolSetup::ElicitationBot(elicitation_bot_setup) => {
-            ToolConfig::ElicitationBot(tools::elicitation_bot::setup(elicitation_bot_setup).await?)
-        }
-    };
-    Ok(config)
+pub async fn setup_tool(
+    setup: &ToolSetup,
+    state: &Arc<ComhairleState>,
+) -> Result<ToolConfig, ComhairleError> {
+    // Use the new trait method for setup
+    setup.setup(state).await.map_err(|err| {
+        warn!("Tool setup error {err:#?}");
+        err
+    })
 }
 
 pub async fn create(
@@ -451,8 +433,8 @@ pub async fn create(
     columns.push(WorkflowStepIden::Description);
     values.push(description_translation.id.into());
 
-    // let tool_config = setup_tool(&new_workflow_step.tool_setup).await?;
-    let preview_tool_config = setup_tool(&new_workflow_step.tool_setup).await?;
+    // let tool_config = setup_tool(&new_workflow_step.tool_setup, state).await?;
+    let preview_tool_config = setup_tool(&new_workflow_step.tool_setup, state).await?;
 
     columns.push(WorkflowStepIden::WorkflowId);
     values.push(workflow_id.into());

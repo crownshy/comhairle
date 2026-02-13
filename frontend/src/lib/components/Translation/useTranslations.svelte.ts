@@ -2,6 +2,7 @@ import { invalidateAll } from '$app/navigation';
 import { apiClient } from '$lib/api/client';
 import { notifications } from '$lib/notifications.svelte';
 import { getLanguageName } from '$lib/config/languages';
+import type { ConversationWithTranslations, Translation } from '$lib/api/api';
 
 export type TranslationStatus = 'primary' | 'draft' | 'approved';
 
@@ -18,30 +19,13 @@ export interface TranslationEntry {
 	content: string;
 }
 
-export interface TranslationField {
-	text_content: { id: string };
-	text_translations?: Array<{
-		locale: string;
-		content: string;
-		requires_validation: boolean;
-		updated_at: string;
-	}>;
-}
-
-export interface TranslatableConversation {
-	id: string;
-	primary_locale?: string;
-	supported_languages?: string[];
-	translations?: Record<string, TranslationField>;
-}
-
 function deriveTranslationStatus(
 	isPrimary: boolean,
-	existing?: { requires_validation: boolean }
+	existing?: { requiresValidation: boolean }
 ): TranslationStatus {
 	if (isPrimary) return 'primary';
 	if (!existing) return 'draft';
-	return existing.requires_validation ? 'draft' : 'approved';
+	return existing.requiresValidation ? 'draft' : 'approved';
 }
 
 /**
@@ -50,14 +34,14 @@ function deriveTranslationStatus(
  * API calls are debounced and happen in the background.
  */
 export function createTranslationManager(
-	getConversation: () => TranslatableConversation,
+	getConversation: () => ConversationWithTranslations,
 	getFormValue?: (field: string) => string | undefined
 ) {
 	let modalOpen = $state(false);
 	let activeField = $state<string | null>(null);
 	let activeLanguage = $state<string | null>(null);
 	let isTranslating = $state(false);
-	
+
 	let workingTranslations = $state<TranslationEntry[]>([]);
 
 	// Debounce timer for API saves
@@ -65,18 +49,18 @@ export function createTranslationManager(
 
 	function buildTranslationsFromServer(field: string): TranslationEntry[] {
 		const conversation = getConversation();
-		const fieldData = conversation.translations?.[field];
-		const primaryLocale = conversation.primary_locale ?? 'en';
-		const supported = conversation.supported_languages ?? [primaryLocale];
+		const fieldData = conversation.translations?.[field] as Translation;
+		const primaryLocale = conversation.primaryLocale ?? 'en';
+		const supported = conversation.supportedLanguages ?? [primaryLocale];
 
 		const sortedLanguages = [
 			primaryLocale,
 			...supported.filter((l: string) => l !== primaryLocale)
 		];
 
-		const existingMap = new Map<string, NonNullable<TranslationField['text_translations']>[number]>();
-		if (fieldData?.text_translations) {
-			for (const tt of fieldData.text_translations) {
+		const existingMap = new Map<string, NonNullable<Translation['textTranslations']>[number]>();
+		if (fieldData?.textTranslations) {
+			for (const tt of fieldData.textTranslations) {
 				existingMap.set(tt.locale, tt);
 			}
 		}
@@ -84,12 +68,11 @@ export function createTranslationManager(
 		return sortedLanguages.map((locale: string) => {
 			const existing = existingMap.get(locale);
 			const isPrimary = locale === primaryLocale;
-			
+
 			const fallback = existing?.content ?? '';
-			const content = isPrimary && getFormValue 
-				? (getFormValue(field) ?? fallback)
-				: fallback;
-			
+			const content =
+				isPrimary && getFormValue ? (getFormValue(field) ?? fallback) : fallback;
+
 			return {
 				language: locale,
 				languageName: getLanguageName(locale),
@@ -101,11 +84,11 @@ export function createTranslationManager(
 
 	function getTextContentId(): string | null {
 		if (!activeField) return null;
-		return getConversation().translations?.[activeField]?.text_content.id ?? null;
+		return getConversation().translations?.[activeField]?.textContent.id ?? null;
 	}
 
 	function getPrimaryLocale(): string {
-		return getConversation().primary_locale ?? 'en';
+		return getConversation().primaryLocale ?? 'en';
 	}
 
 	// --- Dialog Actions ---
@@ -113,15 +96,15 @@ export function createTranslationManager(
 	function openDialog(field: string, language?: string) {
 		activeField = field;
 		workingTranslations = buildTranslationsFromServer(field);
-		
+
 		// Set initial active language (first non-primary, or provided language)
-		if (language && workingTranslations.some(t => t.language === language)) {
+		if (language && workingTranslations.some((t) => t.language === language)) {
 			activeLanguage = language;
 		} else {
-			const nonPrimary = workingTranslations.find(t => t.status !== 'primary');
+			const nonPrimary = workingTranslations.find((t) => t.status !== 'primary');
 			activeLanguage = nonPrimary?.language ?? null;
 		}
-		
+
 		modalOpen = true;
 	}
 
@@ -133,7 +116,7 @@ export function createTranslationManager(
 	}
 
 	function setActiveLanguage(language: string) {
-		const primaryLang = workingTranslations.find(t => t.status === 'primary')?.language;
+		const primaryLang = workingTranslations.find((t) => t.status === 'primary')?.language;
 		if (language !== primaryLang) {
 			activeLanguage = language;
 		}
@@ -142,12 +125,12 @@ export function createTranslationManager(
 	// --- Content & Status Updates ---
 
 	function updateContent(language: string, content: string) {
-		const idx = workingTranslations.findIndex(t => t.language === language);
+		const idx = workingTranslations.findIndex((t) => t.language === language);
 		if (idx === -1) return;
 
 		const translation = workingTranslations[idx];
 		const isPrimary = translation.status === 'primary';
-		
+
 		// Update local working copy immediately
 		workingTranslations[idx] = {
 			...translation,
@@ -157,7 +140,7 @@ export function createTranslationManager(
 
 		// If primary changed, mark all non-primary as draft
 		if (isPrimary) {
-			workingTranslations = workingTranslations.map(t => 
+			workingTranslations = workingTranslations.map((t) =>
 				t.status === 'primary' ? t : { ...t, status: 'draft' as TranslationStatus }
 			);
 		}
@@ -167,7 +150,7 @@ export function createTranslationManager(
 	}
 
 	function updateStatus(language: string, status: TranslationStatus) {
-		const idx = workingTranslations.findIndex(t => t.language === language);
+		const idx = workingTranslations.findIndex((t) => t.language === language);
 		if (idx === -1) return;
 
 		const translation = workingTranslations[idx];
@@ -221,11 +204,11 @@ export function createTranslationManager(
 
 	async function markOtherTranslationsAsDraft(textContentId: string, primaryLocale: string) {
 		const otherTranslations = workingTranslations.filter(
-			t => t.language !== primaryLocale && t.content
+			(t) => t.language !== primaryLocale && t.content
 		);
 
 		await Promise.all(
-			otherTranslations.map(t => 
+			otherTranslations.map((t) =>
 				apiClient.CreateOrUpdateTextTranslation(
 					{
 						content: t.content,
@@ -249,12 +232,14 @@ export function createTranslationManager(
 		const textContentId = getTextContentId();
 		if (!textContentId) return;
 
-		const primaryTranslation = workingTranslations.find(t => t.status === 'primary');
+		const primaryTranslation = workingTranslations.find((t) => t.status === 'primary');
 		if (!primaryTranslation?.content) return;
 
 		isTranslating = true;
 		try {
-			const activeTranslation = workingTranslations.find(t => t.language === activeLanguage);
+			const activeTranslation = workingTranslations.find(
+				(t) => t.language === activeLanguage
+			);
 			await apiClient.CreateOrUpdateTextTranslation(
 				{
 					content: activeTranslation?.content ?? '',
@@ -275,9 +260,9 @@ export function createTranslationManager(
 					locale: activeLanguage
 				}
 			});
-			
+
 			// Update the working copy with translated content
-			const idx = workingTranslations.findIndex(t => t.language === activeLanguage);
+			const idx = workingTranslations.findIndex((t) => t.language === activeLanguage);
 			if (idx !== -1) {
 				workingTranslations[idx] = {
 					...workingTranslations[idx],
@@ -287,7 +272,7 @@ export function createTranslationManager(
 			}
 
 			await invalidateAll();
-			
+
 			notifications.send({ message: 'Translation completed', priority: 'INFO' });
 		} catch (error) {
 			console.error('AI translation failed:', error);
@@ -300,15 +285,15 @@ export function createTranslationManager(
 	// --- Utilities for parent component ---
 
 	function getFieldTranslations(field: string): TranslationEntry[] {
-		return buildTranslationsFromServer(field).filter(t => t.status !== 'primary');
+		return buildTranslationsFromServer(field).filter((t) => t.status !== 'primary');
 	}
 
 	function getFieldContentForLocale(field: string, locale: string): string | undefined {
 		const conversation = getConversation();
-		const fieldData = conversation.translations?.[field];
-		if (!fieldData?.text_translations) return undefined;
-		
-		const translation = fieldData.text_translations.find(tt => tt.locale === locale);
+		const fieldData = conversation.translations?.[field] as Translation;
+		if (!fieldData?.textTranslations) return undefined;
+
+		const translation = fieldData.textTranslations.find((tt) => tt.locale === locale);
 		return translation?.content;
 	}
 
@@ -318,10 +303,10 @@ export function createTranslationManager(
 		clearTimeout(primaryContentDebounce);
 		primaryContentDebounce = setTimeout(async () => {
 			const conversation = getConversation();
-			const fieldData = conversation.translations?.[field];
-			const textContentId = fieldData?.text_content.id;
-			const primaryLocale = conversation.primary_locale ?? 'en';
-			
+			const fieldData = conversation.translations?.[field] as Translation;
+			const textContentId = fieldData?.textContent.id;
+			const primaryLocale = conversation.primaryLocale ?? 'en';
+
 			if (!textContentId) return;
 
 			const primaryContent = getFormValue?.(field);
@@ -343,25 +328,27 @@ export function createTranslationManager(
 				);
 
 				if (fieldData?.text_translations) {
-					const translationsToUpdate = fieldData.text_translations.filter(
-						tt => tt.locale !== primaryLocale && !tt.requires_validation
+					const translationsToUpdate = fieldData.textTranslations.filter(
+						(tt) => tt.locale !== primaryLocale && !tt.requires_validation
 					);
-					
+
 					if (translationsToUpdate.length > 0) {
 						await Promise.all(
-							translationsToUpdate.map(tt => apiClient.CreateOrUpdateTextTranslation(
-								{
-									content: tt.content,
-									ai_generated: false,
-									requires_validation: true
-								},
-								{
-									params: {
-										text_content_id: textContentId,
-										locale: tt.locale
+							translationsToUpdate.map((tt) =>
+								apiClient.CreateOrUpdateTextTranslation(
+									{
+										content: tt.content,
+										ai_generated: false,
+										requires_validation: true
+									},
+									{
+										params: {
+											text_content_id: textContentId,
+											locale: tt.locale
+										}
 									}
-								}
-							))
+								)
+							)
 						);
 					}
 				}
@@ -377,7 +364,7 @@ export function createTranslationManager(
 
 	async function autoTranslateNewLanguage(locale: string, textContentIds: string[]) {
 		const results: { field: string; success: boolean }[] = [];
-		
+
 		for (const textContentId of textContentIds) {
 			try {
 				// First create an empty translation record (required by backend)
@@ -415,12 +402,24 @@ export function createTranslationManager(
 
 	return {
 		// Dialog state (reactive)
-		get modalOpen() { return modalOpen; },
-		set modalOpen(v: boolean) { modalOpen = v; },
-		get activeField() { return activeField; },
-		get activeLanguage() { return activeLanguage; },
-		get isTranslating() { return isTranslating; },
-		get workingTranslations() { return workingTranslations; },
+		get modalOpen() {
+			return modalOpen;
+		},
+		set modalOpen(v: boolean) {
+			modalOpen = v;
+		},
+		get activeField() {
+			return activeField;
+		},
+		get activeLanguage() {
+			return activeLanguage;
+		},
+		get isTranslating() {
+			return isTranslating;
+		},
+		get workingTranslations() {
+			return workingTranslations;
+		},
 
 		// Dialog actions
 		openDialog,

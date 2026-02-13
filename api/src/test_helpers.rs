@@ -26,6 +26,7 @@ use crate::{
     config::ComhairleConfig,
     mailer::MockComhairleMailer,
     models::users::UpdateUserRequest,
+    routes::user::dto::UserDto,
     translation_service::{MockTranslationService, TranslationService},
     websockets::{MockWebSocketService, WebSocketService},
     workers::JobQueues,
@@ -329,17 +330,10 @@ impl UserSession {
     pub async fn current_user(
         &mut self,
         app: &Router,
-    ) -> Result<
-        (
-            StatusCode,
-            HashMap<String, Option<Value>>,
-            Option<HeaderValue>,
-        ),
-        Box<dyn Error>,
-    > {
+    ) -> Result<(StatusCode, UserDto, Option<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self.get(app, "/auth/current_user").await?;
 
-        let user: HashMap<String, Option<Value>> = serde_json::from_value(value).unwrap();
+        let user: UserDto = serde_json::from_value(value).unwrap();
         Ok((status, user, cookie))
     }
 
@@ -453,23 +447,14 @@ impl UserSession {
         &mut self,
         app: &Router,
         update_user: UpdateUserRequest,
-    ) -> Result<
-        (
-            StatusCode,
-            HashMap<String, Option<Value>>,
-            Option<HeaderValue>,
-        ),
-        Box<dyn Error>,
-    > {
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self.put(
             app,
             "/user/details",
             json!({ "username": update_user.username, "password": update_user.password, "email_verified": update_user.email_verified }).to_string().into()
         ).await?;
 
-        let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
-
-        Ok((status, user, cookie))
+        Ok((status, value, cookie))
     }
 
     pub async fn password_reset_create(

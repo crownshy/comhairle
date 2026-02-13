@@ -25,9 +25,8 @@ use crate::{
             self, BotServiceSessionContext, BotServiceUserSessionDto, CreateBotServiceUserSession,
         },
         conversation::{
-            self, Conversation, ConversationFilterOptions, ConversationOrderOptions,
-            ConversationWithTranslations, CreateConversation, IdOrSlug, LocalisedConversation,
-            PartialConversation,
+            self, ConversationFilterOptions, ConversationOrderOptions,
+            ConversationWithTranslations, CreateConversation, IdOrSlug, PartialConversation,
         },
         conversation_email_notification_recipients::{
             self as email_recipients_model, CreateConversationEmailNotificationRecipients,
@@ -40,19 +39,25 @@ use crate::{
         pagination::{OrderParams, PageOptions, PaginatedResults},
         user_participation::{self},
     },
-    routes::{auth::RequiredUser, translations::LocaleExtractor},
+    routes::{
+        auth::RequiredUser,
+        conversations::dto::{ConversationDto, LocalizedConversationDto},
+        translations::LocaleExtractor,
+    },
     workers::process_documents::DocumentJob,
     ComhairleState,
 };
 
 use super::auth::{is_user_admin, OptionalUser, RequiredAdminUser};
 
+pub mod dto;
+
 /// Create conversation handler
 async fn create_conversation(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
     Json(new_conversations): Json<CreateConversation>,
-) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
+) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     info!("Attempting to create conversation");
     let conversation = conversation::create(
         &state.db,
@@ -62,6 +67,8 @@ async fn create_conversation(
         user.id,
     )
     .await?;
+
+    let conversation: ConversationDto = conversation.into();
     Ok((StatusCode::CREATED, Json(conversation)))
 }
 
@@ -71,8 +78,9 @@ async fn update_conversation(
     RequiredAdminUser(_user): RequiredAdminUser,
     Path(id): Path<Uuid>,
     Json(conversation): Json<PartialConversation>,
-) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
+) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     let conversation = conversation::update(&state.db, &id, &conversation).await?;
+    let conversation: ConversationDto = conversation.into();
     Ok((StatusCode::OK, Json(conversation)))
 }
 
@@ -83,7 +91,7 @@ async fn list_conversations(
     Query(mut filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
     LocaleExtractor(locale): LocaleExtractor,
-) -> Result<(StatusCode, Json<PaginatedResults<LocalisedConversation>>), ComhairleError> {
+) -> Result<(StatusCode, Json<PaginatedResults<LocalizedConversationDto>>), ComhairleError> {
     filter_options.enforce_live();
 
     let conversations = conversation::list(
@@ -94,6 +102,11 @@ async fn list_conversations(
         Some(locale),
     )
     .await?;
+
+    let conversations: PaginatedResults<LocalizedConversationDto> = PaginatedResults {
+        total: conversations.total,
+        records: conversations.records.into_iter().map(Into::into).collect(),
+    };
     Ok((StatusCode::OK, Json(conversations)))
 }
 
@@ -101,12 +114,14 @@ async fn launch_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     RequiredAdminUser(_user): RequiredAdminUser,
-) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
+) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     if conversation.is_live {
         return Err(ComhairleError::ConversationAlreadyLive);
     }
-    let conversation = conversation::launch(&state.db, conversation_id).await?;
+    let conversation: ConversationDto = conversation::launch(&state.db, conversation_id, &state)
+        .await?
+        .into();
     Ok((StatusCode::OK, Json(conversation)))
 }
 
@@ -119,7 +134,7 @@ pub struct GetConversationQuery {
 #[derive(Serialize, JsonSchema)]
 #[serde(untagged)]
 pub enum ConversationResponse {
-    Localised(LocalisedConversation),
+    Localised(LocalizedConversationDto),
     WithTranslations(ConversationWithTranslations),
 }
 
@@ -171,9 +186,10 @@ async fn get_conversation(
     } else {
         // Return localized conversation as before
         info!("Trying to get localized translations for {locale}");
-        let conversation =
+        let conversation: LocalizedConversationDto =
             conversation::get_localised_by_id_or_slug(&state.db, &conversation_ident, &locale)
-                .await?;
+                .await?
+                .into();
 
         Ok((
             StatusCode::OK,
@@ -186,8 +202,9 @@ async fn get_conversation(
 async fn delete_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(id): Path<Uuid>,
-) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
+) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     let conversation = conversation::delete(&state.db, &state.bot_service, &id).await?;
+    let conversation: ConversationDto = conversation.into();
     Ok((StatusCode::OK, Json(conversation)))
 }
 
@@ -359,8 +376,14 @@ async fn get_conversation_bot_session(
     RequiredUser(user): RequiredUser,
     Path(conversation_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
-    let session =
-        bot_service_user_session::get_or_create(&state, BotServiceSessionContext::QaBot, user.id, Some(conversation_id), None).await?;
+    let session = bot_service_user_session::get_or_create(
+        &state,
+        BotServiceSessionContext::QaBot,
+        user.id,
+        Some(conversation_id),
+        None,
+    )
+    .await?;
 
     let session: BotServiceUserSessionDto = session.into();
 
@@ -452,7 +475,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Create a new conversation")
                     .tag("Conversation")
                     .description("Creates a new conversation")
-                    .response::<201, Json<LocalisedConversation>>()
+                    .response::<201, Json<ConversationDto>>()
             }),
         )
         .api_route(
@@ -462,7 +485,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("List conversations with optional filtering and ordering")
                     .tag("Conversation")
                     .description("List conversations")
-                    .response::<200, Json<PaginatedResults<LocalisedConversation>>>()
+                    .response::<200, Json<PaginatedResults<LocalizedConversationDto>>>()
             }),
         )
         .api_route(
@@ -482,7 +505,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Update a conversation")
                     .tag("Conversation")
                     .description("Update a conversation")
-                    .response::<200, Json<LocalisedConversation>>()
+                    .response::<200, Json<ConversationDto>>()
             }),
         )
         .api_route(
@@ -492,7 +515,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Delete the conversation and all related content")
                     .tag("Conversation")
                     .description("Delete the conversation and all related content")
-                    .response::<200, Json<LocalisedConversation>>()
+                    .response::<200, Json<ConversationDto>>()
             }),
         )
         .api_route(
@@ -502,7 +525,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Makes the conversation live")
                     .tag("Conversation")
                     .description("Makes the conversation live for participants")
-                    .response::<200, Json<Conversation>>()
+                    .response::<200, Json<ConversationDto>>()
             }),
         )
         .api_route(
@@ -555,6 +578,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 #[cfg(test)]
 mod tests {
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
+    use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
     use crate::test_helpers::test_state;
     use crate::{setup_server, test_helpers::UserSession};
     use axum::{body::Body, http::StatusCode};
@@ -592,9 +616,14 @@ mod tests {
                 }),
             )
             .await?;
-        println!("{response}");
+        let conversation: ConversationDto = serde_json::from_value(response)?;
 
         assert_eq!(status, StatusCode::CREATED, "Should be created");
+        assert_eq!(
+            conversation.image_url,
+            "http://someimage.png".to_string(),
+            "incorrect json response"
+        );
 
         Ok(())
     }
@@ -638,14 +667,11 @@ mod tests {
                 }),
             )
             .await?;
+        let conversation: ConversationDto = serde_json::from_value(conversation)?;
 
         assert_eq!(status, StatusCode::OK, "Should update resource");
+        assert!(conversation.is_public, "should have updated public status");
 
-        assert_eq!(
-            conversation.get("is_public"),
-            Some(&json!(true)),
-            "should have updated public status"
-        );
         Ok(())
     }
 
@@ -755,16 +781,13 @@ mod tests {
                 .unwrap();
         assert_eq!(total, 2, "Should have the right number of entries");
 
-        let conversations: Vec<HashMap<String, serde_json::Value>> =
+        let conversations: Vec<LocalizedConversationDto> =
             serde_json::from_value(conversations.get("records").to_owned().unwrap().to_owned())
                 .unwrap();
 
-        assert_eq!(
-            conversations[0].get("title"),
-            Some(&json!("Test conversation"))
-        );
+        assert_eq!(conversations[0].title, "Test conversation".to_string(),);
 
-        assert_eq!(conversations[1].get("title"), Some(&json!("Another Test")));
+        assert_eq!(conversations[1].title, "Another Test".to_string());
 
         Ok(())
     }
