@@ -54,13 +54,13 @@ impl FullReportDTO {
 #[partially(derive(Deserialize, Debug, JsonSchema))]
 pub struct Report {
     #[partially(omit)]
-    id: Uuid,
-    is_public: bool,
-    conversation_id: Uuid,
-    summary: String,
-    section_configs: ReportSectionConfigs,
+    pub id: Uuid,
+    pub is_public: bool,
+    pub conversation_id: Uuid,
+    pub summary: String,
+    pub section_configs: ReportSectionConfigs,
     #[partially(omit)]
-    created_at: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
     #[partially(omit)]
     updated_at: DateTime<Utc>,
 }
