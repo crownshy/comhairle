@@ -17,7 +17,7 @@ use crate::{
     models::{
         conversation::{self, PartialConversation},
         user_participation::{self, UserParticipation},
-        workflow::{self, CreateWorkflow, PartialWorkflow, Workflow, WorkflowStats},
+        workflow::{self, CreateWorkflow, PartialWorkflow, WorkflowStats},
         workflow_step::{self, WorkflowStep},
     },
     routes::{
@@ -138,9 +138,9 @@ async fn list_workflows(
 async fn get_workflow(
     State(state): State<Arc<ComhairleState>>,
     Path((_, workflow_id)): Path<(Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<Workflow>), ComhairleError> {
+) -> Result<(StatusCode, Json<WorkflowDto>), ComhairleError> {
     info!("Attempting to get workflow {workflow_id:#?}");
-    let workflow = workflow::get_by_id(&state.db, &workflow_id).await?;
+    let workflow = workflow::get_by_id(&state.db, &workflow_id).await?.into();
 
     Ok((StatusCode::OK, Json(workflow)))
 }
@@ -201,7 +201,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("GetWorkflow")
                     .tag("Workflow")
                     .summary("Get the specified workflow")
-                    .response::<200, Json<Workflow>>()
+                    .response::<200, Json<WorkflowDto>>()
             }),
         )
         .api_route(

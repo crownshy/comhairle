@@ -1,14 +1,14 @@
 import { loginRedirect } from '$lib/urls';
 import { isRedirect, redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
-import type { LocalizedConversationDto, Workflow } from '$lib/api/api';
+import type { LocalizedConversationDto, WorkflowDto } from '$lib/api/api';
 
 export const load: LayoutLoad = async ({
 	parent,
 	params
 }): Promise<{
 	conversation: LocalizedConversationDto;
-	workflows: Workflow[];
+	workflows: WorkflowDto[];
 	participation: any; // TODO:
 	api: any; // TODO:
 	user: any; // TODO:
