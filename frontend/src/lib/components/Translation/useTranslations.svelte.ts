@@ -267,7 +267,7 @@ export function createTranslationManager(
 				workingTranslations[idx] = {
 					...workingTranslations[idx],
 					content: response.content,
-					status: response.requires_validation ? 'draft' : 'approved'
+					status: response.requiresValidation ? 'draft' : 'approved'
 				};
 			}
 
