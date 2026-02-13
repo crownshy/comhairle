@@ -128,8 +128,6 @@ export const WorkflowStepStats = z.object({ completed: z.number().int(), id: z.s
 export type WorkflowStepStats = z.infer<typeof WorkflowStepStats>;
 export const WorkflowStats = z.object({ signup_stats: z.array(DailySignupStats), step_stats: z.array(WorkflowStepStats), total_users: z.number().int() }).passthrough();
 export type WorkflowStats = z.infer<typeof WorkflowStats>;
-export const Workflow = z.object({ auto_login: z.boolean(), conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_active: z.boolean(), is_public: z.boolean(), name: z.string(), owner_id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
-export type Workflow = z.infer<typeof Workflow>;
 export const PartialWorkflow = z.object({ auto_login: z.union([z.boolean(), z.null()]), description: z.union([z.string(), z.null()]), is_active: z.union([z.boolean(), z.null()]), is_public: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialWorkflow = z.infer<typeof PartialWorkflow>;
 export const UserParticipation = z.object({ created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid(), workflow_id: z.string().uuid() }).passthrough();
@@ -312,7 +310,6 @@ export const schemas = {
 	DailySignupStats,
 	WorkflowStepStats,
 	WorkflowStats,
-	Workflow,
 	PartialWorkflow,
 	UserParticipation,
 	LocalisedWorkflowStep,
@@ -1290,7 +1287,7 @@ const endpoints = makeApi([
 		path: "/conversation/:conversation_id/workflow/:workflow_id",
 		alias: "GetWorkflow",
 		requestFormat: "json",
-		response: Workflow,
+		response: WorkflowDto,
 	},
 	{
 		method: "put",
