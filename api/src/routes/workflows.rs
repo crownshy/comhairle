@@ -261,6 +261,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 mod tests {
 
     use crate::{
+        models::workflow::WorkflowStats,
         routes::workflows::dto::WorkflowDto,
         setup_server,
         test_helpers::{extract, test_state, UserSession},
@@ -534,22 +535,21 @@ mod tests {
         let url = format!("/conversation/{id}/workflow/{workflow_id}/stats");
 
         let (code, stats, _) = session.get(&app, &url).await?;
+        let stats: WorkflowStats = serde_json::from_value(stats)?;
         assert_eq!(code, StatusCode::OK, "should get response");
-        let total: i32 = extract("total_users", &stats);
-        assert_eq!(total, 10, "should get correct count of participatnts");
-        let step_stats = stats.get("step_stats").unwrap();
+        assert_eq!(
+            stats.total_users, 10,
+            "should get correct count of participatnts"
+        );
+        let step_stats = stats.step_stats;
 
-        if let serde_json::Value::Array(step_stats_array) = step_stats {
-            for (index, stats) in step_stats_array.iter().enumerate() {
-                let count: i32 = extract("completed", stats);
-                assert_eq!(
-                    index as i32,
-                    9 - count,
-                    "should get the correct count for each step"
-                );
-            }
-        } else {
-            panic!("steps stats was not an array");
+        for (index, stats) in step_stats.iter().enumerate() {
+            let count = stats.completed;
+            assert_eq!(
+                index as i32,
+                9 - count,
+                "should get the correct count for each step"
+            );
         }
 
         Ok(())

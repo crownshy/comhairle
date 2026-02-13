@@ -14,11 +14,11 @@ export const load: PageLoad = async ({ params, parent }) => {
 			const workflow_steps = await api.ListWorkflowSteps({
 				params: { conversation_id, workflow_id: workflows[0].id }
 			});
-			const workflow_stats = await api.GetWorkflowStats({
+			const workflowStats = await api.GetWorkflowStats({
 				params: { conversation_id, workflow_id: workflows[0].id }
 			});
 
-			return { conversation, workflows, workflow_steps, workflow_stats, report };
+			return { conversation, workflows, workflow_steps, workflowStats, report };
 		} catch (e) {
 			notifications.addFlash({ message: 'Something went wrong', priority: 'ERROR' });
 		}
