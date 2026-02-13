@@ -2,11 +2,31 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::models::{
-    conversation::{Conversation, LocalisedConversation},
-    translations::TextContentId,
+use crate::{
+    models::{
+        conversation::{Conversation, LocalisedConversation},
+        translations::TextContentId,
+    },
+    schema_helpers::{example_bot_service_id, example_localized_text, example_uuid},
 };
 
+/// Data transfer object (public API representation) for a Conversation.
+///
+/// This DTO is returned by conversation related endpoints and is safe to expose
+/// to clients. It intentionally omits fields such as:
+///
+/// * `owner_id`
+/// * `default_workflow_id`
+/// * `created_at`
+/// * `updated_at`
+///
+/// It includes raw `uuid` values for translatable fields:
+///
+/// * `title`
+/// * `short_description`
+/// * `description`
+///
+/// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationDto {
@@ -35,6 +55,23 @@ pub struct ConversationDto {
     pub supported_languages: Vec<String>,
 }
 
+/// Data transfer object (public API representation) for a LocalisedConversation.
+///
+/// This DTO is returned by conversation related endpoints and is safe to expose
+/// to clients. It intentionally omits fields such as:
+///
+/// * `owner_id`
+/// * `default_workflow_id`
+/// * `created_at`
+/// * `updated_at`
+///
+/// It includes localized `String` values for translatable fields:
+///
+/// * `title`
+/// * `short_description`
+/// * `description`
+///
+/// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalizedConversationDto {
@@ -109,16 +146,4 @@ impl From<LocalisedConversation> for LocalizedConversationDto {
             supported_languages: c.supported_languages,
         }
     }
-}
-
-fn example_localized_text() -> String {
-    "Example localized text".to_string()
-}
-
-fn example_uuid() -> Uuid {
-    Uuid::nil()
-}
-
-fn example_bot_service_id() -> String {
-    "asdqweasdqweasdqwe".to_string()
 }

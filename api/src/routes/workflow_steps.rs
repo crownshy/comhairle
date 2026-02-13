@@ -20,6 +20,7 @@ use crate::bot_service::ComhairleAgentSession;
 use crate::models::bot_service_user_session::{self, BotServiceSessionContext};
 use crate::models::workflow_step::{LocalisedWorkflowStep, WorkflowStepWithTranslations};
 use crate::routes::translations::LocaleExtractor;
+use crate::routes::workflow_steps::dto::{LocalizedWorkflowStepDto, WorkflowStepDto};
 use crate::tools::ToolConfig;
 use crate::{
     error::ComhairleError,
@@ -51,13 +52,15 @@ pub enum WorkflowStepsListResponse {
     WithTranslations(Vec<WorkflowStepWithTranslations>),
 }
 
+pub mod dto;
+
 /// Create workflow handler
 async fn create_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     Path((conversation_id, workflow_id)): Path<(Uuid, Uuid)>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(new_workflow): Json<CreateWorkflowStep>,
-) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
+) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
     info!("Attempting to create workflow");
@@ -67,7 +70,8 @@ async fn create_workflow_step(
         workflow_id,
         &conversation.primary_locale,
     )
-    .await?;
+    .await?
+    .into();
     Ok((StatusCode::CREATED, Json(workflow)))
 }
 
@@ -77,8 +81,10 @@ async fn update_workflow_step(
     Path((_, workflow_id, id)): Path<(Uuid, Uuid, Uuid)>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(workflow): Json<PartialWorkflowStep>,
-) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
-    let workflow = workflow_step::update(&state.db, &id, &workflow_id, &workflow).await?;
+) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
+    let workflow = workflow_step::update(&state.db, &id, &workflow_id, &workflow)
+        .await?
+        .into();
     Ok((StatusCode::OK, Json(workflow)))
 }
 
@@ -161,8 +167,10 @@ async fn delete_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Path((_, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
-    let workflow = workflow_step::delete(&state.db, &workflow_step_id).await?;
+) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
+    let workflow = workflow_step::delete(&state.db, &workflow_step_id)
+        .await?
+        .into();
     Ok((StatusCode::OK, Json(workflow)))
 }
 
@@ -258,7 +266,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Workflow step")
                     .summary("Create a new workflow step")
                     .security_requirement("JWT")
-                    .response::<201, Json<LocalisedWorkflowStep>>()
+                    .response::<201, Json<WorkflowStepDto>>()
             }),
         )
         .api_route(
@@ -288,7 +296,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Workflow step")
                     .summary("Update the specified workflow step")
                     .security_requirement("JWT")
-                    .response::<200, Json<WorkflowStep>>()
+                    .response::<200, Json<WorkflowStepDto>>()
             }),
         )
         .api_route(
@@ -308,7 +316,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Workflow step")
                     .summary("Delete the specified workflow step")
                     .security_requirement("JWT")
-                    .response::<200, Json<WorkflowStep>>()
+                    .response::<200, Json<WorkflowStepDto>>()
             }),
         )
         .api_route(
