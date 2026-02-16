@@ -15,6 +15,7 @@
 	let workflowSteps = $derived(data.workflowSteps);
 
 	let step = $derived(workflowSteps.find((s) => s.id === step_id));
+	let nextStep = $derived(
 		step ? workflowSteps.find((s) => s.stepOrder === step.stepOrder + 1) : undefined
 	);
 	let prevStep = $derived(

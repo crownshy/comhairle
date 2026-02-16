@@ -5,6 +5,7 @@ use uuid::Uuid;
 use crate::{
     models::{
         conversation::{Conversation, LocalisedConversation},
+        pagination::PaginatedResults,
         translations::TextContentId,
     },
     schema_helpers::{example_bot_service_id, example_localized_text, example_uuid},
@@ -144,6 +145,15 @@ impl From<LocalisedConversation> for LocalizedConversationDto {
             chat_bot_id: c.chat_bot_id,
             enable_qa_chat_bot: c.enable_qa_chat_bot,
             supported_languages: c.supported_languages,
+        }
+    }
+}
+
+impl From<PaginatedResults<LocalisedConversation>> for PaginatedResults<LocalizedConversationDto> {
+    fn from(r: PaginatedResults<LocalisedConversation>) -> Self {
+        Self {
+            total: r.total,
+            records: r.records.into_iter().map(Into::into).collect(),
         }
     }
 }

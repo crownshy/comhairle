@@ -14,7 +14,7 @@
 </script>
 
 <SideBar.Provider>
-	<AdminNav user={data.user} {conversations} path={page.url.pathname} />
+	<AdminNav user={data.user} conversations={conversations.records} path={page.url.pathname} />
 	<main class="flex flex-grow flex-col overflow-y-auto">
 		{@render children()}
 	</main>

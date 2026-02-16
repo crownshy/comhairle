@@ -73,12 +73,9 @@
 
 		try {
 			saving = true;
-			const updatedPreferences = await apiClient.UpdateUserPreferenceForConversation(
-				result.data,
-				{
-					params: { conversation_id: conversationId }
-				}
-			);
+			await apiClient.UpdateUserPreferenceForConversation(result.data, {
+				params: { conversation_id: conversationId }
+			});
 		} catch (error: any) {
 			console.error(error);
 			notifications.send({
