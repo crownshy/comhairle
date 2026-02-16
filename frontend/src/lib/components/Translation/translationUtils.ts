@@ -2,6 +2,7 @@ import { apiClient } from '$lib/api/client';
 import { notifications } from '$lib/notifications.svelte';
 import { getLanguageName } from '$lib/config/languages';
 import { extractTextFromTiptap, translateTiptapContent, isTiptapJson } from '$lib/utils/tiptapUtils';
+import type { Translation, Translation2 } from '$lib/api/api';
 
 export type TranslationStatus = 'primary' | 'draft' | 'approved';
 
@@ -10,6 +11,16 @@ export interface TranslationEntry {
 	languageName: string;
 	status: TranslationStatus;
 	content: string;
+}
+
+export function getTextInLocale(
+	translation: Translation | Translation2 | undefined,
+	locale: string,
+	fallback: string = ''
+): string {
+	if (!translation?.textTranslations) return fallback;
+	const localeTranslation = translation.textTranslations.find(t => t.locale === locale);
+	return localeTranslation?.content ?? fallback;
 }
 
 export const statusToBadgeVariant = {
@@ -125,7 +136,7 @@ export async function aiTranslate(
 		
 		return {
 			content: result.content,
-			requiresValidation: result.requires_validation
+			requiresValidation: result.requiresValidation
 		};
 	}
 }
