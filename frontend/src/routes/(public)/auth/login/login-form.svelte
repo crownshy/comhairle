@@ -5,7 +5,8 @@
 	import { superForm, defaults } from 'sveltekit-superforms';
 	import { zod, zodClient } from 'sveltekit-superforms/adapters';
 	import * as m from '$lib/paraglide/messages';
-	import { Button } from '$lib/components/ui/button';
+	import { Button, LoadingButton } from '$lib/components/ui/button';
+	import { useLoading } from '$lib/hooks/use-loading.svelte';
 	import { apiClient } from '$lib/api/client';
 	import { goto, invalidateAll } from '$app/navigation';
 	import PasswordInput from '$lib/components/ui/password-input/password-input.svelte';
@@ -20,6 +21,7 @@
 	});
 
 	let responseMessage = $state(null);
+	const loader = useLoading();
 
 	const { form: formData, enhance, validateForm } = form;
 
@@ -27,29 +29,31 @@
 		let result = await validateForm({ update: true });
 		if (result.valid) {
 			let { email, password } = result.data;
-			try {
-				await apiClient.LoginUser({
-					email,
-					password
-				});
-				await invalidateAll();
+			await loader.run(async () => {
+				try {
+					await apiClient.LoginUser({
+						email,
+						password
+					});
+					await invalidateAll();
 
-				let redirectTo = backTo ?? '/';
-				if (redirectTo === '/') {
-					try {
-						const userRoles = await apiClient.GetUserRoles();
-						const isAdmin = userRoles?.find((ur) => ur.resource === 'Site')?.roles.includes('Admin');
-						if (isAdmin) {
-							redirectTo = '/admin';
+					let redirectTo = backTo ?? '/';
+					if (redirectTo === '/') {
+						try {
+							const userRoles = await apiClient.GetUserRoles();
+							const isAdmin = userRoles?.find((ur) => ur.resource === 'Site')?.roles.includes('Admin');
+							if (isAdmin) {
+								redirectTo = '/admin';
+							}
+						} catch {
 						}
-					} catch {
 					}
-				}
 
-				await goto(resolve(redirectTo));
-			} catch (e) {
-				responseMessage = e.response.data.err;
-			}
+					await goto(resolve(redirectTo));
+				} catch (e) {
+					responseMessage = e.response.data.err;
+				}
+			});
 		}
 	}
 </script>
@@ -84,7 +88,9 @@
 		<Form.FieldErrors />
 	</Form.Field>
 
-	<Form.Button class="w-full" variant="secondary">{m.submit()}</Form.Button>
+	<LoadingButton type="submit" class="w-full" variant="secondary" loading={loader.loading}>
+		{m.submit()}
+	</LoadingButton>
 
 	<Button href={`/auth/anonymous-login?backTo=${backTo ?? '/'}`} variant="link" class="w-full">
 		{m.login_with_anonymous_id()}
