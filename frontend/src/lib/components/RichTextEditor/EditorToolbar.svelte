@@ -49,7 +49,6 @@
 		onVideoPopoverChange
 	}: Props = $props();
 
-	const btnBase = 'py-1 px-1.5 border-0 rounded bg-transparent text-gray-600 cursor-pointer text-sm leading-none transition-all duration-150 flex items-center justify-center min-w-[1.75rem] h-7 flex-shrink-0 hover:bg-gray-200 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed';
 </script>
 
 <div class="relative flex items-center gap-1 px-3 border border-gray-300 border-b-0 rounded-t-[12px] bg-gray-50 min-h-[3rem] xl:p-2 overflow-x-auto">
@@ -92,7 +91,7 @@
 				onclick={() => editor?.chain().focus().toggleBold().run()}
 				title="Bold"
 				aria-label="Bold"
-				class="{btnBase} font-bold"
+				class="btn font-bold"
 				class:!bg-blue-600={activeStates.bold}
 				class:!text-white={activeStates.bold}
 				class:!font-semibold={activeStates.bold}
@@ -104,7 +103,7 @@
 				onclick={() => editor?.chain().focus().toggleItalic().run()}
 				title="Italic"
 				aria-label="Italic"
-				class="{btnBase} italic"
+				class="btn italic"
 				class:!bg-blue-600={activeStates.italic}
 				class:!text-white={activeStates.italic}
 				class:!font-semibold={activeStates.italic}
@@ -116,7 +115,7 @@
 				onclick={() => editor?.chain().focus().toggleStrike().run()}
 				title="Strikethrough"
 				aria-label="Strikethrough"
-				class="{btnBase} line-through"
+				class="btn line-through"
 				class:!bg-blue-600={activeStates.strike}
 				class:!text-white={activeStates.strike}
 				class:!font-semibold={activeStates.strike}
@@ -128,7 +127,7 @@
 				onclick={() => editor?.chain().focus().toggleUnderline().run()}
 				title="Underline"
 				aria-label="Underline"
-				class="{btnBase} underline"
+				class="btn underline"
 				class:!bg-blue-600={activeStates.underline}
 				class:!text-white={activeStates.underline}
 				class:!font-semibold={activeStates.underline}
@@ -162,7 +161,7 @@
 				onclick={() => editor?.chain().focus().toggleBulletList().run()}
 				title="Bullet List"
 				aria-label="Bullet List"
-				class="{btnBase}"
+				class="btn"
 				class:!bg-blue-600={activeStates.bulletList}
 				class:!text-white={activeStates.bulletList}
 				class:!font-semibold={activeStates.bulletList}
@@ -174,7 +173,7 @@
 				onclick={() => editor?.chain().focus().toggleOrderedList().run()}
 				title="Numbered List"
 				aria-label="Numbered List"
-				class="{btnBase}"
+				class="btn"
 				class:!bg-blue-600={activeStates.orderedList}
 				class:!text-white={activeStates.orderedList}
 				class:!font-semibold={activeStates.orderedList}
@@ -192,7 +191,7 @@
 				onclick={() => editor?.chain().focus().setTextAlign('left').run()}
 				title="Align Left"
 				aria-label="Align Left"
-				class="{btnBase}"
+				class="btn"
 				class:!bg-blue-600={activeStates.textAlign === 'left'}
 				class:!text-white={activeStates.textAlign === 'left'}
 				class:!font-semibold={activeStates.textAlign === 'left'}
@@ -204,7 +203,7 @@
 				onclick={() => editor?.chain().focus().setTextAlign('center').run()}
 				title="Align Center"
 				aria-label="Align Center"
-				class="{btnBase}"
+				class="btn"
 				class:!bg-blue-600={activeStates.textAlign === 'center'}
 				class:!text-white={activeStates.textAlign === 'center'}
 				class:!font-semibold={activeStates.textAlign === 'center'}
@@ -216,7 +215,7 @@
 				onclick={() => editor?.chain().focus().setTextAlign('right').run()}
 				title="Align Right"
 				aria-label="Align Right"
-				class="{btnBase}"
+				class="btn"
 				class:!bg-blue-600={activeStates.textAlign === 'right'}
 				class:!text-white={activeStates.textAlign === 'right'}
 				class:!font-semibold={activeStates.textAlign === 'right'}
@@ -228,7 +227,7 @@
 				onclick={() => editor?.chain().focus().setTextAlign('justify').run()}
 				title="Justify"
 				aria-label="Justify"
-				class="{btnBase}"
+				class="btn"
 				class:!bg-blue-600={activeStates.textAlign === 'justify'}
 				class:!text-white={activeStates.textAlign === 'justify'}
 				class:!font-semibold={activeStates.textAlign === 'justify'}
@@ -246,7 +245,7 @@
 				onclick={() => editor?.chain().focus().toggleBlockquote().run()}
 				title="Blockquote"
 				aria-label="Blockquote"
-				class="{btnBase}"
+				class="btn"
 				class:!bg-blue-600={activeStates.blockquote}
 				class:!text-white={activeStates.blockquote}
 				class:!font-semibold={activeStates.blockquote}
@@ -278,7 +277,7 @@
 					type="button"
 					title="Add Link"
 					aria-label="Add Link"
-					class="{btnBase}"
+					class="btn"
 					class:!bg-blue-600={activeStates.link}
 					class:!text-white={activeStates.link}
 					class:!font-semibold={activeStates.link}
@@ -305,7 +304,7 @@
 					type="button"
 					title="Add Image"
 					aria-label="Add Image"
-					class="{btnBase}"
+					class="btn"
 				>
 					<ImageIcon size={16} />
 				</button>
@@ -329,7 +328,7 @@
 					type="button"
 					title="Add Video"
 					aria-label="Add Video"
-					class="{btnBase}"
+					class="btn"
 				>
 					<Video size={16} />
 				</button>
@@ -340,3 +339,14 @@
 		</div>
 	{/if}
 </div>
+
+<style>
+	.btn {
+		@apply py-1 px-1.5 border-0 rounded bg-transparent
+			text-gray-600 cursor-pointer text-sm leading-none
+			transition-all duration-150 flex items-center
+			justify-center min-w-[1.75rem] h-7 flex-shrink-0
+			hover:bg-gray-200 hover:text-gray-900
+			disabled:opacity-40 disabled:cursor-not-allowed;
+	}
+</style>
