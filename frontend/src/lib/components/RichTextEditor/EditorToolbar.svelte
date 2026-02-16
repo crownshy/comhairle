@@ -28,6 +28,7 @@
 		showImagePopover: boolean;
 		showVideoPopover: boolean;
 		menuExpanded: boolean;
+		compact?: boolean;
 		onToggleMenu: () => void;
 		onLinkPopoverChange: (open: boolean) => void;
 		onImagePopoverChange: (open: boolean) => void;
@@ -41,14 +42,17 @@
 		showImagePopover = $bindable(),
 		showVideoPopover = $bindable(),
 		menuExpanded,
+		compact = false,
 		onToggleMenu,
 		onLinkPopoverChange,
 		onImagePopoverChange,
 		onVideoPopoverChange
 	}: Props = $props();
+
+	const btnBase = 'py-1 px-1.5 border-0 rounded bg-transparent text-gray-600 cursor-pointer text-sm leading-none transition-all duration-150 flex items-center justify-center min-w-[1.75rem] h-7 flex-shrink-0 hover:bg-gray-200 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed';
 </script>
 
-<div class="relative flex items-center gap-1 px-3 border border-gray-300 border-b-0 rounded-t-lg bg-gray-50 min-h-[3rem] xl:p-2">
+<div class="relative flex items-center gap-1 px-3 border border-gray-300 border-b-0 rounded-t-[12px] bg-gray-50 min-h-[3rem] xl:p-2 overflow-x-auto">
 	<!-- Always visible on mobile: Heading + BISU -->
 	<div class="flex items-center gap-1 flex-1 xl:flex-none ">
 		<!-- Heading selector -->
@@ -88,7 +92,7 @@
 				onclick={() => editor?.chain().focus().toggleBold().run()}
 				title="Bold"
 				aria-label="Bold"
-				class="py-1 px-1.5 border-0 rounded bg-transparent text-gray-600 cursor-pointer text-sm leading-none transition-all duration-150 flex items-center justify-center min-w-[1.75rem] h-7 flex-shrink-0 hover:bg-gray-200 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed font-bold"
+				class="{btnBase} font-bold"
 				class:!bg-blue-600={activeStates.bold}
 				class:!text-white={activeStates.bold}
 				class:!font-semibold={activeStates.bold}
@@ -100,7 +104,7 @@
 				onclick={() => editor?.chain().focus().toggleItalic().run()}
 				title="Italic"
 				aria-label="Italic"
-				class="py-1 px-1.5 border-0 rounded bg-transparent text-gray-600 cursor-pointer text-sm leading-none transition-all duration-150 flex items-center justify-center min-w-[1.75rem] h-7 flex-shrink-0 hover:bg-gray-200 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed italic"
+				class="{btnBase} italic"
 				class:!bg-blue-600={activeStates.italic}
 				class:!text-white={activeStates.italic}
 				class:!font-semibold={activeStates.italic}
@@ -112,7 +116,7 @@
 				onclick={() => editor?.chain().focus().toggleStrike().run()}
 				title="Strikethrough"
 				aria-label="Strikethrough"
-				class="py-1 px-1.5 border-0 rounded bg-transparent text-gray-600 cursor-pointer text-sm leading-none transition-all duration-150 flex items-center justify-center min-w-[1.75rem] h-7 flex-shrink-0 hover:bg-gray-200 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed line-through"
+				class="{btnBase} line-through"
 				class:!bg-blue-600={activeStates.strike}
 				class:!text-white={activeStates.strike}
 				class:!font-semibold={activeStates.strike}
@@ -124,7 +128,7 @@
 				onclick={() => editor?.chain().focus().toggleUnderline().run()}
 				title="Underline"
 				aria-label="Underline"
-				class="py-1 px-1.5 border-0 rounded bg-transparent text-gray-600 cursor-pointer text-sm leading-none transition-all duration-150 flex items-center justify-center min-w-[1.75rem] h-7 flex-shrink-0 hover:bg-gray-200 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed underline"
+				class="{btnBase} underline"
 				class:!bg-blue-600={activeStates.underline}
 				class:!text-white={activeStates.underline}
 				class:!font-semibold={activeStates.underline}
@@ -133,19 +137,22 @@
 			</button>
 		</div>
 
-		<!-- Mobile "more" toggle -->
-		<button
-			type="button"
-			class="flex ml-auto p-1.5 border-0 bg-transparent cursor-pointer rounded text-gray-600 flex-shrink-0 items-center justify-center hover:bg-gray-200 xl:hidden"
-			onclick={onToggleMenu}
-			aria-label="More options"
-		>
-			<MoreHorizontal size={18} />
-		</button>
+		<!-- Mobile/Compact "more" toggle -->
+		{#if !compact}
+			<button
+				type="button"
+				class="flex ml-auto p-1.5 border-0 bg-transparent cursor-pointer rounded text-gray-600 flex-shrink-0 items-center justify-center hover:bg-gray-200 xl:hidden"
+				onclick={onToggleMenu}
+				aria-label="More options"
+			>
+				<MoreHorizontal size={18} />
+			</button>
+		{/if}
 	</div>
 
-	<!-- Desktop toolbar content / Mobile expandable content -->
-	<div class="hidden xl:flex xl:items-center xl:gap-1 absolute top-full left-0 right-0 flex-col gap-2 p-3 bg-white border border-gray-300 border-t-0 shadow-lg z-10 xl:static xl:w-auto xl:flex-row xl:p-0 xl:bg-transparent xl:border-0 xl:shadow-none" class:flex={menuExpanded} class:hidden={!menuExpanded}>
+	<!-- Desktop toolbar content / Mobile expandable content (hidden in compact mode) -->
+	{#if !compact}
+		<div class="hidden xl:flex xl:items-center xl:gap-1 absolute top-full left-0 right-0 flex-col gap-2 p-3 bg-white border border-gray-300 border-t-0 shadow-lg z-10 xl:static xl:w-auto xl:flex-row xl:p-0 xl:bg-transparent xl:border-0 xl:shadow-none" class:flex={menuExpanded} class:hidden={!menuExpanded}>
 		<div class="hidden xl:block w-px h-5 bg-gray-300 mx-1 flex-shrink-0"></div>
 
 		<!-- Lists -->
@@ -155,7 +162,7 @@
 				onclick={() => editor?.chain().focus().toggleBulletList().run()}
 				title="Bullet List"
 				aria-label="Bullet List"
-				class="py-1 px-1.5 border-0 rounded bg-transparent text-gray-600 cursor-pointer text-sm leading-none transition-all duration-150 flex items-center justify-center min-w-[1.75rem] h-7 flex-shrink-0 hover:bg-gray-200 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+				class="{btnBase}"
 				class:!bg-blue-600={activeStates.bulletList}
 				class:!text-white={activeStates.bulletList}
 				class:!font-semibold={activeStates.bulletList}
@@ -167,7 +174,7 @@
 				onclick={() => editor?.chain().focus().toggleOrderedList().run()}
 				title="Numbered List"
 				aria-label="Numbered List"
-				class="py-1 px-1.5 border-0 rounded bg-transparent text-gray-600 cursor-pointer text-sm leading-none transition-all duration-150 flex items-center justify-center min-w-[1.75rem] h-7 flex-shrink-0 hover:bg-gray-200 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+				class="{btnBase}"
 				class:!bg-blue-600={activeStates.orderedList}
 				class:!text-white={activeStates.orderedList}
 				class:!font-semibold={activeStates.orderedList}
@@ -185,7 +192,7 @@
 				onclick={() => editor?.chain().focus().setTextAlign('left').run()}
 				title="Align Left"
 				aria-label="Align Left"
-				class="py-1 px-1.5 border-0 rounded bg-transparent text-gray-600 cursor-pointer text-sm leading-none transition-all duration-150 flex items-center justify-center min-w-[1.75rem] h-7 flex-shrink-0 hover:bg-gray-200 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+				class="{btnBase}"
 				class:!bg-blue-600={activeStates.textAlign === 'left'}
 				class:!text-white={activeStates.textAlign === 'left'}
 				class:!font-semibold={activeStates.textAlign === 'left'}
@@ -197,7 +204,7 @@
 				onclick={() => editor?.chain().focus().setTextAlign('center').run()}
 				title="Align Center"
 				aria-label="Align Center"
-				class="py-1 px-1.5 border-0 rounded bg-transparent text-gray-600 cursor-pointer text-sm leading-none transition-all duration-150 flex items-center justify-center min-w-[1.75rem] h-7 flex-shrink-0 hover:bg-gray-200 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+				class="{btnBase}"
 				class:!bg-blue-600={activeStates.textAlign === 'center'}
 				class:!text-white={activeStates.textAlign === 'center'}
 				class:!font-semibold={activeStates.textAlign === 'center'}
@@ -209,7 +216,7 @@
 				onclick={() => editor?.chain().focus().setTextAlign('right').run()}
 				title="Align Right"
 				aria-label="Align Right"
-				class="py-1 px-1.5 border-0 rounded bg-transparent text-gray-600 cursor-pointer text-sm leading-none transition-all duration-150 flex items-center justify-center min-w-[1.75rem] h-7 flex-shrink-0 hover:bg-gray-200 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+				class="{btnBase}"
 				class:!bg-blue-600={activeStates.textAlign === 'right'}
 				class:!text-white={activeStates.textAlign === 'right'}
 				class:!font-semibold={activeStates.textAlign === 'right'}
@@ -221,7 +228,7 @@
 				onclick={() => editor?.chain().focus().setTextAlign('justify').run()}
 				title="Justify"
 				aria-label="Justify"
-				class="py-1 px-1.5 border-0 rounded bg-transparent text-gray-600 cursor-pointer text-sm leading-none transition-all duration-150 flex items-center justify-center min-w-[1.75rem] h-7 flex-shrink-0 hover:bg-gray-200 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+				class="{btnBase}"
 				class:!bg-blue-600={activeStates.textAlign === 'justify'}
 				class:!text-white={activeStates.textAlign === 'justify'}
 				class:!font-semibold={activeStates.textAlign === 'justify'}
@@ -239,7 +246,7 @@
 				onclick={() => editor?.chain().focus().toggleBlockquote().run()}
 				title="Blockquote"
 				aria-label="Blockquote"
-				class="py-1 px-1.5 border-0 rounded bg-transparent text-gray-600 cursor-pointer text-sm leading-none transition-all duration-150 flex items-center justify-center min-w-[1.75rem] h-7 flex-shrink-0 hover:bg-gray-200 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+				class="{btnBase}"
 				class:!bg-blue-600={activeStates.blockquote}
 				class:!text-white={activeStates.blockquote}
 				class:!font-semibold={activeStates.blockquote}
@@ -271,7 +278,7 @@
 					type="button"
 					title="Add Link"
 					aria-label="Add Link"
-					class="py-1 px-1.5 border-0 rounded bg-transparent text-gray-600 cursor-pointer text-sm leading-none transition-all duration-150 flex items-center justify-center min-w-[1.75rem] h-7 flex-shrink-0 hover:bg-gray-200 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+					class="{btnBase}"
 					class:!bg-blue-600={activeStates.link}
 					class:!text-white={activeStates.link}
 					class:!font-semibold={activeStates.link}
@@ -298,7 +305,7 @@
 					type="button"
 					title="Add Image"
 					aria-label="Add Image"
-					class="py-1 px-1.5 border-0 rounded bg-transparent text-gray-600 cursor-pointer text-sm leading-none transition-all duration-150 flex items-center justify-center min-w-[1.75rem] h-7 flex-shrink-0 hover:bg-gray-200 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+					class="{btnBase}"
 				>
 					<ImageIcon size={16} />
 				</button>
@@ -322,30 +329,14 @@
 					type="button"
 					title="Add Video"
 					aria-label="Add Video"
-					class="py-1 px-1.5 border-0 rounded bg-transparent text-gray-600 cursor-pointer text-sm leading-none transition-all duration-150 flex items-center justify-center min-w-[1.75rem] h-7 flex-shrink-0 hover:bg-gray-200 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+					class="{btnBase}"
 				>
 					<Video size={16} />
 				</button>
 			</UrlInputPopover>
 		</div>
 
-		<div class="hidden xl:block w-px h-5 bg-gray-300 mx-1 flex-shrink-0"></div>
 
-		<!-- Code --!> 
-        <!-- Do we need this? Works if you type `code` but maybe we don't need an explicit button? I don't see a use case for it? -->
-		<div class="flex items-center gap-0.5">
-			<button
-				type="button"
-				onclick={() => editor?.chain().focus().toggleCode().run()}
-				title="Inline Code"
-				aria-label="Inline Code"
-				class="py-1 px-1.5 border-0 rounded bg-transparent text-gray-600 cursor-pointer text-sm leading-none transition-all duration-150 flex items-center justify-center min-w-[1.75rem] h-7 flex-shrink-0 hover:bg-gray-200 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
-				class:!bg-blue-600={activeStates.code}
-				class:!text-white={activeStates.code}
-				class:!font-semibold={activeStates.code}
-			>
-				&lt;/&gt;
-			</button>
 		</div>
-	</div>
+	{/if}
 </div>

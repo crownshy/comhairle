@@ -17,6 +17,9 @@
 		placeholder?: string;
 		editable?: boolean;
 		class?: string;
+		minHeight?: string;
+		maxHeight?: string;
+		width?: string;
 		onChange?: (json: string) => void;
 	};
 
@@ -25,13 +28,17 @@
 		placeholder = 'Start typing...',
 		editable = true,
 		class: className = '',
+		minHeight = '200px',
+		maxHeight,
+		width,
 		onChange
 	}: Props = $props();
 
 	let editorElement = $state<HTMLElement>();
+	let containerElement = $state<HTMLElement>();
 	let editor = $state<Editor>();
-
-		
+	let containerWidth = $state(1000);
+	
 	let isInitializing = $state(true);
 	let menuExpanded = $state(false);
 	let previousValue = $state<string>();
@@ -39,6 +46,9 @@
 	let showLinkPopover = $state(false);
 	let showImagePopover = $state(false);
 	let showVideoPopover = $state(false);
+	
+	let isCompact = $derived(containerWidth < 600);
+	let resizeObserver: ResizeObserver;
 	
 	let activeStates = $state<ActiveStates>({
 		bold: false,
@@ -55,6 +65,17 @@
 	});
 
 	onMount(() => {
+		// Set up resize observer to track container width
+		resizeObserver = new ResizeObserver((entries) => {
+			for (const entry of entries) {
+				containerWidth = entry.contentRect.width;
+			}
+		});
+		
+		if (containerElement) {
+			resizeObserver.observe(containerElement);
+		}
+
 		if (!editorElement) return;
 
 		const detected = detectContentType(value);
@@ -149,25 +170,35 @@
 		if (editor) {
 			editor.destroy();
 		}
+		resizeObserver?.disconnect();
 	});
 
 </script>
 
-{#if editor}
-	<EditorToolbar
-		{editor}
-		{activeStates}
-		bind:showLinkPopover
-		bind:showImagePopover
-		bind:showVideoPopover
-		{menuExpanded}
-		onToggleMenu={() => menuExpanded = !menuExpanded}
-		onLinkPopoverChange={(open) => showLinkPopover = open}
-		onImagePopoverChange={(open) => showImagePopover = open}
-		onVideoPopoverChange={(open) => showVideoPopover = open}
-	/>
-{/if}
+<div bind:this={containerElement} class={width ? 'overflow-hidden' : ''} style={width ? `width: ${width}` : ''}>
+	{#if editor}
+		<EditorToolbar
+			{editor}
+			{activeStates}
+			bind:showLinkPopover
+			bind:showImagePopover
+			bind:showVideoPopover
+			{menuExpanded}
+			compact={isCompact}
+			onToggleMenu={() => menuExpanded = !menuExpanded}
+			onLinkPopoverChange={(open) => showLinkPopover = open}
+			onImagePopoverChange={(open) => showImagePopover = open}
+			onVideoPopoverChange={(open) => showVideoPopover = open}
+		/>
+	{/if}
 
-<div class="bg-white border border-gray-300 rounded-b-lg md:rounded-b-lg md:border-t {className}">
-	<div bind:this={editorElement} class="p-4 min-h-[200px]"></div>
+	<div class="bg-white border border-gray-300 rounded-b-[12px] md:rounded-b-[12px] md:border-t {className}">
+		{#if maxHeight}
+			<div class="editor-scroll-container" style="max-height: {maxHeight}; overflow-y: auto;">
+				<div bind:this={editorElement} class="p-4" style="min-height: {minHeight}"></div>
+			</div>
+		{:else}
+			<div bind:this={editorElement} class="p-4" style="min-height: {minHeight}"></div>
+		{/if}
+	</div>
 </div>
