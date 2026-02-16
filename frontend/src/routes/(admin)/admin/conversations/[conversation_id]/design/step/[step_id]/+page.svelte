@@ -5,24 +5,24 @@
 	import HeyFormManage from '$lib/tools/heyform/HeyFormManage.svelte';
 	import EliciationBotManage from '$lib/tools/elicitation_bot/ElicitationBotManage.svelte';
 	import LivedExperienceManage from '$lib/tools/lived_experince/LivedExperinceManage.svelte';
-	import type { WorkflowStep } from '$lib/api/api.js';
+	import type { WorkflowStepWithTranslations, ConversationWithTranslations } from '$lib/api/api.js';
 	import { useAdminLayoutSlots } from '../../../useAdminLayoutSlots.svelte.js';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	let { data } = $props();
 
-	let conversation = $derived(data.conversation);
+	let conversation = $derived(data.conversation as ConversationWithTranslations);
 	let step_id = $derived(data.step_id);
-	let workflow_steps = $derived(data.workflow_steps);
+	let workflow_steps = $derived((data.workflow_steps ?? []) as WorkflowStepWithTranslations[]);
 
-	let step = $derived(workflow_steps.find((s: WorkflowStep) => s.id === step_id));
+	let step = $derived(workflow_steps.find((s) => s.id === step_id));
 	let nextStep = $derived(
-		step ? workflow_steps.find((s: WorkflowStep) => s.step_order === step.step_order + 1) : undefined
+		step ? workflow_steps.find((s) => s.stepOrder === step.stepOrder + 1) : undefined
 	);
 	let prevStep = $derived(
-		step ? workflow_steps.find((s: WorkflowStep) => s.step_order === step.step_order - 1) : undefined
+		step ? workflow_steps.find((s) => s.stepOrder === step.stepOrder - 1) : undefined
 	);
-	let toolConfig = $derived(step ? (conversation.isLive ? step.tool_config : step.preview_tool_config) : null);
+	let toolConfig = $derived(step ? (conversation.isLive ? step.toolConfig : step.previewToolConfig) : null);
 
 	useAdminLayoutSlots({
 		title: titleSnippet,
@@ -61,14 +61,20 @@
 	<Breadcrumb.Item>{step?.name}</Breadcrumb.Item>
 {/snippet}
 
-<CommonStepConfig conversation_id={conversation.id} {step} />
+{#if step}
+	<CommonStepConfig 
+		conversation_id={conversation.id} 
+		conversation={conversation} 
+		step={step} 
+	/>
+{/if}
 
-{#if toolConfig?.type === 'learn'}
+{#if step && toolConfig?.type === 'learn'}
 	<LearnManage
 		conversation_id={conversation.id}
 		{conversation}
 		isLive={conversation.isLive}
-		workflow_step={step}
+		workflow_step={step as any}
 	/>
 {/if}
 
@@ -85,7 +91,7 @@
 {#if toolConfig?.type === 'heyform'}
 	<HeyFormManage
 		conversation_id={conversation.id}
-		workflow_id={step.workflow_id}
+		workflow_id={step.workflowId}
 		workflow_step_id={step.id}
 		survey_url={toolConfig.survey_url}
 		survey_id={toolConfig.survey_id}
@@ -103,8 +109,8 @@
 {#if toolConfig?.type === 'elicitationbot'}
 	<EliciationBotManage
 		conversationId={conversation.id}
-		workflowId={step.workflow_id}
-		workflowStep={step}
+		workflowId={step.workflowId}
+		workflowStep={step as any}
 		isLive={conversation.isLive}
 	/>
 {/if}

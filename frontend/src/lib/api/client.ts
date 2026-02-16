@@ -1,6 +1,6 @@
 import { createApiClient as createApi } from "./api"
 
-export const createApiClient = (baseUrl: string, authToken: string | undefined, source: string) => {
+export const createApiClient = (baseUrl: string, authToken: string | undefined, source: string, locale?: string) => {
 
 	let api = createApi(baseUrl, {
 		axiosConfig: {
@@ -10,8 +10,15 @@ export const createApiClient = (baseUrl: string, authToken: string | undefined, 
 
 	api.axios.interceptors.request.use(config => {
 		if (source === "server") {
+			const cookies: string[] = [];
 			if (authToken) {
-				config.headers['Cookie'] = `auth-token=${authToken}`;
+				cookies.push(`auth-token=${authToken}`);
+			}
+			if (locale) {
+				cookies.push(`COMHAIRLE_LOCALE=${locale}`);
+			}
+			if (cookies.length > 0) {
+				config.headers['Cookie'] = cookies.join('; ');
 			}
 		}
 		return config

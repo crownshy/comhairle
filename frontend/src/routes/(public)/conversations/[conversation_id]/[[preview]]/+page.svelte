@@ -84,7 +84,7 @@
 						>{m.join_the_conversation()}</Button
 					>
 				{/if}
-			{:else if firstWorkflow.auto_login}
+			{:else if firstWorkflow.autoLogin}
 				<Button class="mt-5 w-full md:w-fit" onclick={registerAnnonUserSignupAndRedirect}
 					>{m.join_the_conversation()}</Button
 				>

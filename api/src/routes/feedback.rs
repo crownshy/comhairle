@@ -15,7 +15,7 @@ use crate::{
     error::ComhairleError,
     models::{
         self,
-        feedback::{CreateFeedbackDTO, Feedback, PartialFeedback},
+        feedback::{CreateFeedbackDTO, PartialFeedback},
     },
     routes::feedback::dto::FeedbackDto,
     ComhairleState,

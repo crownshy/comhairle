@@ -17,7 +17,7 @@
 	let stats = [
 		{
 			name: 'Total Users',
-			amount: workflowStats.total_users,
+			amount: workflowStats.totalUsers,
 			unit: null
 		},
 
@@ -61,7 +61,7 @@
 <h2 class="my-10 text-2xl">Overview</h2>
 <StatsBar {stats} />
 
-<DailyStatsChart stats={workflowStats.signup_stats} />
+<DailyStatsChart stats={workflowStats.signupStats} />
 
 <h2 class="my-10 text-2xl">Progress</h2>
 
@@ -69,25 +69,25 @@
 	See how users are making progress through the engagment. Indetify any sticking points
 </p>
 
-{#each workflow_steps as step}
+{#each workflow_steps as step (step.id)}
 	<h3 class="my-5 text-xl font-bold">{step.name}</h3>
 	<div class="grid grid-cols-3 gap-10 overflow-x-auto">
 		<StatProgressIndicator
 			title="Started"
-			currentValue={workflowStats.step_stats.find((s) => s.id == step.id).started}
+			currentValue={workflowStats.stepStats.find((s) => s.id == step.id)?.started ?? 0}
 			description="participants who have started but not completed this step"
-			total={workflowStats.total_users}
+			total={workflowStats.totalUsers}
 			varName="started"
-			entityType={'participants'}
+			entityType="participants"
 			message="have started this workflow step"
 		/>
 		<StatProgressIndicator
 			title="Completed"
-			currentValue={workflowStats.step_stats.find((s) => s.id == step.id).completed}
+			currentValue={workflowStats.stepStats.find((s) => s.id == step.id)?.completed ?? 0}
 			description="participants who have completed this step"
-			total={workflowStats.total_users}
+			total={workflowStats.totalUsers}
 			varName="completed"
-			entityType={'participants'}
+			entityType="participants"
 			message="have completed this workflow step"
 		/>
 
@@ -98,7 +98,7 @@
 			</Card.Header>
 			<Card.Content class="h-full">
 				<div class="flex flex-col items-center justify-center">
-					{#if workflowStats.step_stats.find((s) => s.id == step.id).completed > 0}
+					{#if (workflowStats.stepStats.find((s) => s.id == step.id)?.completed ?? 0) > 0}
 						<h1 class="pt-[70px] text-3xl">1 Minute</h1>
 						<p>median</p>
 					{:else}
@@ -109,7 +109,7 @@
 				</div>
 			</Card.Content>
 			<Card.Footer class="flex-col gap-2 text-sm">
-				{#if workflowStats.step_stats.find((s) => s.id == step.id).completed > 0}
+				{#if (workflowStats.stepStats.find((s) => s.id == step.id)?.completed ?? 0) > 0}
 					Most users completed this step in 1 minute. The longest it took someone was 3
 					minutes.
 				{/if}

@@ -52,9 +52,9 @@ export const NotificationContextType = z.enum(["site", "conversation"]);
 export type NotificationContextType = z.infer<typeof NotificationContextType>;
 export const NotificationType = z.enum(["info", "warning", "error", "success"]);
 export type NotificationType = z.infer<typeof NotificationType>;
-export const Notification = z.object({ content: z.string(), context_id: z.union([z.string(), z.null()]).optional(), context_type: NotificationContextType, created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), notification_type: NotificationType, title: z.string(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
-export type Notification = z.infer<typeof Notification>;
-export const NotificationWithDelivery = z.object({ created_at: z.string().datetime({ offset: true }), delivered_at: z.string().datetime({ offset: true }), delivery_method: DeliveryMethod, id: z.string().uuid(), notification: Notification, notification_id: z.string().uuid(), read_at: z.union([z.string(), z.null()]).optional(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid() }).passthrough();
+export const NotificationDto = z.object({ content: z.string(), contextId: z.union([z.string(), z.null()]).optional(), contextType: NotificationContextType, createdAt: z.string().datetime({ offset: true }), id: z.string().uuid(), notificationType: NotificationType, title: z.string() }).passthrough();
+export type NotificationDto = z.infer<typeof NotificationDto>;
+export const NotificationWithDelivery = z.object({ createdAt: z.string().datetime({ offset: true }), deliveredAt: z.string().datetime({ offset: true }), deliveryMethod: DeliveryMethod, id: z.string().uuid(), notification: NotificationDto, notificationId: z.string().uuid(), readAt: z.union([z.string(), z.null()]).optional(), userId: z.string().uuid() }).passthrough();
 export type NotificationWithDelivery = z.infer<typeof NotificationWithDelivery>;
 export const PaginatedResults_for_NotificationWithDelivery = z.object({ records: z.array(NotificationWithDelivery), total: z.number().int() }).passthrough();
 export type PaginatedResults_for_NotificationWithDelivery = z.infer<typeof PaginatedResults_for_NotificationWithDelivery>;
@@ -66,11 +66,11 @@ export const TextFormat = z.union([z.literal("plain"), z.literal("markdown"), z.
 export type TextFormat = z.infer<typeof TextFormat>;
 export const CreateTextContentRequest = z.object({ content: z.string(), format: TextFormat, primary_locale: z.string() }).passthrough();
 export type CreateTextContentRequest = z.infer<typeof CreateTextContentRequest>;
-export const TextContent = z.object({ created_at: z.string().datetime({ offset: true }), format: TextFormat, id: z.string().uuid(), primary_locale: z.string(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
-export type TextContent = z.infer<typeof TextContent>;
-export const TextTranslation = z.object({ ai_generated: z.boolean(), content: z.string(), content_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), locale: z.string(), requires_validation: z.boolean(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
-export type TextTranslation = z.infer<typeof TextTranslation>;
-export const TextContentWithTranslations = z.object({ created_at: z.string().datetime({ offset: true }), format: TextFormat, id: z.string().uuid(), primary_locale: z.string(), translations: z.array(TextTranslation), updated_at: z.string().datetime({ offset: true }) }).passthrough();
+export const TextContentDto = z.object({ format: TextFormat, id: z.string().uuid(), primaryLocale: z.string() }).passthrough();
+export type TextContentDto = z.infer<typeof TextContentDto>;
+export const TextTranslationDto = z.object({ aiGenerated: z.boolean(), content: z.string(), contentId: z.string().uuid(), id: z.string().uuid(), locale: z.string(), requiresValidation: z.boolean() }).passthrough();
+export type TextTranslationDto = z.infer<typeof TextTranslationDto>;
+export const TextContentWithTranslations = z.object({ format: TextFormat, id: z.string().uuid(), primaryLocale: z.string(), translations: z.array(TextTranslationDto) }).passthrough();
 export type TextContentWithTranslations = z.infer<typeof TextContentWithTranslations>;
 export const UpdateTextContent = z.object({ format: z.union([TextFormat, z.null()]), primary_locale: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type UpdateTextContent = z.infer<typeof UpdateTextContent>;
@@ -88,10 +88,6 @@ export const CreateConversation = z.object({ default_workflow_id: z.union([z.str
 export type CreateConversation = z.infer<typeof CreateConversation>;
 export const ConversationDto = z.object({ chatBotId: z.union([z.string(), z.null()]).optional(), description: z.string().uuid(), enableQaChatBot: z.boolean(), id: z.string().uuid(), imageUrl: z.string(), isComplete: z.boolean(), isInviteOnly: z.boolean(), isLive: z.boolean(), isPublic: z.boolean(), knowledgeBaseId: z.union([z.string(), z.null()]).optional(), primaryLocale: z.string(), shortDescription: z.string().uuid(), slug: z.union([z.string(), z.null()]).optional(), supportedLanguages: z.array(z.string()), tags: z.array(z.string()), title: z.string().uuid(), videoUrl: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type ConversationDto = z.infer<typeof ConversationDto>;
-export const TextContentDto = z.object({ format: TextFormat, id: z.string().uuid(), primaryLocale: z.string() }).passthrough();
-export type TextContentDto = z.infer<typeof TextContentDto>;
-export const TextTranslationDto = z.object({ aiGenerated: z.boolean(), content: z.string(), contentId: z.string().uuid(), id: z.string().uuid(), locale: z.string(), requiresValidation: z.boolean() }).passthrough();
-export type TextTranslationDto = z.infer<typeof TextTranslationDto>;
 export const Translation = z.object({ textContent: TextContentDto, textTranslations: z.array(TextTranslationDto) }).passthrough();
 export type Translation = z.infer<typeof Translation>;
 export const ConversationTranslations = z.object({ description: Translation, shortDescription: Translation, title: Translation }).passthrough();
@@ -104,23 +100,27 @@ export const PartialConversation = z.object({ chat_bot_id: z.union([z.string(), 
 export type PartialConversation = z.infer<typeof PartialConversation>;
 export const SendNotificationRequest = z.object({ content: z.string(), delivery_method: z.union([DeliveryMethod, z.null()]).optional(), notification_type: z.union([NotificationType, z.null()]).optional(), title: z.string() }).passthrough();
 export type SendNotificationRequest = z.infer<typeof SendNotificationRequest>;
+export const SendEmailNotificationResponse = z.object({ message: z.string(), notificationId: z.string().uuid(), participantsNotified: z.number().int() }).passthrough();
+export type SendEmailNotificationResponse = z.infer<typeof SendEmailNotificationResponse>;
 export const RegisterEmailRequest = z.object({ email: z.string(), receive_similar_conversation_updates_by_email: z.boolean(), receive_updates_by_email: z.boolean() }).passthrough();
 export type RegisterEmailRequest = z.infer<typeof RegisterEmailRequest>;
-export const RegisterEmailResponse = z.object({ conversation_id: z.string().uuid(), email: z.string(), id: z.string().uuid(), message: z.string() }).passthrough();
+export const RegisterEmailResponse = z.object({ conversationId: z.string().uuid(), email: z.string(), id: z.string().uuid(), message: z.string() }).passthrough();
 export type RegisterEmailResponse = z.infer<typeof RegisterEmailResponse>;
 export const BotServiceUserSessionDto = z.object({ bot_service_session_id: z.string(), context: z.string(), conversation_id: z.union([z.string(), z.null()]).optional(), id: z.string().uuid(), user_id: z.string().uuid(), workflow_step_id: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type BotServiceUserSessionDto = z.infer<typeof BotServiceUserSessionDto>;
-export const Workflow = z.object({ auto_login: z.boolean(), conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_active: z.boolean(), is_public: z.boolean(), name: z.string(), owner_id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
-export type Workflow = z.infer<typeof Workflow>;
+export const WorkflowDto = z.object({ autoLogin: z.boolean(), conversationId: z.string().uuid(), createdAt: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), isActive: z.boolean(), isPublic: z.boolean(), name: z.string() }).passthrough();
+export type WorkflowDto = z.infer<typeof WorkflowDto>;
 export const CreateWorkflow = z.object({ auto_login: z.boolean(), description: z.string(), is_active: z.boolean(), is_public: z.boolean(), name: z.string() }).passthrough();
 export type CreateWorkflow = z.infer<typeof CreateWorkflow>;
 export const ActivationRule = z.literal("manual");
 export type ActivationRule = z.infer<typeof ActivationRule>;
+export const LearnPage = z.object({ text_content_id: z.string().uuid() }).passthrough();
+export type LearnPage = z.infer<typeof LearnPage>;
 export const LocalisedPage = z.object({ content: z.string(), type: z.literal("markdown") }).passthrough();
 export type LocalisedPage = z.infer<typeof LocalisedPage>;
-export const Page = z.array(LocalisedPage);
-export type Page = z.infer<typeof Page>;
-export const ToolConfig = z.union([z.object({ admin_password: z.string(), admin_user: z.string(), poll_id: z.string(), server_url: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ admin_password: z.string(), admin_user: z.string(), project_id: z.string(), survey_id: z.string(), survey_url: z.string(), type: z.literal("heyform"), workspace_id: z.string() }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ topic: z.string(), type: z.literal("elicitationbot") }).passthrough()]);
+export const LearnPageEntry = z.union([LearnPage, z.array(LocalisedPage)]);
+export type LearnPageEntry = z.infer<typeof LearnPageEntry>;
+export const ToolConfig = z.union([z.object({ admin_password: z.string(), admin_user: z.string(), poll_id: z.string(), server_url: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(LearnPageEntry), type: z.literal("learn") }).passthrough(), z.object({ admin_password: z.string(), admin_user: z.string(), project_id: z.string(), survey_id: z.string(), survey_url: z.string(), type: z.literal("heyform"), workspace_id: z.string() }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ topic: z.string(), type: z.literal("elicitationbot") }).passthrough()]);
 export type ToolConfig = z.infer<typeof ToolConfig>;
 export const WorkflowStep = z.object({ activation_rule: ActivationRule, created_at: z.string().datetime({ offset: true }), description: z.string().uuid(), id: z.string().uuid(), is_offline: z.boolean(), name: z.string().uuid(), preview_tool_config: ToolConfig, required: z.boolean(), step_order: z.number().int(), tool_config: z.union([ToolConfig, z.null()]).optional(), updated_at: z.string().datetime({ offset: true }), workflow_id: z.string().uuid() }).passthrough();
 export type WorkflowStep = z.infer<typeof WorkflowStep>;
@@ -128,7 +128,7 @@ export const DailySignupStats = z.object({ day: z.string().datetime({ offset: tr
 export type DailySignupStats = z.infer<typeof DailySignupStats>;
 export const WorkflowStepStats = z.object({ completed: z.number().int(), id: z.string().uuid(), started: z.number().int() }).passthrough();
 export type WorkflowStepStats = z.infer<typeof WorkflowStepStats>;
-export const WorkflowStats = z.object({ signup_stats: z.array(DailySignupStats), step_stats: z.array(WorkflowStepStats), total_users: z.number().int() }).passthrough();
+export const WorkflowStats = z.object({ signupStats: z.array(DailySignupStats), stepStats: z.array(WorkflowStepStats), totalUsers: z.number().int() }).passthrough();
 export type WorkflowStats = z.infer<typeof WorkflowStats>;
 export const PartialWorkflow = z.object({ auto_login: z.union([z.boolean(), z.null()]), description: z.union([z.string(), z.null()]), is_active: z.union([z.boolean(), z.null()]), is_public: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialWorkflow = z.infer<typeof PartialWorkflow>;
@@ -136,7 +136,15 @@ export const UserParticipation = z.object({ created_at: z.string().datetime({ of
 export type UserParticipation = z.infer<typeof UserParticipation>;
 export const LocalisedWorkflowStep = z.object({ activation_rule: ActivationRule, created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_offline: z.boolean(), name: z.string(), preview_tool_config: ToolConfig, required: z.boolean(), step_order: z.number().int(), tool_config: z.union([ToolConfig, z.null()]).optional(), updated_at: z.string().datetime({ offset: true }), workflow_id: z.string().uuid() }).passthrough();
 export type LocalisedWorkflowStep = z.infer<typeof LocalisedWorkflowStep>;
-export const ToolSetup = z.union([z.object({ topic: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ type: z.literal("heyform") }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ conversation_id: z.string(), topic: z.string(), type: z.literal("elicitationbot") }).passthrough()]);
+export const Translation2 = z.object({ textContent: TextContentDto, textTranslations: z.array(TextTranslationDto) }).passthrough();
+export type Translation2 = z.infer<typeof Translation2>;
+export const WorkflowStepTranslations = z.object({ description: Translation2, name: Translation2 }).passthrough();
+export type WorkflowStepTranslations = z.infer<typeof WorkflowStepTranslations>;
+export const WorkflowStepWithTranslations = z.object({ activationRule: ActivationRule, createdAt: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), isOffline: z.boolean(), name: z.string(), previewToolConfig: ToolConfig, required: z.boolean(), stepOrder: z.number().int(), toolConfig: z.union([ToolConfig, z.null()]).optional(), translations: WorkflowStepTranslations, updatedAt: z.string().datetime({ offset: true }), workflowId: z.string().uuid() }).passthrough();
+export type WorkflowStepWithTranslations = z.infer<typeof WorkflowStepWithTranslations>;
+export const WorkflowStepsListResponse = z.union([z.array(LocalisedWorkflowStep), z.array(WorkflowStepWithTranslations)]);
+export type WorkflowStepsListResponse = z.infer<typeof WorkflowStepsListResponse>;
+export const ToolSetup = z.union([z.object({ topic: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(LearnPageEntry), type: z.literal("learn") }).passthrough(), z.object({ type: z.literal("heyform") }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ conversation_id: z.string(), topic: z.string(), type: z.literal("elicitationbot") }).passthrough()]);
 export type ToolSetup = z.infer<typeof ToolSetup>;
 export const CreateWorkflowStep = z.object({ activation_rule: ActivationRule, description: z.string(), is_offline: z.boolean(), name: z.string(), required: z.boolean(), step_order: z.number().int(), tool_setup: ToolSetup }).passthrough();
 export type CreateWorkflowStep = z.infer<typeof CreateWorkflowStep>;
@@ -164,10 +172,10 @@ export const CreateInviteDTO = z.object({ expires_at: z.union([z.string(), z.nul
 export type CreateInviteDTO = z.infer<typeof CreateInviteDTO>;
 export const DailyResponseStats = z.object({ accept: z.number().int(), day: z.string().datetime({ offset: true }), reject: z.number().int() }).passthrough();
 export type DailyResponseStats = z.infer<typeof DailyResponseStats>;
-export const Feedback = z.object({ content: z.string(), conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), created_by: z.string().uuid(), id: z.string().uuid(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
-export type Feedback = z.infer<typeof Feedback>;
-export const ReportImpact = z.object({ created_at: z.string().datetime({ offset: true }), created_by: z.string().uuid(), details: z.string(), id: z.string().uuid(), kind: z.string(), report_id: z.string().uuid(), title: z.string(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
-export type ReportImpact = z.infer<typeof ReportImpact>;
+export const FeedbackDto = z.object({ content: z.string(), conversationId: z.string().uuid(), id: z.string().uuid() }).passthrough();
+export type FeedbackDto = z.infer<typeof FeedbackDto>;
+export const ReportImpactDto = z.object({ createdAt: z.string().datetime({ offset: true }), createdBy: z.string().uuid(), details: z.string(), id: z.string().uuid(), kind: z.string(), reportId: z.string().uuid(), title: z.string() }).passthrough();
+export type ReportImpactDto = z.infer<typeof ReportImpactDto>;
 export const PolisReport = z.null();
 export type PolisReport = z.infer<typeof PolisReport>;
 export const HeyFormReport = z.null();
@@ -184,18 +192,16 @@ export const ReportSectionConfig = z.object({ ai_generated: z.boolean(), config:
 export type ReportSectionConfig = z.infer<typeof ReportSectionConfig>;
 export const ReportSectionConfigs = z.array(ReportSectionConfig);
 export type ReportSectionConfigs = z.infer<typeof ReportSectionConfigs>;
-export const FullReportDTO = z.object({ conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), facilitator_feedback: z.array(Feedback), id: z.string().uuid(), impacts: z.array(ReportImpact), is_public: z.boolean(), participant_feedback: z.array(Feedback), section_configs: ReportSectionConfigs, summary: z.string(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
-export type FullReportDTO = z.infer<typeof FullReportDTO>;
+export const FullReportDto = z.object({ conversationId: z.string().uuid(), createdAt: z.string().datetime({ offset: true }), facilitatorFeedback: z.array(FeedbackDto), id: z.string().uuid(), impacts: z.array(ReportImpactDto), isPublic: z.boolean(), participantFeedback: z.array(FeedbackDto), sectionConfigs: ReportSectionConfigs, summary: z.string() }).passthrough();
+export type FullReportDto = z.infer<typeof FullReportDto>;
 export const PartialReport = z.object({ conversation_id: z.union([z.string(), z.null()]), is_public: z.union([z.boolean(), z.null()]), section_configs: z.union([ReportSectionConfigs, z.null()]), summary: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialReport = z.infer<typeof PartialReport>;
-export const Report = z.object({ conversation_id: z.string().uuid(), created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), is_public: z.boolean(), section_configs: ReportSectionConfigs, summary: z.string(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
-export type Report = z.infer<typeof Report>;
+export const ReportDto = z.object({ conversationId: z.string().uuid(), createdAt: z.string().datetime({ offset: true }), id: z.string().uuid(), isPublic: z.boolean(), sectionConfigs: ReportSectionConfigs, summary: z.string() }).passthrough();
+export type ReportDto = z.infer<typeof ReportDto>;
 export const PartialReportImpact = z.object({ created_at: z.union([z.string(), z.null()]), created_by: z.union([z.string(), z.null()]), details: z.union([z.string(), z.null()]), id: z.union([z.string(), z.null()]), kind: z.union([z.string(), z.null()]), report_id: z.union([z.string(), z.null()]), title: z.union([z.string(), z.null()]), updated_at: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type PartialReportImpact = z.infer<typeof PartialReportImpact>;
 export const CreateImpactDTO = z.object({ details: z.string(), kind: z.string(), title: z.string() }).passthrough();
 export type CreateImpactDTO = z.infer<typeof CreateImpactDTO>;
-export const FeedbackDto = z.object({ content: z.string(), conversationId: z.string().uuid(), id: z.string().uuid() }).passthrough();
-export type FeedbackDto = z.infer<typeof FeedbackDto>;
 export const CreateFeedbackDTO = z.object({ content: z.string() }).passthrough();
 export type CreateFeedbackDTO = z.infer<typeof CreateFeedbackDTO>;
 export const PartialFeedback = z.object({ content: z.union([z.string(), z.null()]) }).partial().passthrough();
@@ -274,15 +280,15 @@ export const schemas = {
 	DeliveryMethod,
 	NotificationContextType,
 	NotificationType,
-	Notification,
+	NotificationDto,
 	NotificationWithDelivery,
 	PaginatedResults_for_NotificationWithDelivery,
 	UnreadCount,
 	NotificationDelivery,
 	TextFormat,
 	CreateTextContentRequest,
-	TextContent,
-	TextTranslation,
+	TextContentDto,
+	TextTranslationDto,
 	TextContentWithTranslations,
 	UpdateTextContent,
 	UpdateTextTranslation,
@@ -292,22 +298,22 @@ export const schemas = {
 	PaginatedResults_for_LocalizedConversationDto,
 	CreateConversation,
 	ConversationDto,
-	TextContentDto,
-	TextTranslationDto,
 	Translation,
 	ConversationTranslations,
 	ConversationWithTranslations,
 	ConversationResponse,
 	PartialConversation,
 	SendNotificationRequest,
+	SendEmailNotificationResponse,
 	RegisterEmailRequest,
 	RegisterEmailResponse,
 	BotServiceUserSessionDto,
-	Workflow,
+	WorkflowDto,
 	CreateWorkflow,
 	ActivationRule,
+	LearnPage,
 	LocalisedPage,
-	Page,
+	LearnPageEntry,
 	ToolConfig,
 	WorkflowStep,
 	DailySignupStats,
@@ -316,6 +322,10 @@ export const schemas = {
 	PartialWorkflow,
 	UserParticipation,
 	LocalisedWorkflowStep,
+	Translation2,
+	WorkflowStepTranslations,
+	WorkflowStepWithTranslations,
+	WorkflowStepsListResponse,
 	ToolSetup,
 	CreateWorkflowStep,
 	PartialWorkflowStep,
@@ -330,8 +340,8 @@ export const schemas = {
 	InviteDto,
 	CreateInviteDTO,
 	DailyResponseStats,
-	Feedback,
-	ReportImpact,
+	FeedbackDto,
+	ReportImpactDto,
 	PolisReport,
 	HeyFormReport,
 	LearnReport,
@@ -340,12 +350,11 @@ export const schemas = {
 	ReportConfig,
 	ReportSectionConfig,
 	ReportSectionConfigs,
-	FullReportDTO,
+	FullReportDto,
 	PartialReport,
-	Report,
+	ReportDto,
 	PartialReportImpact,
 	CreateImpactDTO,
-	FeedbackDto,
 	CreateFeedbackDTO,
 	PartialFeedback,
 	WebSocketStats,
@@ -1199,14 +1208,14 @@ const endpoints = makeApi([
 				schema: SendNotificationRequest
 			},
 		],
-		response: z.unknown(),
+		response: SendEmailNotificationResponse,
 	},
 	{
 		method: "get",
 		path: "/conversation/:conversation_id/report",
 		alias: "GetReportForConversation",
 		requestFormat: "json",
-		response: FullReportDTO,
+		response: FullReportDto,
 	},
 	{
 		method: "put",
@@ -1220,21 +1229,21 @@ const endpoints = makeApi([
 				schema: PartialReport
 			},
 		],
-		response: Report,
+		response: ReportDto,
 	},
 	{
 		method: "post",
 		path: "/conversation/:conversation_id/report",
 		alias: "GenerateReportForConversation",
 		requestFormat: "json",
-		response: FullReportDTO,
+		response: FullReportDto,
 	},
 	{
 		method: "get",
 		path: "/conversation/:conversation_id/report/:report_id/impacts",
 		alias: "ListImpactsForReport",
 		requestFormat: "json",
-		response: ReportImpact,
+		response: z.array(ReportImpactDto),
 	},
 	{
 		method: "put",
@@ -1248,7 +1257,7 @@ const endpoints = makeApi([
 				schema: PartialReportImpact
 			},
 		],
-		response: ReportImpact,
+		response: ReportImpactDto,
 	},
 	{
 		method: "post",
@@ -1262,14 +1271,14 @@ const endpoints = makeApi([
 				schema: CreateImpactDTO
 			},
 		],
-		response: ReportImpact,
+		response: ReportImpactDto,
 	},
 	{
 		method: "get",
 		path: "/conversation/:conversation_id/workflow",
 		alias: "ListWorkflows",
 		requestFormat: "json",
-		response: z.array(Workflow),
+		response: z.array(WorkflowDto),
 	},
 	{
 		method: "post",
@@ -1283,14 +1292,14 @@ const endpoints = makeApi([
 				schema: CreateWorkflow
 			},
 		],
-		response: Workflow,
+		response: WorkflowDto,
 	},
 	{
 		method: "get",
 		path: "/conversation/:conversation_id/workflow/:workflow_id",
 		alias: "GetWorkflow",
 		requestFormat: "json",
-		response: Workflow,
+		response: WorkflowDto,
 	},
 	{
 		method: "put",
@@ -1304,14 +1313,14 @@ const endpoints = makeApi([
 				schema: PartialWorkflow
 			},
 		],
-		response: Workflow,
+		response: WorkflowDto,
 	},
 	{
 		method: "delete",
 		path: "/conversation/:conversation_id/workflow/:workflow_id",
 		alias: "DeleteWorkflow",
 		requestFormat: "json",
-		response: Workflow,
+		response: WorkflowDto,
 	},
 	{
 		method: "delete",
@@ -1375,7 +1384,14 @@ const endpoints = makeApi([
 		path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step",
 		alias: "ListWorkflowSteps",
 		requestFormat: "json",
-		response: z.array(LocalisedWorkflowStep),
+		parameters: [
+			{
+				name: "withTranslations",
+				type: "Query",
+				schema: z.boolean().optional().default(false)
+			},
+		],
+		response: WorkflowStepsListResponse,
 	},
 	{
 		method: "post",
@@ -1534,7 +1550,7 @@ const endpoints = makeApi([
 	{
 		method: "get",
 		path: "/notifications",
-		alias: "getNotifications",
+		alias: "GetAllNotifications",
 		description: `Returns a paginated list of all notification deliveries for the authenticated user`,
 		requestFormat: "json",
 		parameters: [
@@ -1570,7 +1586,7 @@ const endpoints = makeApi([
 	{
 		method: "get",
 		path: "/notifications/unread",
-		alias: "getNotificationsunread",
+		alias: "GetUnreadNotifications",
 		description: `Returns a paginated list of unread notification deliveries for the authenticated user`,
 		requestFormat: "json",
 		parameters: [
@@ -1590,7 +1606,7 @@ const endpoints = makeApi([
 	{
 		method: "get",
 		path: "/notifications/unread/count",
-		alias: "getNotificationsunreadcount",
+		alias: "GetUnreadNotificationsCount",
 		description: `Returns the count of unread notifications for the authenticated user`,
 		requestFormat: "json",
 		response: z.object({ count: z.number().int() }).passthrough(),
@@ -1647,7 +1663,7 @@ const endpoints = makeApi([
 				schema: CreateTextContentRequest
 			},
 		],
-		response: TextContent,
+		response: TextContentDto,
 	},
 	{
 		method: "get",
@@ -1673,7 +1689,7 @@ This struct contains optional fields that can be updated on a TextContent record
 				schema: UpdateTextContent
 			},
 		],
-		response: TextContent,
+		response: TextContentDto,
 	},
 	{
 		method: "delete",
@@ -1681,7 +1697,7 @@ This struct contains optional fields that can be updated on a TextContent record
 		alias: "DeleteTextContent",
 		description: `Delete a TextContent entry and all its translations`,
 		requestFormat: "json",
-		response: TextContent,
+		response: TextContentDto,
 	},
 	{
 		method: "get",
@@ -1689,7 +1705,7 @@ This struct contains optional fields that can be updated on a TextContent record
 		alias: "GetTextTranslation",
 		description: `Get a translation for a specific TextContent and locale`,
 		requestFormat: "json",
-		response: TextTranslation,
+		response: TextTranslationDto,
 	},
 	{
 		method: "put",
@@ -1707,7 +1723,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 				schema: UpdateTextTranslation
 			},
 		],
-		response: TextTranslation,
+		response: TextTranslationDto,
 	},
 	{
 		method: "post",
@@ -1722,7 +1738,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 				schema: CreateOrUpdateTextTranslationRequest
 			},
 		],
-		response: TextTranslation,
+		response: TextTranslationDto,
 	},
 	{
 		method: "delete",
@@ -1730,7 +1746,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 		alias: "DeleteTextTranslation",
 		description: `Delete a translation for a specific locale`,
 		requestFormat: "json",
-		response: TextTranslation,
+		response: TextTranslationDto,
 	},
 	{
 		method: "post",
@@ -1738,7 +1754,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 		alias: "AutomaticallyGenerateTranslation",
 		description: `Use the primary_locale language and translate this language from it using the tarnslation service`,
 		requestFormat: "json",
-		response: TextTranslation,
+		response: TextTranslationDto,
 	},
 	{
 		method: "post",

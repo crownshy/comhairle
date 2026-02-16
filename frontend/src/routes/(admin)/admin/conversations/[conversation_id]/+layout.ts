@@ -1,35 +1,42 @@
-import type { PageLoad } from './$types';
+import type { LayoutLoad } from './$types';
 import { notifications } from '$lib/notifications.svelte';
 import { redirect } from '@sveltejs/kit';
-import type { ConversationWithTranslations, Workflow, WorkflowStep } from '$lib/api/api';
+import type {
+	ConversationWithTranslations,
+	WorkflowDto,
+	WorkflowStep,
+	WorkflowStats
+} from '$lib/api/api';
 
 export const load: PageLoad = async ({
 	params,
 	parent
 }): Promise<{
 	conversation: ConversationWithTranslations;
-	workflows: Workflow[];
+	workflows: WorkflowDto[];
 	workflow_steps: WorkflowStep[];
-	stats: any; // TODO:
+	stats: WorkflowStats;
 }> => {
 	const conversation_id = params.conversation_id;
 	const { api } = await parent();
+	
 	try {
 		const conversation = await api.GetConversation({
 			params: { conversation_id },
 			queries: { withTranslations: true }
-		});
+		}) as ConversationWithTranslations;
 		const workflows = await api.ListWorkflows({ params: { conversation_id } });
 		let stats = undefined;
-		let workflow_steps = undefined;
+		let workflow_steps: WorkflowStepWithTranslations[] | undefined = undefined;
 
 		if (workflows.length > 0) {
 			stats = await api.GetWorkflowStats({
 				params: { conversation_id, workflow_id: workflows[0].id }
 			});
 			workflow_steps = await api.ListWorkflowSteps({
-				params: { conversation_id, workflow_id: workflows[0].id }
-			});
+				params: { conversation_id, workflow_id: workflows[0].id },
+				queries: { withTranslations: true }
+			}) as WorkflowStepWithTranslations[];
 		}
 		return { conversation, workflows, stats, workflow_steps };
 	} catch (e) {

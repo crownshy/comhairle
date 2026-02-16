@@ -1,17 +1,31 @@
 <script lang="ts">
-	import * as Form from '$lib/components/ui/form';
+	import { enhance } from '$app/forms';
 	import { AuthPage } from '$lib/profile';
 	import * as m from '$lib/paraglide/messages';
 	import type { PageData } from './$types';
+	import { LoadingButton } from '$lib/components/ui/button';
 
 	let { data }: PageData = $props();
+	let loading = $state(false);
 </script>
 
 <AuthPage>
-	<form class="space-y-4" method="POST">
+	<form
+		class="space-y-4"
+		method="POST"
+		use:enhance={() => {
+			loading = true;
+			return async ({ update }) => {
+				await update();
+				loading = false;
+			};
+		}}
+	>
 		<h1 class="text-xl">{m.sign_up_anonymously()}</h1>
 		<p class="text-foreground mb-4 text-sm">{m.get_started_with_comhairle_right_away()}</p>
-		<Form.Button class="w-full" variant="secondary">{m.generate_anonymous_id()} →</Form.Button>
+		<LoadingButton type="submit" class="w-full" variant="secondary" loading={loading}>
+			{m.generate_anonymous_id()} →
+		</LoadingButton>
 
 		<p class="text-muted-foreground mb-4 text-sm">
 			{m.agree_to_tos()}

@@ -1,8 +1,9 @@
+import { FullReportDto } from '$lib/api/api';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ parent }) => {
-	let { conversation, api } = await parent();
-	let report;
+	const { conversation, api } = await parent();
+	let report: FullReportDto;
 
 	try {
 		report = await api.GetReportForConversation({

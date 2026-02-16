@@ -1,14 +1,14 @@
 <script lang="ts">
-	import TrendingUpIcon from '@lucide/svelte/icons/trending-up';
 	import * as Chart from '$lib/components/ui/chart/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { scaleUtc } from 'd3-scale';
 	import { BarChart, type ChartContextValue, Highlight } from 'layerchart';
 	import { cubicInOut } from 'svelte/easing';
-	import { parse, parseISO, subDays } from 'date-fns';
+	import { parseISO, subDays } from 'date-fns';
+	import type { DailySignupStats } from '$lib/api/api';
 
 	type Props = {
-		stats: Array<{ day: string; signups: number; active: number }>;
+		stats: DailySignupStats[];
 	};
 	let { stats }: Props = $props();
 
@@ -30,8 +30,6 @@
 
 		return mapped;
 	});
-
-	$inspect(localStats);
 
 	const chartConfig = {
 		signups: { label: 'Signups', color: 'var(--primary)' },
@@ -67,13 +65,13 @@
 				{@const chart = key as keyof typeof chartConfig}
 				<button
 					data-active={activeChart === chart}
-					class="data-[active=true]:bg-muted/50 relative z-30 flex flex-1 flex-col justify-center gap-1 border-t px-6 py-4 text-left even:border-l sm:border-t-0 sm:border-l sm:px-8 sm:py-6"
+					class="data-[active=true]:bg-muted/50 relative z-30 flex flex-1 flex-col justify-center gap-1 border-t px-6 py-4 text-left even:border-l sm:border-l sm:border-t-0 sm:px-8 sm:py-6"
 					onclick={() => (activeChart = chart)}
 				>
 					<span class="text-xs text-black">
 						{chartConfig[chart].label}
 					</span>
-					<span class="text-lg leading-none font-bold sm:text-3xl">
+					<span class="text-lg font-bold leading-none sm:text-3xl">
 						{total[key as keyof typeof total].toLocaleString()}
 					</span>
 				</button>

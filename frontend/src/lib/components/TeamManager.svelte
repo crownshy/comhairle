@@ -31,23 +31,16 @@
 	];
 </script>
 
-<div class="flex w-full flex-row justify-between border-t-1 py-5">
-	<p class="font-bold">Team</p>
-	<div class="flex flex-col gap-2">
-		{#each team as team_member}
-			<div class="flex flex-row items-center gap-2">
-				<Avatar.Root>
-					<Avatar.Image src={team_member.image} alt={team_member.name}></Avatar.Image>
-				</Avatar.Root>
-				<p>{team_member.name}</p>
-				<p class="rounded-2xl bg-[#C7AB86] px-4 py-2">{team_member.role}</p>
-			</div>
-		{/each}
+<div class="flex flex-col gap-4">
+	<div class="flex items-center gap-2">
+		<Input placeholder="Enter a name" class="flex-1" />
 		<Dialog.Root>
-			<Dialog.Trigger><Button variant="default"><Plus />Add Colaborator</Button></Dialog.Trigger>
+			<Dialog.Trigger>
+				<Button variant="default" class="shrink-0"><Plus class="h-4 w-4 mr-1" />Invite collaborator</Button>
+			</Dialog.Trigger>
 			<Dialog.Content>
 				<Dialog.Header>
-					<Dialog.Title>Add a colaborator</Dialog.Title>
+					<Dialog.Title>Add a collaborator</Dialog.Title>
 				</Dialog.Header>
 
 				<Label>Name</Label>
@@ -65,5 +58,16 @@
 				<Button>Invite</Button>
 			</Dialog.Content>
 		</Dialog.Root>
+	</div>
+	<div class="flex flex-col gap-3">
+		{#each team as team_member}
+			<div class="flex items-center gap-3">
+				<Avatar.Root class="h-10 w-10">
+					<Avatar.Image src={team_member.image} alt={team_member.name}></Avatar.Image>
+				</Avatar.Root>
+				<span class="text-sm font-medium">{team_member.name}</span>
+				<span class="rounded-full border px-2.5 py-0.5 text-xs font-medium">{team_member.role}</span>
+			</div>
+		{/each}
 	</div>
 </div>

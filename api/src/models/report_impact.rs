@@ -14,13 +14,13 @@ use crate::error::ComhairleError;
 #[enum_def(table_name = "report_impact")]
 #[partially(derive(Deserialize, Debug, JsonSchema))]
 pub struct ReportImpact {
-    id: Uuid,
-    created_by: Uuid,
-    report_id: Uuid,
-    details: String,
-    kind: String,
-    title: String,
-    created_at: DateTime<Utc>,
+    pub id: Uuid,
+    pub created_by: Uuid,
+    pub report_id: Uuid,
+    pub details: String,
+    pub kind: String,
+    pub title: String,
+    pub created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
 

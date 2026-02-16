@@ -6,8 +6,14 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{error::ComhairleError, ComhairleState};
+use crate::models::translations::TextContentId;
 
 use super::{ToolConfigSanitize, ToolImpl};
+
+#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
+pub struct LearnPage {
+    pub text_content_id: TextContentId,
+}
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
 #[serde(rename_all = "lowercase", tag = "type", content = "content")]
@@ -20,15 +26,26 @@ pub struct LocalisedPage {
     pub lang: String,
     #[serde(flatten)]
     pub content: PageContent,
+    #[serde(default = "default_requires_validation")]
+    pub requires_validation: bool,
+}
+
+fn default_requires_validation() -> bool {
+    true
+}
+
+pub type Page = Vec<LocalisedPage>;
+
+#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
+#[serde(untagged)]
+pub enum LearnPageEntry {
+    TextContent(LearnPage),
+    Legacy(Page),
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub struct Page(pub Vec<LocalisedPage>);
-
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
 pub struct LearnToolConfig {
-    pub pages: Vec<Page>,
+    pub pages: Vec<LearnPageEntry>,
 }
 
 impl ToolConfigSanitize for LearnToolConfig {
@@ -42,7 +59,7 @@ pub struct LearnReport;
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
 pub struct LearnToolSetup {
-    pub pages: Vec<Page>,
+    pub pages: Vec<LearnPageEntry>,
 }
 
 async fn learn_setup(setup_config: &LearnToolSetup) -> Result<LearnToolConfig, ComhairleError> {

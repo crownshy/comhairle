@@ -1,24 +1,25 @@
 import { notifications } from '$lib/notifications.svelte';
 import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
+import type { FullReportDto } from '$lib/api/api';
 
 export const load: PageLoad = async ({ params, parent }) => {
 	const { api, conversation, workflows } = await parent();
 	const conversation_id = conversation.id;
 
 	try {
-		const report = await api.GetReportForConversation({
+		const report: FullReportDto = await api.GetReportForConversation({
 			params: { conversation_id: conversation.id }
 		});
 		try {
 			const workflow_steps = await api.ListWorkflowSteps({
 				params: { conversation_id, workflow_id: workflows[0].id }
 			});
-			const workflow_stats = await api.GetWorkflowStats({
+			const workflowStats = await api.GetWorkflowStats({
 				params: { conversation_id, workflow_id: workflows[0].id }
 			});
 
-			return { conversation, workflows, workflow_steps, workflow_stats, report };
+			return { conversation, workflows, workflow_steps, workflowStats, report };
 		} catch (e) {
 			notifications.addFlash({ message: 'Something went wrong', priority: 'ERROR' });
 		}

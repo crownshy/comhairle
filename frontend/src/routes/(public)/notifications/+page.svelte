@@ -12,7 +12,7 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { apiClient } from '$lib/api/client';
 	import { notifications as notificationService } from '$lib/notifications.svelte';
-	import { invalidate, invalidateAll } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
 	import ConversationContextImage from '$lib/components/ConversationContextImage.svelte';
 	import {
 		Bell,
@@ -27,7 +27,7 @@
 		Eye,
 		EyeOff
 	} from 'lucide-svelte';
-	import type { NotificationWithDelivery } from '$lib/api/api';
+	import type { NotificationWithDeliveryDto } from '$lib/api/api';
 	import { formatDistanceToNow } from 'date-fns';
 
 	let { data }: PageData = $props();
@@ -84,13 +84,16 @@
 
 		markingAsRead.add(deliveryId);
 		try {
-			await apiClient.MarkNotificationAsRead({}, { params: { delivery_id: deliveryId } });
+			await apiClient.MarkNotificationAsRead(undefined, {
+				params: { delivery_id: deliveryId }
+			});
 			await invalidateAll();
 			notificationService.send({
 				message: 'Notification marked as read',
 				priority: 'SUCCESS'
 			});
 		} catch (error: any) {
+			console.error(error);
 			notificationService.send({
 				message: 'Failed to mark notification as read',
 				priority: 'ERROR'
@@ -105,13 +108,14 @@
 
 		markingAllAsRead = true;
 		try {
-			await apiClient.MarkAllNotificationsAsRead();
+			await apiClient.MarkAllNotificationsAsRead(undefined);
 			await invalidateAll();
 			notificationService.send({
 				message: 'All notifications marked as read',
 				priority: 'SUCCESS'
 			});
 		} catch (error: any) {
+			console.error(error);
 			notificationService.send({
 				message: 'Failed to mark all notifications as read',
 				priority: 'ERROR'
@@ -121,8 +125,8 @@
 		}
 	}
 
-	function isUnread(notification: NotificationWithDelivery) {
-		return !notification.read_at;
+	function isUnread(notification: NotificationWithDeliveryDto) {
+		return !notification.readAt;
 	}
 </script>
 
@@ -210,10 +214,10 @@
 										</CardTitle>
 										<Badge
 											variant={getNotificationBadgeVariant(
-												notification.notification.notification_type
+												notification.notification.notificationType
 											)}
 										>
-											{notification.notification.notification_type}
+											{notification.notification.notificationType}
 										</Badge>
 										{#if isUnread(notification)}
 											<Badge
@@ -224,11 +228,11 @@
 									</div>
 									<CardDescription class="flex items-center gap-2 text-sm">
 										<Calendar class="h-4 w-4" />
-										{formatDistanceToNow(notification.delivered_at, {
+										{formatDistanceToNow(notification.deliveredAt, {
 											addSuffix: true
 										})}
-										{#if notification.read_at}
-											• Read {formatDistanceToNow(notification.read_at, {
+										{#if notification.readAt}
+											• Read {formatDistanceToNow(notification.readAt, {
 												addSuffix: true
 											})}
 										{/if}
@@ -254,13 +258,13 @@
 					</CardHeader>
 					<CardContent>
 						<div class="flex flex-row items-center gap-2">
-							{#if notification.notification.context_type == 'conversation'}
+							{#if notification.notification.contextType == 'conversation'}
 								<ConversationContextImage
-									conversation_id={notification.notification.context_id}
+									conversation_id={notification.notification.contextId}
 								/>
 							{/if}
 							<div class="prose prose-sm max-w-none">
-								<p class="text-muted-foreground text-sm whitespace-pre-wrap">
+								<p class="text-muted-foreground whitespace-pre-wrap text-sm">
 									{notification.notification.content}
 								</p>
 							</div>
@@ -273,7 +277,7 @@
 						>
 							<div class="flex items-center gap-4">
 								<span
-									>Delivered via {notification.delivery_method.replace(
+									>Delivered via {notification.deliveryMethod.replace(
 										'_',
 										' '
 									)}</span

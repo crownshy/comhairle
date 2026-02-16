@@ -7,6 +7,8 @@
 	import * as m from '$lib/paraglide/messages';
 	import { apiClient } from '$lib/api/client';
 	import { goto, invalidateAll } from '$app/navigation';
+	import { LoadingButton } from '$lib/components/ui/button';
+	import { useLoading } from '$lib/hooks/use-loading.svelte';
 
 	let { backTo }: { backTo?: string } = $props();
 
@@ -16,20 +18,23 @@
 	});
 
 	const { form: formData, enhance, message: errMessage, validateForm } = form;
+	const loader = useLoading();
 
 	async function attemptLogin() {
 		let result = await validateForm({ update: true });
 		if (result.valid) {
 			let { username } = result.data;
-			try {
-				await apiClient.LoginAnnonUser({
-					username
-				});
-				await invalidateAll();
-				await goto(backTo ?? '/');
-			} catch (e) {
-				$errMessage = e.response.data.err;
-			}
+			await loader.run(async () => {
+				try {
+					await apiClient.LoginAnnonUser({
+						username
+					});
+					await invalidateAll();
+					await goto(backTo ?? '/');
+				} catch (e) {
+					$errMessage = e.response.data.err;
+				}
+			});
 		}
 	}
 </script>
@@ -51,7 +56,9 @@
 		</Form.Control>
 		<Form.FieldErrors />
 	</Form.Field>
-	<Form.Button class="w-full" variant="secondary">{m.submit()}</Form.Button>
+	<LoadingButton type="submit" class="w-full" variant="secondary" loading={loader.loading}>
+		{m.submit()}
+	</LoadingButton>
 	<p class="text-sm">
 		<a href={`/auth/signup?backTo=${backTo ?? '/'}`}>{m.dont_have_an_account_signup()}</a>
 	</p>

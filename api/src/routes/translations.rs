@@ -21,9 +21,9 @@ use axum_extra::extract::cookie::CookieJar;
 use crate::{
     error::ComhairleError,
     models::translations::{
-        self, CreateTextTranslation, TextContent, TextContentId, TextTranslation,
-        UpdateTextContent, UpdateTextTranslation,
+        self, CreateTextTranslation, TextContentId, UpdateTextContent, UpdateTextTranslation,
     },
+    routes::translations::dto::{TextContentDto, TextTranslationDto},
     ComhairleState,
 };
 
@@ -60,8 +60,8 @@ impl FromRequestParts<Arc<ComhairleState>> for LocaleExtractor {
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct TextContentWithTranslations {
     #[serde(flatten)]
-    pub text_content: TextContent,
-    pub translations: Vec<TextTranslation>,
+    pub text_content: TextContentDto,
+    pub translations: Vec<TextTranslationDto>,
 }
 
 #[derive(Deserialize, JsonSchema, Debug)]
@@ -78,9 +78,15 @@ async fn get_text_content_with_translations(
     Path(text_content_id): Path<TextContentId>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextContentWithTranslations>), ComhairleError> {
-    let text_content = translations::get_text_content_by_id(&state.db, &text_content_id).await?;
+    let text_content = translations::get_text_content_by_id(&state.db, &text_content_id)
+        .await?
+        .into();
     let translations =
-        translations::get_text_translations_by_content_id(&state.db, &text_content_id).await?;
+        translations::get_text_translations_by_content_id(&state.db, &text_content_id)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect();
 
     Ok((
         StatusCode::OK,
@@ -97,14 +103,15 @@ async fn create_text_content(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(request): Json<CreateTextContentRequest>,
-) -> Result<(StatusCode, Json<TextContent>), ComhairleError> {
+) -> Result<(StatusCode, Json<TextContentDto>), ComhairleError> {
     let text_content = translations::new_translation(
         &state.db,
         &request.primary_locale,
         &request.content,
         request.format,
     )
-    .await?;
+    .await?
+    .into();
     Ok((StatusCode::CREATED, Json(text_content)))
 }
 
@@ -115,9 +122,10 @@ async fn update_text_content(
     Path(text_content_id): Path<TextContentId>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(update): Json<UpdateTextContent>,
-) -> Result<(StatusCode, Json<TextContent>), ComhairleError> {
-    let text_content =
-        translations::update_text_content(&state.db, &text_content_id, &update).await?;
+) -> Result<(StatusCode, Json<TextContentDto>), ComhairleError> {
+    let text_content = translations::update_text_content(&state.db, &text_content_id, &update)
+        .await?
+        .into();
 
     Ok((StatusCode::OK, Json(text_content)))
 }
@@ -128,8 +136,10 @@ async fn delete_text_content(
     State(state): State<Arc<ComhairleState>>,
     Path(text_content_id): Path<TextContentId>,
     RequiredAdminUser(_user): RequiredAdminUser,
-) -> Result<(StatusCode, Json<TextContent>), ComhairleError> {
-    let text_content = translations::delete_text_content(&state.db, &text_content_id).await?;
+) -> Result<(StatusCode, Json<TextContentDto>), ComhairleError> {
+    let text_content = translations::delete_text_content(&state.db, &text_content_id)
+        .await?
+        .into();
 
     Ok((StatusCode::OK, Json(text_content)))
 }
@@ -140,13 +150,14 @@ async fn get_text_translation(
     State(state): State<Arc<ComhairleState>>,
     Path((text_content_id, locale)): Path<(TextContentId, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
-) -> Result<(StatusCode, Json<TextTranslation>), ComhairleError> {
+) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     let translation = translations::get_text_translation_by_content_and_locale(
         &state.db,
         &text_content_id,
         &locale,
     )
-    .await?;
+    .await?
+    .into();
 
     Ok((StatusCode::OK, Json(translation)))
 }
@@ -167,7 +178,7 @@ async fn create_or_update_text_translation(
     Path((text_content_id, locale)): Path<(TextContentId, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(request): Json<CreateOrUpdateTextTranslationRequest>,
-) -> Result<(StatusCode, Json<TextTranslation>), ComhairleError> {
+) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     // Check if translation already exists
     match translations::get_text_translation_by_content_and_locale(
         &state.db,
@@ -186,7 +197,8 @@ async fn create_or_update_text_translation(
             };
             let updated_translation =
                 translations::update_text_translation(&state.db, &existing_translation.id, &update)
-                    .await?;
+                    .await?
+                    .into();
             Ok((StatusCode::OK, Json(updated_translation)))
         }
         Err(_) => {
@@ -198,8 +210,9 @@ async fn create_or_update_text_translation(
                 ai_generated: request.ai_generated,
                 requires_validation: request.requires_validation,
             };
-            let translation =
-                translations::create_text_translation(&state.db, &create_request).await?;
+            let translation = translations::create_text_translation(&state.db, &create_request)
+                .await?
+                .into();
             Ok((StatusCode::CREATED, Json(translation)))
         }
     }
@@ -212,7 +225,7 @@ async fn update_text_translation(
     Path((text_content_id, locale)): Path<(TextContentId, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(update): Json<UpdateTextTranslation>,
-) -> Result<(StatusCode, Json<TextTranslation>), ComhairleError> {
+) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     // First get the existing translation to get its ID
     let existing_translation = translations::get_text_translation_by_content_and_locale(
         &state.db,
@@ -222,7 +235,9 @@ async fn update_text_translation(
     .await?;
 
     let updated_translation =
-        translations::update_text_translation(&state.db, &existing_translation.id, &update).await?;
+        translations::update_text_translation(&state.db, &existing_translation.id, &update)
+            .await?
+            .into();
 
     Ok((StatusCode::OK, Json(updated_translation)))
 }
@@ -233,7 +248,7 @@ async fn auto_translate(
     State(state): State<Arc<ComhairleState>>,
     Path((text_content_id, locale)): Path<(TextContentId, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
-) -> Result<(StatusCode, Json<TextTranslation>), ComhairleError> {
+) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     if let Some(translation_service) = &state.translation_service {
         let new_translation = translations::auto_generate_translation(
             &state.db,
@@ -241,7 +256,8 @@ async fn auto_translate(
             &text_content_id,
             &locale,
         )
-        .await?;
+        .await?
+        .into();
         Ok((StatusCode::OK, Json(new_translation)))
     } else {
         Err(ComhairleError::NoTranslationServiceConfigured)
@@ -256,14 +272,18 @@ async fn auto_translate_all(
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<TextContentWithTranslations>), ComhairleError> {
     if let Some(translation_service) = &state.translation_service {
-        let text_content =
-            translations::get_text_content_by_id(&state.db, &text_content_id).await?;
+        let text_content = translations::get_text_content_by_id(&state.db, &text_content_id)
+            .await?
+            .into();
         let translations = translations::auto_generate_all_translations(
             &state.db,
             translation_service,
             &text_content_id,
         )
-        .await?;
+        .await?
+        .into_iter()
+        .map(Into::into)
+        .collect();
         let result = TextContentWithTranslations {
             text_content,
             translations,
@@ -280,7 +300,7 @@ async fn delete_text_translation(
     State(state): State<Arc<ComhairleState>>,
     Path((text_content_id, locale)): Path<(TextContentId, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
-) -> Result<(StatusCode, Json<TextTranslation>), ComhairleError> {
+) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
     // First get the existing translation to get its ID
     let existing_translation = translations::get_text_translation_by_content_and_locale(
         &state.db,
@@ -290,7 +310,9 @@ async fn delete_text_translation(
     .await?;
 
     let deleted_translation =
-        translations::delete_text_translation(&state.db, &existing_translation.id).await?;
+        translations::delete_text_translation(&state.db, &existing_translation.id)
+            .await?
+            .into();
 
     Ok((StatusCode::OK, Json(deleted_translation)))
 }
@@ -305,7 +327,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Translations")
                     .summary("Create new TextContent")
                     .description("Create a new TextContent entry that can hold translations")
-                    .response::<201, Json<TextContent>>()
+                    .response::<201, Json<TextContentDto>>()
             }),
         )
         .api_route(
@@ -325,7 +347,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Translations")
                     .summary("Update TextContent")
                     .description("Update a TextContent entry")
-                    .response::<200, Json<TextContent>>()
+                    .response::<200, Json<TextContentDto>>()
             }),
         )
         .api_route(
@@ -335,7 +357,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Translations")
                     .summary("Delete TextContent")
                     .description("Delete a TextContent entry and all its translations")
-                    .response::<200, Json<TextContent>>()
+                    .response::<200, Json<TextContentDto>>()
             }),
         )
         // TextTranslation routes
@@ -346,7 +368,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Translations")
                     .summary("Get translation for specific locale")
                     .description("Get a translation for a specific TextContent and locale")
-                    .response::<200, Json<TextTranslation>>()
+                    .response::<200, Json<TextTranslationDto>>()
             }),
         )
         .api_route(
@@ -358,8 +380,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description(
                         "Create a new translation or update existing one for a specific locale",
                     )
-                    .response::<200, Json<TextTranslation>>()
-                    .response::<201, Json<TextTranslation>>()
+                    .response::<200, Json<TextTranslationDto>>()
+                    .response::<201, Json<TextTranslationDto>>()
             }),
         )
         .api_route(
@@ -369,7 +391,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Translations")
                     .summary("Update translation")
                     .description("Update an existing translation for a specific locale")
-                    .response::<200, Json<TextTranslation>>()
+                    .response::<200, Json<TextTranslationDto>>()
             }),
         )
         .api_route(
@@ -379,7 +401,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Translations")
                     .summary("Delete translation")
                     .description("Delete a translation for a specific locale")
-                    .response::<200, Json<TextTranslation>>()
+                    .response::<200, Json<TextTranslationDto>>()
             }),
         )
         .api_route(
@@ -399,7 +421,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Translations")
                     .summary("Automatically generate this language")
                     .description("Use the primary_locale language and translate this language from it using the tarnslation service")
-                    .response::<200, Json<TextTranslation>>()
+                    .response::<200, Json<TextTranslationDto>>()
             }),
         )
         .with_state(state)
@@ -439,7 +461,7 @@ mod tests {
             .await?;
 
         assert_eq!(status, StatusCode::CREATED);
-        let text_content: TextContent = serde_json::from_value(response)?;
+        let text_content: TextContentDto = serde_json::from_value(response)?;
         assert_eq!(text_content.primary_locale, "en");
         assert_eq!(text_content.format, TextFormat::Plain);
 
@@ -447,7 +469,7 @@ mod tests {
             .get(&app, &format!("/translations/{}/en", text_content.id))
             .await?;
 
-        let translation: TextTranslation = serde_json::from_value(response)?;
+        let translation: TextTranslationDto = serde_json::from_value(response)?;
 
         assert_eq!(
             status,
@@ -483,7 +505,7 @@ mod tests {
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
-        let text_content: TextContent = serde_json::from_value(response)?;
+        let text_content: TextContentDto = serde_json::from_value(response)?;
 
         // Add a translation
         let translation_request = json!({
@@ -538,7 +560,7 @@ mod tests {
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
-        let text_content: TextContent = serde_json::from_value(response)?;
+        let text_content: TextContentDto = serde_json::from_value(response)?;
 
         // Update TextContent
         let update_request = json!({
@@ -557,7 +579,7 @@ mod tests {
 
         assert_eq!(status, StatusCode::OK);
 
-        let updated_content: TextContent = serde_json::from_value(response)?;
+        let updated_content: TextContentDto = serde_json::from_value(response)?;
         assert_eq!(updated_content.primary_locale, "es");
         assert_eq!(updated_content.format, TextFormat::Rich);
 
@@ -583,7 +605,7 @@ mod tests {
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
-        let text_content: TextContent = serde_json::from_value(response)?;
+        let text_content: TextContentDto = serde_json::from_value(response)?;
 
         // Delete TextContent
         let (status, response, _) = admin_session
@@ -592,7 +614,7 @@ mod tests {
 
         assert_eq!(status, StatusCode::OK);
 
-        let deleted_content: TextContent = serde_json::from_value(response)?;
+        let deleted_content: TextContentDto = serde_json::from_value(response)?;
         assert_eq!(deleted_content.id, text_content.id);
 
         // Verify it's deleted
@@ -624,7 +646,7 @@ mod tests {
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
-        let text_content: TextContent = serde_json::from_value(response)?;
+        let text_content: TextContentDto = serde_json::from_value(response)?;
 
         // Create translation
         let translation_request = json!({
@@ -643,7 +665,7 @@ mod tests {
 
         assert_eq!(status, StatusCode::CREATED);
 
-        let translation: TextTranslation = serde_json::from_value(response)?;
+        let translation: TextTranslationDto = serde_json::from_value(response)?;
         assert_eq!(translation.content, "Hola Mundo");
         assert_eq!(translation.locale, "es");
         assert!(translation.ai_generated);
@@ -687,7 +709,7 @@ mod tests {
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
-        let text_content: TextContent = serde_json::from_value(response)?;
+        let text_content: TextContentDto = serde_json::from_value(response)?;
 
         let translation_request = json!({
             "content": "empty translation",
@@ -773,7 +795,7 @@ mod tests {
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
-        let text_content: TextContent = serde_json::from_value(response)?;
+        let text_content: TextContentDto = serde_json::from_value(response)?;
 
         let translation_request = json!({
             "content": "empty french translation",
@@ -859,7 +881,7 @@ mod tests {
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
-        let text_content: TextContent = serde_json::from_value(response)?;
+        let text_content: TextContentDto = serde_json::from_value(response)?;
 
         let translation_request = json!({
             "content": "Bonjour le monde",
@@ -882,7 +904,7 @@ mod tests {
 
         assert_eq!(status, StatusCode::OK);
 
-        let translation: TextTranslation = serde_json::from_value(response)?;
+        let translation: TextTranslationDto = serde_json::from_value(response)?;
         assert_eq!(translation.content, "Bonjour le monde");
         assert_eq!(translation.locale, "fr");
 
@@ -910,7 +932,7 @@ mod tests {
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
-        let text_content: TextContent = serde_json::from_value(response)?;
+        let text_content: TextContentDto = serde_json::from_value(response)?;
 
         // Create initial translation
         let initial_translation = json!({
@@ -944,7 +966,7 @@ mod tests {
 
         assert_eq!(status, StatusCode::OK);
 
-        let translation: TextTranslation = serde_json::from_value(response)?;
+        let translation: TextTranslationDto = serde_json::from_value(response)?;
         assert_eq!(translation.content, "Updated text");
         assert!(translation.ai_generated);
         assert!(translation.requires_validation);
@@ -973,7 +995,7 @@ mod tests {
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
-        let text_content: TextContent = serde_json::from_value(response)?;
+        let text_content: TextContentDto = serde_json::from_value(response)?;
 
         // Create initial translation
         let initial_translation = json!({
@@ -1006,7 +1028,7 @@ mod tests {
 
         assert_eq!(status, StatusCode::OK);
 
-        let translation: TextTranslation = serde_json::from_value(response)?;
+        let translation: TextTranslationDto = serde_json::from_value(response)?;
         assert_eq!(translation.content, "Testo aggiornato");
         assert!(translation.ai_generated);
         // requires_validation should remain unchanged
@@ -1034,7 +1056,7 @@ mod tests {
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
-        let text_content: TextContent = serde_json::from_value(response)?;
+        let text_content: TextContentDto = serde_json::from_value(response)?;
 
         // Delete translation
         let (status, response, _) = admin_session
@@ -1043,7 +1065,7 @@ mod tests {
 
         assert_eq!(status, StatusCode::OK);
 
-        let deleted_translation: TextTranslation = serde_json::from_value(response)?;
+        let deleted_translation: TextTranslationDto = serde_json::from_value(response)?;
         assert_eq!(deleted_translation.content, "Text to delete");
 
         // Verify it's deleted
@@ -1118,7 +1140,7 @@ mod tests {
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
-        let text_content: TextContent = serde_json::from_value(response)?;
+        let text_content: TextContentDto = serde_json::from_value(response)?;
 
         // Try to get non-existent translation
         let (status, _response, _) = admin_session
@@ -1178,7 +1200,7 @@ mod tests {
             .post(&app, "/translations", create_request.to_string().into())
             .await?;
 
-        let text_content: TextContent = serde_json::from_value(response)?;
+        let text_content: TextContentDto = serde_json::from_value(response)?;
 
         // Try to update with empty object
         let empty_update = json!({});

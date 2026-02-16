@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Check } from 'lucide-svelte';
 	import { Badge } from '$lib/components/ui/badge';
-	import { statusToBadgeVariant } from './useTranslations.svelte';
+	import { statusToBadgeVariant } from './translationUtils';
 
 	interface Props {
 		language: string;
