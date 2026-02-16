@@ -6,8 +6,8 @@
   --card-foreground: #030712;
   --popover: #FFFFFF;
   --popover-foreground: #030712;
-  --primary: #0066BD;
-  --primary-foreground: #FFFFFF;
+  --primary: #658F3D;
+  --primary-foreground: #F9FAFB;
   --secondary: #F3F4F6;
   --secondary-foreground: #252622;
   --muted: #F3F4F6;
@@ -24,22 +24,21 @@
   --chart-3: #164E63;
   --chart-4: #FBBF24;
   --chart-5: #F59E0B;
-  --sidebar: #111827;
+  --sidebar: #658F3D;
   --sidebar-foreground: #F9FAFB;
-  --sidebar-primary: #0066BD;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #FFFFFF;
+  --sidebar-primary: #4F46E5;
+  --sidebar-primary-foreground: #F9FAFB;
+  --sidebar-accent: #F9FAFB;
   --sidebar-accent-foreground: #111827;
-  --sidebar-border: #FFFFFF;
-  --sidebar-ring: #0066BD;
-  --sidebar-secondary: #7DD3FC;
-  --sidebar-active-bg: #001C3B;
+  --sidebar-border: #E5E7EB;
+  --sidebar-ring: #9CA3AF;
+  --sidebar-secondary: red;
 
   --font-sans: Lato, sans-serif;
   --font-serif: Merriweather, serif;
   --font-mono: Roboto Mono, monospace;
 
-  --radius: 2.5rem;
+  --radius: 2rem;
   
   --shadow-2xs: 0px 1px 3px 0px rgb(31 67 51 / 0.02);
   --shadow-xs: 0px 1px 3px 0px rgb(31 67 51 / 0.02);
@@ -52,6 +51,7 @@
 
   --chat-primary: #2978D1;
   --chat-neutral: #6B7280;
+  --sidebar-active-bg: #001C3B;
   --nav-text: hsla(79, 100%, 96%, 1);
   --nav-background: hsla(79, 100%, 96%, 1);
   --admin-background: hsla(60, 67%, 98%, 1);
@@ -60,14 +60,52 @@
 }
 
 .dark {
+  --background: #172554;
+  --foreground: #F9FAFB;
+  --card: #00315F;
+  --card-foreground: #F9FAFB;
+  --popover: #1F2937;
+  --popover-foreground: #F9FAFB;
+  --primary: #2978D0;
+  --primary-foreground: #F9FAFB;
+  --secondary: #3B3C37;
+  --secondary-foreground: #F9FAFB;
+  --muted: #1F2937;
+  --muted-foreground: #9CA3AF;
+  --accent: #658F3D;
+  --accent-foreground: #F9FAFB;
+  --destructive: #F87171;
+  --destructive-foreground: #FEF2F2;
+  --border: #FFFFFF19;
+  --input: #FFFFFF26;
+  --ring: #4B92EC;
+  --chart-1: #4F46E5;
+  --chart-2: #0284C7;
+  --chart-3: #F59E0B;
+  --chart-4: #A855F7;
+  --chart-5: #F43F5E;
+  --sidebar: #2978D0;
+  --sidebar-foreground: #F9FAFB;
+  --sidebar-primary: #4F46E5;
+  --sidebar-primary-foreground: #F9FAFB;
+  --sidebar-accent: #1F2937;
+  --sidebar-accent-foreground: #F9FAFB;
+  --sidebar-border: #FFFFFF19;
+  --sidebar-ring: #4B5563;
+  --sidebar-secondary: red;
+  --sidebar-active-bg: hsl(220 20% 15%);
+}
+
+/* Bloom Theme */
+[data-theme="bloom"] {
   --background: #FFFFFF;
   --foreground: #0A0A0A;
   --card: #FFFFFF;
   --card-foreground: #030712;
   --popover: #FFFFFF;
   --popover-foreground: #030712;
-  --primary: #0066BD;
-  --primary-foreground: #FFFFFF;
+  --primary: #7C3AED;
+  --primary-foreground: #F9FAFB;
   --secondary: #F3F4F6;
   --secondary-foreground: #252622;
   --muted: #F3F4F6;
@@ -84,16 +122,52 @@
   --chart-3: #164E63;
   --chart-4: #FBBF24;
   --chart-5: #F59E0B;
-  --sidebar: #111827;
+  --sidebar: #7C3AED;
   --sidebar-foreground: #F9FAFB;
-  --sidebar-primary: #0066BD;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #FFFFFF;
+  --sidebar-primary: #4F46E5;
+  --sidebar-primary-foreground: #F9FAFB;
+  --sidebar-accent: #F9FAFB;
   --sidebar-accent-foreground: #111827;
-  --sidebar-border: #FFFFFF;
-  --sidebar-ring: #0066BD;
-  --sidebar-secondary: #7DD3FC;
-  --sidebar-active-bg: #001C3B;
+  --sidebar-border: #E5E7EB;
+  --sidebar-ring: #9CA3AF;
+
+    --radius: 1rem;
+
+}
+
+[data-theme="bloom"].dark {
+  --background: #172554;
+  --foreground: #F9FAFB;
+  --card: #00315F;
+  --card-foreground: #F9FAFB;
+  --popover: #1F2937;
+  --popover-foreground: #F9FAFB;
+  --primary: #2978D0;
+  --primary-foreground: #F9FAFB;
+  --secondary: #3B3C37;
+  --secondary-foreground: #F9FAFB;
+  --muted: #1F2937;
+  --muted-foreground: #9CA3AF;
+  --accent: #7C3AED;
+  --accent-foreground: #F9FAFB;
+  --destructive: #F87171;
+  --destructive-foreground: #FEF2F2;
+  --border: #FFFFFF19;
+  --input: #FFFFFF26;
+  --ring: #4B92EC;
+  --chart-1: #4F46E5;
+  --chart-2: #0284C7;
+  --chart-3: #F59E0B;
+  --chart-4: #A855F7;
+  --chart-5: #F43F5E;
+  --sidebar: #7C3AED;
+  --sidebar-foreground: #F9FAFB;
+  --sidebar-primary: #4F46E5;
+  --sidebar-primary-foreground: #F9FAFB;
+  --sidebar-accent: #1F2937;
+  --sidebar-accent-foreground: #F9FAFB;
+  --sidebar-border: #FFFFFF19;
+  --sidebar-ring: #4B5563;
 }
 
 /* Scottish Government Theme */
