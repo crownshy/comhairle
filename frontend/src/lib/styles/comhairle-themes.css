@@ -1,0 +1,393 @@
+/* Base Theme (Comhairle) */
+:root {
+  --background: #FFFFFF;
+  --foreground: #0A0A0A;
+  --card: #FFFFFF;
+  --card-foreground: #030712;
+  --popover: #FFFFFF;
+  --popover-foreground: #030712;
+  --primary: #658F3D;
+  --primary-foreground: #F9FAFB;
+  --secondary: #F3F4F6;
+  --secondary-foreground: #252622;
+  --muted: #F3F4F6;
+  --muted-foreground: #6B7280;
+  --accent: #F3F4F6;
+  --accent-foreground: #111827;
+  --destructive: #DC2626;
+  --destructive-foreground: #FEF2F2;
+  --border: #E5E7EB;
+  --input: #E5E7EB;
+  --ring: #4B92EC;
+  --chart-1: #4F46E5;
+  --chart-2: #0284C7;
+  --chart-3: #164E63;
+  --chart-4: #FBBF24;
+  --chart-5: #F59E0B;
+  --sidebar: #658F3D;
+  --sidebar-foreground: #F9FAFB;
+  --sidebar-primary: #4F46E5;
+  --sidebar-primary-foreground: #F9FAFB;
+  --sidebar-accent: #F9FAFB;
+  --sidebar-accent-foreground: #111827;
+  --sidebar-border: #E5E7EB;
+  --sidebar-ring: #9CA3AF;
+  --sidebar-secondary: red;
+
+  --font-sans: Lato, sans-serif;
+  --font-serif: Merriweather, serif;
+  --font-mono: Roboto Mono, monospace;
+
+  --radius: 2rem;
+  
+  --shadow-2xs: 0px 1px 3px 0px rgb(31 67 51 / 0.02);
+  --shadow-xs: 0px 1px 3px 0px rgb(31 67 51 / 0.02);
+  --shadow-sm: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 1px 2px -1px rgb(31 67 51 / 0.04);
+  --shadow: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 1px 2px -1px rgb(31 67 51 / 0.04);
+  --shadow-md: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 2px 4px -1px rgb(31 67 51 / 0.04);
+  --shadow-lg: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 4px 6px -1px rgb(31 67 51 / 0.04);
+  --shadow-xl: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 8px 10px -1px rgb(31 67 51 / 0.04);
+  --shadow-2xl: 0px 1px 3px 0px rgb(31 67 51 / 0.10);
+
+  --chat-primary: #2978D1;
+  --chat-neutral: #6B7280;
+  --sidebar-active-bg: #001C3B;
+  --nav-text: hsla(79, 100%, 96%, 1);
+  --nav-background: hsla(79, 100%, 96%, 1);
+  --admin-background: hsla(60, 67%, 98%, 1);
+  --mutted: hsla(100, 29%, 10%, 1);
+  --sidebar-radius: 10px;
+}
+
+.dark {
+  --background: #172554;
+  --foreground: #F9FAFB;
+  --card: #00315F;
+  --card-foreground: #F9FAFB;
+  --popover: #1F2937;
+  --popover-foreground: #F9FAFB;
+  --primary: #2978D0;
+  --primary-foreground: #F9FAFB;
+  --secondary: #3B3C37;
+  --secondary-foreground: #F9FAFB;
+  --muted: #1F2937;
+  --muted-foreground: #9CA3AF;
+  --accent: #658F3D;
+  --accent-foreground: #F9FAFB;
+  --destructive: #F87171;
+  --destructive-foreground: #FEF2F2;
+  --border: #FFFFFF19;
+  --input: #FFFFFF26;
+  --ring: #4B92EC;
+  --chart-1: #4F46E5;
+  --chart-2: #0284C7;
+  --chart-3: #F59E0B;
+  --chart-4: #A855F7;
+  --chart-5: #F43F5E;
+  --sidebar: #2978D0;
+  --sidebar-foreground: #F9FAFB;
+  --sidebar-primary: #4F46E5;
+  --sidebar-primary-foreground: #F9FAFB;
+  --sidebar-accent: #1F2937;
+  --sidebar-accent-foreground: #F9FAFB;
+  --sidebar-border: #FFFFFF19;
+  --sidebar-ring: #4B5563;
+  --sidebar-secondary: red;
+  --sidebar-active-bg: hsl(220 20% 15%);
+}
+
+/* Bloom Theme */
+[data-theme="bloom"] {
+  --background: #FFFFFF;
+  --foreground: #0A0A0A;
+  --card: #FFFFFF;
+  --card-foreground: #030712;
+  --popover: #FFFFFF;
+  --popover-foreground: #030712;
+  --primary: #7C3AED;
+  --primary-foreground: #F9FAFB;
+  --secondary: #F3F4F6;
+  --secondary-foreground: #252622;
+  --muted: #F3F4F6;
+  --muted-foreground: #6B7280;
+  --accent: #F3F4F6;
+  --accent-foreground: #111827;
+  --destructive: #DC2626;
+  --destructive-foreground: #FEF2F2;
+  --border: #E5E7EB;
+  --input: #E5E7EB;
+  --ring: #4B92EC;
+  --chart-1: #4F46E5;
+  --chart-2: #0284C7;
+  --chart-3: #164E63;
+  --chart-4: #FBBF24;
+  --chart-5: #F59E0B;
+  --sidebar: #7C3AED;
+  --sidebar-foreground: #F9FAFB;
+  --sidebar-primary: #4F46E5;
+  --sidebar-primary-foreground: #F9FAFB;
+  --sidebar-accent: #F9FAFB;
+  --sidebar-accent-foreground: #111827;
+  --sidebar-border: #E5E7EB;
+  --sidebar-ring: #9CA3AF;
+
+    --radius: 1rem;
+
+}
+
+[data-theme="bloom"].dark {
+  --background: #172554;
+  --foreground: #F9FAFB;
+  --card: #00315F;
+  --card-foreground: #F9FAFB;
+  --popover: #1F2937;
+  --popover-foreground: #F9FAFB;
+  --primary: #2978D0;
+  --primary-foreground: #F9FAFB;
+  --secondary: #3B3C37;
+  --secondary-foreground: #F9FAFB;
+  --muted: #1F2937;
+  --muted-foreground: #9CA3AF;
+  --accent: #7C3AED;
+  --accent-foreground: #F9FAFB;
+  --destructive: #F87171;
+  --destructive-foreground: #FEF2F2;
+  --border: #FFFFFF19;
+  --input: #FFFFFF26;
+  --ring: #4B92EC;
+  --chart-1: #4F46E5;
+  --chart-2: #0284C7;
+  --chart-3: #F59E0B;
+  --chart-4: #A855F7;
+  --chart-5: #F43F5E;
+  --sidebar: #7C3AED;
+  --sidebar-foreground: #F9FAFB;
+  --sidebar-primary: #4F46E5;
+  --sidebar-primary-foreground: #F9FAFB;
+  --sidebar-accent: #1F2937;
+  --sidebar-accent-foreground: #F9FAFB;
+  --sidebar-border: #FFFFFF19;
+  --sidebar-ring: #4B5563;
+}
+
+/* Scottish Government Theme */
+[data-theme="scotgov"] {
+  --background: #FFFFFF;
+  --foreground: #0A0A0A;
+  --card: #FFFFFF;
+  --card-foreground: #030712;
+  --popover: #FFFFFF;
+  --popover-foreground: #030712;
+  --primary: #0066BD;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F3F4F6;
+  --secondary-foreground: #252622;
+  --muted: #F3F4F6;
+  --muted-foreground: #6B7280;
+  --accent: #F3F4F6;
+  --accent-foreground: #111827;
+  --destructive: #DC2626;
+  --destructive-foreground: #FEF2F2;
+  --border: #E5E7EB;
+  --input: #E5E7EB;
+  --ring: #4B92EC;
+  --chart-1: #4F46E5;
+  --chart-2: #0284C7;
+  --chart-3: #164E63;
+  --chart-4: #FBBF24;
+  --chart-5: #F59E0B;
+  --sidebar: #111827;
+  --sidebar-foreground: #F9FAFB;
+  --sidebar-primary: #0066BD;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #FFFFFF;
+  --sidebar-accent-foreground: #111827;
+  --sidebar-border: #FFFFFF;
+  --sidebar-ring: #0066BD;
+  --sidebar-secondary: #7DD3FC;
+  --primary-200: #D5E3FF;
+  --secondary-200: #E5E7EB;
+
+  /* === Core brand colours === */
+  --color-brand: #0065bd;
+  --color-brand-secondary: #333e48;
+
+  /* === Text === */
+  --color-text: #1a1a1a;
+  --color-text-secondary: #5e5e5e;
+
+  /* === Links === */
+  --color-link: #0065bd;
+  --color-link-hover: #00437e;
+  --color-link-current: #1a1a1a;
+  --color-link-current-bg: #f8f8f8;
+
+  /* === Focus === */
+  --color-focus: #1a1a1a;
+  --color-focus-bg: #fdd522;
+
+  /* === Messaging === */
+  --color-positive: #1a7032;
+  --color-negative: #d32205;
+
+  /* === Borders === */
+  --color-border: #b3b3b3;
+  --color-border-strong: #1a1a1a;
+  --color-border-faint: #ebebeb;
+  --color-border-highlight: #0065bd;
+
+  /* === Backgrounds === */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f8f8f8;
+  --color-bg-tertiary: #ebebeb;
+
+  /* === Extended palette === */
+  --color-green: #5eb135;
+  --color-dark-green: #1a7032;
+  --color-teal: #28a197;
+  --color-dark-teal: #1c5d5d;
+  --color-blue-light: #d9effc;
+  --color-blue: #0065bd;
+  --color-blue-dark: #00437e;
+  --color-blue-darker: #002d54;
+  --color-purple: #741e6d;
+  --color-pink: #e5007e;
+  --color-white: #ffffff;
+  --color-grey-lighter: #f8f8f8;
+  --color-grey-light: #ebebeb;
+  --color-grey-medium: #b3b3b3;
+  --color-grey: #5e5e5e;
+  --color-grey-dark: #1a1a1a;
+  --color-black: #000000;
+  --color-red: #d32205;
+  --color-brown: #592c20;
+  --color-orange: #cb4e0b;
+  --color-yellow: #fdd522;
+
+  /* === Semantic mappings === */
+  --color-primary: var(--color-brand);
+  --color-secondary: var(--color-brand-secondary);
+  --color-success: var(--color-positive);
+  --color-error: var(--color-negative);
+  --color-surface: var(--color-bg-primary);
+  --color-muted: var(--color-text-secondary);
+}
+
+[data-theme="scotgov"].dark {
+  --background: #172554;
+  --foreground: #F9FAFB;
+  --card: #00315F;
+  --card-foreground: #F9FAFB;
+  --popover: #1F2937;
+  --popover-foreground: #F9FAFB;
+  --primary: #2978D0;
+  --primary-foreground: #F9FAFB;
+  --secondary: #3B3C37;
+  --secondary-foreground: #F9FAFB;
+  --muted: #1F2937;
+  --muted-foreground: #9CA3AF;
+  --accent: #0066BD;
+  --accent-foreground: #F9FAFB;
+  --destructive: #F87171;
+  --destructive-foreground: #FEF2F2;
+  --border: #FFFFFF19;
+  --input: #FFFFFF26;
+  --ring: #4B92EC;
+  --chart-1: #4F46E5;
+  --chart-2: #0284C7;
+  --chart-3: #F59E0B;
+  --chart-4: #A855F7;
+  --chart-5: #F43F5E;
+  --sidebar: #0A0F1A;
+  --sidebar-foreground: #F9FAFB;
+  --sidebar-primary: #2978D0;
+  --sidebar-primary-foreground: #F9FAFB;
+  --sidebar-accent: #1F2937;
+  --sidebar-accent-foreground: #F9FAFB;
+  --sidebar-border: #FFFFFF19;
+  --sidebar-ring: #2978D0;
+  --sidebar-secondary: red;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-active-bg: var(--sidebar-active-bg);
+  --color-sidebar-secondary: var(--sidebar-secondary);
+
+  --color-mutted: var(--mutted);
+  --color-admin-background: var(--admin-background);
+
+  --color-nav-background: var(--nav-background);
+  --color-nav-text: var(--nav-text);
+
+  --color-primary-200: var(--primary-200);
+  --color-secondary-200: var(--secondary-200);
+
+  --color-brand: var(--color-brand);
+  --color-brand-mutted: var(--color-brand)/70;
+  --color-brand-secondary: var(--color-brand-secondary);
+
+  --radius-nav: 20px;
+
+  /* Chat Widget Colors */
+  --color-chat-primary: var(--chat-primary);
+  --color-chat-primary-light: color-mix(in oklch, var(--chat-primary), white 70%);
+  --color-chat-primary-lighter: color-mix(in oklch, var(--chat-primary), white 85%);
+  --color-chat-primary-dark: color-mix(in oklch, var(--chat-primary), black 20%);
+  --color-chat-primary-darker: color-mix(in oklch, var(--chat-primary), black 40%);
+  --color-chat-neutral: var(--chat-neutral);
+  --color-chat-muted: color-mix(in oklch, var(--chat-neutral), white 40%);
+  --color-chat-border: color-mix(in oklch, var(--chat-neutral), white 70%);
+  --color-chat-bg: color-mix(in oklch, var(--chat-neutral), white 92%);
+  --color-chat-text: color-mix(in oklch, var(--chat-neutral), black 40%);
+  --color-chat-text-muted: var(--chat-neutral);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+}
