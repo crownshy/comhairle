@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { useResizeObserver } from 'runed';
 	import { Editor } from '@tiptap/core';
 	import { Color } from '@tiptap/extension-color';
 	import { ListItem } from '@tiptap/extension-list-item';
@@ -48,7 +49,6 @@
 	let showVideoPopover = $state(false);
 	
 	let isCompact = $derived(containerWidth < 600);
-	let resizeObserver: ResizeObserver;
 	
 	let activeStates = $state<ActiveStates>({
 		bold: false,
@@ -64,18 +64,17 @@
 		textAlign: 'left' as 'left' | 'center' | 'right' | 'justify'
 	});
 
-	onMount(() => {
-		// Set up resize observer to track container width
-		resizeObserver = new ResizeObserver((entries) => {
-			for (const entry of entries) {
+	useResizeObserver(
+		() => containerElement,
+		(entries) => {
+			const entry = entries[0];
+			if (entry) {
 				containerWidth = entry.contentRect.width;
 			}
-		});
-		
-		if (containerElement) {
-			resizeObserver.observe(containerElement);
 		}
+	);
 
+	onMount(() => {
 		if (!editorElement) return;
 
 		const detected = detectContentType(value);
@@ -170,7 +169,6 @@
 		if (editor) {
 			editor.destroy();
 		}
-		resizeObserver?.disconnect();
 	});
 
 </script>
