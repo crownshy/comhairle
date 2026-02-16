@@ -56,11 +56,7 @@
 				<UserDetailsForm {user} />
 			{/if}
 		</section>
-		<section id="theme" class="flex flex-col border-b border-border py-5">
-			<h2 class="text-3xl">Theme</h2>
-			<p class="my-4">Choose your preferred theme</p>
-			<ThemeSwitcher />
-		</section>
+
 		<section id="notifications" class=" flex flex-col">
 			<h2 class="text-3xl">Notifications</h2>
 			<p class="my-10">
