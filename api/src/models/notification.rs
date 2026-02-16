@@ -90,7 +90,7 @@ pub struct Notification {
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [NotificationIden; 8] = [
+pub const DEFAULT_COLUMNS: [NotificationIden; 8] = [
     NotificationIden::Id,
     NotificationIden::Title,
     NotificationIden::Content,

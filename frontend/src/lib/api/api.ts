@@ -52,9 +52,9 @@ export const NotificationContextType = z.enum(["site", "conversation"]);
 export type NotificationContextType = z.infer<typeof NotificationContextType>;
 export const NotificationType = z.enum(["info", "warning", "error", "success"]);
 export type NotificationType = z.infer<typeof NotificationType>;
-export const Notification = z.object({ content: z.string(), context_id: z.union([z.string(), z.null()]).optional(), context_type: NotificationContextType, created_at: z.string().datetime({ offset: true }), id: z.string().uuid(), notification_type: NotificationType, title: z.string(), updated_at: z.string().datetime({ offset: true }) }).passthrough();
-export type Notification = z.infer<typeof Notification>;
-export const NotificationWithDelivery = z.object({ created_at: z.string().datetime({ offset: true }), delivered_at: z.string().datetime({ offset: true }), delivery_method: DeliveryMethod, id: z.string().uuid(), notification: Notification, notification_id: z.string().uuid(), read_at: z.union([z.string(), z.null()]).optional(), updated_at: z.string().datetime({ offset: true }), user_id: z.string().uuid() }).passthrough();
+export const NotificationDto = z.object({ content: z.string(), contextId: z.union([z.string(), z.null()]).optional(), contextType: NotificationContextType, createdAt: z.string().datetime({ offset: true }), id: z.string().uuid(), notificationType: NotificationType, title: z.string() }).passthrough();
+export type NotificationDto = z.infer<typeof NotificationDto>;
+export const NotificationWithDelivery = z.object({ createdAt: z.string().datetime({ offset: true }), deliveredAt: z.string().datetime({ offset: true }), deliveryMethod: DeliveryMethod, id: z.string().uuid(), notification: NotificationDto, notificationId: z.string().uuid(), readAt: z.union([z.string(), z.null()]).optional(), userId: z.string().uuid() }).passthrough();
 export type NotificationWithDelivery = z.infer<typeof NotificationWithDelivery>;
 export const PaginatedResults_for_NotificationWithDelivery = z.object({ records: z.array(NotificationWithDelivery), total: z.number().int() }).passthrough();
 export type PaginatedResults_for_NotificationWithDelivery = z.infer<typeof PaginatedResults_for_NotificationWithDelivery>;
@@ -100,9 +100,11 @@ export const PartialConversation = z.object({ chat_bot_id: z.union([z.string(), 
 export type PartialConversation = z.infer<typeof PartialConversation>;
 export const SendNotificationRequest = z.object({ content: z.string(), delivery_method: z.union([DeliveryMethod, z.null()]).optional(), notification_type: z.union([NotificationType, z.null()]).optional(), title: z.string() }).passthrough();
 export type SendNotificationRequest = z.infer<typeof SendNotificationRequest>;
+export const SendEmailNotificationResponse = z.object({ message: z.string(), notificationId: z.string().uuid(), participantsNotified: z.number().int() }).passthrough();
+export type SendEmailNotificationResponse = z.infer<typeof SendEmailNotificationResponse>;
 export const RegisterEmailRequest = z.object({ email: z.string(), receive_similar_conversation_updates_by_email: z.boolean(), receive_updates_by_email: z.boolean() }).passthrough();
 export type RegisterEmailRequest = z.infer<typeof RegisterEmailRequest>;
-export const RegisterEmailResponse = z.object({ conversation_id: z.string().uuid(), email: z.string(), id: z.string().uuid(), message: z.string() }).passthrough();
+export const RegisterEmailResponse = z.object({ conversationId: z.string().uuid(), email: z.string(), id: z.string().uuid(), message: z.string() }).passthrough();
 export type RegisterEmailResponse = z.infer<typeof RegisterEmailResponse>;
 export const BotServiceUserSessionDto = z.object({ bot_service_session_id: z.string(), context: z.string(), conversation_id: z.union([z.string(), z.null()]).optional(), id: z.string().uuid(), user_id: z.string().uuid(), workflow_step_id: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type BotServiceUserSessionDto = z.infer<typeof BotServiceUserSessionDto>;
@@ -270,7 +272,7 @@ export const schemas = {
 	DeliveryMethod,
 	NotificationContextType,
 	NotificationType,
-	Notification,
+	NotificationDto,
 	NotificationWithDelivery,
 	PaginatedResults_for_NotificationWithDelivery,
 	UnreadCount,
@@ -294,6 +296,7 @@ export const schemas = {
 	ConversationResponse,
 	PartialConversation,
 	SendNotificationRequest,
+	SendEmailNotificationResponse,
 	RegisterEmailRequest,
 	RegisterEmailResponse,
 	BotServiceUserSessionDto,
@@ -1193,7 +1196,7 @@ const endpoints = makeApi([
 				schema: SendNotificationRequest
 			},
 		],
-		response: z.unknown(),
+		response: SendEmailNotificationResponse,
 	},
 	{
 		method: "get",
@@ -1528,7 +1531,7 @@ const endpoints = makeApi([
 	{
 		method: "get",
 		path: "/notifications",
-		alias: "getNotifications",
+		alias: "GetAllNotifications",
 		description: `Returns a paginated list of all notification deliveries for the authenticated user`,
 		requestFormat: "json",
 		parameters: [
@@ -1564,7 +1567,7 @@ const endpoints = makeApi([
 	{
 		method: "get",
 		path: "/notifications/unread",
-		alias: "getNotificationsunread",
+		alias: "GetUnreadNotifications",
 		description: `Returns a paginated list of unread notification deliveries for the authenticated user`,
 		requestFormat: "json",
 		parameters: [
@@ -1584,7 +1587,7 @@ const endpoints = makeApi([
 	{
 		method: "get",
 		path: "/notifications/unread/count",
-		alias: "getNotificationsunreadcount",
+		alias: "GetUnreadNotificationsCount",
 		description: `Returns the count of unread notifications for the authenticated user`,
 		requestFormat: "json",
 		response: z.object({ count: z.number().int() }).passthrough(),

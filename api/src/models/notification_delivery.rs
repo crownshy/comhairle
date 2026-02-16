@@ -1,6 +1,9 @@
 use super::notification::{Notification, NotificationIden};
 use super::pagination::{Order, PageOptions, PaginatedResults};
-use crate::error::ComhairleError;
+use crate::routes::notifications::dto::{NotificationDeliveryDto, NotificationDto};
+use crate::{
+    error::ComhairleError, models::notification::DEFAULT_COLUMNS as NOTIFICATION_DEFAULT_COLUMNS,
+};
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
@@ -75,8 +78,8 @@ const DEFAULT_COLUMNS: [NotificationDeliveryIden; 8] = [
 #[derive(Debug, Serialize, Clone, JsonSchema)]
 pub struct NotificationWithDelivery {
     #[serde(flatten)]
-    pub delivery: NotificationDelivery,
-    pub notification: Notification,
+    pub delivery: NotificationDeliveryDto,
+    pub notification: NotificationDto,
 }
 
 impl PartialNotificationDelivery {
@@ -454,16 +457,7 @@ pub async fn list_for_user_with_notifications(
 
     // Get all notifications in one query
     let (sql, values) = Query::select()
-        .columns([
-            NotificationIden::Id,
-            NotificationIden::Title,
-            NotificationIden::Content,
-            NotificationIden::NotificationType,
-            NotificationIden::ContextType,
-            NotificationIden::ContextId,
-            NotificationIden::CreatedAt,
-            NotificationIden::UpdatedAt,
-        ])
+        .columns(NOTIFICATION_DEFAULT_COLUMNS)
         .from(NotificationIden::Table)
         .and_where(Expr::col(NotificationIden::Id).is_in(notification_ids))
         .build_sqlx(PostgresQueryBuilder);
@@ -482,8 +476,8 @@ pub async fn list_for_user_with_notifications(
             notifications_map
                 .get(&delivery.notification_id)
                 .map(|notification| NotificationWithDelivery {
-                    delivery,
-                    notification: notification.clone(),
+                    delivery: delivery.into(),
+                    notification: notification.clone().into(),
                 })
         })
         .collect();
@@ -519,16 +513,7 @@ pub async fn list_unread_for_user_with_notifications(
 
     // Get all notifications in one query
     let (sql, values) = Query::select()
-        .columns([
-            NotificationIden::Id,
-            NotificationIden::Title,
-            NotificationIden::Content,
-            NotificationIden::NotificationType,
-            NotificationIden::ContextType,
-            NotificationIden::ContextId,
-            NotificationIden::CreatedAt,
-            NotificationIden::UpdatedAt,
-        ])
+        .columns(NOTIFICATION_DEFAULT_COLUMNS)
         .from(NotificationIden::Table)
         .and_where(Expr::col(NotificationIden::Id).is_in(notification_ids))
         .build_sqlx(PostgresQueryBuilder);
@@ -547,8 +532,8 @@ pub async fn list_unread_for_user_with_notifications(
             notifications_map
                 .get(&delivery.notification_id)
                 .map(|notification| NotificationWithDelivery {
-                    delivery,
-                    notification: notification.clone(),
+                    delivery: delivery.into(),
+                    notification: notification.clone().into(),
                 })
         })
         .collect();
