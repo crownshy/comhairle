@@ -1,278 +1,33 @@
 @import 'tailwindcss';
 @import "tw-animate-css";
+@import '$lib/styles/comhairle-themes.css';
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
-html,body{
+html, body {
   width: 100%;
   max-width: 100dvw;
-  height:100vh;
+  height: 100vh;
 }
 
-
-:root {
-  --background: hsl(0 0% 100%) /* <- Wrap in HSL */;
-  --foreground: hsl(240 10% 3.9%);
-  --muted: hsl(240 4.8% 95.9%);
-  --muted-foreground: hsl(240 3.8% 46.1%);
-  --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(240 10% 3.9%);
-  --card: hsl(0 0% 100%);
-  --card-foreground: hsl(240 10% 3.9%);
-  --border: hsl(240 5.9% 90%);
-  --input: hsl(240 5.9% 90%);
-  --primary: hsl(142, 76%, 36%);
-  --primary-foreground: hsl(0 0% 98%);
-  --secondary: hsl(240 4.8% 95.9%);
-  --secondary-foreground: hsl(240 5.9% 10%);
-  --accent: hsl(240 4.8% 95.9%);
-  --accent-foreground: hsl(240 5.9% 10%);
-  --destructive: hsl(0 72.2% 50.6%);
-  --destructive-foreground: hsl(0 0% 98%);
-  --ring: hsl(240 10% 3.9%);
-  --sidebar: hsl(0 0% 98%);
-  --sidebar-foreground: hsl(240 5.3% 26.1%);
-  --sidebar-primary: hsl(240 5.9% 10%);
-  --sidebar-primary-foreground: hsl(0 0% 98%);
-  --sidebar-accent: hsl(240 4.8% 95.9%);
-  --sidebar-accent-foreground: hsl(240 5.9% 10%);
-  --sidebar-border: hsl(220 13% 91%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
-  --nav-text:hsla(79, 100%, 96%, 1);
-  --nav-background:hsla(79, 100%, 96%, 1); 
-  --radius: 0.5rem;
-  --font-sans: "Inter"; 
-  --font-serif: "Inter";
-  
-  /* Chat widget colors - easy to theme */
-  --chat-primary: #2978D1;
-  --chat-neutral: #6B7280;
-}
-
-.comhairle{
-
-  --background: hsla(0, 0%, 100%, 1);
-  --foreground: hsl(30 10% 3.9%);
-  --primary: hsl(88, 33%, 9%);
-  --secondary: hsl(102, 34%, 30%);
-  --radius: 6.25rem;
-  --secondary-foreground: white;
-  --muted-foreground: #272f1d;
-  --nav-background: hsla(78, 60%, 89%, 0.08);
-  --nav-text: hsla(79, 100%, 96%, 1);
-  --font-serif: inter;
-  --font-sans: inter;
-  --font-mono: inter;
-  --sidebar: hsl(88, 33%, 9%);
-  --sidebar-radius: 10px;
-  --sidebar-foreground: hsla(79, 100%, 96%, 1);
-  --admin-background: hsla(60, 67%, 98%, 1);
-  --mutted: hsla(100, 29%, 10%, 1);
-}
-
-.scot-gov{
-  --background: hsla(0, 0%, 100%, 1);
-  --foreground: hsl(30 10% 3.9%);
-  --primary: #0065bd;
-  --primary-200: #D5E3FF;
-  --secondary: #333e48;
-  --secondary-200: #E5E7EB;
-  --radius: 6.25rem;
-  --secondary-foreground: white;
-  --muted-foreground: #272f1d;
-  --nav-background: hsla(78, 60%, 89%, 0.08);
-  --nav-text: hsla(79, 100%, 96%, 1);
-  --font-serif: inter;
-  --font-sans: inter;
-  --font-mono: inter;
-  --sidebar: #0065bd;
-  --sidebar-radius: 10px;
-  --sidebar-foreground: hsla(79, 100%, 96%, 1);
-  --admin-background: hsla(60, 67%, 98%, 1);
-  --mutted: hsla(100, 29%, 10%, 1);
-  /* === Core brand colours === */
-  --color-brand: #0065bd;
-  --color-brand-secondary: #333e48;
-
-  /* === Text === */
-  --color-text: #1a1a1a;
-  --color-text-secondary: #5e5e5e;
-
-  /* === Links === */
-  --color-link: #0065bd;
-  --color-link-hover: #00437e;
-  --color-link-current: #1a1a1a;
-  --color-link-current-bg: #f8f8f8;
-
-  /* === Focus === */
-  --color-focus: #1a1a1a;
-  --color-focus-bg: #fdd522;
-
-  /* === Messaging === */
-  --color-positive: #1a7032;
-  --color-negative: #d32205;
-
-  /* === Borders === */
-  --color-border: #b3b3b3;
-  --color-border-strong: #1a1a1a;
-  --color-border-faint: #ebebeb;
-  --color-border-highlight: #0065bd;
-
-  /* === Backgrounds === */
-  --color-bg-primary: #ffffff;
-  --color-bg-secondary: #f8f8f8;
-  --color-bg-tertiary: #ebebeb;
-
-  /* === Extended palette === */
-  --color-green: #5eb135;
-  --color-dark-green: #1a7032;
-  --color-teal: #28a197;
-  --color-dark-teal: #1c5d5d;
-  --color-blue-light: #d9effc;
-  --color-blue: #0065bd;
-  --color-blue-dark: #00437e;
-  --color-blue-darker: #002d54;
-  --color-purple: #741e6d;
-  --color-pink: #e5007e;
-  --color-white: #ffffff;
-  --color-grey-lighter: #f8f8f8;
-  --color-grey-light: #ebebeb;
-  --color-grey-medium: #b3b3b3;
-  --color-grey: #5e5e5e;
-  --color-grey-dark: #1a1a1a;
-  --color-black: #000000;
-  --color-red: #d32205;
-  --color-brown: #592c20;
-  --color-orange: #cb4e0b;
-  --color-yellow: #fdd522;
-
-  /* === Semantic mappings (optional shortcuts) === */
-  --color-primary: var(--color-brand);
-  --color-secondary: var(--color-brand-secondary);
-  --color-success: var(--color-positive);
-  --color-error: var(--color-negative);
-  --color-surface: var(--color-bg-primary);
-  --color-muted: var(--color-text-secondary);
-}
- 
-.dark {
-  --background: hsl(240 10% 3.9%);
-  --foreground: hsl(0 0% 98%);
-  --muted: hsl(240 3.7% 15.9%);
-  --muted-foreground: hsl(240 5% 64.9%);
-  --popover: hsl(240 10% 3.9%);
-  --popover-foreground: hsl(0 0% 98%);
-  --card: hsl(240 10% 3.9%);
-  --card-foreground: hsl(0 0% 98%);
-  --border: hsl(240 3.7% 15.9%);
-  --input: hsl(240 3.7% 15.9%);
-  --primary: hsl(0 0% 98%);
-  --primary-foreground: hsl(240 5.9% 10%);
-  --secondary: hsl(240 3.7% 15.9%);
-  --secondary-foreground: hsl(0 0% 98%);
-  --accent: hsl(240 3.7% 15.9%);
-  --accent-foreground: hsl(0 0% 98%);
-  --destructive: hsl(0 62.8% 30.6%);
-  --destructive-foreground: hsl(0 0% 98%);
-  --ring: hsl(240 4.9% 83.9%);
-  --sidebar: hsl(240 5.9% 10%);
-  --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: hsl(224.3 76.3% 48%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 3.7% 15.9%);
-  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
-}
- 
-@theme inline {
-  --font-sans: var(--font-sans);
-  --font-serif: var(--font-serif);
-  --font-mono: var(--font-mono);
-
-  --radius-nav: 20px;
-  /* Radius (for rounded-*) */
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
- 
-  /* Colors */
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-primary: var(--primary);
-  --color-primary-200: var(--primary-200);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-200: var(--secondary-200);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-ring: var(--ring);
-  --color-radius: var(--radius);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-
-  --color-admin-background: var(--admin-background);
-
-  --color-nav-background:var(--nav-background);
-  --color-nav-text: var(--nav-text);
-
-  --color-brand: var(--color-brand);
-  --color-brand-mutted: var(--color-brand)/70;
-  --color-brand-secondary: var(--color-brand-secondary);
-
-  /* ==========================================================================
-     Chat Widget Colors - Derived from --chat-primary and --chat-neutral
-     Use as: bg-chat-primary, text-chat-muted, border-chat-border, etc.
-     ========================================================================== */
-  --color-chat-primary: var(--chat-primary);
-  --color-chat-primary-light: color-mix(in oklch, var(--chat-primary), white 70%);
-  --color-chat-primary-lighter: color-mix(in oklch, var(--chat-primary), white 85%);
-  --color-chat-primary-dark: color-mix(in oklch, var(--chat-primary), black 20%);
-  --color-chat-primary-darker: color-mix(in oklch, var(--chat-primary), black 40%);
-  
-  --color-chat-neutral: var(--chat-neutral);
-  --color-chat-muted: color-mix(in oklch, var(--chat-neutral), white 40%);
-  --color-chat-border: color-mix(in oklch, var(--chat-neutral), white 70%);
-  --color-chat-bg: color-mix(in oklch, var(--chat-neutral), white 92%);
-  --color-chat-text: color-mix(in oklch, var(--chat-neutral), black 40%);
-  --color-chat-text-muted: var(--chat-neutral);
-}
- 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
- 
+
   body {
     @apply bg-background text-foreground;
   }
 }
+
 /* Used to apply prose styles to markdown editors */
-.carta-renderer { 
-  @apply prose  dark:prose-invert max-w-none;
+.carta-renderer {
+  @apply prose dark:prose-invert max-w-none;
 }
 
 button, a {
-  cursor: pointer; 
+  cursor: pointer;
 }
 
 [data-sonner-toast] [data-close-button] {
