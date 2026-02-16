@@ -25,7 +25,7 @@
 		</div>
 	</div>
 	<div class="mt-1 flex flex-col gap-y-10">
-		<section id="your_details">
+		<section id="your_details" class="border-b border-border py-5">
 			<h2 class="mb-6 text-3xl">Your Details</h2>
 			{#if user.authType === 'annon'}
 				<div class="space-y-6">
@@ -67,6 +67,6 @@
 					isAnnon={user.authType === 'annon'}
 				/>
 			{/each}
-		</section>
+		</section>		
 	</div>
 </div>

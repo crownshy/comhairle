@@ -1,6 +1,6 @@
 <script lang="ts">
 	// import Logo from '$lib/assets/comhairle_logo.svg';
-	import Logo from '$lib/components/ComhairleLogo.svelte';
+	import Logo from '$lib/components/Logo.svelte';
 </script>
 
 <div class="align-center mx-auto max-w-xs md:mt-10">
