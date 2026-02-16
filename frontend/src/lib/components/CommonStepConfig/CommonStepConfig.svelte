@@ -10,7 +10,8 @@
 	import { Label } from '../ui/label';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
-	import { createDebouncer, getTextInLocale } from '$lib/components/Translation/translationUtils';
+	import { useDebounce } from 'runed';
+	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
 
 	type Props = {
 		conversation_id: string;
@@ -40,24 +41,24 @@
 		description = getTextInLocale(step?.translations?.description, primaryLocale, step?.description ?? '');
 	});
 
-	const requiredDebouncer = createDebouncer(500);
+	const debouncedUpdateRequired = useDebounce(async (checked: boolean) => {
+		try {
+			await apiClient.UpdateWorkflowStep({ required: checked }, {
+				params: {
+					conversation_id,
+					workflow_id: step.workflowId,
+					workflow_step_id: step.id
+				}
+			});
+			await invalidateAll();
+		} catch (e) {
+			notifications.send({ message: 'Failed to update required status', priority: 'ERROR' });
+		}
+	}, 500);
 
 	function handleRequiredChange(checked: boolean) {
 		required = checked;
-		requiredDebouncer.debounce(async () => {
-			try {
-				await apiClient.UpdateWorkflowStep({ required }, {
-					params: {
-						conversation_id,
-						workflow_id: step.workflowId,
-						workflow_step_id: step.id
-					}
-				});
-				await invalidateAll();
-			} catch (e) {
-				notifications.send({ message: 'Failed to update required status', priority: 'ERROR' });
-			}
-		});
+		debouncedUpdateRequired(checked);
 	}
 </script>
 
