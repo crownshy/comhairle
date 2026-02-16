@@ -5,6 +5,7 @@
 	import UserDetailsForm from '$lib/components/UserDetailsForm/UserDetailsForm.svelte';
 	import UpgradeAccountModal from '$lib/components/UpgradeAccountModal/UpgradeAccountModal.svelte';
 	import type { User, UserDto } from '$lib/api/api';
+	import ThemeSwitcher from '$lib/components/ThemeSwitcher.svelte';
 
 	let { data }: PageProps = $props();
 	let participation = $derived(data.participation);
@@ -25,7 +26,7 @@
 		</div>
 	</div>
 	<div class="mt-1 flex flex-col gap-y-10">
-		<section id="your_details">
+		<section id="your_details" class="border-b border-border py-5">
 			<h2 class="mb-6 text-3xl">Your Details</h2>
 			{#if user.authType === 'annon'}
 				<div class="space-y-6">
@@ -55,6 +56,11 @@
 				<UserDetailsForm {user} />
 			{/if}
 		</section>
+		<section id="theme" class="flex flex-col border-b border-border py-5">
+			<h2 class="text-3xl">Theme</h2>
+			<p class="my-4">Choose your preferred theme</p>
+			<ThemeSwitcher />
+		</section>
 		<section id="notifications" class=" flex flex-col">
 			<h2 class="text-3xl">Notifications</h2>
 			<p class="my-10">
@@ -67,6 +73,6 @@
 					isAnnon={user.authType === 'annon'}
 				/>
 			{/each}
-		</section>
+		</section>		
 	</div>
 </div>
