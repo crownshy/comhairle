@@ -5,7 +5,6 @@
 	import UserDetailsForm from '$lib/components/UserDetailsForm/UserDetailsForm.svelte';
 	import UpgradeAccountModal from '$lib/components/UpgradeAccountModal/UpgradeAccountModal.svelte';
 	import type { User, UserDto } from '$lib/api/api';
-	import ThemeSwitcher from '$lib/components/ThemeSwitcher.svelte';
 
 	let { data }: PageProps = $props();
 	let participation = $derived(data.participation);
