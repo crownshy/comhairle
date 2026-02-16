@@ -63,7 +63,7 @@
 								{/if}
 								<h3 class="font-bold">{impact.title}</h3>
 							</div>
-							<span>{formatDistanceToNow(impact.created_at, { addSuffix: true })}</span>
+							<span>{formatDistanceToNow(impact.createdAt, { addSuffix: true })}</span>
 						</div>
 						<p>
 							{impact.details}
@@ -73,7 +73,7 @@
 			</ul>
 		</Tabs.Content>
 
-		{#each workflow_steps as step}
+		{#each workflow_steps as step (step.id)}
 			<Tabs.Content value={step.id} class="spage-y-4">
 				{#if step.tool_config.type === 'polis'}
 					<iframe
@@ -94,7 +94,7 @@
 		<Tabs.Content value="Feedback">
 			<h3 class="mb-4 text-xl font-bold">Facilitator Feedback</h3>
 			<h3 class="mb-4 text-xl font-bold">Participant feedback</h3>
-			{#each report.facilitator_feedback as feedback}
+			{#each report.facilitatorFeedback as feedback (feedback.id)}
 				<article
 					class="relative mb-4 rounded-lg border-l-4 border-blue-500 bg-gray-100 p-6 shadow-md dark:border-blue-400 dark:bg-gray-800"
 				>

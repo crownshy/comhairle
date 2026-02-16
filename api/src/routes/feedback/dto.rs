@@ -1,5 +1,5 @@
 use schemars::JsonSchema;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::models::feedback::Feedback;
@@ -14,7 +14,7 @@ use crate::models::feedback::Feedback;
 /// * `updated_at`
 ///
 /// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
-#[derive(Serialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct FeedbackDto {
     pub id: Uuid,
