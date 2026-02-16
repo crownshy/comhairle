@@ -18,7 +18,7 @@ use uuid::Uuid;
 
 use crate::bot_service::ComhairleAgentSession;
 use crate::models::bot_service_user_session::{self, BotServiceSessionContext};
-use crate::models::workflow_step::LocalisedWorkflowStep;
+use crate::models::workflow_step::{LocalisedWorkflowStep, WorkflowStepWithTranslations};
 use crate::routes::translations::LocaleExtractor;
 use crate::tools::ToolConfig;
 use crate::{
@@ -27,8 +27,29 @@ use crate::{
     ComhairleState,
 };
 
-use super::auth::{RequiredAdminUser, RequiredUser};
+use super::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
 use crate::models::{self, conversation, user_participation};
+use axum::extract::Query;
+
+#[derive(Deserialize, JsonSchema, Debug)]
+pub struct GetWorkflowStepsQuery {
+    #[serde(rename = "withTranslations", default)]
+    pub with_translations: bool,
+}
+
+#[derive(Serialize, JsonSchema)]
+#[serde(untagged)]
+pub enum WorkflowStepResponse {
+    Localised(LocalisedWorkflowStep),
+    WithTranslations(WorkflowStepWithTranslations),
+}
+
+#[derive(Serialize, JsonSchema)]
+#[serde(untagged)]
+pub enum WorkflowStepsListResponse {
+    Localised(Vec<LocalisedWorkflowStep>),
+    WithTranslations(Vec<WorkflowStepWithTranslations>),
+}
 
 /// Create workflow handler
 async fn create_workflow_step(
@@ -87,26 +108,30 @@ async fn list_workflows_step(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Path((conversation_id, workflow_id)): Path<(Uuid, Uuid)>,
+    Query(query): Query<GetWorkflowStepsQuery>,
     LocaleExtractor(locale): LocaleExtractor,
-) -> Result<(StatusCode, Json<Vec<LocalisedWorkflowStep>>), ComhairleError> {
+) -> Result<(StatusCode, Json<WorkflowStepsListResponse>), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     let conversation_owner = user.id == conversation.owner_id;
 
-    // Check to see if the user is a participant on this conversation
     user_participation::get(&state.db, &user.id, &workflow_id)
         .await
         .map_err(|_| ComhairleError::UserIsNotParticipatingInTheConversation)?;
 
-    let mut workflow_steps =
-        workflow_step::list_localised(&state.db, &workflow_id, &locale).await?;
+    let should_return_with_translations = query.with_translations && is_user_admin(&user, &state.config);
 
-    if !conversation_owner {
-        for workflow_step in workflow_steps.iter_mut() {
-            workflow_step.sanatize();
+    if should_return_with_translations {
+        let steps_with_translations = workflow_step::list_with_translations(&state.db, &workflow_id, &locale).await?;
+        Ok((StatusCode::OK, Json(WorkflowStepsListResponse::WithTranslations(steps_with_translations))))
+    } else {
+        let mut workflow_steps = workflow_step::list_localised(&state.db, &workflow_id, &locale).await?;
+        if !conversation_owner {
+            for workflow_step in workflow_steps.iter_mut() {
+                workflow_step.sanatize();
+            }
         }
+        Ok((StatusCode::OK, Json(WorkflowStepsListResponse::Localised(workflow_steps))))
     }
-
-    Ok((StatusCode::OK, Json(workflow_steps)))
 }
 
 /// Get a specific workflow
@@ -241,9 +266,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(list_workflows_step, |op| {
                 op.id("ListWorkflowSteps")
                     .tag("Workflow step")
-                    .summary("List the workflow steps associated with this workflow")
+                    .summary("List the workflow steps associated with this workflow. Use withTranslations=true to get translation data.")
                     .security_requirement("JWT")
-                    .response::<200, Json<Vec<LocalisedWorkflowStep>>>()
+                    .response::<200, Json<WorkflowStepsListResponse>>()
             }),
         )
         .api_route(

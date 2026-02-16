@@ -114,11 +114,13 @@ export const CreateWorkflow = z.object({ auto_login: z.boolean(), description: z
 export type CreateWorkflow = z.infer<typeof CreateWorkflow>;
 export const ActivationRule = z.literal("manual");
 export type ActivationRule = z.infer<typeof ActivationRule>;
+export const LearnPage = z.object({ text_content_id: z.string().uuid() }).passthrough();
+export type LearnPage = z.infer<typeof LearnPage>;
 export const LocalisedPage = z.object({ content: z.string(), type: z.literal("markdown") }).passthrough();
 export type LocalisedPage = z.infer<typeof LocalisedPage>;
-export const Page = z.array(LocalisedPage);
-export type Page = z.infer<typeof Page>;
-export const ToolConfig = z.union([z.object({ admin_password: z.string(), admin_user: z.string(), poll_id: z.string(), server_url: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ admin_password: z.string(), admin_user: z.string(), project_id: z.string(), survey_id: z.string(), survey_url: z.string(), type: z.literal("heyform"), workspace_id: z.string() }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ topic: z.string(), type: z.literal("elicitationbot") }).passthrough()]);
+export const LearnPageEntry = z.union([LearnPage, z.array(LocalisedPage)]);
+export type LearnPageEntry = z.infer<typeof LearnPageEntry>;
+export const ToolConfig = z.union([z.object({ admin_password: z.string(), admin_user: z.string(), poll_id: z.string(), server_url: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(LearnPageEntry), type: z.literal("learn") }).passthrough(), z.object({ admin_password: z.string(), admin_user: z.string(), project_id: z.string(), survey_id: z.string(), survey_url: z.string(), type: z.literal("heyform"), workspace_id: z.string() }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ topic: z.string(), type: z.literal("elicitationbot") }).passthrough()]);
 export type ToolConfig = z.infer<typeof ToolConfig>;
 export const WorkflowStep = z.object({ activation_rule: ActivationRule, created_at: z.string().datetime({ offset: true }), description: z.string().uuid(), id: z.string().uuid(), is_offline: z.boolean(), name: z.string().uuid(), preview_tool_config: ToolConfig, required: z.boolean(), step_order: z.number().int(), tool_config: z.union([ToolConfig, z.null()]).optional(), updated_at: z.string().datetime({ offset: true }), workflow_id: z.string().uuid() }).passthrough();
 export type WorkflowStep = z.infer<typeof WorkflowStep>;
@@ -134,7 +136,15 @@ export const UserParticipation = z.object({ created_at: z.string().datetime({ of
 export type UserParticipation = z.infer<typeof UserParticipation>;
 export const LocalisedWorkflowStep = z.object({ activation_rule: ActivationRule, created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_offline: z.boolean(), name: z.string(), preview_tool_config: ToolConfig, required: z.boolean(), step_order: z.number().int(), tool_config: z.union([ToolConfig, z.null()]).optional(), updated_at: z.string().datetime({ offset: true }), workflow_id: z.string().uuid() }).passthrough();
 export type LocalisedWorkflowStep = z.infer<typeof LocalisedWorkflowStep>;
-export const ToolSetup = z.union([z.object({ topic: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ type: z.literal("heyform") }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ conversation_id: z.string(), topic: z.string(), type: z.literal("elicitationbot") }).passthrough()]);
+export const Translation2 = z.object({ textContent: TextContentDto, textTranslations: z.array(TextTranslationDto) }).passthrough();
+export type Translation2 = z.infer<typeof Translation2>;
+export const WorkflowStepTranslations = z.object({ description: Translation2, name: Translation2 }).passthrough();
+export type WorkflowStepTranslations = z.infer<typeof WorkflowStepTranslations>;
+export const WorkflowStepWithTranslations = z.object({ activationRule: ActivationRule, createdAt: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), isOffline: z.boolean(), name: z.string(), previewToolConfig: ToolConfig, required: z.boolean(), stepOrder: z.number().int(), toolConfig: z.union([ToolConfig, z.null()]).optional(), translations: WorkflowStepTranslations, updatedAt: z.string().datetime({ offset: true }), workflowId: z.string().uuid() }).passthrough();
+export type WorkflowStepWithTranslations = z.infer<typeof WorkflowStepWithTranslations>;
+export const WorkflowStepsListResponse = z.union([z.array(LocalisedWorkflowStep), z.array(WorkflowStepWithTranslations)]);
+export type WorkflowStepsListResponse = z.infer<typeof WorkflowStepsListResponse>;
+export const ToolSetup = z.union([z.object({ topic: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(LearnPageEntry), type: z.literal("learn") }).passthrough(), z.object({ type: z.literal("heyform") }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ conversation_id: z.string(), topic: z.string(), type: z.literal("elicitationbot") }).passthrough()]);
 export type ToolSetup = z.infer<typeof ToolSetup>;
 export const CreateWorkflowStep = z.object({ activation_rule: ActivationRule, description: z.string(), is_offline: z.boolean(), name: z.string(), required: z.boolean(), step_order: z.number().int(), tool_setup: ToolSetup }).passthrough();
 export type CreateWorkflowStep = z.infer<typeof CreateWorkflowStep>;
@@ -301,8 +311,9 @@ export const schemas = {
 	WorkflowDto,
 	CreateWorkflow,
 	ActivationRule,
+	LearnPage,
 	LocalisedPage,
-	Page,
+	LearnPageEntry,
 	ToolConfig,
 	WorkflowStep,
 	DailySignupStats,
@@ -311,6 +322,10 @@ export const schemas = {
 	PartialWorkflow,
 	UserParticipation,
 	LocalisedWorkflowStep,
+	Translation2,
+	WorkflowStepTranslations,
+	WorkflowStepWithTranslations,
+	WorkflowStepsListResponse,
 	ToolSetup,
 	CreateWorkflowStep,
 	PartialWorkflowStep,
@@ -1369,7 +1384,14 @@ const endpoints = makeApi([
 		path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step",
 		alias: "ListWorkflowSteps",
 		requestFormat: "json",
-		response: z.array(LocalisedWorkflowStep),
+		parameters: [
+			{
+				name: "withTranslations",
+				type: "Query",
+				schema: z.boolean().optional().default(false)
+			},
+		],
+		response: WorkflowStepsListResponse,
 	},
 	{
 		method: "post",
