@@ -5,7 +5,6 @@
 	import UserDetailsForm from '$lib/components/UserDetailsForm/UserDetailsForm.svelte';
 	import UpgradeAccountModal from '$lib/components/UpgradeAccountModal/UpgradeAccountModal.svelte';
 	import type { User, UserDto } from '$lib/api/api';
-	import ThemeSwitcher from '$lib/components/ThemeSwitcher.svelte';
 
 	let { data }: PageProps = $props();
 	let participation = $derived(data.participation);
@@ -55,11 +54,6 @@
 			{:else}
 				<UserDetailsForm {user} />
 			{/if}
-		</section>
-		<section id="theme" class="flex flex-col border-b border-border py-5">
-			<h2 class="text-3xl">Theme</h2>
-			<p class="my-4">Choose your preferred theme</p>
-			<ThemeSwitcher />
 		</section>
 		<section id="notifications" class=" flex flex-col">
 			<h2 class="text-3xl">Notifications</h2>

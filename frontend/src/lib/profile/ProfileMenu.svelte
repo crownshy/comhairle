@@ -8,6 +8,7 @@
 	import { apiClient } from '$lib/api/client';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Bell, LogOut, Settings } from 'lucide-svelte';
+	import ModeToggle from '$lib/components/ModeToggle.svelte';
 	import type { UserDto } from '$lib/api/api';
 
 	type Props = {
@@ -58,6 +59,9 @@
 					<Button href="/settings" type="submit" variant="ghost"
 						><Settings />Settings</Button
 					>
+				</DropdownMenu.Item>
+				<DropdownMenu.Item>
+					<ModeToggle />
 				</DropdownMenu.Item>
 				<DropdownMenu.Item>
 					<Button href="/notifications" type="submit" variant="ghost"
