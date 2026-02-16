@@ -1,220 +1,283 @@
 <script lang="ts">
-	import Logo from '$lib/assets/comhairle_logo.svg';
-	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import * as SideBar from '$lib/components/ui/sidebar';
 	import * as Collapsible from '$lib/components/ui/collapsible';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
+	import * as Avatar from '$lib/components/ui/avatar';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import {
 		Home,
 		Info,
 		LayoutDashboard,
-		MessageSquareText,
 		Plus,
 		Settings,
-		ChevronDown
+		ChevronRight
 	} from 'lucide-svelte';
 	import { conversationSteps } from '$lib/config/conversation-steps';
 	import { Button } from './ui/button';
 	import { page } from '$app/state';
+	import { userInitials } from '$lib/utils';
+	import ComhairleLogo from './ComhairleLogo.svelte';
+
 	let props = $props();
 	let path = $derived(props.path);
-	console.log('Path is ', path);
 	let user = $derived(props.user);
 	let conversations = $derived(props.conversations);
 	let workflow_steps = $derived(page.data?.workflow_steps ?? []);
+	let user_initials = $derived(userInitials(user?.username ?? ''));
 
 	// TODO We need to use data-sveltekit-reload as the
 	// component isn't relaoading on navigation when we use
 	// page.ts for the data fetching
 </script>
 
-<SideBar.Provider>
-	<SideBar.Root class="w-[400px]">
-		<SideBar.Header>
-			<a href="/">
-				<div class="flex flex-row items-center gap-4 p-4">
-					<img class="w-10" src={Logo} alt="Comhairle Logo" />
-					<h1 class="text-nav-text text-xl font-bold">Comhairle</h1>
-				</div>
-			</a>
+<SideBar.Root class="w-72">
+		<SideBar.Header class="p-6">
+			<ComhairleLogo />
 		</SideBar.Header>
-		<SideBar.Content class="radius-nav overflow-x-hidden">
-			<SideBar.Group>
-				<SideBar.GroupContent>
-					<SideBar.Menu>
-						<SideBar.MenuItem>
-							<SideBar.MenuButton>
-								{#snippet child({ props })}
-									<a {...props} href="/admin/">
-										<LayoutDashboard />
-										Dashboard
-									</a>
-								{/snippet}
-							</SideBar.MenuButton>
-						</SideBar.MenuItem>
-					</SideBar.Menu>
-				</SideBar.GroupContent>
-			</SideBar.Group>
-			<SideBar.Group class="flex min-h-0 flex-1 flex-col">
-				<SideBar.GroupLabel class="shrink-0">Conversations</SideBar.GroupLabel>
-				<SideBar.GroupContent class="min-h-0 flex-1">
-					<ScrollArea.Root class="h-full" type="always">
-						{#if conversations}
-							<SideBar.Menu>
-								{#each conversations.records as conversation}
-									<Collapsible.Root
-										open={path.includes(conversation.id)}
-										class="group/collapsible"
-									>
-										<SideBar.MenuItem>
-											<Collapsible.Trigger>
-												{#snippet child({ props })}
-													<SideBar.MenuButton
-														class="w-full overflow-hidden"
-														{...props}
-													>
-														{#snippet child({ props })}
-															<a
-																{...props}
-																href={`/admin/conversations/${conversation.id}/configure`}
-																class="flex w-full items-start gap-2"
+
+		<SideBar.Content class="overflow-hidden py-4 pl-4">
+				<!-- Platform section -->
+				<SideBar.Group class="">
+					<!-- todo: hook up to style variable + add translations with paraglide -->
+					<SideBar.GroupLabel class="text-sidebar-secondary text-xs font-medium">Platform</SideBar.GroupLabel>
+					<SideBar.GroupContent>
+						<SideBar.Menu>
+							<SideBar.MenuItem>
+								<SideBar.MenuButton>
+									{#snippet child({ props: btnProps })}
+										<a {...btnProps} href="/admin/">
+											<Home class="size-4" />
+											Home
+										</a>
+									{/snippet}
+								</SideBar.MenuButton>
+							</SideBar.MenuItem>
+							<SideBar.MenuItem>
+								<SideBar.MenuButton>
+									{#snippet child({ props: btnProps })}
+										<a {...btnProps} href="/admin/">
+											<LayoutDashboard class="size-4" />
+											Dashboard
+										</a>
+									{/snippet}
+								</SideBar.MenuButton>
+							</SideBar.MenuItem>
+						</SideBar.Menu>
+					</SideBar.GroupContent>
+				</SideBar.Group>
+
+				<!-- Conversations section -->
+				<SideBar.Group class="flex min-h-0 flex-1 flex-col pr-1">
+					<!-- todo: add var for sky blue -->
+					<SideBar.GroupLabel class="text-sidebar-secondary text-xs font-medium">Conversations</SideBar.GroupLabel>
+					
+						<SideBar.GroupContent class="min-h-0 flex-1">
+							<ScrollArea.Root class="h-full pr-3" type="always">
+								{#if conversations}
+									<SideBar.Menu>
+										{#each conversations.records as conversation (conversation.id)}
+											<Collapsible.Root
+												open={path.includes(conversation.id)}
+												class="group/collapsible"
+											>
+												<SideBar.MenuItem class="">
+													<Collapsible.Trigger>
+														{#snippet child({ props: triggerProps })}
+															<SideBar.MenuButton
+																class=" h-8 w-full overflow-hidden rounded-lg p-2 text-sidebar-primary-foreground data-[active=true]:bg-mutted data-[active=true]:text-sidebar-accent-foreground"
+																isActive={path.includes(conversation.id)}
+																{...triggerProps}
 															>
-																<MessageSquareText
-																	class="shrink-0"
-																/>
-																<span
-																	class="break-words whitespace-normal"
-																	>{conversation.title}</span
-																>
-															</a>
-														{/snippet}
-													</SideBar.MenuButton>
-												{/snippet}
-											</Collapsible.Trigger>
-											<Collapsible.Content>
-												{#each conversationSteps as step}
-													{#if step.path === 'design'}
-														<Collapsible.Root
-															open={path.includes('design')}
-															class="group/design"
-														>
-															<SideBar.MenuSub>
-																<SideBar.MenuSubItem>
-																	<Collapsible.Trigger
-																		class="w-full"
+																{#snippet child({ props: btnProps })}
+																	<a
+																		{...btnProps}
+																		href={`/admin/conversations/${conversation.id}/configure`}
+																		class="flex w-full items-center group-data-[state=open]/collapsible:bg-sidebar-accent group-data-[state=open]/collapsible:text-sidebar-accent-foreground active:text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md py-1.5 px-2"
 																	>
-																		<SideBar.MenuSubButton
-																			href={`/admin/conversations/${conversation.id}/design`}
-																			class="{path.includes(
-																				'design'
-																			)
-																				? 'font-bold'
-																				: ''} hover:text-black"
-																			aria-disabled={conversation.is_live
-																				? !step.activeOnLive
-																				: step.activeOnLive}
-																		>
-																			<step.icon
-																				class="stroke-nav-text group-hover/menu-button:stroke-black"
-																			/>
-																			<span
-																				class="flex-1 text-left"
-																				>{step.name}</span
+																		{#if conversation.title.length > 29}
+																			<Tooltip.Root>
+																				<Tooltip.Trigger>
+																					{#snippet child({ props: tipProps })}
+																						<span
+																							{...tipProps}
+																							class="flex-1 truncate text-left text-sm font-medium leading-4"
+																						>
+																							{conversation.title}
+																						</span>
+																					{/snippet}
+																				</Tooltip.Trigger>
+																				<Tooltip.Content side="right">
+																					{conversation.title}
+																				</Tooltip.Content>
+																			</Tooltip.Root>
+																		{:else}
+																			<span class="flex-1 truncate text-left text-sm font-medium leading-4">
+																				{conversation.title}
+																			</span>
+																		{/if}
+																		<ChevronRight
+																			class="size-4 shrink-0 transition-transform group-data-[state=open]/collapsible:rotate-90"
+																		/>
+																	</a>
+																{/snippet}
+															</SideBar.MenuButton>
+														{/snippet}
+													</Collapsible.Trigger>
+													<Collapsible.Content>
+														<div
+															class="bg-sidebar-active-bg mt-1 rounded-lg p-1"
+														>
+															{#each conversationSteps as step (step.path)}
+																{#if step.path === 'design'}
+																	<Collapsible.Root
+																		open={path.includes('design')}
+																		class="group/design"
+																	>
+																		<SideBar.MenuSub class="w-full">
+																			<SideBar.MenuSubItem>
+																				<Collapsible.Trigger
+																					class="w-full"
+																				>
+																					<SideBar.MenuSubButton
+																						href={`/admin/conversations/${conversation.id}/design`}
+																						class="
+																						stroke-sidebar-foreground 
+																						{path.includes(
+																							'design'
+																						)
+																							? 'font-bold'
+																							: ''} hover:text-sidebar-accent-foreground"
+																						aria-disabled={conversation.is_live
+																							? !step.activeOnLive
+																							: step.activeOnLive}
+																					>
+																						<step.icon class="stroke-sidebar-foreground size-4 shrink-0"/>
+																						<span
+																							class="flex-1 truncate text-left"
+																							>{step.name}</span
+																						>
+																						<ChevronRight
+																							class="size-4 stroke-sidebar-foreground shrink-0 transition-transform group-data-[state=open]/design:rotate-90"
+																						/>
+																					</SideBar.MenuSubButton>
+																				</Collapsible.Trigger>
+																			</SideBar.MenuSubItem>
+																		</SideBar.MenuSub>
+																		<Collapsible.Content class="pl-4">
+																			<div
+																				class="border-sidebar-foreground relative ml-6 mr-2 border-l pl-2 py-0.5"
 																			>
-																			<ChevronDown
-																				class="h-4 w-4 stroke-white transition-transform group-hover/menu-button:stroke-black group-data-[state=open]/design:rotate-180"
-																			/>
-																		</SideBar.MenuSubButton>
-																	</Collapsible.Trigger>
-																</SideBar.MenuSubItem>
-															</SideBar.MenuSub>
-															<Collapsible.Content>
-																<div
-																	class="border-sidebar-border relative mr-6 ml-6 border-l pl-2"
-																>
-																	{#if path.includes(conversation.id) && workflow_steps?.length > 0}
-																		{#each workflow_steps as wfStep (wfStep.id)}
-																			<a
-																				href={`/admin/conversations/${conversation.id}/design/step/${wfStep.id}`}
-																				class="text-sidebar-foreground hover:bg-sidebar-accent block rounded-lg px-2 py-1.5 text-sm hover:text-black {path.includes(
-																					wfStep.id
+																				{#if path.includes(conversation.id) && workflow_steps?.length > 0}
+																					{#each workflow_steps as wfStep (wfStep.id)}
+																						<a
+																							href={`/admin/conversations/${conversation.id}/design/step/${wfStep.id}`}
+																							class="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground block truncate rounded-lg px-2 py-1 text-sm {path.includes(
+																								wfStep.id
+																							)
+																								? 'font-bold'
+																								: ''}"
+																						>
+																							{wfStep.name}
+																						</a>
+																					{/each}
+																				{/if}
+																				<a
+																					href={`/admin/conversations/${conversation.id}/design?addStep=true`}
+																					class="text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground block rounded-lg px-2 py-1 text-sm"
+																				>
+																					+ Add new
+																				</a>
+																			</div>
+																		</Collapsible.Content>
+																	</Collapsible.Root>
+																{:else}
+																	<SideBar.MenuSub class="w-full">
+																		<SideBar.MenuSubItem>
+																			<SideBar.MenuSubButton
+																				href={`/admin/conversations/${conversation.id}/${step.path}`}
+																				aria-disabled={conversation.is_live
+																					? !step.activeOnLive
+																					: step.activeOnLive}
+																				class="{path.includes(
+																					step.path
 																				)
 																					? 'font-bold'
-																					: ''}"
+																					: ''} hover:text-sidebar-accent-foreground"
 																			>
-																				{wfStep.name}
-																			</a>
-																		{/each}
-																	{/if}
-																	<a
-																		href={`/admin/conversations/${conversation.id}/design?addStep=true`}
-																		class="text-sidebar-foreground/40 hover:bg-sidebar-accent block rounded-lg px-2 py-1.5 text-sm hover:text-black"
-																	>
-																		+ Add new
-																	</a>
-																</div>
-															</Collapsible.Content>
-														</Collapsible.Root>
-													{:else}
-														<SideBar.MenuSub>
-															<SideBar.MenuSubItem>
-																<SideBar.MenuSubButton
-																	href={`/admin/conversations/${conversation.id}/${step.path}`}
-																	aria-disabled={conversation.is_live
-																		? !step.activeOnLive
-																		: step.activeOnLive}
-																	class="{path.includes(step.path)
-																		? 'font-bold'
-																		: ''} hover:text-black"
-																	><step.icon
-																		class="stroke-nav-text group-hover/menu-button:stroke-black"
-																	/>
-																	{step.name}</SideBar.MenuSubButton
-																>
-															</SideBar.MenuSubItem>
-														</SideBar.MenuSub>
-													{/if}
-												{/each}
-											</Collapsible.Content>
-										</SideBar.MenuItem>
-									</Collapsible.Root>
-								{/each}
-							</SideBar.Menu>
-						{/if}
-					</ScrollArea.Root>
-				</SideBar.GroupContent>
-				<div class="shrink-0 p-2">
-					<Button href="/admin/conversations/new" class="w-full" variant="secondary">
-						<Plus />
-						New Conversation
-					</Button>
-				</div>
-			</SideBar.Group>
+																				<step.icon
+																					class="size-4 shrink-0 stroke-sidebar-foreground"
+																				/>
+																				<span class="truncate">{step.name}</span>
+																			</SideBar.MenuSubButton>
+																		</SideBar.MenuSubItem>
+																	</SideBar.MenuSub>
+																{/if}
+															{/each}
+														</div>
+													</Collapsible.Content>
+												</SideBar.MenuItem>
+											</Collapsible.Root>
+										{/each}
+									</SideBar.Menu>
+								{/if}
+							</ScrollArea.Root>
+						</SideBar.GroupContent>
+
+					<div class="shrink-0 p-2">
+						<Button
+							href="/admin/conversations/new"
+							class="w-full rounded-full"
+							variant="default"
+						>
+							<Plus class="size-4" />
+							New conversation
+						</Button>
+					</div>
+				</SideBar.Group>
+
+
 		</SideBar.Content>
-		<SideBar.Footer class="flex flex-col gap-1">
-			<SideBar.Menu>
-				<SideBar.MenuItem>
-					<SideBar.MenuButton>
-						{#snippet child({ props })}
-							<a {...props} href="/admin/">
-								<Settings />
-								Settings
-							</a>
-						{/snippet}
-					</SideBar.MenuButton>
-				</SideBar.MenuItem>
-				<SideBar.MenuItem>
-					<SideBar.MenuButton>
-						{#snippet child({ props })}
-							<a {...props} href="/admin/">
-								<Info />
-								About
-							</a>
-						{/snippet}
-					</SideBar.MenuButton>
-				</SideBar.MenuItem>
-			</SideBar.Menu>
-			<UserAvatar {user} />
+
+		<SideBar.Footer>
+				<div class="flex flex-col items-center gap-2 p-2">
+					<Avatar.Root class="h-12 w-12">
+						{#if user?.avatarUrl}
+							<Avatar.Image src={user.avatarUrl} alt={user.username} />
+						{/if}
+						<Avatar.Fallback>{user_initials}</Avatar.Fallback>
+					</Avatar.Root>
+					<div class="flex w-full flex-col items-center gap-0.5">
+						<span class="text-sidebar-primary-foreground w-full truncate text-center text-sm font-semibold">
+							{user?.username ?? ''}
+						</span>
+						{#if user?.email}
+							<span class="text-sidebar-primary-foreground/70 w-full truncate text-center text-xs">
+								{user.email}
+							</span>
+						{/if}
+					</div>
+				</div>
+				<SideBar.Menu>
+					<SideBar.MenuItem>
+						<SideBar.MenuButton>
+							{#snippet child({ props: btnProps })}
+								<a {...btnProps} href="/admin/settings">
+									<Settings class="size-4" />
+									Settings
+								</a>
+							{/snippet}
+						</SideBar.MenuButton>
+					</SideBar.MenuItem>
+					<SideBar.MenuItem>
+						<SideBar.MenuButton>
+							{#snippet child({ props: btnProps })}
+								<a {...btnProps} href="/admin/about">
+									<Info class="size-4" />
+									About Comhairle
+								</a>
+							{/snippet}
+						</SideBar.MenuButton>
+					</SideBar.MenuItem>
+				</SideBar.Menu>
 		</SideBar.Footer>
 	</SideBar.Root>
-</SideBar.Provider>
