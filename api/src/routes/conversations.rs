@@ -92,12 +92,9 @@ async fn list_conversations(
         filter_options,
         Some(locale),
     )
-    .await?;
+    .await?
+    .into();
 
-    let conversations: PaginatedResults<LocalizedConversationDto> = PaginatedResults {
-        total: conversations.total,
-        records: conversations.records.into_iter().map(Into::into).collect(),
-    };
     Ok((StatusCode::OK, Json(conversations)))
 }
 

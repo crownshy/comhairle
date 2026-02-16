@@ -17,14 +17,14 @@ use crate::{
     error::ComhairleError,
     models::{
         self,
-        conversation::{
-            Conversation, ConversationFilterOptions, ConversationOrderOptions,
-            LocalisedConversation,
-        },
+        conversation::{ConversationFilterOptions, ConversationOrderOptions},
         pagination::{OrderParams, PageOptions, PaginatedResults},
         users::{UpdateUserRequest, UpgradeAccountRequest},
     },
-    routes::user::dto::UserDto,
+    routes::{
+        conversations::dto::{ConversationDto, LocalizedConversationDto},
+        user::dto::UserDto,
+    },
     ComhairleState,
 };
 
@@ -38,7 +38,7 @@ pub async fn get_user_owned_conversations(
     OrderParams(order_options): OrderParams<ConversationOrderOptions>,
     Query(filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
-) -> Result<(StatusCode, Json<PaginatedResults<LocalisedConversation>>), ComhairleError> {
+) -> Result<(StatusCode, Json<PaginatedResults<LocalizedConversationDto>>), ComhairleError> {
     let conversations = models::conversation::list_owned(
         &state.db,
         user.id,
@@ -47,7 +47,8 @@ pub async fn get_user_owned_conversations(
         filter_options,
         Some("en".to_string()),
     )
-    .await?;
+    .await?
+    .into();
     Ok((StatusCode::OK, Json(conversations)))
 }
 
@@ -72,9 +73,12 @@ pub struct UserRoles {
 pub async fn get_conversations_user_participating_in(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-) -> Result<(StatusCode, Json<Vec<Conversation>>), ComhairleError> {
-    let conversations =
-        models::conversation::list_for_user_participation(&state.db, &user.id).await?;
+) -> Result<(StatusCode, Json<Vec<ConversationDto>>), ComhairleError> {
+    let conversations = models::conversation::list_for_user_participation(&state.db, &user.id)
+        .await?
+        .into_iter()
+        .map(Into::into)
+        .collect();
     Ok((StatusCode::OK, Json(conversations)))
 }
 
@@ -136,7 +140,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         "Returns a list of all the conversations the user has taken part in",
                     )
                     .security_requirement("JWT")
-                    .response::<201, Json<Vec<Conversation>>>()
+                    .response::<201, Json<Vec<ConversationDto>>>()
             }),
         )
         .api_route(
@@ -146,7 +150,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("User")
                     .description("Gets a list of the conversations a user owns")
                     .security_requirement("JWT")
-                    .response::<201, Json<PaginatedResults<LocalisedConversation>>>()
+                    .response::<201, Json<PaginatedResults<LocalizedConversationDto>>>()
             }),
         )
         .api_route(

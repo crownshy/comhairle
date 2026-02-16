@@ -5,23 +5,23 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import {
-		Home,
 		Info,
 		LayoutDashboard,
 		Plus,
 		Settings,
-		ChevronRight
+		ChevronRight,
+		Home
 	} from 'lucide-svelte';
 	import { conversationSteps } from '$lib/config/conversation-steps';
 	import { Button } from './ui/button';
 	import { page } from '$app/state';
 	import { userInitials } from '$lib/utils';
 	import ComhairleLogo from './ComhairleLogo.svelte';
-
+	import type { LocalizedConversationDto } from '$lib/api/api';
 	let props = $props();
 	let path = $derived(props.path);
 	let user = $derived(props.user);
-	let conversations = $derived(props.conversations);
+	let conversations: LocalizedConversationDto[] = $derived(props.conversations);
 	let workflowSteps = $derived(page.data?.workflowSteps ?? []);
 	let user_initials = $derived(userInitials(user?.username ?? ''));
 
@@ -75,7 +75,7 @@
 							<ScrollArea.Root class="h-full pr-3" type="always">
 								{#if conversations}
 									<SideBar.Menu>
-										{#each conversations.records as conversation (conversation.id)}
+										{#each conversations as conversation (conversation.id)}
 											<Collapsible.Root
 												open={path.includes(conversation.id)}
 												class="group/collapsible"

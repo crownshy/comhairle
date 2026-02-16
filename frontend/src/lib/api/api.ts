@@ -26,18 +26,18 @@ export const ResourceRole = z.enum(["Admin", "SuperAdmin"]);
 export type ResourceRole = z.infer<typeof ResourceRole>;
 export const UserRoles = z.object({ resource: ResourceType, roles: z.array(ResourceRole) }).passthrough();
 export type UserRoles = z.infer<typeof UserRoles>;
-export const Conversation = z.object({ chat_bot_id: z.union([z.string(), z.null()]).optional(), created_at: z.string().datetime({ offset: true }), default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string().uuid(), enable_qa_chat_bot: z.boolean(), id: z.string().uuid(), image_url: z.string(), is_complete: z.boolean(), is_invite_only: z.boolean(), is_live: z.boolean(), is_public: z.boolean(), knowledge_base_id: z.union([z.string(), z.null()]).optional(), owner_id: z.string().uuid(), primary_locale: z.string(), short_description: z.string().uuid(), slug: z.union([z.string(), z.null()]).optional(), supported_languages: z.array(z.string()), tags: z.array(z.string()), title: z.string().uuid(), updated_at: z.string().datetime({ offset: true }), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
-export type Conversation = z.infer<typeof Conversation>;
+export const ConversationDto = z.object({ chatBotId: z.union([z.string(), z.null()]).optional(), description: z.string().uuid(), enableQaChatBot: z.boolean(), id: z.string().uuid(), imageUrl: z.string(), isComplete: z.boolean(), isInviteOnly: z.boolean(), isLive: z.boolean(), isPublic: z.boolean(), knowledgeBaseId: z.union([z.string(), z.null()]).optional(), primaryLocale: z.string(), shortDescription: z.string().uuid(), slug: z.union([z.string(), z.null()]).optional(), supportedLanguages: z.array(z.string()), tags: z.array(z.string()), title: z.string().uuid(), videoUrl: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type ConversationDto = z.infer<typeof ConversationDto>;
 export const created_after = z.union([z.string(), z.null()]).optional();
 export type created_after = z.infer<typeof created_after>;
 export const is_complete = z.union([z.boolean(), z.null()]).optional();
 export type is_complete = z.infer<typeof is_complete>;
 export const limit = z.union([z.number(), z.null()]).optional();
 export type limit = z.infer<typeof limit>;
-export const LocalisedConversation = z.object({ chat_bot_id: z.union([z.string(), z.null()]).optional(), created_at: z.string().datetime({ offset: true }), default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string(), enable_qa_chat_bot: z.boolean(), id: z.string().uuid(), image_url: z.string(), is_complete: z.boolean(), is_invite_only: z.boolean(), is_live: z.boolean(), is_public: z.boolean(), knowledge_base_id: z.union([z.string(), z.null()]).optional(), owner_id: z.string().uuid(), primary_locale: z.string(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), supported_languages: z.array(z.string()), tags: z.array(z.string()), title: z.string(), updated_at: z.string().datetime({ offset: true }), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
-export type LocalisedConversation = z.infer<typeof LocalisedConversation>;
-export const PaginatedResults_for_LocalisedConversation = z.object({ records: z.array(LocalisedConversation), total: z.number().int() }).passthrough();
-export type PaginatedResults_for_LocalisedConversation = z.infer<typeof PaginatedResults_for_LocalisedConversation>;
+export const LocalizedConversationDto = z.object({ chatBotId: z.union([z.string(), z.null()]).optional(), description: z.string(), enableQaChatBot: z.boolean(), id: z.string().uuid(), imageUrl: z.string(), isComplete: z.boolean(), isInviteOnly: z.boolean(), isLive: z.boolean(), isPublic: z.boolean(), knowledgeBaseId: z.union([z.string(), z.null()]).optional(), primaryLocale: z.string(), shortDescription: z.string(), slug: z.union([z.string(), z.null()]).optional(), supportedLanguages: z.array(z.string()), tags: z.array(z.string()), title: z.string(), videoUrl: z.union([z.string(), z.null()]).optional() }).passthrough();
+export type LocalizedConversationDto = z.infer<typeof LocalizedConversationDto>;
+export const PaginatedResults_for_LocalizedConversationDto = z.object({ records: z.array(LocalizedConversationDto), total: z.number().int() }).passthrough();
+export type PaginatedResults_for_LocalizedConversationDto = z.infer<typeof PaginatedResults_for_LocalizedConversationDto>;
 export const UpdateUserRequest = z.object({ email_verified: z.union([z.boolean(), z.null()]), password: z.union([z.string(), z.null()]), username: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type UpdateUserRequest = z.infer<typeof UpdateUserRequest>;
 export const UpgradeAccountRequest = z.object({ email: z.string(), password: z.string(), username: z.string() }).passthrough();
@@ -80,14 +80,8 @@ export const CreateOrUpdateTextTranslationRequest = z.object({ ai_generated: z.u
 export type CreateOrUpdateTextTranslationRequest = z.infer<typeof CreateOrUpdateTextTranslationRequest>;
 export const Story = z.object({ id: z.string().uuid(), transcript_id: z.union([z.string(), z.null()]).optional(), user_id: z.string().uuid(), video_id: z.string().uuid(), workflow_step_id: z.string().uuid() }).passthrough();
 export type Story = z.infer<typeof Story>;
-export const LocalizedConversationDto = z.object({ chatBotId: z.union([z.string(), z.null()]).optional(), description: z.string(), enableQaChatBot: z.boolean(), id: z.string().uuid(), imageUrl: z.string(), isComplete: z.boolean(), isInviteOnly: z.boolean(), isLive: z.boolean(), isPublic: z.boolean(), knowledgeBaseId: z.union([z.string(), z.null()]).optional(), primaryLocale: z.string(), shortDescription: z.string(), slug: z.union([z.string(), z.null()]).optional(), supportedLanguages: z.array(z.string()), tags: z.array(z.string()), title: z.string(), videoUrl: z.union([z.string(), z.null()]).optional() }).passthrough();
-export type LocalizedConversationDto = z.infer<typeof LocalizedConversationDto>;
-export const PaginatedResults_for_LocalizedConversationDto = z.object({ records: z.array(LocalizedConversationDto), total: z.number().int() }).passthrough();
-export type PaginatedResults_for_LocalizedConversationDto = z.infer<typeof PaginatedResults_for_LocalizedConversationDto>;
 export const CreateConversation = z.object({ default_workflow_id: z.union([z.string(), z.null()]).optional(), description: z.string(), enable_qa_chat_bot: z.union([z.boolean(), z.null()]).optional(), image_url: z.string(), is_invite_only: z.boolean(), is_live: z.boolean(), is_public: z.boolean(), primary_locale: z.string(), short_description: z.string(), slug: z.union([z.string(), z.null()]).optional(), supported_languages: z.array(z.string()), tags: z.union([z.array(z.string()), z.null()]).optional(), title: z.string(), video_url: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type CreateConversation = z.infer<typeof CreateConversation>;
-export const ConversationDto = z.object({ chatBotId: z.union([z.string(), z.null()]).optional(), description: z.string().uuid(), enableQaChatBot: z.boolean(), id: z.string().uuid(), imageUrl: z.string(), isComplete: z.boolean(), isInviteOnly: z.boolean(), isLive: z.boolean(), isPublic: z.boolean(), knowledgeBaseId: z.union([z.string(), z.null()]).optional(), primaryLocale: z.string(), shortDescription: z.string().uuid(), slug: z.union([z.string(), z.null()]).optional(), supportedLanguages: z.array(z.string()), tags: z.array(z.string()), title: z.string().uuid(), videoUrl: z.union([z.string(), z.null()]).optional() }).passthrough();
-export type ConversationDto = z.infer<typeof ConversationDto>;
 export const Translation = z.object({ textContent: TextContentDto, textTranslations: z.array(TextTranslationDto) }).passthrough();
 export type Translation = z.infer<typeof Translation>;
 export const ConversationTranslations = z.object({ description: Translation, shortDescription: Translation, title: Translation }).passthrough();
@@ -249,12 +243,12 @@ export const schemas = {
 	ResourceType,
 	ResourceRole,
 	UserRoles,
-	Conversation,
+	ConversationDto,
 	created_after,
 	is_complete,
 	limit,
-	LocalisedConversation,
-	PaginatedResults_for_LocalisedConversation,
+	LocalizedConversationDto,
+	PaginatedResults_for_LocalizedConversationDto,
 	UpdateUserRequest,
 	UpgradeAccountRequest,
 	UserConversationPreferencesDto,
@@ -276,10 +270,7 @@ export const schemas = {
 	UpdateTextTranslation,
 	CreateOrUpdateTextTranslationRequest,
 	Story,
-	LocalizedConversationDto,
-	PaginatedResults_for_LocalizedConversationDto,
 	CreateConversation,
-	ConversationDto,
 	Translation,
 	ConversationTranslations,
 	ConversationWithTranslations,
@@ -1542,7 +1533,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 		alias: "GetConversationsUserIsParticipatingIn",
 		description: `Returns a list of all the conversations the user has taken part in`,
 		requestFormat: "json",
-		response: z.array(Conversation),
+		response: z.array(ConversationDto),
 	},
 	{
 		method: "put",
@@ -1617,7 +1608,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
 				schema: limit
 			},
 		],
-		response: PaginatedResults_for_LocalisedConversation,
+		response: PaginatedResults_for_LocalizedConversationDto,
 	},
 	{
 		method: "get",

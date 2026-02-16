@@ -4,20 +4,18 @@
 	import UserConversationPreferencesForm from '$lib/components/UserConversationPreferencesForm/UserConversationPreferencesForm.svelte';
 	import UserDetailsForm from '$lib/components/UserDetailsForm/UserDetailsForm.svelte';
 	import UpgradeAccountModal from '$lib/components/UpgradeAccountModal/UpgradeAccountModal.svelte';
-	import type { User, UserDto } from '$lib/api/api';
+	import type { UserDto } from '$lib/api/api';
 
 	let { data }: PageProps = $props();
 	let participation = $derived(data.participation);
-	let error = $derived(data.error);
 	let user = $state(data.user) as UserDto;
-	let showUpgradeModal = $state(false);
 
-	function handleUpgradeSuccess(upgradedUser: User) {
+	function handleUpgradeSuccess(upgradedUser: UserDto) {
 		user = upgradedUser;
 	}
 </script>
 
-<div class="my-10 flex flex-col items-start gap-15 md:flex-row">
+<div class="gap-15 my-10 flex flex-col items-start md:flex-row">
 	<div>
 		<div class=" mb-10 flex flex-row items-center gap-4">
 			<Settings size={42} />
