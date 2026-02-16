@@ -56,7 +56,7 @@
 	});
 </script>
 
-<div class="content-renderer {minimal ? 'content-renderer--minimal' : ''} {className}" bind:this={editorElement}>
+<div class="content-renderer {className}" class:content-renderer--minimal={minimal} bind:this={editorElement}>
 	<!-- Tiptap editor renders here -->
 </div>
 
