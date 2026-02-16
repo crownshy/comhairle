@@ -41,21 +41,6 @@
 						{/each}
 					</nav>
 				</div>
-
-				<!-- Subscribe form -->
-				<div class="hidden lg:block">
-					<form class="flex items-center gap-2" onsubmit={(e) => e.preventDefault()}>
-						<Input
-							type="email"
-							bind:value={emailValue}
-							placeholder={m.your_email()}
-							class="w-[250px]"
-						/>
-						<Button type="submit" variant="default">
-							{m.subscribe()}
-						</Button>
-					</form>
-				</div>
 			</div>
 
 			<!-- Separator -->
