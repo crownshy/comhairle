@@ -96,5 +96,8 @@
 	"verify_user_error_body": "Une erreur est survenue lors de la vérification de votre adresse e-mail. Essayez de <a href=\"/auth/login\" class=\"underline\">vous connecter.</a>",
 	"verify_user_conflict_error_body": "Votre adresse e-mail a déjà été vérifiée. Vous pouvez maintenant voir et <a href=\"/conversations\" class=\"underline\">rejoindre des conversations.</a>",
 	"something_went_wrong": "Une erreur est survenue",
-	"send_again": "Renvoyer"
+	"send_again": "Renvoyer",
+	"about_us": "À Propos",
+	"support": "Support",
+	"faq": "FAQ"
 }

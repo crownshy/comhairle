@@ -1,106 +1,82 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages';
-	import Logo from '$lib/assets/comhairle_logo.svg';
+	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
+	import { Separator } from '$lib/components/ui/separator';
+	import { Input } from '$lib/components/ui/input';
+	import { Button } from '$lib/components/ui/button';
+
+	let emailValue = $state('');
+
+	const navLinks = [
+		{ href: '/', label: () => m.home() },
+		{ href: '/about', label: () => m.about_us() },
+		{ href: '/contact', label: () => m.contact() },
+		{ href: '/support', label: () => m.support() },
+		{ href: '/faq', label: () => m.faq() }
+	];
+
+	const legalLinks = [
+		{ href: '/rights/privacy', label: () => m.privacy_policy() },
+		{ href: '/rights/tos', label: () => m.terms_of_service() },
+		{ href: '/rights/cookies', label: () => m.cookies_settings() }
+	];
 </script>
 
-<div class="bg-primary inline-flex w-full flex-col items-center justify-center gap-2.5">
-	<div class="mx-auto flex w-full flex-col items-center justify-start gap-8 py-24">
-		<div class="flex w-full max-w-full flex-col items-center justify-center gap-12 px-6">
-			<div class="inline-flex h-20 w-full max-w-[1280px] items-center justify-between">
-				<div class="flex flex-1 flex-col items-center justify-start gap-6 md:flex-row">
-					<div class="flex items-center justify-start gap-3">
-						<div
-							class="flex flex-row justify-start gap-x-5 text-center font-['Inter'] text-2xl leading-7 font-medium text-lime-50"
-						>
-							<img class="w-8" src={Logo} alt="Comhairle Logo" />
-							Comhairle
-						</div>
-					</div>
-					<div class="mb-10 flex flex-1 items-center justify-center gap-1 md:mb-0">
-						<div class="flex flex-col items-center justify-start gap-2 md:flex-row md:gap-8">
+<footer class="w-full bg-sidebar text-sidebar-foreground">
+	<div class="mx-auto flex w-full max-w-[1440px] flex-col items-center py-24">
+		<div class="flex w-full max-w-[1280px] flex-col gap-12 px-6">
+			<!-- Top row: Logo + Nav + Subscribe -->
+			<div class="flex flex-col items-center gap-8 lg:h-[84px] lg:flex-row lg:justify-between">
+				<!-- Logo + Nav -->
+				<div class="flex flex-col items-center gap-6 lg:flex-1 lg:flex-row">
+					<ComhairleLogo logoSize="lg" />
+					<nav class="flex flex-wrap items-center justify-center gap-8">
+						{#each navLinks as link (link.href)}
 							<a
-								href="/"
-								class="justify-start font-['Inter'] text-lg leading-tight font-medium text-stone-300"
+								href={link.href}
+								class="text-lg font-medium leading-tight text-sidebar-foreground/70 transition-colors hover:text-sidebar-foreground"
 							>
-								{m.home()}
+								{link.label()}
 							</a>
-							<a
-								href="/about"
-								class="justify-start font-['Inter'] text-lg leading-tight font-medium text-stone-300"
-							>
-								{m.about()}
-							</a>
-							<a
-								aria-disabled="true"
-								class="justify-start font-['Inter'] text-lg leading-tight font-medium text-stone-300"
-							>
-								{m.contact()}
-							</a>
-							<a
-								href="/rights"
-								class=" justify-start font-['Inter'] text-lg leading-tight font-medium text-stone-300"
-							>
-								{m.your_rights()}
-							</a>
-						</div>
-					</div>
+						{/each}
+					</nav>
 				</div>
-				<div class="hidden flex-row items-center justify-between lg:flex">
-					<div class="relative mr-2 h-12 w-28">
-						<div class="bg-secondary absolute top-0 left-0 h-12 w-28 rounded-[100px]"></div>
-						<div
-							class="absolute top-[15px] left-[26px] justify-center text-center font-['Inter'] text-sm leading-tight font-medium text-white"
-						>
+
+				<!-- Subscribe form -->
+				<div class="hidden lg:block">
+					<form class="flex items-center gap-2" onsubmit={(e) => e.preventDefault()}>
+						<Input
+							type="email"
+							bind:value={emailValue}
+							placeholder={m.your_email()}
+							class="w-[250px]"
+						/>
+						<Button type="submit" variant="default">
 							{m.subscribe()}
-						</div>
-					</div>
-					<div class="relative h-12 w-80">
-						<div
-							class="border-secondary absolute top-0 left-0 h-12 w-80 rounded-[100px] border-2"
-						></div>
-						<div
-							class="absolute top-[16px] left-[24px] justify-center font-['Inter'] text-sm leading-tight font-normal text-white"
+						</Button>
+					</form>
+				</div>
+			</div>
+
+			<!-- Separator -->
+			<Separator class="bg-sidebar-foreground/20" />
+
+			<!-- Bottom row: Copyright + Legal links -->
+			<div class="flex flex-col items-center gap-4 md:flex-row md:justify-between">
+				<p class="text-base font-normal text-sidebar-foreground/50">
+					Copyright {new Date().getFullYear()} &copy; Crown Shy
+				</p>
+				<div class="flex flex-wrap items-center justify-center gap-8">
+					{#each legalLinks as link (link.href)}
+						<a
+							href={link.href}
+							class="text-base font-normal text-sidebar-foreground/50 transition-colors hover:text-sidebar-foreground/80"
 						>
-							{m.your_email()}
-						</div>
-					</div>
-				</div>
-			</div>
-			<div
-				data-orientation="Horizontal"
-				class="flex flex-col items-start justify-start gap-2.5 self-stretch"
-			>
-				<div
-					class="h-0 self-stretch outline outline-1 outline-offset-[-0.50px] outline-stone-700"
-				></div>
-			</div>
-			<div class="flex flex-col items-center justify-between self-stretch md:flex-row">
-				<div
-					class="text-mutted mb-2 justify-center text-center font-['Inter'] text-base leading-normal font-normal md:mb-0 md:justify-start md:text-start"
-				>
-					Copyright {new Date().getFullYear()} © CrownShy
-				</div>
-				<div class="flex flex-col items-center justify-start gap-2 md:flex-row md:gap-8">
-					<a
-						href="/rights/privacy"
-						class="text-mutted justify-start font-['Inter'] text-base leading-normal font-normal"
-					>
-						{m.privacy_policy()}
-					</a>
-					<a
-						href="/rights/tos"
-						class="text-mutted justify-start font-['Inter'] text-base leading-normal font-normal"
-					>
-						{m.terms_of_service()}
-					</a>
-					<a
-						href="/rights/cookies"
-						class="text-mutted justify-start font-['Inter'] text-base leading-normal font-normal"
-					>
-						{m.cookies_settings()}
-					</a>
+							{link.label()}
+						</a>
+					{/each}
 				</div>
 			</div>
 		</div>
 	</div>
-</div>
+</footer>
