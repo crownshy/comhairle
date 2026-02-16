@@ -390,6 +390,20 @@ pub async fn list_localised(
     Ok(workflow_steps)
 }
 
+pub async fn list_with_translations(
+    db: &PgPool,
+    workflow_id: &Uuid,
+    locale: &str,
+) -> Result<Vec<WorkflowStepWithTranslations>, ComhairleError> {
+    let workflow_steps = list(db, workflow_id).await?;
+    let mut steps_with_translations = Vec::new();
+    for step in workflow_steps {
+        let step_with_trans = WorkflowStepWithTranslations::from_original(db, step, locale).await?;
+        steps_with_translations.push(step_with_trans);
+    }
+    Ok(steps_with_translations)
+}
+
 pub async fn setup_tool(
     setup: &ToolSetup,
     state: &Arc<ComhairleState>,
