@@ -226,22 +226,6 @@ export const CreateAgentRequest = z.object({ name: z.string() }).passthrough();
 export type CreateAgentRequest = z.infer<typeof CreateAgentRequest>;
 export const UpdateAgentRequest = z.object({ name: z.union([z.string(), z.null()]), topic: z.union([z.string(), z.null()]) }).partial().passthrough();
 export type UpdateAgentRequest = z.infer<typeof UpdateAgentRequest>;
-export const ComhairleLlm = z.object({ model_name: z.union([z.string(), z.null()]) }).partial().passthrough();
-export type ComhairleLlm = z.infer<typeof ComhairleLlm>;
-export const ComhairlePrompt = z.object({ empty_response: z.union([z.string(), z.null()]), llm_prompt: z.union([z.string(), z.null()]), opener: z.union([z.string(), z.null()]) }).partial().passthrough();
-export type ComhairlePrompt = z.infer<typeof ComhairlePrompt>;
-export const ComhairleChat = z.object({ id: z.string(), knowledge_base_ids: z.array(z.string()), llm_model: z.union([ComhairleLlm, z.null()]).optional(), name: z.string(), prompt: z.union([ComhairlePrompt, z.null()]).optional() }).passthrough();
-export type ComhairleChat = z.infer<typeof ComhairleChat>;
-export const CreateChatRequest = z.object({ knowledge_base_ids: z.union([z.array(z.string()), z.null()]).optional(), llm_model: z.union([ComhairleLlm, z.null()]).optional(), name: z.string(), prompt: z.union([ComhairlePrompt, z.null()]).optional() }).passthrough();
-export type CreateChatRequest = z.infer<typeof CreateChatRequest>;
-export const UpdateChatRequest = z.object({ knowledge_base_ids: z.union([z.array(z.string()), z.null()]), llm_model: z.union([ComhairleLlm, z.null()]), name: z.union([z.string(), z.null()]), prompt: z.union([ComhairlePrompt, z.null()]) }).partial().passthrough();
-export type UpdateChatRequest = z.infer<typeof UpdateChatRequest>;
-export const ComhairleKnowledgeBase = z.object({ id: z.string(), name: z.string() }).passthrough();
-export type ComhairleKnowledgeBase = z.infer<typeof ComhairleKnowledgeBase>;
-export const CreateKnowledgeBaseRequest = z.object({ name: z.string() }).passthrough();
-export type CreateKnowledgeBaseRequest = z.infer<typeof CreateKnowledgeBaseRequest>;
-export const UpdateKnowledgeBaseRequest = z.object({ name: z.union([z.string(), z.null()]) }).partial().passthrough();
-export type UpdateKnowledgeBaseRequest = z.infer<typeof UpdateKnowledgeBaseRequest>;
 export const Job = z.object({ completion_message: z.union([z.string(), z.null()]).optional(), created_at: z.string().datetime({ offset: true }), error: z.union([z.string(), z.null()]).optional(), finished_at: z.union([z.string(), z.null()]).optional(), id: z.string().uuid(), progress: z.union([z.number(), z.null()]).optional(), status: z.union([z.string(), z.null()]).optional(), step: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type Job = z.infer<typeof Job>;
 export const PaginatedResults_for_Job = z.object({ records: z.array(Job), total: z.number().int() }).passthrough();
@@ -363,14 +347,6 @@ export const schemas = {
 	ComhairleAgent,
 	CreateAgentRequest,
 	UpdateAgentRequest,
-	ComhairleLlm,
-	ComhairlePrompt,
-	ComhairleChat,
-	CreateChatRequest,
-	UpdateChatRequest,
-	ComhairleKnowledgeBase,
-	CreateKnowledgeBaseRequest,
-	UpdateKnowledgeBaseRequest,
 	Job,
 	PaginatedResults_for_Job,
 	CreateJob,
@@ -634,158 +610,6 @@ const endpoints = makeApi([
 		method: "delete",
 		path: "/bot/agents/:agent_id/sessions/:session_id",
 		alias: "DeleteAgentSessions",
-		requestFormat: "json",
-		response: z.void(),
-	},
-	{
-		method: "get",
-		path: "/bot/chats",
-		alias: "ListChats",
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "name",
-				type: "Query",
-				schema: created_after
-			},
-			{
-				name: "order_by",
-				type: "Query",
-				schema: created_after
-			},
-			{
-				name: "page",
-				type: "Query",
-				schema: limit
-			},
-			{
-				name: "page_size",
-				type: "Query",
-				schema: limit
-			},
-			{
-				name: "title",
-				type: "Query",
-				schema: created_after
-			},
-		],
-		response: z.array(ComhairleChat),
-	},
-	{
-		method: "post",
-		path: "/bot/chats",
-		alias: "CreateChat",
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "body",
-				type: "Body",
-				schema: CreateChatRequest
-			},
-		],
-		response: ComhairleChat,
-	},
-	{
-		method: "get",
-		path: "/bot/chats/:chat_id",
-		alias: "GetChat",
-		requestFormat: "json",
-		response: ComhairleChat,
-	},
-	{
-		method: "put",
-		path: "/bot/chats/:chat_id",
-		alias: "UpdateChat",
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "body",
-				type: "Body",
-				schema: UpdateChatRequest
-			},
-		],
-		response: ComhairleChat,
-	},
-	{
-		method: "delete",
-		path: "/bot/chats/:chat_id",
-		alias: "DeleteChat",
-		requestFormat: "json",
-		response: z.void(),
-	},
-	{
-		method: "get",
-		path: "/bot/knowledge_bases",
-		alias: "ListKnowledgeBases",
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "name",
-				type: "Query",
-				schema: created_after
-			},
-			{
-				name: "order_by",
-				type: "Query",
-				schema: created_after
-			},
-			{
-				name: "page",
-				type: "Query",
-				schema: limit
-			},
-			{
-				name: "page_size",
-				type: "Query",
-				schema: limit
-			},
-			{
-				name: "title",
-				type: "Query",
-				schema: created_after
-			},
-		],
-		response: z.array(ComhairleKnowledgeBase),
-	},
-	{
-		method: "post",
-		path: "/bot/knowledge_bases",
-		alias: "CreateKnowledgeBase",
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "body",
-				type: "Body",
-				schema: z.object({ name: z.string() }).passthrough()
-			},
-		],
-		response: ComhairleKnowledgeBase,
-	},
-	{
-		method: "get",
-		path: "/bot/knowledge_bases/:knowledge_base_id",
-		alias: "GetKnowledgeBase",
-		requestFormat: "json",
-		response: ComhairleKnowledgeBase,
-	},
-	{
-		method: "put",
-		path: "/bot/knowledge_bases/:knowledge_base_id",
-		alias: "UpdateKnowledgeBase",
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "body",
-				type: "Body",
-				schema: UpdateKnowledgeBaseRequest
-			},
-		],
-		response: ComhairleKnowledgeBase,
-	},
-	{
-		method: "delete",
-		path: "/bot/knowledge_bases/:knowledge_base_id",
-		alias: "DeleteKnowledgeBase",
 		requestFormat: "json",
 		response: z.void(),
 	},
