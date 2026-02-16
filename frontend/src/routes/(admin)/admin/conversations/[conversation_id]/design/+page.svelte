@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { WorkflowStep } from '$lib/api/api.js';
+	import type { WorkflowStepWithTranslations, ConversationWithTranslations } from '$lib/api/api.js';
 	import { infoURLForTool } from '$lib/utils';
 	import { flip } from 'svelte/animate';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
@@ -33,10 +33,10 @@
 		}
 	});
 
-	let conversation = $derived(data.conversation);
-	let workflow_steps = $derived(data.workflow_steps);
+	let conversation = $derived(data.conversation as ConversationWithTranslations);
+	let workflow_steps = $derived((data.workflow_steps ?? []) as WorkflowStepWithTranslations[]);
 	let workflow = $derived(data.workflows[0]);
-	let firstStep = $derived(workflow_steps.find((s) => s.step_order === 1));
+	let firstStep = $derived(workflow_steps.find((s) => s.stepOrder === 1));
 
 	async function addStep(step: string) {
 		let tool_setup = {
@@ -49,14 +49,14 @@
 
 		let new_step_order =
 			workflow_steps.length > 0
-				? Math.max(...workflow_steps.map((ws: WorkflowStep) => ws.step_order)) + 1
+				? Math.max(...workflow_steps.map((ws) => ws.stepOrder)) + 1
 				: 1;
 
 		try {
 			await apiClient.CreateWorkflowStep(
 				{
 					name: `New ${step} Step`,
-					description: 'A new ${step} Step',
+					description: `A new ${step} Step`,
 					is_offline: false,
 					activation_rule: 'manual',
 					step_order: new_step_order,
@@ -66,7 +66,7 @@
 				{ params: { conversation_id: conversation.id, workflow_id: workflow.id } }
 			);
 			await invalidateAll();
-			notifications.send({ priority: 'INFO', message: 'Step Addded' });
+			notifications.send({ priority: 'INFO', message: 'Step Added' });
 		} catch (e) {
 			console.error(e);
 			notifications.send({ priority: 'ERROR', message: 'Failed to create step' });
@@ -74,9 +74,9 @@
 	}
 
 	async function decrementStep(step_id: string) {
-		let step = workflow_steps.find((ws: WorkflowStep) => ws.id === step_id);
+		let step = workflow_steps.find((ws) => ws.id === step_id);
 		await apiClient.UpdateWorkflowStep(
-			{ step_order: step.step_order - 2 },
+			{ step_order: step!.stepOrder - 2 },
 			{
 				params: {
 					conversation_id: conversation.id,
@@ -89,9 +89,9 @@
 	}
 
 	async function incrementStep(step_id: string) {
-		let step = workflow_steps.find((ws: WorkflowStep) => ws.id === step_id);
+		let step = workflow_steps.find((ws) => ws.id === step_id);
 		await apiClient.UpdateWorkflowStep(
-			{ step_order: step.step_order + 1 },
+			{ step_order: step!.stepOrder + 1 },
 			{
 				params: {
 					conversation_id: conversation.id,
@@ -103,8 +103,8 @@
 		await invalidateAll();
 	}
 
-	function activeToolConfig(step: WorkflowStep) {
-		return conversation.isLive ? step.tool_config : step.preview_tool_config;
+	function activeToolConfig(step: WorkflowStepWithTranslations) {
+		return conversation.isLive ? step.toolConfig : step.previewToolConfig;
 	}
 	useAdminLayoutSlots({
 		title: titleSnippet,
@@ -195,12 +195,3 @@
 	<Button variant="secondary"><Plus /> Add Step</Button>
 </ToolSelectionModal>
 
-<style>
-	.svelte-dnd-dragging {
-		opacity: 0.5;
-		cursor: grabbing;
-	}
-	.svelte-dnd-drop-target {
-		outline: 2px dashed #4caf50;
-	}
-</style>

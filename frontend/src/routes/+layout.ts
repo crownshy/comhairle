@@ -5,7 +5,8 @@ import { browser } from '$app/environment';
 export const load: LayoutLoad = async ({ url, data }) => {
 	let token = data.token;
 	let user = data.user;
-	const api = createApiClient(url.origin + "/api", token, browser ? "client" : "server");
+	const api = createApiClient(url.origin + "/api", token, browser ? "client" : "server");	
+	
 	try {
 		const userRoles = await api.GetUserRoles();
 		return { api, user, userRoles };
