@@ -96,6 +96,8 @@
 	"verify_user_error_body": "Ocorreu um erro ao verificar seu endereço de e-mail. Tente <a href=\"/auth/login\" class=\"underline\">fazer login.</a>",
 	"verify_user_conflict_error_body": "Seu endereço de e-mail já foi verificado. Agora você pode ver e <a href=\"/conversations\" class=\"underline\">participar de conversas.</a>",
 	"something_went_wrong": "Algo deu errado",
-	"send_again": "Enviar novamente"
-
+	"send_again": "Enviar novamente",
+	"about_us": "Sobre Nós",
+	"support": "Suporte",
+	"faq": "Perguntas Frequentes"
 }

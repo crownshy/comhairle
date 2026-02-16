@@ -97,5 +97,8 @@
 	"verify_user_conflict_error_body": "Tu correo electrónico ya ha sido verificado. Ahora puedes ver y <a href=\"/conversations\" class=\"underline\">unirte a conversaciones.</a>",
 	"something_went_wrong": "Algo salió mal",
 	"send_again": "Enviar de nuevo",
-	"signup": "Registrarse"
+	"signup": "Registrarse",
+	"about_us": "Sobre Nosotros",
+	"support": "Soporte",
+	"faq": "Preguntas Frecuentes"
 }

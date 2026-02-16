@@ -96,6 +96,8 @@
 	"verify_user_error_body": "حدث خطأ ما أثناء التحقق من بريدك الإلكتروني. حاول <a href=\"/auth/login\" class=\"underline\">تسجيل الدخول.</a>",
 	"verify_user_conflict_error_body": "تم التحقق من بريدك الإلكتروني مسبقًا. يمكنك الآن عرض و <a href=\"/conversations\" class=\"underline\">الانضمام إلى المحادثات.</a>",
 	"something_went_wrong": "حدث خطأ ما",
-	"send_again": "أعد الإرسال"
-
+	"send_again": "أعد الإرسال",
+	"about_us": "من نحن",
+	"support": "الدعم",
+	"faq": "الأسئلة الشائعة"
 }
