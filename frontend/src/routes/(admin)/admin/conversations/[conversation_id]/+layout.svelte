@@ -32,7 +32,7 @@
 			<Breadcrumb.Item>Conversations</Breadcrumb.Item>
 			<Breadcrumb.Separator />
 			<Breadcrumb.Item>
-				<Breadcrumb.Link href={`/admin/conversations/${conversation.id}`}
+				<Breadcrumb.Link href={`/admin/conversations/${conversation.id}/configure`}
 					>{conversation.title}</Breadcrumb.Link
 				>
 			</Breadcrumb.Item>
@@ -55,7 +55,7 @@
 				Preview
 				<ArrowUpRight />
 			</Button>
-			{#if conversation.is_live}
+			{#if conversation.isLive}
 				<Button
 					href={`/conversations/${conversation.id}`}
 					class="rounded-3xl bg-blue-200 px-8 py-3 text-sm text-black"

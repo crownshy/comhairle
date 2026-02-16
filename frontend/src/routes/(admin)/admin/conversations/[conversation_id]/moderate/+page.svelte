@@ -6,10 +6,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb/index.js';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte.js';
-	import type { ToolConfig, WorkflowStep } from '$lib/api/api.js';
+	import type { ToolConfig, WorkflowStepWithTranslations, ConversationWithTranslations } from '$lib/api/api.js';
 
-	function activeToolConfig(step: WorkflowStep): ToolConfig {
-		return conversation.isLive ? activeToolConfig(step) : step.preview_tool_config;
+	function activeToolConfig(step: WorkflowStepWithTranslations): ToolConfig {
+		return (conversation as ConversationWithTranslations).isLive ? step.toolConfig : step.previewToolConfig;
 	}
 
 	useAdminLayoutSlots({
