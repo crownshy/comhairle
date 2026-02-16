@@ -10,7 +10,7 @@
 	import { Label } from '../ui/label';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
-	import { createDebouncer } from '$lib/components/Translation/translationUtils';
+	import { createDebouncer, getTextInLocale } from '$lib/components/Translation/translationUtils';
 
 	type Props = {
 		conversation_id: string;
@@ -25,21 +25,11 @@
 	let supportedLanguages = $derived(conversation?.supportedLanguages ?? ['en']);
 
 	let sourceName = $derived.by(() => {
-		const nameData = step?.translations?.name;
-		if (nameData?.textTranslations) {
-			const primary = nameData.textTranslations.find(t => t.locale === primaryLocale);
-			if (primary) return primary.content;
-		}
-		return step?.name ?? '';
+		return getTextInLocale(step?.translations?.name, primaryLocale, step?.name ?? '');
 	});
 
 	let sourceDescription = $derived.by(() => {
-		const descData = step?.translations?.description;
-		if (descData?.textTranslations) {
-			const primary = descData.textTranslations.find(t => t.locale === primaryLocale);
-			if (primary) return primary.content;
-		}
-		return step?.description ?? '';
+		return getTextInLocale(step?.translations?.description, primaryLocale, step?.description ?? '');
 	});
 
 	let name = $state(step?.name ?? '');
@@ -47,13 +37,7 @@
 	let required = $state(step?.required ?? false);
 
 	$effect(() => {
-		const descData = step?.translations?.description;
-		if (descData?.textTranslations) {
-			const primary = descData.textTranslations.find(t => t.locale === primaryLocale);
-			if (primary) description = primary.content;
-		} else {
-			description = step?.description ?? '';
-		}
+		description = getTextInLocale(step?.translations?.description, primaryLocale, step?.description ?? '');
 	});
 
 	const requiredDebouncer = createDebouncer(500);
