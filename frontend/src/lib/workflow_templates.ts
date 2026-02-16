@@ -5,26 +5,26 @@ export const basic_learn_config = {
 	pages: [
 		[
 			{
-				content: '#Page 1 \n\n',
+				content: '# Page 1 \n\n',
 				lang: 'en',
 				type: 'markdown'
 			},
 
 			{
-				content: '#Leathanach 1 \n\n',
+				content: '# Leathanach 1 \n\n',
 				lang: 'gd',
 				type: 'markdown'
 			}
 		],
 		[
 			{
-				content: '#Page 2 \n\n',
+				content: '# Page 2 \n\n',
 				lang: 'en',
 				type: 'markdown'
 			},
 
 			{
-				content: '#Leathanach 2 \n\n',
+				content: '# Leathanach 2 \n\n',
 				lang: 'gd',
 				type: 'markdown'
 			}

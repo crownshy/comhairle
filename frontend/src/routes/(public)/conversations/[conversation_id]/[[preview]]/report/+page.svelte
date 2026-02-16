@@ -75,7 +75,7 @@
 
 		{#each workflowSteps as step (step.id)}
 			<Tabs.Content value={step.id} class="spage-y-4">
-				{#if step.tool_config.type === 'polis'}
+				{#if step.toolConfig.type === 'polis'}
 					<iframe
 						class="h-[100vh] w-full border-none"
 						src="https://poliscommunity.crown-shy.com/report/r4hrfdtemrjsxbn3ieyyb"
