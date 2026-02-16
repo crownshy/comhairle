@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
-	import Logo from '$lib/assets/comhairle_logo.svg';
+	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
 	import { ProfileMenu, LoginButtons } from '$lib/profile';
 	import LanguageSelector from '$lib/components/LanguageSelector.svelte';
 	import * as m from '$lib/paraglide/messages';
@@ -39,12 +39,7 @@
 
 <nav class="bg-primary text-muted-foreground z-10 flex w-full flex-col items-center p-5 shadow-md">
 	<div class="margin-auto container flex max-w-[1200px] items-center justify-between">
-		<div class="align-center flex flex-row items-center gap-4">
-			<img class="w-8" src={Logo} alt="Comhairle Logo" />
-			<a href="/" class=" text-nav-text invisible hidden text-xl font-bold lg:visible lg:block"
-				>Comhairle</a
-			>
-		</div>
+		<ComhairleLogo logoSize="sm" textClass="text-nav-text invisible hidden lg:visible lg:block" />
 
 		<!-- Desktop Navigation -->
 		<div class="hidden space-x-6 md:flex lg:space-x-5">
