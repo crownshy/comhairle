@@ -7,9 +7,10 @@
 	type Props = {
 		content?: string;
 		class?: string;
+		minimal?: boolean;
 	};
 
-	let { content = '', class: className = '' }: Props = $props();
+	let { content = '', class: className = '', minimal = false }: Props = $props();
 
 	let editorElement = $state<HTMLElement>();
 	let editor = $state<Editor>();
@@ -26,10 +27,9 @@
 				content: detected.content,
 				contentType: detected.type,
 				editable: false,
-				editorProps: getEditorProps()
+				editorProps: minimal ? {} : getEditorProps()
 			});
 		} catch (error) {
-			//how should we log things? UX: how should we handle it? 
 			console.error('[ContentRenderer] Failed to initialize:', error);
 		}
 	});
@@ -56,7 +56,7 @@
 	});
 </script>
 
-<div class="content-renderer {className}" bind:this={editorElement}>
+<div class="content-renderer {minimal ? 'content-renderer--minimal' : ''} {className}" bind:this={editorElement}>
 	<!-- Tiptap editor renders here -->
 </div>
 
@@ -65,27 +65,7 @@
 		width: 100%;
 	}
 
-	:global(.content-renderer .iframe-wrapper) {
-		position: relative;
-		padding-bottom: 56.25%; /* 16:9 aspect ratio */
-		height: 0;
-		overflow: hidden;
-		width: 100%;
-		margin: 1rem 0;
-		border-radius: 0.5rem;
-	}
-
-	:global(.content-renderer .iframe-wrapper iframe) {
-		position: absolute;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		border-radius: 0.5rem;
-	}
-
-	:global(.content-renderer .iframe-wrapper.iframe-blocked) {
-		background: red;
-		border: 2px dashed #d1d5db;
+	:global(.content-renderer--minimal .tiptap) {
+		min-height: unset;
 	}
 </style>
