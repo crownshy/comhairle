@@ -21,7 +21,7 @@
 		topic: z.string().min(3, 'Please provide at least 3 characters for your topic')
 	});
 
-	let toolConfig = $derived(isLive ? workflowStep.tool_config : workflowStep.preview_tool_config);
+	let toolConfig = $derived(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig);
 
 	const form = superForm(
 		{
@@ -41,8 +41,8 @@
 		// e.preventDefault();
 		const result = await validateForm();
 		let update = isLive
-			? { tool_config: { ...workflowStep.tool_config, ...result.data } }
-			: { preview_tool_config: { ...workflowStep.preview_tool_config, ...result.data } };
+			? { tool_config: { ...workflowStep.toolConfig, ...result.data } }
+			: { preview_tool_config: { ...workflowStep.previewToolConfig, ...result.data } };
 
 		if (result.valid) {
 			try {

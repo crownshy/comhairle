@@ -15,7 +15,7 @@
 	import ToolSelectionModal from '$lib/components/ToolSelectionModal.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { Plus, BookOpen, ListChecks, Video, MessagesSquare, ChevronDown } from 'lucide-svelte';
+	import { Plus, BookOpen, ListChecks, Video, MessagesSquare, ChevronDown, Bot } from 'lucide-svelte';
 	import * as Card from '$lib/components/ui/card';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { apiClient } from '$lib/api/client';
@@ -154,6 +154,9 @@
 							{/if}
 							{#if activeToolConfig(step).type === 'learn'}
 								<BookOpen />
+							{/if}
+							{#if activeToolConfig(step).type === 'elicitationbot'}
+								<Bot />
 							{/if}
 							<h1 class="text-xl">{step.name}</h1>
 						</div>
