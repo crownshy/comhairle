@@ -341,6 +341,8 @@
 </div>
 
 <style>
+	@import "tailwindcss";
+
 	.btn {
 		@apply py-1 px-1.5 border-0 rounded bg-transparent
 			text-gray-600 cursor-pointer text-sm leading-none
