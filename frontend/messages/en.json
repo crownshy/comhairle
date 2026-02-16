@@ -98,5 +98,8 @@
 	"verify_user_conflict_error_body": "Your email address has already been verified. You can now view and <a href=\"/conversations\" class=\"underline\">join conversations.</a>",
 	"send_again": "Send again",
 	"something_went_wrong": "Something went wrong",
-	"signup": "Signup"
+	"signup": "Signup",
+	"about_us": "About Us",
+	"support": "Support",
+	"faq": "FAQ"
 }

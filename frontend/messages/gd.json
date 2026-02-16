@@ -97,5 +97,8 @@
 	"verify_user_conflict_error_body": "Tha do sheòladh post-d air a dhearbhadh mu thràth. Faodaidh tu a-nis coimhead agus <a href=\"/conversations\" class=\"underline\">pàirt a ghabhail ann an còmhraidhean.</a>",
 	"something_went_wrong": "Bha rudeigin ceàrr",
 	"send_again": "Cuir a-rithist",
-	"signup": "Clàraich"
+	"signup": "Clàraich",
+	"about_us": "Mu Ar Deidhinn",
+	"support": "Taic",
+	"faq": "Ceistean Cumanta"
 }
