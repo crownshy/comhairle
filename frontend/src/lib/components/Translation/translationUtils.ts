@@ -224,32 +224,3 @@ export async function autoTranslateNewLanguage(
 
 	return results;
 }
-
-
-export function createDebouncer(delayMs: number = 500) {
-	let timeout: ReturnType<typeof setTimeout>;
-	let pendingFn: (() => void | Promise<void>) | null = null;
-	
-	return {
-		debounce(fn: () => void | Promise<void>) {
-			clearTimeout(timeout);
-			pendingFn = fn;
-			timeout = setTimeout(() => {
-				pendingFn = null;
-				fn();
-			}, delayMs);
-		},
-		cancel() {
-			clearTimeout(timeout);
-			pendingFn = null;
-		},
-		async flush() {
-			clearTimeout(timeout);
-			if (pendingFn) {
-				const fn = pendingFn;
-				pendingFn = null;
-				await fn();
-			}
-		}
-	};
-}

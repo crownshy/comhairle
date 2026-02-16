@@ -10,14 +10,14 @@
 	import { Languages, X } from 'lucide-svelte';
 	import { getLanguageName } from '$lib/config/languages';
 	import { invalidateAll } from '$app/navigation';
+	import { useDebounce } from 'runed';
 	import {
 		type TranslationStatus,
 		type TranslationEntry,
 		deriveStatus,
 		saveTranslation,
 		aiTranslate,
-		markOtherTranslationsAsDraft,
-		createDebouncer
+		markOtherTranslationsAsDraft
 	} from './translationUtils';
 
 	type TranslationData = Translation | Translation2;
@@ -70,7 +70,25 @@
 
 	let dialogOpen = $state(false);
 	let clickedLang = $state<string | undefined>(undefined);
-	const inlineDebouncer = createDebouncer(1000);
+	const debouncedSaveInline = useDebounce(async (content: string) => {
+		if (isTextContentMode && textContentId) {
+			const id = textContentId;
+			try {
+				await saveTranslation(id, primaryLocale, content, {
+					requiresValidation: false
+				});
+				const approved = badges.filter(t => t.status === 'approved' && t.content);
+				if (approved.length > 0) {
+					await markOtherTranslationsAsDraft(id, primaryLocale, approved);
+				}
+				await invalidateAll();
+			} catch (e) {
+				console.error('Failed to save primary content:', e);
+			}
+		} else if (onSaveSource) {
+			onSaveSource(content);
+		}
+	}, 1000);
 	let editorFlush: (() => Promise<void>) | null = null;
 
 	let isTextContentMode = $derived(!!translation?.textContent?.id);
@@ -115,25 +133,7 @@
 	}
 
 	function saveInlinePrimary(content: string) {
-		if (isTextContentMode && textContentId) {
-			const id = textContentId;
-			inlineDebouncer.debounce(async () => {
-				try {
-					await saveTranslation(id, primaryLocale, content, {
-						requiresValidation: false
-					});
-					const approved = badges.filter(t => t.status === 'approved' && t.content);
-					if (approved.length > 0) {
-						await markOtherTranslationsAsDraft(id, primaryLocale, approved);
-					}
-					await invalidateAll();
-				} catch (e) {
-					console.error('Failed to save primary content:', e);
-				}
-			});
-		} else if (onSaveSource) {
-			inlineDebouncer.debounce(() => onSaveSource!(content));
-		}
+		debouncedSaveInline(content);
 	}
 
 	let editorContents = $derived.by((): Record<string, string> => {

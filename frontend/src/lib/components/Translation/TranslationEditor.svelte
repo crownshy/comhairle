@@ -7,7 +7,8 @@
 	import { getLanguageName } from '$lib/config/languages';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { notifications } from '$lib/notifications.svelte';
-	import { type TranslationStatus, statusToBadgeVariant, createDebouncer } from './translationUtils';
+	import { useDebounce } from 'runed';
+	import { type TranslationStatus, statusToBadgeVariant } from './translationUtils';
 
 	interface Props {
 		initialContents: Record<string, string>;
@@ -53,10 +54,19 @@
 	let activeTab = $state<string | null>(null);
 	let isTranslating = $state(false);
 
-	const saveDebouncer = createDebouncer(500);
+	const debouncedSaveSource = useDebounce(async (content: string) => {
+		await onSaveSource?.(content);
+	}, 500);
+
+	const debouncedSaveTarget = useDebounce(async (lang: string, content: string) => {
+		await onSaveTarget?.(lang, content);
+	}, 500);
 
 	$effect(() => {
-		onRegisterFlush?.(() => saveDebouncer.flush());
+		onRegisterFlush?.(async () => {
+			await debouncedSaveSource.runScheduledNow();
+			await debouncedSaveTarget.runScheduledNow();
+		});
 	});
 
 	$effect(() => {
@@ -89,9 +99,7 @@
 		}
 		statuses = { ...statuses };
 
-		saveDebouncer.debounce(async () => {
-			await onSaveSource?.(content);
-		});
+		debouncedSaveSource(content);
 	}
 
 	function handleTargetChange(content: string) {
@@ -105,10 +113,7 @@
 			statuses = { ...statuses };
 		}
 
-		const lang = currentTargetLang;
-		saveDebouncer.debounce(async () => {
-			await onSaveTarget?.(lang, content);
-		});
+		debouncedSaveTarget(currentTargetLang, content);
 	}
 
 	function handleSourceInput(e: Event) {
@@ -195,7 +200,8 @@
 				type="button"
 				class="py-1.5 shrink-0 transition-colors border-b-[3px] cursor-pointer {isActive ? 'border-primary' : 'border-transparent'}"
 				onclick={async () => {
-					await saveDebouncer.flush();
+					await debouncedSaveSource.runScheduledNow();
+					await debouncedSaveTarget.runScheduledNow();
 					activeTab = lang;
 				}}
 			>
