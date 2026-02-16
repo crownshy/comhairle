@@ -1,4 +1,4 @@
-import { getContext, onMount, onDestroy } from 'svelte';
+import { getContext } from 'svelte';
 import type { Snippet } from 'svelte';
 import type { AdminPageSlots } from './slotTypes';
 
@@ -10,22 +10,22 @@ interface UseAdminLayoutSlotsOptions {
 export function useAdminLayoutSlots(options: UseAdminLayoutSlotsOptions = {}): AdminPageSlots {
 	const layoutSlots = getContext<AdminPageSlots>('adminLayoutSlots');
 
-	onMount(() => {
+	$effect(() => {
 		if (options.breadcrumbs) {
 			layoutSlots.breadcrumbContent(options.breadcrumbs);
 		}
 		if (options.title) {
 			layoutSlots.titleContent(options.title);
 		}
-	});
 
-	onDestroy(() => {
-		if (options.breadcrumbs) {
-			layoutSlots.clearBreadcrumbContent();
-		}
-		if (options.title) {
-			layoutSlots.clearTitleContent();
-		}
+		return () => {
+			if (options.breadcrumbs) {
+				layoutSlots.clearBreadcrumbContent();
+			}
+			if (options.title) {
+				layoutSlots.clearTitleContent();
+			}
+		};
 	});
 
 	return layoutSlots;

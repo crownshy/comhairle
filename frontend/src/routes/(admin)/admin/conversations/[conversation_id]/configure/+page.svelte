@@ -9,15 +9,13 @@
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { conversationConfigSchema } from './schema';
 	import TeamManager from '$lib/components/TeamManager.svelte';
-	import TranslationDialog from '$lib/components/Translation/TranslationDialog.svelte';
-	import TranslatableFormField from '$lib/components/Translation/TranslatableFormField.svelte';
-	import { createTranslationManager } from '$lib/components/Translation/useTranslations.svelte';
+	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
+	import { autoTranslateNewLanguage } from '$lib/components/Translation/translationUtils';
 	import { LanguageSelector } from '$lib/components/ui/language-selector';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
-	import type { ConversationWithTranslations, WorkflowStep } from '$lib/api/api';
-	import type { Workflow } from 'lucide-svelte';
+	import type { ConversationWithTranslations, WorkflowStep, Workflow } from '$lib/api/api';
 	import { snakeCaseKeys } from '$lib/utils/snakeCaseKeys';
 
 	let {
@@ -35,22 +33,19 @@
 	let primaryLanguage = $state(data.conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $state(data.conversation.supportedLanguages ?? ['en']);
 
-	const translations = createTranslationManager(
-		() => conversation,
-		(field) => {
-			if (field === 'title') return $form.title;
-			if (field === 'shortDescription') return $form.shortDescription;
-			if (field === 'description') return $form.description;
-			return undefined;
-		}
-	);
-
 	function updateFormForLanguage(newLanguage: string) {
-		const fields = ['title', 'shortDescription', 'description'] as const;
-
-		for (const field of fields) {
-			const content = translations.getFieldContentForLocale(field, newLanguage);
-			$form[field] = content ?? '';
+		const t = conversation.translations;
+		if (!t) return;
+		const fields = {
+			title: t.title,
+			shortDescription: t.shortDescription,
+			description: t.description
+		} as const;
+		for (const [key, field] of Object.entries(fields)) {
+			const trans = field?.textTranslations?.find((tt: { locale: string }) => tt.locale === newLanguage);
+			if (trans) {
+				$form[key as keyof typeof fields] = trans.content;
+			}
 		}
 	}
 
@@ -93,9 +88,10 @@
 					notifications.send({ message: 'Generating translations...', priority: 'INFO' });
 
 					for (const locale of newlyAddedLanguages) {
-						await translations.autoTranslateNewLanguage(locale, textContentIds);
+						await autoTranslateNewLanguage(locale, textContentIds);
 					}
 
+					await invalidateAll();
 					notifications.send({ message: 'Translations generated', priority: 'INFO' });
 				}
 			}
@@ -173,20 +169,6 @@
 		}
 	}
 
-	function handleContentChange(language: string, content: string) {
-		const field = translations.activeField;
-		const isPrimary = language === primaryLanguage;
-
-		// Update form if primary language changed
-		if (isPrimary && field) {
-			if (field === 'title') $form.title = content;
-			else if (field === 'shortDescription') $form.shortDescription = content;
-			else if (field === 'description') $form.description = content;
-		}
-
-		translations.updateContent(language, content);
-	}
-
 	useAdminLayoutSlots({
 		title: titleContentSnippet,
 		breadcrumbs: breadcrumbSnippet
@@ -204,59 +186,84 @@
 	/>
 {/snippet}
 
-<p class="mb-10">Use this space to set up the project and manage the team supporting it</p>
+<div class="flex flex-col gap-4">
+	<h2 class="text-xl font-semibold text-card-foreground">Conversation configuration</h2>
+	<p class="text-sm text-muted-foreground">Personal details and general information.</p>
+</div>
 
-<TranslationDialog
-	bind:open={translations.modalOpen}
-	translations={translations.workingTranslations}
-	activeLanguage={translations.activeLanguage}
-	isTranslating={translations.isTranslating}
-	onClose={translations.closeDialog}
-	onContentChange={handleContentChange}
-	onStatusChange={translations.updateStatus}
-	onActiveLanguageChange={translations.setActiveLanguage}
-	onAiTranslate={translations.handleAiTranslate}
-/>
+<form method="POST" onsubmit={updateConversation} class="mt-8 flex flex-col" use:enhance>
+	<!-- Title -->
+	<div class="flex flex-col gap-4 border-t border-border py-6 lg:flex-row lg:items-start lg:gap-6">
+		<Form.Field form={conversationForm} name="title" class="contents">
+			<Form.Control>
+				{#snippet children({ props })}
+					<Form.Label class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2">Title</Form.Label>
+					<div class="flex-1">
+						<TranslatableField
+							value={$form.title}
+							onValueChange={(v) => ($form.title = v)}
+							translation={conversation.translations?.title}
+							primaryLocale={primaryLanguage}
+							{supportedLanguages}
+							inputProps={props}
+						/>
+						<Form.FieldErrors />
+					</div>
+				{/snippet}
+			</Form.Control>
+		</Form.Field>
+	</div>
 
-<form method="POST" onsubmit={updateConversation} class="flex flex-col" use:enhance>
-	<TranslatableFormField
-		form={conversationForm}
-		name="title"
-		label="Title"
-		value={$form.title}
-		onValueChange={(v) => ($form.title = v)}
-		onEditTranslations={(lang) => translations.openDialog('title', lang)}
-		onPrimaryChange={() => translations.handlePrimaryContentChange('title')}
-		translations={translations.getFieldTranslations('title')}
-	/>
+	<!-- Short Description -->
+	<div class="flex flex-col gap-4 border-t border-border py-6 lg:flex-row lg:items-start lg:gap-6">
+		<Form.Field form={conversationForm} name="shortDescription" class="contents">
+			<Form.Control>
+				{#snippet children({ props })}
+					<Form.Label class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2">Short description</Form.Label>
+					<div class="flex-1">
+						<TranslatableField
+							value={$form.shortDescription}
+							onValueChange={(v) => ($form.shortDescription = v)}
+							translation={conversation.translations?.shortDescription}
+							primaryLocale={primaryLanguage}
+							{supportedLanguages}
+							inputType="textarea"
+							inputProps={props}
+						/>
+						<Form.FieldErrors />
+					</div>
+				{/snippet}
+			</Form.Control>
+		</Form.Field>
+	</div>
 
-	<TranslatableFormField
-		form={conversationForm}
-		name="short_description"
-		label="Short Description"
-		value={$form.shortDescription}
-		onValueChange={(v) => ($form.shortDescription = v)}
-		onEditTranslations={(lang) => translations.openDialog('shortDescription', lang)}
-		onPrimaryChange={() => translations.handlePrimaryContentChange('shortDescription')}
-		translations={translations.getFieldTranslations('shortDescription')}
-		inputType="textarea"
-	/>
+	<!-- Description -->
+	<div class="flex flex-col gap-4 border-t border-border py-6 lg:flex-row lg:items-start lg:gap-6">
+		<Form.Field form={conversationForm} name="description" class="contents">
+			<Form.Control>
+				{#snippet children({ props })}
+					<Form.Label class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2">Description</Form.Label>
+					<div class="flex-1">
+						<TranslatableField
+							value={$form.description}
+							onValueChange={(v) => ($form.description = v)}
+							translation={conversation.translations?.description}
+							primaryLocale={primaryLanguage}
+							{supportedLanguages}
+							inputType="textarea"
+							inputProps={props}
+						/>
+						<Form.FieldErrors />
+					</div>
+				{/snippet}
+			</Form.Control>
+		</Form.Field>
+	</div>
 
-	<TranslatableFormField
-		form={conversationForm}
-		name="description"
-		label="Description"
-		value={$form.description}
-		onValueChange={(v) => ($form.description = v)}
-		onEditTranslations={(lang) => translations.openDialog('description', lang)}
-		onPrimaryChange={() => translations.handlePrimaryContentChange('description')}
-		translations={translations.getFieldTranslations('description')}
-		inputType="textarea"
-	/>
-
-	<div class="item-start grid grid-cols-[200px_1fr] gap-6 border-t py-6">
-		<p class="pt-2 font-semibold">Language options</p>
-		<div class="max-w-md">
+	<!-- Language options -->
+	<div class="flex flex-col gap-4 border-t border-border py-6 lg:flex-row lg:items-start lg:gap-6">
+		<p class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2">Language options</p>
+		<div class="flex-1 max-w-md">
 			<LanguageSelector
 				bind:primaryLanguage
 				bind:supportedLanguages
@@ -266,46 +273,41 @@
 		</div>
 	</div>
 
-	<div class="flex flex-row gap-4">
-		<div class="grow">
-			<Form.Field
-				class="flex w-full flex-row justify-between border-t-1 py-5"
-				form={conversationForm}
-				name="imageUrl"
-			>
-				<Form.Control>
-					{#snippet children({ props })}
-						<div class="flex w-full flex-row justify-between border-t-1 py-5">
-							<div class="flex w-60 flex-col gap-2">
-								<Form.Label class="font-bold">Banner Image URL</Form.Label>
-								{#if $form.imageUrl}
-									<img
-										width="200px"
-										alt="Conversation Banner"
-										src={$form.imageUrl}
-									/>
-								{/if}
-							</div>
-							<div class="grow flex-col gap-2">
-								<Input {...props} bind:value={$form.imageUrl} />
-								<Form.FieldErrors />
-							</div>
-						</div>
-					{/snippet}
-				</Form.Control>
-			</Form.Field>
-		</div>
+	<!-- Banner Image URL -->
+	<div class="flex flex-col gap-4 border-t border-border py-6 lg:flex-row lg:items-start lg:gap-6">
+		<Form.Field form={conversationForm} name="imageUrl" class="contents">
+			<Form.Control>
+				{#snippet children({ props })}
+					<Form.Label class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2">Banner image URL</Form.Label>
+					<div class="flex-1 flex flex-col gap-4">
+						<Input {...props} bind:value={$form.imageUrl} />
+						<Form.FieldErrors />
+						{#if $form.imageUrl}
+							<img
+								class="w-full max-w-md rounded-lg bg-muted object-cover"
+								alt="Conversation Banner"
+								src={$form.imageUrl}
+							/>
+						{/if}
+					</div>
+				{/snippet}
+			</Form.Control>
+		</Form.Field>
 	</div>
 
-	<div class="flex w-full flex-col gap-2 border-t py-5 lg:flex-row lg:justify-between">
-		<p class="font-bold lg:w-60 lg:shrink-0">Access</p>
-		<div class="flex grow flex-col gap-5">
+	<!-- Access / Other configuration -->
+	<div class="flex flex-col gap-4 border-t border-border py-6 lg:flex-row lg:items-start lg:gap-6">
+		<p class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2">Other configuration</p>
+		<div class="flex-1 flex flex-col gap-6">
 			<Form.Field form={conversationForm} name="isPublic">
 				<Form.Control>
 					{#snippet children({ props })}
-						<div class="flex items-center space-x-2">
+						<div class="flex items-center justify-between gap-4">
+							<div class="flex flex-col gap-1">
+								<Form.Label class="text-sm font-medium">Show conversation publicly</Form.Label>
+								<p class="text-sm text-muted-foreground">Allow export of personal data and backups.</p>
+							</div>
 							<Switch {...props} bind:checked={$form.isPublic} />
-							<Form.Label>Show conversation publicly</Form.Label>
 						</div>
 					{/snippet}
 				</Form.Control>
@@ -315,9 +317,12 @@
 			<Form.Field form={conversationForm} name="isInviteOnly">
 				<Form.Control>
 					{#snippet children({ props })}
-						<div class="flex items-center space-x-2">
+						<div class="flex items-center justify-between gap-4">
+							<div class="flex flex-col gap-1">
+								<Form.Label class="text-sm font-medium">Only allow participation by invite</Form.Label>
+								<p class="text-sm text-muted-foreground">Admins can invite and manage members.</p>
+							</div>
 							<Switch {...props} bind:checked={$form.isInviteOnly} />
-							<Form.Label>Only allow participation by invite</Form.Label>
 						</div>
 					{/snippet}
 				</Form.Control>
@@ -327,11 +332,12 @@
 			<Form.Field form={conversationForm} name="autoLogin">
 				<Form.Control>
 					{#snippet children({ props })}
-						<div class="flex items-center space-x-2">
+						<div class="flex items-center justify-between gap-4">
+							<div class="flex flex-col gap-1">
+								<Form.Label class="text-sm font-medium">Automatically log in with an anonymous account</Form.Label>
+								<p class="text-sm text-muted-foreground">Creates a temporary account for unauthenticated users.</p>
+							</div>
 							<Switch {...props} bind:checked={$form.autoLogin} />
-							<Form.Label
-								>Automatically log in a user with an annon account if not logged in</Form.Label
-							>
 						</div>
 					{/snippet}
 				</Form.Control>
@@ -340,9 +346,18 @@
 		</div>
 	</div>
 
-	<TeamManager />
+	<!-- Collaborators -->
+	<div class="flex flex-col gap-4 border-t border-border py-6 lg:flex-row lg:items-start lg:gap-6">
+		<p class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2">Collaborators</p>
+		<div class="flex-1">
+			<TeamManager />
+		</div>
+	</div>
 
-	<Form.Button variant="secondary" class="my-5" disabled={$submitting || !$tainted}>
-		Save Changes
-	</Form.Button>
+	<!-- Save Button -->
+	<div class="flex justify-center border-t border-border py-6">
+		<Form.Button variant="default" class="rounded-full px-12" disabled={$submitting || !$tainted}>
+			Save Changes
+		</Form.Button>
+	</div>
 </form>

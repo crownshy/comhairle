@@ -9,6 +9,7 @@
 	import { apiClient } from '$lib/api/client';
 	import { Markdown } from 'carta-md';
 	import { createCarta } from '$lib/utils/carta';
+	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
@@ -101,7 +102,7 @@
 				</h2>
 				<div class="prose-sm prose-p:text-base prose-li:text-base mx-auto">
 					{#key workflow_step.description}
-						<Markdown {carta} value={workflow_step.description} />
+						<ContentRenderer content={workflow_step.description} />
 					{/key}
 				</div>
 			</div>

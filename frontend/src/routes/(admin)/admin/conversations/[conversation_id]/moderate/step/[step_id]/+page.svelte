@@ -1,15 +1,15 @@
 <script lang="ts">
 	import PolisModerate from '$lib/tools/polis/PolisModerate.svelte';
 
-	import type { WorkflowStep } from '$lib/api/api.js';
+	import type { WorkflowStepWithTranslations, ConversationWithTranslations } from '$lib/api/api.js';
 	let { data } = $props();
 
-	let conversation = $derived(data.conversation);
+	let conversation = $derived(data.conversation as ConversationWithTranslations);
 	let step_id = $derived(data.step_id);
-	let workflow_steps = $derived(data.workflow_steps);
-	let step = $derived(workflow_steps.find((s: WorkflowStep) => s.id === step_id));
+	let workflow_steps = $derived((data.workflow_steps ?? []) as WorkflowStepWithTranslations[]);
+	let step = $derived(workflow_steps.find((s) => s.id === step_id));
 
-	let toolConfig = $derived(conversation.isLive ? step.tool_config : step.preview_tool_config);
+	let toolConfig = $derived(step ? (conversation.isLive ? step.toolConfig : step.previewToolConfig) : null);
 </script>
 
 {#if toolConfig.type === 'polis'}

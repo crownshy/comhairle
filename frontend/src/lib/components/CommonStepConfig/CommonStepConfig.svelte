@@ -1,126 +1,152 @@
 <script lang="ts">
-	import { Input } from '$lib/components/ui/input';
-	import TextArea from '$lib/components/ui/textarea/textarea.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import * as Form from '../ui/form/';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import { invalidateAll } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte';
-	import { zodClient } from 'sveltekit-superforms/adapters';
-	import type { WorkflowStep } from '$lib/api/api';
+	import type { ConversationWithTranslations, WorkflowStepWithTranslations } from '$lib/api/api';
 	import { apiClient } from '$lib/api/client';
-	import { superForm } from 'sveltekit-superforms';
-	import { commonStepSchema } from './schema';
 	import { Switch } from '../ui/switch';
-	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
+	import { Label } from '../ui/label';
+	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
+	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
+	import { createDebouncer } from '$lib/components/Translation/translationUtils';
 
 	type Props = {
 		conversation_id: string;
-		step: WorkflowStep;
+		conversation: ConversationWithTranslations;
+		step: WorkflowStepWithTranslations;
 	};
 
 	let open = $state(false);
+	let { step, conversation_id, conversation }: Props = $props();
 
-	let { step, conversation_id }: Props = $props();
+	let primaryLocale = $derived(conversation?.primaryLocale ?? 'en');
+	let supportedLanguages = $derived(conversation?.supportedLanguages ?? ['en']);
 
-	let commonStepForm = superForm(
-		{ name: step.name, description: step.description, required: step.required },
-		{
-			validators: zodClient(commonStepSchema),
-			taintedMessage: false,
-			validationMethod: 'oninput',
-			onSubmit: updateStep
+	let sourceName = $derived.by(() => {
+		const nameData = step?.translations?.name;
+		if (nameData?.textTranslations) {
+			const primary = nameData.textTranslations.find(t => t.locale === primaryLocale);
+			if (primary) return primary.content;
 		}
-	);
+		return step?.name ?? '';
+	});
 
-	let { form, enhance, validateForm, message, submitting } = commonStepForm;
-
-	async function updateStep() {
-		const result = await validateForm({ update: true });
-		if (!result.valid) return;
-		try {
-			await apiClient.UpdateWorkflowStep(result.data, {
-				params: {
-					conversation_id: conversation_id,
-					workflow_id: step.workflow_id,
-					workflow_step_id: step.id
-				}
-			});
-			invalidateAll();
-			notifications.send({ message: 'Updated workflow step', priority: 'INFO' });
-			open = false;
-		} catch (e) {
-			notifications.send({ message: 'Failed to update workflow step', priority: 'ERROR' });
+	let sourceDescription = $derived.by(() => {
+		const descData = step?.translations?.description;
+		if (descData?.textTranslations) {
+			const primary = descData.textTranslations.find(t => t.locale === primaryLocale);
+			if (primary) return primary.content;
 		}
+		return step?.description ?? '';
+	});
+
+	let name = $state(step?.name ?? '');
+	let description = $state('');
+	let required = $state(step?.required ?? false);
+
+	$effect(() => {
+		const descData = step?.translations?.description;
+		if (descData?.textTranslations) {
+			const primary = descData.textTranslations.find(t => t.locale === primaryLocale);
+			if (primary) description = primary.content;
+		} else {
+			description = step?.description ?? '';
+		}
+	});
+
+	const requiredDebouncer = createDebouncer(500);
+
+	function handleRequiredChange(checked: boolean) {
+		required = checked;
+		requiredDebouncer.debounce(async () => {
+			try {
+				await apiClient.UpdateWorkflowStep({ required }, {
+					params: {
+						conversation_id,
+						workflow_id: step.workflowId,
+						workflow_step_id: step.id
+					}
+				});
+				await invalidateAll();
+			} catch (e) {
+				notifications.send({ message: 'Failed to update required status', priority: 'ERROR' });
+			}
+		});
 	}
 </script>
 
 <div class="mb-10 flex flex-row items-start justify-between">
 	<div class="flex flex-col gap-2">
 		<div class="flex flex-row items-end gap-2">
-			<h2 class="text-2xl">{step.name}</h2>
-			{#if step.required}
+			<h2 class="text-2xl">{name || sourceName || 'Unnamed Step'}</h2>
+			{#if step?.required}
 				<p class="text-red-900">(Required)</p>
 			{:else}
 				<p class="text-green-900">(Skippable)</p>
 			{/if}
 		</div>
-		<p>{step.description}</p>
+		<ContentRenderer content={description || sourceDescription} class="text-sm text-muted-foreground" minimal />
 	</div>
-	<Dialog.Root bind:open>
-		<Dialog.Trigger><Button variant="secondary">Edit Metadata</Button></Dialog.Trigger>
+	<Dialog.Root bind:open onOpenChange={(isOpen) => { if (!isOpen) invalidateAll(); }}>
+		<Dialog.Trigger>
+			<Button variant="secondary">Edit Metadata</Button>
+		</Dialog.Trigger>
 
-		<Dialog.Content class="max-h-[90vh] min-w-[70vw]">
-			<Dialog.Header>
-				<Dialog.Title>Edit the metadata?</Dialog.Title>
+		<Dialog.Content class="scot-gov max-h-[90vh] min-w-[70vw] p-0 flex flex-col rounded-[12px]">
+			<Dialog.Header class="flex-shrink-0 p-6 pb-4 border-b">
+				<Dialog.Title class="text-2xl">Edit Step Metadata</Dialog.Title>
 				<Dialog.Description>
-					This is the name and description that will be shown to participants when they get to this
-					step
+					Configure the name and description shown to participants.
 				</Dialog.Description>
 			</Dialog.Header>
-			<form method="POST" onsubmit={updateStep} class="mt-10 flex flex-col gap-y-5" use:enhance>
-				<Form.Field form={commonStepForm} name="name">
-					<Form.Control>
-						{#snippet children({ props })}
-							<Form.Label class="text-xl">Name</Form.Label>
-							<Input {...props} bind:value={$form.name} />
-						{/snippet}
-					</Form.Control>
-					<Form.Description class="text-black"
-						>The name of the step that will be shown to participants.</Form.Description
-					>
-					<Form.FieldErrors />
-				</Form.Field>
-				<Form.Field form={commonStepForm} name="description">
-					<Form.Control>
-						{#snippet children({ props })}
-							<Form.Label class="text-xl">Description</Form.Label>
-							<div class="h-96 overflow-y-auto">
-								<RichTextEditor value={$form.description} onChange={(v) => ($form.description = v)} />
-							</div>
-						{/snippet}
-					</Form.Control>
-					<Form.Description class="text-black"
-						>A description of this step that will inform users of it's intent.</Form.Description
-					>
-					<Form.FieldErrors />
-				</Form.Field>
+			
+			<ScrollArea.Root class="flex-1 min-h-0">
+				<div class="px-6 pb-6">
+					<!-- Name field -->
+					<div class="flex flex-col gap-1">
+						<span class="text-lg font-semibold">Name</span>
+						<p class="text-sm text-muted-foreground mb-2">The name of the step that will be shown to participants.</p>
+						<TranslatableField
+							value={name}
+							onValueChange={(v) => (name = v)}
+							translation={step.translations?.name}
+							{primaryLocale}
+							{supportedLanguages}
+						/>
+					</div>
 
-				<Form.Field form={commonStepForm} name="required">
-					<Form.Control>
-						{#snippet children({ props })}
-							<div class="flex flex-row items-center gap-2">
-								<Switch {...props} bind:checked={$form.required} />
-								<Form.Label class="text-xl">Required</Form.Label>
-							</div>
-							<Form.Description>Are users allowed to skip this step?</Form.Description>
-						{/snippet}
-					</Form.Control>
-					<Form.FieldErrors />
-				</Form.Field>
+					<!-- Description field -->
+					<div class="pt-4">
+						<div class="flex flex-col gap-1">
+							<span class="text-lg font-semibold">Description</span>
+							<p class="text-sm text-muted-foreground">A description of this step that will inform users of its intent.</p>
+						</div>
+						<div class="pt-4">
+							<TranslatableField
+								value={description}
+								onValueChange={(v) => (description = v)}
+								translation={step.translations?.description}
+								{primaryLocale}
+								{supportedLanguages}
+								editorType="rich"
+								minHeight="100px"
+								maxHeight="150px"
+							/>
+						</div>
+					</div>
+				</div>
+			</ScrollArea.Root>
 
-				<Form.Button variant="default" class="my-5" disabled={$submitting}>Submit</Form.Button>
-			</form>
+			<!-- Fixed footer with required toggle -->
+			<div class="flex-shrink-0 border-t bg-muted/30 p-6">
+				<div class="flex items-center gap-2">
+					<Switch checked={required} onCheckedChange={handleRequiredChange} />
+					<Label class="text-base">Required step</Label>
+					<span class="text-sm text-muted-foreground ml-2">(Can users skip this step?)</span>
+				</div>
+			</div>
 		</Dialog.Content>
 	</Dialog.Root>
 </div>
