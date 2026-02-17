@@ -49,7 +49,7 @@
 		</div>
 
 		<div class="hidden gap-x-5 md:flex">
-			<LanguageSelector />
+			<LanguageSelector/>
 			<ProfileMenu {user} />
 			{#if isAdmin}
 				<Button variant="default" href="/admin">Admin</Button>
