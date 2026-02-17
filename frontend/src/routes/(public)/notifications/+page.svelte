@@ -197,7 +197,7 @@
 		<div class="space-y-4">
 			{#each displayNotifications.records as notification (notification.id)}
 				<Card
-					class=" rounded-[13px]  transition-all hover:shadow-md {isUnread(notification)
+					class=" rounded-xl transition-all hover:shadow-md {isUnread(notification)
 						? 'border-l-4 '
 						: ''}"
 				>

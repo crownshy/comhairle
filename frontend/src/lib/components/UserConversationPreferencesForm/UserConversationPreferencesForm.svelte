@@ -102,7 +102,7 @@
 			<p class="text-sm">{loadError}</p>
 		</div>
 		<button
-			class="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-4 py-2 transition-colors"
+			class="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-4 py-2 transition-colors"
 			onclick={() => loadPreferences()}
 			disabled={loading}
 		>

@@ -156,7 +156,7 @@
 
 <div class="w-full max-w-5xl mx-auto flex flex-col items-center gap-4 p-4">
 	<!-- Main Container -->
-	<div class="w-full bg-white rounded-[16px] border border-chat-primary-light shadow-lg overflow-hidden">
+	<div class="w-full bg-white rounded-2xl border border-chat-primary-light shadow-lg overflow-hidden">
 		<!-- Bot Header -->
 		<div class="p-4 bg-white border-b border-chat-primary-light flex items-center gap-4">
 			<div class="relative">
@@ -242,7 +242,7 @@
 																			? 'bg-chat-primary border-chat-primary'
 																			: question.variant === 'primary'
 																				? 'bg-chat-primary border-chat-primary'
-																				: 'bg-white border-chat-primary-light'} px-2.5 py-1.5 rounded-[16px] border flex items-start gap-2.5 w-fit"
+																				: 'bg-white border-chat-primary-light'} px-2.5 py-1.5 rounded-2xl border flex items-start gap-2.5 w-fit"
 																	>
 																		<span
 																			class="{selectedQuestionId === question.id ||
@@ -274,7 +274,7 @@
 						<!-- Input Area -->
 						<div class="p-4 bg-chat-primary-lighter/40 border-t border-chat-primary-light">
 							<div class="flex items-end gap-2">
-								<div class="flex-1 flex items-end gap-2 bg-white rounded-[12px] border shadow-md border-chat-primary-light">
+								<div class="flex-1 flex items-end gap-2 bg-white rounded-xl border shadow-md border-chat-primary-light">
 									<textarea
 										bind:this={textareaRef}
 										bind:value={inputValue}
@@ -363,7 +363,7 @@
 																		? 'bg-chat-primary border-chat-primary'
 																		: question.variant === 'primary'
 																			? 'bg-chat-primary border-chat-primary'
-																			: 'bg-white border-chat-primary-light'} px-2.5 py-1.5 rounded-[16px] border flex items-start gap-2.5 w-fit"
+																			: 'bg-white border-chat-primary-light'} px-2.5 py-1.5 rounded-2xl border flex items-start gap-2.5 w-fit"
 																>
 																	<span
 																		class="{selectedQuestionId === question.id ||
@@ -395,7 +395,7 @@
 					<!-- Input Area -->
 					<div class="p-4 bg-chat-primary-lighter/40 border-t border-chat-primary-light">
 						<div class="flex items-end gap-2">
-							<div class="flex-1 flex items-end gap-2 bg-white rounded-[12px] border shadow-md border-chat-primary-light">
+							<div class="flex-1 flex items-end gap-2 bg-white rounded-xl border shadow-md border-chat-primary-light">
 								<textarea
 									bind:this={textareaRef}
 									bind:value={inputValue}

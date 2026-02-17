@@ -6,7 +6,7 @@
 	let { children }: Props = $props();
 </script>
 
-<div class="rounded-[10px] border border-gray-300 p-10">
+<div class="rounded-xl border border-gray-300 p-10">
 	{#if children}
 		{@render children()}
 	{/if}

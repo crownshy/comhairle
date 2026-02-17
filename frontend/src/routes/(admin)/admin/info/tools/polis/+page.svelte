@@ -334,7 +334,7 @@
 						data-size="lg"
 						data-state="Default"
 						data-variant="Default"
-						class="inline-flex h-10 items-center justify-center gap-2 self-stretch rounded-md bg-stone-400 px-8 py-2 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
+						class="inline-flex h-10 items-center justify-center gap-2 self-stretch rounded-full bg-stone-400 px-8 py-2 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
 					>
 						<div class="justify-center font-['Inter'] text-sm leading-tight font-medium text-white">
 							Select
@@ -544,7 +544,7 @@
 						data-size="lg"
 						data-state="Default"
 						data-variant="Default"
-						class="inline-flex h-10 items-center justify-center gap-2 self-stretch rounded-md bg-stone-400 px-8 py-2 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
+						class="inline-flex h-10 items-center justify-center gap-2 self-stretch rounded-full bg-stone-400 px-8 py-2 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
 					>
 						<div class="justify-center font-['Inter'] text-sm leading-tight font-medium text-white">
 							Select

@@ -76,10 +76,10 @@
 	</div>
 	<Dialog.Root bind:open onOpenChange={(isOpen) => { if (!isOpen) invalidateAll(); }}>
 		<Dialog.Trigger>
-			<Button variant="secondary">Edit Metadata</Button>
+			<Button variant="default">Edit Metadata</Button>
 		</Dialog.Trigger>
 
-		<Dialog.Content class="scot-gov max-h-[90vh] min-w-[70vw] p-0 flex flex-col rounded-[12px]">
+		<Dialog.Content class="scot-gov max-h-[90vh] min-w-[70vw] p-0 flex flex-col rounded-xl">
 			<Dialog.Header class="flex-shrink-0 p-6 pb-4 border-b">
 				<Dialog.Title class="text-2xl">Edit Step Metadata</Dialog.Title>
 				<Dialog.Description>

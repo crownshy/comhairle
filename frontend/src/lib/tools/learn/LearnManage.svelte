@@ -236,8 +236,8 @@
 					</Select.Content>
 				</Select.Root>
 
-				<Button onclick={addPage}>+ Add Page</Button>
-				<Button variant="destructive" onclick={deletePage} disabled={pages.length <= 1}>- Delete Page</Button>
+				<Button class="rounded-md" onclick={addPage}>+ Add Page</Button>
+				<Button variant="destructive" class="rounded-md" onclick={deletePage} disabled={pages.length <= 1}>- Delete Page</Button>
 			{/if}
 		</div>
 	</div>

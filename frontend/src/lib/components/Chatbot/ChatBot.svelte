@@ -368,7 +368,7 @@
 		<!-- Input Area -->
 		<div class="flex flex-shrink-0 items-end gap-2 pt-4">
 			<div
-				class="border-chat-border flex flex-1 items-end gap-2 rounded-[12px] border bg-white shadow-md"
+				class="border-chat-border flex flex-1 items-end gap-2 rounded-xl border bg-white shadow-md"
 			>
 				<textarea
 					bind:this={textareaRef}
