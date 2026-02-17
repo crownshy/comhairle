@@ -118,6 +118,13 @@ pub fn learn_tool_config() -> serde_json::Value {
     ]})
 }
 
+pub fn elicitation_bot_tool_config() -> serde_json::Value {
+    json!({
+        "type": "elicitationbot",
+        "topic": "test_topic"
+    })
+}
+
 pub async fn response_to_json(response: Response) -> Value {
     let body = response.into_body().collect().await.unwrap().to_bytes();
 
@@ -593,6 +600,21 @@ impl UserSession {
             }),
         )
         .await
+    }
+
+    pub async fn create_workflow_step(
+        &mut self,
+        app: &Router,
+        conversation_id: &str,
+        workflow_id: &str,
+        new_workflow_step: Value,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        let url = format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step");
+        let (status, value, cookie) = self
+            .post(app, &url, new_workflow_step.to_string().into())
+            .await?;
+
+        Ok((status, value, cookie))
     }
 
     pub async fn create_random_workflow_steps(

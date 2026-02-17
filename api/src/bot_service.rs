@@ -10,13 +10,7 @@ use mockall::{automock, predicate::*};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    error::ComhairleError,
-    routes::{
-        bot::agents::{CreateAgentRequest, UpdateAgentRequest},
-        workflow_steps::AgentConversationRequestExt,
-    },
-};
+use crate::error::ComhairleError;
 
 pub mod ragflow_bot;
 
@@ -242,7 +236,7 @@ pub trait ComhairleBotService: Send + Sync {
         &self,
         session_id: &str,
         agent_id: &str,
-        body: AgentConversationRequestExt,
+        body: AgentConversationRequest,
     ) -> Result<
         Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
         ComhairleError,
@@ -380,12 +374,29 @@ pub struct CreateChatRequest {
     pub prompt: Option<ComhairlePrompt>,
 }
 
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+pub struct CreateAgentRequest {
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Default, Clone, PartialEq)]
+pub struct UpdateAgentRequest {
+    pub name: Option<String>,
+    pub topic: Option<String>,
+}
+
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Default, Clone, PartialEq)]
 pub struct UpdateChatRequest {
     pub name: Option<String>,
     pub knowledge_base_ids: Option<Vec<String>>,
     pub llm_model: Option<ComhairleLlm>,
     pub prompt: Option<ComhairlePrompt>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
+pub struct AgentConversationRequest {
+    pub question: String,
+    pub topic: String,
 }
 
 #[cfg(test)]
