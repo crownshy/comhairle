@@ -10,14 +10,17 @@
 		Plus,
 		Settings,
 		ChevronRight,
-		Home
+		Home,
+		PanelLeftClose
 	} from 'lucide-svelte';
 	import { conversationSteps } from '$lib/config/conversation-steps';
 	import { Button } from './ui/button';
 	import { page } from '$app/state';
 	import { userInitials } from '$lib/utils';
 	import ComhairleLogo from './ComhairleLogo.svelte';
+	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
 	import type { LocalizedConversationDto } from '$lib/api/api';
+	const sidebar = useSidebar();
 	let props = $props();
 	let path = $derived(props.path);
 	let user = $derived(props.user);
@@ -31,14 +34,23 @@
 </script>
 
 <SideBar.Root class="w-72">
-		<SideBar.Header class="p-6">
+		<SideBar.Header class="flex flex-row items-center justify-between py-6 pl-6 pr-3">
 			<ComhairleLogo />
+			<Button
+				variant="ghost"
+				size="icon"
+				class="size-7 text-sidebar-foreground/70 hover:text-sidebar"
+				onclick={() => sidebar.toggle()}
+			>
+				<PanelLeftClose class="size-4" />
+				<span class="sr-only">Collapse sidebar</span>
+			</Button>
 		</SideBar.Header>
 
 		<SideBar.Content class="overflow-hidden py-4 pl-4">
 				<!-- Platform section -->
 				<SideBar.Group class="">
-					<!-- todo: hook up to style variable + add translations with paraglide -->
+					<!-- todo: hook up to style variable + add translations -->
 					<SideBar.GroupLabel class="text-sidebar-secondary text-xs font-medium">Platform</SideBar.GroupLabel>
 					<SideBar.GroupContent>
 						<SideBar.Menu>
@@ -280,4 +292,5 @@
 					</SideBar.MenuItem>
 				</SideBar.Menu>
 		</SideBar.Footer>
+	<SideBar.Rail />
 	</SideBar.Root>

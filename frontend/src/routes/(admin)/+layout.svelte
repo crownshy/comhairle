@@ -1,5 +1,6 @@
 <script lang="ts">
 	import AdminNav from '$lib/components/AdminNav.svelte';
+	import SidebarFloatingTriggers from '$lib/components/SidebarFloatingTriggers.svelte';
 	import * as SideBar from '$lib/components/ui/sidebar';
 	import type { LayoutProps } from './$types';
 	import { page } from '$app/state';
@@ -15,7 +16,10 @@
 
 <SideBar.Provider>
 	<AdminNav user={data.user} conversations={conversations.records} path={page.url.pathname} />
-	<main class="flex flex-grow flex-col overflow-y-auto">
-		{@render children()}
-	</main>
+	<SideBar.Inset>
+		<SidebarFloatingTriggers />
+		<main class="flex flex-grow flex-col overflow-y-auto">
+			{@render children()}
+		</main>
+	</SideBar.Inset>
 </SideBar.Provider>
