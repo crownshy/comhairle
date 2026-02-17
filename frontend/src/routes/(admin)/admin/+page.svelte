@@ -27,7 +27,7 @@
 		>
 	</div>
 	<div class=" grid w-full grid-cols-1 gap-x-2 gap-y-5 overflow-y-auto">
-		{#each conversations.records as conversation}
+		{#each conversations.records as conversation (conversation.id)}
 			<a href={`/admin/conversations/${conversation.id}/configure`}>
 				<ConversationCard {conversation} />
 			</a>

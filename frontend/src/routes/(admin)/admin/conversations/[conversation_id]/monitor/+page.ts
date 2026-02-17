@@ -1,13 +1,14 @@
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ parent }) => {
-	const { conversation, workflows, workflow_steps, api } = await parent();
+	const { conversation, workflows, workflowSteps, api } = await parent();
+
 	try {
 		const workflowStats = await api.GetWorkflowStats({
 			params: { conversation_id: conversation.id, workflow_id: workflows[0].id }
 		});
 
-		return { conversation, workflows, workflow_steps, workflowStats };
+		return { conversation, workflows, workflowSteps, workflowStats };
 	} catch (e) {
 		console.error(e);
 	}

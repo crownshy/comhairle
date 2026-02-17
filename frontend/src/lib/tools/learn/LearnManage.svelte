@@ -7,9 +7,9 @@
 	}
 
 	type Props = {
-		conversation_id: string;
+		conversationId: string;
 		conversation: ConversationWithTranslations;
-		workflow_step: WorkflowStepWithTranslations;
+		workflowStep: WorkflowStepWithTranslations;
 		isLive: boolean;
 	};
 
@@ -22,7 +22,7 @@
 	import { aiTranslateContent, type TranslationStatus } from '$lib/components/Translation/translationUtils';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 
-	let { conversation_id, conversation, workflow_step, isLive }: Props = $props();
+	let { conversationId, conversation, workflowStep, isLive }: Props = $props();
 	
 	let isInitialLoad = $state(true);
 
@@ -32,7 +32,7 @@
 	type LearnToolConfig = { type: 'learn'; pages: ExtendedLocalisedPage[][] };
 		
 	let sourceConfig = $derived(
-		(isLive ? workflow_step.toolConfig : workflow_step.previewToolConfig) as LearnToolConfig
+		(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig) as LearnToolConfig
 	);
 
 	let pages = $state<ExtendedLocalisedPage[][]>([]);
@@ -129,9 +129,9 @@
 					: { preview_tool_config: configToSave },
 				{
 					params: {
-						workflow_id: workflow_step.workflowId,
-						conversation_id,
-						workflow_step_id: workflow_step.id
+						workflow_id: workflowStep.workflowId,
+						conversation_id: conversationId,
+						workflow_step_id: workflowStep.id
 					}
 				}
 			);

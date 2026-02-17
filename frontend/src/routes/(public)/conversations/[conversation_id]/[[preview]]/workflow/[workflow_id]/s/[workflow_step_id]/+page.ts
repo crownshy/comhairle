@@ -2,6 +2,7 @@ import { isRedirect, redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import { notifications } from '$lib/notifications.svelte';
 import { next_workflow_step_url } from '$lib/urls';
+import type { LocalizedWorkflowStepDto } from '$lib/api/api';
 
 export const load: PageLoad = async (event) => {
 	const { api, conversation, preview } = await event.parent();
@@ -24,10 +25,10 @@ export const load: PageLoad = async (event) => {
 				headers: { 'Content-Type': 'application/json' }
 			});
 		}
-		const workflow_steps = await api.ListWorkflowSteps({
+		const workflowSteps: LocalizedWorkflowStepDto[] = await api.ListWorkflowSteps({
 			params: { conversation_id, workflow_id }
 		});
-		const workflow_step = await api.GetWorkflowStep({
+		const workflowStep: LocalizedWorkflowStepDto = await api.GetWorkflowStep({
 			params: {
 				conversation_id: conversation_id,
 				workflow_id: workflow_id,
@@ -35,15 +36,15 @@ export const load: PageLoad = async (event) => {
 			}
 		});
 
-		return { conversation, workflow_step, api, workflow_steps, workflow_id };
+		return { conversation, workflowStep, api, workflowSteps, workflow_id };
 	} catch (e: any) {
-		//TODO figure out how to type this from the generated api
+		// TODO: figure out how to type this from the generated api
 		/// Throw if error is a redirect
 		if (isRedirect(e)) {
 			console.log(e);
 			throw e;
 		}
-		//TODO we probably want some error codes to match on here
+		// TODO: we probably want some error codes to match on here
 		// rather than the plain text
 		if (e.response.data.err === 'User Required for this route') {
 			notifications.addFlash({

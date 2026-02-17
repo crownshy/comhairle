@@ -20,14 +20,15 @@ use crate::bot_service::ComhairleAgentSession;
 use crate::models::bot_service_user_session::{self, BotServiceSessionContext};
 use crate::models::workflow_step::{LocalisedWorkflowStep, WorkflowStepWithTranslations};
 use crate::routes::translations::LocaleExtractor;
+use crate::routes::workflow_steps::dto::{LocalizedWorkflowStepDto, WorkflowStepDto};
 use crate::tools::ToolConfig;
 use crate::{
     error::ComhairleError,
-    models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep, WorkflowStep},
+    models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep},
     ComhairleState,
 };
 
-use super::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
+use super::auth::{is_user_admin, RequiredAdminUser, RequiredUser};
 use crate::models::{self, conversation, user_participation};
 use axum::extract::Query;
 
@@ -47,9 +48,11 @@ pub enum WorkflowStepResponse {
 #[derive(Serialize, JsonSchema)]
 #[serde(untagged)]
 pub enum WorkflowStepsListResponse {
-    Localised(Vec<LocalisedWorkflowStep>),
+    Localised(Vec<LocalizedWorkflowStepDto>),
     WithTranslations(Vec<WorkflowStepWithTranslations>),
 }
+
+pub mod dto;
 
 /// Create workflow handler
 async fn create_workflow_step(
@@ -57,7 +60,7 @@ async fn create_workflow_step(
     Path((conversation_id, workflow_id)): Path<(Uuid, Uuid)>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(new_workflow): Json<CreateWorkflowStep>,
-) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
+) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
     info!("Attempting to create workflow");
@@ -67,7 +70,8 @@ async fn create_workflow_step(
         workflow_id,
         &conversation.primary_locale,
     )
-    .await?;
+    .await?
+    .into();
     Ok((StatusCode::CREATED, Json(workflow)))
 }
 
@@ -77,8 +81,10 @@ async fn update_workflow_step(
     Path((_, workflow_id, id)): Path<(Uuid, Uuid, Uuid)>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(workflow): Json<PartialWorkflowStep>,
-) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
-    let workflow = workflow_step::update(&state.db, &id, &workflow_id, &workflow).await?;
+) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
+    let workflow = workflow_step::update(&state.db, &id, &workflow_id, &workflow)
+        .await?
+        .into();
     Ok((StatusCode::OK, Json(workflow)))
 }
 
@@ -87,7 +93,7 @@ async fn update_elicitation_bot_workflow_step(
     Path((_conversation_id, workflow_id, id)): Path<(Uuid, Uuid, Uuid)>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(workflow): Json<PartialWorkflowStep>,
-) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
+) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
     let _tool_config = match (&workflow.tool_config, &workflow.preview_tool_config) {
         (Some(ToolConfig::ElicitationBot(config)), _) => config,
         (None, Some(ToolConfig::ElicitationBot(config))) => config,
@@ -98,7 +104,9 @@ async fn update_elicitation_bot_workflow_step(
         }
     };
 
-    let workflow = workflow_step::update(&state.db, &id, &workflow_id, &workflow).await?;
+    let workflow = workflow_step::update(&state.db, &id, &workflow_id, &workflow)
+        .await?
+        .into();
 
     Ok((StatusCode::OK, Json(workflow)))
 }
@@ -118,19 +126,31 @@ async fn list_workflows_step(
         .await
         .map_err(|_| ComhairleError::UserIsNotParticipatingInTheConversation)?;
 
-    let should_return_with_translations = query.with_translations && is_user_admin(&user, &state.config);
+    let should_return_with_translations =
+        query.with_translations && is_user_admin(&user, &state.config);
 
     if should_return_with_translations {
-        let steps_with_translations = workflow_step::list_with_translations(&state.db, &workflow_id, &locale).await?;
-        Ok((StatusCode::OK, Json(WorkflowStepsListResponse::WithTranslations(steps_with_translations))))
+        let steps_with_translations =
+            workflow_step::list_with_translations(&state.db, &workflow_id, &locale).await?;
+        Ok((
+            StatusCode::OK,
+            Json(WorkflowStepsListResponse::WithTranslations(
+                steps_with_translations,
+            )),
+        ))
     } else {
-        let mut workflow_steps = workflow_step::list_localised(&state.db, &workflow_id, &locale).await?;
+        let mut workflow_steps =
+            workflow_step::list_localised(&state.db, &workflow_id, &locale).await?;
         if !conversation_owner {
             for workflow_step in workflow_steps.iter_mut() {
                 workflow_step.sanatize();
             }
         }
-        Ok((StatusCode::OK, Json(WorkflowStepsListResponse::Localised(workflow_steps))))
+        let workflow_steps = workflow_steps.into_iter().map(Into::into).collect();
+        Ok((
+            StatusCode::OK,
+            Json(WorkflowStepsListResponse::Localised(workflow_steps)),
+        ))
     }
 }
 
@@ -140,12 +160,11 @@ async fn get_workflow_step(
     RequiredUser(user): RequiredUser,
     Path((conversation_id, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
     LocaleExtractor(locale): LocaleExtractor,
-) -> Result<(StatusCode, Json<LocalisedWorkflowStep>), ComhairleError> {
+) -> Result<(StatusCode, Json<LocalizedWorkflowStepDto>), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
 
     let conversation_owner = user.id == conversation.owner_id;
 
-    info!("Attempting to get workflow step  {workflow_step_id:#?}");
     let mut workflow_step =
         workflow_step::get_localised_by_id(&state.db, &workflow_step_id, &locale).await?;
 
@@ -153,7 +172,7 @@ async fn get_workflow_step(
         workflow_step.sanatize();
     }
 
-    Ok((StatusCode::OK, Json(workflow_step)))
+    Ok((StatusCode::OK, Json(workflow_step.into())))
 }
 
 /// Delete a specific workflow
@@ -161,8 +180,10 @@ async fn delete_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(_user): RequiredAdminUser,
     Path((_, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<WorkflowStep>), ComhairleError> {
-    let workflow = workflow_step::delete(&state.db, &workflow_step_id).await?;
+) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
+    let workflow = workflow_step::delete(&state.db, &workflow_step_id)
+        .await?
+        .into();
     Ok((StatusCode::OK, Json(workflow)))
 }
 
@@ -258,7 +279,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Workflow step")
                     .summary("Create a new workflow step")
                     .security_requirement("JWT")
-                    .response::<201, Json<LocalisedWorkflowStep>>()
+                    .response::<201, Json<WorkflowStepDto>>()
             }),
         )
         .api_route(
@@ -278,7 +299,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Workflow step")
                     .summary("Get the specified workflow step")
                     .security_requirement("JWT")
-                    .response::<200, Json<LocalisedWorkflowStep>>()
+                    .response::<200, Json<LocalizedWorkflowStepDto>>()
             }),
         )
         .api_route(
@@ -288,7 +309,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Workflow step")
                     .summary("Update the specified workflow step")
                     .security_requirement("JWT")
-                    .response::<200, Json<WorkflowStep>>()
+                    .response::<200, Json<WorkflowStepDto>>()
             }),
         )
         .api_route(
@@ -298,7 +319,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Workflow step")
                     .summary("Update a workflow step of type elicitation bot")
                     .security_requirement("JWT")
-                    .response::<200, Json<WorkflowStep>>()
+                    .response::<200, Json<WorkflowStepDto>>()
             }),
         )
         .api_route(
@@ -308,7 +329,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Workflow step")
                     .summary("Delete the specified workflow step")
                     .security_requirement("JWT")
-                    .response::<200, Json<WorkflowStep>>()
+                    .response::<200, Json<WorkflowStepDto>>()
             }),
         )
         .api_route(
@@ -336,7 +357,7 @@ mod tests {
             ComhairleAgentSession, ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService,
         },
         error::ComhairleError,
-        routes::workflow_steps::AgentConversationRequestExt,
+        routes::workflow_steps::{dto::LocalizedWorkflowStepDto, AgentConversationRequestExt},
         setup_server,
         test_helpers::{extract, learn_tool_config, polis_tool_config, test_state, UserSession},
     };
@@ -612,16 +633,13 @@ mod tests {
             )
             .await?;
 
-        let steps: Vec<serde_json::Value> = serde_json::from_value(steps).unwrap();
+        let steps: Vec<LocalizedWorkflowStepDto> = serde_json::from_value(steps).unwrap();
 
         assert_eq!(steps.len(), 9, "should get the correct number of steps");
 
-        let orders: Vec<i32> = steps
-            .iter()
-            .map(|s| extract::<i32>("step_order", s))
-            .collect();
+        let orders: Vec<i32> = steps.iter().map(|s| s.step_order).collect();
 
-        let names: Vec<String> = steps.iter().map(|s| extract::<String>("name", s)).collect();
+        let names: Vec<String> = steps.iter().map(|s| s.name.clone()).collect();
 
         assert_eq!(
             orders,
@@ -687,12 +705,9 @@ mod tests {
             )
             .await?;
 
-        let steps: Vec<serde_json::Value> = serde_json::from_value(steps).unwrap();
+        let steps: Vec<LocalizedWorkflowStepDto> = serde_json::from_value(steps).unwrap();
 
-        let orders: Vec<i32> = steps
-            .iter()
-            .map(|s| extract::<i32>("step_order", s))
-            .collect();
+        let orders: Vec<i32> = steps.iter().map(|s| s.step_order).collect();
 
         assert_eq!(
             orders,
@@ -765,12 +780,12 @@ mod tests {
             )
             .await?;
 
-        let workflows: Vec<serde_json::Value> = serde_json::from_value(workflows)?;
+        let workflows: Vec<LocalizedWorkflowStepDto> = serde_json::from_value(workflows)?;
 
-        let first_name: String = extract("name", workflows.first().unwrap());
-        let first_order: i32 = extract("step_order", workflows.first().unwrap());
-        let seccond_name: String = extract("name", workflows.get(1).unwrap());
-        let seccond_order: i32 = extract("step_order", workflows.get(1).unwrap());
+        let first_name = workflows.first().unwrap().name.clone();
+        let first_order: i32 = workflows.first().unwrap().step_order;
+        let seccond_name: String = workflows.get(1).unwrap().name.clone();
+        let seccond_order: i32 = workflows.get(1).unwrap().step_order;
 
         assert_eq!(
             first_name, "Learn Workflow Step",
@@ -861,14 +876,11 @@ mod tests {
             )
             .await?;
 
-        let steps: Vec<serde_json::Value> = serde_json::from_value(steps).unwrap();
+        let steps: Vec<LocalizedWorkflowStepDto> = serde_json::from_value(steps).unwrap();
 
-        let orders: Vec<i32> = steps
-            .iter()
-            .map(|s| extract::<i32>("step_order", s))
-            .collect();
+        let orders: Vec<i32> = steps.iter().map(|s| s.step_order).collect();
 
-        let names: Vec<String> = steps.iter().map(|s| extract::<String>("name", s)).collect();
+        let names: Vec<String> = steps.iter().map(|s| s.name.clone()).collect();
 
         assert_eq!(
             orders,

@@ -3,10 +3,10 @@ import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
 
 export const load: LayoutLoad = async ({ parent }) => {
-	let { api } = await parent();
+	const { api } = await parent();
 
 	try {
-		let conversations = await api.GetOwnedConversations()
+		const conversations = await api.GetOwnedConversations()
 		// TODO should be doing this on the server but Open API is not picking up
 		// the parameters just yet 
 		conversations.records = conversations.records.sort((a, b) => a.createdAt > b.createdAt ? 1 : -1)

@@ -9,7 +9,7 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { upgradeAccountSchema } from './schema';
-	import type { User } from '$lib/api/api';
+	import type { UserDto } from '$lib/api/api';
 	import { UserCheck, Mail, Lock } from 'lucide-svelte';
 	import { invalidateAll } from '$app/navigation';
 
@@ -19,8 +19,8 @@
 		currentUser
 	}: {
 		open?: boolean;
-		onSuccess?: (upgradedUser: User) => void;
-		currentUser: User;
+		onSuccess?: (upgradedUser: UserDto) => void;
+		currentUser: UserDto;
 	} = $props();
 
 	let saving = $state(false);
@@ -40,7 +40,7 @@
 		}
 	);
 
-	const { form: formData, enhance, validateForm, errors } = form;
+	const { form: formData, enhance, validateForm } = form;
 
 	async function handleUpgrade() {
 		const result = await validateForm({ update: true });
@@ -65,7 +65,9 @@
 			onSuccess(upgradedUser);
 		} catch (error: any) {
 			notifications.send({
-				message: error?.response?.data?.message || 'Failed to upgrade account. Please try again.',
+				message:
+					error?.response?.data?.message ||
+					'Failed to upgrade account. Please try again.',
 				priority: 'ERROR'
 			});
 		} finally {
@@ -85,8 +87,8 @@
 				Upgrade Your Account
 			</Dialog.Title>
 			<Dialog.Description>
-				Transform your anonymous account into a full account to receive email notifications and keep
-				track of your conversations. Your current participation will be preserved.
+				Transform your anonymous account into a full account to receive email notifications
+				and keep track of your conversations. Your current participation will be preserved.
 			</Dialog.Description>
 		</Dialog.Header>
 
@@ -165,7 +167,9 @@
 			</Form.Field>
 
 			<Dialog.Footer class="flex justify-between gap-2 pt-4">
-				<Button variant="outline" onclick={() => (open = false)} disabled={saving}>Cancel</Button>
+				<Button variant="outline" onclick={() => (open = false)} disabled={saving}
+					>Cancel</Button
+				>
 				<Button type="submit" disabled={saving} class="flex items-center gap-2">
 					{#if saving}
 						Upgrading...

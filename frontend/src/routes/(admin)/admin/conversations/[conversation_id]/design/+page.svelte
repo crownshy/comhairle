@@ -1,5 +1,7 @@
 <script lang="ts">
-	import type { WorkflowStepWithTranslations, ConversationWithTranslations } from '$lib/api/api.js';
+	import type {
+		WorkflowStepWithTranslations,
+	} from '$lib/api/api.js';
 	import { infoURLForTool } from '$lib/utils';
 	import { flip } from 'svelte/animate';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
@@ -13,7 +15,7 @@
 	import ToolSelectionModal from '$lib/components/ToolSelectionModal.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { Plus, BookOpen, ListChecks, Video, MessagesSquare, ChevronDown } from 'lucide-svelte';
+	import { Plus, BookOpen, ListChecks, Video, MessagesSquare, ChevronDown, Bot } from 'lucide-svelte';
 	import * as Card from '$lib/components/ui/card';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { apiClient } from '$lib/api/client';
@@ -33,10 +35,10 @@
 		}
 	});
 
-	let conversation = $derived(data.conversation as ConversationWithTranslations);
-	let workflow_steps = $derived((data.workflow_steps ?? []) as WorkflowStepWithTranslations[]);
+	let conversation = $derived(data.conversation);
+	let workflowSteps = $derived(data.workflowSteps);
 	let workflow = $derived(data.workflows[0]);
-	let firstStep = $derived(workflow_steps.find((s) => s.stepOrder === 1));
+	let firstStep = $derived(workflowSteps.find((s) => s.stepOrder === 1));
 
 	async function addStep(step: string) {
 		let tool_setup = {
@@ -48,9 +50,7 @@
 		}[step];
 
 		let new_step_order =
-			workflow_steps.length > 0
-				? Math.max(...workflow_steps.map((ws) => ws.stepOrder)) + 1
-				: 1;
+			workflowSteps.length > 0 ? Math.max(...workflowSteps.map((ws) => ws.stepOrder)) + 1 : 1;
 
 		try {
 			await apiClient.CreateWorkflowStep(
@@ -74,7 +74,7 @@
 	}
 
 	async function decrementStep(step_id: string) {
-		let step = workflow_steps.find((ws) => ws.id === step_id);
+		let step = workflowSteps.find((ws) => ws.id === step_id);
 		await apiClient.UpdateWorkflowStep(
 			{ step_order: step!.stepOrder - 2 },
 			{
@@ -89,7 +89,7 @@
 	}
 
 	async function incrementStep(step_id: string) {
-		let step = workflow_steps.find((ws) => ws.id === step_id);
+		let step = workflowSteps.find((ws) => ws.id === step_id);
 		await apiClient.UpdateWorkflowStep(
 			{ step_order: step!.stepOrder + 1 },
 			{
@@ -137,7 +137,7 @@
 </p>
 
 <div class="mb-5 flex flex-col gap-y-5">
-	{#each workflow_steps as step, index (step.id)}
+	{#each workflowSteps as step, index (step.id)}
 		<div animate:flip={{ duration: 200 }}>
 			<Card.Root class="transition-all">
 				<Card.Header>
@@ -155,6 +155,9 @@
 							{#if activeToolConfig(step).type === 'learn'}
 								<BookOpen />
 							{/if}
+							{#if activeToolConfig(step).type === 'elicitationbot'}
+								<Bot />
+							{/if}
 							<h1 class="text-xl">{step.name}</h1>
 						</div>
 						<div class="flex flex-row items-center gap-2">
@@ -163,7 +166,7 @@
 									<ChevronUp />
 								</Button>
 							{/if}
-							{#if index < workflow_steps.length - 1}
+							{#if index < workflowSteps.length - 1}
 								<Button variant="ghost" onclick={() => incrementStep(step.id)}>
 									<ChevronDown />
 								</Button>
@@ -194,4 +197,3 @@
 >
 	<Button variant="secondary"><Plus /> Add Step</Button>
 </ToolSelectionModal>
-

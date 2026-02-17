@@ -5,24 +5,25 @@
 	import HeyFormManage from '$lib/tools/heyform/HeyFormManage.svelte';
 	import EliciationBotManage from '$lib/tools/elicitation_bot/ElicitationBotManage.svelte';
 	import LivedExperienceManage from '$lib/tools/lived_experince/LivedExperinceManage.svelte';
-	import type { WorkflowStepWithTranslations, ConversationWithTranslations } from '$lib/api/api.js';
 	import { useAdminLayoutSlots } from '../../../useAdminLayoutSlots.svelte.js';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	let { data } = $props();
 
-	let conversation = $derived(data.conversation as ConversationWithTranslations);
+	let conversation = $derived(data.conversation);
 	let step_id = $derived(data.step_id);
-	let workflow_steps = $derived((data.workflow_steps ?? []) as WorkflowStepWithTranslations[]);
+	let workflowSteps = $derived(data.workflowSteps);
 
-	let step = $derived(workflow_steps.find((s) => s.id === step_id));
+	let step = $derived(workflowSteps.find((s) => s.id === step_id));
 	let nextStep = $derived(
-		step ? workflow_steps.find((s) => s.stepOrder === step.stepOrder + 1) : undefined
+		step ? workflowSteps.find((s) => s.stepOrder === step.stepOrder + 1) : undefined
 	);
 	let prevStep = $derived(
-		step ? workflow_steps.find((s) => s.stepOrder === step.stepOrder - 1) : undefined
+		step ? workflowSteps.find((s) => s.stepOrder === step.stepOrder - 1) : undefined
 	);
-	let toolConfig = $derived(step ? (conversation.isLive ? step.toolConfig : step.previewToolConfig) : null);
+	let toolConfig = $derived(
+		step ? (conversation.isLive ? step.toolConfig : step.previewToolConfig) : null
+	);
 
 	useAdminLayoutSlots({
 		title: titleSnippet,
@@ -71,10 +72,10 @@
 
 {#if step && toolConfig?.type === 'learn'}
 	<LearnManage
-		conversation_id={conversation.id}
+		conversationId={conversation.id}
 		{conversation}
 		isLive={conversation.isLive}
-		workflow_step={step as any}
+		workflowStep={step}
 	/>
 {/if}
 
@@ -110,7 +111,7 @@
 	<EliciationBotManage
 		conversationId={conversation.id}
 		workflowId={step.workflowId}
-		workflowStep={step as any}
+		workflowStep={step}
 		isLive={conversation.isLive}
 	/>
 {/if}
