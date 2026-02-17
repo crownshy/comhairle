@@ -12,7 +12,7 @@
 
 	let { chatId, conversationId, userId, botName = "Tutor bot", botSubtitle = "Ask questions" }: Props = $props();
 	
-	let isOpen = $state(false);
+	let isOpen = $state(true);
 	let isMobile = $state(false);
 
 	$effect(() => {
