@@ -33,7 +33,8 @@ export const load: PageLoad = async ({
 				params: { conversation_id, workflow_id: workflows[0].id }
 			});
 			workflowSteps = await api.ListWorkflowSteps({
-				params: { conversation_id, workflow_id: workflows[0].id }
+				params: { conversation_id, workflow_id: workflows[0].id },
+				queries: { withTranslations: true }
 			});
 		}
 		return { conversation, workflows, stats, workflowSteps };
