@@ -19,14 +19,12 @@
 		onSupportedChange
 	}: Props = $props();
 
-	// All languages except primary, as Option[]
 	let otherLanguageOptions = $derived<Option[]>(
 		allLanguages
 			.filter((lang) => lang.code !== primaryLanguage)
 			.map((lang) => ({ value: lang.code, label: lang.name }))
 	);
 
-	// Currently selected other languages as Option[]
 	let selectedOtherLanguages = $derived<Option[]>(
 		supportedLanguages
 			.filter((code) => code !== primaryLanguage)
