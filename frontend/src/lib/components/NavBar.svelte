@@ -2,7 +2,7 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
 	import { ProfileMenu, LoginButtons } from '$lib/profile';
-	import LanguageSelector from '$lib/components/LanguageSelector.svelte';
+	import LocaleSwitcher from '$lib/components/LocaleSwitcher.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import * as Drawer from '$lib/components/ui/drawer';
 	import { HamburgerMenu } from 'svelte-radix';
@@ -49,7 +49,7 @@
 		</div>
 
 		<div class="hidden gap-x-5 md:flex">
-			<LanguageSelector/>
+			<LocaleSwitcher class="rounded-full"/>
 			<ProfileMenu {user} />
 			{#if isAdmin}
 				<Button variant="default" href="/admin">Admin</Button>
@@ -78,7 +78,7 @@
 											{link.name}
 										</Button>
 									{/each}
-									<LanguageSelector />
+									<LocaleSwitcher />
 								</div>
 								<UserNavMenu {user} />
 								{#if isAdmin}

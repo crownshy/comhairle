@@ -76,7 +76,7 @@
 			{#each claims as claim, index (claim.id)}
 				<div class="self-stretch flex flex-col justify-start items-start gap-2.5">
 					<div class="self-stretch flex flex-col justify-start items-start gap-2">
-						<div class="self-stretch p-4 bg-white rounded-[12px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)] flex flex-col justify-start items-start gap-3 overflow-hidden">
+						<div class="self-stretch p-4 bg-white rounded-xl shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)] flex flex-col justify-start items-start gap-3 overflow-hidden">
 							<div class="justify-start text-chat-primary text-sm font-medium leading-5">
 								Opinion {index + 1}
 							</div>
@@ -87,7 +87,7 @@
 										{claim.content}<span class="inline-block w-1.5 h-4 ml-0.5 bg-chat-primary animate-pulse"></span>
 									</div>
 								{:else if isEditing(claim.id) || claim.status === 'editing'}
-									<div class="self-stretch h-10 px-3 py-1 bg-white rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border inline-flex justify-start items-center gap-2 overflow-hidden">
+									<div class="self-stretch h-10 px-3 py-1 bg-white rounded-lg shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border inline-flex justify-start items-center gap-2 overflow-hidden">
 										<input
 											type="text"
 											bind:value={editingClaims[claim.id]}
@@ -104,48 +104,48 @@
 							
 							<div class="inline-flex justify-start items-center gap-2 flex-wrap content-center">
 								{#if claim.status === 'streaming'}
-									<div class="h-8 px-3 py-2 bg-chat-primary-lighter rounded-[8px] flex justify-center items-center gap-2">
+									<div class="h-8 px-3 py-2 bg-chat-primary-lighter rounded-lg flex justify-center items-center gap-2">
 										<span class="justify-center text-chat-primary text-xs font-medium leading-4">Streaming...</span>
 									</div>
 								{:else if isEditing(claim.id) || claim.status === 'editing'}
 									<button
 										onclick={() => handleSave(claim.id)}
-										class="h-8 px-3 py-2 bg-white rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border flex justify-center items-center gap-2 hover:bg-gray-50 transition-colors"
+										class="h-8 px-3 py-2 bg-white rounded-lg shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border flex justify-center items-center gap-2 hover:bg-gray-50 transition-colors"
 									>
 										<span class="justify-center text-chat-text text-xs font-medium leading-4">Save</span>
 									</button>
 								{:else if claim.status === 'approved'}
-									<div class="h-8 px-3 py-2 bg-chat-primary-dark rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] flex justify-center items-center gap-2">
+									<div class="h-8 px-3 py-2 bg-chat-primary-dark rounded-lg shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] flex justify-center items-center gap-2">
 										<span class="justify-center text-white text-xs font-medium leading-4">Approved</span>
 									</div>
 									<button
 										onclick={() => startEditing(claim)}
-										class="h-8 px-3 py-2 bg-white rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border flex justify-center items-center gap-2 hover:bg-gray-50 transition-colors"
+										class="h-8 px-3 py-2 bg-white rounded-lg shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border flex justify-center items-center gap-2 hover:bg-gray-50 transition-colors"
 									>
 										<span class="justify-center text-chat-text text-xs font-medium leading-4">Edit</span>
 									</button>
 									<button
 										onclick={() => onRemove(claim.id)}
-										class="h-8 px-3 py-2 bg-white rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border flex justify-center items-center gap-2 hover:bg-red-50 transition-colors"
+										class="h-8 px-3 py-2 bg-white rounded-lg shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border flex justify-center items-center gap-2 hover:bg-red-50 transition-colors"
 									>
 										<span class="justify-center text-red-500 text-xs font-medium leading-4">Remove</span>
 									</button>
 								{:else}
 									<button
 										onclick={() => onApprove(claim.id)}
-										class="h-8 px-3 py-2 bg-chat-primary-dark rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] flex justify-center items-center gap-2 hover:bg-chat-primary transition-colors"
+										class="h-8 px-3 py-2 bg-chat-primary-dark rounded-lg shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] flex justify-center items-center gap-2 hover:bg-chat-primary transition-colors"
 									>
 										<span class="justify-center text-white text-xs font-medium leading-4">Approve</span>
 									</button>
 									<button
 										onclick={() => startEditing(claim)}
-										class="h-8 px-3 py-2 bg-white rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border flex justify-center items-center gap-2 hover:bg-gray-50 transition-colors"
+										class="h-8 px-3 py-2 bg-white rounded-lg shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border flex justify-center items-center gap-2 hover:bg-gray-50 transition-colors"
 									>
 										<span class="justify-center text-chat-text text-xs font-medium leading-4">Edit</span>
 									</button>
 									<button
 										onclick={() => onRemove(claim.id)}
-										class="h-8 px-3 py-2 bg-white rounded-[8px] shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border flex justify-center items-center gap-2 hover:bg-red-50 transition-colors"
+										class="h-8 px-3 py-2 bg-white rounded-lg shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border flex justify-center items-center gap-2 hover:bg-red-50 transition-colors"
 									>
 										<span class="justify-center text-red-500 text-xs font-medium leading-4">Remove</span>
 									</button>

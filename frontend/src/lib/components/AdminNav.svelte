@@ -92,7 +92,7 @@
 																	<a
 																		{...btnProps}
 																		href={`/admin/conversations/${conversation.id}/configure`}
-																		class="flex w-full items-center group-data-[state=open]/collapsible:bg-sidebar-accent group-data-[state=open]/collapsible:text-sidebar-accent-foreground active:text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md py-1.5 px-2"
+																		class="flex w-full items-center group-data-[state=open]/collapsible:bg-sidebar-accent group-data-[state=open]/collapsible:text-sidebar-accent-foreground active:text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg py-1.5 px-2"
 																	>
 																		{#if conversation.title.length > 29}
 																			<Tooltip.Root>
@@ -226,7 +226,7 @@
 					<div class="shrink-0 p-2">
 						<Button
 							href="/admin/conversations/new"
-							class="w-full rounded-full"
+							class="w-full"
 							variant="default"
 						>
 							<Plus class="size-4" />

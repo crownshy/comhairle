@@ -39,8 +39,13 @@
   --font-serif: Merriweather, serif;
   --font-mono: Roboto Mono, monospace;
 
-  --radius: 2.5rem;
-  
+  --radius: 0.5rem;
+  --radius-xs: calc(0.5rem - 6px);
+  --radius-sm: calc(0.5rem - 4px);
+  --radius-md: calc(0.5rem - 2px);
+  --radius-lg: 0.5rem;
+  --radius-xl: calc(0.5rem + 4px);
+
   --shadow-2xs: 0px 1px 3px 0px rgb(31 67 51 / 0.02);
   --shadow-xs: 0px 1px 3px 0px rgb(31 67 51 / 0.02);
   --shadow-sm: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 1px 2px -1px rgb(31 67 51 / 0.04);
@@ -235,6 +240,15 @@
   --sidebar-secondary: red;
 }
 
+@theme {
+  --radius: 0.5rem;
+  --radius-xs: calc(0.5rem - 6px);
+  --radius-sm: calc(0.5rem - 4px);
+  --radius-md: calc(0.5rem - 2px);
+  --radius-lg: 0.5rem;
+  --radius-xl: calc(0.5rem + 4px);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -302,12 +316,6 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
-
-  --radius-xs: calc(var(--radius) - 6px);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
 
   --shadow-2xs: var(--shadow-2xs);
   --shadow-xs: var(--shadow-xs);

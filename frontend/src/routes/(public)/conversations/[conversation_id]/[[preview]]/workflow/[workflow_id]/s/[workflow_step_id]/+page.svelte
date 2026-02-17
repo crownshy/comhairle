@@ -83,7 +83,7 @@
 					class:bg-sky-500={workflowStep.id !== step.id}
 				>
 					<div
-						class="border-secondary h-[24px] w-[24px] rounded-[100%] border-8 bg-white"
+						class="border-secondary h-[24px] w-[24px] rounded-full border-8 bg-white"
 					></div>
 					<p class="text-center">
 						{step.name}

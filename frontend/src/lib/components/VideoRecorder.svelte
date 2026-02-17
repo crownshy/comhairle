@@ -138,7 +138,7 @@
 	}
 </script>
 
-<Card class="mx-auto mt-10 max-w-xl space-y-6 rounded-[0.2rem] p-6">
+<Card class="mx-auto mt-10 max-w-xl space-y-6 rounded-lg p-6">
 	<h2 class="text-2xl font-bold">🎥 Record Your Video</h2>
 
 	{#if !isRecording && !isRecorded}
@@ -147,7 +147,7 @@
 			autoplay
 			muted
 			playsinline
-			class="mt-4 w-full rounded-[0.2rem] shadow-sm"
+			class="mt-4 w-full rounded-lg shadow-sm"
 		/>
 		<div class="flex flex-col gap-2">
 			<Button onclick={startRecording}>Start Recording</Button>
@@ -163,14 +163,14 @@
 			autoplay
 			muted
 			playsinline
-			class="mt-4 w-full rounded-[0.2rem] shadow-sm"
+			class="mt-4 w-full rounded-lg shadow-sm"
 		/>
 		<Button variant="destructive" class="w-full" onclick={stopRecording}>Stop Now</Button>
 	</div>
 
 	{#if isRecorded && videoUrl}
 		<CardContent class="space-y-4">
-			<video controls src={videoUrl} class="w-full rounded-[0.2rem] shadow-sm" />
+			<video controls src={videoUrl} class="w-full rounded-lg shadow-sm" />
 			<div class="flex gap-4">
 				<Button onclick={uploadVideo} disabled={isUploading}>Upload</Button>
 				<Button variant="outline" on:click={reset} disabled={isUploading}

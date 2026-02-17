@@ -398,7 +398,7 @@
 	<div class="border-border flex justify-center border-t py-6">
 		<Form.Button
 			variant="default"
-			class="rounded-full px-12"
+			class="px-12"
 			disabled={$submitting || !$tainted}
 		>
 			Save Changes
