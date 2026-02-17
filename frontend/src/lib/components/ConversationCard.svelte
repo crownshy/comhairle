@@ -1,52 +1,65 @@
 <script lang="ts">
 	import type { ConversationDto } from '$lib/api/api';
+	import { Button } from '$lib/components/ui/button';
+	import { ArrowRight } from 'lucide-svelte';
+
 	let { conversation }: { conversation: ConversationDto } = $props();
 </script>
 
 <div
-	class="flex w-full max-w-[1280px] flex-col items-start justify-start gap-5 md:gap-16 lg:flex-row"
+	class="flex w-full max-w-[1280px] flex-col-reverse items-start justify-start gap-8 lg:flex-row lg:gap-16"
 >
-	<img
-		class="mx-auto h-[408px] w-[612.15px] rounded-3xl object-cover lg:mx-0"
-		src={conversation.imageUrl}
-		alt={conversation.title}
-	/>
-	<div class="inline-flex flex-1 flex-col items-start justify-start gap-4 px-4 lg:py-5">
-		<div
-			class="inline-flex flex-wrap content-center items-center justify-start gap-2 self-stretch"
-		>
+	<!-- Text content -->
+	<div class="flex flex-1 flex-col items-start justify-start gap-8">
+		<div class="flex flex-col items-start justify-start gap-4 self-stretch">
+			<!-- Status badge -->
+			{#if conversation.isLive}
 			<div
-				class="flex h-8 items-center justify-center gap-1 overflow-hidden rounded-full bg-stone-300 px-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
+				class="inline-flex h-7 items-center justify-center gap-1 overflow-hidden rounded-full bg-blue-100 px-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] outline-1 outline-offset-[-1px] outline-blue-200"
 			>
-				<div
-					class="justify-start font-['Inter'] text-sm leading-tight font-medium text-neutral-900"
-				>
-					Live
-				</div>
-			</div>
-		</div>
-		<div
-			class="inline-flex flex-wrap content-start items-start justify-start gap-3 self-stretch"
-		>
-			<div class="flex items-center justify-start gap-1">
-				<div
-					class="justify-start font-['Inter'] text-sm leading-tight font-normal text-zinc-600"
-				>
-					Scottish Government
-				</div>
-			</div>
-		</div>
-		<div class="flex flex-col items-start justify-center gap-2 self-stretch">
+				<span class="text-sm font-medium leading-5 text-foreground">Live</span>
+			</div>	
+			{:else}
 			<div
-				class="justify-start self-stretch font-['Inter'] text-3xl leading-9 font-semibold text-neutral-900"
+				class="inline-flex h-7 items-center justify-center gap-1 overflow-hidden rounded-full bg-stone-100 px-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] outline-1 outline-offset-[-1px] outline-stone-200"
 			>
-				{conversation.title}
+				<span class="text-sm font-medium leading-5 text-foreground">Draft</span>
+			
 			</div>
-			<div
-				class="justify-start self-stretch font-['Inter'] text-lg leading-normal font-medium text-zinc-600"
-			>
+			{/if}
+
+			<!-- Title -->
+			<h2 class="self-stretch text-2xl font-semibold leading-7 text-foreground">
+				{conversation.title} 
+			</h2>
+
+			<!-- Description -->
+			<p class="self-stretch text-sm font-medium leading-5 text-black">
 				{conversation.shortDescription}
-			</div>
+			</p>
+		</div>
+
+		<!-- Edit button -->
+		<Button
+			variant="default"
+			class="rounded-full bg-slate-900 px-4 py-3 hover:bg-slate-800"
+			href={`/admin/conversations/${conversation.id}/configure`}
+		>
+			Edit conversation
+			<ArrowRight class="ml-1 size-4" />
+		</Button>
+	</div>
+
+	<!-- Image -->
+	<div class="flex h-56 flex-1 flex-col items-start justify-start sm:h-72">
+		<div class="relative flex-1 self-stretch overflow-hidden rounded-3xl bg-stone-200">
+			{#if conversation.imageUrl}
+				<img
+					class="absolute inset-0 h-full w-full object-cover"
+					src={conversation.imageUrl}
+					alt={conversation.title}
+				/>
+			{/if}
 		</div>
 	</div>
 </div>
