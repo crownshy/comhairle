@@ -303,7 +303,7 @@
 						{maxHeight}
 					/>
 				{:else}
-					<div class="rounded-[12px] border-2 border-primary bg-white overflow-hidden">
+					<div class="rounded-[12px] border-1 bg-white overflow-hidden">
 						<textarea
 							class="w-full resize-none border-none outline-none p-4 text-sm leading-5 bg-transparent"
 							style="min-height: {minHeight};"
