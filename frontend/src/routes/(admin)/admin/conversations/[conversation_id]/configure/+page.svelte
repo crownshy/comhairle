@@ -33,6 +33,11 @@
 	let primaryLanguage = $state(data.conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $state(data.conversation.supportedLanguages ?? ['en']);
 
+	$effect(() => {
+		primaryLanguage = data.conversation.primaryLocale ?? 'en';
+		supportedLanguages = data.conversation.supportedLanguages ?? ['en'];
+	});
+
 	function updateFormForLanguage(newLanguage: string) {
 		const t = conversation.translations;
 		if (!t) return;
