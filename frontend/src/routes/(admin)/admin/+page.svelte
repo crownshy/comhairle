@@ -29,7 +29,7 @@
 		</div>
 		<Button class="w-full sm:w-auto" variant="default" href="/admin/conversations/new"><Plus />Create New Conversation</Button>
 	</div>
-	<div class="grid w-full grid-cols-1 gap-x-2 gap-y-5 overflow-y-auto">
+	<div class="grid w-full grid-cols-1 gap-x-2 gap-y-16 overflow-y-auto">
 		{#each conversations.records as conversation (conversation.id)}
 			<a href={`/admin/conversations/${conversation.id}/configure`}>
 				<ConversationCard {conversation} />
