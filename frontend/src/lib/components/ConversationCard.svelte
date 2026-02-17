@@ -2,7 +2,7 @@
 	import type { ConversationDto, LocalizedConversationDto } from '$lib/api/api';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
-	import { ArrowRight } from 'lucide-svelte';
+	import {ArrowRight, MessageSquareText } from 'lucide-svelte';
 
 	let {
 		conversation,
@@ -31,7 +31,12 @@
 						src={conversation.imageUrl}
 						alt={conversation.title}
 					/>
+				{:else}
+					<div class="absolute inset-0 flex items-center justify-center bg-primary/10">
+						<MessageSquareText class="h-60 w-60 text-primary/70" />
+					</div>
 				{/if}
+				
 			</div>
 		</div>
 

@@ -7,14 +7,15 @@
 	import { userInitials } from '$lib/utils';
 	import { apiClient } from '$lib/api/client';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Bell, LogOut, Settings } from 'lucide-svelte';
+	import { Bell, LogOut, Settings, ChevronsUpDown } from 'lucide-svelte';
 	import ModeToggle from '$lib/components/ModeToggle.svelte';
 	import type { UserDto } from '$lib/api/api';
 
 	type Props = {
 		user: UserDto;
+		triggerVariant?: 'outline' | 'nav';
 	};
-	const { user }: Props = $props();
+	const { user, triggerVariant = 'outline' }: Props = $props();
 
 	let user_initials = $derived(userInitials(user?.username ?? ''));
 	let notifications: number | undefined = $state();
@@ -28,7 +29,7 @@
 
 {#if user}
 	<DropdownMenu.Root>
-		<DropdownMenu.Trigger class={buttonVariants({ variant: 'outline' })}>
+		<DropdownMenu.Trigger class={buttonVariants({ variant: triggerVariant })}>
 			<Avatar.Root class="mr-4 h-6 w-6">
 				{#if user.avatarUrl}
 					<Avatar.Image src={user.avatarUrl} alt="@shadcn" />
@@ -45,6 +46,7 @@
 			{#if notifications && notifications > 0}
 				<Badge>{notifications}</Badge>
 			{/if}
+			<ChevronsUpDown class="size-3" />
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Content>
 			<DropdownMenu.Group>
