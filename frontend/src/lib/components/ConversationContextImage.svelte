@@ -23,10 +23,10 @@
 		<div class="relative mx-auto mt-20 max-w-xl">
 			<img
 				alt={conversation.title}
-				class="h-64 w-full rounded-md object-cover"
+				class="h-64 w-full rounded-lg object-cover"
 				src={conversation.imageUrl}
 			/>
-			<div class="absolute inset-0 rounded-md bg-gray-700 opacity-60"></div>
+			<div class="absolute inset-0 rounded-lg bg-gray-700 opacity-60"></div>
 			<div class="absolute inset-0 flex items-center justify-center">
 				<h2 class="text-3xl font-bold text-white">conversation.title</h2>
 			</div>

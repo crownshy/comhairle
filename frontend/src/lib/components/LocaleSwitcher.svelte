@@ -2,6 +2,8 @@
 	import { getLocale, locales, setLocale, type Locale } from '$lib/paraglide/runtime';
 	import * as Select from '$lib/components/ui/select';
 
+	let { class: className = '' }: { class?: string } = $props();
+
 	const labels = {
 		en: 'English',
 		es: 'Spanish',
@@ -29,7 +31,7 @@
 </script>
 
 <Select.Root type="single" onValueChange={(locale) => switchToLanguage(locale as Locale)}>
-	<Select.Trigger class="[&_svg]:opacity-100">
+	<Select.Trigger class="{className} [/&_svg]:opacity-100">
 		<span class="text-center">{labels[currentLanguage]}</span>
 	</Select.Trigger>
 	<Select.Content>

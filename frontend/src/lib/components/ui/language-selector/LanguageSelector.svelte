@@ -94,7 +94,7 @@
 	<div class="flex flex-col gap-2">
 		<Label class="font-semibold">Other languages</Label>
 		<Popover.Root bind:open={popoverOpen}>
-			<Popover.Trigger class="w-full flex items-center justify-between px-3 py-2 border rounded-md bg-background">
+			<Popover.Trigger class="w-full flex items-center justify-between px-3 py-2 border rounded-lg bg-background">
 				<span class="text-sm {selectedOtherLanguages.length === 0 ? 'text-gray-500' : 'text-gray-900'}">
 					{getSelectedLabel()}
 				</span>

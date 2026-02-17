@@ -275,7 +275,7 @@
 <!-- Translation dialog -->
 {#if hasTranslations}
 	<Dialog.Root open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); }}>
-		<Dialog.Content class="scot-gov max-h-[90vh] min-w-[70vw] p-12 rounded-[12px]" showCloseButton={false}>
+		<Dialog.Content class="scot-gov max-h-[90vh] min-w-[70vw] p-12 rounded-xl" showCloseButton={false}>
 			<Dialog.Header class="flex items-center justify-between pr-0 flex-row">
 				<Dialog.Title class="justify-start text-black text-3xl font-semibold leading-8">
 					{dialogTitle}

@@ -50,7 +50,7 @@
 			</h2>
 			<Button
 				href={`/conversations/${conversation.id}/preview`}
-				class="rounded-3xl bg-blue-200 px-8 py-3 text-sm text-black"
+				class="bg-blue-200 px-8 py-3 text-sm text-black"
 			>
 				Preview
 				<ArrowUpRight />
@@ -58,7 +58,7 @@
 			{#if conversation.isLive}
 				<Button
 					href={`/conversations/${conversation.id}`}
-					class="rounded-3xl bg-blue-200 px-8 py-3 text-sm text-black"
+					class="bg-blue-200 px-8 py-3 text-sm text-black"
 				>
 					Live Conversation Link
 					<ArrowUpRight />
@@ -69,7 +69,7 @@
 		<div>
 			{#if conversation.isLive}
 				<Badge
-					class="bg-primary flex flex-row items-center justify-between rounded-3xl px-8 py-2 text-white"
+					class="bg-primary flex flex-row items-center justify-between px-8 py-2 text-white"
 					>Launched! <Check class="text-primary rounded-full bg-white" /></Badge
 				>
 			{:else}
