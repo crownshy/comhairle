@@ -21,15 +21,12 @@ use crate::{
         AgentConversationRequest, ChatConversationRequest, ComhairleAgent, ComhairleAgentSession,
         ComhairleBotService, ComhairleChat, ComhairleChatSession, ComhairleDocument,
         ComhairleKnowledgeBase, ComhairleLlm, ComhairleMessageReference, ComhairlePrompt,
-        ComhairleSessionMessage, CreateChatRequest, CreateChatSessionRequest,
-        GetQueryParams as ApiGetQueryParams, UpdateChatRequest, UpdateChatSessionRequest,
-        UpdateDocumentRequest, UpdateKnowledgeBaseRequest, UploadFileRequest,
+        ComhairleSessionMessage, CreateAgentRequest, CreateChatRequest, CreateChatSessionRequest,
+        GetQueryParams as ApiGetQueryParams, UpdateAgentRequest, UpdateChatRequest,
+        UpdateChatSessionRequest, UpdateDocumentRequest, UpdateKnowledgeBaseRequest,
+        UploadFileRequest,
     },
     error::ComhairleError,
-    routes::bot::{
-        agent_sessions::CreateAgentSessionRequest,
-        agents::{CreateAgentRequest, UpdateAgentRequest},
-    },
 };
 
 #[derive(Debug)]
@@ -1042,12 +1039,6 @@ impl From<&AgentSession> for ComhairleAgentSession {
                 .map(Into::into)
                 .collect(),
         }
-    }
-}
-
-impl From<CreateAgentSessionRequest> for CreateAgentSession {
-    fn from(_input: CreateAgentSessionRequest) -> Self {
-        Self {}
     }
 }
 
