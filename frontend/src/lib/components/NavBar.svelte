@@ -49,7 +49,7 @@
 		</div>
 
 		<div class="hidden gap-x-5 md:flex">
-			<LocaleSwitcher class="rounded-full border-none bg-transparent data-[placeholder]:text-primary-foreground shadow-xs"/>
+			<LocaleSwitcher class="rounded-full hover:bg-sidebar/50 border-none bg-transparent data-[placeholder]:text-primary-foreground shadow-xs"/>
 			<ProfileMenu {user} />
 			{#if isAdmin}
 				<Button variant="nav" href="/admin">Dashboard</Button>
