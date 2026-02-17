@@ -38,15 +38,9 @@
 	let containerRef: HTMLDivElement | null = $state(null);
 
 	let selectables = $derived(
-		defaultOptions.filter(
-			(opt) => !selected.find((s) => s.value === opt.value)
-		)
-	);
-
-	let filteredSelectables = $derived(
-		selectables.filter((opt) =>
-			opt.label.toLowerCase().includes(inputValue.toLowerCase())
-		)
+		defaultOptions
+			.filter((opt) => !selected.find((s) => s.value === opt.value))
+			.filter((opt) => opt.label.toLowerCase().includes(inputValue.toLowerCase()))
 	);
 
 	function updateSelected(newSelected: Option[]) {
@@ -159,7 +153,7 @@
 			onmouseup={() => inputRef?.focus()}
 		>
 			<div class="overflow-y-auto p-1">
-				{#each filteredSelectables as option (option.value)}
+				{#each selectables as option (option.value)}
 					<button
 						type="button"
 						class={cn(
@@ -177,7 +171,7 @@
 					</button>
 				{/each}
 
-				{#if filteredSelectables.length === 0}
+				{#if selectables.length === 0}
 					<div class="px-2 py-4 text-center text-sm text-muted-foreground">
 						{emptyMessage}
 					</div>
