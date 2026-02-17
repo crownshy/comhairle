@@ -61,7 +61,7 @@
 	<div class="flex w-full grow flex-col items-center gap-20 md:gap-10 md:px-2 lg:items-stretch">
 		{#each data.records as conversation (conversation.id)}
 			<a href={`/conversations/${conversation.slug || conversation.id}`}>
-				<ConversationCard {conversation} />
+				<ConversationCard {conversation} variant="public" />
 			</a>
 		{/each}
 	</div>
