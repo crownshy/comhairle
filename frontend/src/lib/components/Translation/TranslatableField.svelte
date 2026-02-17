@@ -251,7 +251,7 @@
 	{:else}
 		<div class="relative">
 			{#if inputType === 'textarea'}
-				<Textarea class="bg-white pr-12" {value} oninput={handlePlainInput} {placeholder} {...inputProps} />
+				<Textarea class="pr-12" {value} oninput={handlePlainInput} {placeholder} {...inputProps} />
 			{:else}
 				<Input class="pr-12" {value} oninput={handlePlainInput} {placeholder} {...inputProps} />
 			{/if}

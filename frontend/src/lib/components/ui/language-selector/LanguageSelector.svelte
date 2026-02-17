@@ -6,6 +6,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { ChevronDown, Search } from 'lucide-svelte';
 	import { allLanguages } from '$lib/config/languages';
+	import * as ScrollArea from '$lib/components/ui/scroll-area';
 
 	interface Props {
 		primaryLanguage: string;
@@ -93,7 +94,7 @@
 	<div class="flex flex-col gap-2">
 		<Label class="font-semibold">Other languages</Label>
 		<Popover.Root bind:open={popoverOpen}>
-			<Popover.Trigger class="w-full flex items-center justify-between px-3 py-2 border rounded-md bg-white hover:bg-gray-50">
+			<Popover.Trigger class="w-full flex items-center justify-between px-3 py-2 border rounded-md bg-background">
 				<span class="text-sm {selectedOtherLanguages.length === 0 ? 'text-gray-500' : 'text-gray-900'}">
 					{getSelectedLabel()}
 				</span>
@@ -114,23 +115,25 @@
 				</div>
 				
 				<!-- Language list -->
-				<div class="max-h-48 overflow-y-auto p-1">
-					{#each filteredLanguages as lang (lang.code)}
-						<button
-							type="button"
-							class="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-100 text-left"
-							onclick={() => toggleLanguage(lang.code)}
-						>
-							<Checkbox checked={selectedOtherLanguages.includes(lang.code)} />
-							<span class="text-sm">{lang.name}</span>
-						</button>
-					{/each}
-					{#if filteredLanguages.length === 0}
-						<div class="px-2 py-4 text-center text-sm text-gray-500">
-							No languages found
-						</div>
-					{/if}
-				</div>
+				<ScrollArea.Root>
+					<div class="max-h-48 p-1">
+						{#each filteredLanguages as lang (lang.code)}
+							<button
+								type="button"
+								class="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-100 text-left"
+								onclick={() => toggleLanguage(lang.code)}
+							>
+								<Checkbox checked={selectedOtherLanguages.includes(lang.code)} />
+								<span class="text-sm">{lang.name}</span>
+							</button>
+						{/each}
+						{#if filteredLanguages.length === 0}
+							<div class="px-2 py-4 text-center text-sm text-gray-500">
+								No languages found
+							</div>
+						{/if}
+					</div>
+				</ScrollArea.Root>
 			</Popover.Content>
 		</Popover.Root>
 	</div>
