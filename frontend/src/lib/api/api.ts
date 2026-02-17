@@ -144,7 +144,7 @@ export const WorkflowStepWithTranslations = z.object({ activationRule: Activatio
 export type WorkflowStepWithTranslations = z.infer<typeof WorkflowStepWithTranslations>;
 export const WorkflowStepsListResponse = z.union([z.array(LocalizedWorkflowStepDto), z.array(WorkflowStepWithTranslations)]);
 export type WorkflowStepsListResponse = z.infer<typeof WorkflowStepsListResponse>;
-export const ToolSetup = z.union([z.object({ topic: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(LearnPageEntry), type: z.literal("learn") }).passthrough(), z.object({ type: z.literal("heyform") }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ conversation_id: z.string(), topic: z.string(), type: z.literal("elicitationbot") }).passthrough()]);
+export const ToolSetup = z.union([z.object({ topic: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(LearnPageEntry), type: z.literal("learn") }).passthrough(), z.object({ type: z.literal("heyform") }).passthrough(), z.object({ max_time: z.number().int(), to_see: z.number().int(), type: z.literal("stories") }).passthrough(), z.object({ topic: z.string(), type: z.literal("elicitationbot") }).passthrough()]);
 export type ToolSetup = z.infer<typeof ToolSetup>;
 export const CreateWorkflowStep = z.object({ activation_rule: ActivationRule, description: z.string(), is_offline: z.boolean(), name: z.string(), required: z.boolean(), step_order: z.number().int(), tool_setup: ToolSetup }).passthrough();
 export type CreateWorkflowStep = z.infer<typeof CreateWorkflowStep>;
@@ -218,12 +218,6 @@ export const BroadcastResponse = z.object({ message: z.string(), sent_to: z.numb
 export type BroadcastResponse = z.infer<typeof BroadcastResponse>;
 export const SendToUserMessage = z.object({ message: z.string(), user_id: z.string().uuid() }).passthrough();
 export type SendToUserMessage = z.infer<typeof SendToUserMessage>;
-export const ComhairleAgent = z.object({ configuration: z.unknown(), id: z.string(), name: z.string() }).passthrough();
-export type ComhairleAgent = z.infer<typeof ComhairleAgent>;
-export const CreateAgentRequest = z.object({ name: z.string() }).passthrough();
-export type CreateAgentRequest = z.infer<typeof CreateAgentRequest>;
-export const UpdateAgentRequest = z.object({ name: z.union([z.string(), z.null()]), topic: z.union([z.string(), z.null()]) }).partial().passthrough();
-export type UpdateAgentRequest = z.infer<typeof UpdateAgentRequest>;
 export const Job = z.object({ completion_message: z.union([z.string(), z.null()]).optional(), created_at: z.string().datetime({ offset: true }), error: z.union([z.string(), z.null()]).optional(), finished_at: z.union([z.string(), z.null()]).optional(), id: z.string().uuid(), progress: z.union([z.number(), z.null()]).optional(), status: z.union([z.string(), z.null()]).optional(), step: z.union([z.string(), z.null()]).optional() }).passthrough();
 export type Job = z.infer<typeof Job>;
 export const PaginatedResults_for_Job = z.object({ records: z.array(Job), total: z.number().int() }).passthrough();
@@ -341,9 +335,6 @@ export const schemas = {
 	BroadcastMessage,
 	BroadcastResponse,
 	SendToUserMessage,
-	ComhairleAgent,
-	CreateAgentRequest,
-	UpdateAgentRequest,
 	Job,
 	PaginatedResults_for_Job,
 	CreateJob,
@@ -478,137 +469,6 @@ const endpoints = makeApi([
 			},
 		],
 		response: UserDto,
-	},
-	{
-		method: "get",
-		path: "/bot/agents",
-		alias: "ListAgents",
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "name",
-				type: "Query",
-				schema: created_after
-			},
-			{
-				name: "order_by",
-				type: "Query",
-				schema: created_after
-			},
-			{
-				name: "page",
-				type: "Query",
-				schema: limit
-			},
-			{
-				name: "page_size",
-				type: "Query",
-				schema: limit
-			},
-			{
-				name: "title",
-				type: "Query",
-				schema: created_after
-			},
-		],
-		response: z.array(ComhairleAgent),
-	},
-	{
-		method: "post",
-		path: "/bot/agents",
-		alias: "CreateAgent",
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "body",
-				type: "Body",
-				schema: z.object({ name: z.string() }).passthrough()
-			},
-		],
-		response: ComhairleAgent,
-	},
-	{
-		method: "get",
-		path: "/bot/agents/:agent_id",
-		alias: "GetAgent",
-		requestFormat: "json",
-		response: ComhairleAgent,
-	},
-	{
-		method: "put",
-		path: "/bot/agents/:agent_id",
-		alias: "UpdateAgent",
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "body",
-				type: "Body",
-				schema: UpdateAgentRequest
-			},
-		],
-		response: ComhairleAgent,
-	},
-	{
-		method: "delete",
-		path: "/bot/agents/:agent_id",
-		alias: "DeleteAgent",
-		requestFormat: "json",
-		response: z.void(),
-	},
-	{
-		method: "get",
-		path: "/bot/agents/:agent_id/sessions",
-		alias: "ListAgentSessions",
-		requestFormat: "json",
-		parameters: [
-			{
-				name: "name",
-				type: "Query",
-				schema: created_after
-			},
-			{
-				name: "order_by",
-				type: "Query",
-				schema: created_after
-			},
-			{
-				name: "page",
-				type: "Query",
-				schema: limit
-			},
-			{
-				name: "page_size",
-				type: "Query",
-				schema: limit
-			},
-			{
-				name: "title",
-				type: "Query",
-				schema: created_after
-			},
-		],
-		response: z.array(ComhairleAgentSession),
-	},
-	{
-		method: "post",
-		path: "/bot/agents/:agent_id/sessions",
-		alias: "CreateAgentSessions",
-		requestFormat: "json",
-		response: ComhairleAgentSession,
-	},
-	{
-		method: "get",
-		path: "/bot/agents/:agent_id/sessions/:session_id",
-		alias: "GetAgentSession",
-		requestFormat: "json",
-		response: ComhairleAgentSession,
-	},
-	{
-		method: "delete",
-		path: "/bot/agents/:agent_id/sessions/:session_id",
-		alias: "DeleteAgentSessions",
-		requestFormat: "json",
-		response: z.void(),
 	},
 	{
 		method: "get",
@@ -1384,13 +1244,10 @@ curl -X POST \
 		alias: "postToolselicitation_botworkflow_stepWorkflow_step_id",
 		description: `
 Streamed LLM response.
-
-
 ⚠️ This endpoint returns a streaming response on success.
-
 Generated API clients are NOT suitable for consuming this endpoint.
-
-Use a raw HTTP request and process the response body incrementally.`,
+Use a raw HTTP request and process the response body incrementally.
+`,
 		requestFormat: "json",
 		parameters: [
 			{
