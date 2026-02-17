@@ -10,10 +10,7 @@ use mockall::{automock, predicate::*};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    error::ComhairleError,
-    routes::bot::agents::{CreateAgentRequest, UpdateAgentRequest},
-};
+use crate::error::ComhairleError;
 
 pub mod ragflow_bot;
 
@@ -375,6 +372,17 @@ pub struct CreateChatRequest {
     pub knowledge_base_ids: Option<Vec<String>>,
     pub llm_model: Option<ComhairleLlm>,
     pub prompt: Option<ComhairlePrompt>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+pub struct CreateAgentRequest {
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Default, Clone, PartialEq)]
+pub struct UpdateAgentRequest {
+    pub name: Option<String>,
+    pub topic: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Default, Clone, PartialEq)]
