@@ -1,26 +1,6 @@
 import { browser } from '$app/environment';
-
-export interface MessageReference {
-	id: string;
-	content: string;
-	dataset_id: string;
-	document_id: string;
-	document_name: string;
-}
-
-export interface ChatSessionMessage {
-	id?: string;
-	content: string;
-	role: string;
-	reference?: MessageReference[];
-}
-
-export interface ChatSession {
-	id: string;
-	chat_id: string;
-	name?: string;
-	messages?: ChatSessionMessage[];
-}
+import type { ComhairleChatSession } from './api';
+import { apiClient } from './client';
 
 export interface ReferenceChunk {
 	id: string;
@@ -48,73 +28,26 @@ export class ChatClient {
 	currentReference = $state<ChatReference | null>(null);
 	error = $state<string | null>(null);
 	isStreaming = $state(false);
-	session = $state<ChatSession | null>(null);
+	session = $state<ComhairleChatSession | null>(null);
 	botServiceSessionId = $state<string | null>(null);
 
-	private chatId: string;
-	private userId?: string;
 	private conversationId?: string;
 	private baseUrl: string;
 	private abortController: AbortController | null = null;
 
-	constructor(chatId: string, userId?: string, conversationId?: string, baseUrl = '/api') {
-		this.chatId = chatId;
-		this.userId = userId;
+	constructor(conversationId?: string, baseUrl = '/api') {
 		this.conversationId = conversationId;
 		this.baseUrl = baseUrl;
 	}
 
-	/**
-	 * Get or create a bot service user session and fetch the full session data.
-	 * Returns the ChatSession if successful, null otherwise.
-	 */
-	async getOrCreateUserSession(): Promise<ChatSession | null> {
-		if (!this.conversationId) {
-			return null;
-		}
-
+	async getSession(): Promise<ComhairleChatSession | null> {
 		try {
-			const response = await fetch(
-				`${this.baseUrl}/conversation/${this.conversationId}/bot_service_sessions`,
-				{
-					method: 'GET',
-					headers: { 'Content-Type': 'application/json' },
-					credentials: 'include'
-				}
-			);
+			if (!this.conversationId) throw new Error('Missing conversation id');
 
-			if (!response.ok) {
-				return null;
-			}
+			const session = await apiClient.GetChatSessionHistory({
+				params: { conversation_id: this.conversationId }
+			});
 
-			const data = await response.json();
-			this.botServiceSessionId = data.bot_service_session_id;
-			
-			// Fetch the full session data
-			return await this.getSession(data.bot_service_session_id);
-		} catch (e) {
-			this.error = e instanceof Error ? e.message : 'Failed to get or create session';
-			return null;
-		}
-	}
-
-	async getSession(sessionId: string): Promise<ChatSession | null> {
-		try {
-			const response = await fetch(
-				`${this.baseUrl}/bot/chats/${this.chatId}/sessions/${sessionId}`,
-				{
-					method: 'GET',
-					headers: { 'Content-Type': 'application/json' },
-					credentials: 'include'
-				}
-			);
-
-			if (!response.ok) {
-				this.error = `Failed to get session: ${response.statusText}`;
-				return null;
-			}
-
-			const session = await response.json();
 			this.session = session;
 			return session;
 		} catch (e) {
@@ -125,11 +58,11 @@ export class ChatClient {
 
 	private parseSSELine(line: string): void {
 		if (!line.startsWith('data:')) return;
-		
+
 		try {
 			const jsonStr = line.replace('data:', '').trim();
 			const json = JSON.parse(jsonStr);
-			
+
 			if (json.data?.answer) {
 				this.currentAnswer = json.data.answer;
 			}
@@ -194,12 +127,12 @@ export class ChatClient {
 
 		try {
 			const response = await fetch(
-				`${this.baseUrl}/bot/chats/${this.chatId}/sessions/${this.session.id}`,
+				`${this.baseUrl}/conversation/${this.conversationId}/chat_sessions`,
 				{
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					credentials: 'include',
-					body: JSON.stringify({ question, stream: true }),
+					body: JSON.stringify({ question }),
 					signal: this.abortController?.signal
 				}
 			);
@@ -245,3 +178,4 @@ export class ChatClient {
 		this.botServiceSessionId = null;
 	}
 }
+

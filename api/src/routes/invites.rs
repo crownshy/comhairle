@@ -13,13 +13,15 @@ use minijinja::context;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{models::{invites::DailyResponseStats, workflow}, routes::invites::dto::InviteDto, ComhairleState};
 use crate::{
     error::ComhairleError,
     models::{
         self,
-        invites::CreateInviteDTO,
+        invites::{CreateInviteDTO, DailyResponseStats},
+        workflow,
     },
+    routes::invites::dto::InviteDto,
+    ComhairleState,
 };
 
 use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser};
@@ -39,14 +41,13 @@ async fn accept_invite(
     invite.is_still_valid()?;
     invite.is_for_user(&user)?;
 
-    // Get the workflow to sign up to either explicitly from the invite 
+    // Get the workflow to sign up to either explicitly from the invite
     // or from the default conversation workflow
-    let workflow_id = match (invite.workflow_id, conversation.default_workflow_id){
+    let workflow_id = match (invite.workflow_id, conversation.default_workflow_id) {
         (Some(invite_workflow), _) => Ok(invite_workflow),
         (None, Some(conversation_workflow)) => Ok(conversation_workflow),
-        (None, None)=> Err(ComhairleError::NoWorkflowFoundForInvite)
+        (None, None) => Err(ComhairleError::NoWorkflowFoundForInvite),
     }?;
-
 
     workflow::register_user(&state.db, &workflow_id, &user).await?;
 
@@ -102,7 +103,7 @@ async fn create_invite(
             "Invitation to take part in the National Performance Framework consultation",
             "conversation_invite.html",
             context! {
-                conversation_hero => conversation.image_url , 
+                conversation_hero => conversation.image_url,
                 conversation_title=> conversation.title,
                 invite_link => format!("{}/conversations/{}/invite/{}",state.config.domain, conversation.slug.unwrap_or_else(|| conversation.id.to_string()), invite.id )
             },
@@ -119,7 +120,7 @@ async fn create_invite(
             )?;
             }
         }
-        models::invites::InviteType::Open | models::invites::InviteType::SingleUse  => {}
+        models::invites::InviteType::Open | models::invites::InviteType::SingleUse => {}
     };
 
     let invite = invite.into();
@@ -144,9 +145,9 @@ async fn get_invite(
         // Otherwise allow the invite to be seen if it's
         // an email or open invite
         match invite.invite_type {
-            models::invites::InviteType::Email(_) |
-            models::invites::InviteType::Open |
-            models::invites::InviteType::SingleUse=> Ok((StatusCode::OK, Json(invite.into()))),
+            models::invites::InviteType::Email(_)
+            | models::invites::InviteType::Open
+            | models::invites::InviteType::SingleUse => Ok((StatusCode::OK, Json(invite.into()))),
             models::invites::InviteType::User(_) => Err(ComhairleError::UserRequired),
         }
     }
@@ -158,15 +159,13 @@ async fn get_invite_stats(
     Path((_, invite_id)): Path<(Uuid, Uuid)>,
     RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<Vec<DailyResponseStats>>), ComhairleError> {
-
     // Check that invite exists
     models::invites::get(&state.db, &invite_id).await?;
 
     // Generate stats``
     let stats = models::invites::get_stats_for_invite(&state.db, &invite_id).await?;
-    Ok((StatusCode::OK,Json(stats)))
+    Ok((StatusCode::OK, Json(stats)))
 }
-
 
 #[instrument(err(Debug), skip(state))]
 async fn delete_invite(
@@ -185,7 +184,10 @@ async fn list_invites_for_conversation(
     Path(conversation_id): Path<Uuid>,
     RequiredAdminUser(_): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<Vec<InviteDto>>), ComhairleError> {
-    let invites = (models::invites::list_for_conversation(&state.db, &conversation_id).await?).into_iter().map(Into::into).collect();
+    let invites = (models::invites::list_for_conversation(&state.db, &conversation_id).await?)
+        .into_iter()
+        .map(Into::into)
+        .collect();
     Ok((StatusCode::OK, Json(invites)))
 }
 
@@ -273,7 +275,9 @@ mod tests {
     use tracing_test::traced_test;
 
     use crate::{
-        mailer::MockComhairleMailer, setup_server, test_helpers::{extract, test_state, UserSession}
+        mailer::MockComhairleMailer,
+        setup_server,
+        test_helpers::{extract, test_state, UserSession},
     };
 
     use super::*;
@@ -305,7 +309,7 @@ mod tests {
 
         session.signup(&app).await?;
 
-        let (_,conversation,_) = session.create_random_conversation(&app).await?;
+        let (_, conversation, _) = session.create_random_conversation(&app).await?;
 
         let conversation_id: String = extract("id", &conversation);
         let (status, _invite, _) = session
@@ -319,7 +323,6 @@ mod tests {
                 .into(),
             )
             .await?;
-
 
         assert_eq!(status, StatusCode::CREATED, "should be created ok");
 
@@ -336,8 +339,7 @@ mod tests {
 
         session.signup(&app).await?;
 
-        let (_,conversation,_) = session.create_random_conversation(&app).await?;
-
+        let (_, conversation, _) = session.create_random_conversation(&app).await?;
 
         let conversation_id: String = extract("id", &conversation);
         let mut regular_user_session = UserSession::new("bob", "bob", "bob@gmail.com");
@@ -356,7 +358,6 @@ mod tests {
             )
             .await?;
 
-
         assert_eq!(status, StatusCode::UNAUTHORIZED, "should be blocked");
 
         Ok(())
@@ -373,8 +374,8 @@ mod tests {
 
         session.signup(&app).await?;
 
-        let (_,conversation,_) = session.create_random_conversation(&app).await?;
-        let convo_id: String = extract("id",&conversation );
+        let (_, conversation, _) = session.create_random_conversation(&app).await?;
+        let convo_id: String = extract("id", &conversation);
         session.create_random_workflow(&app, &convo_id).await?;
 
         let conversation_id: String = extract("id", &conversation);

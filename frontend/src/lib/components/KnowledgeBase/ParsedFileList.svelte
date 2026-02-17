@@ -15,7 +15,7 @@
 	<ul class="flex flex-col gap-3">
 		{#each documents as document (document.id)}
 			<li>
-				<ParsedFileBadge {document} knowledgeBaseId={conversation.knowledgeBaseId} />
+				<ParsedFileBadge {document} conversationId={conversation.id} />
 			</li>
 		{/each}
 	</ul>

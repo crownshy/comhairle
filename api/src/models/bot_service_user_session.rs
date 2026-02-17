@@ -9,11 +9,10 @@ use sqlx::{prelude::FromRow, PgPool};
 use uuid::Uuid;
 
 use crate::{
-    bot_service::ComhairleBotService,
+    bot_service::{ComhairleBotService, CreateChatSessionRequest},
     config::ComhairleConfig,
     error::ComhairleError,
     models::{conversation, workflow_step},
-    routes::bot::chat_sessions::CreateChatSessionRequest,
     tools::ToolConfig,
     ComhairleState,
 };
@@ -359,9 +358,9 @@ pub async fn get_by_workflow_step_id(
 pub async fn get_or_create(
     state: &ComhairleState,
     context: BotServiceSessionContext,
-    user_id: Uuid,
-    conversation_id: Option<Uuid>,
-    workflow_step_id: Option<Uuid>,
+    user_id: &Uuid,
+    conversation_id: Option<&Uuid>,
+    workflow_step_id: Option<&Uuid>,
 ) -> Result<BotServiceUserSession, ComhairleError> {
     let mut query = Query::select();
     query
@@ -412,9 +411,9 @@ pub async fn get_or_create(
         None => {
             let create_session = CreateBotServiceUserSession {
                 context,
-                user_id,
-                conversation_id,
-                workflow_step_id,
+                user_id: *user_id,
+                conversation_id: conversation_id.copied(),
+                workflow_step_id: workflow_step_id.copied(),
             };
             create(
                 &state.db,

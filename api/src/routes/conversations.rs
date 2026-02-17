@@ -1,10 +1,8 @@
 use std::sync::Arc;
 
-use apalis::prelude::MessageQueue;
 use axum::{
-    extract::{Json, Multipart, Path, Query, State},
+    extract::{Json, Path, Query, State},
     http::StatusCode,
-    routing::post,
 };
 
 use aide::axum::{
@@ -18,12 +16,8 @@ use tracing::{info, instrument};
 use uuid::Uuid;
 
 use crate::{
-    bot_service::ComhairleDocument,
     error::ComhairleError,
     models::{
-        bot_service_user_session::{
-            self, BotServiceSessionContext, BotServiceUserSessionDto, CreateBotServiceUserSession,
-        },
         conversation::{
             self, ConversationFilterOptions, ConversationOrderOptions,
             ConversationWithTranslations, CreateConversation, IdOrSlug, PartialConversation,
@@ -31,7 +25,6 @@ use crate::{
         conversation_email_notification_recipients::{
             self as email_recipients_model, CreateConversationEmailNotificationRecipients,
         },
-        job::{self, CreateJob},
         notification::{self as notification_model, CreateNotification, NotificationContextType},
         notification_delivery::{
             self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
@@ -40,11 +33,9 @@ use crate::{
         user_participation::{self},
     },
     routes::{
-        auth::RequiredUser,
         conversations::dto::{ConversationDto, LocalizedConversationDto},
         translations::LocaleExtractor,
     },
-    workers::process_documents::DocumentJob,
     ComhairleState,
 };
 
@@ -358,126 +349,6 @@ async fn register_email_for_updates(
     ))
 }
 
-#[instrument(err(Debug), skip(state))]
-async fn create_conversation_bot_session(
-    State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
-    Path(conversation_id): Path<Uuid>,
-) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
-    let create_bot_session = CreateBotServiceUserSession {
-        context: BotServiceSessionContext::QaBot,
-        conversation_id: Some(conversation_id),
-        user_id: user.id,
-        workflow_step_id: None,
-    };
-    let bot_user_session = bot_service_user_session::create(
-        &state.db,
-        &state.bot_service,
-        &state.config,
-        &create_bot_session,
-    )
-    .await?;
-
-    let bot_user_session: BotServiceUserSessionDto = bot_user_session.into();
-    Ok((StatusCode::CREATED, Json(bot_user_session)))
-}
-
-#[instrument(err(Debug), skip(state))]
-async fn get_conversation_bot_session(
-    State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
-    Path(conversation_id): Path<Uuid>,
-) -> Result<(StatusCode, Json<BotServiceUserSessionDto>), ComhairleError> {
-    let session = bot_service_user_session::get_or_create(
-        &state,
-        BotServiceSessionContext::QaBot,
-        user.id,
-        Some(conversation_id),
-        None,
-    )
-    .await?;
-
-    let session: BotServiceUserSessionDto = session.into();
-
-    Ok((StatusCode::OK, Json(session)))
-}
-
-#[derive(Serialize, Deserialize, JsonSchema, Debug, PartialEq, Clone, Default)]
-pub struct UploadFileRequest {
-    pub filename: String,
-    pub bytes: Vec<u8>,
-}
-
-#[derive(Serialize, JsonSchema, Debug)]
-pub struct UploadFileResponse {
-    message: String,
-    job_id: Uuid,
-    document: ComhairleDocument,
-}
-
-#[instrument(err(Debug), skip(state, form_data))]
-async fn upload_document(
-    State(state): State<Arc<ComhairleState>>,
-    Path(conversation_id): Path<Uuid>,
-    RequiredAdminUser(_user): RequiredAdminUser,
-    mut form_data: Multipart,
-) -> Result<(StatusCode, Json<UploadFileResponse>), ComhairleError> {
-    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
-    let knowledge_base_id = match conversation.knowledge_base_id {
-        Some(id) => id,
-        None => {
-            return Err(ComhairleError::CorruptedData(format!(
-                "Missing knowledge_base_id on conversation {}",
-                conversation.id
-            )))
-        }
-    };
-
-    // Get file data and upload document
-    let (filename, bytes) = match form_data.next_field().await? {
-        Some(field) => {
-            let filename = field.file_name().unwrap_or("<no filename>").to_string();
-            let bytes = field.bytes().await?.to_vec();
-            (filename, bytes)
-        }
-        None => return Err(ComhairleError::BadRequest("Missing form field".to_string())),
-    };
-    if form_data.next_field().await?.is_some() {
-        return Err(ComhairleError::BadRequest(
-            "Only one document upload allowed".to_string(),
-        ));
-    }
-    let file = UploadFileRequest { filename, bytes };
-    let (_, document) = state
-        .bot_service
-        .upload_document(&knowledge_base_id, file)
-        .await?;
-
-    // Create background job for parsing
-    let create_job = CreateJob {
-        progress: Some(0.0),
-        ..Default::default()
-    };
-    let job = job::create(&state.db, create_job).await?;
-    let worker_job = DocumentJob {
-        job_id: job.id,
-        conversation_id,
-        document_id: document.id.clone(),
-    };
-    let mut lock = state.jobs.process_documents.lock().await;
-    lock.enqueue(worker_job)
-        .await
-        .map_err(|_| ComhairleError::BackgroundJobFailedToQueue)?;
-
-    let json = UploadFileResponse {
-        message: "Document parsing moved to background job".to_string(),
-        job_id: job.id,
-        document,
-    };
-
-    Ok((StatusCode::OK, Json(json)))
-}
-
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -561,29 +432,6 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Email Notifications")
             }),
         )
-        .api_route(
-            "/{conversation_id}/bot_service_sessions",
-            post_with(create_conversation_bot_session, |op| {
-                op.id("CreateConversationBotSession")
-                    .tag("Conversation")
-                    .summary("Create a user bot session for a conversation")
-                    .security_requirement("JWT")
-                    .response::<201, Json<BotServiceUserSessionDto>>()
-            }),
-        )
-        .api_route(
-            "/{conversation_id}/bot_service_sessions",
-            get_with(get_conversation_bot_session, |op| {
-                op.id("GetConversationBotSession")
-                    .tag("Conversation")
-                    .summary("Get a user bot session for a conversation")
-                    .security_requirement("JWT")
-                    .response::<200, Json<BotServiceUserSessionDto>>()
-            }),
-        )
-        .route(
-            "/{conversation_id}/upload_document", post(upload_document)
-        )
         .with_state(state)
 }
 
@@ -593,13 +441,12 @@ mod tests {
     use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
     use crate::test_helpers::test_state;
     use crate::{setup_server, test_helpers::UserSession};
-    use axum::{body::Body, http::StatusCode};
-    use serde_json::{json, Value};
+    use axum::http::StatusCode;
+    use serde_json::json;
     use sqlx::PgPool;
     use std::collections::HashMap;
     use std::error::Error;
     use std::sync::Arc;
-    use uuid::Uuid;
 
     #[sqlx::test]
     fn should_be_able_to_create_conversation(pool: PgPool) -> Result<(), Box<dyn Error>> {
@@ -1208,146 +1055,4 @@ mod tests {
 
         Ok(())
     }
-
-    #[sqlx::test]
-    async fn should_create_bot_session_for_user(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let state = test_state().db(pool).call()?;
-        let app = setup_server(Arc::new(state)).await?;
-
-        let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
-
-        let conversation_json: Value =
-            serde_json::from_str(include_str!("../../../fixtures/conversation.json"))?;
-        let (_, conversation, _) = admin_session
-            .create_conversation(&app, conversation_json)
-            .await?;
-        let conversation_id = conversation.get("id").and_then(|v| v.as_str()).unwrap();
-        let conversation_id = Uuid::parse_str(conversation_id)?;
-
-        let username = "test";
-        let password = "test_password";
-        let email = "test_email";
-
-        let mut user_session = UserSession::new(username, password, email);
-        user_session.signup(&app).await?;
-
-        let (status, value, _) = user_session
-            .post(
-                &app,
-                &format!("/conversation/{}/bot_service_sessions", conversation_id),
-                Body::empty(),
-            )
-            .await?;
-
-        assert!(status.is_success(), "error response status");
-        assert_eq!(
-            conversation_id,
-            Uuid::parse_str(
-                value
-                    .get("conversation_id")
-                    .and_then(|v| v.as_str())
-                    .unwrap(),
-            )
-            .unwrap(),
-            "response contains incorrect conversation id"
-        );
-
-        Ok(())
-    }
-
-    #[sqlx::test]
-    async fn should_get_bot_session_for_current_user_by_conversation_id(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn Error>> {
-        let state = test_state().db(pool).call()?;
-        let app = setup_server(Arc::new(state)).await?;
-
-        let mut admin_session = UserSession::new_admin();
-        admin_session.signup(&app).await?;
-
-        let conversation_json: Value =
-            serde_json::from_str(include_str!("../../../fixtures/conversation.json"))?;
-        let (_, conversation, _) = admin_session
-            .create_conversation(&app, conversation_json)
-            .await?;
-        let conversation_id = conversation.get("id").and_then(|v| v.as_str()).unwrap();
-
-        let username = "test";
-        let password = "test_password";
-        let email = "test_email";
-
-        let mut user_session = UserSession::new(username, password, email);
-        user_session.signup(&app).await?;
-
-        let (status, value, _) = user_session
-            .get(
-                &app,
-                &format!("/conversation/{}/bot_service_sessions", conversation_id),
-            )
-            .await?;
-
-        assert!(status.is_success(), "error response status");
-        assert_eq!(
-            conversation_id,
-            value
-                .get("conversation_id")
-                .and_then(|v| v.as_str())
-                .unwrap(),
-            "response contains incorrect conversation id"
-        );
-        assert_eq!(
-            user_session.id.unwrap().to_string(),
-            value
-                .get("user_id")
-                .and_then(|v| v.as_str())
-                .unwrap()
-                .to_string(),
-            "response contains incorrect user id"
-        );
-
-        Ok(())
-    }
-
-    // #[sqlx::test]
-    // async fn should_upload_a_document(pool: PgPool) -> Result<(), Box<dyn Error>> {
-    //     let upload_request = UploadFileRequest {
-    //         filename: "test.txt".to_string(),
-    //         bytes: b"test multipart".to_vec(),
-    //     };
-    //     let mut bot_service = MockComhairleBotService::new();
-    //     bot_service
-    //         .expect_upload_documents()
-    //         .once()
-    //         .with(eq("123"), eq(vec![upload_request]))
-    //         .returning(|_, _| Box::pin(async move { Ok((StatusCode::OK, Vec::new())) }));
-    //
-    //     let state = test_state()
-    //         .db(pool)
-    //         .bot_service(Arc::new(bot_service))
-    //         .call()?;
-    //     let app = setup_server(Arc::new(state)).await?;
-    //
-    //     let mut admin_session = UserSession::new_admin();
-    //     admin_session.signup(&app).await?;
-    //
-    //     let boundary = "test-boundary";
-    //     let body = format!(
-    //         "--{boundary}\r\n\
-    //         Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n\
-    //         Content-Type: text/plain\r\n\
-    //         \r\n\
-    //         test multipart\r\n\
-    //         --{boundary}--\r\n"
-    //     );
-    //     let body = Body::from(body);
-    //
-    //     let (status, _, _) = admin_session
-    //         .post_multipart(&app, "/conversation/123/upload_documents", boundary, body)
-    //         .await?;
-    //
-    //     assert!(status.is_success());
-    //
-    //     Ok(())
-    // }
 }

@@ -13,17 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     error::ComhairleError,
     routes::{
-        bot::{
-            agents::{CreateAgentRequest, UpdateAgentRequest},
-            chat_sessions::{
-                ChatConversationRequest, CreateChatSessionRequest, UpdateChatSessionRequest,
-            },
-            chats::{CreateChatRequest, UpdateChatRequest},
-            documents::UpdateDocumentRequest,
-            knowledge_bases::UpdateKnowledgeBaseRequest,
-            GetQueryParams,
-        },
-        conversations::UploadFileRequest,
+        bot::agents::{CreateAgentRequest, UpdateAgentRequest},
         workflow_steps::AgentConversationRequestExt,
     },
 };
@@ -259,6 +249,15 @@ pub trait ComhairleBotService: Send + Sync {
     >;
 }
 
+#[derive(Deserialize, Debug, JsonSchema, Default, PartialEq)]
+pub struct GetQueryParams {
+    pub page: Option<i32>,
+    pub page_size: Option<i32>,
+    pub order_by: Option<String>,
+    pub name: Option<String>,
+    pub title: Option<String>,
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone)]
 pub struct ComhairleKnowledgeBase {
     pub id: String,
@@ -334,6 +333,59 @@ pub struct ComhairleAgentSession {
     pub agent_id: String,
     pub configuration: serde_json::Value,
     pub messages: Vec<ComhairleSessionMessage>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Default)]
+pub struct CreateChatSessionRequest {
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq, Default)]
+pub struct UpdateChatSessionRequest {
+    pub name: Option<String>,
+    pub user_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
+pub struct ChatConversationRequest {
+    pub question: String,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug, PartialEq, Clone, Default)]
+pub struct UploadFileRequest {
+    pub filename: String,
+    pub bytes: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq, Default)]
+pub struct UpdateDocumentRequest {
+    pub name: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+pub struct CreateKnowledgeBaseRequest {
+    name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
+pub struct UpdateKnowledgeBaseRequest {
+    pub name: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Default)]
+pub struct CreateChatRequest {
+    pub name: String,
+    pub knowledge_base_ids: Option<Vec<String>>,
+    pub llm_model: Option<ComhairleLlm>,
+    pub prompt: Option<ComhairlePrompt>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Default, Clone, PartialEq)]
+pub struct UpdateChatRequest {
+    pub name: Option<String>,
+    pub knowledge_base_ids: Option<Vec<String>>,
+    pub llm_model: Option<ComhairleLlm>,
+    pub prompt: Option<ComhairlePrompt>,
 }
 
 #[cfg(test)]

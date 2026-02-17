@@ -70,7 +70,7 @@ apalis = "0.7.4"
 #API documentation
 
 schemars = { version = "0.8.10", features = ["uuid1", "chrono"] }
-aide = { version = "0.14.0", features = ["redoc", "swagger", "scalar", "axum", "axum-tokio", "axum-json", "axum-query", "axum-matched-path", "macros", "axum-extra-cookie"] }
+aide = { version = "0.14.0", features = ["redoc", "swagger", "scalar", "axum", "axum-tokio", "axum-json", "axum-query", "axum-matched-path", "macros", "axum-extra-cookie", "axum-multipart"] }
 axum-extra = { version = "0.10.1", features = ["cookie"] }
 aws-sdk-s3 = "1.82.0"
 aws-config = "1.6.1"
