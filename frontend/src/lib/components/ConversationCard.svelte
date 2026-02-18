@@ -34,6 +34,7 @@
 	</div>
 {/snippet}
 
+{#if conversation}
 <!-- Public variant -->
 {#if variant === 'public'}
 	<div class="flex w-full min-w-[380px] md:min-w-[480px] max-w-[1280px] flex-col items-start justify-start gap-6 lg:flex-row lg:gap-16">
@@ -96,4 +97,5 @@
 			</Button>
 		</div>
 	</div>
+{/if}
 {/if}
