@@ -21,7 +21,7 @@ export const load: LayoutLoad = async ({
 	try {
 		const conversation = await api.GetConversation({ params: { conversation_id } });
 
-		if (!conversation.is_live && !preview) {
+		if (!conversation.isLive && !preview) {
 			return redirect(302, '/');
 		}
 

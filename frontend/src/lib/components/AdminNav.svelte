@@ -159,7 +159,7 @@
 																						)
 																							? 'font-bold'
 																							: ''} hover:text-sidebar-accent-foreground"
-																						aria-disabled={conversation.is_live
+																						aria-disabled={conversation.isLive
 																							? !step.activeOnLive
 																							: step.activeOnLive}
 																					>
@@ -207,7 +207,7 @@
 																		<SideBar.MenuSubItem>
 																			<SideBar.MenuSubButton
 																				href={`/admin/conversations/${conversation.id}/${step.path}`}
-																				aria-disabled={conversation.is_live
+																				aria-disabled={conversation.isLive
 																					? !step.activeOnLive
 																					: step.activeOnLive}
 																				class="{path.includes(
