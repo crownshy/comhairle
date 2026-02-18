@@ -88,7 +88,7 @@
 		<Form.FieldErrors />
 	</Form.Field>
 
-	<LoadingButton type="submit" class="w-full" variant="secondary" loading={loader.loading}>
+	<LoadingButton type="submit" class="w-full" variant="default" loading={loader.loading}>
 		{m.submit()}
 	</LoadingButton>
 

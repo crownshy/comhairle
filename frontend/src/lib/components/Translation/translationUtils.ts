@@ -25,7 +25,7 @@ export function getTextInLocale(
 
 export const statusToBadgeVariant = {
 	primary: 'outline',
-	draft: 'secondary',
+	draft: 'draft',
 	approved: 'default'
 } as const;
 

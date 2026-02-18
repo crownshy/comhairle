@@ -69,7 +69,7 @@
 			case 'info':
 				return 'default';
 			case 'warning':
-				return 'secondary';
+				return 'draft';
 			case 'error':
 				return 'destructive';
 			case 'success':
@@ -221,8 +221,8 @@
 										</Badge>
 										{#if isUnread(notification)}
 											<Badge
-												variant="secondary"
-												class="bg-blue-100 text-blue-800">Unread</Badge
+												variant="live"
+												>Unread</Badge
 											>
 										{/if}
 									</div>

@@ -22,7 +22,7 @@
 	let conversation = $derived(data.conversation);
 </script>
 
-<div class="flex w-full flex-col justify-between gap-11 border-b-black bg-white px-16 py-8">
+<div class="flex w-full flex-col justify-between gap-11 bg-muted border-b-black px-16 py-8">
 	<Breadcrumb.Root>
 		<Breadcrumb.List>
 			<Breadcrumb.Item>
@@ -69,8 +69,9 @@
 		<div>
 			{#if conversation.isLive}
 				<Badge
-					class="bg-primary flex flex-row items-center justify-between px-8 py-2 text-white"
-					>Launched! <Check class="text-primary rounded-full bg-white" /></Badge
+					variant="live"
+					class="flex flex-row items-center justify-between gap-2 px-8 py-2 text-sm"
+					>Launched! <Check class="text-primary size-4 rounded-full bg-white" /></Badge
 				>
 			{:else}
 				<LaunchConversationModal conversation_id={conversation.id} />
@@ -83,6 +84,6 @@
 		{/if}
 	</div>
 </div>
-<div class="flex-grow bg-gray-100 px-16 py-18">
+<div class="flex-grow bg-muted px-16 py-18">
 	{@render children()}
 </div>

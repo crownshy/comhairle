@@ -49,10 +49,10 @@
 		</div>
 
 		<div class="hidden gap-x-5 md:flex">
-			<LocaleSwitcher class="rounded-full"/>
+			<LocaleSwitcher class="rounded-full hover:bg-sidebar/50 border-none bg-transparent data-[placeholder]:text-primary-foreground shadow-xs"/>
 			<ProfileMenu {user} />
 			{#if isAdmin}
-				<Button variant="default" href="/admin">Admin</Button>
+				<Button variant="nav" href="/admin">Dashboard</Button>
 			{/if}
 		</div>
 
@@ -82,7 +82,7 @@
 								</div>
 								<UserNavMenu {user} />
 								{#if isAdmin}
-									<Button variant="secondary" href="/admin">Admin</Button>
+									<Button variant="secondary" href="/admin">Dashboard</Button>
 								{/if}
 							</div>
 						</div>
