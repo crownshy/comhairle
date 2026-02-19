@@ -391,7 +391,7 @@ mod tests {
     use chrono::Duration;
 
     use crate::models::{
-        // event_attendance::{self, CreateEventAttendance},
+        event_attendance::{self, CreateEventAttendance},
         model_test_helpers::{
             get_random_conversation_id, get_random_user_id,
             setup_default_app_and_session,
@@ -515,58 +515,58 @@ mod tests {
         Ok(())
     }
 
-    // #[sqlx::test]
-    // async fn should_get_event_with_current_attendance(pool: PgPool) -> Result<(), Box<dyn Error>> {
-    //     let (app, mut session) = setup_default_app_and_session(&pool).await?;
-    //     let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-    //     let user_id_1 = get_random_user_id(&app, &mut session).await?;
-    //     let user_id_2 = get_random_user_id(&app, &mut session).await?;
-    //     let user_id_3 = get_random_user_id(&app, &mut session).await?;
-    //
-    //     let new_event = CreateEvent {
-    //         name: "test_event".to_string(),
-    //         description: "test_desc".to_string(),
-    //         capacity: Some(10),
-    //         conversation_id,
-    //         start_time: Utc::now(),
-    //         end_time: Utc::now(),
-    //         signup_mode: "invite".to_string(),
-    //     };
-    //     let event = create(&pool, &new_event).await?;
-    //
-    //     let create_attendance_1 = CreateEventAttendance {
-    //         event_id: event.id,
-    //         user_id: user_id_1,
-    //         role: "participant".to_string(),
-    //     };
-    //     let create_attendance_2 = CreateEventAttendance {
-    //         event_id: event.id,
-    //         user_id: user_id_2,
-    //         role: "participant".to_string(),
-    //     };
-    //     let create_attendance_3 = CreateEventAttendance {
-    //         event_id: event.id,
-    //         user_id: user_id_3,
-    //         role: "participant".to_string(),
-    //     };
-    //     let _ = event_attendance::create(&pool, &create_attendance_1).await?;
-    //     let _ = event_attendance::create(&pool, &create_attendance_2).await?;
-    //     let _ = event_attendance::create(&pool, &create_attendance_3).await?;
-    //
-    //     let get_event = get_localized_by_id(&pool, &event.id, "en").await?;
-    //
-    //     assert_eq!(
-    //         get_event.event.name,
-    //         "test_event".to_string(),
-    //         "incorrect name for event"
-    //     );
-    //     assert_eq!(
-    //         get_event.current_attendance, 3,
-    //         "incorrect attendance for event"
-    //     );
-    //
-    //     Ok(())
-    // }
+    #[sqlx::test]
+    async fn should_get_event_with_current_attendance(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let user_id_1 = get_random_user_id(&app, &mut session).await?;
+        let user_id_2 = get_random_user_id(&app, &mut session).await?;
+        let user_id_3 = get_random_user_id(&app, &mut session).await?;
+
+        let new_event = CreateEvent {
+            name: "test_event".to_string(),
+            description: "test_desc".to_string(),
+            capacity: Some(10),
+            conversation_id,
+            start_time: Utc::now(),
+            end_time: Utc::now(),
+            signup_mode: "invite".to_string(),
+        };
+        let event = create(&pool, &new_event).await?;
+
+        let create_attendance_1 = CreateEventAttendance {
+            event_id: event.id,
+            user_id: user_id_1,
+            role: "participant".to_string(),
+        };
+        let create_attendance_2 = CreateEventAttendance {
+            event_id: event.id,
+            user_id: user_id_2,
+            role: "participant".to_string(),
+        };
+        let create_attendance_3 = CreateEventAttendance {
+            event_id: event.id,
+            user_id: user_id_3,
+            role: "participant".to_string(),
+        };
+        let _ = event_attendance::create(&pool, &create_attendance_1).await?;
+        let _ = event_attendance::create(&pool, &create_attendance_2).await?;
+        let _ = event_attendance::create(&pool, &create_attendance_3).await?;
+
+        let get_event = get_localized_by_id(&pool, &event.id, "en").await?;
+
+        assert_eq!(
+            get_event.event.name,
+            "test_event".to_string(),
+            "incorrect name for event"
+        );
+        assert_eq!(
+            get_event.current_attendance, 3,
+            "incorrect attendance for event"
+        );
+
+        Ok(())
+    }
 
     #[sqlx::test]
     async fn should_list_events(pool: PgPool) -> Result<(), Box<dyn Error>> {
@@ -715,189 +715,189 @@ mod tests {
         Ok(())
     }
 
-    // #[sqlx::test]
-    // async fn should_filter_events_by_capacity(pool: PgPool) -> Result<(), Box<dyn Error>> {
-    //     let (app, mut session) = setup_default_app_and_session(&pool).await?;
-    //     let conversation_id_1 = get_random_conversation_id(&app, &mut session).await?;
-    //     let conversation_id_2 = get_random_conversation_id(&app, &mut session).await?;
-    //     let conversation_id_3 = get_random_conversation_id(&app, &mut session).await?;
-    //     let conversation_id_4 = get_random_conversation_id(&app, &mut session).await?;
-    //     let user_id_1 = get_random_user_id(&app, &mut session).await?;
-    //     let user_id_2 = get_random_user_id(&app, &mut session).await?;
-    //     let user_id_3 = get_random_user_id(&app, &mut session).await?;
-    //
-    //     // Full: will add one attendee
-    //     let new_event_1 = CreateEvent {
-    //         name: "test_event_1".to_string(),
-    //         capacity: Some(1),
-    //         conversation_id: conversation_id_1,
-    //         signup_mode: "invite".to_string(),
-    //         ..Default::default()
-    //     };
-    //     // Full: will add three attendees
-    //     let new_event_2 = CreateEvent {
-    //         name: "test_event_2".to_string(),
-    //         capacity: Some(3),
-    //         conversation_id: conversation_id_2,
-    //         signup_mode: "invite".to_string(),
-    //         ..Default::default()
-    //     };
-    //     // Available: has capacity but will add no attendees
-    //     let new_event_3 = CreateEvent {
-    //         name: "test_event_3".to_string(),
-    //         capacity: Some(1),
-    //         conversation_id: conversation_id_3,
-    //         signup_mode: "invite".to_string(),
-    //         ..Default::default()
-    //     };
-    //     // Available: capacity null so always has availability
-    //     let new_event_4 = CreateEvent {
-    //         name: "test_event_4".to_string(),
-    //         conversation_id: conversation_id_4,
-    //         signup_mode: "invite".to_string(),
-    //         ..Default::default()
-    //     };
-    //     // Full: will add 2 attendees
-    //     let new_event_5 = CreateEvent {
-    //         name: "test_event_5".to_string(),
-    //         capacity: Some(2),
-    //         conversation_id: conversation_id_4,
-    //         signup_mode: "invite".to_string(),
-    //         ..Default::default()
-    //     };
-    //     let event_1 = create(&pool, &new_event_1).await?;
-    //     let event_2 = create(&pool, &new_event_2).await?;
-    //     let _ = create(&pool, &new_event_3).await?;
-    //     let _ = create(&pool, &new_event_4).await?;
-    //     let event_5 = create(&pool, &new_event_5).await?;
-    //
-    //     let attendance_1_a = CreateEventAttendance {
-    //         event_id: event_1.id,
-    //         user_id: user_id_1,
-    //         role: "participant".to_string(),
-    //     };
-    //     let attendance_2_a = CreateEventAttendance {
-    //         event_id: event_2.id,
-    //         user_id: user_id_1,
-    //         role: "participant".to_string(),
-    //     };
-    //     let attendance_2_b = CreateEventAttendance {
-    //         event_id: event_2.id,
-    //         user_id: user_id_3,
-    //         role: "participant".to_string(),
-    //     };
-    //     let attendance_2_c = CreateEventAttendance {
-    //         event_id: event_2.id,
-    //         user_id: user_id_2,
-    //         role: "participant".to_string(),
-    //     };
-    //     let attendance_5_a = CreateEventAttendance {
-    //         event_id: event_5.id,
-    //         user_id: user_id_1,
-    //         role: "participant".to_string(),
-    //     };
-    //     let attendance_5_b = CreateEventAttendance {
-    //         event_id: event_5.id,
-    //         user_id: user_id_2,
-    //         role: "participant".to_string(),
-    //     };
-    //     let _ = event_attendance::create(&pool, &attendance_1_a).await?;
-    //     let _ = event_attendance::create(&pool, &attendance_2_a).await?;
-    //     let _ = event_attendance::create(&pool, &attendance_2_b).await?;
-    //     let _ = event_attendance::create(&pool, &attendance_2_c).await?;
-    //     let _ = event_attendance::create(&pool, &attendance_5_a).await?;
-    //     let _ = event_attendance::create(&pool, &attendance_5_b).await?;
-    //
-    //     // Event 1 at capacity
-    //     // Event 2 at capacity
-    //     // Event 3 has capacity but no attendees (available)
-    //     // Event 4 has no capacity (available)
-    //     // Event 5 at capacity
-    //
-    //     let page_options = PageOptions {
-    //         offset: None,
-    //         limit: None,
-    //     };
-    //     let full_results = list(
-    //         &pool,
-    //         page_options.clone(),
-    //         EventFilterOptions {
-    //             capacity_status: Some(CapacityStatus::Full),
-    //             ..Default::default()
-    //         },
-    //         EventOrderOptions {
-    //             ..Default::default()
-    //         },
-    //         None,
-    //     )
-    //     .await?;
-    //     let available_results = list(
-    //         &pool,
-    //         page_options.clone(),
-    //         EventFilterOptions {
-    //             capacity_status: Some(CapacityStatus::Available),
-    //             ..Default::default()
-    //         },
-    //         EventOrderOptions {
-    //             ..Default::default()
-    //         },
-    //         None,
-    //     )
-    //     .await?;
-    //
-    //     assert_eq!(full_results.total, 3, "incorrect number of past events");
-    //     assert_eq!(
-    //         full_results.records[0].event.name,
-    //         "test_event_1".to_string(),
-    //         "incorrect full event name [0]"
-    //     );
-    //     assert_eq!(
-    //         full_results.records[0].current_attendance, 1,
-    //         "incorrect full attendance [0]"
-    //     );
-    //     assert_eq!(
-    //         full_results.records[1].event.name,
-    //         "test_event_2".to_string(),
-    //         "incorrect full event name [1]"
-    //     );
-    //     assert_eq!(
-    //         full_results.records[1].current_attendance, 3,
-    //         "incorrect full attendance [1]"
-    //     );
-    //     assert_eq!(
-    //         full_results.records[2].event.name,
-    //         "test_event_5".to_string(),
-    //         "incorrect full event name [2]"
-    //     );
-    //     assert_eq!(
-    //         full_results.records[2].current_attendance, 2,
-    //         "incorrect full attendance [2]"
-    //     );
-    //     assert_eq!(
-    //         available_results.total, 2,
-    //         "incorrect number of past events"
-    //     );
-    //     assert_eq!(
-    //         available_results.records[0].event.name,
-    //         "test_event_3".to_string(),
-    //         "incorrect available event name [0]"
-    //     );
-    //     assert_eq!(
-    //         available_results.records[0].current_attendance, 0,
-    //         "incorrect available attendance [0]"
-    //     );
-    //     assert_eq!(
-    //         available_results.records[1].event.name,
-    //         "test_event_4".to_string(),
-    //         "incorrect available event name [1]"
-    //     );
-    //     assert_eq!(
-    //         available_results.records[1].current_attendance, 0,
-    //         "incorrect available attendance [1]"
-    //     );
-    //
-    //     Ok(())
-    // }
+    #[sqlx::test]
+    async fn should_filter_events_by_capacity(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id_1 = get_random_conversation_id(&app, &mut session).await?;
+        let conversation_id_2 = get_random_conversation_id(&app, &mut session).await?;
+        let conversation_id_3 = get_random_conversation_id(&app, &mut session).await?;
+        let conversation_id_4 = get_random_conversation_id(&app, &mut session).await?;
+        let user_id_1 = get_random_user_id(&app, &mut session).await?;
+        let user_id_2 = get_random_user_id(&app, &mut session).await?;
+        let user_id_3 = get_random_user_id(&app, &mut session).await?;
+
+        // Full: will add one attendee
+        let new_event_1 = CreateEvent {
+            name: "test_event_1".to_string(),
+            capacity: Some(1),
+            conversation_id: conversation_id_1,
+            signup_mode: "invite".to_string(),
+            ..Default::default()
+        };
+        // Full: will add three attendees
+        let new_event_2 = CreateEvent {
+            name: "test_event_2".to_string(),
+            capacity: Some(3),
+            conversation_id: conversation_id_2,
+            signup_mode: "invite".to_string(),
+            ..Default::default()
+        };
+        // Available: has capacity but will add no attendees
+        let new_event_3 = CreateEvent {
+            name: "test_event_3".to_string(),
+            capacity: Some(1),
+            conversation_id: conversation_id_3,
+            signup_mode: "invite".to_string(),
+            ..Default::default()
+        };
+        // Available: capacity null so always has availability
+        let new_event_4 = CreateEvent {
+            name: "test_event_4".to_string(),
+            conversation_id: conversation_id_4,
+            signup_mode: "invite".to_string(),
+            ..Default::default()
+        };
+        // Full: will add 2 attendees
+        let new_event_5 = CreateEvent {
+            name: "test_event_5".to_string(),
+            capacity: Some(2),
+            conversation_id: conversation_id_4,
+            signup_mode: "invite".to_string(),
+            ..Default::default()
+        };
+        let event_1 = create(&pool, &new_event_1).await?;
+        let event_2 = create(&pool, &new_event_2).await?;
+        let _ = create(&pool, &new_event_3).await?;
+        let _ = create(&pool, &new_event_4).await?;
+        let event_5 = create(&pool, &new_event_5).await?;
+
+        let attendance_1_a = CreateEventAttendance {
+            event_id: event_1.id,
+            user_id: user_id_1,
+            role: "participant".to_string(),
+        };
+        let attendance_2_a = CreateEventAttendance {
+            event_id: event_2.id,
+            user_id: user_id_1,
+            role: "participant".to_string(),
+        };
+        let attendance_2_b = CreateEventAttendance {
+            event_id: event_2.id,
+            user_id: user_id_3,
+            role: "participant".to_string(),
+        };
+        let attendance_2_c = CreateEventAttendance {
+            event_id: event_2.id,
+            user_id: user_id_2,
+            role: "participant".to_string(),
+        };
+        let attendance_5_a = CreateEventAttendance {
+            event_id: event_5.id,
+            user_id: user_id_1,
+            role: "participant".to_string(),
+        };
+        let attendance_5_b = CreateEventAttendance {
+            event_id: event_5.id,
+            user_id: user_id_2,
+            role: "participant".to_string(),
+        };
+        let _ = event_attendance::create(&pool, &attendance_1_a).await?;
+        let _ = event_attendance::create(&pool, &attendance_2_a).await?;
+        let _ = event_attendance::create(&pool, &attendance_2_b).await?;
+        let _ = event_attendance::create(&pool, &attendance_2_c).await?;
+        let _ = event_attendance::create(&pool, &attendance_5_a).await?;
+        let _ = event_attendance::create(&pool, &attendance_5_b).await?;
+
+        // Event 1 at capacity
+        // Event 2 at capacity
+        // Event 3 has capacity but no attendees (available)
+        // Event 4 has no capacity (available)
+        // Event 5 at capacity
+
+        let page_options = PageOptions {
+            offset: None,
+            limit: None,
+        };
+        let full_results = list(
+            &pool,
+            page_options.clone(),
+            EventFilterOptions {
+                capacity_status: Some(CapacityStatus::Full),
+                ..Default::default()
+            },
+            EventOrderOptions {
+                ..Default::default()
+            },
+            None,
+        )
+        .await?;
+        let available_results = list(
+            &pool,
+            page_options.clone(),
+            EventFilterOptions {
+                capacity_status: Some(CapacityStatus::Available),
+                ..Default::default()
+            },
+            EventOrderOptions {
+                ..Default::default()
+            },
+            None,
+        )
+        .await?;
+
+        assert_eq!(full_results.total, 3, "incorrect number of past events");
+        assert_eq!(
+            full_results.records[0].event.name,
+            "test_event_1".to_string(),
+            "incorrect full event name [0]"
+        );
+        assert_eq!(
+            full_results.records[0].current_attendance, 1,
+            "incorrect full attendance [0]"
+        );
+        assert_eq!(
+            full_results.records[1].event.name,
+            "test_event_2".to_string(),
+            "incorrect full event name [1]"
+        );
+        assert_eq!(
+            full_results.records[1].current_attendance, 3,
+            "incorrect full attendance [1]"
+        );
+        assert_eq!(
+            full_results.records[2].event.name,
+            "test_event_5".to_string(),
+            "incorrect full event name [2]"
+        );
+        assert_eq!(
+            full_results.records[2].current_attendance, 2,
+            "incorrect full attendance [2]"
+        );
+        assert_eq!(
+            available_results.total, 2,
+            "incorrect number of past events"
+        );
+        assert_eq!(
+            available_results.records[0].event.name,
+            "test_event_3".to_string(),
+            "incorrect available event name [0]"
+        );
+        assert_eq!(
+            available_results.records[0].current_attendance, 0,
+            "incorrect available attendance [0]"
+        );
+        assert_eq!(
+            available_results.records[1].event.name,
+            "test_event_4".to_string(),
+            "incorrect available event name [1]"
+        );
+        assert_eq!(
+            available_results.records[1].current_attendance, 0,
+            "incorrect available attendance [1]"
+        );
+
+        Ok(())
+    }
 
     #[sqlx::test]
     async fn should_delete_event(pool: PgPool) -> Result<(), Box<dyn Error>> {

@@ -260,7 +260,7 @@ mod tests {
     use crate::models::{
         event::{self, CreateEvent},
         model_test_helpers::{
-            get_random_user_id, get_random_workflow_id, setup_default_app_and_session,
+            get_random_user_id, setup_default_app_and_session, get_random_conversation_id
         },
     };
 
@@ -272,12 +272,12 @@ mod tests {
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let user_id = get_random_user_id(&app, &mut session).await?;
 
         let create_event = CreateEvent {
             name: "test_event".to_string(),
-            workflow_id,
+            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
@@ -301,12 +301,12 @@ mod tests {
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let user_id = get_random_user_id(&app, &mut session).await?;
 
         let create_event = CreateEvent {
             name: "test_event".to_string(),
-            workflow_id,
+            conversation_id,
             capacity: Some(10),
             signup_mode: "invite".to_string(),
             ..Default::default()
@@ -329,12 +329,12 @@ mod tests {
     #[sqlx::test]
     async fn user_cannot_attend_same_event_twice(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let user_id = get_random_user_id(&app, &mut session).await?;
 
         let create_event = CreateEvent {
             name: "test_event".to_string(),
-            workflow_id,
+            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
@@ -375,21 +375,21 @@ mod tests {
     #[sqlx::test]
     async fn transaction_will_not_lock_on_failure(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let user_id_1 = get_random_user_id(&app, &mut session).await?;
         let user_id_2 = get_random_user_id(&app, &mut session).await?;
 
         let create_event_1 = CreateEvent {
             name: "test_event_1".to_string(),
             capacity: Some(1),
-            workflow_id,
+            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
         let create_event_2 = CreateEvent {
             name: "test_event_2".to_string(),
             capacity: Some(1),
-            workflow_id,
+            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
@@ -426,12 +426,12 @@ mod tests {
     #[sqlx::test]
     async fn should_update_attendance(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let user_id = get_random_user_id(&app, &mut session).await?;
 
         let create_event = CreateEvent {
             name: "test_event".to_string(),
-            workflow_id,
+            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
@@ -462,12 +462,12 @@ mod tests {
     #[sqlx::test]
     async fn should_get_attendance_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let user_id = get_random_user_id(&app, &mut session).await?;
 
         let create_event = CreateEvent {
             name: "test_event".to_string(),
-            workflow_id,
+            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
@@ -490,14 +490,14 @@ mod tests {
     #[sqlx::test]
     async fn should_list_attendance(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let user_id_1 = get_random_user_id(&app, &mut session).await?;
         let user_id_2 = get_random_user_id(&app, &mut session).await?;
         let user_id_3 = get_random_user_id(&app, &mut session).await?;
 
         let create_event = CreateEvent {
             name: "test_event".to_string(),
-            workflow_id,
+            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
@@ -543,21 +543,21 @@ mod tests {
     #[sqlx::test]
     async fn should_filter_attendance_by_event_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let user_id_1 = get_random_user_id(&app, &mut session).await?;
         let user_id_2 = get_random_user_id(&app, &mut session).await?;
         let user_id_3 = get_random_user_id(&app, &mut session).await?;
 
         let create_event_1 = CreateEvent {
             name: "test_event_1".to_string(),
-            workflow_id,
+            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
         let new_event_1 = event::create(&pool, &create_event_1).await?;
         let create_event_2 = CreateEvent {
             name: "test_event_2".to_string(),
-            workflow_id,
+            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
@@ -617,12 +617,12 @@ mod tests {
     #[sqlx::test]
     async fn should_delete_attendance(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let user_id = get_random_user_id(&app, &mut session).await?;
 
         let create_event = CreateEvent {
             name: "test_event".to_string(),
-            workflow_id,
+            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
