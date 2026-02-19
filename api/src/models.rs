@@ -1,6 +1,7 @@
 pub mod bot_service_user_session;
 pub mod conversation;
 pub mod conversation_email_notification_recipients;
+pub mod event;
 pub mod feedback;
 pub mod invite_response;
 pub mod invites;
@@ -18,3 +19,6 @@ pub mod user_progress;
 pub mod users;
 pub mod workflow;
 pub mod workflow_step;
+
+#[cfg(test)]
+pub mod model_test_helpers;
