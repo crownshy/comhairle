@@ -19,7 +19,7 @@ use crate::{
 
 #[derive(Serialize, Deserialize, Partial, Debug, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "event")]
-#[partially(derive(Deserialize, Debug, JsonSchema, Default))]
+#[partially(derive(Serialize, Deserialize, Debug, JsonSchema, Default))]
 pub struct Event {
     #[partially(omit)]
     pub id: Uuid,
@@ -301,10 +301,12 @@ impl EventFilterOptions {
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct LocalizedEventWithAttendance {
     #[sqlx(flatten)]
-    event: LocalisedEvent,
-    current_attendance: i64,
+    #[serde(flatten)]
+    pub event: LocalisedEvent,
+    pub current_attendance: i64,
 }
 
 #[instrument(err(Debug))]

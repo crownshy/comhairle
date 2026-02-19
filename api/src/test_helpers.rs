@@ -1,4 +1,5 @@
 use apalis::prelude::MemoryStorage;
+use chrono::Utc;
 use std::{collections::HashMap, error::Error, sync::Arc};
 use uuid::Uuid;
 
@@ -669,6 +670,28 @@ impl UserSession {
                 "is_active": is_active,
                 "is_public": is_public,
                 "auto_login": false,
+            })
+            .to_string()
+            .into(),
+        )
+        .await
+    }
+
+    pub async fn create_random_event(
+        &mut self,
+        app: &Router,
+        conversation_id: &str,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            &format!("/conversation/{conversation_id}/events"),
+            json!({
+                "name": "test_event",
+                "description": "test_event_description",
+                "capacity": 10,
+                "start_time": Utc::now(),
+                "end_time": Utc::now(),
+                "signup_mode": "invite"
             })
             .to_string()
             .into(),
