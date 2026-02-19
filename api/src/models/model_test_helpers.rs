@@ -38,6 +38,16 @@ pub async fn get_random_workflow_id(
     Ok(workflow.id)
 }
 
+pub async fn get_random_conversation_id(
+    app: &Router,
+    session: &mut UserSession,
+) -> Result<Uuid, Box<dyn Error>> {
+    let (_, response, _) = session.create_random_conversation(app).await?;
+    let conversation: ConversationDto = serde_json::from_value(response)?;
+
+    Ok(conversation.id)
+}
+
 pub async fn get_random_user_id(
     app: &Router,
     session: &mut UserSession,

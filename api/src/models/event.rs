@@ -14,7 +14,6 @@ use crate::{
     models::{
         pagination::{Order, PageOptions, PaginatedResults},
         translations::{new_translation, TextContentId, TextFormat},
-        workflow::WorkflowIden,
     },
 };
 
@@ -29,7 +28,7 @@ pub struct Event {
     #[partially(transparent)]
     pub capacity: Option<i32>,
     #[partially(omit)]
-    pub workflow_id: Uuid,
+    pub conversation_id: Uuid,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
     pub signup_mode: String,
@@ -44,7 +43,7 @@ const DEFAULT_COLUMNS: [EventIden; 10] = [
     EventIden::Name,
     EventIden::Description,
     EventIden::Capacity,
-    EventIden::WorkflowId,
+    EventIden::ConversationId,
     EventIden::StartTime,
     EventIden::EndTime,
     EventIden::SignupMode,
@@ -57,7 +56,7 @@ pub struct CreateEvent {
     pub name: String,
     pub description: String,
     pub capacity: Option<i32>,
-    pub workflow_id: Uuid,
+    pub conversation_id: Uuid,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
     pub signup_mode: String,
@@ -66,7 +65,7 @@ pub struct CreateEvent {
 impl CreateEvent {
     pub fn columns(&self) -> Vec<EventIden> {
         let mut columns = vec![
-            EventIden::WorkflowId,
+            EventIden::ConversationId,
             EventIden::StartTime,
             EventIden::EndTime,
             EventIden::SignupMode,
@@ -81,7 +80,7 @@ impl CreateEvent {
 
     pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
         let mut values = vec![
-            self.workflow_id.into(),
+            self.conversation_id.into(),
             self.start_time.into(),
             self.end_time.into(),
             self.signup_mode.to_owned().into(),
@@ -232,20 +231,9 @@ pub enum CapacityStatus {
 impl EventFilterOptions {
     fn apply(&self, mut query: sea_query::SelectStatement) -> sea_query::SelectStatement {
         if let Some(conversation_id) = self.conversation_id {
-            // Create subquery to get list of workflow_ids for a conversation
-            let subquery = Query::select()
-                .column(WorkflowIden::Id)
-                .from(WorkflowIden::Table)
-                .and_where(
-                    Expr::col((WorkflowIden::Table, WorkflowIden::ConversationId))
-                        .eq(conversation_id.to_owned()),
-                )
-                .to_owned();
-
-            // Filter by workflow_ids from subquery
             query = query
                 .and_where(
-                    Expr::col((EventIden::Table, EventIden::WorkflowId)).in_subquery(subquery),
+                    Expr::col((EventIden::Table, EventIden::ConversationId)).eq(conversation_id),
                 )
                 .to_owned();
         }
@@ -405,7 +393,8 @@ mod tests {
     use crate::models::{
         // event_attendance::{self, CreateEventAttendance},
         model_test_helpers::{
-            get_random_user_id, get_random_workflow_id, setup_default_app_and_session,
+            get_random_conversation_id, get_random_user_id,
+            setup_default_app_and_session,
         },
     };
 
@@ -415,13 +404,13 @@ mod tests {
     #[sqlx::test]
     async fn should_create_and_return_new_event(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
 
         let new_event = CreateEvent {
             name: "test_event".to_string(),
             description: "test_desc".to_string(),
             capacity: Some(10),
-            workflow_id,
+            conversation_id,
             start_time: Utc::now(),
             end_time: Utc::now(),
             signup_mode: "invite".to_string(),
@@ -430,7 +419,7 @@ mod tests {
         let event = create(&pool, &new_event).await?;
 
         assert_eq!(event.capacity, Some(10), "incorrect capacity");
-        assert_eq!(event.workflow_id, workflow_id, "incorrect capacity");
+        assert_eq!(event.conversation_id, conversation_id, "incorrect capacity");
         assert!(event.start_time < Utc::now(), "start time not past");
 
         Ok(())
@@ -439,13 +428,13 @@ mod tests {
     #[sqlx::test]
     async fn should_update_event_data(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
 
         let new_event = CreateEvent {
             name: "test_event".to_string(),
             description: "test_desc".to_string(),
             capacity: Some(10),
-            workflow_id,
+            conversation_id,
             start_time: Utc::now(),
             end_time: Utc::now(),
             signup_mode: "invite".to_string(),
@@ -483,14 +472,14 @@ mod tests {
     #[sqlx::test]
     async fn should_get_event_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let workflow_id_1 = get_random_workflow_id(&app, &mut session).await?;
-        let workflow_id_2 = get_random_workflow_id(&app, &mut session).await?;
+        let conversation_id_1 = get_random_conversation_id(&app, &mut session).await?;
+        let conversation_id_2 = get_random_conversation_id(&app, &mut session).await?;
 
         let new_event_1 = CreateEvent {
             name: "test_event_1".to_string(),
             description: "test_desc".to_string(),
             capacity: Some(10),
-            workflow_id: workflow_id_1,
+            conversation_id: conversation_id_1,
             start_time: Utc::now(),
             end_time: Utc::now(),
             signup_mode: "invite".to_string(),
@@ -499,7 +488,7 @@ mod tests {
             name: "test_event_2".to_string(),
             description: "test_desc".to_string(),
             capacity: Some(10),
-            workflow_id: workflow_id_2,
+            conversation_id: conversation_id_2,
             start_time: Utc::now(),
             end_time: Utc::now(),
             signup_mode: "invite".to_string(),
@@ -529,7 +518,7 @@ mod tests {
     // #[sqlx::test]
     // async fn should_get_event_with_current_attendance(pool: PgPool) -> Result<(), Box<dyn Error>> {
     //     let (app, mut session) = setup_default_app_and_session(&pool).await?;
-    //     let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+    //     let conversation_id = get_random_conversation_id(&app, &mut session).await?;
     //     let user_id_1 = get_random_user_id(&app, &mut session).await?;
     //     let user_id_2 = get_random_user_id(&app, &mut session).await?;
     //     let user_id_3 = get_random_user_id(&app, &mut session).await?;
@@ -538,7 +527,7 @@ mod tests {
     //         name: "test_event".to_string(),
     //         description: "test_desc".to_string(),
     //         capacity: Some(10),
-    //         workflow_id,
+    //         conversation_id,
     //         start_time: Utc::now(),
     //         end_time: Utc::now(),
     //         signup_mode: "invite".to_string(),
@@ -582,32 +571,32 @@ mod tests {
     #[sqlx::test]
     async fn should_list_events(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let workflow_id_1 = get_random_workflow_id(&app, &mut session).await?;
-        let workflow_id_2 = get_random_workflow_id(&app, &mut session).await?;
-        let workflow_id_3 = get_random_workflow_id(&app, &mut session).await?;
-        let workflow_id_4 = get_random_workflow_id(&app, &mut session).await?;
+        let conversation_id_1 = get_random_conversation_id(&app, &mut session).await?;
+        let conversation_id_2 = get_random_conversation_id(&app, &mut session).await?;
+        let conversation_id_3 = get_random_conversation_id(&app, &mut session).await?;
+        let conversation_id_4 = get_random_conversation_id(&app, &mut session).await?;
 
         let new_event_1 = CreateEvent {
             name: "test_event_1".to_string(),
-            workflow_id: workflow_id_1,
+            conversation_id: conversation_id_1,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
         let new_event_2 = CreateEvent {
             name: "test_event_2".to_string(),
-            workflow_id: workflow_id_2,
+            conversation_id: conversation_id_2,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
         let new_event_3 = CreateEvent {
             name: "test_event_3".to_string(),
-            workflow_id: workflow_id_3,
+            conversation_id: conversation_id_3,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
         let new_event_4 = CreateEvent {
             name: "test_event_4".to_string(),
-            workflow_id: workflow_id_4,
+            conversation_id: conversation_id_4,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
@@ -641,35 +630,35 @@ mod tests {
     #[sqlx::test]
     async fn should_filter_events_by_time_status(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let workflow_id_1 = get_random_workflow_id(&app, &mut session).await?;
-        let workflow_id_2 = get_random_workflow_id(&app, &mut session).await?;
-        let workflow_id_3 = get_random_workflow_id(&app, &mut session).await?;
-        let workflow_id_4 = get_random_workflow_id(&app, &mut session).await?;
+        let conversation_id_1 = get_random_conversation_id(&app, &mut session).await?;
+        let conversation_id_2 = get_random_conversation_id(&app, &mut session).await?;
+        let conversation_id_3 = get_random_conversation_id(&app, &mut session).await?;
+        let conversation_id_4 = get_random_conversation_id(&app, &mut session).await?;
 
         let new_event_1 = CreateEvent {
             name: "test_event_1".to_string(),
-            workflow_id: workflow_id_1,
+            conversation_id: conversation_id_1,
             signup_mode: "invite".to_string(),
             start_time: Utc::now() + Duration::days(1),
             ..Default::default()
         };
         let new_event_2 = CreateEvent {
             name: "test_event_2".to_string(),
-            workflow_id: workflow_id_2,
+            conversation_id: conversation_id_2,
             signup_mode: "invite".to_string(),
             start_time: Utc::now() + Duration::days(2),
             ..Default::default()
         };
         let new_event_3 = CreateEvent {
             name: "test_event_3".to_string(),
-            workflow_id: workflow_id_3,
+            conversation_id: conversation_id_3,
             signup_mode: "invite".to_string(),
             start_time: Utc::now() + Duration::days(3),
             ..Default::default()
         };
         let new_event_4 = CreateEvent {
             name: "test_event_4".to_string(),
-            workflow_id: workflow_id_4,
+            conversation_id: conversation_id_4,
             signup_mode: "invite".to_string(),
             start_time: Utc::now() - Duration::days(3),
             ..Default::default()
@@ -729,10 +718,10 @@ mod tests {
     // #[sqlx::test]
     // async fn should_filter_events_by_capacity(pool: PgPool) -> Result<(), Box<dyn Error>> {
     //     let (app, mut session) = setup_default_app_and_session(&pool).await?;
-    //     let workflow_id_1 = get_random_workflow_id(&app, &mut session).await?;
-    //     let workflow_id_2 = get_random_workflow_id(&app, &mut session).await?;
-    //     let workflow_id_3 = get_random_workflow_id(&app, &mut session).await?;
-    //     let workflow_id_4 = get_random_workflow_id(&app, &mut session).await?;
+    //     let conversation_id_1 = get_random_conversation_id(&app, &mut session).await?;
+    //     let conversation_id_2 = get_random_conversation_id(&app, &mut session).await?;
+    //     let conversation_id_3 = get_random_conversation_id(&app, &mut session).await?;
+    //     let conversation_id_4 = get_random_conversation_id(&app, &mut session).await?;
     //     let user_id_1 = get_random_user_id(&app, &mut session).await?;
     //     let user_id_2 = get_random_user_id(&app, &mut session).await?;
     //     let user_id_3 = get_random_user_id(&app, &mut session).await?;
@@ -741,7 +730,7 @@ mod tests {
     //     let new_event_1 = CreateEvent {
     //         name: "test_event_1".to_string(),
     //         capacity: Some(1),
-    //         workflow_id: workflow_id_1,
+    //         conversation_id: conversation_id_1,
     //         signup_mode: "invite".to_string(),
     //         ..Default::default()
     //     };
@@ -749,7 +738,7 @@ mod tests {
     //     let new_event_2 = CreateEvent {
     //         name: "test_event_2".to_string(),
     //         capacity: Some(3),
-    //         workflow_id: workflow_id_2,
+    //         conversation_id: conversation_id_2,
     //         signup_mode: "invite".to_string(),
     //         ..Default::default()
     //     };
@@ -757,14 +746,14 @@ mod tests {
     //     let new_event_3 = CreateEvent {
     //         name: "test_event_3".to_string(),
     //         capacity: Some(1),
-    //         workflow_id: workflow_id_3,
+    //         conversation_id: conversation_id_3,
     //         signup_mode: "invite".to_string(),
     //         ..Default::default()
     //     };
     //     // Available: capacity null so always has availability
     //     let new_event_4 = CreateEvent {
     //         name: "test_event_4".to_string(),
-    //         workflow_id: workflow_id_4,
+    //         conversation_id: conversation_id_4,
     //         signup_mode: "invite".to_string(),
     //         ..Default::default()
     //     };
@@ -772,7 +761,7 @@ mod tests {
     //     let new_event_5 = CreateEvent {
     //         name: "test_event_5".to_string(),
     //         capacity: Some(2),
-    //         workflow_id: workflow_id_4,
+    //         conversation_id: conversation_id_4,
     //         signup_mode: "invite".to_string(),
     //         ..Default::default()
     //     };
@@ -913,13 +902,13 @@ mod tests {
     #[sqlx::test]
     async fn should_delete_event(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
 
         let new_event = CreateEvent {
             name: "test_event".to_string(),
             description: "test_desc".to_string(),
             capacity: Some(10),
-            workflow_id,
+            conversation_id,
             start_time: Utc::now(),
             end_time: Utc::now(),
             signup_mode: "invite".to_string(),
