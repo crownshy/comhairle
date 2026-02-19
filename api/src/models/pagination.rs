@@ -104,7 +104,7 @@ fn parse_sort_options_to_json(order_str: &str) -> Value {
     Value::Object(map)
 }
 
-#[derive(Serialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 pub struct PaginatedResults<T: JsonSchema> {
     pub total: i32,
     pub records: Vec<T>,
