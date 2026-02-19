@@ -213,6 +213,9 @@ pub enum ComhairleError {
     #[error("Tool config error: {0}")]
     ToolConfigError(String),
 
+    #[error("Event at max capacity")]
+    EventAtCapacity,
+
     #[error("Conversation already live")]
     ConversationAlreadyLive,
 }
