@@ -17,7 +17,7 @@ export interface ConversationStep {
 }
 
 export const conversationSteps: ConversationStep[] = [
-	{ name: 'Configure', path: 'configure', icon: TerminalSquare, activeOnLive: false },
+	{ name: 'Configure', path: 'configure', icon: TerminalSquare, activeOnLive: true },
 	{ name: 'Design', path: 'design', icon: Pencil, activeOnLive: false },
 	{ name: 'Knowledge base', path: 'knowledge-base', icon: Database, activeOnLive: false },
 	{ name: 'Recruit', path: 'invites', icon: UsersRound, activeOnLive: true },
