@@ -13,7 +13,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use thiserror::Error;
-use tracing::{info, warn};
+use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
 use crate::{error::ComhairleError, models, ComhairleState};
@@ -105,6 +105,12 @@ pub enum PolisError {
     #[error("Failed to create new poll")]
     FailedToCreateNewPoll,
 
+    #[error("Failed to get comments {0}")]
+    FailedToGetComments(String),
+
+    #[error("Failed to post seed comment {0}")]
+    FailedToPostSeedComment(String),
+
     #[error("Failed to proxy route {from} : {to}")]
     ProxyError { from: String, to: String },
 }
@@ -146,7 +152,10 @@ pub struct PolisComment {
     pub txt: String,
     pub is_seed: bool,
     pub is_meta: bool,
-    pub lang: String,
+    pub lang: Option<String>,
+    pub pid: u32,
+    pub quote_src_url: Option<String>,
+    pub created: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -306,22 +315,23 @@ impl PolisClient {
             .unwrap()
             .text()
             .await
-            .unwrap();
+            .map_err(|e| PolisError::FailedToPostSeedComment(e.to_string()))?;
         Ok("test".into())
     }
 
     pub async fn get_comments(&self, poll_id: &str) -> Result<Vec<PolisComment>, PolisError> {
-        let comments: Vec<PolisComment> = self
-            .client
-            .get(format!(
-                "{POLIS_BASE_URL}/api/v3/comments?conversation_id=${poll_id}"
-            ))
-            .send()
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
+        let url = format!("{POLIS_BASE_URL}/api/v3/comments?conversation_id={poll_id}");
+        info!("Attempting to get comments at {url}");
+        let comments: Vec<PolisComment> =
+            self.client
+                .get(url)
+                .send()
+                .await
+                .unwrap()
+                .json()
+                .await
+                .map_err(|e| PolisError::FailedToGetComments(e.to_string()))?;
+
         Ok(comments)
     }
 }
@@ -359,27 +369,37 @@ async fn admin_login(
     }
 }
 
+#[instrument(err(Debug))]
 pub async fn launch(preview_config: &PolisToolConfig) -> Result<PolisToolConfig, ComhairleError> {
-    let client = PolisClient::new();
-    client
+    let preview_client = PolisClient::new();
+    let live_client = PolisClient::new();
+
+    let live_poll_config = polis_setup(&PolisToolSetup { topic: "".into() }).await?;
+
+    preview_client
         .login(&PolisLogin {
             email: preview_config.admin_user.clone(),
             password: preview_config.admin_password.clone(),
         })
         .await?;
 
-    let poll_id = client.create_poll().await?;
+    live_client
+        .login(&PolisLogin {
+            email: live_poll_config.admin_user.clone(),
+            password: live_poll_config.admin_password.clone(),
+        })
+        .await?;
 
-    let seed_statements = client.get_comments(&preview_config.poll_id).await?;
+    // Need to also migrate the setting for moderation
+    let seed_statements = preview_client.get_comments(&preview_config.poll_id).await?;
 
     for comment in seed_statements {
-        client.post_seed_comment(&comment.txt, &poll_id).await?;
+        live_client
+            .post_seed_comment(&comment.txt, &live_poll_config.poll_id)
+            .await?;
     }
 
-    let mut new_config = preview_config.clone();
-    new_config.poll_id = poll_id;
-
-    Ok(new_config)
+    Ok(live_poll_config)
 }
 
 async fn polis_setup(_setup: &PolisToolSetup) -> Result<PolisToolConfig, ComhairleError> {
