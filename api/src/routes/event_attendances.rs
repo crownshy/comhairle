@@ -20,7 +20,7 @@ use crate::{
             self, CreateEventAttendance, EventAttendanceFilterOptions, EventAttendanceOrderOptions,
             UpdateEventAttendance,
         },
-        pagination::{OrderParams, PageOptions, PaginatedResults},
+        pagination::{PageOptions, PaginatedResults},
     },
     routes::{
         auth::{RequiredAdminUser, RequiredUser},
@@ -34,7 +34,7 @@ pub mod dto;
 #[instrument(err(Debug), skip(state))]
 pub async fn list(
     State(state): State<Arc<ComhairleState>>,
-    OrderParams(order_options): OrderParams<EventAttendanceOrderOptions>,
+    Query(order_options): Query<EventAttendanceOrderOptions>,
     Query(filter_options): Query<EventAttendanceFilterOptions>,
     Query(page_options): Query<PageOptions>,
     RequiredUser(_user): RequiredUser,

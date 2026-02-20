@@ -54,6 +54,7 @@ pub struct PageOptions {
 }
 
 #[derive(Deserialize, Serialize, Debug, JsonSchema)]
+#[serde(rename_all = "lowercase")]
 pub enum Order {
     Asc,
     Desc,
