@@ -677,6 +677,20 @@ impl UserSession {
         .await
     }
 
+    pub async fn create_event(
+        &mut self,
+        app: &Router,
+        conversation_id: &str,
+        event: serde_json::Value,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            &format!("/conversation/{conversation_id}/events"),
+            event.to_string().into(),
+        )
+        .await
+    }
+
     pub async fn create_random_event(
         &mut self,
         app: &Router,
