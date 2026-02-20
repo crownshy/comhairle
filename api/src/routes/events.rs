@@ -18,7 +18,7 @@ use crate::{
     error::ComhairleError,
     models::{
         event::{self, CreateEvent, EventFilterOptions, EventOrderOptions, PartialEvent},
-        pagination::{OrderParams, PageOptions, PaginatedResults},
+        pagination::{PageOptions, PaginatedResults},
     },
     routes::{
         auth::{RequiredAdminUser, RequiredUser},
@@ -33,7 +33,7 @@ pub mod dto;
 #[instrument(err(Debug), skip(state))]
 async fn list(
     State(state): State<Arc<ComhairleState>>,
-    OrderParams(order_options): OrderParams<EventOrderOptions>,
+    Query(order_options): Query<EventOrderOptions>,
     Query(filter_options): Query<EventFilterOptions>,
     Query(page_options): Query<PageOptions>,
     LocaleExtractor(locale): LocaleExtractor,
