@@ -87,12 +87,15 @@ pub async fn launch(
 
     let new_form_id = preview_client.clone_form(&preview_config.survey_id).await?;
     let mut new_config = preview_config.clone();
-    new_config.survey_url = new_form_id;
+
+    new_config.survey_id = new_form_id;
 
     Ok(new_config)
 }
 
-async fn heyform_setup(_setup_config: &HeyFormToolSetup) -> Result<HeyFormToolConfig, ComhairleError> {
+async fn heyform_setup(
+    _setup_config: &HeyFormToolSetup,
+) -> Result<HeyFormToolConfig, ComhairleError> {
     let client = HeyFormClient::new("https://forms.comhairle.scot")?;
 
     let username: String = rand::thread_rng()
