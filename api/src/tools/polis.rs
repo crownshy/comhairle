@@ -159,6 +159,13 @@ pub struct PolisComment {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PolisCommentCreateResponse {
+    tid: u8,
+    current_pid: u8,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
 pub struct LoginResp {
     pub uid: u32,
     pub email: String,
@@ -296,27 +303,29 @@ impl PolisClient {
         Ok(())
     }
 
+    #[instrument(err(Debug), skip(self))]
     pub async fn post_seed_comment(
         &self,
         comment: &str,
         poll_id: &str,
     ) -> Result<String, PolisError> {
-        let _body = self
+        let post_json =
+            json!({"txt":comment,"pid":"mypid","conversation_id":poll_id,"is_seed":true});
+
+        info!("posting comment with {post_json:#?}");
+
+        let resp = self
             .client
             .post(format!("{POLIS_BASE_URL}/api/v3/comments"))
-            .json(
-                &json!(
-                    {"txt":comment,"pid":"mypid","conversation_id":poll_id,"is_seed":true}
-                )
-                .to_string(),
-            )
+            .json(&post_json)
             .send()
             .await
-            .unwrap()
-            .text()
+            .map_err(|e| PolisError::FailedToPostSeedComment(e.to_string()))?
+            .json::<PolisCommentCreateResponse>()
             .await
             .map_err(|e| PolisError::FailedToPostSeedComment(e.to_string()))?;
-        Ok("test".into())
+
+        Ok(resp.tid.to_string())
     }
 
     pub async fn get_comments(&self, poll_id: &str) -> Result<Vec<PolisComment>, PolisError> {
@@ -392,12 +401,20 @@ pub async fn launch(preview_config: &PolisToolConfig) -> Result<PolisToolConfig,
 
     // Need to also migrate the setting for moderation
     let seed_statements = preview_client.get_comments(&preview_config.poll_id).await?;
+    info!("Got seed statements from old poll {seed_statements:#?}");
+
+    // TODO filter seed statements.
 
     for comment in seed_statements {
-        live_client
+        let result = live_client
             .post_seed_comment(&comment.txt, &live_poll_config.poll_id)
             .await?;
+        info!("Writing seed statement {result:#?}");
     }
+
+    let new_seed_comments = live_client.get_comments(&live_poll_config.poll_id).await?;
+
+    info!("New statements {new_seed_comments:#?}");
 
     Ok(live_poll_config)
 }
