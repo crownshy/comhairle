@@ -9,7 +9,6 @@ use heyform_sdk::{
 use rand::{distributions::Alphanumeric, seq::SliceRandom, thread_rng, Rng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use tracing::info;
 
 use crate::{error::ComhairleError, ComhairleState};
 
