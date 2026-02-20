@@ -33,12 +33,14 @@ pub struct Event {
     pub end_time: DateTime<Utc>,
     pub signup_mode: String,
     #[partially(omit)]
+    pub video_meeting_id: Option<Uuid>,
+    #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [EventIden; 10] = [
+const DEFAULT_COLUMNS: [EventIden; 11] = [
     EventIden::Id,
     EventIden::Name,
     EventIden::Description,
@@ -47,6 +49,7 @@ const DEFAULT_COLUMNS: [EventIden; 10] = [
     EventIden::StartTime,
     EventIden::EndTime,
     EventIden::SignupMode,
+    EventIden::VideoMeetingId,
     EventIden::CreatedAt,
     EventIden::UpdatedAt,
 ];
@@ -107,6 +110,9 @@ pub async fn create(db: &PgPool, new_event: &CreateEvent) -> Result<Event, Comha
 
     columns.push(EventIden::Description);
     values.push(description.id.into());
+
+    columns.push(EventIden::VideoMeetingId);
+    values.push(Uuid::new_v4().into());
 
     let (sql, values) = Query::insert()
         .into_table(EventIden::Table)
@@ -393,8 +399,7 @@ mod tests {
     use crate::models::{
         event_attendance::{self, CreateEventAttendance},
         model_test_helpers::{
-            get_random_conversation_id, get_random_user_id,
-            setup_default_app_and_session,
+            get_random_conversation_id, get_random_user_id, setup_default_app_and_session,
         },
     };
 
@@ -421,6 +426,11 @@ mod tests {
         assert_eq!(event.capacity, Some(10), "incorrect capacity");
         assert_eq!(event.conversation_id, conversation_id, "incorrect capacity");
         assert!(event.start_time < Utc::now(), "start time not past");
+        assert_eq!(
+            event.video_meeting_id.unwrap().get_version().unwrap(),
+            uuid::Version::Random,
+            "invalid video_meeting_id on creation"
+        );
 
         Ok(())
     }
