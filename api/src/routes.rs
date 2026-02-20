@@ -2,6 +2,7 @@ pub mod auth;
 pub mod chat_sessions;
 pub mod conversations;
 pub mod documents;
+pub mod event_attendances;
 pub mod events;
 pub mod feedback;
 pub mod invites;

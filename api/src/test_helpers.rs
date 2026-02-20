@@ -699,6 +699,24 @@ impl UserSession {
         .await
     }
 
+    pub async fn create_random_event_attendance(
+        &mut self,
+        app: &Router,
+        conversation_id: &str,
+        event_id: &str,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            &format!("/conversation/{conversation_id}/events/{event_id}/attendances"),
+            json!({
+                "role": "participant",
+            })
+            .to_string()
+            .into(),
+        )
+        .await
+    }
+
     pub async fn get_conversation(
         &mut self,
         app: &Router,
