@@ -202,7 +202,6 @@ pub async fn list(
     page_options: PageOptions,
     filter_options: EventAttendanceFilterOptions,
     order_options: EventAttendanceOrderOptions,
-    locale: Option<String>,
 ) -> Result<PaginatedResults<EventAttendance>, ComhairleError> {
     let query = Query::select()
         .from(EventAttendanceIden::Table)
@@ -260,7 +259,7 @@ mod tests {
     use crate::models::{
         event::{self, CreateEvent},
         model_test_helpers::{
-            get_random_user_id, setup_default_app_and_session, get_random_conversation_id
+            get_random_conversation_id, get_random_user_id, setup_default_app_and_session,
         },
     };
 
@@ -528,7 +527,7 @@ mod tests {
         };
         let filter_options = EventAttendanceFilterOptions { event_id: None };
         let order_options = EventAttendanceOrderOptions { created_at: None };
-        let results = list(&pool, page_options, filter_options, order_options, None).await?;
+        let results = list(&pool, page_options, filter_options, order_options).await?;
 
         assert_eq!(results.total, 3, "incorrect total");
         assert_eq!(
@@ -602,7 +601,7 @@ mod tests {
             event_id: Some(new_event_2.id),
         };
         let order_options = EventAttendanceOrderOptions { created_at: None };
-        let results = list(&pool, page_options, filter_options, order_options, None).await?;
+        let results = list(&pool, page_options, filter_options, order_options).await?;
 
         assert_eq!(results.total, 2, "incorrect total");
         assert_eq!(
