@@ -210,6 +210,36 @@ export const ComhairleDocument = z.object({ id: z.string(), name: z.string(), pa
 export type ComhairleDocument = z.infer<typeof ComhairleDocument>;
 export const UploadFileResponse = z.object({ document: ComhairleDocument, job_id: z.string().uuid(), message: z.string() }).passthrough();
 export type UploadFileResponse = z.infer<typeof UploadFileResponse>;
+export const Order = z.enum(["asc", "desc"]);
+export type Order = z.infer<typeof Order>;
+export const created_at = z.union([Order, z.null()]).optional();
+export type created_at = z.infer<typeof created_at>;
+export const CapacityStatus = z.enum(["full", "available"]);
+export type CapacityStatus = z.infer<typeof CapacityStatus>;
+export const capacity_status = z.union([CapacityStatus, z.null()]).optional();
+export type capacity_status = z.infer<typeof capacity_status>;
+export const TimeStatus = z.enum(["past", "future"]);
+export type TimeStatus = z.infer<typeof TimeStatus>;
+export const time_status = z.union([TimeStatus, z.null()]).optional();
+export type time_status = z.infer<typeof time_status>;
+export const LocalizedEventDto = z.object({ capacity: z.union([z.number(), z.null()]).optional(), conversationId: z.string().uuid(), createdAt: z.string().datetime({ offset: true }), currentAttendance: z.number().int(), description: z.string(), endTime: z.string().datetime({ offset: true }), id: z.string().uuid(), name: z.string(), signupMode: z.string(), startTime: z.string().datetime({ offset: true }) }).passthrough();
+export type LocalizedEventDto = z.infer<typeof LocalizedEventDto>;
+export const PaginatedResults_for_LocalizedEventDto = z.object({ records: z.array(LocalizedEventDto), total: z.number().int() }).passthrough();
+export type PaginatedResults_for_LocalizedEventDto = z.infer<typeof PaginatedResults_for_LocalizedEventDto>;
+export const CreateEventRequest = z.object({ capacity: z.union([z.number(), z.null()]).optional(), description: z.string(), end_time: z.string().datetime({ offset: true }), name: z.string(), signup_mode: z.string(), start_time: z.string().datetime({ offset: true }) }).passthrough();
+export type CreateEventRequest = z.infer<typeof CreateEventRequest>;
+export const EventDto = z.object({ capacity: z.union([z.number(), z.null()]).optional(), conversationId: z.string().uuid(), createdAt: z.string().datetime({ offset: true }), description: z.string().uuid(), endTime: z.string().datetime({ offset: true }), id: z.string().uuid(), name: z.string().uuid(), signupMode: z.string(), startTime: z.string().datetime({ offset: true }) }).passthrough();
+export type EventDto = z.infer<typeof EventDto>;
+export const PartialEvent = z.object({ capacity: z.union([z.number(), z.null()]), description: z.union([z.string(), z.null()]), end_time: z.union([z.string(), z.null()]), name: z.union([z.string(), z.null()]), signup_mode: z.union([z.string(), z.null()]), start_time: z.union([z.string(), z.null()]) }).partial().passthrough();
+export type PartialEvent = z.infer<typeof PartialEvent>;
+export const EventAttendanceDto = z.object({ createdAt: z.string().datetime({ offset: true }), eventId: z.string().uuid(), id: z.string().uuid(), role: z.string(), userId: z.string().uuid() }).passthrough();
+export type EventAttendanceDto = z.infer<typeof EventAttendanceDto>;
+export const PaginatedResults_for_EventAttendanceDto = z.object({ records: z.array(EventAttendanceDto), total: z.number().int() }).passthrough();
+export type PaginatedResults_for_EventAttendanceDto = z.infer<typeof PaginatedResults_for_EventAttendanceDto>;
+export const CreateEventAttendanceRequest = z.object({ role: z.string() }).passthrough();
+export type CreateEventAttendanceRequest = z.infer<typeof CreateEventAttendanceRequest>;
+export const UpdateEventAttendanceRequest = z.object({ role: z.union([z.string(), z.null()]) }).partial().passthrough();
+export type UpdateEventAttendanceRequest = z.infer<typeof UpdateEventAttendanceRequest>;
 export const WebSocketStats = z.object({ connected_users: z.array(z.string().uuid()), total_connections: z.number().int().gte(0) }).passthrough();
 export type WebSocketStats = z.infer<typeof WebSocketStats>;
 export const BroadcastMessage = z.object({ authenticated_only: z.union([z.boolean(), z.null()]).optional(), message: z.string() }).passthrough();
@@ -331,6 +361,21 @@ export const schemas = {
 	ChatConversationRequest,
 	ComhairleDocument,
 	UploadFileResponse,
+	Order,
+	created_at,
+	CapacityStatus,
+	capacity_status,
+	TimeStatus,
+	time_status,
+	LocalizedEventDto,
+	PaginatedResults_for_LocalizedEventDto,
+	CreateEventRequest,
+	EventDto,
+	PartialEvent,
+	EventAttendanceDto,
+	PaginatedResults_for_EventAttendanceDto,
+	CreateEventAttendanceRequest,
+	UpdateEventAttendanceRequest,
 	WebSocketStats,
 	BroadcastMessage,
 	BroadcastResponse,
@@ -721,6 +766,174 @@ curl -X POST \
 			},
 		],
 		response: RegisterEmailResponse,
+	},
+	{
+		method: "get",
+		path: "/conversation/:conversation_id/events",
+		alias: "ListEvents",
+		description: `Paginated list of events for a conversation with optional filtering and ordering`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "created_at",
+				type: "Query",
+				schema: created_at
+			},
+			{
+				name: "name",
+				type: "Query",
+				schema: created_at
+			},
+			{
+				name: "capacity_status",
+				type: "Query",
+				schema: capacity_status
+			},
+			{
+				name: "conversation_id",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "time_status",
+				type: "Query",
+				schema: time_status
+			},
+			{
+				name: "limit",
+				type: "Query",
+				schema: limit
+			},
+			{
+				name: "offset",
+				type: "Query",
+				schema: limit
+			},
+		],
+		response: PaginatedResults_for_LocalizedEventDto,
+	},
+	{
+		method: "post",
+		path: "/conversation/:conversation_id/events",
+		alias: "CreateEvent",
+		description: `Create a new event`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: CreateEventRequest
+			},
+		],
+		response: EventDto,
+	},
+	{
+		method: "get",
+		path: "/conversation/:conversation_id/events/:event_id",
+		alias: "GetEvent",
+		description: `Event an event by id`,
+		requestFormat: "json",
+		response: LocalizedEventDto,
+	},
+	{
+		method: "put",
+		path: "/conversation/:conversation_id/events/:event_id",
+		alias: "UpdateEvent",
+		description: `Update an event`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: PartialEvent
+			},
+		],
+		response: EventDto,
+	},
+	{
+		method: "delete",
+		path: "/conversation/:conversation_id/events/:event_id",
+		alias: "DeleteEvent",
+		description: `Delete an event`,
+		requestFormat: "json",
+		response: EventDto,
+	},
+	{
+		method: "get",
+		path: "/conversation/:conversation_id/events/:event_id/attendances",
+		alias: "ListEventAttendances",
+		description: `List attendances for a conversation event with optional filtering
+                        and ordering`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "created_at",
+				type: "Query",
+				schema: created_at
+			},
+			{
+				name: "event_id",
+				type: "Query",
+				schema: created_after
+			},
+			{
+				name: "limit",
+				type: "Query",
+				schema: limit
+			},
+			{
+				name: "offset",
+				type: "Query",
+				schema: limit
+			},
+		],
+		response: PaginatedResults_for_EventAttendanceDto,
+	},
+	{
+		method: "post",
+		path: "/conversation/:conversation_id/events/:event_id/attendances",
+		alias: "CreateEventAttendance",
+		description: `Create a new attendance for a conversation event`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: z.object({ role: z.string() }).passthrough()
+			},
+		],
+		response: EventAttendanceDto,
+	},
+	{
+		method: "get",
+		path: "/conversation/:conversation_id/events/:event_id/attendances/:attendance_id",
+		alias: "GetEventAttendance",
+		description: `Get and event attendance by id`,
+		requestFormat: "json",
+		response: EventAttendanceDto,
+	},
+	{
+		method: "put",
+		path: "/conversation/:conversation_id/events/:event_id/attendances/:attendance_id",
+		alias: "UpdateEventAttendance",
+		description: `Update an event attendance by id`,
+		requestFormat: "json",
+		parameters: [
+			{
+				name: "body",
+				type: "Body",
+				schema: UpdateEventAttendanceRequest
+			},
+		],
+		response: EventAttendanceDto,
+	},
+	{
+		method: "delete",
+		path: "/conversation/:conversation_id/events/:event_id/attendances/:attendance_id",
+		alias: "DeleteEventAttendance",
+		description: `Delete an event attendance by id`,
+		requestFormat: "json",
+		response: EventAttendanceDto,
 	},
 	{
 		method: "get",
