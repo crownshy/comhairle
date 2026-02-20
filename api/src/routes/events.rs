@@ -176,6 +176,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
     use sqlx::PgPool;
     use std::error::Error;
 
@@ -271,6 +272,212 @@ mod tests {
             events.records[0].name,
             "test_event".to_string(),
             "incorrect event json"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_return_ordered_list_of_events(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        let _ = session
+            .create_event(
+                &app,
+                &conversation_id.to_string(),
+                json!({
+                "name": "bar",
+                "description": "1",
+                "start_time": Utc::now(),
+                "end_time": Utc::now(),
+                "signup_mode": "invite"
+                }),
+            )
+            .await?;
+        let _ = session
+            .create_event(
+                &app,
+                &conversation_id.to_string(),
+                json!({
+                "name": "foo",
+                "description": "2",
+                "start_time": Utc::now(),
+                "end_time": Utc::now(),
+                "signup_mode": "invite"
+                }),
+            )
+            .await?;
+        let _ = session
+            .create_event(
+                &app,
+                &conversation_id.to_string(),
+                json!({
+                "name": "baz",
+                "description": "3",
+                "start_time": Utc::now(),
+                "end_time": Utc::now(),
+                "signup_mode": "invite"
+                }),
+            )
+            .await?;
+
+        let (_, response, _) = session
+            .get(
+                &app,
+                &format!("/conversation/{conversation_id}/events?created_at=desc"),
+            )
+            .await?;
+        let events: PaginatedResults<LocalizedEventDto> = serde_json::from_value(response)?;
+        assert_eq!(
+            events.records[0].name,
+            "baz".to_string(),
+            "incorrect first event [created_at=desc]"
+        );
+        assert_eq!(
+            events.records[2].name,
+            "bar".to_string(),
+            "incorrect last event [created_at=desc]"
+        );
+
+        let (_, response, _) = session
+            .get(
+                &app,
+                &format!("/conversation/{conversation_id}/events?name=asc"),
+            )
+            .await?;
+        let events: PaginatedResults<LocalizedEventDto> = serde_json::from_value(response)?;
+        assert_eq!(
+            events.records[0].name,
+            "bar".to_string(),
+            "incorrect first event [name=asc]"
+        );
+        assert_eq!(
+            events.records[2].name,
+            "foo".to_string(),
+            "incorrect last event [name=asc]"
+        );
+
+        let (_, response, _) = session
+            .get(
+                &app,
+                &format!("/conversation/{conversation_id}/events?name=desc"),
+            )
+            .await?;
+        let events: PaginatedResults<LocalizedEventDto> = serde_json::from_value(response)?;
+        assert_eq!(
+            events.records[0].name,
+            "foo".to_string(),
+            "incorrect first event [name=desc]"
+        );
+        assert_eq!(
+            events.records[2].name,
+            "bar".to_string(),
+            "incorrect last event [name=desc]"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_return_filtered_list_of_events(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        let (_, event_1, _) = session
+            .create_event(
+                &app,
+                &conversation_id.to_string(),
+                json!({
+                "name": "full_a",
+                "description": "1",
+                "capacity": 1,
+                "start_time": Utc::now(),
+                "end_time": Utc::now(),
+                "signup_mode": "invite"
+                }),
+            )
+            .await?;
+        let (_, event_2, _) = session
+            .create_event(
+                &app,
+                &conversation_id.to_string(),
+                json!({
+                "name": "full_b",
+                "capacity": 1,
+                "description": "2",
+                "start_time": Utc::now(),
+                "end_time": Utc::now(),
+                "signup_mode": "invite"
+                }),
+            )
+            .await?;
+        let _ = session
+            .create_event(
+                &app,
+                &conversation_id.to_string(),
+                json!({
+                "name": "available_a",
+                "description": "3",
+                "start_time": Utc::now(),
+                "end_time": Utc::now(),
+                "signup_mode": "invite"
+                }),
+            )
+            .await?;
+
+        let _ = session
+            .create_random_event_attendance(
+                &app,
+                &conversation_id.to_string(),
+                event_1.get("id").and_then(|v| v.as_str()).unwrap(),
+            )
+            .await?;
+        let _ = session
+            .create_random_event_attendance(
+                &app,
+                &conversation_id.to_string(),
+                event_2.get("id").and_then(|v| v.as_str()).unwrap(),
+            )
+            .await?;
+
+        let (_, response, _) = session
+            .get(
+                &app,
+                &format!("/conversation/{conversation_id}/events?capacity_status=full"),
+            )
+            .await?;
+        let events: PaginatedResults<LocalizedEventDto> = serde_json::from_value(response)?;
+        assert_eq!(
+            events.total, 2,
+            "incorrect number of events [capacity_state=full]"
+        );
+        assert_eq!(
+            events.records[0].name,
+            "full_a".to_string(),
+            "incorrect first event [capacity_status=full]"
+        );
+        assert_eq!(
+            events.records[1].name,
+            "full_b".to_string(),
+            "incorrect last event [capacity_status=full]"
+        );
+
+        let (_, response, _) = session
+            .get(
+                &app,
+                &format!("/conversation/{conversation_id}/events?capacity_status=available"),
+            )
+            .await?;
+        let events: PaginatedResults<LocalizedEventDto> = serde_json::from_value(response)?;
+        assert_eq!(
+            events.total, 1,
+            "incorrect number of events [capacity_state=available]"
+        );
+        assert_eq!(
+            events.records[0].name,
+            "available_a".to_string(),
+            "incorrect first event [capacity_status=available]"
         );
 
         Ok(())
