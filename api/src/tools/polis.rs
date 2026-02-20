@@ -312,8 +312,6 @@ impl PolisClient {
         let post_json =
             json!({"txt":comment,"pid":"mypid","conversation_id":poll_id,"is_seed":true});
 
-        info!("posting comment with {post_json:#?}");
-
         let resp = self
             .client
             .post(format!("{POLIS_BASE_URL}/api/v3/comments"))
@@ -330,7 +328,6 @@ impl PolisClient {
 
     pub async fn get_comments(&self, poll_id: &str) -> Result<Vec<PolisComment>, PolisError> {
         let url = format!("{POLIS_BASE_URL}/api/v3/comments?conversation_id={poll_id}");
-        info!("Attempting to get comments at {url}");
         let comments: Vec<PolisComment> =
             self.client
                 .get(url)
@@ -401,7 +398,6 @@ pub async fn launch(preview_config: &PolisToolConfig) -> Result<PolisToolConfig,
 
     // Need to also migrate the setting for moderation
     let seed_statements = preview_client.get_comments(&preview_config.poll_id).await?;
-    info!("Got seed statements from old poll {seed_statements:#?}");
 
     // TODO filter seed statements.
 
@@ -409,12 +405,9 @@ pub async fn launch(preview_config: &PolisToolConfig) -> Result<PolisToolConfig,
         let result = live_client
             .post_seed_comment(&comment.txt, &live_poll_config.poll_id)
             .await?;
-        info!("Writing seed statement {result:#?}");
     }
 
     let new_seed_comments = live_client.get_comments(&live_poll_config.poll_id).await?;
-
-    info!("New statements {new_seed_comments:#?}");
 
     Ok(live_poll_config)
 }
