@@ -9,6 +9,7 @@
 	import { apiClient } from '$lib/api/client';
 	import { createCarta } from '$lib/utils/carta';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
+	import StepSelector from '$lib/components/StepSelector.svelte';
 
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
@@ -75,22 +76,7 @@
 
 <div class="flex flex-col items-center pt-10">
 	{#if conversation && workflowStep}
-		<div class="hidden flex-row gap-2 md:flex">
-			{#each workflowSteps as step (step.id)}
-				<div
-					class="bg-brand flex flex-col items-center gap-3 rounded-4xl px-10 py-3 text-sm text-[#ffffff]"
-					class:bg-brand={workflowStep.id === step.id}
-					class:bg-sky-500={workflowStep.id !== step.id}
-				>
-					<div
-						class="border-secondary h-[24px] w-[24px] rounded-full border-8 bg-white"
-					></div>
-					<p class="text-center">
-						{step.name}
-					</p>
-				</div>
-			{/each}
-		</div>
+		<StepSelector steps={workflowSteps} currentStepId={workflowStep.id} />
 
 		<div class="flex w-full grow flex-col gap-y-2 md:grid md:grid-cols-1 md:gap-x-10">
 			<div class="mt-10 flex flex-col items-center gap-y-2">
