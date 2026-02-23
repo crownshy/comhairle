@@ -23,7 +23,7 @@
 </script>
 
 {#if preview}
-	<div class="bg-secondary mt-3 w-full py-3 text-center text-white">
+	<div class="bg-sidebar mt-3 w-full py-3 text-center text-white">
 		This is a preview of the conversation
 	</div>
 {/if}
