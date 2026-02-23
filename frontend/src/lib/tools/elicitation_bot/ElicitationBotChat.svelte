@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { SendHorizontal, Mic, Sparkles, MessageCircle } from 'lucide-svelte';
+	import { Button } from '$lib/components/ui/button';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import ExtractedClaims from './ExtractedClaims.svelte';
 	import type { ElicitationMessage, ExtractedClaim, ElicitationBotProps } from './types';
@@ -29,7 +30,8 @@
 		onClaimApprove = (claimId: string) => console.log('Claim approved:', claimId),
 		onClaimEdit = (claimId: string, newContent: string) => console.log('Claim edited:', claimId, newContent),
 		onClaimRemove = (claimId: string) => console.log('Claim removed:', claimId),
-		onAddClaim = () => console.log('Add claim clicked')
+		onAddClaim = () => console.log('Add claim clicked'),
+		onDone
 	}: ElicitationBotProps = $props();
 
 	let inputValue = $state('');
@@ -438,7 +440,7 @@
 		{/if}
 	</div>
 
-	<!-- <button class="mt-4 px-8 py-3 bg-chat-primary-dark text-white rounded-full font-medium hover:bg-chat-primary transition-colors">
-		Continue
-	</button> -->
+	{#if onNext}
+		<Button onclick={onDone} class="w-full mt-10">Continue</Button>
+	{/if}
 </div>

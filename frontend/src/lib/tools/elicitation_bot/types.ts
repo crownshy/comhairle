@@ -27,4 +27,5 @@ export interface ElicitationBotProps {
 	onClaimEdit?: (claimId: string, newContent: string) => void;
 	onClaimRemove?: (claimId: string) => void;
 	onAddClaim?: () => void;
+	onDone?: () => void;
 }
