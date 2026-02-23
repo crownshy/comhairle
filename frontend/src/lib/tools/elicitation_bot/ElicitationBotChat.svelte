@@ -513,7 +513,7 @@
 		{/if}
 	</div>
 
-	{#if onNext}
+	{#if onDone}
 		<Button onclick={onDone} class="w-full mt-10">Continue</Button>
 	{/if}
 </div>
