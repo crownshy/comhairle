@@ -29,7 +29,7 @@
 			<div class="flex flex-col items-center gap-8 lg:h-[84px] lg:flex-row lg:justify-between">
 				<!-- Logo + Nav -->
 				<div class="flex flex-col items-center gap-6 lg:flex-1 lg:flex-row">
-					<ComhairleLogo logoSize="lg" />
+					<ComhairleLogo logoSize="lg" textClass="text-primary-foreground" />
 					<nav class="flex flex-wrap items-center justify-center gap-8">
 						{#each navLinks as link (link.href)}
 							<a
