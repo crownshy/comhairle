@@ -8,6 +8,7 @@ on:
 jobs:
   frontend-unit-tests:
     runs-on: ubuntu-latest
+    environment: base 
 
     steps:
       - 
@@ -36,6 +37,7 @@ jobs:
 
   api-unit-tests:
     runs-on: ubuntu-latest
+    environment: base 
 
     services:
       postgres:
