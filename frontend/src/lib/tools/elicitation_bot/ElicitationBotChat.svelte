@@ -3,55 +3,56 @@
 	import { SendHorizontal, Mic, Sparkles, MessageCircle } from 'lucide-svelte';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import ExtractedClaims from './ExtractedClaims.svelte';
-	import type { ElicitationMessage, ExtractedClaim, ElicitationBotProps } from './types';
+	import type { ElicitationMessage, ElicitationBotProps } from './types';
 
 	let {
-		chatId,
-		conversationId,
-		userId,
 		botName = 'Elicitation bot',
 		botSubtitle = 'Ask questions',
-		messages: initialMessages = [
-			{
-				id: '1',
-				content: 'I am here to help you explore your understanding to this bot. You can...',
-				isBot: true,
-				timestamp: new Date()
-			}
-		],
+		messages = [],
 		claims: initialClaims = [
 			{ id: '1', content: 'What decisions will this influence', status: 'pending' as const },
 			{ id: '2', content: 'What decisions will this influence', status: 'editing' as const },
 			{ id: '3', content: 'What decisions will this influence', status: 'editing' as const }
 		],
+		topic,
 		placeholder = 'Ask questions....',
 		onSendMessage = (message: string) => console.log('Message sent:', message),
 		onClaimApprove = (claimId: string) => console.log('Claim approved:', claimId),
-		onClaimEdit = (claimId: string, newContent: string) => console.log('Claim edited:', claimId, newContent),
+		onClaimEdit = (claimId: string, newContent: string) =>
+			console.log('Claim edited:', claimId, newContent),
 		onClaimRemove = (claimId: string) => console.log('Claim removed:', claimId),
 		onAddClaim = () => console.log('Add claim clicked')
 	}: ElicitationBotProps = $props();
 
+	const defaultOpeningMessage = {
+		id: '1',
+		content: `I am here to help you explore your understanding of ${topic}. What is your initial opinion of ${topic}?`,
+		isBot: true,
+		timestamp: new Date()
+	};
+
 	let inputValue = $state('');
 	let scrollAreaRef: HTMLElement | null = $state(null);
 	let textareaRef: HTMLTextAreaElement | null = $state(null);
-	let chatMessages = $state<ElicitationMessage[]>([...initialMessages]);
+	let [, ...messageHistory] = messages;
+	let chatMessages = $state<ElicitationMessage[]>([
+		defaultOpeningMessage,
+		...(messageHistory ?? [])
+	]);
 	let isMobile = $state(false);
 	let activeTab = $state('chat');
 	let hasUnseenClaims = $state(false);
 	let previousClaimsCount = $state(initialClaims.length);
 
 	function formatTime(date: Date): string {
-		return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+		return date.toLocaleTimeString('en-US', {
+			hour: 'numeric',
+			minute: '2-digit',
+			hour12: true
+		});
 	}
 
 	let currentTime = $state(formatTime(new Date()));
-
-	$effect(() => {
-		if (initialMessages.length > 0) {
-			chatMessages = [...initialMessages];
-		}
-	});
 
 	$effect(() => {
 		chatMessages;
@@ -66,7 +67,7 @@
 	});
 
 	const initialQuestions = [
-		{ id: '1', text: 'What does this bot do?', variant: 'default' as const },
+		{ id: '1', text: 'What does this bot do?', variant: 'default' as const }
 	];
 
 	let selectedQuestionId = $state<string | null>(null);
@@ -121,7 +122,7 @@
 		} else if (question.includes('learned')) {
 			return 'Great! What do you already know or think about this topic so far?';
 		}
-		return 'Great! Tell me more about what you\'d like to explore.';
+		return "Great! Tell me more about what you'd like to explore.";
 	}
 
 	async function sendMessage() {
@@ -154,18 +155,24 @@
 	}
 </script>
 
-<div class="w-full max-w-5xl mx-auto flex flex-col items-center gap-4 p-4">
+<div class="mx-auto flex w-full max-w-5xl flex-col items-center gap-4 p-4">
 	<!-- Main Container -->
-	<div class="w-full bg-white rounded-2xl border border-chat-primary-light shadow-lg overflow-hidden">
+	<div
+		class="border-chat-primary-light w-full overflow-hidden rounded-2xl border bg-white shadow-lg"
+	>
 		<!-- Bot Header -->
-		<div class="p-4 bg-white border-b border-chat-primary-light flex items-center gap-4">
+		<div class="border-chat-primary-light flex items-center gap-4 border-b bg-white p-4">
 			<div class="relative">
-				<div class="w-12 h-12 bg-chat-primary rounded-full ring-4 ring-chat-primary-lighter flex items-center justify-center">
-					<MessageCircle class="w-6 h-6 text-white" />
+				<div
+					class="bg-chat-primary ring-chat-primary-lighter flex h-12 w-12 items-center justify-center rounded-full ring-4"
+				>
+					<MessageCircle class="h-6 w-6 text-white" />
 				</div>
-				<div class="w-3 h-3 absolute bottom-0 right-0 bg-green-400 rounded-full border-2 border-white"></div>
+				<div
+					class="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-400"
+				></div>
 			</div>
-			<div class="flex-1 flex flex-col">
+			<div class="flex flex-1 flex-col">
 				<span class="text-chat-text text-lg font-semibold leading-6">{botName}</span>
 				<span class="text-chat-primary text-sm font-normal leading-5">{botSubtitle}</span>
 			</div>
@@ -174,23 +181,35 @@
 		{#if isMobile}
 			<!-- Mobile: Tabbed View -->
 			<div class="w-full">
-				<div class="w-full grid grid-cols-2 bg-chat-bg border-b border-chat-border">
+				<div class="bg-chat-bg border-chat-border grid w-full grid-cols-2 border-b">
 					<button
-						class="py-3 text-sm font-medium transition-colors {activeTab === 'chat' ? 'bg-white text-chat-primary' : 'text-chat-text-muted hover:text-chat-text'}"
-						onclick={() => activeTab = 'chat'}
+						class="py-3 text-sm font-medium transition-colors {activeTab === 'chat'
+							? 'text-chat-primary bg-white'
+							: 'text-chat-text-muted hover:text-chat-text'}"
+						onclick={() => (activeTab = 'chat')}
 					>
 						Chat
 					</button>
 					<button
-						class="relative py-3 text-sm font-medium transition-colors {activeTab === 'claims' ? 'bg-white text-chat-primary' : 'text-chat-text-muted hover:text-chat-text'}"
-						onclick={() => { activeTab = 'claims'; hasUnseenClaims = false; }}
+						class="relative py-3 text-sm font-medium transition-colors {activeTab ===
+						'claims'
+							? 'text-chat-primary bg-white'
+							: 'text-chat-text-muted hover:text-chat-text'}"
+						onclick={() => {
+							activeTab = 'claims';
+							hasUnseenClaims = false;
+						}}
 					>
 						<span class="inline-flex items-center gap-1.5">
 							Claims ({initialClaims.length})
 							{#if hasUnseenClaims}
 								<span class="relative flex h-2.5 w-2.5">
-									<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-chat-primary opacity-75"></span>
-									<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-chat-primary"></span>
+									<span
+										class="bg-chat-primary absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"
+									></span>
+									<span
+										class="bg-chat-primary relative inline-flex h-2.5 w-2.5 rounded-full"
+									></span>
 								</span>
 							{/if}
 						</span>
@@ -198,12 +217,12 @@
 				</div>
 
 				{#if activeTab === 'chat'}
-					<div class="flex flex-col h-[60vh]">
+					<div class="flex h-[60vh] flex-col">
 						<!-- Chat Messages -->
-						<ScrollArea.Root bind:ref={scrollAreaRef} class="flex-1 min-h-0">
-							<div class="p-6 bg-chat-primary-lighter/40 min-h-full">
-								<div class="text-center mb-4">
-									<p class="text-xs text-chat-text-muted">
+						<ScrollArea.Root bind:ref={scrollAreaRef} class="min-h-0 flex-1">
+							<div class="bg-chat-primary-lighter/40 min-h-full p-6">
+								<div class="mb-4 text-center">
+									<p class="text-chat-text-muted text-xs">
 										{new Date().toISOString().slice(0, 10).replace(/-/g, '.')}
 									</p>
 								</div>
@@ -213,40 +232,61 @@
 										<div class={message.isBot ? '' : 'flex justify-end'}>
 											<div
 												class="{message.isBot
-													? 'bg-white rounded-br-[16px]'
+													? 'rounded-br-[16px] bg-white'
 													: 'bg-chat-primary-dark rounded-bl-[16px]'} w-fit max-w-[85%] rounded-tl-[16px] rounded-tr-[16px] px-3 py-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)]"
 											>
 												{#if message.isBot}
 													<div>
 														<div class="flex items-start gap-2">
 															{#if index < 1}
-																<Sparkles class="w-4 h-4 text-chat-primary mt-0.5 flex-shrink-0" />
+																<Sparkles
+																	class="text-chat-primary mt-0.5 h-4 w-4 flex-shrink-0"
+																/>
 															{/if}
 															{#if message.content === '...'}
-																<span class="flex items-center gap-1">
-																	<span class="w-2 h-2 bg-chat-primary rounded-full animate-bounce"></span>
-																	<span class="w-2 h-2 bg-chat-primary rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
-																	<span class="w-2 h-2 bg-chat-primary rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
+																<span
+																	class="flex items-center gap-1"
+																>
+																	<span
+																		class="bg-chat-primary h-2 w-2 animate-bounce rounded-full"
+																	></span>
+																	<span
+																		class="bg-chat-primary h-2 w-2 animate-bounce rounded-full"
+																		style="animation-delay: 0.1s"
+																	></span>
+																	<span
+																		class="bg-chat-primary h-2 w-2 animate-bounce rounded-full"
+																		style="animation-delay: 0.2s"
+																	></span>
 																</span>
 															{:else}
-																<span class="text-chat-text text-sm">{message.content}</span>
+																<span class="text-chat-text text-sm"
+																	>{message.content}</span
+																>
 															{/if}
 														</div>
 
 														{#if index === 0}
-															<div class="flex flex-col gap-3 mt-3">
+															<div class="mt-3 flex flex-col gap-3">
 																{#each initialQuestions as question (question.id)}
 																	<button
-																		onclick={() => handleQuestionClick(question)}
-																		class="{selectedQuestionId === question.id
+																		onclick={() =>
+																			handleQuestionClick(
+																				question
+																			)}
+																		class="{selectedQuestionId ===
+																		question.id
 																			? 'bg-chat-primary border-chat-primary'
-																			: question.variant === 'primary'
+																			: question.variant ===
+																				  'primary'
 																				? 'bg-chat-primary border-chat-primary'
-																				: 'bg-white border-chat-primary-light'} px-2.5 py-1.5 rounded-2xl border flex items-start gap-2.5 w-fit"
+																				: 'border-chat-primary-light bg-white'} flex w-fit items-start gap-2.5 rounded-2xl border px-2.5 py-1.5"
 																	>
 																		<span
-																			class="{selectedQuestionId === question.id ||
-																			question.variant === 'primary'
+																			class="{selectedQuestionId ===
+																				question.id ||
+																			question.variant ===
+																				'primary'
 																				? 'text-white'
 																				: 'text-chat-primary'} text-xs font-normal leading-4"
 																		>
@@ -258,7 +298,9 @@
 														{/if}
 													</div>
 												{:else}
-													<p class="text-white text-sm">{message.content}</p>
+													<p class="text-sm text-white">
+														{message.content}
+													</p>
 												{/if}
 											</div>
 										</div>
@@ -266,15 +308,19 @@
 								</div>
 
 								<div class="mt-2">
-									<p class="text-xs text-chat-text-muted">{currentTime}</p>
+									<p class="text-chat-text-muted text-xs">{currentTime}</p>
 								</div>
 							</div>
 						</ScrollArea.Root>
 
 						<!-- Input Area -->
-						<div class="p-4 bg-chat-primary-lighter/40 border-t border-chat-primary-light">
+						<div
+							class="bg-chat-primary-lighter/40 border-chat-primary-light border-t p-4"
+						>
 							<div class="flex items-end gap-2">
-								<div class="flex-1 flex items-end gap-2 bg-white rounded-xl border shadow-md border-chat-primary-light">
+								<div
+									class="border-chat-primary-light flex flex-1 items-end gap-2 rounded-xl border bg-white shadow-md"
+								>
 									<textarea
 										bind:this={textareaRef}
 										bind:value={inputValue}
@@ -284,22 +330,25 @@
 												sendMessage();
 											}
 										}}
-										placeholder={placeholder}
+										{placeholder}
 										rows={1}
-										class="self-center flex-1 px-4 py-3 bg-transparent text-sm text-chat-text placeholder:text-chat-text-muted outline-none resize-none overflow-y-auto leading-5 min-h-6"
+										class="text-chat-text placeholder:text-chat-text-muted min-h-6 flex-1 resize-none self-center overflow-y-auto bg-transparent px-4 py-3 text-sm leading-5 outline-none"
 										style="max-height: 200px;"
 									></textarea>
-									<button class="p-2.5 text-chat-primary hover:text-chat-primary-dark transition-colors" aria-label="Voice input">
-										<Mic class="w-5 h-5" />
+									<button
+										class="text-chat-primary hover:text-chat-primary-dark p-2.5 transition-colors"
+										aria-label="Voice input"
+									>
+										<Mic class="h-5 w-5" />
 									</button>
 								</div>
 								<button
 									onclick={sendMessage}
-									class="p-3 bg-chat-primary-dark text-white rounded-full hover:bg-chat-primary transition-colors disabled:opacity-50"
+									class="bg-chat-primary-dark hover:bg-chat-primary rounded-full p-3 text-white transition-colors disabled:opacity-50"
 									disabled={!inputValue.trim()}
 									aria-label="Send message"
 								>
-									<SendHorizontal class="w-5 h-5" />
+									<SendHorizontal class="h-5 w-5" />
 								</button>
 							</div>
 						</div>
@@ -320,11 +369,11 @@
 			<!-- Desktop: Side by Side -->
 			<div class="flex h-[700px]">
 				<!-- Chat Panel -->
-				<div class="flex-1 flex flex-col border-r border-chat-primary-light min-h-0">
-					<ScrollArea.Root bind:ref={scrollAreaRef} class="flex-1 min-h-0">
-						<div class="p-6 bg-chat-primary-lighter/40 min-h-full">
-							<div class="text-center mb-4">
-								<p class="text-xs text-chat-text-muted">
+				<div class="border-chat-primary-light flex min-h-0 flex-1 flex-col border-r">
+					<ScrollArea.Root bind:ref={scrollAreaRef} class="min-h-0 flex-1">
+						<div class="bg-chat-primary-lighter/40 min-h-full p-6">
+							<div class="mb-4 text-center">
+								<p class="text-chat-text-muted text-xs">
 									{new Date().toISOString().slice(0, 10).replace(/-/g, '.')}
 								</p>
 							</div>
@@ -334,40 +383,59 @@
 									<div class={message.isBot ? '' : 'flex justify-end'}>
 										<div
 											class="{message.isBot
-												? 'bg-white rounded-br-[16px]'
+												? 'rounded-br-[16px] bg-white'
 												: 'bg-chat-primary-dark rounded-bl-[16px]'} w-fit max-w-md rounded-tl-[16px] rounded-tr-[16px] px-3 py-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)]"
 										>
 											{#if message.isBot}
 												<div>
 													<div class="flex items-start gap-2">
 														{#if index < 1}
-															<Sparkles class="w-4 h-4 text-chat-primary mt-0.5 flex-shrink-0" />
+															<Sparkles
+																class="text-chat-primary mt-0.5 h-4 w-4 flex-shrink-0"
+															/>
 														{/if}
 														{#if message.content === '...'}
-																<span class="flex items-center gap-1">
-																	<span class="w-2 h-2 bg-chat-primary rounded-full animate-bounce"></span>
-																	<span class="w-2 h-2 bg-chat-primary rounded-full animate-bounce" style="animation-delay: 0.1s"></span>
-																	<span class="w-2 h-2 bg-chat-primary rounded-full animate-bounce" style="animation-delay: 0.2s"></span>
-																</span>
-															{:else}
-																<span class="text-chat-text text-sm">{message.content}</span>
-															{/if}
+															<span class="flex items-center gap-1">
+																<span
+																	class="bg-chat-primary h-2 w-2 animate-bounce rounded-full"
+																></span>
+																<span
+																	class="bg-chat-primary h-2 w-2 animate-bounce rounded-full"
+																	style="animation-delay: 0.1s"
+																></span>
+																<span
+																	class="bg-chat-primary h-2 w-2 animate-bounce rounded-full"
+																	style="animation-delay: 0.2s"
+																></span>
+															</span>
+														{:else}
+															<span class="text-chat-text text-sm"
+																>{message.content}</span
+															>
+														{/if}
 													</div>
 
 													{#if index === 0}
-														<div class="flex flex-col gap-3 mt-3">
+														<div class="mt-3 flex flex-col gap-3">
 															{#each initialQuestions as question (question.id)}
 																<button
-																	onclick={() => handleQuestionClick(question)}
-																	class="{selectedQuestionId === question.id
+																	onclick={() =>
+																		handleQuestionClick(
+																			question
+																		)}
+																	class="{selectedQuestionId ===
+																	question.id
 																		? 'bg-chat-primary border-chat-primary'
-																		: question.variant === 'primary'
+																		: question.variant ===
+																			  'primary'
 																			? 'bg-chat-primary border-chat-primary'
-																			: 'bg-white border-chat-primary-light'} px-2.5 py-1.5 rounded-2xl border flex items-start gap-2.5 w-fit"
+																			: 'border-chat-primary-light bg-white'} flex w-fit items-start gap-2.5 rounded-2xl border px-2.5 py-1.5"
 																>
 																	<span
-																		class="{selectedQuestionId === question.id ||
-																		question.variant === 'primary'
+																		class="{selectedQuestionId ===
+																			question.id ||
+																		question.variant ===
+																			'primary'
 																			? 'text-white'
 																			: 'text-chat-primary'} text-xs font-normal leading-4"
 																	>
@@ -379,7 +447,7 @@
 													{/if}
 												</div>
 											{:else}
-												<p class="text-white text-sm">{message.content}</p>
+												<p class="text-sm text-white">{message.content}</p>
 											{/if}
 										</div>
 									</div>
@@ -387,15 +455,17 @@
 							</div>
 
 							<div class="mt-2">
-								<p class="text-xs text-chat-text-muted">{currentTime}</p>
+								<p class="text-chat-text-muted text-xs">{currentTime}</p>
 							</div>
 						</div>
 					</ScrollArea.Root>
 
 					<!-- Input Area -->
-					<div class="p-4 bg-chat-primary-lighter/40 border-t border-chat-primary-light">
+					<div class="bg-chat-primary-lighter/40 border-chat-primary-light border-t p-4">
 						<div class="flex items-end gap-2">
-							<div class="flex-1 flex items-end gap-2 bg-white rounded-xl border shadow-md border-chat-primary-light">
+							<div
+								class="border-chat-primary-light flex flex-1 items-end gap-2 rounded-xl border bg-white shadow-md"
+							>
 								<textarea
 									bind:this={textareaRef}
 									bind:value={inputValue}
@@ -405,22 +475,25 @@
 											sendMessage();
 										}
 									}}
-									placeholder={placeholder}
+									{placeholder}
 									rows={1}
-									class="self-center flex-1 px-4 py-3 bg-transparent text-sm text-chat-text placeholder:text-chat-text-muted outline-none resize-none overflow-y-auto leading-5 min-h-6"
+									class="text-chat-text placeholder:text-chat-text-muted min-h-6 flex-1 resize-none self-center overflow-y-auto bg-transparent px-4 py-3 text-sm leading-5 outline-none"
 									style="max-height: 200px;"
 								></textarea>
-								<button class="p-2.5 text-chat-primary hover:text-chat-primary-dark transition-colors" aria-label="Voice input">
-									<Mic class="w-5 h-5" />
+								<button
+									class="text-chat-primary hover:text-chat-primary-dark p-2.5 transition-colors"
+									aria-label="Voice input"
+								>
+									<Mic class="h-5 w-5" />
 								</button>
 							</div>
 							<button
 								onclick={sendMessage}
-								class="p-3 bg-chat-primary-dark text-white rounded-full hover:bg-chat-primary transition-colors disabled:opacity-50"
+								class="bg-chat-primary-dark hover:bg-chat-primary rounded-full p-3 text-white transition-colors disabled:opacity-50"
 								disabled={!inputValue.trim()}
 								aria-label="Send message"
 							>
-								<SendHorizontal class="w-5 h-5" />
+								<SendHorizontal class="h-5 w-5" />
 							</button>
 						</div>
 					</div>
