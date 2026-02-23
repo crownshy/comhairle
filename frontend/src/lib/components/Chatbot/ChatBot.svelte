@@ -26,7 +26,7 @@
 		placeholder = 'Ask questions...',
 		initialQuestions = [
 			{ id: '1', text: 'Explain this to me', variant: 'default' },
-			{ id: '2', text: 'How did NPF come about?', variant: 'default' },
+			{ id: '2', text: "What's Scotland's strategy for the space sector", variant: 'default' },
 			{ id: '3', text: 'What decisions will this influence', variant: 'primary' },
 			{ id: '4', text: 'Ask something else', variant: 'default' }
 		],
