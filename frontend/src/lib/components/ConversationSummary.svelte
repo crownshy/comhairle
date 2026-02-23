@@ -12,7 +12,7 @@
 <div class="mt-10 grid grid-cols-1 gap-10 md:mt-0 md:grid-cols-[400px_1fr]">
 	<div class="flex flex-col gap-5">
 		<h1 class="text-4xl font-semibold md:text-5xl">{conversation.title}</h1>
-		<p class="text-[#687280] md:text-2xl md:text-gray-950">
+		<p class="text-[#687280] md:text-lg md:text-gray-950">
 			{conversation.shortDescription}
 		</p>
 		<div class="hidden md:block">
@@ -26,7 +26,7 @@
 			src={conversation.imageUrl}
 			alt={conversation.title}
 		/>
-		<p class=" text-[#687280] md:text-2xl md:text-gray-950">{conversation.description}</p>
+		<p class="text-[#687280] md:text-lg md:text-gray-950">{conversation.description}</p>
 		<div class="block md:hidden">
 			{@render children()}
 		</div>
