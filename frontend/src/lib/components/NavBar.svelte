@@ -39,7 +39,7 @@
 
 <nav class="bg-primary text-muted-foreground z-10 flex w-full flex-col items-center p-5 shadow-md">
 	<div class="margin-auto container flex max-w-[1200px] items-center justify-between">
-		<ComhairleLogo logoSize="sm" textClass="text-nav-text invisible hidden lg:visible lg:block" />
+		<ComhairleLogo logoSize="sm" textClass="text-primary-foreground invisible hidden lg:visible lg:block" />
 
 		<!-- Desktop Navigation -->
 		<div class="hidden space-x-6 md:flex lg:space-x-5">
