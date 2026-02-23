@@ -51,7 +51,7 @@
 		</Button>
 	</SideBar.Header>
 
-	<SideBar.Content class="overflow-hidden py-4 pl-4">
+	<SideBar.Content class="overflow-hidden pt-4 pl-4">
 		<!-- Platform section -->
 		<SideBar.Group class="">
 			<!-- todo: hook up to style variable + add translations -->
@@ -269,15 +269,15 @@
 					{/if}
 				</ScrollArea.Root>
 			</SideBar.GroupContent>
-
-			<div class="shrink-0 p-2">
-				<Button href="/admin/conversations/new" class="w-full" variant="default">
-					<Plus class="size-4" />
-					New conversation
-				</Button>
-			</div>
 		</SideBar.Group>
 	</SideBar.Content>
+	
+	<div class="shrink-0 px-7">
+		<Button href="/admin/conversations/new" class="w-full" variant="default">
+			<Plus class="size-4" />
+			New conversation
+		</Button>
+	</div>
 
 	<SideBar.Footer>
 		<div class="flex flex-col items-center gap-2 p-2">
