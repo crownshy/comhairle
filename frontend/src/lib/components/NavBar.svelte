@@ -109,7 +109,7 @@
 
 						<!-- Navigation links -->
 						<nav class="flex flex-col gap-0.5">
-							{#each links as link, i}
+							{#each links as link, i (link.href)}
 								{@const Icon = linkIcons[i]}
 								<Button
 									href={link.href}
