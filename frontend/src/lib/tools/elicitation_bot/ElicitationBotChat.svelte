@@ -28,7 +28,7 @@
 
 	const defaultOpeningMessage = {
 		id: '1',
-		content: `I am here to help you explore your understanding of ${topic}. What is your initial opinion of ${topic}?`,
+		content: `Hello, I am here to help you shape your views and opinions. What's your initial view about${topic}?`,
 		isBot: true,
 		timestamp: new Date()
 	};
