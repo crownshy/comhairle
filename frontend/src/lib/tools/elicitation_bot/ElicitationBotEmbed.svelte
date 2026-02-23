@@ -237,5 +237,6 @@
 		onClaimEdit={handleClaimEdit}
 		onClaimRemove={handleClaimRemove}
 		onAddClaim={handleAddClaim}
+		onDone={onDone}
 	/>
 {/if}
