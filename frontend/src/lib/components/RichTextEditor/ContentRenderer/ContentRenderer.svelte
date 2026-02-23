@@ -65,7 +65,7 @@
 		width: 100%;
 	}
 
-	:global(.content-renderer--minimal .tiptap) {
+	:global(.content-renderer .tiptap) {
 		min-height: unset;
 	}
 </style>
