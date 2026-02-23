@@ -28,7 +28,7 @@
 
 	const defaultOpeningMessage = {
 		id: '1',
-		content: `Hello, I am here to help you shape your views and opinions. What's your initial view about${topic}?`,
+		content: `Hello, I am here to help you shape your views and opinions. What's your initial view about ${topic}?`,
 		isBot: true,
 		timestamp: new Date()
 	};
@@ -36,10 +36,9 @@
 	let inputValue = $state('');
 	let scrollAreaRef: HTMLElement | null = $state(null);
 	let textareaRef: HTMLTextAreaElement | null = $state(null);
-	let [, ...messageHistory] = messages;
-	let chatMessages = $state<ElicitationMessage[]>([
+	let chatMessages = $derived<ElicitationMessage[]>([
 		defaultOpeningMessage,
-		...(messageHistory ?? [])
+		...messages.slice(1)
 	]);
 	let isMobile = $state(false);
 	let activeTab = $state('chat');
