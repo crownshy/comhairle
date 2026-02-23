@@ -99,5 +99,8 @@
 	"send_again": "再次发送",
 	"about_us": "关于我们",
 	"support": "支持",
-	"faq": "常见问题"
+	"faq": "常见问题",
+	"notifications": "通知",
+	"settings": "设置",
+	"language": "语言"
 }

@@ -5,9 +5,14 @@
 	import LocaleSwitcher from '$lib/components/LocaleSwitcher.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import * as Drawer from '$lib/components/ui/drawer';
-	import { HamburgerMenu } from 'svelte-radix';
+	import * as Avatar from '$lib/components/ui/avatar';
+	import { Badge } from '$lib/components/ui/badge';
+	import ModeToggle from '$lib/components/ModeToggle.svelte';
+	import { Menu, Home, Info, MessageSquare, Shield, Settings, Bell, LogOut, LayoutDashboard } from 'lucide-svelte';
 	import { afterNavigate } from '$app/navigation';
-	import UserNavMenu from './UserNavMenu.svelte';
+	import { userInitials } from '$lib/utils';
+	import { apiClient } from '$lib/api/client';
+	import { Separator } from '$lib/components/ui/separator';
 
 	let links = [
 		{
@@ -35,6 +40,21 @@
 	});
 
 	let { user, isAdmin } = $props();
+
+	let user_initials = $derived(userInitials(user?.username ?? ''));
+	let notifications: number | undefined = $state();
+
+	const linkIcons = [Home, Info, MessageSquare, Shield];
+
+	$effect(() => {
+		if (!user) return;
+		async function checkNotifications() {
+			notifications = (await apiClient.GetUnreadNotificationsCount()).count;
+		}
+		checkNotifications();
+		const interval = setInterval(checkNotifications, 5000);
+		return () => clearInterval(interval);
+	});
 </script>
 
 <nav class="bg-primary text-muted-foreground z-10 flex w-full flex-col items-center p-5 shadow-md">
@@ -60,32 +80,116 @@
 		<div class="md:hidden">
 			<Drawer.Root bind:open={isOpen} direction="bottom">
 				<Drawer.Trigger>
-					<Button variant="outline">
-						<HamburgerMenu />
+					<Button variant="nav" size="icon">
+						<Menu class="size-5" />
 					</Button>
 				</Drawer.Trigger>
 				<Drawer.Content>
-					<div class="my-auto max-h-[80vh]">
-						<div class="h-full p-4">
-							<div class="flex h-full flex-col justify-between">
-								<div class="mb-10 flex w-full flex-col items-center justify-center gap-2">
-									{#each links as link}
-										<Button
-											href={link.href}
-											variant="ghost"
-											class="block py-2 text-xl text-gray-700 hover:text-black"
-										>
-											{link.name}
-										</Button>
-									{/each}
-									<LocaleSwitcher />
+					<div class="mx-auto flex w-full max-w-md flex-col gap-1 p-4 pb-8">
+						<!-- User section -->
+						{#if user}
+							<div class="flex items-center gap-3 px-3 py-3">
+								<Avatar.Root class="h-10 w-10">
+									{#if user.avatarUrl}
+										<Avatar.Image src={user.avatarUrl} alt={user.username ?? ''} />
+									{/if}
+									<Avatar.Fallback class="text-sm">{user_initials}</Avatar.Fallback>
+								</Avatar.Root>
+								<div class="flex flex-col">
+									<span class="text-foreground text-sm font-medium">
+										{#if user.authType === 'annon'}Anonymous{:else}{user.username}{/if}
+									</span>
+									{#if user.email}
+										<span class="text-muted-foreground text-xs">{user.email}</span>
+									{/if}
 								</div>
-								<UserNavMenu {user} />
-								{#if isAdmin}
-									<Button variant="secondary" href="/admin">Dashboard</Button>
-								{/if}
 							</div>
+							<Separator />
+						{/if}
+
+						<!-- Navigation links -->
+						<nav class="flex flex-col gap-0.5">
+							{#each links as link, i}
+								{@const Icon = linkIcons[i]}
+								<Button
+									href={link.href}
+									variant="ghost"
+									class="text-foreground h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
+								>
+									<Icon class="text-muted-foreground size-5" />
+									{link.name}
+								</Button>
+							{/each}
+						</nav>
+
+						<Separator />
+
+						<!-- Settings & account -->
+						<div class="flex flex-col gap-0.5">
+							{#if user}
+								<Button
+									href="/notifications"
+									variant="ghost"
+									class="text-foreground h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
+								>
+									<Bell class="text-muted-foreground size-5" />
+									{m.notifications()}
+									{#if notifications && notifications > 0}
+										<Badge class="ml-auto">{notifications}</Badge>
+									{/if}
+								</Button>
+								<Button
+									href="/settings"
+									variant="ghost"
+									class="text-foreground h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
+								>
+									<Settings class="text-muted-foreground size-5" />
+									{m.settings()}
+								</Button>
+							{/if}
+							{#if isAdmin}
+								<Button
+									href="/admin"
+									variant="ghost"
+									class="text-foreground h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
+								>
+									<LayoutDashboard class="text-muted-foreground size-5" />
+									Dashboard
+								</Button>
+							{/if}
 						</div>
+
+						<Separator />
+
+						<!-- Preferences -->
+						<div class="flex flex-col gap-2 px-3 py-2">
+							<div class="flex items-center justify-between">
+								<span class="text-muted-foreground text-xs font-medium uppercase tracking-wider">{m.language()}</span>
+								<LocaleSwitcher />
+							</div>
+							<ModeToggle />
+						</div>
+
+						<!-- Auth actions -->
+						{#if user}
+							<Separator />
+							<form method="POST" action="/auth/logout" class="px-0">
+								<Button
+									type="submit"
+									variant="ghost"
+									class="text-destructive hover:text-destructive h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
+								>
+									<LogOut class="size-5" />
+									{m.logout()}
+								</Button>
+							</form>
+						{:else}
+							<Separator />
+							<div class="flex gap-2 px-3 pt-2">
+								<Button href="/auth/login" variant="outline" class="flex-1">{m.login()}</Button>
+								<Button href="/auth/signup" class="flex-1">{m.signup()}</Button>
+							</div>
+						{/if}
 					</div>
 				</Drawer.Content>
 			</Drawer.Root>
