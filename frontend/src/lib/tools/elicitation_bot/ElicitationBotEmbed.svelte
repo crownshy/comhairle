@@ -231,6 +231,7 @@
 		botSubtitle="Here to help you shape your views and opinions"
 		messages={chatMessages}
 		{claims}
+		{topic}
 		onSendMessage={handleSendMessage}
 		onClaimApprove={handleClaimApprove}
 		onClaimEdit={handleClaimEdit}

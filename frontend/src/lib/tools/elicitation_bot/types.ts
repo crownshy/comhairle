@@ -12,15 +12,11 @@ export interface ElicitationMessage {
 }
 
 export interface ElicitationBotProps {
-	chatId?: string;
-	conversationId?: string;
-	userId?: string;
-	title?: string;
-	subtitle?: string;
 	botName?: string;
 	botSubtitle?: string;
 	messages?: ElicitationMessage[];
 	claims?: ExtractedClaim[];
+	topic: string;
 	placeholder?: string;
 	onSendMessage?: (message: string) => void;
 	onClaimApprove?: (claimId: string) => void;
