@@ -1,18 +1,33 @@
 <script lang="ts">
-	import * as Accordion from '$lib/components/ui/accordion';
-	import AccordionItem from '$lib/components/ui/accordion/accordion-item.svelte';
+	import { cn } from '$lib/utils';
 
-	let { steps, currentStep }: { steps: any; currentStep: any } = $props();
+	interface Step {
+		id: string;
+		name: string;
+	}
+
+	interface StepSelectorProps {
+		steps: Step[];
+		currentStepId: string;
+	}
+
+	let { steps, currentStepId }: StepSelectorProps = $props();
 </script>
 
-<Accordion.Root>
-	{#each steps as step}
-		<Accordion.Item value={`step-${step.step_order}`}>
-			<Accordion.Trigger><span>{step.step_order}</span>{step.name}</Accordion.Trigger>
-			<Accordion.Content>
-				<p>{step.description}</p>
-				<a href="#">Link</a>
-			</Accordion.Content>
-		</Accordion.Item>
-	{/each}
-</Accordion.Root>
+<nav aria-label="Workflow steps" class="hidden md:flex">
+	<ol class="flex flex-row gap-2">
+		{#each steps as step (step.id)}
+			<li
+				class={cn(
+					'flex items-center rounded-full px-5 py-2.5 text-sm font-medium transition-colors',
+					currentStepId === step.id
+						? 'bg-primary text-primary-foreground shadow-sm'
+						: 'bg-primary/10 text-muted-foreground ring-1 ring-primary/20'
+				)}
+				aria-current={currentStepId === step.id ? 'step' : undefined}
+			>
+				<span class="text-center">{step.name}</span>
+			</li>
+		{/each}
+	</ol>
+</nav>

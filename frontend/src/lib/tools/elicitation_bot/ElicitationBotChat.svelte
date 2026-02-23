@@ -438,7 +438,7 @@
 		{/if}
 	</div>
 
-	<button class="mt-4 px-8 py-3 bg-chat-primary-dark text-white rounded-full font-medium hover:bg-chat-primary transition-colors">
+	<!-- <button class="mt-4 px-8 py-3 bg-chat-primary-dark text-white rounded-full font-medium hover:bg-chat-primary transition-colors">
 		Continue
-	</button>
+	</button> -->
 </div>
