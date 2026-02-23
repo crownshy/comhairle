@@ -38,7 +38,15 @@
 	let required = $state(step?.required ?? false);
 
 	$effect(() => {
+		name = getTextInLocale(step?.translations?.name, primaryLocale, step?.name ?? '');
+	});
+
+	$effect(() => {
 		description = getTextInLocale(step?.translations?.description, primaryLocale, step?.description ?? '');
+	});
+
+	$effect(() => {
+		required = step?.required ?? false;
 	});
 
 	const debouncedUpdateRequired = useDebounce(async (checked: boolean) => {
