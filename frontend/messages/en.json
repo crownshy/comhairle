@@ -101,5 +101,8 @@
 	"signup": "Signup",
 	"about_us": "About Us",
 	"support": "Support",
-	"faq": "FAQ"
+	"faq": "FAQ",
+	"notifications": "Notifications",
+	"settings": "Settings",
+	"language": "Language"
 }
