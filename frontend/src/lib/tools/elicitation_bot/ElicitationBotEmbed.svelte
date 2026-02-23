@@ -17,6 +17,10 @@
 
 	let { conversationId, workflowStepId, userId, topic = 'this topic', onDone }: Props = $props();
 
+	function cleanBotContent(content: string): string {
+		return content.replace(/<br\s*\/?>/gi, '').trim();
+	}
+
 	let isLoading = $state(true);
 	let initError = $state<string | null>(null);
 	let agentClient = $state<AgentClient | null>(null);
@@ -127,11 +131,12 @@
 
 		agentClient.finalizeStreamingClaim();
 
-		const finalContent =
+		const finalContent = cleanBotContent(
 			agentClient.currentAnswer ||
-			(agentClient.error
-				? `Error: ${agentClient.error}`
-				: 'No response received from agent.');
+				(agentClient.error
+					? `Error: ${agentClient.error}`
+					: 'No response received from agent.')
+		);
 
 		chatMessages = chatMessages.map((msg) =>
 			msg.id === botPlaceholderId ? { ...msg, content: finalContent } : msg
@@ -147,7 +152,9 @@
 		if (currentAnswer && reqId) {
 			untrack(() => {
 				chatMessages = chatMessages.map((msg) =>
-					msg.id === reqId ? { ...msg, content: agentClient!.currentAnswer } : msg
+					msg.id === reqId
+						? { ...msg, content: cleanBotContent(agentClient!.currentAnswer) }
+						: msg
 				);
 			});
 		}
