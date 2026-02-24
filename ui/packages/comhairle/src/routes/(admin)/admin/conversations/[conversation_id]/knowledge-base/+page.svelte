@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ComhairleDocument, ConversationWithTranslations } from '$lib/api/api.js';
+	import type { ComhairleDocument, ConversationWithTranslations } from '@crown-shy/api-client/api';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import FileUpload from '$lib/components/KnowledgeBase/FileUpload.svelte';
 	import ParsedFileList from '$lib/components/KnowledgeBase/ParsedFileList.svelte';

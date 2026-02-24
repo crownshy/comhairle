@@ -3,7 +3,7 @@
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime.js';
-	import type { Page } from '$lib/api/api';
+	import type { Page } from '@crown-shy/api-client/api';
 	import { tick } from 'svelte';
 
 	let {

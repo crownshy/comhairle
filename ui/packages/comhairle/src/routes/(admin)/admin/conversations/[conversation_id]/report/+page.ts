@@ -1,4 +1,4 @@
-import { FullReportDto } from '$lib/api/api';
+import { FullReportDto } from '@crown-shy/api-client/api';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ parent }) => {

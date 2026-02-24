@@ -4,8 +4,8 @@
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import { invalidateAll } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte';
-	import type { ConversationWithTranslations, WorkflowStepWithTranslations } from '$lib/api/api';
-	import { apiClient } from '$lib/api/client';
+	import type { ConversationWithTranslations, WorkflowStepWithTranslations } from '@crown-shy/api-client/api';
+	import { apiClient } from '@crown-shy/api-client/client';
 	import { Switch } from '../ui/switch';
 	import { Label } from '../ui/label';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';

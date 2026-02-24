@@ -5,7 +5,7 @@
 	import { BarChart, type ChartContextValue, Highlight } from 'layerchart';
 	import { cubicInOut } from 'svelte/easing';
 	import { parseISO, subDays } from 'date-fns';
-	import type { DailySignupStats } from '$lib/api/api';
+	import type { DailySignupStats } from '@crown-shy/api-client/api';
 
 	type Props = {
 		stats: DailySignupStats[];

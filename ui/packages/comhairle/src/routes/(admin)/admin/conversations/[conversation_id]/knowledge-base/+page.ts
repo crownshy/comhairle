@@ -1,4 +1,4 @@
-import { apiClient } from '$lib/api/client';
+import { apiClient } from '@crown-shy/api-client/client';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ parent }) => {

@@ -5,7 +5,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { notifications } from '$lib/notifications.svelte.js';
 	import { goto, invalidateAll } from '$app/navigation';
-	import { apiClient } from '$lib/api/client';
+	import { apiClient } from '@crown-shy/api-client/client';
 	import { page } from '$app/state';
 	import ConversationSummary from '$lib/components/ConversationSummary.svelte';
 	import { loginRedirect, signupRedirect } from '$lib/urls.js';

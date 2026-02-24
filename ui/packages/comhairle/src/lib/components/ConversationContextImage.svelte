@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { LocalizedConversationDto } from '$lib/api/api';
-	import { apiClient } from '$lib/api/client';
+	import { LocalizedConversationDto } from '@crown-shy/api-client/api';
+	import { apiClient } from '@crown-shy/api-client/client';
 	import Spinner from './ui/spinner/spinner.svelte';
 
 	type Props = {

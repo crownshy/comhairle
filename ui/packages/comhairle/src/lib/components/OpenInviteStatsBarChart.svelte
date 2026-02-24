@@ -6,8 +6,8 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { cubicInOut } from 'svelte/easing';
 	import { Spinner } from './ui/spinner';
-	import { apiClient } from '$lib/api/client';
-	import type { DailyResponseStats } from '$lib/api/api';
+	import { apiClient } from '@crown-shy/api-client/client';
+	import type { DailyResponseStats } from '@crown-shy/api-client/api';
 	import { parseISO } from 'date-fns';
 
 	let chartData: undefined | Array<DailyResponseStats> = $state();

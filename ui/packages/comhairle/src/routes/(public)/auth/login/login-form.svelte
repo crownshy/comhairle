@@ -7,7 +7,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
-	import { apiClient } from '$lib/api/client';
+	import { apiClient } from '@crown-shy/api-client/client';
 	import { goto, invalidateAll } from '$app/navigation';
 	import PasswordInput from '$lib/components/ui/password-input/password-input.svelte';
 	import { resolve } from '$app/paths';

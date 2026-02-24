@@ -4,7 +4,7 @@
 	import UserConversationPreferencesForm from '$lib/components/UserConversationPreferencesForm/UserConversationPreferencesForm.svelte';
 	import UserDetailsForm from '$lib/components/UserDetailsForm/UserDetailsForm.svelte';
 	import UpgradeAccountModal from '$lib/components/UpgradeAccountModal/UpgradeAccountModal.svelte';
-	import type { UserDto } from '$lib/api/api';
+	import type { UserDto } from '@crown-shy/api-client/api';
 
 	let { data }: PageProps = $props();
 	let participation = $derived(data.participation);

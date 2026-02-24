@@ -8,7 +8,7 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { goto } from '$app/navigation';
 	import { manage_conversation_url } from '$lib/urls';
-	import { apiClient } from '$lib/api/client';
+	import { apiClient } from '@crown-shy/api-client/client';
 	import PlaceholderConvo from '$lib/assets/placeholder_convo.png';
 	import { invalidateAll } from '$app/navigation';
 	import { workflow_templates } from '$lib/workflow_templates';

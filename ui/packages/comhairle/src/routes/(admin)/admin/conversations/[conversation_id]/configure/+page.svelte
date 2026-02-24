@@ -3,7 +3,7 @@
 	import { Switch } from '$lib/components/ui/switch';
 	import * as Form from '$lib/components/ui/form/';
 	import { notifications } from '$lib/notifications.svelte';
-	import { apiClient } from '$lib/api/client';
+	import { apiClient } from '@crown-shy/api-client/client';
 	import { invalidateAll } from '$app/navigation';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
@@ -15,7 +15,7 @@
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
-	import type { ConversationWithTranslations, Workflow } from '$lib/api/api';
+	import type { ConversationWithTranslations, WorkflowDto } from '@crown-shy/api-client/api';
 	import { snakeCaseKeys } from '$lib/utils/snakeCaseKeys';
 
 	let {
@@ -23,7 +23,7 @@
 	}: {
 		data: {
 			conversation: ConversationWithTranslations;
-			workflows: Workflow[];
+			workflows: WorkflowDto[];
 		};
 	} = $props();
 	let conversation = $derived(data.conversation);

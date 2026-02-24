@@ -1,7 +1,7 @@
 import { loginRedirect } from '$lib/urls';
 import { isRedirect, redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
-import type { LocalizedConversationDto, WorkflowDto } from '$lib/api/api';
+import type { LocalizedConversationDto, WorkflowDto } from '@crown-shy/api-client/api';
 
 export const load: LayoutLoad = async ({
 	parent,

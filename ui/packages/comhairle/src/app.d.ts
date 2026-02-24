@@ -1,7 +1,7 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
 import type { ZodiosInstance } from '@zodios/core';
-import type { Api } from '$lib/api/api';
+import type { Api } from '@crown-shy/api-client/api';
 
 declare global {
 	namespace App {

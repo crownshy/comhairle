@@ -8,7 +8,7 @@
 	import { passwordResetCreateFormSchema } from '$lib/profile/schema';
 	import { defaults, superForm } from 'sveltekit-superforms';
 	import { zod, zodClient } from 'sveltekit-superforms/adapters';
-	import { apiClient } from '$lib/api/client';
+	import { apiClient } from '@crown-shy/api-client/client';
 	import { goto, invalidateAll } from '$app/navigation';
 		import { useLoading } from '$lib/hooks/use-loading.svelte';
 

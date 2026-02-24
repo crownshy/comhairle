@@ -5,7 +5,7 @@
 	import { type SuperValidated, superForm, defaults } from 'sveltekit-superforms';
 	import { zodClient, zod } from 'sveltekit-superforms/adapters';
 	import * as m from '$lib/paraglide/messages';
-	import { apiClient } from '$lib/api/client';
+	import { apiClient } from '@crown-shy/api-client/client';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { LoadingButton } from '$lib/components/ui/button';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';

@@ -2,8 +2,7 @@
 	import * as Form from '$lib/components/ui/form';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import * as Select from '$lib/components/ui/select';
-	import { apiClient } from '$lib/api/client';
+	import { apiClient } from '@crown-shy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 	import { Send } from 'lucide-svelte';
 	import { superForm } from 'sveltekit-superforms';

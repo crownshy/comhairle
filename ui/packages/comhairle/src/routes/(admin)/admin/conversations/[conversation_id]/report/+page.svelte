@@ -6,7 +6,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
-	import { apiClient } from '$lib/api/client';
+	import { apiClient } from '@crown-shy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte.js';
 	import * as m from '$lib/paraglide/messages';
 	import { Label } from '$lib/components/ui/label/index.js';

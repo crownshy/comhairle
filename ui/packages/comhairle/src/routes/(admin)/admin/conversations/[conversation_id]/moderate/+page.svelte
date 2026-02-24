@@ -4,7 +4,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb/index.js';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte.js';
-	import type { ToolConfig, WorkflowStepWithTranslations } from '$lib/api/api.js';
+	import type { ToolConfig, WorkflowStepWithTranslations } from '@crown-shy/api-client/api';
 
 	let { data } = $props();
 	let { workflowSteps, conversation } = data;

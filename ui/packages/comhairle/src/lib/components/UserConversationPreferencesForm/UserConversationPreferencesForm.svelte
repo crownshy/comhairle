@@ -1,12 +1,12 @@
 <script lang="ts">
 	import * as Form from '$lib/components/ui/form';
 	import { Switch } from '$lib/components/ui/switch';
-	import { apiClient } from '$lib/api/client';
+	import { apiClient } from '@crown-shy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { userConversationPreferencesSchema } from './schema';
-	import type { UserConversationPreferencesDto } from '$lib/api/api';
+	import type { UserConversationPreferencesDto } from '@crown-shy/api-client/api';
 	import { onMount } from 'svelte';
 
 	let {

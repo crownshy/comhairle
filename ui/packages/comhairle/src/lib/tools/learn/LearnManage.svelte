@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { LocalisedPage, WorkflowStepWithTranslations, ConversationWithTranslations } from '$lib/api/api';
+	import type { LocalisedPage, WorkflowStepWithTranslations, ConversationWithTranslations } from '@crown-shy/api-client/api';
 
 	interface ExtendedLocalisedPage extends LocalisedPage {
 		lang: string;
@@ -13,7 +13,7 @@
 		isLive: boolean;
 	};
 
-	import { apiClient } from '$lib/api/client';
+	import { apiClient } from '@crown-shy/api-client/client';
 	import { invalidateAll } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte';
 	import * as Select from '$lib/components/ui/select';

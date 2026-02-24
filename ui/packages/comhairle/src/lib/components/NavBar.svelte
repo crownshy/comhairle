@@ -11,7 +11,7 @@
 	import { Menu, Home, Info, MessageSquare, Shield, Settings, Bell, LogOut, LayoutDashboard } from 'lucide-svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { userInitials } from '$lib/utils';
-	import { apiClient } from '$lib/api/client';
+	import { apiClient } from '@crown-shy/api-client/client';
 	import { Separator } from '$lib/components/ui/separator';
 
 	let links = [

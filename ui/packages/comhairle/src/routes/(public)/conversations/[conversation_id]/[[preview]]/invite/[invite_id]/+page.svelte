@@ -9,7 +9,7 @@
 	} from '$lib/urls.js';
 
 	import { page } from '$app/state';
-	import { apiClient } from '$lib/api/client.js';
+	import { apiClient } from '@crown-shy/api-client/client';
 	import { goto } from '$app/navigation';
 
 	const url = $derived(page.url);

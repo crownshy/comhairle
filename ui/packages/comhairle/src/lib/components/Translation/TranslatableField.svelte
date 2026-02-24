@@ -6,7 +6,7 @@
 	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
 	import LanguageStatusBadge from './LanguageStatusBadge.svelte';
 	import TranslationEditor from './TranslationEditor.svelte';
-	import type { Translation, Translation2 } from '$lib/api/api';
+	import type { Translation, Translation2 } from '@crown-shy/api-client/api';
 	import { Languages, X } from 'lucide-svelte';
 	import { getLanguageName } from '$lib/config/languages';
 	import { invalidateAll } from '$app/navigation';

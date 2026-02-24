@@ -4,12 +4,12 @@
 	import { Input } from '$lib/components/ui/input';
 	import { PasswordInput } from '$lib/components/ui/password-input';
 	import { Button } from '$lib/components/ui/button';
-	import { apiClient } from '$lib/api/client';
+	import { apiClient } from '@crown-shy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { upgradeAccountSchema } from './schema';
-	import type { UserDto } from '$lib/api/api';
+	import type { UserDto } from '@crown-shy/api-client/api';
 	import { UserCheck, Mail, Lock } from 'lucide-svelte';
 	import { invalidateAll } from '$app/navigation';
 

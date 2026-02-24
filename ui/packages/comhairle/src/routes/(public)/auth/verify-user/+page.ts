@@ -1,5 +1,5 @@
 import type { PageLoad } from './$types';
-import { apiClient } from '$lib/api/client';
+import { apiClient } from '@crown-shy/api-client/client';
 import * as m from '$lib/paraglide/messages';
 
 export const load: PageLoad = async ({ url }) => {

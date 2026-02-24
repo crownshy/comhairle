@@ -3,12 +3,12 @@
 	import { Input } from '$lib/components/ui/input';
 	import { PasswordInput } from '$lib/components/ui/password-input';
 	import { Button } from '$lib/components/ui/button';
-	import { apiClient } from '$lib/api/client';
+	import { apiClient } from '@crown-shy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { userDetailsSchema } from './schema';
-	import type { User } from '$lib/api/api';
+	import type { User } from '@crown-shy/api-client/api';
 	import { onMount } from 'svelte';
 
 	let {

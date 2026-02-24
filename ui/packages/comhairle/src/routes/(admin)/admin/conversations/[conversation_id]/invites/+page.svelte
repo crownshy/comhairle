@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { apiClient } from '$lib/api/client';
+	import { apiClient } from '@crown-shy/api-client/client';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import * as Card from '$lib/components/ui/card';
@@ -10,7 +10,7 @@
 
 	import { formatDistanceToNow } from 'date-fns';
 	import QrCode from 'svelte-qrcode';
-	import type { InviteDto } from '$lib/api/api.js';
+	import type { InviteDto } from '@crown-shy/api-client/api';
 
 	import * as Table from '$lib/components/ui/table/index.js';
 	import CopyButton from '$lib/components/CopyButton.svelte';

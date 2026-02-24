@@ -2,12 +2,11 @@
 	import { Button } from './ui/button';
 	import UserAvatar from './UserAvatar.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import type { User } from '$lib/api/api';
+	import type { UserDto } from '@crown-shy/api-client/api';
 	import { LoginButtons } from '$lib/profile';
-	import { apiClient } from '$lib/api/client';
 
 	type Props = {
-		user: User;
+		user: UserDto;
 	};
 
 	let props: Props = $props();

@@ -10,7 +10,7 @@
 		CardTitle
 	} from '$lib/components/ui/card';
 	import { Separator } from '$lib/components/ui/separator';
-	import { apiClient } from '$lib/api/client';
+	import { apiClient } from '@crown-shy/api-client/client';
 	import { notifications as notificationService } from '$lib/notifications.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import ConversationContextImage from '$lib/components/ConversationContextImage.svelte';
@@ -27,7 +27,7 @@
 		Eye,
 		EyeOff
 	} from 'lucide-svelte';
-	import type { NotificationWithDeliveryDto } from '$lib/api/api';
+	import type { NotificationWithDelivery } from '@crown-shy/api-client/api';
 	import { formatDistanceToNow } from 'date-fns';
 
 	let { data }: PageData = $props();
@@ -125,7 +125,7 @@
 		}
 	}
 
-	function isUnread(notification: NotificationWithDeliveryDto) {
+	function isUnread(notification: NotificationWithDelivery) {
 		return !notification.readAt;
 	}
 </script>

@@ -9,7 +9,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Bell, LogOut, Settings, ChevronsUpDown } from 'lucide-svelte';
 	import ModeToggle from '$lib/components/ModeToggle.svelte';
-	import type { UserDto } from '$lib/api/api';
+	import type { UserDto } from '@crown-shy/api-client/api';
 
 	type Props = {
 		user: UserDto;

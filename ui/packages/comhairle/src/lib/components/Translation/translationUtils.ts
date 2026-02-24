@@ -1,8 +1,8 @@
-import { apiClient } from '$lib/api/client';
+import { apiClient } from '@crown-shy/api-client/client';
 import { notifications } from '$lib/notifications.svelte';
 import { getLanguageName } from '$lib/config/languages';
 import { extractTextFromTiptap, translateTiptapContent, isTiptapJson } from '$lib/utils/tiptapUtils';
-import type { Translation, Translation2 } from '$lib/api/api';
+import type { Translation, Translation2 } from '@crown-shy/api-client/api';
 
 export type TranslationStatus = 'primary' | 'draft' | 'approved';
 

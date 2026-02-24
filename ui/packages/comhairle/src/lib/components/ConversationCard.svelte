@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ConversationDto, LocalizedConversationDto } from '$lib/api/api';
+	import type { ConversationDto, LocalizedConversationDto } from '@crown-shy/api-client/api';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { ArrowRight, MessageSquareText } from 'lucide-svelte';
