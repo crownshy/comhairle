@@ -2,14 +2,23 @@
 	"name": "@crown-shy/api-client",
 	"version": "0.0.1",
 	"type": "module",
+	"main": "dist/api.js",
+	"types": "dist/api.d.ts",
 	"scripts": {
-		"generateAPI": "openapi-zod-client http://localhost:3000/docs/private/api.json -o src/api.ts -t src/template.hbs"
+		"generateAPI": "openapi-zod-client http://localhost:3000/docs/private/api.json -o src/api.ts -t src/template.hbs",
+		"ts": "tsc",
+		"build": "pnpm run generateAPI && pnpm ts"
 	},
 	"devDependencies": {
 		"openapi-zod-client": "^1.18.3",
 		"zod": "^3.25.76"
 	},
 	"dependencies": {
-		"@zodios/core": "^10.9.6"
+		"@zodios/core": "^10.9.6",
+		"typescript": "^5.9.3"
+	},
+	"exports": {
+		"./api": "./dist/api.js",
+		"./client": "./dist/client.js"
 	}
 }

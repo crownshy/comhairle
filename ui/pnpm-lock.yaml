@@ -6,13 +6,20 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    dependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
 
   packages/api-client:
     dependencies:
       '@zodios/core':
         specifier: ^10.9.6
         version: 10.9.6(axios@1.13.5)(zod@3.25.76)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
     devDependencies:
       openapi-zod-client:
         specifier: ^1.18.3
