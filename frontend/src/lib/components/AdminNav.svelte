@@ -13,7 +13,7 @@
 		Home,
 		PanelLeftClose
 	} from 'lucide-svelte';
-	import { conversationSteps, type ConversationStep } from '$lib/config/conversation-steps';
+	import { conversationSteps, NavLinkActiveStatus } from '$lib/config/conversation-steps';
 	import { Button } from './ui/button';
 	import { page } from '$app/state';
 	import { userInitials } from '$lib/utils';
@@ -28,8 +28,14 @@
 	let workflowSteps = $derived(page.data?.workflowSteps ?? []);
 	let user_initials = $derived(userInitials(user?.username ?? ''));
 
-	function shouldActivateStep(isLive: boolean, step: ConversationStep): boolean {
-		return isLive ? !step.activeOnLive : step.activeOnLive;
+	function isStepActive(conversationIsLive: boolean, stepActiveStatus: NavLinkActiveStatus) {
+		if (stepActiveStatus === NavLinkActiveStatus.Both) return true;
+
+		if (conversationIsLive && stepActiveStatus === NavLinkActiveStatus.Launch) return true;
+
+		if (!conversationIsLive && stepActiveStatus === NavLinkActiveStatus.PreLaunch) return true;
+
+		return false;
 	}
 
 	// TODO We need to use data-sveltekit-reload as the
@@ -51,7 +57,7 @@
 		</Button>
 	</SideBar.Header>
 
-	<SideBar.Content class="overflow-hidden pt-4 pl-4">
+	<SideBar.Content class="overflow-hidden pl-4 pt-4">
 		<!-- Platform section -->
 		<SideBar.Group class="">
 			<!-- todo: hook up to style variable + add translations -->
@@ -165,9 +171,9 @@
 																			class="
 																						stroke-sidebar-foreground 
 																						{path.includes('design') ? 'font-bold' : ''} hover:text-sidebar-accent-foreground"
-																			aria-disabled={shouldActivateStep(
+																			aria-disabled={!isStepActive(
 																				conversation.isLive,
-																				step
+																				step.activeStatus
 																			)}
 																		>
 																			<step.icon
@@ -191,23 +197,23 @@
 																	{#if path.includes(conversation.id) && workflowSteps?.length > 0}
 																		{#each workflowSteps as wfStep (wfStep.id)}
 																			<a
-																				href={!shouldActivateStep(
+																				href={isStepActive(
 																					conversation.isLive,
-																					step
+																					step.activeStatus
 																				)
 																					? `/admin/conversations/${conversation.id}/design/step/${wfStep.id}`
 																					: ''}
-																				aria-disabled={shouldActivateStep(
+																				aria-disabled={!isStepActive(
 																					conversation.isLive,
-																					step
+																					step.activeStatus
 																				)}
 																				class="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground block truncate rounded-lg px-2 py-1 text-sm disabled:pointer-events-none disabled:opacity-50"
 																				class:font-bold={path.includes(
 																					wfStep.id
 																				)}
-																				class:opacity-50={shouldActivateStep(
+																				class:opacity-50={!isStepActive(
 																					conversation.isLive,
-																					step
+																					step.activeStatus
 																				)}
 																			>
 																				{wfStep.name}
@@ -215,19 +221,19 @@
 																		{/each}
 																	{/if}
 																	<a
-																		href={!shouldActivateStep(
+																		href={isStepActive(
 																			conversation.isLive,
-																			step
+																			step.activeStatus
 																		)
 																			? `/admin/conversations/${conversation.id}/design?addStep=true`
 																			: ''}
-																		aria-disabled={shouldActivateStep(
+																		aria-disabled={!isStepActive(
 																			conversation.isLive,
-																			step
+																			step.activeStatus
 																		)}
-																		class:opacity-50={shouldActivateStep(
+																		class:opacity-50={!isStepActive(
 																			conversation.isLive,
-																			step
+																			step.activeStatus
 																		)}
 																		class="text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground block rounded-lg px-2 py-1 text-sm"
 																	>
@@ -241,9 +247,9 @@
 															<SideBar.MenuSubItem>
 																<SideBar.MenuSubButton
 																	href={`/admin/conversations/${conversation.id}/${step.path}`}
-																	aria-disabled={shouldActivateStep(
+																	aria-disabled={!isStepActive(
 																		conversation.isLive,
-																		step
+																		step.activeStatus
 																	)}
 																	class="{path.includes(step.path)
 																		? 'font-bold'
@@ -271,7 +277,7 @@
 			</SideBar.GroupContent>
 		</SideBar.Group>
 	</SideBar.Content>
-	
+
 	<div class="shrink-0 px-7">
 		<Button href="/admin/conversations/new" class="w-full" variant="default">
 			<Plus class="size-4" />
