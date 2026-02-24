@@ -1,0 +1,7 @@
+{
+	"name": "ui",
+	"private": true,
+	"scripts": {
+		"generate:api": "pnpm --filter @crown-shy/api-client generateAPI"
+	}
+}

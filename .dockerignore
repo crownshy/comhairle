@@ -1,6 +1,6 @@
 # Ignore target directory (compiled binaries)
 target/
-frontend/
+ui/
 # Ignore hidden files and directories
 .git
 .gitignore

@@ -3,3 +3,4 @@
 .direnv
 **/pg_data
 .env
+node_modules/
