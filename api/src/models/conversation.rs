@@ -600,11 +600,11 @@ pub async fn create(
     .await?;
 
     let (_, knowledge_base) = bot_service
-        .create_knowledge_base(conversation.title.clone(), None)
+        .create_knowledge_base(conversation_id.to_string(), None)
         .await?;
 
     let create_chat = CreateChatRequest {
-        name: conversation.title.clone(),
+        name: conversation_id.to_string(),
         knowledge_base_ids: Some(vec![config.default_knowledge_base_id.clone()]),
         prompt: Some(ComhairlePrompt {
             llm_prompt: Some(DEFAULT_CHAT_PROMPT.to_string()),
