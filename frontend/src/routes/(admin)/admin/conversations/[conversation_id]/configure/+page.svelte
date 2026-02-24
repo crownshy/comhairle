@@ -35,6 +35,13 @@
 	$effect(() => {
 		primaryLanguage = data.conversation.primaryLocale ?? 'en';
 		supportedLanguages = data.conversation.supportedLanguages ?? ['en'];
+		$form.title = data.conversation.title;
+		$form.shortDescription = data.conversation.shortDescription;
+		$form.description = data.conversation.description;
+		$form.imageUrl = data.conversation.imageUrl;
+		$form.isPublic = data.conversation.isPublic;
+		$form.isInviteOnly = data.conversation.isInviteOnly;
+		$form.autoLogin = data.workflows[0]?.autoLogin;
 	});
 
 	function updateFormForLanguage(newLanguage: string) {
