@@ -33,7 +33,7 @@ jobs:
       - 
         name: Run tests
         working-directory: ui
-        run: pnpm --filter comhairle-frontend test:unit
+        run: pnpm --filter comhairle test:unit
 
   api-unit-tests:
     runs-on: ubuntu-latest

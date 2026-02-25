@@ -1,6 +1,6 @@
 import { browser } from '$app/environment';
-import type { ComhairleChatSession } from './api';
-import { apiClient } from './client';
+import type { ComhairleChatSession } from '@crown-shy/api-client/api';
+import { apiClient } from '@crown-shy/api-client/client';
 
 export interface ReferenceChunk {
 	id: string;
@@ -178,4 +178,3 @@ export class ChatClient {
 		this.botServiceSessionId = null;
 	}
 }
-
