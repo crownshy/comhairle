@@ -1,0 +1,11 @@
+{
+	"name": "ui",
+	"private": true,
+	"scripts": {
+		"client": "pnpm --filter @crown-shy/api-client build",
+		"comhairle": "pnpm --filter comhairle dev"
+	},
+	"dependencies": {
+		"typescript": "^5.9.3"
+	}
+}
