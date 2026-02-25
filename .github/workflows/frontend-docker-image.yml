@@ -38,7 +38,7 @@ jobs:
         name: Build and push frotnend
         uses: docker/build-push-action@v6
         with:
-          context: ./frontend
+          context: ./ui
           push: true
           tags: crownshy/comhairle_frontend:${{ github.ref_name }}
           
@@ -71,7 +71,7 @@ jobs:
         name: Build and push API image (staging)
         uses: docker/build-push-action@v6
         with:
-          context: ./frontend
+          context: ./ui
           push: true
           tags: crownshy/comhairle_frontend:${{github.sha}}
       - 
