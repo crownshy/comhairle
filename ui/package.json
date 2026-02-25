@@ -2,7 +2,8 @@
 	"name": "ui",
 	"private": true,
 	"scripts": {
-		"generate:api": "pnpm --filter @crown-shy/api-client build"
+		"client": "pnpm --filter @crown-shy/api-client build",
+		"comhairle": "pnpm --filter comhairle dev"
 	},
 	"dependencies": {
 		"typescript": "^5.9.3"
