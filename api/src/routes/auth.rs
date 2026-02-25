@@ -14,6 +14,7 @@ use axum::{
     RequestPartsExt,
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar};
+use bon::builder;
 use chrono::TimeDelta;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
 use rand_core::OsRng;
@@ -133,19 +134,21 @@ where
 }
 
 /// Generate JWT
+#[builder]
 pub fn generate_jwt<T: Serialize + DeserializeOwned>(
+    secret: &str,
     user: &User,
     custom_claims: T,
-    secret: &str,
-    custom_duration: Option<TimeDelta>,
+    duration: Option<TimeDelta>,
+    sub: Option<String>,
 ) -> String {
     let expiration = chrono::Utc::now()
-        .checked_add_signed(custom_duration.unwrap_or_else(|| chrono::Duration::hours(24)))
+        .checked_add_signed(duration.unwrap_or_else(|| chrono::Duration::hours(24)))
         .expect("valid timestamp")
         .timestamp() as usize;
 
     let claims = Claims {
-        sub: user.id.to_string(),
+        sub: sub.unwrap_or(user.id.to_string()),
         exp: expiration,
         id: user.id.to_string(),
         details: custom_claims,
@@ -181,12 +184,12 @@ async fn signup(
     let claims = EmailLinkClaims {
         email: user.email.clone(),
     };
-    let verification_token = generate_jwt(
-        &user,
-        claims,
-        &state.config.jwt_secret,
-        Some(chrono::Duration::minutes(15)),
-    );
+    let verification_token = generate_jwt()
+        .secret(&state.config.jwt_secret)
+        .user(&user)
+        .custom_claims(claims)
+        .duration(chrono::Duration::minutes(15))
+        .call();
     let verify_link = format!(
         "{}/auth/verify-user?token={}",
         state.config.domain, verification_token
@@ -200,7 +203,11 @@ async fn signup(
         email_verified: user.email_verified,
         roles: Vec::new(),
     };
-    let session_token = generate_jwt(&user, claims, &state.config.jwt_secret, None);
+    let session_token = generate_jwt()
+        .secret(&state.config.jwt_secret)
+        .user(&user)
+        .custom_claims(claims)
+        .call();
     let cookie = Cookie::build((AUTH_KEY, session_token))
         .path("/")
         .secure(true)
@@ -223,7 +230,11 @@ async fn signup_annon(
         email_verified: user.email_verified,
         roles: Vec::new(),
     };
-    let token = generate_jwt(&user, claims, &state.config.jwt_secret, None);
+    let token = generate_jwt()
+        .secret(&state.config.jwt_secret)
+        .user(&user)
+        .custom_claims(claims)
+        .call();
 
     let cookie = Cookie::build((AUTH_KEY, token))
         .path("/")
@@ -263,7 +274,11 @@ async fn login(
         email_verified: user.email_verified,
         roles: Vec::new(),
     };
-    let token = generate_jwt(&user.clone(), claims, &state.config.jwt_secret, None);
+    let token = generate_jwt()
+        .secret(&state.config.jwt_secret)
+        .user(&user.clone())
+        .custom_claims(claims)
+        .call();
     let cookie = Cookie::build((AUTH_KEY, token))
         .path("/")
         .secure(true)
@@ -292,7 +307,11 @@ async fn login_annon(
         email_verified: user.email_verified,
         roles: Vec::new(),
     };
-    let token = generate_jwt(&user.clone(), claims, &state.config.jwt_secret, None);
+    let token = generate_jwt()
+        .secret(&state.config.jwt_secret)
+        .user(&user.clone())
+        .custom_claims(claims)
+        .call();
     let cookie = Cookie::build((AUTH_KEY, token))
         .path("/")
         .secure(true)
@@ -312,12 +331,12 @@ async fn resend_verification_email(
     let claims = EmailLinkClaims {
         email: user.email.clone(),
     };
-    let token = generate_jwt(
-        &user,
-        claims,
-        &state.config.jwt_secret,
-        Some(chrono::Duration::minutes(15)),
-    );
+    let token = generate_jwt()
+        .secret(&state.config.jwt_secret)
+        .user(&user)
+        .custom_claims(claims)
+        .duration(chrono::Duration::minutes(15))
+        .call();
     let verify_link = format!("{}/auth/verify-user?token={}", state.config.domain, token);
     state
         .mailer
@@ -354,12 +373,11 @@ async fn verify_email_token(
         email_verified: updated_user.email_verified,
         roles: Vec::new(),
     };
-    let session_token = generate_jwt(
-        &updated_user.clone(),
-        claims,
-        &state.config.jwt_secret,
-        None,
-    );
+    let session_token = generate_jwt()
+        .secret(&state.config.jwt_secret)
+        .user(&updated_user.clone())
+        .custom_claims(claims)
+        .call();
     let cookie = Cookie::build((AUTH_KEY, session_token.clone()))
         .path("/")
         .secure(true)
@@ -378,12 +396,12 @@ async fn password_reset_create(
     let claims = EmailLinkClaims {
         email: user.email.clone(),
     };
-    let token = generate_jwt(
-        &user,
-        claims,
-        &state.config.jwt_secret,
-        Some(chrono::Duration::minutes(15)),
-    );
+    let token = generate_jwt()
+        .secret(&state.config.jwt_secret)
+        .user(&user)
+        .custom_claims(claims)
+        .duration(chrono::Duration::minutes(15))
+        .call();
     let reset_link = format!(
         "{}/auth/password-reset/update?token={}",
         state.config.domain, token
@@ -979,7 +997,11 @@ mod tests {
             email_verified: user.email_verified,
             roles: Vec::new(),
         };
-        let token = generate_jwt(&user, claims, secret, None);
+        let token = generate_jwt()
+            .secret(secret)
+            .user(&user)
+            .custom_claims(claims)
+            .call();
         let (status, user, _) = session.verify_email_token(&app, token).await?;
         let user: UserDto = serde_json::from_value(user)?;
 
@@ -1022,7 +1044,11 @@ mod tests {
             email_verified: user.email_verified,
             roles: Vec::new(),
         };
-        let token = generate_jwt(&user, claims, secret, None);
+        let token = generate_jwt()
+            .secret(secret)
+            .user(&user)
+            .custom_claims(claims)
+            .call();
         let (status, _, _) = session.verify_email_token(&app, token).await?;
 
         assert_eq!(
@@ -1069,7 +1095,11 @@ mod tests {
             email_verified: user.email_verified,
             roles: Vec::new(),
         };
-        let token = generate_jwt(&user, claims, secret, None);
+        let token = generate_jwt()
+            .secret(secret)
+            .user(&user)
+            .custom_claims(claims)
+            .call();
         let (status, _, _) = session.verify_email_token(&app, token).await?;
 
         assert_eq!(status, StatusCode::CONFLICT, "user email already verified");
@@ -1377,7 +1407,11 @@ mod tests {
         let claims = EmailLinkClaims {
             email: Some(email.to_string()),
         };
-        let token = generate_jwt(&user, claims, &secret, None);
+        let token = generate_jwt()
+            .secret(&secret)
+            .user(&user)
+            .custom_claims(claims)
+            .call();
 
         let updated_password = "updated_password";
         let (reset_status, _, _) = session
@@ -1434,7 +1468,11 @@ mod tests {
         let claims = EmailLinkClaims {
             email: Some(email.to_string()),
         };
-        let token = generate_jwt(&user, claims, &secret, None);
+        let token = generate_jwt()
+            .secret(&secret)
+            .user(&user)
+            .custom_claims(claims)
+            .call();
         let (status, _, _) = session
             .password_reset_update(&app, &token, "foo", "bar")
             .await?;
@@ -1474,7 +1512,11 @@ mod tests {
             email_verified: false,
         };
         let claims = EmailLinkClaims { email: None };
-        let token = generate_jwt(&user, claims, &secret, None);
+        let token = generate_jwt()
+            .secret(&secret)
+            .user(&user)
+            .custom_claims(claims)
+            .call();
         let password = "updated_password";
         let (status, _, _) = session
             .password_reset_update(&app, &token, password, password)
