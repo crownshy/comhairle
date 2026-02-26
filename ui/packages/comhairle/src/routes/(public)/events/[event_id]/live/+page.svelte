@@ -202,7 +202,7 @@
 
 							<div class="mt-4 rounded-lg border border-dashed border-border p-3 text-center md:p-4">
 								<p class="text-xs text-muted-foreground">
-									Prototype agenda panel. Connect to your event data model to make it dynamic.
+									Prototype panel. Need to connect to the data model to make dynamic.
 								</p>
 							</div>
 						</div>
