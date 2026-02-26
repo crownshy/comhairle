@@ -1,6 +1,7 @@
 import { StarterKit } from '@tiptap/starter-kit';
 import { Link } from '@tiptap/extension-link';
 import { Image } from '@tiptap/extension-image';
+import { TextAlign } from '@tiptap/extension-text-align';
 import { Markdown } from '@tiptap/markdown';
 import { Iframe } from '$lib/components/RichTextEditor/extensions/iframe';
 import type { Extensions } from '@tiptap/core';
@@ -42,6 +43,9 @@ export function getBaseExtensions(options: EditorConfigOptions): Extensions {
 			HTMLAttributes: EDITOR_HTML_ATTRIBUTES.image
 		}),
 		Iframe,
+		TextAlign.configure({
+			types: ['heading', 'paragraph']
+		}),
 		StarterKit.configure({
 			heading: {
 				levels: [1, 2, 3, 4, 5, 6]

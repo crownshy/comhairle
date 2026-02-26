@@ -6,7 +6,6 @@
 	import { ListItem } from '@tiptap/extension-list-item';
 	import { TextStyle } from '@tiptap/extension-text-style';
 	import { Underline } from '@tiptap/extension-underline';
-	import { TextAlign } from '@tiptap/extension-text-align';
 	import EditorToolbar from './EditorToolbar.svelte';
 	import { CONTENT_TYPES, type ContentType, type ActiveStates } from '$lib/components/RichTextEditor/types';
 	import { detectContentType } from '$lib/utils/contentDetection';
@@ -87,9 +86,6 @@
 				TextStyle,
 				ListItem,
 				Underline,
-				TextAlign.configure({
-					types: ['heading', 'paragraph']
-				}),
 				// Shared base extensions
 				...getBaseExtensions({ mode: 'editor' })
 			],
