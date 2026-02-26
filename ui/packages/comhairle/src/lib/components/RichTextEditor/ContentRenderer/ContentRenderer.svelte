@@ -3,6 +3,7 @@
 	import { Editor } from '@tiptap/core';
 	import { detectContentType } from '$lib/utils/contentDetection';
 	import { getBaseExtensions, getEditorProps } from '../editorConfig';
+	import '../editor-content.css';
 
 	type Props = {
 		content?: string;
