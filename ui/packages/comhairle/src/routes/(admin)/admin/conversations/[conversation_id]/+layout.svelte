@@ -50,6 +50,7 @@
 			</h2>
 			<Button
 				href={`/conversations/${conversation.id}/preview`}
+				target="_blank"
 				class="bg-blue-200 px-8 py-3 text-sm text-black"
 			>
 				Preview
