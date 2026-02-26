@@ -15,3 +15,16 @@ psql:
 
 load_saia:
     cargo run --bin comhairle_data_loader -- -f fixtures/saia.json -d true
+
+api-dev:
+    cargo watch -q -c \
+    -i open-api-spec.json \
+    -w api/src/ \
+    -w adaptors \
+    -x "run -- --export-api-spec"
+
+watch-api-spec:
+    watchexec -d 3s -w open-api-spec.json -- pnpm --dir ui run client
+
+api-watch:
+    just api-dev & just watch-api-spec
