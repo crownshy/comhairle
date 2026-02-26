@@ -61,7 +61,7 @@
 		"paneforge": "1.0.0-next.6",
 		"prettier": "^3.4.2",
 		"prettier-plugin-svelte": "^3.3.3",
-		"prettier-plugin-tailwindcss": "^0.6.14",
+		"prettier-plugin-tailwindcss": "^0.7.2",
 		"storybook": "^9.1.6",
 		"superstruct": "^2.0.2",
 		"svelte": "^5.33.0",
@@ -84,9 +84,9 @@
 		"zod": "^3.25.76"
 	},
 	"dependencies": {
-		"@crown-shy/api-client": "workspace:*",
 		"@carbon/charts-svelte": "^1.23.0",
 		"@cartamd/plugin-slash": "^4.2.0",
+		"@crown-shy/api-client": "workspace:*",
 		"@dnd-kit-svelte/core": "^0.0.11",
 		"@internationalized/date": "^3.9.0",
 		"@storybook/test": "^8.6.14",
