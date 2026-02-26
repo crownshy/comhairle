@@ -1,19 +1,11 @@
-# Rust
-api/
-adaptors/
-comhairle_macros/
-data_model/
-target/
+# Ignore everything
+*
 
-# Data
-fixtures/
-pg_data/
-open-api-spec.json
-Cargo.lock
+# Allow ui directory and its contents
+!ui/
+!ui/**
 
-# Package managers
-pnpm-lock.yaml
-
-# Build output
+# Still ignore build output and lock files within ui
 ui/packages/comhairle/.svelte-kit/
 ui/packages/comhairle/build/
+pnpm-lock.yaml
