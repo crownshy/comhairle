@@ -13,10 +13,12 @@ pub mod websockets;
 pub mod workers;
 
 use bot_service::ComhairleBotService;
+use clap::Parser;
 use docs::docs_routes;
 use mailer::ComhairleMailer;
 pub use routes::auth::hash_pw;
 use routes::auth::AUTH_KEY;
+use tokio::fs;
 use translation_service::TranslationService;
 use websockets::WebSocketService;
 
@@ -67,7 +69,19 @@ fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
         )
 }
 
+#[derive(Parser, Debug)]
+pub struct Args {
+    #[arg(
+        long,
+        short = 'x',
+        help = "Export open api spec json to a file to allow generation of the api client"
+    )]
+    export_api_spec: bool,
+}
+
 pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, ComhairleError> {
+    let args = Args::parse();
+
     tracing::info!("Running with config {:#?}", state.config);
 
     aide::generate::on_error(|error| {
@@ -166,6 +180,11 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
         .layer(Extension(Arc::new(api.clone()))) // Arc is very important here or you will face massive memory and performance issues
         .layer(DefaultBodyLimit::max(10 * 1024 * 1024))
         .layer(cors);
+
+    if args.export_api_spec {
+        let json = serde_json::to_string_pretty(&api).unwrap();
+        fs::write("open-api-spec.json", json.as_bytes()).await?;
+    }
 
     Ok(app)
 }
