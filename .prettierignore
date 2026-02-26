@@ -1,0 +1,19 @@
+# Rust
+api/
+adaptors/
+comhairle_macros/
+data_model/
+target/
+
+# Data
+fixtures/
+pg_data/
+open-api-spec.json
+Cargo.lock
+
+# Package managers
+pnpm-lock.yaml
+
+# Build output
+ui/packages/comhairle/.svelte-kit/
+ui/packages/comhairle/build/
