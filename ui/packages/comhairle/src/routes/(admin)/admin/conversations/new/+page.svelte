@@ -14,8 +14,6 @@
 	import { workflow_templates } from '$lib/workflow_templates';
 
 	import * as Card from '$lib/components/ui/card';
-	import { page } from '$app/stores';
-	let url = $page.url;
 
 	let { data } = $props();
 
@@ -48,8 +46,6 @@
 					is_public: false,
 					is_live: false,
 					is_invite_only: false,
-					primary_locale: 'en',
-					supported_languages: ['en']
 				};
 
 				let conversation = await apiClient.CreateConversation(fullConversation);

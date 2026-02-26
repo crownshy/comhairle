@@ -37,6 +37,12 @@ export const conversationSteps: ConversationStep[] = [
 		activeStatus: NavLinkActiveStatus.PreLaunch
 	},
 	{
+		name: 'Events',
+		path: 'events',
+		icon: Database,
+		activeStatus: NavLinkActiveStatus.Both
+	},
+	{
 		name: 'Recruit',
 		path: 'invites',
 		icon: UsersRound,
