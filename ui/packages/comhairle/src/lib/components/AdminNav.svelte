@@ -69,7 +69,7 @@
 					<SideBar.MenuItem>
 						<SideBar.MenuButton>
 							{#snippet child({ props: btnProps })}
-								<a {...btnProps} href="/admin/">
+								<a {...btnProps} href="/">
 									<Home class="size-4" />
 									Home
 								</a>
@@ -312,7 +312,7 @@
 			<SideBar.MenuItem>
 				<SideBar.MenuButton>
 					{#snippet child({ props: btnProps })}
-						<a {...btnProps} href="/admin/settings">
+						<a {...btnProps} href="/settings">
 							<Settings class="size-4" />
 							Settings
 						</a>
@@ -322,7 +322,7 @@
 			<SideBar.MenuItem>
 				<SideBar.MenuButton>
 					{#snippet child({ props: btnProps })}
-						<a {...btnProps} href="/admin/about">
+						<a {...btnProps} href="/about">
 							<Info class="size-4" />
 							About Comhairle
 						</a>
