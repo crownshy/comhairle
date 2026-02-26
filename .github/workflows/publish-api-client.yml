@@ -1,0 +1,38 @@
+name: publish-api-client
+
+on:
+  push:
+    tags:
+      - 'v*'  # Runs only when a new tag starting with 'v' is pushed
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v') && github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    environment: base 
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v4
+      -
+        name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com/
+      -
+        name: Set version from tag
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          npm version $VERSION --no-git-tag-version
+        working-directory: ui/packages/api-client
+      -
+        name: Publish
+        run: npm publish
+        working-directory: ui/packages/api-client
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}

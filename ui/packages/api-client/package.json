@@ -1,9 +1,13 @@
 {
 	"name": "@crown-shy/api-client",
+	"description": "OpenAPI client for the Comhairle deliberative decomracy platform.",
 	"version": "0.0.1",
 	"type": "module",
 	"main": "dist/api.js",
 	"types": "dist/api.d.ts",
+	"publishConfig": {
+		"registry": "https://npm.pkg.github.com/"
+	},
 	"scripts": {
 		"generateAPI": "openapi-zod-client \"../../../open-api-spec.json\" -o src/api.ts -t src/template.hbs",
 		"ts": "tsc",
