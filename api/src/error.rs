@@ -48,6 +48,9 @@ pub enum ComhairleError {
     #[error("Serde json error: {0}")]
     SerdeJsonError(#[from] serde_json::Error),
 
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
+
     #[error("Username {0} already taken")]
     DuplicateUsername(String),
 
