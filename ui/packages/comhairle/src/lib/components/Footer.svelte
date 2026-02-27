@@ -22,19 +22,21 @@
 	];
 </script>
 
-<footer class="w-full bg-sidebar text-sidebar-foreground">
+<footer class="bg-sidebar text-sidebar-foreground w-full">
 	<div class="mx-auto flex w-full max-w-[1440px] flex-col items-center py-24">
 		<div class="flex w-full max-w-[1280px] flex-col gap-12 px-6">
 			<!-- Top row: Logo + Nav + Subscribe -->
-			<div class="flex flex-col items-center gap-8 lg:h-[84px] lg:flex-row lg:justify-between">
+			<div
+				class="flex flex-col items-center gap-8 lg:h-[84px] lg:flex-row lg:justify-between"
+			>
 				<!-- Logo + Nav -->
 				<div class="flex flex-col items-center gap-6 lg:flex-1 lg:flex-row">
-					<ComhairleLogo logoSize="lg" textClass="text-primary-foreground" />
+					<ComhairleLogo color="text-sidebar-foreground" />
 					<nav class="flex flex-wrap items-center justify-center gap-8">
 						{#each navLinks as link (link.href)}
 							<a
 								href={link.href}
-								class="text-lg font-medium leading-tight text-sidebar-foreground/70 transition-colors hover:text-sidebar-foreground"
+								class="text-sidebar-foreground/70 hover:text-sidebar-foreground text-lg leading-tight font-medium transition-colors"
 							>
 								{link.label()}
 							</a>
@@ -48,14 +50,14 @@
 
 			<!-- Bottom row: Copyright + Legal links -->
 			<div class="flex flex-col items-center gap-4 md:flex-row md:justify-between">
-				<p class="text-base font-normal text-sidebar-foreground/50">
+				<p class="text-sidebar-foreground/50 text-base font-normal">
 					Copyright {new Date().getFullYear()} &copy; Crown Shy
 				</p>
 				<div class="flex flex-wrap items-center justify-center gap-8">
 					{#each legalLinks as link (link.href)}
 						<a
 							href={link.href}
-							class="text-base font-normal text-sidebar-foreground/50 transition-colors hover:text-sidebar-foreground/80"
+							class="text-sidebar-foreground/50 hover:text-sidebar-foreground/80 text-base font-normal transition-colors"
 						>
 							{link.label()}
 						</a>
