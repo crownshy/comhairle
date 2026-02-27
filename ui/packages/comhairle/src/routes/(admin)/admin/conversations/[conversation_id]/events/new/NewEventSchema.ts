@@ -10,18 +10,8 @@ const NewEventSchema = z.object({
 		.refine((val) => new Date(val) > new Date(), {
 			message: 'Start date must be in the future.'
 		}),
-	start_time: z
-		.string()
-		.time()
-		.refine((val) => new Date(val) > new Date(), {
-			message: 'Start time must be in the future.'
-		}),
-	end_time: z
-		.string()
-		.time()
-		.refine((val) => new Date(val) > new Date(), {
-			message: 'End time must be in the future.'
-		}),
+	start_time: z.string().time(),
+	end_time: z.string().time(),
 	signup_mode: z.enum(['invite', 'open'], {
 		errorMap: () => ({
 			message: 'Signup mode must be either "invite" or "open".'

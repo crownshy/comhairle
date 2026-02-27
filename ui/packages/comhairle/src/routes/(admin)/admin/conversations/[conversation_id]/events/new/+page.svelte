@@ -3,6 +3,7 @@
 		DateFormatter,
 		getLocalTimeZone,
 		parseDate,
+		parseDateTime,
 		today,
 		type DateValue
 	} from '@internationalized/date';
@@ -19,6 +20,7 @@
 	import { buttonVariants } from '$lib/components/ui/button';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crown-shy/api-client/client';
+	import { goto } from '$app/navigation';
 
 	let { data } = $props();
 	let { form: formDefaults, conversation } = data;
@@ -36,21 +38,29 @@
 	async function handleSubmit(e: Event) {
 		const result = await validateForm();
 
-		if (result.valid) {
+		if (!result.valid) return;
+
+		const dateOption = result.data.start_date;
+		let startTime = parseDateTime(`${dateOption}T${result.data.start_time}`);
+		// TODO: can we always assume end date is the same as the start date?
+		let endTime = parseDateTime(`${dateOption}T${result.data.end_time}`);
+
 			try {
 				const eventParams = {
 					...result.data,
-				}
+					start_time: startTime.toDate(getLocalTimeZone()).toISOString(),
+					end_time: endTime.toDate(getLocalTimeZone()).toISOString(),
+				};
 				await apiClient.CreateEvent(eventParams, { params: { conversation_id: conversation.id }});
 
+				goto(`/admin/conversations/${conversation.id}/events`);
 			} catch (e) {
 				console.error(e);
 				notifications.send({ message: "Something went wrong creating the event", priority: "ERROR" });
 			}
-		}
 	}
 
-	let startDate = $derived($formData.start_time ? parseDate($formData.start_date) : undefined);
+	let startDate = $derived($formData.start_date ? parseDate($formData.start_date) : undefined);
 </script>
 
 <form onsubmit={handleSubmit} class="space-y-4" method="POST" use:enhance>
@@ -115,7 +125,7 @@
 							type="single"
 							value={startDate as DateValue}
 							minValue={today(getLocalTimeZone())}
-							calendarLabel="Expire Date"
+							calendarLabel="Event Date"
 							onValueChange={(v) => {
 								if (v) {
 									$formData.start_date = v.toString();
