@@ -46,7 +46,7 @@
 			<div class="flex flex-1 flex-col items-start justify-start gap-6 lg:gap-8">
 				<div class="flex flex-col items-start justify-start gap-3 self-stretch lg:gap-4">
 					{#if conversation.isLive}
-						<Badge variant="outline" class="h-7 text-sm">Live</Badge>
+						<Badge variant="default" class="h-7 text-sm">Live</Badge>
 					{/if}
 
 					{#if organizationName}

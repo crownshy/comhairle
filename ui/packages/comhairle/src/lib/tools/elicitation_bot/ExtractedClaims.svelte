@@ -66,103 +66,151 @@
 	}
 </script>
 
-<div class="w-full lg:w-96 h-full p-6 bg-chat-primary-lighter/40 rounded-br-2xl border-r border-b border-chat-primary-light flex flex-col justify-start items-center gap-6">
-	<div class="self-stretch flex-1 flex flex-col justify-between items-center min-h-0">
-		<ScrollArea.Root bind:ref={scrollAreaRef} class="self-stretch flex-1 min-h-0">
-			<div class="flex flex-col justify-start items-start gap-4">
-			<div class="self-stretch justify-center text-chat-primary text-lg font-semibold leading-7 line-clamp-1 flex-shrink-0">
-				Extracted claims
-			</div>
-			{#each claims as claim, index (claim.id)}
-				<div class="self-stretch flex flex-col justify-start items-start gap-2.5">
-					<div class="self-stretch flex flex-col justify-start items-start gap-2">
-						<div class="self-stretch p-4 bg-white rounded-xl shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)] flex flex-col justify-start items-start gap-3 overflow-hidden">
-							<div class="justify-start text-chat-primary text-sm font-medium leading-5">
-								Opinion {index + 1}
-							</div>
-							
-							<div class="self-stretch flex flex-col justify-start items-start gap-1">
-								{#if claim.status === 'streaming'}
-									<div class="self-stretch justify-start text-chat-text-muted text-base font-semibold leading-6">
-										{claim.content}<span class="inline-block w-1.5 h-4 ml-0.5 bg-chat-primary animate-pulse"></span>
-									</div>
-								{:else if isEditing(claim.id) || claim.status === 'editing'}
-									<div class="self-stretch h-10 px-3 py-1 bg-white rounded-lg shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border inline-flex justify-start items-center gap-2 overflow-hidden">
-										<input
-											type="text"
-											bind:value={editingClaims[claim.id]}
-											class="flex-1 justify-start text-chat-text text-sm font-normal leading-5 bg-transparent outline-none"
-											placeholder="Enter claim..."
-										/>
-									</div>
-								{:else}
-									<div class="self-stretch justify-start text-chat-text-muted text-base font-semibold leading-6">
-										{claim.content}
-									</div>
-								{/if}
-							</div>
-							
-							<div class="inline-flex justify-start items-center gap-2 flex-wrap content-center">
-								{#if claim.status === 'streaming'}
-									<div class="h-8 px-3 py-2 bg-chat-primary-lighter rounded-lg flex justify-center items-center gap-2">
-										<span class="justify-center text-chat-primary text-xs font-medium leading-4">Streaming...</span>
-									</div>
-								{:else if isEditing(claim.id) || claim.status === 'editing'}
-									<button
-										onclick={() => handleSave(claim.id)}
-										class="h-8 px-3 py-2 bg-white rounded-lg shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border flex justify-center items-center gap-2 hover:bg-gray-50 transition-colors"
-									>
-										<span class="justify-center text-chat-text text-xs font-medium leading-4">Save</span>
-									</button>
-								{:else if claim.status === 'approved'}
-									<div class="h-8 px-3 py-2 bg-chat-primary-dark rounded-lg shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] flex justify-center items-center gap-2">
-										<span class="justify-center text-white text-xs font-medium leading-4">Approved</span>
-									</div>
-									<button
-										onclick={() => startEditing(claim)}
-										class="h-8 px-3 py-2 bg-white rounded-lg shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border flex justify-center items-center gap-2 hover:bg-gray-50 transition-colors"
-									>
-										<span class="justify-center text-chat-text text-xs font-medium leading-4">Edit</span>
-									</button>
-									<button
-										onclick={() => onRemove(claim.id)}
-										class="h-8 px-3 py-2 bg-white rounded-lg shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border flex justify-center items-center gap-2 hover:bg-red-50 transition-colors"
-									>
-										<span class="justify-center text-red-500 text-xs font-medium leading-4">Remove</span>
-									</button>
-								{:else}
-									<button
-										onclick={() => onApprove(claim.id)}
-										class="h-8 px-3 py-2 bg-chat-primary-dark rounded-lg shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] flex justify-center items-center gap-2 hover:bg-chat-primary transition-colors"
-									>
-										<span class="justify-center text-white text-xs font-medium leading-4">Approve</span>
-									</button>
-									<button
-										onclick={() => startEditing(claim)}
-										class="h-8 px-3 py-2 bg-white rounded-lg shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border flex justify-center items-center gap-2 hover:bg-gray-50 transition-colors"
-									>
-										<span class="justify-center text-chat-text text-xs font-medium leading-4">Edit</span>
-									</button>
-									<button
-										onclick={() => onRemove(claim.id)}
-										class="h-8 px-3 py-2 bg-white rounded-lg shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] border border-chat-border flex justify-center items-center gap-2 hover:bg-red-50 transition-colors"
-									>
-										<span class="justify-center text-red-500 text-xs font-medium leading-4">Remove</span>
-									</button>
-								{/if}
+<div
+	class="bg-chat-primary-lighter/40 border-chat-primary-light flex h-full w-full flex-col items-center justify-start gap-6 rounded-br-2xl border-r border-b p-6 lg:w-96"
+>
+	<div class="flex min-h-0 flex-1 flex-col items-center justify-between self-stretch">
+		<ScrollArea.Root bind:ref={scrollAreaRef} class="min-h-0 flex-1 self-stretch">
+			<div class="flex flex-col items-start justify-start gap-4">
+				<div
+					class="text-chat-primary line-clamp-1 flex-shrink-0 justify-center self-stretch text-lg leading-7 font-semibold"
+				>
+					Extracted claims
+				</div>
+				{#each claims as claim, index (claim.id)}
+					<div class="flex flex-col items-start justify-start gap-2.5 self-stretch">
+						<div class="flex flex-col items-start justify-start gap-2 self-stretch">
+							<div
+								class="bg-chat-bubble flex flex-col items-start justify-start gap-3 self-stretch overflow-hidden rounded-xl p-4 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)]"
+							>
+								<div
+									class="text-chat-primary justify-start text-sm leading-5 font-medium"
+								>
+									Opinion {index + 1}
+								</div>
+
+								<div
+									class="flex flex-col items-start justify-start gap-1 self-stretch"
+								>
+									{#if claim.status === 'streaming'}
+										<div
+											class="text-chat-text-muted justify-start self-stretch text-base leading-6 font-semibold"
+										>
+											{claim.content}<span
+												class="bg-chat-primary ml-0.5 inline-block h-4 w-1.5 animate-pulse"
+											></span>
+										</div>
+									{:else if isEditing(claim.id) || claim.status === 'editing'}
+										<div
+											class="bg-chat-bubble border-chat-border inline-flex h-10 items-center justify-start gap-2 self-stretch overflow-hidden rounded-lg border px-3 py-1 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
+										>
+											<input
+												type="text"
+												bind:value={editingClaims[claim.id]}
+												class="text-chat-text flex-1 justify-start bg-transparent text-sm leading-5 font-normal outline-none"
+												placeholder="Enter claim..."
+											/>
+										</div>
+									{:else}
+										<div
+											class="text-chat-text-muted justify-start self-stretch text-base leading-6 font-semibold"
+										>
+											{claim.content}
+										</div>
+									{/if}
+								</div>
+
+								<div
+									class="inline-flex flex-wrap content-center items-center justify-start gap-2"
+								>
+									{#if claim.status === 'streaming'}
+										<div
+											class="bg-chat-primary-lighter flex h-8 items-center justify-center gap-2 rounded-lg px-3 py-2"
+										>
+											<span
+												class="text-chat-primary justify-center text-xs leading-4 font-medium"
+												>Streaming...</span
+											>
+										</div>
+									{:else if isEditing(claim.id) || claim.status === 'editing'}
+										<button
+											onclick={() => handleSave(claim.id)}
+											class="bg-chat-bubble border-chat-border hover:bg-chat-bg flex h-8 items-center justify-center gap-2 rounded-lg border px-3 py-2 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] transition-colors"
+										>
+											<span
+												class="text-chat-text justify-center text-xs leading-4 font-medium"
+												>Save</span
+											>
+										</button>
+									{:else if claim.status === 'approved'}
+										<div
+											class="bg-chat-primary-dark flex h-8 items-center justify-center gap-2 rounded-lg px-3 py-2 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
+										>
+											<span
+												class="justify-center text-xs leading-4 font-medium text-white"
+												>Approved</span
+											>
+										</div>
+										<button
+											onclick={() => startEditing(claim)}
+											class="bg-chat-bubble border-chat-border hover:bg-chat-bg flex h-8 items-center justify-center gap-2 rounded-lg border px-3 py-2 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] transition-colors"
+										>
+											<span
+												class="text-chat-text justify-center text-xs leading-4 font-medium"
+												>Edit</span
+											>
+										</button>
+										<button
+											onclick={() => onRemove(claim.id)}
+											class="bg-chat-bubble border-chat-border hover:bg-destructive/10 flex h-8 items-center justify-center gap-2 rounded-lg border px-3 py-2 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] transition-colors"
+										>
+											<span
+												class="justify-center text-xs leading-4 font-medium text-red-500"
+												>Remove</span
+											>
+										</button>
+									{:else}
+										<button
+											onclick={() => onApprove(claim.id)}
+											class="bg-chat-primary-dark hover:bg-chat-primary flex h-8 items-center justify-center gap-2 rounded-lg px-3 py-2 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] transition-colors"
+										>
+											<span
+												class="justify-center text-xs leading-4 font-medium text-white"
+												>Approve</span
+											>
+										</button>
+										<button
+											onclick={() => startEditing(claim)}
+											class="bg-chat-bubble border-chat-border hover:bg-chat-bg flex h-8 items-center justify-center gap-2 rounded-lg border px-3 py-2 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] transition-colors"
+										>
+											<span
+												class="text-chat-text justify-center text-xs leading-4 font-medium"
+												>Edit</span
+											>
+										</button>
+										<button
+											onclick={() => onRemove(claim.id)}
+											class="bg-chat-bubble border-chat-border hover:bg-destructive/10 flex h-8 items-center justify-center gap-2 rounded-lg border px-3 py-2 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)] transition-colors"
+										>
+											<span
+												class="justify-center text-xs leading-4 font-medium text-red-500"
+												>Remove</span
+											>
+										</button>
+									{/if}
+								</div>
 							</div>
 						</div>
 					</div>
-				</div>
 				{/each}
 			</div>
 		</ScrollArea.Root>
-		
+
 		<button
 			onclick={handleAdd}
-			class="w-12 h-12 mt-4 flex-shrink-0 bg-white rounded-full overflow-hidden shadow-md hover:shadow-lg transition-shadow flex items-center justify-center"
+			class="bg-chat-bubble mt-4 flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-full shadow-md transition-shadow hover:shadow-lg"
 		>
-			<Plus class="w-6 h-6 text-chat-neutral" />
+			<Plus class="text-chat-neutral h-6 w-6" />
 		</button>
 	</div>
 </div>

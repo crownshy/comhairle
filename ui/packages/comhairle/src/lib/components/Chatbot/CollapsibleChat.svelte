@@ -10,19 +10,25 @@
 		botSubtitle?: string;
 	}
 
-	let { chatId, conversationId, userId, botName = "Tutor bot", botSubtitle = "Ask questions" }: Props = $props();
-	
+	let {
+		chatId,
+		conversationId,
+		userId,
+		botName = 'Tutor bot',
+		botSubtitle = 'Ask questions'
+	}: Props = $props();
+
 	let isOpen = $state(true);
 	let isMobile = $state(false);
 
 	$effect(() => {
 		const mediaQuery = window.matchMedia('(max-width: 768px)');
 		isMobile = mediaQuery.matches;
-		
+
 		const handler = (e: MediaQueryListEvent) => {
 			isMobile = e.matches;
 		};
-		
+
 		mediaQuery.addEventListener('change', handler);
 		return () => mediaQuery.removeEventListener('change', handler);
 	});
@@ -37,35 +43,43 @@
 	{#if isOpen}
 		<div class="fixed inset-0 z-50 flex flex-col">
 			<!-- Dark overlay background -->
-			<button 
-				class="absolute inset-0 bg-black/40" 
-				onclick={toggle}
-				aria-label="Close chat"
+			<button class="absolute inset-0 bg-black/40" onclick={toggle} aria-label="Close chat"
 			></button>
-			
+
 			<!-- Modal panel -->
-			<div class="relative mt-auto flex flex-col max-h-[85vh] shadow-xl">
+			<div class="relative mt-auto flex max-h-[85vh] flex-col shadow-xl">
 				<!-- Modal header -->
-				<div class="p-6 bg-white rounded-t-2xl border-l border-r border-t border-chat-primary-light flex items-center gap-5">
-					<div class="w-14 h-14 relative bg-chat-primary rounded-full ring-[6px] ring-chat-primary-lighter flex items-center justify-center">
-						<span class="w-2 h-2 absolute bottom-0 right-0 bg-green-400 rounded-full"></span>
-						<MessageCircle class="w-7 h-7 text-white" />
+				<div
+					class="bg-chat-bubble border-chat-primary-light flex items-center gap-5 rounded-t-2xl border-t border-r border-l p-6"
+				>
+					<div
+						class="bg-chat-primary ring-chat-primary-lighter relative flex h-14 w-14 items-center justify-center rounded-full ring-[6px]"
+					>
+						<span class="absolute right-0 bottom-0 h-2 w-2 rounded-full bg-green-400"
+						></span>
+						<MessageCircle class="h-7 w-7 text-white" />
 					</div>
-					<div class="flex-1 flex flex-col gap-1">
-						<span class="text-base-foreground text-xl font-semibold leading-6">{botName}</span>
-						<span class="text-chat-primary text-base font-normal leading-6">{botSubtitle}</span>
+					<div class="flex flex-1 flex-col gap-1">
+						<span class="text-base-foreground text-xl leading-6 font-semibold"
+							>{botName}</span
+						>
+						<span class="text-chat-primary text-base leading-6 font-normal"
+							>{botSubtitle}</span
+						>
 					</div>
-					<button 
+					<button
 						onclick={toggle}
-						class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+						class="hover:bg-chat-bg rounded-lg p-2 transition-colors"
 						aria-label="Close chat"
 					>
-						<X class="w-6 h-6 text-base-foreground" />
+						<X class="text-base-foreground h-6 w-6" />
 					</button>
 				</div>
-				
+
 				<!-- Chat content -->
-				<div class="bg-chat-primary-lighter border-l border-r border-b border-chat-primary-light flex flex-col flex-1 min-h-[50vh] max-h-[60vh] overflow-hidden">
+				<div
+					class="bg-chat-primary-lighter border-chat-primary-light flex max-h-[60vh] min-h-[50vh] flex-1 flex-col overflow-hidden border-r border-b border-l"
+				>
 					<ChatBot {chatId} {conversationId} {userId} {botName} {botSubtitle} />
 				</div>
 			</div>
@@ -74,38 +88,48 @@
 		<!-- Mobile: Floating button -->
 		<button
 			onclick={toggle}
-			class="fixed bottom-6 right-6 z-50 w-14 h-14 bg-chat-primary rounded-full shadow-lg flex items-center justify-center hover:bg-chat-primary-dark transition-colors ring-4 ring-chat-primary-light"
+			class="bg-chat-primary hover:bg-chat-primary-dark ring-chat-primary-light fixed right-6 bottom-6 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg ring-4 transition-colors"
 			aria-label="Open chat"
 		>
-			<MessageCircle class="w-7 h-7 text-white" />
+			<MessageCircle class="h-7 w-7 text-white" />
 		</button>
 	{/if}
 {:else}
 	<!-- Desktop: Fixed bottom-right panel -->
-	<div class="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+	<div class="fixed right-6 bottom-6 z-50 flex flex-col items-end">
 		{#if isOpen}
 			<!-- Expanded state -->
-			<div class="mb-2 w-[420px] h-[600px] flex flex-col rounded-2xl shadow-xl overflow-hidden border border-chat-primary-light">
+			<div
+				class="border-chat-primary-light mb-2 flex h-[600px] w-[420px] flex-col overflow-hidden rounded-2xl border shadow-xl"
+			>
 				<button
 					onclick={toggle}
-					class="w-full p-4 bg-white rounded-t-2xl flex justify-start items-center gap-4 hover:bg-chat-bg transition-colors cursor-pointer"
+					class="bg-chat-bubble hover:bg-chat-bg flex w-full cursor-pointer items-center justify-start gap-4 rounded-t-2xl p-4 transition-colors"
 				>
 					<div class="relative">
-						<div class="w-12 h-12 bg-chat-primary rounded-full ring-4 ring-chat-primary-light flex items-center justify-center">
-							<MessageCircle class="w-6 h-6 text-white" />
+						<div
+							class="bg-chat-primary ring-chat-primary-light flex h-12 w-12 items-center justify-center rounded-full ring-4"
+						>
+							<MessageCircle class="h-6 w-6 text-white" />
 						</div>
-						<div class="w-3 h-3 absolute bottom-0 right-0 bg-green-400 rounded-full border-2 border-white"></div>
-					</div>
-					
-					<div class="flex-1 flex flex-col items-start">
-						<span class="text-chat-text text-lg font-semibold leading-6 line-clamp-1">{botName}</span>
-						<span class="text-chat-primary text-sm font-normal leading-5 line-clamp-1">{botSubtitle}</span>
+						<div
+							class="border-chat-bubble absolute right-0 bottom-0 h-3 w-3 rounded-full border-2 bg-green-400"
+						></div>
 					</div>
 
-					<ChevronDown class="w-5 h-5 text-chat-text-muted" />
+					<div class="flex flex-1 flex-col items-start">
+						<span class="text-chat-text line-clamp-1 text-lg leading-6 font-semibold"
+							>{botName}</span
+						>
+						<span class="text-chat-primary line-clamp-1 text-sm leading-5 font-normal"
+							>{botSubtitle}</span
+						>
+					</div>
+
+					<ChevronDown class="text-chat-text-muted h-5 w-5" />
 				</button>
 
-				<div class="flex-1 min-h-0 overflow-hidden">
+				<div class="min-h-0 flex-1 overflow-hidden">
 					<ChatBot {chatId} {conversationId} {userId} {botName} {botSubtitle} />
 				</div>
 			</div>
@@ -113,10 +137,10 @@
 			<!-- Collapsed state - floating button -->
 			<button
 				onclick={toggle}
-				class="w-14 h-14 bg-chat-primary shadow-md rounded-full shadow-lg flex items-center justify-center hover:bg-chat-primary-dark transition-colors ring-4 ring-chat-primary-light"
+				class="bg-chat-primary hover:bg-chat-primary-dark ring-chat-primary-light flex h-14 w-14 items-center justify-center rounded-full shadow-lg shadow-md ring-4 transition-colors"
 				aria-label="Open chat"
 			>
-				<MessageCircle class="w-7 h-7 text-white" />
+				<MessageCircle class="h-7 w-7 text-white" />
 			</button>
 		{/if}
 	</div>

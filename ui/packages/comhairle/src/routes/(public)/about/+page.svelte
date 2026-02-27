@@ -2,8 +2,8 @@
 
 <article class="prose">
 	<section>
-		<h2 class="text-foreground">What is Comhairle</h2>
-		<p class="text-foreground">
+		<h2>What is Comhairle</h2>
+		<p>
 			Pronounced “kuh-ur-lhya”, Comhairle is an online platform designed to make it much
 			easier for people to participate in how decisions are made in government and public
 			life. Public consultations often end up as box-ticking exercises, difficult for everyday
@@ -11,21 +11,21 @@
 			engaging, accessible participation processes. Comhairle enables participants to see the
 			impact of their contributions on decisions.
 		</p>
-		<p class="text-foreground">
+		<p>
 			Importantly, Comhairle doesn’t aim to replace the role of skilled facilitators or the
 			value of human conversation. Instead, it supports them, making it easier and more
 			rewarding for both the public and organisers to get involved. The platform helps guide
 			people through structured discussions on policies or challenges, using AI-enhanced
 			features that summarise feedback and make sense of complex topics.
 		</p>
-		<p class="text-foreground">
+		<p>
 			Ultimately, Comhairle is all about helping more people have a real say in decisions that
 			affect their lives, supporting better, fairer outcomes.
 		</p>
 	</section>
 	<section>
-		<h2 class="text-foreground">Who are CrownShy?</h2>
-		<p class="text-foreground">
+		<h2>Who are CrownShy?</h2>
+		<p>
 			CrownShy was started in 2024 to operate at the crossroads of technology, facilitation
 			practices, and dialogue, with a mission of empowering individuals, groups, and societies
 			to collectively self-govern. Our team brings decades of expertise spanning collective

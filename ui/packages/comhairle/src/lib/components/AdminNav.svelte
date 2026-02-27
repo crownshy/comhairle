@@ -44,8 +44,8 @@
 </script>
 
 <SideBar.Root class="w-72">
-	<SideBar.Header class="flex flex-row items-center justify-between py-6 pl-6 pr-3">
-		<ComhairleLogo />
+	<SideBar.Header class="flex flex-row items-center justify-between py-6 pr-3 pl-6">
+		<ComhairleLogo color="sidebar-foreground" />
 		<Button
 			variant="ghost"
 			size="icon"
@@ -57,7 +57,7 @@
 		</Button>
 	</SideBar.Header>
 
-	<SideBar.Content class="overflow-hidden pl-4 pt-4">
+	<SideBar.Content class="overflow-hidden pt-4 pl-4">
 		<!-- Platform section -->
 		<SideBar.Group class="">
 			<!-- todo: hook up to style variable + add translations -->
@@ -128,7 +128,7 @@
 																		})}
 																			<span
 																				{...tipProps}
-																				class="flex-1 truncate text-left text-sm font-medium leading-4"
+																				class="flex-1 truncate text-left text-sm leading-4 font-medium"
 																			>
 																				{conversation.title}
 																			</span>
@@ -140,7 +140,7 @@
 																</Tooltip.Root>
 															{:else}
 																<span
-																	class="flex-1 truncate text-left text-sm font-medium leading-4"
+																	class="flex-1 truncate text-left text-sm leading-4 font-medium"
 																>
 																	{conversation.title}
 																</span>
@@ -192,7 +192,7 @@
 															</SideBar.MenuSub>
 															<Collapsible.Content class="pl-4">
 																<div
-																	class="border-sidebar-foreground relative ml-6 mr-2 border-l py-0.5 pl-2"
+																	class="border-sidebar-foreground relative mr-2 ml-6 border-l py-0.5 pl-2"
 																>
 																	{#if path.includes(conversation.id) && workflowSteps?.length > 0}
 																		{#each workflowSteps as wfStep (wfStep.id)}
@@ -295,14 +295,12 @@
 			</Avatar.Root>
 			<div class="flex w-full flex-col items-center gap-0.5">
 				<span
-					class="text-sidebar-primary-foreground w-full truncate text-center text-sm font-semibold"
+					class="text-sidebar-foreground w-full truncate text-center text-sm font-semibold"
 				>
 					{user?.username ?? ''}
 				</span>
 				{#if user?.email}
-					<span
-						class="text-sidebar-primary-foreground/70 w-full truncate text-center text-xs"
-					>
+					<span class="text-sidebar-foreground/70 w-full truncate text-center text-xs">
 						{user.email}
 					</span>
 				{/if}

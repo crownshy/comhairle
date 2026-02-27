@@ -60,6 +60,17 @@
 
 	--chat-primary: #3d5a1e;
 	--chat-neutral: #6b7a5e;
+	--chat-primary-light: color-mix(in oklch, var(--chat-primary), white 70%);
+	--chat-primary-lighter: color-mix(in oklch, var(--chat-primary), white 85%);
+	--chat-primary-dark: color-mix(in oklch, var(--chat-primary), black 20%);
+	--chat-primary-darker: color-mix(in oklch, var(--chat-primary), black 40%);
+	--chat-muted: color-mix(in oklch, var(--chat-neutral), white 40%);
+	--chat-border: color-mix(in oklch, var(--chat-neutral), white 70%);
+	--chat-bg: color-mix(in oklch, var(--chat-neutral), white 92%);
+	--chat-text: color-mix(in oklch, var(--chat-neutral), black 40%);
+	--chat-text-muted: var(--chat-neutral);
+	--chat-bubble: #ffffff;
+
 	--nav-text: #f2f5ed;
 	--nav-background: #f2f5ed;
 	--admin-background: #f7f9f4;
@@ -102,6 +113,19 @@
 	--sidebar-ring: #7cb342;
 	--sidebar-secondary: #6b9b3a;
 	--sidebar-active-bg: #070b04;
+
+	--chat-primary: #7cb342;
+	--chat-neutral: #99a88a;
+	--chat-primary-light: color-mix(in oklch, var(--chat-primary), black 50%);
+	--chat-primary-lighter: color-mix(in oklch, var(--chat-primary), black 75%);
+	--chat-primary-dark: color-mix(in oklch, var(--chat-primary), white 20%);
+	--chat-primary-darker: color-mix(in oklch, var(--chat-primary), white 40%);
+	--chat-muted: color-mix(in oklch, var(--chat-neutral), black 40%);
+	--chat-border: color-mix(in oklch, var(--chat-neutral), black 50%);
+	--chat-bg: var(--card);
+	--chat-text: var(--foreground);
+	--chat-text-muted: var(--chat-neutral);
+	--chat-bubble: var(--card);
 }
 
 /* Scottish Government Theme */
@@ -208,6 +232,19 @@
 	--sidebar-ring: #4b92ec;
 	--sidebar-secondary: #7dd3fc;
 	--sidebar-active-bg: #050912;
+
+	--chat-primary: #4b92ec;
+	--chat-neutral: #8b9bb5;
+	--chat-primary-light: color-mix(in oklch, var(--chat-primary), black 50%);
+	--chat-primary-lighter: color-mix(in oklch, var(--chat-primary), black 75%);
+	--chat-primary-dark: color-mix(in oklch, var(--chat-primary), white 20%);
+	--chat-primary-darker: color-mix(in oklch, var(--chat-primary), white 40%);
+	--chat-muted: color-mix(in oklch, var(--chat-neutral), black 40%);
+	--chat-border: color-mix(in oklch, var(--chat-neutral), black 50%);
+	--chat-bg: var(--card);
+	--chat-text: var(--foreground);
+	--chat-text-muted: var(--chat-neutral);
+	--chat-bubble: var(--card);
 }
 
 @theme {
@@ -269,16 +306,17 @@
 
 	/* Chat Widget Colors */
 	--color-chat-primary: var(--chat-primary);
-	--color-chat-primary-light: color-mix(in oklch, var(--chat-primary), white 70%);
-	--color-chat-primary-lighter: color-mix(in oklch, var(--chat-primary), white 85%);
-	--color-chat-primary-dark: color-mix(in oklch, var(--chat-primary), black 20%);
-	--color-chat-primary-darker: color-mix(in oklch, var(--chat-primary), black 40%);
+	--color-chat-primary-light: var(--chat-primary-light);
+	--color-chat-primary-lighter: var(--chat-primary-lighter);
+	--color-chat-primary-dark: var(--chat-primary-dark);
+	--color-chat-primary-darker: var(--chat-primary-darker);
 	--color-chat-neutral: var(--chat-neutral);
-	--color-chat-muted: color-mix(in oklch, var(--chat-neutral), white 40%);
-	--color-chat-border: color-mix(in oklch, var(--chat-neutral), white 70%);
-	--color-chat-bg: color-mix(in oklch, var(--chat-neutral), white 92%);
-	--color-chat-text: color-mix(in oklch, var(--chat-neutral), black 40%);
-	--color-chat-text-muted: var(--chat-neutral);
+	--color-chat-muted: var(--chat-muted);
+	--color-chat-border: var(--chat-border);
+	--color-chat-bg: var(--chat-bg);
+	--color-chat-text: var(--chat-text);
+	--color-chat-text-muted: var(--chat-text-muted);
+	--color-chat-bubble: var(--chat-bubble);
 
 	--font-sans: var(--font-sans);
 	--font-mono: var(--font-mono);
