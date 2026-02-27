@@ -1,41 +1,42 @@
-/* Base Theme (Comhairle) */
+/* Base Theme (Comhairle — Olive Green, anchored on #171f0f) */
 :root {
 	--background: #ffffff;
-	--foreground: #0a0a0a;
+	--foreground: #171f0f;
 	--card: #ffffff;
-	--card-foreground: #030712;
+	--card-foreground: #171f0f;
 	--popover: #ffffff;
-	--popover-foreground: #030712;
-	--primary: #658f3d;
-	--primary-foreground: #f9fafb;
-	--secondary: #f3f4f6;
-	--secondary-foreground: #252622;
-	--muted: #f3f4f6;
-	--muted-foreground: #6b7280;
-	--accent: #f3f4f6;
-	--accent-foreground: #111827;
+	--popover-foreground: #171f0f;
+	--primary: #3d5a1e;
+	--primary-foreground: #ffffff;
+	--secondary: #f2f5ed;
+	--secondary-foreground: #171f0f;
+	--muted: #f2f5ed;
+	--muted-foreground: #6b7a5e;
+	--accent: #e4edda;
+	--accent-foreground: #1e2d12;
 	--destructive: #dc2626;
 	--destructive-foreground: #fef2f2;
-	--border: #e5e7eb;
-	--input: #e5e7eb;
-	--ring: #4b92ec;
-	--chart-1: #4f46e5;
-	--chart-2: #0284c7;
-	--chart-3: #164e63;
-	--chart-4: #fbbf24;
-	--chart-5: #f59e0b;
-	--sidebar: #658f3d;
-	--sidebar-foreground: #f9fafb;
-	--sidebar-primary: #4f46e5;
-	--sidebar-primary-foreground: #f9fafb;
-	--sidebar-accent: #f9fafb;
-	--sidebar-accent-foreground: #111827;
-	--sidebar-border: #e5e7eb;
-	--sidebar-ring: #9ca3af;
-	--sidebar-secondary: red;
+	--border: #d0d8c4;
+	--input: #d0d8c4;
+	--ring: #4a6d23;
+	--chart-1: #3d5a1e;
+	--chart-2: #4a6d23;
+	--chart-3: #6b9b3a;
+	--chart-4: #a3c97a;
+	--chart-5: #d5e8b8;
+	--sidebar: #171f0f;
+	--sidebar-foreground: #f2f5ed;
+	--sidebar-primary: #7cb342;
+	--sidebar-primary-foreground: #ffffff;
+	--sidebar-accent: #2a3d18;
+	--sidebar-accent-foreground: #f2f5ed;
+	--sidebar-border: #2a3d18;
+	--sidebar-ring: #4a6d23;
+	--sidebar-secondary: #a3c97a;
+	--sidebar-active-bg: #0f1509;
 
-	--color-brand: #0066bd;
-	--color-brand-secondary: #333e48;
+	--color-brand: #3d5a1e;
+	--color-brand-secondary: #171f0f;
 
 	--font-sans: Lato, sans-serif;
 	--font-serif: Merriweather, serif;
@@ -48,60 +49,59 @@
 	--radius-lg: 0.5rem;
 	--radius-xl: calc(0.5rem + 4px);
 
-	--shadow-2xs: 0px 1px 3px 0px rgb(31 67 51 / 0.02);
-	--shadow-xs: 0px 1px 3px 0px rgb(31 67 51 / 0.02);
-	--shadow-sm: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 1px 2px -1px rgb(31 67 51 / 0.04);
-	--shadow: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 1px 2px -1px rgb(31 67 51 / 0.04);
-	--shadow-md: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 2px 4px -1px rgb(31 67 51 / 0.04);
-	--shadow-lg: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 4px 6px -1px rgb(31 67 51 / 0.04);
-	--shadow-xl: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 8px 10px -1px rgb(31 67 51 / 0.04);
-	--shadow-2xl: 0px 1px 3px 0px rgb(31 67 51 / 0.1);
+	--shadow-2xs: 0px 1px 3px 0px rgb(23 31 15 / 0.02);
+	--shadow-xs: 0px 1px 3px 0px rgb(23 31 15 / 0.02);
+	--shadow-sm: 0px 1px 3px 0px rgb(23 31 15 / 0.04), 0px 1px 2px -1px rgb(23 31 15 / 0.04);
+	--shadow: 0px 1px 3px 0px rgb(23 31 15 / 0.04), 0px 1px 2px -1px rgb(23 31 15 / 0.04);
+	--shadow-md: 0px 1px 3px 0px rgb(23 31 15 / 0.04), 0px 2px 4px -1px rgb(23 31 15 / 0.04);
+	--shadow-lg: 0px 1px 3px 0px rgb(23 31 15 / 0.04), 0px 4px 6px -1px rgb(23 31 15 / 0.04);
+	--shadow-xl: 0px 1px 3px 0px rgb(23 31 15 / 0.04), 0px 8px 10px -1px rgb(23 31 15 / 0.04);
+	--shadow-2xl: 0px 1px 3px 0px rgb(23 31 15 / 0.1);
 
-	--chat-primary: #2978d1;
-	--chat-neutral: #6b7280;
-	--sidebar-active-bg: #001c3b;
-	--nav-text: hsla(79, 100%, 96%, 1);
-	--nav-background: hsla(79, 100%, 96%, 1);
-	--admin-background: hsla(60, 67%, 98%, 1);
-	--mutted: hsla(100, 29%, 10%, 1);
+	--chat-primary: #3d5a1e;
+	--chat-neutral: #6b7a5e;
+	--nav-text: #f2f5ed;
+	--nav-background: #f2f5ed;
+	--admin-background: #f7f9f4;
+	--mutted: #171f0f;
 	--sidebar-radius: 10px;
 }
 
 .dark {
-	--background: #172554;
-	--foreground: #f9fafb;
-	--card: #00315f;
-	--card-foreground: #f9fafb;
-	--popover: #1f2937;
-	--popover-foreground: #f9fafb;
-	--primary: #2978d0;
-	--primary-foreground: #f9fafb;
-	--secondary: #3b3c37;
-	--secondary-foreground: #f9fafb;
-	--muted: #1f2937;
-	--muted-foreground: #9ca3af;
-	--accent: #658f3d;
-	--accent-foreground: #f9fafb;
+	--background: #0f1509;
+	--foreground: #e8eddf;
+	--card: #171f0f;
+	--card-foreground: #e8eddf;
+	--popover: #171f0f;
+	--popover-foreground: #e8eddf;
+	--primary: #7cb342;
+	--primary-foreground: #0f1509;
+	--secondary: #1e2d12;
+	--secondary-foreground: #e8eddf;
+	--muted: #1e2d12;
+	--muted-foreground: #99a88a;
+	--accent: #2a3d18;
+	--accent-foreground: #e8eddf;
 	--destructive: #f87171;
 	--destructive-foreground: #fef2f2;
 	--border: #ffffff19;
 	--input: #ffffff26;
-	--ring: #4b92ec;
-	--chart-1: #4f46e5;
-	--chart-2: #0284c7;
-	--chart-3: #f59e0b;
-	--chart-4: #a855f7;
-	--chart-5: #f43f5e;
-	--sidebar: #2978d0;
-	--sidebar-foreground: #f9fafb;
-	--sidebar-primary: #4f46e5;
-	--sidebar-primary-foreground: #f9fafb;
-	--sidebar-accent: #1f2937;
-	--sidebar-accent-foreground: #f9fafb;
+	--ring: #7cb342;
+	--chart-1: #7cb342;
+	--chart-2: #6b9b3a;
+	--chart-3: #a3c97a;
+	--chart-4: #d5e8b8;
+	--chart-5: #c4db9a;
+	--sidebar: #0a0e06;
+	--sidebar-foreground: #e8eddf;
+	--sidebar-primary: #7cb342;
+	--sidebar-primary-foreground: #0f1509;
+	--sidebar-accent: #1e2d12;
+	--sidebar-accent-foreground: #e8eddf;
 	--sidebar-border: #ffffff19;
-	--sidebar-ring: #4b5563;
-	--sidebar-secondary: red;
-	--sidebar-active-bg: hsl(220 20% 15%);
+	--sidebar-ring: #7cb342;
+	--sidebar-secondary: #6b9b3a;
+	--sidebar-active-bg: #070b04;
 }
 
 /* Scottish Government Theme */
@@ -139,106 +139,75 @@
 	--sidebar-border: #ffffff;
 	--sidebar-ring: #0066bd;
 	--sidebar-secondary: #7dd3fc;
+	--sidebar-active-bg: #001c3b;
 
-	/* === Core brand colours === */
-	--color-brand: #0065bd;
+	--color-brand: #0066bd;
 	--color-brand-secondary: #333e48;
 
-	/* === Text === */
-	--color-text: #1a1a1a;
-	--color-text-secondary: #5e5e5e;
+	--font-sans: Lato, sans-serif;
+	--font-serif: Merriweather, serif;
+	--font-mono: Roboto Mono, monospace;
 
-	/* === Links === */
-	--color-link: #0065bd;
-	--color-link-hover: #00437e;
-	--color-link-current: #1a1a1a;
-	--color-link-current-bg: #f8f8f8;
+	--radius: 0.5rem;
+	--radius-xs: calc(0.5rem - 6px);
+	--radius-sm: calc(0.5rem - 4px);
+	--radius-md: calc(0.5rem - 2px);
+	--radius-lg: 0.5rem;
+	--radius-xl: calc(0.5rem + 4px);
 
-	/* === Focus === */
-	--color-focus: #1a1a1a;
-	--color-focus-bg: #fdd522;
+	--shadow-2xs: 0px 1px 3px 0px rgb(31 67 51 / 0.02);
+	--shadow-xs: 0px 1px 3px 0px rgb(31 67 51 / 0.02);
+	--shadow-sm: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 1px 2px -1px rgb(31 67 51 / 0.04);
+	--shadow: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 1px 2px -1px rgb(31 67 51 / 0.04);
+	--shadow-md: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 2px 4px -1px rgb(31 67 51 / 0.04);
+	--shadow-lg: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 4px 6px -1px rgb(31 67 51 / 0.04);
+	--shadow-xl: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 8px 10px -1px rgb(31 67 51 / 0.04);
+	--shadow-2xl: 0px 1px 3px 0px rgb(31 67 51 / 0.1);
 
-	/* === Messaging === */
-	--color-positive: #1a7032;
-	--color-negative: #d32205;
-
-	/* === Borders === */
-	--color-border: #b3b3b3;
-	--color-border-strong: #1a1a1a;
-	--color-border-faint: #ebebeb;
-	--color-border-highlight: #0065bd;
-
-	/* === Backgrounds === */
-	--color-bg-primary: #ffffff;
-	--color-bg-secondary: #f8f8f8;
-	--color-bg-tertiary: #ebebeb;
-
-	/* === Extended palette === */
-	--color-green: #5eb135;
-	--color-dark-green: #1a7032;
-	--color-teal: #28a197;
-	--color-dark-teal: #1c5d5d;
-	--color-blue-light: #d9effc;
-	--color-blue: #0065bd;
-	--color-blue-dark: #00437e;
-	--color-blue-darker: #002d54;
-	--color-purple: #741e6d;
-	--color-pink: #e5007e;
-	--color-white: #ffffff;
-	--color-grey-lighter: #f8f8f8;
-	--color-grey-light: #ebebeb;
-	--color-grey-medium: #b3b3b3;
-	--color-grey: #5e5e5e;
-	--color-grey-dark: #1a1a1a;
-	--color-black: #000000;
-	--color-red: #d32205;
-	--color-brown: #592c20;
-	--color-orange: #cb4e0b;
-	--color-yellow: #fdd522;
-
-	/* === Semantic mappings === */
-	--color-primary: var(--color-brand);
-	--color-secondary: var(--color-brand-secondary);
-	--color-success: var(--color-positive);
-	--color-error: var(--color-negative);
-	--color-surface: var(--color-bg-primary);
-	--color-muted: var(--color-text-secondary);
+	--chat-primary: #2978d1;
+	--chat-neutral: #6b7280;
+	--nav-text: hsla(79, 100%, 96%, 1);
+	--nav-background: hsla(79, 100%, 96%, 1);
+	--admin-background: hsla(60, 67%, 98%, 1);
+	--mutted: hsla(100, 29%, 10%, 1);
+	--sidebar-radius: 10px;
 }
 
 [data-theme='scotgov'].dark {
-	--background: #172554;
-	--foreground: #f9fafb;
-	--card: #00315f;
-	--card-foreground: #f9fafb;
-	--popover: #1f2937;
-	--popover-foreground: #f9fafb;
-	--primary: #2978d0;
-	--primary-foreground: #f9fafb;
-	--secondary: #3b3c37;
-	--secondary-foreground: #f9fafb;
-	--muted: #1f2937;
-	--muted-foreground: #9ca3af;
-	--accent: #0066bd;
-	--accent-foreground: #f9fafb;
+	--background: #0b1120;
+	--foreground: #e8edf4;
+	--card: #111827;
+	--card-foreground: #e8edf4;
+	--popover: #111827;
+	--popover-foreground: #e8edf4;
+	--primary: #4b92ec;
+	--primary-foreground: #0b1120;
+	--secondary: #1c2536;
+	--secondary-foreground: #e8edf4;
+	--muted: #1c2536;
+	--muted-foreground: #8b9bb5;
+	--accent: #1a3a5c;
+	--accent-foreground: #e8edf4;
 	--destructive: #f87171;
 	--destructive-foreground: #fef2f2;
 	--border: #ffffff19;
 	--input: #ffffff26;
 	--ring: #4b92ec;
-	--chart-1: #4f46e5;
-	--chart-2: #0284c7;
-	--chart-3: #f59e0b;
-	--chart-4: #a855f7;
-	--chart-5: #f43f5e;
-	--sidebar: #0a0f1a;
-	--sidebar-foreground: #f9fafb;
-	--sidebar-primary: #2978d0;
-	--sidebar-primary-foreground: #f9fafb;
-	--sidebar-accent: #1f2937;
-	--sidebar-accent-foreground: #f9fafb;
+	--chart-1: #4b92ec;
+	--chart-2: #7dd3fc;
+	--chart-3: #0284c7;
+	--chart-4: #38bdf8;
+	--chart-5: #bae6fd;
+	--sidebar: #070c16;
+	--sidebar-foreground: #e8edf4;
+	--sidebar-primary: #4b92ec;
+	--sidebar-primary-foreground: #0b1120;
+	--sidebar-accent: #1c2536;
+	--sidebar-accent-foreground: #e8edf4;
 	--sidebar-border: #ffffff19;
-	--sidebar-ring: #2978d0;
-	--sidebar-secondary: red;
+	--sidebar-ring: #4b92ec;
+	--sidebar-secondary: #7dd3fc;
+	--sidebar-active-bg: #050912;
 }
 
 @theme {
