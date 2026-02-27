@@ -1,0 +1,333 @@
+/* Base Theme (Comhairle — Olive Green, anchored on #171f0f) */
+:root {
+	--background: #ffffff;
+	--foreground: #171f0f;
+	--card: #ffffff;
+	--card-foreground: #171f0f;
+	--popover: #ffffff;
+	--popover-foreground: #171f0f;
+	--primary: #3d5a1e;
+	--primary-foreground: #ffffff;
+	--secondary: #f2f5ed;
+	--secondary-foreground: #171f0f;
+	--muted: #f2f5ed;
+	--muted-foreground: #6b7a5e;
+	--accent: #e4edda;
+	--accent-foreground: #1e2d12;
+	--destructive: #dc2626;
+	--destructive-foreground: #fef2f2;
+	--border: #d0d8c4;
+	--input: #d0d8c4;
+	--ring: #4a6d23;
+	--chart-1: #3d5a1e;
+	--chart-2: #4a6d23;
+	--chart-3: #6b9b3a;
+	--chart-4: #a3c97a;
+	--chart-5: #d5e8b8;
+	--sidebar: #171f0f;
+	--sidebar-foreground: #f2f5ed;
+	--sidebar-primary: #7cb342;
+	--sidebar-primary-foreground: #ffffff;
+	--sidebar-accent: #2a3d18;
+	--sidebar-accent-foreground: #f2f5ed;
+	--sidebar-border: #2a3d18;
+	--sidebar-ring: #4a6d23;
+	--sidebar-secondary: #a3c97a;
+	--sidebar-active-bg: #0f1509;
+
+	--color-brand: #3d5a1e;
+	--color-brand-secondary: #171f0f;
+
+	--font-sans: Lato, sans-serif;
+	--font-serif: Merriweather, serif;
+	--font-mono: Roboto Mono, monospace;
+
+	--radius: 0.5rem;
+	--radius-xs: calc(0.5rem - 6px);
+	--radius-sm: calc(0.5rem - 4px);
+	--radius-md: calc(0.5rem - 2px);
+	--radius-lg: 0.5rem;
+	--radius-xl: calc(0.5rem + 4px);
+
+	--shadow-2xs: 0px 1px 3px 0px rgb(23 31 15 / 0.02);
+	--shadow-xs: 0px 1px 3px 0px rgb(23 31 15 / 0.02);
+	--shadow-sm: 0px 1px 3px 0px rgb(23 31 15 / 0.04), 0px 1px 2px -1px rgb(23 31 15 / 0.04);
+	--shadow: 0px 1px 3px 0px rgb(23 31 15 / 0.04), 0px 1px 2px -1px rgb(23 31 15 / 0.04);
+	--shadow-md: 0px 1px 3px 0px rgb(23 31 15 / 0.04), 0px 2px 4px -1px rgb(23 31 15 / 0.04);
+	--shadow-lg: 0px 1px 3px 0px rgb(23 31 15 / 0.04), 0px 4px 6px -1px rgb(23 31 15 / 0.04);
+	--shadow-xl: 0px 1px 3px 0px rgb(23 31 15 / 0.04), 0px 8px 10px -1px rgb(23 31 15 / 0.04);
+	--shadow-2xl: 0px 1px 3px 0px rgb(23 31 15 / 0.1);
+
+	--chat-primary: #3d5a1e;
+	--chat-neutral: #6b7a5e;
+	--chat-primary-light: color-mix(in oklch, var(--chat-primary), white 70%);
+	--chat-primary-lighter: color-mix(in oklch, var(--chat-primary), white 85%);
+	--chat-primary-dark: color-mix(in oklch, var(--chat-primary), black 20%);
+	--chat-primary-darker: color-mix(in oklch, var(--chat-primary), black 40%);
+	--chat-muted: color-mix(in oklch, var(--chat-neutral), white 40%);
+	--chat-border: color-mix(in oklch, var(--chat-neutral), white 70%);
+	--chat-bg: color-mix(in oklch, var(--chat-neutral), white 92%);
+	--chat-text: color-mix(in oklch, var(--chat-neutral), black 40%);
+	--chat-text-muted: var(--chat-neutral);
+	--chat-bubble: #ffffff;
+
+	--nav-text: #f2f5ed;
+	--nav-background: #f2f5ed;
+	--admin-background: #f7f9f4;
+	--mutted: #171f0f;
+	--sidebar-radius: 10px;
+}
+
+.dark {
+	--background: #0f1509;
+	--foreground: #e8eddf;
+	--card: #171f0f;
+	--card-foreground: #e8eddf;
+	--popover: #171f0f;
+	--popover-foreground: #e8eddf;
+	--primary: #7cb342;
+	--primary-foreground: #0f1509;
+	--secondary: #1e2d12;
+	--secondary-foreground: #e8eddf;
+	--muted: #1e2d12;
+	--muted-foreground: #99a88a;
+	--accent: #2a3d18;
+	--accent-foreground: #e8eddf;
+	--destructive: #f87171;
+	--destructive-foreground: #fef2f2;
+	--border: #ffffff19;
+	--input: #ffffff26;
+	--ring: #7cb342;
+	--chart-1: #7cb342;
+	--chart-2: #6b9b3a;
+	--chart-3: #a3c97a;
+	--chart-4: #d5e8b8;
+	--chart-5: #c4db9a;
+	--sidebar: #0a0e06;
+	--sidebar-foreground: #e8eddf;
+	--sidebar-primary: #7cb342;
+	--sidebar-primary-foreground: #0f1509;
+	--sidebar-accent: #1e2d12;
+	--sidebar-accent-foreground: #e8eddf;
+	--sidebar-border: #ffffff19;
+	--sidebar-ring: #7cb342;
+	--sidebar-secondary: #6b9b3a;
+	--sidebar-active-bg: #070b04;
+
+	--chat-primary: #7cb342;
+	--chat-neutral: #99a88a;
+	--chat-primary-light: color-mix(in oklch, var(--chat-primary), black 50%);
+	--chat-primary-lighter: color-mix(in oklch, var(--chat-primary), black 75%);
+	--chat-primary-dark: color-mix(in oklch, var(--chat-primary), white 20%);
+	--chat-primary-darker: color-mix(in oklch, var(--chat-primary), white 40%);
+	--chat-muted: color-mix(in oklch, var(--chat-neutral), black 40%);
+	--chat-border: color-mix(in oklch, var(--chat-neutral), black 50%);
+	--chat-bg: var(--card);
+	--chat-text: var(--foreground);
+	--chat-text-muted: var(--chat-neutral);
+	--chat-bubble: var(--card);
+}
+
+/* Scottish Government Theme */
+[data-theme='scot-gov'] {
+	--background: #ffffff;
+	--foreground: #0a0a0a;
+	--card: #ffffff;
+	--card-foreground: #030712;
+	--popover: #ffffff;
+	--popover-foreground: #030712;
+	--primary: #0066bd;
+	--primary-foreground: #ffffff;
+	--secondary: #f3f4f6;
+	--secondary-foreground: #252622;
+	--muted: #f3f4f6;
+	--muted-foreground: #6b7280;
+	--accent: #f3f4f6;
+	--accent-foreground: #111827;
+	--destructive: #dc2626;
+	--destructive-foreground: #fef2f2;
+	--border: #e5e7eb;
+	--input: #e5e7eb;
+	--ring: #4b92ec;
+	--chart-1: #4f46e5;
+	--chart-2: #0284c7;
+	--chart-3: #164e63;
+	--chart-4: #fbbf24;
+	--chart-5: #f59e0b;
+	--sidebar: #111827;
+	--sidebar-foreground: #f9fafb;
+	--sidebar-primary: #0066bd;
+	--sidebar-primary-foreground: #ffffff;
+	--sidebar-accent: #ffffff;
+	--sidebar-accent-foreground: #111827;
+	--sidebar-border: #ffffff;
+	--sidebar-ring: #0066bd;
+	--sidebar-secondary: #7dd3fc;
+	--sidebar-active-bg: #001c3b;
+
+	--color-brand: #0066bd;
+	--color-brand-secondary: #333e48;
+
+	--font-sans: Lato, sans-serif;
+	--font-serif: Merriweather, serif;
+	--font-mono: Roboto Mono, monospace;
+
+	--radius: 0.5rem;
+	--radius-xs: calc(0.5rem - 6px);
+	--radius-sm: calc(0.5rem - 4px);
+	--radius-md: calc(0.5rem - 2px);
+	--radius-lg: 0.5rem;
+	--radius-xl: calc(0.5rem + 4px);
+
+	--shadow-2xs: 0px 1px 3px 0px rgb(31 67 51 / 0.02);
+	--shadow-xs: 0px 1px 3px 0px rgb(31 67 51 / 0.02);
+	--shadow-sm: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 1px 2px -1px rgb(31 67 51 / 0.04);
+	--shadow: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 1px 2px -1px rgb(31 67 51 / 0.04);
+	--shadow-md: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 2px 4px -1px rgb(31 67 51 / 0.04);
+	--shadow-lg: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 4px 6px -1px rgb(31 67 51 / 0.04);
+	--shadow-xl: 0px 1px 3px 0px rgb(31 67 51 / 0.04), 0px 8px 10px -1px rgb(31 67 51 / 0.04);
+	--shadow-2xl: 0px 1px 3px 0px rgb(31 67 51 / 0.1);
+
+	--chat-primary: #2978d1;
+	--chat-neutral: #6b7280;
+	--nav-text: hsla(79, 100%, 96%, 1);
+	--nav-background: hsla(79, 100%, 96%, 1);
+	--admin-background: hsla(60, 67%, 98%, 1);
+	--mutted: hsla(100, 29%, 10%, 1);
+	--sidebar-radius: 10px;
+}
+
+[data-theme='scot-gov'].dark {
+	--background: #0b1120;
+	--foreground: #e8edf4;
+	--card: #111827;
+	--card-foreground: #e8edf4;
+	--popover: #111827;
+	--popover-foreground: #e8edf4;
+	--primary: #4b92ec;
+	--primary-foreground: #0b1120;
+	--secondary: #1c2536;
+	--secondary-foreground: #e8edf4;
+	--muted: #1c2536;
+	--muted-foreground: #8b9bb5;
+	--accent: #1a3a5c;
+	--accent-foreground: #e8edf4;
+	--destructive: #f87171;
+	--destructive-foreground: #fef2f2;
+	--border: #ffffff19;
+	--input: #ffffff26;
+	--ring: #4b92ec;
+	--chart-1: #4b92ec;
+	--chart-2: #7dd3fc;
+	--chart-3: #0284c7;
+	--chart-4: #38bdf8;
+	--chart-5: #bae6fd;
+	--sidebar: #070c16;
+	--sidebar-foreground: #e8edf4;
+	--sidebar-primary: #4b92ec;
+	--sidebar-primary-foreground: #0b1120;
+	--sidebar-accent: #1c2536;
+	--sidebar-accent-foreground: #e8edf4;
+	--sidebar-border: #ffffff19;
+	--sidebar-ring: #4b92ec;
+	--sidebar-secondary: #7dd3fc;
+	--sidebar-active-bg: #050912;
+
+	--chat-primary: #4b92ec;
+	--chat-neutral: #8b9bb5;
+	--chat-primary-light: color-mix(in oklch, var(--chat-primary), black 50%);
+	--chat-primary-lighter: color-mix(in oklch, var(--chat-primary), black 75%);
+	--chat-primary-dark: color-mix(in oklch, var(--chat-primary), white 20%);
+	--chat-primary-darker: color-mix(in oklch, var(--chat-primary), white 40%);
+	--chat-muted: color-mix(in oklch, var(--chat-neutral), black 40%);
+	--chat-border: color-mix(in oklch, var(--chat-neutral), black 50%);
+	--chat-bg: var(--card);
+	--chat-text: var(--foreground);
+	--chat-text-muted: var(--chat-neutral);
+	--chat-bubble: var(--card);
+}
+
+@theme {
+	--radius: 0.5rem;
+	--radius-xs: calc(0.5rem - 6px);
+	--radius-sm: calc(0.5rem - 4px);
+	--radius-md: calc(0.5rem - 2px);
+	--radius-lg: 0.5rem;
+	--radius-xl: calc(0.5rem + 4px);
+}
+
+@theme inline {
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-destructive-foreground: var(--destructive-foreground);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+	--color-chart-1: var(--chart-1);
+	--color-chart-2: var(--chart-2);
+	--color-chart-3: var(--chart-3);
+	--color-chart-4: var(--chart-4);
+	--color-chart-5: var(--chart-5);
+	--color-sidebar: var(--sidebar);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar-primary: var(--sidebar-primary);
+	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+	--color-sidebar-accent: var(--sidebar-accent);
+	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-sidebar-ring: var(--sidebar-ring);
+	--color-sidebar-active-bg: var(--sidebar-active-bg);
+	--color-sidebar-secondary: var(--sidebar-secondary);
+
+	--color-mutted: var(--mutted);
+	--color-admin-background: var(--admin-background);
+
+	--color-nav-background: var(--nav-background);
+	--color-nav-text: var(--nav-text);
+
+	--color-brand: var(--color-brand);
+	--color-brand-mutted: var(--color-brand)/70;
+	--color-brand-secondary: var(--color-brand-secondary);
+
+	--radius-nav: 20px;
+
+	/* Chat Widget Colors */
+	--color-chat-primary: var(--chat-primary);
+	--color-chat-primary-light: var(--chat-primary-light);
+	--color-chat-primary-lighter: var(--chat-primary-lighter);
+	--color-chat-primary-dark: var(--chat-primary-dark);
+	--color-chat-primary-darker: var(--chat-primary-darker);
+	--color-chat-neutral: var(--chat-neutral);
+	--color-chat-muted: var(--chat-muted);
+	--color-chat-border: var(--chat-border);
+	--color-chat-bg: var(--chat-bg);
+	--color-chat-text: var(--chat-text);
+	--color-chat-text-muted: var(--chat-text-muted);
+	--color-chat-bubble: var(--chat-bubble);
+
+	--font-sans: var(--font-sans);
+	--font-mono: var(--font-mono);
+	--font-serif: var(--font-serif);
+
+	--shadow-2xs: var(--shadow-2xs);
+	--shadow-xs: var(--shadow-xs);
+	--shadow-sm: var(--shadow-sm);
+	--shadow: var(--shadow);
+	--shadow-md: var(--shadow-md);
+	--shadow-lg: var(--shadow-lg);
+	--shadow-xl: var(--shadow-xl);
+	--shadow-2xl: var(--shadow-2xl);
+}

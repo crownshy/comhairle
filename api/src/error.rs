@@ -1,7 +1,8 @@
-use crate::tools::polis::PolisError;
+use crate::{tools::polis::PolisError, translation_service::TranslationError};
 use aide::OperationIo;
-use axum::{http::StatusCode, response::IntoResponse, Json};
+use axum::{extract::multipart::MultipartError, http::StatusCode, response::IntoResponse, Json};
 use heyform_sdk::HeyFormError;
+use ragflow::RagflowError;
 use schemars::JsonSchema;
 use serde::Serialize;
 use serde_json::json;
@@ -14,6 +15,9 @@ pub enum ComhairleError {
     #[error("Database Failed to connect: {0}")]
     DbError(String),
 
+    #[error("Database query error: {0}")]
+    DbQueryError(#[from] sea_query::error::Error),
+
     #[error("Failed to load config: {0}")]
     ConfigError(#[from] config::ConfigError),
 
@@ -23,8 +27,29 @@ pub enum ComhairleError {
     #[error("Polis error: {0}")]
     PolisError(#[from] PolisError),
 
+    #[error("Translation error: {0}")]
+    TranslationError(#[from] TranslationError),
+
+    #[error("No translation service configured")]
+    NoTranslationServiceConfigured,
+
     #[error("HeyForm error: {0}")]
     HeyFormError(#[from] HeyFormError),
+
+    #[error("Ragflow error: {0}")]
+    RagflowError(#[from] RagflowError),
+
+    #[error("Multipart form parse error: {0}")]
+    MultipartParseForm(#[from] MultipartError),
+
+    #[error("Template error: {0}")]
+    TemplateError(#[from] minijinja::Error),
+
+    #[error("Serde json error: {0}")]
+    SerdeJsonError(#[from] serde_json::Error),
+
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
 
     #[error("Username {0} already taken")]
     DuplicateUsername(String),
@@ -41,11 +66,17 @@ pub enum ComhairleError {
     #[error("The password and email don't match")]
     WrongPassword,
 
+    #[error("The password and password confirmation don't match")]
+    PasswordConfirmationMismatch,
+
     #[error("User Required for this route")]
     UserRequired,
 
     #[error("Auth Error {0}")]
     AuthJWTError(String),
+
+    #[error("Locale Error {0}")]
+    LocaleError(String),
 
     #[error("No user with email {0}")]
     NoUserFoundForEmail(String),
@@ -79,6 +110,9 @@ pub enum ComhairleError {
 
     #[error("Cant log this type of user in with this flow")]
     WrongUserType,
+
+    #[error("User's email address is already verified")]
+    EmailAlreadyVerified,
 
     #[error("No user logged in")]
     NoLogedInUser,
@@ -134,6 +168,9 @@ pub enum ComhairleError {
     #[error("Failed to send email")]
     FailedToSendEmail(#[from] lettre::transport::smtp::Error),
 
+    #[error("User id must be a valid uuid")]
+    InvalidUserId,
+
     #[error("User is not authorized to perform this action")]
     UserNotAuthorized,
 
@@ -151,6 +188,39 @@ pub enum ComhairleError {
 
     #[error("No workflow specified or default workflow found")]
     NoWorkflowFoundForInvite,
+
+    #[error("No chat session was found for this bot on this conversation")]
+    NoBotUserSession,
+
+    #[error("No bot_id was found for this conversation")]
+    NoConversationBotId,
+
+    #[error("Background worker job failed: {0}")]
+    BackgroundJobFailed(String),
+
+    #[error("Failed to queue background worker job")]
+    BackgroundJobFailedToQueue,
+
+    #[error("Corrupted data: {0}")]
+    CorruptedData(String),
+
+    #[error("Download error: {0}")]
+    DownloadError(String),
+
+    #[error("Preview tool and live tool config dont match type")]
+    ToolConfigMismatch,
+
+    #[error("Bad request: {0}")]
+    BadRequest(String),
+
+    #[error("Tool config error: {0}")]
+    ToolConfigError(String),
+
+    #[error("Event at max capacity")]
+    EventAtCapacity,
+
+    #[error("Conversation already live")]
+    ConversationAlreadyLive,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -175,9 +245,15 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::WrongPassword
             | ComhairleError::RequiresAuthUser
             | ComhairleError::InviteDoesNotMatchUser
+            | ComhairleError::UserIsNotConversationOwner
             | ComhairleError::NoLogedInUser => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates => StatusCode::UNPROCESSABLE_ENTITY,
             ComhairleError::UserNotAuthorized => StatusCode::FORBIDDEN,
+            ComhairleError::ConversationAlreadyLive => StatusCode::CONFLICT,
+            ComhairleError::EmailAlreadyVerified => StatusCode::CONFLICT,
+            ComhairleError::PasswordConfirmationMismatch | ComhairleError::BadRequest(_) => {
+                StatusCode::BAD_REQUEST
+            }
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

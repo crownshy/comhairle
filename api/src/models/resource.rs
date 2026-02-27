@@ -11,10 +11,9 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use aws_sdk_s3::presigning::PresigningConfig;
-use aws_sdk_s3::{config::Region, meta::PKG_VERSION, Client};
+use aws_sdk_s3::Client;
 
-use crate::ComhairleState;
-use crate::{config::ComhairleConfig, error::ComhairleError};
+use crate::error::ComhairleError;
 
 const PUT_EXPIRES: u64 = 600;
 const GET_EXPIRES: u64 = 600;
@@ -38,9 +37,9 @@ pub enum ResourceSource {
     Url,
 }
 
-impl Into<sea_query::Value> for ResourceSource {
-    fn into(self) -> sea_query::Value {
-        sea_query::Value::String(Some(Box::new(self.to_string())))
+impl From<ResourceSource> for sea_query::Value {
+    fn from(val: ResourceSource) -> Self {
+        sea_query::Value::String(Some(Box::new(val.to_string())))
     }
 }
 
@@ -62,9 +61,9 @@ pub enum MediaType {
     Text,
 }
 
-impl Into<sea_query::Value> for MediaType {
-    fn into(self) -> sea_query::Value {
-        sea_query::Value::String(Some(Box::new(self.to_string())))
+impl From<MediaType> for sea_query::Value {
+    fn from(val: MediaType) -> Self {
+        sea_query::Value::String(Some(Box::new(val.to_string())))
     }
 }
 

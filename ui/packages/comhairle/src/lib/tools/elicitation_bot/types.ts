@@ -1,0 +1,27 @@
+export interface ExtractedClaim {
+	id: string;
+	content: string;
+	status: 'pending' | 'approved' | 'editing' | 'streaming';
+}
+
+export interface ElicitationMessage {
+	id: string;
+	content: string;
+	isBot: boolean;
+	timestamp: Date | null;
+}
+
+export interface ElicitationBotProps {
+	botName?: string;
+	botSubtitle?: string;
+	messages?: ElicitationMessage[];
+	claims?: ExtractedClaim[];
+	topic: string;
+	placeholder?: string;
+	onSendMessage?: (message: string) => void;
+	onClaimApprove?: (claimId: string) => void;
+	onClaimEdit?: (claimId: string, newContent: string) => void;
+	onClaimRemove?: (claimId: string) => void;
+	onAddClaim?: () => void;
+	onDone?: () => void;
+}

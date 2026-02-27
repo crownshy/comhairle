@@ -8,6 +8,7 @@ on:
 jobs:
   frontend-unit-tests:
     runs-on: ubuntu-latest
+    environment: base 
 
     steps:
       - 
@@ -26,16 +27,17 @@ jobs:
 
       - 
         name: Install dependencies
-        working-directory: frontend
+        working-directory: ui
         run: pnpm install --frozen-lockfile
 
       - 
         name: Run tests
-        working-directory: frontend
-        run: npx vitest --run
+        working-directory: ui
+        run: pnpm --filter comhairle test:unit
 
   api-unit-tests:
     runs-on: ubuntu-latest
+    environment: base 
 
     services:
       postgres:
@@ -90,4 +92,8 @@ jobs:
           DATABASE_URL: postgres://test_user:test_password@localhost:5432/test_db
           RESOURCE_BUCKET: comhairle_resources
           CARGO_HOME: ~/.cargo
+          BOT_SERVICE_HOST: ${{ secrets.BOT_SERVICE_HOST }}
+          BOT_SERVICE_API_KEY: ${{ secrets.BOT_SERVICE_API_KEY }}
+          DEFAULT_KNOWLEDGE_BASE_ID: ${{ secrets.DEFAULT_KNOWLEDGE_BASE_ID }}
+          ELICITATION_BOT_AGENT_ID: ${{ secrets.ELICITATION_BOT_AGENT_ID }}
         run: cargo test --verbose

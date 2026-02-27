@@ -1,0 +1,1220 @@
+use std::sync::Arc;
+
+use aide::{
+    axum::{
+        routing::{delete_with, get_with, post_with, put_with},
+        ApiRouter,
+    },
+    OperationIo,
+};
+use axum::{
+    extract::{FromRequestParts, Json, Path, State},
+    http::{request::Parts, StatusCode},
+    RequestPartsExt,
+};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use tracing::instrument;
+
+use axum_extra::extract::cookie::CookieJar;
+
+use crate::{
+    error::ComhairleError,
+    models::translations::{
+        self, CreateTextTranslation, TextContentId, UpdateTextContent, UpdateTextTranslation,
+    },
+    routes::translations::dto::{TextContentDto, TextTranslationDto},
+    ComhairleState,
+};
+
+use super::auth::RequiredAdminUser;
+
+pub mod dto;
+
+/// An extractor to get the user's locale preference from the COMHAIRLE_LOCALE cookie
+/// Returns "en" as default if the cookie is not present or invalid
+#[derive(Debug, Clone, OperationIo)]
+pub struct LocaleExtractor(pub String);
+
+impl FromRequestParts<Arc<ComhairleState>> for LocaleExtractor {
+    type Rejection = ComhairleError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self, Self::Rejection> {
+        let jar = parts
+            .extract::<CookieJar>()
+            .await
+            .map_err(|e| ComhairleError::LocaleError(e.to_string()))?;
+
+        let locale = jar
+            .get("COMHAIRLE_LOCALE")
+            .map(|cookie| cookie.value().to_string())
+            .unwrap_or_else(|| "en".to_string());
+
+        Ok(LocaleExtractor(locale))
+    }
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct TextContentWithTranslations {
+    #[serde(flatten)]
+    pub text_content: TextContentDto,
+    pub translations: Vec<TextTranslationDto>,
+}
+
+#[derive(Deserialize, JsonSchema, Debug)]
+pub struct CreateTextContentRequest {
+    pub primary_locale: String,
+    pub format: translations::TextFormat,
+    pub content: String,
+}
+
+/// Get a TextContent with all its translations
+#[instrument(err(Debug), skip(state))]
+async fn get_text_content_with_translations(
+    State(state): State<Arc<ComhairleState>>,
+    Path(text_content_id): Path<TextContentId>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<TextContentWithTranslations>), ComhairleError> {
+    let text_content = translations::get_text_content_by_id(&state.db, &text_content_id)
+        .await?
+        .into();
+    let translations =
+        translations::get_text_translations_by_content_id(&state.db, &text_content_id)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect();
+
+    Ok((
+        StatusCode::OK,
+        Json(TextContentWithTranslations {
+            text_content,
+            translations,
+        }),
+    ))
+}
+
+/// Create new TextContent
+#[instrument(err(Debug), skip(state))]
+async fn create_text_content(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Json(request): Json<CreateTextContentRequest>,
+) -> Result<(StatusCode, Json<TextContentDto>), ComhairleError> {
+    let text_content = translations::new_translation(
+        &state.db,
+        &request.primary_locale,
+        &request.content,
+        request.format,
+    )
+    .await?
+    .into();
+    Ok((StatusCode::CREATED, Json(text_content)))
+}
+
+/// Update TextContent
+#[instrument(err(Debug), skip(state))]
+async fn update_text_content(
+    State(state): State<Arc<ComhairleState>>,
+    Path(text_content_id): Path<TextContentId>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Json(update): Json<UpdateTextContent>,
+) -> Result<(StatusCode, Json<TextContentDto>), ComhairleError> {
+    let text_content = translations::update_text_content(&state.db, &text_content_id, &update)
+        .await?
+        .into();
+
+    Ok((StatusCode::OK, Json(text_content)))
+}
+
+/// Delete TextContent and all its translations
+#[instrument(err(Debug), skip(state))]
+async fn delete_text_content(
+    State(state): State<Arc<ComhairleState>>,
+    Path(text_content_id): Path<TextContentId>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<TextContentDto>), ComhairleError> {
+    let text_content = translations::delete_text_content(&state.db, &text_content_id)
+        .await?
+        .into();
+
+    Ok((StatusCode::OK, Json(text_content)))
+}
+
+/// Get a specific translation for a TextContent and locale
+#[instrument(err(Debug), skip(state))]
+async fn get_text_translation(
+    State(state): State<Arc<ComhairleState>>,
+    Path((text_content_id, locale)): Path<(TextContentId, String)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
+    let translation = translations::get_text_translation_by_content_and_locale(
+        &state.db,
+        &text_content_id,
+        &locale,
+    )
+    .await?
+    .into();
+
+    Ok((StatusCode::OK, Json(translation)))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct CreateOrUpdateTextTranslationRequest {
+    pub content: String,
+    /// Whether this translation was generated by AI (defaults to false)
+    pub ai_generated: Option<bool>,
+    /// Whether this translation requires human validation (defaults to false)
+    pub requires_validation: Option<bool>,
+}
+
+/// Create or update a translation for a specific TextContent and locale
+#[instrument(err(Debug), skip(state))]
+async fn create_or_update_text_translation(
+    State(state): State<Arc<ComhairleState>>,
+    Path((text_content_id, locale)): Path<(TextContentId, String)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Json(request): Json<CreateOrUpdateTextTranslationRequest>,
+) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
+    // Check if translation already exists
+    match translations::get_text_translation_by_content_and_locale(
+        &state.db,
+        &text_content_id,
+        &locale,
+    )
+    .await
+    {
+        Ok(existing_translation) => {
+            // Update existing translation
+            let update = UpdateTextTranslation {
+                locale: Some(locale),
+                content: Some(request.content),
+                ai_generated: request.ai_generated,
+                requires_validation: request.requires_validation,
+            };
+            let updated_translation =
+                translations::update_text_translation(&state.db, &existing_translation.id, &update)
+                    .await?
+                    .into();
+            Ok((StatusCode::OK, Json(updated_translation)))
+        }
+        Err(_) => {
+            // Create new translation
+            let create_request = CreateTextTranslation {
+                content_id: text_content_id,
+                locale,
+                content: request.content,
+                ai_generated: request.ai_generated,
+                requires_validation: request.requires_validation,
+            };
+            let translation = translations::create_text_translation(&state.db, &create_request)
+                .await?
+                .into();
+            Ok((StatusCode::CREATED, Json(translation)))
+        }
+    }
+}
+
+/// Update a specific translation
+#[instrument(err(Debug), skip(state))]
+async fn update_text_translation(
+    State(state): State<Arc<ComhairleState>>,
+    Path((text_content_id, locale)): Path<(TextContentId, String)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Json(update): Json<UpdateTextTranslation>,
+) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
+    // First get the existing translation to get its ID
+    let existing_translation = translations::get_text_translation_by_content_and_locale(
+        &state.db,
+        &text_content_id,
+        &locale,
+    )
+    .await?;
+
+    let updated_translation =
+        translations::update_text_translation(&state.db, &existing_translation.id, &update)
+            .await?
+            .into();
+
+    Ok((StatusCode::OK, Json(updated_translation)))
+}
+
+// Automatically translate a specific translation
+#[instrument(err(Debug), skip(state))]
+async fn auto_translate(
+    State(state): State<Arc<ComhairleState>>,
+    Path((text_content_id, locale)): Path<(TextContentId, String)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
+    if let Some(translation_service) = &state.translation_service {
+        let new_translation = translations::auto_generate_translation(
+            &state.db,
+            translation_service,
+            &text_content_id,
+            &locale,
+        )
+        .await?
+        .into();
+        Ok((StatusCode::OK, Json(new_translation)))
+    } else {
+        Err(ComhairleError::NoTranslationServiceConfigured)
+    }
+}
+
+// Automatically translate all languages for this text content
+#[instrument(err(Debug), skip(state))]
+async fn auto_translate_all(
+    State(state): State<Arc<ComhairleState>>,
+    Path(text_content_id): Path<TextContentId>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<TextContentWithTranslations>), ComhairleError> {
+    if let Some(translation_service) = &state.translation_service {
+        let text_content = translations::get_text_content_by_id(&state.db, &text_content_id)
+            .await?
+            .into();
+        let translations = translations::auto_generate_all_translations(
+            &state.db,
+            translation_service,
+            &text_content_id,
+        )
+        .await?
+        .into_iter()
+        .map(Into::into)
+        .collect();
+        let result = TextContentWithTranslations {
+            text_content,
+            translations,
+        };
+        Ok((StatusCode::OK, Json(result)))
+    } else {
+        Err(ComhairleError::NoTranslationServiceConfigured)
+    }
+}
+
+/// Delete a specific translation
+#[instrument(err(Debug), skip(state))]
+async fn delete_text_translation(
+    State(state): State<Arc<ComhairleState>>,
+    Path((text_content_id, locale)): Path<(TextContentId, String)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<TextTranslationDto>), ComhairleError> {
+    // First get the existing translation to get its ID
+    let existing_translation = translations::get_text_translation_by_content_and_locale(
+        &state.db,
+        &text_content_id,
+        &locale,
+    )
+    .await?;
+
+    let deleted_translation =
+        translations::delete_text_translation(&state.db, &existing_translation.id)
+            .await?
+            .into();
+
+    Ok((StatusCode::OK, Json(deleted_translation)))
+}
+
+pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+    ApiRouter::new()
+        // TextContent routes
+        .api_route(
+            "/",
+            post_with(create_text_content, |op| {
+                op.id("CreateTextContent")
+                    .tag("Translations")
+                    .summary("Create new TextContent")
+                    .description("Create a new TextContent entry that can hold translations")
+                    .response::<201, Json<TextContentDto>>()
+            }),
+        )
+        .api_route(
+            "/{text_content_id}",
+            get_with(get_text_content_with_translations, |op| {
+                op.id("GetTextContentWithTranslations")
+                    .tag("Translations")
+                    .summary("Get TextContent with all translations")
+                    .description("Get a TextContent entry with all its translations")
+                    .response::<200, Json<TextContentWithTranslations>>()
+            }),
+        )
+        .api_route(
+            "/{text_content_id}",
+            put_with(update_text_content, |op| {
+                op.id("UpdateTextContent")
+                    .tag("Translations")
+                    .summary("Update TextContent")
+                    .description("Update a TextContent entry")
+                    .response::<200, Json<TextContentDto>>()
+            }),
+        )
+        .api_route(
+            "/{text_content_id}",
+            delete_with(delete_text_content, |op| {
+                op.id("DeleteTextContent")
+                    .tag("Translations")
+                    .summary("Delete TextContent")
+                    .description("Delete a TextContent entry and all its translations")
+                    .response::<200, Json<TextContentDto>>()
+            }),
+        )
+        // TextTranslation routes
+        .api_route(
+            "/{text_content_id}/{locale}",
+            get_with(get_text_translation, |op| {
+                op.id("GetTextTranslation")
+                    .tag("Translations")
+                    .summary("Get translation for specific locale")
+                    .description("Get a translation for a specific TextContent and locale")
+                    .response::<200, Json<TextTranslationDto>>()
+            }),
+        )
+        .api_route(
+            "/{text_content_id}/{locale}",
+            post_with(create_or_update_text_translation, |op| {
+                op.id("CreateOrUpdateTextTranslation")
+                    .tag("Translations")
+                    .summary("Create or update translation")
+                    .description(
+                        "Create a new translation or update existing one for a specific locale",
+                    )
+                    .response::<200, Json<TextTranslationDto>>()
+                    .response::<201, Json<TextTranslationDto>>()
+            }),
+        )
+        .api_route(
+            "/{text_content_id}/{locale}",
+            put_with(update_text_translation, |op| {
+                op.id("UpdateTextTranslation")
+                    .tag("Translations")
+                    .summary("Update translation")
+                    .description("Update an existing translation for a specific locale")
+                    .response::<200, Json<TextTranslationDto>>()
+            }),
+        )
+        .api_route(
+            "/{text_content_id}/{locale}",
+            delete_with(delete_text_translation, |op| {
+                op.id("DeleteTextTranslation")
+                    .tag("Translations")
+                    .summary("Delete translation")
+                    .description("Delete a translation for a specific locale")
+                    .response::<200, Json<TextTranslationDto>>()
+            }),
+        )
+        .api_route(
+            "/{text_content_id}/translate",
+            post_with(auto_translate_all, |op| {
+                op.id("GenerateAllTranslations")
+                    .tag("Translations")
+                    .summary("Generate all translations for this Text Content")
+                    .description("Use the default locale content as the reference text and generate automatic translations for each language form it")
+                    .response::<200, Json<TextContentWithTranslations>>()
+            }),
+        )
+        .api_route(
+            "/{text_content_id}/{locale}/translate",
+            post_with(auto_translate, |op| {
+                op.id("AutomaticallyGenerateTranslation")
+                    .tag("Translations")
+                    .summary("Automatically generate this language")
+                    .description("Use the primary_locale language and translate this language from it using the tarnslation service")
+                    .response::<200, Json<TextTranslationDto>>()
+            }),
+        )
+        .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        models::translations::TextFormat,
+        setup_server,
+        test_helpers::{extract, test_state, UserSession},
+        translation_service::MockTranslationService,
+    };
+    use axum::{body::Body, http::StatusCode};
+    use mockall::predicate;
+    use serde_json::json;
+    use std::{error::Error, sync::Arc};
+
+    #[sqlx::test]
+    async fn test_create_text_content(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        // Create TextContent
+        let create_request = json!({
+            "primary_locale": "en",
+            "format": "plain",
+            "content": "Original Translation"
+        });
+
+        let (status, response, _) = admin_session
+            .post(&app, "/translations", create_request.to_string().into())
+            .await?;
+
+        assert_eq!(status, StatusCode::CREATED);
+        let text_content: TextContentDto = serde_json::from_value(response)?;
+        assert_eq!(text_content.primary_locale, "en");
+        assert_eq!(text_content.format, TextFormat::Plain);
+
+        let (status, response, _) = admin_session
+            .get(&app, &format!("/translations/{}/en", text_content.id))
+            .await?;
+
+        let translation: TextTranslationDto = serde_json::from_value(response)?;
+
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "should have created primary translation"
+        );
+        assert_eq!(
+            translation.content, "Original Translation",
+            "should have correct content"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_get_text_content_with_translations(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        // Create TextContent
+        let create_request = json!({
+            "primary_locale": "en",
+            "format": "rich",
+            "content": "Hello World"
+        });
+
+        let (_status, response, _) = admin_session
+            .post(&app, "/translations", create_request.to_string().into())
+            .await?;
+
+        let text_content: TextContentDto = serde_json::from_value(response)?;
+
+        // Add a translation
+        let translation_request = json!({
+            "content_id": text_content.id,
+            "content": "Bonjour le monde",
+            "ai_generated": false,
+            "requires_validation": false
+        });
+
+        admin_session
+            .post(
+                &app,
+                &format!("/translations/{}/fr", text_content.id),
+                translation_request.to_string().into(),
+            )
+            .await?;
+
+        // Get TextContent with translations
+        let (status, response, _) = admin_session
+            .get(&app, &format!("/translations/{}", text_content.id))
+            .await?;
+
+        assert_eq!(status, StatusCode::OK);
+
+        let result: TextContentWithTranslations = serde_json::from_value(response)?;
+        assert_eq!(result.text_content.id, text_content.id);
+        assert_eq!(result.translations.len(), 2);
+        assert_eq!(result.translations[0].content, "Hello World");
+        assert_eq!(result.translations[0].locale, "en");
+        assert_eq!(result.translations[1].content, "Bonjour le monde");
+        assert_eq!(result.translations[1].locale, "fr");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_update_text_content(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        // Create TextContent
+        let create_request = json!({
+            "primary_locale": "en",
+            "format": "plain",
+            "content": "Original Translation"
+        });
+
+        let (_, response, _) = admin_session
+            .post(&app, "/translations", create_request.to_string().into())
+            .await?;
+
+        let text_content: TextContentDto = serde_json::from_value(response)?;
+
+        // Update TextContent
+        let update_request = json!({
+            "primary_locale": "es",
+            "format": "rich",
+            "content": "Original Translation"
+        });
+
+        let (status, response, _) = admin_session
+            .put(
+                &app,
+                &format!("/translations/{}", text_content.id),
+                update_request.to_string().into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::OK);
+
+        let updated_content: TextContentDto = serde_json::from_value(response)?;
+        assert_eq!(updated_content.primary_locale, "es");
+        assert_eq!(updated_content.format, TextFormat::Rich);
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_delete_text_content(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        // Create TextContent
+        let create_request = json!({
+            "primary_locale": "en",
+            "format": "plain",
+            "content": "Original Translation"
+        });
+
+        let (_status, response, _) = admin_session
+            .post(&app, "/translations", create_request.to_string().into())
+            .await?;
+
+        let text_content: TextContentDto = serde_json::from_value(response)?;
+
+        // Delete TextContent
+        let (status, response, _) = admin_session
+            .delete(&app, &format!("/translations/{}", text_content.id))
+            .await?;
+
+        assert_eq!(status, StatusCode::OK);
+
+        let deleted_content: TextContentDto = serde_json::from_value(response)?;
+        assert_eq!(deleted_content.id, text_content.id);
+
+        // Verify it's deleted
+        let (status, _response, _) = admin_session
+            .get(&app, &format!("/translations/{}", text_content.id))
+            .await?;
+
+        assert_eq!(status, StatusCode::NOT_FOUND);
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_create_text_translation(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        // Create TextContent first
+        let create_request = json!({
+            "primary_locale": "en",
+            "format": "plain",
+            "content": "Original Translation"
+        });
+
+        let (_, response, _) = admin_session
+            .post(&app, "/translations", create_request.to_string().into())
+            .await?;
+
+        let text_content: TextContentDto = serde_json::from_value(response)?;
+
+        // Create translation
+        let translation_request = json!({
+            "content": "Hola Mundo",
+            "ai_generated": true,
+            "requires_validation": true
+        });
+
+        let (status, response, _) = admin_session
+            .post(
+                &app,
+                &format!("/translations/{}/es", text_content.id),
+                translation_request.to_string().into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::CREATED);
+
+        let translation: TextTranslationDto = serde_json::from_value(response)?;
+        assert_eq!(translation.content, "Hola Mundo");
+        assert_eq!(translation.locale, "es");
+        assert!(translation.ai_generated);
+        assert!(translation.requires_validation);
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_auto_generate_translation(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
+        let mut mock_translation_service = MockTranslationService::new();
+
+        mock_translation_service
+            .expect_translate_from_to()
+            .with(
+                predicate::eq("Original Translation"),
+                predicate::eq("en"),
+                predicate::eq("fr"),
+            )
+            .once()
+            .returning(|text, from, to| Ok(format!("translated: {text} from {from} to {to}")));
+
+        let state = test_state()
+            .db(pool)
+            .translation_service(Arc::new(mock_translation_service))
+            .call()?;
+
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        // Create TextContent and translation
+        let create_request = json!({
+            "primary_locale": "en",
+            "format": "plain",
+            "content": "Original Translation"
+        });
+
+        let (_, response, _) = admin_session
+            .post(&app, "/translations", create_request.to_string().into())
+            .await?;
+
+        let text_content: TextContentDto = serde_json::from_value(response)?;
+
+        let translation_request = json!({
+            "content": "empty translation",
+            "ai_generated": false,
+            "requires_validation": false
+        });
+
+        let (_, _, _) = admin_session
+            .post(
+                &app,
+                &format!("/translations/{}/fr", text_content.id),
+                translation_request.to_string().into(),
+            )
+            .await?;
+
+        let (status, _, _) = admin_session
+            .post(
+                &app,
+                &format!("/translations/{}/fr/translate", text_content.id),
+                Body::empty(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::OK, "should successfully translate");
+
+        // Get specific translation
+        let (_, response, _) = admin_session
+            .get(&app, &format!("/translations/{}/fr", text_content.id))
+            .await?;
+
+        let response_text: String = extract("content", &response);
+        assert_eq!(
+            response_text,
+            format!("translated: Original Translation from en to fr"),
+            "should successfully translate"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_auto_generate_all_translations(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
+        let mut mock_translation_service = MockTranslationService::new();
+
+        mock_translation_service
+            .expect_translate_from_to()
+            .with(
+                predicate::eq("Original Translation"),
+                predicate::eq("en"),
+                predicate::eq("fr"),
+            )
+            .once()
+            .returning(|text, from, to| Ok(format!("translated: {text} from {from} to {to}")));
+
+        mock_translation_service
+            .expect_translate_from_to()
+            .with(
+                predicate::eq("Original Translation"),
+                predicate::eq("en"),
+                predicate::eq("gr"),
+            )
+            .once()
+            .returning(|text, from, to| Ok(format!("translated: {text} from {from} to {to}")));
+
+        let state = test_state()
+            .db(pool)
+            .translation_service(Arc::new(mock_translation_service))
+            .call()?;
+
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        // Create TextContent and translation
+        let create_request = json!({
+            "primary_locale": "en",
+            "format": "plain",
+            "content": "Original Translation"
+        });
+
+        let (_, response, _) = admin_session
+            .post(&app, "/translations", create_request.to_string().into())
+            .await?;
+
+        let text_content: TextContentDto = serde_json::from_value(response)?;
+
+        let translation_request = json!({
+            "content": "empty french translation",
+            "ai_generated": false,
+            "requires_validation": false
+        });
+
+        admin_session
+            .post(
+                &app,
+                &format!("/translations/{}/fr", text_content.id),
+                translation_request.to_string().into(),
+            )
+            .await?;
+
+        let translation_request = json!({
+            "content": "empty galeic translation",
+            "ai_generated": false,
+            "requires_validation": false
+        });
+
+        admin_session
+            .post(
+                &app,
+                &format!("/translations/{}/gr", text_content.id),
+                translation_request.to_string().into(),
+            )
+            .await?;
+
+        let (status, _, _) = admin_session
+            .post(
+                &app,
+                &format!("/translations/{}/translate", text_content.id),
+                Body::empty(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::OK, "should successfully translate");
+
+        // Get specific translation
+        let (_, response, _) = admin_session
+            .get(&app, &format!("/translations/{}/fr", text_content.id))
+            .await?;
+
+        let response_text: String = extract("content", &response);
+        assert_eq!(
+            response_text,
+            format!("translated: Original Translation from en to fr"),
+            "should successfully translate"
+        );
+
+        // Get specific translation
+        let (_, response, _) = admin_session
+            .get(&app, &format!("/translations/{}/gr", text_content.id))
+            .await?;
+
+        let response_text: String = extract("content", &response);
+        assert_eq!(
+            response_text,
+            format!("translated: Original Translation from en to gr"),
+            "should successfully translate"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_get_text_translation(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        // Create TextContent and translation
+        let create_request = json!({
+            "primary_locale": "en",
+            "format": "plain",
+            "content": "Original Text"
+        });
+
+        let (_, response, _) = admin_session
+            .post(&app, "/translations", create_request.to_string().into())
+            .await?;
+
+        let text_content: TextContentDto = serde_json::from_value(response)?;
+
+        let translation_request = json!({
+            "content": "Bonjour le monde",
+            "ai_generated": false,
+            "requires_validation": false
+        });
+
+        admin_session
+            .post(
+                &app,
+                &format!("/translations/{}/fr", text_content.id),
+                translation_request.to_string().into(),
+            )
+            .await?;
+
+        // Get specific translation
+        let (status, response, _) = admin_session
+            .get(&app, &format!("/translations/{}/fr", text_content.id))
+            .await?;
+
+        assert_eq!(status, StatusCode::OK);
+
+        let translation: TextTranslationDto = serde_json::from_value(response)?;
+        assert_eq!(translation.content, "Bonjour le monde");
+        assert_eq!(translation.locale, "fr");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_update_existing_translation_via_post(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        // Create TextContent and translation
+        let create_request = json!({
+            "primary_locale": "en",
+            "format": "plain",
+            "content": "Original Translation"
+        });
+
+        let (_, response, _) = admin_session
+            .post(&app, "/translations", create_request.to_string().into())
+            .await?;
+
+        let text_content: TextContentDto = serde_json::from_value(response)?;
+
+        // Create initial translation
+        let initial_translation = json!({
+            "content": "Original text",
+            "ai_generated": false,
+            "requires_validation": false
+        });
+
+        admin_session
+            .post(
+                &app,
+                &format!("/translations/{}/de", text_content.id),
+                initial_translation.to_string().into(),
+            )
+            .await?;
+
+        // Update via POST (should update existing)
+        let updated_translation = json!({
+            "content": "Updated text",
+            "ai_generated": true,
+            "requires_validation": true
+        });
+
+        let (status, response, _) = admin_session
+            .post(
+                &app,
+                &format!("/translations/{}/de", text_content.id),
+                updated_translation.to_string().into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::OK);
+
+        let translation: TextTranslationDto = serde_json::from_value(response)?;
+        assert_eq!(translation.content, "Updated text");
+        assert!(translation.ai_generated);
+        assert!(translation.requires_validation);
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_update_text_translation_via_put(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        // Create TextContent and translation
+        let create_request = json!({
+            "primary_locale": "en",
+            "format": "plain",
+            "content": "Original Translation"
+        });
+
+        let (_, response, _) = admin_session
+            .post(&app, "/translations", create_request.to_string().into())
+            .await?;
+
+        let text_content: TextContentDto = serde_json::from_value(response)?;
+
+        // Create initial translation
+        let initial_translation = json!({
+            "content": "Original text",
+            "ai_generated": false,
+            "requires_validation": false
+        });
+
+        admin_session
+            .post(
+                &app,
+                &format!("/translations/{}/it", text_content.id),
+                initial_translation.to_string().into(),
+            )
+            .await?;
+
+        // Update via PUT
+        let update_request = json!({
+            "content": "Testo aggiornato",
+            "ai_generated": true
+        });
+
+        let (status, response, _) = admin_session
+            .put(
+                &app,
+                &format!("/translations/{}/it", text_content.id),
+                update_request.to_string().into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::OK);
+
+        let translation: TextTranslationDto = serde_json::from_value(response)?;
+        assert_eq!(translation.content, "Testo aggiornato");
+        assert!(translation.ai_generated);
+        // requires_validation should remain unchanged
+        assert!(!translation.requires_validation);
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_delete_text_translation(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        // Create TextContent and translation
+        let create_request = json!({
+            "primary_locale": "pt",
+            "format": "plain",
+            "content":"Text to delete"
+        });
+
+        let (_status, response, _) = admin_session
+            .post(&app, "/translations", create_request.to_string().into())
+            .await?;
+
+        let text_content: TextContentDto = serde_json::from_value(response)?;
+
+        // Delete translation
+        let (status, response, _) = admin_session
+            .delete(&app, &format!("/translations/{}/pt", text_content.id))
+            .await?;
+
+        assert_eq!(status, StatusCode::OK);
+
+        let deleted_translation: TextTranslationDto = serde_json::from_value(response)?;
+        assert_eq!(deleted_translation.content, "Text to delete");
+
+        // Verify it's deleted
+        let (status, _response, _) = admin_session
+            .get(&app, &format!("/translations/{}/pt", text_content.id))
+            .await?;
+
+        assert_eq!(status, StatusCode::NOT_FOUND);
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_non_admin_access_denied(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut regular_session = UserSession::new("user", "password", "user@example.com");
+        regular_session.signup(&app).await?;
+
+        // Try to create TextContent as regular user
+        let create_request = json!({
+            "primary_locale": "en",
+            "format": "plain",
+            "content": "Original Translation"
+        });
+
+        let (status, _response, _) = regular_session
+            .post(&app, "/translations", create_request.to_string().into())
+            .await?;
+
+        // Should be forbidden or unauthorized
+        assert!(status == StatusCode::UNAUTHORIZED || status == StatusCode::FORBIDDEN);
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_get_nonexistent_text_content(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        let fake_uuid = uuid::Uuid::new_v4();
+        let (status, _response, _) = admin_session
+            .get(&app, &format!("/translations/{}", fake_uuid))
+            .await?;
+
+        assert_eq!(status, StatusCode::NOT_FOUND);
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_get_nonexistent_translation(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        // Create TextContent but no translation
+        let create_request = json!({
+            "primary_locale": "en",
+            "format": "plain",
+            "content": "Original Translation"
+        });
+
+        let (_status, response, _) = admin_session
+            .post(&app, "/translations", create_request.to_string().into())
+            .await?;
+
+        let text_content: TextContentDto = serde_json::from_value(response)?;
+
+        // Try to get non-existent translation
+        let (status, _response, _) = admin_session
+            .get(
+                &app,
+                &format!("/translations/{}/nonexistent", text_content.id),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::NOT_FOUND);
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_update_invalid_text_content(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        let fake_uuid = uuid::Uuid::new_v4();
+        let update_request = json!({
+            "primary_locale": "es"
+        });
+
+        let (status, _response, _) = admin_session
+            .put(
+                &app,
+                &format!("/translations/{}", fake_uuid),
+                update_request.to_string().into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::NOT_FOUND);
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_empty_update_request(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        // Create TextContent
+        let create_request = json!({
+            "primary_locale": "en",
+            "format": "plain",
+            "content": "Original Translation"
+        });
+
+        let (_status, response, _) = admin_session
+            .post(&app, "/translations", create_request.to_string().into())
+            .await?;
+
+        let text_content: TextContentDto = serde_json::from_value(response)?;
+
+        // Try to update with empty object
+        let empty_update = json!({});
+
+        let (status, _response, _) = admin_session
+            .put(
+                &app,
+                &format!("/translations/{}", text_content.id),
+                empty_update.to_string().into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+
+        Ok(())
+    }
+}

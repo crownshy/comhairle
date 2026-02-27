@@ -2,3 +2,7 @@
 .vscode
 .direnv
 **/pg_data
+.env
+node_modules/
+
+open-api-spec.json

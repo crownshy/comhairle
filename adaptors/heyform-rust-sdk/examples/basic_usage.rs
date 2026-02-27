@@ -41,7 +41,7 @@ async fn main() -> Result<()> {
         members: None,
     };
 
-    let workspace_id = match client.create_workspace(workspace_input).await {
+    let _workspace_id = match client.create_workspace(workspace_input).await {
         Ok(id) => {
             println!("Workspace created with ID: {}", id);
             id
@@ -155,6 +155,16 @@ async fn main() -> Result<()> {
     //     }
     //     Err(e) => {
     //         println!("Failed to get form details: {}", e);
+    //     }
+    // }
+    //
+    // // Example 8: Clone/duplicate the form
+    // match client.clone_form(&poll_id).await {
+    //     Ok(cloned_form_id) => {
+    //         println!("Form cloned successfully! New form ID: {}", cloned_form_id);
+    //     }
+    //     Err(e) => {
+    //         println!("Failed to clone form: {}", e);
     //     }
     // }
     //

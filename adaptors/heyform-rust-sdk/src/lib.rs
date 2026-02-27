@@ -9,9 +9,10 @@
 
 pub mod client;
 pub mod error;
-pub mod types;
 pub mod queries;
+pub mod types;
 
 pub use client::HeyFormClient;
 pub use error::{HeyFormError, Result};
 pub use types::*;
+

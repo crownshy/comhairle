@@ -26,9 +26,9 @@ pub enum UserAuthType {
     ScotAccount,
 }
 
-impl Into<sea_query::Value> for UserAuthType {
-    fn into(self) -> sea_query::Value {
-        sea_query::Value::String(Some(Box::new(self.to_string())))
+impl From<UserAuthType> for sea_query::Value {
+    fn from(val: UserAuthType) -> Self {
+        sea_query::Value::String(Some(Box::new(val.to_string())))
     }
 }
 
@@ -60,9 +60,9 @@ impl Resource {
     }
 }
 
-impl Into<sea_query::Value> for Resource {
-    fn into(self) -> sea_query::Value {
-        self.to_str().into()
+impl From<Resource> for sea_query::Value {
+    fn from(val: Resource) -> Self {
+        val.to_str().into()
     }
 }
 
@@ -94,9 +94,9 @@ impl Role {
     }
 }
 
-impl Into<sea_query::Value> for Role {
-    fn into(self) -> sea_query::Value {
-        self.to_str().into()
+impl From<Role> for sea_query::Value {
+    fn from(val: Role) -> Self {
+        val.to_str().into()
     }
 }
 
@@ -129,6 +129,7 @@ pub struct User {
     pub avatar_url: Option<String>,
     pub auth_type: UserAuthType,
     pub email: Option<String>,
+    pub email_verified: bool,
 }
 
 /// Create a user from a signup request
@@ -158,6 +159,7 @@ pub async fn create_user(user: &SignupRequest, db: &PgPool) -> Result<User, Comh
             UserIden::AuthType,
             UserIden::AvatarUrl,
             UserIden::Email,
+            UserIden::EmailVerified,
         ]))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -204,6 +206,7 @@ pub async fn create_annon_user(db: &PgPool) -> Result<User, ComhairleError> {
                 UserIden::Password,
                 UserIden::AvatarUrl,
                 UserIden::Email,
+                UserIden::EmailVerified,
             ]))
             .build_sqlx(PostgresQueryBuilder);
 
@@ -240,6 +243,7 @@ pub async fn get_user_by_id(id: &Uuid, db: &PgPool) -> Result<User, ComhairleErr
             UserIden::AvatarUrl,
             UserIden::AuthType,
             UserIden::Email,
+            UserIden::EmailVerified,
         ])
         .from(UserIden::Table)
         .and_where(Expr::col(UserIden::Id).eq(id.to_owned()))
@@ -262,6 +266,7 @@ pub async fn get_user_by_email(email: &str, db: &PgPool) -> Result<User, Comhair
             UserIden::AvatarUrl,
             UserIden::AuthType,
             UserIden::Email,
+            UserIden::EmailVerified,
         ])
         .from(UserIden::Table)
         .and_where(Expr::col(UserIden::Email).ilike(email))
@@ -305,7 +310,7 @@ pub async fn get_user_resource_roles(
     sqlx::query_as_with::<_, UserResourceRole, _>(&sql, values)
         .fetch_all(db)
         .await
-        .map_err(|e| ComhairleError::DatabaseError(e))
+        .map_err(ComhairleError::DatabaseError)
 }
 
 pub async fn user_has_resource_role(
@@ -340,9 +345,9 @@ pub async fn add_user_resource_role(
         ])
         .values_panic([
             resource_kind.into(),
-            resource_id.clone().into(),
+            (*resource_id).into(),
             resource_role.into(),
-            user_id.clone().into(),
+            (*user_id).into(),
         ])
         .into_table(UserResourceRoleIden::Table)
         .build_sqlx(PostgresQueryBuilder);
@@ -362,6 +367,7 @@ pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, C
             UserIden::AvatarUrl,
             UserIden::AuthType,
             UserIden::Email,
+            UserIden::EmailVerified,
         ])
         .from(UserIden::Table)
         .and_where(Expr::col(UserIden::Username).eq(username))
@@ -373,10 +379,11 @@ pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, C
         .map_err(|_| ComhairleError::NoUserFound)
 }
 
-#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Deserialize, Default, Serialize, JsonSchema)]
 pub struct UpdateUserRequest {
     pub username: Option<String>,
     pub password: Option<String>,
+    pub email_verified: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
@@ -408,6 +415,11 @@ pub async fn update_user(
         has_updates = true;
     }
 
+    if let Some(email_verified) = &update_request.email_verified {
+        query.value(UserIden::EmailVerified, *email_verified);
+        has_updates = true;
+    }
+
     if !has_updates {
         return get_user_by_id(user_id, db).await;
     }
@@ -421,6 +433,7 @@ pub async fn update_user(
             UserIden::AvatarUrl,
             UserIden::AuthType,
             UserIden::Email,
+            UserIden::EmailVerified,
         ]))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -478,6 +491,7 @@ pub async fn upgrade_account(
             UserIden::AvatarUrl,
             UserIden::AuthType,
             UserIden::Email,
+            UserIden::EmailVerified,
         ]))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -513,7 +527,7 @@ mod tests {
     use crate::{
         models::users::{add_user_resource_role, user_has_resource_role, Resource, Role},
         setup_server,
-        test_helpers::{test_config, test_state, UserSession},
+        test_helpers::{test_state, UserSession},
     };
     use sqlx::PgPool;
     use std::error::Error;
@@ -538,7 +552,10 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
+                    "is_live" : true,
                     "is_invite_only" : false,
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"],
                     "slug" : "new_conversation"
                 }),
             )
@@ -546,11 +563,7 @@ mod tests {
         assert_eq!(status, 201, "should be able to create a conversation");
         let conversation_id = Uuid::parse_str(conversation["id"].as_str().unwrap())?;
 
-        let mut session = UserSession::new(
-            "test_user".into(),
-            "test_password".into(),
-            "test.user@gmail.com".into(),
-        );
+        let mut session = UserSession::new("test_user", "test_password", "test.user@gmail.com");
         session.signup(&app).await?;
 
         add_user_resource_role(
@@ -562,7 +575,7 @@ mod tests {
         )
         .await?;
 
-        assert_eq!(
+        assert!(
             user_has_resource_role(
                 Resource::Conversation,
                 &conversation_id,
@@ -571,11 +584,10 @@ mod tests {
                 &pool.clone(),
             )
             .await?,
-            true,
             "true when user has role",
         );
-        assert_eq!(
-            user_has_resource_role(
+        assert!(
+            !user_has_resource_role(
                 Resource::Conversation,
                 &conversation_id,
                 &[Role::Contributor],
@@ -583,11 +595,10 @@ mod tests {
                 &pool.clone(),
             )
             .await?,
-            false,
             "false when no user with that ID",
         );
-        assert_eq!(
-            user_has_resource_role(
+        assert!(
+            !user_has_resource_role(
                 Resource::Conversation,
                 &Uuid::parse_str("5FDFC2CE-C7F5-43DB-AA1F-0A8698E76D2E").unwrap(),
                 &[Role::Contributor],
@@ -595,11 +606,10 @@ mod tests {
                 &pool.clone(),
             )
             .await?,
-            false,
             "false when no conversation with that ID",
         );
-        assert_eq!(
-            user_has_resource_role(
+        assert!(
+            !user_has_resource_role(
                 Resource::Conversation,
                 &conversation_id,
                 &[Role::Owner],
@@ -607,10 +617,9 @@ mod tests {
                 &pool.clone(),
             )
             .await?,
-            false,
             "false when wrong role kind",
         );
-        assert_eq!(
+        assert!(
             user_has_resource_role(
                 Resource::Conversation,
                 &conversation_id,
@@ -619,7 +628,6 @@ mod tests {
                 &pool.clone(),
             )
             .await?,
-            true,
             "true when user could be multiple roles and has one",
         );
 
@@ -632,7 +640,7 @@ mod tests {
         )
         .await?;
 
-        assert_eq!(
+        assert!(
             user_has_resource_role(
                 Resource::Conversation,
                 &conversation_id,
@@ -641,7 +649,6 @@ mod tests {
                 &pool.clone(),
             )
             .await?,
-            true,
             "true when user has multiple roles and one is required",
         );
 

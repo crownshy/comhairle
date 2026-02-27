@@ -3,17 +3,14 @@ use chrono::{DateTime, Utc};
 use comhairle_macros::{DbJsonBEnum, DbStringEnum};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, Alias, Expr, Func, Order, PostgresQueryBuilder, Query};
+use sea_query::{enum_def, Expr, Order, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
 use tracing::instrument;
 use uuid::Uuid;
 
-use super::{
-    invite_response::{self, InviteResponseIden},
-    users::User,
-};
+use super::{invite_response, users::User};
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "invite")]
@@ -41,7 +38,7 @@ impl Invite {
     #[instrument(err(Debug))]
     pub fn is_still_valid(&self) -> Result<(), ComhairleError> {
         // If the invite is accepted we still want to return it
-        if (self.status == InviteStatus::Accepted) {
+        if self.status == InviteStatus::Accepted {
             return Ok(());
         }
 
@@ -82,7 +79,7 @@ impl Invite {
             .fetch_one(db)
             .await?;
 
-        invite_response::create(&db, &user.id, &invite.id, invite_response::Response::Accept)
+        invite_response::create(db, &user.id, &invite.id, invite_response::Response::Accept)
             .await?;
         Ok(invite)
     }
@@ -100,7 +97,7 @@ impl Invite {
             .fetch_one(db)
             .await?;
 
-        invite_response::create(&db, &user.id, &invite.id, invite_response::Response::Reject)
+        invite_response::create(db, &user.id, &invite.id, invite_response::Response::Reject)
             .await?;
         Ok(invite)
     }
@@ -188,21 +185,16 @@ const DEFAULT_COLUMNS: [InviteIden; 13] = [
 ];
 
 /// Dictates login behaviour on invite accept.
-#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, DbStringEnum)]
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, DbStringEnum, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum LoginBehaviour {
     /// If the user is logged out, then direct them to the login page
     /// to finish the login
+    #[default]
     Manual,
     /// If the user is logged out, automatically create an annon
     /// account to let them access the system  
     AutoCreateAnnon,
-}
-
-impl Default for LoginBehaviour {
-    fn default() -> Self {
-        Self::Manual
-    }
 }
 
 #[instrument(err(Debug))]
@@ -296,7 +288,7 @@ pub async fn create(
     sqlx::query_as_with::<_, Invite, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| ComhairleError::FailedToCreateInvite(e))
+        .map_err(ComhairleError::FailedToCreateInvite)
 }
 
 #[derive(FromRow, Serialize, Deserialize, JsonSchema, Debug, PartialEq, Eq)]
@@ -324,23 +316,27 @@ pub async fn get_stats_for_invite(
     .bind(invite_id)
     .fetch_all(db)
     .await
-    .map_err(|e| ComhairleError::InviteStatsAggregationError(e))?;
+    .map_err(ComhairleError::InviteStatsAggregationError)?;
 
     Ok(result)
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::models::{
-        conversation::{self, CreateConversation, PartialConversation},
-        users,
-        workflow::{self, CreateWorkflow},
+    use crate::{
+        bot_service::{ComhairleBotService, MockComhairleBotService},
+        models::{
+            conversation::{self, CreateConversation, PartialConversation},
+            users,
+            workflow::{self, CreateWorkflow},
+        },
+        test_helpers::test_config,
     };
 
     use super::*;
     use fake::{Fake, Faker};
     use sqlx::PgPool;
-    use std::error::Error;
+    use std::{error::Error, sync::Arc};
 
     #[test]
     fn invite_check_for_user_should_be_case_insensitive() -> Result<(), Box<dyn Error>> {
@@ -351,6 +347,7 @@ mod tests {
             avatar_url: Some("".into()),
             auth_type: users::UserAuthType::EmailPassword,
             email: Some("TestEmail@gmail.com".into()),
+            email_verified: false,
         };
 
         let invite = Invite {
@@ -382,8 +379,14 @@ mod tests {
         let user3 = users::create_user(&Faker.fake(), &db).await?;
         let user4 = users::create_user(&Faker.fake(), &db).await?;
 
+        let bot_service = MockComhairleBotService::base();
+        let bot_service: Arc<dyn ComhairleBotService> = Arc::new(bot_service);
+        let config = test_config().unwrap();
+
         let conversation = conversation::create(
             &db,
+            &bot_service,
+            &config,
             &CreateConversation {
                 is_public: true,
                 is_invite_only: true,
@@ -393,8 +396,6 @@ mod tests {
         )
         .await?;
 
-        println!("conversation {conversation:#?}");
-
         let workflow = workflow::create(
             &db,
             &CreateWorkflow { ..Faker.fake() },
@@ -402,7 +403,6 @@ mod tests {
             user1.id,
         )
         .await?;
-        println!("workflow {workflow:#?}");
 
         let conversation = conversation::update(
             &db,
@@ -413,8 +413,6 @@ mod tests {
             },
         )
         .await?;
-
-        println!("conversation with default workflow {conversation:#?}");
 
         let invite = create(
             &db,

@@ -1,11 +1,17 @@
+use apalis::prelude::{MemoryStorage, Monitor, WorkerBuilder, WorkerFactoryFn};
 use comhairle::{
-    db::setup_db, 
-    mailer::Mailer, 
-    setup_server, 
-    websockets::{ComhairleWebSocketService, WebSocketService}, 
-    ComhairleState
+    bot_service::ComhairleRagBotService,
+    config::TranslatorConfig,
+    db::setup_db,
+    mailer::Mailer,
+    setup_server,
+    translation_service::GoogleTranslateService,
+    websockets::ComhairleWebSocketService,
+    workers::{process_documents::process_document_handler, JobQueues},
+    ComhairleState,
 };
 use std::{error::Error, sync::Arc};
+use tokio::sync::Mutex;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -39,7 +45,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Setup DB
     let db = setup_db(&config.database_url).await?;
 
-    println!("config {config:#?}");
     // Setup Mailer
     let mailer = Arc::new(Mailer::new(
         &config.mailer.host,
@@ -47,21 +52,56 @@ async fn main() -> Result<(), Box<dyn Error>> {
         &config.mailer.password,
     ));
 
+    // Setup Translation Service
+    //
+    let translation_service =
+        config
+            .translator
+            .as_ref()
+            .map(|TranslatorConfig::Google(google_config)| {
+                Arc::new(GoogleTranslateService::new(
+                    google_config.api_key.to_owned(),
+                )) as Arc<dyn comhairle::translation_service::TranslationService>
+            });
+
     let websockets = Arc::new(ComhairleWebSocketService::new());
+    let bot_service = Arc::new(ComhairleRagBotService::new(
+        &config.bot_service_host,
+        &config.bot_service_api_key,
+    ));
+
+    let process_documents_storage = MemoryStorage::new();
+    let jobs = Arc::new(JobQueues {
+        process_documents: Arc::new(Mutex::new(process_documents_storage.clone())),
+    });
+
     let state = Arc::new(ComhairleState {
         db,
         mailer,
         config,
         websockets,
+        translation_service,
+        bot_service,
+        jobs,
     });
 
-    let app = setup_server(state).await?;
+    let app = setup_server(state.clone()).await?;
 
-    // run our app with hyper
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let server_future = async move {
+        // run our app with hyper
+        let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+        tracing::info!("listening on {}", listener.local_addr().unwrap());
+        axum::serve(listener, app).await.unwrap();
+    };
 
-    tracing::info!("listening on {}", listener.local_addr().unwrap());
+    let process_document_worker = WorkerBuilder::new("process_document_job")
+        .data(state.clone())
+        .backend(process_documents_storage.clone())
+        .build_fn(process_document_handler);
 
-    axum::serve(listener, app).await.unwrap();
+    let worker_future = { Monitor::new().register(process_document_worker).run() };
+
+    let _ = tokio::join!(server_future, worker_future);
+
     Ok(())
 }

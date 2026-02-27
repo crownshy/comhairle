@@ -153,7 +153,7 @@ impl MockWebSocketService {
             .returning(|_| 0);
         websockets
             .expect_get_connected_user_ids()
-            .returning(|| vec![]);
+            .returning(Vec::new);
         websockets
     }
 }
@@ -167,16 +167,21 @@ impl ComhairleWebSocketService {
     }
 }
 
+impl Default for ComhairleWebSocketService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl WebSocketService for ComhairleWebSocketService {
-
     fn add_connection(&self, connection: WebSocketConnection) {
         let connection_id = connection.id.clone();
 
         let user_id = connection.user.id;
         self.user_connections
             .entry(user_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(connection_id.clone());
 
         self.connections.insert(connection_id, connection);
@@ -204,7 +209,7 @@ impl WebSocketService for ComhairleWebSocketService {
 
         for connection_ref in self.connections.iter() {
             let connection = connection_ref.value();
-            if let Err(_) = connection.send_message(message).await {
+            if (connection.send_message(message).await).is_err() {
                 failed_connections.push(connection.id.clone());
             } else {
                 sent_count += 1;
@@ -227,7 +232,7 @@ impl WebSocketService for ComhairleWebSocketService {
 
         for connection_ref in self.connections.iter() {
             let connection = connection_ref.value();
-            if let Err(_) = connection.send_message(message).await {
+            if (connection.send_message(message).await).is_err() {
                 failed_connections.push(connection.id.clone());
             } else {
                 sent_count += 1;
@@ -256,7 +261,7 @@ impl WebSocketService for ComhairleWebSocketService {
 
         for connection_id in &connection_ids {
             if let Some(connection) = self.connections.get(connection_id) {
-                if let Err(_) = connection.send_message(message).await {
+                if (connection.send_message(message).await).is_err() {
                     failed_connections.push(connection_id.clone());
                 } else {
                     sent_count += 1;
@@ -281,7 +286,7 @@ impl WebSocketService for ComhairleWebSocketService {
 
         for connection_id in connection_ids {
             if let Some(connection) = self.connections.get(connection_id) {
-                if let Err(_) = connection.send_message(message).await {
+                if (connection.send_message(message).await).is_err() {
                     failed_connections.push(connection_id.clone());
                 } else {
                     sent_count += 1;

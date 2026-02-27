@@ -1,0 +1,18 @@
+{
+	"name": "ui",
+	"private": true,
+	"scripts": {
+		"client": "pnpm --filter @crown-shy/api-client build",
+		"comhairle": "pnpm --filter comhairle dev",
+		"format": "pretty-quick --staged",
+		"format:check": "pretty-quick --check",
+		"prepare": "node ./scripts/install-hooks.mjs"
+	},
+	"devDependencies": {
+		"prettier": "^3.4.2",
+		"pretty-quick": "^4.0.0"
+	},
+	"dependencies": {
+		"typescript": "^5.9.3"
+	}
+}

@@ -18,13 +18,20 @@ pub trait ComhairleMailer: Send + Sync {
         context: Value,
     ) -> Result<(), ComhairleError>;
 
-    fn send_welcome_email(&self, to: &str, user: &User) -> Result<(), ComhairleError>;
+    fn send_welcome_email(&self, user: &User, verify_link: String) -> Result<(), ComhairleError>;
 
     fn send_password_reset_email(
         &self,
-        to: String,
-        user: User,
-        token: &str,
+        to: &Option<String>,
+        username: &Option<String>,
+        reset_link: String,
+    ) -> Result<(), ComhairleError>;
+
+    fn send_verification_email(
+        &self,
+        username: &Option<String>,
+        email: &Option<String>,
+        verify_link: String,
     ) -> Result<(), ComhairleError>;
 }
 
@@ -41,6 +48,9 @@ impl MockComhairleMailer {
         let mut mailer = MockComhairleMailer::new();
 
         mailer.expect_send_welcome_email().returning(|_, _| Ok(()));
+        mailer
+            .expect_send_verification_email()
+            .returning(|_, _, _| Ok(()));
         mailer.expect_send_email().returning(|_, _, _, _| Ok(()));
         mailer
             .expect_send_password_reset_email()
@@ -99,13 +109,31 @@ impl ComhairleMailer for Mailer {
         Ok(())
     }
 
-    fn send_welcome_email(&self, to: &str, user: &User) -> Result<(), ComhairleError> {
+    fn send_welcome_email(&self, user: &User, verify_link: String) -> Result<(), ComhairleError> {
         if let Some(email) = &user.email {
             self.send_email(
                 email,
-                "Welcome to Comhairle".into(),
+                "Welcome to Comhairle",
                 "welcome.html",
-                context! {user => user, subject=>"Welcome to Comhairle"},
+                context! {user => user, subject=>"Welcome to Comhairle", verify_link},
+            )
+        } else {
+            Err(ComhairleError::WrongUserType)
+        }
+    }
+
+    fn send_verification_email(
+        &self,
+        username: &Option<String>,
+        email: &Option<String>,
+        verify_link: String,
+    ) -> Result<(), ComhairleError> {
+        if let Some(email) = email {
+            self.send_email(
+                email,
+                "Confirm your email address",
+                "verify_email.html",
+                context! { username, verify_link },
             )
         } else {
             Err(ComhairleError::WrongUserType)
@@ -114,10 +142,40 @@ impl ComhairleMailer for Mailer {
 
     fn send_password_reset_email(
         &self,
-        to: String,
-        user: User,
-        token: &str,
+        to: &Option<String>,
+        username: &Option<String>,
+        reset_link: String,
     ) -> Result<(), ComhairleError> {
-        Ok(())
+        if let Some(email) = to {
+            self.send_email(
+                email,
+                "Reset your Comhairle password",
+                "password_reset.html",
+                context! { username, reset_link },
+            )
+        } else {
+            Err(ComhairleError::WrongUserType)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_load_email_template() {
+        let mailer = Mailer::new("test_host", "test_user", "test_password");
+
+        let template = mailer.template_engine.get_template("welcome.html");
+        assert!(template.is_ok(), "error retrieving welcome template");
+
+        let template = mailer
+            .template_engine
+            .get_template("conversation_invite.html");
+        assert!(template.is_ok(), "error retrieving conversation template");
+
+        let template = mailer.template_engine.get_template("email_layout.html");
+        assert!(template.is_ok(), "error retrieving layout template");
     }
 }

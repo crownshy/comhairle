@@ -11,24 +11,31 @@ use std::sync::Arc;
 use tracing::info;
 use uuid::Uuid;
 
-use crate::models::user_progress::{self, ProgressStatus};
+use crate::error::ComhairleError;
 use crate::ComhairleState;
-use crate::{error::ComhairleError, models::user_progress::UserProgress};
+use crate::{
+    models::user_progress::{self, ProgressStatus},
+    routes::user_progress::dto::UserProgressDto,
+};
 
 use super::auth::RequiredUser;
+
+pub mod dto;
 
 /// Get the progress for a user on a workflow step
 async fn get_user_progress_for_workflow(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Path((_, workflow_id)): Path<(Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<Vec<UserProgress>>), ComhairleError> {
+) -> Result<(StatusCode, Json<Vec<UserProgressDto>>), ComhairleError> {
     info!(
         "Attempting to sigun up user {} to workflow {workflow_id}",
         user.id
     );
     let user_progress =
         user_progress::list_for_user_on_workflow(&state.db, &user.id, &workflow_id).await?;
+
+    let user_progress: Vec<UserProgressDto> = user_progress.into_iter().map(Into::into).collect();
     Ok((StatusCode::OK, Json(user_progress)))
 }
 
@@ -38,9 +45,11 @@ pub async fn update_user_progress(
     RequiredUser(user): RequiredUser,
     Path((_, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
     Json(status): Json<ProgressStatus>,
-) -> Result<(StatusCode, Json<UserProgress>), ComhairleError> {
+) -> Result<(StatusCode, Json<UserProgressDto>), ComhairleError> {
     let user_progress =
         user_progress::update(&state.db, &user.id, &workflow_step_id, status).await?;
+
+    let user_progress: UserProgressDto = user_progress.into();
     Ok((StatusCode::OK, Json(user_progress)))
 }
 
@@ -51,7 +60,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(get_user_progress_for_workflow, |op| {
                 op.id("GetUserProgress")
                     .summary("Get the users progress on this workflow")
-                    .response::<200, Json<Vec<UserProgress>>>()
+                    .response::<200, Json<Vec<UserProgressDto>>>()
             }),
         )
         .api_route(
@@ -59,7 +68,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             put_with(update_user_progress, |op| {
                 op.id("SetUserProgress")
                     .summary("Set the user progress for a given workflow step")
-                    .response::<200, Json<UserProgress>>()
+                    .response::<200, Json<UserProgressDto>>()
             }),
         )
         .with_state(state)
@@ -74,8 +83,8 @@ mod tests {
     use sqlx::PgPool;
 
     use crate::{
-        config, setup_server,
-        test_helpers::{extract, test_config, test_state, UserSession},
+        setup_server,
+        test_helpers::{extract, test_state, UserSession},
     };
 
     #[sqlx::test]
@@ -105,11 +114,8 @@ mod tests {
         let target_step: serde_json::Value = steps.get(3).unwrap().to_owned();
         let workflow_step_id: String = extract("id", &target_step);
 
-        let mut user_session = UserSession::new(
-            "regular_user".into(),
-            "test_password".into(),
-            "regular_user@gmail.com".into(),
-        );
+        let mut user_session =
+            UserSession::new("regular_user", "test_password", "regular_user@gmail.com");
         user_session.signup(&app).await?;
 
         // Sign up for the workflow

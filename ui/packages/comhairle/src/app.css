@@ -1,0 +1,55 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '$lib/styles/comhairle-themes.css';
+@plugin '@tailwindcss/typography';
+
+@custom-variant dark (&:is(.dark *));
+
+html,
+body {
+	width: 100%;
+	max-width: 100dvw;
+	height: 100vh;
+}
+
+@layer base {
+	* {
+		@apply border-border outline-ring/50;
+	}
+
+	body {
+		@apply bg-background text-foreground;
+	}
+}
+
+/* Make prose respect theme colors in both light and dark mode */
+.prose {
+	--tw-prose-body: var(--foreground);
+	--tw-prose-headings: var(--foreground);
+	--tw-prose-lead: var(--muted-foreground);
+	--tw-prose-bold: var(--foreground);
+	--tw-prose-counters: var(--muted-foreground);
+	--tw-prose-bullets: var(--muted-foreground);
+	--tw-prose-quotes: var(--foreground);
+	--tw-prose-quote-borders: var(--border);
+	--tw-prose-captions: var(--muted-foreground);
+	--tw-prose-th-borders: var(--border);
+	--tw-prose-td-borders: var(--border);
+}
+
+/* Used to apply prose styles to markdown editors */
+.carta-renderer {
+	@apply prose max-w-none;
+}
+
+button,
+a {
+	cursor: pointer;
+}
+
+[data-sonner-toast] [data-close-button] {
+	position: absolute !important;
+	top: 0.5rem !important;
+	right: 0.5rem !important;
+	left: auto !important;
+}

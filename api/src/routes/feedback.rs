@@ -15,21 +15,25 @@ use crate::{
     error::ComhairleError,
     models::{
         self,
-        feedback::{CreateFeedbackDTO, Feedback, PartialFeedback},
+        feedback::{CreateFeedbackDTO, PartialFeedback},
     },
+    routes::feedback::dto::FeedbackDto,
     ComhairleState,
 };
 
 use super::auth::{RequiredAdminUser, RequiredUser};
+
+pub mod dto;
 
 async fn create_feedback(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     RequiredUser(user): RequiredUser,
     Json(create_request): Json<CreateFeedbackDTO>,
-) -> Result<(StatusCode, Json<Feedback>), ComhairleError> {
-    let feedback =
-        models::feedback::create(&state.db, create_request, &conversation_id, &user.id).await?;
+) -> Result<(StatusCode, Json<FeedbackDto>), ComhairleError> {
+    let feedback = models::feedback::create(&state.db, create_request, &conversation_id, &user.id)
+        .await?
+        .into();
 
     Ok((StatusCode::CREATED, Json(feedback)))
 }
@@ -39,9 +43,10 @@ async fn update_feedback(
     Path((_, feedback_id)): Path<(Uuid, Uuid)>,
     RequiredAdminUser(user): RequiredAdminUser,
     Json(update_request): Json<PartialFeedback>,
-) -> Result<(StatusCode, Json<Feedback>), ComhairleError> {
-    let feedback =
-        models::feedback::update(&state.db, update_request, &feedback_id, &user.id).await?;
+) -> Result<(StatusCode, Json<FeedbackDto>), ComhairleError> {
+    let feedback = models::feedback::update(&state.db, update_request, &feedback_id, &user.id)
+        .await?
+        .into();
     Ok((StatusCode::OK, Json(feedback)))
 }
 
@@ -49,13 +54,16 @@ async fn list_feedback_for_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     RequiredAdminUser(user): RequiredAdminUser,
-) -> Result<(StatusCode, Json<Vec<Feedback>>), ComhairleError> {
+) -> Result<(StatusCode, Json<Vec<FeedbackDto>>), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
     if conversation.owner_id != user.id {
         return Err(ComhairleError::UserIsNotConversationOwner);
     }
 
-    let feedback = models::feedback::list_for_conversation(&state.db, &conversation_id).await?;
+    let feedback = (models::feedback::list_for_conversation(&state.db, &conversation_id).await?)
+        .into_iter()
+        .map(Into::into)
+        .collect();
     Ok((StatusCode::OK, Json(feedback)))
 }
 
@@ -66,7 +74,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(create_feedback, |op| {
                 op.id("CreateFeedback")
                     .summary("Create a feedback statement on the conversation")
-                    .response::<201, Json<Feedback>>()
+                    .response::<201, Json<FeedbackDto>>()
             }),
         )
         .api_route(
@@ -74,15 +82,15 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             put_with(update_feedback, |op| {
                 op.id("UpdateFeedback")
                     .summary("Update an ")
-                    .response::<201, Json<Feedback>>()
+                    .response::<201, Json<FeedbackDto>>()
             }),
         )
         .api_route(
             "/",
             get_with(list_feedback_for_conversation, |op| {
-                op.id("ListFeedbackForConversation".into())
+                op.id("ListFeedbackForConversation")
                     .summary("Return a list of feedback statements for a conversation")
-                    .response::<200, Json<Feedback>>()
+                    .response::<200, Json<FeedbackDto>>()
             }),
         )
         .with_state(state)

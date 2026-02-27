@@ -1,0 +1,19 @@
+{
+        "title": "Test conversation",
+        "short_description": "A test conversation",
+        "description": "A longer description",
+        "image_url": "http://someimage.png",
+        "tags": [
+                "one",
+                "two",
+                "three"
+        ],
+        "is_public": false,
+		"is_live":true,
+        "is_invite_only": false,
+        "slug": "new_conversation",
+        "primary_locale": "en",
+        "supported_languages": [
+                "en"
+        ]
+}

@@ -12,6 +12,7 @@ jobs:
   build-and-push-release:
     if: startsWith(github.ref, 'refs/tags/v') && github.ref_type == 'tag'
     runs-on: ubuntu-latest
+    environment: base 
     steps:
       - 
         name: Set Swap Space 
@@ -37,13 +38,14 @@ jobs:
         name: Build and push frotnend
         uses: docker/build-push-action@v6
         with:
-          context: ./frontend
+          context: ./ui
           push: true
           tags: crownshy/comhairle_frontend:${{ github.ref_name }}
           
   build-and-run-staging:
     if: github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
+    environment: base 
     steps:
       - 
         name: Set Swap Space 
@@ -69,7 +71,7 @@ jobs:
         name: Build and push API image (staging)
         uses: docker/build-push-action@v6
         with:
-          context: ./frontend
+          context: ./ui
           push: true
           tags: crownshy/comhairle_frontend:${{github.sha}}
       - 

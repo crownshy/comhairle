@@ -1,7 +1,10 @@
-use std::collections::HashMap;
+use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
+
+#[cfg(test)]
 use fake::Dummy;
+
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{enum_def, Expr, Order, PostgresQueryBuilder, Query};
@@ -11,7 +14,7 @@ use sqlx::{prelude::FromRow, PgPool};
 use tracing::info;
 use uuid::Uuid;
 
-use crate::error::ComhairleError;
+use crate::{error::ComhairleError, ComhairleState};
 
 use super::{
     user_conversation_preferences,
@@ -94,6 +97,19 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleErro
     Ok(conversation)
 }
 
+pub async fn launch(
+    db: &PgPool,
+    workflow_id: &Uuid,
+    state: &Arc<ComhairleState>,
+) -> Result<(), ComhairleError> {
+    let steps = workflow_step::list(db, workflow_id).await?;
+    for step in steps {
+        workflow_step::launch(db, &step.id, state).await?;
+    }
+
+    Ok(())
+}
+
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
 #[cfg_attr(test, derive(Dummy))]
 pub struct CreateWorkflow {
@@ -130,14 +146,14 @@ pub async fn register_user(
     workflow_id: &Uuid,
     user: &User,
 ) -> Result<UserParticipation, ComhairleError> {
-    let workflow = get_by_id(&db, workflow_id).await?;
-    let user_participation = user_participation::create(&db, &user.id, &workflow_id).await?;
+    let workflow = get_by_id(db, workflow_id).await?;
+    let user_participation = user_participation::create(db, &user.id, workflow_id).await?;
 
-    let workflow_steps = workflow_step::list(&db, workflow_id).await?;
+    let workflow_steps = workflow_step::list(db, workflow_id).await?;
 
     for step in workflow_steps {
         user_progress::create(
-            &db,
+            db,
             &user.id,
             &step.id,
             user_progress::ProgressStatus::NotStarted,
@@ -148,7 +164,7 @@ pub async fn register_user(
     // Check to see if the user already has preferences for this
     // conversastion
     let user_preferences = user_conversation_preferences::get_by_user_and_conversation(
-        &db,
+        db,
         &user.id,
         &workflow.conversation_id,
     )
@@ -157,7 +173,7 @@ pub async fn register_user(
     // If they dont, create some
     if user_preferences.is_err() {
         user_conversation_preferences::create_with_defaults(
-            &db,
+            db,
             &user.id,
             &workflow.conversation_id,
         )
@@ -191,7 +207,7 @@ pub async fn update(
     info!("Updating workflow {id} with update {update:#?}");
     let values = update.to_values();
 
-    if values.len() == 0 {
+    if values.is_empty() {
         return Err(ComhairleError::NoValidUpdates);
     }
 
@@ -226,6 +242,7 @@ pub async fn list(db: &PgPool, conversation_id: Uuid) -> Result<Vec<Workflow>, C
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct WorkflowStats {
     pub total_users: i32,
     pub step_stats: Vec<WorkflowStepStats>,
@@ -233,10 +250,11 @@ pub struct WorkflowStats {
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct WorkflowStepStats {
     id: Uuid,
-    completed: i32,
-    started: i32,
+    pub completed: i32,
+    pub started: i32,
 }
 
 /// Calculate stastistics for the workflow
@@ -280,7 +298,7 @@ pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, Comh
         .build_sqlx(PostgresQueryBuilder);
 
     let total_users: i32 = sqlx::query_scalar_with(&sql, values).fetch_one(db).await?;
-    let signup_stats = get_workflow_signup_stats(&db, workflow_id).await?;
+    let signup_stats = get_workflow_signup_stats(db, workflow_id).await?;
 
     Ok(WorkflowStats {
         step_stats,
@@ -320,6 +338,7 @@ pub async fn create(
 }
 
 #[derive(FromRow, Serialize, Deserialize, JsonSchema, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct DailySignupStats {
     pub day: DateTime<Utc>,
     pub users: i32,
@@ -342,6 +361,6 @@ pub async fn get_workflow_signup_stats(
     .bind(workflow_id)
     .fetch_all(db)
     .await
-    .map_err(|e| ComhairleError::WorkflowStatsAggregationError(e))?;
+    .map_err(ComhairleError::WorkflowStatsAggregationError)?;
     Ok(result)
 }

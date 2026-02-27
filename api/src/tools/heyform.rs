@@ -1,3 +1,7 @@
+use std::sync::Arc;
+
+use aide::axum::ApiRouter;
+use async_trait::async_trait;
 use heyform_sdk::{
     client::HeyFormClient, CreateFormInput, CreateHiddenFieldInput, CreateTeamInput, FormKind,
     InteractiveMode, LoginInput, SignUpInput,
@@ -5,13 +9,12 @@ use heyform_sdk::{
 use rand::{distributions::Alphanumeric, seq::SliceRandom, thread_rng, Rng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
-use crate::error::ComhairleError;
+use crate::{error::ComhairleError, ComhairleState};
 
-use super::ToolConfigSanitize;
+use super::{ToolConfigSanitize, ToolImpl};
 
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
+#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
 pub struct HeyFormToolConfig {
     pub survey_id: String,
     pub survey_url: String,
@@ -56,8 +59,8 @@ fn generate_password() -> String {
     // Fill remaining 9 characters from all alphanumeric
     let all_chars: Vec<char> = lowercase
         .into_iter()
-        .chain(uppercase.into_iter())
-        .chain(numbers.into_iter())
+        .chain(uppercase)
+        .chain(numbers)
         .collect();
 
     for _ in 0..9 {
@@ -69,7 +72,30 @@ fn generate_password() -> String {
     password.into_iter().collect()
 }
 
-pub async fn setup(_setup_config: &HeyFormToolSetup) -> Result<HeyFormToolConfig, ComhairleError> {
+pub async fn launch(
+    preview_config: &HeyFormToolConfig,
+) -> Result<HeyFormToolConfig, ComhairleError> {
+    let preview_client = HeyFormClient::new("https://forms.comhairle.scot")?;
+    let _live_client = HeyFormClient::new("https://forms.comhairle.scot")?;
+
+    preview_client
+        .login(LoginInput {
+            email: preview_config.admin_user.clone(),
+            password: preview_config.admin_password.clone(),
+        })
+        .await?;
+
+    let new_form_id = preview_client.clone_form(&preview_config.survey_id).await?;
+    let mut new_config = preview_config.clone();
+
+    new_config.survey_id = new_form_id;
+
+    Ok(new_config)
+}
+
+async fn heyform_setup(
+    _setup_config: &HeyFormToolSetup,
+) -> Result<HeyFormToolConfig, ComhairleError> {
     let client = HeyFormClient::new("https://forms.comhairle.scot")?;
 
     let username: String = rand::thread_rng()
@@ -159,4 +185,44 @@ pub async fn setup(_setup_config: &HeyFormToolSetup) -> Result<HeyFormToolConfig
         workspace_id,
         project_id,
     })
+}
+
+/// Zero-sized marker type for HeyForm tool implementation
+pub struct HeyFormTool;
+
+#[async_trait]
+impl ToolImpl for HeyFormTool {
+    type Config = HeyFormToolConfig;
+    type Setup = HeyFormToolSetup;
+    type Report = HeyFormReport;
+
+    async fn setup(
+        setup: &Self::Setup,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        // Delegate to existing setup function
+        heyform_setup(setup).await
+    }
+
+    async fn clone_tool(
+        config: &Self::Config,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        // Delegate to existing launch function
+        launch(config).await
+    }
+
+    fn sanitize(config: Self::Config) -> Self::Config {
+        config.sanatize()
+    }
+
+    fn routes(_state: &Arc<ComhairleState>) -> ApiRouter {
+        // HeyForm tool has no routes (external service)
+        ApiRouter::new()
+    }
+}
+
+// Keep public function for backwards compatibility
+pub async fn setup(setup_config: &HeyFormToolSetup) -> Result<HeyFormToolConfig, ComhairleError> {
+    heyform_setup(setup_config).await
 }

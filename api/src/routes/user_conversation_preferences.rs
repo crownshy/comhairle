@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{get_with, post_with, put_with},
+    routing::{get_with, put_with},
     ApiRouter,
 };
 use axum::{
@@ -10,20 +10,20 @@ use axum::{
     Json,
 };
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
-    models::user_conversation_preferences::{
-        CreateUserConversationPreferences, UserConversationPreferences,
-    },
-    ComhairleState,
+    routes::user_conversation_preferences::dto::UserConversationPreferencesDto, ComhairleState,
 };
 
 use super::auth::RequiredUser;
 
+pub mod dto;
+
 #[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateUserConversationPreferences {
     pub receive_updates_by_notification: Option<bool>,
     pub receive_updates_by_email: Option<bool>,
@@ -35,7 +35,7 @@ pub async fn get_user_conversation_preferences(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Path(conversation_id): Path<Uuid>,
-) -> Result<(StatusCode, Json<UserConversationPreferences>), ComhairleError> {
+) -> Result<(StatusCode, Json<UserConversationPreferencesDto>), ComhairleError> {
     let preferences = crate::models::user_conversation_preferences::get_by_user_and_conversation(
         &state.db,
         &user.id,
@@ -43,16 +43,19 @@ pub async fn get_user_conversation_preferences(
     )
     .await?;
 
+    let preferences: UserConversationPreferencesDto = preferences.into();
     Ok((StatusCode::OK, Json(preferences)))
 }
 
 pub async fn get_all_user_conversation_preferences(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-) -> Result<(StatusCode, Json<Vec<UserConversationPreferences>>), ComhairleError> {
+) -> Result<(StatusCode, Json<Vec<UserConversationPreferencesDto>>), ComhairleError> {
     let preferences =
         crate::models::user_conversation_preferences::get_by_user(&state.db, &user.id).await?;
 
+    let preferences: Vec<UserConversationPreferencesDto> =
+        preferences.into_iter().map(Into::into).collect();
     Ok((StatusCode::OK, Json(preferences)))
 }
 
@@ -61,7 +64,7 @@ pub async fn update_user_conversation_preferences(
     RequiredUser(user): RequiredUser,
     Path(conversation_id): Path<Uuid>,
     Json(payload): Json<UpdateUserConversationPreferences>,
-) -> Result<(StatusCode, Json<UserConversationPreferences>), ComhairleError> {
+) -> Result<(StatusCode, Json<UserConversationPreferencesDto>), ComhairleError> {
     let preferences = crate::models::user_conversation_preferences::update(
         &state.db,
         &user.id,
@@ -73,31 +76,8 @@ pub async fn update_user_conversation_preferences(
     )
     .await?;
 
+    let preferences: UserConversationPreferencesDto = preferences.into();
     Ok((StatusCode::OK, Json(preferences)))
-}
-
-#[derive(Serialize, JsonSchema)]
-pub struct DeletedPreferences {
-    pub message: String,
-    pub deleted_preferences: UserConversationPreferences,
-}
-
-pub async fn delete_user_conversation_preferences(
-    State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
-    Path(conversation_id): Path<Uuid>,
-) -> Result<(StatusCode, Json<DeletedPreferences>), ComhairleError> {
-    let deleted_preferences =
-        crate::models::user_conversation_preferences::delete(&state.db, &user.id, &conversation_id)
-            .await?;
-
-    Ok((
-        StatusCode::OK,
-        Json(DeletedPreferences {
-            message: "Conversation preferences deleted successfully".to_string(),
-            deleted_preferences,
-        }),
-    ))
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
@@ -109,7 +89,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Get all user conversation preferences")
                     .description("Returns all conversation notification preferences for the authenticated user")
                     .tag("User Preferences")
-                    .response::<200, Json<Vec<UserConversationPreferences>>>()
+                    .response::<200, Json<Vec<UserConversationPreferencesDto>>>()
             }),
         )
         .api_route(
@@ -119,7 +99,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Get user preferences for a conversation")
                     .description("Returns the notification preferences for a specific conversation")
                     .tag("User Preferences")
-                    .response::<200, Json<UserConversationPreferences>>()
+                    .response::<200, Json<UserConversationPreferencesDto>>()
             }),
         )
         .api_route(
@@ -129,9 +109,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Update user preferences for a conversation")
                     .description("Updates notification preferences for a specific conversation")
                     .tag("User Preferences")
-                    .response::<200, Json<UserConversationPreferences>>()
+                    .response::<200, Json<UserConversationPreferencesDto>>()
             }),
         )
         .with_state(state)
 }
-

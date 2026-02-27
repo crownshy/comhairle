@@ -14,13 +14,13 @@ use crate::error::ComhairleError;
 #[enum_def(table_name = "report_impact")]
 #[partially(derive(Deserialize, Debug, JsonSchema))]
 pub struct ReportImpact {
-    id: Uuid,
-    created_by: Uuid,
-    report_id: Uuid,
-    details: String,
-    kind: String,
-    title: String,
-    created_at: DateTime<Utc>,
+    pub id: Uuid,
+    pub created_by: Uuid,
+    pub report_id: Uuid,
+    pub details: String,
+    pub kind: String,
+    pub title: String,
+    pub created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
 
@@ -78,7 +78,7 @@ pub async fn update(
     sqlx::query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| ComhairleError::FailedToUpdateImpact(e))
+        .map_err(ComhairleError::FailedToUpdateImpact)
 }
 
 pub async fn create(
@@ -110,7 +110,7 @@ pub async fn create(
     sqlx::query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| ComhairleError::FailedToCreateImpact)
+        .map_err(|_e| ComhairleError::FailedToCreateImpact)
 }
 
 pub async fn get_for_report(

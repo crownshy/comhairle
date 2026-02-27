@@ -1,29 +1,28 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
-use aide::axum::{routing::get_with, ApiRouter};
+use aide::axum::{routing::post_with, ApiRouter};
+use async_trait::async_trait;
 use axum::{
-    extract::{Query, Request, State},
+    extract::{Json, Query, State},
     http::StatusCode,
-    response::Response,
-    Json,
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar};
-use fancy_regex::Regex;
 use rand::{distributions::Alphanumeric, Rng};
 use reqwest::{header::SET_COOKIE, Client};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use thiserror::Error;
-use tracing::{info, warn};
+use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
 use crate::{error::ComhairleError, models, ComhairleState};
 
-use super::{ToolConfig, ToolConfigSanitize};
+use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 
 pub const POLIS_BASE_URL: &str = "https://polis.comhairle.scot";
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
 pub struct PolisToolConfig {
     pub server_url: String,
     pub poll_id: String,
@@ -51,6 +50,50 @@ pub struct PolisToolSetup {
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct PolisReport;
 
+/// Zero-sized marker type for Polis tool implementation
+pub struct PolisTool;
+
+#[async_trait]
+impl ToolImpl for PolisTool {
+    type Config = PolisToolConfig;
+    type Setup = PolisToolSetup;
+    type Report = PolisReport;
+
+    async fn setup(
+        setup: &Self::Setup,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        // Delegate to existing setup function
+        polis_setup(setup).await
+    }
+
+    async fn clone_tool(
+        config: &Self::Config,
+        _state: &Arc<ComhairleState>,
+    ) -> Result<Self::Config, ComhairleError> {
+        // Delegate to existing launch function
+        launch(config).await
+    }
+
+    fn sanitize(config: Self::Config) -> Self::Config {
+        config.sanatize()
+    }
+
+    fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
+        ApiRouter::new()
+            .api_route(
+                "/polis/admin_login",
+                post_with(admin_login, |op| {
+                    op.id("PolisAdminLogin")
+                        .tag("Tools")
+                        .summary("Login as Polis admin and proxy cookie")
+                        .description("Logs into Polis as admin and returns session cookie")
+                }),
+            )
+            .with_state(state.clone())
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum PolisError {
     #[error("Failed to create new admin user")]
@@ -61,6 +104,12 @@ pub enum PolisError {
 
     #[error("Failed to create new poll")]
     FailedToCreateNewPoll,
+
+    #[error("Failed to get comments {0}")]
+    FailedToGetComments(String),
+
+    #[error("Failed to post seed comment {0}")]
+    FailedToPostSeedComment(String),
 
     #[error("Failed to proxy route {from} : {to}")]
     ProxyError { from: String, to: String },
@@ -95,6 +144,25 @@ struct NewPollResp {
 
 pub struct PolisClient {
     client: reqwest::Client,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct PolisComment {
+    pub tid: u32,
+    pub txt: String,
+    pub is_seed: bool,
+    pub is_meta: bool,
+    pub lang: Option<String>,
+    pub pid: u32,
+    pub quote_src_url: Option<String>,
+    pub created: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PolisCommentCreateResponse {
+    tid: u8,
+    current_pid: u8,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -140,7 +208,7 @@ impl PolisClient {
             gatekeeperTosPrivacy: true,
         };
 
-        let res = self
+        let _res = self
             .client
             .post(format!("{POLIS_BASE_URL}/api/v3/auth/new"))
             .json(&new_user)
@@ -161,7 +229,7 @@ impl PolisClient {
         Ok((new_user.email, new_user.password))
     }
 
-    async fn login(&self, login: &PolisLogin) -> Result<(String), PolisError> {
+    async fn login(&self, login: &PolisLogin) -> Result<String, PolisError> {
         info!("Logging in to polis");
         let url = format!("{POLIS_BASE_URL}/api/v3/auth/login");
         println!("format {url}");
@@ -235,18 +303,42 @@ impl PolisClient {
         Ok(())
     }
 
-    pub async fn post_seed_comment(&self) -> Result<String, PolisError> {
-        let body = self
+    #[instrument(err(Debug), skip(self))]
+    pub async fn post_seed_comment(
+        &self,
+        comment: &str,
+        poll_id: &str,
+    ) -> Result<String, PolisError> {
+        let post_json =
+            json!({"txt":comment,"pid":"mypid","conversation_id":poll_id,"is_seed":true});
+
+        let resp = self
             .client
             .post(format!("{POLIS_BASE_URL}/api/v3/comments"))
-            .json("")
+            .json(&post_json)
             .send()
             .await
-            .unwrap()
-            .text()
+            .map_err(|e| PolisError::FailedToPostSeedComment(e.to_string()))?
+            .json::<PolisCommentCreateResponse>()
             .await
-            .unwrap();
-        Ok("test".into())
+            .map_err(|e| PolisError::FailedToPostSeedComment(e.to_string()))?;
+
+        Ok(resp.tid.to_string())
+    }
+
+    pub async fn get_comments(&self, poll_id: &str) -> Result<Vec<PolisComment>, PolisError> {
+        let url = format!("{POLIS_BASE_URL}/api/v3/comments?conversation_id={poll_id}");
+        let comments: Vec<PolisComment> =
+            self.client
+                .get(url)
+                .send()
+                .await
+                .unwrap()
+                .json()
+                .await
+                .map_err(|e| PolisError::FailedToGetComments(e.to_string()))?;
+
+        Ok(comments)
     }
 }
 
@@ -264,7 +356,7 @@ async fn admin_login(
 ) -> Result<(CookieJar, (StatusCode, Json<String>)), ComhairleError> {
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
 
-    if let ToolConfig::Polis(config) = workflow_step.tool_config {
+    if let ToolConfig::Polis(config) = workflow_step.preview_tool_config {
         let client = PolisClient::new();
         let cookie = client
             .login(&PolisLogin {
@@ -283,162 +375,44 @@ async fn admin_login(
     }
 }
 
-fn rewrite_local_urls(input: &str, prefix: &str) -> String {
-    // Match string literals that start with a single slash ("/...") inside either single or double quotes
-    // This helps avoid JS regexes (which are not inside quotes)
-    let re = Regex::new(r#"(?P<quote>["'])(?P<slash>/)(?P<path>(?!/)[^"']*)"#).unwrap();
+#[instrument(err(Debug))]
+pub async fn launch(preview_config: &PolisToolConfig) -> Result<PolisToolConfig, ComhairleError> {
+    let preview_client = PolisClient::new();
+    let live_client = PolisClient::new();
 
-    re.replace_all(input, |caps: &fancy_regex::Captures| {
-        let quote = &caps["quote"];
-        let path = &caps["path"];
-        let prefix = prefix.trim_end_matches('/');
+    let live_poll_config = polis_setup(&PolisToolSetup { topic: "".into() }).await?;
 
-        let result = format!("{quote}{}/{path}", prefix);
-        info!("{result}");
-        result
-    })
-    .into_owned()
-}
+    preview_client
+        .login(&PolisLogin {
+            email: preview_config.admin_user.clone(),
+            password: preview_config.admin_password.clone(),
+        })
+        .await?;
 
-pub async fn proxy(req: Request) -> Result<Response, ComhairleError> {
-    let client = Client::new();
-    let (parts, body) = req.into_parts();
-    let method = parts.method;
-    let path = parts.uri.path();
-    let headers = parts.headers;
+    live_client
+        .login(&PolisLogin {
+            email: live_poll_config.admin_user.clone(),
+            password: live_poll_config.admin_password.clone(),
+        })
+        .await?;
 
-    let path_query = parts
-        .uri
-        .path_and_query()
-        .map(|v| v.as_str())
-        .unwrap_or(path);
+    // Need to also migrate the setting for moderation
+    let seed_statements = preview_client.get_comments(&preview_config.poll_id).await?;
 
-    let new_uri = format!(
-        "http://poliscommunity.crown-shy.com{}",
-        // "http://example.com{}",
-        path_query.replace("/proxy", "")
-    );
+    // TODO filter seed statements.
 
-    info!("Proxying to {new_uri}");
-
-    let mut new_req = Request::builder().method(method).uri(new_uri.clone());
-
-    // Copy headers
-    for (k, v) in headers.iter() {
-        if k != "host" && k != "content-length" {
-            new_req = new_req.header(k, v.clone());
-        }
+    for comment in seed_statements {
+        let result = live_client
+            .post_seed_comment(&comment.txt, &live_poll_config.poll_id)
+            .await?;
     }
 
-    // Finalize request
-    let new_req = match new_req.body(body) {
-        Ok(req) => req,
-        Err(_) => {
-            return Err(PolisError::ProxyError {
-                from: path_query.to_owned(),
-                to: new_uri.clone().to_string(),
-            }
-            .into())
-        }
-    };
+    let new_seed_comments = live_client.get_comments(&live_poll_config.poll_id).await?;
 
-    let method = new_req.method().clone();
-    let url = new_req.uri().clone().to_string();
-    let headers = new_req.headers().clone();
-
-    let body_bytes = axum::body::to_bytes(new_req.into_body(), usize::MAX)
-        .await
-        .map_err(|e| {
-            warn!("Proxy error {e}");
-            PolisError::ProxyError {
-                from: path_query.to_owned(),
-                to: new_uri.clone().to_string(),
-            }
-        })?;
-
-    // let response = client
-    //     .request(method, url)
-    //     .headers(headers)
-    //     .body(reqwest::Body::from(body_bytes))
-    //     .send()
-    //     .await
-    //     .map_err(|err| {
-    //         warn!("Polis Proxy error: {err:#?}");
-    //         PolisError::ProxyError {
-    //             from: path_query.to_owned(),
-    //             to: new_uri.to_string(),
-    //         }
-    //     })?;
-
-    let response = client
-        .get(new_uri.clone())
-        // .headers(headers)
-        // .body(reqwest::Body::from(body_bytes))
-        .send()
-        .await
-        .map_err(|err| {
-            warn!("Polis Proxy error: {err:#?}");
-            PolisError::ProxyError {
-                from: path_query.to_owned(),
-                to: new_uri.to_string(),
-            }
-        })?;
-
-    info!("Reponse {response:#?}");
-
-    let status = response.status();
-
-    let mut response_builder = Response::builder().status(status);
-
-    for (key, value) in response.headers() {
-        info!("{key} : {value:#?}");
-        if (key == "content-type") {
-            response_builder = response_builder.header(key, value);
-        }
-    }
-
-    let body = response.text().await.map_err(|e| {
-        warn!("{e}");
-
-        PolisError::ProxyError {
-            from: path_query.to_owned(),
-            to: new_uri.to_string(),
-        }
-    })?;
-
-    // let replaced = rewrite_local_urls(&body, "/tools/polis/proxy/");
-    // info!("{replaced}");
-
-    response_builder.body(body.into()).map_err(|e| {
-        warn!("Proxy error {e:#?}");
-        PolisError::ProxyError {
-            from: path_query.to_owned(),
-            to: new_uri.to_string(),
-        }
-        .into()
-    })
-    // Ok(Json(json!({"works":"ok"})).into_response())
+    Ok(live_poll_config)
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
-    // let polis_host = axum_proxy::builder_https("poliscommunity.crown-shy.com").unwrap();
-    // let host1 = axum_proxy::builder_http("example.com").unwrap();
-    ApiRouter::new()
-        .route_service("/proxy{*rest}", axum::routing::any(proxy))
-        .api_route(
-            "/admin_login",
-            get_with(admin_login, |op| {
-                op.id("PolisAdminLogin".into())
-                    .description(
-                        "Used to login the current user to the specified workflow id polis",
-                    )
-                    .response::<200, Json<String>>()
-            }),
-        )
-        .with_state(state)
-}
-
-pub async fn setup(_setup: &PolisToolSetup) -> Result<PolisToolConfig, ComhairleError> {
+async fn polis_setup(_setup: &PolisToolSetup) -> Result<PolisToolConfig, ComhairleError> {
     info!("Attempting to set up polis poll");
     let client = PolisClient::new();
     let (email, password) = client.create_random_admin_user().await?;
@@ -457,6 +431,11 @@ pub async fn setup(_setup: &PolisToolSetup) -> Result<PolisToolConfig, Comhairle
         admin_user: email,
         admin_password: password,
     })
+}
+
+// Keep public function for backwards compatibility
+pub async fn setup(setup: &PolisToolSetup) -> Result<PolisToolConfig, ComhairleError> {
+    polis_setup(setup).await
 }
 
 #[cfg(test)]
@@ -524,7 +503,7 @@ mod tests {
     async fn set_topic() -> Result<(), Box<dyn std::error::Error>> {
         let client = PolisClient::new();
 
-        let login = PolisLogin {
+        let _login = PolisLogin {
             email: "xVHTX2@comhairle.com".into(),
             password: "GNgTWJ".into(),
         };

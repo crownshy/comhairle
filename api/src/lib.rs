@@ -1,3 +1,4 @@
+pub mod bot_service;
 pub mod config;
 pub mod db;
 mod docs;
@@ -5,13 +6,20 @@ pub mod error;
 pub mod mailer;
 pub mod models;
 mod routes;
+pub mod schema_helpers;
 mod tools;
+pub mod translation_service;
 pub mod websockets;
+pub mod workers;
 
+use bot_service::ComhairleBotService;
+use clap::Parser;
 use docs::docs_routes;
 use mailer::ComhairleMailer;
 pub use routes::auth::hash_pw;
 use routes::auth::AUTH_KEY;
+use tokio::fs;
+use translation_service::TranslationService;
 use websockets::WebSocketService;
 
 #[cfg(test)]
@@ -19,7 +27,11 @@ mod test_helpers;
 
 use std::sync::Arc;
 
-use axum::{http::Method, Extension, Router};
+use axum::{
+    extract::DefaultBodyLimit,
+    http::{header, Method},
+    Extension, Router,
+};
 
 use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
 
@@ -29,12 +41,17 @@ use error::ComhairleError;
 use sqlx_postgres::PgPool;
 use tower_http::cors::CorsLayer;
 
+use crate::workers::JobQueues;
+
 #[derive(Clone)]
 pub struct ComhairleState {
     pub db: PgPool,
     pub config: ComhairleConfig,
     pub mailer: Arc<dyn ComhairleMailer>,
     pub websockets: Arc<dyn WebSocketService>,
+    pub translation_service: Option<Arc<dyn TranslationService>>,
+    pub bot_service: Arc<dyn ComhairleBotService>,
+    pub jobs: Arc<JobQueues>,
 }
 
 fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
@@ -52,7 +69,19 @@ fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
         )
 }
 
+#[derive(Parser, Debug)]
+pub struct Args {
+    #[arg(
+        long,
+        short = 'x',
+        help = "Export open api spec json to a file to allow generation of the api client"
+    )]
+    export_api_spec: bool,
+}
+
 pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, ComhairleError> {
+    let args = Args::parse();
+
     tracing::info!("Running with config {:#?}", state.config);
 
     aide::generate::on_error(|error| {
@@ -66,6 +95,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
     let cors = CorsLayer::new()
         .allow_credentials(true)
         .allow_methods([Method::GET, Method::POST])
+        .allow_headers([header::CONTENT_TYPE])
         .allow_origin([
             "http://localhost".parse().unwrap(),
             "http://localhost:3000".parse().unwrap(),
@@ -92,6 +122,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
             "/notifications",
             routes::notifications::router(state.clone()),
         )
+        .nest_api_service("/translations", routes::translations::router(state.clone()))
         .nest_api_service("/tools", tools::router(state.clone()))
         .nest_api_service(
             "/conversation",
@@ -122,20 +153,38 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
                 .nest_api_service(
                     "/{conversation_id}/feedback",
                     routes::feedback::router(state.clone()),
+                )
+                .nest_api_service(
+                    "/{conversation_id}/chat_sessions",
+                    routes::chat_sessions::router(state.clone()),
+                )
+                .nest_api_service(
+                    "/{conversation_id}/documents",
+                    routes::documents::router(state.clone()),
+                )
+                .nest_api_service(
+                    "/{conversation_id}/events",
+                    routes::events::router(state.clone()).nest_api_service(
+                        "/{event_id}/attendances",
+                        routes::event_attendances::router(state.clone()),
+                    ),
                 ),
         )
         .nest_api_service(
             "/ws",
             websockets::routes::websocket_routes().with_state(state.clone()),
         )
+        .nest_api_service("/jobs", routes::jobs::router(state.clone()))
         .nest_api_service("/docs", docs_routes(state.clone()))
         .finish_api_with(&mut api, api_docs)
         .layer(Extension(Arc::new(api.clone()))) // Arc is very important here or you will face massive memory and performance issues
+        .layer(DefaultBodyLimit::max(10 * 1024 * 1024))
         .layer(cors);
 
-    let json_str = serde_json::to_string_pretty(&api.clone()).unwrap();
-
-    // println!("{json_str}");
+    if args.export_api_spec {
+        let json = serde_json::to_string_pretty(&api).unwrap();
+        fs::write("open-api-spec.json", json.as_bytes()).await?;
+    }
 
     Ok(app)
 }

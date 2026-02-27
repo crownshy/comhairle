@@ -1,6 +1,9 @@
 use super::notification::{Notification, NotificationIden};
 use super::pagination::{Order, PageOptions, PaginatedResults};
-use crate::error::ComhairleError;
+use crate::routes::notifications::dto::{NotificationDeliveryDto, NotificationDto};
+use crate::{
+    error::ComhairleError, models::notification::DEFAULT_COLUMNS as NOTIFICATION_DEFAULT_COLUMNS,
+};
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
@@ -24,9 +27,9 @@ pub enum DeliveryMethod {
     Email,
 }
 
-impl Into<sea_query::Value> for DeliveryMethod {
-    fn into(self) -> sea_query::Value {
-        sea_query::Value::String(Some(Box::new(self.to_string())))
+impl From<DeliveryMethod> for sea_query::Value {
+    fn from(val: DeliveryMethod) -> Self {
+        sea_query::Value::String(Some(Box::new(val.to_string())))
     }
 }
 
@@ -72,22 +75,11 @@ const DEFAULT_COLUMNS: [NotificationDeliveryIden; 8] = [
     NotificationDeliveryIden::UpdatedAt,
 ];
 
-const NOTIFICATION_COLUMNS: [NotificationIden; 8] = [
-    NotificationIden::Id,
-    NotificationIden::Title,
-    NotificationIden::Content,
-    NotificationIden::NotificationType,
-    NotificationIden::ContextType,
-    NotificationIden::ContextId,
-    NotificationIden::CreatedAt,
-    NotificationIden::UpdatedAt,
-];
-
 #[derive(Debug, Serialize, Clone, JsonSchema)]
 pub struct NotificationWithDelivery {
     #[serde(flatten)]
-    pub delivery: NotificationDelivery,
-    pub notification: Notification,
+    pub delivery: NotificationDeliveryDto,
+    pub notification: NotificationDto,
 }
 
 impl PartialNotificationDelivery {
@@ -336,7 +328,7 @@ pub async fn update(
 ) -> Result<NotificationDelivery, ComhairleError> {
     let values = update.to_values();
 
-    if values.len() == 0 {
+    if values.is_empty() {
         return Err(ComhairleError::NoValidUpdates);
     }
 
@@ -465,16 +457,7 @@ pub async fn list_for_user_with_notifications(
 
     // Get all notifications in one query
     let (sql, values) = Query::select()
-        .columns([
-            NotificationIden::Id,
-            NotificationIden::Title,
-            NotificationIden::Content,
-            NotificationIden::NotificationType,
-            NotificationIden::ContextType,
-            NotificationIden::ContextId,
-            NotificationIden::CreatedAt,
-            NotificationIden::UpdatedAt,
-        ])
+        .columns(NOTIFICATION_DEFAULT_COLUMNS)
         .from(NotificationIden::Table)
         .and_where(Expr::col(NotificationIden::Id).is_in(notification_ids))
         .build_sqlx(PostgresQueryBuilder);
@@ -493,8 +476,8 @@ pub async fn list_for_user_with_notifications(
             notifications_map
                 .get(&delivery.notification_id)
                 .map(|notification| NotificationWithDelivery {
-                    delivery,
-                    notification: notification.clone(),
+                    delivery: delivery.into(),
+                    notification: notification.clone().into(),
                 })
         })
         .collect();
@@ -530,16 +513,7 @@ pub async fn list_unread_for_user_with_notifications(
 
     // Get all notifications in one query
     let (sql, values) = Query::select()
-        .columns([
-            NotificationIden::Id,
-            NotificationIden::Title,
-            NotificationIden::Content,
-            NotificationIden::NotificationType,
-            NotificationIden::ContextType,
-            NotificationIden::ContextId,
-            NotificationIden::CreatedAt,
-            NotificationIden::UpdatedAt,
-        ])
+        .columns(NOTIFICATION_DEFAULT_COLUMNS)
         .from(NotificationIden::Table)
         .and_where(Expr::col(NotificationIden::Id).is_in(notification_ids))
         .build_sqlx(PostgresQueryBuilder);
@@ -558,8 +532,8 @@ pub async fn list_unread_for_user_with_notifications(
             notifications_map
                 .get(&delivery.notification_id)
                 .map(|notification| NotificationWithDelivery {
-                    delivery,
-                    notification: notification.clone(),
+                    delivery: delivery.into(),
+                    notification: notification.clone().into(),
                 })
         })
         .collect();

@@ -1,0 +1,1672 @@
+{
+        "nodes": [
+                {
+                        "data": {
+                                "form": {
+                                        "enablePrologue": false,
+                                        "inputs": {
+                                                "Topic": {
+                                                        "key": "Topic",
+                                                        "name": "Topic",
+                                                        "optional": false,
+                                                        "options": [],
+                                                        "type": "line",
+                                                        "value": "AI chip manufacturing in Taiwan"
+                                                }
+                                        },
+                                        "mode": "conversational",
+                                        "outputs": {},
+                                        "prologue": "Hello, I am here to help you shape your views and opinions.  Would you like "
+                                },
+                                "label": "Begin",
+                                "name": "begin"
+                        },
+                        "dragging": false,
+                        "id": "begin",
+                        "measured": {
+                                "height": 110,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": -103.96882063441024,
+                                "y": 220.3344276900711
+                        },
+                        "selected": false,
+                        "sourcePosition": "left",
+                        "targetPosition": "right",
+                        "type": "beginNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "frequencyPenaltyEnabled": false,
+                                        "frequency_penalty": 0.7,
+                                        "items": [
+                                                {
+                                                        "description": "An input indicating that the user needs guidance on how the chatbot works or how to participate in the discussion.",
+                                                        "examples": [
+                                                                {
+                                                                        "value": "I’m not sure what I’m supposed to do here."
+                                                                },
+                                                                {
+                                                                        "value": "How does this chatbot work?"
+                                                                },
+                                                                {
+                                                                        "value": "What kind of answers are you looking for?"
+                                                                }
+                                                        ],
+                                                        "name": "Orientation / Meta-Interaction Request",
+                                                        "uuid": "b61de626-dd97-40a1-a9f2-02cbafd7a539"
+                                                },
+                                                {
+                                                        "description": "An input that is relevant to the topic but can not really count as an opinion. The user seems to need more initial guidance such as prompting questions or teaser stories to expand their thinking. ",
+                                                        "examples": [
+                                                                {
+                                                                        "value": "This topic is important, but I don’t know much about it."
+                                                                },
+                                                                {
+                                                                        "value": "This is an interesting topic—can you guide me through the thinking?"
+                                                                }
+                                                        ],
+                                                        "name": "On-Topic but Underspecified ",
+                                                        "uuid": "76e6efd5-b632-4185-bdb9-0eb50f1e6a79"
+                                                },
+                                                {
+                                                        "description": "A statement, opinion, or piece of information that directly engages with the discussion topic {@begin.Topic} and adds substantive content relevant to the topic",
+                                                        "examples": [
+                                                                {
+                                                                        "value": "I believe this area needs more investment because of the long-term benefits."
+                                                                },
+                                                                {
+                                                                        "value": "Recent developments in this field have changed how we view the infrastructure."
+                                                                }
+                                                        ],
+                                                        "name": "On-Topic Contribution",
+                                                        "uuid": "0c1daaf8-dd26-465f-80a4-bca3e6f3f9f5"
+                                                },
+                                                {
+                                                        "description": "A question that is clearly related to the topic and seeks factual information, clarification, or validation.",
+                                                        "examples": [
+                                                                {
+                                                                        "value": "Within the scope of this topic, what is the largest resource available?"
+                                                                },
+                                                                {
+                                                                        "value": "Who are the stakeholders involved in this topic?"
+                                                                },
+                                                                {
+                                                                        "value": "What are the pros and cons in the near term if we consider a certain direction?"
+                                                                }
+                                                        ],
+                                                        "name": "Topic-Relevant Question",
+                                                        "uuid": "fedf9ef3-c7cd-45d8-99cf-40a884dc76b1"
+                                                },
+                                                {
+                                                        "description": "An input that does not relate to the topic and does not advance the discussion in any meaningful way.",
+                                                        "examples": [
+                                                                {
+                                                                        "value": "I like strawberries (a thing that's not relevant to the topic)."
+                                                                },
+                                                                {
+                                                                        "value": "The sky is blue. (a fact that's not relevant to the topic)"
+                                                                },
+                                                                {
+                                                                        "value": "I don’t want to talk to a chatbot."
+                                                                }
+                                                        ],
+                                                        "name": "Off-Topic / Out-of-Scope Input",
+                                                        "uuid": "43e5849b-3e69-461b-bb75-40a54a1a96c8"
+                                                }
+                                        ],
+                                        "llm_id": "gpt-4@OpenAI",
+                                        "maxTokensEnabled": false,
+                                        "max_tokens": 256,
+                                        "message_history_window_size": 2,
+                                        "outputs": {
+                                                "category_name": {
+                                                        "type": "string"
+                                                }
+                                        },
+                                        "parameter": "Precise",
+                                        "presencePenaltyEnabled": false,
+                                        "presence_penalty": 0.4,
+                                        "query": "sys.query",
+                                        "temperature": 0.1,
+                                        "temperatureEnabled": false,
+                                        "topPEnabled": false,
+                                        "top_p": 0.3
+                                },
+                                "label": "Categorize",
+                                "name": "Categorize_0"
+                        },
+                        "dragging": false,
+                        "id": "Categorize:IcyMealsOpen",
+                        "measured": {
+                                "height": 250,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 260.2604548786868,
+                                "y": 219.79196021107674
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "categorizeNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "cite": true,
+                                        "delay_after_error": 1,
+                                        "description": "",
+                                        "exception_default_value": "",
+                                        "exception_goto": [],
+                                        "exception_method": "",
+                                        "frequencyPenaltyEnabled": false,
+                                        "frequency_penalty": 0.7,
+                                        "llm_id": "gpt-4@OpenAI",
+                                        "maxTokensEnabled": false,
+                                        "max_retries": 3,
+                                        "max_rounds": 1,
+                                        "max_tokens": 256,
+                                        "mcp": [],
+                                        "message_history_window_size": 12,
+                                        "outputs": {
+                                                "content": {
+                                                        "type": "string",
+                                                        "value": ""
+                                                }
+                                        },
+                                        "presencePenaltyEnabled": false,
+                                        "presence_penalty": 0.4,
+                                        "prompts": [
+                                                {
+                                                        "content": "{sys.query}",
+                                                        "role": "user"
+                                                }
+                                        ],
+                                        "showStructuredOutput": false,
+                                        "sys_prompt": "#Role\nYou are a **Docs QA Agent**, a specialized Data set assistant responsible for providing accurate answers based strictly on the connected documentation repository.\n# Core Principles\n1. **Rapid Output**\nRetrieve and answer questions directly from the Data set using the retrieval tool. Immediately return results upon successful retrieval without additional reflection rounds. Prioritize rapid output even before reaching maximum iteration limits.\n2. ** Data set  Only**: Answer questions EXCLUSIVELY based on information retrieved from the connected knowledge base.\n3. **No Content Creation**: Never generate, infer, or create information that is not explicitly present in the retrieved documents.\n4. **Source Transparency**: Always indicate when information comes from the  Data set vs. when it's unavailable.\n5. **Accuracy Over Completeness**: Prefer incomplete but accurate answers over complete but potentially inaccurate ones.\n# Response Guidelines\n## When Information is Available\n- Provide direct answers based on retrieved content\n- Quote relevant sections when helpful\n- Cite the source document/section if available\n- Use phrases like: \"According to the documentation...\" or \"Based on the data set ...\"\n## When Information is Unavailable\n- Clearly state: \"I cannot find this information in the current knowledge base.\"\n- Do NOT attempt to fill gaps with general knowledge\n- Suggest alternative questions that might be covered in the docs\n- Use phrases like: \"The documentation does not cover...\" or \"This information is not available in the knowledge base.\"\n\n- and say \"We will bring this question to the person in charge who is running this conversation.\n\n\n\n\n# Response Format\n```markdown\n## Answer\n[Your response based strictly on data set content]\n**Always do these:**\n- Use the Retrieval tool for every question\n- Be transparent about information availability\n- Stick to documented facts only\n- Acknowledge data set  limitations\n",
+                                        "temperature": 0.1,
+                                        "temperatureEnabled": false,
+                                        "tools": [
+                                                {
+                                                        "component_name": "Retrieval",
+                                                        "name": "Retrieval",
+                                                        "params": {
+                                                                "cross_languages": [],
+                                                                "description": "",
+                                                                "empty_response": "",
+                                                                "kb_ids": [
+                                                                        "e60d57d2ebc211f09b4f22424bee5982"
+                                                                ],
+                                                                "keywords_similarity_weight": 0.7,
+                                                                "meta_data_filter": {},
+                                                                "outputs": {
+                                                                        "formalized_content": {
+                                                                                "type": "string",
+                                                                                "value": ""
+                                                                        },
+                                                                        "json": {
+                                                                                "type": "Array<Object>",
+                                                                                "value": []
+                                                                        }
+                                                                },
+                                                                "rerank_id": "",
+                                                                "similarity_threshold": 0.2,
+                                                                "toc_enhance": false,
+                                                                "top_k": 1024,
+                                                                "top_n": 8,
+                                                                "use_kg": false
+                                                        }
+                                                }
+                                        ],
+                                        "topPEnabled": false,
+                                        "top_p": 0.3,
+                                        "user_prompt": "",
+                                        "visual_files_var": ""
+                                },
+                                "label": "Agent",
+                                "name": "Retrieval Agent"
+                        },
+                        "dragging": false,
+                        "id": "Agent:FastMapsWish",
+                        "measured": {
+                                "height": 90,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 570.6173451093149,
+                                "y": 652.8632192377377
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "agentNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "description": "This is an agent for a specific task.",
+                                        "user_prompt": "This is the order you need to send to the agent."
+                                },
+                                "label": "Tool",
+                                "name": "flow.tool_0"
+                        },
+                        "dragging": false,
+                        "id": "Tool:FamousDaysHope",
+                        "measured": {
+                                "height": 50,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 490.4361722580725,
+                                "y": 763.6579530926688
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "toolNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "content": [
+                                                "{Agent:FastMapsWish@content}"
+                                        ]
+                                },
+                                "label": "Message",
+                                "name": "Message_2"
+                        },
+                        "dragging": false,
+                        "id": "Message:NiceRocketsTrade",
+                        "measured": {
+                                "height": 86,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 576.4574410814234,
+                                "y": 832.7122976581795
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "messageNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "cite": true,
+                                        "delay_after_error": 1,
+                                        "description": "",
+                                        "exception_default_value": "",
+                                        "exception_goto": [],
+                                        "exception_method": "",
+                                        "frequencyPenaltyEnabled": false,
+                                        "frequency_penalty": 0.7,
+                                        "llm_id": "gpt-4@OpenAI",
+                                        "maxTokensEnabled": false,
+                                        "max_retries": 3,
+                                        "max_rounds": 1,
+                                        "max_tokens": 256,
+                                        "mcp": [],
+                                        "message_history_window_size": 12,
+                                        "outputs": {
+                                                "content": {
+                                                        "type": "string",
+                                                        "value": ""
+                                                }
+                                        },
+                                        "presencePenaltyEnabled": false,
+                                        "presence_penalty": 0.4,
+                                        "prompts": [
+                                                {
+                                                        "content": "{sys.query}",
+                                                        "role": "user"
+                                                }
+                                        ],
+                                        "showStructuredOutput": false,
+                                        "sys_prompt": "The user’s input is not related to the discussion topic {begin@Topic}\nPolitely acknowledge the input and redirect the conversation back to the main topic.\nDo not answer the off-topic content.\nKeep the response brief and respectful, and invite the user to share a relevant thought or question about {begin@Topic}\n\n\n\nExample: That seems a bit off-topic for now. What are your thoughts on {begin@Topic}",
+                                        "temperature": 0.1,
+                                        "temperatureEnabled": false,
+                                        "tools": [],
+                                        "topPEnabled": false,
+                                        "top_p": 0.3,
+                                        "user_prompt": "",
+                                        "visual_files_var": ""
+                                },
+                                "label": "Agent",
+                                "name": "Off-Topic / Out-of-Scope Fallback Agent"
+                        },
+                        "dragging": false,
+                        "id": "Agent:FiftyHoundsTrain",
+                        "measured": {
+                                "height": 90,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 200.74772657768688,
+                                "y": 630.8773825042974
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "agentNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "content": [
+                                                "{Agent:FiftyHoundsTrain@content}"
+                                        ]
+                                },
+                                "label": "Message",
+                                "name": "Off-Topic / Out-of-Scope Fallback Response"
+                        },
+                        "dragging": false,
+                        "id": "Message:TidyDaysRelate",
+                        "measured": {
+                                "height": 86,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 202.5819986492044,
+                                "y": 779.6620761414139
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "messageNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "cite": true,
+                                        "delay_after_error": 1,
+                                        "description": "",
+                                        "exception_default_value": "",
+                                        "exception_goto": [],
+                                        "exception_method": "",
+                                        "frequencyPenaltyEnabled": false,
+                                        "frequency_penalty": 0.7,
+                                        "llm_id": "gpt-4@OpenAI",
+                                        "maxTokensEnabled": false,
+                                        "max_retries": 3,
+                                        "max_rounds": 1,
+                                        "max_tokens": 256,
+                                        "mcp": [],
+                                        "message_history_window_size": 12,
+                                        "outputs": {
+                                                "content": {
+                                                        "type": "string",
+                                                        "value": ""
+                                                }
+                                        },
+                                        "presencePenaltyEnabled": false,
+                                        "presence_penalty": 0.4,
+                                        "prompts": [
+                                                {
+                                                        "content": "{sys.query}",
+                                                        "role": "user"
+                                                }
+                                        ],
+                                        "showStructuredOutput": false,
+                                        "sys_prompt": "The user is seeking guidance on how to use this chatbot or how to participate in the discussion.\nExplain the purpose of the chatbot, the steps, and expected outcome of the discussion topic ({begin@Topic}), and what kind of input is helpful.\nKeep the explanation short, friendly, and encouraging.\nInvite the user to share a thought, opinion, or question related to the topic.\n# purpose\nThis is an elicitation bot that helps users shape their opinions. \n# steps\nthis will not be the only time you interact with the bot. the bot will be always available in your participation journey. This step in elicitation step, after this step, the user will use Polis and see other people's submitted opinions. After that, they can then come back to the bot and see if they want to make changes. \n# expected outcome\nThis bot helps users to shape their opinions and will store a few opinions generated throughout the dialogue in a private virtual space. Users can revisit these opinions, shape them better, before deciding to submit to the platform.\n# initial question tat can help user explore their mind\n- What's your initial thoughts or opinions about renewable energy?\n- What's the first thing that comes to mind when hearing about the topic of renewable energy in Scotland?\nAt the end of the response always ask 1 and only question. also add a short explanation of the rules of interaction. \n# rules of interaction\n- don't share personal information\n- feel free to share any ideas and views, we won't submit to the system right away. you will have a chance to revise them.  \n- please be respectful even if this is a chatbot\n- please stick to the topic \n\n\n",
+                                        "temperature": 0.1,
+                                        "temperatureEnabled": false,
+                                        "tools": [],
+                                        "topPEnabled": false,
+                                        "top_p": 0.3,
+                                        "user_prompt": "",
+                                        "visual_files_var": ""
+                                },
+                                "label": "Agent",
+                                "name": "Orientation / Meta-Interaction Agent"
+                        },
+                        "dragging": false,
+                        "id": "Agent:LegalTurtlesHunt",
+                        "measured": {
+                                "height": 90,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 659.9434992744908,
+                                "y": -178.40444386561467
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "agentNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "content": [
+                                                "{Agent:LegalTurtlesHunt@content}"
+                                        ]
+                                },
+                                "label": "Message",
+                                "name": "Orientation / Meta-Interaction Response"
+                        },
+                        "dragging": false,
+                        "id": "Message:ManyEmusYawn",
+                        "measured": {
+                                "height": 86,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 960.0783140506808,
+                                "y": -177.69309500886362
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "messageNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "frequencyPenaltyEnabled": false,
+                                        "frequency_penalty": 0.7,
+                                        "items": [
+                                                {
+                                                        "description": "A clear, assertive proposal for action or policy direction, but with limited or implicit reasoning.",
+                                                        "examples": [
+                                                                {
+                                                                        "value": "The authorities need to implement stricter regulations."
+                                                                },
+                                                                {
+                                                                        "value": "We should prioritise long-term sustainability over short-term gains."
+                                                                }
+                                                        ],
+                                                        "name": "Advocacy Statement / Prescriptive Position",
+                                                        "uuid": "0b0b77f8-3ae7-4bc7-bc85-95ba272b2f3a"
+                                                },
+                                                {
+                                                        "description": "A policy position explicitly linked to reasons, evidence, or causal logic.\nReasoned Decision that presents strong link between the proposed decision  to the reasons behind. ",
+                                                        "examples": [
+                                                                {
+                                                                        "value": "We should do X because Y and Z"
+                                                                },
+                                                                {
+                                                                        "value": "The government should do X so that Y"
+                                                                },
+                                                                {
+                                                                        "value": "We should increase investment in this area because it will reduce overall costs for the public in the future."
+                                                                },
+                                                                {
+                                                                        "value": "We should speed up development because it will benefit more people."
+                                                                }
+                                                        ],
+                                                        "name": "Reasoned Argument / Justified Position",
+                                                        "uuid": "21299dfc-e1ff-43cb-ae24-327eed016f7d"
+                                                },
+                                                {
+                                                        "description": "Actionable Proposal that has strong measurements which can be used to assess the success of outcomes after implementation.  \n\nA fully formed proposal that includes:\n- A specific action\n- A clear rationale\n- Implementation elements or measurable outcomes",
+                                                        "examples": [
+                                                                {
+                                                                        "value": "The government should X by doing Y in order to achieve Z"
+                                                                },
+                                                                {
+                                                                        "value": "Success should be measured by…"
+                                                                },
+                                                                {
+                                                                        "value": "This would be implemented through…"
+                                                                },
+                                                                {
+                                                                        "value": "The governing body should implement [Action] by [Date] to ensure [Measurable Outcome] is reached."
+                                                                }
+                                                        ],
+                                                        "name": "Actionable Proposal / Policy Recommendation",
+                                                        "uuid": "d28adc22-c40c-460a-a033-67935d545b2b"
+                                                },
+                                                {
+                                                        "description": "Expressions focused on risks, unintended consequences, or trade-offs—can appear at any stage.",
+                                                        "examples": [
+                                                                {
+                                                                        "value": "Changing the current system might negatively impact local businesses."
+                                                                },
+                                                                {
+                                                                        "value": "This transition could lead to higher costs for low-income households."
+                                                                },
+                                                                {
+                                                                        "value": "Local communities and stakeholders are being overwhelmed and that's concerning."
+                                                                }
+                                                        ],
+                                                        "name": "Concern / Risk Framing",
+                                                        "uuid": "77aa01de-a338-4f39-b191-62219028b022"
+                                                }
+                                        ],
+                                        "llm_id": "gpt-4@OpenAI",
+                                        "maxTokensEnabled": false,
+                                        "max_tokens": 256,
+                                        "message_history_window_size": 1,
+                                        "outputs": {
+                                                "category_name": {
+                                                        "type": "string"
+                                                }
+                                        },
+                                        "parameter": "Precise",
+                                        "presencePenaltyEnabled": false,
+                                        "presence_penalty": 0.4,
+                                        "query": "sys.query",
+                                        "temperature": 0.1,
+                                        "temperatureEnabled": false,
+                                        "topPEnabled": false,
+                                        "top_p": 0.3
+                                },
+                                "label": "Categorize",
+                                "name": "Contribution Categorisation"
+                        },
+                        "dragging": false,
+                        "id": "Categorize:BumpyBarsDrop",
+                        "measured": {
+                                "height": 218,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 656.2042391934342,
+                                "y": 302.30290101111393
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "categorizeNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "cite": true,
+                                        "delay_after_error": 1,
+                                        "description": "",
+                                        "exception_default_value": "",
+                                        "exception_goto": [],
+                                        "exception_method": "",
+                                        "frequencyPenaltyEnabled": false,
+                                        "frequency_penalty": 0.7,
+                                        "llm_id": "gpt-4@OpenAI",
+                                        "maxTokensEnabled": false,
+                                        "max_retries": 3,
+                                        "max_rounds": 1,
+                                        "max_tokens": 256,
+                                        "mcp": [],
+                                        "message_history_window_size": 12,
+                                        "outputs": {
+                                                "content": {
+                                                        "type": "string",
+                                                        "value": ""
+                                                }
+                                        },
+                                        "presencePenaltyEnabled": false,
+                                        "presence_penalty": 0.4,
+                                        "prompts": [
+                                                {
+                                                        "content": "{sys.query}",
+                                                        "role": "user"
+                                                }
+                                        ],
+                                        "showStructuredOutput": false,
+                                        "sys_prompt": "Help users articulate why the topic matters to them and surface core values. You are a Values Exploration Coach.\nYour role is to help users clarify their values, concerns, and motivations related to renewable energy in Scotland.\nYou do not debate, persuade, or suggest policies.\nYou focus on what matters to the user and why, without asking accusatory “why” questions.\nYour goal is to gently move users from general attitudes to explicit beliefs.\nUse:\n- Open-ended “what” and “how” questions\n- Values clarification\n- Perspective broadening\n- Emotional and ethical framing\n\nGive one affirmative response. Keep it short and ask only 1 question. \n",
+                                        "temperature": 0.1,
+                                        "temperatureEnabled": false,
+                                        "tools": [],
+                                        "topPEnabled": false,
+                                        "top_p": 0.3,
+                                        "user_prompt": "",
+                                        "visual_files_var": ""
+                                },
+                                "label": "Agent",
+                                "name": "Values Exploration Coach"
+                        },
+                        "dragging": false,
+                        "id": "Agent:StalePawsArrive",
+                        "measured": {
+                                "height": 90,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 956.77463295971,
+                                "y": -49.2837741344413
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "agentNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "cite": true,
+                                        "delay_after_error": 1,
+                                        "description": "",
+                                        "exception_default_value": "",
+                                        "exception_goto": [],
+                                        "exception_method": "",
+                                        "frequencyPenaltyEnabled": false,
+                                        "frequency_penalty": 0.7,
+                                        "llm_id": "gpt-4@OpenAI",
+                                        "maxTokensEnabled": false,
+                                        "max_retries": 3,
+                                        "max_rounds": 1,
+                                        "max_tokens": 256,
+                                        "mcp": [],
+                                        "message_history_window_size": 12,
+                                        "outputs": {
+                                                "content": {
+                                                        "type": "string",
+                                                        "value": ""
+                                                }
+                                        },
+                                        "presencePenaltyEnabled": false,
+                                        "presence_penalty": 0.4,
+                                        "prompts": [
+                                                {
+                                                        "content": "{sys.query}",
+                                                        "role": "user"
+                                                }
+                                        ],
+                                        "showStructuredOutput": false,
+                                        "sys_prompt": "Turn values into explicit beliefs and expectations about governance and responsibility.\n\n\n\nYou are a Belief Clarification Coach.\nYour role is to help users articulate and examine their beliefs about what ought to happen in renewable energy decision-making.\nYou help users:\n- Make beliefs explicit\n- Examine assumptions\n- Surface tensions or trade-offs\nYou do not ask for solutions yet.\nYour goal is to prepare the ground for ideas and proposals.\n\nGive one affirmative response. Keep it short and ask only 1 question. \n",
+                                        "temperature": 0.1,
+                                        "temperatureEnabled": false,
+                                        "tools": [],
+                                        "topPEnabled": false,
+                                        "top_p": 0.3,
+                                        "user_prompt": "",
+                                        "visual_files_var": ""
+                                },
+                                "label": "Agent",
+                                "name": "Belief Clarification Coach"
+                        },
+                        "dragging": false,
+                        "id": "Agent:PurpleTiresCheck",
+                        "measured": {
+                                "height": 90,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 955.3899865067041,
+                                "y": 68.67215068108787
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "agentNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "content": [
+                                                "{Agent:StalePawsArrive@content}"
+                                        ]
+                                },
+                                "label": "Message",
+                                "name": "Values Exploration Response"
+                        },
+                        "dragging": false,
+                        "id": "Message:LightCatsKiss",
+                        "measured": {
+                                "height": 86,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 1194.6326939970074,
+                                "y": 51.544740651704885
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "messageNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "content": [
+                                                "{Agent:PurpleTiresCheck@content}"
+                                        ]
+                                },
+                                "label": "Message",
+                                "name": "Belief Clarification Response"
+                        },
+                        "dragging": false,
+                        "id": "Message:VioletMemesTeach",
+                        "measured": {
+                                "height": 86,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 1197.4964673517068,
+                                "y": 183.37208152467056
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "messageNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "cite": true,
+                                        "delay_after_error": 1,
+                                        "description": "",
+                                        "exception_default_value": "",
+                                        "exception_goto": [],
+                                        "exception_method": "",
+                                        "frequencyPenaltyEnabled": false,
+                                        "frequency_penalty": 0.7,
+                                        "llm_id": "gpt-4@OpenAI",
+                                        "maxTokensEnabled": false,
+                                        "max_retries": 3,
+                                        "max_rounds": 1,
+                                        "max_tokens": 256,
+                                        "mcp": [],
+                                        "message_history_window_size": 12,
+                                        "outputs": {
+                                                "content": {
+                                                        "type": "string",
+                                                        "value": ""
+                                                }
+                                        },
+                                        "presencePenaltyEnabled": false,
+                                        "presence_penalty": 0.4,
+                                        "prompts": [
+                                                {
+                                                        "content": "{sys.query}",
+                                                        "role": "user"
+                                                }
+                                        ],
+                                        "showStructuredOutput": false,
+                                        "sys_prompt": "Help users explore possible actions without forcing commitment or precision.\n\n\n\nYou are an Idea Development Coach.\nYour role is to help users explore tentative ideas related to renewable energy policy.\nYou encourage:\n- Creative thinking\n- Multiple options\n- Low-risk exploration\nYou help users expand and compare ideas, but you do not evaluate feasibility yet.\n\nGive one affirmative response. Keep it short and ask only 1 question. ",
+                                        "temperature": 0.1,
+                                        "temperatureEnabled": false,
+                                        "tools": [],
+                                        "topPEnabled": false,
+                                        "top_p": 0.3,
+                                        "user_prompt": "",
+                                        "visual_files_var": ""
+                                },
+                                "label": "Agent",
+                                "name": "Idea Development Coach"
+                        },
+                        "dragging": false,
+                        "id": "Agent:MetalBucketsRepair",
+                        "measured": {
+                                "height": 90,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 953.8427292748315,
+                                "y": 187.94951906603495
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "agentNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "cite": true,
+                                        "delay_after_error": 1,
+                                        "description": "",
+                                        "exception_default_value": "",
+                                        "exception_goto": [],
+                                        "exception_method": "",
+                                        "frequencyPenaltyEnabled": false,
+                                        "frequency_penalty": 0.7,
+                                        "llm_id": "gpt-4@OpenAI",
+                                        "maxTokensEnabled": false,
+                                        "max_retries": 3,
+                                        "max_rounds": 1,
+                                        "max_tokens": 256,
+                                        "mcp": [],
+                                        "message_history_window_size": 12,
+                                        "outputs": {
+                                                "content": {
+                                                        "type": "string",
+                                                        "value": ""
+                                                }
+                                        },
+                                        "presencePenaltyEnabled": false,
+                                        "presence_penalty": 0.4,
+                                        "prompts": [
+                                                {
+                                                        "content": "{sys.query}",
+                                                        "role": "user"
+                                                }
+                                        ],
+                                        "showStructuredOutput": false,
+                                        "sys_prompt": "Help users clarify and sharpen policy claims.\n\n\n\nYou are a Policy Framing Coach.\nYour role is to help users articulate clear policy positions.\nYou help users:\n- Clarify scope\n- Identify affected stakeholders\n- Recognise trade-offs\nYou do not demand evidence yet.\nYour goal is to prepare the user to explain why they hold this position.\n\nExample Agent Responses\n“What problem do you see this addressing?”\n“Who would be most affected by this decision?”\n“What concerns do you think others might raise?”\n\nKeep it short and ask only 1 question. \n",
+                                        "temperature": 0.1,
+                                        "temperatureEnabled": false,
+                                        "tools": [],
+                                        "topPEnabled": false,
+                                        "top_p": 0.3,
+                                        "user_prompt": "",
+                                        "visual_files_var": ""
+                                },
+                                "label": "Agent",
+                                "name": "Policy Framing Coach"
+                        },
+                        "dragging": false,
+                        "id": "Agent:FewBushesRun",
+                        "measured": {
+                                "height": 90,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 954.5810608640306,
+                                "y": 405.725218240815
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "agentNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "cite": true,
+                                        "delay_after_error": 1,
+                                        "description": "",
+                                        "exception_default_value": "",
+                                        "exception_goto": [],
+                                        "exception_method": "",
+                                        "frequencyPenaltyEnabled": false,
+                                        "frequency_penalty": 0.7,
+                                        "llm_id": "gpt-4@OpenAI",
+                                        "maxTokensEnabled": false,
+                                        "max_retries": 3,
+                                        "max_rounds": 1,
+                                        "max_tokens": 256,
+                                        "mcp": [],
+                                        "message_history_window_size": 12,
+                                        "outputs": {
+                                                "content": {
+                                                        "type": "string",
+                                                        "value": ""
+                                                }
+                                        },
+                                        "presencePenaltyEnabled": false,
+                                        "presence_penalty": 0.4,
+                                        "prompts": [
+                                                {
+                                                        "content": "{sys.query}",
+                                                        "role": "user"
+                                                }
+                                        ],
+                                        "showStructuredOutput": false,
+                                        "sys_prompt": "Strengthen causal logic and reasoning.\n\nYou are a Reasoning & Trade-off Coach.\nYour role is to help users develop well-reasoned arguments that link actions to outcomes.\nYou help users:\n- Clarify causal chains\n- Consider counterarguments\n- Acknowledge trade-offs\nYou do not judge correctness.\nYou help the user make their reasoning explicit and robust.\n\nExample Agent Responses\n“How do you see that investment leading to lower bills?”\n“What assumptions does that depend on?”\n“What risks or uncertainties might affect that outcome?”\n\nKeep it short and ask only 1 question. ",
+                                        "temperature": 0.1,
+                                        "temperatureEnabled": false,
+                                        "tools": [],
+                                        "topPEnabled": false,
+                                        "top_p": 0.3,
+                                        "user_prompt": "",
+                                        "visual_files_var": ""
+                                },
+                                "label": "Agent",
+                                "name": "Reasoning & Trade-off Coach"
+                        },
+                        "dragging": false,
+                        "id": "Agent:CyanMomentsAllow",
+                        "measured": {
+                                "height": 90,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 953.1017341636043,
+                                "y": 520.1251463745084
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "agentNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "cite": true,
+                                        "delay_after_error": 1,
+                                        "description": "",
+                                        "exception_default_value": "",
+                                        "exception_goto": [],
+                                        "exception_method": "",
+                                        "frequencyPenaltyEnabled": false,
+                                        "frequency_penalty": 0.7,
+                                        "llm_id": "gpt-4@OpenAI",
+                                        "maxTokensEnabled": false,
+                                        "max_retries": 3,
+                                        "max_rounds": 1,
+                                        "max_tokens": 256,
+                                        "mcp": [],
+                                        "message_history_window_size": 12,
+                                        "outputs": {
+                                                "content": {
+                                                        "type": "string",
+                                                        "value": ""
+                                                }
+                                        },
+                                        "presencePenaltyEnabled": false,
+                                        "presence_penalty": 0.4,
+                                        "prompts": [
+                                                {
+                                                        "content": "{sys.query}",
+                                                        "role": "user"
+                                                }
+                                        ],
+                                        "showStructuredOutput": false,
+                                        "sys_prompt": "Help users articulate implementable, evaluable proposals.\n\n\n\nYou are a Policy Design Coach.\nYour role is to help users refine actionable policy recommendations.\nYou help users:\nClarify actions, actors, and timelines\nDefine success criteria\nConsider feasibility and accountability\nYou do not rewrite the proposal for them.\nYou help them strengthen their own.\n\nExample Agent Responses\n“Who would be responsible for enforcing this?”\n“How would success be measured?”\n“What challenges might arise in implementation?”\n\nKeep it short and ask only 1 more question. ",
+                                        "temperature": 0.1,
+                                        "temperatureEnabled": false,
+                                        "tools": [],
+                                        "topPEnabled": false,
+                                        "top_p": 0.3,
+                                        "user_prompt": "",
+                                        "visual_files_var": ""
+                                },
+                                "label": "Agent",
+                                "name": "Policy Design Coach"
+                        },
+                        "dragging": false,
+                        "id": "Agent:SixtyDodosBurn",
+                        "measured": {
+                                "height": 90,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 953.6303430889836,
+                                "y": 644.9667316649925
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "agentNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "cite": true,
+                                        "delay_after_error": 1,
+                                        "description": "",
+                                        "exception_default_value": "",
+                                        "exception_goto": [],
+                                        "exception_method": "",
+                                        "frequencyPenaltyEnabled": false,
+                                        "frequency_penalty": 0.7,
+                                        "llm_id": "gpt-4@OpenAI",
+                                        "maxTokensEnabled": false,
+                                        "max_retries": 3,
+                                        "max_rounds": 1,
+                                        "max_tokens": 256,
+                                        "mcp": [],
+                                        "message_history_window_size": 12,
+                                        "outputs": {
+                                                "content": {
+                                                        "type": "string",
+                                                        "value": ""
+                                                }
+                                        },
+                                        "presencePenaltyEnabled": false,
+                                        "presence_penalty": 0.4,
+                                        "prompts": [
+                                                {
+                                                        "content": "{sys.query}",
+                                                        "role": "user"
+                                                }
+                                        ],
+                                        "showStructuredOutput": false,
+                                        "sys_prompt": "You are a Risk & Trade-off Exploration Coach.\nYour role is to help users articulate and examine perceived risks, concerns, and unintended consequences related to renewable energy in Scotland.\nYou:\n- Treat concerns as legitimate signals, not obstacles\n- Help users clarify what exactly feels risky\n- Distinguish between impact, likelihood, and uncertainty\n- Surface who might be affected and how\nYou do not:\n- Argue against the concern\n- Provide reassurance or technical fixes\n- Propose solutions or policies\nYour goal is to transform vague or emotional concerns into clear, discussable risk frames that can later be addressed through reasoning or policy design.\n\nKeep it short and ask only 1 question. ",
+                                        "temperature": 0.1,
+                                        "temperatureEnabled": false,
+                                        "tools": [],
+                                        "topPEnabled": false,
+                                        "top_p": 0.3,
+                                        "user_prompt": "",
+                                        "visual_files_var": ""
+                                },
+                                "label": "Agent",
+                                "name": "Risk & Trade-off Exploration Coach"
+                        },
+                        "dragging": false,
+                        "id": "Agent:EveryBarsHunt",
+                        "measured": {
+                                "height": 90,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 949.6551664298055,
+                                "y": 771.9154150748737
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "agentNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "content": [
+                                                "{Agent:MetalBucketsRepair@content}"
+                                        ]
+                                },
+                                "label": "Message",
+                                "name": "Idea Development Response"
+                        },
+                        "dragging": false,
+                        "id": "Message:OpenCarsPush",
+                        "measured": {
+                                "height": 86,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 1202.3139676375993,
+                                "y": 309.56675573439117
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "messageNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "content": [
+                                                "{Agent:FewBushesRun@content}"
+                                        ]
+                                },
+                                "label": "Message",
+                                "name": "Policy Framing Response"
+                        },
+                        "dragging": false,
+                        "id": "Message:NinetyNumbersFly",
+                        "measured": {
+                                "height": 86,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 1205.8699643194354,
+                                "y": 430.73902457452607
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "messageNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "content": [
+                                                "{Agent:CyanMomentsAllow@content}"
+                                        ]
+                                },
+                                "label": "Message",
+                                "name": "Reasoning and Trade-Off Coaching Response"
+                        },
+                        "dragging": false,
+                        "id": "Message:TangyJeansTap",
+                        "measured": {
+                                "height": 86,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 1195.335409257563,
+                                "y": 545.0696957657534
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "messageNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "content": [
+                                                "{Agent:SixtyDodosBurn@content}"
+                                        ]
+                                },
+                                "label": "Message",
+                                "name": "Policy Design Response"
+                        },
+                        "dragging": false,
+                        "id": "Message:CoolBatsRescue",
+                        "measured": {
+                                "height": 86,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 1200.1744464098963,
+                                "y": 672.3465811835495
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "messageNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "content": [
+                                                "{Agent:EveryBarsHunt@content}"
+                                        ]
+                                },
+                                "label": "Message",
+                                "name": "Risk Exploration Response"
+                        },
+                        "dragging": false,
+                        "id": "Message:SlickBarsPush",
+                        "measured": {
+                                "height": 86,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 1194.8954673926914,
+                                "y": 796.6876598773777
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "messageNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "frequencyPenaltyEnabled": false,
+                                        "frequency_penalty": 0.7,
+                                        "items": [
+                                                {
+                                                        "description": "a broad view that is not yet a full-fledged opinion that needs shaping. ",
+                                                        "examples": [
+                                                                {
+                                                                        "value": "I believe that fairness is the most important factor in this discussion."
+                                                                },
+                                                                {
+                                                                        "value": "I belief environment sustainability is more important than economical values"
+                                                                }
+                                                        ],
+                                                        "name": "Orientation / Value position",
+                                                        "uuid": "b6c66d30-3a5f-4bec-8ee0-aade2e3ef307"
+                                                },
+                                                {
+                                                        "description": "an opinion made by the user that has strong statement, claim and a proposal for policy making",
+                                                        "examples": [
+                                                                {
+                                                                        "value": "I believe XYZ"
+                                                                },
+                                                                {
+                                                                        "value": "The focus should be on managing resources efficiently so that the potential of this project leads to tangible community benefits."
+                                                                }
+                                                        ],
+                                                        "name": "Judgement / Belief",
+                                                        "uuid": "e47b34b8-70c6-45d8-817e-b8123f91405a"
+                                                },
+                                                {
+                                                        "description": "An early-stage idea that gestures toward action but lacks clarity, justification, or feasibility considerations.",
+                                                        "examples": [
+                                                                {
+                                                                        "value": "I wonder if we could try a different approach to how this is funded."
+                                                                },
+                                                                {
+                                                                        "value": "I think we should X"
+                                                                },
+                                                                {
+                                                                        "value": "I guess we can X"
+                                                                }
+                                                        ],
+                                                        "name": "Exploratory Idea / Emerging Thought",
+                                                        "uuid": "577b93e0-ca54-453a-8ca7-3a48ad585b76"
+                                                }
+                                        ],
+                                        "llm_id": "gpt-4@OpenAI",
+                                        "maxTokensEnabled": false,
+                                        "max_tokens": 256,
+                                        "message_history_window_size": 1,
+                                        "outputs": {
+                                                "category_name": {
+                                                        "type": "string"
+                                                }
+                                        },
+                                        "parameter": "Precise",
+                                        "presencePenaltyEnabled": false,
+                                        "presence_penalty": 0.4,
+                                        "query": "sys.query",
+                                        "temperature": 0.1,
+                                        "temperatureEnabled": false,
+                                        "topPEnabled": false,
+                                        "top_p": 0.3
+                                },
+                                "label": "Categorize",
+                                "name": "Category_1"
+                        },
+                        "dragging": false,
+                        "id": "Categorize:PlainNightsListen",
+                        "measured": {
+                                "height": 186,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 657.791596960685,
+                                "y": -47.68829484731147
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "categorizeNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "cite": true,
+                                        "delay_after_error": 1,
+                                        "description": "",
+                                        "exception_default_value": "",
+                                        "exception_goto": [],
+                                        "exception_method": "",
+                                        "frequencyPenaltyEnabled": false,
+                                        "frequency_penalty": 0.7,
+                                        "llm_id": "gpt-4@OpenAI",
+                                        "maxTokensEnabled": false,
+                                        "max_retries": 3,
+                                        "max_rounds": 1,
+                                        "max_tokens": 256,
+                                        "mcp": [],
+                                        "message_history_window_size": 12,
+                                        "outputs": {
+                                                "content": {
+                                                        "type": "string",
+                                                        "value": ""
+                                                }
+                                        },
+                                        "presencePenaltyEnabled": false,
+                                        "presence_penalty": 0.4,
+                                        "prompts": [
+                                                {
+                                                        "content": "{sys.query}",
+                                                        "role": "user"
+                                                }
+                                        ],
+                                        "showStructuredOutput": false,
+                                        "sys_prompt": "You are an Opinion Extraction Bot.\nYour task is to read the user’s message and extract one opinion expressed by the user, rewritten from the user’s own perspective.\nRules:\nWrite the opinion in first person (e.g., “I think…”, “I believe…”, “I feel…”).\nCapture the user’s intent and stance, not their exact wording.\nIf multiple opinions are present, extract the most central one.\nKeep the sentence short, clear, and standalone.\nDo not explain, justify, or add context.\nDo not mention the user or the assistant.",
+                                        "temperature": 0.1,
+                                        "temperatureEnabled": false,
+                                        "tools": [],
+                                        "topPEnabled": false,
+                                        "top_p": 0.3,
+                                        "user_prompt": "",
+                                        "visual_files_var": ""
+                                },
+                                "label": "Agent",
+                                "name": "Opinion Extraction Agent"
+                        },
+                        "dragging": false,
+                        "id": "Agent:EveryTigersMix",
+                        "measured": {
+                                "height": 90,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 1583.2571490795672,
+                                "y": 355.5058490446696
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "agentNode"
+                },
+                {
+                        "data": {
+                                "form": {
+                                        "content": [
+                                                "<br>\n\nopinion:\n\n{Agent:EveryTigersMix@content}"
+                                        ],
+                                        "memory_ids": [
+                                                "a2775828f6d811f0b9ecf2dd9f3a3736"
+                                        ]
+                                },
+                                "label": "Message",
+                                "name": "Message_3"
+                        },
+                        "id": "Message:KhakiGhostsCount",
+                        "measured": {
+                                "height": 86,
+                                "width": 200
+                        },
+                        "position": {
+                                "x": 1883.2571490795672,
+                                "y": 355.5058490446696
+                        },
+                        "selected": false,
+                        "sourcePosition": "right",
+                        "targetPosition": "left",
+                        "type": "messageNode"
+                }
+        ],
+        "edges": [
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__beginstart-Categorize:IcyMealsOpenend",
+                        "markerEnd": "logo",
+                        "selected": false,
+                        "source": "begin",
+                        "sourceHandle": "start",
+                        "target": "Categorize:IcyMealsOpen",
+                        "targetHandle": "end",
+                        "type": "buttonEdge",
+                        "zIndex": 1001
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:FastMapsWishtool-Tool:FamousDaysHopeend",
+                        "source": "Agent:FastMapsWish",
+                        "sourceHandle": "tool",
+                        "target": "Tool:FamousDaysHope",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:FastMapsWishstart-Message:NiceRocketsTradeend",
+                        "source": "Agent:FastMapsWish",
+                        "sourceHandle": "start",
+                        "target": "Message:NiceRocketsTrade",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:IcyMealsOpen43e5849b-3e69-461b-bb75-40a54a1a96c8-Agent:FiftyHoundsTrainend",
+                        "source": "Categorize:IcyMealsOpen",
+                        "sourceHandle": "43e5849b-3e69-461b-bb75-40a54a1a96c8",
+                        "target": "Agent:FiftyHoundsTrain",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:FiftyHoundsTrainstart-Message:TidyDaysRelateend",
+                        "source": "Agent:FiftyHoundsTrain",
+                        "sourceHandle": "start",
+                        "target": "Message:TidyDaysRelate",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:IcyMealsOpenb61de626-dd97-40a1-a9f2-02cbafd7a539-Agent:LegalTurtlesHuntend",
+                        "source": "Categorize:IcyMealsOpen",
+                        "sourceHandle": "b61de626-dd97-40a1-a9f2-02cbafd7a539",
+                        "target": "Agent:LegalTurtlesHunt",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:LegalTurtlesHuntstart-Message:ManyEmusYawnend",
+                        "source": "Agent:LegalTurtlesHunt",
+                        "sourceHandle": "start",
+                        "target": "Message:ManyEmusYawn",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:IcyMealsOpenfedf9ef3-c7cd-45d8-99cf-40a884dc76b1-Agent:FastMapsWishend",
+                        "markerEnd": "logo",
+                        "source": "Categorize:IcyMealsOpen",
+                        "sourceHandle": "fedf9ef3-c7cd-45d8-99cf-40a884dc76b1",
+                        "target": "Agent:FastMapsWish",
+                        "targetHandle": "end",
+                        "type": "buttonEdge",
+                        "zIndex": 1001
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:IcyMealsOpen0c1daaf8-dd26-465f-80a4-bca3e6f3f9f5-Categorize:BumpyBarsDropend",
+                        "source": "Categorize:IcyMealsOpen",
+                        "sourceHandle": "0c1daaf8-dd26-465f-80a4-bca3e6f3f9f5",
+                        "target": "Categorize:BumpyBarsDrop",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:StalePawsArrivestart-Message:LightCatsKissend",
+                        "selected": false,
+                        "source": "Agent:StalePawsArrive",
+                        "sourceHandle": "start",
+                        "target": "Message:LightCatsKiss",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:PurpleTiresCheckstart-Message:VioletMemesTeachend",
+                        "source": "Agent:PurpleTiresCheck",
+                        "sourceHandle": "start",
+                        "target": "Message:VioletMemesTeach",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:BumpyBarsDrop0b0b77f8-3ae7-4bc7-bc85-95ba272b2f3a-Agent:FewBushesRunend",
+                        "source": "Categorize:BumpyBarsDrop",
+                        "sourceHandle": "0b0b77f8-3ae7-4bc7-bc85-95ba272b2f3a",
+                        "target": "Agent:FewBushesRun",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:BumpyBarsDrop21299dfc-e1ff-43cb-ae24-327eed016f7d-Agent:CyanMomentsAllowend",
+                        "source": "Categorize:BumpyBarsDrop",
+                        "sourceHandle": "21299dfc-e1ff-43cb-ae24-327eed016f7d",
+                        "target": "Agent:CyanMomentsAllow",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:BumpyBarsDropd28adc22-c40c-460a-a033-67935d545b2b-Agent:SixtyDodosBurnend",
+                        "source": "Categorize:BumpyBarsDrop",
+                        "sourceHandle": "d28adc22-c40c-460a-a033-67935d545b2b",
+                        "target": "Agent:SixtyDodosBurn",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:BumpyBarsDrop77aa01de-a338-4f39-b191-62219028b022-Agent:EveryBarsHuntend",
+                        "source": "Categorize:BumpyBarsDrop",
+                        "sourceHandle": "77aa01de-a338-4f39-b191-62219028b022",
+                        "target": "Agent:EveryBarsHunt",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:MetalBucketsRepairstart-Message:OpenCarsPushend",
+                        "source": "Agent:MetalBucketsRepair",
+                        "sourceHandle": "start",
+                        "target": "Message:OpenCarsPush",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:FewBushesRunstart-Message:NinetyNumbersFlyend",
+                        "source": "Agent:FewBushesRun",
+                        "sourceHandle": "start",
+                        "target": "Message:NinetyNumbersFly",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:CyanMomentsAllowstart-Message:TangyJeansTapend",
+                        "source": "Agent:CyanMomentsAllow",
+                        "sourceHandle": "start",
+                        "target": "Message:TangyJeansTap",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:SixtyDodosBurnstart-Message:CoolBatsRescueend",
+                        "source": "Agent:SixtyDodosBurn",
+                        "sourceHandle": "start",
+                        "target": "Message:CoolBatsRescue",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:EveryBarsHuntstart-Message:SlickBarsPushend",
+                        "source": "Agent:EveryBarsHunt",
+                        "sourceHandle": "start",
+                        "target": "Message:SlickBarsPush",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:IcyMealsOpen76e6efd5-b632-4185-bdb9-0eb50f1e6a79-Categorize:PlainNightsListenend",
+                        "source": "Categorize:IcyMealsOpen",
+                        "sourceHandle": "76e6efd5-b632-4185-bdb9-0eb50f1e6a79",
+                        "target": "Categorize:PlainNightsListen",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:PlainNightsListene47b34b8-70c6-45d8-817e-b8123f91405a-Agent:PurpleTiresCheckend",
+                        "markerEnd": "logo",
+                        "source": "Categorize:PlainNightsListen",
+                        "sourceHandle": "e47b34b8-70c6-45d8-817e-b8123f91405a",
+                        "target": "Agent:PurpleTiresCheck",
+                        "targetHandle": "end",
+                        "type": "buttonEdge",
+                        "zIndex": 1001
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:PlainNightsListen577b93e0-ca54-453a-8ca7-3a48ad585b76-Agent:MetalBucketsRepairend",
+                        "markerEnd": "logo",
+                        "source": "Categorize:PlainNightsListen",
+                        "sourceHandle": "577b93e0-ca54-453a-8ca7-3a48ad585b76",
+                        "target": "Agent:MetalBucketsRepair",
+                        "targetHandle": "end",
+                        "type": "buttonEdge",
+                        "zIndex": 1001
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:PlainNightsListenb6c66d30-3a5f-4bec-8ee0-aade2e3ef307-Agent:StalePawsArriveend",
+                        "markerEnd": "logo",
+                        "source": "Categorize:PlainNightsListen",
+                        "sourceHandle": "b6c66d30-3a5f-4bec-8ee0-aade2e3ef307",
+                        "target": "Agent:StalePawsArrive",
+                        "targetHandle": "end",
+                        "type": "buttonEdge",
+                        "zIndex": 1001
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__IterationItem:SlowTeamsFindstart-Message:TrueDrinksDigend",
+                        "source": "IterationItem:SlowTeamsFind",
+                        "sourceHandle": "start",
+                        "target": "Message:TrueDrinksDig",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:BumpyBarsDrop0b0b77f8-3ae7-4bc7-bc85-95ba272b2f3a-Agent:EveryTigersMixend",
+                        "source": "Categorize:BumpyBarsDrop",
+                        "sourceHandle": "0b0b77f8-3ae7-4bc7-bc85-95ba272b2f3a",
+                        "target": "Agent:EveryTigersMix",
+                        "targetHandle": "end"
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:BumpyBarsDrop21299dfc-e1ff-43cb-ae24-327eed016f7d-Agent:EveryTigersMixend",
+                        "markerEnd": "logo",
+                        "source": "Categorize:BumpyBarsDrop",
+                        "sourceHandle": "21299dfc-e1ff-43cb-ae24-327eed016f7d",
+                        "target": "Agent:EveryTigersMix",
+                        "targetHandle": "end",
+                        "type": "buttonEdge",
+                        "zIndex": 1001
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:BumpyBarsDropd28adc22-c40c-460a-a033-67935d545b2b-Agent:EveryTigersMixend",
+                        "markerEnd": "logo",
+                        "source": "Categorize:BumpyBarsDrop",
+                        "sourceHandle": "d28adc22-c40c-460a-a033-67935d545b2b",
+                        "target": "Agent:EveryTigersMix",
+                        "targetHandle": "end",
+                        "type": "buttonEdge",
+                        "zIndex": 1001
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Categorize:BumpyBarsDrop77aa01de-a338-4f39-b191-62219028b022-Agent:EveryTigersMixend",
+                        "markerEnd": "logo",
+                        "source": "Categorize:BumpyBarsDrop",
+                        "sourceHandle": "77aa01de-a338-4f39-b191-62219028b022",
+                        "target": "Agent:EveryTigersMix",
+                        "targetHandle": "end",
+                        "type": "buttonEdge",
+                        "zIndex": 1001
+                },
+                {
+                        "data": {
+                                "isHovered": false
+                        },
+                        "id": "xy-edge__Agent:EveryTigersMixstart-Message:KhakiGhostsCountend",
+                        "source": "Agent:EveryTigersMix",
+                        "sourceHandle": "start",
+                        "target": "Message:KhakiGhostsCount",
+                        "targetHandle": "end"
+                }
+        ]
+}

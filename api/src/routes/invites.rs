@@ -13,23 +13,27 @@ use minijinja::context;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{models::{invites::DailyResponseStats, workflow}, ComhairleState};
 use crate::{
     error::ComhairleError,
     models::{
         self,
-        invites::{CreateInviteDTO, Invite},
+        invites::{CreateInviteDTO, DailyResponseStats},
+        workflow,
     },
+    routes::invites::dto::InviteDto,
+    ComhairleState,
 };
 
 use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser};
+
+pub mod dto;
 
 #[instrument(err(Debug), skip(state))]
 async fn accept_invite(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Path((conversation_id, invite_id)): Path<(Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<Invite>), ComhairleError> {
+) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
     let invite = models::invites::get(&state.db, &invite_id).await?;
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
@@ -37,21 +41,20 @@ async fn accept_invite(
     invite.is_still_valid()?;
     invite.is_for_user(&user)?;
 
-    // Get the workflow to sign up to either explicitly from the invite 
+    // Get the workflow to sign up to either explicitly from the invite
     // or from the default conversation workflow
-    let workflow_id = match (invite.workflow_id, conversation.default_workflow_id){
+    let workflow_id = match (invite.workflow_id, conversation.default_workflow_id) {
         (Some(invite_workflow), _) => Ok(invite_workflow),
         (None, Some(conversation_workflow)) => Ok(conversation_workflow),
-        (None, None)=> Err(ComhairleError::NoWorkflowFoundForInvite)
+        (None, None) => Err(ComhairleError::NoWorkflowFoundForInvite),
     }?;
-
 
     workflow::register_user(&state.db, &workflow_id, &user).await?;
 
     invite
         .accept(&state.db, &user)
         .await
-        .map(|new_invite| (StatusCode::OK, Json(new_invite)))
+        .map(|new_invite| (StatusCode::OK, Json(new_invite.into())))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -59,7 +62,7 @@ async fn reject_invite(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Path((_, invite_id)): Path<(Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<Invite>), ComhairleError> {
+) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
     let invite = models::invites::get(&state.db, &invite_id).await?;
 
     // Check to see if the invite is valid
@@ -69,7 +72,7 @@ async fn reject_invite(
     invite
         .reject(&state.db, &user)
         .await
-        .map(|new_invite| (StatusCode::OK, Json(new_invite)))
+        .map(|new_invite| (StatusCode::OK, Json(new_invite.into())))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -78,7 +81,7 @@ async fn create_invite(
     Path(conversation_id): Path<Uuid>,
     RequiredAdminUser(user): RequiredAdminUser,
     Json(create_invite): Json<CreateInviteDTO>,
-) -> Result<(StatusCode, Json<Invite>), ComhairleError> {
+) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
     if conversation.owner_id != user.id {
@@ -96,20 +99,19 @@ async fn create_invite(
     match &invite.invite_type {
         models::invites::InviteType::Email(email) => {
             state.mailer.send_email(
-            &email,
+            email,
             "Invitation to take part in the National Performance Framework consultation",
             "conversation_invite.html",
             context! {
-                conversation_hero => conversation.image_url , 
+                conversation_hero => conversation.image_url,
                 conversation_title=> conversation.title,
                 invite_link => format!("{}/conversations/{}/invite/{}",state.config.domain, conversation.slug.unwrap_or_else(|| conversation.id.to_string()), invite.id )
             },
         )?;
         }
         models::invites::InviteType::User(user_id) => {
-            let user = models::users::get_user_by_id(&user_id, &state.db).await?;
+            let user = models::users::get_user_by_id(user_id, &state.db).await?;
             if let Some(email) = &user.email {
-                println!("Sending email");
                 state.mailer.send_email(
                 email,
                 "You have been invited to the conversation",
@@ -118,10 +120,10 @@ async fn create_invite(
             )?;
             }
         }
-        models::invites::InviteType::Open | models::invites::InviteType::SingleUse  => {}
-        
+        models::invites::InviteType::Open | models::invites::InviteType::SingleUse => {}
     };
 
+    let invite = invite.into();
     Ok((StatusCode::CREATED, Json(invite)))
 }
 
@@ -130,7 +132,7 @@ async fn get_invite(
     State(state): State<Arc<ComhairleState>>,
     Path((_, invite_id)): Path<(Uuid, Uuid)>,
     OptionalUser(user): OptionalUser,
-) -> Result<(StatusCode, Json<Invite>), ComhairleError> {
+) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
     let invite = models::invites::get(&state.db, &invite_id).await?;
     invite.is_still_valid()?;
 
@@ -138,14 +140,14 @@ async fn get_invite(
     // check to see if this invite is for them
     if let Some(user) = user {
         invite.is_for_user(&user)?;
-        Ok((StatusCode::OK, Json(invite)))
+        Ok((StatusCode::OK, Json(invite.into())))
     } else {
         // Otherwise allow the invite to be seen if it's
         // an email or open invite
         match invite.invite_type {
-            models::invites::InviteType::Email(_) |
-            models::invites::InviteType::Open |
-            models::invites::InviteType::SingleUse=> Ok((StatusCode::OK, Json(invite))),
+            models::invites::InviteType::Email(_)
+            | models::invites::InviteType::Open
+            | models::invites::InviteType::SingleUse => Ok((StatusCode::OK, Json(invite.into()))),
             models::invites::InviteType::User(_) => Err(ComhairleError::UserRequired),
         }
     }
@@ -157,23 +159,21 @@ async fn get_invite_stats(
     Path((_, invite_id)): Path<(Uuid, Uuid)>,
     RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<Vec<DailyResponseStats>>), ComhairleError> {
-
     // Check that invite exists
     models::invites::get(&state.db, &invite_id).await?;
 
     // Generate stats``
     let stats = models::invites::get_stats_for_invite(&state.db, &invite_id).await?;
-    Ok((StatusCode::OK,Json(stats)))
+    Ok((StatusCode::OK, Json(stats)))
 }
-
 
 #[instrument(err(Debug), skip(state))]
 async fn delete_invite(
     State(state): State<Arc<ComhairleState>>,
     Path((_, invite_id)): Path<(Uuid, Uuid)>,
     RequiredAdminUser(_): RequiredAdminUser,
-) -> Result<(StatusCode, Json<Invite>), ComhairleError> {
-    let invite = models::invites::delete(&state.db, &invite_id).await?;
+) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
+    let invite = models::invites::delete(&state.db, &invite_id).await?.into();
 
     Ok((StatusCode::OK, Json(invite)))
 }
@@ -183,8 +183,11 @@ async fn list_invites_for_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     RequiredAdminUser(_): RequiredAdminUser,
-) -> Result<(StatusCode, Json<Vec<Invite>>), ComhairleError> {
-    let invites = models::invites::list_for_conversation(&state.db, &conversation_id).await?;
+) -> Result<(StatusCode, Json<Vec<InviteDto>>), ComhairleError> {
+    let invites = (models::invites::list_for_conversation(&state.db, &conversation_id).await?)
+        .into_iter()
+        .map(Into::into)
+        .collect();
     Ok((StatusCode::OK, Json(invites)))
 }
 
@@ -195,7 +198,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(create_invite, |op| {
                 op.id("CreateInvite")
                     .summary("Create an invite")
-                    .response::<201, Json<Invite>>()
+                    .tag("Invites")
+                    .security_requirement("JWT")
+                    .response::<201, Json<InviteDto>>()
             }),
         )
         .api_route(
@@ -203,7 +208,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(get_invite, |op| {
                 op.id("GetInvite")
                     .summary("Get a specific invite")
-                    .response::<200, Json<Invite>>()
+                    .response::<200, Json<InviteDto>>()
             }),
         )
         .api_route(
@@ -211,6 +216,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(get_invite_stats, |op| {
                 op.id("GetInviteStats")
                     .summary("Get the daily stats for a specific invite")
+                    .tag("Invites")
+                    .security_requirement("JWT")
                     .response::<200, Json<Vec<DailyResponseStats>>>()
             }),
         )
@@ -219,7 +226,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(accept_invite, |op| {
                 op.id("AcceptInvite")
                     .summary("Accept the invite if you are able")
-                    .response::<200, Json<Invite>>()
+                    .tag("Invites")
+                    .security_requirement("JWT")
+                    .response::<200, Json<InviteDto>>()
             }),
         )
         .api_route(
@@ -227,7 +236,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(reject_invite, |op| {
                 op.id("RejectInvite")
                     .summary("Reject the invite if you are able")
-                    .response::<200, Json<Invite>>()
+                    .tag("Invites")
+                    .security_requirement("JWT")
+                    .response::<200, Json<InviteDto>>()
             }),
         )
         .api_route(
@@ -235,15 +246,19 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             delete_with(delete_invite, |op| {
                 op.id("DeleteInvite")
                     .summary("Destroy and invite")
-                    .response::<201, Json<Invite>>()
+                    .tag("Invites")
+                    .security_requirement("JWT")
+                    .response::<201, Json<InviteDto>>()
             }),
         )
         .api_route(
             "/",
             get_with(list_invites_for_conversation, |op| {
-                op.id("ListInvitesForConversation".into())
+                op.id("ListInvitesForConversation")
                     .summary("Return a list of invites statements for a conversation")
-                    .response::<200, Json<Vec<Invite>>>()
+                    .tag("Invites")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Vec<InviteDto>>>()
             }),
         )
         .with_state(state)
@@ -294,24 +309,10 @@ mod tests {
 
         session.signup(&app).await?;
 
-        let (_, conversation, _) = session
-            .create_conversation(
-                &app,
-                json! ({
-                    "title" : "Test conversation",
-                    "short_description" : "A test conversation",
-                    "description" : "A longer description",
-                    "image_url" : "http://someimage.png",
-                    "tags" : ["one", "two", "three"],
-                    "is_public" : false,
-                    "is_invite_only" : false,
-                    "slug" : "new_conversation"
-                }),
-            )
-            .await?;
+        let (_, conversation, _) = session.create_random_conversation(&app).await?;
 
         let conversation_id: String = extract("id", &conversation);
-        let (status, invite, _) = session
+        let (status, _invite, _) = session
             .post(
                 &app,
                 &format!("/conversation/{conversation_id}/invite"),
@@ -322,8 +323,6 @@ mod tests {
                 .into(),
             )
             .await?;
-
-        println!("{invite:#?}");
 
         assert_eq!(status, StatusCode::CREATED, "should be created ok");
 
@@ -340,28 +339,14 @@ mod tests {
 
         session.signup(&app).await?;
 
-        let (_, conversation, _) = session
-            .create_conversation(
-                &app,
-                json! ({
-                    "title" : "Test conversation",
-                    "short_description" : "A test conversation",
-                    "description" : "A longer description",
-                    "image_url" : "http://someimage.png",
-                    "tags" : ["one", "two", "three"],
-                    "is_public" : false,
-                    "is_invite_only" : false,
-                    "slug" : "new_conversation"
-                }),
-            )
-            .await?;
+        let (_, conversation, _) = session.create_random_conversation(&app).await?;
 
         let conversation_id: String = extract("id", &conversation);
         let mut regular_user_session = UserSession::new("bob", "bob", "bob@gmail.com");
 
         regular_user_session.signup(&app).await?;
 
-        let (status, invite, _) = regular_user_session
+        let (status, _invite, _) = regular_user_session
             .post(
                 &app,
                 &format!("/conversation/{conversation_id}/invite"),
@@ -372,8 +357,6 @@ mod tests {
                 .into(),
             )
             .await?;
-
-        println!("{invite:#?}");
 
         assert_eq!(status, StatusCode::UNAUTHORIZED, "should be blocked");
 
@@ -391,22 +374,8 @@ mod tests {
 
         session.signup(&app).await?;
 
-        let (_, conversation, _) = session
-            .create_conversation(
-                &app,
-                json! ({
-                    "title" : "Test conversation",
-                    "short_description" : "A test conversation",
-                    "description" : "A longer description",
-                    "image_url" : "http://someimage.png",
-                    "tags" : ["one", "two", "three"],
-                    "is_public" : false,
-                    "is_invite_only" : false,
-                    "slug" : "new_conversation"
-                }),
-            )
-            .await?;
-        let convo_id: String = extract("id",&conversation );
+        let (_, conversation, _) = session.create_random_conversation(&app).await?;
+        let convo_id: String = extract("id", &conversation);
         session.create_random_workflow(&app, &convo_id).await?;
 
         let conversation_id: String = extract("id", &conversation);
@@ -446,15 +415,13 @@ mod tests {
             "Should not be able to accept invite"
         );
 
-        let (status, accept_response, _) = regular_user_session
+        let (status, _accept_response, _) = regular_user_session
             .post(
                 &app,
                 &format!("/conversation/{conversation_id}/invite/{invite_id}/accept"),
                 Body::empty(),
             )
             .await?;
-        println!("invite id {invite_id}");
-        println!("{accept_response:#?}");
 
         assert_eq!(status, StatusCode::OK, "Should be ok");
 

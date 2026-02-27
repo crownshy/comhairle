@@ -1,0 +1,146 @@
+/**
+ * Styles for the rendered content within the editor
+ */
+
+.tiptap {
+	outline: none;
+	min-height: var(--editor-min-height, 200px);
+}
+
+.tiptap h1 {
+	font-size: 1.875rem;
+	font-weight: bold;
+	margin: 1rem 0 0.5rem 0;
+	line-height: 1.2;
+}
+
+.tiptap h2 {
+	font-size: 1.5rem;
+	font-weight: bold;
+	margin: 1rem 0 0.5rem 0;
+	line-height: 1.3;
+}
+
+.tiptap h3 {
+	font-size: 1.25rem;
+	font-weight: bold;
+	margin: 1rem 0 0.5rem 0;
+	line-height: 1.4;
+}
+
+.tiptap p {
+	margin: 0.5rem 0;
+	line-height: 1.6;
+}
+
+.tiptap ul {
+	list-style-type: disc;
+	padding-left: 1.5rem;
+	margin: 0.5rem 0;
+}
+
+.tiptap ol {
+	list-style-type: decimal;
+	padding-left: 1.5rem;
+	margin: 0.5rem 0;
+}
+
+.tiptap li {
+	margin: 0.25rem 0;
+}
+
+.tiptap blockquote {
+	border-left: 4px solid #e5e7eb;
+	padding-left: 1rem;
+	margin: 1rem 0;
+	font-style: italic;
+	color: #6b7280;
+}
+
+.tiptap code {
+	background: #f3f4f6;
+	padding: 0.125rem 0.25rem;
+	border-radius: 0.25rem;
+	font-family: 'Courier New', monospace;
+	font-size: 0.875rem;
+}
+
+.tiptap pre {
+	background: #1f2937;
+	color: white;
+	padding: 1rem;
+	border-radius: 0.5rem;
+	margin: 1rem 0;
+	overflow-x: auto;
+}
+
+.tiptap pre code {
+	background: none;
+	padding: 0;
+	color: inherit;
+}
+
+/* Text alignment styles */
+.tiptap [style*='text-align: left'] {
+	text-align: left;
+}
+
+.tiptap [style*='text-align: center'] {
+	text-align: center;
+}
+
+.tiptap [style*='text-align: right'] {
+	text-align: right;
+}
+
+.tiptap [style*='text-align: justify'] {
+	text-align: justify;
+}
+
+/* Iframe/Video embed styles */
+.iframe-wrapper {
+	position: relative;
+	padding-bottom: 56.25%; /* 16:9 aspect ratio */
+	height: 0;
+	overflow: hidden;
+	width: 100%;
+	margin: 1rem 0;
+	border-radius: 0.5rem;
+}
+
+.iframe-wrapper.ProseMirror-selectednode {
+	outline: 3px solid #3b82f6;
+	outline-offset: 2px;
+}
+
+.iframe-wrapper iframe {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	border-radius: 0.5rem;
+}
+
+/* Custom scrollbar styles */
+.editor-scroll-container {
+	scrollbar-width: thin;
+	scrollbar-color: #d1d5db transparent;
+}
+
+.editor-scroll-container::-webkit-scrollbar {
+	width: 8px;
+}
+
+.editor-scroll-container::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.editor-scroll-container::-webkit-scrollbar-thumb {
+	background-color: #d1d5db;
+	border-radius: 4px;
+}
+
+.editor-scroll-container::-webkit-scrollbar-thumb:hover {
+	background-color: #9ca3af;
+}

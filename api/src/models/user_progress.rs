@@ -3,7 +3,7 @@ use core::fmt;
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, ConditionalStatement, Expr, JoinType, PostgresQueryBuilder, Query};
+use sea_query::{enum_def, Expr, JoinType, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
@@ -28,9 +28,9 @@ pub enum ProgressStatus {
     Done,
 }
 
-impl Into<sea_query::Value> for ProgressStatus {
-    fn into(self) -> sea_query::Value {
-        sea_query::Value::String(Some(Box::new(self.to_string())))
+impl From<ProgressStatus> for sea_query::Value {
+    fn from(val: ProgressStatus) -> Self {
+        sea_query::Value::String(Some(Box::new(val.to_string())))
     }
 }
 

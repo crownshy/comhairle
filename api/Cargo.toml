@@ -19,10 +19,10 @@ name = "comhairle_data_loader"
 path = "src/data_loader/main.rs"
 
 [dependencies]
-axum = { version = "0.8.3", features = ["ws"] }
+axum = { version = "0.8.3", features = ["ws", "multipart"] }
 async-trait = "0.1.83"
 config = "0.15.8"
-sea-query = {version = "0.32.3", features=["attr","postgres-array"] }
+sea-query = {version = "0.32.3", features=["attr","postgres-array","chrono"] }
 sea-query-binder = {version="0.7.0", features=[
     "sqlx-postgres",
     "with-chrono",
@@ -64,11 +64,13 @@ tower-cookies = "0.11.0"
 partially = { version = "0.2.1", features = ["derive"] }
 slugify = "0.1.0"
 clap = { version = "4.5.32", features = ["derive"] }
+futures = "0.3.31"
+apalis = "0.7.4"
 
 #API documentation
 
 schemars = { version = "0.8.10", features = ["uuid1", "chrono"] }
-aide = { version = "0.14.0", features = ["redoc", "swagger", "scalar", "axum", "axum-tokio", "axum-json", "axum-query", "axum-matched-path", "macros", "axum-extra-cookie"] }
+aide = { version = "0.14.0", features = ["redoc", "swagger", "scalar", "axum", "axum-tokio", "axum-json", "axum-query", "axum-matched-path", "macros", "axum-extra-cookie", "axum-multipart"] }
 axum-extra = { version = "0.10.1", features = ["cookie"] }
 aws-sdk-s3 = "1.82.0"
 aws-config = "1.6.1"
@@ -91,6 +93,7 @@ dashmap = "6.1.0"
 # adaptors
 
 heyform-sdk = {path="../adaptors/heyform-rust-sdk"}
+ragflow = {path="../adaptors/ragflow"}
 
 # Macros
 comhairle-macros = {path="../comhairle_macros"}

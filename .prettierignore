@@ -1,0 +1,11 @@
+# Ignore everything
+*
+
+# Allow ui directory and its contents
+!ui/
+!ui/**
+
+# Still ignore build output and lock files within ui
+ui/packages/comhairle/.svelte-kit/
+ui/packages/comhairle/build/
+pnpm-lock.yaml

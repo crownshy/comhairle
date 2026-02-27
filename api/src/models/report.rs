@@ -15,6 +15,9 @@ use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
+    routes::{
+        feedback::dto::FeedbackDto, report_impacts::dto::ReportImpactDto, reports::dto::ReportDto,
+    },
     tools::{
         elicitation_bot::ElicitationBotReport, heyform::HeyFormReport, learn::LearnReport,
         polis::PolisReport, stories::StoriesReport, ReportConfig, ToolConfig,
@@ -22,26 +25,35 @@ use crate::{
 };
 
 use super::{
-    feedback::{self, Feedback},
-    report_impact::{self, ReportImpact},
+    feedback::{self},
+    report_impact::{self},
     workflow, workflow_step,
 };
 
 #[derive(Serialize, Deserialize, JsonSchema)]
-pub struct FullReportDTO {
+#[serde(rename_all = "camelCase")]
+pub struct FullReportDto {
     #[serde(flatten)]
-    pub report: Report,
-    pub facilitator_feedback: Vec<Feedback>,
-    pub participant_feedback: Vec<Feedback>,
-    pub impacts: Vec<ReportImpact>,
+    pub report: ReportDto,
+    pub facilitator_feedback: Vec<FeedbackDto>,
+    pub participant_feedback: Vec<FeedbackDto>,
+    pub impacts: Vec<ReportImpactDto>,
 }
 
-impl FullReportDTO {
-    pub async fn from_report(db: &PgPool, report: Report) -> Result<FullReportDTO, ComhairleError> {
-        let feedback = feedback::list_for_conversation(db, &report.conversation_id).await?;
-        let impacts = report_impact::get_for_report(db, &report.id).await?;
-        Ok(FullReportDTO {
-            report,
+impl FullReportDto {
+    pub async fn from_report(db: &PgPool, report: Report) -> Result<FullReportDto, ComhairleError> {
+        let feedback = feedback::list_for_conversation(db, &report.conversation_id)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect();
+        let impacts = report_impact::get_for_report(db, &report.id)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect();
+        Ok(FullReportDto {
+            report: report.into(),
             impacts,
             facilitator_feedback: feedback,
             participant_feedback: vec![],
@@ -54,13 +66,13 @@ impl FullReportDTO {
 #[partially(derive(Deserialize, Debug, JsonSchema))]
 pub struct Report {
     #[partially(omit)]
-    id: Uuid,
-    is_public: bool,
-    conversation_id: Uuid,
-    summary: String,
-    section_configs: ReportSectionConfigs,
+    pub id: Uuid,
+    pub is_public: bool,
+    pub conversation_id: Uuid,
+    pub summary: String,
+    pub section_configs: ReportSectionConfigs,
     #[partially(omit)]
-    created_at: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
     #[partially(omit)]
     updated_at: DateTime<Utc>,
 }
@@ -102,7 +114,7 @@ impl<'q> Encode<'q, Postgres> for ReportSectionConfigs {
     fn encode_by_ref(
         &self,
         buf: &mut PgArgumentBuffer,
-    ) -> Result<IsNull, Box<(dyn std::error::Error + Send + Sync + 'static)>> {
+    ) -> Result<IsNull, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let json = serde_json::to_value(self).unwrap();
         <serde_json::Value as Encode<Postgres>>::encode(json, buf)
     }
@@ -180,30 +192,36 @@ pub async fn create_for_conversation(
     db: &PgPool,
     conversation_id: Uuid,
 ) -> Result<Report, ComhairleError> {
-    let workflows = workflow::list(&db, conversation_id).await?;
-    let workflow_steps = workflow_step::list(&db, &workflows[0].id).await?;
+    let workflows = workflow::list(db, conversation_id).await?;
+    let workflow_steps = workflow_step::list(db, &workflows[0].id).await?;
 
-    let section_configs: Vec<ReportSectionConfig> = workflow_steps
+    let section_configs: Result<Vec<ReportSectionConfig>, ComhairleError> = workflow_steps
         .iter()
         .map(|step| {
-            let config = match &step.tool_config {
-                ToolConfig::Polis(_) => ReportConfig::Polis(PolisReport),
-                ToolConfig::Learn(_) => ReportConfig::Learn(LearnReport),
-                ToolConfig::HeyForm(_) => ReportConfig::HeyForm(HeyFormReport),
-                ToolConfig::Stories(_) => ReportConfig::Stories(StoriesReport),
-                ToolConfig::ElicitationBot(_) => ReportConfig::ElicitationBot(ElicitationBotReport),
-            };
+            if let Some(tool_config) = &step.tool_config {
+                let config = match tool_config {
+                    ToolConfig::Polis(_) => ReportConfig::Polis(PolisReport),
+                    ToolConfig::Learn(_) => ReportConfig::Learn(LearnReport),
+                    ToolConfig::HeyForm(_) => ReportConfig::HeyForm(HeyFormReport),
+                    ToolConfig::Stories(_) => ReportConfig::Stories(StoriesReport),
+                    ToolConfig::ElicitationBot(_) => {
+                        ReportConfig::ElicitationBot(ElicitationBotReport)
+                    }
+                };
 
-            ReportSectionConfig {
-                workflow_step_id: step.id,
-                config,
-                ai_generated: false,
-                verified: false,
+                Ok(ReportSectionConfig {
+                    workflow_step_id: step.id,
+                    config,
+                    ai_generated: false,
+                    verified: false,
+                })
+            } else {
+                Err(ComhairleError::ToolConfigMismatch)
             }
         })
         .collect();
 
-    let section_configs = ReportSectionConfigs(section_configs);
+    let section_configs = ReportSectionConfigs(section_configs?);
 
     let values: Vec<sea_query::SimpleExpr> = vec![
         false.into(),

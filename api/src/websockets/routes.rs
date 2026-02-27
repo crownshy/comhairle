@@ -1,10 +1,6 @@
 use std::sync::Arc;
 
-use crate::{
-    error::ComhairleError,
-    routes::auth::{RequiredAdminUser, RequiredUser},
-    ComhairleState,
-};
+use crate::{error::ComhairleError, routes::auth::RequiredAdminUser, ComhairleState};
 use aide::{
     axum::{
         routing::{get_with, post_with},

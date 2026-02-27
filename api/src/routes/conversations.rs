@@ -12,19 +12,18 @@ use aide::axum::{
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use tracing::info;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
     models::{
         conversation::{
-            self, Conversation, ConversationFilterOptions, ConversationOrderOptions,
-            CreateConversation, PartialConversation,
+            self, ConversationFilterOptions, ConversationOrderOptions,
+            ConversationWithTranslations, CreateConversation, IdOrSlug, PartialConversation,
         },
         conversation_email_notification_recipients::{
-            self as email_recipients_model, ConversationEmailNotificationRecipients,
-            CreateConversationEmailNotificationRecipients,
+            self as email_recipients_model, CreateConversationEmailNotificationRecipients,
         },
         notification::{self as notification_model, CreateNotification, NotificationContextType},
         notification_delivery::{
@@ -33,30 +32,46 @@ use crate::{
         pagination::{OrderParams, PageOptions, PaginatedResults},
         user_participation::{self},
     },
+    routes::{
+        conversations::dto::{ConversationDto, LocalizedConversationDto},
+        translations::LocaleExtractor,
+    },
     ComhairleState,
 };
 
-use super::auth::RequiredAdminUser;
+use super::auth::{is_user_admin, OptionalUser, RequiredAdminUser};
+
+pub mod dto;
 
 /// Create conversation handler
 async fn create_conversation(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
     Json(new_conversations): Json<CreateConversation>,
-) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
+) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     info!("Attempting to create conversation");
-    let conversation = conversation::create(&state.db, &new_conversations, user.id).await?;
+    let conversation = conversation::create(
+        &state.db,
+        &state.bot_service,
+        &state.config,
+        &new_conversations,
+        user.id,
+    )
+    .await?;
+
+    let conversation: ConversationDto = conversation.into();
     Ok((StatusCode::CREATED, Json(conversation)))
 }
 
 /// Update conversation handler
 async fn update_conversation(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredAdminUser(_user): RequiredAdminUser,
     Path(id): Path<Uuid>,
     Json(conversation): Json<PartialConversation>,
-) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
+) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     let conversation = conversation::update(&state.db, &id, &conversation).await?;
+    let conversation: ConversationDto = conversation.into();
     Ok((StatusCode::OK, Json(conversation)))
 }
 
@@ -64,43 +79,120 @@ async fn update_conversation(
 async fn list_conversations(
     State(state): State<Arc<ComhairleState>>,
     OrderParams(order_options): OrderParams<ConversationOrderOptions>,
-    Query(filter_options): Query<ConversationFilterOptions>,
+    Query(mut filter_options): Query<ConversationFilterOptions>,
     Query(page_options): Query<PageOptions>,
-) -> Result<(StatusCode, Json<PaginatedResults<Conversation>>), ComhairleError> {
-    let conversations =
-        conversation::list(&state.db, page_options, order_options, filter_options).await?;
+    LocaleExtractor(locale): LocaleExtractor,
+) -> Result<(StatusCode, Json<PaginatedResults<LocalizedConversationDto>>), ComhairleError> {
+    filter_options.enforce_live();
+
+    let conversations = conversation::list(
+        &state.db,
+        page_options,
+        order_options,
+        filter_options,
+        Some(locale),
+    )
+    .await?
+    .into();
+
     Ok((StatusCode::OK, Json(conversations)))
 }
 
-/// For extracting an id or slug from Path
-#[derive(Deserialize, Debug, JsonSchema)]
+async fn launch_conversation(
+    State(state): State<Arc<ComhairleState>>,
+    Path(conversation_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    if conversation.is_live {
+        return Err(ComhairleError::ConversationAlreadyLive);
+    }
+    let conversation: ConversationDto = conversation::launch(&state.db, conversation_id, &state)
+        .await?
+        .into();
+    Ok((StatusCode::OK, Json(conversation)))
+}
+
+#[derive(Deserialize, JsonSchema, Debug)]
+pub struct GetConversationQuery {
+    #[serde(rename = "withTranslations", default)]
+    pub with_translations: bool,
+}
+
+#[derive(Serialize, JsonSchema)]
 #[serde(untagged)]
-enum IdOrSlug {
-    Id(Uuid),
-    Slug(String),
+pub enum ConversationResponse {
+    Localised(LocalizedConversationDto),
+    WithTranslations(ConversationWithTranslations),
 }
 
 /// Get a specific conversation
+#[instrument(err(Debug), skip(state))]
 async fn get_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_ident): Path<IdOrSlug>,
-) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
+    Query(query): Query<GetConversationQuery>,
+    OptionalUser(user): OptionalUser,
+    LocaleExtractor(locale): LocaleExtractor,
+) -> Result<(StatusCode, Json<ConversationResponse>), ComhairleError> {
     info!("Attempting to get conversation {conversation_ident:#?}");
 
-    let conversation = match conversation_ident {
-        IdOrSlug::Id(id) => conversation::get_by_id(&state.db, &id).await?,
-        IdOrSlug::Slug(slug) => conversation::get_by_slug(&state.db, &slug).await?,
-    };
+    // Get the original conversation first
+    let original_conversation =
+        conversation::get_by_id_or_slug(&state.db, &conversation_ident).await?;
 
-    Ok((StatusCode::OK, Json(conversation)))
+    // If this isn't a live conversation and the user is not the owner
+    if !original_conversation.is_live {
+        if let Some(user) = &user {
+            if user.id != original_conversation.owner_id {
+                return Err(ComhairleError::UserIsNotConversationOwner);
+            }
+        } else {
+            return Err(ComhairleError::UserIsNotConversationOwner);
+        }
+    }
+
+    // Check if user is admin and withTranslations is requested
+    let should_return_with_translations = query.with_translations
+        && user
+            .as_ref()
+            .map(|u| is_user_admin(u, &state.config))
+            .unwrap_or(false);
+
+    if should_return_with_translations {
+        // Convert to ConversationWithTranslations
+        let conversation_with_translations =
+            ConversationWithTranslations::from_original(&state.db, original_conversation, &locale)
+                .await?;
+
+        Ok((
+            StatusCode::OK,
+            Json(ConversationResponse::WithTranslations(
+                conversation_with_translations,
+            )),
+        ))
+    } else {
+        // Return localized conversation as before
+        info!("Trying to get localized translations for {locale}");
+        let conversation: LocalizedConversationDto =
+            conversation::get_localised_by_id_or_slug(&state.db, &conversation_ident, &locale)
+                .await?
+                .into();
+
+        Ok((
+            StatusCode::OK,
+            Json(ConversationResponse::Localised(conversation)),
+        ))
+    }
 }
 
 /// Delete a specific conversation
 async fn delete_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(id): Path<Uuid>,
-) -> Result<(StatusCode, Json<Conversation>), ComhairleError> {
-    let conversation = conversation::delete(&state.db, &id).await?;
+) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
+    let conversation = conversation::delete(&state.db, &state.bot_service, &id).await?;
+    let conversation: ConversationDto = conversation.into();
     Ok((StatusCode::OK, Json(conversation)))
 }
 
@@ -120,11 +212,20 @@ pub struct RegisterEmailRequest {
 }
 
 #[derive(Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct RegisterEmailResponse {
     pub id: Uuid,
     pub conversation_id: Uuid,
     pub email: String,
     pub message: String,
+}
+
+#[derive(Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SendEmailNotificationResponse {
+    pub notification_id: Uuid,
+    participants_notified: i32,
+    message: String,
 }
 
 /// Send notification to all conversation participants
@@ -133,7 +234,7 @@ async fn send_notification_to_participants(
     RequiredAdminUser(user): RequiredAdminUser,
     Path(conversation_id): Path<Uuid>,
     Json(request): Json<SendNotificationRequest>,
-) -> Result<(StatusCode, Json<serde_json::Value>), ComhairleError> {
+) -> Result<(StatusCode, Json<SendEmailNotificationResponse>), ComhairleError> {
     // Verify conversation exists and user has permission
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
 
@@ -160,11 +261,11 @@ async fn send_notification_to_participants(
     if participant_user_ids.is_empty() {
         return Ok((
             StatusCode::OK,
-            Json(serde_json::json!({
-                "notification_id": notification.id,
-                "participants_notified": 0,
-                "message": "No participants found for this conversation"
-            })),
+            Json(SendEmailNotificationResponse {
+                notification_id: notification.id,
+                participants_notified: 0,
+                message: "No participants found for this conversation".to_string(),
+            }),
         ));
     }
 
@@ -184,11 +285,14 @@ async fn send_notification_to_participants(
 
     Ok((
         StatusCode::CREATED,
-        Json(serde_json::json!({
-            "notification_id": notification.id,
-            "participants_notified": created_deliveries.len(),
-            "message": format!("Notification sent to {} participants", created_deliveries.len())
-        })),
+        Json(SendEmailNotificationResponse {
+            notification_id: notification.id,
+            participants_notified: created_deliveries.len() as i32,
+            message: format!(
+                "Notification sent to {} participants",
+                created_deliveries.len()
+            ),
+        }),
     ))
 }
 
@@ -199,7 +303,7 @@ async fn register_email_for_updates(
     Json(request): Json<RegisterEmailRequest>,
 ) -> Result<(StatusCode, Json<RegisterEmailResponse>), ComhairleError> {
     // Verify conversation exists and is public
-    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    let _conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
 
     // Check if email is already registered for this conversation
     if let Ok(_existing) = email_recipients_model::get_by_conversation_and_email(
@@ -249,8 +353,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(create_conversation, |op| {
                 op.id("CreateConversation")
                     .summary("Create a new conversation")
+                    .tag("Conversation")
                     .description("Creates a new conversation")
-                    .response::<201, Json<Conversation>>()
+                    .response::<201, Json<ConversationDto>>()
             }),
         )
         .api_route(
@@ -258,8 +363,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(list_conversations, |op| {
                 op.id("ListConverastions")
                     .summary("List conversations with optional filtering and ordering")
+                    .tag("Conversation")
                     .description("List conversations")
-                    .response::<200, Json<PaginatedResults<Conversation>>>()
+                    .response::<200, Json<PaginatedResults<LocalizedConversationDto>>>()
             }),
         )
         .api_route(
@@ -267,8 +373,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(get_conversation, |op| {
                 op.id("GetConversation")
                     .summary("Get a conversation by id or slug")
-                    .description("Get a converation by id or slug")
-                    .response::<200, Json<Conversation>>()
+                    .tag("Conversation")
+                    .description("Get a conversation by id or slug. If user is admin and withTranslations=true, returns detailed translation data.")
+                    .response::<200, Json<ConversationResponse>>()
             }),
         )
         .api_route(
@@ -276,8 +383,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             put_with(update_conversation, |op| {
                 op.id("UpdateConversation")
                     .summary("Update a conversation")
+                    .tag("Conversation")
                     .description("Update a conversation")
-                    .response::<200, Json<Conversation>>()
+                    .response::<200, Json<ConversationDto>>()
             }),
         )
         .api_route(
@@ -285,8 +393,19 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             delete_with(delete_conversation, |op| {
                 op.id("DeleteConversation")
                     .summary("Delete the conversation and all related content")
+                    .tag("Conversation")
                     .description("Delete the conversation and all related content")
-                    .response::<200, Json<Conversation>>()
+                    .response::<200, Json<ConversationDto>>()
+            }),
+        )
+        .api_route(
+            "/{conversation_id}/launch",
+            put_with(launch_conversation, |op| {
+                op.id("LaunchConversation")
+                    .summary("Makes the conversation live")
+                    .tag("Conversation")
+                    .description("Makes the conversation live for participants")
+                    .response::<200, Json<ConversationDto>>()
             }),
         )
         .api_route(
@@ -295,7 +414,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("SendNotificationToParticipants")
                     .summary("Send notification to all conversation participants")
                     .description("Creates a notification and sends it to all users participating in workflows within the conversation. Only conversation owners can send notifications.")
-                    .response::<201, Json<serde_json::Value>>()
+                    .response::<201, Json<SendEmailNotificationResponse>>()
                     .tag("Notifications")
             }),
         )
@@ -315,7 +434,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
-
+    use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
+    use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
     use crate::test_helpers::test_state;
     use crate::{setup_server, test_helpers::UserSession};
     use axum::http::StatusCode;
@@ -334,7 +454,7 @@ mod tests {
 
         session.signup(&app).await?;
 
-        let (status, _, _) = session
+        let (status, response, _) = session
             .create_conversation(
                 &app,
                 json! ({
@@ -344,13 +464,22 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
+                    "is_live": true,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
+        let conversation: ConversationDto = serde_json::from_value(response)?;
 
         assert_eq!(status, StatusCode::CREATED, "Should be created");
+        assert_eq!(
+            conversation.image_url,
+            "http://someimage.png".to_string(),
+            "incorrect json response"
+        );
 
         Ok(())
     }
@@ -373,8 +502,11 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
+                    "is_live": true,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
@@ -387,25 +519,15 @@ mod tests {
                 &app,
                 &id,
                 json!({
-                    "short_description": "new description",
                     "is_public":true
                 }),
             )
             .await?;
+        let conversation: ConversationDto = serde_json::from_value(conversation)?;
 
         assert_eq!(status, StatusCode::OK, "Should update resource");
+        assert!(conversation.is_public, "should have updated public status");
 
-        assert_eq!(
-            conversation.get("short_description"),
-            Some(&json!("new description")),
-            "should have updated description"
-        );
-
-        assert_eq!(
-            conversation.get("is_public"),
-            Some(&json!(true)),
-            "should have updated public status"
-        );
         Ok(())
     }
 
@@ -428,8 +550,11 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
+                    "is_live": true,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
@@ -475,13 +600,16 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : true,
+                    "is_live": true,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
 
-        session
+        let (_status, _result, _) = session
             .create_conversation(
                 &app,
                 json! ({
@@ -491,6 +619,9 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : true,
+                    "is_live" : true,
+                    "primary_locale": "en",
+                    "supported_languages":["en"],
                     "is_invite_only" : false,
                     "slug" : "new_new_conversation"
                 }),
@@ -506,16 +637,13 @@ mod tests {
                 .unwrap();
         assert_eq!(total, 2, "Should have the right number of entries");
 
-        let conversations: Vec<HashMap<String, serde_json::Value>> =
+        let conversations: Vec<LocalizedConversationDto> =
             serde_json::from_value(conversations.get("records").to_owned().unwrap().to_owned())
                 .unwrap();
 
-        assert_eq!(
-            conversations[0].get("title"),
-            Some(&json!("Test conversation"))
-        );
+        assert_eq!(conversations[0].title, "Test conversation".to_string(),);
 
-        assert_eq!(conversations[1].get("title"), Some(&json!("Another Test")));
+        assert_eq!(conversations[1].title, "Another Test".to_string());
 
         Ok(())
     }
@@ -540,8 +668,11 @@ mod tests {
                         "image_url" : "http://someimage.png",
                         "tags" : ["one", "two", "three"],
                         "is_public" : true,
+                        "is_live" : true,
                         "is_invite_only" : false,
-                        "slug" : format!("{i}")
+                        "slug" : format!("{i}"),
+                        "primary_locale" : "en",
+                        "supported_languages" : ["en"]
                     }),
                 )
                 .await?;
@@ -557,8 +688,11 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : true,
+                    "is_live" : true,
                     "is_invite_only" : false,
-                    "slug" : format!("target_slug")
+                    "slug" : format!("target_slug"),
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
@@ -596,16 +730,19 @@ mod tests {
                         "image_url" : "http://someimage.png",
                         "tags" : ["one", "two", "three"],
                         "is_public" : true,
+                        "is_live" : true,
                         "is_invite_only" : false,
-                        "slug" : format!("{i}")
+                        "slug" : format!("{i}"),
+                        "primary_locale" : "en",
+                        "supported_languages" : ["en"]
                     }),
                 )
                 .await?;
         }
 
         // Testing ASC
-        let url = format!("/conversation?sort=created_at+asc&limit=20");
-        let (status, conversations, _) = session.get(&app, &url).await?;
+        let url = "/conversation?sort=created_at+asc&limit=20";
+        let (status, conversations, _) = session.get(&app, url).await?;
 
         let conversations: Vec<HashMap<String, serde_json::Value>> =
             serde_json::from_value(conversations.get("records").to_owned().unwrap().to_owned())
@@ -625,8 +762,8 @@ mod tests {
         );
 
         // Testing DESC
-        let url = format!("/conversation?sort=created_at+desc&limit=20");
-        let (status, conversations, _) = session.get(&app, &url).await?;
+        let url = "/conversation?sort=created_at+desc&limit=20";
+        let (status, conversations, _) = session.get(&app, url).await?;
 
         let conversations: Vec<HashMap<String, serde_json::Value>> =
             serde_json::from_value(conversations.get("records").to_owned().unwrap().to_owned())
@@ -667,8 +804,11 @@ mod tests {
                         "image_url" : "http://someimage.png",
                         "tags" : ["one", "two", "three"],
                         "is_public" : true,
+                        "is_live" : true,
                         "is_invite_only" : false,
-                        "slug" : format!("{i}")
+                        "slug" : format!("{i}"),
+                        "primary_locale" : "en",
+                        "supported_languages" : ["en"]
                     }),
                 )
                 .await?;
@@ -721,9 +861,12 @@ mod tests {
                     "description" : "A longer description",
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
-                    "is_public" : false,
+                    "is_public" : true,
+                    "is_live": true,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
@@ -738,8 +881,11 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "three"],
                     "is_public" : false,
+                    "is_live" : true,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation_two"
+                    "slug" : "new_conversation_two",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
@@ -779,7 +925,42 @@ mod tests {
 
     #[sqlx::test]
     fn should_be_able_to_delete_conversation(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let state = test_state().db(pool).call()?;
+        let mut bot_service = MockComhairleBotService::new();
+        bot_service
+            .expect_create_knowledge_base()
+            .once()
+            .returning(|_, _| {
+                Box::pin(async move {
+                    Ok((
+                        StatusCode::CREATED,
+                        ComhairleKnowledgeBase {
+                            ..Default::default()
+                        },
+                    ))
+                })
+            });
+        bot_service.expect_create_chat().once().returning(|_| {
+            Box::pin(async move {
+                Ok((
+                    StatusCode::CREATED,
+                    ComhairleChat {
+                        ..Default::default()
+                    },
+                ))
+            })
+        });
+        bot_service
+            .expect_delete_knowledge_base()
+            .once()
+            .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
+        bot_service
+            .expect_delete_chat()
+            .once()
+            .returning(|_| Box::pin(async move { Ok(StatusCode::OK) }));
+        let state = test_state()
+            .db(pool)
+            .bot_service(Arc::new(bot_service))
+            .call()?;
         let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
@@ -795,8 +976,11 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
+                    "is_live" : false,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
@@ -836,8 +1020,11 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
+                    "is_live" : false,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
@@ -852,8 +1039,11 @@ mod tests {
                     "image_url" : "http://someimage.png",
                     "tags" : ["one", "three"],
                     "is_public" : false,
+                    "is_live" : false,
                     "is_invite_only" : false,
-                    "slug" : "new_conversation"
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;

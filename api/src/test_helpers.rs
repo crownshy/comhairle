@@ -1,3 +1,5 @@
+use apalis::prelude::MemoryStorage;
+use chrono::Utc;
 use std::{collections::HashMap, error::Error, sync::Arc};
 use uuid::Uuid;
 
@@ -15,14 +17,20 @@ use fake::{
 use http_body_util::BodyExt;
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
+use tokio::sync::Mutex;
 
 use sqlx::PgPool;
 use tower::ServiceExt;
 
 use crate::{
+    bot_service::{ComhairleBotService, MockComhairleBotService},
     config::ComhairleConfig,
     mailer::MockComhairleMailer,
+    models::users::UpdateUserRequest,
+    routes::user::dto::UserDto,
+    translation_service::{MockTranslationService, TranslationService},
     websockets::{MockWebSocketService, WebSocketService},
+    workers::JobQueues,
     ComhairleState,
 };
 
@@ -36,18 +44,38 @@ pub fn mock_websockets() -> Arc<dyn WebSocketService> {
     Arc::new(websockets)
 }
 
+pub fn mock_translation_service() -> Option<Arc<dyn TranslationService>> {
+    let translation_service = MockTranslationService::base();
+    Some(Arc::new(translation_service))
+}
+
+pub fn mock_bot_service() -> Arc<dyn ComhairleBotService> {
+    let bot_service = MockComhairleBotService::base();
+    Arc::new(bot_service)
+}
+
 #[builder]
 pub fn test_state(
     db: PgPool,
     mailer: Option<Arc<MockComhairleMailer>>,
     config: Option<ComhairleConfig>,
     websockets: Option<Arc<dyn WebSocketService>>,
+    translation_service: Option<Arc<dyn TranslationService>>,
+    bot_service: Option<Arc<dyn ComhairleBotService>>,
 ) -> Result<ComhairleState, Box<dyn Error>> {
     let state = ComhairleState {
         db,
-        mailer: mailer.unwrap_or_else(|| mock_mailer()),
+        mailer: mailer.unwrap_or_else(mock_mailer),
         config: config.unwrap_or_else(|| test_config().unwrap()),
         websockets: websockets.unwrap_or_else(|| mock_websockets()),
+        translation_service: translation_service
+            .map(Some)
+            .unwrap_or_else(|| mock_translation_service()),
+        bot_service: bot_service.unwrap_or_else(|| mock_bot_service()),
+        // TODO: can this be mocked?
+        jobs: Arc::new(JobQueues {
+            process_documents: Arc::new(Mutex::new(MemoryStorage::new())),
+        }),
     };
     Ok(state)
 }
@@ -89,6 +117,13 @@ pub fn learn_tool_config() -> serde_json::Value {
             {"lang": "en", "content" : "#Test", "type" : "markdown"}
         ]
     ]})
+}
+
+pub fn elicitation_bot_tool_config() -> serde_json::Value {
+    json!({
+        "type": "elicitationbot",
+        "topic": "test_topic"
+    })
 }
 
 pub async fn response_to_json(response: Response) -> Value {
@@ -229,6 +264,72 @@ impl UserSession {
         Ok((status, value, cookie))
     }
 
+    pub async fn post_raw_response(
+        &mut self,
+        app: &Router,
+        url: &str,
+        body: Body,
+    ) -> Result<(StatusCode, Body, Option<HeaderValue>), Box<dyn Error>> {
+        let mut request = Request::builder()
+            .uri(url)
+            .method("POST")
+            .header("content-type", "application/json");
+
+        if let Some(cookie) = &self.cookie {
+            request = request.header(COOKIE, cookie);
+        }
+
+        let request = request.body(body).unwrap();
+        let response = app.clone().oneshot(request).await?;
+        let status = response.status();
+
+        let cookie = response
+            .headers()
+            .get(axum::http::header::SET_COOKIE)
+            .map(|cookie| cookie.to_owned());
+
+        if let Some(cookie) = &cookie {
+            self.cookie = Some(cookie.clone());
+        }
+
+        let body = response.into_body();
+
+        Ok((status, body, cookie))
+    }
+
+    pub async fn post_multipart(
+        &mut self,
+        app: &Router,
+        url: &str,
+        boundary: &str,
+        body: Body,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        let mut request = Request::builder().uri(url).method("POST").header(
+            "content-type",
+            format!("multipart/form-data; boundary={boundary}"),
+        );
+
+        if let Some(cookie) = &self.cookie {
+            request = request.header(COOKIE, cookie)
+        }
+
+        let request = request.body(body).unwrap();
+        let response = app.clone().oneshot(request).await?;
+        let status = response.status();
+
+        let cookie = response
+            .headers()
+            .get(axum::http::header::SET_COOKIE)
+            .map(|cookie| cookie.to_owned());
+
+        if let Some(cookie) = &cookie {
+            self.cookie = Some(cookie.clone());
+        }
+
+        let value = response_to_json(response).await;
+        Ok((status, value, cookie))
+    }
+
     pub async fn put(
         &mut self,
         app: &Router,
@@ -270,28 +371,23 @@ impl UserSession {
     pub async fn current_user(
         &mut self,
         app: &Router,
-    ) -> Result<
-        (
-            StatusCode,
-            HashMap<String, Option<String>>,
-            Option<HeaderValue>,
-        ),
-        Box<dyn Error>,
-    > {
+    ) -> Result<(StatusCode, UserDto, Option<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self.get(app, "/auth/current_user").await?;
 
-        let user: HashMap<String, Option<String>> = serde_json::from_value(value).unwrap();
+        let user: UserDto = serde_json::from_value(value).unwrap();
         Ok((status, user, cookie))
     }
 
     pub async fn login(
         &mut self,
         app: &Router,
+        email: &str,
+        password: &str,
     ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
         self.post(
             app,
             "/auth/login",
-            json!({"email":self.email, "password": self.password})
+            json!({ "email": email, "password": password })
                 .to_string()
                 .into(),
         )
@@ -316,15 +412,18 @@ impl UserSession {
     ) -> Result<
         (
             StatusCode,
-            HashMap<String, Option<String>>,
+            HashMap<String, Option<Value>>,
             Option<HeaderValue>,
         ),
         Box<dyn Error>,
     > {
-        let (status, value, cookie) = self.post(&app, "/auth/signup_annon", Body::empty()).await?;
-        let user: HashMap<String, Option<String>> = serde_json::from_value(value)?;
-        self.username = user.get("username").unwrap().clone();
-        self.id = Some(Uuid::parse_str(&user.get("id").unwrap().clone().unwrap()).unwrap());
+        let (status, value, cookie) = self.post(app, "/auth/signup_annon", Body::empty()).await?;
+        let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
+        let username: String =
+            serde_json::from_value(user.get("username").unwrap().clone().unwrap()).unwrap();
+        self.username = Some(username);
+        let id: String = serde_json::from_value(user.get("id").unwrap().clone().unwrap()).unwrap();
+        self.id = Some(Uuid::parse_str(&id).unwrap());
         Ok((status, user, cookie))
     }
 
@@ -334,7 +433,7 @@ impl UserSession {
     ) -> Result<
         (
             StatusCode,
-            HashMap<String, Option<String>>,
+            HashMap<String, Option<Value>>,
             Option<HeaderValue>,
         ),
         Box<dyn Error>,
@@ -349,16 +448,84 @@ impl UserSession {
 
         let (status, value, cookie) = self.post(app, "/auth/signup", body).await?;
 
-        let user: HashMap<String, Option<String>> = serde_json::from_value(value)?;
+        let user: HashMap<String, Option<Value>> = serde_json::from_value(value)?;
 
         self.cookie = cookie.clone();
-        if let Some(id) = user.get("id") {
-            if let Some(id) = id {
-                self.id = Some(Uuid::parse_str(id).unwrap());
-            }
+        if let Some(Some(id)) = user.get("id") {
+            let id: String = serde_json::from_value(id.clone()).unwrap();
+            self.id = Some(Uuid::parse_str(&id).unwrap());
         }
 
         Ok((status, user, cookie))
+    }
+
+    pub async fn resend_verification_email(
+        &mut self,
+        app: &Router,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            "/auth/resend_verification_email",
+            json!({ "id": self.id }).to_string().into(),
+        )
+        .await
+    }
+
+    pub async fn verify_email_token(
+        &mut self,
+        app: &Router,
+        token: String,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            "/auth/verify_email_token",
+            json!({ "token": token }).to_string().into(),
+        )
+        .await
+    }
+
+    pub async fn update_user_details(
+        &mut self,
+        app: &Router,
+        update_user: UpdateUserRequest,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        let (status, value, cookie) = self.put(
+            app,
+            "/user/details",
+            json!({ "username": update_user.username, "password": update_user.password, "email_verified": update_user.email_verified }).to_string().into()
+        ).await?;
+
+        Ok((status, value, cookie))
+    }
+
+    pub async fn password_reset_create(
+        &mut self,
+        app: &Router,
+        email: String,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            "/auth/password_reset_create",
+            json!({ "email": email }).to_string().into(),
+        )
+        .await
+    }
+
+    pub async fn password_reset_update(
+        &mut self,
+        app: &Router,
+        token: &str,
+        password: &str,
+        confirm_password: &str,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            "/auth/password_reset_update",
+            json!({ "token": token, "password": password, "confirm_password": confirm_password})
+                .to_string()
+                .into(),
+        )
+        .await
     }
 
     pub async fn create_conversation(
@@ -427,10 +594,28 @@ impl UserSession {
                 "image_url": image_url,
                 "tags" : tags,
                 "is_public": is_public,
-                "is_invite_only" : is_invite_only
+                "is_live": true,
+                "is_invite_only" : is_invite_only,
+                "primary_locale" : "en",
+                "supported_languages" : ["en"]
             }),
         )
         .await
+    }
+
+    pub async fn create_workflow_step(
+        &mut self,
+        app: &Router,
+        conversation_id: &str,
+        workflow_id: &str,
+        new_workflow_step: Value,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        let url = format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step");
+        let (status, value, cookie) = self
+            .post(app, &url, new_workflow_step.to_string().into())
+            .await?;
+
+        Ok((status, value, cookie))
     }
 
     pub async fn create_random_workflow_steps(
@@ -438,7 +623,7 @@ impl UserSession {
         app: &Router,
         conversation_id: &str,
         workflow_id: &str,
-        no: i32,
+        _no: i32,
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let url = format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step");
         let mut workflow_steps: Vec<serde_json::Value> = vec![];
@@ -446,7 +631,7 @@ impl UserSession {
         for no in 0..10 {
             let (_, step, _) = self
                 .post(
-                    &app,
+                    app,
                     &url,
                     json!({
                     "name": format!("{}", no+1),
@@ -492,6 +677,60 @@ impl UserSession {
         .await
     }
 
+    pub async fn create_event(
+        &mut self,
+        app: &Router,
+        conversation_id: &str,
+        event: serde_json::Value,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            &format!("/conversation/{conversation_id}/events"),
+            event.to_string().into(),
+        )
+        .await
+    }
+
+    pub async fn create_random_event(
+        &mut self,
+        app: &Router,
+        conversation_id: &str,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            &format!("/conversation/{conversation_id}/events"),
+            json!({
+                "name": "test_event",
+                "description": "test_event_description",
+                "capacity": 10,
+                "start_time": Utc::now(),
+                "end_time": Utc::now(),
+                "signup_mode": "invite"
+            })
+            .to_string()
+            .into(),
+        )
+        .await
+    }
+
+    pub async fn create_random_event_attendance(
+        &mut self,
+        app: &Router,
+        conversation_id: &str,
+        event_id: &str,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            &format!("/conversation/{conversation_id}/events/{event_id}/attendances"),
+            json!({
+                "role": "participant",
+            })
+            .to_string()
+            .into(),
+        )
+        .await
+    }
+
     pub async fn get_conversation(
         &mut self,
         app: &Router,
@@ -499,6 +738,16 @@ impl UserSession {
     ) -> Result<(StatusCode, HashMap<String, Value>, Option<HeaderValue>), Box<dyn Error>> {
         let (status, value, cookie) = self.get(app, &format!("/conversation/{id}")).await?;
         let value: HashMap<String, serde_json::Value> = serde_json::from_value(value)?;
+        Ok((status, value, cookie))
+    }
+
+    pub async fn create_job(
+        &mut self,
+        app: &Router,
+        new_job: serde_json::Value,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        let (status, value, cookie) = self.post(app, "/jobs", new_job.to_string().into()).await?;
+
         Ok((status, value, cookie))
     }
 }
