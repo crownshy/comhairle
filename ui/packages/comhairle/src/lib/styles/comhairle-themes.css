@@ -105,7 +105,7 @@
 }
 
 /* Scottish Government Theme */
-[data-theme='scotgov'] {
+[data-theme='scot-gov'] {
 	--background: #ffffff;
 	--foreground: #0a0a0a;
 	--card: #ffffff;
@@ -173,7 +173,7 @@
 	--sidebar-radius: 10px;
 }
 
-[data-theme='scotgov'].dark {
+[data-theme='scot-gov'].dark {
 	--background: #0b1120;
 	--foreground: #e8edf4;
 	--card: #111827;

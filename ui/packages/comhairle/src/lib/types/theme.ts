@@ -1,4 +1,4 @@
-export type ThemeName = 'comhairle' | 'scotgov';
+export type ThemeName = 'comhairle' | 'scot-gov';
 export type ThemeMode = 'light' | 'dark';
 
 export interface Theme {
