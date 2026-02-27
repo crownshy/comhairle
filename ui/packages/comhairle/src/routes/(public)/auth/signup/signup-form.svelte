@@ -29,17 +29,21 @@
 		let result = await validateForm({ update: true });
 		if (result.valid) {
 			let { username, password, email } = result.data;
-			try {
-				const user = await apiClient.SignUp({
-					username,
-					password,
-					email
-				});
-				await invalidateAll();
-				if (user.authType === 'annon') {
-					await goto(backTo ?? '/');
-				} else {
-					await goto('/auth/verification-message');
+			await loader.run(async () => {
+				try {
+					const user = await apiClient.SignUp({
+						username,
+						password,
+						email
+					});
+					await invalidateAll();
+					if (user.auth_type === 'annon') {
+						await goto(backTo ?? '/');
+					} else {
+						await goto('/auth/verification-message');
+					}
+				} catch (e) {
+					responseMessage = e.response.data.err;
 				}
 			});
 		}

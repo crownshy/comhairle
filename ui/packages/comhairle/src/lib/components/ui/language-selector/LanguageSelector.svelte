@@ -67,49 +67,14 @@
 
 	<!-- Other Languages -->
 	<div class="flex flex-col gap-2">
-		<Label class="font-semibold">Other languages</Label>
-		<Popover.Root bind:open={popoverOpen}>
-			<Popover.Trigger class="w-full flex items-center justify-between px-3 py-2 border rounded-lg bg-background">
-				<span class="text-sm {selectedOtherLanguages.length === 0 ? 'text-gray-500' : 'text-gray-900'}">
-					{getSelectedLabel()}
-				</span>
-				<ChevronDown class="h-4 w-4 text-gray-500" />
-			</Popover.Trigger>
-			<Popover.Content class="w-[var(--bits-popover-trigger-width)] p-0" align="start">
-				<!-- Search -->
-				<div class="p-2 border-b">
-					<div class="relative">
-						<Search class="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-						<Input 
-							type="text"
-							placeholder="Search Language..."
-							class="pl-8"
-							bind:value={searchQuery}
-						/>
-					</div>
-				</div>
-				
-				<!-- Language list -->
-				<ScrollArea.Root>
-					<div class="max-h-48 p-1">
-						{#each filteredLanguages as lang (lang.code)}
-							<button
-								type="button"
-								class="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-100 text-left"
-								onclick={() => toggleLanguage(lang.code)}
-							>
-								<Checkbox checked={selectedOtherLanguages.includes(lang.code)} />
-								<span class="text-sm">{lang.name}</span>
-							</button>
-						{/each}
-						{#if filteredLanguages.length === 0}
-							<div class="px-2 py-4 text-center text-sm text-gray-500">
-								No languages found
-							</div>
-						{/if}
-					</div>
-				</ScrollArea.Root>
-			</Popover.Content>
-		</Popover.Root>
+		<Label class="font-semibold">Supported languages</Label>
+		<MultiSelect
+			defaultOptions={otherLanguageOptions}
+			selected={selectedOtherLanguages}
+			onSelectedChange={handleOtherLanguagesChange}
+			placeholder="Select languages..."
+			emptyMessage="No languages found"
+			class="w-full"
+		/>
 	</div>
 </div>
