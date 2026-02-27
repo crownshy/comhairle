@@ -104,5 +104,8 @@
 	"faq": "FAQ",
 	"notifications": "Notifications",
 	"settings": "Settings",
-	"language": "Language"
+	"language": "Language",
+	"welcome_to_comhairle_community_server": "Welcome to the Comhairle Community Server",
+	"community_server_description_1": "At CrownShy, we believe that communities of all shapes and sizes benefit from listening more closely to their members and learning to govern themselves more effectively.",
+	"community_server_description_2": "To help realize this future, we run this community server."
 }
