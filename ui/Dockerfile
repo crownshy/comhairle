@@ -9,6 +9,7 @@ RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/comhairle/package.json packages/comhairle/package.json
 COPY packages/api-client/package.json packages/api-client/package.json
+COPY scripts/ scripts/
 
 RUN pnpm install --frozen-lockfile
 
@@ -39,6 +40,7 @@ COPY --from=build /app/pnpm-lock.yaml ./
 COPY --from=build /app/packages/comhairle/build ./packages/comhairle/build
 COPY --from=build /app/packages/comhairle/package.json ./packages/comhairle/package.json
 COPY --from=build /app/packages/api-client/package.json ./packages/api-client/package.json
+COPY --from=build /app/scripts ./scripts
 
 RUN pnpm install --prod --frozen-lockfile --filter comhairle
 
