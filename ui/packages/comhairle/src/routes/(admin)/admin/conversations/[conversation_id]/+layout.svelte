@@ -22,7 +22,7 @@
 	let conversation = $derived(data.conversation);
 </script>
 
-<div class="flex w-full flex-col justify-between gap-11 bg-muted border-b-black px-16 py-8">
+<div class="bg-muted flex w-full flex-col justify-between gap-11 border-b-black px-16 py-8">
 	<Breadcrumb.Root>
 		<Breadcrumb.List>
 			<Breadcrumb.Item>
@@ -70,7 +70,7 @@
 		<div>
 			{#if conversation.isLive}
 				<Badge
-					variant="live"
+					variant="default"
 					class="flex flex-row items-center justify-between gap-2 px-8 py-2 text-sm"
 					>Launched! <Check class="text-primary size-4 rounded-full bg-white" /></Badge
 				>
@@ -85,6 +85,6 @@
 		{/if}
 	</div>
 </div>
-<div class="flex-grow bg-muted px-16 py-18">
+<div class="bg-muted flex-grow px-16 py-18">
 	{@render children()}
 </div>

@@ -159,10 +159,10 @@
 <div class="mx-auto flex w-full max-w-5xl flex-col items-center gap-4 p-4">
 	<!-- Main Container -->
 	<div
-		class="border-chat-primary-light w-full overflow-hidden rounded-2xl border bg-white shadow-lg"
+		class="border-chat-primary-light bg-chat-bubble w-full overflow-hidden rounded-2xl border shadow-lg"
 	>
 		<!-- Bot Header -->
-		<div class="border-chat-primary-light flex items-center gap-4 border-b bg-white p-4">
+		<div class="border-chat-primary-light bg-chat-bubble flex items-center gap-4 border-b p-4">
 			<div class="relative">
 				<div
 					class="bg-chat-primary ring-chat-primary-lighter flex h-12 w-12 items-center justify-center rounded-full ring-4"
@@ -170,12 +170,12 @@
 					<MessageCircle class="h-6 w-6 text-white" />
 				</div>
 				<div
-					class="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-400"
+					class="border-chat-bubble absolute right-0 bottom-0 h-3 w-3 rounded-full border-2 bg-green-400"
 				></div>
 			</div>
 			<div class="flex flex-1 flex-col">
-				<span class="text-chat-text text-lg font-semibold leading-6">{botName}</span>
-				<span class="text-chat-primary text-sm font-normal leading-5">{botSubtitle}</span>
+				<span class="text-chat-text text-lg leading-6 font-semibold">{botName}</span>
+				<span class="text-chat-primary text-sm leading-5 font-normal">{botSubtitle}</span>
 			</div>
 		</div>
 
@@ -185,7 +185,7 @@
 				<div class="bg-chat-bg border-chat-border grid w-full grid-cols-2 border-b">
 					<button
 						class="py-3 text-sm font-medium transition-colors {activeTab === 'chat'
-							? 'text-chat-primary bg-white'
+							? 'text-chat-primary bg-chat-bubble'
 							: 'text-chat-text-muted hover:text-chat-text'}"
 						onclick={() => (activeTab = 'chat')}
 					>
@@ -194,7 +194,7 @@
 					<button
 						class="relative py-3 text-sm font-medium transition-colors {activeTab ===
 						'claims'
-							? 'text-chat-primary bg-white'
+							? 'text-chat-primary bg-chat-bubble'
 							: 'text-chat-text-muted hover:text-chat-text'}"
 						onclick={() => {
 							activeTab = 'claims';
@@ -233,7 +233,7 @@
 										<div class={message.isBot ? '' : 'flex justify-end'}>
 											<div
 												class="{message.isBot
-													? 'rounded-br-[16px] bg-white'
+													? 'bg-chat-bubble rounded-br-[16px]'
 													: 'bg-chat-primary-dark rounded-bl-[16px]'} w-fit max-w-[85%] rounded-tl-[16px] rounded-tr-[16px] px-3 py-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)]"
 											>
 												{#if message.isBot}
@@ -281,7 +281,7 @@
 																			: question.variant ===
 																				  'primary'
 																				? 'bg-chat-primary border-chat-primary'
-																				: 'border-chat-primary-light bg-white'} flex w-fit items-start gap-2.5 rounded-2xl border px-2.5 py-1.5"
+																				: 'border-chat-primary-light bg-chat-bubble'} flex w-fit items-start gap-2.5 rounded-2xl border px-2.5 py-1.5"
 																	>
 																		<span
 																			class="{selectedQuestionId ===
@@ -289,7 +289,7 @@
 																			question.variant ===
 																				'primary'
 																				? 'text-white'
-																				: 'text-chat-primary'} text-xs font-normal leading-4"
+																				: 'text-chat-primary'} text-xs leading-4 font-normal"
 																		>
 																			{question.text}
 																		</span>
@@ -320,7 +320,7 @@
 						>
 							<div class="flex items-end gap-2">
 								<div
-									class="border-chat-primary-light flex flex-1 items-end gap-2 rounded-xl border bg-white shadow-md"
+									class="border-chat-primary-light bg-chat-bubble flex flex-1 items-end gap-2 rounded-xl border shadow-md"
 								>
 									<textarea
 										bind:this={textareaRef}
@@ -384,7 +384,7 @@
 									<div class={message.isBot ? '' : 'flex justify-end'}>
 										<div
 											class="{message.isBot
-												? 'rounded-br-[16px] bg-white'
+												? 'bg-chat-bubble rounded-br-[16px]'
 												: 'bg-chat-primary-dark rounded-bl-[16px]'} w-fit max-w-md rounded-tl-[16px] rounded-tr-[16px] px-3 py-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)]"
 										>
 											{#if message.isBot}
@@ -430,7 +430,7 @@
 																		: question.variant ===
 																			  'primary'
 																			? 'bg-chat-primary border-chat-primary'
-																			: 'border-chat-primary-light bg-white'} flex w-fit items-start gap-2.5 rounded-2xl border px-2.5 py-1.5"
+																			: 'border-chat-primary-light bg-chat-bubble'} flex w-fit items-start gap-2.5 rounded-2xl border px-2.5 py-1.5"
 																>
 																	<span
 																		class="{selectedQuestionId ===
@@ -438,7 +438,7 @@
 																		question.variant ===
 																			'primary'
 																			? 'text-white'
-																			: 'text-chat-primary'} text-xs font-normal leading-4"
+																			: 'text-chat-primary'} text-xs leading-4 font-normal"
 																	>
 																		{question.text}
 																	</span>
@@ -465,7 +465,7 @@
 					<div class="bg-chat-primary-lighter/40 border-chat-primary-light border-t p-4">
 						<div class="flex items-end gap-2">
 							<div
-								class="border-chat-primary-light flex flex-1 items-end gap-2 rounded-xl border bg-white shadow-md"
+								class="border-chat-primary-light bg-chat-bubble flex flex-1 items-end gap-2 rounded-xl border shadow-md"
 							>
 								<textarea
 									bind:this={textareaRef}
@@ -513,6 +513,6 @@
 	</div>
 
 	{#if onDone}
-		<Button onclick={onDone} class="w-full mt-10">Continue</Button>
+		<Button onclick={onDone} class="mt-10 w-full">Continue</Button>
 	{/if}
 </div>

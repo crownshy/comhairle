@@ -8,7 +8,17 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { Badge } from '$lib/components/ui/badge';
 	import ModeToggle from '$lib/components/ModeToggle.svelte';
-	import { Menu, Home, Info, MessageSquare, Shield, Settings, Bell, LogOut, LayoutDashboard } from 'lucide-svelte';
+	import {
+		Menu,
+		Home,
+		Info,
+		MessageSquare,
+		Shield,
+		Settings,
+		Bell,
+		LogOut,
+		LayoutDashboard
+	} from 'lucide-svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { userInitials } from '$lib/utils';
 	import { apiClient } from '@crown-shy/api-client/client';
@@ -59,7 +69,7 @@
 
 <nav class="bg-primary text-muted-foreground z-10 flex w-full flex-col items-center p-5 shadow-md">
 	<div class="margin-auto container flex max-w-[1200px] items-center justify-between">
-		<ComhairleLogo logoSize="sm" textClass="text-primary-foreground invisible hidden lg:visible lg:block" />
+		<ComhairleLogo logoSize="sm" class="[&>h1]:hidden lg:[&>h1]:block" />
 
 		<!-- Desktop Navigation -->
 		<div class="hidden space-x-6 md:flex lg:space-x-5">
@@ -69,7 +79,9 @@
 		</div>
 
 		<div class="hidden gap-x-5 md:flex">
-			<LocaleSwitcher class="rounded-full hover:bg-sidebar/50 border-none bg-transparent data-[placeholder]:text-primary-foreground shadow-xs"/>
+			<LocaleSwitcher
+				class="hover:bg-sidebar/50 data-[placeholder]:text-primary-foreground rounded-full border-none bg-transparent shadow-xs"
+			/>
 			<ProfileMenu {user} />
 			{#if isAdmin}
 				<Button variant="nav" href="/admin">Dashboard</Button>
@@ -91,16 +103,23 @@
 							<div class="flex items-center gap-3 px-3 py-3">
 								<Avatar.Root class="h-10 w-10">
 									{#if user.avatarUrl}
-										<Avatar.Image src={user.avatarUrl} alt={user.username ?? ''} />
+										<Avatar.Image
+											src={user.avatarUrl}
+											alt={user.username ?? ''}
+										/>
 									{/if}
-									<Avatar.Fallback class="text-sm">{user_initials}</Avatar.Fallback>
+									<Avatar.Fallback class="text-sm"
+										>{user_initials}</Avatar.Fallback
+									>
 								</Avatar.Root>
 								<div class="flex flex-col">
 									<span class="text-foreground text-sm font-medium">
 										{#if user.authType === 'annon'}Anonymous{:else}{user.username}{/if}
 									</span>
 									{#if user.email}
-										<span class="text-muted-foreground text-xs">{user.email}</span>
+										<span class="text-muted-foreground text-xs"
+											>{user.email}</span
+										>
 									{/if}
 								</div>
 							</div>
@@ -164,7 +183,10 @@
 						<!-- Preferences -->
 						<div class="flex flex-col gap-2 px-3 py-2">
 							<div class="flex items-center justify-between">
-								<span class="text-muted-foreground text-xs font-medium uppercase tracking-wider">{m.language()}</span>
+								<span
+									class="text-muted-foreground text-xs font-medium tracking-wider uppercase"
+									>{m.language()}</span
+								>
 								<LocaleSwitcher />
 							</div>
 							<ModeToggle />
@@ -186,7 +208,9 @@
 						{:else}
 							<Separator />
 							<div class="flex gap-2 px-3 pt-2">
-								<Button href="/auth/login" variant="outline" class="flex-1">{m.login()}</Button>
+								<Button href="/auth/login" variant="outline" class="flex-1"
+									>{m.login()}</Button
+								>
 								<Button href="/auth/signup" class="flex-1">{m.signup()}</Button>
 							</div>
 						{/if}

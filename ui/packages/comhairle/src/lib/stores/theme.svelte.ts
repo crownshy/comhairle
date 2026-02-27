@@ -1,26 +1,16 @@
 import type { Theme, ThemeName, ThemeMode } from '$lib/types/theme';
 
-const THEME_STORAGE_KEY = 'comhairle-theme';
 const MODE_STORAGE_KEY = 'comhairle-theme-mode';
 
-function getStoredTheme(): Theme {
-	if (typeof window === 'undefined') {
-		return { name: 'comhairle', mode: 'light' };
-	}
-
-	const storedName = localStorage.getItem(THEME_STORAGE_KEY) as ThemeName | null;
+function getInitialMode(): ThemeMode {
+	if (typeof window === 'undefined') return 'light';
 	const storedMode = localStorage.getItem(MODE_STORAGE_KEY) as ThemeMode | null;
-
-	const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-	return {
-		name: storedName || 'comhairle',
-		mode: storedMode || (prefersDark ? 'dark' : 'light')
-	};
+	if (storedMode) return storedMode;
+	return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
 class ThemeStore {
-	private _theme = $state<Theme>(getStoredTheme());
+	private _theme = $state<Theme>({ name: 'comhairle', mode: getInitialMode() });
 
 	get theme(): Theme {
 		return this._theme;
@@ -38,11 +28,9 @@ class ThemeStore {
 		return this._theme.mode === 'dark';
 	}
 
-	setTheme(name: ThemeName) {
+	/** Called once from +layout.svelte with the server-provided theme name */
+	initFromServer(name: ThemeName) {
 		this._theme.name = name;
-		if (typeof window !== 'undefined') {
-			localStorage.setItem(THEME_STORAGE_KEY, name);
-		}
 	}
 
 	setMode(mode: ThemeMode) {
@@ -54,14 +42,6 @@ class ThemeStore {
 
 	toggleMode() {
 		this.setMode(this.isDark ? 'light' : 'dark');
-	}
-
-	setThemeAndMode(name: ThemeName, mode: ThemeMode) {
-		this._theme = { name, mode };
-		if (typeof window !== 'undefined') {
-			localStorage.setItem(THEME_STORAGE_KEY, name);
-			localStorage.setItem(MODE_STORAGE_KEY, mode);
-		}
 	}
 }
 

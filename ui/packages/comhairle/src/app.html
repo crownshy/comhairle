@@ -1,9 +1,18 @@
 <!doctype html>
-<html lang="%paraglide.lang%" dir="%paraglide.textDirection%">
+<html lang="%paraglide.lang%" dir="%paraglide.textDirection%" %comhairle.theme%>
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<script>
+			(function () {
+				var storedMode = localStorage.getItem('comhairle-theme-mode');
+				var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+				if ((storedMode || (prefersDark ? 'dark' : 'light')) === 'dark') {
+					document.documentElement.classList.add('dark');
+				}
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

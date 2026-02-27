@@ -40,7 +40,10 @@
 		initialStatuses?: Record<string, TranslationStatus>;
 		onSaveSource?: (content: string) => void | Promise<void>;
 		onSaveTarget?: (lang: string, content: string) => void | Promise<void>;
-		onAiTranslate?: (targetLang: string, sourceContent: string) => Promise<{ content: string; requiresValidation: boolean }>;
+		onAiTranslate?: (
+			targetLang: string,
+			sourceContent: string
+		) => Promise<{ content: string; requiresValidation: boolean }>;
 		onApprove?: (lang: string) => void | Promise<void>;
 		onMarkAsDraft?: (lang: string) => void | Promise<void>;
 	}
@@ -77,7 +80,7 @@
 				await saveTranslation(id, primaryLocale, content, {
 					requiresValidation: false
 				});
-				const approved = badges.filter(t => t.status === 'approved' && t.content);
+				const approved = badges.filter((t) => t.status === 'approved' && t.content);
 				if (approved.length > 0) {
 					await markOtherTranslationsAsDraft(id, primaryLocale, approved);
 				}
@@ -93,14 +96,14 @@
 
 	let isTextContentMode = $derived(!!translation?.textContent?.id);
 	let textContentId = $derived(translation?.textContent?.id);
-	let otherLanguages = $derived(supportedLanguages.filter(l => l !== primaryLocale));
+	let otherLanguages = $derived(supportedLanguages.filter((l) => l !== primaryLocale));
 
 	let badges = $derived.by((): TranslationEntry[] => {
 		if (otherLanguages.length === 0) return [];
 
 		if (isTextContentMode && translation?.textTranslations) {
-			return otherLanguages.map(locale => {
-				const existing = translation!.textTranslations.find(t => t.locale === locale);
+			return otherLanguages.map((locale) => {
+				const existing = translation!.textTranslations.find((t) => t.locale === locale);
 				return {
 					language: locale,
 					languageName: getLanguageName(locale),
@@ -110,7 +113,7 @@
 			});
 		}
 
-		return otherLanguages.map(locale => ({
+		return otherLanguages.map((locale) => ({
 			language: locale,
 			languageName: getLanguageName(locale),
 			status: initialStatuses?.[locale] ?? ('draft' as TranslationStatus),
@@ -176,12 +179,20 @@
 		onValueChange(content);
 		if (isTextContentMode && textContentId) {
 			const id = textContentId;
-			return saveTranslation(id, primaryLocale, content, { requiresValidation: false }).then(async () => {
-				const entries = otherLanguages
-					.map(l => ({ language: l, languageName: getLanguageName(l), status: 'draft' as TranslationStatus, content: editorContents[l] ?? '' }))
-					.filter(e => e.content);
-				if (entries.length > 0) await markOtherTranslationsAsDraft(id, primaryLocale, entries);
-			});
+			return saveTranslation(id, primaryLocale, content, { requiresValidation: false }).then(
+				async () => {
+					const entries = otherLanguages
+						.map((l) => ({
+							language: l,
+							languageName: getLanguageName(l),
+							status: 'draft' as TranslationStatus,
+							content: editorContents[l] ?? ''
+						}))
+						.filter((e) => e.content);
+					if (entries.length > 0)
+						await markOtherTranslationsAsDraft(id, primaryLocale, entries);
+				}
+			);
 		}
 		return onSaveSource?.(content);
 	}
@@ -203,14 +214,18 @@
 
 	async function handleEditorApprove(lang: string) {
 		if (isTextContentMode && textContentId) {
-			return saveTranslation(textContentId, lang, editorContents[lang] ?? '', { requiresValidation: false });
+			return saveTranslation(textContentId, lang, editorContents[lang] ?? '', {
+				requiresValidation: false
+			});
 		}
 		return onApproveProp?.(lang);
 	}
 
 	async function handleEditorMarkAsDraft(lang: string) {
 		if (isTextContentMode && textContentId) {
-			return saveTranslation(textContentId, lang, editorContents[lang] ?? '', { requiresValidation: true });
+			return saveTranslation(textContentId, lang, editorContents[lang] ?? '', {
+				requiresValidation: true
+			});
 		}
 		return onMarkAsDraftProp?.(lang);
 	}
@@ -243,7 +258,12 @@
 				{maxHeight}
 			/>
 			{#if hasTranslations}
-				<Button type="button" variant="link" class="absolute right-2 top-2 z-10" onclick={() => openDialog()}>
+				<Button
+					type="button"
+					variant="link"
+					class="absolute top-2 right-2 z-10"
+					onclick={() => openDialog()}
+				>
 					<Languages class="h-4 w-4" />
 				</Button>
 			{/if}
@@ -251,12 +271,29 @@
 	{:else}
 		<div class="relative">
 			{#if inputType === 'textarea'}
-				<Textarea class="pr-12" {value} oninput={handlePlainInput} {placeholder} {...inputProps} />
+				<Textarea
+					class="pr-12"
+					{value}
+					oninput={handlePlainInput}
+					{placeholder}
+					{...inputProps}
+				/>
 			{:else}
-				<Input class="pr-12" {value} oninput={handlePlainInput} {placeholder} {...inputProps} />
+				<Input
+					class="pr-12"
+					{value}
+					oninput={handlePlainInput}
+					{placeholder}
+					{...inputProps}
+				/>
 			{/if}
 			{#if hasTranslations}
-				<Button type="button" variant="link" class="absolute right-0 top-0" onclick={() => openDialog()}>
+				<Button
+					type="button"
+					variant="link"
+					class="absolute top-0 right-0"
+					onclick={() => openDialog()}
+				>
 					<Languages />
 				</Button>
 			{/if}
@@ -264,7 +301,7 @@
 	{/if}
 
 	{#if hasTranslations}
-		<div class="flex items-center gap-2 flex-wrap">
+		<div class="flex flex-wrap items-center gap-2">
 			{#each badges as badge (badge.language)}
 				<LanguageStatusBadge {...badge} onclick={(lang) => openDialog(lang)} />
 			{/each}
@@ -274,10 +311,15 @@
 
 <!-- Translation dialog -->
 {#if hasTranslations}
-	<Dialog.Root open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); }}>
-		<Dialog.Content class="scot-gov max-h-[90vh] min-w-[70vw] p-12 rounded-xl" showCloseButton={false}>
-			<Dialog.Header class="flex items-center justify-between pr-0 flex-row">
-				<Dialog.Title class="justify-start text-black text-3xl font-semibold leading-8">
+	<Dialog.Root
+		open={dialogOpen}
+		onOpenChange={(open) => {
+			if (!open) closeDialog();
+		}}
+	>
+		<Dialog.Content class="max-h-[90vh] min-w-[70vw] rounded-xl p-12" showCloseButton={false}>
+			<Dialog.Header class="flex flex-row items-center justify-between pr-0">
+				<Dialog.Title class="justify-start text-3xl leading-8 font-semibold text-black">
 					{dialogTitle}
 				</Dialog.Title>
 				<button
@@ -289,7 +331,7 @@
 					<span class="sr-only">Close</span>
 				</button>
 			</Dialog.Header>
-			<div class="overflow-y-auto max-h-[calc(90vh-120px)] pt-4">
+			<div class="max-h-[calc(90vh-120px)] overflow-y-auto pt-4">
 				{#if dialogOpen}
 					<TranslationEditor
 						initialContents={editorContents}
@@ -304,7 +346,9 @@
 						onAiTranslate={handleEditorAiTranslate}
 						onApprove={handleEditorApprove}
 						onMarkAsDraft={handleEditorMarkAsDraft}
-						onRegisterFlush={(flush) => { editorFlush = flush; }}
+						onRegisterFlush={(flush) => {
+							editorFlush = flush;
+						}}
 					/>
 				{/if}
 			</div>

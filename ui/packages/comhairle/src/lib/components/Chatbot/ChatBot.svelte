@@ -26,7 +26,11 @@
 		placeholder = 'Ask questions...',
 		initialQuestions = [
 			{ id: '1', text: 'Explain this to me', variant: 'default' },
-			{ id: '2', text: "What's Scotland's strategy for the space sector?", variant: 'default' },
+			{
+				id: '2',
+				text: "What's Scotland's strategy for the space sector?",
+				variant: 'default'
+			},
 			{ id: '3', text: 'What decisions will this influence', variant: 'primary' },
 			{ id: '4', text: 'Ask something else', variant: 'default' }
 		],
@@ -267,7 +271,7 @@
 							<!-- Message Content -->
 							<div
 								class="{message.isBot
-									? 'rounded-br-[16px] bg-white'
+									? 'bg-chat-bubble rounded-br-[16px]'
 									: 'bg-chat-primary-dark rounded-bl-[16px]'} max-w-xxl w-fit rounded-tl-[16px] rounded-tr-[16px] px-3 py-2.5"
 							>
 								{#if message.isBot}
@@ -298,7 +302,7 @@
 														disabled={isInitializing}
 														class="{selectedQuestionId === question.id
 															? 'bg-chat-primary outline-chat-primary'
-															: 'outline-chat-primary-light bg-white'} flex flex-col items-start justify-start gap-1 rounded-2xl px-2.5 py-1.5 outline outline-1 outline-offset-[-0.5px] disabled:cursor-not-allowed disabled:opacity-50"
+															: 'outline-chat-primary-light bg-chat-bubble'} flex flex-col items-start justify-start gap-1 rounded-2xl px-2.5 py-1.5 outline outline-1 outline-offset-[-0.5px] disabled:cursor-not-allowed disabled:opacity-50"
 													>
 														<div
 															class="inline-flex items-start justify-start gap-2.5"
@@ -327,7 +331,7 @@
 					{#if client?.isStreaming}
 						<div>
 							<div
-								class="max-w-xxl w-fit rounded-tl-[16px] rounded-tr-[16px] rounded-br-[16px] bg-white px-3 py-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)]"
+								class="max-w-xxl bg-chat-bubble w-fit rounded-tl-[16px] rounded-tr-[16px] rounded-br-[16px] px-3 py-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)]"
 							>
 								<div class="flex items-start gap-2">
 									<span class="text-chat-text text-sm">
@@ -368,7 +372,7 @@
 		<!-- Input Area -->
 		<div class="flex flex-shrink-0 items-end gap-2 pt-4">
 			<div
-				class="border-chat-border flex flex-1 items-end gap-2 rounded-xl border bg-white shadow-md"
+				class="border-chat-border bg-chat-bubble flex flex-1 items-end gap-2 rounded-xl border shadow-md"
 			>
 				<textarea
 					bind:this={textareaRef}
