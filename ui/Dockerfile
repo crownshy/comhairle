@@ -9,6 +9,7 @@ RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/comhairle/package.json packages/comhairle/package.json
 COPY packages/api-client/package.json packages/api-client/package.json
+COPY scripts/ scripts/
 
 RUN pnpm install --frozen-lockfile
 
