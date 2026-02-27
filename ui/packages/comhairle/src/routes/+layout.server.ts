@@ -3,7 +3,10 @@ import { env } from '$env/dynamic/public';
 
 export const load: LayoutServerLoad = async (event) => {
 	const tk = event.cookies.get('auth-token');
-	const common = { themeName: env.PUBLIC_THEME ?? "comhairle", isCommunity: env.PUBLIC_IS_COMMUNITY === 'true' }
+	const common = {
+		themeName: env.PUBLIC_THEME ?? 'comhairle',
+		isCommunity: env.PUBLIC_IS_COMMUNITY === 'true'
+	};
 
 	if (!tk) {
 		return {
@@ -24,5 +27,5 @@ export const load: LayoutServerLoad = async (event) => {
 	if (!body.id) return { user: null, ...common };
 
 	// console.log("Returning with token ", tk)
-	return { user: body, token: tk };
+	return { user: body, token: tk, ...common };
 };
