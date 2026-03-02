@@ -1,4 +1,4 @@
-import { makeApi, Zodios, type ZodiosOptions } from "@zodios/core";
+import { makeApi, Zodios, type ZodiosOptions, type ZodiosInstance } from "@zodios/core";
 import { z } from "zod";
 
 {{#if imports}}
@@ -75,7 +75,7 @@ const endpoints = makeApi([
 {{/each}}
 ]);
 
-export const {{options.apiClientName}} = new Zodios({{#if options.baseUrl}}"{{options.baseUrl}}", {{/if}}endpoints);
+export const {{options.apiClientName}}: ZodiosInstance<typeof endpoints> = new Zodios({{#if options.baseUrl}}"{{options.baseUrl}}", {{/if}}endpoints);
 
 export function createApiClient(baseUrl: string, options?: ZodiosOptions) {
     return new Zodios(baseUrl, endpoints, options);

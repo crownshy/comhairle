@@ -41,7 +41,7 @@
 						'rounded-full bg-sidebar px-4 py-3 hover:bg-sidebar/90 text-sidebar-foreground',
 					)}
 				>
-					Edit conversation
+					Edit event
 					<ArrowRight class="ml-1 size-4" />
 				</span>
 			</div>

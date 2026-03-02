@@ -336,6 +336,31 @@ pub async fn list(
 }
 
 #[instrument(err(Debug))]
+pub async fn get_by_id(
+    db: &PgPool,
+    id: &Uuid,
+    locale: &str,
+) -> Result<Event, ComhairleError> {
+    let query = Query::select()
+        .columns(DEFAULT_COLUMNS.map(|col| (EventIden::Table, col)))
+        .from(EventIden::Table)
+        .and_where(Expr::col((EventIden::Table, EventIden::Id)).eq(id.to_owned()))
+        .to_owned();
+
+    let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
+
+    let event = sqlx::query_as_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Event".into()),
+            other => ComhairleError::DatabaseError(other),
+        })?;
+
+    Ok(event)
+}
+
+#[instrument(err(Debug))]
 pub async fn get_localized_by_id(
     db: &PgPool,
     id: &Uuid,
