@@ -194,7 +194,7 @@ impl PartialWorkflowStep {
         values
     }
 }
-impl LocalisedWorkflowStep {
+impl LocalizedWorkflowStep {
     pub fn sanatize(&mut self) {
         self.preview_tool_config = self.preview_tool_config.sanatize();
         self.tool_config = self.tool_config.clone().map(|s| s.sanatize());
@@ -262,17 +262,17 @@ pub async fn get_localised_by_id(
     db: &PgPool,
     id: &Uuid,
     locale: &str,
-) -> Result<LocalisedWorkflowStep, ComhairleError> {
+) -> Result<LocalizedWorkflowStep, ComhairleError> {
     let select_query = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (WorkflowStepIden::Table, col)))
         .from(WorkflowStepIden::Table)
         .and_where(Expr::col((WorkflowStepIden::Table, WorkflowStepIden::Id)).eq(id.to_owned()))
         .to_owned();
 
-    let (sql, values) = LocalisedWorkflowStep::query_to_localisation(select_query, locale)
+    let (sql, values) = LocalizedWorkflowStep::query_to_localisation(select_query, locale)
         .build_sqlx(PostgresQueryBuilder);
 
-    let workflow_step = sqlx::query_as_with::<_, LocalisedWorkflowStep, _>(&sql, values)
+    let workflow_step = sqlx::query_as_with::<_, LocalizedWorkflowStep, _>(&sql, values)
         .fetch_one(db)
         .await
         .map_err(|_| ComhairleError::ResourceNotFound("WorkflowStep".into()))?;
@@ -367,7 +367,7 @@ pub async fn list_localised(
     db: &PgPool,
     workflow_id: &Uuid,
     locale: &str,
-) -> Result<Vec<LocalisedWorkflowStep>, ComhairleError> {
+) -> Result<Vec<LocalizedWorkflowStep>, ComhairleError> {
     let query = Query::select()
         .from(WorkflowStepIden::Table)
         .columns(DEFAULT_COLUMNS.map(|col| (WorkflowStepIden::Table, col)))
@@ -380,10 +380,10 @@ pub async fn list_localised(
         )
         .to_owned();
 
-    let (sql, values) = LocalisedWorkflowStep::query_to_localisation(query, locale)
+    let (sql, values) = LocalizedWorkflowStep::query_to_localisation(query, locale)
         .build_sqlx(PostgresQueryBuilder);
 
-    let workflow_steps = sqlx::query_as_with::<_, LocalisedWorkflowStep, _>(&sql, values)
+    let workflow_steps = sqlx::query_as_with::<_, LocalizedWorkflowStep, _>(&sql, values)
         .fetch_all(db)
         .await?;
 
@@ -527,7 +527,7 @@ pub async fn get_current_active_step_for_user_localised(
     db: &PgPool,
     user_id: &Uuid,
     workflow_id: &Uuid,
-) -> Result<Option<LocalisedWorkflowStep>, ComhairleError> {
+) -> Result<Option<LocalizedWorkflowStep>, ComhairleError> {
     let query = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (WorkflowStepIden::Table, col)))
         .from(WorkflowStepIden::Table)
@@ -553,9 +553,9 @@ pub async fn get_current_active_step_for_user_localised(
         .to_owned();
 
     let (sql, values) =
-        LocalisedWorkflowStep::query_to_localisation(query, "en").build_sqlx(PostgresQueryBuilder);
+        LocalizedWorkflowStep::query_to_localisation(query, "en").build_sqlx(PostgresQueryBuilder);
 
-    let result = sqlx::query_as_with::<_, LocalisedWorkflowStep, _>(&sql, values)
+    let result = sqlx::query_as_with::<_, LocalizedWorkflowStep, _>(&sql, values)
         .fetch_optional(db)
         .await?;
 

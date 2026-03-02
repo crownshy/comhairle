@@ -146,7 +146,7 @@ pub fn db_enum_derive(input: TokenStream) -> TokenStream {
 /// Macro to generate a localized version of a struct and query functions for translation
 ///
 /// This macro generates:
-/// 1. A `Localised{StructName}` struct where `TextContentId` fields are replaced with `String`
+/// 1. A `Localized{StructName}` struct where `TextContentId` fields are replaced with `String`
 /// 2. A `{StructName}WithTranslations` struct where `TextContentId` fields are replaced with `TextContent` and includes a `translations` field
 /// 3. A `query_to_localisation` function that modifies queries to join with translation tables
 ///
@@ -165,14 +165,14 @@ pub fn db_enum_derive(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// This will generate `LocalisedMyStruct`, `MyStructWithTranslations` and associated functions.
+/// This will generate `LocalizedMyStruct`, `MyStructWithTranslations` and associated functions.
 #[proc_macro_derive(Translatable)]
 pub fn derive_translatable(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
     let struct_name = &input.ident;
     let localised_struct_name =
-        syn::Ident::new(&format!("Localised{}", struct_name), struct_name.span());
+        syn::Ident::new(&format!("Localized{}", struct_name), struct_name.span());
     let with_translations_struct_name = syn::Ident::new(
         &format!("{}WithTranslations", struct_name),
         struct_name.span(),

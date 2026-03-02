@@ -8916,7 +8916,7 @@ export declare const LearnPage: z.ZodObject<{
     text_content_id: z.ZodString;
 }, z.ZodTypeAny, "passthrough">>;
 export type LearnPage = z.infer<typeof LearnPage>;
-export declare const LocalisedPage: z.ZodObject<{
+export declare const LocalizedPage: z.ZodObject<{
     content: z.ZodString;
     type: z.ZodLiteral<"markdown">;
 }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
@@ -8926,7 +8926,7 @@ export declare const LocalisedPage: z.ZodObject<{
     content: z.ZodString;
     type: z.ZodLiteral<"markdown">;
 }, z.ZodTypeAny, "passthrough">>;
-export type LocalisedPage = z.infer<typeof LocalisedPage>;
+export type LocalizedPage = z.infer<typeof LocalizedPage>;
 export declare const LearnPageEntry: z.ZodUnion<[z.ZodObject<{
     text_content_id: z.ZodString;
 }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
@@ -30865,7 +30865,7 @@ export declare const schemas: {
     }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
         text_content_id: z.ZodString;
     }, z.ZodTypeAny, "passthrough">>;
-    LocalisedPage: z.ZodObject<{
+    LocalizedPage: z.ZodObject<{
         content: z.ZodString;
         type: z.ZodLiteral<"markdown">;
     }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
