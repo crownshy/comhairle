@@ -15,7 +15,7 @@
 
 <button 
 	type="button"
-	class="h-7 pl-2 pr-1.5 py-0.5 bg-background rounded-full outline-border outline-1 outline-offset-[-1px] outline-base-border flex justify-center items-center gap-1 hover:bg-gray-50 transition-colors cursor-pointer"
+	class="h-7 pl-2 pr-1.5 py-0.5 bg-background rounded-full outline-border outline-1 -outline-offset-1 outline-base-border flex justify-center items-center gap-1 hover:bg-gray-50 dark:hover:text-accent-foreground dark:hover:bg-accent/50 transition-colors cursor-pointer"
 	onclick={() => onclick(language)}
 >
 	{#if status === 'approved'}
