@@ -319,7 +319,7 @@
 	>
 		<Dialog.Content class="max-h-[90vh] min-w-[70vw] rounded-xl p-12" showCloseButton={false}>
 			<Dialog.Header class="flex flex-row items-center justify-between pr-0">
-				<Dialog.Title class="justify-start text-3xl leading-8 font-semibold text-black">
+				<Dialog.Title class="justify-start text-3xl leading-8 font-semibold text-foreground">
 					{dialogTitle}
 				</Dialog.Title>
 				<button
