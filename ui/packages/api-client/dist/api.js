@@ -797,13 +797,14 @@ export const LocalizedEventDto = z
     capacity: z.union([z.number(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
-    currentAttendance: z.number().int(),
+    currentAttendance: z.union([z.number(), z.null()]).optional(),
     description: z.string(),
     endTime: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
     name: z.string(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
+    videoMeetingId: z.union([z.string(), z.null()]).optional(),
 })
     .passthrough();
 export const PaginatedResults_for_LocalizedEventDto = z
@@ -830,6 +831,7 @@ export const EventDto = z
     name: z.string().uuid(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
+    videoMeetingId: z.union([z.string(), z.null()]).optional(),
 })
     .passthrough();
 export const Translation3 = z
@@ -857,6 +859,10 @@ export const EventWithTranslations = z
     videoMeetingId: z.union([z.string(), z.null()]).optional(),
 })
     .passthrough();
+export const EventResponse = z.union([
+    LocalizedEventDto,
+    EventWithTranslations,
+]);
 export const PartialEvent = z
     .object({
     capacity: z.union([z.number(), z.null()]),
@@ -1045,6 +1051,7 @@ export const schemas = {
     Translation3,
     EventTranslations,
     EventWithTranslations,
+    EventResponse,
     PartialEvent,
     EventAttendanceDto,
     PaginatedResults_for_EventAttendanceDto,
@@ -1513,7 +1520,7 @@ curl -X POST \
                 schema: z.boolean().optional().default(false),
             },
         ],
-        response: EventWithTranslations,
+        response: EventResponse,
     },
     {
         method: "put",

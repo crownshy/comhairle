@@ -336,11 +336,7 @@ pub async fn list(
 }
 
 #[instrument(err(Debug))]
-pub async fn get_by_id(
-    db: &PgPool,
-    id: &Uuid,
-    locale: &str,
-) -> Result<Event, ComhairleError> {
+pub async fn get_by_id(db: &PgPool, id: &Uuid, locale: &str) -> Result<Event, ComhairleError> {
     let query = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (EventIden::Table, col)))
         .from(EventIden::Table)
@@ -365,7 +361,7 @@ pub async fn get_localized_by_id(
     db: &PgPool,
     id: &Uuid,
     locale: &str,
-) -> Result<LocalizedEventWithAttendance, ComhairleError> {
+) -> Result<LocalisedEvent, ComhairleError> {
     let query = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (EventIden::Table, col)))
         .from(EventIden::Table)
@@ -373,9 +369,6 @@ pub async fn get_localized_by_id(
         .to_owned();
 
     let query = LocalizedEvent::query_to_localisation(query, locale);
-
-    // Add current_attendance computed column using subquery
-    let query = add_current_attendance(query);
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
@@ -536,15 +529,15 @@ mod tests {
         let get_event_1 = get_localized_by_id(&pool, &event_1.id, "en").await?;
         let get_event_2 = get_localized_by_id(&pool, &event_2.id, "en").await?;
 
-        assert_eq!(get_event_1.event.id, event_1.id, "incorrect id for event 1");
-        assert_eq!(get_event_2.event.id, event_2.id, "incorrect id for event 2");
+        assert_eq!(get_event_1.id, event_1.id, "incorrect id for event 1");
+        assert_eq!(get_event_2.id, event_2.id, "incorrect id for event 2");
         assert_eq!(
-            get_event_1.event.name,
+            get_event_1.name,
             "test_event_1".to_string(),
             "incorrect name for event 1"
         );
         assert_eq!(
-            get_event_2.event.name,
+            get_event_2.name,
             "test_event_2".to_string(),
             "incorrect name for event 2"
         );
@@ -593,13 +586,9 @@ mod tests {
         let get_event = get_localized_by_id(&pool, &event.id, "en").await?;
 
         assert_eq!(
-            get_event.event.name,
+            get_event.name,
             "test_event".to_string(),
             "incorrect name for event"
-        );
-        assert_eq!(
-            get_event.current_attendance, 3,
-            "incorrect attendance for event"
         );
 
         Ok(())

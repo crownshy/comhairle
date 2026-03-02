@@ -941,13 +941,14 @@ export const LocalizedEventDto = z
     capacity: z.union([z.number(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
-    currentAttendance: z.number().int(),
+    currentAttendance: z.union([z.number(), z.null()]).optional(),
     description: z.string(),
     endTime: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
     name: z.string(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
+    videoMeetingId: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type LocalizedEventDto = z.infer<typeof LocalizedEventDto>;
@@ -979,6 +980,7 @@ export const EventDto = z
     name: z.string().uuid(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
+    videoMeetingId: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type EventDto = z.infer<typeof EventDto>;
@@ -1010,6 +1012,11 @@ export const EventWithTranslations = z
   })
   .passthrough();
 export type EventWithTranslations = z.infer<typeof EventWithTranslations>;
+export const EventResponse = z.union([
+  LocalizedEventDto,
+  EventWithTranslations,
+]);
+export type EventResponse = z.infer<typeof EventResponse>;
 export const PartialEvent = z
   .object({
     capacity: z.union([z.number(), z.null()]),
@@ -1217,6 +1224,7 @@ export const schemas = {
   Translation3,
   EventTranslations,
   EventWithTranslations,
+  EventResponse,
   PartialEvent,
   EventAttendanceDto,
   PaginatedResults_for_EventAttendanceDto,
@@ -1686,7 +1694,7 @@ curl -X POST \
         schema: z.boolean().optional().default(false),
       },
     ],
-    response: EventWithTranslations,
+    response: EventResponse,
   },
   {
     method: "put",

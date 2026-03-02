@@ -76,33 +76,27 @@ async fn get(
     Query(query): Query<GetEventQuery>,
     RequiredUser(user): RequiredUser,
     LocaleExtractor(locale): LocaleExtractor,
-) -> Result<(StatusCode, Json<EventWithTranslations>), ComhairleError> {
+) -> Result<(StatusCode, Json<EventResponse>), ComhairleError> {
     let event = event::get_by_id(&state.db, &event_id, &locale).await?;
 
     let should_return_with_translations =
         query.with_translations && is_user_admin(&user, &state.config);
 
-    let event_with_translations =
-        EventWithTranslations::from_original(&state.db, event, &locale).await?;
+    if should_return_with_translations {
+        let event_with_translations =
+            EventWithTranslations::from_original(&state.db, event, &locale).await?;
 
-    // TODO: figure out solution for zod validation error due to current_attendance
-    // being missing from EventWithTranslations but present on LocalizedEventDto
-    Ok((StatusCode::OK, Json(event_with_translations)))
-    // if should_return_with_translations {
-    //     let event_with_translations =
-    //         EventWithTranslations::from_original(&state.db, event, &locale).await?;
-    //
-    //     Ok((
-    //         StatusCode::OK,
-    //         Json(EventResponse::WithTranslations(event_with_translations)),
-    //     ))
-    // } else {
-    //     let event = event::get_localized_by_id(&state.db, &event_id, &locale)
-    //         .await?
-    //         .into();
-    //
-    //     Ok((StatusCode::OK, Json(EventResponse::Localized(event))))
-    // }
+        Ok((
+            StatusCode::OK,
+            Json(EventResponse::WithTranslations(event_with_translations)),
+        ))
+    } else {
+        let event = event::get_localized_by_id(&state.db, &event_id, &locale)
+            .await?
+            .into();
+
+        Ok((StatusCode::OK, Json(EventResponse::Localized(event))))
+    }
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -176,7 +170,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Get an event by id")
                     .description("Event an event by id")
                     .security_requirement("JWT")
-                    .response::<200, Json<EventWithTranslations>>()
+                    .response::<200, Json<EventResponse>>()
 
         }))
         .api_route("/", 
@@ -261,7 +255,7 @@ mod tests {
     }
 
     #[sqlx::test]
-    async fn should_get_event_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn should_get_an_event_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
 
@@ -276,7 +270,7 @@ mod tests {
                 &format!("/conversation/{conversation_id}/events/{}", event.id),
             )
             .await?;
-        let event: EventWithTranslations = serde_json::from_value(response)?;
+        let event: LocalizedEventDto = serde_json::from_value(response)?;
 
         assert!(status.is_success(), "error response status");
         assert_eq!(event.name, "test_event".to_string(), "incorrect event name");
