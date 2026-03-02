@@ -223,7 +223,7 @@
 			{#if editorType === 'rich'}
 				<RichTextEditor value={sourceContent} onChange={handleSourceChange} {minHeight} {maxHeight} />
 			{:else}
-				<div class="rounded-lg border bg-white overflow-hidden">
+				<div class="rounded-lg border bg-white dark:bg-input/30 overflow-hidden">
 					<textarea
 						class="w-full resize-none border-none outline-none p-4 text-sm leading-5 bg-transparent"
 						style="min-height: {minHeight};"
@@ -256,7 +256,7 @@
 						{maxHeight}
 					/>
 				{:else}
-					<div class="rounded-xl border bg-white overflow-hidden">
+					<div class="rounded-xl border bg-white dark:bg-input/30 overflow-hidden">
 						<textarea
 							class="w-full resize-none border-none outline-none p-4 text-sm leading-5 bg-transparent"
 							style="min-height: {minHeight};"
@@ -303,7 +303,7 @@
 						{maxHeight}
 					/>
 				{:else}
-					<div class="rounded-xl border-1 bg-white overflow-hidden">
+					<div class="rounded-xl border bg-white dark:bg-input/30 overflow-hidden">
 						<textarea
 							class="w-full resize-none border-none outline-none p-4 text-sm leading-5 bg-transparent"
 							style="min-height: {minHeight};"
