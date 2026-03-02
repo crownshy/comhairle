@@ -5,7 +5,8 @@ export const load: PageLoad = async ({ parent }) => {
 
 	try {
 		const events = await api.ListEvents({
-			params: { conversation_id: conversation.id }
+			params: { conversation_id: conversation.id },
+			queries: { created_at: 'desc' }
 		});
 
 		return { conversation, events };

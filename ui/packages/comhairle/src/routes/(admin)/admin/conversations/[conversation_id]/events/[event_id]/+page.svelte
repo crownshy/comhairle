@@ -17,6 +17,7 @@
 	import { DateFormatter, getLocalTimeZone, type DateValue, today, parseDate, parseDateTime } from '@internationalized/date';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crown-shy/api-client/client';
+	import { invalidateAll } from '$app/navigation';
 
 	let { data } = $props();
 
@@ -28,7 +29,7 @@
 	const [startDate, startTimeWithZone] = $derived(event.startTime.split('T'));
 	const [, endTimeWithZone] = $derived(event.endTime.split('T'));
 
-	const eventForm = $derived(superForm(
+	const eventForm = superForm(
 		{
 			name: event.name,
 			description: event.description,
@@ -44,7 +45,7 @@
 			validationMethod: 'oninput',
 			onSubmit: handleUpdateEvent
 		}
-	));
+	);
 
 	let { form, enhance, validateForm, submitting, tainted } = $derived(eventForm);
 
@@ -57,14 +58,29 @@
 		let startTime = parseDateTime(`${dateOption}T${result.data.start_time}`);
 		let endTime = parseDateTime(`${dateOption}T${result.data.end_time}`);
 
+		const { 
+			name: _name /* eslint-disable-line @typescript-eslint/no-unused-vars */,
+			description: _description /* eslint-disable-line @typescript-eslint/no-unused-vars */,
+			...eventData
+		} = result.data;
+
 		try {
 			const eventParams = {
-				...result.data,
+				...eventData,
 				start_time: startTime.toDate(getLocalTimeZone()).toISOString(),
 				end_time: endTime.toDate(getLocalTimeZone()).toISOString(),
 			};
-			await apiClient.UpdateEvent(eventParams, { params: { conversation_id: conversation.id, event_id: event.id }});
 
+			await apiClient.UpdateEvent(
+				eventParams,
+				{ params: {
+					conversation_id: conversation.id,
+					event_id: event.id,
+				}}
+			);
+
+			await invalidateAll();
+			notifications.send({ message: 'Updated event', priority: 'INFO' });
 		} catch (e) {
 			console.error(e);
 			notifications.send({ message: "Something went wrong updating the event", priority: "ERROR" });
@@ -95,7 +111,7 @@
 	<!-- /> -->
 {/snippet}
 
-<form method="POST" onsubmit={handleUpdateEvent} class="mt-8 flex flex-col" use:enhance>
+<form method="POST" class="mt-8 flex flex-col" use:enhance>
 	<div
 		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 	>
@@ -234,7 +250,11 @@
 					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">
 						Start time
 					</Form.Label>
-					<Input {...props} bind:value={$form.start_time} type="time" />
+					<Input
+						bind:value={$form.start_time}
+						{...props}
+						type="time"
+					/>
 					<Form.FieldErrors />
 				{/snippet}
 			</Form.Control>
@@ -250,7 +270,11 @@
 					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">
 						End time
 					</Form.Label>
-					<Input {...props} bind:value={$form.end_time} type="time" />
+					<Input
+						bind:value={$form.end_time}
+						{...props}
+						type="time"
+					/>
 					<Form.FieldErrors />
 				{/snippet}
 			</Form.Control>
@@ -287,6 +311,7 @@
 
 	<div class="border-border flex justify-center border-t py-6">
 		<Form.Button
+			type="submit"
 			variant="default"
 			class="px-12"
 			disabled={$submitting || !$tainted}

@@ -17,11 +17,14 @@ use uuid::Uuid;
 use crate::{
     error::ComhairleError,
     models::{
-        event::{self, CreateEvent, EventFilterOptions, EventOrderOptions, PartialEvent},
+        event::{
+            self, CreateEvent, EventFilterOptions, EventOrderOptions, EventWithTranslations,
+            PartialEvent,
+        },
         pagination::{PageOptions, PaginatedResults},
     },
     routes::{
-        auth::{RequiredAdminUser, RequiredUser},
+        auth::{is_user_admin, RequiredAdminUser, RequiredUser},
         events::dto::{EventDto, LocalizedEventDto},
         translations::LocaleExtractor,
     },
@@ -53,18 +56,53 @@ async fn list(
     Ok((StatusCode::OK, Json(events)))
 }
 
+#[derive(Deserialize, JsonSchema, Debug)]
+struct GetEventQuery {
+    #[serde(rename = "withTranslations", default)]
+    with_translations: bool,
+}
+
+#[derive(Serialize, JsonSchema)]
+#[serde(untagged)]
+enum EventResponse {
+    Localized(LocalizedEventDto),
+    WithTranslations(EventWithTranslations),
+}
+
 #[instrument(err(Debug), skip(state))]
 async fn get(
     State(state): State<Arc<ComhairleState>>,
     Path((conversation_id, event_id)): Path<(Uuid, Uuid)>,
-    RequiredUser(_user): RequiredUser,
+    Query(query): Query<GetEventQuery>,
+    RequiredUser(user): RequiredUser,
     LocaleExtractor(locale): LocaleExtractor,
-) -> Result<(StatusCode, Json<LocalizedEventDto>), ComhairleError> {
-    let event = event::get_localized_by_id(&state.db, &event_id, &locale)
-        .await?
-        .into();
+) -> Result<(StatusCode, Json<EventWithTranslations>), ComhairleError> {
+    let event = event::get_by_id(&state.db, &event_id, &locale).await?;
 
-    Ok((StatusCode::OK, Json(event)))
+    let should_return_with_translations =
+        query.with_translations && is_user_admin(&user, &state.config);
+
+    let event_with_translations =
+        EventWithTranslations::from_original(&state.db, event, &locale).await?;
+
+    // TODO: figure out solution for zod validation error due to current_attendance
+    // being missing from EventWithTranslations but present on LocalizedEventDto
+    Ok((StatusCode::OK, Json(event_with_translations)))
+    // if should_return_with_translations {
+    //     let event_with_translations =
+    //         EventWithTranslations::from_original(&state.db, event, &locale).await?;
+    //
+    //     Ok((
+    //         StatusCode::OK,
+    //         Json(EventResponse::WithTranslations(event_with_translations)),
+    //     ))
+    // } else {
+    //     let event = event::get_localized_by_id(&state.db, &event_id, &locale)
+    //         .await?
+    //         .into();
+    //
+    //     Ok((StatusCode::OK, Json(EventResponse::Localized(event))))
+    // }
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -138,7 +176,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Get an event by id")
                     .description("Event an event by id")
                     .security_requirement("JWT")
-                    .response::<200, Json<LocalizedEventDto>>()
+                    .response::<200, Json<EventWithTranslations>>()
 
         }))
         .api_route("/", 
@@ -238,7 +276,7 @@ mod tests {
                 &format!("/conversation/{conversation_id}/events/{}", event.id),
             )
             .await?;
-        let event: LocalizedEventDto = serde_json::from_value(response)?;
+        let event: EventWithTranslations = serde_json::from_value(response)?;
 
         assert!(status.is_success(), "error response status");
         assert_eq!(event.name, "test_event".to_string(), "incorrect event name");
