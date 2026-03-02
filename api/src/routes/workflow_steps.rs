@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 use uuid::Uuid;
 
-use crate::models::workflow_step::{LocalisedWorkflowStep, WorkflowStepWithTranslations};
+use crate::models::workflow_step::{LocalizedWorkflowStep, WorkflowStepWithTranslations};
 use crate::routes::translations::LocaleExtractor;
 use crate::routes::workflow_steps::dto::{LocalizedWorkflowStepDto, WorkflowStepDto};
 use crate::tools::ToolConfig;
@@ -36,14 +36,14 @@ pub struct GetWorkflowStepsQuery {
 #[derive(Serialize, JsonSchema)]
 #[serde(untagged)]
 pub enum WorkflowStepResponse {
-    Localised(LocalisedWorkflowStep),
+    Localized(LocalizedWorkflowStep),
     WithTranslations(WorkflowStepWithTranslations),
 }
 
 #[derive(Serialize, JsonSchema)]
 #[serde(untagged)]
 pub enum WorkflowStepsListResponse {
-    Localised(Vec<LocalizedWorkflowStepDto>),
+    Localized(Vec<LocalizedWorkflowStepDto>),
     WithTranslations(Vec<WorkflowStepWithTranslations>),
 }
 
@@ -144,7 +144,7 @@ async fn list_workflows_step(
         let workflow_steps = workflow_steps.into_iter().map(Into::into).collect();
         Ok((
             StatusCode::OK,
-            Json(WorkflowStepsListResponse::Localised(workflow_steps)),
+            Json(WorkflowStepsListResponse::Localized(workflow_steps)),
         ))
     }
 }

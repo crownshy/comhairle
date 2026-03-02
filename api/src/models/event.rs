@@ -305,7 +305,7 @@ impl EventFilterOptions {
 pub struct LocalizedEventWithAttendance {
     #[sqlx(flatten)]
     #[serde(flatten)]
-    pub event: LocalisedEvent,
+    pub event: LocalizedEvent,
     pub current_attendance: i64,
 }
 
@@ -325,7 +325,7 @@ pub async fn list(
     // Add current_attendance computed column using subquery
     let query = add_current_attendance(query);
 
-    let query = LocalisedEvent::query_to_localisation(query, &locale.unwrap_or("en".into()));
+    let query = LocalizedEvent::query_to_localisation(query, &locale.unwrap_or("en".into()));
 
     let query = filter_options.apply(query);
     let query = order_options.apply_to_localized(query);
@@ -347,7 +347,7 @@ pub async fn get_localized_by_id(
         .and_where(Expr::col((EventIden::Table, EventIden::Id)).eq(id.to_owned()))
         .to_owned();
 
-    let query = LocalisedEvent::query_to_localisation(query, locale);
+    let query = LocalizedEvent::query_to_localisation(query, locale);
 
     // Add current_attendance computed column using subquery
     let query = add_current_attendance(query);
