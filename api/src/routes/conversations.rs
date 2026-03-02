@@ -122,7 +122,7 @@ pub struct GetConversationQuery {
 #[derive(Serialize, JsonSchema)]
 #[serde(untagged)]
 pub enum ConversationResponse {
-    Localised(LocalizedConversationDto),
+    Localized(LocalizedConversationDto),
     WithTranslations(ConversationWithTranslations),
 }
 
@@ -181,7 +181,7 @@ async fn get_conversation(
 
         Ok((
             StatusCode::OK,
-            Json(ConversationResponse::Localised(conversation)),
+            Json(ConversationResponse::Localized(conversation)),
         ))
     }
 }

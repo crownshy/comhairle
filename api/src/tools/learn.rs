@@ -22,7 +22,7 @@ pub enum PageContent {
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
-pub struct LocalisedPage {
+pub struct LocalizedPage {
     pub lang: String,
     #[serde(flatten)]
     pub content: PageContent,
@@ -34,7 +34,7 @@ fn default_requires_validation() -> bool {
     true
 }
 
-pub type Page = Vec<LocalisedPage>;
+pub type Page = Vec<LocalizedPage>;
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
 #[serde(untagged)]

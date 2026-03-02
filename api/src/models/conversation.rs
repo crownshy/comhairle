@@ -350,7 +350,7 @@ pub async fn get_localised_by_id_or_slug(
     db: &PgPool,
     id_or_slug: &IdOrSlug,
     lang_code: &str,
-) -> Result<LocalisedConversation, ComhairleError> {
+) -> Result<LocalizedConversation, ComhairleError> {
     let original_conversation = match id_or_slug {
         IdOrSlug::Id(id) => get_localised_by_id(db, id, lang_code).await?,
         IdOrSlug::Slug(slug) => get_localised_by_slug(db, slug, lang_code).await?,
@@ -380,19 +380,19 @@ pub async fn get_localised_by_id(
     db: &PgPool,
     id: &Uuid,
     lang_code: &str,
-) -> Result<LocalisedConversation, ComhairleError> {
+) -> Result<LocalizedConversation, ComhairleError> {
     let select_query = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (ConversationIden::Table, col)))
         .from(ConversationIden::Table)
         .and_where(Expr::col((ConversationIden::Table, ConversationIden::Id)).eq(id.to_owned()))
         .to_owned();
 
-    let (sql, values) = LocalisedConversation::query_to_localisation(select_query, lang_code)
+    let (sql, values) = LocalizedConversation::query_to_localisation(select_query, lang_code)
         .build_sqlx(PostgresQueryBuilder);
 
     println!("SQL: {sql}");
 
-    let conversation = sqlx::query_as_with::<_, LocalisedConversation, _>(&sql, values)
+    let conversation = sqlx::query_as_with::<_, LocalizedConversation, _>(&sql, values)
         .fetch_one(db)
         .await
         .inspect_err(|e| println!("{e:#?}"))
@@ -423,17 +423,17 @@ pub async fn get_localised_by_slug(
     db: &PgPool,
     slug: &str,
     lang_code: &str,
-) -> Result<LocalisedConversation, ComhairleError> {
+) -> Result<LocalizedConversation, ComhairleError> {
     let select_query = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (ConversationIden::Table, col)))
         .from(ConversationIden::Table)
         .and_where(Expr::col((ConversationIden::Table, ConversationIden::Slug)).eq(slug.to_owned()))
         .to_owned();
 
-    let (sql, values) = LocalisedConversation::query_to_localisation(select_query, lang_code)
+    let (sql, values) = LocalizedConversation::query_to_localisation(select_query, lang_code)
         .build_sqlx(PostgresQueryBuilder);
 
-    let conversation = sqlx::query_as_with::<_, LocalisedConversation, _>(&sql, values)
+    let conversation = sqlx::query_as_with::<_, LocalizedConversation, _>(&sql, values)
         .fetch_one(db)
         .await
         .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
@@ -699,7 +699,7 @@ pub async fn list_owned(
     order_options: ConversationOrderOptions,
     filter_options: ConversationFilterOptions,
     locale: Option<String>,
-) -> Result<PaginatedResults<LocalisedConversation>, ComhairleError> {
+) -> Result<PaginatedResults<LocalizedConversation>, ComhairleError> {
     // 1. Build base query with conversation table columns
     let query = Query::select()
         .from(ConversationIden::Table)
@@ -710,7 +710,7 @@ pub async fn list_owned(
         .to_owned();
 
     // 2. Apply localization joins first to get text content
-    let query = LocalisedConversation::query_to_localisation(query, &locale.unwrap_or("en".into()));
+    let query = LocalizedConversation::query_to_localisation(query, &locale.unwrap_or("en".into()));
 
     // 3. Apply filters and ordering to the localized data
     let query = filter_options.apply_to_localized(query);
@@ -751,7 +751,7 @@ pub async fn list(
     order_options: ConversationOrderOptions,
     filter_options: ConversationFilterOptions,
     locale: Option<String>,
-) -> Result<PaginatedResults<LocalisedConversation>, ComhairleError> {
+) -> Result<PaginatedResults<LocalizedConversation>, ComhairleError> {
     // 1. Build base query with conversation table columns
     let query = Query::select()
         .from(ConversationIden::Table)
@@ -761,7 +761,7 @@ pub async fn list(
         .to_owned();
 
     // 2. Apply localization joins first to get text content
-    let query = LocalisedConversation::query_to_localisation(query, &locale.unwrap_or("en".into()));
+    let query = LocalizedConversation::query_to_localisation(query, &locale.unwrap_or("en".into()));
 
     // 3. Apply filters and ordering to the localized data
     let query = filter_options.apply_to_localized(query);

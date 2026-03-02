@@ -26,8 +26,8 @@ type ToolConfig = {
     survey_url: string;
     type: "heyform";
 };;
-type Page = Array<LocalisedPage>;;
-type LocalisedPage = {
+type Page = Array<LocalizedPage>;;
+type LocalizedPage = {
     content: string;
     type: "markdown";
 };;
@@ -94,8 +94,8 @@ const Workflow = z.object({ conversation_id: z.string().uuid(), created_at: z.st
 const CreateWorkflow = z.object({ description: z.string(), is_active: z.boolean(), is_public: z.boolean(), name: z.string() }).passthrough();
 const PartialWorkflow = z.object({ description: z.union([z.string(), z.null()]), is_active: z.union([z.boolean(), z.null()]), is_public: z.union([z.boolean(), z.null()]), name: z.union([z.string(), z.null()]) }).partial().passthrough();
 const ActivationRule = z.literal("manual");
-const LocalisedPage: z.ZodType<LocalisedPage> = z.object({ content: z.string(), type: z.literal("markdown") }).passthrough();
-const Page = z.array(LocalisedPage);
+const LocalizedPage: z.ZodType<LocalizedPage> = z.object({ content: z.string(), type: z.literal("markdown") }).passthrough();
+const Page = z.array(LocalizedPage);
 const ToolConfig = z.union([z.object({ admin_password: z.string(), admin_user: z.string(), poll_id: z.string(), server_url: z.string(), type: z.literal("polis") }).passthrough(), z.object({ pages: z.array(Page), type: z.literal("learn") }).passthrough(), z.object({ survey_id: z.string(), survey_url: z.string(), type: z.literal("heyform") }).passthrough()]);
 const WorkflowStep: z.ZodType<WorkflowStep> = z.object({ activation_rule: ActivationRule, created_at: z.string().datetime({ offset: true }), description: z.string(), id: z.string().uuid(), is_offline: z.boolean(), name: z.string(), step_order: z.number().int(), tool_config: ToolConfig, updated_at: z.string().datetime({ offset: true }), workflow_id: z.string().uuid() }).passthrough();
 const CreateWorkflowStep: z.ZodType<CreateWorkflowStep> = z.object({ activation_rule: ActivationRule, description: z.string(), is_offline: z.boolean(), name: z.string(), step_order: z.number().int(), tool_config: ToolConfig }).passthrough();
@@ -118,7 +118,7 @@ export const schemas = {
 	CreateWorkflow,
 	PartialWorkflow,
 	ActivationRule,
-	LocalisedPage,
+	LocalizedPage,
 	Page,
 	ToolConfig,
 	WorkflowStep,

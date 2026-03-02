@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { LocalisedPage, WorkflowStepWithTranslations, ConversationWithTranslations } from '@crown-shy/api-client/api';
+	import type { LocalizedPage, WorkflowStepWithTranslations, ConversationWithTranslations } from '@crown-shy/api-client/api';
 
-	interface ExtendedLocalisedPage extends LocalisedPage {
+	interface ExtendedLocalizedPage extends LocalizedPage {
 		lang: string;
 		requires_validation: boolean;
 	}
@@ -29,13 +29,13 @@
 	let primaryLocale = $derived(conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(conversation.supportedLanguages ?? ['en']);
 
-	type LearnToolConfig = { type: 'learn'; pages: ExtendedLocalisedPage[][] };
+	type LearnToolConfig = { type: 'learn'; pages: ExtendedLocalizedPage[][] };
 		
 	let sourceConfig = $derived(
 		(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig) as LearnToolConfig
 	);
 
-	let pages = $state<ExtendedLocalisedPage[][]>([]);
+	let pages = $state<ExtendedLocalizedPage[][]>([]);
 	let hasLocalChanges = $state(false);
 	
 	let lastPropsConfig = $state<string>('');
@@ -65,7 +65,7 @@
 
 	let currentPageIndex = $state(0);
 
-	function getTranslation(lang: string): ExtendedLocalisedPage | undefined {
+	function getTranslation(lang: string): ExtendedLocalizedPage | undefined {
 		return pages[currentPageIndex]?.find((p) => p.lang === lang);
 	}
 
@@ -100,14 +100,14 @@
 
 	function deletePage() {
 		markLocalChanges();
-		pages = pages.filter((_: ExtendedLocalisedPage[], i: number) => i !== currentPageIndex);
+		pages = pages.filter((_: ExtendedLocalizedPage[], i: number) => i !== currentPageIndex);
 		currentPageIndex = Math.max(currentPageIndex - 1, 0);
 		saveToServer();
 	}
 
 	function addPage() {
 		markLocalChanges();
-		const newPage: ExtendedLocalisedPage[] = [
+		const newPage: ExtendedLocalizedPage[] = [
 			{
 				lang: primaryLocale,
 				content: `# Page ${pages.length + 1}`,

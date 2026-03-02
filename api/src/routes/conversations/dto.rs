@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::{
     models::{
-        conversation::{Conversation, LocalisedConversation},
+        conversation::{Conversation, LocalizedConversation},
         pagination::PaginatedResults,
         translations::TextContentId,
     },
@@ -56,7 +56,7 @@ pub struct ConversationDto {
     pub supported_languages: Vec<String>,
 }
 
-/// Data transfer object (public API representation) for a LocalisedConversation.
+/// Data transfer object (public API representation) for a LocalizedConversation.
 ///
 /// This DTO is returned by conversation related endpoints and is safe to expose
 /// to clients. It intentionally omits fields such as:
@@ -125,8 +125,8 @@ impl From<Conversation> for ConversationDto {
     }
 }
 
-impl From<LocalisedConversation> for LocalizedConversationDto {
-    fn from(c: LocalisedConversation) -> Self {
+impl From<LocalizedConversation> for LocalizedConversationDto {
+    fn from(c: LocalizedConversation) -> Self {
         Self {
             id: c.id,
             title: c.title,
@@ -149,8 +149,8 @@ impl From<LocalisedConversation> for LocalizedConversationDto {
     }
 }
 
-impl From<PaginatedResults<LocalisedConversation>> for PaginatedResults<LocalizedConversationDto> {
-    fn from(r: PaginatedResults<LocalisedConversation>) -> Self {
+impl From<PaginatedResults<LocalizedConversation>> for PaginatedResults<LocalizedConversationDto> {
+    fn from(r: PaginatedResults<LocalizedConversation>) -> Self {
         Self {
             total: r.total,
             records: r.records.into_iter().map(Into::into).collect(),
