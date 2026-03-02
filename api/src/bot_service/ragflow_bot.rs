@@ -45,6 +45,17 @@ impl ComhairleRagBotService {
     }
 }
 
+static RAGFLOW_SUPPORTED_EXT: &[&str] = &[
+    "pdf", "msg", "eml", "doc", "docx", "ppt", "pptx", "yml", "xml", "htm", "json", "jsonl",
+    "ldjson", "csv", "txt", "ini", "xls", "xlsx", "wps", "rtf", "hlp", "pages", "numbers", "key",
+    "md", "mdx", "py", "js", "java", "c", "cpp", "h", "php", "go", "ts", "sh", "cs", "kt", "html",
+    "sql", "wav", "flac", "ape", "alac", "wavpack", "wv", "mp3", "aac", "ogg", "vorbis", "opus",
+    "jpg", "jpeg", "png", "tif", "gif", "pcx", "tga", "exif", "fpx", "svg", "psd", "cdr", "pcd",
+    "dxf", "ufo", "eps", "ai", "raw", "WMF", "webp", "avif", "apng", "icon", "ico", "mpg", "mpeg",
+    "avi", "rm", "rmvb", "mov", "wmv", "asf", "dat", "asx", "wvx", "mpe", "mpa", "mp4", "avi",
+    "mkv",
+];
+
 #[async_trait]
 impl ComhairleBotService for ComhairleRagBotService {
     #[instrument(err(Debug))]
@@ -646,6 +657,10 @@ impl ComhairleBotService for ComhairleRagBotService {
         let mapped_stream = stream.map(|item| item.map_err(ComhairleError::from));
 
         Ok(Box::pin(mapped_stream))
+    }
+
+    fn supported_file_types(&self) -> Option<&'static [&'static str]> {
+        Some(RAGFLOW_SUPPORTED_EXT)
     }
 }
 

@@ -241,6 +241,8 @@ pub trait ComhairleBotService: Send + Sync {
         Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
         ComhairleError,
     >;
+
+    fn supported_file_types(&self) -> Option<&'static [&'static str]>;
 }
 
 #[derive(Deserialize, Debug, JsonSchema, Default, PartialEq)]
@@ -656,6 +658,10 @@ impl MockComhairleBotService {
                     Ok(stream)
                 })
             });
+        bot_service.expect_supported_file_types().returning(|| {
+            let file_types: &[&str] = &["pdf", "svg", "png", "jpeg"];
+            Some(file_types)
+        });
 
         bot_service
     }
