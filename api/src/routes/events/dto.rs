@@ -38,7 +38,7 @@ pub struct EventDto {
     pub created_at: DateTime<Utc>,
 }
 
-/// Data transfer object (public API representation) for LocalisedEvent.
+/// Data transfer object (public API representation) for LocalizedEvent.
 ///
 /// This DTO is returned by event related endpoints and is safe to expose
 /// to clients. It intentionally omits fields such as:

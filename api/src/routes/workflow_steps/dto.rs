@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::{
     models::{
         translations::TextContentId,
-        workflow_step::{ActivationRule, LocalisedWorkflowStep, WorkflowStep},
+        workflow_step::{ActivationRule, LocalizedWorkflowStep, WorkflowStep},
     },
     schema_helpers::{example_localized_text, example_uuid},
     tools::ToolConfig,
@@ -44,7 +44,7 @@ pub struct WorkflowStepDto {
     pub preview_tool_config: ToolConfig,
 }
 
-/// Data transfer object (public API representation) for a LocalisedWorkflowStep.
+/// Data transfer object (public API representation) for a LocalizedWorkflowStep.
 ///
 /// This DTO is returned by workflow step related endpoints and is safe to expose
 /// to clients. It intentionally omits fields such as:
@@ -94,8 +94,8 @@ impl From<WorkflowStep> for WorkflowStepDto {
     }
 }
 
-impl From<LocalisedWorkflowStep> for LocalizedWorkflowStepDto {
-    fn from(w: LocalisedWorkflowStep) -> Self {
+impl From<LocalizedWorkflowStep> for LocalizedWorkflowStepDto {
+    fn from(w: LocalizedWorkflowStep) -> Self {
         Self {
             id: w.id,
             workflow_id: w.workflow_id,
