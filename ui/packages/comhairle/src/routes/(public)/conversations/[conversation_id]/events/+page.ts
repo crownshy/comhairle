@@ -1,5 +1,5 @@
 import type { PageLoad } from './$types';
-import type { LocalizedEventDto } from '@crown-shy/api-client/api';
+import type { LocalizedEventDto } from '@crownshy/api-client/api';
 
 export const load: PageLoad = async ({ parent, params }) => {
 	const { api } = await parent();
