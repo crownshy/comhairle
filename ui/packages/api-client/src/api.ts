@@ -1,4 +1,9 @@
-import { makeApi, Zodios, type ZodiosOptions } from "@zodios/core";
+import {
+  makeApi,
+  Zodios,
+  type ZodiosOptions,
+  type ZodiosInstance,
+} from "@zodios/core";
 import { z } from "zod";
 
 export const AnnonLoginRequest = z
@@ -936,13 +941,14 @@ export const LocalizedEventDto = z
     capacity: z.union([z.number(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
-    currentAttendance: z.number().int(),
+    currentAttendance: z.union([z.number(), z.null()]).optional(),
     description: z.string(),
     endTime: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
     name: z.string(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
+    videoMeetingId: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type LocalizedEventDto = z.infer<typeof LocalizedEventDto>;
@@ -974,9 +980,43 @@ export const EventDto = z
     name: z.string().uuid(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
+    videoMeetingId: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type EventDto = z.infer<typeof EventDto>;
+export const Translation3 = z
+  .object({
+    textContent: TextContentDto,
+    textTranslations: z.array(TextTranslationDto),
+  })
+  .passthrough();
+export type Translation3 = z.infer<typeof Translation3>;
+export const EventTranslations = z
+  .object({ description: Translation3, name: Translation3 })
+  .passthrough();
+export type EventTranslations = z.infer<typeof EventTranslations>;
+export const EventWithTranslations = z
+  .object({
+    capacity: z.union([z.number(), z.null()]).optional(),
+    conversationId: z.string().uuid(),
+    createdAt: z.string().datetime({ offset: true }),
+    description: z.string(),
+    endTime: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    name: z.string(),
+    signupMode: z.string(),
+    startTime: z.string().datetime({ offset: true }),
+    translations: EventTranslations,
+    updatedAt: z.string().datetime({ offset: true }),
+    videoMeetingId: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type EventWithTranslations = z.infer<typeof EventWithTranslations>;
+export const EventResponse = z.union([
+  LocalizedEventDto,
+  EventWithTranslations,
+]);
+export type EventResponse = z.infer<typeof EventResponse>;
 export const PartialEvent = z
   .object({
     capacity: z.union([z.number(), z.null()]),
@@ -1181,6 +1221,10 @@ export const schemas = {
   PaginatedResults_for_LocalizedEventDto,
   CreateEventRequest,
   EventDto,
+  Translation3,
+  EventTranslations,
+  EventWithTranslations,
+  EventResponse,
   PartialEvent,
   EventAttendanceDto,
   PaginatedResults_for_EventAttendanceDto,
@@ -1643,7 +1687,14 @@ curl -X POST \
     alias: "GetEvent",
     description: `Event an event by id`,
     requestFormat: "json",
-    response: LocalizedEventDto,
+    parameters: [
+      {
+        name: "withTranslations",
+        type: "Query",
+        schema: z.boolean().optional().default(false),
+      },
+    ],
+    response: EventResponse,
   },
   {
     method: "put",
@@ -2622,7 +2673,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
   },
 ]);
 
-export const api = new Zodios(endpoints);
+export const api: ZodiosInstance<typeof endpoints> = new Zodios(endpoints);
 
 export function createApiClient(baseUrl: string, options?: ZodiosOptions) {
   return new Zodios(baseUrl, endpoints, options);

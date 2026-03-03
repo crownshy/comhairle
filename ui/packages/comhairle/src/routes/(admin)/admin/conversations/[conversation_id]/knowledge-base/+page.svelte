@@ -40,6 +40,7 @@
 
 	<AdminPrevNextControls
 		prev={{ name: 'Design', url: `/admin/conversations/${conversation.id}/design` }}
+		next={{ name: 'Events', url: `/admin/conversations/${conversation.id}/events` }}
 	/>
 {/snippet}
 

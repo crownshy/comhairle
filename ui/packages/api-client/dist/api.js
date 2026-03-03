@@ -1,4 +1,4 @@
-import { makeApi, Zodios } from "@zodios/core";
+import { makeApi, Zodios, } from "@zodios/core";
 import { z } from "zod";
 export const AnnonLoginRequest = z
     .object({ username: z.string() })
@@ -797,13 +797,14 @@ export const LocalizedEventDto = z
     capacity: z.union([z.number(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
-    currentAttendance: z.number().int(),
+    currentAttendance: z.union([z.number(), z.null()]).optional(),
     description: z.string(),
     endTime: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
     name: z.string(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
+    videoMeetingId: z.union([z.string(), z.null()]).optional(),
 })
     .passthrough();
 export const PaginatedResults_for_LocalizedEventDto = z
@@ -830,8 +831,38 @@ export const EventDto = z
     name: z.string().uuid(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
+    videoMeetingId: z.union([z.string(), z.null()]).optional(),
 })
     .passthrough();
+export const Translation3 = z
+    .object({
+    textContent: TextContentDto,
+    textTranslations: z.array(TextTranslationDto),
+})
+    .passthrough();
+export const EventTranslations = z
+    .object({ description: Translation3, name: Translation3 })
+    .passthrough();
+export const EventWithTranslations = z
+    .object({
+    capacity: z.union([z.number(), z.null()]).optional(),
+    conversationId: z.string().uuid(),
+    createdAt: z.string().datetime({ offset: true }),
+    description: z.string(),
+    endTime: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    name: z.string(),
+    signupMode: z.string(),
+    startTime: z.string().datetime({ offset: true }),
+    translations: EventTranslations,
+    updatedAt: z.string().datetime({ offset: true }),
+    videoMeetingId: z.union([z.string(), z.null()]).optional(),
+})
+    .passthrough();
+export const EventResponse = z.union([
+    LocalizedEventDto,
+    EventWithTranslations,
+]);
 export const PartialEvent = z
     .object({
     capacity: z.union([z.number(), z.null()]),
@@ -1017,6 +1048,10 @@ export const schemas = {
     PaginatedResults_for_LocalizedEventDto,
     CreateEventRequest,
     EventDto,
+    Translation3,
+    EventTranslations,
+    EventWithTranslations,
+    EventResponse,
     PartialEvent,
     EventAttendanceDto,
     PaginatedResults_for_EventAttendanceDto,
@@ -1478,7 +1513,14 @@ curl -X POST \
         alias: "GetEvent",
         description: `Event an event by id`,
         requestFormat: "json",
-        response: LocalizedEventDto,
+        parameters: [
+            {
+                name: "withTranslations",
+                type: "Query",
+                schema: z.boolean().optional().default(false),
+            },
+        ],
+        response: EventResponse,
     },
     {
         method: "put",

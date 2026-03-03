@@ -1,15 +1,19 @@
-import { createApiClient as createApi } from "./api"
+import { createApiClient as createApi } from './api';
 
-export const createApiClient = (baseUrl: string, authToken: string | undefined, source: string, locale?: string) => {
-
+export const createApiClient = (
+	baseUrl: string,
+	authToken: string | undefined,
+	source: string,
+	locale?: string
+): ReturnType<typeof createApi> => {
 	let api = createApi(baseUrl, {
 		axiosConfig: {
 			withCredentials: true
 		}
-	})
+	});
 
-	api.axios.interceptors.request.use(config => {
-		if (source === "server") {
+	api.axios.interceptors.request.use((config) => {
+		if (source === 'server') {
 			const cookies: string[] = [];
 			if (authToken) {
 				cookies.push(`auth-token=${authToken}`);
@@ -21,10 +25,14 @@ export const createApiClient = (baseUrl: string, authToken: string | undefined, 
 				config.headers['Cookie'] = cookies.join('; ');
 			}
 		}
-		return config
-	})
+		return config;
+	});
 
-	return api
-}
+	return api;
+};
 
-export const apiClient = createApiClient("/api", undefined, "client")
+export const apiClient: ReturnType<typeof createApiClient> = createApiClient(
+	'/api',
+	undefined,
+	'client'
+);
