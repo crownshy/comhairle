@@ -1,0 +1,235 @@
+<script lang="ts">
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import Button from '$lib/components/ui/button/button.svelte';
+	import { apiClient } from '@crown-shy/api-client/client';
+	import type { PageProps } from './$types';
+
+	let { data }: PageProps = $props();
+
+	let conversationId = $derived(data.conversationId);
+	let event = $derived(data.event);
+	let attendances = $derived(data.attendances);
+	let user = $derived(data.user);
+
+	let joining = $state(false);
+	let error = $state<string | null>(null);
+
+	let status = $derived.by(() => {
+		if (!event) return 'unknown';
+		const now = Date.now();
+		const s = new Date(event.startTime).getTime();
+		const e = new Date(event.endTime).getTime();
+		if (now < s) return 'upcoming' as const;
+		if (now > e) return 'past' as const;
+		return 'live' as const;
+	});
+
+	let userAttendance = $derived(user ? attendances.find((a) => a.userId === user.id) : undefined);
+
+	function formatDate(iso: string) {
+		return new Date(iso).toLocaleDateString(undefined, {
+			weekday: 'long',
+			year: 'numeric',
+			month: 'long',
+			day: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+	}
+
+	function formatDuration(start: string, end: string) {
+		const ms = new Date(end).getTime() - new Date(start).getTime();
+		const mins = Math.round(ms / 60000);
+		if (mins < 60) return `${mins} min`;
+		const hours = Math.floor(mins / 60);
+		const remMins = mins % 60;
+		return remMins > 0 ? `${hours}h ${remMins}m` : `${hours}h`;
+	}
+
+	async function registerAttendance() {
+		if (!event || !user) return;
+		joining = true;
+		error = null;
+		try {
+			await apiClient.CreateEventAttendance({
+				params: {
+					conversation_id: conversationId,
+					event_id: event.id
+				},
+				body: { role: 'attendee' }
+			});
+			// Reload to refresh attendance data
+			window.location.reload();
+		} catch (e: any) {
+			error = e?.message || 'Failed to register';
+		} finally {
+			joining = false;
+		}
+	}
+</script>
+
+<svelte:head>
+	<title>{event?.name ?? 'Event'}</title>
+</svelte:head>
+
+<div class="mx-auto max-w-3xl py-8">
+	<a
+		href="/conversations/{conversationId}/events"
+		class="text-muted-foreground hover:text-foreground mb-4 inline-block text-sm"
+	>
+		← All events
+	</a>
+
+	{#if !event}
+		<div class="border-border rounded-xl border border-dashed p-12 text-center">
+			<p class="text-muted-foreground">Event not found.</p>
+		</div>
+	{:else}
+		<div class="space-y-6">
+			<!-- Header -->
+			<div>
+				<div class="flex items-center gap-3">
+					<h1 class="text-2xl font-bold">{event.name}</h1>
+					{#if status === 'live'}
+						<span
+							class="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2.5 py-1 text-xs font-medium text-green-600"
+						>
+							<span class="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500"
+							></span>
+							Live Now
+						</span>
+					{:else if status === 'past'}
+						<span
+							class="bg-muted text-muted-foreground rounded-full px-2.5 py-1 text-xs"
+							>Past</span
+						>
+					{:else}
+						<span
+							class="bg-primary/10 text-primary rounded-full px-2.5 py-1 text-xs font-medium"
+							>Upcoming</span
+						>
+					{/if}
+				</div>
+				{#if event.description}
+					<p class="text-muted-foreground mt-2">{event.description}</p>
+				{/if}
+			</div>
+
+			<!-- Details card -->
+			<div class="border-border bg-card rounded-xl border p-5">
+				<dl class="grid gap-4 sm:grid-cols-2">
+					<div>
+						<dt
+							class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
+						>
+							Starts
+						</dt>
+						<dd class="mt-1 text-sm">{formatDate(event.startTime)}</dd>
+					</div>
+					<div>
+						<dt
+							class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
+						>
+							Ends
+						</dt>
+						<dd class="mt-1 text-sm">{formatDate(event.endTime)}</dd>
+					</div>
+					<div>
+						<dt
+							class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
+						>
+							Duration
+						</dt>
+						<dd class="mt-1 text-sm">
+							{formatDuration(event.startTime, event.endTime)}
+						</dd>
+					</div>
+					<div>
+						<dt
+							class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
+						>
+							Attendance
+						</dt>
+						<dd class="mt-1 text-sm">
+							{event.currentAttendance} registered{event.capacity
+								? ` / ${event.capacity} capacity`
+								: ''}
+						</dd>
+					</div>
+					<div>
+						<dt
+							class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
+						>
+							Signup Mode
+						</dt>
+						<dd class="mt-1 text-sm capitalize">{event.signupMode}</dd>
+					</div>
+				</dl>
+			</div>
+
+			<!-- Actions -->
+			<div class="flex flex-wrap gap-3">
+				{#if status === 'live'}
+					<Button
+						variant="default"
+						onclick={() =>
+							goto(`/conversations/${conversationId}/events/${event.id}/live`)}
+					>
+						Join Live Event
+					</Button>
+				{/if}
+
+				{#if status === 'upcoming' && !userAttendance && user}
+					<Button variant="default" onclick={registerAttendance} disabled={joining}>
+						{joining ? 'Registering…' : 'Register to Attend'}
+					</Button>
+				{/if}
+
+				{#if userAttendance}
+					<span
+						class="inline-flex items-center rounded-full bg-green-500/10 px-3 py-1.5 text-sm font-medium text-green-600"
+					>
+						✓ You're registered ({userAttendance.role})
+					</span>
+				{/if}
+
+				{#if !user && status !== 'past'}
+					<p class="text-muted-foreground text-sm">Log in to register for this event.</p>
+				{/if}
+			</div>
+
+			{#if error}
+				<p class="text-destructive text-sm">{error}</p>
+			{/if}
+
+			<!-- Attendees list -->
+			{#if attendances.length > 0}
+				<div>
+					<h2 class="mb-3 text-sm font-semibold">
+						Registered Attendees ({attendances.length})
+					</h2>
+					<div class="space-y-2">
+						{#each attendances as attendance (attendance.id)}
+							<div
+								class="border-border flex items-center gap-3 rounded-lg border p-2.5"
+							>
+								<div
+									class="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium"
+								>
+									{attendance.userId.charAt(0).toUpperCase()}
+								</div>
+								<div class="min-w-0 flex-1">
+									<span class="text-sm">{attendance.userId}</span>
+									<span class="text-muted-foreground ml-2 text-xs capitalize"
+										>{attendance.role}</span
+									>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
+		</div>
+	{/if}
+</div>
