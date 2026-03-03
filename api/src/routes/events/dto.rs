@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     models::{
-        event::{Event, LocalizedEventWithAttendance},
+        event::{Event, LocalizedEvent, LocalizedEventWithAttendance},
         pagination::PaginatedResults,
         translations::TextContentId,
     },
@@ -35,6 +35,7 @@ pub struct EventDto {
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
     pub signup_mode: String,
+    pub video_meeting_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -61,7 +62,8 @@ pub struct LocalizedEventDto {
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
     pub signup_mode: String,
-    pub current_attendance: i64,
+    pub current_attendance: Option<i64>,
+    pub video_meeting_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -76,6 +78,7 @@ impl From<Event> for EventDto {
             start_time: e.start_time,
             end_time: e.end_time,
             signup_mode: e.signup_mode,
+            video_meeting_id: e.video_meeting_id,
             created_at: e.created_at,
         }
     }
@@ -93,7 +96,26 @@ impl From<LocalizedEventWithAttendance> for LocalizedEventDto {
             end_time: e.event.end_time,
             signup_mode: e.event.signup_mode,
             created_at: e.event.created_at,
-            current_attendance: e.current_attendance,
+            video_meeting_id: e.event.video_meeting_id,
+            current_attendance: Some(e.current_attendance),
+        }
+    }
+}
+
+impl From<LocalizedEvent> for LocalizedEventDto {
+    fn from(e: LocalizedEvent) -> Self {
+        Self {
+            id: e.id,
+            name: e.name,
+            description: e.description,
+            capacity: e.capacity,
+            conversation_id: e.conversation_id,
+            start_time: e.start_time,
+            end_time: e.end_time,
+            signup_mode: e.signup_mode,
+            created_at: e.created_at,
+            video_meeting_id: e.video_meeting_id,
+            current_attendance: None,
         }
     }
 }

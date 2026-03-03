@@ -17,11 +17,14 @@ use uuid::Uuid;
 use crate::{
     error::ComhairleError,
     models::{
-        event::{self, CreateEvent, EventFilterOptions, EventOrderOptions, PartialEvent},
+        event::{
+            self, CreateEvent, EventFilterOptions, EventOrderOptions, EventWithTranslations,
+            PartialEvent,
+        },
         pagination::{PageOptions, PaginatedResults},
     },
     routes::{
-        auth::{RequiredAdminUser, RequiredUser},
+        auth::{is_user_admin, RequiredAdminUser, RequiredUser},
         events::dto::{EventDto, LocalizedEventDto},
         translations::LocaleExtractor,
     },
@@ -53,18 +56,47 @@ async fn list(
     Ok((StatusCode::OK, Json(events)))
 }
 
+#[derive(Deserialize, JsonSchema, Debug)]
+struct GetEventQuery {
+    #[serde(rename = "withTranslations", default)]
+    with_translations: bool,
+}
+
+#[derive(Serialize, JsonSchema)]
+#[serde(untagged)]
+enum EventResponse {
+    Localized(LocalizedEventDto),
+    WithTranslations(EventWithTranslations),
+}
+
 #[instrument(err(Debug), skip(state))]
 async fn get(
     State(state): State<Arc<ComhairleState>>,
     Path((conversation_id, event_id)): Path<(Uuid, Uuid)>,
-    RequiredUser(_user): RequiredUser,
+    Query(query): Query<GetEventQuery>,
+    RequiredUser(user): RequiredUser,
     LocaleExtractor(locale): LocaleExtractor,
-) -> Result<(StatusCode, Json<LocalizedEventDto>), ComhairleError> {
-    let event = event::get_localized_by_id(&state.db, &event_id, &locale)
-        .await?
-        .into();
+) -> Result<(StatusCode, Json<EventResponse>), ComhairleError> {
+    let event = event::get_by_id(&state.db, &event_id, &locale).await?;
 
-    Ok((StatusCode::OK, Json(event)))
+    let should_return_with_translations =
+        query.with_translations && is_user_admin(&user, &state.config);
+
+    if should_return_with_translations {
+        let event_with_translations =
+            EventWithTranslations::from_original(&state.db, event, &locale).await?;
+
+        Ok((
+            StatusCode::OK,
+            Json(EventResponse::WithTranslations(event_with_translations)),
+        ))
+    } else {
+        let event = event::get_localized_by_id(&state.db, &event_id, &locale)
+            .await?
+            .into();
+
+        Ok((StatusCode::OK, Json(EventResponse::Localized(event))))
+    }
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -138,7 +170,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Get an event by id")
                     .description("Event an event by id")
                     .security_requirement("JWT")
-                    .response::<200, Json<LocalizedEventDto>>()
+                    .response::<200, Json<EventResponse>>()
 
         }))
         .api_route("/", 
@@ -223,7 +255,7 @@ mod tests {
     }
 
     #[sqlx::test]
-    async fn should_get_event_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn should_get_an_event_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
 
