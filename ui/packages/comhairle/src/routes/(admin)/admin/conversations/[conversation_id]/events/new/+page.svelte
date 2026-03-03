@@ -11,15 +11,15 @@
 	import { Input } from '$lib/components/ui/input';
 	import * as RadioGroup from '$lib/components/ui/radio-group';
 	import * as Popover from '$lib/components/ui/popover/index.js';
-	import { superForm } from "sveltekit-superforms";
-	import { zodClient } from "sveltekit-superforms/adapters";
-	import NewEventSchema from "./NewEventSchema";
+	import { superForm } from 'sveltekit-superforms';
+	import { zodClient } from 'sveltekit-superforms/adapters';
+	import NewEventSchema from './NewEventSchema';
 	import { CalendarIcon } from 'lucide-svelte';
 	import Calendar from '$lib/components/ui/calendar/calendar.svelte';
 	import { cn } from '$lib/utils';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import { notifications } from '$lib/notifications.svelte';
-	import { apiClient } from '@crown-shy/api-client/client';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { goto } from '$app/navigation';
 
 	let { data } = $props();
@@ -34,7 +34,7 @@
 	const df = new DateFormatter('en-UK', {
 		dateStyle: 'long'
 	});
-	
+
 	async function handleSubmit(e: Event) {
 		const result = await validateForm();
 
@@ -45,19 +45,24 @@
 		// TODO: can we always assume end date is the same as the start date?
 		let endTime = parseDateTime(`${dateOption}T${result.data.end_time}`);
 
-			try {
-				const eventParams = {
-					...result.data,
-					start_time: startTime.toDate(getLocalTimeZone()).toISOString(),
-					end_time: endTime.toDate(getLocalTimeZone()).toISOString(),
-				};
-				await apiClient.CreateEvent(eventParams, { params: { conversation_id: conversation.id }});
+		try {
+			const eventParams = {
+				...result.data,
+				start_time: startTime.toDate(getLocalTimeZone()).toISOString(),
+				end_time: endTime.toDate(getLocalTimeZone()).toISOString()
+			};
+			await apiClient.CreateEvent(eventParams, {
+				params: { conversation_id: conversation.id }
+			});
 
-				goto(`/admin/conversations/${conversation.id}/events`);
-			} catch (e) {
-				console.error(e);
-				notifications.send({ message: "Something went wrong creating the event", priority: "ERROR" });
-			}
+			goto(`/admin/conversations/${conversation.id}/events`);
+		} catch (e) {
+			console.error(e);
+			notifications.send({
+				message: 'Something went wrong creating the event',
+				priority: 'ERROR'
+			});
+		}
 	}
 
 	let startDate = $derived($formData.start_date ? parseDate($formData.start_date) : undefined);
@@ -100,7 +105,6 @@
 		</Form.Control>
 		<Form.FieldErrors />
 	</Form.Field>
-
 
 	<Form.Field {form} name="start_date">
 		<Form.Control>
@@ -162,7 +166,7 @@
 		<Form.FieldErrors />
 	</Form.Field>
 
-	<Form.Fieldset form={form} name="signup_mode" class="space-y-3">
+	<Form.Fieldset {form} name="signup_mode" class="space-y-3">
 		<Form.Legend>Signup mode</Form.Legend>
 		<RadioGroup.Root
 			bind:value={$formData.signup_mode}

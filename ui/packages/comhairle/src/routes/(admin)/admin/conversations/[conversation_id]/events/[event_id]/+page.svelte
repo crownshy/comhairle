@@ -14,9 +14,16 @@
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import { cn } from '$lib/utils';
 	import { buttonVariants } from '$lib/components/ui/button';
-	import { DateFormatter, getLocalTimeZone, type DateValue, today, parseDate, parseDateTime } from '@internationalized/date';
+	import {
+		DateFormatter,
+		getLocalTimeZone,
+		type DateValue,
+		today,
+		parseDate,
+		parseDateTime
+	} from '@internationalized/date';
 	import { notifications } from '$lib/notifications.svelte';
-	import { apiClient } from '@crown-shy/api-client/client';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidateAll } from '$app/navigation';
 
 	let { data } = $props();
@@ -37,7 +44,7 @@
 			start_date: startDate,
 			start_time: startTimeWithZone.replace('Z', ''),
 			end_time: endTimeWithZone.replace('Z', ''),
-			signup_mode: event.signupMode,
+			signup_mode: event.signupMode
 		},
 		{
 			validators: zodClient(EventSchema),
@@ -53,12 +60,12 @@
 		const result = await validateForm({ update: true });
 
 		if (!result.valid) return;
-		
+
 		const dateOption = result.data.start_date;
 		let startTime = parseDateTime(`${dateOption}T${result.data.start_time}`);
 		let endTime = parseDateTime(`${dateOption}T${result.data.end_time}`);
 
-		const { 
+		const {
 			name: _name /* eslint-disable-line @typescript-eslint/no-unused-vars */,
 			description: _description /* eslint-disable-line @typescript-eslint/no-unused-vars */,
 			...eventData
@@ -68,22 +75,24 @@
 			const eventParams = {
 				...eventData,
 				start_time: startTime.toDate(getLocalTimeZone()).toISOString(),
-				end_time: endTime.toDate(getLocalTimeZone()).toISOString(),
+				end_time: endTime.toDate(getLocalTimeZone()).toISOString()
 			};
 
-			await apiClient.UpdateEvent(
-				eventParams,
-				{ params: {
+			await apiClient.UpdateEvent(eventParams, {
+				params: {
 					conversation_id: conversation.id,
-					event_id: event.id,
-				}}
-			);
+					event_id: event.id
+				}
+			});
 
 			await invalidateAll();
 			notifications.send({ message: 'Updated event', priority: 'INFO' });
 		} catch (e) {
 			console.error(e);
-			notifications.send({ message: "Something went wrong updating the event", priority: "ERROR" });
+			notifications.send({
+				message: 'Something went wrong updating the event',
+				priority: 'ERROR'
+			});
 		}
 	}
 
@@ -250,11 +259,7 @@
 					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">
 						Start time
 					</Form.Label>
-					<Input
-						bind:value={$form.start_time}
-						{...props}
-						type="time"
-					/>
+					<Input bind:value={$form.start_time} {...props} type="time" />
 					<Form.FieldErrors />
 				{/snippet}
 			</Form.Control>
@@ -270,11 +275,7 @@
 					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">
 						End time
 					</Form.Label>
-					<Input
-						bind:value={$form.end_time}
-						{...props}
-						type="time"
-					/>
+					<Input bind:value={$form.end_time} {...props} type="time" />
 					<Form.FieldErrors />
 				{/snippet}
 			</Form.Control>
@@ -285,7 +286,9 @@
 		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 	>
 		<Form.Fieldset form={eventForm} name="signup_mode" class="contents">
-			<Form.Legend class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Signup mode</Form.Legend>
+			<Form.Legend class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+				>Signup mode</Form.Legend
+			>
 			<RadioGroup.Root
 				bind:value={$form.signup_mode}
 				class="flex flex-row space-x-1"
