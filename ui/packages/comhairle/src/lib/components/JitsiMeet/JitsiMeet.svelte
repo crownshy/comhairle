@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
+	import { env } from '$env/dynamic/public';
 
 	interface JitsiMeetProps {
 		domain?: string;
@@ -23,7 +24,7 @@
 	}
 
 	let {
-		domain = 'video.comhairle.scot',
+		domain = env.PUBLIC_JITSI_DOMAIN ?? 'video.comhairle.scot',
 		roomName,
 		displayName = '',
 		email = '',
