@@ -90,8 +90,27 @@ export default class PolisApi {
 	}
 
 	submitStatement(statement: string) {
-
+		fetch('https://polis.comhairle.scot/api/v3/comments', {
+			method: 'POST',
+			credentials: 'omit',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				conversation_id: this.polisId,
+				txt: statement,  // Max 997 characters
+				pid: this.pid,
+				xid: this.userId,  // Your user XID
+				vote: -1,  // Optional: auto-vote on your own comment (1=agree, -1=disagree, 0=pass)
+				// anon: false,  // Optional: anonymous comment
+				// is_seed: false  // Optional: mark as seed comment
+			})
+		}).then(r => r.json())
+			.then(data => {
+				console.log('Comment created:', data);
+				// Response includes: tid (comment ID), txt, pid, created timestamp, etc.
+			})
+			.catch(err => console.error('Error:', err));
 	}
+
 
 	submitVote(vote: "agree" | "disagree" | "pass") {
 		if (this.pid) {

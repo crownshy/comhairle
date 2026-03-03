@@ -3,6 +3,7 @@
 	import { fade } from 'svelte/transition';
 	import PolisVoteCard from './components/PolisVoteCard.svelte';
 	import  PolisApi from "./polisApi.svelte"
+	import PolisNewStatementModal from './components/PolisNewStatementModal.svelte';
 
 	type Props = {
 		polis_id: string;
@@ -18,9 +19,7 @@
 	});
 
 	let {polis_id, polis_url, user_id, onDone} : Props = $props()
-
 	let showThankYou = $state(false);
-
 	let polis = new PolisApi(user_id, polis_id, "en");
 
 </script>
@@ -35,13 +34,15 @@
 		<Button variant="secondary" onclick={onDone}>I'm Done</Button>
 	</div>
 {/if}
+<div class='flex flex-col gap-6'>
+	<div class='flex flex-row justify-center'>
+		{#if polis.currentStatement}
+			<p class='justify-self-end'>{polis.remaining} of {polis.total}</p>
+			<PolisVoteCard statement={polis.currentStatement.txt} onVote={(vote)=>polis.submitVote(vote)}/>
+		{:else}
+			<h1>No more statements, come back soon</h1>
+		{/if}
 
-<div class='flex flex-row justify-center'>
-	{#if polis.currentStatement}
-		<p class='justify-self-end'>{polis.remaining} of {polis.total}</p>
-		<PolisVoteCard statement={polis.currentStatement.txt} onVote={(vote)=>polis.submitVote(vote)}/>
-	{:else}
-		<h1>No more statements, come back soon</h1>
-	{/if}
+	</div>
+	<PolisNewStatementModal onSubmit={(statement)=>polis.submitStatement(statement)}/>
 </div>
-
