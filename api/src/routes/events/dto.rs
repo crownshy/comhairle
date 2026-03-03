@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     models::{
-        event::{Event, LocalisedEvent, LocalizedEventWithAttendance},
+        event::{Event, LocalizedEvent, LocalizedEventWithAttendance},
         pagination::PaginatedResults,
         translations::TextContentId,
     },
@@ -102,8 +102,8 @@ impl From<LocalizedEventWithAttendance> for LocalizedEventDto {
     }
 }
 
-impl From<LocalisedEvent> for LocalizedEventDto {
-    fn from(e: LocalisedEvent) -> Self {
+impl From<LocalizedEvent> for LocalizedEventDto {
+    fn from(e: LocalizedEvent) -> Self {
         Self {
             id: e.id,
             name: e.name,

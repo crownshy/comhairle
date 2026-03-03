@@ -361,7 +361,7 @@ pub async fn get_localized_by_id(
     db: &PgPool,
     id: &Uuid,
     locale: &str,
-) -> Result<LocalisedEvent, ComhairleError> {
+) -> Result<LocalizedEvent, ComhairleError> {
     let query = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (EventIden::Table, col)))
         .from(EventIden::Table)
