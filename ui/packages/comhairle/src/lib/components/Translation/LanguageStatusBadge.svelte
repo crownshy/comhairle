@@ -13,14 +13,14 @@
 	let { language, languageName, status, onclick }: Props = $props();
 </script>
 
-<button 
+<button
 	type="button"
-	class="h-7 pl-2 pr-1.5 py-0.5 bg-background rounded-full outline-border outline-1 outline-offset-[-1px] outline-base-border flex justify-center items-center gap-1 hover:bg-gray-50 transition-colors cursor-pointer"
+	class="bg-background outline-border outline-base-border dark:hover:text-accent-foreground dark:hover:bg-accent/50 flex h-7 cursor-pointer items-center justify-center gap-1 rounded-full py-0.5 pr-1.5 pl-2 outline-1 -outline-offset-1 transition-colors hover:bg-gray-50"
 	onclick={() => onclick(language)}
 >
 	{#if status === 'approved'}
-		<Check class="w-3 h-3 text-foreground" />
+		<Check class="text-foreground h-3 w-3" />
 	{/if}
-	<span class="text-foreground text-xs font-normal leading-4">{languageName}</span>
-	<Badge variant={statusToBadgeVariant[status]} class="capitalize rounded-full">{status}</Badge>
+	<span class="text-foreground text-xs leading-4 font-normal">{languageName}</span>
+	<Badge variant={statusToBadgeVariant[status]} class="rounded-full capitalize">{status}</Badge>
 </button>

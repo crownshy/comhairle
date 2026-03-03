@@ -1,7 +1,11 @@
 <script lang="ts">
-	import type { LocalisedPage, WorkflowStepWithTranslations, ConversationWithTranslations } from '@crown-shy/api-client/api';
+	import type {
+		LocalizedPage,
+		WorkflowStepWithTranslations,
+		ConversationWithTranslations
+	} from '@crown-shy/api-client/api';
 
-	interface ExtendedLocalisedPage extends LocalisedPage {
+	interface ExtendedLocalizedPage extends LocalizedPage {
 		lang: string;
 		requires_validation: boolean;
 	}
@@ -19,25 +23,28 @@
 	import * as Select from '$lib/components/ui/select';
 	import { Button } from '$lib/components/ui/button';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
-	import { aiTranslateContent, type TranslationStatus } from '$lib/components/Translation/translationUtils';
+	import {
+		aiTranslateContent,
+		type TranslationStatus
+	} from '$lib/components/Translation/translationUtils';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 
 	let { conversationId, conversation, workflowStep, isLive }: Props = $props();
-	
+
 	let isInitialLoad = $state(true);
 
 	let primaryLocale = $derived(conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(conversation.supportedLanguages ?? ['en']);
 
-	type LearnToolConfig = { type: 'learn'; pages: ExtendedLocalisedPage[][] };
-		
+	type LearnToolConfig = { type: 'learn'; pages: ExtendedLocalizedPage[][] };
+
 	let sourceConfig = $derived(
 		(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig) as LearnToolConfig
 	);
 
-	let pages = $state<ExtendedLocalisedPage[][]>([]);
+	let pages = $state<ExtendedLocalizedPage[][]>([]);
 	let hasLocalChanges = $state(false);
-	
+
 	let lastPropsConfig = $state<string>('');
 	$effect(() => {
 		const propsConfig = JSON.stringify(sourceConfig?.pages);
@@ -53,11 +60,11 @@
 	function getToolConfigForSave(): LearnToolConfig {
 		return { type: 'learn', pages };
 	}
-	
+
 	function markLocalChanges() {
 		hasLocalChanges = true;
 	}
-	
+
 	function clearLocalChanges() {
 		hasLocalChanges = false;
 		lastPropsConfig = JSON.stringify(sourceConfig?.pages);
@@ -65,7 +72,7 @@
 
 	let currentPageIndex = $state(0);
 
-	function getTranslation(lang: string): ExtendedLocalisedPage | undefined {
+	function getTranslation(lang: string): ExtendedLocalizedPage | undefined {
 		return pages[currentPageIndex]?.find((p) => p.lang === lang);
 	}
 
@@ -100,14 +107,14 @@
 
 	function deletePage() {
 		markLocalChanges();
-		pages = pages.filter((_: ExtendedLocalisedPage[], i: number) => i !== currentPageIndex);
+		pages = pages.filter((_: ExtendedLocalizedPage[], i: number) => i !== currentPageIndex);
 		currentPageIndex = Math.max(currentPageIndex - 1, 0);
 		saveToServer();
 	}
 
 	function addPage() {
 		markLocalChanges();
-		const newPage: ExtendedLocalisedPage[] = [
+		const newPage: ExtendedLocalizedPage[] = [
 			{
 				lang: primaryLocale,
 				content: `# Page ${pages.length + 1}`,
@@ -124,9 +131,7 @@
 		try {
 			const configToSave = getToolConfigForSave();
 			await apiClient.UpdateWorkflowStep(
-				isLive
-					? { tool_config: configToSave }
-					: { preview_tool_config: configToSave },
+				isLive ? { tool_config: configToSave } : { preview_tool_config: configToSave },
 				{
 					params: {
 						workflow_id: workflowStep.workflowId,
@@ -150,7 +155,10 @@
 			source.type = 'markdown';
 		} else if (pages[currentPageIndex]) {
 			pages[currentPageIndex].push({
-				lang: primaryLocale, type: 'markdown', content, requires_validation: false
+				lang: primaryLocale,
+				type: 'markdown',
+				content,
+				requires_validation: false
 			});
 		}
 		for (const t of pages[currentPageIndex] ?? []) {
@@ -169,14 +177,20 @@
 			target.requires_validation = true;
 		} else if (pages[currentPageIndex]) {
 			pages[currentPageIndex].push({
-				lang, type: 'markdown', content, requires_validation: true
+				lang,
+				type: 'markdown',
+				content,
+				requires_validation: true
 			});
 		}
 		pages = [...pages];
 		saveToServer({ invalidate: false });
 	}
 
-	async function handleAiTranslate(targetLang: string, sContent: string): Promise<{ content: string; requiresValidation: boolean }> {
+	async function handleAiTranslate(
+		targetLang: string,
+		sContent: string
+	): Promise<{ content: string; requiresValidation: boolean }> {
 		const translatedContent = await aiTranslateContent(sContent, targetLang, primaryLocale);
 		let t = getTranslation(targetLang);
 		if (t) {
@@ -184,7 +198,10 @@
 			t.requires_validation = true;
 		} else {
 			pages[currentPageIndex].push({
-				lang: targetLang, type: 'markdown', content: translatedContent, requires_validation: true
+				lang: targetLang,
+				type: 'markdown',
+				content: translatedContent,
+				requires_validation: true
 			});
 		}
 		pages = [...pages];
@@ -237,7 +254,12 @@
 				</Select.Root>
 
 				<Button class="rounded-md" onclick={addPage}>+ Add Page</Button>
-				<Button variant="destructive" class="rounded-md" onclick={deletePage} disabled={pages.length <= 1}>- Delete Page</Button>
+				<Button
+					variant="destructive"
+					class="rounded-md"
+					onclick={deletePage}
+					disabled={pages.length <= 1}>- Delete Page</Button
+				>
 			{/if}
 		</div>
 	</div>
@@ -245,16 +267,16 @@
 	<!-- Primary content editor + translation badges + dialog -->
 	{#if isInitialLoad}
 		<div class="flex flex-col gap-2">
-			<div class="border rounded-lg overflow-hidden">
-				<div class="flex items-center gap-1 p-2 border-b bg-muted/30">
+			<div class="overflow-hidden rounded-lg border">
+				<div class="bg-muted/30 flex items-center gap-1 border-b p-2">
 					<Skeleton class="h-8 w-8 rounded" />
 					<Skeleton class="h-8 w-8 rounded" />
 					<Skeleton class="h-8 w-8 rounded" />
 				</div>
 				<div class="p-4" style="min-height: 300px;">
-					<Skeleton class="h-4 w-3/4 mb-3" />
-					<Skeleton class="h-4 w-full mb-3" />
-					<Skeleton class="h-4 w-5/6 mb-3" />
+					<Skeleton class="mb-3 h-4 w-3/4" />
+					<Skeleton class="mb-3 h-4 w-full" />
+					<Skeleton class="mb-3 h-4 w-5/6" />
 					<Skeleton class="h-4 w-2/3" />
 				</div>
 			</div>

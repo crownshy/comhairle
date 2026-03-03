@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     models::{
-        event::{Event, LocalisedEvent, LocalizedEventWithAttendance},
+        event::{Event, LocalizedEvent, LocalizedEventWithAttendance},
         pagination::PaginatedResults,
         translations::TextContentId,
     },
@@ -39,7 +39,7 @@ pub struct EventDto {
     pub created_at: DateTime<Utc>,
 }
 
-/// Data transfer object (public API representation) for LocalisedEvent.
+/// Data transfer object (public API representation) for LocalizedEvent.
 ///
 /// This DTO is returned by event related endpoints and is safe to expose
 /// to clients. It intentionally omits fields such as:
@@ -102,8 +102,8 @@ impl From<LocalizedEventWithAttendance> for LocalizedEventDto {
     }
 }
 
-impl From<LocalisedEvent> for LocalizedEventDto {
-    fn from(e: LocalisedEvent) -> Self {
+impl From<LocalizedEvent> for LocalizedEventDto {
+    fn from(e: LocalizedEvent) -> Self {
         Self {
             id: e.id,
             name: e.name,

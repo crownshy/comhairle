@@ -147,7 +147,7 @@
 		<div
 			role="button"
 			tabindex="0"
-			class="flex cursor-pointer flex-col items-center gap-4 rounded-xl border border-gray-300 bg-gray-50 p-8 transition-colors"
+			class="border-input dark:bg-input/30 flex cursor-pointer flex-col items-center gap-4 rounded-xl border bg-gray-50 p-8 transition-colors"
 			class:bg-gray-100={isDragging}
 			class:border-primary={isDragging}
 			ondrop={handleDrop}
