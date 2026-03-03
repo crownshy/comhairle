@@ -7,8 +7,8 @@
 	import type {
 		ConversationWithTranslations,
 		WorkflowStepWithTranslations
-	} from '@crown-shy/api-client/api';
-	import { apiClient } from '@crown-shy/api-client/client';
+	} from '@crownshy/api-client/api';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { Switch } from '../ui/switch';
 	import { Label } from '../ui/label';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';

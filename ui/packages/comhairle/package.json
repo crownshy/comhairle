@@ -1,5 +1,5 @@
 {
-	"name": "@crown-shy/comhairle",
+	"name": "@crownshy/comhairle",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
@@ -86,7 +86,7 @@
 	"dependencies": {
 		"@carbon/charts-svelte": "^1.23.0",
 		"@cartamd/plugin-slash": "^4.2.0",
-		"@crown-shy/api-client": "workspace:*",
+		"@crownshy/api-client": "workspace:*",
 		"@dnd-kit-svelte/core": "^0.0.11",
 		"@internationalized/date": "^3.9.0",
 		"@storybook/test": "^8.6.14",

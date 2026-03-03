@@ -6,8 +6,8 @@
 	import { z } from 'zod';
 	import { notifications } from '$lib/notifications.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
-	import { apiClient } from '@crown-shy/api-client/client';
-	import type { WorkflowStepWithTranslations } from '@crown-shy/api-client/api';
+	import { apiClient } from '@crownshy/api-client/client';
+	import type { WorkflowStepWithTranslations } from '@crownshy/api-client/api';
 
 	type Props = {
 		conversationId: string;

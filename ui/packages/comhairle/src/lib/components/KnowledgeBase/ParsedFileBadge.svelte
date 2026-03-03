@@ -1,11 +1,11 @@
 <script lang="ts">
-	import type { ComhairleDocument } from '@crown-shy/api-client/api';
+	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import FileContainer from './FileContainer.svelte';
 	import { File, Trash2, RefreshCw } from 'lucide-svelte';
 	import formatFileSize from '$lib/utils/formatFileSize';
 	import Button from '../ui/button/button.svelte';
 	import { notifications } from '$lib/notifications.svelte';
-	import { apiClient } from '@crown-shy/api-client/client';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidateAll } from '$app/navigation';
 
 	type Props = {

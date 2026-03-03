@@ -6,8 +6,8 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { cubicInOut } from 'svelte/easing';
 	import { Spinner } from './ui/spinner';
-	import { apiClient } from '@crown-shy/api-client/client';
-	import type { DailyResponseStats } from '@crown-shy/api-client/api';
+	import { apiClient } from '@crownshy/api-client/client';
+	import type { DailyResponseStats } from '@crownshy/api-client/api';
 	import { parseISO } from 'date-fns';
 
 	let chartData: undefined | Array<DailyResponseStats> = $state();
@@ -59,8 +59,16 @@
 					x="day"
 					axis="x"
 					series={[
-						{ key: 'accepts', label: chartConfig.accepts.label, color: chartConfig.accepts.color },
-						{ key: 'rejects', label: chartConfig.rejects.label, color: chartConfig.rejects.color }
+						{
+							key: 'accepts',
+							label: chartConfig.accepts.label,
+							color: chartConfig.accepts.color
+						},
+						{
+							key: 'rejects',
+							label: chartConfig.rejects.label,
+							color: chartConfig.rejects.color
+						}
 					]}
 					legend
 					x1Scale={scaleBand().paddingInner(0.2)}

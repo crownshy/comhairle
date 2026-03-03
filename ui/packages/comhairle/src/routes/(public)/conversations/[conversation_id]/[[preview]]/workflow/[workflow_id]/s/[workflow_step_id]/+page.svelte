@@ -6,7 +6,7 @@
 	import * as ElicitationBot from '$lib/tools/elicitation_bot/index.js';
 	import type { PageProps } from './$types';
 	import { notifications } from '$lib/notifications.svelte';
-	import { apiClient } from '@crown-shy/api-client/client';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { createCarta } from '$lib/utils/carta';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import StepSelector from '$lib/components/StepSelector.svelte';
@@ -25,7 +25,6 @@
 	let toolConfig = $derived(
 		conversation.isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig
 	);
-
 
 	let carta = createCarta();
 
@@ -47,9 +46,7 @@
 
 				goto(next_workflow_step_url(conversation.id, workflowStep.workflowId));
 			} else {
-				let next = workflowSteps.find(
-					(w) => w.stepOrder === workflowStep.stepOrder + 1
-				);
+				let next = workflowSteps.find((w) => w.stepOrder === workflowStep.stepOrder + 1);
 				if (next) {
 					let next_step_url = workflow_step_url(
 						conversation.id,

@@ -2,7 +2,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as m from '$lib/paraglide/messages.js';
 	import { notifications } from '$lib/notifications.svelte';
-	import { apiClient } from '@crown-shy/api-client/client';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { Button, buttonVariants } from './ui/button';
 	import { Textarea } from './ui/textarea';
 
@@ -30,7 +30,8 @@
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Trigger class={buttonVariants({ variant: 'outline' })}>{m.give_feedback()}</Dialog.Trigger
+	<Dialog.Trigger class={buttonVariants({ variant: 'outline' })}
+		>{m.give_feedback()}</Dialog.Trigger
 	>
 	<Dialog.Content class="sm:max-w-[425px]">
 		<Dialog.Header>

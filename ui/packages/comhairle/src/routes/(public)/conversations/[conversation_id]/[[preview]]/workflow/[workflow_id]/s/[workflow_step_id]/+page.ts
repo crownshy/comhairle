@@ -2,7 +2,7 @@ import { isRedirect, redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import { notifications } from '$lib/notifications.svelte';
 import { next_workflow_step_url } from '$lib/urls';
-import type { LocalizedWorkflowStepDto } from '@crown-shy/api-client/api';
+import type { LocalizedWorkflowStepDto } from '@crownshy/api-client/api';
 
 export const load: PageLoad = async (event) => {
 	const { api, conversation, preview } = await event.parent();

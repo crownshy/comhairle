@@ -4,7 +4,7 @@
 	import UserConversationPreferencesForm from '$lib/components/UserConversationPreferencesForm/UserConversationPreferencesForm.svelte';
 	import UserDetailsForm from '$lib/components/UserDetailsForm/UserDetailsForm.svelte';
 	import UpgradeAccountModal from '$lib/components/UpgradeAccountModal/UpgradeAccountModal.svelte';
-	import type { UserDto } from '@crown-shy/api-client/api';
+	import type { UserDto } from '@crownshy/api-client/api';
 
 	let { data }: PageProps = $props();
 	let participation = $derived(data.participation);
@@ -15,7 +15,7 @@
 	}
 </script>
 
-<div class="gap-15 my-10 flex flex-col items-start md:flex-row">
+<div class="my-10 flex flex-col items-start gap-15 md:flex-row">
 	<div>
 		<div class=" mb-10 flex flex-row items-center gap-4">
 			<Settings size={42} />
@@ -23,7 +23,7 @@
 		</div>
 	</div>
 	<div class="mt-1 flex flex-col gap-y-10">
-		<section id="your_details" class="border-b border-border py-5">
+		<section id="your_details" class="border-border border-b py-5">
 			<h2 class="mb-6 text-3xl">Your Details</h2>
 			{#if user.authType === 'annon'}
 				<div class="space-y-6">
@@ -66,6 +66,6 @@
 					isAnnon={user.authType === 'annon'}
 				/>
 			{/each}
-		</section>		
+		</section>
 	</div>
 </div>

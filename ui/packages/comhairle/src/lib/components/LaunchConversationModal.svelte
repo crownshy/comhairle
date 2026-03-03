@@ -11,7 +11,7 @@
 	import { Alert, AlertTitle, AlertDescription } from '$lib/components/ui/alert';
 
 	import { Button } from '$lib/components/ui/button';
-	import { apiClient } from '@crown-shy/api-client/client';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidateAll } from '$app/navigation';
 
 	type Props = {

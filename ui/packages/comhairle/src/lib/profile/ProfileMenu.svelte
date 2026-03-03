@@ -5,11 +5,11 @@
 	import { buttonVariants } from '$lib/components/ui/button';
 	import LoginButtons from './LoginButtons.svelte';
 	import { userInitials } from '$lib/utils';
-	import { apiClient } from '@crown-shy/api-client/client';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Bell, LogOut, Settings, ChevronsUpDown } from 'lucide-svelte';
 	import ModeToggle from '$lib/components/ModeToggle.svelte';
-	import type { UserDto } from '@crown-shy/api-client/api';
+	import type { UserDto } from '@crownshy/api-client/api';
 
 	type Props = {
 		user: UserDto;

@@ -1,4 +1,4 @@
-import { createApiClient } from '@crown-shy/api-client/client';
+import { createApiClient } from '@crownshy/api-client/client';
 import type { LayoutLoad } from './$types';
 import { browser } from '$app/environment';
 

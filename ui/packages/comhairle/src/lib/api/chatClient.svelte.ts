@@ -1,6 +1,6 @@
 import { browser } from '$app/environment';
-import type { ComhairleChatSession } from '@crown-shy/api-client/api';
-import { apiClient } from '@crown-shy/api-client/client';
+import type { ComhairleChatSession } from '@crownshy/api-client/api';
+import { apiClient } from '@crownshy/api-client/client';
 
 export interface ReferenceChunk {
 	id: string;

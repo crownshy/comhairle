@@ -5,7 +5,7 @@
 	import * as Form from '$lib/components/ui/form/index.js';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { Switch } from '$lib/components/ui/switch';
-	import { apiClient } from '@crown-shy/api-client/client';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 
 	type Props = {
@@ -78,11 +78,13 @@
 			{#snippet children({ props })}
 				<div class="flex items-center justify-between">
 					<div class="space-y-1 leading-none">
-						<Form.Label class="text-sm font-normal">Receive updates by email</Form.Label>
+						<Form.Label class="text-sm font-normal">Receive updates by email</Form.Label
+						>
 						<Form.Description class="text-muted-foreground text-xs">
-							By ticking this box I allow Scottish Government or an organisation acting on behalf of
-							Scottish Government to contact me to provide me updates relating to this engagement on
-							the National Performance Framework.
+							By ticking this box I allow Scottish Government or an organisation
+							acting on behalf of Scottish Government to contact me to provide me
+							updates relating to this engagement on the National Performance
+							Framework.
 						</Form.Description>
 					</div>
 					<Switch
@@ -105,8 +107,9 @@
 							>Receive emails about future engagments</Form.Label
 						>
 						<Form.Description class="text-muted-foreground text-xs">
-							By ticking this box I agree that I am willing to be contacted for future engagement or
-							research purposes relating to the National Performance Framework.
+							By ticking this box I agree that I am willing to be contacted for future
+							engagement or research purposes relating to the National Performance
+							Framework.
 						</Form.Description>
 					</div>
 					<Switch
