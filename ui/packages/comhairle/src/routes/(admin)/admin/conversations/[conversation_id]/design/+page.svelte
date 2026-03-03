@@ -1,7 +1,5 @@
 <script lang="ts">
-	import type {
-		WorkflowStepWithTranslations,
-	} from '@crown-shy/api-client/api';
+	import type { WorkflowStepWithTranslations } from '@crownshy/api-client/api';
 	import { infoURLForTool } from '$lib/utils';
 	import { flip } from 'svelte/animate';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
@@ -15,10 +13,18 @@
 	import ToolSelectionModal from '$lib/components/ToolSelectionModal.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { Plus, BookOpen, ListChecks, Video, MessagesSquare, ChevronDown, Bot } from 'lucide-svelte';
+	import {
+		Plus,
+		BookOpen,
+		ListChecks,
+		Video,
+		MessagesSquare,
+		ChevronDown,
+		Bot
+	} from 'lucide-svelte';
 	import * as Card from '$lib/components/ui/card';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { apiClient } from '@crown-shy/api-client/client';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidateAll } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte.js';
 	import { ChevronUp } from 'svelte-radix';

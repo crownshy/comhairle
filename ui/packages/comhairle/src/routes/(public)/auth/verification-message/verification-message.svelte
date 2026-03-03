@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { apiClient } from '@crown-shy/api-client/client';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { toast } from 'svelte-sonner';
 	import * as m from '$lib/paraglide/messages';
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { LocalizedConversationDto } from '@crown-shy/api-client/api';
+	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
 	import type { Snippet } from 'svelte';
 
 	type Props = {

@@ -3,12 +3,12 @@
 	import { Input } from '$lib/components/ui/input';
 	import { PasswordInput } from '$lib/components/ui/password-input';
 	import { Button } from '$lib/components/ui/button';
-	import { apiClient } from '@crown-shy/api-client/client';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { userDetailsSchema } from './schema';
-	import type { User } from '@crown-shy/api-client/api';
+	import type { User } from '@crownshy/api-client/api';
 	import { onMount } from 'svelte';
 
 	let {
@@ -76,7 +76,8 @@
 		} catch (error: any) {
 			notifications.send({
 				message:
-					error?.response?.data?.message || 'Failed to update user details. Please try again.',
+					error?.response?.data?.message ||
+					'Failed to update user details. Please try again.',
 				priority: 'ERROR'
 			});
 		} finally {

@@ -21,7 +21,7 @@
 	} from 'lucide-svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { userInitials } from '$lib/utils';
-	import { apiClient } from '@crown-shy/api-client/client';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { Separator } from '$lib/components/ui/separator';
 
 	let links = [

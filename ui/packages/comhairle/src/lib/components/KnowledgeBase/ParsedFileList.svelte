@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ComhairleDocument, ConversationWithTranslations } from '@crown-shy/api-client/api';
+	import type { ComhairleDocument, ConversationWithTranslations } from '@crownshy/api-client/api';
 	import ParsedFileBadge from './ParsedFileBadge.svelte';
 
 	type Props = {

@@ -10,7 +10,7 @@
 		CardTitle
 	} from '$lib/components/ui/card';
 	import { Separator } from '$lib/components/ui/separator';
-	import { apiClient } from '@crown-shy/api-client/client';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications as notificationService } from '$lib/notifications.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import ConversationContextImage from '$lib/components/ConversationContextImage.svelte';
@@ -27,7 +27,7 @@
 		Eye,
 		EyeOff
 	} from 'lucide-svelte';
-	import type { NotificationWithDelivery } from '@crown-shy/api-client/api';
+	import type { NotificationWithDelivery } from '@crownshy/api-client/api';
 	import { formatDistanceToNow } from 'date-fns';
 
 	let { data }: PageData = $props();
@@ -220,10 +220,7 @@
 											{notification.notification.notificationType}
 										</Badge>
 										{#if isUnread(notification)}
-											<Badge
-												variant="live"
-												>Unread</Badge
-											>
+											<Badge variant="live">Unread</Badge>
 										{/if}
 									</div>
 									<CardDescription class="flex items-center gap-2 text-sm">
@@ -264,7 +261,7 @@
 								/>
 							{/if}
 							<div class="prose prose-sm max-w-none">
-								<p class="text-muted-foreground whitespace-pre-wrap text-sm">
+								<p class="text-muted-foreground text-sm whitespace-pre-wrap">
 									{notification.notification.content}
 								</p>
 							</div>

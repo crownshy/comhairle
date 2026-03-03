@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { UserDto } from '@crown-shy/api-client/api';
+	import type { UserDto } from '@crownshy/api-client/api';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { userInitials } from '$lib/utils';
 	type Props = {

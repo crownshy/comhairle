@@ -1,7 +1,7 @@
 import { browser } from '$app/environment';
 import { notifications } from '$lib/notifications.svelte';
-import type { ComhairleAgentSession } from '@crown-shy/api-client/api';
-import { apiClient } from '@crown-shy/api-client/client';
+import type { ComhairleAgentSession } from '@crownshy/api-client/api';
+import { apiClient } from '@crownshy/api-client/client';
 
 export interface ParsedSessionMessage {
 	id: string;

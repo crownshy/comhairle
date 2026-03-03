@@ -7,7 +7,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
-	import { apiClient } from '@crown-shy/api-client/client';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { goto, invalidateAll } from '$app/navigation';
 	import PasswordInput from '$lib/components/ui/password-input/password-input.svelte';
 	import { resolve } from '$app/paths';
@@ -41,12 +41,13 @@
 					if (redirectTo === '/') {
 						try {
 							const userRoles = await apiClient.GetUserRoles();
-							const isAdmin = userRoles?.find((ur) => ur.resource === 'Site')?.roles.includes('Admin');
+							const isAdmin = userRoles
+								?.find((ur) => ur.resource === 'Site')
+								?.roles.includes('Admin');
 							if (isAdmin) {
 								redirectTo = '/admin';
 							}
-						} catch {
-						}
+						} catch {}
 					}
 
 					await goto(resolve(redirectTo));
@@ -97,10 +98,14 @@
 	</Button>
 
 	<p class="text-sm">
-		<a href={resolve(`/auth/password-reset/create`)} class="hover:underline">{m.forgotten_password()}</a>
+		<a href={resolve(`/auth/password-reset/create`)} class="hover:underline"
+			>{m.forgotten_password()}</a
+		>
 	</p>
 
 	<p class="text-sm">
-		<a href={resolve(`/auth/signup?backTo=${backTo ?? '/'}`)} class="hover:underline">{m.dont_have_an_account_signup()}</a>
+		<a href={resolve(`/auth/signup?backTo=${backTo ?? '/'}`)} class="hover:underline"
+			>{m.dont_have_an_account_signup()}</a
+		>
 	</p>
 </form>

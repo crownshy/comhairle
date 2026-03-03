@@ -1,6 +1,9 @@
 <script lang="ts">
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
-	import type { LocalizedConversationDto, LocalizedWorkflowStepDto } from '@crown-shy/api-client/api';
+	import type {
+		LocalizedConversationDto,
+		LocalizedWorkflowStepDto
+	} from '@crownshy/api-client/api';
 	let {
 		conversation,
 		workflowStep

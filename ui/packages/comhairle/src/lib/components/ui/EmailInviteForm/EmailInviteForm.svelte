@@ -13,7 +13,7 @@
 	import * as Form from '$lib/components/ui/form/index.js';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import Input from '$lib/components/ui/input/input.svelte';
-	import { apiClient } from '@crown-shy/api-client/client';
+	import { apiClient } from '@crownshy/api-client/client';
 	import * as RadioGroup from '$lib/components/ui/radio-group';
 	import CalendarIcon from '@lucide/svelte/icons/calendar';
 	import { Calendar } from '$lib/components/ui/calendar';
