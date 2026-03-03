@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { fade } from 'svelte/transition';
+	import PolisVoteCard from './components/PolisVoteCard.svelte';
+	import  PolisApi from "./polisApi.svelte"
 
 	type Props = {
 		polis_id: string;
@@ -14,10 +16,13 @@
 			showThankYou = true;
 		}, 180000);
 	});
+
+	let {polis_id, polis_url, user_id, onDone} : Props = $props()
+
 	let showThankYou = $state(false);
 
-	let { polis_id, polis_url, user_id, onDone }: Props = $props();
-	let url = $derived(`${polis_url}/${polis_id}?xid=${user_id}`);
+	let polis = new PolisApi(user_id, polis_id, "en");
+
 </script>
 
 {#if showThankYou}
@@ -31,10 +36,12 @@
 	</div>
 {/if}
 
-<iframe
-	src={url}
-	title="Polis poll"
-	scrolling="no"
-	class="min-h-[500px] border-none"
-	style="width:100%;height:100%"
-></iframe>
+<div class='flex flex-row justify-center'>
+	{#if polis.currentStatement}
+		<p class='justify-self-end'>{polis.remaining} of {polis.total}</p>
+		<PolisVoteCard statement={polis.currentStatement.txt} onVote={(vote)=>polis.submitVote(vote)}/>
+	{:else}
+		<h1>No more statements, come back soon</h1>
+	{/if}
+</div>
+
