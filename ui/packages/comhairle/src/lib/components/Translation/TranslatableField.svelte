@@ -6,7 +6,7 @@
 	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
 	import LanguageStatusBadge from './LanguageStatusBadge.svelte';
 	import TranslationEditor from './TranslationEditor.svelte';
-	import type { Translation, Translation2 } from '@crown-shy/api-client/api';
+	import type { Translation, Translation2 } from '@crownshy/api-client/api';
 	import { Languages, X } from 'lucide-svelte';
 	import { getLanguageName } from '$lib/config/languages';
 	import { invalidateAll } from '$app/navigation';
@@ -319,7 +319,9 @@
 	>
 		<Dialog.Content class="max-h-[90vh] min-w-[70vw] rounded-xl p-12" showCloseButton={false}>
 			<Dialog.Header class="flex flex-row items-center justify-between pr-0">
-				<Dialog.Title class="justify-start text-3xl leading-8 font-semibold text-foreground">
+				<Dialog.Title
+					class="text-foreground justify-start text-3xl leading-8 font-semibold"
+				>
 					{dialogTitle}
 				</Dialog.Title>
 				<button

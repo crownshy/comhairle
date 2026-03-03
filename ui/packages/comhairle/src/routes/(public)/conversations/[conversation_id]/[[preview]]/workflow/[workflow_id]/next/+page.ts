@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import { thank_you_page, workflow_step_url } from '$lib/urls';
-import type { LocalizedWorkflowStepDto } from '@crown-shy/api-client/api';
+import type { LocalizedWorkflowStepDto } from '@crownshy/api-client/api';
 
 export const ssr = false;
 export const csr = true;

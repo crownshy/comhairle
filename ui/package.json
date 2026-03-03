@@ -2,7 +2,7 @@
 	"name": "ui",
 	"private": true,
 	"scripts": {
-		"client": "pnpm --filter @crown-shy/api-client build",
+		"client": "pnpm --filter @crownshy/api-client build",
 		"comhairle": "pnpm --filter comhairle dev",
 		"format": "pretty-quick --staged",
 		"format:check": "pretty-quick --check",

@@ -2,7 +2,7 @@
 	import * as Form from '$lib/components/ui/form';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { apiClient } from '@crown-shy/api-client/client';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 	import { Send } from 'lucide-svelte';
 	import { superForm } from 'sveltekit-superforms';
@@ -48,7 +48,9 @@
 			$form.content = '';
 		} catch (error: any) {
 			notifications.send({
-				message: error?.response?.data?.message || 'Failed to send notification. Please try again.',
+				message:
+					error?.response?.data?.message ||
+					'Failed to send notification. Please try again.',
 				priority: 'ERROR'
 			});
 		}
@@ -101,4 +103,3 @@
 		conversation. They will receive the notification via the selected delivery method.
 	</p>
 </form>
-

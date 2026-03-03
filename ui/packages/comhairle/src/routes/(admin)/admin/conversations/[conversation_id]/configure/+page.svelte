@@ -3,7 +3,7 @@
 	import { Switch } from '$lib/components/ui/switch';
 	import * as Form from '$lib/components/ui/form/';
 	import { notifications } from '$lib/notifications.svelte';
-	import { apiClient } from '@crown-shy/api-client/client';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidateAll } from '$app/navigation';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
@@ -15,7 +15,7 @@
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
-	import type { ConversationWithTranslations, WorkflowDto } from '@crown-shy/api-client/api';
+	import type { ConversationWithTranslations, WorkflowDto } from '@crownshy/api-client/api';
 	import { snakeCaseKeys } from '$lib/utils/snakeCaseKeys';
 
 	let {
@@ -403,11 +403,7 @@
 
 	<!-- Save Button -->
 	<div class="border-border flex justify-center border-t py-6">
-		<Form.Button
-			variant="default"
-			class="px-12"
-			disabled={$submitting || !$tainted}
-		>
+		<Form.Button variant="default" class="px-12" disabled={$submitting || !$tainted}>
 			Save Changes
 		</Form.Button>
 	</div>

@@ -2,7 +2,7 @@
 	import { Button } from './ui/button';
 	import UserAvatar from './UserAvatar.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import type { UserDto } from '@crown-shy/api-client/api';
+	import type { UserDto } from '@crownshy/api-client/api';
 	import { LoginButtons } from '$lib/profile';
 
 	type Props = {
@@ -11,7 +11,6 @@
 
 	let props: Props = $props();
 	let user = props.user;
-
 </script>
 
 <div class="flex w-full flex-col items-center gap-4">

@@ -5,7 +5,7 @@ import type {
 	WorkflowDto,
 	WorkflowStats,
 	WorkflowStepWithTranslations
-} from '@crown-shy/api-client/api';
+} from '@crownshy/api-client/api';
 
 export const load: PageLoad = async ({
 	params,

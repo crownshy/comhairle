@@ -1,8 +1,8 @@
 import { notifications } from '$lib/notifications.svelte';
 import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
-import type { FullReportDto } from '@crown-shy/api-client/api';
-import type { LocalizedWorkflowStepDto } from '@crown-shy/api-client/api';
+import type { FullReportDto } from '@crownshy/api-client/api';
+import type { LocalizedWorkflowStepDto } from '@crownshy/api-client/api';
 
 export const load: PageLoad = async ({ params, parent }) => {
 	const { api, conversation, workflows } = await parent();

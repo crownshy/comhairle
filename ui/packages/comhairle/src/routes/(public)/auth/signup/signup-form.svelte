@@ -8,7 +8,7 @@
 	import { buttonVariants } from '$lib/components/ui/button';
 	import { cn } from '$lib/utils';
 	import * as m from '$lib/paraglide/messages';
-	import { apiClient } from '@crown-shy/api-client/client';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { LoadingButton } from '$lib/components/ui/button';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';

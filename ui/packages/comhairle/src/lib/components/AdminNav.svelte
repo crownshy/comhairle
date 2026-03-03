@@ -19,7 +19,7 @@
 	import { userInitials } from '$lib/utils';
 	import ComhairleLogo from './ComhairleLogo.svelte';
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
-	import type { LocalizedConversationDto } from '@crown-shy/api-client/api';
+	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
 	const sidebar = useSidebar();
 	let props = $props();
 	let path = $derived(props.path);

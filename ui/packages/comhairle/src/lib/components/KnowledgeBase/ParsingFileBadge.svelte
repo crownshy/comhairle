@@ -1,12 +1,12 @@
 <script lang="ts">
-	import type { ComhairleDocument } from '@crown-shy/api-client/api';
+	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import FileContainer from './FileContainer.svelte';
 	import { File, X } from 'lucide-svelte';
 	import formatFileSize from '$lib/utils/formatFileSize';
 	import { Progress } from 'bits-ui';
 	import { cubicInOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
-	import { apiClient } from '@crown-shy/api-client/client';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { onDestroy, onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte';
