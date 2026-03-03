@@ -17,7 +17,7 @@
 
 	let jitsiApi: any = $state(null);
 	let panelOpen = $state(false);
-	let activeTab: 'details' | 'participants' | 'controls' = $state('details');
+	let activeTab: 'agenda' | 'details' | 'participants' | 'controls' = $state('agenda');
 
 	// Jitsi-synced state
 	let jitsiParticipants = $state<Array<{ id: string; displayName: string }>>([]);
@@ -25,6 +25,30 @@
 	let audioMuted = $state(false);
 	let videoMuted = $state(false);
 	let attendanceRegistered = $state(false);
+
+	// Prototype agenda items
+	let agendaItems = $state([
+		{
+			id: '1',
+			title: 'Welcome & Introductions',
+			duration: '5 min',
+			status: 'current' as const
+		},
+		{ id: '2', title: 'Topic Discussion', duration: '20 min', status: 'upcoming' as const },
+		{ id: '3', title: 'Q&A Session', duration: '10 min', status: 'upcoming' as const },
+		{ id: '4', title: 'Wrap-up & Next Steps', duration: '5 min', status: 'upcoming' as const }
+	]);
+
+	function advanceAgenda() {
+		const currentIdx = agendaItems.findIndex((item) => item.status === 'current');
+		if (currentIdx === -1) return;
+
+		agendaItems = agendaItems.map((item, i) => {
+			if (i === currentIdx) return { ...item, status: 'done' as const };
+			if (i === currentIdx + 1) return { ...item, status: 'current' as const };
+			return item;
+		});
+	}
 
 	function handleApiReady(api: any) {
 		jitsiApi = api;
@@ -87,7 +111,8 @@
 	}
 
 	const tabs = [
-		{ key: 'details' as const, label: 'Details', icon: '☰' },
+		{ key: 'agenda' as const, label: 'Agenda', icon: '☰' },
+		{ key: 'details' as const, label: 'Details', icon: 'ℹ' },
 		{ key: 'participants' as const, label: 'People', icon: '👥' },
 		{ key: 'controls' as const, label: 'Controls', icon: '⚙' }
 	];
@@ -198,7 +223,56 @@
 
 				<!-- Tab content -->
 				<div class="flex-1 overflow-y-auto p-3">
-					{#if activeTab === 'details'}
+					{#if activeTab === 'agenda'}
+						<div class="space-y-2">
+							<div class="flex items-center justify-between">
+								<h3 class="text-sm font-semibold">Meeting Agenda</h3>
+								<Button variant="outline" size="sm" onclick={advanceAgenda}>
+									Next →
+								</Button>
+							</div>
+
+							{#each agendaItems as item (item.id)}
+								<div
+									class="rounded-lg border p-2.5 transition-colors md:p-3 {item.status ===
+									'current'
+										? 'border-primary bg-primary/5'
+										: item.status === 'done'
+											? 'border-border bg-muted/30 opacity-60'
+											: 'border-border'}"
+								>
+									<div class="flex items-start justify-between gap-2">
+										<div class="flex items-center gap-2">
+											{#if item.status === 'done'}
+												<span class="text-green-500">✓</span>
+											{:else if item.status === 'current'}
+												<span
+													class="bg-primary h-2 w-2 animate-pulse rounded-full"
+												></span>
+											{:else}
+												<span
+													class="bg-muted-foreground/30 h-2 w-2 rounded-full"
+												></span>
+											{/if}
+											<span class="text-sm font-medium">{item.title}</span>
+										</div>
+										<span
+											class="text-muted-foreground text-xs whitespace-nowrap"
+											>{item.duration}</span
+										>
+									</div>
+								</div>
+							{/each}
+
+							<div
+								class="border-border mt-4 rounded-lg border border-dashed p-3 text-center md:p-4"
+							>
+								<p class="text-muted-foreground text-xs">
+									Prototype agenda panel Can we change anything here? thoughts?
+								</p>
+							</div>
+						</div>
+					{:else if activeTab === 'details'}
 						<div class="space-y-3">
 							<h3 class="text-sm font-semibold">Event Details</h3>
 
@@ -409,15 +483,6 @@
 										Lobby
 									</Button>
 								</div>
-							</div>
-
-							<div
-								class="border-border mt-3 rounded-lg border border-dashed p-3 text-center"
-							>
-								<p class="text-muted-foreground text-xs">
-									<code class="text-xs">jitsiApi</code> is available in the browser
-									console.
-								</p>
 							</div>
 						</div>
 					{/if}
