@@ -12,6 +12,7 @@
 	--secondary-foreground: #171f0f;
 	--muted: #f2f5ed;
 	--muted-foreground: #6b7a5e;
+	--subtle-foreground: #9ca3af;
 	--accent: #e4edda;
 	--accent-foreground: #1e2d12;
 	--destructive: #dc2626;
@@ -91,6 +92,7 @@
 	--secondary-foreground: #e8eddf;
 	--muted: #1e2d12;
 	--muted-foreground: #99a88a;
+	--subtle-foreground: #7a8490;
 	--accent: #2a3d18;
 	--accent-foreground: #e8eddf;
 	--destructive: #f87171;
@@ -131,7 +133,7 @@
 /* Scottish Government Theme */
 [data-theme='scot-gov'] {
 	--background: #ffffff;
-	--foreground: #0a0a0a;
+	--foreground: #111827;
 	--card: #ffffff;
 	--card-foreground: #030712;
 	--popover: #ffffff;
@@ -142,6 +144,7 @@
 	--secondary-foreground: #252622;
 	--muted: #f3f4f6;
 	--muted-foreground: #6b7280;
+	--subtle-foreground: #9ca3af;
 	--accent: #f3f4f6;
 	--accent-foreground: #111827;
 	--destructive: #dc2626;
@@ -210,6 +213,7 @@
 	--secondary-foreground: #e8edf4;
 	--muted: #1c2536;
 	--muted-foreground: #8b9bb5;
+	--subtle-foreground: #7a8a9e;
 	--accent: #1a3a5c;
 	--accent-foreground: #e8edf4;
 	--destructive: #f87171;
@@ -269,6 +273,7 @@
 	--color-secondary-foreground: var(--secondary-foreground);
 	--color-muted: var(--muted);
 	--color-muted-foreground: var(--muted-foreground);
+	--color-subtle-foreground: var(--subtle-foreground);
 	--color-accent: var(--accent);
 	--color-accent-foreground: var(--accent-foreground);
 	--color-destructive: var(--destructive);

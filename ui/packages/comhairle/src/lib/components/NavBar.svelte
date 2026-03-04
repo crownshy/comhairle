@@ -230,11 +230,13 @@
 							</form>
 						{:else}
 							<Separator />
-							<div class="flex gap-2 px-3 pt-2">
+							<div class="flex gap-2 px-3 pt-2 text-[1rem]">
 								<Button href="/auth/login" variant="outline" class="flex-1"
 									>{m.login()}</Button
 								>
-								<Button href="/auth/signup" class="flex-1">{m.signup()}</Button>
+								<Button href="/auth/signup" class="flex-1 text-[1rem]"
+									>{m.signup()}</Button
+								>
 							</div>
 						{/if}
 					</div>
