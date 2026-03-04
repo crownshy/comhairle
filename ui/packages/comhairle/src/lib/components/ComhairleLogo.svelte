@@ -1,5 +1,6 @@
 <script lang="ts">
-	import Logo from '$lib/assets/comhairle_logo.svg';
+	import IconLogo from '$lib/assets/comhairle_logo.svg';
+	import FullLogo from '$lib/assets/comhairle_full_logo.svg';
 
 	type Props = {
 		href?: string;
@@ -17,31 +18,37 @@
 		class: className = ''
 	}: Props = $props();
 
-	const logoSizeMap = {
-		sm: 'w-8 h-8',
-		md: 'w-10 h-10',
-		lg: 'h-[46px] w-auto'
+	const fullSizeMap = {
+		sm: 'h-8 w-34',
+		md: 'h-10 w-42',
+		lg: 'h-12 w-52'
 	};
+
+	const iconSizeMap = {
+		sm: 'h-8 w-8',
+		md: 'h-10 w-10',
+		lg: 'h-12 w-12'
+	};
+
+	let logoSrc = $derived(showText ? FullLogo : IconLogo);
+	let sizeClass = $derived(showText ? fullSizeMap[logoSize] : iconSizeMap[logoSize]);
 </script>
 
 {#snippet logoContent()}
 	<span
 		role="img"
 		aria-label="Comhairle Logo"
-		class="inline-block shrink-0 bg-current {logoSizeMap[logoSize]}"
-		style="-webkit-mask-image: url({Logo}); mask-image: url({Logo}); -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center;"
+		class="inline-block shrink-0 bg-current {sizeClass}"
+		style="-webkit-mask-image: url({logoSrc}); mask-image: url({logoSrc}); -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center;"
 	></span>
-	{#if showText}
-		<h1 class="text-xl font-bold">Comhairle</h1>
-	{/if}
 {/snippet}
 
 {#if href}
-	<a {href} class="flex items-center gap-3 {color} {className}">
+	<a {href} class="flex items-center {color} {className}">
 		{@render logoContent()}
 	</a>
 {:else}
-	<div class="flex items-center gap-3 {color} {className}">
+	<div class="flex items-center {color} {className}">
 		{@render logoContent()}
 	</div>
 {/if}

@@ -9,7 +9,7 @@
 <div class="flex h-full flex-col items-center justify-around pt-50">
 	<div class="my-auto flex flex-col items-center justify-center gap-y-10 p-10">
 		<h1
-			class="scroll-m-20 text-center text-4xl font-extrabold tracking-tight md:text-left lg:text-5xl"
+			class="scroll-m-20 text-center text-4xl font-bold tracking-tight md:text-left lg:text-5xl"
 		>
 			{#if isCommunity}
 				{m.welcome_to_comhairle_community_server()}

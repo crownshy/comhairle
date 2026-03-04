@@ -20,6 +20,7 @@
 		LayoutGrid
 	} from 'lucide-svelte';
 	import { afterNavigate } from '$app/navigation';
+	import { page } from '$app/state';
 	import { userInitials } from '$lib/utils';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { Separator } from '$lib/components/ui/separator';
@@ -71,12 +72,24 @@
 	class="bg-primary text-muted-foreground z-10 flex w-full flex-col items-center justify-center py-4 shadow-md"
 >
 	<div class="margin-auto container flex max-w-[1280px] items-center justify-between px-6">
-		<ComhairleLogo logoSize="sm" class="[&>h1]:hidden lg:[&>h1]:block" />
+		<div class="lg:hidden">
+			<ComhairleLogo logoSize="md" showText={false} />
+		</div>
+		<div class="hidden lg:block">
+			<ComhairleLogo logoSize="md" />
+		</div>
 
 		<!-- Desktop Navigation -->
-		<div class="hidden space-x-6 md:flex lg:space-x-5">
+		<div class="hidden gap-3 md:flex">
 			{#each links as link (link.href)}
-				<Button href={link.href} variant="nav">{link.name}</Button>
+				<Button
+					href={link.href}
+					variant="nav"
+					class={page.url.pathname === link.href ||
+					(link.href !== '/' && page.url.pathname.startsWith(link.href))
+						? 'bg-black/20 shadow-xs'
+						: ''}>{link.name}</Button
+				>
 			{/each}
 		</div>
 
