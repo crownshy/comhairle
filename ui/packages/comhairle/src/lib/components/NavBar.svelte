@@ -17,7 +17,7 @@
 		Settings,
 		Bell,
 		LogOut,
-		LayoutDashboard
+		LayoutGrid
 	} from 'lucide-svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { userInitials } from '$lib/utils';
@@ -67,8 +67,10 @@
 	});
 </script>
 
-<nav class="bg-primary text-muted-foreground z-10 flex w-full flex-col items-center p-5 shadow-md">
-	<div class="margin-auto container flex max-w-[1200px] items-center justify-between">
+<nav
+	class="bg-primary text-muted-foreground z-10 flex w-full flex-col items-center justify-center py-4 shadow-md"
+>
+	<div class="margin-auto container flex max-w-[1280px] items-center justify-between px-6">
 		<ComhairleLogo logoSize="sm" class="[&>h1]:hidden lg:[&>h1]:block" />
 
 		<!-- Desktop Navigation -->
@@ -78,14 +80,17 @@
 			{/each}
 		</div>
 
-		<div class="hidden gap-x-5 md:flex">
+		<div class="hidden items-center gap-x-4 md:flex">
 			<LocaleSwitcher
-				class="hover:bg-sidebar/50 data-[placeholder]:text-primary-foreground rounded-full border-none bg-transparent shadow-xs"
+				class="hover:bg-sidebar/50 data-[placeholder]:text-primary-foreground border-primary-foreground/30 rounded-lg border bg-transparent shadow-xs"
 			/>
-			<ProfileMenu {user} />
 			{#if isAdmin}
-				<Button variant="nav" href="/admin">Dashboard</Button>
+				<Button variant="nav" href="/admin" size="lg" class="gap-2 rounded-full">
+					<LayoutGrid class="size-4" />
+					Workspace
+				</Button>
 			{/if}
+			<ProfileMenu {user} />
 		</div>
 
 		<!-- Mobile Navigation -->
@@ -172,8 +177,8 @@
 									variant="ghost"
 									class="text-foreground h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
 								>
-									<LayoutDashboard class="text-muted-foreground size-5" />
-									Dashboard
+									<LayoutGrid class="text-muted-foreground size-5" />
+									Workspace
 								</Button>
 							{/if}
 						</div>

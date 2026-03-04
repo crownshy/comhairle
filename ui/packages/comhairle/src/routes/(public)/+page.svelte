@@ -28,7 +28,9 @@
 			<p class="text-center text-2xl md:text-left">{m.a_platfrom_about_what_people_want()}</p>
 		{/if}
 		<div class="flex flex-row gap-2">
-			<Button size="lg" href="/conversations">{m.explore_conversations()}</Button>
+			<Button size="lg" class="bg-sidebar text-sidebar-foreground" href="/conversations"
+				>{m.explore_conversations()}</Button
+			>
 		</div>
 	</div>
 </div>
