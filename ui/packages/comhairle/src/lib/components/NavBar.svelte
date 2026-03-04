@@ -95,7 +95,7 @@
 
 		<div class="hidden items-center gap-x-4 md:flex">
 			<LocaleSwitcher
-				class="hover:bg-sidebar/50 data-[placeholder]:text-primary-foreground  rounded-full border border-none bg-transparent py-5 text-base shadow-xs hover:bg-white/10"
+				class="data-[placeholder]:text-primary-foreground rounded-full border border-none bg-transparent py-5 text-base shadow-xs hover:bg-white/10"
 			/>
 			{#if isAdmin}
 				<Button
