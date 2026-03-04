@@ -45,6 +45,7 @@ async fn list(
 ) -> Result<(StatusCode, Json<PaginatedResults<LocalizedEventDto>>), ComhairleError> {
     let events = event::list(
         &state.db,
+        &conversation_id,
         page_options,
         filter_options,
         order_options,

@@ -33,9 +33,9 @@ use crate::{
 pub mod dto;
 
 #[derive(Debug, Clone, OperationIo)]
-struct SourcePathCtx {
-    conversation_id: Uuid,
-    event_id: Option<Uuid>,
+pub struct SourcePathCtx {
+    pub conversation_id: Uuid,
+    pub event_id: Option<Uuid>,
 }
 
 impl FromRequestParts<Arc<ComhairleState>> for SourcePathCtx {
@@ -59,11 +59,9 @@ impl FromRequestParts<Arc<ComhairleState>> for SourcePathCtx {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, OperationIo)]
 struct WorkflowPathCtx {
     workflow_id: Uuid,
-    // TODO: maybe remove and handle separately for workflow steps
-    workflow_step_id: Option<Uuid>,
 }
 
 impl FromRequestParts<Arc<ComhairleState>> for WorkflowPathCtx {
@@ -80,10 +78,7 @@ impl FromRequestParts<Arc<ComhairleState>> for WorkflowPathCtx {
             .cloned()
             .ok_or_else(|| ComhairleError::BadRequest("Missing workflow_id".into()))?;
 
-        Ok(Self {
-            workflow_id,
-            workflow_step_id: params.get("workflow_step_id").cloned(),
-        })
+        Ok(Self { workflow_id })
     }
 }
 

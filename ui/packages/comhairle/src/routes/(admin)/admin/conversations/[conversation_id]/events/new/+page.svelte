@@ -80,6 +80,7 @@
 				{
 					params: {
 						conversation_id: conversation.id,
+						event_id: event.id,
 						workflow_id: workflow.id
 					}
 				}

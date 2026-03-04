@@ -1,8 +1,11 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use aide::axum::routing::{delete_with, get_with, post_with, put_with};
 use aide::axum::ApiRouter;
+use aide::OperationIo;
 
+use axum::http::request::Parts;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -10,13 +13,12 @@ use axum::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use tracing::info;
 use uuid::Uuid;
 
 use crate::models::workflow_step::{LocalizedWorkflowStep, WorkflowStepWithTranslations};
 use crate::routes::translations::LocaleExtractor;
 use crate::routes::workflow_steps::dto::{LocalizedWorkflowStepDto, WorkflowStepDto};
-use crate::routes::workflows::WorkflowRouterContext;
+use crate::routes::workflows::{SourcePathCtx, WorkflowRouterContext};
 use crate::tools::ToolConfig;
 use crate::{
     error::ComhairleError,
@@ -26,7 +28,7 @@ use crate::{
 
 use super::auth::{is_user_admin, RequiredAdminUser, RequiredUser};
 use crate::models::{self, conversation, user_participation};
-use axum::extract::Query;
+use axum::extract::{FromRequestParts, Query};
 
 #[derive(Deserialize, JsonSchema, Debug)]
 pub struct GetWorkflowStepsQuery {
@@ -50,16 +52,50 @@ pub enum WorkflowStepsListResponse {
 
 pub mod dto;
 
+#[derive(Debug, Clone, OperationIo)]
+struct WorkflowStepPathCtx {
+    workflow_id: Uuid,
+    workflow_step_id: Option<Uuid>,
+}
+
+impl FromRequestParts<Arc<ComhairleState>> for WorkflowStepPathCtx {
+    type Rejection = ComhairleError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &Arc<ComhairleState>,
+    ) -> Result<Self, Self::Rejection> {
+        let Path(params) = Path::<HashMap<String, Uuid>>::from_request_parts(parts, state).await?;
+
+        let workflow_id = params
+            .get("workflow_id")
+            .cloned()
+            .ok_or_else(|| ComhairleError::BadRequest("Missing workflow_id".into()))?;
+        let workflow_step_id = params.get("workflow_step_id").cloned();
+
+        Ok(Self {
+            workflow_id,
+            workflow_step_id,
+        })
+    }
+}
+
 /// Create workflow handler
 async fn create_workflow_step(
     State(state): State<Arc<ComhairleState>>,
-    Path((conversation_id, workflow_id)): Path<(Uuid, Uuid)>,
+    SourcePathCtx {
+        conversation_id,
+        event_id: _,
+    }: SourcePathCtx,
+    WorkflowStepPathCtx {
+        workflow_id,
+        workflow_step_id: _,
+    }: WorkflowStepPathCtx,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(new_workflow): Json<CreateWorkflowStep>,
 ) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
-    info!("Attempting to create workflow");
     let workflow = workflow_step::create(
         &state,
         &new_workflow,
