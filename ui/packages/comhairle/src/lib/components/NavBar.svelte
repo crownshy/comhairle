@@ -82,7 +82,7 @@
 
 		<div class="hidden items-center gap-x-4 md:flex">
 			<LocaleSwitcher
-				class="hover:bg-sidebar/50 data-[placeholder]:text-primary-foreground border-primary-foreground/30 rounded-lg border bg-transparent shadow-xs"
+				class="hover:bg-sidebar/50 data-[placeholder]:text-primary-foreground rounded-full border border-none bg-transparent shadow-xs"
 			/>
 			{#if isAdmin}
 				<Button variant="nav" href="/admin" size="lg" class="gap-2 rounded-full">
