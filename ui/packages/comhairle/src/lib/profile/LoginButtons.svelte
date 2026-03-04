@@ -5,8 +5,6 @@
 </script>
 
 <div class="ml-5 flex flex-row space-x-2 md:w-40">
-	<Button href="/auth/signup" class="text-nav-text text-[1rem]" variant="link"
-		>{m.signup()}</Button
-	>
-	<Button href="/auth/login" class="text-nav-text text-[1rem]" variant="link">{m.login()}</Button>
+	<Button href="/auth/signup" class="text-nav-text text-base" variant="link">{m.signup()}</Button>
+	<Button href="/auth/login" class="text-nav-text text-base" variant="link">{m.login()}</Button>
 </div>

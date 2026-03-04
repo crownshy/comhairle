@@ -85,7 +85,7 @@
 				<Button
 					href={link.href}
 					variant="nav"
-					class="h-10 text-[1rem] {page.url.pathname === link.href ||
+					class="h-10 text-base {page.url.pathname === link.href ||
 					(link.href !== '/' && page.url.pathname.startsWith(link.href))
 						? 'bg-sidebar/50 shadow-xs'
 						: ''}">{link.name}</Button
@@ -95,15 +95,10 @@
 
 		<div class="hidden items-center gap-x-4 md:flex">
 			<LocaleSwitcher
-				class="hover:bg-sidebar/50 data-[placeholder]:text-primary-foreground rounded-full border border-none bg-transparent text-[1rem] shadow-xs"
+				class="hover:bg-sidebar/50 data-[placeholder]:text-primary-foreground rounded-full border border-none bg-transparent text-base shadow-xs"
 			/>
 			{#if isAdmin}
-				<Button
-					variant="nav"
-					href="/admin"
-					size="lg"
-					class="gap-2 rounded-full text-[1rem]"
-				>
+				<Button variant="nav" href="/admin" size="lg" class="gap-2 rounded-full text-base">
 					<LayoutGrid class="size-4" />
 					Workspace
 				</Button>
@@ -230,11 +225,11 @@
 							</form>
 						{:else}
 							<Separator />
-							<div class="flex gap-2 px-3 pt-2 text-[1rem]">
+							<div class="flex gap-2 px-3 pt-2 text-base">
 								<Button href="/auth/login" variant="outline" class="flex-1"
 									>{m.login()}</Button
 								>
-								<Button href="/auth/signup" class="flex-1 text-[1rem]"
+								<Button href="/auth/signup" class="flex-1 text-base"
 									>{m.signup()}</Button
 								>
 							</div>
