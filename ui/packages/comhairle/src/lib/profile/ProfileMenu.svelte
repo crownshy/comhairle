@@ -29,7 +29,7 @@
 
 {#if user}
 	<DropdownMenu.Root>
-		<DropdownMenu.Trigger class={buttonVariants({ variant: triggerVariant })}>
+		<DropdownMenu.Trigger class={`py-5 ${buttonVariants({ variant: triggerVariant })}`}>
 			<Avatar.Root class="mr-4 h-6 w-6">
 				{#if user.avatarUrl}
 					<Avatar.Image src={user.avatarUrl} alt="@shadcn" />
