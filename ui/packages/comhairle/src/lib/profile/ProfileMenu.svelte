@@ -36,7 +36,7 @@
 				{/if}
 				<Avatar.Fallback class="text-foreground">{user_initials}</Avatar.Fallback>
 			</Avatar.Root>
-			<p class="text-foreground text-base">
+			<p class="text-foreground text-base font-normal">
 				{#if user.authType === 'annon'}
 					Anonymous
 				{:else}

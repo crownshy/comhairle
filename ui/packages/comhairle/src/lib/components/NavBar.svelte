@@ -85,7 +85,7 @@
 				<Button
 					href={link.href}
 					variant="nav"
-					class="h-10 text-base {page.url.pathname === link.href ||
+					class="h-10 text-base font-normal {page.url.pathname === link.href ||
 					(link.href !== '/' && page.url.pathname.startsWith(link.href))
 						? 'bg-sidebar/50 shadow-xs'
 						: ''}">{link.name}</Button
@@ -98,7 +98,12 @@
 				class="hover:bg-sidebar/50 data-[placeholder]:text-primary-foreground rounded-full border border-none bg-transparent text-base shadow-xs"
 			/>
 			{#if isAdmin}
-				<Button variant="nav" href="/admin" size="lg" class="gap-2 rounded-full text-base">
+				<Button
+					variant="nav"
+					href="/admin"
+					size="lg"
+					class="gap-2 rounded-full text-base font-normal"
+				>
 					<Briefcase class="size-4" />
 					Workspace
 				</Button>
