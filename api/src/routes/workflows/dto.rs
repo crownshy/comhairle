@@ -18,7 +18,8 @@ use crate::models::workflow::Workflow;
 #[serde(rename_all = "camelCase")]
 pub struct WorkflowDto {
     pub id: Uuid,
-    pub conversation_id: Uuid,
+    pub conversation_id: Option<Uuid>,
+    pub event_id: Option<Uuid>,
     pub name: String,
     pub description: String,
     pub is_active: bool,
@@ -32,6 +33,7 @@ impl From<Workflow> for WorkflowDto {
         Self {
             id: w.id,
             conversation_id: w.conversation_id,
+            event_id: w.event_id,
             name: w.name,
             description: w.description,
             is_active: w.is_active,

@@ -83,24 +83,30 @@ async fn create_workflow(
     Path(conversation_id): Path<Uuid>,
     Json(new_workflow): Json<CreateWorkflow>,
 ) -> Result<(StatusCode, Json<WorkflowDto>), ComhairleError> {
-    info!("Attempting to create workflow {new_workflow:#?}");
-    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
-    let workflow = workflow::create(&state.db, &new_workflow, conversation_id, user.id).await?;
-    // If the conversation does not have a default workflow
-    // set this to be the default workflow
-    if conversation.default_workflow_id.is_none() {
-        conversation::update(
-            &state.db,
-            &conversation.id,
-            &PartialConversation {
-                default_workflow_id: Some(workflow.id),
-                ..Default::default()
-            },
-        )
-        .await?;
-    }
+    if new_workflow.event_id.is_some() {
+        let workflow = workflow::create(&state.db, &new_workflow, None, user.id).await?;
 
-    Ok((StatusCode::CREATED, Json(workflow.into())))
+        Ok((StatusCode::CREATED, Json(workflow.into())))
+    } else {
+        let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+        let workflow =
+            workflow::create(&state.db, &new_workflow, Some(conversation_id), user.id).await?;
+        // If the conversation does not have a default workflow
+        // set this to be the default workflow
+        if conversation.default_workflow_id.is_none() {
+            conversation::update(
+                &state.db,
+                &conversation.id,
+                &PartialConversation {
+                    default_workflow_id: Some(workflow.id),
+                    ..Default::default()
+                },
+            )
+            .await?;
+        }
+
+        Ok((StatusCode::CREATED, Json(workflow.into())))
+    }
 }
 
 async fn get_workflow_stats(
@@ -307,7 +313,7 @@ mod tests {
         assert_eq!(status, StatusCode::CREATED, "should have been created");
 
         assert_eq!(
-            workflow.conversation_id.to_string(),
+            workflow.conversation_id.unwrap().to_string(),
             id,
             "Should be assigned to the correct conversation"
         );

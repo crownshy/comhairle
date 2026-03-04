@@ -31,12 +31,13 @@ pub struct Workflow {
     #[partially(omit)]
     pub id: Uuid,
     #[partially(omit)]
-    pub conversation_id: Uuid,
+    pub conversation_id: Option<Uuid>,
     pub name: String,
     pub description: String,
     pub is_active: bool,
     pub is_public: bool,
     pub auto_login: bool,
+    pub event_id: Option<Uuid>,
     #[partially(omit)]
     pub owner_id: Uuid,
     #[partially(omit)]
@@ -45,13 +46,14 @@ pub struct Workflow {
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [WorkflowIden; 10] = [
+const DEFAULT_COLUMNS: [WorkflowIden; 11] = [
     WorkflowIden::Id,
     WorkflowIden::ConversationId,
     WorkflowIden::Name,
     WorkflowIden::Description,
     WorkflowIden::IsPublic,
     WorkflowIden::IsActive,
+    WorkflowIden::EventId,
     WorkflowIden::CreatedAt,
     WorkflowIden::UpdatedAt,
     WorkflowIden::OwnerId,
@@ -118,26 +120,39 @@ pub struct CreateWorkflow {
     pub is_active: bool,
     pub is_public: bool,
     pub auto_login: bool,
+    pub event_id: Option<Uuid>,
 }
 
 impl CreateWorkflow {
     pub fn columns(&self) -> Vec<WorkflowIden> {
-        vec![
+        let mut columns = vec![
             WorkflowIden::Name,
             WorkflowIden::Description,
             WorkflowIden::IsActive,
             WorkflowIden::IsPublic,
             WorkflowIden::AutoLogin,
-        ]
+        ];
+
+        if self.event_id.is_some() {
+            columns.push(WorkflowIden::EventId)
+        }
+
+        columns
     }
     pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
-        vec![
+        let mut values = vec![
             self.name.to_owned().into(),
             self.description.to_owned().into(),
             self.is_active.into(),
             self.is_public.into(),
             self.auto_login.into(),
-        ]
+        ];
+
+        if let Some(value) = self.event_id {
+            values.push(value.into());
+        }
+
+        values
     }
 }
 
@@ -163,21 +178,19 @@ pub async fn register_user(
 
     // Check to see if the user already has preferences for this
     // conversastion
-    let user_preferences = user_conversation_preferences::get_by_user_and_conversation(
-        db,
-        &user.id,
-        &workflow.conversation_id,
-    )
-    .await;
-
-    // If they dont, create some
-    if user_preferences.is_err() {
-        user_conversation_preferences::create_with_defaults(
+    if let Some(conversation_id) = workflow.conversation_id {
+        let user_preferences = user_conversation_preferences::get_by_user_and_conversation(
             db,
             &user.id,
-            &workflow.conversation_id,
+            &conversation_id,
         )
-        .await?;
+        .await;
+
+        // If they dont, create some
+        if user_preferences.is_err() {
+            user_conversation_preferences::create_with_defaults(db, &user.id, &conversation_id)
+                .await?;
+        }
     }
 
     Ok(user_participation)
@@ -310,14 +323,16 @@ pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, Comh
 pub async fn create(
     db: &PgPool,
     workflow: &CreateWorkflow,
-    conversation_id: Uuid,
+    conversation_id: Option<Uuid>,
     owner_id: Uuid,
 ) -> Result<Workflow, ComhairleError> {
     let mut columns = workflow.columns();
     let mut values = workflow.values();
 
-    columns.push(WorkflowIden::ConversationId);
-    values.push(conversation_id.into());
+    if let Some(c_id) = conversation_id {
+        columns.push(WorkflowIden::ConversationId);
+        values.push(c_id.into());
+    }
 
     columns.push(WorkflowIden::OwnerId);
     values.push(owner_id.into());
