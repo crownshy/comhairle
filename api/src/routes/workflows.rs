@@ -1,8 +1,12 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, fmt::Display, sync::Arc};
 
-use aide::{OperationIo, axum::{
-    ApiRouter, routing::{delete_with, get_with, post_with, put_with}
-}};
+use aide::{
+    axum::{
+        routing::{delete_with, get_with, post_with, put_with},
+        ApiRouter,
+    },
+    OperationIo,
+};
 use axum::{
     extract::{FromRequestParts, Path, State},
     http::{request::Parts, StatusCode},
@@ -222,12 +226,26 @@ async fn delete_workflow(
     Ok((StatusCode::OK, Json(workflow)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub enum WorkflowRouterContext {
+    Conversation,
+    Event,
+}
+
+impl Display for WorkflowRouterContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WorkflowRouterContext::Conversation => write!(f, "Conversation"),
+            WorkflowRouterContext::Event => write!(f, "Event"),
+        }
+    }
+}
+
+pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
             post_with(create_workflow, |op| {
-                op.id("CreateWorkflow")
+                op.id(&format!("Create{ctx}Workflow"))
                     .tag("Workflow")
                     .security_requirement("JWT")
                     .summary("Create a new workflow on the conversation")
@@ -237,7 +255,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/",
             get_with(list_workflows, |op| {
-                op.id("ListWorkflows")
+                op.id(&format!("List{ctx}Workflows"))
                     .tag("Workflow")
                     .summary("List all workflows on this converastion")
                     .response::<200, Json<Vec<WorkflowDto>>>()
@@ -246,7 +264,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/{workflow_id}/next",
             get_with(active_step_for_user, |op| {
-                op.id("NextWorkflowStepForUser")
+                op.id(&format!("Next{ctx}WorkflowStepForUser"))
                     .tag("Workflow")
                     .security_requirement("JWT")
                     .summary("Gets the next undone workflow step for the current user")
@@ -256,7 +274,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/{workflow_id}/stats",
             get_with(get_workflow_stats, |op| {
-                op.id("GetWorkflowStats")
+                op.id(&format!("Get{ctx}WorkflowStats"))
                     .tag("Workflow")
                     .summary("Gets participation stats for a workflow")
                     .response::<201, Json<WorkflowStats>>()
@@ -265,7 +283,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/{workflow_id}",
             get_with(get_workflow, |op| {
-                op.id("GetWorkflow")
+                op.id(&format!("Get{ctx}Workflow"))
                     .tag("Workflow")
                     .summary("Get the specified workflow")
                     .response::<200, Json<WorkflowDto>>()
@@ -274,7 +292,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/{workflow_id}/register",
             post_with(register_user_for_workflow, |op| {
-                op.id("RegisterUserForWorkflow")
+                op.id(&format!("RegisterUserFor{ctx}Workflow"))
                     .tag("Workflow")
                     .security_requirement("JWT")
                     .summary("Register the currently logged in user for this workflow")
@@ -284,7 +302,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/{workflow_id}/leave",
             delete_with(deregister_user_on_workflow, |op| {
-                op.id("UnregisterUserForWorkflow")
+                op.id(&format!("UnregisterUser{ctx}ForWorkflow"))
                     .tag("Workflow")
                     .security_requirement("JWT")
                     .summary("Unregisters the current user on this workflow")
@@ -294,7 +312,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/{workflow_id}/participation",
             get_with(get_user_participation, |op| {
-                op.id("GetUserParticipation")
+                op.id(&format!("GetUser{ctx}Participation"))
                     .tag("Workflow")
                     .security_requirement("JWT")
                     .summary("Returns the status of the current user on this workflow")
@@ -304,7 +322,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/{workflow_id}",
             put_with(update_workflow, |op| {
-                op.id("UpdateWorkflow")
+                op.id(&format!("Update{ctx}Workflow"))
                     .tag("Workflow")
                     .security_requirement("JWT")
                     .summary("Update the workflow")
@@ -314,7 +332,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/{workflow_id}",
             delete_with(delete_workflow, |op| {
-                op.id("DeleteWorkflow")
+                op.id(&format!("Delete{ctx}Workflow"))
                     .tag("Workflow")
                     .security_requirement("JWT")
                     .summary("Delete the workflow and it's associated workflow steps")

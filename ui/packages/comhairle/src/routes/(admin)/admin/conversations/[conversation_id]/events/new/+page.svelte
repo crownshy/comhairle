@@ -56,7 +56,7 @@
 				params: { conversation_id: conversation.id }
 			});
 
-			let workflow = await apiClient.CreateWorkflow(
+			let workflow = await apiClient.CreateEventWorkflow(
 				{
 					name: 'Default event workflow',
 					description: 'Default event workflow',
@@ -67,7 +67,7 @@
 				{ params: { conversation_id: conversation.id, event_id: event.id } }
 			);
 
-			await apiClient.CreateWorkflowStep(
+			await apiClient.CreateEventWorkflowStep(
 				{
 					name: 'Event agenda',
 					description: 'The agenda for the event',

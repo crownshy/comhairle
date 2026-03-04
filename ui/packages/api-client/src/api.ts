@@ -1925,14 +1925,14 @@ curl -X POST \
   {
     method: "get",
     path: "/conversation/:conversation_id/events/:event_id/workflows",
-    alias: "ListWorkflows",
+    alias: "ListEventWorkflows",
     requestFormat: "json",
     response: z.array(WorkflowDto),
   },
   {
     method: "post",
     path: "/conversation/:conversation_id/events/:event_id/workflows",
-    alias: "CreateWorkflow",
+    alias: "CreateEventWorkflow",
     requestFormat: "json",
     parameters: [
       {
@@ -1946,14 +1946,14 @@ curl -X POST \
   {
     method: "get",
     path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id",
-    alias: "GetWorkflow",
+    alias: "GetEventWorkflow",
     requestFormat: "json",
     response: WorkflowDto,
   },
   {
     method: "put",
     path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id",
-    alias: "UpdateWorkflow",
+    alias: "UpdateEventWorkflow",
     requestFormat: "json",
     parameters: [
       {
@@ -1967,49 +1967,49 @@ curl -X POST \
   {
     method: "delete",
     path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id",
-    alias: "DeleteWorkflow",
+    alias: "DeleteEventWorkflow",
     requestFormat: "json",
     response: WorkflowDto,
   },
   {
     method: "delete",
     path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/leave",
-    alias: "UnregisterUserForWorkflow",
+    alias: "UnregisterUserEventForWorkflow",
     requestFormat: "json",
     response: UserParticipation,
   },
   {
     method: "get",
     path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/next",
-    alias: "NextWorkflowStepForUser",
+    alias: "NextEventWorkflowStepForUser",
     requestFormat: "json",
     response: z.union([WorkflowStep, z.null()]),
   },
   {
     method: "get",
     path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/participation",
-    alias: "GetUserParticipation",
+    alias: "GetUserEventParticipation",
     requestFormat: "json",
     response: z.union([UserParticipation, z.null()]),
   },
   {
     method: "post",
     path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/register",
-    alias: "RegisterUserForWorkflow",
+    alias: "RegisterUserForEventWorkflow",
     requestFormat: "json",
     response: UserParticipation,
   },
   {
     method: "get",
     path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/stats",
-    alias: "GetWorkflowStats",
+    alias: "GetEventWorkflowStats",
     requestFormat: "json",
     response: WorkflowStats,
   },
   {
     method: "get",
     path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps",
-    alias: "ListWorkflowSteps",
+    alias: "ListEventWorkflowSteps",
     requestFormat: "json",
     parameters: [
       {
@@ -2023,7 +2023,7 @@ curl -X POST \
   {
     method: "post",
     path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps",
-    alias: "CreateWorkflowStep",
+    alias: "CreateEventWorkflowStep",
     requestFormat: "json",
     parameters: [
       {
@@ -2037,14 +2037,14 @@ curl -X POST \
   {
     method: "get",
     path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps/:workflow_step_id",
-    alias: "GetWorkflowStep",
+    alias: "GetEventWorkflowStep",
     requestFormat: "json",
     response: LocalizedWorkflowStepDto,
   },
   {
     method: "put",
     path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps/:workflow_step_id",
-    alias: "UpdateWorkflowStep",
+    alias: "UpdateEventWorkflowStep",
     requestFormat: "json",
     parameters: [
       {
@@ -2058,14 +2058,14 @@ curl -X POST \
   {
     method: "delete",
     path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps/:workflow_step_id",
-    alias: "DeleteWorkflowStep",
+    alias: "DeleteEventWorkflowStep",
     requestFormat: "json",
     response: WorkflowStepDto,
   },
   {
     method: "put",
     path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps/:workflow_step_id/elicitation_bot",
-    alias: "UpdateElicitationBotWorkflowStep",
+    alias: "UpdateEventElicitationBotWorkflowStep",
     requestFormat: "json",
     parameters: [
       {
@@ -2256,14 +2256,14 @@ curl -X POST \
   {
     method: "get",
     path: "/conversation/:conversation_id/workflow",
-    alias: "ListWorkflows",
+    alias: "ListConversationWorkflows",
     requestFormat: "json",
     response: z.array(WorkflowDto),
   },
   {
     method: "post",
     path: "/conversation/:conversation_id/workflow",
-    alias: "CreateWorkflow",
+    alias: "CreateConversationWorkflow",
     requestFormat: "json",
     parameters: [
       {
@@ -2277,14 +2277,14 @@ curl -X POST \
   {
     method: "get",
     path: "/conversation/:conversation_id/workflow/:workflow_id",
-    alias: "GetWorkflow",
+    alias: "GetConversationWorkflow",
     requestFormat: "json",
     response: WorkflowDto,
   },
   {
     method: "put",
     path: "/conversation/:conversation_id/workflow/:workflow_id",
-    alias: "UpdateWorkflow",
+    alias: "UpdateConversationWorkflow",
     requestFormat: "json",
     parameters: [
       {
@@ -2298,28 +2298,28 @@ curl -X POST \
   {
     method: "delete",
     path: "/conversation/:conversation_id/workflow/:workflow_id",
-    alias: "DeleteWorkflow",
+    alias: "DeleteConversationWorkflow",
     requestFormat: "json",
     response: WorkflowDto,
   },
   {
     method: "delete",
     path: "/conversation/:conversation_id/workflow/:workflow_id/leave",
-    alias: "UnregisterUserForWorkflow",
+    alias: "UnregisterUserConversationForWorkflow",
     requestFormat: "json",
     response: UserParticipation,
   },
   {
     method: "get",
     path: "/conversation/:conversation_id/workflow/:workflow_id/next",
-    alias: "NextWorkflowStepForUser",
+    alias: "NextConversationWorkflowStepForUser",
     requestFormat: "json",
     response: z.union([WorkflowStep, z.null()]),
   },
   {
     method: "get",
     path: "/conversation/:conversation_id/workflow/:workflow_id/participation",
-    alias: "GetUserParticipation",
+    alias: "GetUserConversationParticipation",
     requestFormat: "json",
     response: z.union([UserParticipation, z.null()]),
   },
@@ -2348,21 +2348,21 @@ curl -X POST \
   {
     method: "post",
     path: "/conversation/:conversation_id/workflow/:workflow_id/register",
-    alias: "RegisterUserForWorkflow",
+    alias: "RegisterUserForConversationWorkflow",
     requestFormat: "json",
     response: UserParticipation,
   },
   {
     method: "get",
     path: "/conversation/:conversation_id/workflow/:workflow_id/stats",
-    alias: "GetWorkflowStats",
+    alias: "GetConversationWorkflowStats",
     requestFormat: "json",
     response: WorkflowStats,
   },
   {
     method: "get",
     path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step",
-    alias: "ListWorkflowSteps",
+    alias: "ListConversationWorkflowSteps",
     requestFormat: "json",
     parameters: [
       {
@@ -2376,7 +2376,7 @@ curl -X POST \
   {
     method: "post",
     path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step",
-    alias: "CreateWorkflowStep",
+    alias: "CreateConversationWorkflowStep",
     requestFormat: "json",
     parameters: [
       {
@@ -2390,14 +2390,14 @@ curl -X POST \
   {
     method: "get",
     path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id",
-    alias: "GetWorkflowStep",
+    alias: "GetConversationWorkflowStep",
     requestFormat: "json",
     response: LocalizedWorkflowStepDto,
   },
   {
     method: "put",
     path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id",
-    alias: "UpdateWorkflowStep",
+    alias: "UpdateConversationWorkflowStep",
     requestFormat: "json",
     parameters: [
       {
@@ -2411,14 +2411,14 @@ curl -X POST \
   {
     method: "delete",
     path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id",
-    alias: "DeleteWorkflowStep",
+    alias: "DeleteConversationWorkflowStep",
     requestFormat: "json",
     response: WorkflowStepDto,
   },
   {
     method: "put",
     path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/elicitation_bot",
-    alias: "UpdateElicitationBotWorkflowStep",
+    alias: "UpdateConversationElicitationBotWorkflowStep",
     requestFormat: "json",
     parameters: [
       {

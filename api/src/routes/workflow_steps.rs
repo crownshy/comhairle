@@ -16,6 +16,7 @@ use uuid::Uuid;
 use crate::models::workflow_step::{LocalizedWorkflowStep, WorkflowStepWithTranslations};
 use crate::routes::translations::LocaleExtractor;
 use crate::routes::workflow_steps::dto::{LocalizedWorkflowStepDto, WorkflowStepDto};
+use crate::routes::workflows::WorkflowRouterContext;
 use crate::tools::ToolConfig;
 use crate::{
     error::ComhairleError,
@@ -182,12 +183,12 @@ async fn delete_workflow_step(
     Ok((StatusCode::OK, Json(workflow)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
             post_with(create_workflow_step, |op| {
-                op.id("CreateWorkflowStep")
+                op.id(&format!("Create{ctx}WorkflowStep"))
                     .tag("Workflow step")
                     .summary("Create a new workflow step")
                     .security_requirement("JWT")
@@ -197,7 +198,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/",
             get_with(list_workflows_step, |op| {
-                op.id("ListWorkflowSteps")
+                op.id(&format!("List{ctx}WorkflowSteps"))
                     .tag("Workflow step")
                     .summary("List the workflow steps associated with this workflow. Use withTranslations=true to get translation data.")
                     .security_requirement("JWT")
@@ -207,7 +208,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/{workflow_step_id}",
             get_with(get_workflow_step, |op| {
-                op.id("GetWorkflowStep")
+                op.id(&format!("Get{ctx}WorkflowStep"))
                     .tag("Workflow step")
                     .summary("Get the specified workflow step")
                     .security_requirement("JWT")
@@ -217,7 +218,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/{workflow_step_id}",
             put_with(update_workflow_step, |op| {
-                op.id("UpdateWorkflowStep")
+                op.id(&format!("Update{ctx}WorkflowStep"))
                     .tag("Workflow step")
                     .summary("Update the specified workflow step")
                     .security_requirement("JWT")
@@ -227,7 +228,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/{workflow_step_id}/elicitation_bot",
             put_with(update_elicitation_bot_workflow_step, |op| {
-                op.id("UpdateElicitationBotWorkflowStep")
+                op.id(&format!("Update{ctx}ElicitationBotWorkflowStep"))
                     .tag("Workflow step")
                     .summary("Update a workflow step of type elicitation bot")
                     .security_requirement("JWT")
@@ -237,7 +238,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/{workflow_step_id}",
             delete_with(delete_workflow_step, |op| {
-                op.id("DeleteWorkflowStep")
+                op.id(&format!("Delete{ctx}WorkflowStep"))
                     .tag("Workflow step")
                     .summary("Delete the specified workflow step")
                     .security_requirement("JWT")

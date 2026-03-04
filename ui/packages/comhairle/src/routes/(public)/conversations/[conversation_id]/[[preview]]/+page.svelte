@@ -30,7 +30,7 @@
 	async function registerAnnonUserSignupAndRedirect() {
 		await apiClient.SignupAnnonUser(undefined, {});
 
-		await apiClient.RegisterUserForWorkflow(undefined, {
+		await apiClient.RegisterUserForConversationWorkflow(undefined, {
 			params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }
 		});
 

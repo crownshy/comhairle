@@ -25,12 +25,14 @@ export const load: LayoutLoad = async ({
 			return redirect(302, '/');
 		}
 
-		const workflows = await api.ListWorkflows({ params: { conversation_id: conversation.id } });
+		const workflows = await api.ListConversationWorkflows({
+			params: { conversation_id: conversation.id }
+		});
 
 		let participation;
 
 		if (user) {
-			participation = await api.GetUserParticipation({
+			participation = await api.GetUserConversationParticipation({
 				params: { conversation_id: conversation.id, workflow_id: workflows[0].id }
 			});
 		} else {

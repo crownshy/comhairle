@@ -50,7 +50,7 @@
 
 				let conversation = await apiClient.CreateConversation(fullConversation);
 
-				let workflow = await apiClient.CreateWorkflow(
+				let workflow = await apiClient.CreateConversationWorkflow(
 					{
 						name: 'Default Workflow',
 						description: 'The default workflow',
@@ -64,7 +64,7 @@
 				//@ts-ignore
 				let template = workflow_templates[selectedWorkflowTemplate];
 				for (let step of template) {
-					await apiClient.CreateWorkflowStep(step, {
+					await apiClient.CreateConversationWorkflowStep(step, {
 						params: {
 							conversation_id: conversation.id,
 							workflow_id: workflow.id
