@@ -172,10 +172,18 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
                 )
                 .nest_api_service(
                     "/{conversation_id}/events",
-                    routes::events::router(state.clone()).nest_api_service(
-                        "/{event_id}/attendances",
-                        routes::event_attendances::router(state.clone()),
-                    ),
+                    routes::events::router(state.clone())
+                        .nest_api_service(
+                            "/{event_id}/attendances",
+                            routes::event_attendances::router(state.clone()),
+                        )
+                        .nest_api_service(
+                            "/{event_id}/workflows",
+                            routes::workflows::router(state.clone()).nest(
+                                "/{workflow_id}/workflow_steps",
+                                routes::workflow_steps::router(state.clone()),
+                            ),
+                        ),
                 ),
         )
         .nest_api_service(

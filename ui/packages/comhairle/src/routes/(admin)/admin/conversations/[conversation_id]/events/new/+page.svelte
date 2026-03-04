@@ -62,10 +62,9 @@
 					description: 'Default event workflow',
 					is_active: true,
 					is_public: true,
-					auto_login: false,
-					event_id: event.id
+					auto_login: false
 				},
-				{ params: { conversation_id: conversation.id } }
+				{ params: { conversation_id: conversation.id, event_id: event.id } }
 			);
 
 			await apiClient.CreateWorkflowStep(
@@ -190,7 +189,12 @@
 		<Form.Control>
 			{#snippet children({ props })}
 				<Form.Label>Enter a start time for your event</Form.Label>
-				<Input type="time" {...props} bind:value={$formData.start_time} />
+				<Input
+					type="time"
+					{...props}
+					bind:value={$formData.start_time}
+					class="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+				/>
 			{/snippet}
 		</Form.Control>
 		<Form.FieldErrors />
@@ -200,7 +204,12 @@
 		<Form.Control>
 			{#snippet children({ props })}
 				<Form.Label>Enter an end time for your event</Form.Label>
-				<Input type="time" {...props} bind:value={$formData.end_time} />
+				<Input
+					type="time"
+					{...props}
+					bind:value={$formData.end_time}
+					class="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+				/>
 			{/snippet}
 		</Form.Control>
 		<Form.FieldErrors />

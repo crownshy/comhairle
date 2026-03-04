@@ -399,11 +399,9 @@ mod tests {
 
         let workflow = workflow::create(
             &db,
-            &CreateWorkflow {
-                event_id: None,
-                ..Faker.fake()
-            },
+            &CreateWorkflow { ..Faker.fake() },
             Some(conversation.id),
+            None,
             user1.id,
         )
         .await?;

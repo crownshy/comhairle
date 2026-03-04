@@ -120,39 +120,26 @@ pub struct CreateWorkflow {
     pub is_active: bool,
     pub is_public: bool,
     pub auto_login: bool,
-    pub event_id: Option<Uuid>,
 }
 
 impl CreateWorkflow {
     pub fn columns(&self) -> Vec<WorkflowIden> {
-        let mut columns = vec![
+        vec![
             WorkflowIden::Name,
             WorkflowIden::Description,
             WorkflowIden::IsActive,
             WorkflowIden::IsPublic,
             WorkflowIden::AutoLogin,
-        ];
-
-        if self.event_id.is_some() {
-            columns.push(WorkflowIden::EventId)
-        }
-
-        columns
+        ]
     }
     pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
-        let mut values = vec![
+        vec![
             self.name.to_owned().into(),
             self.description.to_owned().into(),
             self.is_active.into(),
             self.is_public.into(),
             self.auto_login.into(),
-        ];
-
-        if let Some(value) = self.event_id {
-            values.push(value.into());
-        }
-
-        values
+        ]
     }
 }
 
@@ -324,6 +311,7 @@ pub async fn create(
     db: &PgPool,
     workflow: &CreateWorkflow,
     conversation_id: Option<Uuid>,
+    event_id: Option<Uuid>,
     owner_id: Uuid,
 ) -> Result<Workflow, ComhairleError> {
     let mut columns = workflow.columns();
@@ -332,6 +320,11 @@ pub async fn create(
     if let Some(c_id) = conversation_id {
         columns.push(WorkflowIden::ConversationId);
         values.push(c_id.into());
+    }
+
+    if let Some(e_id) = event_id {
+        columns.push(WorkflowIden::EventId);
+        values.push(e_id.into());
     }
 
     columns.push(WorkflowIden::OwnerId);

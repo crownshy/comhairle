@@ -1,12 +1,11 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
-use aide::axum::{
-    routing::{delete_with, get_with, post_with, put_with},
-    ApiRouter,
-};
+use aide::{OperationIo, axum::{
+    ApiRouter, routing::{delete_with, get_with, post_with, put_with}
+}};
 use axum::{
-    extract::{Path, State},
-    http::StatusCode,
+    extract::{FromRequestParts, Path, State},
+    http::{request::Parts, StatusCode},
     Json,
 };
 use tracing::info;
@@ -28,6 +27,61 @@ use crate::{
 };
 
 pub mod dto;
+
+#[derive(Debug, Clone, OperationIo)]
+struct SourcePathCtx {
+    conversation_id: Uuid,
+    event_id: Option<Uuid>,
+}
+
+impl FromRequestParts<Arc<ComhairleState>> for SourcePathCtx {
+    type Rejection = ComhairleError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &Arc<ComhairleState>,
+    ) -> Result<Self, Self::Rejection> {
+        let Path(params) = Path::<HashMap<String, Uuid>>::from_request_parts(parts, state).await?;
+
+        let conversation_id = params
+            .get("conversation_id")
+            .cloned()
+            .ok_or_else(|| ComhairleError::BadRequest("Missing conversation_id".into()))?;
+
+        Ok(Self {
+            conversation_id,
+            event_id: params.get("event_id").cloned(),
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+struct WorkflowPathCtx {
+    workflow_id: Uuid,
+    // TODO: maybe remove and handle separately for workflow steps
+    workflow_step_id: Option<Uuid>,
+}
+
+impl FromRequestParts<Arc<ComhairleState>> for WorkflowPathCtx {
+    type Rejection = ComhairleError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &Arc<ComhairleState>,
+    ) -> Result<Self, Self::Rejection> {
+        let Path(params) = Path::<HashMap<String, Uuid>>::from_request_parts(parts, state).await?;
+
+        let workflow_id = params
+            .get("workflow_id")
+            .cloned()
+            .ok_or_else(|| ComhairleError::BadRequest("Missing workflow_id".into()))?;
+
+        Ok(Self {
+            workflow_id,
+            workflow_step_id: params.get("workflow_step_id").cloned(),
+        })
+    }
+}
 
 /// Return the first step in the workflow that is not "done" for the
 /// current user
@@ -80,17 +134,24 @@ pub async fn get_user_participation(
 async fn create_workflow(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
-    Path(conversation_id): Path<Uuid>,
+    path: SourcePathCtx,
     Json(new_workflow): Json<CreateWorkflow>,
 ) -> Result<(StatusCode, Json<WorkflowDto>), ComhairleError> {
-    if new_workflow.event_id.is_some() {
-        let workflow = workflow::create(&state.db, &new_workflow, None, user.id).await?;
+    if path.event_id.is_some() {
+        let workflow =
+            workflow::create(&state.db, &new_workflow, None, path.event_id, user.id).await?;
 
         Ok((StatusCode::CREATED, Json(workflow.into())))
     } else {
-        let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
-        let workflow =
-            workflow::create(&state.db, &new_workflow, Some(conversation_id), user.id).await?;
+        let conversation = conversation::get_by_id(&state.db, &path.conversation_id).await?;
+        let workflow = workflow::create(
+            &state.db,
+            &new_workflow,
+            Some(path.conversation_id),
+            None,
+            user.id,
+        )
+        .await?;
         // If the conversation does not have a default workflow
         // set this to be the default workflow
         if conversation.default_workflow_id.is_none() {
