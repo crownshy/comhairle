@@ -69,7 +69,7 @@
 </script>
 
 <nav
-	class="bg-primary text-muted-foreground z-10 flex w-full flex-col items-center justify-center py-4 shadow-md"
+	class="bg-primary text-muted-foreground z-10 flex w-full flex-col items-center justify-center py-6 shadow-md"
 >
 	<div class="margin-auto container flex max-w-[1280px] items-center justify-between px-6">
 		<div class="lg:hidden">
@@ -85,20 +85,25 @@
 				<Button
 					href={link.href}
 					variant="nav"
-					class={page.url.pathname === link.href ||
+					class="h-10 text-[1rem] {page.url.pathname === link.href ||
 					(link.href !== '/' && page.url.pathname.startsWith(link.href))
 						? 'bg-sidebar/50 shadow-xs'
-						: ''}>{link.name}</Button
+						: ''}">{link.name}</Button
 				>
 			{/each}
 		</div>
 
 		<div class="hidden items-center gap-x-4 md:flex">
 			<LocaleSwitcher
-				class="hover:bg-sidebar/50 data-[placeholder]:text-primary-foreground rounded-full border border-none bg-transparent shadow-xs"
+				class="hover:bg-sidebar/50 data-[placeholder]:text-primary-foreground rounded-full border border-none bg-transparent text-[1rem] shadow-xs"
 			/>
 			{#if isAdmin}
-				<Button variant="nav" href="/admin" size="lg" class="gap-2 rounded-full">
+				<Button
+					variant="nav"
+					href="/admin"
+					size="lg"
+					class="gap-2 rounded-full text-[1rem]"
+				>
 					<LayoutGrid class="size-4" />
 					Workspace
 				</Button>
