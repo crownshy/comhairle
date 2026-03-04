@@ -17,7 +17,7 @@
 		Settings,
 		Bell,
 		LogOut,
-		LayoutGrid
+		Briefcase
 	} from 'lucide-svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
@@ -99,7 +99,7 @@
 			/>
 			{#if isAdmin}
 				<Button variant="nav" href="/admin" size="lg" class="gap-2 rounded-full text-base">
-					<LayoutGrid class="size-4" />
+					<Briefcase class="size-4" />
 					Workspace
 				</Button>
 			{/if}

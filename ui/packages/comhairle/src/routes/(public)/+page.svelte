@@ -30,8 +30,10 @@
 			</p>
 		{/if}
 		<div class="flex flex-row gap-2">
-			<Button size="lg" class="bg-sidebar text-sidebar-foreground" href="/conversations"
-				>{m.explore_conversations()}</Button
+			<Button
+				size="lg"
+				class="bg-sidebar text-sidebar-foreground px-8 py-6 text-lg"
+				href="/conversations">{m.explore_conversations()}</Button
 			>
 		</div>
 	</div>
