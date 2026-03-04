@@ -12,7 +12,6 @@ use axum::{
     http::{request::Parts, StatusCode},
     Json,
 };
-use tracing::info;
 use uuid::Uuid;
 
 use crate::{
@@ -87,7 +86,7 @@ impl FromRequestParts<Arc<ComhairleState>> for WorkflowPathCtx {
 async fn active_step_for_user(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Path((_, workflow_id)): Path<(Uuid, Uuid)>,
+    WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
 ) -> Result<(StatusCode, Json<Option<WorkflowStep>>), ComhairleError> {
     let result =
         workflow_step::get_current_active_step_for_user(&state.db, &user.id, &workflow_id).await?;
@@ -101,10 +100,9 @@ async fn active_step_for_user(
 async fn register_user_for_workflow(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Path((_, workflow_id)): Path<(Uuid, Uuid)>,
+    WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
 ) -> Result<(StatusCode, Json<UserParticipation>), ComhairleError> {
     let user_participation = workflow::register_user(&state.db, &workflow_id, &user).await?;
-
     Ok((StatusCode::CREATED, Json(user_participation)))
 }
 
@@ -112,7 +110,7 @@ async fn register_user_for_workflow(
 async fn deregister_user_on_workflow(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Path((_, workflow_id)): Path<(Uuid, Uuid)>,
+    WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
 ) -> Result<(StatusCode, Json<UserParticipation>), ComhairleError> {
     let user_participation = user_participation::delete(&state.db, &user.id, &workflow_id).await?;
     Ok((StatusCode::OK, Json(user_participation)))
@@ -120,10 +118,10 @@ async fn deregister_user_on_workflow(
 
 /// Returns the participation
 /// status of a user on a workflow
-pub async fn get_user_participation(
+async fn get_user_participation(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Path((_, workflow_id)): Path<(Uuid, Uuid)>,
+    WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
 ) -> Result<(StatusCode, Json<Option<UserParticipation>>), ComhairleError> {
     let user_participation = user_participation::get(&state.db, &user.id, &workflow_id).await?;
     Ok((StatusCode::OK, Json(user_participation)))
@@ -133,20 +131,22 @@ pub async fn get_user_participation(
 async fn create_workflow(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
-    path: SourcePathCtx,
+    SourcePathCtx {
+        conversation_id,
+        event_id,
+    }: SourcePathCtx,
     Json(new_workflow): Json<CreateWorkflow>,
 ) -> Result<(StatusCode, Json<WorkflowDto>), ComhairleError> {
-    if path.event_id.is_some() {
-        let workflow =
-            workflow::create(&state.db, &new_workflow, None, path.event_id, user.id).await?;
+    if event_id.is_some() {
+        let workflow = workflow::create(&state.db, &new_workflow, None, event_id, user.id).await?;
 
         Ok((StatusCode::CREATED, Json(workflow.into())))
     } else {
-        let conversation = conversation::get_by_id(&state.db, &path.conversation_id).await?;
+        let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
         let workflow = workflow::create(
             &state.db,
             &new_workflow,
-            Some(path.conversation_id),
+            Some(conversation_id),
             None,
             user.id,
         )
@@ -171,7 +171,7 @@ async fn create_workflow(
 
 async fn get_workflow_stats(
     State(state): State<Arc<ComhairleState>>,
-    Path((_, workflow_id)): Path<(Uuid, Uuid)>,
+    WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
 ) -> Result<(StatusCode, Json<WorkflowStats>), ComhairleError> {
     let stats = workflow::stats(&state.db, workflow_id).await?;
     Ok((StatusCode::OK, Json(stats)))
@@ -180,20 +180,26 @@ async fn get_workflow_stats(
 /// Update workflow handler
 async fn update_workflow(
     State(state): State<Arc<ComhairleState>>,
-    Path((_, id)): Path<(Uuid, Uuid)>,
+    WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(workflow): Json<PartialWorkflow>,
 ) -> Result<Json<WorkflowDto>, ComhairleError> {
-    let workflow = workflow::update(&state.db, id, &workflow).await?.into();
+    let workflow = workflow::update(&state.db, workflow_id, &workflow)
+        .await?
+        .into();
     Ok(Json(workflow))
 }
 
 /// List workflows handler
 async fn list_workflows(
     State(state): State<Arc<ComhairleState>>,
-    Path(conversation_id): Path<Uuid>,
+    SourcePathCtx {
+        conversation_id,
+        event_id,
+    }: SourcePathCtx,
 ) -> Result<(StatusCode, Json<Vec<WorkflowDto>>), ComhairleError> {
-    let workflows = (workflow::list(&state.db, conversation_id).await?)
+    let workflows = workflow::list(&state.db, conversation_id, event_id)
+        .await?
         .into_iter()
         .map(Into::into)
         .collect();
@@ -203,9 +209,8 @@ async fn list_workflows(
 /// Get a specific workflow
 async fn get_workflow(
     State(state): State<Arc<ComhairleState>>,
-    Path((_, workflow_id)): Path<(Uuid, Uuid)>,
+    WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
 ) -> Result<(StatusCode, Json<WorkflowDto>), ComhairleError> {
-    info!("Attempting to get workflow {workflow_id:#?}");
     let workflow = workflow::get_by_id(&state.db, &workflow_id).await?.into();
 
     Ok((StatusCode::OK, Json(workflow)))
@@ -214,10 +219,10 @@ async fn get_workflow(
 /// Delete a specific workflow
 async fn delete_workflow(
     State(state): State<Arc<ComhairleState>>,
-    Path((_, id)): Path<(Uuid, Uuid)>,
+    WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<WorkflowDto>), ComhairleError> {
-    let workflow = workflow::delete(&state.db, &id).await?.into();
+    let workflow = workflow::delete(&state.db, &workflow_id).await?.into();
     Ok((StatusCode::OK, Json(workflow)))
 }
 
@@ -341,8 +346,11 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
 mod tests {
 
     use crate::{
-        models::workflow::WorkflowStats,
-        routes::workflows::dto::WorkflowDto,
+        models::{
+            model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
+            workflow::WorkflowStats,
+        },
+        routes::{events::dto::EventDto, workflows::dto::WorkflowDto},
         setup_server,
         test_helpers::{extract, test_state, UserSession},
     };
@@ -391,6 +399,47 @@ mod tests {
             id,
             "Should be assigned to the correct conversation"
         );
+        assert!(workflow.event_id.is_none(), "incorrect value for event_id");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_create_a_workflow_for_an_event(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, event, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(event)?;
+
+        let (_, workflow, _) = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/workflows",
+                    conversation_id, event.id
+                ),
+                json!({
+                    "name": "simple workflow",
+                    "description": "A super simple workflow",
+                    "is_active" : true,
+                    "is_public" : true,
+                    "auto_login" :false
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        let workflow: WorkflowDto = serde_json::from_value(workflow)?;
+
+        assert_eq!(workflow.event_id.unwrap(), event.id, "incorrect event_id");
+        assert!(
+            workflow.conversation_id.is_none(),
+            "incorrect value for conversation_id"
+        );
+
         Ok(())
     }
 
@@ -485,6 +534,80 @@ mod tests {
     }
 
     #[sqlx::test]
+    fn should_list_workflows_for_an_event(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, event, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(event)?;
+        let _ = session
+            .create_random_event_workflow(&app, &conversation_id.to_string(), &event.id.to_string())
+            .await?;
+        let _ = session
+            .create_random_event_workflow(&app, &conversation_id.to_string(), &event.id.to_string())
+            .await?;
+        let _ = session
+            .create_random_event_workflow(&app, &conversation_id.to_string(), &event.id.to_string())
+            .await?;
+
+        let (_, workflow, _) = session
+            .get(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/workflows",
+                    conversation_id, event.id
+                ),
+            )
+            .await?;
+        println!();
+        println!("    >>>>    JSON: {:#?}", workflow);
+        println!();
+        let workflows: Vec<WorkflowDto> = serde_json::from_value(workflow)?;
+
+        assert_eq!(workflows.len(), 3, "incorrect number of workflows");
+        assert!(
+            workflows[0].event_id.is_some(),
+            "incorrect value for event_id"
+        );
+        assert!(
+            workflows[0].conversation_id.is_none(),
+            "incorrect value for event_id"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_get_a_workflow_for_an_event(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, event, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(event)?;
+        let (_, new_workflow, _) = session
+            .create_random_event_workflow(&app, &conversation_id.to_string(), &event.id.to_string())
+            .await?;
+        let new_workflow: WorkflowDto = serde_json::from_value(new_workflow)?;
+
+        let (_, workflow, _) = session
+            .get(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/workflows/{}",
+                    conversation_id, event.id, new_workflow.id
+                ),
+            )
+            .await?;
+        let workflow: WorkflowDto = serde_json::from_value(workflow)?;
+
+        assert_eq!(workflow.id, new_workflow.id, "ids do not match");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
     fn should_be_able_to_delete_a_workflow(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -516,6 +639,48 @@ mod tests {
         let (status, _, _) = session.get(&app, &url).await?;
 
         assert_eq!(status, StatusCode::NOT_FOUND, "It should be gone");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_delete_an_event_workflow(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, event, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(event)?;
+        let (_, new_workflow, _) = session
+            .create_random_event_workflow(&app, &conversation_id.to_string(), &event.id.to_string())
+            .await?;
+        let new_workflow: WorkflowDto = serde_json::from_value(new_workflow)?;
+
+        let _ = session
+            .delete(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/workflows/{}",
+                    conversation_id, event.id, new_workflow.id
+                ),
+            )
+            .await?;
+
+        let (_, value, _) = session
+            .get(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/workflows/{}",
+                    conversation_id, event.id, new_workflow.id
+                ),
+            )
+            .await?;
+
+        assert_eq!(
+            value.get("err").and_then(|v| v.as_str()).unwrap(),
+            "Workflow not found",
+            "incorrect error json"
+        );
 
         Ok(())
     }
@@ -564,6 +729,48 @@ mod tests {
         assert_eq!(status, StatusCode::OK, "It should still be there");
         let name: String = extract("name", &workflow);
         assert_eq!(name, "new_name", "Should have an updated name");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_update_an_event_workflow(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, event, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(event)?;
+        let (_, new_workflow, _) = session
+            .create_random_event_workflow(&app, &conversation_id.to_string(), &event.id.to_string())
+            .await?;
+        let new_workflow: WorkflowDto = serde_json::from_value(new_workflow)?;
+
+        assert!(new_workflow.is_public, "is_public before update");
+        assert!(new_workflow.is_active, "is_active before update");
+
+        let (_, value, _) = session
+            .put(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/workflows/{}",
+                    conversation_id, event.id, new_workflow.id
+                ),
+                json!({
+                    "is_active": false,
+                    "is_public": false
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        println!();
+        println!("    >>>>    Value: {:#?}", value);
+        println!();
+        let workflow: WorkflowDto = serde_json::from_value(value)?;
+
+        assert!(!workflow.is_public, "is_public after update");
+        assert!(!workflow.is_active, "is_active after update");
 
         Ok(())
     }

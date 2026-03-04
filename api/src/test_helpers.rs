@@ -731,6 +731,28 @@ impl UserSession {
         .await
     }
 
+    pub async fn create_random_event_workflow(
+        &mut self,
+        app: &Router,
+        conversation_id: &str,
+        event_id: &str,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            &format!("/conversation/{conversation_id}/events/{event_id}/workflows"),
+            json!({
+                "name": "test_workflow",
+                "description":  "test_workflow",
+                "is_active": true,
+                "is_public": true,
+                "auto_login": false,
+            })
+            .to_string()
+            .into(),
+        )
+        .await
+    }
+
     pub async fn create_organization(
         &mut self,
         app: &Router,

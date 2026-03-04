@@ -11,7 +11,7 @@ use sea_query::{enum_def, Expr, Order, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
-use tracing::info;
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{error::ComhairleError, ComhairleState};
@@ -71,10 +71,10 @@ impl PartialWorkflow {
         };
 
         if let Some(value) = self.is_public {
-            values.push((WorkflowIden::Description, value.into()))
+            values.push((WorkflowIden::IsPublic, value.into()))
         };
         if let Some(value) = self.is_active {
-            values.push((WorkflowIden::Description, value.into()))
+            values.push((WorkflowIden::IsActive, value.into()))
         };
         if let Some(value) = self.auto_login {
             values.push((WorkflowIden::AutoLogin, value.into()))
@@ -84,6 +84,7 @@ impl PartialWorkflow {
 }
 
 /// Get a conversation by ID
+#[instrument(err(Debug))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -143,6 +144,7 @@ impl CreateWorkflow {
     }
 }
 
+#[instrument(err(Debug))]
 pub async fn register_user(
     db: &PgPool,
     workflow_id: &Uuid,
@@ -184,6 +186,7 @@ pub async fn register_user(
 }
 
 // TODO ensure this deletes all workflow steps on deletion
+#[instrument(err(Debug))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(WorkflowIden::Table)
@@ -199,12 +202,12 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleError> 
     Ok(workflow)
 }
 
+#[instrument(err(Debug))]
 pub async fn update(
     db: &PgPool,
     id: Uuid,
     update: &PartialWorkflow,
 ) -> Result<Workflow, ComhairleError> {
-    info!("Updating workflow {id} with update {update:#?}");
     let values = update.to_values();
 
     if values.is_empty() {
@@ -225,12 +228,41 @@ pub async fn update(
     Ok(workflow)
 }
 
-pub async fn list(db: &PgPool, conversation_id: Uuid) -> Result<Vec<Workflow>, ComhairleError> {
-    let query = Query::select()
+/// Retrieves a list of workflows for a conversation or an event.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `conversation_id` - Unique identifier of the conversation the workflow may be attached to
+/// * `event_id` - Optional unique identifier of the event may be attached to
+///
+/// If `event_id` is `Some` the constructed query will filter for workflows with
+/// the matching `event_id`. Otherwise, the constructed query will filter for workflows
+/// with the matching `conversation_id`.
+///
+/// As events are attached to conversations and event routes are nested under
+/// `/conversation`, the `conversation_id` is always passed as an argument, even if
+/// it is not used in the final database query.
+#[instrument(err(Debug))]
+pub async fn list(
+    db: &PgPool,
+    conversation_id: Uuid,
+    event_id: Option<Uuid>,
+) -> Result<Vec<Workflow>, ComhairleError> {
+    let mut query = Query::select()
         .from(WorkflowIden::Table)
         .columns(DEFAULT_COLUMNS)
-        .and_where(Expr::col(WorkflowIden::ConversationId).eq(conversation_id))
         .to_owned();
+
+    if let Some(e_id) = event_id {
+        query = query
+            .and_where(Expr::col(WorkflowIden::EventId).eq(e_id))
+            .to_owned();
+    } else {
+        query = query
+            .and_where(Expr::col(WorkflowIden::ConversationId).eq(conversation_id))
+            .to_owned();
+    }
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 
@@ -307,6 +339,20 @@ pub async fn stats(db: &PgPool, workflow_id: Uuid) -> Result<WorkflowStats, Comh
     })
 }
 
+/// Creates a new workflow record for a given conversation or event.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `workflow` - Params for the new workflow to create
+/// * `conversation_id` - Optional Unique identifier of the conversation the workflow may be attached to
+/// * `event_id` - Optional unique identifier of the event may be attached to
+/// * `owner_id` - Unique identifier of the author user of the new workflow
+///
+/// If `conversation_id` is `Some` the workflow will be created referencing the specified conversation.
+///
+/// If `event_id` is `Some` the workflow will be created referencing the specified event.
+#[instrument(err(Debug))]
 pub async fn create(
     db: &PgPool,
     workflow: &CreateWorkflow,

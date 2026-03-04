@@ -740,7 +740,7 @@ pub async fn launch(
     conversation_id: Uuid,
     state: &Arc<ComhairleState>,
 ) -> Result<Conversation, ComhairleError> {
-    let workflows = models::workflow::list(db, conversation_id).await?;
+    let workflows = models::workflow::list(db, conversation_id, None).await?;
     for workflow in workflows {
         models::workflow::launch(db, &workflow.id, state).await?;
     }
