@@ -116,7 +116,7 @@
 			<Drawer.Root bind:open={isOpen} direction="bottom">
 				<Drawer.Trigger>
 					<Button variant="nav" size="icon">
-						<Menu class="size-5" />
+						<Menu class="size-7" />
 					</Button>
 				</Drawer.Trigger>
 				<Drawer.Content>
