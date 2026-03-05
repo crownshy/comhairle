@@ -15,6 +15,7 @@
 
 	let { data }: PageProps = $props();
 
+
 	const form = superForm(defaults(zod(passwordResetUpdateFormSchema)), {
 		validators: zodClient(passwordResetUpdateFormSchema),
 		taintedMessage: false,
@@ -45,6 +46,10 @@
 		}
 	}
 </script>
+
+<svelte:head>
+	<title>Update Password - Comhairle</title>
+</svelte:head>
 
 <AuthPage>
 	<section>

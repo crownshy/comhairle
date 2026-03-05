@@ -106,7 +106,12 @@
 	});
 
 	let eventDate = $derived($form.start_date ? parseDate($form.start_date) : undefined);
+	let pageTitle = $derived(`Edit Event: ${event.name}`);
 </script>
+
+<svelte:head>
+	<title>{pageTitle} - Comhairle Admin</title>
+</svelte:head>
 
 {#snippet breadcrumbSnippet()}
 	<Breadcrumb.Item>{event?.name}</Breadcrumb.Item>

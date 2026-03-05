@@ -68,6 +68,10 @@
 	let startDate = $derived($formData.start_date ? parseDate($formData.start_date) : undefined);
 </script>
 
+<svelte:head>
+	<title>Create New Event - Comhairle Admin</title>
+</svelte:head>
+
 <form onsubmit={handleSubmit} class="space-y-4" method="POST" use:enhance>
 	<h2 class="text-xl font-bold">Create a new event</h2>
 

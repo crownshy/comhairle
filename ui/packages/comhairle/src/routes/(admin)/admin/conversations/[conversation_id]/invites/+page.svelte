@@ -58,6 +58,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Manage Invites - Comhairle Admin</title>
+</svelte:head>
+
 {#snippet InviteLink(invite: InviteDto, label: string)}
 	<div class="flex flex-row gap-x-2">
 		<CopyButton copyText={inviteUrl(invite)}>{label}</CopyButton>

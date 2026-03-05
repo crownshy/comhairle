@@ -5,6 +5,10 @@
 	export let data: PageData;
 </script>
 
+<svelte:head>
+	<title>Login - Comhairle</title>
+</svelte:head>
+
 <AuthPage>
 	<LoginForm backTo={data.backTo} />
 </AuthPage>

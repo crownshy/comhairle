@@ -9,6 +9,10 @@
 	let status = $derived(data.status);
 </script>
 
+<svelte:head>
+	<title>Verify Email - Comhairle</title>
+</svelte:head>
+
 <AuthPage>
 	<section>
 		{#if status === 'success'}

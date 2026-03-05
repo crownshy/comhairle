@@ -13,6 +13,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Manage Notifications - Comhairle Admin</title>
+</svelte:head>
+
 {#snippet titleSnippet()}
 	<h1 class="text-4xl font-bold">Notifications</h1>
 {/snippet}

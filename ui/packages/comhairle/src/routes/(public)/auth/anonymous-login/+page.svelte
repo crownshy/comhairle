@@ -6,6 +6,10 @@
 	let { data }: PageData = $props();
 </script>
 
+<svelte:head>
+	<title>Anonymous Login - Comhairle</title>
+</svelte:head>
+
 <AuthPage>
 	<LoginForm data={data.form} backTo={data.backTo} />
 </AuthPage>

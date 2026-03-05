@@ -11,7 +11,12 @@
 	let toolConfig = $derived(
 		step ? (conversation.isLive ? step.toolConfig : step.previewToolConfig) : null
 	);
+	let pageTitle = $derived(`Moderate Step: ${step?.name ?? 'Step'}`);
 </script>
+
+<svelte:head>
+	<title>{pageTitle} - Comhairle Admin</title>
+</svelte:head>
 
 {#if toolConfig.type === 'polis'}
 	<PolisModerate

@@ -1,3 +1,7 @@
+<svelte:head>
+	<title>NPF Privacy Policy - Comhairle</title>
+</svelte:head>
+
 <div class="prose mb-10">
 	<h2>Directorate for Communications and Ministerial Support</h2>
 	<h3>Who we are</h3>

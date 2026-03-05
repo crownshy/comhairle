@@ -13,6 +13,10 @@
 	let workflow = $derived(data.workflow);
 </script>
 
+<svelte:head>
+	<title>Thank You - Comhairle</title>
+</svelte:head>
+
 <div class="prose mx-auto mt-20">
 	<h1>Thank You For Participating</h1>
 

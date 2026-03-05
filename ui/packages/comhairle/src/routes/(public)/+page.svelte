@@ -6,6 +6,10 @@
 	let { isCommunity } = data;
 </script>
 
+<svelte:head>
+	<title>Comhairle</title>
+</svelte:head>
+
 <div class="flex h-full flex-col items-center justify-around pt-50">
 	<div class="my-auto flex flex-col items-center justify-center gap-y-10 p-10">
 		<h1

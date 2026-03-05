@@ -6,6 +6,10 @@
 	let backTo = $derived(data.backTo);
 </script>
 
+<svelte:head>
+	<title>Sign Up - Comhairle</title>
+</svelte:head>
+
 <AuthPage>
 	<SignupForm {backTo} />
 </AuthPage>

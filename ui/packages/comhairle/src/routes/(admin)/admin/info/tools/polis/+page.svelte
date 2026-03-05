@@ -5,6 +5,10 @@
 	import { ChevronRight } from 'lucide-svelte';
 </script>
 
+<svelte:head>
+	<title>Polis Tool - Comhairle Admin</title>
+</svelte:head>
+
 <div class=" prose inline-flex w-[1443px] flex-col items-center justify-center gap-2.5 py-8">
 	<div class="flex flex-col items-center justify-center gap-2.5 self-stretch pb-12">
 		<div class="flex flex-col items-start justify-start gap-12 self-stretch">

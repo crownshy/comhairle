@@ -74,6 +74,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Conversation Report - Comhairle Admin</title>
+</svelte:head>
+
 {#snippet titleSnippet()}
 	<h1 class="text-4xl font-bold">Report</h1>
 {/snippet}

@@ -13,6 +13,7 @@
 	let { data }: PageProps = $props();
 	let { conversation, workflows, participation } = data;
 	let user = $derived(data.user);
+	let pageTitle = $derived(conversation?.title ?? 'Conversation');
 
 	let firstWorkflow = $derived(workflows[0]);
 
@@ -67,6 +68,10 @@
 		}
 	}
 </script>
+
+<svelte:head>
+	<title>{pageTitle} - Comhairle</title>
+</svelte:head>
 
 <div class="pt-5 md:pt-20">
 	{#if conversation}
