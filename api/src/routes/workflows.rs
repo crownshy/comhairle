@@ -59,8 +59,8 @@ impl FromRequestParts<Arc<ComhairleState>> for SourcePathCtx {
 }
 
 #[derive(Debug, Clone, OperationIo)]
-struct WorkflowPathCtx {
-    workflow_id: Uuid,
+pub struct WorkflowPathCtx {
+    pub workflow_id: Uuid,
 }
 
 impl FromRequestParts<Arc<ComhairleState>> for WorkflowPathCtx {
@@ -566,9 +566,6 @@ mod tests {
                 ),
             )
             .await?;
-        println!();
-        println!("    >>>>    JSON: {:#?}", workflow);
-        println!();
         let workflows: Vec<WorkflowDto> = serde_json::from_value(workflow)?;
 
         assert_eq!(workflows.len(), 3, "incorrect number of workflows");
