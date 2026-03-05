@@ -20,7 +20,7 @@
 	website. For example, that means you should be able to:
 </p>
 
-<ul>
+<ul class="my-10">
 	<li>change colours, contrast levels and fonts using browser or device settings</li>
 	<li>zoom in up to 400% without the text spilling off the screen</li>
 	<li>navigate most of the website using a keyboard or speech recognition software</li>
@@ -37,7 +37,7 @@
 	use if you have a disability.
 </p>
 
-<h2>How accessible this website is</h2>
+<h2 class="mb-5">How accessible this website is</h2>
 
 <p>We know some parts of this website are not fully accessible:</p>
 
@@ -45,7 +45,7 @@
 	<li>User provided video and audio may not have automatically generated captions.</li>
 </ul>
 
-<h2>Feedback and contact information</h2>
+<h2 class="mb-5">Feedback and contact information</h2>
 
 <p>
 	If you find any problems not listed on this page or think we're not meeting accessibility
@@ -61,7 +61,7 @@
 
 <p>We'll consider your request and get back to you within 5 working days.</p>
 
-<h2>Enforcement procedure</h2>
+<h2 class="mb-5">Enforcement procedure</h2>
 
 <p>
 	The Equality and Human Rights Commission (EHRC) is responsible for enforcing the Public Sector
@@ -72,14 +72,14 @@
 	>.
 </p>
 
-<h2>Technical information about this website's accessibility</h2>
+<h2 class="mb-5">Technical information about this website's accessibility</h2>
 
 <p>
 	CrownShy is committed to making its website accessible, in accordance with the Public Sector
 	Bodies (Websites and Mobile Applications) (No. 2) Accessibility Regulations 2018.
 </p>
 
-<h3>Compliance status</h3>
+<h3 class="mb-5">Compliance status</h3>
 
 <p>
 	The website has been tested against the Web Content Accessibility Guidelines (WCAG) 2.2 AA
@@ -92,7 +92,7 @@
 	> AA standard, due to the non-compliances listed below.
 </p>
 
-<h2>Non-accessible content</h2>
+<h2 class="mb-5">Non-accessible content</h2>
 
 <p>The content listed below is non-accessible for the following reasons.</p>
 
@@ -113,16 +113,16 @@
 	<li>Jitsi</li>
 </ul>
 
-<h2>What we're doing to improve accessibility</h2>
+<h2 class="mb-5">What we're doing to improve accessibility</h2>
 
 <p>
 	We are actively developing Comhairle and accessibility improvements are part of our regular
-	development cycle. Our frontend is built using Shadcn, a component library that provides
-	accessible defaults, and Tailwind CSS for styling. We intend to carry out a more comprehensive
-	accessibility audit as the platform matures.
+	development cycle. Our frontend is built using Svelte and Shadcn, a component library that
+	provides accessible defaults, and Tailwind CSS for styling. We intend to carry out a more
+	comprehensive accessibility audit as the platform matures.
 </p>
 
-<h2>Preparation of this accessibility statement</h2>
+<h2 class="mb-5">Preparation of this accessibility statement</h2>
 
 <p>This statement was prepared on 5th March 2026. It was last reviewed on 5th March 2026.</p>
 
