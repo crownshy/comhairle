@@ -14,6 +14,7 @@
 
 	let responseMessage: string | null = $state(null);
 
+
 	const form = superForm(defaults(zod(passwordResetCreateFormSchema)), {
 		validators: zodClient(passwordResetCreateFormSchema),
 		taintedMessage: false,
@@ -42,6 +43,10 @@
 		}
 	}
 </script>
+
+<svelte:head>
+	<title>Reset Password - Comhairle</title>
+</svelte:head>
 
 <AuthPage>
 	<section>

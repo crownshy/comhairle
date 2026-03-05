@@ -12,6 +12,7 @@
 	let { conversation, workflowSteps, report } = data;
 
 	let markdown = $derived(marked.parse(report.summary));
+	let pageTitle = $derived(`${conversation.title} Report`);
 
 	let stats = [
 		{
@@ -28,6 +29,10 @@
 		}
 	];
 </script>
+
+<svelte:head>
+	<title>{pageTitle} - Comhairle</title>
+</svelte:head>
 
 <div class="pt-10">
 	<h1 class="mb-4 text-4xl">{conversation.title} report</h1>

@@ -4,6 +4,10 @@
 	import { MailCheck } from 'lucide-svelte';
 </script>
 
+<svelte:head>
+	<title>Password Reset Email Sent - Comhairle</title>
+</svelte:head>
+
 <AuthPage>
 	<section class="space-y-4">
 		<div class="flex justify-center">

@@ -1,3 +1,7 @@
+<svelte:head>
+	<title>Privacy Policy - Comhairle</title>
+</svelte:head>
+
 <div>
 <h1>Privacy</h1>
 

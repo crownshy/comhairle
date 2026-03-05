@@ -45,6 +45,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Monitor Conversation - Comhairle Admin</title>
+</svelte:head>
+
 {#snippet titleSnippet()}
 	<h1 class="text-4xl font-bold">Monitor</h1>
 {/snippet}

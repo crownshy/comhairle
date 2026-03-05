@@ -10,6 +10,10 @@
 	let conversations = props.data.conversations;
 </script>
 
+<svelte:head>
+	<title>Admin Dashboard - Comhairle</title>
+</svelte:head>
+
 <div
 	class="bg-muted flex w-full flex-col justify-between gap-11 border-b-black px-4 py-6 sm:px-8 md:px-16 md:py-8"
 >

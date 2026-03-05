@@ -17,6 +17,7 @@
 
 	let { data } = $props();
 
+
 	const form = superForm(data.form, {
 		SPA: true,
 		validators: zodClient(NewConversationSchema),
@@ -83,6 +84,10 @@
 		}
 	}
 </script>
+
+<svelte:head>
+	<title>Create New Conversation - Comhairle Admin</title>
+</svelte:head>
 
 <form onsubmit={handleSubmit} class="space-y-4 px-16 py-8" method="POST" use:enhance>
 	<h2 class="text-xl font-bold">Create a new conversation</h2>

@@ -1,3 +1,7 @@
+<svelte:head>
+	<title>Terms of Service - Comhairle</title>
+</svelte:head>
+
 <div>
 <h1>Terms Of Service</h1>
 

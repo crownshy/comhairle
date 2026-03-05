@@ -1,3 +1,7 @@
+<svelte:head>
+	<title>About - Comhairle</title>
+</svelte:head>
+
 <h1 class="my-10 text-4xl font-bold">About</h1>
 
 <article class="prose">

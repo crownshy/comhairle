@@ -15,6 +15,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Settings - Comhairle</title>
+</svelte:head>
+
 <div class="my-10 flex flex-col items-start gap-15 md:flex-row">
 	<div>
 		<div class=" mb-10 flex flex-row items-center gap-4">

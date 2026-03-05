@@ -3,6 +3,10 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 </script>
 
+<svelte:head>
+	<title>Cookie Policy - Comhairle</title>
+</svelte:head>
+
 <div class="w-full">
 	<h1>Cookies</h1>
 

@@ -9,6 +9,10 @@
 	let loading = $state(false);
 </script>
 
+<svelte:head>
+	<title>Anonymous Sign Up - Comhairle</title>
+</svelte:head>
+
 <AuthPage>
 	<form
 		class="space-y-4"

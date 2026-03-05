@@ -32,6 +32,7 @@
 
 	let { data }: PageData = $props();
 
+
 	let showAll = $state(false);
 	let markingAllAsRead = $state(false);
 	let markingAsRead = $state(new Set<string>());
@@ -129,6 +130,10 @@
 		return !notification.readAt;
 	}
 </script>
+
+<svelte:head>
+	<title>Notifications - Comhairle</title>
+</svelte:head>
 
 <div class="container mx-auto max-w-4xl px-4 py-6">
 	<div class="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
