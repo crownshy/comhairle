@@ -9,6 +9,10 @@
 	let backTo = page.url.searchParams.get('backTo') ?? '/';
 </script>
 
+<svelte:head>
+	<title>Your Anonymous ID - Comhairle</title>
+</svelte:head>
+
 <AuthPage>
 	<div class="space-y-4">
 		<p class="text-muted-foreground mb-4 text-sm">{m.get_started_with_comhairle_right_away()}</p>

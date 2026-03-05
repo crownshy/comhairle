@@ -3,6 +3,10 @@
 	import * as m from '$lib/paraglide/messages';
 </script>
 
+<svelte:head>
+	<title>Password Reset Successful - Comhairle</title>
+</svelte:head>
+
 <AuthPage>
 	<section class="space-y-4">
 		<h1 class="text-xl font-bold">{m.password_reset_success_heading()}</h1>

@@ -15,7 +15,12 @@
 		title: titleSnippet,
 		breadcrumbs: breadcrumbSnippet
 	});
+	let pageTitle = $derived(`Manage Events - ${conversation.title}`);
 </script>
+
+<svelte:head>
+	<title>{pageTitle} - Comhairle Admin</title>
+</svelte:head>
 
 {#snippet titleSnippet()}
 	<h1 class="text-4xl font-bold">Events</h1>

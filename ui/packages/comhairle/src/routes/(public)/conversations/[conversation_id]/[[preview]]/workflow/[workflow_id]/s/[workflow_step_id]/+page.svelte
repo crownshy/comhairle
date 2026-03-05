@@ -27,6 +27,7 @@
 	);
 
 	let carta = createCarta();
+	let pageTitle = $derived(workflowStep?.name ?? 'Workflow Step');
 
 	function goToThankYouPage() {
 		goto(thank_you_page(conversation.id, workflowStep.id));
@@ -70,6 +71,10 @@
 		}
 	}
 </script>
+
+<svelte:head>
+	<title>{pageTitle} - Comhairle</title>
+</svelte:head>
 
 <div class="flex flex-col items-center pt-10">
 	{#if conversation && workflowStep}

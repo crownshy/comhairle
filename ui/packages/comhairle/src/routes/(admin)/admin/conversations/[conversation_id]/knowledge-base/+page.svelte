@@ -35,6 +35,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Knowledge Base - Comhairle Admin</title>
+</svelte:head>
+
 {#snippet titleSnippet()}
 	<h1 class="text-4xl font-bold">Knowledge Base</h1>
 

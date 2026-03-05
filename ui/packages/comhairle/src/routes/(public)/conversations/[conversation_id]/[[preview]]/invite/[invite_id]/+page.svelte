@@ -15,6 +15,8 @@
 	const url = $derived(page.url);
 	let { data } = $props();
 	let { user, invite, conversation, error } = data;
+	let pageTitle = $derived(conversation?.title ? `Invitation - ${conversation.title}` : 'Conversation Invite');
+
 
 	function login() {
 		loginRedirect(url.toString(), 'Login to accept invite');
@@ -42,6 +44,10 @@
 		goto('/');
 	}
 </script>
+
+<svelte:head>
+	<title>{pageTitle} - Comhairle</title>
+</svelte:head>
 
 {#if invite}
 	{#if conversation}

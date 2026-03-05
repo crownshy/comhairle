@@ -1,3 +1,7 @@
+<svelte:head>
+	<title>Learn Tool - Comhairle Admin</title>
+</svelte:head>
+
 <article class="prose">
 	<h1>Learning Tool</h1>
 

@@ -29,7 +29,12 @@
 		title: titleSnippet,
 		breadcrumbs: breadcrumbSnippet
 	});
+	let pageTitle = $derived(`Edit Step: ${step?.name ?? 'Step'}`);
 </script>
+
+<svelte:head>
+	<title>{pageTitle} - Comhairle Admin</title>
+</svelte:head>
 
 {#snippet titleSnippet()}
 	<h1 class="text-4xl font-bold">Design: {step?.name}</h1>

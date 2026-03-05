@@ -19,6 +19,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Moderate Conversation - Comhairle Admin</title>
+</svelte:head>
+
 {#snippet titleSnippet()}
 	<h1 class="text-4xl font-bold">Moderate</h1>
 {/snippet}

@@ -16,6 +16,10 @@
 	const pageUrl = $derived(page.url);
 </script>
 
+<svelte:head>
+	<title>Conversations - Comhairle</title>
+</svelte:head>
+
 {#snippet sortOption(url: URL, sort: SortBy)}
 	<a
 		href={setSort(url, sort).toString()}

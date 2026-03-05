@@ -31,6 +31,7 @@
 
 	let primaryLanguage = $state(data.conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $state(data.conversation.supportedLanguages ?? ['en']);
+	let pageTitle = $derived(`Configure ${conversation.title}`);
 
 	$effect(() => {
 		primaryLanguage = data.conversation.primaryLocale ?? 'en';
@@ -187,6 +188,10 @@
 		breadcrumbs: breadcrumbSnippet
 	});
 </script>
+
+<svelte:head>
+	<title>{pageTitle} - Comhairle Admin</title>
+</svelte:head>
 
 {#snippet breadcrumbSnippet()}
 	<Breadcrumb.Item>Configure</Breadcrumb.Item>
