@@ -31,6 +31,20 @@ use crate::{
 
 pub mod dto;
 
+/// Path extractor for route handlers nested under both:
+/// - `/conversations/:conversation_id/...`
+/// - `/conversations/:conversation_id/events/:event_id/...`
+///
+/// Workflow and workflow step handlers can be mounted under either route, so this
+/// extractor normalises path parameter extraction into a single type — always
+/// providing `conversation_id` and optionally providing `event_id` when the
+/// handler is invoked from the event-scoped route.
+///
+/// # Errors
+///
+/// Returns [`ComhairleError::BadRequest`] if `conversation_id` is absent from
+/// the path, which should only occur if this extractor is used on a route that
+/// does not include the `:conversation_id` segment.
 #[derive(Debug, Clone, OperationIo)]
 pub struct SourcePathCtx {
     pub conversation_id: Uuid,
@@ -58,6 +72,19 @@ impl FromRequestParts<Arc<ComhairleState>> for SourcePathCtx {
     }
 }
 
+/// Path extractor that reliably retrieves `:workflow_id` from routes nested
+/// under either:
+/// - `/conversations/:conversation_id/workflows/:workflow_id/...`
+/// - `/conversations/:conversation_id/events/:event_id/workflows/:workflow_id/...`
+///
+/// Intended to be used alongside [`SourcePathCtx`], which handles the
+/// `conversation_id` / `event_id` portion of the same routes.
+///
+/// # Errors
+///
+/// Returns [`ComhairleError::BadRequest`] if `workflow_id` is absent from the
+/// path, which should only occur if this extractor is used on a route that does
+/// not include the `:workflow_id` segment.
 #[derive(Debug, Clone, OperationIo)]
 pub struct WorkflowPathCtx {
     pub workflow_id: Uuid,

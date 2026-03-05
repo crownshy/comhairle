@@ -52,6 +52,19 @@ pub enum WorkflowStepsListResponse {
 
 pub mod dto;
 
+/// Path extractor that reliably retrieves `:workflow_id` and `:workflow_step_id` from routes nested
+/// under either:
+/// - `/conversations/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/...`
+/// - `/conversations/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps/:workflow_step_id/...`
+///
+/// Intended to be used alongside [`SourcePathCtx`], which handles the
+/// `conversation_id` / `event_id` portion of the same routes.
+///
+/// # Errors
+///
+/// Returns [`ComhairleError::BadRequest`] if `workflow_id` or `workflow_stpe_id` are absent from the
+/// path, which should only occur if this extractor is used on a route that does
+/// not include the `:workflow_id` segment.
 #[derive(Debug, Clone, OperationIo)]
 struct WorkflowStepPathCtx {
     workflow_id: Uuid,
