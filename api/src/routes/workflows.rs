@@ -241,7 +241,7 @@ impl Display for WorkflowRouterContext {
 }
 
 pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRouter {
-    ApiRouter::new()
+    let router = ApiRouter::new()
         .api_route(
             "/",
             post_with(create_workflow, |op| {
@@ -262,61 +262,12 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
             }),
         )
         .api_route(
-            "/{workflow_id}/next",
-            get_with(active_step_for_user, |op| {
-                op.id(&format!("Next{ctx}WorkflowStepForUser"))
-                    .tag("Workflow")
-                    .security_requirement("JWT")
-                    .summary("Gets the next undone workflow step for the current user")
-                    .response::<201, Json<Option<WorkflowStep>>>()
-            }),
-        )
-        .api_route(
-            "/{workflow_id}/stats",
-            get_with(get_workflow_stats, |op| {
-                op.id(&format!("Get{ctx}WorkflowStats"))
-                    .tag("Workflow")
-                    .summary("Gets participation stats for a workflow")
-                    .response::<201, Json<WorkflowStats>>()
-            }),
-        )
-        .api_route(
             "/{workflow_id}",
             get_with(get_workflow, |op| {
                 op.id(&format!("Get{ctx}Workflow"))
                     .tag("Workflow")
                     .summary("Get the specified workflow")
                     .response::<200, Json<WorkflowDto>>()
-            }),
-        )
-        .api_route(
-            "/{workflow_id}/register",
-            post_with(register_user_for_workflow, |op| {
-                op.id(&format!("RegisterUserFor{ctx}Workflow"))
-                    .tag("Workflow")
-                    .security_requirement("JWT")
-                    .summary("Register the currently logged in user for this workflow")
-                    .response::<201, Json<UserParticipation>>()
-            }),
-        )
-        .api_route(
-            "/{workflow_id}/leave",
-            delete_with(deregister_user_on_workflow, |op| {
-                op.id(&format!("UnregisterUser{ctx}ForWorkflow"))
-                    .tag("Workflow")
-                    .security_requirement("JWT")
-                    .summary("Unregisters the current user on this workflow")
-                    .response::<200, Json<UserParticipation>>()
-            }),
-        )
-        .api_route(
-            "/{workflow_id}/participation",
-            get_with(get_user_participation, |op| {
-                op.id(&format!("GetUser{ctx}Participation"))
-                    .tag("Workflow")
-                    .security_requirement("JWT")
-                    .summary("Returns the status of the current user on this workflow")
-                    .response::<200, Json<Option<UserParticipation>>>()
             }),
         )
         .api_route(
@@ -338,8 +289,63 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                     .summary("Delete the workflow and it's associated workflow steps")
                     .response::<201, Json<WorkflowDto>>()
             }),
-        )
-        .with_state(state)
+        );
+
+    let router = match ctx {
+        WorkflowRouterContext::Conversation => router
+            .api_route(
+                "/{workflow_id}/next",
+                get_with(active_step_for_user, |op| {
+                    op.id(&format!("Next{ctx}WorkflowStepForUser"))
+                        .tag("Workflow")
+                        .security_requirement("JWT")
+                        .summary("Gets the next undone workflow step for the current user")
+                        .response::<201, Json<Option<WorkflowStep>>>()
+                }),
+            )
+            .api_route(
+                "/{workflow_id}/stats",
+                get_with(get_workflow_stats, |op| {
+                    op.id(&format!("Get{ctx}WorkflowStats"))
+                        .tag("Workflow")
+                        .summary("Gets participation stats for a workflow")
+                        .response::<201, Json<WorkflowStats>>()
+                }),
+            )
+            .api_route(
+                "/{workflow_id}/register",
+                post_with(register_user_for_workflow, |op| {
+                    op.id(&format!("RegisterUserFor{ctx}Workflow"))
+                        .tag("Workflow")
+                        .security_requirement("JWT")
+                        .summary("Register the currently logged in user for this workflow")
+                        .response::<201, Json<UserParticipation>>()
+                }),
+            )
+            .api_route(
+                "/{workflow_id}/leave",
+                delete_with(deregister_user_on_workflow, |op| {
+                    op.id(&format!("UnregisterUserFor{ctx}Workflow"))
+                        .tag("Workflow")
+                        .security_requirement("JWT")
+                        .summary("Unregisters the current user on this workflow")
+                        .response::<200, Json<UserParticipation>>()
+                }),
+            )
+            .api_route(
+                "/{workflow_id}/participation",
+                get_with(get_user_participation, |op| {
+                    op.id(&format!("GetUser{ctx}Participation"))
+                        .tag("Workflow")
+                        .security_requirement("JWT")
+                        .summary("Returns the status of the current user on this workflow")
+                        .response::<200, Json<Option<UserParticipation>>>()
+                }),
+            ),
+        _ => router,
+    };
+
+    router.with_state(state)
 }
 
 #[cfg(test)]

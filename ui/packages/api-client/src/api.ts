@@ -500,6 +500,18 @@ export const CreateWorkflow = z
   })
   .passthrough();
 export type CreateWorkflow = z.infer<typeof CreateWorkflow>;
+export const PartialWorkflow = z
+  .object({
+    auto_login: z.union([z.boolean(), z.null()]),
+    description: z.union([z.string(), z.null()]),
+    event_id: z.union([z.string(), z.null()]),
+    is_active: z.union([z.boolean(), z.null()]),
+    is_public: z.union([z.boolean(), z.null()]),
+    name: z.union([z.string(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type PartialWorkflow = z.infer<typeof PartialWorkflow>;
 export const ActivationRule = z.literal("manual");
 export type ActivationRule = z.infer<typeof ActivationRule>;
 export const LearnPage = z
@@ -588,18 +600,6 @@ export const WorkflowStats = z
   })
   .passthrough();
 export type WorkflowStats = z.infer<typeof WorkflowStats>;
-export const PartialWorkflow = z
-  .object({
-    auto_login: z.union([z.boolean(), z.null()]),
-    description: z.union([z.string(), z.null()]),
-    event_id: z.union([z.string(), z.null()]),
-    is_active: z.union([z.boolean(), z.null()]),
-    is_public: z.union([z.boolean(), z.null()]),
-    name: z.union([z.string(), z.null()]),
-  })
-  .partial()
-  .passthrough();
-export type PartialWorkflow = z.infer<typeof PartialWorkflow>;
 export const UserParticipation = z
   .object({
     created_at: z.string().datetime({ offset: true }),
@@ -1275,6 +1275,7 @@ export const schemas = {
   RegisterEmailResponse,
   WorkflowDto,
   CreateWorkflow,
+  PartialWorkflow,
   ActivationRule,
   LearnPage,
   LocalizedPage,
@@ -1284,7 +1285,6 @@ export const schemas = {
   DailySignupStats,
   WorkflowStepStats,
   WorkflowStats,
-  PartialWorkflow,
   UserParticipation,
   LocalizedWorkflowStepDto,
   Translation2,
@@ -1972,41 +1972,6 @@ curl -X POST \
     response: WorkflowDto,
   },
   {
-    method: "delete",
-    path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/leave",
-    alias: "UnregisterUserEventForWorkflow",
-    requestFormat: "json",
-    response: UserParticipation,
-  },
-  {
-    method: "get",
-    path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/next",
-    alias: "NextEventWorkflowStepForUser",
-    requestFormat: "json",
-    response: z.union([WorkflowStep, z.null()]),
-  },
-  {
-    method: "get",
-    path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/participation",
-    alias: "GetUserEventParticipation",
-    requestFormat: "json",
-    response: z.union([UserParticipation, z.null()]),
-  },
-  {
-    method: "post",
-    path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/register",
-    alias: "RegisterUserForEventWorkflow",
-    requestFormat: "json",
-    response: UserParticipation,
-  },
-  {
-    method: "get",
-    path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/stats",
-    alias: "GetEventWorkflowStats",
-    requestFormat: "json",
-    response: WorkflowStats,
-  },
-  {
     method: "get",
     path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps",
     alias: "ListEventWorkflowSteps",
@@ -2305,7 +2270,7 @@ curl -X POST \
   {
     method: "delete",
     path: "/conversation/:conversation_id/workflow/:workflow_id/leave",
-    alias: "UnregisterUserConversationForWorkflow",
+    alias: "UnregisterUserForConversationWorkflow",
     requestFormat: "json",
     response: UserParticipation,
   },
