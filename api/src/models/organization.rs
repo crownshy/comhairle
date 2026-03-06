@@ -16,13 +16,13 @@ use crate::{
     error::ComhairleError,
     models::{
         pagination::{Order, PageOptions, PaginatedResults},
-        translations::{TextContentId, TextFormat, new_translation},
+        translations::{new_translation, TextContentId, TextFormat},
     },
 };
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "organization")]
-#[partially(derive(Deserialize, Debug, JsonSchema, Default))]
+#[partially(derive(Serialize, Deserialize, Debug, JsonSchema, Default))]
 pub struct Organization {
     #[partially(omit)]
     pub id: Uuid,
@@ -83,14 +83,14 @@ const DEFAULT_COLUMNS: [OrganizationIden; 9] = [
     OrganizationIden::UpdatedAt,
 ];
 
-#[derive(JsonSchema, Debug, Default)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Default)]
 pub struct CreateOrganization {
-    name: String,
-    description: String,
-    mission: String,
-    org_type: OrganizationType,
-    external_url: Option<String>,
-    regions: Option<Vec<Uuid>>,
+    pub name: String,
+    pub description: String,
+    pub mission: String,
+    pub org_type: OrganizationType,
+    pub external_url: Option<String>,
+    pub regions: Option<Vec<Uuid>>,
 }
 
 impl CreateOrganization {
@@ -373,7 +373,9 @@ mod tests {
     }
 
     #[sqlx::test]
-    async fn should_get_a_list_of_localized_organizations(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn should_get_a_list_of_localized_organizations(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
         let _ = setup_default_app_and_session(&pool).await?;
         let new_org_1 = CreateOrganization {
             name: "test_org_1".to_string(),
@@ -414,7 +416,11 @@ mod tests {
         let results = list(&pool, page_options, order_options, "en").await?;
 
         assert_eq!(results.total, 3, "incorrect number of organizations");
-        assert_eq!(results.records[1].name, "test_org_2".to_string(), "incorrect organization name");
+        assert_eq!(
+            results.records[1].name,
+            "test_org_2".to_string(),
+            "incorrect organization name"
+        );
 
         Ok(())
     }
