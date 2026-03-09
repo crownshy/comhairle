@@ -28,8 +28,10 @@
 					<ChevronRight size="sm" />
 				</div>
 				<div class="flex h-9 items-center justify-center gap-2.5">
-					<div class="justify-start font-['Inter'] text-sm leading-tight font-medium text-black">
-						Dashboard
+					<div
+						class="justify-start font-['Inter'] text-sm leading-tight font-medium text-black"
+					>
+						Workspace
 					</div>
 				</div>
 				<div class="relative h-3.5 w-3.5 overflow-hidden">
@@ -56,18 +58,21 @@
 				</div>
 			</div>
 			<div class="flex flex-col items-start justify-center gap-2">
-				<div class="justify-start font-['Inter'] text-4xl leading-9 font-semibold text-black">
+				<div
+					class="justify-start font-['Inter'] text-4xl leading-9 font-semibold text-black"
+				>
 					Polis
 				</div>
 				<div
 					class="text-base-muted-foreground w-[1278px] justify-start font-['Inter'] text-xl leading-7 font-semibold"
 				>
-					Polis is an open-source tool for large-scale, real-time conversation that helps groups
-					discover their shared opinions and points of agreement. Unlike traditional surveys or
-					forums, Polis uses machine learning to cluster participants’ responses, visualize opinion
-					groups, and highlight areas of consensus. It has been used by governments, civil society,
-					and organizations worldwide to make policymaking and collective decision-making more
-					inclusive and evidence-based.
+					Polis is an open-source tool for large-scale, real-time conversation that helps
+					groups discover their shared opinions and points of agreement. Unlike
+					traditional surveys or forums, Polis uses machine learning to cluster
+					participants’ responses, visualize opinion groups, and highlight areas of
+					consensus. It has been used by governments, civil society, and organizations
+					worldwide to make policymaking and collective decision-making more inclusive and
+					evidence-based.
 				</div>
 			</div>
 		</div>
@@ -100,17 +105,18 @@
 		></iframe>
 		<div class="w-[898px] justify-start">
 			<span class="font-['Inter'] text-base leading-normal font-medium text-black"
-				>Polis starts with a set of seed statements to frame a discussion. <br /><br />Participants
-				respond by agreeing, disagreeing, or passing on each statement, and can also add their own.
-				Polis then:<br /></span
+				>Polis starts with a set of seed statements to frame a discussion. <br /><br
+				/>Participants respond by agreeing, disagreeing, or passing on each statement, and
+				can also add their own. Polis then:<br /></span
 			><span class="font-['Inter'] text-base leading-normal font-medium text-black"
-				>Uses statistical clustering to group people with similar voting patterns.<br />Generates
-				visualizations that show how opinions are distributed.<br />Identifies consensus
-				statements—the points that cut across divides and unite groups.<br /></span
+				>Uses statistical clustering to group people with similar voting patterns.<br
+				/>Generates visualizations that show how opinions are distributed.<br />Identifies
+				consensus statements—the points that cut across divides and unite groups.<br
+				/></span
 			><span class="font-['Inter'] text-base leading-normal font-medium text-black"
-				><br />This combination of structured input and dynamic analysis makes it possible to have
-				meaningful conversations with hundreds or thousands of participants at once, while surfacing
-				insights that would be hard to see in unstructured debate.</span
+				><br />This combination of structured input and dynamic analysis makes it possible
+				to have meaningful conversations with hundreds or thousands of participants at once,
+				while surfacing insights that would be hard to see in unstructured debate.</span
 			>
 		</div>
 	</div>
@@ -127,8 +133,8 @@
 			<div
 				class="text-base-muted-foreground justify-start self-stretch font-['Inter'] text-base leading-normal font-medium"
 			>
-				There is an optional customization capability for this workflow by adding the following
-				features.
+				There is an optional customization capability for this workflow by adding the
+				following features.
 			</div>
 		</div>
 		<div class="flex flex-col items-center justify-start gap-12 self-stretch">
@@ -139,9 +145,13 @@
 					<div
 						class="inline-flex w-full max-w-[1280px] flex-wrap content-start items-start justify-end gap-9"
 					>
-						<div class="inline-flex flex-1 flex-col items-start justify-start gap-6 pr-6">
+						<div
+							class="inline-flex flex-1 flex-col items-start justify-start gap-6 pr-6"
+						>
 							<div class="flex flex-col items-start justify-start gap-8 self-stretch">
-								<div class="flex flex-col items-start justify-start gap-3 self-stretch">
+								<div
+									class="flex flex-col items-start justify-start gap-3 self-stretch"
+								>
 									<div
 										class="inline-flex flex-wrap content-start items-start justify-start gap-3 self-stretch"
 									>
@@ -163,7 +173,9 @@
 									See more
 								</div>
 								<div class="relative h-4 w-4 overflow-hidden">
-									<div class="absolute top-[2.81px] left-[1.69px] h-3 w-3.5 bg-black"></div>
+									<div
+										class="absolute top-[2.81px] left-[1.69px] h-3 w-3.5 bg-black"
+									></div>
 								</div>
 							</div>
 						</div>
@@ -172,12 +184,15 @@
 						<div
 							class="inline-flex flex-wrap content-start items-start justify-between self-stretch"
 						>
-							<div class="inline-flex flex-1 flex-col items-start justify-start gap-3">
+							<div
+								class="inline-flex flex-1 flex-col items-start justify-start gap-3"
+							>
 								<div
 									class="text-base-muted-foreground justify-start self-stretch font-['Inter'] text-base leading-normal font-medium"
 								>
-									Begin with introduction to the topic, follow with any tools of your choice to
-									gather participants’ inputs, and end with a summary of the responses.
+									Begin with introduction to the topic, follow with any tools of
+									your choice to gather participants’ inputs, and end with a
+									summary of the responses.
 								</div>
 							</div>
 						</div>
@@ -340,7 +355,9 @@
 						data-variant="Default"
 						class="inline-flex h-10 items-center justify-center gap-2 self-stretch rounded-full bg-stone-400 px-8 py-2 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
 					>
-						<div class="justify-center font-['Inter'] text-sm leading-tight font-medium text-white">
+						<div
+							class="justify-center font-['Inter'] text-sm leading-tight font-medium text-white"
+						>
 							Select
 						</div>
 					</div>
@@ -351,9 +368,13 @@
 					<div
 						class="inline-flex w-full max-w-[1280px] flex-wrap content-start items-start justify-end gap-9"
 					>
-						<div class="inline-flex flex-1 flex-col items-start justify-start gap-6 pr-6">
+						<div
+							class="inline-flex flex-1 flex-col items-start justify-start gap-6 pr-6"
+						>
 							<div class="flex flex-col items-start justify-start gap-8 self-stretch">
-								<div class="flex flex-col items-start justify-start gap-3 self-stretch">
+								<div
+									class="flex flex-col items-start justify-start gap-3 self-stretch"
+								>
 									<div
 										class="inline-flex flex-wrap content-start items-start justify-start gap-3 self-stretch"
 									></div>
@@ -373,7 +394,9 @@
 									See more
 								</div>
 								<div class="relative h-4 w-4 overflow-hidden">
-									<div class="absolute top-[2.81px] left-[1.69px] h-3 w-3.5 bg-black"></div>
+									<div
+										class="absolute top-[2.81px] left-[1.69px] h-3 w-3.5 bg-black"
+									></div>
 								</div>
 							</div>
 						</div>
@@ -382,12 +405,15 @@
 						<div
 							class="inline-flex flex-wrap content-start items-start justify-between self-stretch"
 						>
-							<div class="inline-flex flex-1 flex-col items-start justify-start gap-3">
+							<div
+								class="inline-flex flex-1 flex-col items-start justify-start gap-3"
+							>
 								<div
 									class="text-base-muted-foreground justify-start self-stretch font-['Inter'] text-base leading-normal font-medium"
 								>
-									Begin with introduction to the topic, follow with any tools of your choice to
-									gather participants’ inputs, and end with a summary of the responses.
+									Begin with introduction to the topic, follow with any tools of
+									your choice to gather participants’ inputs, and end with a
+									summary of the responses.
 								</div>
 							</div>
 						</div>
@@ -550,7 +576,9 @@
 						data-variant="Default"
 						class="inline-flex h-10 items-center justify-center gap-2 self-stretch rounded-full bg-stone-400 px-8 py-2 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.05)]"
 					>
-						<div class="justify-center font-['Inter'] text-sm leading-tight font-medium text-white">
+						<div
+							class="justify-center font-['Inter'] text-sm leading-tight font-medium text-white"
+						>
 							Select
 						</div>
 					</div>
@@ -571,8 +599,8 @@
 			<div
 				class="text-base-muted-foreground justify-start self-stretch font-['Inter'] text-base leading-normal font-medium"
 			>
-				There is an optional customization capability for this workflow by adding the following
-				features.
+				There is an optional customization capability for this workflow by adding the
+				following features.
 			</div>
 		</div>
 		<div class="inline-flex w-full items-start justify-start gap-6 self-stretch">
@@ -588,17 +616,17 @@
 						<div
 							class="justify-start self-stretch font-['Inter'] text-lg leading-7 font-medium text-stone-900"
 						>
-							How AI can be used responsibly in public services (e.g., healthcare, transport,
-							policing).
+							How AI can be used responsibly in public services (e.g., healthcare,
+							transport, policing).
 						</div>
 					</div>
 					<div
 						class="text-base-muted-foreground justify-start self-stretch font-['Inter'] text-lg leading-7 font-normal"
 					>
-						The Taiwanese government used Polis to engage citizens on complex issues like
-						ride-sharing regulation (Uber) and online alcohol sales. The process brought together
-						industry, civil society, and government, leading to consensus-driven policy
-						recommendations.
+						The Taiwanese government used Polis to engage citizens on complex issues
+						like ride-sharing regulation (Uber) and online alcohol sales. The process
+						brought together industry, civil society, and government, leading to
+						consensus-driven policy recommendations.
 					</div>
 				</div>
 			</div>
@@ -614,15 +642,16 @@
 						<div
 							class="justify-start self-stretch font-['Inter'] text-lg leading-7 font-medium text-stone-900"
 						>
-							How AI can be used responsibly in public services (e.g., healthcare, transport,
-							policing).
+							How AI can be used responsibly in public services (e.g., healthcare,
+							transport, policing).
 						</div>
 					</div>
 					<div
 						class="text-base-muted-foreground justify-start self-stretch font-['Inter'] text-lg leading-7 font-normal"
 					>
-						Polis was used as part of public engagement exercises around climate action, helping
-						organizers understand where consensus existed among citizens on policy measures.
+						Polis was used as part of public engagement exercises around climate action,
+						helping organizers understand where consensus existed among citizens on
+						policy measures.
 					</div>
 				</div>
 			</div>
@@ -638,16 +667,16 @@
 						<div
 							class="justify-start self-stretch font-['Inter'] text-lg leading-7 font-medium text-stone-900"
 						>
-							How AI can be used responsibly in public services (e.g., healthcare, transport,
-							policing).
+							How AI can be used responsibly in public services (e.g., healthcare,
+							transport, policing).
 						</div>
 					</div>
 					<div
 						class="text-base-muted-foreground justify-start self-stretch font-['Inter'] text-lg leading-7 font-normal"
 					>
-						Polis was deployed to facilitate dialogue between residents and officials on policing
-						and public safety, allowing diverse voices to be heard and common ground to emerge
-						despite polarization.
+						Polis was deployed to facilitate dialogue between residents and officials on
+						policing and public safety, allowing diverse voices to be heard and common
+						ground to emerge despite polarization.
 					</div>
 				</div>
 			</div>

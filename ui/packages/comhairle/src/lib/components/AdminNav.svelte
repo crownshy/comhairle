@@ -81,7 +81,7 @@
 							{#snippet child({ props: btnProps })}
 								<a {...btnProps} href="/admin/">
 									<LayoutDashboard class="size-4" />
-									Dashboard
+									Workspace
 								</a>
 							{/snippet}
 						</SideBar.MenuButton>

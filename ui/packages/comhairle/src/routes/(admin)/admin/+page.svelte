@@ -20,7 +20,7 @@
 	<Breadcrumb.Root>
 		<Breadcrumb.List>
 			<Breadcrumb.Item>
-				<Breadcrumb.Link href="/admin">Dashboard</Breadcrumb.Link>
+				<Breadcrumb.Link href="/admin">Workspace</Breadcrumb.Link>
 			</Breadcrumb.Item>
 			<Breadcrumb.Separator />
 			<Breadcrumb.Item>Conversations</Breadcrumb.Item>
