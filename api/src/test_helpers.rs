@@ -731,6 +731,34 @@ impl UserSession {
         .await
     }
 
+    pub async fn create_organization(
+        &mut self,
+        app: &Router,
+        organization: serde_json::Value,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(app, "/organizations", organization.to_string().into())
+            .await
+    }
+
+    pub async fn create_random_organization(
+        &mut self,
+        app: &Router,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            "/organizations",
+            json!({
+                "name": "test_organization",
+                "description": "test_organization_description",
+                "mission": "test_mission",
+                "org_type": "non_profit",
+            })
+            .to_string()
+            .into(),
+        )
+        .await
+    }
+
     pub async fn get_conversation(
         &mut self,
         app: &Router,

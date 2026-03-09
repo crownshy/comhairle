@@ -8,6 +8,7 @@ pub mod feedback;
 pub mod invites;
 pub mod jobs;
 pub mod notifications;
+pub mod organizations;
 pub mod report_impacts;
 pub mod reports;
 pub mod translations;
