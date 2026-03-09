@@ -8,6 +8,7 @@ pub mod feedback;
 pub mod invite_response;
 pub mod invites;
 pub mod job;
+pub mod region;
 pub mod notification;
 pub mod notification_delivery;
 pub mod pagination;
