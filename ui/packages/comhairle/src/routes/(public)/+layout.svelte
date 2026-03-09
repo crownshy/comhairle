@@ -14,11 +14,11 @@
 	);
 </script>
 
-<div class="flex w-full flex-col">
+<div class="flex min-h-screen w-full flex-col">
 	{#if !isEmbed}
 		<NavBar user={data.user} {isAdmin} />
 	{/if}
-	<div class="mx-auto min-h-screen w-full max-w-[1300px] grow px-4 md:px-20">
+	<div class="mx-auto min-h-[80vh] w-full max-w-[1300px] grow px-4 md:px-20">
 		{@render children()}
 	</div>
 	{#if !isEmbed}

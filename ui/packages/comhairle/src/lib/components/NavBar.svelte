@@ -17,9 +17,10 @@
 		Settings,
 		Bell,
 		LogOut,
-		LayoutDashboard
+		Briefcase
 	} from 'lucide-svelte';
 	import { afterNavigate } from '$app/navigation';
+	import { page } from '$app/state';
 	import { userInitials } from '$lib/utils';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { Separator } from '$lib/components/ui/separator';
@@ -67,25 +68,47 @@
 	});
 </script>
 
-<nav class="bg-primary text-muted-foreground z-10 flex w-full flex-col items-center p-5 shadow-md">
-	<div class="margin-auto container flex max-w-[1200px] items-center justify-between">
-		<ComhairleLogo logoSize="sm" class="[&>h1]:hidden lg:[&>h1]:block" />
+<nav
+	class="bg-primary text-muted-foreground z-10 flex w-full flex-col items-center justify-center py-6 shadow-md"
+>
+	<div class="margin-auto container flex max-w-[1280px] items-center justify-between px-6">
+		<div class="lg:hidden">
+			<ComhairleLogo logoSize="md" showText={false} />
+		</div>
+		<div class="hidden lg:block">
+			<ComhairleLogo logoSize="md" />
+		</div>
 
 		<!-- Desktop Navigation -->
-		<div class="hidden space-x-6 md:flex lg:space-x-5">
+		<div class="hidden gap-3 md:flex">
 			{#each links as link (link.href)}
-				<Button href={link.href} variant="nav">{link.name}</Button>
+				<Button
+					href={link.href}
+					variant="nav"
+					class="h-10 text-base font-normal {page.url.pathname === link.href ||
+					(link.href !== '/' && page.url.pathname.startsWith(link.href))
+						? 'bg-sidebar/50 shadow-xs'
+						: ''}">{link.name}</Button
+				>
 			{/each}
 		</div>
 
-		<div class="hidden gap-x-5 md:flex">
+		<div class="hidden items-center gap-x-4 md:flex">
 			<LocaleSwitcher
-				class="hover:bg-sidebar/50 data-[placeholder]:text-primary-foreground rounded-full border-none bg-transparent shadow-xs"
+				class="data-[placeholder]:text-primary-foreground rounded-full border border-none bg-transparent py-5 text-base shadow-xs hover:bg-white/10"
 			/>
-			<ProfileMenu {user} />
 			{#if isAdmin}
-				<Button variant="nav" href="/admin">Dashboard</Button>
+				<Button
+					variant="nav"
+					href="/admin"
+					size="lg"
+					class="gap-2 rounded-full text-base font-normal"
+				>
+					<Briefcase class="size-4" />
+					Workspace
+				</Button>
 			{/if}
+			<ProfileMenu {user} />
 		</div>
 
 		<!-- Mobile Navigation -->
@@ -93,7 +116,7 @@
 			<Drawer.Root bind:open={isOpen} direction="bottom">
 				<Drawer.Trigger>
 					<Button variant="nav" size="icon">
-						<Menu class="size-5" />
+						<Menu class="size-7" />
 					</Button>
 				</Drawer.Trigger>
 				<Drawer.Content>
@@ -172,8 +195,8 @@
 									variant="ghost"
 									class="text-foreground h-11 w-full justify-start gap-3 rounded-lg px-3 text-base font-normal"
 								>
-									<LayoutDashboard class="text-muted-foreground size-5" />
-									Dashboard
+									<LayoutGrid class="text-muted-foreground size-5" />
+									Workspace
 								</Button>
 							{/if}
 						</div>
@@ -207,11 +230,13 @@
 							</form>
 						{:else}
 							<Separator />
-							<div class="flex gap-2 px-3 pt-2">
+							<div class="flex gap-2 px-3 pt-2 text-base">
 								<Button href="/auth/login" variant="outline" class="flex-1"
 									>{m.login()}</Button
 								>
-								<Button href="/auth/signup" class="flex-1">{m.signup()}</Button>
+								<Button href="/auth/signup" class="flex-1 text-base"
+									>{m.signup()}</Button
+								>
 							</div>
 						{/if}
 					</div>

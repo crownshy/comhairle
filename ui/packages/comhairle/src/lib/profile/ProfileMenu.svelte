@@ -29,14 +29,14 @@
 
 {#if user}
 	<DropdownMenu.Root>
-		<DropdownMenu.Trigger class={buttonVariants({ variant: triggerVariant })}>
+		<DropdownMenu.Trigger class={`py-5 ${buttonVariants({ variant: triggerVariant })}`}>
 			<Avatar.Root class="mr-4 h-6 w-6">
 				{#if user.avatarUrl}
 					<Avatar.Image src={user.avatarUrl} alt="@shadcn" />
 				{/if}
 				<Avatar.Fallback class="text-foreground">{user_initials}</Avatar.Fallback>
 			</Avatar.Root>
-			<p class="text-foreground">
+			<p class="text-foreground text-base font-normal">
 				{#if user.authType === 'annon'}
 					Anonymous
 				{:else}
