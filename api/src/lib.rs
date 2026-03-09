@@ -69,7 +69,7 @@ fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
         )
 }
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Default)]
 pub struct Args {
     #[arg(
         long,
@@ -80,7 +80,7 @@ pub struct Args {
 }
 
 pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, ComhairleError> {
-    let args = Args::parse();
+    let args = Args::try_parse().unwrap_or_default();
 
     tracing::info!("Running with config {:#?}", state.config);
 
@@ -173,6 +173,10 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
         .nest_api_service(
             "/ws",
             websockets::routes::websocket_routes().with_state(state.clone()),
+        )
+        .nest_api_service(
+            "/organizations",
+            routes::organizations::router(state.clone()),
         )
         .nest_api_service("/jobs", routes::jobs::router(state.clone()))
         .nest_api_service("/docs", docs_routes(state.clone()))
