@@ -759,6 +759,32 @@ impl UserSession {
         .await
     }
 
+    pub async fn create_region(
+        &mut self,
+        app: &Router,
+        region: serde_json::Value,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(app, "/regions", region.to_string().into()).await
+    }
+
+    pub async fn create_random_region(
+        &mut self,
+        app: &Router,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            "/regions",
+            json!({
+                "name": "test_region",
+                "description": "test_region_description",
+                "region_type": "custom",
+            })
+            .to_string()
+            .into(),
+        )
+        .await
+    }
+
     pub async fn get_conversation(
         &mut self,
         app: &Router,

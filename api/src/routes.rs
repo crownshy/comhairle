@@ -11,6 +11,7 @@ pub mod notifications;
 pub mod organizations;
 pub mod report_impacts;
 pub mod reports;
+pub mod regions;
 pub mod translations;
 pub mod user;
 pub mod user_conversation_preferences;

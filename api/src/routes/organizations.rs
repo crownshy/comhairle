@@ -227,9 +227,6 @@ mod tests {
         let _ = session.create_random_organization(&app).await?;
 
         let (status, response, _) = session.get(&app, "/organizations").await?;
-        println!();
-        println!("    >>>>    Response: {response:#?}");
-        println!();
         let organizations: PaginatedResults<LocalizedOrganizationDto> =
             serde_json::from_value(response)?;
 
