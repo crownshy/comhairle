@@ -1056,9 +1056,7 @@ export const OrganizationDto = z
 export type OrganizationDto = z.infer<typeof OrganizationDto>;
 export const PartialOrganization = z
 	.object({
-		description: z.union([z.string(), z.null()]),
 		external_url: z.union([z.string(), z.null()]),
-		mission: z.union([z.string(), z.null()]),
 		name: z.union([z.string(), z.null()]),
 		org_type: z.union([OrganizationType, z.null()]),
 		regions: z.union([z.array(z.string().uuid()), z.null()])
@@ -1066,6 +1064,53 @@ export const PartialOrganization = z
 	.partial()
 	.passthrough();
 export type PartialOrganization = z.infer<typeof PartialOrganization>;
+export const RegionType = z.enum(['custom', 'official']);
+export type RegionType = z.infer<typeof RegionType>;
+export const LocalizedRegionDto = z
+	.object({
+		created_at: z.string().datetime({ offset: true }),
+		description: z.string(),
+		id: z.string().uuid(),
+		name: z.string(),
+		official_id: z.union([z.string(), z.null()]).optional(),
+		region_type: RegionType
+	})
+	.passthrough();
+export type LocalizedRegionDto = z.infer<typeof LocalizedRegionDto>;
+export const PaginatedResults_for_LocalizedRegionDto = z
+	.object({ records: z.array(LocalizedRegionDto), total: z.number().int() })
+	.passthrough();
+export type PaginatedResults_for_LocalizedRegionDto = z.infer<
+	typeof PaginatedResults_for_LocalizedRegionDto
+>;
+export const CreateRegion = z
+	.object({
+		description: z.string(),
+		name: z.string(),
+		official_id: z.union([z.string(), z.null()]).optional(),
+		region_type: RegionType
+	})
+	.passthrough();
+export type CreateRegion = z.infer<typeof CreateRegion>;
+export const RegionDto = z
+	.object({
+		created_at: z.string().datetime({ offset: true }),
+		description: z.string().uuid(),
+		id: z.string().uuid(),
+		name: z.string().uuid(),
+		official_id: z.union([z.string(), z.null()]).optional(),
+		region_type: RegionType
+	})
+	.passthrough();
+export type RegionDto = z.infer<typeof RegionDto>;
+export const PartialRegion = z
+	.object({
+		official_id: z.union([z.string(), z.null()]),
+		region_type: z.union([RegionType, z.null()])
+	})
+	.partial()
+	.passthrough();
+export type PartialRegion = z.infer<typeof PartialRegion>;
 export const Job = z
 	.object({
 		completion_message: z.union([z.string(), z.null()]).optional(),
@@ -1226,6 +1271,12 @@ export const schemas = {
 	CreateOrganization,
 	OrganizationDto,
 	PartialOrganization,
+	RegionType,
+	LocalizedRegionDto,
+	PaginatedResults_for_LocalizedRegionDto,
+	CreateRegion,
+	RegionDto,
+	PartialRegion,
 	Job,
 	PaginatedResults_for_Job,
 	CreateJob
@@ -2371,6 +2422,82 @@ curl -X POST \
 		description: `Delete an organization`,
 		requestFormat: 'json',
 		response: OrganizationDto
+	},
+	{
+		method: 'get',
+		path: '/regions',
+		alias: 'ListRegions',
+		description: `Paginated list of regions with optional ordering`,
+		requestFormat: 'json',
+		parameters: [
+			{
+				name: 'created_at',
+				type: 'Query',
+				schema: created_at
+			},
+			{
+				name: 'name',
+				type: 'Query',
+				schema: created_at
+			},
+			{
+				name: 'limit',
+				type: 'Query',
+				schema: limit
+			},
+			{
+				name: 'offset',
+				type: 'Query',
+				schema: limit
+			}
+		],
+		response: PaginatedResults_for_LocalizedRegionDto
+	},
+	{
+		method: 'post',
+		path: '/regions',
+		alias: 'CreateRegion',
+		description: `Create a new region`,
+		requestFormat: 'json',
+		parameters: [
+			{
+				name: 'body',
+				type: 'Body',
+				schema: CreateRegion
+			}
+		],
+		response: RegionDto
+	},
+	{
+		method: 'get',
+		path: '/regions/:region_id',
+		alias: 'GetRegion',
+		description: `Get a region by id`,
+		requestFormat: 'json',
+		response: LocalizedRegionDto
+	},
+	{
+		method: 'put',
+		path: '/regions/:region_id',
+		alias: 'UpdateRegion',
+		description: `Update a region`,
+		requestFormat: 'json',
+		parameters: [
+			{
+				name: 'body',
+				type: 'Body',
+				schema: PartialRegion
+			}
+		],
+		response: RegionDto
+	},
+	{
+		method: 'delete',
+		path: '/regions/:region_id',
+		alias: 'DeleteRegion',
+		description: `Delete a region`,
+		requestFormat: 'json',
+		response: RegionDto
 	},
 	{
 		method: 'get',
