@@ -35,7 +35,7 @@ pub async fn get_session(
 ) -> Result<(StatusCode, Json<ComhairleChatSession>), ComhairleError> {
     let bot_service = match &state.bot_service {
         Some(bs) => bs,
-        None => return Err(ComhairleError::UninitializedBotService),
+        None => return Err(ComhairleError::NoBotServiceConfigured),
     };
 
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
@@ -84,7 +84,7 @@ async fn converse(
 ) -> Result<StreamBody, ComhairleError> {
     let bot_service = match &state.bot_service {
         Some(bs) => bs,
-        None => return Err(ComhairleError::UninitializedBotService),
+        None => return Err(ComhairleError::NoBotServiceConfigured),
     };
 
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;

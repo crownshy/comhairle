@@ -37,7 +37,7 @@ async fn list(
 ) -> Result<(StatusCode, Json<Vec<ComhairleDocument>>), ComhairleError> {
     let bot_service = match &state.bot_service {
         Some(bs) => bs,
-        None => return Err(ComhairleError::UninitializedBotService),
+        None => return Err(ComhairleError::NoBotServiceConfigured),
     };
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
@@ -57,7 +57,7 @@ async fn get(
 ) -> Result<(StatusCode, Json<ComhairleDocument>), ComhairleError> {
     let bot_service = match &state.bot_service {
         Some(bs) => bs,
-        None => return Err(ComhairleError::UninitializedBotService),
+        None => return Err(ComhairleError::NoBotServiceConfigured),
     };
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
@@ -77,7 +77,7 @@ async fn delete(
 ) -> Result<StatusCode, ComhairleError> {
     let bot_service = match &state.bot_service {
         Some(bs) => bs,
-        None => return Err(ComhairleError::UninitializedBotService),
+        None => return Err(ComhairleError::NoBotServiceConfigured),
     };
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
@@ -97,7 +97,7 @@ async fn parse_document(
 ) -> Result<StatusCode, ComhairleError> {
     let bot_service = match &state.bot_service {
         Some(bs) => bs,
-        None => return Err(ComhairleError::UninitializedBotService),
+        None => return Err(ComhairleError::NoBotServiceConfigured),
     };
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
@@ -117,7 +117,7 @@ async fn stop_parsing_document(
 ) -> Result<StatusCode, ComhairleError> {
     let bot_service = match &state.bot_service {
         Some(bs) => bs,
-        None => return Err(ComhairleError::UninitializedBotService),
+        None => return Err(ComhairleError::NoBotServiceConfigured),
     };
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
@@ -137,7 +137,7 @@ async fn download_document(
 ) -> Result<Response<Body>, ComhairleError> {
     let bot_service = match &state.bot_service {
         Some(bs) => bs,
-        None => return Err(ComhairleError::UninitializedBotService),
+        None => return Err(ComhairleError::NoBotServiceConfigured),
     };
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
@@ -178,7 +178,7 @@ pub async fn upload(
 ) -> Result<(StatusCode, Json<UploadFileResponse>), ComhairleError> {
     let bot_service = match &state.bot_service {
         Some(bs) => bs,
-        None => return Err(ComhairleError::UninitializedBotService),
+        None => return Err(ComhairleError::NoBotServiceConfigured),
     };
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;

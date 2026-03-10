@@ -33,6 +33,9 @@ pub enum ComhairleError {
     #[error("No translation service configured")]
     NoTranslationServiceConfigured,
 
+    #[error("No bot service configured")]
+    NoBotServiceConfigured,
+
     #[error("HeyForm error: {0}")]
     HeyFormError(#[from] HeyFormError),
 
@@ -221,9 +224,6 @@ pub enum ComhairleError {
 
     #[error("Conversation already live")]
     ConversationAlreadyLive,
-
-    #[error("Bot service not initialized")]
-    UninitializedBotService,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]

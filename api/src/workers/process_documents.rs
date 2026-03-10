@@ -56,7 +56,7 @@ pub async fn process_document_handler(
     let (bot_service, default_knowledge_base_id) =
         match (&state.bot_service, &state.config.default_knowledge_base_id) {
             (Some(bs), Some(kb_id)) => (bs, kb_id),
-            _ => return Err(ComhairleError::UninitializedBotService),
+            _ => return Err(ComhairleError::NoBotServiceConfigured),
         };
 
     info!(

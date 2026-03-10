@@ -161,7 +161,7 @@ pub async fn create(
 ) -> Result<BotServiceUserSession, ComhairleError> {
     let elicitation_bot_agent_id = match &config.elicitation_bot_agent_id {
         Some(e_id) => e_id,
-        None => return Err(ComhairleError::UninitializedBotService),
+        None => return Err(ComhairleError::NoBotServiceConfigured),
     };
 
     let bot_service_session_id = match session.context {
@@ -368,7 +368,7 @@ pub async fn get_or_create(
 ) -> Result<BotServiceUserSession, ComhairleError> {
     let bot_service = match &state.bot_service {
         Some(bs) => bs,
-        None => return Err(ComhairleError::UninitializedBotService),
+        None => return Err(ComhairleError::NoBotServiceConfigured),
     };
 
     let mut query = Query::select();

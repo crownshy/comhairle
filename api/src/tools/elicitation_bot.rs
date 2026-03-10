@@ -137,7 +137,7 @@ async fn get_session_history(
     let (bot_service, elicitation_bot_agent_id) =
         match (&state.bot_service, &state.config.elicitation_bot_agent_id) {
             (Some(bs), Some(e_id)) => (bs, e_id),
-            _ => return Err(ComhairleError::UninitializedBotService),
+            _ => return Err(ComhairleError::NoBotServiceConfigured),
         };
 
     let user_session = bot_service_user_session::get_or_create(
@@ -185,7 +185,7 @@ async fn converse(
     let (bot_service, elicitation_bot_agent_id) =
         match (&state.bot_service, &state.config.elicitation_bot_agent_id) {
             (Some(bs), Some(e_id)) => (bs, e_id),
-            _ => return Err(ComhairleError::UninitializedBotService),
+            _ => return Err(ComhairleError::NoBotServiceConfigured),
         };
 
     let workflow_step = workflow_step::get_by_id(&state.db, &workflow_step_id).await?;

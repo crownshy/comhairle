@@ -2342,6 +2342,14 @@ curl -X POST \
 	},
 	{
 		method: 'get',
+		path: '/services',
+		alias: 'ListSupportedServices',
+		description: `List of services supported (configured) by current Comhairle server`,
+		requestFormat: 'json',
+		response: z.array(z.string())
+	},
+	{
+		method: 'get',
 		path: '/tools/elicitation_bot/workflow_step/:workflow_step_id',
 		alias: 'GetElicitationBotSessionHistory',
 		description: `Returns a user session for an elicitation bot including message history`,
