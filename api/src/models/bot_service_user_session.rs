@@ -159,10 +159,10 @@ pub async fn create(
     config: &ComhairleConfig,
     session: &CreateBotServiceUserSession,
 ) -> Result<BotServiceUserSession, ComhairleError> {
-    let elicitation_bot_agent_id = match &config.elicitation_bot_agent_id {
-        Some(e_id) => e_id,
-        None => return Err(ComhairleError::NoBotServiceConfigured),
-    };
+    let elicitation_bot_agent_id = config
+        .elicitation_bot_agent_id
+        .as_ref()
+        .ok_or(ComhairleError::NoBotServiceConfigured)?;
 
     let bot_service_session_id = match session.context {
         BotServiceSessionContext::QaBot => {
@@ -366,10 +366,7 @@ pub async fn get_or_create(
     conversation_id: Option<&Uuid>,
     workflow_step_id: Option<&Uuid>,
 ) -> Result<BotServiceUserSession, ComhairleError> {
-    let bot_service = match &state.bot_service {
-        Some(bs) => bs,
-        None => return Err(ComhairleError::NoBotServiceConfigured),
-    };
+    let bot_service = state.required_bot_service()?;
 
     let mut query = Query::select();
     query
@@ -424,7 +421,7 @@ pub async fn get_or_create(
                 conversation_id: conversation_id.copied(),
                 workflow_step_id: workflow_step_id.copied(),
             };
-            create(&state.db, &bot_service, &state.config, &create_session).await?
+            create(&state.db, bot_service, &state.config, &create_session).await?
         }
     };
 

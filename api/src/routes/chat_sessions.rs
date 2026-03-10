@@ -33,10 +33,7 @@ pub async fn get_session(
     Path(conversation_id): Path<Uuid>,
     RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<ComhairleChatSession>), ComhairleError> {
-    let bot_service = match &state.bot_service {
-        Some(bs) => bs,
-        None => return Err(ComhairleError::NoBotServiceConfigured),
-    };
+    let bot_service = state.required_bot_service()?;
 
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     let session = bot_service_user_session::get_or_create(
@@ -82,10 +79,7 @@ async fn converse(
     RequiredUser(user): RequiredUser,
     Json(payload): Json<ChatConversationRequest>,
 ) -> Result<StreamBody, ComhairleError> {
-    let bot_service = match &state.bot_service {
-        Some(bs) => bs,
-        None => return Err(ComhairleError::NoBotServiceConfigured),
-    };
+    let bot_service = state.required_bot_service()?;
 
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     let session = bot_service_user_session::get_or_create(

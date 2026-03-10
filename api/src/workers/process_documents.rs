@@ -53,11 +53,12 @@ pub async fn process_document_handler(
     job: DocumentJob,
     state: Data<Arc<ComhairleState>>,
 ) -> Result<(), ComhairleError> {
-    let (bot_service, default_knowledge_base_id) =
-        match (&state.bot_service, &state.config.default_knowledge_base_id) {
-            (Some(bs), Some(kb_id)) => (bs, kb_id),
-            _ => return Err(ComhairleError::NoBotServiceConfigured),
-        };
+    let bot_service = state.required_bot_service()?;
+    let default_knowledge_base_id = state
+        .config
+        .default_knowledge_base_id
+        .as_ref()
+        .ok_or(ComhairleError::NoBotServiceConfigured)?;
 
     info!(
         job_id = %job.job_id,

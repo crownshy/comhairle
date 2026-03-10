@@ -35,10 +35,7 @@ async fn list(
     Query(params): Query<GetQueryParams>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<Vec<ComhairleDocument>>), ComhairleError> {
-    let bot_service = match &state.bot_service {
-        Some(bs) => bs,
-        None => return Err(ComhairleError::NoBotServiceConfigured),
-    };
+    let bot_service = state.required_bot_service()?;
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
 
@@ -55,10 +52,7 @@ async fn get(
     Path((conversation_id, document_id)): Path<(Uuid, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<ComhairleDocument>), ComhairleError> {
-    let bot_service = match &state.bot_service {
-        Some(bs) => bs,
-        None => return Err(ComhairleError::NoBotServiceConfigured),
-    };
+    let bot_service = state.required_bot_service()?;
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
 
@@ -75,10 +69,7 @@ async fn delete(
     Path((conversation_id, document_id)): Path<(Uuid, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<StatusCode, ComhairleError> {
-    let bot_service = match &state.bot_service {
-        Some(bs) => bs,
-        None => return Err(ComhairleError::NoBotServiceConfigured),
-    };
+    let bot_service = state.required_bot_service()?;
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
 
@@ -95,10 +86,7 @@ async fn parse_document(
     Path((conversation_id, document_id)): Path<(Uuid, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<StatusCode, ComhairleError> {
-    let bot_service = match &state.bot_service {
-        Some(bs) => bs,
-        None => return Err(ComhairleError::NoBotServiceConfigured),
-    };
+    let bot_service = state.required_bot_service()?;
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
 
@@ -115,10 +103,7 @@ async fn stop_parsing_document(
     Path((conversation_id, document_id)): Path<(Uuid, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<StatusCode, ComhairleError> {
-    let bot_service = match &state.bot_service {
-        Some(bs) => bs,
-        None => return Err(ComhairleError::NoBotServiceConfigured),
-    };
+    let bot_service = state.required_bot_service()?;
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
 
@@ -135,10 +120,7 @@ async fn download_document(
     Path((conversation_id, document_id)): Path<(Uuid, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<Response<Body>, ComhairleError> {
-    let bot_service = match &state.bot_service {
-        Some(bs) => bs,
-        None => return Err(ComhairleError::NoBotServiceConfigured),
-    };
+    let bot_service = state.required_bot_service()?;
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
     let download_stream = bot_service
@@ -176,10 +158,7 @@ pub async fn upload(
     RequiredAdminUser(_user): RequiredAdminUser,
     mut form_data: Multipart,
 ) -> Result<(StatusCode, Json<UploadFileResponse>), ComhairleError> {
-    let bot_service = match &state.bot_service {
-        Some(bs) => bs,
-        None => return Err(ComhairleError::NoBotServiceConfigured),
-    };
+    let bot_service = state.required_bot_service()?;
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
 

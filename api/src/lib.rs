@@ -54,6 +54,14 @@ pub struct ComhairleState {
     pub jobs: Arc<JobQueues>,
 }
 
+impl ComhairleState {
+    fn required_bot_service(&self) -> Result<&Arc<dyn ComhairleBotService>, ComhairleError> {
+        self.bot_service
+            .as_ref()
+            .ok_or(ComhairleError::NoBotServiceConfigured)
+    }
+}
+
 fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
     api.title("Comhairle API")
         .summary("The API for the comhairle system")
