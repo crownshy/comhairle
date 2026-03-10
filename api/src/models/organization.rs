@@ -27,7 +27,9 @@ pub struct Organization {
     #[partially(omit)]
     pub id: Uuid,
     pub name: String,
+    #[partially(omit)]
     pub description: TextContentId,
+    #[partially(omit)]
     pub mission: TextContentId,
     pub org_type: OrganizationType,
     pub external_url: Option<String>,
@@ -158,12 +160,6 @@ impl PartialOrganization {
         let mut values = vec![];
         if let Some(value) = &self.name {
             values.push((OrganizationIden::Name, value.into()));
-        }
-        if let Some(value) = &self.description {
-            values.push((OrganizationIden::Description, value.into()));
-        }
-        if let Some(value) = &self.mission {
-            values.push((OrganizationIden::Mission, value.into()));
         }
         if let Some(value) = &self.org_type {
             values.push((OrganizationIden::OrgType, value.clone().into()));
