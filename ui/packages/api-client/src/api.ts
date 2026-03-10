@@ -1136,6 +1136,10 @@ export const CreateJob = z
 	.partial()
 	.passthrough();
 export type CreateJob = z.infer<typeof CreateJob>;
+export const ComhairleServices = z
+	.object({ botService: z.boolean(), translationService: z.boolean() })
+	.passthrough();
+export type ComhairleServices = z.infer<typeof ComhairleServices>;
 
 export const schemas = {
 	AnnonLoginRequest,
@@ -1279,7 +1283,8 @@ export const schemas = {
 	PartialRegion,
 	Job,
 	PaginatedResults_for_Job,
-	CreateJob
+	CreateJob,
+	ComhairleServices
 };
 
 const endpoints = makeApi([
@@ -2505,7 +2510,7 @@ curl -X POST \
 		alias: 'ListSupportedServices',
 		description: `List of services supported (configured) by current Comhairle server`,
 		requestFormat: 'json',
-		response: z.array(z.string())
+		response: ComhairleServices
 	},
 	{
 		method: 'get',

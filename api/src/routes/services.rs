@@ -5,23 +5,35 @@ use axum::{
     extract::{Json, State},
     http::StatusCode,
 };
+use schemars::JsonSchema;
+use serde::Serialize;
 use tracing::instrument;
 
 use crate::{error::ComhairleError, routes::auth::RequiredUser, ComhairleState};
+
+#[derive(Serialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+struct ComhairleServices {
+    bot_service: bool,
+    translation_service: bool,
+}
 
 #[instrument(err(Debug), skip(state))]
 async fn list(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(_user): RequiredUser,
-) -> Result<(StatusCode, Json<Vec<String>>), ComhairleError> {
-    let mut services = vec![];
+) -> Result<(StatusCode, Json<ComhairleServices>), ComhairleError> {
+    let mut services = ComhairleServices {
+        bot_service: false,
+        translation_service: false,
+    };
 
     if state.bot_service.is_some() {
-        services.push("bot_service".to_string());
+        services.bot_service = true;
     }
 
     if state.translation_service.is_some() {
-        services.push("translation_service".to_string());
+        services.translation_service = true;
     }
 
     Ok((StatusCode::OK, Json(services)))
@@ -38,7 +50,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         "List of services supported (configured) by current Comhairle server",
                     )
                     .security_requirement("JWT")
-                    .response::<200, Json<Vec<String>>>()
+                    .response::<200, Json<ComhairleServices>>()
             }),
         )
         .with_state(state)
