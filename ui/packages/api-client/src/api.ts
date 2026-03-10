@@ -12,6 +12,7 @@ export const UserDto = z
 		email: z.union([z.string(), z.null()]).optional(),
 		emailVerified: z.boolean(),
 		id: z.string().uuid(),
+		organizationId: z.union([z.string(), z.null()]).optional(),
 		username: z.union([z.string(), z.null()]).optional()
 	})
 	.passthrough();
@@ -114,6 +115,7 @@ export type PaginatedResults_for_LocalizedConversationDto = z.infer<
 export const UpdateUserRequest = z
 	.object({
 		email_verified: z.union([z.boolean(), z.null()]),
+		organization_id: z.union([z.string(), z.null()]),
 		password: z.union([z.string(), z.null()]),
 		username: z.union([z.string(), z.null()])
 	})

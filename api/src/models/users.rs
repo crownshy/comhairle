@@ -130,7 +130,19 @@ pub struct User {
     pub auth_type: UserAuthType,
     pub email: Option<String>,
     pub email_verified: bool,
+    pub organization_id: Option<Uuid>,
 }
+
+const DEFAULT_COLUMNS: [UserIden; 8] = [
+    UserIden::Id,
+    UserIden::Username,
+    UserIden::Password,
+    UserIden::AuthType,
+    UserIden::AvatarUrl,
+    UserIden::Email,
+    UserIden::EmailVerified,
+    UserIden::OrganizationId,
+];
 
 /// Create a user from a signup request
 pub async fn create_user(user: &SignupRequest, db: &PgPool) -> Result<User, ComhairleError> {
@@ -152,15 +164,7 @@ pub async fn create_user(user: &SignupRequest, db: &PgPool) -> Result<User, Comh
             user.email.clone().into(),
         ])
         .unwrap()
-        .returning(Query::returning().columns([
-            UserIden::Id,
-            UserIden::Username,
-            UserIden::Password,
-            UserIden::AuthType,
-            UserIden::AvatarUrl,
-            UserIden::Email,
-            UserIden::EmailVerified,
-        ]))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
     let user_result = sqlx::query_as_with::<_, User, _>(&sql, values)
@@ -199,15 +203,7 @@ pub async fn create_annon_user(db: &PgPool) -> Result<User, ComhairleError> {
             .columns([UserIden::Username, UserIden::AuthType])
             .values([sudo_random_name.into(), UserAuthType::Annon.into()])
             .unwrap()
-            .returning(Query::returning().columns([
-                UserIden::AuthType,
-                UserIden::Id,
-                UserIden::Username,
-                UserIden::Password,
-                UserIden::AvatarUrl,
-                UserIden::Email,
-                UserIden::EmailVerified,
-            ]))
+            .returning(Query::returning().columns(DEFAULT_COLUMNS))
             .build_sqlx(PostgresQueryBuilder);
 
         let user = sqlx::query_as_with::<_, User, _>(&sql, values)
@@ -236,15 +232,7 @@ pub async fn create_annon_user(db: &PgPool) -> Result<User, ComhairleError> {
 /// Return a user by ID
 pub async fn get_user_by_id(id: &Uuid, db: &PgPool) -> Result<User, ComhairleError> {
     let (sql, values) = Query::select()
-        .columns([
-            UserIden::Id,
-            UserIden::Username,
-            UserIden::Password,
-            UserIden::AvatarUrl,
-            UserIden::AuthType,
-            UserIden::Email,
-            UserIden::EmailVerified,
-        ])
+        .columns(DEFAULT_COLUMNS)
         .from(UserIden::Table)
         .and_where(Expr::col(UserIden::Id).eq(id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
@@ -259,15 +247,7 @@ pub async fn get_user_by_id(id: &Uuid, db: &PgPool) -> Result<User, ComhairleErr
 /// Return a user by email
 pub async fn get_user_by_email(email: &str, db: &PgPool) -> Result<User, ComhairleError> {
     let (sql, values) = Query::select()
-        .columns([
-            UserIden::Id,
-            UserIden::Username,
-            UserIden::Password,
-            UserIden::AvatarUrl,
-            UserIden::AuthType,
-            UserIden::Email,
-            UserIden::EmailVerified,
-        ])
+        .columns(DEFAULT_COLUMNS)
         .from(UserIden::Table)
         .and_where(Expr::col(UserIden::Email).ilike(email))
         .build_sqlx(PostgresQueryBuilder);
@@ -360,15 +340,7 @@ pub async fn add_user_resource_role(
 /// Return a user by username
 pub async fn get_user_by_username(username: &str, db: &PgPool) -> Result<User, ComhairleError> {
     let (sql, values) = Query::select()
-        .columns([
-            UserIden::Id,
-            UserIden::Username,
-            UserIden::Password,
-            UserIden::AvatarUrl,
-            UserIden::AuthType,
-            UserIden::Email,
-            UserIden::EmailVerified,
-        ])
+        .columns(DEFAULT_COLUMNS)
         .from(UserIden::Table)
         .and_where(Expr::col(UserIden::Username).eq(username))
         .build_sqlx(PostgresQueryBuilder);
@@ -384,6 +356,7 @@ pub struct UpdateUserRequest {
     pub username: Option<String>,
     pub password: Option<String>,
     pub email_verified: Option<bool>,
+    pub organization_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
@@ -420,21 +393,18 @@ pub async fn update_user(
         has_updates = true;
     }
 
+    if let Some(organization_id) = &update_request.organization_id {
+        query.value(UserIden::OrganizationId, *organization_id);
+        has_updates = true;
+    }
+
     if !has_updates {
         return get_user_by_id(user_id, db).await;
     }
 
     let (sql, values) = query
         .and_where(Expr::col(UserIden::Id).eq(user_id.to_owned()))
-        .returning(Query::returning().columns([
-            UserIden::Id,
-            UserIden::Username,
-            UserIden::Password,
-            UserIden::AvatarUrl,
-            UserIden::AuthType,
-            UserIden::Email,
-            UserIden::EmailVerified,
-        ]))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
     let user_result = sqlx::query_as_with::<_, User, _>(&sql, values)
@@ -484,15 +454,7 @@ pub async fn upgrade_account(
             (UserIden::AuthType, UserAuthType::EmailPassword.into()),
         ])
         .and_where(Expr::col(UserIden::Id).eq(user_id.to_owned()))
-        .returning(Query::returning().columns([
-            UserIden::Id,
-            UserIden::Username,
-            UserIden::Password,
-            UserIden::AvatarUrl,
-            UserIden::AuthType,
-            UserIden::Email,
-            UserIden::EmailVerified,
-        ]))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
     let user_result = sqlx::query_as_with::<_, User, _>(&sql, values)
@@ -524,8 +486,14 @@ pub async fn upgrade_account(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use crate::{
-        models::users::{add_user_resource_role, user_has_resource_role, Resource, Role},
+        models::{
+            model_test_helpers::setup_default_app_and_session,
+            users::{add_user_resource_role, create_user, user_has_resource_role, Resource, Role},
+        },
+        routes::{auth::SignupRequest, organizations::dto::OrganizationDto},
         setup_server,
         test_helpers::{test_state, UserSession},
     };
@@ -650,6 +618,46 @@ mod tests {
             )
             .await?,
             "true when user has multiple roles and one is required",
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_update_user_with_organization(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut admin_session) = setup_default_app_and_session(&pool).await?;
+        let (_, response, _) = admin_session.create_random_organization(&app).await?;
+        let organization: OrganizationDto = serde_json::from_value(response)?;
+
+        let user = create_user(
+            &SignupRequest {
+                username: "test_user".to_string(),
+                password: "test_pw".to_string(),
+                email: "test_email".to_string(),
+                avatar_url: None,
+            },
+            &pool,
+        )
+        .await?;
+
+        assert!(
+            user.organization_id.is_none(),
+            "incorrect organization id before update"
+        );
+
+        let updated_user = update_user(
+            &user.id,
+            &UpdateUserRequest {
+                organization_id: Some(organization.id),
+                ..Default::default()
+            },
+            &pool,
+        )
+        .await?;
+
+        assert!(
+            updated_user.organization_id.is_some(),
+            "incorrect organization id after update"
         );
 
         Ok(())

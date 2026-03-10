@@ -22,6 +22,7 @@ pub struct UserDto {
     pub email: Option<String>,
     pub auth_type: UserAuthType,
     pub email_verified: bool,
+    pub organization_id: Option<Uuid>,
 }
 
 impl From<User> for UserDto {
@@ -33,6 +34,7 @@ impl From<User> for UserDto {
             email: user.email,
             auth_type: user.auth_type,
             email_verified: user.email_verified,
+            organization_id: user.organization_id,
         }
     }
 }
