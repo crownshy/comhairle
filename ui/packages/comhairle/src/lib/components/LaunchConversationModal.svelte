@@ -7,12 +7,12 @@
 		DialogTitle,
 		DialogFooter
 	} from '$lib/components/ui/dialog';
-
+	import { useLoading } from '$lib/hooks/use-loading.svelte';
 	import { Alert, AlertTitle, AlertDescription } from '$lib/components/ui/alert';
-
 	import { Button } from '$lib/components/ui/button';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidateAll } from '$app/navigation';
+	import LoadingButton from './ui/button/loading-button.svelte';
 
 	type Props = {
 		conversation_id: string;
@@ -20,16 +20,19 @@
 
 	let { conversation_id }: Props = $props();
 	let open = $state(false);
+	const loader = useLoading();
 
 	async function launch() {
-		try {
-			await apiClient.LaunchConversation({}, { params: { conversation_id } });
-			open = false;
-			invalidateAll();
-		} catch (e) {
-			console.error(e);
-			open = false;
-		}
+		await loader.run(async () => {
+			try {
+				await apiClient.LaunchConversation({}, { params: { conversation_id } });
+				open = false;
+				invalidateAll();
+			} catch (e) {
+				console.error(e);
+				open = false;
+			}
+		});
 	}
 
 	function cancel() {
@@ -56,7 +59,9 @@
 		</Alert>
 
 		<DialogFooter>
-			<Button onclick={launch} variant="default">Launch</Button>
+			<LoadingButton variant="default" onclick={launch} loading={loader.loading}>
+				Launch
+			</LoadingButton>
 			<Button onclick={cancel} variant="outline">cancel</Button>
 		</DialogFooter>
 	</DialogContent>
