@@ -385,7 +385,7 @@ mod tests {
 
         let conversation = conversation::create(
             &db,
-            &bot_service,
+            &Some(bot_service),
             &config,
             &CreateConversation {
                 is_public: true,

@@ -53,6 +53,12 @@ pub async fn process_document_handler(
     job: DocumentJob,
     state: Data<Arc<ComhairleState>>,
 ) -> Result<(), ComhairleError> {
+    let (bot_service, default_knowledge_base_id) =
+        match (&state.bot_service, &state.config.default_knowledge_base_id) {
+            (Some(bs), Some(kb_id)) => (bs, kb_id),
+            _ => return Err(ComhairleError::UninitializedBotService),
+        };
+
     info!(
         job_id = %job.job_id,
         "Starting document processing job"
@@ -91,8 +97,7 @@ pub async fn process_document_handler(
     loop {
         attempts += 1;
 
-        let (_, document) = state
-            .bot_service
+        let (_, document) = bot_service
             .get_document(&job.document_id, &knowledge_base_id)
             .await?;
 
@@ -129,7 +134,7 @@ pub async fn process_document_handler(
         sleep(poll_interval).await;
     }
 
-    let (_, chat) = state.bot_service.get_chat(&chat_bot_id).await?;
+    let (_, chat) = bot_service.get_chat(&chat_bot_id).await?;
 
     if !chat.knowledge_base_ids.contains(&knowledge_base_id) {
         info!(
@@ -140,16 +145,13 @@ pub async fn process_document_handler(
 
         let update_params = UpdateChatRequest {
             knowledge_base_ids: Some(vec![
-                state.config.default_knowledge_base_id.clone(),
+                default_knowledge_base_id.clone(),
                 knowledge_base_id.to_string(),
             ]),
             ..Default::default()
         };
 
-        let _ = state
-            .bot_service
-            .update_chat(&chat_bot_id, update_params)
-            .await?;
+        let _ = bot_service.update_chat(&chat_bot_id, update_params).await?;
 
         info!(
             job_id = %job.job_id,

@@ -49,7 +49,6 @@ async fn create_conversation(
     RequiredAdminUser(user): RequiredAdminUser,
     Json(new_conversations): Json<CreateConversation>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
-    info!("Attempting to create conversation");
     let conversation = conversation::create(
         &state.db,
         &state.bot_service,

@@ -35,10 +35,14 @@ async fn list(
     Query(params): Query<GetQueryParams>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<Vec<ComhairleDocument>>), ComhairleError> {
+    let bot_service = match &state.bot_service {
+        Some(bs) => bs,
+        None => return Err(ComhairleError::UninitializedBotService),
+    };
+
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
 
-    let (_, documents) = state
-        .bot_service
+    let (_, documents) = bot_service
         .list_documents(&knowledge_base_id, Some(params))
         .await?;
 
@@ -51,10 +55,14 @@ async fn get(
     Path((conversation_id, document_id)): Path<(Uuid, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<ComhairleDocument>), ComhairleError> {
+    let bot_service = match &state.bot_service {
+        Some(bs) => bs,
+        None => return Err(ComhairleError::UninitializedBotService),
+    };
+
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
 
-    let (_, document) = state
-        .bot_service
+    let (_, document) = bot_service
         .get_document(&document_id, &knowledge_base_id)
         .await?;
 
@@ -67,10 +75,14 @@ async fn delete(
     Path((conversation_id, document_id)): Path<(Uuid, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<StatusCode, ComhairleError> {
+    let bot_service = match &state.bot_service {
+        Some(bs) => bs,
+        None => return Err(ComhairleError::UninitializedBotService),
+    };
+
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
 
-    let _ = state
-        .bot_service
+    let _ = bot_service
         .delete_document(document_id, knowledge_base_id)
         .await?;
 
@@ -83,10 +95,14 @@ async fn parse_document(
     Path((conversation_id, document_id)): Path<(Uuid, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<StatusCode, ComhairleError> {
+    let bot_service = match &state.bot_service {
+        Some(bs) => bs,
+        None => return Err(ComhairleError::UninitializedBotService),
+    };
+
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
 
-    let _ = state
-        .bot_service
+    let _ = bot_service
         .parse_document(document_id, knowledge_base_id)
         .await?;
 
@@ -99,10 +115,14 @@ async fn stop_parsing_document(
     Path((conversation_id, document_id)): Path<(Uuid, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<StatusCode, ComhairleError> {
+    let bot_service = match &state.bot_service {
+        Some(bs) => bs,
+        None => return Err(ComhairleError::UninitializedBotService),
+    };
+
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
 
-    let _ = state
-        .bot_service
+    let _ = bot_service
         .stop_parsing_document(document_id, knowledge_base_id)
         .await?;
 
@@ -115,9 +135,13 @@ async fn download_document(
     Path((conversation_id, document_id)): Path<(Uuid, String)>,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<Response<Body>, ComhairleError> {
+    let bot_service = match &state.bot_service {
+        Some(bs) => bs,
+        None => return Err(ComhairleError::UninitializedBotService),
+    };
+
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
-    let download_stream = state
-        .bot_service
+    let download_stream = bot_service
         .download_document(document_id, knowledge_base_id)
         .await?;
 
@@ -152,6 +176,11 @@ pub async fn upload(
     RequiredAdminUser(_user): RequiredAdminUser,
     mut form_data: Multipart,
 ) -> Result<(StatusCode, Json<UploadFileResponse>), ComhairleError> {
+    let bot_service = match &state.bot_service {
+        Some(bs) => bs,
+        None => return Err(ComhairleError::UninitializedBotService),
+    };
+
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
 
     // Get file data and upload document
@@ -169,8 +198,7 @@ pub async fn upload(
         ));
     }
     let file = UploadFileRequest { filename, bytes };
-    let (_, document) = state
-        .bot_service
+    let (_, document) = bot_service
         .upload_document(&knowledge_base_id, file)
         .await?;
 

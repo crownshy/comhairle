@@ -1,6 +1,6 @@
 use apalis::prelude::{MemoryStorage, Monitor, WorkerBuilder, WorkerFactoryFn};
 use comhairle::{
-    bot_service::ComhairleRagBotService,
+    bot_service::{ComhairleBotService, ComhairleRagBotService},
     config::TranslatorConfig,
     db::setup_db,
     mailer::Mailer,
@@ -65,10 +65,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
             });
 
     let websockets = Arc::new(ComhairleWebSocketService::new());
-    let bot_service = Arc::new(ComhairleRagBotService::new(
+
+    let bot_service = match (
         &config.bot_service_host,
         &config.bot_service_api_key,
-    ));
+        &config.default_knowledge_base_id,
+        &config.elicitation_bot_agent_id,
+    ) {
+        (Some(host), Some(api_key), Some(_), Some(_)) => {
+            Some(Arc::new(ComhairleRagBotService::new(host, api_key))
+                as Arc<dyn ComhairleBotService>)
+        }
+        _ => None,
+    };
 
     let process_documents_storage = MemoryStorage::new();
     let jobs = Arc::new(JobQueues {

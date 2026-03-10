@@ -221,6 +221,9 @@ pub enum ComhairleError {
 
     #[error("Conversation already live")]
     ConversationAlreadyLive,
+
+    #[error("Bot service not initialized")]
+    UninitializedBotService,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]

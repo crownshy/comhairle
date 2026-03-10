@@ -33,6 +33,11 @@ pub async fn get_session(
     Path(conversation_id): Path<Uuid>,
     RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<ComhairleChatSession>), ComhairleError> {
+    let bot_service = match &state.bot_service {
+        Some(bs) => bs,
+        None => return Err(ComhairleError::UninitializedBotService),
+    };
+
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     let session = bot_service_user_session::get_or_create(
         &state,
@@ -52,8 +57,7 @@ pub async fn get_session(
         }
     };
 
-    let (_, session) = state
-        .bot_service
+    let (_, session) = bot_service
         .get_chat_session(&session.bot_service_session_id, &chat_bot_id)
         .await?;
 
@@ -78,6 +82,11 @@ async fn converse(
     RequiredUser(user): RequiredUser,
     Json(payload): Json<ChatConversationRequest>,
 ) -> Result<StreamBody, ComhairleError> {
+    let bot_service = match &state.bot_service {
+        Some(bs) => bs,
+        None => return Err(ComhairleError::UninitializedBotService),
+    };
+
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     let session = bot_service_user_session::get_or_create(
         &state,
@@ -97,8 +106,7 @@ async fn converse(
         }
     };
 
-    let stream = state
-        .bot_service
+    let stream = bot_service
         .converse_with_chat(&session.bot_service_session_id, &chat_bot_id, payload)
         .await?;
     let body = Body::from_stream(stream);

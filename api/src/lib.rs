@@ -50,7 +50,7 @@ pub struct ComhairleState {
     pub mailer: Arc<dyn ComhairleMailer>,
     pub websockets: Arc<dyn WebSocketService>,
     pub translation_service: Option<Arc<dyn TranslationService>>,
-    pub bot_service: Arc<dyn ComhairleBotService>,
+    pub bot_service: Option<Arc<dyn ComhairleBotService>>,
     pub jobs: Arc<JobQueues>,
 }
 
