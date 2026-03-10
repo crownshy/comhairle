@@ -1291,12 +1291,12 @@ const endpoints = makeApi([
 				schema: is_complete
 			},
 			{
-				name: 'owner_id',
+				name: 'keyword',
 				type: 'Query',
 				schema: created_after
 			},
 			{
-				name: 'title',
+				name: 'owner_id',
 				type: 'Query',
 				schema: created_after
 			},
@@ -2582,12 +2582,12 @@ This struct contains optional fields that can be updated on a TextTranslation re
 				schema: is_complete
 			},
 			{
-				name: 'owner_id',
+				name: 'keyword',
 				type: 'Query',
 				schema: created_after
 			},
 			{
-				name: 'title',
+				name: 'owner_id',
 				type: 'Query',
 				schema: created_after
 			},

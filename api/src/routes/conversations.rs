@@ -697,7 +697,7 @@ mod tests {
             )
             .await?;
 
-        let url = format!("/conversation?title=target&offset={}&limit={}", 0, 10);
+        let url = format!("/conversation?keyword=target&offset={}&limit={}", 0, 10);
         let (status, conversations, _) = session.get(&app, &url).await?;
 
         let conversations: Vec<serde_json::Value> =
