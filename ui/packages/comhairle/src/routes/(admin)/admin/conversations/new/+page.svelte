@@ -17,7 +17,6 @@
 
 	let { data } = $props();
 
-
 	const form = superForm(data.form, {
 		SPA: true,
 		validators: zodClient(NewConversationSchema),
@@ -46,7 +45,7 @@
 					supported_languages: ['en'],
 					is_public: false,
 					is_live: false,
-					is_invite_only: false,
+					is_invite_only: false
 				};
 
 				let conversation = await apiClient.CreateConversation(fullConversation);
@@ -124,7 +123,7 @@
 	<div class="m:grid-cols-3 grid h-auto w-full grid-cols-2 gap-4">
 		<Card.Root
 			class={selectedWorkflowTemplate === 'empty'
-				? 'cursor-pointer bg-green-100'
+				? 'bg-primary text-primary-foreground cursor-pointer'
 				: 'cursor-pointer'}
 			onclick={() => (selectedWorkflowTemplate = 'empty')}
 		>
@@ -138,7 +137,7 @@
 
 		<Card.Root
 			class={selectedWorkflowTemplate === 'learn_polis'
-				? 'cursor-pointer bg-green-100'
+				? 'bg-primary text-primary-foreground cursor-pointer'
 				: 'cursor-pointer'}
 			onclick={() => (selectedWorkflowTemplate = 'learn_polis')}
 		>
@@ -153,7 +152,7 @@
 
 		<Card.Root
 			class={selectedWorkflowTemplate === 'learn_survey'
-				? 'cursor-pointer bg-green-100'
+				? 'bg-primary text-primary-foreground cursor-pointer'
 				: 'cursor-pointer'}
 			onclick={() => (selectedWorkflowTemplate = 'learn_survey')}
 		>
@@ -168,7 +167,7 @@
 
 		<Card.Root
 			class={selectedWorkflowTemplate === 'learn_survey_polis'
-				? 'cursor-pointer bg-green-100'
+				? 'bg-primary text-primary-foreground cursor-pointer'
 				: 'cursor-pointer'}
 			onclick={() => (selectedWorkflowTemplate = 'learn_survey_polis')}
 		>
