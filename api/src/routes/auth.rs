@@ -972,6 +972,7 @@ mod tests {
             auth_type: UserAuthType::EmailPassword,
             avatar_url: None,
             email_verified: false,
+            organization_id: None,
         };
         let claims = SessionClaims {
             username: user.username.clone(),
@@ -1015,6 +1016,7 @@ mod tests {
             auth_type: UserAuthType::Annon,
             avatar_url: None,
             email_verified: false,
+            organization_id: None,
         };
         let claims = SessionClaims {
             username: user.username.clone(),
@@ -1062,6 +1064,7 @@ mod tests {
             auth_type: UserAuthType::Annon,
             avatar_url: None,
             email_verified: user.email_verified,
+            organization_id: None,
         };
         let claims = SessionClaims {
             username: user.username.clone(),
@@ -1373,6 +1376,7 @@ mod tests {
             auth_type: UserAuthType::EmailPassword,
             avatar_url: None,
             email_verified: false,
+            organization_id: None,
         };
         let claims = EmailLinkClaims {
             email: Some(email.to_string()),
@@ -1430,6 +1434,7 @@ mod tests {
             avatar_url: None,
             auth_type: UserAuthType::EmailPassword,
             email_verified: false,
+            organization_id: None,
         };
         let claims = EmailLinkClaims {
             email: Some(email.to_string()),
@@ -1472,6 +1477,7 @@ mod tests {
             auth_type: UserAuthType::Annon,
             avatar_url: None,
             email_verified: false,
+            organization_id: None,
         };
         let claims = EmailLinkClaims { email: None };
         let token = generate_jwt(&user, claims, &secret, None);
