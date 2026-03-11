@@ -18,6 +18,7 @@ pub mod resource;
 pub mod translations;
 pub mod user_conversation_preferences;
 pub mod user_participation;
+pub mod user_profile;
 pub mod user_progress;
 pub mod users;
 pub mod workflow;
