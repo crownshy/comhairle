@@ -86,6 +86,7 @@ export const ConversationDto = z
     isLive: z.boolean(),
     isPublic: z.boolean(),
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    organizationId: z.union([z.string(), z.null()]).optional(),
     primaryLocale: z.string(),
     shortDescription: z.string().uuid(),
     slug: z.union([z.string(), z.null()]).optional(),
@@ -114,6 +115,7 @@ export const LocalizedConversationDto = z
     isLive: z.boolean(),
     isPublic: z.boolean(),
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    organizationId: z.union([z.string(), z.null()]).optional(),
     primaryLocale: z.string(),
     shortDescription: z.string(),
     slug: z.union([z.string(), z.null()]).optional(),
@@ -1114,13 +1116,13 @@ export const OrganizationType = z.enum(["non_profit", "governmental", "other"]);
 export type OrganizationType = z.infer<typeof OrganizationType>;
 export const LocalizedOrganizationDto = z
   .object({
-    created_at: z.string().datetime({ offset: true }),
+    createdAt: z.string().datetime({ offset: true }),
     description: z.string(),
-    external_url: z.union([z.string(), z.null()]).optional(),
+    externalUrl: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     mission: z.string(),
     name: z.string(),
-    org_type: OrganizationType,
+    orgType: OrganizationType,
     regions: z.array(z.string().uuid()),
   })
   .passthrough();
@@ -1147,13 +1149,13 @@ export const CreateOrganization = z
 export type CreateOrganization = z.infer<typeof CreateOrganization>;
 export const OrganizationDto = z
   .object({
-    created_at: z.string().datetime({ offset: true }),
+    createdAt: z.string().datetime({ offset: true }),
     description: z.string().uuid(),
-    external_url: z.union([z.string(), z.null()]).optional(),
+    externalUrl: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     mission: z.string().uuid(),
     name: z.string(),
-    org_type: OrganizationType,
+    orgType: OrganizationType,
     regions: z.array(z.string().uuid()),
   })
   .passthrough();
@@ -1562,6 +1564,11 @@ const endpoints = makeApi([
       },
       {
         name: "keyword",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -2980,6 +2987,11 @@ This struct contains optional fields that can be updated on a TextTranslation re
       },
       {
         name: "keyword",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },

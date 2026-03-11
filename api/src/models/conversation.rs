@@ -177,6 +177,7 @@ pub struct ConversationFilterOptions {
     is_complete: Option<bool>,
     is_invite_only: Option<bool>,
     owner_id: Option<Uuid>,
+    organization_id: Option<Uuid>,
     created_before: Option<DateTime<Utc>>,
     created_after: Option<DateTime<Utc>>,
 }
@@ -218,6 +219,14 @@ impl ConversationFilterOptions {
                 .and_where(
                     Expr::col((ConversationIden::Table, ConversationIden::OwnerId))
                         .eq(value.to_string()),
+                )
+                .to_owned();
+        }
+        if let Some(value) = &self.organization_id {
+            query = query
+                .and_where(
+                    Expr::col((ConversationIden::Table, ConversationIden::OrganizationId))
+                        .eq(*value),
                 )
                 .to_owned();
         }
@@ -801,8 +810,14 @@ mod tests {
     use serde_json::json;
 
     use crate::{
-        models::{users::{create_user, update_user, UpdateUserRequest}, model_test_helpers::setup_default_app_and_session},
-        routes::{auth::SignupRequest, organizations::dto::OrganizationDto},
+        models::{
+            model_test_helpers::setup_default_app_and_session,
+            users::{create_user, update_user, UpdateUserRequest},
+        },
+        routes::{
+            auth::SignupRequest, conversations::dto::ConversationDto,
+            organizations::dto::OrganizationDto,
+        },
         setup_server,
         test_helpers::{test_state, UserSession},
     };
@@ -992,6 +1007,74 @@ mod tests {
             results_3.records[0].title,
             "A conversation about AI".to_string(),
             "incorrect third title"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_list_conversations_by_organization_id(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, response, _) = session.create_random_organization(&app).await?;
+        let organization: OrganizationDto = serde_json::from_value(response)?;
+
+        // Before user has organization_id
+        let _ = session.create_random_conversation(&app).await?;
+        let _ = session.create_random_conversation(&app).await?;
+        let _ = session.create_random_conversation(&app).await?;
+
+        let _ = session
+            .put(
+                &app,
+                "/user/details",
+                json!({ "organization_id": organization.id })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+
+        // After user has organization_id
+        let (_, response_1, _) = session.create_random_conversation(&app).await?;
+        let (_, response_2, _) = session.create_random_conversation(&app).await?;
+        let (_, response_3, _) = session.create_random_conversation(&app).await?;
+        let conversation_1: ConversationDto = serde_json::from_value(response_1)?;
+        let conversation_2: ConversationDto = serde_json::from_value(response_2)?;
+        let conversation_3: ConversationDto = serde_json::from_value(response_3)?;
+
+        let page_options = PageOptions {
+            limit: None,
+            offset: None,
+        };
+        let order_options = ConversationOrderOptions {
+            ..Default::default()
+        };
+        let filter_options = ConversationFilterOptions {
+            organization_id: Some(organization.id),
+            ..Default::default()
+        };
+        let results = list(
+            &pool,
+            page_options,
+            order_options,
+            filter_options,
+            Some("en".to_string()),
+        )
+        .await?;
+
+        assert_eq!(results.total, 3, "incorrect total filtered conversations");
+        assert_eq!(
+            results.records[0].id, conversation_1.id,
+            "incorrect first id"
+        );
+        assert_eq!(
+            results.records[1].id, conversation_2.id,
+            "incorrect second id"
+        );
+        assert_eq!(
+            results.records[2].id, conversation_3.id,
+            "incorrect third id"
         );
 
         Ok(())
