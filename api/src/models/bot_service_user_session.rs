@@ -159,6 +159,11 @@ pub async fn create(
     config: &ComhairleConfig,
     session: &CreateBotServiceUserSession,
 ) -> Result<BotServiceUserSession, ComhairleError> {
+    let elicitation_bot_agent_id = config
+        .elicitation_bot_agent_id
+        .as_ref()
+        .ok_or(ComhairleError::NoBotServiceConfigured)?;
+
     let bot_service_session_id = match session.context {
         BotServiceSessionContext::QaBot => {
             let conversation_id = match session.conversation_id {
@@ -175,7 +180,6 @@ pub async fn create(
 
             let create_chat_session = CreateChatSessionRequest {
                 name: conversation.title.clone(),
-                ..Default::default()
             };
 
             let chat_bot_id = conversation
@@ -213,7 +217,7 @@ pub async fn create(
             };
 
             let (_, bot_service_session) = bot_service
-                .create_agent_session(&config.elicitation_bot_agent_id)
+                .create_agent_session(elicitation_bot_agent_id)
                 .await?;
 
             bot_service_session.id
@@ -362,6 +366,8 @@ pub async fn get_or_create(
     conversation_id: Option<&Uuid>,
     workflow_step_id: Option<&Uuid>,
 ) -> Result<BotServiceUserSession, ComhairleError> {
+    let bot_service = state.required_bot_service()?;
+
     let mut query = Query::select();
     query
         .from(BotServiceUserSessionIden::Table)
@@ -415,13 +421,7 @@ pub async fn get_or_create(
                 conversation_id: conversation_id.copied(),
                 workflow_step_id: workflow_step_id.copied(),
             };
-            create(
-                &state.db,
-                &state.bot_service,
-                &state.config,
-                &create_session,
-            )
-            .await?
+            create(&state.db, bot_service, &state.config, &create_session).await?
         }
     };
 
