@@ -348,6 +348,7 @@ mod tests {
             auth_type: users::UserAuthType::EmailPassword,
             email: Some("TestEmail@gmail.com".into()),
             email_verified: false,
+            organization_id: None,
         };
 
         let invite = Invite {
