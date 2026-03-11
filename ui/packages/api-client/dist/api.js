@@ -312,6 +312,7 @@ export const ConversationTranslations = z
 })
     .passthrough();
 export const ConversationWithTranslations = z
+<<<<<<< HEAD
     .object({
     chatBotId: z.union([z.string(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
@@ -337,6 +338,60 @@ export const ConversationWithTranslations = z
     videoUrl: z.union([z.string(), z.null()]).optional(),
 })
     .passthrough();
+||||||| parent of b47468b (48 conversation organization_id)
+	.object({
+		chatBotId: z.union([z.string(), z.null()]).optional(),
+		createdAt: z.string().datetime({ offset: true }),
+		defaultWorkflowId: z.union([z.string(), z.null()]).optional(),
+		description: z.string(),
+		enableQaChatBot: z.boolean(),
+		id: z.string().uuid(),
+		imageUrl: z.string(),
+		isComplete: z.boolean(),
+		isInviteOnly: z.boolean(),
+		isLive: z.boolean(),
+		isPublic: z.boolean(),
+		knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+		ownerId: z.string().uuid(),
+		primaryLocale: z.string(),
+		shortDescription: z.string(),
+		slug: z.union([z.string(), z.null()]).optional(),
+		supportedLanguages: z.array(z.string()),
+		tags: z.array(z.string()),
+		title: z.string(),
+		translations: ConversationTranslations,
+		updatedAt: z.string().datetime({ offset: true }),
+		videoUrl: z.union([z.string(), z.null()]).optional()
+	})
+	.passthrough();
+=======
+	.object({
+		chatBotId: z.union([z.string(), z.null()]).optional(),
+		createdAt: z.string().datetime({ offset: true }),
+		defaultWorkflowId: z.union([z.string(), z.null()]).optional(),
+		description: z.string(),
+		enableQaChatBot: z.boolean(),
+		id: z.string().uuid(),
+		imageUrl: z.string(),
+		isComplete: z.boolean(),
+		isInviteOnly: z.boolean(),
+		isLive: z.boolean(),
+		isPublic: z.boolean(),
+		knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+		organizationId: z.union([z.string(), z.null()]).optional(),
+		ownerId: z.string().uuid(),
+		primaryLocale: z.string(),
+		shortDescription: z.string(),
+		slug: z.union([z.string(), z.null()]).optional(),
+		supportedLanguages: z.array(z.string()),
+		tags: z.array(z.string()),
+		title: z.string(),
+		translations: ConversationTranslations,
+		updatedAt: z.string().datetime({ offset: true }),
+		videoUrl: z.union([z.string(), z.null()]).optional()
+	})
+	.passthrough();
+>>>>>>> b47468b (48 conversation organization_id)
 export const ConversationResponse = z.union([
     LocalizedConversationDto,
     ConversationWithTranslations,

@@ -277,6 +277,25 @@ pub async fn get_localized_by_id(
 }
 
 #[instrument(err(Debug))]
+pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Organization, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns(DEFAULT_COLUMNS.map(|col| (OrganizationIden::Table, col)))
+        .from(OrganizationIden::Table)
+        .and_where(Expr::col((OrganizationIden::Table, OrganizationIden::Id)).eq(id.to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let organization = query_as_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Organization".into()),
+            other => ComhairleError::DatabaseError(other),
+        })?;
+
+    Ok(organization)
+}
+
+#[instrument(err(Debug))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Organization, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(OrganizationIden::Table)
@@ -439,6 +458,27 @@ mod tests {
 
         assert_eq!(org.name, "test_org".to_string(), "incorrect name");
         assert_eq!(org.mission, "to_pass_test".to_string(), "incorrect mission");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_get_an_organization(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let _ = setup_default_app_and_session(&pool).await?;
+        let new_org = CreateOrganization {
+            name: "test_org".to_string(),
+            description: "test_org".to_string(),
+            mission: "to_pass_test".to_string(),
+            org_type: OrganizationType::NonProfit,
+            external_url: Some("test.com".to_string()),
+            ..Default::default()
+        };
+
+        let org = create(&pool, &new_org, "en").await?;
+
+        let org = get_by_id(&pool, &org.id).await?;
+
+        assert_eq!(org.name, "test_org".to_string(), "incorrect name");
 
         Ok(())
     }

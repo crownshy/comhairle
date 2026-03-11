@@ -394,6 +394,7 @@ mod tests {
                 ..Faker.fake()
             },
             user1.id,
+            None,
         )
         .await?;
 
