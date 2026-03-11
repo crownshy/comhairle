@@ -50,8 +50,16 @@ pub struct ComhairleState {
     pub mailer: Arc<dyn ComhairleMailer>,
     pub websockets: Arc<dyn WebSocketService>,
     pub translation_service: Option<Arc<dyn TranslationService>>,
-    pub bot_service: Arc<dyn ComhairleBotService>,
+    pub bot_service: Option<Arc<dyn ComhairleBotService>>,
     pub jobs: Arc<JobQueues>,
+}
+
+impl ComhairleState {
+    fn required_bot_service(&self) -> Result<&Arc<dyn ComhairleBotService>, ComhairleError> {
+        self.bot_service
+            .as_ref()
+            .ok_or(ComhairleError::NoBotServiceConfigured)
+    }
 }
 
 fn api_docs(api: TransformOpenApi) -> TransformOpenApi {
@@ -180,6 +188,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
         )
         .nest_api_service("/regions", routes::regions::router(state.clone()))
         .nest_api_service("/jobs", routes::jobs::router(state.clone()))
+        .nest_api_service("/services", routes::services::router(state.clone()))
         .nest_api_service("/docs", docs_routes(state.clone()))
         .finish_api_with(&mut api, api_docs)
         .layer(Extension(Arc::new(api.clone()))) // Arc is very important here or you will face massive memory and performance issues

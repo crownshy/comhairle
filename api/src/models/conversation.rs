@@ -308,7 +308,7 @@ impl ConversationOrderOptions {
 
 pub async fn delete(
     db: &PgPool,
-    bot_service: &Arc<dyn ComhairleBotService>,
+    bot_service: &Option<Arc<dyn ComhairleBotService>>,
     id: &Uuid,
 ) -> Result<Conversation, ComhairleError> {
     let (sql, values) = Query::delete()
@@ -323,12 +323,14 @@ pub async fn delete(
         .inspect_err(|e| println!("{e:#?}"))
         .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
 
-    if let Some(ref knowledge_base_id) = conversation.knowledge_base_id {
-        let _ = bot_service.delete_knowledge_base(knowledge_base_id).await?;
-    }
+    if let Some(bot_service) = bot_service {
+        if let Some(ref knowledge_base_id) = conversation.knowledge_base_id {
+            let _ = bot_service.delete_knowledge_base(knowledge_base_id).await?;
+        }
 
-    if let Some(ref chat_bot_id) = conversation.chat_bot_id {
-        let _ = bot_service.delete_chat(chat_bot_id).await?;
+        if let Some(ref chat_bot_id) = conversation.chat_bot_id {
+            let _ = bot_service.delete_chat(chat_bot_id).await?;
+        }
     }
 
     Ok(conversation)
@@ -567,7 +569,7 @@ impl CreateConversation {
 
 pub async fn create(
     db: &PgPool,
-    bot_service: &Arc<dyn ComhairleBotService>,
+    bot_service: &Option<Arc<dyn ComhairleBotService>>,
     config: &ComhairleConfig,
     conversation: &CreateConversation,
     owner_id: Uuid,
@@ -599,35 +601,39 @@ pub async fn create(
     )
     .await?;
 
-    let (_, knowledge_base) = bot_service
-        .create_knowledge_base(conversation_id.to_string(), None)
-        .await?;
-
-    let create_chat = CreateChatRequest {
-        name: conversation_id.to_string(),
-        knowledge_base_ids: Some(vec![config.default_knowledge_base_id.clone()]),
-        prompt: Some(ComhairlePrompt {
-            llm_prompt: Some(DEFAULT_CHAT_PROMPT.to_string()),
-            opener: Some(DEFAULT_CHAT_OPENER.to_string()),
-            empty_response: Some(DEFAULT_CHAT_NOT_FOUND_RESPONSE.to_string()),
-        }),
-        ..Default::default()
-    };
-
-    let (_, chat) = bot_service.create_chat(create_chat).await?;
-
     let mut columns = conversation.columns();
     let mut values = conversation.values();
 
-    columns.push(ConversationIden::KnowledgeBaseId);
-    values.push(knowledge_base.id.into());
+    if let (Some(bot_service), Some(default_knowledge_base_id)) =
+        (bot_service, &config.default_knowledge_base_id)
+    {
+        let (_, knowledge_base) = bot_service
+            .create_knowledge_base(conversation_id.to_string(), None)
+            .await?;
 
-    columns.push(ConversationIden::ChatBotId);
-    values.push(chat.id.into());
+        let create_chat = CreateChatRequest {
+            name: conversation_id.to_string(),
+            knowledge_base_ids: Some(vec![default_knowledge_base_id.clone()]),
+            prompt: Some(ComhairlePrompt {
+                llm_prompt: Some(DEFAULT_CHAT_PROMPT.to_string()),
+                opener: Some(DEFAULT_CHAT_OPENER.to_string()),
+                empty_response: Some(DEFAULT_CHAT_NOT_FOUND_RESPONSE.to_string()),
+            }),
+            ..Default::default()
+        };
 
-    if let Some(enable_qa_chat_bot) = conversation.enable_qa_chat_bot {
-        columns.push(ConversationIden::EnableQaChatBot);
-        values.push(enable_qa_chat_bot.into());
+        let (_, chat) = bot_service.create_chat(create_chat).await?;
+
+        columns.push(ConversationIden::KnowledgeBaseId);
+        values.push(knowledge_base.id.into());
+
+        columns.push(ConversationIden::ChatBotId);
+        values.push(chat.id.into());
+
+        if let Some(enable_qa_chat_bot) = conversation.enable_qa_chat_bot {
+            columns.push(ConversationIden::EnableQaChatBot);
+            values.push(enable_qa_chat_bot.into());
+        }
     }
 
     columns.push(ConversationIden::Title);

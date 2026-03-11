@@ -33,6 +33,9 @@ pub enum ComhairleError {
     #[error("No translation service configured")]
     NoTranslationServiceConfigured,
 
+    #[error("No bot service configured")]
+    NoBotServiceConfigured,
+
     #[error("HeyForm error: {0}")]
     HeyFormError(#[from] HeyFormError),
 

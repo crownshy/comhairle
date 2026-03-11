@@ -981,6 +981,9 @@ export const CreateJob = z
 	})
 	.partial()
 	.passthrough();
+export const ComhairleServices = z
+	.object({ botService: z.boolean(), translationService: z.boolean() })
+	.passthrough();
 export const schemas = {
 	AnnonLoginRequest,
 	UserAuthType,
@@ -1123,7 +1126,8 @@ export const schemas = {
 	PartialRegion,
 	Job,
 	PaginatedResults_for_Job,
-	CreateJob
+	CreateJob,
+	ComhairleServices
 };
 const endpoints = makeApi([
 	{
@@ -2341,6 +2345,14 @@ curl -X POST \
 		description: `Delete a region`,
 		requestFormat: 'json',
 		response: RegionDto
+	},
+	{
+		method: 'get',
+		path: '/services',
+		alias: 'ListSupportedServices',
+		description: `List of services supported (configured) by current Comhairle server`,
+		requestFormat: 'json',
+		response: ComhairleServices
 	},
 	{
 		method: 'get',

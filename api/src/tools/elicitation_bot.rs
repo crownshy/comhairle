@@ -134,6 +134,13 @@ async fn get_session_history(
     Path(workflow_step_id): Path<Uuid>,
     RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<ComhairleAgentSession>), ComhairleError> {
+    let bot_service = state.required_bot_service()?;
+    let elicitation_bot_agent_id = state
+        .config
+        .elicitation_bot_agent_id
+        .as_ref()
+        .ok_or(ComhairleError::NoBotServiceConfigured)?;
+
     let user_session = bot_service_user_session::get_or_create(
         &state,
         BotServiceSessionContext::ElicitationBot,
@@ -143,11 +150,10 @@ async fn get_session_history(
     )
     .await?;
 
-    let (_, session) = state
-        .bot_service
+    let (_, session) = bot_service
         .get_agent_session(
             &user_session.bot_service_session_id,
-            &state.config.elicitation_bot_agent_id,
+            elicitation_bot_agent_id,
         )
         .await?;
 
@@ -177,6 +183,13 @@ async fn converse(
     RequiredUser(user): RequiredUser,
     Json(payload): Json<ConversationRequest>,
 ) -> Result<StreamBody, ComhairleError> {
+    let bot_service = state.required_bot_service()?;
+    let elicitation_bot_agent_id = state
+        .config
+        .elicitation_bot_agent_id
+        .as_ref()
+        .ok_or(ComhairleError::NoBotServiceConfigured)?;
+
     let workflow_step = workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
 
     // TODO: think more creafully how we handle this in preview mode
@@ -204,11 +217,10 @@ async fn converse(
         question: payload.question,
         topic: tool_config.topic.clone(),
     };
-    let stream = state
-        .bot_service
+    let stream = bot_service
         .converse_with_agent(
             &session.bot_service_session_id,
-            &state.config.elicitation_bot_agent_id,
+            elicitation_bot_agent_id,
             payload,
         )
         .await?;
