@@ -171,7 +171,7 @@
 				{ params: { conversation_id: conversation.id } }
 			);
 
-			await apiClient.UpdateWorkflow(
+			await apiClient.UpdateConversationWorkflow(
 				{ auto_login: result.data.autoLogin },
 				{ params: { conversation_id: conversation.id, workflow_id: workflow.id } }
 			);

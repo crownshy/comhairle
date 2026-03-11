@@ -264,7 +264,12 @@
 					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">
 						Start time
 					</Form.Label>
-					<Input bind:value={$form.start_time} {...props} type="time" />
+					<Input
+						bind:value={$form.start_time}
+						{...props}
+						type="time"
+						class="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+					/>
 					<Form.FieldErrors />
 				{/snippet}
 			</Form.Control>
@@ -280,7 +285,12 @@
 					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">
 						End time
 					</Form.Label>
-					<Input bind:value={$form.end_time} {...props} type="time" />
+					<Input
+						bind:value={$form.end_time}
+						{...props}
+						type="time"
+						class="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+					/>
 					<Form.FieldErrors />
 				{/snippet}
 			</Form.Control>

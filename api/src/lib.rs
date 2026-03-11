@@ -41,7 +41,7 @@ use error::ComhairleError;
 use sqlx_postgres::PgPool;
 use tower_http::cors::CorsLayer;
 
-use crate::workers::JobQueues;
+use crate::{routes::workflows::WorkflowRouterContext, workers::JobQueues};
 
 #[derive(Clone)]
 pub struct ComhairleState {
@@ -137,10 +137,13 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
             routes::conversations::router(state.clone())
                 .nest_api_service(
                     "/{conversation_id}/workflow",
-                    routes::workflows::router(state.clone())
+                    routes::workflows::router(state.clone(), WorkflowRouterContext::Conversation)
                         .nest_api_service(
                             "/{workflow_id}/workflow_step",
-                            routes::workflow_steps::router(state.clone()),
+                            routes::workflow_steps::router(
+                                state.clone(),
+                                WorkflowRouterContext::Conversation,
+                            ),
                         )
                         .nest_api_service(
                             "/{workflow_id}/progress",
@@ -172,10 +175,22 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
                 )
                 .nest_api_service(
                     "/{conversation_id}/events",
-                    routes::events::router(state.clone()).nest_api_service(
-                        "/{event_id}/attendances",
-                        routes::event_attendances::router(state.clone()),
-                    ),
+                    routes::events::router(state.clone())
+                        .nest_api_service(
+                            "/{event_id}/attendances",
+                            routes::event_attendances::router(state.clone()),
+                        )
+                        .nest_api_service(
+                            "/{event_id}/workflows",
+                            routes::workflows::router(state.clone(), WorkflowRouterContext::Event)
+                                .nest(
+                                    "/{workflow_id}/workflow_steps",
+                                    routes::workflow_steps::router(
+                                        state.clone(),
+                                        WorkflowRouterContext::Event,
+                                    ),
+                                ),
+                        ),
                 ),
         )
         .nest_api_service(

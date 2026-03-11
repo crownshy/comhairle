@@ -62,7 +62,7 @@
 
 	const debouncedUpdateRequired = useDebounce(async (checked: boolean) => {
 		try {
-			await apiClient.UpdateWorkflowStep(
+			await apiClient.UpdateConversationWorkflowStep(
 				{ required: checked },
 				{
 					params: {
