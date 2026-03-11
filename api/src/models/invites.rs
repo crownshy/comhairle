@@ -386,7 +386,7 @@ mod tests {
 
         let conversation = conversation::create(
             &db,
-            &bot_service,
+            &Some(bot_service),
             &config,
             &CreateConversation {
                 is_public: true,
@@ -400,7 +400,8 @@ mod tests {
         let workflow = workflow::create(
             &db,
             &CreateWorkflow { ..Faker.fake() },
-            conversation.id,
+            Some(conversation.id),
+            None,
             user1.id,
         )
         .await?;

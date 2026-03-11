@@ -1,6 +1,11 @@
 use crate::{tools::polis::PolisError, translation_service::TranslationError};
 use aide::OperationIo;
-use axum::{extract::multipart::MultipartError, http::StatusCode, response::IntoResponse, Json};
+use axum::{
+    extract::{multipart::MultipartError, rejection::PathRejection},
+    http::StatusCode,
+    response::IntoResponse,
+    Json,
+};
 use heyform_sdk::HeyFormError;
 use ragflow::RagflowError;
 use schemars::JsonSchema;
@@ -33,6 +38,9 @@ pub enum ComhairleError {
     #[error("No translation service configured")]
     NoTranslationServiceConfigured,
 
+    #[error("No bot service configured")]
+    NoBotServiceConfigured,
+
     #[error("HeyForm error: {0}")]
     HeyFormError(#[from] HeyFormError),
 
@@ -41,6 +49,9 @@ pub enum ComhairleError {
 
     #[error("Multipart form parse error: {0}")]
     MultipartParseForm(#[from] MultipartError),
+
+    #[error("Path rejection: {0}")]
+    PathRejection(#[from] PathRejection),
 
     #[error("Template error: {0}")]
     TemplateError(#[from] minijinja::Error),

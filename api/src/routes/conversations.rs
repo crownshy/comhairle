@@ -49,7 +49,6 @@ async fn create_conversation(
     RequiredAdminUser(user): RequiredAdminUser,
     Json(new_conversations): Json<CreateConversation>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
-    info!("Attempting to create conversation");
     let conversation = conversation::create(
         &state.db,
         &state.bot_service,
@@ -436,7 +435,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 mod tests {
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
     use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
-    use crate::test_helpers::test_state;
+    use crate::test_helpers::{test_config, test_state};
     use crate::{setup_server, test_helpers::UserSession};
     use axum::http::StatusCode;
     use serde_json::json;
@@ -446,8 +445,15 @@ mod tests {
     use std::sync::Arc;
 
     #[sqlx::test]
-    fn should_be_able_to_create_conversation(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let state = test_state().db(pool).call()?;
+    fn should_be_able_to_create_conversation_without_bot_service_resources(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut config = test_config()?;
+        config.bot_service_host = None;
+        config.bot_service_api_key = None;
+        config.default_knowledge_base_id = None;
+        config.elicitation_bot_agent_id = None;
+        let state = test_state().db(pool).config(config).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
         let mut session = UserSession::new_admin();
@@ -480,6 +486,62 @@ mod tests {
             "http://someimage.png".to_string(),
             "incorrect json response"
         );
+        assert!(
+            conversation.knowledge_base_id.is_none(),
+            "incorrect knowledge_base_id"
+        );
+        assert!(conversation.chat_bot_id.is_none(), "incorrect chat_bot_id");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_be_able_to_create_conversation_with_bot_service_resources(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut config = test_config()?;
+        config.bot_service_host = Some("test_host".to_string());
+        config.bot_service_api_key = Some("test_api_key".to_string());
+        config.default_knowledge_base_id = Some("test_kb_id".to_string());
+        config.elicitation_bot_agent_id = Some("test_ea_id".to_string());
+        let state = test_state().db(pool).config(config).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new_admin();
+
+        session.signup(&app).await?;
+
+        let (status, response, _) = session
+            .create_conversation(
+                &app,
+                json! ({
+                    "title" : "Test conversation",
+                    "short_description" : "A test conversation",
+                    "description" : "A longer description",
+                    "image_url" : "http://someimage.png",
+                    "tags" : ["one", "two", "three"],
+                    "is_public" : false,
+                    "is_live": true,
+                    "is_invite_only" : false,
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
+                }),
+            )
+            .await?;
+        let conversation: ConversationDto = serde_json::from_value(response)?;
+
+        assert_eq!(status, StatusCode::CREATED, "Should be created");
+        assert_eq!(
+            conversation.image_url,
+            "http://someimage.png".to_string(),
+            "incorrect json response"
+        );
+        assert!(
+            conversation.knowledge_base_id.is_some(),
+            "incorrect knowledge_base_id"
+        );
+        assert!(conversation.chat_bot_id.is_some(), "incorrect chat_bot_id");
 
         Ok(())
     }
@@ -697,7 +759,7 @@ mod tests {
             )
             .await?;
 
-        let url = format!("/conversation?title=target&offset={}&limit={}", 0, 10);
+        let url = format!("/conversation?keyword=target&offset={}&limit={}", 0, 10);
         let (status, conversations, _) = session.get(&app, &url).await?;
 
         let conversations: Vec<serde_json::Value> =

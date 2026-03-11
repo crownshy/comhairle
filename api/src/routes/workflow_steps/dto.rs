@@ -25,7 +25,7 @@ use crate::{
 /// * `description`
 ///
 /// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
-#[derive(Serialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkflowStepDto {
     #[schemars(example = "example_uuid")]

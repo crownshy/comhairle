@@ -10,7 +10,7 @@ export const load: PageLoad = async (event) => {
 	const conversation_id = conversation.id;
 	const { workflow_id, workflow_step_id } = event.params;
 	try {
-		const current_step = await api.NextWorkflowStepForUser({
+		const current_step = await api.NextConversationWorkflowStepForUser({
 			params: { conversation_id: conversation.id, workflow_id: workflow_id }
 		});
 		// If we are in preview mode then let the user see this step regardless of if it
@@ -25,10 +25,10 @@ export const load: PageLoad = async (event) => {
 				headers: { 'Content-Type': 'application/json' }
 			});
 		}
-		const workflowSteps: LocalizedWorkflowStepDto[] = await api.ListWorkflowSteps({
+		const workflowSteps: LocalizedWorkflowStepDto[] = await api.ListConversationWorkflowSteps({
 			params: { conversation_id, workflow_id }
 		});
-		const workflowStep: LocalizedWorkflowStepDto = await api.GetWorkflowStep({
+		const workflowStep: LocalizedWorkflowStepDto = await api.GetConversationWorkflowStep({
 			params: {
 				conversation_id: conversation_id,
 				workflow_id: workflow_id,

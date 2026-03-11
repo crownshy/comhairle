@@ -71,7 +71,7 @@ pub fn test_state(
         translation_service: translation_service
             .map(Some)
             .unwrap_or_else(|| mock_translation_service()),
-        bot_service: bot_service.unwrap_or_else(|| mock_bot_service()),
+        bot_service: Some(bot_service.unwrap_or_else(|| mock_bot_service())),
         // TODO: can this be mocked?
         jobs: Arc::new(JobQueues {
             process_documents: Arc::new(Mutex::new(MemoryStorage::new())),
@@ -724,6 +724,53 @@ impl UserSession {
             &format!("/conversation/{conversation_id}/events/{event_id}/attendances"),
             json!({
                 "role": "participant",
+            })
+            .to_string()
+            .into(),
+        )
+        .await
+    }
+
+    pub async fn create_random_event_workflow(
+        &mut self,
+        app: &Router,
+        conversation_id: &str,
+        event_id: &str,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            &format!("/conversation/{conversation_id}/events/{event_id}/workflows"),
+            json!({
+                "name": "test_workflow",
+                "description":  "test_workflow",
+                "is_active": true,
+                "is_public": true,
+                "auto_login": false,
+            })
+            .to_string()
+            .into(),
+        )
+        .await
+    }
+
+    pub async fn create_random_event_workflow_step(
+        &mut self,
+        app: &Router,
+        conversation_id: &str,
+        event_id: &str,
+        workflow_id: &str,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        self.post(
+            app,
+            &format!("/conversation/{conversation_id}/events/{event_id}/workflows/{workflow_id}/workflow_steps"),
+            json!({
+                "name": "test_event_workflow_step",
+                "step_order": 2,
+                "activation_rule" : "manual",
+                "description": "A manually retired polis workflow step",
+                "required":false,
+                "is_offline": false,
+                "tool_setup": learn_tool_config()
             })
             .to_string()
             .into(),
