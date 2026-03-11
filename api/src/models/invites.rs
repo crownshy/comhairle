@@ -400,7 +400,8 @@ mod tests {
         let workflow = workflow::create(
             &db,
             &CreateWorkflow { ..Faker.fake() },
-            conversation.id,
+            Some(conversation.id),
+            None,
             user1.id,
         )
         .await?;

@@ -312,6 +312,7 @@ pub struct LocalizedEventWithAttendance {
 #[instrument(err(Debug))]
 pub async fn list(
     db: &PgPool,
+    conversation_id: &Uuid,
     page_options: PageOptions,
     filter_options: EventFilterOptions,
     order_options: EventOrderOptions,
@@ -320,6 +321,7 @@ pub async fn list(
     let query = Query::select()
         .from(EventIden::Table)
         .columns(DEFAULT_COLUMNS.map(|col| (EventIden::Table, col)))
+        .and_where(Expr::col(EventIden::ConversationId).eq(*conversation_id))
         .to_owned();
 
     // Add current_attendance computed column using subquery
@@ -597,32 +599,29 @@ mod tests {
     #[sqlx::test]
     async fn should_list_events(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let conversation_id_1 = get_random_conversation_id(&app, &mut session).await?;
-        let conversation_id_2 = get_random_conversation_id(&app, &mut session).await?;
-        let conversation_id_3 = get_random_conversation_id(&app, &mut session).await?;
-        let conversation_id_4 = get_random_conversation_id(&app, &mut session).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
 
         let new_event_1 = CreateEvent {
             name: "test_event_1".to_string(),
-            conversation_id: conversation_id_1,
+            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
         let new_event_2 = CreateEvent {
             name: "test_event_2".to_string(),
-            conversation_id: conversation_id_2,
+            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
         let new_event_3 = CreateEvent {
             name: "test_event_3".to_string(),
-            conversation_id: conversation_id_3,
+            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
         let new_event_4 = CreateEvent {
             name: "test_event_4".to_string(),
-            conversation_id: conversation_id_4,
+            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
@@ -641,7 +640,15 @@ mod tests {
         let order_options = EventOrderOptions {
             ..Default::default()
         };
-        let results = list(&pool, page_options, filter_options, order_options, None).await?;
+        let results = list(
+            &pool,
+            &conversation_id,
+            page_options,
+            filter_options,
+            order_options,
+            None,
+        )
+        .await?;
 
         assert_eq!(results.total, 4, "incorrect number of events");
         assert_eq!(
@@ -656,35 +663,32 @@ mod tests {
     #[sqlx::test]
     async fn should_filter_events_by_time_status(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let conversation_id_1 = get_random_conversation_id(&app, &mut session).await?;
-        let conversation_id_2 = get_random_conversation_id(&app, &mut session).await?;
-        let conversation_id_3 = get_random_conversation_id(&app, &mut session).await?;
-        let conversation_id_4 = get_random_conversation_id(&app, &mut session).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
 
         let new_event_1 = CreateEvent {
             name: "test_event_1".to_string(),
-            conversation_id: conversation_id_1,
+            conversation_id,
             signup_mode: "invite".to_string(),
             start_time: Utc::now() + Duration::days(1),
             ..Default::default()
         };
         let new_event_2 = CreateEvent {
             name: "test_event_2".to_string(),
-            conversation_id: conversation_id_2,
+            conversation_id,
             signup_mode: "invite".to_string(),
             start_time: Utc::now() + Duration::days(2),
             ..Default::default()
         };
         let new_event_3 = CreateEvent {
             name: "test_event_3".to_string(),
-            conversation_id: conversation_id_3,
+            conversation_id,
             signup_mode: "invite".to_string(),
             start_time: Utc::now() + Duration::days(3),
             ..Default::default()
         };
         let new_event_4 = CreateEvent {
             name: "test_event_4".to_string(),
-            conversation_id: conversation_id_4,
+            conversation_id,
             signup_mode: "invite".to_string(),
             start_time: Utc::now() - Duration::days(3),
             ..Default::default()
@@ -700,6 +704,7 @@ mod tests {
         };
         let future_results = list(
             &pool,
+            &conversation_id,
             page_options.clone(),
             EventFilterOptions {
                 time_status: Some(TimeStatus::Future),
@@ -713,6 +718,7 @@ mod tests {
         .await?;
         let past_results = list(
             &pool,
+            &conversation_id,
             page_options.clone(),
             EventFilterOptions {
                 time_status: Some(TimeStatus::Past),
@@ -744,10 +750,7 @@ mod tests {
     #[sqlx::test]
     async fn should_filter_events_by_capacity(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let conversation_id_1 = get_random_conversation_id(&app, &mut session).await?;
-        let conversation_id_2 = get_random_conversation_id(&app, &mut session).await?;
-        let conversation_id_3 = get_random_conversation_id(&app, &mut session).await?;
-        let conversation_id_4 = get_random_conversation_id(&app, &mut session).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let user_id_1 = get_random_user_id(&app, &mut session).await?;
         let user_id_2 = get_random_user_id(&app, &mut session).await?;
         let user_id_3 = get_random_user_id(&app, &mut session).await?;
@@ -756,7 +759,7 @@ mod tests {
         let new_event_1 = CreateEvent {
             name: "test_event_1".to_string(),
             capacity: Some(1),
-            conversation_id: conversation_id_1,
+            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
@@ -764,7 +767,7 @@ mod tests {
         let new_event_2 = CreateEvent {
             name: "test_event_2".to_string(),
             capacity: Some(3),
-            conversation_id: conversation_id_2,
+            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
@@ -772,14 +775,14 @@ mod tests {
         let new_event_3 = CreateEvent {
             name: "test_event_3".to_string(),
             capacity: Some(1),
-            conversation_id: conversation_id_3,
+            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
         // Available: capacity null so always has availability
         let new_event_4 = CreateEvent {
             name: "test_event_4".to_string(),
-            conversation_id: conversation_id_4,
+            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
@@ -787,7 +790,7 @@ mod tests {
         let new_event_5 = CreateEvent {
             name: "test_event_5".to_string(),
             capacity: Some(2),
-            conversation_id: conversation_id_4,
+            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
@@ -846,6 +849,7 @@ mod tests {
         };
         let full_results = list(
             &pool,
+            &conversation_id,
             page_options.clone(),
             EventFilterOptions {
                 capacity_status: Some(CapacityStatus::Full),
@@ -859,6 +863,7 @@ mod tests {
         .await?;
         let available_results = list(
             &pool,
+            &conversation_id,
             page_options.clone(),
             EventFilterOptions {
                 capacity_status: Some(CapacityStatus::Available),

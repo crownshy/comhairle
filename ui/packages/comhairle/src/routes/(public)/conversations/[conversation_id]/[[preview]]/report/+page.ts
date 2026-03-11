@@ -13,10 +13,11 @@ export const load: PageLoad = async ({ params, parent }) => {
 			params: { conversation_id: conversation.id }
 		});
 		try {
-			const workflowSteps: LocalizedWorkflowStepDto[] = await api.ListWorkflowSteps({
-				params: { conversation_id, workflow_id: workflows[0].id }
-			});
-			const workflowStats = await api.GetWorkflowStats({
+			const workflowSteps: LocalizedWorkflowStepDto[] =
+				await api.ListConversationWorkflowSteps({
+					params: { conversation_id, workflow_id: workflows[0].id }
+				});
+			const workflowStats = await api.GetConversationWorkflowStats({
 				params: { conversation_id, workflow_id: workflows[0].id }
 			});
 

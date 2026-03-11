@@ -1,8 +1,11 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use aide::axum::routing::{delete_with, get_with, post_with, put_with};
 use aide::axum::ApiRouter;
+use aide::OperationIo;
 
+use axum::http::request::Parts;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -10,12 +13,12 @@ use axum::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use tracing::info;
 use uuid::Uuid;
 
 use crate::models::workflow_step::{LocalizedWorkflowStep, WorkflowStepWithTranslations};
 use crate::routes::translations::LocaleExtractor;
 use crate::routes::workflow_steps::dto::{LocalizedWorkflowStepDto, WorkflowStepDto};
+use crate::routes::workflows::{SourcePathCtx, WorkflowPathCtx, WorkflowRouterContext};
 use crate::tools::ToolConfig;
 use crate::{
     error::ComhairleError,
@@ -25,7 +28,7 @@ use crate::{
 
 use super::auth::{is_user_admin, RequiredAdminUser, RequiredUser};
 use crate::models::{self, conversation, user_participation};
-use axum::extract::Query;
+use axum::extract::{FromRequestParts, Query};
 
 #[derive(Deserialize, JsonSchema, Debug)]
 pub struct GetWorkflowStepsQuery {
@@ -49,16 +52,63 @@ pub enum WorkflowStepsListResponse {
 
 pub mod dto;
 
+/// Path extractor that reliably retrieves `:workflow_id` and `:workflow_step_id` from routes nested
+/// under either:
+/// - `/conversations/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/...`
+/// - `/conversations/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps/:workflow_step_id/...`
+///
+/// Intended to be used alongside [`SourcePathCtx`], which handles the
+/// `conversation_id` / `event_id` portion of the same routes.
+///
+/// # Errors
+///
+/// Returns [`ComhairleError::BadRequest`] if `workflow_id` or `workflow_stpe_id` are absent from the
+/// path, which should only occur if this extractor is used on a route that does
+/// not include the `:workflow_id` segment.
+#[derive(Debug, Clone, OperationIo)]
+struct WorkflowStepPathCtx {
+    workflow_id: Uuid,
+    workflow_step_id: Uuid,
+}
+
+impl FromRequestParts<Arc<ComhairleState>> for WorkflowStepPathCtx {
+    type Rejection = ComhairleError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &Arc<ComhairleState>,
+    ) -> Result<Self, Self::Rejection> {
+        let Path(params) = Path::<HashMap<String, Uuid>>::from_request_parts(parts, state).await?;
+
+        let workflow_id = params
+            .get("workflow_id")
+            .cloned()
+            .ok_or_else(|| ComhairleError::BadRequest("Missing workflow_id".into()))?;
+        let workflow_step_id = params
+            .get("workflow_step_id")
+            .cloned()
+            .ok_or_else(|| ComhairleError::BadRequest("Missing workflow_step_id".into()))?;
+
+        Ok(Self {
+            workflow_id,
+            workflow_step_id,
+        })
+    }
+}
+
 /// Create workflow handler
 async fn create_workflow_step(
     State(state): State<Arc<ComhairleState>>,
-    Path((conversation_id, workflow_id)): Path<(Uuid, Uuid)>,
+    SourcePathCtx {
+        conversation_id,
+        event_id: _,
+    }: SourcePathCtx,
+    WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(new_workflow): Json<CreateWorkflowStep>,
 ) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
-    info!("Attempting to create workflow");
     let workflow = workflow_step::create(
         &state,
         &new_workflow,
@@ -73,11 +123,14 @@ async fn create_workflow_step(
 /// Update workflow handler
 async fn update_workflow_step(
     State(state): State<Arc<ComhairleState>>,
-    Path((_, workflow_id, id)): Path<(Uuid, Uuid, Uuid)>,
+    WorkflowStepPathCtx {
+        workflow_id,
+        workflow_step_id,
+    }: WorkflowStepPathCtx,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(workflow): Json<PartialWorkflowStep>,
 ) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
-    let workflow = workflow_step::update(&state.db, &id, &workflow_id, &workflow)
+    let workflow = workflow_step::update(&state.db, &workflow_step_id, &workflow_id, &workflow)
         .await?
         .into();
     Ok((StatusCode::OK, Json(workflow)))
@@ -85,7 +138,10 @@ async fn update_workflow_step(
 
 async fn update_elicitation_bot_workflow_step(
     State(state): State<Arc<ComhairleState>>,
-    Path((_conversation_id, workflow_id, id)): Path<(Uuid, Uuid, Uuid)>,
+    WorkflowStepPathCtx {
+        workflow_id,
+        workflow_step_id,
+    }: WorkflowStepPathCtx,
     RequiredAdminUser(_user): RequiredAdminUser,
     Json(workflow): Json<PartialWorkflowStep>,
 ) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
@@ -99,7 +155,7 @@ async fn update_elicitation_bot_workflow_step(
         }
     };
 
-    let workflow = workflow_step::update(&state.db, &id, &workflow_id, &workflow)
+    let workflow = workflow_step::update(&state.db, &workflow_step_id, &workflow_id, &workflow)
         .await?
         .into();
 
@@ -110,7 +166,11 @@ async fn update_elicitation_bot_workflow_step(
 async fn list_workflows_step(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Path((conversation_id, workflow_id)): Path<(Uuid, Uuid)>,
+    SourcePathCtx {
+        conversation_id,
+        event_id: _,
+    }: SourcePathCtx,
+    WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
     Query(query): Query<GetWorkflowStepsQuery>,
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<(StatusCode, Json<WorkflowStepsListResponse>), ComhairleError> {
@@ -153,7 +213,14 @@ async fn list_workflows_step(
 async fn get_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Path((conversation_id, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
+    SourcePathCtx {
+        conversation_id,
+        event_id: _,
+    }: SourcePathCtx,
+    WorkflowStepPathCtx {
+        workflow_id: _,
+        workflow_step_id,
+    }: WorkflowStepPathCtx,
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<(StatusCode, Json<LocalizedWorkflowStepDto>), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
@@ -174,7 +241,10 @@ async fn get_workflow_step(
 async fn delete_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(_user): RequiredAdminUser,
-    Path((_, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
+    WorkflowStepPathCtx {
+        workflow_id: _,
+        workflow_step_id,
+    }: WorkflowStepPathCtx,
 ) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
     let workflow = workflow_step::delete(&state.db, &workflow_step_id)
         .await?
@@ -182,12 +252,12 @@ async fn delete_workflow_step(
     Ok((StatusCode::OK, Json(workflow)))
 }
 
-pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
+pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
             post_with(create_workflow_step, |op| {
-                op.id("CreateWorkflowStep")
+                op.id(&format!("Create{ctx}WorkflowStep"))
                     .tag("Workflow step")
                     .summary("Create a new workflow step")
                     .security_requirement("JWT")
@@ -197,7 +267,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/",
             get_with(list_workflows_step, |op| {
-                op.id("ListWorkflowSteps")
+                op.id(&format!("List{ctx}WorkflowSteps"))
                     .tag("Workflow step")
                     .summary("List the workflow steps associated with this workflow. Use withTranslations=true to get translation data.")
                     .security_requirement("JWT")
@@ -207,7 +277,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/{workflow_step_id}",
             get_with(get_workflow_step, |op| {
-                op.id("GetWorkflowStep")
+                op.id(&format!("Get{ctx}WorkflowStep"))
                     .tag("Workflow step")
                     .summary("Get the specified workflow step")
                     .security_requirement("JWT")
@@ -217,7 +287,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/{workflow_step_id}",
             put_with(update_workflow_step, |op| {
-                op.id("UpdateWorkflowStep")
+                op.id(&format!("Update{ctx}WorkflowStep"))
                     .tag("Workflow step")
                     .summary("Update the specified workflow step")
                     .security_requirement("JWT")
@@ -227,7 +297,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/{workflow_step_id}/elicitation_bot",
             put_with(update_elicitation_bot_workflow_step, |op| {
-                op.id("UpdateElicitationBotWorkflowStep")
+                op.id(&format!("Update{ctx}ElicitationBotWorkflowStep"))
                     .tag("Workflow step")
                     .summary("Update a workflow step of type elicitation bot")
                     .security_requirement("JWT")
@@ -237,7 +307,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .api_route(
             "/{workflow_step_id}",
             delete_with(delete_workflow_step, |op| {
-                op.id("DeleteWorkflowStep")
+                op.id(&format!("Delete{ctx}WorkflowStep"))
                     .tag("Workflow step")
                     .summary("Delete the specified workflow step")
                     .security_requirement("JWT")
@@ -251,7 +321,12 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 mod tests {
 
     use crate::{
-        routes::workflow_steps::dto::LocalizedWorkflowStepDto,
+        models::model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
+        routes::{
+            events::dto::EventDto,
+            workflow_steps::dto::{LocalizedWorkflowStepDto, WorkflowStepDto},
+            workflows::dto::WorkflowDto,
+        },
         setup_server,
         test_helpers::{extract, learn_tool_config, polis_tool_config, test_state, UserSession},
     };
@@ -298,6 +373,53 @@ mod tests {
             )
             .await?;
         assert_eq!(status, StatusCode::CREATED, "should have been created");
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_create_workflow_step_for_an_event_workflow(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, event, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(event)?;
+        let (_, workflow, _) = session
+            .create_random_event_workflow(&app, &conversation_id.to_string(), &event.id.to_string())
+            .await?;
+        let workflow: WorkflowDto = serde_json::from_value(workflow)?;
+
+        let (_, workflow_step, _) = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/workflows/{}/workflow_steps",
+                    conversation_id, event.id, workflow.id
+                ),
+                json!({
+                "name": "Workflow step",
+                "step_order": 2,
+                "activation_rule" : "manual",
+                "description": "A manually retired polis workflow step",
+                "is_offline": false,
+                "required":true,
+                "tool_setup": {
+                    "type": "polis",
+                    "topic": "topic"
+                }})
+                .to_string()
+                .into(),
+            )
+            .await?;
+        let workflow_step: WorkflowStepDto = serde_json::from_value(workflow_step)?;
+
+        assert_eq!(
+            workflow_step.workflow_id, workflow.id,
+            "incorrect workflow_id"
+        );
+
         Ok(())
     }
 
@@ -453,6 +575,47 @@ mod tests {
             "Learn Workflow Step", workflow_return_name,
             "should get back the right workflow_step"
         );
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_get_workflow_step_for_an_event_workflow(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, event, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(event)?;
+        let (_, workflow, _) = session
+            .create_random_event_workflow(&app, &conversation_id.to_string(), &event.id.to_string())
+            .await?;
+        let workflow: WorkflowDto = serde_json::from_value(workflow)?;
+        let (_, new_workflow_step, _) = session
+            .create_random_event_workflow_step(
+                &app,
+                &conversation_id.to_string(),
+                &event.id.to_string(),
+                &workflow.id.to_string(),
+            )
+            .await?;
+        let new_workflow_step: WorkflowStepDto = serde_json::from_value(new_workflow_step)?;
+
+        let (_, workflow_step, _) = session
+            .get(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/workflows/{}/workflow_steps/{}",
+                    conversation_id, event.id, workflow.id, new_workflow_step.id
+                ),
+            )
+            .await?;
+        let workflow_step: LocalizedWorkflowStepDto = serde_json::from_value(workflow_step)?;
+
+        assert_eq!(
+            workflow_step.id, new_workflow_step.id,
+            "incorrect workflow_id"
+        );
+
         Ok(())
     }
 

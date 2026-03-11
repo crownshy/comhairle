@@ -59,7 +59,7 @@
 			workflowSteps.length > 0 ? Math.max(...workflowSteps.map((ws) => ws.stepOrder)) + 1 : 1;
 
 		try {
-			await apiClient.CreateWorkflowStep(
+			await apiClient.CreateConversationWorkflowStep(
 				{
 					name: `New ${step} Step`,
 					description: `A new ${step} Step`,
@@ -81,7 +81,7 @@
 
 	async function decrementStep(step_id: string) {
 		let step = workflowSteps.find((ws) => ws.id === step_id);
-		await apiClient.UpdateWorkflowStep(
+		await apiClient.UpdateConversationWorkflowStep(
 			{ step_order: step!.stepOrder - 2 },
 			{
 				params: {
@@ -96,7 +96,7 @@
 
 	async function incrementStep(step_id: string) {
 		let step = workflowSteps.find((ws) => ws.id === step_id);
-		await apiClient.UpdateWorkflowStep(
+		await apiClient.UpdateConversationWorkflowStep(
 			{ step_order: step!.stepOrder + 1 },
 			{
 				params: {

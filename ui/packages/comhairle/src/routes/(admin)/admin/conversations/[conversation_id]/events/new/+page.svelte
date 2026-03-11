@@ -21,6 +21,7 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { goto } from '$app/navigation';
+	import { basic_learn_config } from '$lib/workflow_templates';
 
 	let { data } = $props();
 	let { form: formDefaults, conversation } = data;
@@ -51,8 +52,43 @@
 				start_time: startTime.toDate(getLocalTimeZone()).toISOString(),
 				end_time: endTime.toDate(getLocalTimeZone()).toISOString()
 			};
-			await apiClient.CreateEvent(eventParams, {
+			let event = await apiClient.CreateEvent(eventParams, {
 				params: { conversation_id: conversation.id }
+			});
+
+			let workflow = await apiClient.CreateEventWorkflow(
+				{
+					name: 'Default event workflow',
+					description: 'Default event workflow',
+					is_active: true,
+					is_public: true,
+					auto_login: false
+				},
+				{ params: { conversation_id: conversation.id, event_id: event.id } }
+			);
+
+			await apiClient.CreateEventWorkflowStep(
+				{
+					name: 'Event agenda',
+					description: 'The agenda for the event',
+					is_offline: false,
+					activation_rule: 'manual',
+					step_order: 1,
+					tool_setup: basic_learn_config,
+					required: true
+				},
+				{
+					params: {
+						conversation_id: conversation.id,
+						event_id: event.id,
+						workflow_id: workflow.id
+					}
+				}
+			);
+
+			notifications.send({
+				message: 'Event created',
+				priority: 'INFO'
 			});
 
 			goto(`/admin/conversations/${conversation.id}/events`);
@@ -154,7 +190,12 @@
 		<Form.Control>
 			{#snippet children({ props })}
 				<Form.Label>Enter a start time for your event</Form.Label>
-				<Input type="time" {...props} bind:value={$formData.start_time} />
+				<Input
+					type="time"
+					{...props}
+					bind:value={$formData.start_time}
+					class="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+				/>
 			{/snippet}
 		</Form.Control>
 		<Form.FieldErrors />
@@ -164,7 +205,12 @@
 		<Form.Control>
 			{#snippet children({ props })}
 				<Form.Label>Enter an end time for your event</Form.Label>
-				<Input type="time" {...props} bind:value={$formData.end_time} />
+				<Input
+					type="time"
+					{...props}
+					bind:value={$formData.end_time}
+					class="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+				/>
 			{/snippet}
 		</Form.Control>
 		<Form.FieldErrors />

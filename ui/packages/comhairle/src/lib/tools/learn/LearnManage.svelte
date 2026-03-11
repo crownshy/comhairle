@@ -130,7 +130,7 @@
 	async function saveToServer({ invalidate = true }: { invalidate?: boolean } = {}) {
 		try {
 			const configToSave = getToolConfigForSave();
-			await apiClient.UpdateWorkflowStep(
+			await apiClient.UpdateConversationWorkflowStep(
 				isLive ? { tool_config: configToSave } : { preview_tool_config: configToSave },
 				{
 					params: {

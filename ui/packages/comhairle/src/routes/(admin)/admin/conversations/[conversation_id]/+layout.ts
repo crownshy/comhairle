@@ -24,15 +24,15 @@ export const load: PageLoad = async ({
 			params: { conversation_id },
 			queries: { withTranslations: true }
 		})) as ConversationWithTranslations;
-		const workflows = await api.ListWorkflows({ params: { conversation_id } });
+		const workflows = await api.ListConversationWorkflows({ params: { conversation_id } });
 		let stats = undefined;
 		let workflowSteps = undefined;
 
 		if (workflows.length > 0) {
-			stats = await api.GetWorkflowStats({
+			stats = await api.GetConversationWorkflowStats({
 				params: { conversation_id, workflow_id: workflows[0].id }
 			});
-			workflowSteps = await api.ListWorkflowSteps({
+			workflowSteps = await api.ListConversationWorkflowSteps({
 				params: { conversation_id, workflow_id: workflows[0].id },
 				queries: { withTranslations: true }
 			});

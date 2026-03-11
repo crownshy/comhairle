@@ -12,7 +12,7 @@ export const load: PageLoad = async ({ parent, params }) => {
 	let redirect_url = '/';
 	try {
 		if (conversation.isLive) {
-			const next_step = await api.NextWorkflowStepForUser({
+			const next_step = await api.NextConversationWorkflowStepForUser({
 				params: { conversation_id: conversation.id, workflow_id: workflow_id }
 			});
 
@@ -27,7 +27,7 @@ export const load: PageLoad = async ({ parent, params }) => {
 				redirect_url = thank_you_page(conversation.id, workflow_id, preview);
 			}
 		} else {
-			const steps: LocalizedWorkflowStepDto[] = await api.ListWorkflowSteps({
+			const steps: LocalizedWorkflowStepDto[] = await api.ListConversationWorkflowSteps({
 				params: { conversation_id: conversation.id, workflow_id: workflow_id }
 			});
 			const firstStep = steps.find((s) => s.stepOrder === 1);
