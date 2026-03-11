@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, Alias, Expr, Func, PostgresQueryBuilder, Query};
+use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, query_as_with, PgPool};
@@ -218,17 +218,13 @@ pub struct RegionFilterOptions {
 impl RegionFilterOptions {
     fn apply(&self, mut query: sea_query::SelectStatement) -> sea_query::SelectStatement {
         if let Some(value) = self.organization_id {
-            let subquery = Query::select()
-                .expr(Func::cust(Alias::new("UNNEST")).arg(Expr::col((
-                    OrganizationIden::Table,
-                    OrganizationIden::Regions,
-                ))))
-                .from(OrganizationIden::Table)
-                .and_where(Expr::col((OrganizationIden::Table, OrganizationIden::Id)).eq(value))
-                .to_owned();
-
             query = query
-                .and_where(Expr::col((RegionIden::Table, RegionIden::Id)).in_subquery(subquery))
+                .join(
+                    sea_query::JoinType::InnerJoin,
+                    OrganizationIden::Table,
+                    Expr::cust("region.id = ANY(organization.regions)"),
+                )
+                .and_where(Expr::col((OrganizationIden::Table, OrganizationIden::Id)).eq(value))
                 .to_owned();
         }
 
