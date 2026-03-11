@@ -15,6 +15,7 @@ pub mod regions;
 pub mod translations;
 pub mod user;
 pub mod user_conversation_preferences;
+pub mod user_profile;
 pub mod user_progress;
 pub mod workflow_steps;
 pub mod workflows;

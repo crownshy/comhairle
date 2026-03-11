@@ -113,10 +113,15 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
         .nest_api_service("/auth", auth_router)
         .nest_api_service(
             "/user",
-            routes::user::router(state.clone()).nest_api_service(
-                "/preferences",
-                routes::user_conversation_preferences::router(state.clone()),
-            ),
+            routes::user::router(state.clone())
+                .nest_api_service(
+                    "/preferences",
+                    routes::user_conversation_preferences::router(state.clone()),
+                )
+                .nest_api_service(
+                    "/profile",
+                    routes::user_profile::router(state.clone()),
+                ),
         )
         .nest_api_service(
             "/notifications",

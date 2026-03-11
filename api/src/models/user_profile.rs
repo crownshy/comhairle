@@ -207,3 +207,239 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<UserProfile, ComhairleErro
 
     Ok(profile)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::routes::auth::SignupRequest;
+    use sqlx::PgPool;
+    use std::error::Error;
+
+    #[sqlx::test]
+    async fn should_create_user_profile(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let user = crate::models::users::create_user(
+            &SignupRequest {
+                username: "test_user".to_string(),
+                password: "test_pw".to_string(),
+                email: "test@example.com".to_string(),
+                avatar_url: None,
+            },
+            &pool,
+        )
+        .await?;
+
+        let create_profile = CreateUserProfile {
+            user_id: user.id,
+            consented: true,
+            ethnicity: Some("Asian".to_string()),
+            age: Some(25),
+            gender: Some("Female".to_string()),
+            zipcode: Some("12345".to_string()),
+        };
+
+        let profile = create(&pool, &create_profile).await?;
+
+        assert_eq!(profile.user_id, user.id, "incorrect user_id");
+        assert_eq!(profile.consented, true, "incorrect consented");
+        assert_eq!(
+            profile.ethnicity,
+            Some("Asian".to_string()),
+            "incorrect ethnicity"
+        );
+        assert_eq!(profile.age, Some(25), "incorrect age");
+        assert_eq!(
+            profile.gender,
+            Some("Female".to_string()),
+            "incorrect gender"
+        );
+        assert_eq!(
+            profile.zipcode,
+            Some("12345".to_string()),
+            "incorrect zipcode"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_get_profile_by_user_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let user = crate::models::users::create_user(
+            &SignupRequest {
+                username: "test_user".to_string(),
+                password: "test_pw".to_string(),
+                email: "test@example.com".to_string(),
+                avatar_url: None,
+            },
+            &pool,
+        )
+        .await?;
+
+        let create_profile = CreateUserProfile {
+            user_id: user.id,
+            consented: true,
+            ethnicity: Some("Hispanic".to_string()),
+            age: Some(30),
+            gender: Some("Male".to_string()),
+            zipcode: Some("67890".to_string()),
+        };
+
+        let created_profile = create(&pool, &create_profile).await?;
+
+        let fetched_profile = get_by_user_id(&pool, &user.id).await?;
+
+        assert_eq!(
+            fetched_profile.id, created_profile.id,
+            "incorrect profile id"
+        );
+        assert_eq!(
+            fetched_profile.user_id, user.id,
+            "incorrect user_id"
+        );
+        assert_eq!(fetched_profile.consented, true, "incorrect consented");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_update_profile(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let user = crate::models::users::create_user(
+            &SignupRequest {
+                username: "test_user".to_string(),
+                password: "test_pw".to_string(),
+                email: "test@example.com".to_string(),
+                avatar_url: None,
+            },
+            &pool,
+        )
+        .await?;
+
+        let create_profile = CreateUserProfile {
+            user_id: user.id,
+            consented: false,
+            ethnicity: None,
+            age: None,
+            gender: None,
+            zipcode: None,
+        };
+
+        let profile = create(&pool, &create_profile).await?;
+        let original_updated_at = profile.updated_at;
+
+        // Wait a moment to ensure updated_at changes
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+
+        let updated_profile = update(
+            &pool,
+            &profile.id,
+            Some(true),
+            Some("Black".to_string()),
+            Some(35),
+            Some("Non-binary".to_string()),
+            Some("54321".to_string()),
+        )
+        .await?;
+
+        assert_eq!(updated_profile.consented, true, "consented not updated");
+        assert_eq!(
+            updated_profile.ethnicity,
+            Some("Black".to_string()),
+            "ethnicity not updated"
+        );
+        assert_eq!(updated_profile.age, Some(35), "age not updated");
+        assert_eq!(
+            updated_profile.gender,
+            Some("Non-binary".to_string()),
+            "gender not updated"
+        );
+        assert_eq!(
+            updated_profile.zipcode,
+            Some("54321".to_string()),
+            "zipcode not updated"
+        );
+        assert!(
+            updated_profile.updated_at > original_updated_at,
+            "updated_at should be updated"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_enforce_one_profile_per_user(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let user = crate::models::users::create_user(
+            &SignupRequest {
+                username: "test_user".to_string(),
+                password: "test_pw".to_string(),
+                email: "test@example.com".to_string(),
+                avatar_url: None,
+            },
+            &pool,
+        )
+        .await?;
+
+        let create_profile = CreateUserProfile {
+            user_id: user.id,
+            consented: true,
+            ethnicity: None,
+            age: None,
+            gender: None,
+            zipcode: None,
+        };
+
+        // Create first profile
+        let _profile = create(&pool, &create_profile).await?;
+
+        // Attempt to create second profile for same user
+        let result = create(&pool, &create_profile).await;
+
+        assert!(
+            result.is_err(),
+            "should not allow multiple profiles for same user"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_cascade_delete_profile_when_user_deleted(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let user = crate::models::users::create_user(
+            &SignupRequest {
+                username: "test_user".to_string(),
+                password: "test_pw".to_string(),
+                email: "test@example.com".to_string(),
+                avatar_url: None,
+            },
+            &pool,
+        )
+        .await?;
+
+        let create_profile = CreateUserProfile {
+            user_id: user.id,
+            consented: true,
+            ethnicity: Some("White".to_string()),
+            age: Some(40),
+            gender: Some("Male".to_string()),
+            zipcode: Some("11111".to_string()),
+        };
+
+        let profile = create(&pool, &create_profile).await?;
+
+        // Delete the user
+        sqlx::query("DELETE FROM comhairle_user WHERE id = $1")
+            .bind(user.id)
+            .execute(&pool)
+            .await?;
+
+        // Attempt to get the profile
+        let result = get_by_id(&pool, &profile.id).await;
+
+        assert!(
+            result.is_err(),
+            "profile should be deleted when user is deleted"
+        );
+
+        Ok(())
+    }
+}
