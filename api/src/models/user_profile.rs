@@ -1,5 +1,6 @@
 use crate::error::ComhairleError;
 use chrono::{DateTime, Utc};
+use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
@@ -7,17 +8,26 @@ use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
 use uuid::Uuid;
 
-#[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
+#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "user_profile")]
+#[partially(derive(Deserialize, Debug, JsonSchema, Default))]
 pub struct UserProfile {
+    #[partially(omit)]
     pub id: Uuid,
+    #[partially(omit)]
     pub user_id: Uuid,
     pub consented: bool,
+    #[partially(transparent)]
     pub ethnicity: Option<String>,
+    #[partially(transparent)]
     pub age: Option<i32>,
+    #[partially(transparent)]
     pub gender: Option<String>,
+    #[partially(transparent)]
     pub zipcode: Option<String>,
+    #[partially(omit)]
     pub created_at: DateTime<Utc>,
+    #[partially(omit)]
     pub updated_at: DateTime<Utc>,
 }
 
@@ -139,11 +149,7 @@ pub async fn get_by_user_id(db: &PgPool, user_id: &Uuid) -> Result<UserProfile, 
 pub async fn update(
     db: &PgPool,
     id: &Uuid,
-    consented: Option<bool>,
-    ethnicity: Option<String>,
-    age: Option<i32>,
-    gender: Option<String>,
-    zipcode: Option<String>,
+    update: &PartialUserProfile,
 ) -> Result<UserProfile, ComhairleError> {
     let mut query = Query::update()
         .table(UserProfileIden::Table)
@@ -152,23 +158,25 @@ pub async fn update(
 
     let mut has_updates = false;
 
-    if let Some(value) = consented {
-        query = query.value(UserProfileIden::Consented, value).to_owned();
+    if let Some(value) = &update.consented {
+        query = query
+            .value(UserProfileIden::Consented, value.clone())
+            .to_owned();
         has_updates = true;
     }
-    if let Some(value) = ethnicity {
+    if let Some(value) = &update.ethnicity {
         query = query.value(UserProfileIden::Ethnicity, value).to_owned();
         has_updates = true;
     }
-    if let Some(value) = age {
-        query = query.value(UserProfileIden::Age, value).to_owned();
+    if let Some(value) = &update.age {
+        query = query.value(UserProfileIden::Age, value.clone()).to_owned();
         has_updates = true;
     }
-    if let Some(value) = gender {
+    if let Some(value) = &update.gender {
         query = query.value(UserProfileIden::Gender, value).to_owned();
         has_updates = true;
     }
-    if let Some(value) = zipcode {
+    if let Some(value) = &update.zipcode {
         query = query.value(UserProfileIden::Zipcode, value).to_owned();
         has_updates = true;
     }
@@ -291,10 +299,7 @@ mod tests {
             fetched_profile.id, created_profile.id,
             "incorrect profile id"
         );
-        assert_eq!(
-            fetched_profile.user_id, user.id,
-            "incorrect user_id"
-        );
+        assert_eq!(fetched_profile.user_id, user.id, "incorrect user_id");
         assert_eq!(fetched_profile.consented, true, "incorrect consented");
 
         Ok(())
@@ -331,11 +336,14 @@ mod tests {
         let updated_profile = update(
             &pool,
             &profile.id,
-            Some(true),
-            Some("Black".to_string()),
-            Some(35),
-            Some("Non-binary".to_string()),
-            Some("54321".to_string()),
+            &PartialUserProfile {
+                consented: Some(true),
+                ethnicity: Some("Black".to_string()),
+                age: Some(35),
+                gender: Some("Non-binary".to_string()),
+                zipcode: Some("54321".to_string()),
+                ..PartialUserProfile::default()
+            },
         )
         .await?;
 

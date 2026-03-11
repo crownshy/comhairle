@@ -8,7 +8,10 @@ use axum::{extract::State, http::StatusCode, Json};
 
 use crate::{
     error::ComhairleError,
-    models::{self, user_profile::CreateUserProfile},
+    models::{
+        self,
+        user_profile::{CreateUserProfile, PartialUserProfile},
+    },
     routes::{auth::RequiredUser, user_profile::dto::UserProfileDto},
     ComhairleState,
 };
@@ -41,11 +44,13 @@ pub async fn upsert_profile(
             models::user_profile::update(
                 &state.db,
                 &existing.id,
-                request.consented,
-                request.ethnicity,
-                request.age,
-                request.gender,
-                request.zipcode,
+                &PartialUserProfile {
+                    consented: request.consented,
+                    ethnicity: request.ethnicity,
+                    age: request.age,
+                    gender: request.gender,
+                    zipcode: request.zipcode,
+                },
             )
             .await?
         }
@@ -99,8 +104,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 mod tests {
     use super::*;
     use crate::{
-        models::model_test_helpers::setup_default_app_and_session,
-        test_helpers::UserSession,
+        models::model_test_helpers::setup_default_app_and_session, test_helpers::UserSession,
     };
     use serde_json::json;
     use sqlx::PgPool;
@@ -141,11 +145,7 @@ mod tests {
             Some("12345".to_string()),
             "incorrect zipcode"
         );
-        assert_eq!(
-            profile.user_id,
-            session.id.unwrap(),
-            "incorrect user_id"
-        );
+        assert_eq!(profile.user_id, session.id.unwrap(), "incorrect user_id");
 
         Ok(())
     }
@@ -265,7 +265,10 @@ mod tests {
         // User 2 tries to get their own profile (should fail because they don't have one yet)
         let (status, response, _) = session2.get(&app, "/user/profile").await?;
 
-        assert!(!status.is_success(), "should fail to get non-existent profile");
+        assert!(
+            !status.is_success(),
+            "should fail to get non-existent profile"
+        );
         assert!(
             response.get("err").is_some(),
             "should return error when profile not found"
