@@ -19,7 +19,7 @@ use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
+use sea_query::{enum_def, extension::postgres::PgExpr, Cond, Expr, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
@@ -166,9 +166,9 @@ impl PartialConversation {
     }
 }
 
-#[derive(Deserialize, Debug, JsonSchema)]
+#[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct ConversationFilterOptions {
-    title: Option<String>,
+    keyword: Option<String>,
     is_public: Option<bool>,
     is_live: Option<bool>,
     is_complete: Option<bool>,
@@ -252,13 +252,21 @@ impl ConversationFilterOptions {
         use crate::models::translations::TextTranslationIden;
         use sea_query::Alias;
 
-        if let Some(value) = &self.title {
+        if let Some(value) = &self.keyword {
             // Filter on the actual translation table column, not the alias
             let tt_title_alias = Alias::new("tt_title");
+            let tt_short_description_alias = Alias::new("tt_short_description");
             query = query
-                .and_where(
-                    Expr::col((tt_title_alias, TextTranslationIden::Content))
-                        .like(format!("%{value}%")),
+                .cond_where(
+                    Cond::any()
+                        .add(
+                            Expr::col((tt_title_alias, TextTranslationIden::Content))
+                                .ilike(format!("%{value}%")),
+                        )
+                        .add(
+                            Expr::col((tt_short_description_alias, TextTranslationIden::Content))
+                                .ilike(format!("%{value}%")),
+                        ),
                 )
                 .to_owned();
         };
@@ -776,4 +784,150 @@ pub async fn list(
     let conversations = page_options.fetch_paginated_results(db, query).await?;
 
     Ok(conversations)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use serde_json::json;
+    use std::error::Error;
+
+    #[sqlx::test]
+    async fn should_filter_conversations_by_case_insensitive_keyword(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let _ = session
+            .create_conversation(
+                &app,
+                json! ({
+                    "title" : "A title about the moon",
+                    "short_description" : "Scotlands ambitions to leave the planet",
+                    "description" : "A longer description",
+                    "image_url" : "http://someimage.png",
+                    "tags" : ["one", "two", "three"],
+                    "is_public" : true,
+                    "is_live": true,
+                    "is_invite_only" : false,
+                    "slug" : "moon_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
+                }),
+            )
+            .await?;
+        let _ = session
+            .create_conversation(
+                &app,
+                json! ({
+                    "title" : "A conversation about golf",
+                    "short_description" : "LIV vs the PGA",
+                    "description" : "A longer description",
+                    "image_url" : "http://someimage.png",
+                    "tags" : ["one", "two", "three"],
+                    "is_public" : true,
+                    "is_live": true,
+                    "is_invite_only" : false,
+                    "slug" : "golf_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
+                }),
+            )
+            .await?;
+        let _ = session
+            .create_conversation(
+                &app,
+                json! ({
+                    "title" : "A conversation about AI",
+                    "short_description" : "Some text about artificial intelligence",
+                    "description" : "A longer description",
+                    "image_url" : "http://someimage.png",
+                    "tags" : ["one", "two", "three"],
+                    "is_public" : true,
+                    "is_live": true,
+                    "is_invite_only" : false,
+                    "slug" : "ai_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
+                }),
+            )
+            .await?;
+
+        let filter_options_1 = ConversationFilterOptions {
+            keyword: Some("moon".to_string()),
+            ..Default::default()
+        };
+        let page_options = PageOptions {
+            offset: None,
+            limit: None,
+        };
+        let order_options = ConversationOrderOptions {
+            ..Default::default()
+        };
+
+        let results_1 = list(
+            &pool,
+            page_options.clone(),
+            order_options,
+            filter_options_1,
+            Some("en".to_string()),
+        )
+        .await?;
+
+        assert_eq!(results_1.total, 1, "incorrect first total");
+        assert_eq!(
+            results_1.records[0].title,
+            "A title about the moon".to_string(),
+            "incorrect first title"
+        );
+
+        let filter_options_2 = ConversationFilterOptions {
+            keyword: Some("liv".to_string()),
+            ..Default::default()
+        };
+        let order_options = ConversationOrderOptions {
+            ..Default::default()
+        };
+        let results_2 = list(
+            &pool,
+            page_options.clone(),
+            order_options,
+            filter_options_2,
+            Some("en".to_string()),
+        )
+        .await?;
+
+        assert_eq!(results_2.total, 1, "incorrect second total");
+        assert_eq!(
+            results_2.records[0].title,
+            "A conversation about golf".to_string(),
+            "incorrect second title"
+        );
+
+        let filter_options_3 = ConversationFilterOptions {
+            keyword: Some("intelligence".to_string()),
+            ..Default::default()
+        };
+        let order_options = ConversationOrderOptions {
+            ..Default::default()
+        };
+        let results_3 = list(
+            &pool,
+            page_options.clone(),
+            order_options,
+            filter_options_3,
+            Some("en".to_string()),
+        )
+        .await?;
+
+        assert_eq!(results_3.total, 1, "incorrect third total");
+        assert_eq!(
+            results_3.records[0].title,
+            "A conversation about AI".to_string(),
+            "incorrect third title"
+        );
+
+        Ok(())
+    }
 }
