@@ -2,7 +2,7 @@ import { isRedirect, redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import { notifications } from '$lib/notifications.svelte';
 import { next_workflow_step_url } from '$lib/urls';
-import type { LocalizedWorkflowStepDto } from '@crownshy/api-client/api';
+import type { LocalizedWorkflowStepDto, UserProgressDto } from '@crownshy/api-client/api';
 
 export const load: PageLoad = async (event) => {
 	const { api, conversation, preview } = await event.parent();
@@ -36,7 +36,16 @@ export const load: PageLoad = async (event) => {
 			}
 		});
 
-		return { conversation, workflowStep, api, workflowSteps, workflow_id };
+		let userProgress: UserProgressDto[] = [];
+		try {
+			userProgress = await api.GetUserProgress({
+				params: { conversation_id, workflow_id }
+			});
+		} catch {
+			// Progress may not be available
+		}
+
+		return { conversation, workflowStep, api, workflowSteps, workflow_id, userProgress };
 	} catch (e: any) {
 		// TODO: figure out how to type this from the generated api
 		/// Throw if error is a redirect

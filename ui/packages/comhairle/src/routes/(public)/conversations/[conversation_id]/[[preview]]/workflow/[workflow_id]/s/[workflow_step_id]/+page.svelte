@@ -9,7 +9,8 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { createCarta } from '$lib/utils/carta';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import StepSelector from '$lib/components/StepSelector.svelte';
+	import StepSelector, { type StepItem } from '$lib/components/StepSelector.svelte';
+	import StepHeader from '$lib/components/StepHeader.svelte';
 
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
@@ -21,6 +22,7 @@
 	let workflowStep = $derived(data.workflowStep);
 	let conversation = $derived(data.conversation);
 	let workflowSteps = $derived(data.workflowSteps);
+	let userProgress = $derived(data.userProgress ?? []);
 
 	let toolConfig = $derived(
 		conversation.isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig
@@ -28,6 +30,42 @@
 
 	let carta = createCarta();
 	let pageTitle = $derived(workflowStep?.name ?? 'Workflow Step');
+
+	let stepItems = $derived<StepItem[]>(
+		[...workflowSteps]
+			.sort((a, b) => a.stepOrder - b.stepOrder)
+			.map((ws) => {
+				const progress = userProgress.find((p) => p.workflowStepId === ws.id);
+				const isCurrent = ws.id === workflowStep.id;
+				const isCompleted = progress?.status === 'done';
+				const isBefore = ws.stepOrder < workflowStep.stepOrder;
+
+				let status: StepItem['status'];
+				if (isCurrent) {
+					status = 'current';
+				} else if (isCompleted) {
+					// TODO: Determine navigability from API — for now, completed steps
+					// before current are navigable, completed steps after are locked
+					status = isBefore ? 'completed' : 'completed-locked';
+				} else if (isBefore) {
+					// Step is before current but not marked done — treat as completed
+					// (they must have passed through it to reach current)
+					status = 'completed';
+				} else {
+					status = 'upcoming';
+				}
+
+				const isPreview = !conversation.isLive;
+				const href =
+					status === 'completed'
+						? workflow_step_url(conversation.id, workflow_id, ws.id, isPreview)
+						: undefined;
+
+				return { id: ws.id, name: ws.name, status, href };
+			})
+	);
+
+	let currentStepNumber = $derived(stepItems.findIndex((s) => s.status === 'current') + 1);
 
 	function goToThankYouPage() {
 		goto(thank_you_page(conversation.id, workflowStep.id));
@@ -76,23 +114,18 @@
 	<title>{pageTitle} - Comhairle</title>
 </svelte:head>
 
-<div class="flex flex-col items-center pt-10">
+<div class="flex flex-col items-center gap-9 py-12">
 	{#if conversation && workflowStep}
-		<StepSelector steps={workflowSteps} currentStepId={workflowStep.id} />
+		<StepHeader
+			{currentStepNumber}
+			totalSteps={stepItems.length}
+			title={workflowStep.name}
+			description={workflowStep.description}
+		/>
+
+		<StepSelector steps={stepItems} />
 
 		<div class="flex w-full grow flex-col gap-y-2 md:grid md:grid-cols-1 md:gap-x-10">
-			<div class="mt-10 flex flex-col items-center gap-y-2">
-				<h2
-					class="text-center text-4xl font-bold md:col-start-1 md:col-end-2 md:row-start-1 md:row-end-1 md:text-3xl"
-				>
-					{workflowStep.name}
-				</h2>
-				<div class="prose-sm prose-p:text-base prose-li:text-base mx-auto">
-					{#key workflowStep.description}
-						<ContentRenderer content={workflowStep.description} />
-					{/key}
-				</div>
-			</div>
 			<div class="flex grow flex-col md:row-start-2">
 				{#if !workflowStep.required}
 					<Button onclick={stepComplete} class="mx-auto" variant="secondary"

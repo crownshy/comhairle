@@ -8,63 +8,99 @@
 		tags: ['autodocs']
 	});
 
+	// Step 3 of 6: current, steps 1-2 completed (navigable), 4-6 upcoming
+	const sixStepsMiddle = [
+		{ id: 's1', name: 'Learn about the topic', status: 'completed', href: '#step-1' },
+		{ id: 's2', name: 'Privacy policy', status: 'completed', href: '#step-2' },
+		{ id: 's3', name: 'Tell us about you', status: 'current' },
+		{ id: 's4', name: 'About Scottish government', status: 'upcoming' },
+		{ id: 's5', name: 'Interactive discussion', status: 'upcoming' },
+		{ id: 's6', name: 'Summary', status: 'upcoming' }
+	];
+
+	// Step 5 of 6: completed-locked steps (can't go back), current at step 5
+	const sixStepsLocked = [
+		{ id: 's1', name: 'Learn about the topic', status: 'completed', href: '#step-1' },
+		{ id: 's2', name: 'Privacy policy', status: 'completed', href: '#step-2' },
+		{ id: 's3', name: 'Tell us about you', status: 'completed-locked' },
+		{ id: 's4', name: 'See how others think', status: 'completed-locked' },
+		{ id: 's5', name: 'What do you think', status: 'current' },
+		{ id: 's6', name: 'Summary', status: 'upcoming' }
+	];
+
+	// Summary page: all completed, some locked, current at last
+	const sixStepsSummary = [
+		{ id: 's1', name: 'Learn about the topic', status: 'completed', href: '#step-1' },
+		{ id: 's2', name: 'Privacy policy', status: 'completed', href: '#step-2' },
+		{ id: 's3', name: 'Tell us about you', status: 'completed-locked' },
+		{ id: 's4', name: 'See how others think', status: 'completed-locked' },
+		{ id: 's5', name: 'What do you think', status: 'completed-locked' },
+		{ id: 's6', name: 'Summary', status: 'current' }
+	];
+
+	// First step active
+	const threeStepsFirst = [
+		{ id: 's1', name: 'Learn about the topic', status: 'current' },
+		{ id: 's2', name: 'Tell us about you', status: 'upcoming' },
+		{ id: 's3', name: 'Interactive discussion', status: 'upcoming' }
+	];
+
+	// Two steps
 	const twoSteps = [
-		{ id: 'step-1', name: 'Learn about the topic' },
-		{ id: 'step-2', name: 'Tell us about you' }
-	];
-
-	const threeSteps = [
-		{ id: 'step-1', name: 'Learn about the topic' },
-		{ id: 'step-2', name: 'Tell us about you' },
-		{ id: 'step-3', name: 'Interactive discussion' }
-	];
-
-	const fiveSteps = [
-		{ id: 'step-1', name: 'Privacy Policy' },
-		{ id: 'step-2', name: 'Learn about the topic' },
-		{ id: 'step-3', name: 'Tell us about you' },
-		{ id: 'step-4', name: 'Interactive discussion' },
-		{ id: 'step-5', name: 'Summary' }
+		{ id: 's1', name: 'Learn about the topic', status: 'completed', href: '#step-1' },
+		{ id: 's2', name: 'Tell us about you', status: 'current' }
 	];
 </script>
 
-<Story name="Two Steps - First Active">
+<Story name="Step 3 of 6 — Current">
 	<div class="p-8">
-		<StepSelector steps={twoSteps} currentStepId="step-1" />
+		<StepSelector steps={sixStepsMiddle} />
 	</div>
 </Story>
 
-<Story name="Two Steps - Second Active">
+<Story name="Step 5 of 6 — Locked Steps">
 	<div class="p-8">
-		<StepSelector steps={twoSteps} currentStepId="step-2" />
+		<StepSelector steps={sixStepsLocked} />
 	</div>
 </Story>
 
-<Story name="Three Steps - Middle Active">
+<Story name="Summary — All Done">
 	<div class="p-8">
-		<StepSelector steps={threeSteps} currentStepId="step-2" />
+		<StepSelector steps={sixStepsSummary} />
 	</div>
 </Story>
 
-<Story name="Five Steps - Third Active">
+<Story name="First Step Active">
 	<div class="p-8">
-		<StepSelector steps={fiveSteps} currentStepId="step-3" />
+		<StepSelector steps={threeStepsFirst} />
 	</div>
 </Story>
 
-<Story name="All States">
+<Story name="Two Steps">
+	<div class="p-8">
+		<StepSelector steps={twoSteps} />
+	</div>
+</Story>
+
+<Story name="All Variants">
 	<div class="flex flex-col gap-8 p-8">
 		<div>
-			<p class="mb-2 text-sm text-muted-foreground">First step active</p>
-			<StepSelector steps={threeSteps} currentStepId="step-1" />
+			<p class="text-muted-foreground mb-2 text-sm">First step active</p>
+			<StepSelector steps={threeStepsFirst} />
 		</div>
 		<div>
-			<p class="mb-2 text-sm text-muted-foreground">Middle step active</p>
-			<StepSelector steps={threeSteps} currentStepId="step-2" />
+			<p class="text-muted-foreground mb-2 text-sm">
+				Middle step — navigable completed steps
+			</p>
+			<StepSelector steps={sixStepsMiddle} />
 		</div>
 		<div>
-			<p class="mb-2 text-sm text-muted-foreground">Last step active</p>
-			<StepSelector steps={threeSteps} currentStepId="step-3" />
+			<p class="text-muted-foreground mb-2 text-sm">Later step — locked completed steps</p>
+			<StepSelector steps={sixStepsLocked} />
+		</div>
+		<div>
+			<p class="text-muted-foreground mb-2 text-sm">Summary — all steps completed</p>
+			<StepSelector steps={sixStepsSummary} />
 		</div>
 	</div>
 </Story>
