@@ -332,7 +332,7 @@
 					{#if client?.isStreaming}
 						<div>
 							<div
-								class="max-w-xxl bg-chat-bubble w-fit rounded-tl-[16px] rounded-tr-[16px] rounded-br-[16px] px-3 py-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)]"
+								class="max-w-xxl bg-chat-bubble w-fit rounded-tl-2xl rounded-tr-2xl rounded-br-2xl px-3 py-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)]"
 							>
 								<div class="flex items-start gap-2">
 									<span class="text-chat-text text-sm">
