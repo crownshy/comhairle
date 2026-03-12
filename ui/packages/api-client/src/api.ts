@@ -515,6 +515,7 @@ export const WorkflowDto = z
     isActive: z.boolean(),
     isPublic: z.boolean(),
     name: z.string(),
+    regionId: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type WorkflowDto = z.infer<typeof WorkflowDto>;
@@ -525,6 +526,7 @@ export const CreateWorkflow = z
     is_active: z.boolean(),
     is_public: z.boolean(),
     name: z.string(),
+    region_id: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type CreateWorkflow = z.infer<typeof CreateWorkflow>;
@@ -536,6 +538,7 @@ export const PartialWorkflow = z
     is_active: z.union([z.boolean(), z.null()]),
     is_public: z.union([z.boolean(), z.null()]),
     name: z.union([z.string(), z.null()]),
+    region_id: z.union([z.string(), z.null()]),
   })
   .partial()
   .passthrough();

@@ -25,6 +25,7 @@ pub struct WorkflowDto {
     pub is_active: bool,
     pub is_public: bool,
     pub auto_login: bool,
+    pub region_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -39,6 +40,7 @@ impl From<Workflow> for WorkflowDto {
             is_active: w.is_active,
             is_public: w.is_public,
             auto_login: w.auto_login,
+            region_id: w.region_id,
             created_at: w.created_at,
         }
     }

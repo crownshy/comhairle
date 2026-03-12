@@ -26,7 +26,7 @@ use super::{
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "workflow")]
-#[partially(derive(Deserialize, Debug, JsonSchema))]
+#[partially(derive(Deserialize, Debug, JsonSchema, Default))]
 pub struct Workflow {
     #[partially(omit)]
     pub id: Uuid,
@@ -40,13 +40,15 @@ pub struct Workflow {
     pub event_id: Option<Uuid>,
     #[partially(omit)]
     pub owner_id: Uuid,
+    #[partially(transparent)]
+    pub region_id: Option<Uuid>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [WorkflowIden; 11] = [
+const DEFAULT_COLUMNS: [WorkflowIden; 12] = [
     WorkflowIden::Id,
     WorkflowIden::ConversationId,
     WorkflowIden::Name,
@@ -57,6 +59,7 @@ const DEFAULT_COLUMNS: [WorkflowIden; 11] = [
     WorkflowIden::CreatedAt,
     WorkflowIden::UpdatedAt,
     WorkflowIden::OwnerId,
+    WorkflowIden::RegionId,
     WorkflowIden::AutoLogin,
 ];
 
@@ -78,6 +81,9 @@ impl PartialWorkflow {
         };
         if let Some(value) = self.auto_login {
             values.push((WorkflowIden::AutoLogin, value.into()))
+        };
+        if let Some(value) = self.region_id {
+            values.push((WorkflowIden::RegionId, value.into()))
         };
         values
     }
@@ -121,26 +127,39 @@ pub struct CreateWorkflow {
     pub is_active: bool,
     pub is_public: bool,
     pub auto_login: bool,
+    pub region_id: Option<Uuid>,
 }
 
 impl CreateWorkflow {
     pub fn columns(&self) -> Vec<WorkflowIden> {
-        vec![
+        let mut columns = vec![
             WorkflowIden::Name,
             WorkflowIden::Description,
             WorkflowIden::IsActive,
             WorkflowIden::IsPublic,
             WorkflowIden::AutoLogin,
-        ]
+        ];
+
+        if self.region_id.is_some() {
+            columns.push(WorkflowIden::RegionId);
+        }
+
+        columns
     }
     pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
-        vec![
+        let mut values = vec![
             self.name.to_owned().into(),
             self.description.to_owned().into(),
             self.is_active.into(),
             self.is_public.into(),
             self.auto_login.into(),
-        ]
+        ];
+
+        if let Some(value) = &self.region_id {
+            values.push((*value).into());
+        }
+
+        values
     }
 }
 
@@ -417,4 +436,85 @@ pub async fn get_workflow_signup_stats(
     .await
     .map_err(ComhairleError::WorkflowStatsAggregationError)?;
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        models::model_test_helpers::setup_default_app_and_session,
+        routes::{
+            conversations::dto::ConversationDto, regions::dto::RegionDto,
+            workflows::dto::WorkflowDto,
+        },
+    };
+
+    use super::*;
+
+    use std::error::Error;
+
+    #[sqlx::test]
+    async fn should_create_workflow_with_region_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, convo_res, _) = session.create_random_conversation(&app).await?;
+        let conversation: ConversationDto = serde_json::from_value(convo_res)?;
+        let (_, region_res, _) = session.create_random_region(&app).await?;
+        let region: RegionDto = serde_json::from_value(region_res)?;
+
+        let (_, user, _) = session.current_user(&app).await?;
+
+        let params = CreateWorkflow {
+            name: "test_workflow".to_string(),
+            description: "a test workflow".to_string(),
+            is_active: true,
+            is_public: true,
+            auto_login: false,
+            region_id: Some(region.id),
+        };
+
+        let workflow = create(&pool, &params, Some(conversation.id), None, user.id).await?;
+
+        assert_eq!(
+            workflow.region_id.unwrap(),
+            region.id,
+            "incorrect region_id"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_update_workflow_region_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, convo_res, _) = session.create_random_conversation(&app).await?;
+        let conversation: ConversationDto = serde_json::from_value(convo_res)?;
+        let (_, region_res, _) = session.create_random_region(&app).await?;
+        let region: RegionDto = serde_json::from_value(region_res)?;
+        let (_, workflow_res, _) = session
+            .create_random_workflow(&app, &conversation.id.to_string())
+            .await?;
+        let workflow: WorkflowDto = serde_json::from_value(workflow_res)?;
+
+        assert!(
+            workflow.region_id.is_none(),
+            "incorrect region_id before update"
+        );
+
+        let workflow = update(
+            &pool,
+            workflow.id,
+            &PartialWorkflow {
+                region_id: Some(region.id),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+        assert_eq!(
+            workflow.region_id.unwrap(),
+            region.id,
+            "incorrect region_id"
+        );
+
+        Ok(())
+    }
 }
