@@ -87,7 +87,7 @@
 				>
 					{workflowStep.name}
 				</h2>
-				<div class="prose-sm prose-p:text-base prose-li:text-base mx-auto">
+				<div class="prose-sm prose-p:text-base prose-li:text-base mx-auto max-w-3xl">
 					{#key workflowStep.description}
 						<ContentRenderer content={workflowStep.description} />
 					{/key}

@@ -18,7 +18,7 @@
 		botSubtitle = 'Ask questions'
 	}: Props = $props();
 
-	let isOpen = $state(true);
+	let isOpen = $state(false);
 	let isMobile = $state(false);
 
 	$effect(() => {

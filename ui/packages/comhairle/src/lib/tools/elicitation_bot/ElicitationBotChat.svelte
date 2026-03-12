@@ -28,7 +28,7 @@
 
 	const defaultOpeningMessage = {
 		id: '1',
-		content: `Hello, I am here to help you shape your views and opinions. What's your initial view about ${topic}?`,
+		content: `Hello, I am here to help you think through and clarify your views on this topic.\nTo start, what are your initial thoughts about ${topic}? What stands out to you or matters most?`,
 		isBot: true,
 		timestamp: new Date()
 	};
@@ -233,15 +233,15 @@
 										<div class={message.isBot ? '' : 'flex justify-end'}>
 											<div
 												class="{message.isBot
-													? 'bg-chat-bubble rounded-br-[16px]'
-													: 'bg-chat-primary-dark rounded-bl-[16px]'} w-fit max-w-[85%] rounded-tl-[16px] rounded-tr-[16px] px-3 py-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)]"
+													? 'bg-chat-bubble rounded-br-2xl'
+													: 'bg-chat-primary-dark rounded-bl-2xl'} w-fit max-w-[85%] rounded-tl-2xl rounded-tr-2xl px-3 py-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)]"
 											>
 												{#if message.isBot}
 													<div>
 														<div class="flex items-start gap-2">
 															{#if index < 1}
 																<Sparkles
-																	class="text-chat-primary mt-0.5 h-4 w-4 flex-shrink-0"
+																	class="text-chat-primary mt-0.5 h-4 w-4 shrink-0"
 																/>
 															{/if}
 															{#if message.content === '...'}
@@ -261,7 +261,8 @@
 																	></span>
 																</span>
 															{:else}
-																<span class="text-chat-text text-sm"
+																<span
+																	class="text-chat-text text-sm whitespace-pre-line"
 																	>{message.content}</span
 																>
 															{/if}
@@ -384,15 +385,15 @@
 									<div class={message.isBot ? '' : 'flex justify-end'}>
 										<div
 											class="{message.isBot
-												? 'bg-chat-bubble rounded-br-[16px]'
-												: 'bg-chat-primary-dark rounded-bl-[16px]'} w-fit max-w-md rounded-tl-[16px] rounded-tr-[16px] px-3 py-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)]"
+												? 'bg-chat-bubble rounded-br-2xl'
+												: 'bg-chat-primary-dark rounded-bl-2xl'} w-fit max-w-md rounded-tl-2xl rounded-tr-2xl px-3 py-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)]"
 										>
 											{#if message.isBot}
 												<div>
 													<div class="flex items-start gap-2">
 														{#if index < 1}
 															<Sparkles
-																class="text-chat-primary mt-0.5 h-4 w-4 flex-shrink-0"
+																class="text-chat-primary mt-0.5 h-4 w-4 shrink-0"
 															/>
 														{/if}
 														{#if message.content === '...'}
@@ -410,7 +411,8 @@
 																></span>
 															</span>
 														{:else}
-															<span class="text-chat-text text-sm"
+															<span
+																class="text-chat-text text-sm whitespace-pre-line"
 																>{message.content}</span
 															>
 														{/if}
