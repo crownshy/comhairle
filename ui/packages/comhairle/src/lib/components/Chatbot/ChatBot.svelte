@@ -16,12 +16,13 @@
 		botName = 'Tutor bot',
 		botSubtitle = 'Ask questions',
 		messages: initialMessages = [
-			{
-				id: '1',
-				content: 'I am here to help you explore your understanding to this bot. You can...',
-				isBot: true,
-				timestamp: new Date()
-			}
+			// TODO: add back with better wording once we know where how to configure default questions
+			// {
+			// 	id: '1',
+			// 	content: 'I am here to help you explore your understanding to this bot. You can...',
+			// 	isBot: true,
+			// 	timestamp: new Date()
+			// }
 		],
 		placeholder = 'Ask questions...',
 		initialQuestions = [
@@ -34,7 +35,7 @@
 			{ id: '3', text: 'What decisions will this influence', variant: 'primary' },
 			{ id: '4', text: 'Ask something else', variant: 'default' }
 		],
-		showInitialQuestions = true,
+		showInitialQuestions = false, // TODO: change back to true once we have a way of configuring
 		onSendMessage = (message: string) => console.log('Message sent:', message),
 		onQuestionClick = (question: string) => console.log('Question clicked:', question)
 	}: ChatBotProps = $props();
@@ -254,7 +255,7 @@
 {:else}
 	<div class="bg-chat-primary-lighter max-w-xxxl mx-auto flex h-full flex-col p-6 pt-3">
 		<ScrollArea.Root bind:ref={scrollAreaRef} class="min-h-0 flex-1">
-			<div class="mt-2 mb-4 flex-shrink-0 text-center">
+			<div class="mt-2 mb-4 shrink-0 text-center">
 				<p class="text-chat-text-muted text-xs">
 					{new Date().toISOString().slice(0, 10).replace(/-/g, '.')}
 				</p>
@@ -271,15 +272,15 @@
 							<!-- Message Content -->
 							<div
 								class="{message.isBot
-									? 'bg-chat-bubble rounded-br-[16px]'
-									: 'bg-chat-primary-dark rounded-bl-[16px]'} max-w-xxl w-fit rounded-tl-[16px] rounded-tr-[16px] px-3 py-2.5"
+									? 'bg-chat-bubble rounded-br-2xl'
+									: 'bg-chat-primary-dark rounded-bl-2xl'} max-w-xxl w-fit rounded-tl-2xl rounded-tr-2xl px-3 py-2.5"
 							>
 								{#if message.isBot}
 									<div>
 										<div class="flex items-start gap-2">
 											{#if index < 1}
 												<Sparkles
-													class="text-chat-primary mt-0.5 h-4 w-4 flex-shrink-0"
+													class="text-chat-primary mt-0.5 h-4 w-4 shrink-0"
 												/>
 											{/if}
 											<span class="text-chat-text text-sm">

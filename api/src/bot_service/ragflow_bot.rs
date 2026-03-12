@@ -832,6 +832,7 @@ impl From<CreateChatRequest> for CreateChat {
                 model_name: model.model_name,
             }),
             prompt: input.prompt.map(|prompt| Prompt {
+                opener: prompt.opener,
                 prompt: prompt.llm_prompt,
                 variables: Some(vec![Variable {
                     key: "knowledge".to_string(),
