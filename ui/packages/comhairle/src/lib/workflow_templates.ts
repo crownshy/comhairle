@@ -4,7 +4,7 @@ export const defaultStepCreationParams: { [key: string]: { name: string; descrip
 	'Elicitation Bot': {
 		name: 'What do you think?',
 		description:
-			'Explore your opinions with the elicitation bot. The elicitation bot is designed to ask questions that help you explore and shape your views and opinions on a given topic.'
+			"Explore your opinions with the elicitation bot. The elicitation bot is designed to ask questions that help you explore and shape your views and opinions on a given topic.\nAs you answer the bot's questions it will extract claims from your opinions, which you can either choose to approve, edit or remove."
 	}
 };
 

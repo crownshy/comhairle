@@ -15,7 +15,9 @@
 
 <AuthPage>
 	<div class="space-y-4">
-		<p class="text-muted-foreground mb-4 text-sm">{m.get_started_with_comhairle_right_away()}</p>
+		<p class="text-muted-foreground mb-4 text-sm">
+			{m.get_started_with_comhairle_right_away()}
+		</p>
 
 		<h3 class="text-center">Your Id is</h3>
 		<CopyButton copyText={data?.user?.username}>
@@ -29,7 +31,9 @@
 
 		<Button href={backTo} variant="secondary" class="w-full">{m.continue_()}</Button>
 		<p class="text-sm">
-			<a href={`/auth/signup?backTo=${backTo}`}>{m.create_a_standard_account_signup()}</a>
+			<a href={`/auth/signup?backTo=${backTo}`} class="underline"
+				>{m.create_a_standard_account_signup()}</a
+			>
 		</p>
 	</div>
 </AuthPage>

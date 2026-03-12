@@ -5,7 +5,9 @@
 
 <div class="align-center mx-auto max-w-xs md:mt-10">
 	<div class="align-center mb-4 hidden flex-col items-center md:flex">
-		<Logo />
+		<span class="fill-black dark:fill-white">
+			<Logo />
+		</span>
 		<a href="/" class="text-xl font-bold">Comhairle</a>
 	</div>
 	<div class="my-8 border border-dotted p-8">
