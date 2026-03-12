@@ -8,7 +8,8 @@
 		basic_polis_config,
 		basic_survey_config,
 		basic_lived_experience_config,
-		basic_elicitation_bot_config
+		basic_elicitation_bot_config,
+		defaultStepCreationParams
 	} from '$lib/workflow_templates.js';
 	import ToolSelectionModal from '$lib/components/ToolSelectionModal.svelte';
 	import { page } from '$app/state';
@@ -61,8 +62,9 @@
 		try {
 			await apiClient.CreateConversationWorkflowStep(
 				{
-					name: `New ${step} Step`,
-					description: `A new ${step} Step`,
+					name: defaultStepCreationParams[step]?.name ?? `New ${step} Step`,
+					description:
+						defaultStepCreationParams[step]?.description ?? `A new ${step} Step`,
 					is_offline: false,
 					activation_rule: 'manual',
 					step_order: new_step_order,

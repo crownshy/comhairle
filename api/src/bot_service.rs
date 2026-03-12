@@ -16,8 +16,12 @@ pub mod ragflow_bot;
 
 pub use ragflow_bot::ComhairleRagBotService;
 
-pub const DEFAULT_CHAT_OPENER: &str =
-    "Hey I am here to help you better understand this consultation. Ask me anything";
+pub const DEFAULT_CHAT_OPENER: &str = r#"Hi! I’m here to help you explore and understand this topic.
+
+If something in the background materials is unclear, you can ask me about it.
+
+You can ask me any question or ask me to explain something in simpler language.
+"#;
 pub const DEFAULT_CHAT_NOT_FOUND_RESPONSE: &str =
     "Sorry I couldn't find an answer to that question.";
 /// Default system prompt for conversation Q&A chatbots
