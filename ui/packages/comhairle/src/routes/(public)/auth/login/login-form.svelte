@@ -98,13 +98,13 @@
 	</Button>
 
 	<p class="text-sm">
-		<a href={resolve(`/auth/password-reset/create`)} class="hover:underline"
+		<a href={resolve(`/auth/password-reset/create`)} class="underline"
 			>{m.forgotten_password()}</a
 		>
 	</p>
 
 	<p class="text-sm">
-		<a href={resolve(`/auth/signup?backTo=${backTo ?? '/'}`)} class="hover:underline"
+		<a href={resolve(`/auth/signup?backTo=${backTo ?? '/'}`)} class="underline"
 			>{m.dont_have_an_account_signup()}</a
 		>
 	</p>

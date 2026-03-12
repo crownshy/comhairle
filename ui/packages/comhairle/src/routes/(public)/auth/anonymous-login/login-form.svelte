@@ -60,6 +60,8 @@
 		{m.submit()}
 	</LoadingButton>
 	<p class="text-sm">
-		<a href={`/auth/signup?backTo=${backTo ?? '/'}`}>{m.dont_have_an_account_signup()}</a>
+		<a href={`/auth/signup?backTo=${backTo ?? '/'}`} class="underline"
+			>{m.dont_have_an_account_signup()}</a
+		>
 	</p>
 </form>

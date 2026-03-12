@@ -44,6 +44,7 @@
 	let activeTab = $state('chat');
 	let hasUnseenClaims = $state(false);
 	let previousClaimsCount = $state(initialClaims.length);
+	let hasApprovedClaims = $derived(initialClaims.some((claim) => claim.status === 'approved'));
 
 	function formatTime(date: Date): string {
 		return date.toLocaleTimeString('en-US', {
@@ -515,6 +516,9 @@
 	</div>
 
 	{#if onDone}
-		<Button onclick={onDone} class="mt-10 w-full">Continue</Button>
+		<Button onclick={onDone} disabled={!hasApprovedClaims} class="mt-10">Continue</Button>
+		{#if !hasApprovedClaims}
+			<span>Approve at least one claim to continue</span>
+		{/if}
 	{/if}
 </div>
