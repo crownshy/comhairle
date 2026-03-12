@@ -27,18 +27,20 @@
 	>
 		<h1 class="text-xl">{m.sign_up_anonymously()}</h1>
 		<p class="text-foreground mb-4 text-sm">{m.get_started_with_comhairle_right_away()}</p>
-		<LoadingButton type="submit" class="w-full" variant="secondary" loading={loading}>
+		<LoadingButton type="submit" class="w-full" variant="secondary" {loading}>
 			{m.generate_anonymous_id()} →
 		</LoadingButton>
 
 		<p class="text-muted-foreground mb-4 text-sm">
 			{m.agree_to_tos()}
-			<a href="/rights/tos">TOS</a>
+			<a href="/rights/tos" class="underline">TOS</a>
 			{m.agree_to_tos2()}
-			<a href="/rights/privacy">{m.agree_to_tos_privacy()}</a>
+			<a href="/rights/privacy" class="underline">{m.agree_to_tos_privacy()}</a>
 		</p>
 		<p class="text-sm">
-			<a href={`/auth/login?backTo=${data.backTo ?? '/'}`}>{m.already_have_an_account_login()}</a>
+			<a href={`/auth/login?backTo=${data.backTo ?? '/'}`} class="underline"
+				>{m.already_have_an_account_login()}</a
+			>
 		</p>
 	</form>
 </AuthPage>
