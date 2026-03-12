@@ -112,7 +112,7 @@
 							user_id={user.id}
 							polis_id={toolConfig.poll_id}
 							polis_url={toolConfig.server_url}
-							onDone={goToThankYouPage}
+							onDone={stepComplete}
 						/>
 					{/if}
 					{#if toolConfig.type === HeyForm.TOOL_NAME}
