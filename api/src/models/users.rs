@@ -5,7 +5,7 @@ use crate::{
     routes::auth::{hash_pw, validate_password_strength, SignupRequest},
     tools::id::gen_id,
 };
-use schemars::JsonSchema;
+use schemars::{JsonSchema, JsonSchema_repr};
 use sea_query::{enum_def, extension::postgres::PgExpr, Expr, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
@@ -73,13 +73,17 @@ impl fmt::Display for Resource {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone, JsonSchema)]
 #[sqlx(type_name = "text")]
 #[serde(rename_all = "snake_case")]
 pub enum Role {
+    #[sqlx(rename = "Owner")]
     Owner,
+    #[sqlx(rename = "Contributor")]
     Contributor,
+    #[sqlx(rename = "Translator")]
     Translator,
+    #[sqlx(rename = "Moderator")]
     Moderator,
 }
 
