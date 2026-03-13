@@ -8,4 +8,5 @@
 # Still ignore build output and lock files within ui
 ui/packages/comhairle/.svelte-kit/
 ui/packages/comhairle/build/
+ui/packages/api-client/
 pnpm-lock.yaml
