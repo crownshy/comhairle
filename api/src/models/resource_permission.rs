@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query, SimpleExpr};
+use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, query_as_with, PgPool};
@@ -11,7 +11,13 @@ use uuid::Uuid;
 #[cfg(test)]
 use fake::Dummy;
 
-use crate::{error::ComhairleError, models::users::Role};
+use crate::{
+    error::ComhairleError,
+    models::{
+        pagination::{Order, PageOptions, PaginatedResults},
+        users::Role,
+    },
+};
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "resource_permission")]
@@ -206,6 +212,72 @@ pub async fn update(
     Ok(permission)
 }
 
+#[derive(Deserialize, Debug, JsonSchema, Default)]
+pub struct ResourcePermissionOrderOptions {
+    created_at: Option<Order>,
+}
+
+impl ResourcePermissionOrderOptions {
+    fn apply(&self, mut query: SelectStatement) -> SelectStatement {
+        if let Some(order) = &self.created_at {
+            query = query
+                .order_by(
+                    (
+                        ResourcePermissionIden::Table,
+                        ResourcePermissionIden::CreatedAt,
+                    ),
+                    order.into(),
+                )
+                .to_owned();
+        }
+
+        query
+    }
+}
+
+#[derive(Deserialize, Debug, JsonSchema, Default)]
+pub struct ResourcePermissionFilterOptions {
+    entity_id: Option<Uuid>,
+    resource_id: Option<Uuid>,
+}
+
+impl ResourcePermissionFilterOptions {
+    fn apply(&self, mut query: SelectStatement) -> SelectStatement {
+        if let Some(value) = self.entity_id {
+            query = query
+                .and_where(Expr::col(ResourcePermissionIden::EntityId).eq(value.to_owned()))
+                .to_owned();
+        }
+        if let Some(value) = self.resource_id {
+            query = query
+                .and_where(Expr::col(ResourcePermissionIden::ResourceId).eq(value.to_owned()))
+                .to_owned();
+        }
+
+        query
+    }
+}
+
+#[instrument(err(Debug))]
+pub async fn list(
+    db: &PgPool,
+    page_options: PageOptions,
+    filter_options: ResourcePermissionFilterOptions,
+    order_options: ResourcePermissionOrderOptions,
+) -> Result<PaginatedResults<ResourcePermission>, ComhairleError> {
+    let query = Query::select()
+        .from(ResourcePermissionIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .to_owned();
+
+    let query = filter_options.apply(query);
+    let query = order_options.apply(query);
+
+    let permissions = page_options.fetch_paginated_results(db, query).await?;
+
+    Ok(permissions)
+}
+
 #[instrument(err(Debug))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<ResourcePermission, ComhairleError> {
     let (sql, values) = Query::select()
@@ -325,6 +397,73 @@ mod tests {
             permission.role,
             Role::Translator,
             "incorrect role after update"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_filter_resource_permissions(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, org_res, _) = session.create_random_organization(&app).await?;
+        let organization: OrganizationDto = serde_json::from_value(org_res)?;
+        let (_, convo_res_1, _) = session.create_random_conversation(&app).await?;
+        let conversation_1: ConversationDto = serde_json::from_value(convo_res_1)?;
+        let (_, convo_res_2, _) = session.create_random_conversation(&app).await?;
+        let conversation_2: ConversationDto = serde_json::from_value(convo_res_2)?;
+        let (_, user, _) = session.current_user(&app).await?;
+
+        let new_permission_1 = CreateResourcePermission {
+            entity_type: EntityType::Organization,
+            entity_id: organization.id,
+            resource_type: ResourceType::Conversation,
+            resource_id: conversation_1.id,
+            role: Role::Contributor,
+            granted_by_entity_type: EntityType::User,
+            granted_by_entity_id: user.id,
+        };
+        let new_permission_2 = CreateResourcePermission {
+            entity_type: EntityType::Organization,
+            entity_id: user.id,
+            resource_type: ResourceType::Conversation,
+            resource_id: conversation_2.id,
+            role: Role::Contributor,
+            granted_by_entity_type: EntityType::User,
+            granted_by_entity_id: organization.id,
+        };
+
+        let _ = create(&pool, &new_permission_1).await?;
+        let _ = create(&pool, &new_permission_2).await?;
+
+        let page_options = PageOptions {
+            limit: None,
+            offset: None,
+        };
+        let order_options = ResourcePermissionOrderOptions { created_at: None };
+        let filter_options = ResourcePermissionFilterOptions {
+            resource_id: Some(conversation_1.id),
+            ..Default::default()
+        };
+
+        let results_1 = list(&pool, page_options.clone(), filter_options, order_options).await?;
+
+        assert_eq!(results_1.total, 1, "incorrect total [resource_id]");
+        assert_eq!(
+            results_1.records[0].resource_id, conversation_1.id,
+            "incorrect resource_id [resource_id]"
+        );
+
+        let order_options = ResourcePermissionOrderOptions { created_at: None };
+        let filter_options = ResourcePermissionFilterOptions {
+            entity_id: Some(user.id),
+            ..Default::default()
+        };
+        let results_2 = list(&pool, page_options.clone(), filter_options, order_options).await?;
+
+        assert_eq!(results_2.total, 1, "incorrect total [entity_id]");
+        assert_eq!(
+            results_2.records[0].entity_id, user.id,
+            "incorrect resource_id [entity_id]"
         );
 
         Ok(())
