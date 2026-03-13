@@ -47,14 +47,15 @@ pub mod dto;
 async fn create_conversation(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
-    Json(new_conversations): Json<CreateConversation>,
+    Json(new_conversation): Json<CreateConversation>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     let conversation = conversation::create(
         &state.db,
         &state.bot_service,
         &state.config,
-        &new_conversations,
+        &new_conversation,
         user.id,
+        user.organization_id,
     )
     .await?;
 

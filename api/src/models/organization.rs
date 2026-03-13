@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
+use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query, SelectStatement};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, query_as_with, PgPool};
@@ -208,7 +208,7 @@ pub struct OrganizationOrderOptions {
 }
 
 impl OrganizationOrderOptions {
-    fn apply(&self, mut query: sea_query::SelectStatement) -> sea_query::SelectStatement {
+    fn apply(&self, mut query: SelectStatement) -> SelectStatement {
         if let Some(order) = &self.name {
             query = query
                 .order_by(
@@ -229,10 +229,31 @@ impl OrganizationOrderOptions {
     }
 }
 
+#[derive(Deserialize, Debug, JsonSchema, Default)]
+pub struct OrganizationFilterOptions {
+    region_id: Option<Uuid>,
+}
+
+impl OrganizationFilterOptions {
+    fn apply(&self, mut query: SelectStatement) -> SelectStatement {
+        if let Some(value) = self.region_id {
+            query = query
+                .and_where(Expr::cust_with_values(
+                    "organization.regions @> $1::uuid[]",
+                    [vec![value]],
+                ))
+                .to_owned();
+        }
+
+        query
+    }
+}
+
 #[instrument(err(Debug))]
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,
+    filter_options: OrganizationFilterOptions,
     order_options: OrganizationOrderOptions,
     locale: &str,
 ) -> Result<PaginatedResults<LocalizedOrganization>, ComhairleError> {
@@ -242,8 +263,9 @@ pub async fn list(
         .to_owned();
 
     let query = LocalizedOrganization::query_to_localisation(query, locale);
-    let query = order_options.apply(query);
 
+    let query = filter_options.apply(query);
+    let query = order_options.apply(query);
     let organizations = page_options.fetch_paginated_results(db, query).await?;
 
     Ok(organizations)
@@ -277,6 +299,25 @@ pub async fn get_localized_by_id(
 }
 
 #[instrument(err(Debug))]
+pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Organization, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns(DEFAULT_COLUMNS.map(|col| (OrganizationIden::Table, col)))
+        .from(OrganizationIden::Table)
+        .and_where(Expr::col((OrganizationIden::Table, OrganizationIden::Id)).eq(id.to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let organization = query_as_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Organization".into()),
+            other => ComhairleError::DatabaseError(other),
+        })?;
+
+    Ok(organization)
+}
+
+#[instrument(err(Debug))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Organization, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(OrganizationIden::Table)
@@ -291,7 +332,9 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Organization, ComhairleErr
 
 #[cfg(test)]
 mod tests {
-    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::{
+        models::model_test_helpers::setup_default_app_and_session, routes::regions::dto::RegionDto,
+    };
 
     use super::*;
     use std::error::Error;
@@ -409,13 +452,115 @@ mod tests {
         let order_options = OrganizationOrderOptions {
             ..Default::default()
         };
-        let results = list(&pool, page_options, order_options, "en").await?;
+        let filter_options = OrganizationFilterOptions {
+            ..Default::default()
+        };
+        let results = list(&pool, page_options, filter_options, order_options, "en").await?;
 
         assert_eq!(results.total, 3, "incorrect number of organizations");
         assert_eq!(
             results.records[1].name,
             "test_org_2".to_string(),
             "incorrect organization name"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_filter_organizations_by_region(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, region_res_1, _) = session.create_random_region(&app).await?;
+        let (_, region_res_2, _) = session.create_random_region(&app).await?;
+        let region_1: RegionDto = serde_json::from_value(region_res_1)?;
+        let region_2: RegionDto = serde_json::from_value(region_res_2)?;
+
+        let new_org_1 = CreateOrganization {
+            name: "test_org_1".to_string(),
+            description: "test_org_1".to_string(),
+            mission: "to_pass_test".to_string(),
+            org_type: OrganizationType::NonProfit,
+            external_url: Some("test.com".to_string()),
+            regions: Some(vec![region_1.id]),
+        };
+        let new_org_2 = CreateOrganization {
+            name: "test_org_2".to_string(),
+            description: "test_org_2".to_string(),
+            mission: "to_pass_test".to_string(),
+            org_type: OrganizationType::NonProfit,
+            external_url: Some("test.com".to_string()),
+            regions: Some(vec![region_2.id]),
+        };
+        let new_org_3 = CreateOrganization {
+            name: "test_org_3".to_string(),
+            description: "test_org_3".to_string(),
+            mission: "to_pass_test".to_string(),
+            org_type: OrganizationType::NonProfit,
+            external_url: Some("test.com".to_string()),
+            regions: Some(vec![region_1.id]),
+        };
+
+        let _ = create(&pool, &new_org_1, "en").await?;
+        let _ = create(&pool, &new_org_2, "en").await?;
+        let _ = create(&pool, &new_org_3, "en").await?;
+
+        let page_options = PageOptions {
+            offset: None,
+            limit: None,
+        };
+        let order_options = OrganizationOrderOptions {
+            ..Default::default()
+        };
+        let filter_options = OrganizationFilterOptions {
+            region_id: Some(region_1.id),
+        };
+        let results = list(
+            &pool,
+            page_options.clone(),
+            filter_options,
+            order_options,
+            "en",
+        )
+        .await?;
+
+        assert_eq!(
+            results.total, 2,
+            "incorrect number of organizations: [first results]"
+        );
+        assert_eq!(
+            results.records[0].name,
+            "test_org_1".to_string(),
+            "incorrect first organization name: [first results]"
+        );
+        assert_eq!(
+            results.records[1].name,
+            "test_org_3".to_string(),
+            "incorrect second organization name: [first results]"
+        );
+
+        let order_options = OrganizationOrderOptions {
+            ..Default::default()
+        };
+        let filter_options = OrganizationFilterOptions {
+            region_id: Some(region_2.id),
+        };
+        let results = list(
+            &pool,
+            page_options.clone(),
+            filter_options,
+            order_options,
+            "en",
+        )
+        .await?;
+
+        assert_eq!(
+            results.total, 1,
+            "incorrect number of organizations: [second results]"
+        );
+        assert_eq!(
+            results.records[0].name,
+            "test_org_2".to_string(),
+            "incorrect first organization name: [second results]"
         );
 
         Ok(())
@@ -439,6 +584,27 @@ mod tests {
 
         assert_eq!(org.name, "test_org".to_string(), "incorrect name");
         assert_eq!(org.mission, "to_pass_test".to_string(), "incorrect mission");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_get_an_organization(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let _ = setup_default_app_and_session(&pool).await?;
+        let new_org = CreateOrganization {
+            name: "test_org".to_string(),
+            description: "test_org".to_string(),
+            mission: "to_pass_test".to_string(),
+            org_type: OrganizationType::NonProfit,
+            external_url: Some("test.com".to_string()),
+            ..Default::default()
+        };
+
+        let org = create(&pool, &new_org, "en").await?;
+
+        let org = get_by_id(&pool, &org.id).await?;
+
+        assert_eq!(org.name, "test_org".to_string(), "incorrect name");
 
         Ok(())
     }

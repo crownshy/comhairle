@@ -56,6 +56,8 @@ pub struct Conversation {
     pub is_complete: bool,
     #[partially(omit)]
     pub owner_id: Uuid,
+    #[partially(omit)]
+    pub organization_id: Option<Uuid>,
     pub is_invite_only: bool,
     #[partially(transparent)]
     pub slug: Option<String>,
@@ -72,7 +74,7 @@ pub struct Conversation {
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ConversationIden; 21] = [
+const DEFAULT_COLUMNS: [ConversationIden; 22] = [
     ConversationIden::Id,
     ConversationIden::Title,
     ConversationIden::ShortDescription,
@@ -94,6 +96,7 @@ const DEFAULT_COLUMNS: [ConversationIden; 21] = [
     ConversationIden::CreatedAt,
     ConversationIden::UpdatedAt,
     ConversationIden::OwnerId,
+    ConversationIden::OrganizationId,
 ];
 
 impl PartialConversation {
@@ -174,6 +177,7 @@ pub struct ConversationFilterOptions {
     is_complete: Option<bool>,
     is_invite_only: Option<bool>,
     owner_id: Option<Uuid>,
+    organization_id: Option<Uuid>,
     created_before: Option<DateTime<Utc>>,
     created_after: Option<DateTime<Utc>>,
 }
@@ -215,6 +219,14 @@ impl ConversationFilterOptions {
                 .and_where(
                     Expr::col((ConversationIden::Table, ConversationIden::OwnerId))
                         .eq(value.to_string()),
+                )
+                .to_owned();
+        }
+        if let Some(value) = &self.organization_id {
+            query = query
+                .and_where(
+                    Expr::col((ConversationIden::Table, ConversationIden::OrganizationId))
+                        .eq(*value),
                 )
                 .to_owned();
         }
@@ -581,6 +593,7 @@ pub async fn create(
     config: &ComhairleConfig,
     conversation: &CreateConversation,
     owner_id: Uuid,
+    organization_id: Option<Uuid>,
 ) -> Result<Conversation, ComhairleError> {
     let conversation_id = Uuid::new_v4();
 
@@ -675,6 +688,11 @@ pub async fn create(
     if let Some(default_workflow_id) = conversation.default_workflow_id {
         columns.push(ConversationIden::DefaultWorkflowId);
         values.push(default_workflow_id.into());
+    }
+
+    if let Some(org_id) = organization_id {
+        columns.push(ConversationIden::OrganizationId);
+        values.push(org_id.into());
     }
 
     let (sql, values) = Query::insert()
@@ -788,11 +806,74 @@ pub async fn list(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use fake::{Fake, Faker};
     use serde_json::json;
+
+    use crate::{
+        models::{
+            model_test_helpers::setup_default_app_and_session,
+            users::{create_user, update_user, UpdateUserRequest},
+        },
+        routes::{
+            auth::SignupRequest, conversations::dto::ConversationDto,
+            organizations::dto::OrganizationDto,
+        },
+        setup_server,
+        test_helpers::{test_state, UserSession},
+    };
+
+    use super::*;
     use std::error::Error;
+
+    #[sqlx::test]
+    async fn should_create_conversation_with_oranganization_id(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool.clone()).call()?;
+        let app = setup_server(Arc::new(state.clone())).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        let (_, response, _) = admin_session.create_random_organization(&app).await?;
+        let organization: OrganizationDto = serde_json::from_value(response)?;
+        let user = create_user(
+            &SignupRequest {
+                username: "test_user".to_string(),
+                password: "test_pw".to_string(),
+                email: "test_email".to_string(),
+                avatar_url: None,
+            },
+            &pool,
+        )
+        .await?;
+        let user = update_user(
+            &user.id,
+            &UpdateUserRequest {
+                organization_id: Some(organization.id),
+                ..Default::default()
+            },
+            &pool,
+        )
+        .await?;
+
+        let conversation = create(
+            &pool,
+            &state.bot_service,
+            &state.config,
+            &Faker.fake(),
+            user.id,
+            user.organization_id,
+        )
+        .await?;
+
+        assert!(
+            conversation.organization_id.is_some(),
+            "incorrect organization_id"
+        );
+
+        Ok(())
+    }
 
     #[sqlx::test]
     async fn should_filter_conversations_by_case_insensitive_keyword(
@@ -926,6 +1007,74 @@ mod tests {
             results_3.records[0].title,
             "A conversation about AI".to_string(),
             "incorrect third title"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_list_conversations_by_organization_id(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, response, _) = session.create_random_organization(&app).await?;
+        let organization: OrganizationDto = serde_json::from_value(response)?;
+
+        // Before user has organization_id
+        let _ = session.create_random_conversation(&app).await?;
+        let _ = session.create_random_conversation(&app).await?;
+        let _ = session.create_random_conversation(&app).await?;
+
+        let _ = session
+            .put(
+                &app,
+                "/user/details",
+                json!({ "organization_id": organization.id })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+
+        // After user has organization_id
+        let (_, response_1, _) = session.create_random_conversation(&app).await?;
+        let (_, response_2, _) = session.create_random_conversation(&app).await?;
+        let (_, response_3, _) = session.create_random_conversation(&app).await?;
+        let conversation_1: ConversationDto = serde_json::from_value(response_1)?;
+        let conversation_2: ConversationDto = serde_json::from_value(response_2)?;
+        let conversation_3: ConversationDto = serde_json::from_value(response_3)?;
+
+        let page_options = PageOptions {
+            limit: None,
+            offset: None,
+        };
+        let order_options = ConversationOrderOptions {
+            ..Default::default()
+        };
+        let filter_options = ConversationFilterOptions {
+            organization_id: Some(organization.id),
+            ..Default::default()
+        };
+        let results = list(
+            &pool,
+            page_options,
+            order_options,
+            filter_options,
+            Some("en".to_string()),
+        )
+        .await?;
+
+        assert_eq!(results.total, 3, "incorrect total filtered conversations");
+        assert_eq!(
+            results.records[0].id, conversation_1.id,
+            "incorrect first id"
+        );
+        assert_eq!(
+            results.records[1].id, conversation_2.id,
+            "incorrect second id"
+        );
+        assert_eq!(
+            results.records[2].id, conversation_3.id,
+            "incorrect third id"
         );
 
         Ok(())
