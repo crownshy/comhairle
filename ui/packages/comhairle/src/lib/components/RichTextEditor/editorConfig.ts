@@ -3,7 +3,11 @@ import { Link } from '@tiptap/extension-link';
 import { Image } from '@tiptap/extension-image';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { Markdown } from '@tiptap/markdown';
+import { Color } from '@tiptap/extension-color';
 import { Iframe } from '$lib/components/RichTextEditor/extensions/iframe';
+import { ListItem } from '@tiptap/extension-list-item';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { Underline } from '@tiptap/extension-underline';
 import type { Extensions } from '@tiptap/core';
 
 export const EDITOR_HTML_ATTRIBUTES = {
@@ -35,6 +39,10 @@ export function getBaseExtensions(options: EditorConfigOptions): Extensions {
 	const isRenderer = mode === 'renderer';
 
 	return [
+		TextStyle,
+		ListItem,
+		Underline,
+		Color.configure({ types: ['textStyle', 'listItem'] }),
 		Link.configure({
 			openOnClick: isRenderer,
 			HTMLAttributes: isRenderer ? RENDERER_LINK_ATTRIBUTES : EDITOR_HTML_ATTRIBUTES.link
