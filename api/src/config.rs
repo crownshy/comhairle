@@ -19,6 +19,7 @@ pub fn load() -> Result<ComhairleConfig, ComhairleError> {
                 .list_separator(",")
                 .separator("__")
                 .with_list_parse_key("admin_users")
+                .with_list_parse_key("whitelisted_domains")
                 .try_parsing(true),
         )
         .add_source(File::with_name("config.toml").required(false))
@@ -60,4 +61,5 @@ pub struct ComhairleConfig {
     pub bot_service_api_key: Option<String>,
     pub default_knowledge_base_id: Option<String>,
     pub elicitation_bot_agent_id: Option<String>,
+    pub whitelisted_domains: Option<Vec<String>>,
 }

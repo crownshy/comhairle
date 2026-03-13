@@ -29,7 +29,7 @@ use std::sync::Arc;
 
 use axum::{
     extract::DefaultBodyLimit,
-    http::{header, Method},
+    http::{header, HeaderValue, Method},
     Extension, Router,
 };
 
@@ -100,16 +100,30 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
     let mut api = OpenApi::default();
 
     // Setup CORS
+    let mut allowed_origins = vec![
+        "http://localhost".parse::<HeaderValue>().unwrap(),
+        "http://localhost:3000".parse::<HeaderValue>().unwrap(),
+        "http://localhost:5173".parse::<HeaderValue>().unwrap(),
+        "https://stage.comhairle.scot".parse::<HeaderValue>().unwrap(),
+    ];
+
+    // Add whitelisted domains from config
+    if let Some(whitelisted_domains) = &state.config.whitelisted_domains {
+        for domain in whitelisted_domains {
+            if let Ok(header_value) = domain.parse::<HeaderValue>() {
+                allowed_origins.push(header_value);
+                tracing::info!("Adding whitelisted domain to CORS: {}", domain);
+            } else {
+                tracing::warn!("Invalid domain format, skipping: {}", domain);
+            }
+        }
+    }
+
     let cors = CorsLayer::new()
         .allow_credentials(true)
         .allow_methods([Method::GET, Method::POST])
         .allow_headers([header::CONTENT_TYPE])
-        .allow_origin([
-            "http://localhost".parse().unwrap(),
-            "http://localhost:3000".parse().unwrap(),
-            "http://localhost:5173".parse().unwrap(),
-            "https://stage.comhairle.scot".parse().unwrap(),
-        ]);
+        .allow_origin(allowed_origins);
 
     // Run migrations
     run_migrations(&state.db).await?;
