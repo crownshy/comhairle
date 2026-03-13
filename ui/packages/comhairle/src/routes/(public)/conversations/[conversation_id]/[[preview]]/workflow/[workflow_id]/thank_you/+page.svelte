@@ -20,7 +20,7 @@
 <div class="prose mx-auto mt-20">
 	<h1>Thank You For Participating</h1>
 
-	Thank you for taking part in the conversation:<strong> {conversation.title}</strong> <br />
+	Thank you for taking part in the conversation:<strong>{conversation.title}</strong> <br />
 	We value your time and effort.
 
 	{#if user.authType === 'annon'}
@@ -29,8 +29,8 @@
 		<p>to log back in at a later time to see the results of the conversations.</p>
 	{:else}
 		<p>
-			The conversation is ongoing. When it's done we will email you with a link to the results and
-			will follow up with notifications on how those results are used.
+			The conversation is ongoing. When it's done we will email you with a link to the results
+			and will follow up with notifications on how those results are used.
 		</p>
 	{/if}
 	<h2>Next steps</h2>
@@ -47,19 +47,10 @@
 
 	<h2>Keep informed</h2>
 
-	<p>
-		Sometimes we invite people who’ve taken part in a Scottish Government engagement to take part in
-		future engagement or research on a related topic. This future engagement or research may be 
-		carried out by the Scottish Government, other government bodies, or a reputable research organisation
-		working with them. You may never be contacted again, but even if you are, you’ll still be free to decide
-		whether you want to take part or not. Are you willing to be contacted again for future engagement or 
-		research relating to the National Performance Framework?
-	</p>
-
 	{#if user.authType === 'annon'}
 		<p>
-			To receive updates on this conversation and future conversations, either update to a full
-			account
+			To receive updates on this conversation and future conversations, either update to a
+			full account
 		</p>
 
 		<div class="mt-5 mb-10 w-full">
@@ -71,8 +62,8 @@
 		</div>
 	{:else}
 		<p>
-			Use the following switches to opt into future communications. You can also update this on your
-			settings page.
+			Use the following switches to opt into future communications. You can also update this
+			on your settings page.
 		</p>
 		<UserConversationPreferencesForm
 			conversationId={conversation.id}
