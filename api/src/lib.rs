@@ -104,9 +104,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
         "http://localhost".parse::<HeaderValue>().unwrap(),
         "http://localhost:3000".parse::<HeaderValue>().unwrap(),
         "http://localhost:5173".parse::<HeaderValue>().unwrap(),
-        "https://stage.comhairle.scot"
-            .parse::<HeaderValue>()
-            .unwrap(),
+        "https://stage.comhairle.scot".parse::<HeaderValue>().unwrap(),
     ];
 
     // Add whitelisted domains from config
