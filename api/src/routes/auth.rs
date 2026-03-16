@@ -13,7 +13,7 @@ use axum::{
     response::{IntoResponse, Response},
     RequestPartsExt,
 };
-use axum_extra::extract::cookie::{Cookie, CookieJar};
+use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use chrono::TimeDelta;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
 use rand_core::OsRng;
@@ -204,7 +204,8 @@ async fn signup(
     let cookie = Cookie::build((AUTH_KEY, session_token))
         .path("/")
         .secure(true)
-        .http_only(true);
+        .http_only(true)
+        .same_site(SameSite::None);
 
     let user: UserDto = user.into();
     Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
@@ -228,7 +229,8 @@ async fn signup_annon(
     let cookie = Cookie::build((AUTH_KEY, token))
         .path("/")
         .secure(true)
-        .http_only(true);
+        .http_only(true)
+        .same_site(SameSite::None);
 
     let user: UserDto = user.into();
     Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
@@ -267,7 +269,8 @@ async fn login(
     let cookie = Cookie::build((AUTH_KEY, token))
         .path("/")
         .secure(true)
-        .http_only(true);
+        .http_only(true)
+        .same_site(SameSite::None);
 
     let user: UserDto = user.into();
     Ok((jar.add(cookie), (StatusCode::OK, Json(user))))
@@ -296,7 +299,8 @@ async fn login_annon(
     let cookie = Cookie::build((AUTH_KEY, token))
         .path("/")
         .secure(true)
-        .http_only(true);
+        .http_only(true)
+        .same_site(SameSite::None);
 
     let user: UserDto = user.into();
     Ok((cookies.add(cookie), (StatusCode::OK, Json(user))))
@@ -363,7 +367,8 @@ async fn verify_email_token(
     let cookie = Cookie::build((AUTH_KEY, session_token.clone()))
         .path("/")
         .secure(true)
-        .http_only(true);
+        .http_only(true)
+        .same_site(SameSite::None);
 
     let user: UserDto = updated_user.into();
     Ok((cookies.add(cookie), (StatusCode::OK, Json(user))))
