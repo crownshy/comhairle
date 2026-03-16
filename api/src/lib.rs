@@ -104,7 +104,9 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
         "http://localhost".parse::<HeaderValue>().unwrap(),
         "http://localhost:3000".parse::<HeaderValue>().unwrap(),
         "http://localhost:5173".parse::<HeaderValue>().unwrap(),
-        "https://stage.comhairle.scot".parse::<HeaderValue>().unwrap(),
+        "https://stage.comhairle.scot"
+            .parse::<HeaderValue>()
+            .unwrap(),
     ];
 
     // Add whitelisted domains from config
@@ -121,7 +123,13 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
 
     let cors = CorsLayer::new()
         .allow_credentials(true)
-        .allow_methods([Method::GET, Method::POST])
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::OPTIONS,
+            Method::DELETE,
+        ])
         .allow_headers([
             header::CONTENT_TYPE,
             header::ACCEPT,
