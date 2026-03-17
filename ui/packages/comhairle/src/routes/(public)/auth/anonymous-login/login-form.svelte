@@ -9,6 +9,8 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { LoadingButton } from '$lib/components/ui/button';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
+	import * as Tooltip from '$lib/components/ui/tooltip';
+	import { Info } from 'lucide-svelte';
 
 	let { backTo }: { backTo?: string } = $props();
 
@@ -61,7 +63,22 @@
 		<Form.Field {form} name="username">
 			<Form.Control>
 				{#snippet children({ props })}
-					<Form.Label>{m.anonymous_id()}</Form.Label>
+					<div class="flex items-center gap-1.5">
+						<Form.Label>{m.anonymous_id()}</Form.Label>
+						<Tooltip.Provider delayDuration={0}>
+							<Tooltip.Root>
+								<Tooltip.Trigger
+									class="inline-flex cursor-default"
+									onclick={(e) => e.preventDefault()}
+								>
+									<Info class="text-muted-foreground size-4" />
+								</Tooltip.Trigger>
+								<Tooltip.Content side="top" class="text-sm">
+									{m.anonymous_id_tooltip()}
+								</Tooltip.Content>
+							</Tooltip.Root>
+						</Tooltip.Provider>
+					</div>
 					<Input
 						{...props}
 						placeholder={m.anonymous_id()}

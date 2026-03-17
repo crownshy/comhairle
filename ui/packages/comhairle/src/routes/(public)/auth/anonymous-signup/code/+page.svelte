@@ -44,7 +44,7 @@
 			<p
 				class="text-center text-lg leading-6 font-semibold text-white lg:text-2xl lg:leading-7"
 			>
-				This is your anonymous ID<br />Save it — you'll need it to log in.
+				{m.this_is_your_anonymous_id()}<br />{m.save_it_youll_need_it_to_log_in()}
 			</p>
 
 			<Tooltip.Provider delayDuration={0}>
@@ -94,7 +94,7 @@
 					Download
 				</Button>
 				<Button
-					href={backTo}
+					href="/conversations"
 					variant="outline"
 					size="lg"
 					class="hover:bg-background/70 h-12"
