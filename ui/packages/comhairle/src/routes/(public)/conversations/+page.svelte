@@ -58,7 +58,7 @@
 					</DropdownMenu.Group>
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
-			<Search url={pageUrl} />
+			<Search />
 		</div>
 	</header>
 
