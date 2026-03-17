@@ -104,8 +104,8 @@
 
 				<!-- Edit button -->
 				<Button
-					variant="default"
-					class="bg-sidebar text-sidebar-foreground hover:bg-sidebar/90 rounded-full px-4 py-3 transition-transform duration-300 group-hover:translate-x-1"
+					variant="primaryDark"
+					class="rounded-full px-4 py-3 transition-transform duration-300"
 					href={`/admin/conversations/${conversation.id}/configure`}
 				>
 					Edit conversation
