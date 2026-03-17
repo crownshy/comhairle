@@ -24,6 +24,7 @@ use tower::ServiceExt;
 
 use crate::{
     bot_service::{ComhairleBotService, MockComhairleBotService},
+    bulk_storage::{BulkStorageService, MockBulkStorageService},
     config::ComhairleConfig,
     mailer::MockComhairleMailer,
     models::users::UpdateUserRequest,
@@ -54,6 +55,11 @@ pub fn mock_bot_service() -> Arc<dyn ComhairleBotService> {
     Arc::new(bot_service)
 }
 
+pub fn mock_bulk_storage() -> Arc<dyn BulkStorageService> {
+    let bulk_storage_service = MockBulkStorageService::base();
+    Arc::new(bulk_storage_service)
+}
+
 #[builder]
 pub fn test_state(
     db: PgPool,
@@ -62,6 +68,7 @@ pub fn test_state(
     websockets: Option<Arc<dyn WebSocketService>>,
     translation_service: Option<Arc<dyn TranslationService>>,
     bot_service: Option<Arc<dyn ComhairleBotService>>,
+    bulk_storage_service: Option<Arc<dyn BulkStorageService>>,
 ) -> Result<ComhairleState, Box<dyn Error>> {
     let state = ComhairleState {
         db,
@@ -76,6 +83,7 @@ pub fn test_state(
         jobs: Arc::new(JobQueues {
             process_documents: Arc::new(Mutex::new(MemoryStorage::new())),
         }),
+        bulk_storage_service: bulk_storage_service.unwrap_or_else(mock_bulk_storage),
     };
     Ok(state)
 }

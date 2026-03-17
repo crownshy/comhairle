@@ -1,6 +1,8 @@
 use apalis::prelude::{MemoryStorage, Monitor, WorkerBuilder, WorkerFactoryFn};
+use aws_config::BehaviorVersion;
 use comhairle::{
     bot_service::{ComhairleBotService, ComhairleRagBotService},
+    bulk_storage::s3_storage::S3StorageService,
     config::TranslatorConfig,
     db::setup_db,
     mailer::Mailer,
@@ -64,7 +66,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 )) as Arc<dyn comhairle::translation_service::TranslationService>
             });
 
+    // Setup Bulk Storage Service
+    //
+    let s3_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+    let bulk_storage_service = S3StorageService::new(&s3_config, "comhairle".to_owned());
+
+    // Setup Websocket service
     let websockets = Arc::new(ComhairleWebSocketService::new());
+
+    // Setup bot service
 
     let bot_service = match (
         &config.bot_service_host,
@@ -92,6 +102,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         translation_service,
         bot_service,
         jobs,
+        bulk_storage_service: Arc::new(bulk_storage_service),
     });
 
     let app = setup_server(state.clone()).await?;
