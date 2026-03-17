@@ -35,7 +35,7 @@
 					>
 						Comhairle<Info class="text-primary inline size-5 self-center" />
 					</Tooltip.Trigger>
-					<Tooltip.Content side={isCommunity ? 'top' : 'bottom'} class="text-base">
+					<Tooltip.Content side="top" class="text-base">
 						Means "Consult" in Gaelic
 					</Tooltip.Content>
 				</Tooltip.Root>
