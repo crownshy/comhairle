@@ -10,12 +10,25 @@ export const load: PageLoad = async (event) => {
 	const conversation_id = conversation.id;
 	const { workflow_id, workflow_step_id } = event.params;
 	try {
-		const current_step = await api.NextConversationWorkflowStepForUser({
-			params: { conversation_id: conversation.id, workflow_id: workflow_id }
-		});
+		let userProgress: UserProgressDto[] = [];
+		try {
+			userProgress = await api.GetUserProgress({
+				params: { conversation_id, workflow_id }
+			});
+		} catch {
+			// Progress may not be available
+		}
+
+		const stepProgress = userProgress.find((p) => p.workflowStepId === workflow_step_id);
+		const isStepAlreadyDone = stepProgress?.status === 'done';
+
 		// If we are in preview mode then let the user see this step regardless of if it
 		// is next. Also dont capture progress
-		if (conversation.isLive) {
+		if (conversation.isLive && !isStepAlreadyDone) {
+			const current_step = await api.NextConversationWorkflowStepForUser({
+				params: { conversation_id: conversation.id, workflow_id: workflow_id }
+			});
+
 			if (current_step && current_step.id !== workflow_step_id) {
 				return redirect(302, next_workflow_step_url(conversation_id, workflow_id, preview));
 			}
@@ -35,15 +48,6 @@ export const load: PageLoad = async (event) => {
 				workflow_step_id: workflow_step_id
 			}
 		});
-
-		let userProgress: UserProgressDto[] = [];
-		try {
-			userProgress = await api.GetUserProgress({
-				params: { conversation_id, workflow_id }
-			});
-		} catch {
-			// Progress may not be available
-		}
 
 		return { conversation, workflowStep, api, workflowSteps, workflow_id, userProgress };
 	} catch (e: any) {
