@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
+
 	interface StepHeaderProps {
 		currentStepNumber: number;
 		totalSteps: number;
@@ -26,9 +28,13 @@
 			</p>
 		{/if}
 		{#if description}
-			<p class="text-muted-foreground text-center text-base leading-6 font-normal">
-				{description}
-			</p>
+			<div
+				class="prose-sm prose-p:text-base prose-li:text-base text-muted-foreground mx-auto max-w-3xl text-center"
+			>
+				{#key description}
+					<ContentRenderer content={description} />
+				{/key}
+			</div>
 		{/if}
 	</div>
 </div>
