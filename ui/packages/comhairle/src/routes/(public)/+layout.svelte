@@ -6,6 +6,7 @@
 
 	let { children, data }: LayoutProps = $props();
 	const isEmbed = $derived(page.url.searchParams.get('embed') === 'true');
+	const isAuthPage = $derived(page.url.pathname.startsWith('/auth/'));
 
 	let isAdmin = $derived(
 		data.userRoles
@@ -15,12 +16,18 @@
 </script>
 
 <div class="flex min-h-screen w-full flex-col">
-	{#if !isEmbed}
+	{#if !isEmbed && !isAuthPage}
 		<NavBar user={data.user} {isAdmin} />
 	{/if}
-	<div class="mx-auto min-h-[80vh] w-full max-w-[1300px] grow px-4 md:px-20">
-		{@render children()}
-	</div>
+	{#if isAuthPage}
+		<div class="grow">
+			{@render children()}
+		</div>
+	{:else}
+		<div class="mx-auto min-h-[80vh] w-full max-w-[1300px] grow px-4 md:px-20">
+			{@render children()}
+		</div>
+	{/if}
 	{#if !isEmbed}
 		<Footer />
 	{/if}

@@ -39,29 +39,59 @@
 	}
 </script>
 
-<form class="space-y-4" method="POST" use:enhance>
-	<div>
-		<h1 class="text-xl font-bold">{m.login_with_anonymous_id()}</h1>
-		<p class="text-muted-foreground mb-4 text-sm">{m.enter_your_details_below_to_login()}</p>
-	</div>
-	{#if $errMessage}
-		<p class="text-destructive text-sm">{$errMessage}</p>
-	{/if}
-	<Form.Field {form} name="username">
-		<Form.Control>
-			{#snippet children({ props })}
-				<Form.Label>{m.id()}</Form.Label>
-				<Input {...props} bind:value={$formData.username} required />
-			{/snippet}
-		</Form.Control>
-		<Form.FieldErrors />
-	</Form.Field>
-	<LoadingButton type="submit" class="w-full" variant="secondary" loading={loader.loading}>
-		{m.submit()}
-	</LoadingButton>
-	<p class="text-sm">
-		<a href={`/auth/signup?backTo=${backTo ?? '/'}`} class="underline"
-			>{m.dont_have_an_account_signup()}</a
+<form class="space-y-6 lg:space-y-8" method="POST" use:enhance>
+	<div class="flex flex-col items-center gap-3 lg:gap-6">
+		<h1
+			class="text-foreground text-center text-3xl leading-9 font-bold lg:text-5xl lg:leading-[52px]"
 		>
-	</p>
+			{m.login_with_anonymous_id()}
+		</h1>
+		<p
+			class="text-muted-foreground text-center text-lg leading-6 font-semibold lg:text-2xl lg:leading-7"
+		>
+			{m.enter_your_details_below_to_login()}
+		</p>
+	</div>
+
+	{#if $errMessage}
+		<p class="text-destructive text-center text-sm">{$errMessage}</p>
+	{/if}
+
+	<div class="space-y-6">
+		<Form.Field {form} name="username">
+			<Form.Control>
+				{#snippet children({ props })}
+					<Form.Label>{m.id()}</Form.Label>
+					<Input
+						{...props}
+						placeholder={m.id()}
+						bind:value={$formData.username}
+						required
+					/>
+				{/snippet}
+			</Form.Control>
+			<Form.FieldErrors />
+		</Form.Field>
+	</div>
+
+	<div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+		<LoadingButton
+			type="submit"
+			size="lg"
+			class="h-12 w-full px-7 lg:w-auto"
+			variant="default"
+			loading={loader.loading}
+		>
+			{m.submit()}
+		</LoadingButton>
+	</div>
+
+	<div class="flex flex-col gap-1">
+		<p class="text-muted-foreground text-base">
+			{m.dont_have_an_account_signup().split('?')[0]}?
+			<a href={`/auth/signup?backTo=${backTo ?? '/'}`} class="text-primary underline"
+				>{m.signup()}</a
+			>
+		</p>
+	</div>
 </form>
