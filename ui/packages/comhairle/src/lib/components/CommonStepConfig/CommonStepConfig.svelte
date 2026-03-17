@@ -97,7 +97,6 @@
 		<ContentRenderer
 			content={description || sourceDescription}
 			class="text-muted-foreground text-sm"
-			minimal
 		/>
 	</div>
 	<Dialog.Root
