@@ -24,7 +24,7 @@ use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
 use sqlx::{prelude::FromRow, PgPool};
-use tracing::{info, instrument};
+use tracing::instrument;
 use uuid::Uuid;
 
 #[cfg(test)]
@@ -68,13 +68,14 @@ pub struct Conversation {
     pub chat_bot_id: Option<String>,
     pub enable_qa_chat_bot: bool,
     pub supported_languages: Vec<String>,
+    pub privacy_policy: Option<TextContentId>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ConversationIden; 22] = [
+const DEFAULT_COLUMNS: [ConversationIden; 23] = [
     ConversationIden::Id,
     ConversationIden::Title,
     ConversationIden::ShortDescription,
@@ -97,6 +98,7 @@ const DEFAULT_COLUMNS: [ConversationIden; 22] = [
     ConversationIden::UpdatedAt,
     ConversationIden::OwnerId,
     ConversationIden::OrganizationId,
+    ConversationIden::PrivacyPolicy,
 ];
 
 impl PartialConversation {
@@ -412,8 +414,6 @@ pub async fn get_localised_by_id(
     let (sql, values) = LocalizedConversation::query_to_localisation(select_query, lang_code)
         .build_sqlx(PostgresQueryBuilder);
 
-    println!("SQL: {sql}");
-
     let conversation = sqlx::query_as_with::<_, LocalizedConversation, _>(&sql, values)
         .fetch_one(db)
         .await
@@ -469,8 +469,6 @@ pub async fn update(
     id: &Uuid,
     update: &PartialConversation,
 ) -> Result<Conversation, ComhairleError> {
-    info!("Updating conversation {id} with update {update:#?}");
-
     //TODO we need something here to generate new translations
     //if the supported lanagues change
     //or I guess if primary_locale changes
@@ -555,6 +553,7 @@ pub struct CreateConversation {
     pub default_workflow_id: Option<Uuid>,
     pub primary_locale: String,
     pub supported_languages: Vec<String>,
+    pub privacy_policy: Option<String>,
     pub enable_qa_chat_bot: Option<bool>,
 }
 
@@ -665,6 +664,19 @@ pub async fn create(
 
     columns.push(ConversationIden::ShortDescription);
     values.push(short_description.id.into());
+
+    if let Some(privacy_policy) = &conversation.privacy_policy {
+        let privacy_policy_translation = new_translation(
+            db,
+            &conversation.primary_locale,
+            privacy_policy,
+            TextFormat::Rich,
+        )
+        .await?;
+
+        columns.push(ConversationIden::PrivacyPolicy);
+        values.push(privacy_policy_translation.id.into());
+    }
 
     // Generate Slug
 
