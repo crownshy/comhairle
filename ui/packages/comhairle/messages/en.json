@@ -64,8 +64,10 @@
 	"about": "About",
 	"participate": "Participate",
 	"your_rights": "Your Rights",
-	"welcome_to_comhairle": "Welcome to Comhairle",
-	"a_platfrom_about_what_people_want": "A platform about understanding what people want",
+	"welcome_to": "Welcome to",
+	"welcome_to_the": "Welcome to the",
+	"community_server": "Community Server",
+	"landing_page_subtitle": "A platform where communities join conversations, share ideas, reflect together, and help shape better decisions.",
 	"find_open_conversations": "Find open consultations that you can participate, or search topics that interest you the most.",
 	"conversations": "Conversations",
 	"take_part": "Take Part",
@@ -113,5 +115,6 @@
 	"language": "Language",
 	"welcome_to_comhairle_community_server": "Welcome to the Comhairle Community Server",
 	"community_server_description_1": "At CrownShy, we believe that communities of all shapes and sizes benefit from listening more closely to their members and learning to govern themselves more effectively.",
-	"community_server_description_2": "To help realize this future, we run this community server."
+	"community_server_description_2": "To help realize this future, we run this community server.",
+	"comhairle_meaning": "Means \"Council\" in Gaelic"
 }

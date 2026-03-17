@@ -63,8 +63,10 @@
 	"about": "Sobre",
 	"participate": "Participar",
 	"your_rights": "Seus direitos",
-	"welcome_to_comhairle": "Bem-vindo ao Comhairle",
-	"a_platfrom_about_what_people_want": "Uma plataforma para entender o que as pessoas querem",
+	"welcome_to": "Bem-vindo ao",
+	"welcome_to_the": "Bem-vindo ao",
+	"community_server": "Servidor Comunitário",
+	"landing_page_subtitle": "Uma plataforma onde comunidades se juntam a conversas, compartilham ideias, refletem juntas e ajudam a moldar melhores decisões.",
 	"find_open_conversations": "Encontre consultas abertas das quais você pode participar, ou procure tópicos que mais lhe interessam.",
 	"conversations": "Conversas",
 	"take_part": "Participar",
@@ -108,5 +110,6 @@
 	"language": "Idioma",
 	"welcome_to_comhairle_community_server": "Bem-vindo ao Servidor Comunitário Comhairle",
 	"community_server_description_1": "Na CrownShy, acreditamos que comunidades de todas as formas e tamanhos se beneficiam ao ouvir mais atentamente seus membros e aprender a se governar de forma mais eficaz.",
-	"community_server_description_2": "Para ajudar a realizar este futuro, operamos este servidor comunitário."
+	"community_server_description_2": "Para ajudar a realizar este futuro, operamos este servidor comunitário.",
+	"comhairle_meaning": "Significa \"Conselho\" em gaélico"
 }

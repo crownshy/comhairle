@@ -1,4 +1,5 @@
 pub mod bot_service;
+pub mod bulk_storage;
 pub mod config;
 pub mod db;
 mod docs;
@@ -41,7 +42,9 @@ use error::ComhairleError;
 use sqlx_postgres::PgPool;
 use tower_http::cors::CorsLayer;
 
-use crate::{routes::workflows::WorkflowRouterContext, workers::JobQueues};
+use crate::{
+    bulk_storage::BulkStorageService, routes::workflows::WorkflowRouterContext, workers::JobQueues,
+};
 
 #[derive(Clone)]
 pub struct ComhairleState {
@@ -51,6 +54,7 @@ pub struct ComhairleState {
     pub websockets: Arc<dyn WebSocketService>,
     pub translation_service: Option<Arc<dyn TranslationService>>,
     pub bot_service: Option<Arc<dyn ComhairleBotService>>,
+    pub bulk_storage_service: Arc<dyn BulkStorageService>,
     pub jobs: Arc<JobQueues>,
 }
 

@@ -63,8 +63,10 @@
 	"about": "حول",
 	"participate": "شارك",
 	"your_rights": "حقوقك",
-	"welcome_to_comhairle": "مرحباً بك في Comhairle",
-	"a_platfrom_about_what_people_want": "منصة لفهم ما يريده الناس",
+	"welcome_to": "مرحباً بك في",
+	"welcome_to_the": "مرحباً بك في",
+	"community_server": "خادم المجتمع",
+	"landing_page_subtitle": "منصة حيث تنضم المجتمعات إلى المحادثات، وتتبادل الأفكار، وتتأمل معًا، وتساعد في تشكيل قرارات أفضل.",
 	"find_open_conversations": "اعثر على استشارات مفتوحة يمكنك المشاركة فيها، أو ابحث عن المواضيع التي تهمك أكثر.",
 	"conversations": "المحادثات",
 	"take_part": "شارك",
@@ -108,5 +110,6 @@
 	"language": "اللغة",
 	"welcome_to_comhairle_community_server": "مرحباً بك في خادم مجتمع Comhairle",
 	"community_server_description_1": "في CrownShy، نؤمن بأن المجتمعات بجميع أشكالها وأحجامها تستفيد من الاستماع عن كثب لأعضائها وتعلم حكم أنفسها بشكل أكثر فعالية.",
-	"community_server_description_2": "للمساعدة في تحقيق هذا المستقبل، نشغل خادم المجتمع هذا."
+	"community_server_description_2": "للمساعدة في تحقيق هذا المستقبل، نشغل خادم المجتمع هذا.",
+	"comhairle_meaning": "تعني \"مجلس\" بالغيلية"
 }

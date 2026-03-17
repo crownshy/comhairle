@@ -63,8 +63,10 @@
 	"about": "关于",
 	"participate": "参与",
 	"your_rights": "您的权利",
-	"welcome_to_comhairle": "欢迎来到Comhairle",
-	"a_platfrom_about_what_people_want": "一个了解人们需求的平台",
+	"welcome_to": "欢迎来到",
+	"welcome_to_the": "欢迎来到",
+	"community_server": "社区服务器",
+	"landing_page_subtitle": "一个让社区参与对话、分享想法、共同反思并帮助塑造更好决策的平台。",
 	"find_open_conversations": "查找您可以参与的公开咨询，或搜索您最感兴趣的话题。",
 	"conversations": "对话",
 	"take_part": "参与",
@@ -107,5 +109,6 @@
 	"language": "语言",
 	"welcome_to_comhairle_community_server": "欢迎来到Comhairle社区服务器",
 	"community_server_description_1": "在CrownShy，我们相信各种规模和形式的社区都能从更密切地倾听其成员并学习更有效地自我治理中受益。",
-	"community_server_description_2": "为了帮助实现这一未来，我们运营这个社区服务器。"
+	"community_server_description_2": "为了帮助实现这一未来，我们运营这个社区服务器。",
+	"comhairle_meaning": "在盖尔语中意为\"议会\""
 }
