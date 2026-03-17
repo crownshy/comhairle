@@ -36,7 +36,7 @@
 						Comhairle<Info class="text-primary inline size-5 self-center" />
 					</Tooltip.Trigger>
 					<Tooltip.Content side="top" class="text-base">
-						Means "Consult" in Gaelic
+						{m.comhairle_meaning()}
 					</Tooltip.Content>
 				</Tooltip.Root>
 			</Tooltip.Provider>
