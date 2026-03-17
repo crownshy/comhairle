@@ -86,6 +86,7 @@ export const ConversationDto = z
     isLive: z.boolean(),
     isPublic: z.boolean(),
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    organizationId: z.union([z.string(), z.null()]).optional(),
     primaryLocale: z.string(),
     shortDescription: z.string().uuid(),
     slug: z.union([z.string(), z.null()]).optional(),
@@ -114,6 +115,7 @@ export const LocalizedConversationDto = z
     isLive: z.boolean(),
     isPublic: z.boolean(),
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    organizationId: z.union([z.string(), z.null()]).optional(),
     primaryLocale: z.string(),
     shortDescription: z.string(),
     slug: z.union([z.string(), z.null()]).optional(),
@@ -176,6 +178,31 @@ export const UpdateUserConversationPreferences = z
 export type UpdateUserConversationPreferences = z.infer<
   typeof UpdateUserConversationPreferences
 >;
+export const UserProfileDto = z
+  .object({
+    age: z.union([z.number(), z.null()]).optional(),
+    consented: z.boolean(),
+    createdAt: z.string().datetime({ offset: true }),
+    ethnicity: z.union([z.string(), z.null()]).optional(),
+    gender: z.union([z.string(), z.null()]).optional(),
+    id: z.string().uuid(),
+    updatedAt: z.string().datetime({ offset: true }),
+    userId: z.string().uuid(),
+    zipcode: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type UserProfileDto = z.infer<typeof UserProfileDto>;
+export const UpsertUserProfileRequest = z
+  .object({
+    age: z.union([z.number(), z.null()]),
+    consented: z.union([z.boolean(), z.null()]),
+    ethnicity: z.union([z.string(), z.null()]),
+    gender: z.union([z.string(), z.null()]),
+    zipcode: z.union([z.string(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type UpsertUserProfileRequest = z.infer<typeof UpsertUserProfileRequest>;
 export const DeliveryMethod = z.enum(["in_app", "email"]);
 export type DeliveryMethod = z.infer<typeof DeliveryMethod>;
 export const NotificationContextType = z.enum(["site", "conversation"]);
@@ -397,6 +424,7 @@ export const ConversationWithTranslations = z
     isLive: z.boolean(),
     isPublic: z.boolean(),
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    organizationId: z.union([z.string(), z.null()]).optional(),
     ownerId: z.string().uuid(),
     primaryLocale: z.string(),
     shortDescription: z.string(),
@@ -487,6 +515,7 @@ export const WorkflowDto = z
     isActive: z.boolean(),
     isPublic: z.boolean(),
     name: z.string(),
+    regionId: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type WorkflowDto = z.infer<typeof WorkflowDto>;
@@ -497,6 +526,7 @@ export const CreateWorkflow = z
     is_active: z.boolean(),
     is_public: z.boolean(),
     name: z.string(),
+    region_id: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type CreateWorkflow = z.infer<typeof CreateWorkflow>;
@@ -508,6 +538,7 @@ export const PartialWorkflow = z
     is_active: z.union([z.boolean(), z.null()]),
     is_public: z.union([z.boolean(), z.null()]),
     name: z.union([z.string(), z.null()]),
+    region_id: z.union([z.string(), z.null()]),
   })
   .partial()
   .passthrough();
@@ -1088,13 +1119,13 @@ export const OrganizationType = z.enum(["non_profit", "governmental", "other"]);
 export type OrganizationType = z.infer<typeof OrganizationType>;
 export const LocalizedOrganizationDto = z
   .object({
-    created_at: z.string().datetime({ offset: true }),
+    createdAt: z.string().datetime({ offset: true }),
     description: z.string(),
-    external_url: z.union([z.string(), z.null()]).optional(),
+    externalUrl: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     mission: z.string(),
     name: z.string(),
-    org_type: OrganizationType,
+    orgType: OrganizationType,
     regions: z.array(z.string().uuid()),
   })
   .passthrough();
@@ -1121,13 +1152,13 @@ export const CreateOrganization = z
 export type CreateOrganization = z.infer<typeof CreateOrganization>;
 export const OrganizationDto = z
   .object({
-    created_at: z.string().datetime({ offset: true }),
+    createdAt: z.string().datetime({ offset: true }),
     description: z.string().uuid(),
-    external_url: z.union([z.string(), z.null()]).optional(),
+    externalUrl: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     mission: z.string().uuid(),
     name: z.string(),
-    org_type: OrganizationType,
+    orgType: OrganizationType,
     regions: z.array(z.string().uuid()),
   })
   .passthrough();
@@ -1242,6 +1273,8 @@ export const schemas = {
   UpgradeAccountRequest,
   UserConversationPreferencesDto,
   UpdateUserConversationPreferences,
+  UserProfileDto,
+  UpsertUserProfileRequest,
   DeliveryMethod,
   NotificationContextType,
   NotificationType,
@@ -1534,6 +1567,11 @@ const endpoints = makeApi([
       },
       {
         name: "keyword",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "organization_id",
         type: "Query",
         schema: created_after,
       },
@@ -2567,6 +2605,11 @@ curl -X POST \
         schema: created_at,
       },
       {
+        name: "region_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
         name: "limit",
         type: "Query",
         schema: limit,
@@ -2641,6 +2684,11 @@ curl -X POST \
         name: "name",
         type: "Query",
         schema: created_at,
+      },
+      {
+        name: "organization_id",
+        type: "Query",
+        schema: created_after,
       },
       {
         name: "limit",
@@ -2956,6 +3004,11 @@ This struct contains optional fields that can be updated on a TextTranslation re
         schema: created_after,
       },
       {
+        name: "organization_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
         name: "owner_id",
         type: "Query",
         schema: created_after,
@@ -3003,6 +3056,29 @@ This struct contains optional fields that can be updated on a TextTranslation re
       },
     ],
     response: UserConversationPreferencesDto,
+  },
+  {
+    method: "get",
+    path: "/user/profile",
+    alias: "GetUserProfile",
+    description: `Get the current user&#x27;s profile`,
+    requestFormat: "json",
+    response: UserProfileDto,
+  },
+  {
+    method: "put",
+    path: "/user/profile",
+    alias: "UpsertUserProfile",
+    description: `Create or update the current user&#x27;s profile`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpsertUserProfileRequest,
+      },
+    ],
+    response: UserProfileDto,
   },
   {
     method: "get",

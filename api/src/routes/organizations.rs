@@ -14,7 +14,10 @@ use uuid::Uuid;
 use crate::{
     error::ComhairleError,
     models::{
-        organization::{self, CreateOrganization, OrganizationOrderOptions, PartialOrganization},
+        organization::{
+            self, CreateOrganization, OrganizationFilterOptions, OrganizationOrderOptions,
+            PartialOrganization,
+        },
         pagination::{PageOptions, PaginatedResults},
     },
     routes::{
@@ -31,13 +34,20 @@ pub mod dto;
 async fn list(
     State(state): State<Arc<ComhairleState>>,
     Query(order_options): Query<OrganizationOrderOptions>,
+    Query(filter_options): Query<OrganizationFilterOptions>,
     Query(page_options): Query<PageOptions>,
     LocaleExtractor(locale): LocaleExtractor,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<PaginatedResults<LocalizedOrganizationDto>>), ComhairleError> {
-    let organizations = organization::list(&state.db, page_options, order_options, &locale)
-        .await?
-        .into();
+    let organizations = organization::list(
+        &state.db,
+        page_options,
+        filter_options,
+        order_options,
+        &locale,
+    )
+    .await?
+    .into();
 
     Ok((StatusCode::OK, Json(organizations)))
 }
@@ -281,9 +291,7 @@ mod tests {
             )
             .await?;
 
-        let (_, response, _) = session
-            .get(&app, "/organizations?created_at=desc")
-            .await?;
+        let (_, response, _) = session.get(&app, "/organizations?created_at=desc").await?;
         let organizations: PaginatedResults<LocalizedOrganizationDto> =
             serde_json::from_value(response)?;
         assert_eq!(
@@ -297,12 +305,7 @@ mod tests {
             "incorrect last organization [created_at=desc]"
         );
 
-        let (_, response, _) = session
-            .get(
-                &app,
-                "/organizations?name=asc",
-            )
-            .await?;
+        let (_, response, _) = session.get(&app, "/organizations?name=asc").await?;
         let organizations: PaginatedResults<LocalizedOrganizationDto> =
             serde_json::from_value(response)?;
         assert_eq!(
@@ -316,12 +319,7 @@ mod tests {
             "incorrect last organization [name=asc]"
         );
 
-        let (_, response, _) = session
-            .get(
-                &app,
-                "/organizations?name=desc",
-            )
-            .await?;
+        let (_, response, _) = session.get(&app, "/organizations?name=desc").await?;
         let organizations: PaginatedResults<LocalizedOrganizationDto> =
             serde_json::from_value(response)?;
         assert_eq!(

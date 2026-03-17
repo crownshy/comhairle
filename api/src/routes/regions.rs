@@ -15,7 +15,7 @@ use crate::{
     error::ComhairleError,
     models::{
         pagination::{PageOptions, PaginatedResults},
-        region::{self, CreateRegion, PartialRegion, RegionOrderOptions},
+        region::{self, CreateRegion, PartialRegion, RegionFilterOptions, RegionOrderOptions},
     },
     routes::{
         auth::{RequiredAdminUser, RequiredUser},
@@ -31,13 +31,20 @@ pub mod dto;
 async fn list(
     State(state): State<Arc<ComhairleState>>,
     Query(order_options): Query<RegionOrderOptions>,
+    Query(filter_options): Query<RegionFilterOptions>,
     Query(page_options): Query<PageOptions>,
     LocaleExtractor(locale): LocaleExtractor,
     RequiredAdminUser(_user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<PaginatedResults<LocalizedRegionDto>>), ComhairleError> {
-    let regions = region::list(&state.db, page_options, order_options, &locale)
-        .await?
-        .into();
+    let regions = region::list(
+        &state.db,
+        page_options,
+        filter_options,
+        order_options,
+        &locale,
+    )
+    .await?
+    .into();
 
     Ok((StatusCode::OK, Json(regions)))
 }

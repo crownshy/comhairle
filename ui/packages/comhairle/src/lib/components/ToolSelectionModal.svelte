@@ -31,7 +31,7 @@
 			<Dialog.DialogTitle>{prompt}</Dialog.DialogTitle>
 		</Dialog.DialogHeader>
 		<div class="grid grid-cols-3 gap-2">
-			{#each AvailableTools as tool}
+			{#each AvailableTools as tool (tool.name)}
 				<Card.Root class="border">
 					<Card.Header>
 						<div class="align-center flex flex-row justify-between">
@@ -47,7 +47,9 @@
 					</Card.Content>
 					<Card.Footer class="flex flex-row justify-end">
 						{#if tool.available}
-							<Button variant="default" onclick={() => select(tool.name)}><Plus /> Add Step</Button>
+							<Button variant="default" onclick={() => select(tool.name)}
+								><Plus /> Add Step</Button
+							>
 						{:else}
 							<p class="text-[hsl(80, 52% 91%)] py-2 font-bold">Comming Soon</p>
 						{/if}

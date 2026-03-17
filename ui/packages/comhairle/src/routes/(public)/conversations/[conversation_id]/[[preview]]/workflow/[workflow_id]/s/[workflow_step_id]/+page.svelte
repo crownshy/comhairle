@@ -126,6 +126,18 @@
 		<StepSelector steps={stepItems} />
 
 		<div class="flex w-full grow flex-col gap-y-2 md:grid md:grid-cols-1 md:gap-x-10">
+			<div class="mt-10 flex flex-col items-center gap-y-2">
+				<h2
+					class="text-center text-4xl font-bold md:col-start-1 md:col-end-2 md:row-start-1 md:row-end-1 md:text-3xl"
+				>
+					{workflowStep.name}
+				</h2>
+				<div class="prose-sm prose-p:text-base prose-li:text-base mx-auto max-w-3xl">
+					{#key workflowStep.description}
+						<ContentRenderer content={workflowStep.description} />
+					{/key}
+				</div>
+			</div>
 			<div class="flex grow flex-col md:row-start-2">
 				{#if !workflowStep.required}
 					<Button onclick={stepComplete} class="mx-auto" variant="secondary"
@@ -145,7 +157,7 @@
 							user_id={user.id}
 							polis_id={toolConfig.poll_id}
 							polis_url={toolConfig.server_url}
-							onDone={goToThankYouPage}
+							onDone={stepComplete}
 						/>
 					{/if}
 					{#if toolConfig.type === HeyForm.TOOL_NAME}

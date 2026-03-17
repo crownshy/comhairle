@@ -62,8 +62,10 @@
 	"about": "Mu dheidhinn",
 	"participate": "Gabh pàirt",
 	"your_rights": "Na còraichean agad",
-	"welcome_to_comhairle": "Fàilte gu Comhairle",
-	"a_platfrom_about_what_people_want": "Àrd-ùrlar gus tuigse fhaighinn air na tha daoine ag iarraidh",
+	"welcome_to": "Fàilte gu",
+	"welcome_to_the": "Fàilte gun",
+	"community_server": "Frithealaiche Coimhearsnachd",
+	"landing_page_subtitle": "Àrd-ùrlar far am bi coimhearsnachdan a' tighinn còmhla ann an còmhraidhean, a' roinn bheachdan, a' meòrachadh còmhla, agus a' cuideachadh le co-dhùnaidhean nas fheàrr a chruthachadh.",
 	"find_open_conversations": "Lorg co-chomhairlean fhosgailte anns am faod thu pàirt a ghabhail, no lorg cuspairean a tha gad ùrachadh as motha.",
 	"conversations": "Còmhraidhean",
 	"take_part": "Gabh pàirt",
@@ -106,5 +108,6 @@
 	"language": "Cànan",
 	"welcome_to_comhairle_community_server": "Fàilte gu Frithealaiche Coimhearsnachd Comhairle",
 	"community_server_description_1": "Aig CrownShy, tha sinn a' creidsinn gum bi buannachd aig coimhearsnachdan de gach cumadh is meud bho bhith ag èisteachd nas dlùithe ri am buill agus ag ionnsachadh riaghlachadh orra fhèin nas èifeachdaiche.",
-	"community_server_description_2": "Gus cuideachadh leis an àm ri teachd seo, tha sinn a' ruith am frithealaiche coimhearsnachd seo."
+	"community_server_description_2": "Gus cuideachadh leis an àm ri teachd seo, tha sinn a' ruith am frithealaiche coimhearsnachd seo.",
+	"comhairle_meaning": "Tha e a' ciallachadh \"Comhairle\" sa Ghàidhlig"
 }

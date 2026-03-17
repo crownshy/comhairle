@@ -21,7 +21,7 @@ use crate::{
 ///
 /// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "camelCase")]
 pub struct OrganizationDto {
     #[schemars(example = "example_uuid")]
     pub id: Uuid,
@@ -45,7 +45,7 @@ pub struct OrganizationDto {
 ///
 /// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "camelCase")]
 pub struct LocalizedOrganizationDto {
     #[schemars(example = "example_uuid")]
     pub id: Uuid,

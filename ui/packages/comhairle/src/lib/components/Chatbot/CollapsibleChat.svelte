@@ -18,7 +18,7 @@
 		botSubtitle = 'Ask questions'
 	}: Props = $props();
 
-	let isOpen = $state(true);
+	let isOpen = $state(false);
 	let isMobile = $state(false);
 
 	$effect(() => {
@@ -96,7 +96,7 @@
 	{/if}
 {:else}
 	<!-- Desktop: Fixed bottom-right panel -->
-	<div class="fixed right-6 bottom-6 z-50 flex flex-col items-end">
+	<div class="fixed right-6 bottom-6 z-50 flex max-h-[calc(100vh-48px)] flex-col items-end">
 		{#if isOpen}
 			<!-- Expanded state -->
 			<div

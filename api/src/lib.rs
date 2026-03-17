@@ -1,4 +1,5 @@
 pub mod bot_service;
+pub mod bulk_storage;
 pub mod config;
 pub mod db;
 mod docs;
@@ -29,7 +30,7 @@ use std::sync::Arc;
 
 use axum::{
     extract::DefaultBodyLimit,
-    http::{header, Method},
+    http::{header, HeaderValue, Method},
     Extension, Router,
 };
 
@@ -41,7 +42,9 @@ use error::ComhairleError;
 use sqlx_postgres::PgPool;
 use tower_http::cors::CorsLayer;
 
-use crate::{routes::workflows::WorkflowRouterContext, workers::JobQueues};
+use crate::{
+    bulk_storage::BulkStorageService, routes::workflows::WorkflowRouterContext, workers::JobQueues,
+};
 
 #[derive(Clone)]
 pub struct ComhairleState {
@@ -51,6 +54,7 @@ pub struct ComhairleState {
     pub websockets: Arc<dyn WebSocketService>,
     pub translation_service: Option<Arc<dyn TranslationService>>,
     pub bot_service: Option<Arc<dyn ComhairleBotService>>,
+    pub bulk_storage_service: Arc<dyn BulkStorageService>,
     pub jobs: Arc<JobQueues>,
 }
 
@@ -100,16 +104,43 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
     let mut api = OpenApi::default();
 
     // Setup CORS
+    let mut allowed_origins = vec![
+        "http://localhost".parse::<HeaderValue>().unwrap(),
+        "http://localhost:3000".parse::<HeaderValue>().unwrap(),
+        "http://localhost:5173".parse::<HeaderValue>().unwrap(),
+        "https://stage.comhairle.scot"
+            .parse::<HeaderValue>()
+            .unwrap(),
+    ];
+
+    // Add whitelisted domains from config
+    if let Some(whitelisted_domains) = &state.config.whitelisted_domains {
+        for domain in whitelisted_domains {
+            if let Ok(header_value) = domain.parse::<HeaderValue>() {
+                allowed_origins.push(header_value);
+                tracing::info!("Adding whitelisted domain to CORS: {}", domain);
+            } else {
+                tracing::warn!("Invalid domain format, skipping: {}", domain);
+            }
+        }
+    }
+
     let cors = CorsLayer::new()
         .allow_credentials(true)
-        .allow_methods([Method::GET, Method::POST])
-        .allow_headers([header::CONTENT_TYPE])
-        .allow_origin([
-            "http://localhost".parse().unwrap(),
-            "http://localhost:3000".parse().unwrap(),
-            "http://localhost:5173".parse().unwrap(),
-            "https://stage.comhairle.scot".parse().unwrap(),
-        ]);
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::OPTIONS,
+            Method::DELETE,
+        ])
+        .allow_headers([
+            header::CONTENT_TYPE,
+            header::ACCEPT,
+            header::ACCEPT_LANGUAGE,
+            header::ACCEPT_ENCODING,
+        ])
+        .allow_origin(allowed_origins);
 
     // Run migrations
     run_migrations(&state.db).await?;
@@ -126,10 +157,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
                     "/preferences",
                     routes::user_conversation_preferences::router(state.clone()),
                 )
-                .nest_api_service(
-                    "/profile",
-                    routes::user_profile::router(state.clone()),
-                ),
+                .nest_api_service("/profile", routes::user_profile::router(state.clone())),
         )
         .nest_api_service(
             "/notifications",
@@ -219,6 +247,8 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
         let json = serde_json::to_string_pretty(&api).unwrap();
         fs::write("open-api-spec.json", json.as_bytes()).await?;
     }
+
+    println!("Config ${:#?}", state.config);
 
     Ok(app)
 }

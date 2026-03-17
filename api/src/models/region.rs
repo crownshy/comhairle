@@ -15,6 +15,7 @@ use fake::Dummy;
 use crate::{
     error::ComhairleError,
     models::{
+        organization::OrganizationIden,
         pagination::{Order, PageOptions, PaginatedResults},
         translations::{new_translation, TextContentId, TextFormat},
     },
@@ -209,10 +210,33 @@ impl RegionOrderOptions {
     }
 }
 
+#[derive(Deserialize, Debug, JsonSchema, Default)]
+pub struct RegionFilterOptions {
+    organization_id: Option<Uuid>,
+}
+
+impl RegionFilterOptions {
+    fn apply(&self, mut query: sea_query::SelectStatement) -> sea_query::SelectStatement {
+        if let Some(value) = self.organization_id {
+            query = query
+                .join(
+                    sea_query::JoinType::InnerJoin,
+                    OrganizationIden::Table,
+                    Expr::cust("region.id = ANY(organization.regions)"),
+                )
+                .and_where(Expr::col((OrganizationIden::Table, OrganizationIden::Id)).eq(value))
+                .to_owned();
+        }
+
+        query
+    }
+}
+
 #[instrument(err(Debug))]
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,
+    filter_options: RegionFilterOptions,
     order_options: RegionOrderOptions,
     locale: &str,
 ) -> Result<PaginatedResults<LocalizedRegion>, ComhairleError> {
@@ -223,6 +247,7 @@ pub async fn list(
 
     let query = LocalizedRegion::query_to_localisation(query, locale);
 
+    let query = filter_options.apply(query);
     let query = order_options.apply_to_localized(query);
     let regions = page_options.fetch_paginated_results(db, query).await?;
 
@@ -271,7 +296,12 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Region, ComhairleError> {
 
 #[cfg(test)]
 mod tests {
-    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use serde_json::json;
+
+    use crate::{
+        models::model_test_helpers::setup_default_app_and_session,
+        routes::organizations::dto::OrganizationDto,
+    };
 
     use super::*;
     use std::error::Error;
@@ -378,11 +408,14 @@ mod tests {
             offset: None,
             limit: None,
         };
+        let filter_options = RegionFilterOptions {
+            ..Default::default()
+        };
         let order_options = RegionOrderOptions {
             created_at: Some(Order::Asc),
             ..Default::default()
         };
-        let results = list(&pool, page_options, order_options, "en").await?;
+        let results = list(&pool, page_options, filter_options, order_options, "en").await?;
 
         assert_eq!(results.total, 4, "incorrect number of regions");
         assert_eq!(
@@ -400,11 +433,14 @@ mod tests {
             offset: None,
             limit: None,
         };
+        let filter_options = RegionFilterOptions {
+            ..Default::default()
+        };
         let order_options = RegionOrderOptions {
             name: Some(Order::Desc),
             ..Default::default()
         };
-        let results = list(&pool, page_options, order_options, "en").await?;
+        let results = list(&pool, page_options, filter_options, order_options, "en").await?;
 
         assert_eq!(results.total, 4, "incorrect number of regions");
         assert_eq!(
@@ -417,6 +453,66 @@ mod tests {
             "region_a".to_string(),
             "incorrect last region [name: desc]"
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_list_regions_filtered_by_organization(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let new_region_1 = CreateRegion {
+            name: "Glasgow North".to_string(),
+            description: "Glasgow North".to_string(),
+            region_type: RegionType::Official,
+            official_id: Some("G1".to_string()),
+        };
+        let new_region_2 = CreateRegion {
+            name: "Glasgow South".to_string(),
+            description: "Glasgow South".to_string(),
+            region_type: RegionType::Official,
+            official_id: Some("G2".to_string()),
+        };
+        let new_region_3 = CreateRegion {
+            name: "Glasgow East".to_string(),
+            description: "Glasgow East".to_string(),
+            region_type: RegionType::Official,
+            official_id: Some("G3".to_string()),
+        };
+        let region_1 = create(&pool, &new_region_1, "en").await?;
+        let region_2 = create(&pool, &new_region_2, "en").await?;
+        let _ = create(&pool, &new_region_3, "en").await?;
+
+        let (_, org_res, _) = session.create_random_organization(&app).await?;
+        let organization: OrganizationDto = serde_json::from_value(org_res)?;
+        let _ = session
+            .put(
+                &app,
+                &format!("/organizations/{}", organization.id),
+                json!({
+                    "regions": vec![region_1.id, region_2.id]
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        let page_options = PageOptions {
+            limit: None,
+            offset: None,
+        };
+        let order_options = RegionOrderOptions {
+            ..Default::default()
+        };
+        let filter_options = RegionFilterOptions {
+            organization_id: Some(organization.id),
+        };
+        let results = list(&pool, page_options, filter_options, order_options, "en").await?;
+
+        assert_eq!(results.total, 2, "incorrect total");
+        assert_eq!(results.records[0].id, region_1.id, "incorrect first id");
+        assert_eq!(results.records[1].id, region_2.id, "incorrect second id");
 
         Ok(())
     }
@@ -455,13 +551,7 @@ mod tests {
         };
 
         let region = create(&pool, &new_region, "en").await?;
-        println!();
-        println!("    >>>>    Region before deletion: {region:#?}");
-        println!();
-        let test = delete(&pool, &region.id).await?;
-        println!();
-        println!("    >>>>    Region after deletion: {test:#?}");
-        println!();
+        let _ = delete(&pool, &region.id).await?;
 
         let err = get_localized_by_id(&pool, &region.id, "en")
             .await

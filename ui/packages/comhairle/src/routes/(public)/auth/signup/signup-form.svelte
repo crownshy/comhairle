@@ -102,13 +102,15 @@
 		class={cn('w-full', buttonVariants({ variant: 'outline' }))}>{m.sign_up_anonymously()}</a
 	>
 	<p class="text-sm">
-		<a href={`/auth/login?backTo=${backTo}`}>{m.already_have_an_account_login()}</a>
+		<a href={`/auth/login?backTo=${backTo}`} class="underline"
+			>{m.already_have_an_account_login()}</a
+		>
 	</p>
 
 	<p class="text-muted-foreground mb-4 text-sm">
 		{m.agree_to_tos()}
-		<a href="/rights/tos">TOS</a>
+		<a href="/rights/tos" class="underline">TOS</a>
 		{m.agree_to_tos2()}
-		<a href="/rights/privacy">{m.agree_to_tos_privacy()}</a>
+		<a href="/rights/privacy" class="underline">{m.agree_to_tos_privacy()}</a>
 	</p>
 </form>

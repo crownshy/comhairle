@@ -7,7 +7,11 @@
 	import { TextStyle } from '@tiptap/extension-text-style';
 	import { Underline } from '@tiptap/extension-underline';
 	import EditorToolbar from './EditorToolbar.svelte';
-	import { CONTENT_TYPES, type ContentType, type ActiveStates } from '$lib/components/RichTextEditor/types';
+	import {
+		CONTENT_TYPES,
+		type ContentType,
+		type ActiveStates
+	} from '$lib/components/RichTextEditor/types';
 	import { detectContentType } from '$lib/utils/contentDetection';
 	import { getBaseExtensions, getEditorProps } from './editorConfig';
 	import './editor-content.css';
@@ -38,17 +42,17 @@
 	let containerElement = $state<HTMLElement>();
 	let editor = $state<Editor>();
 	let containerWidth = $state(1000);
-	
+
 	let isInitializing = $state(true);
 	let menuExpanded = $state(false);
 	let previousValue = $state<string>();
-	
+
 	let showLinkPopover = $state(false);
 	let showImagePopover = $state(false);
 	let showVideoPopover = $state(false);
-	
+
 	let isCompact = $derived(containerWidth < 600);
-	
+
 	let activeStates = $state<ActiveStates>({
 		bold: false,
 		italic: false,
@@ -96,7 +100,7 @@
 			onTransaction: () => {
 				if (editor && !isInitializing) {
 					updateActiveStates();
-					
+
 					const newValue = JSON.stringify(editor.getJSON());
 					previousValue = newValue;
 					onChange?.(newValue);
@@ -121,7 +125,7 @@
 
 	function updateActiveStates() {
 		if (!editor) return;
-		
+
 		activeStates = {
 			bold: editor.isActive('bold'),
 			italic: editor.isActive('italic'),
@@ -132,25 +136,32 @@
 			bulletList: editor.isActive('bulletList'),
 			orderedList: editor.isActive('orderedList'),
 			blockquote: editor.isActive('blockquote'),
-			heading: editor.isActive('heading', { level: 1 }) ? '1' :
-					 editor.isActive('heading', { level: 2 }) ? '2' :
-					 editor.isActive('heading', { level: 3 }) ? '3' : 'p',
-			textAlign: editor.isActive({ textAlign: 'center' }) ? 'center' :
-					   editor.isActive({ textAlign: 'right' }) ? 'right' :
-					   editor.isActive({ textAlign: 'justify' }) ? 'justify' : 'left'
+			heading: editor.isActive('heading', { level: 1 })
+				? '1'
+				: editor.isActive('heading', { level: 2 })
+					? '2'
+					: editor.isActive('heading', { level: 3 })
+						? '3'
+						: 'p',
+			textAlign: editor.isActive({ textAlign: 'center' })
+				? 'center'
+				: editor.isActive({ textAlign: 'right' })
+					? 'right'
+					: editor.isActive({ textAlign: 'justify' })
+						? 'justify'
+						: 'left'
 		};
 	}
-
 
 	$effect(() => {
 		if (editor && !isInitializing && value !== undefined && value !== previousValue) {
 			const detected = detectContentType(value);
-			
+
 			editor.commands.setContent(detected.content, {
 				contentType: detected.type,
 				emitUpdate: false
 			});
-			
+
 			previousValue = value;
 		}
 	});
@@ -166,10 +177,13 @@
 			editor.destroy();
 		}
 	});
-
 </script>
 
-<div bind:this={containerElement} class={width ? 'overflow-hidden' : ''} style={width ? `width: ${width}` : ''}>
+<div
+	bind:this={containerElement}
+	class={width ? 'overflow-hidden' : ''}
+	style={width ? `width: ${width}` : ''}
+>
 	{#if editor}
 		<EditorToolbar
 			{editor}
@@ -179,14 +193,16 @@
 			bind:showVideoPopover
 			{menuExpanded}
 			compact={isCompact}
-			onToggleMenu={() => menuExpanded = !menuExpanded}
-			onLinkPopoverChange={(open) => showLinkPopover = open}
-			onImagePopoverChange={(open) => showImagePopover = open}
-			onVideoPopoverChange={(open) => showVideoPopover = open}
+			onToggleMenu={() => (menuExpanded = !menuExpanded)}
+			onLinkPopoverChange={(open) => (showLinkPopover = open)}
+			onImagePopoverChange={(open) => (showImagePopover = open)}
+			onVideoPopoverChange={(open) => (showVideoPopover = open)}
 		/>
 	{/if}
 
-	<div class="bg-white border border-gray-300 rounded-b-[12px] md:rounded-b-[12px] md:border-t {className}">
+	<div
+		class="dark:bg-input/30 rounded-b-xl border border-gray-300 bg-white md:rounded-b-xl md:border-t {className}"
+	>
 		{#if maxHeight}
 			<div class="editor-scroll-container" style="max-height: {maxHeight}; overflow-y: auto;">
 				<div bind:this={editorElement} class="p-4" style="min-height: {minHeight}"></div>
