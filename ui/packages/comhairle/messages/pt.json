@@ -1,6 +1,7 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"already_have_an_account_login": "Já tem uma conta? Entrar",
+	"anonymous_id": "ID Anônimo",
 	"continue_": "Continuar",
 	"create_an_anonymous_account": "Criar uma conta anônima",
 	"create_a_standard_account_signup": "Criar uma conta padrão? Registrar",

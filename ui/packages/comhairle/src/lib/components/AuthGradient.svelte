@@ -4,7 +4,7 @@
 	type Props = {
 		showLogo?: boolean;
 		children?: import('svelte').Snippet;
-		mode?: 'side' | 'full';
+		mode?: 'side' | 'full' | 'fill';
 	};
 
 	let { showLogo = true, children, mode = 'side' }: Props = $props();
@@ -13,7 +13,9 @@
 <div
 	class="auth-gradient relative flex items-center justify-center overflow-hidden {mode === 'side'
 		? 'h-[20vh] w-full shrink-0 px-6 py-8 lg:h-auto lg:min-h-0 lg:w-1/2 lg:flex-1 lg:px-8 lg:py-0'
-		: 'min-h-screen flex-1 px-6 py-12 lg:px-8 lg:py-0'}"
+		: mode === 'full'
+			? 'min-h-screen flex-1 px-6 py-12 lg:px-8 lg:py-0'
+			: 'h-full w-full'}"
 >
 	<div class="absolute inset-0" style="background-color: var(--auth-gradient-base);">
 		<div

@@ -1,6 +1,7 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"already_have_an_account_login": "هل لديك حساب بالفعل؟ تسجيل الدخول",
+	"anonymous_id": "معرف مجهول",
 	"continue_": "متابعة",
 	"create_an_anonymous_account": "إنشاء حساب مجهول",
 	"create_a_standard_account_signup": "إنشاء حساب عادي؟ التسجيل",

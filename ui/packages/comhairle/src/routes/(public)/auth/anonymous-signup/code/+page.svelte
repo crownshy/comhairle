@@ -8,7 +8,7 @@
 	import { page } from '$app/state';
 	import AuthGradient from '$lib/components/AuthGradient.svelte';
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
-	import { Download, ArrowBigRight } from 'lucide-svelte';
+	import { Download } from 'lucide-svelte';
 
 	let { data } = $props();
 	let backTo = page.url.searchParams.get('backTo') ?? '/';
@@ -99,12 +99,11 @@
 					size="lg"
 					class="hover:bg-background/70 h-12"
 				>
-					<ArrowBigRight class="mr-2 size-5" />
 					{m.continue_()}
 				</Button>
 			</div>
 
-			<div class="flex flex-col items-center gap-2.5 pt-8 lg:pt-12">
+			<div class="flex flex-col items-center gap-2.5 pt-40 lg:pt-12">
 				<ComhairleLogo href="/" logoSize="lg" color="text-white" />
 				<p class="text-center text-2xl leading-7 font-semibold text-white">
 					Understand. Contribute. Influence.

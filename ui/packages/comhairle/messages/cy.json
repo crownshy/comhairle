@@ -1,6 +1,7 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"already_have_an_account_login": "Oes gennych gyfrif yn barod? Mewngofnodi",
+	"anonymous_id": "ID Dienw",
 	"continue_": "Parhau",
 	"create_an_anonymous_account": "Creu cyfrif dienw",
 	"create_a_standard_account_signup": "Creu cyfrif safonol? Cofrestrwch",

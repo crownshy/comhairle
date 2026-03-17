@@ -49,7 +49,7 @@
 		<p
 			class="text-muted-foreground text-center text-lg leading-6 font-semibold lg:text-2xl lg:leading-7"
 		>
-			{m.enter_your_details_below_to_login()}
+			{m.good_to_see_you_back()}
 		</p>
 	</div>
 
@@ -61,10 +61,10 @@
 		<Form.Field {form} name="username">
 			<Form.Control>
 				{#snippet children({ props })}
-					<Form.Label>{m.id()}</Form.Label>
+					<Form.Label>{m.anonymous_id()}</Form.Label>
 					<Input
 						{...props}
-						placeholder={m.id()}
+						placeholder={m.anonymous_id()}
 						bind:value={$formData.username}
 						required
 					/>
@@ -90,7 +90,7 @@
 		<p class="text-muted-foreground text-base">
 			{m.dont_have_an_account_signup().split('?')[0]}?
 			<a href={`/auth/signup?backTo=${backTo ?? '/'}`} class="text-primary underline"
-				>{m.signup()}</a
+				>{m.sign_up()}</a
 			>
 		</p>
 	</div>
