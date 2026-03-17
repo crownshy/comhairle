@@ -1072,6 +1072,8 @@ export const PartialEvent = z
   .partial()
   .passthrough();
 export type PartialEvent = z.infer<typeof PartialEvent>;
+export const JwtResponse = z.object({ jwt: z.string() }).passthrough();
+export type JwtResponse = z.infer<typeof JwtResponse>;
 export const EventAttendanceDto = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
@@ -1380,6 +1382,7 @@ export const schemas = {
   EventWithTranslations,
   EventResponse,
   PartialEvent,
+  JwtResponse,
   EventAttendanceDto,
   PaginatedResults_for_EventAttendanceDto,
   CreateEventAttendanceRequest,
@@ -1967,6 +1970,14 @@ curl -X POST \
     description: `Delete an event attendance by id`,
     requestFormat: "json",
     response: EventAttendanceDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/events/:event_id/auth",
+    alias: "GetEventJWT",
+    description: `Get a auth JWT for an event`,
+    requestFormat: "json",
+    response: z.object({ jwt: z.string() }).passthrough(),
   },
   {
     method: "get",

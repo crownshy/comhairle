@@ -6,12 +6,13 @@ export const load: PageLoad = async ({ parent, params }) => {
 	const { conversation_id, event_id } = params;
 
 	try {
-		const [event, attendancesResult] = await Promise.all([
+		const [event, attendancesResult, authRes] = await Promise.all([
 			api.GetEvent({ params: { conversation_id, event_id } }),
 			api.ListEventAttendances({
 				params: { conversation_id, event_id },
 				queries: { limit: 200 }
-			})
+			}),
+			api.GetEventJWT({ params: { conversation_id, event_id } })
 		]);
 
 		return {
@@ -19,6 +20,7 @@ export const load: PageLoad = async ({ parent, params }) => {
 			eventId: event_id,
 			event: event as LocalizedEventDto,
 			attendances: attendancesResult.records as EventAttendanceDto[],
+			jwt: authRes.jwt,
 			user
 		};
 	} catch (e) {

@@ -24,7 +24,7 @@
 	}
 
 	let {
-		domain = env.PUBLIC_JITSI_DOMAIN ?? 'video.comhairle.scot',
+		domain = env.PUBLIC_JITSI_DOMAIN ?? 'jitsi.comhairle.scot',
 		roomName,
 		displayName = '',
 		email = '',

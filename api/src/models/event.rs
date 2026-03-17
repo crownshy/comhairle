@@ -338,7 +338,7 @@ pub async fn list(
 }
 
 #[instrument(err(Debug))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid, locale: &str) -> Result<Event, ComhairleError> {
+pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Event, ComhairleError> {
     let query = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (EventIden::Table, col)))
         .from(EventIden::Table)
