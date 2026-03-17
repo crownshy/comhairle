@@ -17,17 +17,21 @@
 
 <!-- Image snippet -->
 {#snippet image(heightClass: string)}
-	<div class="{heightClass} w-full flex-shrink-0 lg:flex-1">
-		<div class="bg-primary/10 relative h-full w-full overflow-hidden rounded-xl lg:rounded-3xl">
+	<div class="w-full min-w-0 lg:flex-1">
+		<div
+			class="bg-primary/10 relative {heightClass} w-full overflow-hidden rounded-xl transition-all duration-300 ease-out group-hover:rounded-2xl group-hover:shadow-lg lg:rounded-3xl lg:group-hover:rounded-[2rem]"
+		>
 			{#if conversation.imageUrl}
 				<img
-					class="absolute inset-0 h-full w-full object-cover"
+					class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
 					src={conversation.imageUrl}
 					alt={conversation.title}
 				/>
 			{:else}
 				<div class="bg-primary/10 absolute inset-0 flex items-center justify-center">
-					<MessageSquareText class="text-primary/30 h-32 w-32" />
+					<MessageSquareText
+						class="text-primary/30 group-hover:text-primary/50 h-32 w-32 transition-all duration-300 group-hover:scale-110"
+					/>
 				</div>
 			{/if}
 		</div>
@@ -38,25 +42,27 @@
 	<!-- Public variant -->
 	{#if variant === 'public'}
 		<div
-			class="flex w-full max-w-[1280px] min-w-[380px] flex-col items-start justify-start gap-6 md:min-w-[480px] lg:flex-row lg:gap-16"
+			class="group hover:bg-accent/50 flex w-full flex-col items-stretch gap-6 rounded-2xl p-4 transition-all duration-300 ease-out hover:shadow-md lg:flex-row lg:items-start lg:gap-16 lg:p-6"
 		>
 			{@render image('h-48 sm:h-64 lg:h-80')}
 
 			<!-- Text content -->
-			<div class="flex flex-1 flex-col items-start justify-start gap-6 lg:gap-8">
+			<div class="flex w-full flex-1 flex-col items-start justify-start gap-6 lg:gap-8">
 				<div class="flex flex-col items-start justify-start gap-3 self-stretch lg:gap-4">
 					{#if conversation.isLive}
 						<Badge variant="default" class="h-7 text-sm">Live</Badge>
 					{/if}
 
 					{#if organizationName}
-						<p class="text-primary self-stretch text-sm leading-5 font-medium">
+						<p
+							class="text-primary self-stretch text-sm leading-5 font-medium transition-colors duration-300"
+						>
 							{organizationName}
 						</p>
 					{/if}
 
 					<h2
-						class="text-foreground self-stretch text-2xl leading-8 font-semibold lg:text-3xl lg:leading-9"
+						class="text-foreground self-stretch text-2xl leading-8 font-semibold transition-colors duration-300 group-hover:text-[var(--color-brand)] lg:text-3xl lg:leading-9"
 					>
 						{conversation.title}
 					</h2>
@@ -72,12 +78,12 @@
 	{:else}
 		<!-- Admin variant -->
 		<div
-			class="flex w-full max-w-[1280px] flex-col-reverse items-start justify-start gap-2 lg:flex-row-reverse lg:gap-16"
+			class="group hover:bg-accent/50 flex w-full max-w-[1280px] flex-col-reverse items-stretch gap-2 rounded-2xl p-4 transition-all duration-300 ease-out hover:shadow-md lg:flex-row-reverse lg:items-start lg:gap-16 lg:p-6"
 		>
 			{@render image('h-40 sm:h-56 lg:h-72')}
 
 			<!-- Text content -->
-			<div class="flex flex-1 flex-col items-start justify-start gap-6 lg:gap-8">
+			<div class="flex w-full flex-1 flex-col items-start justify-start gap-6 lg:gap-8">
 				<div class="flex flex-col items-start justify-start gap-3 self-stretch lg:gap-4">
 					{#if conversation.isLive}
 						<Badge variant="default" class="h-7 text-sm">Live</Badge>
@@ -86,7 +92,7 @@
 					{/if}
 
 					<h2
-						class="text-foreground self-stretch text-xl leading-7 font-semibold lg:text-2xl"
+						class="text-foreground self-stretch text-xl leading-7 font-semibold transition-colors duration-300 group-hover:text-[var(--color-brand)] lg:text-2xl"
 					>
 						{conversation.title}
 					</h2>
@@ -99,11 +105,11 @@
 				<!-- Edit button -->
 				<Button
 					variant="default"
-					class="bg-sidebar text-sidebar-foreground hover:bg-sidebar/90 rounded-full px-4 py-3"
+					class="bg-sidebar text-sidebar-foreground hover:bg-sidebar/90 rounded-full px-4 py-3 transition-transform duration-300 group-hover:translate-x-1"
 					href={`/admin/conversations/${conversation.id}/configure`}
 				>
 					Edit conversation
-					<ArrowRight class="ml-1 size-4" />
+					<ArrowRight class="ml-1 size-4 transition-transform duration-300" />
 				</Button>
 			</div>
 		</div>
