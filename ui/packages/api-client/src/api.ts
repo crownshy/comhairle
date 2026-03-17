@@ -88,6 +88,7 @@ export const ConversationDto = z
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
     organizationId: z.union([z.string(), z.null()]).optional(),
     primaryLocale: z.string(),
+    privacyPolicy: z.union([z.string(), z.null()]).optional(),
     shortDescription: z.string().uuid(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
@@ -117,6 +118,7 @@ export const LocalizedConversationDto = z
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
     organizationId: z.union([z.string(), z.null()]).optional(),
     primaryLocale: z.string(),
+    privacyPolicy: z.union([z.string(), z.null()]).optional(),
     shortDescription: z.string(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
@@ -406,6 +408,7 @@ export type Translation = z.infer<typeof Translation>;
 export const ConversationTranslations = z
   .object({
     description: Translation,
+    privacyPolicy: z.union([Translation, z.null()]).optional(),
     shortDescription: Translation,
     title: Translation,
   })
