@@ -15,7 +15,7 @@
 
 <div class="flex min-h-screen w-full flex-col lg:flex-row">
 	<div
-		class="bg-background order-2 flex w-full flex-1 items-center justify-center px-5 py-10 lg:order-1 lg:w-1/2 lg:px-6 lg:py-0"
+		class="bg-background order-2 flex w-full flex-1 justify-center px-5 py-40 lg:order-1 lg:w-1/2 lg:items-center lg:px-6 lg:py-0"
 	>
 		<div class="w-full max-w-md">
 			<form
@@ -54,7 +54,7 @@
 					</LoadingButton>
 				</div>
 
-				<div class="flex flex-col gap-1">
+				<div class="flex flex-col gap-1 font-light">
 					<p class="text-muted-foreground text-base">
 						{m.already_have_an_account_login().split('?')[0]}?
 						<a

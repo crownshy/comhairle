@@ -1,13 +1,26 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import CopyButton from '$lib/components/CopyButton.svelte';
+	import * as Tooltip from '$lib/components/ui/tooltip';
+	import Icon from '@iconify/svelte';
+	import { copy } from 'svelte-copy';
+	import { fade } from 'svelte/transition';
 	import * as m from '$lib/paraglide/messages';
 	import { page } from '$app/state';
 	import AuthGradient from '$lib/components/AuthGradient.svelte';
 	import ComhairleLogo from '$lib/components/ComhairleLogo.svelte';
+	import { Download, ArrowBigRight } from 'lucide-svelte';
 
 	let { data } = $props();
 	let backTo = page.url.searchParams.get('backTo') ?? '/';
+
+	let copied = $state(false);
+	let copyTimeout: ReturnType<typeof setTimeout>;
+
+	function onCopied() {
+		copied = true;
+		clearTimeout(copyTimeout);
+		copyTimeout = setTimeout(() => (copied = false), 2000);
+	}
 
 	function downloadId() {
 		const text = `Your Comhairle Anonymous ID: ${data?.user?.username}\n\nSave this — you'll need it to log in.`;
@@ -34,40 +47,62 @@
 				This is your anonymous ID<br />Save it — you'll need it to log in.
 			</p>
 
-			<div class="flex flex-col items-center gap-2.5">
-				<div
-					class="inline-flex items-center justify-center gap-2.5 bg-white px-5 py-2 lg:px-8 lg:py-3"
-				>
-					<span
-						class="text-center text-2xl leading-8 font-bold text-black sm:text-3xl lg:text-5xl lg:leading-[52px]"
-					>
-						{data?.user?.username}
-					</span>
-				</div>
-			</div>
+			<Tooltip.Provider delayDuration={0}>
+				<Tooltip.Root open={copied ? true : undefined}>
+					<Tooltip.Trigger>
+						<button
+							use:copy={{ text: data?.user?.username ?? '', onCopy: onCopied }}
+							class="group inline-flex cursor-pointer items-center gap-3 rounded-lg bg-white px-5 py-2 transition-all duration-200 hover:bg-white/90 hover:shadow-lg active:scale-[0.98] lg:gap-4 lg:px-8 lg:py-3"
+						>
+							<span
+								class="text-center text-2xl leading-8 font-bold text-black select-all sm:text-3xl lg:text-5xl lg:leading-[52px]"
+							>
+								{data?.user?.username}
+							</span>
+							<span
+								class="text-black/40 transition-colors duration-200 group-hover:text-black/70"
+							>
+								{#if copied}
+									<span in:fade={{ duration: 150 }}>
+										<Icon
+											icon="solar:check-circle-bold"
+											class="size-5 text-green-600 lg:size-7"
+										/>
+									</span>
+								{:else}
+									<span in:fade={{ duration: 150 }}>
+										<Icon icon="solar:copy-bold" class="size-5 lg:size-7" />
+									</span>
+								{/if}
+							</span>
+						</button>
+					</Tooltip.Trigger>
+					<Tooltip.Content side="top" sideOffset={8}>
+						{copied ? 'Copied!' : 'Click to copy'}
+					</Tooltip.Content>
+				</Tooltip.Root>
+			</Tooltip.Provider>
 
-			<div class="flex flex-col items-center gap-3 sm:flex-row sm:gap-2.5">
-				<CopyButton copyText={data?.user?.username ?? ''}>
-					<span class="text-base font-medium text-white">COPY</span>
-				</CopyButton>
+			<div class="flex flex-row gap-2 sm:gap-3">
 				<Button
 					variant="default"
 					size="lg"
-					class="h-12 w-full rounded-full px-7 sm:w-auto"
+					class="h-12  rounded-full px-7"
 					onclick={downloadId}
 				>
-					DOWNLOAD
+					<Download class="size-5" />
+					Download
+				</Button>
+				<Button
+					href={backTo}
+					variant="outline"
+					size="lg"
+					class="hover:bg-background/70 h-12"
+				>
+					<ArrowBigRight class="mr-2 size-5" />
+					{m.continue_()}
 				</Button>
 			</div>
-
-			<Button
-				href={backTo}
-				variant="outline"
-				size="lg"
-				class="mt-4 h-12 w-full rounded-full border-white px-10 text-white hover:bg-white/10 sm:w-auto"
-			>
-				{m.continue_()}
-			</Button>
 
 			<div class="flex flex-col items-center gap-2.5 pt-8 lg:pt-12">
 				<ComhairleLogo href="/" logoSize="lg" color="text-white" />

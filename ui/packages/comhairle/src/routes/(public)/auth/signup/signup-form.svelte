@@ -142,7 +142,7 @@
 		</Button>
 	</div>
 
-	<div class="flex flex-col gap-1">
+	<div class="flex flex-col gap-1 font-light">
 		<p class="text-muted-foreground text-base">
 			{m.already_have_an_account_login().split('?')[0]}?
 			<a href={`/auth/login?backTo=${backTo}`} class="text-primary underline">{m.login()}</a>

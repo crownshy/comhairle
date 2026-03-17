@@ -12,10 +12,9 @@
 
 <div
 	class="auth-gradient relative flex items-center justify-center overflow-hidden {mode === 'side'
-		? 'h-[30vh] min-h-[200px] w-full shrink-0 px-6 py-8 lg:h-auto lg:min-h-0 lg:w-1/2 lg:flex-1 lg:px-8 lg:py-0'
+		? 'h-[20vh] w-full shrink-0 px-6 py-8 lg:h-auto lg:min-h-0 lg:w-1/2 lg:flex-1 lg:px-8 lg:py-0'
 		: 'min-h-screen flex-1 px-6 py-12 lg:px-8 lg:py-0'}"
 >
-	<!-- Gradient background using theme variables -->
 	<div class="absolute inset-0" style="background-color: var(--auth-gradient-base);">
 		<div
 			class="absolute inset-0"
@@ -29,7 +28,7 @@
 			"
 		></div>
 		<!-- Noise texture overlay -->
-		<div class="absolute inset-0 opacity-[0.15] mix-blend-overlay">
+		<div class="absolute inset-0 opacity-[0.30] mix-blend-overlay">
 			<svg class="h-full w-full" xmlns="http://www.w3.org/2000/svg">
 				<filter id="auth-noise">
 					<feTurbulence

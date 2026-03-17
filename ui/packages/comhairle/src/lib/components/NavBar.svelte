@@ -235,7 +235,7 @@
 									>{m.login()}</Button
 								>
 								<Button href="/auth/signup" class="flex-1 text-base"
-									>{m.signup()}</Button
+									>{m.sign_up()}</Button
 								>
 							</div>
 						{/if}

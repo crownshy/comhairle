@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types.js';
-	import { AuthPage } from '$lib/profile';
+	import AuthGradient from '$lib/components/AuthGradient.svelte';
 	import VerificationMessage from './verification-message.svelte';
 
 	export let data: PageData;
@@ -10,6 +10,8 @@
 	<title>Verify Your Email - Comhairle</title>
 </svelte:head>
 
-<AuthPage>
-	<VerificationMessage user={data.user} />
-</AuthPage>
+<div class="flex min-h-screen w-full flex-col">
+	<AuthGradient showLogo={false} mode="full">
+		<VerificationMessage user={data.user} />
+	</AuthGradient>
+</div>

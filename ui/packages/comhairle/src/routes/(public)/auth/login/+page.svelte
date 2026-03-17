@@ -14,7 +14,7 @@
 	<AuthGradient />
 
 	<div
-		class="bg-background flex w-full flex-1 items-center justify-center px-5 py-10 lg:w-1/2 lg:px-6 lg:py-0"
+		class="flex w-full flex-1 items-start justify-center px-5 py-12 md:py-16 lg:w-1/2 lg:items-center lg:px-6 lg:py-0"
 	>
 		<div class="w-full max-w-md">
 			<LoginForm backTo={data.backTo} />

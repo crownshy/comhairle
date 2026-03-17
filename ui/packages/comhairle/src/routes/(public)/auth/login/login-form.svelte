@@ -130,7 +130,7 @@
 		</Button>
 	</div>
 
-	<div class="flex flex-col gap-1">
+	<div class="flex flex-col gap-1 font-light">
 		<a href={resolve(`/auth/password-reset/create`)} class="text-primary text-base underline">
 			{m.forgotten_password()}
 		</a>
@@ -140,7 +140,7 @@
 				href={resolve(`/auth/signup?backTo=${backTo ?? '/'}`)}
 				class="text-primary underline"
 			>
-				{m.signup()}
+				{m.sign_up()}
 			</a>
 		</p>
 	</div>
