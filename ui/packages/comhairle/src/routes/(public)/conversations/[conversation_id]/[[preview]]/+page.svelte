@@ -73,7 +73,7 @@
 	<title>{pageTitle} - Comhairle</title>
 </svelte:head>
 
-<div class="pt-5 md:pt-20">
+<div class="pt-5 pb-10 md:pt-20">
 	{#if conversation}
 		<div class="hidden md:block">
 			<Breadcrumbs {conversation} />

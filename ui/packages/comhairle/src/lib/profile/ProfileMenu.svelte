@@ -29,7 +29,9 @@
 
 {#if user}
 	<DropdownMenu.Root>
-		<DropdownMenu.Trigger class={`py-5 ${buttonVariants({ variant: triggerVariant })}`}>
+		<DropdownMenu.Trigger
+			class={`py-5 hover:bg-white/90 ${buttonVariants({ variant: triggerVariant })}`}
+		>
 			<Avatar.Root class="mr-4 h-6 w-6">
 				{#if user.avatarUrl}
 					<Avatar.Image src={user.avatarUrl} alt="@shadcn" />
@@ -46,7 +48,7 @@
 			{#if notifications && notifications > 0}
 				<Badge>{notifications}</Badge>
 			{/if}
-			<ChevronsUpDown class="size-3" />
+			<ChevronsUpDown class="text-card-foreground size-3" />
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Content>
 			<DropdownMenu.Group>

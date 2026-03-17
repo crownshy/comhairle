@@ -77,6 +77,12 @@
 	--admin-background: #f7f9f4;
 	--mutted: #171f0f;
 	--sidebar-radius: 10px;
+
+	--auth-gradient-base: #0f1509;
+	--auth-gradient-1: #3d5a1e;
+	--auth-gradient-2: #7cb342;
+	--auth-gradient-3: #4a6d23;
+	--auth-gradient-4: #2a3d18;
 }
 
 .dark {
@@ -118,6 +124,12 @@
 
 	--chat-primary: #7cb342;
 	--chat-neutral: #99a88a;
+
+	--auth-gradient-base: #050804;
+	--auth-gradient-1: #2a4a12;
+	--auth-gradient-2: #5a8a2a;
+	--auth-gradient-3: #3d6a1a;
+	--auth-gradient-4: #1a2e0e;
 	--chat-primary-light: color-mix(in oklch, var(--chat-primary), black 50%);
 	--chat-primary-lighter: color-mix(in oklch, var(--chat-primary), black 75%);
 	--chat-primary-dark: color-mix(in oklch, var(--chat-primary), white 20%);
@@ -170,6 +182,12 @@
 
 	--color-brand: #0066bd;
 	--color-brand-secondary: #333e48;
+
+	--auth-gradient-base: #0a1628;
+	--auth-gradient-1: #0066bd;
+	--auth-gradient-2: #06b6d4;
+	--auth-gradient-3: #4b92ec;
+	--auth-gradient-4: #1e3a5f;
 
 	--font-sans: Inter, sans-serif;
 	--font-serif: Merriweather, serif;
@@ -239,6 +257,13 @@
 
 	--chat-primary: #4b92ec;
 	--chat-neutral: #8b9bb5;
+
+	--auth-gradient-base: #050912;
+	--auth-gradient-1: #0050a0;
+	--auth-gradient-2: #0891b2;
+	--auth-gradient-3: #3b7ed0;
+	--auth-gradient-4: #142d4f;
+
 	--chat-primary-light: color-mix(in oklch, var(--chat-primary), black 50%);
 	--chat-primary-lighter: color-mix(in oklch, var(--chat-primary), black 75%);
 	--chat-primary-dark: color-mix(in oklch, var(--chat-primary), white 20%);

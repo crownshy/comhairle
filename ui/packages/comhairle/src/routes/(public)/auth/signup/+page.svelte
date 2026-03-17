@@ -1,8 +1,9 @@
 <script lang="ts">
 	import type { PageData } from './$types.js';
 	import SignupForm from './signup-form.svelte';
-	import { AuthPage } from '$lib/profile';
-	let { data }: PageData = $props();
+	import AuthLayout from '$lib/components/AuthLayout.svelte';
+
+	let { data }: { data: PageData } = $props();
 	let backTo = $derived(data.backTo);
 </script>
 
@@ -10,6 +11,6 @@
 	<title>Sign Up - Comhairle</title>
 </svelte:head>
 
-<AuthPage>
+<AuthLayout>
 	<SignupForm {backTo} />
-</AuthPage>
+</AuthLayout>
