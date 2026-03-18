@@ -119,11 +119,11 @@ pub struct GetConversationQuery {
     pub with_translations: bool,
 }
 
-#[derive(Serialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(untagged)]
 pub enum ConversationResponse {
-    Localized(LocalizedConversationDto),
     WithTranslations(ConversationWithTranslations),
+    Localized(LocalizedConversationDto),
 }
 
 /// Get a specific conversation
@@ -436,6 +436,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 mod tests {
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
     use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
+    use crate::routes::conversations::ConversationResponse;
     use crate::test_helpers::{test_config, test_state};
     use crate::{setup_server, test_helpers::UserSession};
     use axum::http::StatusCode;
@@ -982,6 +983,82 @@ mod tests {
             Some(&json!(id2)),
             "should get back the correct conversation by slug"
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_be_able_to_get_a_created_conversation_with_translations(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new_admin();
+
+        session.signup(&app).await?;
+
+        let (_, convo1, _) = session
+            .create_conversation(
+                &app,
+                json! ({
+                    "title" : "Test conversation",
+                    "short_description" : "A test conversation",
+                    "description" : "A longer description",
+                    "image_url" : "http://someimage.png",
+                    "tags" : ["one", "two", "three"],
+                    "is_public" : true,
+                    "is_live": true,
+                    "is_invite_only" : false,
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"],
+                    "privacy_policy": "This conversation's privacy policy"
+                }),
+            )
+            .await?;
+
+        let conversation: ConversationDto = serde_json::from_value(convo1)?;
+
+        let (status, value, _) = session
+            .get(
+                &app,
+                &format!("/conversation/{}?withTranslations=true", conversation.id),
+            )
+            .await?;
+        let response: ConversationResponse = serde_json::from_value(value)?;
+
+        assert_eq!(status, StatusCode::OK, "Sould get it fine");
+
+        match response {
+            ConversationResponse::WithTranslations(conversation) => {
+                assert_eq!(
+                    conversation.title,
+                    "Test conversation".to_string(),
+                    "incorrect localized top level fields"
+                );
+                assert_eq!(
+                    conversation
+                        .translations
+                        .short_description
+                        .text_translations[0]
+                        .content,
+                    "A test conversation",
+                    "incorrect translation for required field"
+                );
+                assert_eq!(
+                    conversation
+                        .translations
+                        .privacy_policy
+                        .unwrap()
+                        .text_translations[0]
+                        .content,
+                    "This conversation's privacy policy",
+                    "incorrect translation for optional field"
+                );
+            }
+            _ => panic!("Expected ConversationResponse::WithTranslations"),
+        }
 
         Ok(())
     }

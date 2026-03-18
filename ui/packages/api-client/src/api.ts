@@ -446,8 +446,8 @@ export type ConversationWithTranslations = z.infer<
   typeof ConversationWithTranslations
 >;
 export const ConversationResponse = z.union([
-  LocalizedConversationDto,
   ConversationWithTranslations,
+  LocalizedConversationDto,
 ]);
 export type ConversationResponse = z.infer<typeof ConversationResponse>;
 export const PartialConversation = z
