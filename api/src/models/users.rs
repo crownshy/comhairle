@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::{
     error::ComhairleError,
-    routes::auth::{hash_pw, SignupRequest},
+    routes::auth::{hash_pw, validate_password_strength, SignupRequest},
     tools::id::gen_id,
 };
 use schemars::JsonSchema;
@@ -383,6 +383,7 @@ pub async fn update_user(
     }
 
     if let Some(password) = &update_request.password {
+        validate_password_strength(password)?;
         let hashed_password = hash_pw(password)?;
         query.value(UserIden::Password, hashed_password);
         has_updates = true;
@@ -443,6 +444,7 @@ pub async fn upgrade_account(
         return Err(ComhairleError::WrongUserType);
     }
 
+    validate_password_strength(&upgrade_request.password)?;
     let hashed_password = hash_pw(&upgrade_request.password)?;
 
     let (sql, values) = Query::update()

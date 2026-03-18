@@ -80,6 +80,9 @@ pub enum ComhairleError {
     #[error("The password and password confirmation don't match")]
     PasswordConfirmationMismatch,
 
+    #[error("Password does not meet security requirements: {0}")]
+    WeakPassword(String),
+
     #[error("User Required for this route")]
     UserRequired,
 
@@ -262,7 +265,9 @@ impl IntoResponse for ComhairleError {
             ComhairleError::UserNotAuthorized => StatusCode::FORBIDDEN,
             ComhairleError::ConversationAlreadyLive => StatusCode::CONFLICT,
             ComhairleError::EmailAlreadyVerified => StatusCode::CONFLICT,
-            ComhairleError::PasswordConfirmationMismatch | ComhairleError::BadRequest(_) => {
+            ComhairleError::PasswordConfirmationMismatch
+            | ComhairleError::WeakPassword(_)
+            | ComhairleError::BadRequest(_) => {
                 StatusCode::BAD_REQUEST
             }
             _ => StatusCode::INTERNAL_SERVER_ERROR,
