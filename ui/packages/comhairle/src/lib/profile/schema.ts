@@ -11,7 +11,10 @@ export const signupFormSchema = z
 	.object({
 		email: z.string().email(m.please_enter_a_valid_email()),
 		username: z.string().min(3),
-		password: z.string().min(1, { message: m.please_enter_a_password() }).min(8),
+		password: z.string().min(1, { message: m.please_enter_a_password() }).min(16, {
+			message:
+				'Password must be at least 16 characters long and include characters from at least 3 of 4 categories: uppercase letters, lowercase letters, numbers, and special characters'
+		}),
 		password_confirm: z.string().min(1, { message: 'please confirm password' })
 	})
 	.refine((body) => body.password === body.password_confirm, {
@@ -32,8 +35,13 @@ export type PasswordResetCreateForm = z.infer<typeof passwordResetCreateFormSche
 
 export const passwordResetUpdateFormSchema = z
 	.object({
-		password: z.string().min(8),
-		confirmPassword: z.string().min(8)
+		password: z.string().min(16, {
+			message:
+				'Password must be at least 16 characters long and include characters from at least 3 of 4 categories: uppercase letters, lowercase letters, numbers, and special characters'
+		}),
+		confirmPassword: z.string().min(16, {
+			message: 'Password must be at least 16 characters long'
+		})
 	})
 	.superRefine(({ confirmPassword, password }, ctx) => {
 		if (confirmPassword !== password) {
