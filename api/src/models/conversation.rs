@@ -1073,7 +1073,8 @@ mod tests {
             offset: None,
         };
         let order_options = ConversationOrderOptions {
-            ..Default::default()
+            created_at: Some(Order::Asc),
+            title: None,
         };
         let filter_options = ConversationFilterOptions {
             organization_id: Some(organization.id),
