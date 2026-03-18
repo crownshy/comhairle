@@ -11,6 +11,7 @@ export const conversationConfigSchema = z.object({
 		.max(500, 'Short description must be less than 500 characters'),
 	description: z.string().min(1, 'Description is required'),
 	imageUrl: z.string().url('Must be a valid URL').or(z.literal('')),
+	privacyPolicy: z.string(),
 	isPublic: z.boolean(),
 	isInviteOnly: z.boolean(),
 	autoLogin: z.boolean(),

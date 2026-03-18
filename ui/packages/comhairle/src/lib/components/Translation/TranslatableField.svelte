@@ -23,7 +23,7 @@
 	type TranslationData = Translation | Translation2;
 
 	interface Props {
-		value: string;
+		value: string | null;
 		onValueChange: (value: string) => void;
 		primaryLocale: string;
 		supportedLanguages: string[];
@@ -140,6 +140,8 @@
 	}
 
 	let editorContents = $derived.by((): Record<string, string> => {
+		if (!value) return {} as Record<string, string>;
+
 		if (initialContents) {
 			return { ...initialContents, [primaryLocale]: value };
 		}

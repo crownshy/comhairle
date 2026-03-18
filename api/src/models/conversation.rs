@@ -68,6 +68,7 @@ pub struct Conversation {
     pub chat_bot_id: Option<String>,
     pub enable_qa_chat_bot: bool,
     pub supported_languages: Vec<String>,
+    #[partially(transparent)]
     pub privacy_policy: Option<TextContentId>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
@@ -155,6 +156,9 @@ impl PartialConversation {
         };
         if let Some(value) = &self.enable_qa_chat_bot {
             values.push((ConversationIden::EnableQaChatBot, (*value).into()))
+        };
+        if let Some(value) = &self.privacy_policy {
+            values.push((ConversationIden::PrivacyPolicy, (*value).into()))
         };
 
         if let Some(value) = &self.supported_languages {
