@@ -35,6 +35,12 @@ use crate::{
     ComhairleState,
 };
 
+/// Standard test password that meets all security requirements:
+/// - 16+ characters
+/// - 3 of 4 categories (uppercase, lowercase, numbers, special)
+/// - Good complexity score
+pub const TEST_PASSWORD: &str = "TestPassword123!";
+
 pub fn mock_mailer() -> Arc<MockComhairleMailer> {
     let mailer = MockComhairleMailer::base();
     Arc::new(mailer)
@@ -168,7 +174,7 @@ impl UserSession {
         Self {
             id: None,
             username: Some("admin".into()),
-            password: Some("admin".into()),
+            password: Some(TEST_PASSWORD.into()),
             email: Some("admin@crown-shy.com".into()),
             cookie: None,
         }

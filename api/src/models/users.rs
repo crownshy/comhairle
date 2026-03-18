@@ -533,7 +533,7 @@ mod tests {
         assert_eq!(status, 201, "should be able to create a conversation");
         let conversation_id = Uuid::parse_str(conversation["id"].as_str().unwrap())?;
 
-        let mut session = UserSession::new("test_user", "test_password", "test.user@gmail.com");
+        let mut session = UserSession::new("test_user", crate::test_helpers::TEST_PASSWORD, "test.user@gmail.com");
         session.signup(&app).await?;
 
         add_user_resource_role(

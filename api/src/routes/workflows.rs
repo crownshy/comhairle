@@ -829,7 +829,7 @@ mod tests {
         for i in 0..10 {
             let mut session = UserSession::new(
                 &format!("test_user_{i}"),
-                "test_password",
+                crate::test_helpers::TEST_PASSWORD,
                 &format!("test.user_{i}@gmail.com"),
             );
             session.signup(&app).await?;

@@ -940,7 +940,7 @@ mod tests {
     #[sqlx::test]
     async fn user_should_be_able_to_sign_up(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let state = test_state().db(pool).call()?;
@@ -978,7 +978,7 @@ mod tests {
     #[sqlx::test]
     async fn user_should_receive_signup_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let mut mailer = MockComhairleMailer::new();
@@ -1046,7 +1046,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let mut session = UserSession::new(username, password, email);
@@ -1061,7 +1061,7 @@ mod tests {
     #[sqlx::test]
     async fn unverified_user_should_be_verified(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let state = test_state().db(pool).call()?;
@@ -1106,7 +1106,7 @@ mod tests {
     #[sqlx::test]
     async fn annon_user_cannot_be_verified(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let state = test_state().db(pool).call()?;
@@ -1147,7 +1147,7 @@ mod tests {
     #[sqlx::test]
     async fn user_cannot_be_verified_twice(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let state = test_state().db(pool).call()?;
@@ -1196,7 +1196,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let mut session = UserSession::new(username, password, email);
@@ -1222,14 +1222,14 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email@email.com";
 
         let mut session = UserSession::new(username, password, email);
         session.signup(&app).await?;
         session.logout(&app).await?;
 
-        let mut session = UserSession::new(username, "test_password", "test_Email@email.com");
+        let mut session = UserSession::new(username, crate::test_helpers::TEST_PASSWORD, "test_Email@email.com");
         let (status, _, _) = session.login(&app, email, password).await?;
         assert_eq!(status, StatusCode::OK, "API should return authorized");
         Ok(())
@@ -1243,7 +1243,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let mut session = UserSession::new(username, password, email);
@@ -1296,7 +1296,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let mut session = UserSession::new(username, password, email);
@@ -1311,7 +1311,7 @@ mod tests {
             "Should not be able to have same username"
         );
 
-        let mut session = UserSession::new("test_user2", password, email);
+        let mut session = UserSession::new("test_user2", crate::test_helpers::TEST_PASSWORD, email);
         let (status, _, _) = session.signup(&app).await?;
 
         assert_eq!(
@@ -1328,7 +1328,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let mut session = UserSession::new(username, password, email);
@@ -1392,7 +1392,7 @@ mod tests {
     #[sqlx::test]
     async fn user_should_receive_password_reset_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let mut mailer = MockComhairleMailer::new();
@@ -1432,7 +1432,7 @@ mod tests {
     #[sqlx::test]
     async fn unknown_user_returns_not_found(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let mut mailer = MockComhairleMailer::new();
@@ -1464,7 +1464,7 @@ mod tests {
     #[sqlx::test]
     async fn users_password_should_be_updated(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let state = test_state().db(pool).call()?;
@@ -1491,7 +1491,7 @@ mod tests {
         };
         let token = generate_jwt(&user, claims, &secret, None);
 
-        let updated_password = "updated_password";
+        let updated_password = "UpdatedPassword123!";
         let (reset_status, _, _) = session
             .password_reset_update(&app, &token, updated_password, updated_password)
             .await?;
@@ -1524,7 +1524,7 @@ mod tests {
     async fn password_and_confirmation_should_match(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_username";
         let email = "test_email";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
 
         let state = test_state().db(pool).call()?;
         let secret = state.config.jwt_secret.clone();
@@ -1609,7 +1609,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
         let conversation_id = uuid::Uuid::parse_str("8438709B-C269-422E-B3F1-D173295F48CF")?;
 
