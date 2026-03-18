@@ -289,10 +289,19 @@ impl ConversationFilterOptions {
     }
 }
 
-#[derive(Deserialize, Debug, Default, JsonSchema)]
+#[derive(Deserialize, Debug, JsonSchema)]
 pub struct ConversationOrderOptions {
     title: Option<Order>,
     created_at: Option<Order>,
+}
+
+impl Default for ConversationOrderOptions {
+    fn default() -> Self {
+        Self {
+            title: None,
+            created_at: Some(Order::Desc),
+        }
+    }
 }
 
 impl ConversationOrderOptions {
