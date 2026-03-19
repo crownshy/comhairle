@@ -8,16 +8,19 @@
 
 	let {
 		pages,
-		onDone
+		onDone,
+		onNextAction
 	}: {
 		pages: Array<Page>;
 		onDone: () => void;
+		onNextAction?: (fn: () => void) => void;
 	} = $props();
 
 	let currentPageNo = $state(0);
 	let currentPage = $derived(pages[currentPageNo]);
 	let currentPageTranslation = $derived(currentPage.filter((p) => p.lang === getLocale()));
 	let content = $derived(currentPageTranslation[0]?.content);
+	let isLastPage = $derived(currentPageNo === pages.length - 1);
 
 	function nextPage() {
 		currentPageNo += 1;
@@ -25,6 +28,12 @@
 			window.scrollTo(0, 0);
 		});
 	}
+
+	$effect(() => {
+		if (onNextAction) {
+			onNextAction(isLastPage ? onDone : nextPage);
+		}
+	});
 </script>
 
 <div class="mx-auto flex grow flex-col">

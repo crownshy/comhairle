@@ -76,6 +76,49 @@
 	{/if}
 {/snippet}
 
+{#snippet smallCircleIndicator(step: StepItem, index: number)}
+	{#if step.status === 'completed'}
+		{#if step.href}
+			<a
+				href={step.href}
+				class="bg-primary flex h-5 w-5 shrink-0 items-center justify-center rounded-full outline-1 -outline-offset-1 outline-white"
+				aria-label="Step {index + 1}: {step.name} (completed, click to return)"
+			>
+				<Check class="text-primary-foreground h-3 w-3" />
+			</a>
+		{:else}
+			<div
+				class="bg-primary flex h-5 w-5 shrink-0 items-center justify-center rounded-full outline-1 -outline-offset-1 outline-white"
+				aria-label="Step {index + 1}: {step.name} (completed)"
+			>
+				<Check class="text-primary-foreground h-3 w-3" />
+			</div>
+		{/if}
+	{:else if step.status === 'completed-locked'}
+		<div
+			class="bg-popover outline-ring/40 flex h-5 w-5 shrink-0 items-center justify-center rounded-full outline-1 -outline-offset-1"
+			aria-label="Step {index + 1}: {step.name} (completed, locked)"
+		>
+			<Check class="text-primary h-3 w-3" />
+		</div>
+	{:else if step.status === 'current'}
+		<div
+			class="bg-primary/20 flex h-5 w-5 shrink-0 items-center justify-center rounded-full outline-[0.5px] -outline-offset-[0.5px]"
+			aria-current="step"
+			aria-label="Step {index + 1}: {step.name} (current)"
+		>
+			<div class="bg-primary h-2.5 w-2.5 rounded-full"></div>
+		</div>
+	{:else}
+		<div
+			class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full outline-[0.5px] -outline-offset-[0.5px]"
+			aria-label="Step {index + 1}: {step.name} (upcoming)"
+		>
+			<div class="bg-primary/20 h-2.5 w-2.5 rounded-full"></div>
+		</div>
+	{/if}
+{/snippet}
+
 {#snippet stepLabel(step: StepItem, index: number, align: 'center' | 'left')}
 	<div
 		class={cn(
@@ -150,29 +193,23 @@
 	</ol>
 </nav>
 
-<!-- Mobile: vertical stepper -->
-<nav aria-label="Workflow steps" class="w-full px-6 md:hidden">
-	<ol class="flex flex-col">
+<!-- Mobile: compact horizontal bar (dots only, no labels) -->
+<nav aria-label="Workflow steps" class="w-full md:hidden">
+	<ol class="flex w-full items-center rounded-md">
 		{#each steps as step, index (step.id)}
+			{@const isFirst = index === 0}
 			{@const isLast = index === steps.length - 1}
-			<li class="flex gap-4">
-				<!-- Circle + vertical line column -->
-				<div class="flex flex-col items-center">
-					{@render circleIndicator(step, index)}
-					{#if !isLast}
-						<div
-							class={cn(
-								'my-1 w-0.5 flex-1',
-								getLineColor(step.status, 'right', steps[index + 1]?.status)
-							)}
-						></div>
-					{/if}
-				</div>
-
-				<!-- Label -->
-				<div class={cn('pb-6', isLast && 'pb-0')}>
-					{@render stepLabel(step, index, 'left')}
-				</div>
+			<li class="flex flex-1 items-center gap-0.5">
+				<div
+					class={cn('h-[1.5px] flex-1', isFirst ? '' : getLineColor(step.status, 'left'))}
+				></div>
+				{@render smallCircleIndicator(step, index)}
+				<div
+					class={cn(
+						'h-[1.5px] flex-1',
+						isLast ? '' : getLineColor(step.status, 'right', steps[index + 1]?.status)
+					)}
+				></div>
 			</li>
 		{/each}
 	</ol>

@@ -67,6 +67,22 @@
 
 	let currentStepNumber = $derived(stepItems.findIndex((s) => s.status === 'current') + 1);
 
+	let prevStepHref = $derived(() => {
+		const currentIdx = stepItems.findIndex((s) => s.status === 'current');
+		if (currentIdx <= 0) return undefined;
+		const sortedSteps = [...workflowSteps].sort((a, b) => a.stepOrder - b.stepOrder);
+		const prevWs = sortedSteps[currentIdx - 1];
+		if (!prevWs) return undefined;
+		const isPreview = !conversation.isLive;
+		return workflow_step_url(conversation.id, workflow_id, prevWs.id, isPreview);
+	});
+
+	let currentNextAction = $state<(() => void) | undefined>(undefined);
+
+	function handleNextAction(fn: () => void) {
+		currentNextAction = fn;
+	}
+
 	function goToThankYouPage() {
 		goto(thank_you_page(conversation.id, workflowStep.id));
 	}
@@ -116,16 +132,24 @@
 
 <div class="flex flex-col items-center sm:gap-6 sm:py-2 md:py-12">
 	{#if conversation && workflowStep}
-		<StepHeader
-			{currentStepNumber}
-			totalSteps={stepItems.length}
-			title={workflowStep.name}
-			description={workflowStep.description}
-		/>
+		<div
+			class="mx-auto flex w-full items-center justify-center px-6 pt-5 pb-2 md:order-2 md:px-0 md:pt-0 md:pb-0"
+		>
+			<StepSelector steps={stepItems} />
+		</div>
 
-		<StepSelector steps={stepItems} />
+		<div class="w-full md:order-1 md:px-0">
+			<StepHeader
+				{currentStepNumber}
+				totalSteps={stepItems.length}
+				title={workflowStep.name}
+				description={workflowStep.description}
+				prevHref={prevStepHref()}
+				onNext={currentNextAction ?? stepComplete}
+			/>
+		</div>
 
-		<div class="flex w-full grow flex-col gap-y-2">
+		<div class="flex w-full grow flex-col gap-y-2 md:order-3">
 			<div class="flex grow flex-col">
 				{#if !workflowStep.required}
 					<Button onclick={stepComplete} class="mx-auto" variant="secondary"
@@ -138,6 +162,7 @@
 							onDone={stepComplete}
 							pages={toolConfig.pages}
 							user_id={user.id}
+							onNextAction={handleNextAction}
 						/>
 					{/if}
 					{#if toolConfig.type === Polis.TOOL_NAME}
