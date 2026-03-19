@@ -1348,6 +1348,7 @@ dependencies = [
  "sqlx",
  "sqlx-postgres",
  "thiserror 2.0.17",
+ "time",
  "tokio",
  "tokio-tungstenite 0.27.0",
  "tower",

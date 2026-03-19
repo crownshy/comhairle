@@ -18,6 +18,7 @@ use chrono::TimeDelta;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
 use rand_core::OsRng;
 use regex::Regex;
+use time::Duration;
 
 /// Helper function to check if a user is admin
 pub fn is_user_admin(
@@ -305,7 +306,8 @@ async fn signup(
         .path("/")
         .secure(true)
         .http_only(true)
-        .same_site(SameSite::None);
+        .same_site(SameSite::None)
+        .max_age(Duration::days(7));
 
     let user: UserDto = user.into();
     Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
@@ -330,7 +332,8 @@ async fn signup_annon(
         .path("/")
         .secure(true)
         .http_only(true)
-        .same_site(SameSite::None);
+        .same_site(SameSite::None)
+        .max_age(Duration::days(7));
 
     let user: UserDto = user.into();
     Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
@@ -370,7 +373,8 @@ async fn login(
         .path("/")
         .secure(true)
         .http_only(true)
-        .same_site(SameSite::None);
+        .same_site(SameSite::None)
+        .max_age(Duration::days(7));
 
     let user: UserDto = user.into();
     Ok((jar.add(cookie), (StatusCode::OK, Json(user))))
@@ -400,7 +404,8 @@ async fn login_annon(
         .path("/")
         .secure(true)
         .http_only(true)
-        .same_site(SameSite::None);
+        .same_site(SameSite::None)
+        .max_age(Duration::days(7));
 
     let user: UserDto = user.into();
     Ok((cookies.add(cookie), (StatusCode::OK, Json(user))))
@@ -468,7 +473,8 @@ async fn verify_email_token(
         .path("/")
         .secure(true)
         .http_only(true)
-        .same_site(SameSite::None);
+        .same_site(SameSite::None)
+        .max_age(Duration::days(7));
 
     let user: UserDto = updated_user.into();
     Ok((cookies.add(cookie), (StatusCode::OK, Json(user))))
@@ -1229,7 +1235,11 @@ mod tests {
         session.signup(&app).await?;
         session.logout(&app).await?;
 
-        let mut session = UserSession::new(username, crate::test_helpers::TEST_PASSWORD, "test_Email@email.com");
+        let mut session = UserSession::new(
+            username,
+            crate::test_helpers::TEST_PASSWORD,
+            "test_Email@email.com",
+        );
         let (status, _, _) = session.login(&app, email, password).await?;
         assert_eq!(status, StatusCode::OK, "API should return authorized");
         Ok(())
@@ -1760,7 +1770,11 @@ mod tests {
         let mut session = UserSession::new(username, password, email);
         let (status, _, _) = session.signup(&app).await?;
 
-        assert_eq!(status, StatusCode::BAD_REQUEST, "should reject weak password");
+        assert_eq!(
+            status,
+            StatusCode::BAD_REQUEST,
+            "should reject weak password"
+        );
 
         Ok(())
     }
