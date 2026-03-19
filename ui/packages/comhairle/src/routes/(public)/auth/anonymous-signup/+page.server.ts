@@ -1,11 +1,10 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types.js';
-import { page } from '$app/state';
 
-export const load:PageServerLoad = ({url})=>{
-	let backTo = url.searchParams.get("backTo") ?? "/"
-	return {backTo}
-}
+export const load: PageServerLoad = ({ url }) => {
+	let backTo = url.searchParams.get('backTo') ?? '/';
+	return { backTo };
+};
 
 export const actions = {
 	default: async (evt) => {
@@ -19,7 +18,7 @@ export const actions = {
 			return fail(400, {});
 		}
 
-		let backTo = evt.url.searchParams.get("backTo") ?? "/"
-		redirect(302, `/auth/anonymous-signup/code?backTo=${backTo}`);
+		let backTo = evt.url.searchParams.get('backTo') ?? '/';
+		redirect(302, `/auth/anonymous-signup/code?backTo=${encodeURIComponent(backTo)}`);
 	}
 };

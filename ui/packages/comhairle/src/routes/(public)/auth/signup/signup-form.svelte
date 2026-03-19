@@ -18,7 +18,10 @@
 	const form = superForm(defaults(zod(signupFormSchema)), {
 		validators: zodClient(signupFormSchema),
 		taintedMessage: false,
-		onSubmit: attemptLogin
+		onSubmit: async ({ cancel }) => {
+			cancel();
+			await attemptLogin();
+		}
 	});
 
 	let { form: formData, validateForm, enhance } = form;
@@ -38,7 +41,9 @@
 					if (user.auth_type === 'annon') {
 						await goto(backTo ?? '/');
 					} else {
-						await goto('/auth/verification-message');
+						await goto(
+							`/auth/verification-message?backTo=${encodeURIComponent(backTo ?? '/')}`
+						);
 					}
 				} catch (e) {
 					responseMessage = e.response.data.err;
@@ -133,7 +138,7 @@
 		</LoadingButton>
 
 		<Button
-			href={`/auth/anonymous-signup?backTo=${backTo}`}
+			href={`/auth/anonymous-signup?backTo=${encodeURIComponent(backTo ?? '/')}`}
 			variant="outline"
 			size="lg"
 			class="h-12 w-full px-7 lg:w-auto"
@@ -145,7 +150,10 @@
 	<div class="flex flex-col gap-1 font-light">
 		<p class="text-muted-foreground text-base">
 			{m.already_have_an_account_login().split('?')[0]}?
-			<a href={`/auth/login?backTo=${backTo}`} class="text-primary underline">{m.login()}</a>
+			<a
+				href={`/auth/login?backTo=${encodeURIComponent(backTo ?? '/')}`}
+				class="text-primary underline">{m.login()}</a
+			>
 		</p>
 		<p class="text-muted-foreground text-base">
 			{m.agree_to_tos()}

@@ -22,7 +22,7 @@
 	let firstWorkflowPath = $derived(`${url}/workflow/${firstWorkflow.id}/next`);
 
 	async function redirectToLogin() {
-		loginRedirect(url.toString(), 'Login to join the conversation');
+		loginRedirect(url.pathname, 'Login to join the conversation');
 	}
 
 	// Register a new annon user, sign them up for
@@ -39,7 +39,7 @@
 	}
 
 	async function redirectToSignIn() {
-		signupRedirect(url.toString(), 'Signup to join the conversation');
+		signupRedirect(url.pathname, 'Signup to join the conversation');
 	}
 
 	async function registerUser() {

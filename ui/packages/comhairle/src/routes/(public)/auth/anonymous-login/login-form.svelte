@@ -16,7 +16,10 @@
 
 	const form = superForm(defaults(zod(annonLoginFormSchema)), {
 		validators: zodClient(annonLoginFormSchema),
-		onSubmit: attemptLogin
+		onSubmit: async ({ cancel }) => {
+			cancel();
+			await attemptLogin();
+		}
 	});
 
 	const { form: formData, enhance, message: errMessage, validateForm } = form;
@@ -106,8 +109,9 @@
 	<div class="flex flex-col gap-1">
 		<p class="text-muted-foreground text-base">
 			{m.dont_have_an_account_signup().split('?')[0]}?
-			<a href={`/auth/signup?backTo=${backTo ?? '/'}`} class="text-primary underline"
-				>{m.sign_up()}</a
+			<a
+				href={`/auth/signup?backTo=${encodeURIComponent(backTo ?? '/')}`}
+				class="text-primary underline">{m.sign_up()}</a
 			>
 		</p>
 	</div>
