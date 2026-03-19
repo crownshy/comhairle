@@ -59,6 +59,103 @@ use fake::Dummy;
 /// This is the key that we use in the cookie for the JWT
 pub const AUTH_KEY: &str = "auth-token";
 
+/// Validate password strength according to security requirements
+///
+/// Requirements:
+/// - Minimum 16 characters
+/// - Must include characters from at least 3 of 4 categories:
+///   - Uppercase letters (A-Z)
+///   - Lowercase letters (a-z)
+///   - Numbers (0-9)
+///   - Special characters
+/// - Uses zxcvbn for additional complexity checking
+pub fn validate_password_strength(password: &str) -> Result<(), ComhairleError> {
+    let mut errors = Vec::new();
+
+    // Check minimum length
+    if password.len() < 16 {
+        errors.push(format!(
+            "Password must be at least 16 characters long (current length: {})",
+            password.len()
+        ));
+    }
+
+    // Check character categories
+    let has_uppercase = password.chars().any(|c| c.is_uppercase());
+    let has_lowercase = password.chars().any(|c| c.is_lowercase());
+    let has_digit = password.chars().any(|c| c.is_ascii_digit());
+    let has_special = password
+        .chars()
+        .any(|c| !c.is_alphanumeric() && !c.is_whitespace());
+
+    let category_count = [has_uppercase, has_lowercase, has_digit, has_special]
+        .iter()
+        .filter(|&&x| x)
+        .count();
+
+    if category_count < 3 {
+        let mut missing_categories = Vec::new();
+        if !has_uppercase {
+            missing_categories.push("uppercase letters (A-Z)");
+        }
+        if !has_lowercase {
+            missing_categories.push("lowercase letters (a-z)");
+        }
+        if !has_digit {
+            missing_categories.push("numbers (0-9)");
+        }
+        if !has_special {
+            missing_categories.push("special characters (e.g., !@#$%^&*)");
+        }
+
+        errors.push(format!(
+            "Password must include characters from at least 3 of 4 categories. Consider adding: {}",
+            missing_categories.join(", ")
+        ));
+    }
+
+    // Use zxcvbn for additional complexity checking
+    let entropy = zxcvbn::zxcvbn(password, &[]);
+
+    // zxcvbn scores range from 0 (weak) to 4 (strong)
+    // We require a score of at least 3
+    use zxcvbn::Score;
+    if matches!(entropy.score(), Score::Zero | Score::One | Score::Two) {
+        let feedback = entropy.feedback();
+        let warning = feedback
+            .and_then(|f| f.warning())
+            .map(|w| format!("{:?}", w))
+            .unwrap_or_else(|| "Password is too predictable or common".to_string());
+
+        let suggestions = feedback.and_then(|f| {
+            let suggs = f.suggestions();
+            if suggs.is_empty() {
+                None
+            } else {
+                Some(
+                    suggs
+                        .into_iter()
+                        .map(|s| format!("{:?}", s))
+                        .collect::<Vec<String>>()
+                        .join("; "),
+                )
+            }
+        });
+
+        let mut complexity_msg = format!("Password complexity is too low. {}", warning);
+        if let Some(suggs) = suggestions {
+            complexity_msg.push_str(&format!(" Suggestions: {}", suggs));
+        }
+        errors.push(complexity_msg);
+    }
+
+    if !errors.is_empty() {
+        return Err(ComhairleError::WeakPassword(errors.join(". ")));
+    }
+
+    Ok(())
+}
+
 /// Generate a hashed password
 pub fn hash_pw(password: &str) -> Result<String, ComhairleError> {
     let salt = SaltString::generate(&mut OsRng);
@@ -177,6 +274,9 @@ async fn signup(
     jar: CookieJar,
     Json(payload): Json<SignupRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
+    // Validate password strength
+    validate_password_strength(&payload.password)?;
+
     let user = create_user(&payload, &state.db).await?;
     let claims = EmailLinkClaims {
         email: user.email.clone(),
@@ -415,6 +515,9 @@ async fn password_reset_update(
     if payload.password != payload.confirm_password {
         return Err(ComhairleError::PasswordConfirmationMismatch);
     }
+
+    // Validate password strength
+    validate_password_strength(&payload.password)?;
 
     let updated_password = UpdateUserRequest {
         password: Some(payload.password),
@@ -837,7 +940,7 @@ mod tests {
     #[sqlx::test]
     async fn user_should_be_able_to_sign_up(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let state = test_state().db(pool).call()?;
@@ -875,7 +978,7 @@ mod tests {
     #[sqlx::test]
     async fn user_should_receive_signup_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let mut mailer = MockComhairleMailer::new();
@@ -943,7 +1046,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let mut session = UserSession::new(username, password, email);
@@ -958,7 +1061,7 @@ mod tests {
     #[sqlx::test]
     async fn unverified_user_should_be_verified(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let state = test_state().db(pool).call()?;
@@ -1003,7 +1106,7 @@ mod tests {
     #[sqlx::test]
     async fn annon_user_cannot_be_verified(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let state = test_state().db(pool).call()?;
@@ -1044,7 +1147,7 @@ mod tests {
     #[sqlx::test]
     async fn user_cannot_be_verified_twice(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let state = test_state().db(pool).call()?;
@@ -1093,7 +1196,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let mut session = UserSession::new(username, password, email);
@@ -1119,14 +1222,14 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email@email.com";
 
         let mut session = UserSession::new(username, password, email);
         session.signup(&app).await?;
         session.logout(&app).await?;
 
-        let mut session = UserSession::new(username, "test_password", "test_Email@email.com");
+        let mut session = UserSession::new(username, crate::test_helpers::TEST_PASSWORD, "test_Email@email.com");
         let (status, _, _) = session.login(&app, email, password).await?;
         assert_eq!(status, StatusCode::OK, "API should return authorized");
         Ok(())
@@ -1140,7 +1243,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let mut session = UserSession::new(username, password, email);
@@ -1193,7 +1296,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let mut session = UserSession::new(username, password, email);
@@ -1208,7 +1311,7 @@ mod tests {
             "Should not be able to have same username"
         );
 
-        let mut session = UserSession::new("test_user2", password, email);
+        let mut session = UserSession::new("test_user2", crate::test_helpers::TEST_PASSWORD, email);
         let (status, _, _) = session.signup(&app).await?;
 
         assert_eq!(
@@ -1225,7 +1328,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let mut session = UserSession::new(username, password, email);
@@ -1289,7 +1392,7 @@ mod tests {
     #[sqlx::test]
     async fn user_should_receive_password_reset_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let mut mailer = MockComhairleMailer::new();
@@ -1329,7 +1432,7 @@ mod tests {
     #[sqlx::test]
     async fn unknown_user_returns_not_found(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let mut mailer = MockComhairleMailer::new();
@@ -1361,7 +1464,7 @@ mod tests {
     #[sqlx::test]
     async fn users_password_should_be_updated(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
 
         let state = test_state().db(pool).call()?;
@@ -1388,7 +1491,7 @@ mod tests {
         };
         let token = generate_jwt(&user, claims, &secret, None);
 
-        let updated_password = "updated_password";
+        let updated_password = "UpdatedPassword123!";
         let (reset_status, _, _) = session
             .password_reset_update(&app, &token, updated_password, updated_password)
             .await?;
@@ -1421,7 +1524,7 @@ mod tests {
     async fn password_and_confirmation_should_match(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let username = "test_username";
         let email = "test_email";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
 
         let state = test_state().db(pool).call()?;
         let secret = state.config.jwt_secret.clone();
@@ -1506,7 +1609,7 @@ mod tests {
         let app = setup_server(Arc::new(state)).await?;
 
         let username = "test_user";
-        let password = "test_password";
+        let password = crate::test_helpers::TEST_PASSWORD;
         let email = "test_email";
         let conversation_id = uuid::Uuid::parse_str("8438709B-C269-422E-B3F1-D173295F48CF")?;
 
@@ -1546,6 +1649,194 @@ mod tests {
         .await?;
         let (status, _, _) = session.get(&app, &url).await?;
         assert_eq!(status, StatusCode::OK, "User with role should have access");
+
+        Ok(())
+    }
+
+    // Password validation tests
+    #[test]
+    fn test_password_too_short() {
+        let result = super::validate_password_strength("Short123!");
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("at least 16 characters"));
+    }
+
+    #[test]
+    fn test_password_minimum_length() {
+        // Exactly 16 characters with 3 categories
+        let result = super::validate_password_strength("Abcdefg123456789");
+        // Should pass length check, but might fail complexity
+        assert!(result.is_ok() || result.unwrap_err().to_string().contains("complexity"));
+    }
+
+    #[test]
+    fn test_password_only_lowercase() {
+        let result = super::validate_password_strength("abcdefghijklmnop");
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("at least 3 of 4 categories"));
+    }
+
+    #[test]
+    fn test_password_only_two_categories() {
+        let result = super::validate_password_strength("abcdefghijklm123");
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("at least 3 of 4 categories"));
+    }
+
+    #[test]
+    fn test_password_three_categories_upper_lower_digit() {
+        let result = super::validate_password_strength("Abcdefghijklm123456");
+        // Should pass category check (upper, lower, digit)
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_password_three_categories_upper_lower_special() {
+        let result = super::validate_password_strength("Abcdefghijklmnop!");
+        // Should pass category check (upper, lower, special)
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_password_three_categories_lower_digit_special() {
+        let result = super::validate_password_strength("abcdefghijk123!@#");
+        // Should pass category check (lower, digit, special)
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_password_all_four_categories() {
+        let result = super::validate_password_strength("Abcdefg123456!@#");
+        // Should pass with all 4 categories
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_password_common_pattern() {
+        // Common patterns should be caught by zxcvbn
+        let result = super::validate_password_strength("Password12345678");
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        // Should mention complexity
+        assert!(err.to_string().contains("complexity"));
+    }
+
+    #[test]
+    fn test_password_strong_complex() {
+        // Strong password with good entropy
+        let result = super::validate_password_strength("X9$kPm2#qR7nW4@z");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_password_very_long_weak() {
+        // Long but repetitive password
+        let result = super::validate_password_strength("aaaaaaaaaaaaaaaa1!");
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("complexity"));
+    }
+
+    #[test]
+    fn test_password_with_spaces() {
+        // Password with spaces (spaces count as neither alphanumeric nor special in our check)
+        let result = super::validate_password_strength("Abc def 123 456!");
+        // Should have upper, lower, digit, special
+        assert!(result.is_ok());
+    }
+
+    #[sqlx::test]
+    async fn test_signup_with_weak_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let username = "test_user_weak_pw";
+        let password = "weak"; // Too short
+        let email = "test_weak@example.com";
+
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new(username, password, email);
+        let (status, _, _) = session.signup(&app).await?;
+
+        assert_eq!(status, StatusCode::BAD_REQUEST, "should reject weak password");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_password_reset_with_weak_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let username = "test_user_reset";
+        let password = "ValidPassword123!";
+        let email = "test_reset@example.com";
+
+        let state = Arc::new(test_state().db(pool).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        // First create a user with valid password
+        let mut session = UserSession::new(username, password, email);
+        let (status, _, _) = session.signup(&app).await?;
+        assert_eq!(status, StatusCode::CREATED);
+
+        // Get the user from DB
+        let user = get_user_by_email(email, &state.db).await?;
+
+        // Generate a password reset token
+        let claims = EmailLinkClaims {
+            email: Some(email.to_string()),
+        };
+        let token = generate_jwt(&user, claims, &state.config.jwt_secret, None);
+
+        // Try to reset with weak password
+        let weak_password = "weak";
+        let body = serde_json::json!({
+            "token": token,
+            "password": weak_password,
+            "confirm_password": weak_password,
+        })
+        .to_string()
+        .into();
+        let response = session
+            .post(&app, "/auth/password_reset_update", body)
+            .await?;
+
+        assert_eq!(
+            response.0,
+            StatusCode::BAD_REQUEST,
+            "should reject weak password on reset"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_update_user_with_weak_password(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let username = "test_user_update";
+        let password = "ValidPassword123!";
+        let email = "test_update@example.com";
+
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        // Create user
+        let mut session = UserSession::new(username, password, email);
+        let (status, _, _) = session.signup(&app).await?;
+        assert_eq!(status, StatusCode::CREATED);
+
+        // Try to update with weak password
+        let body = serde_json::json!({
+            "password": "weak",
+        })
+        .to_string()
+        .into();
+        let response = session.put(&app, "/user/details", body).await?;
+
+        assert_eq!(
+            response.0,
+            StatusCode::BAD_REQUEST,
+            "should reject weak password on update"
+        );
 
         Ok(())
     }

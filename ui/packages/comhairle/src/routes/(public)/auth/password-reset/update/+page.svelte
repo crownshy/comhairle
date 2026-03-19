@@ -15,7 +15,6 @@
 
 	let { data }: PageProps = $props();
 
-
 	const form = superForm(defaults(zod(passwordResetUpdateFormSchema)), {
 		validators: zodClient(passwordResetUpdateFormSchema),
 		taintedMessage: false,
@@ -40,7 +39,7 @@
 					await invalidateAll();
 					await goto(resolve('/auth/password-reset/success'));
 				} catch (e) {
-					responseMessage = m.something_went_wrong();
+					responseMessage = e.response?.data?.err || m.something_went_wrong();
 				}
 			});
 		}
