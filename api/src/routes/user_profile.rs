@@ -259,7 +259,7 @@ mod tests {
         let _ = session1.put(&app, "/user/profile", body.into()).await?;
 
         // Create a second user
-        let mut session2 = UserSession::new("user2", "password2", "user2@test.com");
+        let mut session2 = UserSession::new("user2", crate::test_helpers::TEST_PASSWORD, "user2@test.com");
         session2.signup(&app).await?;
 
         // User 2 tries to get their own profile (should fail because they don't have one yet)
