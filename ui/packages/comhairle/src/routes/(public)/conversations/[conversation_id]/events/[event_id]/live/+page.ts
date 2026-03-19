@@ -30,7 +30,8 @@ export const load: PageLoad = async ({ parent, params }) => {
 			eventId: event_id,
 			event: null,
 			attendances: [] as EventAttendanceDto[],
-			user
+			user,
+			jwt: ''
 		};
 	}
 };
