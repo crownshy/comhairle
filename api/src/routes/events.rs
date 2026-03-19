@@ -174,7 +174,8 @@ struct VideoEventJwtContext {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct VideoEventJwtUser {
-    name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
     id: String,
 }
 
@@ -185,15 +186,14 @@ async fn get_jwt(
     RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<JwtResponse>), ComhairleError> {
     let event = event::get_by_id(&state.db, &event_id).await?;
-    // TODO: error variant
-    let video_meeting_id = event.video_meeting_id.ok_or(ComhairleError::CorruptedData(
-        "Missing video meeting id".to_string(),
-    ))?;
+    let video_meeting_id = event
+        .video_meeting_id
+        .ok_or(ComhairleError::NoVideoMeetingId)?;
     let jwt_config = &state
         .config
         .jitsi
         .as_ref()
-        .ok_or(ComhairleError::NoBotUserSession)?; // TODO: error variant
+        .ok_or(ComhairleError::NoVideoServiceConfigured)?;
 
     let claims = VideoEventJwtClaims {
         iss: jwt_config.jwt_app_id.clone(), // TODO:
@@ -201,7 +201,7 @@ async fn get_jwt(
         room: video_meeting_id.to_string(),
         context: VideoEventJwtContext {
             user: VideoEventJwtUser {
-                name: user.clone().username.unwrap_or("".to_string()),
+                name: user.clone().username,
                 id: user.clone().id.to_string(),
             },
         },
@@ -212,7 +212,7 @@ async fn get_jwt(
         .secret(&jwt_config.jwt_app_secret)
         .custom_claims(claims)
         .duration(chrono::Duration::hours(1))
-        .sub("jitsi.comhairle.scot".to_string())
+        .sub(jwt_config.jwt_sub.clone())
         .call();
 
     Ok((StatusCode::OK, Json(JwtResponse { jwt })))

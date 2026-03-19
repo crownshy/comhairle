@@ -41,6 +41,9 @@ pub enum ComhairleError {
     #[error("No bot service configured")]
     NoBotServiceConfigured,
 
+    #[error("No video service configured")]
+    NoVideoServiceConfigured,
+
     #[error("HeyForm error: {0}")]
     HeyFormError(#[from] HeyFormError),
 
@@ -235,6 +238,9 @@ pub enum ComhairleError {
 
     #[error("Conversation already live")]
     ConversationAlreadyLive,
+
+    #[error("Event missing video_meeting_id")]
+    NoVideoMeetingId,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]

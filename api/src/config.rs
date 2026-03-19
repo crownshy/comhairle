@@ -55,6 +55,7 @@ pub enum TranslatorConfig {
 pub struct JitsiConfig {
     pub jwt_app_id: String,
     pub jwt_app_secret: String,
+    pub jwt_sub: String,
     pub jwt_accepted_issuers: String,
     pub jwt_accepted_audiences: String,
 }
