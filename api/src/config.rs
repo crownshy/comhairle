@@ -10,6 +10,7 @@ pub fn load() -> Result<ComhairleConfig, ComhairleError> {
             "ababa039cc54b5df83e8899c3c5839e096379d507263c732eb54c52477bf8087",
         )?
         .set_default("domain", "http://localhost:5173")?
+        .set_default("enable_rate_limiting", true)?
         .set_default("mailer.host", "")?
         .set_default("mailer.user", "")?
         .set_default("mailer.password", "")?
@@ -62,4 +63,5 @@ pub struct ComhairleConfig {
     pub default_knowledge_base_id: Option<String>,
     pub elicitation_bot_agent_id: Option<String>,
     pub whitelisted_domains: Option<Vec<String>>,
+    pub enable_rate_limiting: bool,
 }

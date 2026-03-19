@@ -5,6 +5,7 @@ pub mod db;
 mod docs;
 pub mod error;
 pub mod mailer;
+mod middleware;
 pub mod models;
 mod routes;
 pub mod schema_helpers;
@@ -146,6 +147,13 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
     run_migrations(&state.db).await?;
 
     let auth_router = routes::auth::router(state.clone()).await;
+
+    // Apply rate limiting if enabled in config
+    let auth_router = if state.config.enable_rate_limiting {
+        auth_router.layer(middleware::rate_limit::auth_rate_limiter())
+    } else {
+        auth_router
+    };
 
     // build our application with a route
     let app = ApiRouter::new()
