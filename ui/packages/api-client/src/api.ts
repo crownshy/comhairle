@@ -597,6 +597,7 @@ export type ToolConfig = z.infer<typeof ToolConfig>;
 export const WorkflowStep = z
   .object({
     activation_rule: ActivationRule,
+    can_revisit: z.boolean(),
     created_at: z.string().datetime({ offset: true }),
     description: z.string().uuid(),
     id: z.string().uuid(),
@@ -647,6 +648,7 @@ export type UserParticipation = z.infer<typeof UserParticipation>;
 export const LocalizedWorkflowStepDto = z
   .object({
     activationRule: ActivationRule,
+    canRevisit: z.boolean(),
     description: z.string(),
     id: z.string().uuid(),
     isOffline: z.boolean(),
@@ -673,6 +675,7 @@ export type WorkflowStepTranslations = z.infer<typeof WorkflowStepTranslations>;
 export const WorkflowStepWithTranslations = z
   .object({
     activationRule: ActivationRule,
+    canRevisit: z.boolean(),
     createdAt: z.string().datetime({ offset: true }),
     description: z.string(),
     id: z.string().uuid(),
@@ -735,6 +738,7 @@ export type CreateWorkflowStep = z.infer<typeof CreateWorkflowStep>;
 export const WorkflowStepDto = z
   .object({
     activationRule: ActivationRule,
+    canRevisit: z.boolean(),
     description: z.string().uuid(),
     id: z.string().uuid(),
     isOffline: z.boolean(),
@@ -750,6 +754,7 @@ export type WorkflowStepDto = z.infer<typeof WorkflowStepDto>;
 export const PartialWorkflowStep = z
   .object({
     activation_rule: z.union([ActivationRule, z.null()]),
+    can_revisit: z.union([z.boolean(), z.null()]),
     description: z.union([z.string(), z.null()]),
     is_offline: z.union([z.boolean(), z.null()]),
     name: z.union([z.string(), z.null()]),

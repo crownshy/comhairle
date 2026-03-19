@@ -40,6 +40,7 @@ pub struct WorkflowStep {
     pub description: TextContentId,
     pub is_offline: bool,
     pub required: bool,
+    pub can_revisit: bool,
     #[partially(transparent)]
     pub tool_config: Option<ToolConfig>,
     pub preview_tool_config: ToolConfig,
@@ -49,7 +50,7 @@ pub struct WorkflowStep {
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [WorkflowStepIden; 12] = [
+const DEFAULT_COLUMNS: [WorkflowStepIden; 13] = [
     WorkflowStepIden::Id,
     WorkflowStepIden::Name,
     WorkflowStepIden::WorkflowId,
@@ -57,6 +58,7 @@ const DEFAULT_COLUMNS: [WorkflowStepIden; 12] = [
     WorkflowStepIden::ActivationRule,
     WorkflowStepIden::Description,
     WorkflowStepIden::IsOffline,
+    WorkflowStepIden::CanRevisit,
     WorkflowStepIden::ToolConfig,
     WorkflowStepIden::PreviewToolConfig,
     WorkflowStepIden::Required,
@@ -173,7 +175,9 @@ impl PartialWorkflowStep {
         if let Some(value) = &self.activation_rule {
             values.push((WorkflowStepIden::ActivationRule, value.into()))
         };
-
+        if let Some(value) = &self.can_revisit {
+            values.push((WorkflowStepIden::CanRevisit, (*value).into()))
+        };
         if let Some(value) = &self.tool_config {
             values.push((WorkflowStepIden::ToolConfig, value.into()))
         };
@@ -561,4 +565,54 @@ pub async fn get_current_active_step_for_user_localised(
         .await?;
 
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use crate::{
+        models::model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
+        routes::{workflow_steps::dto::WorkflowStepDto, workflows::dto::WorkflowDto},
+    };
+
+    use super::*;
+    use std::error::Error;
+
+    #[sqlx::test]
+    async fn should_update_can_revisit_field(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, workflow_res, _) = session
+            .create_random_workflow(&app, &conversation_id.to_string())
+            .await?;
+        let workflow: WorkflowDto = serde_json::from_value(workflow_res)?;
+        let steps_res = session
+            .create_random_workflow_steps(
+                &app,
+                &conversation_id.to_string(),
+                &workflow.id.to_string(),
+                1,
+            )
+            .await?;
+        let step: WorkflowStepDto = serde_json::from_value(steps_res.first().unwrap().to_owned())?;
+
+        assert!(!step.can_revisit, "incorrect can_revisit before update");
+
+        let (_, value, _) = session
+            .put(
+                &app,
+                &format!(
+                    "/conversation/{}/workflow/{}/workflow_step/{}",
+                    conversation_id, workflow.id, step.id
+                ),
+                json!({ "can_revisit": true }).to_string().into(),
+            )
+            .await?;
+        let step: WorkflowStepDto = serde_json::from_value(value)?;
+
+        assert!(step.can_revisit, "incorrect can_revisit after update");
+
+        Ok(())
+    }
 }

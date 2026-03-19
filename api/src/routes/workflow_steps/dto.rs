@@ -40,6 +40,7 @@ pub struct WorkflowStepDto {
     pub description: TextContentId,
     pub is_offline: bool,
     pub required: bool,
+    pub can_revisit: bool,
     pub tool_config: Option<ToolConfig>,
     pub preview_tool_config: ToolConfig,
 }
@@ -73,6 +74,7 @@ pub struct LocalizedWorkflowStepDto {
     pub description: String,
     pub is_offline: bool,
     pub required: bool,
+    pub can_revisit: bool,
     pub tool_config: Option<ToolConfig>,
     pub preview_tool_config: ToolConfig,
 }
@@ -88,6 +90,7 @@ impl From<WorkflowStep> for WorkflowStepDto {
             description: w.description,
             is_offline: w.is_offline,
             required: w.required,
+            can_revisit: w.can_revisit,
             tool_config: w.tool_config,
             preview_tool_config: w.preview_tool_config,
         }
@@ -105,6 +108,7 @@ impl From<LocalizedWorkflowStep> for LocalizedWorkflowStepDto {
             description: w.description,
             is_offline: w.is_offline,
             required: w.required,
+            can_revisit: w.can_revisit,
             tool_config: w.tool_config,
             preview_tool_config: w.preview_tool_config,
         }
