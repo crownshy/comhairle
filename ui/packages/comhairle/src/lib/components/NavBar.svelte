@@ -201,7 +201,9 @@
 							{/if}
 						</div>
 
-						<Separator />
+						{#if user}
+							<Separator />
+						{/if}
 
 						<!-- Preferences -->
 						<div class="flex flex-col gap-2 px-3 py-2">
@@ -231,11 +233,13 @@
 						{:else}
 							<Separator />
 							<div class="flex gap-2 px-3 pt-2 text-base">
-								<Button href="/auth/login" variant="outline" class="flex-1"
-									>{m.login()}</Button
+								<Button
+									href="/auth/login"
+									variant="outline"
+									class="flex-1 text-base">{m.login()}</Button
 								>
 								<Button href="/auth/signup" class="flex-1 text-base"
-									>{m.signup()}</Button
+									>{m.sign_up()}</Button
 								>
 							</div>
 						{/if}

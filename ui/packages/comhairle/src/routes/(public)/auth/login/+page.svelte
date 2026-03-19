@@ -1,14 +1,15 @@
 <script lang="ts">
 	import type { PageData } from './$types.js';
-	import { AuthPage } from '$lib/profile';
 	import LoginForm from './login-form.svelte';
-	export let data: PageData;
+	import AuthLayout from '$lib/components/AuthLayout.svelte';
+
+	let { data }: { data: PageData } = $props();
 </script>
 
 <svelte:head>
-	<title>Login - Comhairle</title>
+	<title>Log in - Comhairle</title>
 </svelte:head>
 
-<AuthPage>
+<AuthLayout>
 	<LoginForm backTo={data.backTo} />
-</AuthPage>
+</AuthLayout>

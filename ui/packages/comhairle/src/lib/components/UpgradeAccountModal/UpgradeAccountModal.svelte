@@ -66,6 +66,7 @@
 		} catch (error: any) {
 			notifications.send({
 				message:
+					error?.response?.data?.err ||
 					error?.response?.data?.message ||
 					'Failed to upgrade account. Please try again.',
 				priority: 'ERROR'

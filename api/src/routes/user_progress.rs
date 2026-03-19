@@ -115,7 +115,7 @@ mod tests {
         let workflow_step_id: String = extract("id", &target_step);
 
         let mut user_session =
-            UserSession::new("regular_user", "test_password", "regular_user@gmail.com");
+            UserSession::new("regular_user", crate::test_helpers::TEST_PASSWORD, "regular_user@gmail.com");
         user_session.signup(&app).await?;
 
         // Sign up for the workflow
