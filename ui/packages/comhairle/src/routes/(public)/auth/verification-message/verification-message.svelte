@@ -4,7 +4,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { Button } from '$lib/components/ui/button';
 
-	let { user } = $props();
+	let { user, backTo }: { user: any; backTo?: string } = $props();
 
 	let responseMessage: string | null = $state(null);
 
@@ -52,10 +52,14 @@
 		</p>
 
 		<div class="flex flex-col items-center gap-3 pt-2 sm:flex-row">
-			<Button href="/auth/login" variant="default" size="lg">
+			<Button
+				href={`/auth/login?backTo=${encodeURIComponent(backTo ?? '/')}`}
+				variant="default"
+				size="lg"
+			>
 				{m.back_to_login()}
 			</Button>
-			<Button href="/" variant="outline" size="lg">
+			<Button href={backTo ?? '/'} variant="outline" size="lg">
 				{m.go_home()}
 			</Button>
 		</div>

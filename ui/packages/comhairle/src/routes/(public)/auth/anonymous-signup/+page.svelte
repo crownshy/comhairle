@@ -53,8 +53,9 @@
 		<div class="flex flex-col gap-1 font-light">
 			<p class="text-muted-foreground text-base">
 				{m.already_have_an_account_login().split('?')[0]}?
-				<a href={`/auth/login?backTo=${data.backTo ?? '/'}`} class="text-primary underline"
-					>{m.login()}</a
+				<a
+					href={`/auth/login?backTo=${encodeURIComponent(data.backTo ?? '/')}`}
+					class="text-primary underline">{m.login()}</a
 				>
 			</p>
 			<p class="text-muted-foreground text-base">

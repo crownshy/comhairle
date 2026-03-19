@@ -12,6 +12,6 @@
 
 <div class="flex min-h-screen w-full flex-col">
 	<AuthGradient showLogo={false} mode="full">
-		<VerificationMessage user={data.user} />
+		<VerificationMessage user={data.user} backTo={data.backTo} />
 	</AuthGradient>
 </div>

@@ -17,7 +17,10 @@
 	const form = superForm(defaults(zod(loginFormSchema)), {
 		validators: zodClient(loginFormSchema),
 		taintedMessage: false,
-		onSubmit: attemptLogin
+		onSubmit: async ({ cancel }) => {
+			cancel();
+			await attemptLogin();
+		}
 	});
 
 	let responseMessage = $state(null);
@@ -121,7 +124,7 @@
 		</LoadingButton>
 
 		<Button
-			href={resolve(`/auth/anonymous-login?backTo=${backTo ?? '/'}`)}
+			href={resolve(`/auth/anonymous-login?backTo=${encodeURIComponent(backTo ?? '/')}`)}
 			variant="outline"
 			size="lg"
 			class="h-12 w-full px-7 lg:w-auto"
@@ -137,7 +140,7 @@
 		<p class="text-muted-foreground text-base">
 			{m.dont_have_an_account_signup().split('?')[0]}?
 			<a
-				href={resolve(`/auth/signup?backTo=${backTo ?? '/'}`)}
+				href={resolve(`/auth/signup?backTo=${encodeURIComponent(backTo ?? '/')}`)}
 				class="text-primary underline"
 			>
 				{m.sign_up()}
