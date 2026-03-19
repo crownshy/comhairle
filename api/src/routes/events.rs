@@ -159,24 +159,24 @@ struct JwtResponse {
     jwt: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct VideoEventJwtClaims {
-    iss: String,
-    aud: String,
-    room: String,
-    context: VideoEventJwtContext,
+#[derive(Serialize, Debug)]
+struct VideoEventJwtClaims<'a> {
+    iss: &'a str,
+    aud: &'a str,
+    room: &'a str,
+    context: VideoEventJwtContext<'a>,
+}
+
+#[derive(Serialize, Debug)]
+struct VideoEventJwtContext<'a> {
+    user: VideoEventJwtUser<'a>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct VideoEventJwtContext {
-    user: VideoEventJwtUser,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct VideoEventJwtUser {
+struct VideoEventJwtUser<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
-    name: Option<String>,
-    id: String,
+    name: Option<&'a str>,
+    id: &'a str,
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -196,13 +196,13 @@ async fn get_jwt(
         .ok_or(ComhairleError::NoVideoServiceConfigured)?;
 
     let claims = VideoEventJwtClaims {
-        iss: jwt_config.jwt_app_id.clone(), // TODO:
-        aud: jwt_config.jwt_app_id.clone(),
-        room: video_meeting_id.to_string(),
+        iss: &jwt_config.jwt_app_id,
+        aud: &jwt_config.jwt_app_id,
+        room: &video_meeting_id.to_string(),
         context: VideoEventJwtContext {
             user: VideoEventJwtUser {
-                name: user.clone().username,
-                id: user.clone().id.to_string(),
+                name: user.username.as_deref(),
+                id: &user.id.to_string(),
             },
         },
     };
@@ -212,7 +212,7 @@ async fn get_jwt(
         .secret(&jwt_config.jwt_app_secret)
         .custom_claims(claims)
         .duration(chrono::Duration::hours(1))
-        .sub(jwt_config.jwt_sub.clone())
+        .sub(jwt_config.jwt_sub.to_owned())
         .call();
 
     Ok((StatusCode::OK, Json(JwtResponse { jwt })))

@@ -219,10 +219,13 @@ pub struct SessionClaims {
 
 /// JWT Claims
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(bound = "T: Serialize + DeserializeOwned")]
+#[serde(
+    bound(serialize = "T: Serialize"),
+    bound(deserialize = "T: DeserializeOwned")
+)]
 pub struct Claims<T>
 where
-    T: Serialize + DeserializeOwned,
+    T: Serialize,
 {
     sub: String,
     exp: usize,
@@ -233,7 +236,7 @@ where
 
 /// Generate JWT
 #[builder]
-pub fn generate_jwt<T: Serialize + DeserializeOwned>(
+pub fn generate_jwt<T: Serialize>(
     user: &User,
     secret: &str,
     custom_claims: T,
