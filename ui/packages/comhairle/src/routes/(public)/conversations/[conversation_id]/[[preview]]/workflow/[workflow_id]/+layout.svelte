@@ -1,6 +1,6 @@
 <script lang="ts">
+	import ConversationSupportSidebar from '$lib/components/ConversationSupportSidebar.svelte';
 	import type { LayoutProps } from './$types';
-	import CollapsibleChat from '$lib/components/Chatbot/CollapsibleChat.svelte';
 
 	let { data, children }: LayoutProps = $props();
 	let { conversation, user } = data;
@@ -8,10 +8,4 @@
 
 {@render children()}
 
-{#if conversation?.chatBotId && conversation.enableQaChatBot}
-	<CollapsibleChat
-		chatId={conversation.chatBotId}
-		conversationId={conversation.id}
-		userId={user?.id}
-	/>
-{/if}
+<ConversationSupportSidebar {conversation} />
