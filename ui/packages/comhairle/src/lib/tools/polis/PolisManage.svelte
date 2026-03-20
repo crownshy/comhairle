@@ -12,7 +12,8 @@
 		admin_password: string;
 	} = $props();
 
-	let url = $derived(`${polis_url}/m/${polis_id}`);
+	let base_url = $derived(polis_url.startsWith('https://') ? polis_url : `https://${polis_url}`);
+	let url = $derived(`${base_url}/m/${polis_id}`);
 	let iframe = $state();
 	let firstLoad = $state(true);
 
@@ -20,7 +21,7 @@
 		if (firstLoad) {
 			iframe.contentWindow.postMessage(
 				{ user: admin_user, password: admin_password, type: 'POLIS_LOGIN' },
-				'https://polis.comhairle.scot'
+				base_url
 			);
 			firstLoad = false;
 		}

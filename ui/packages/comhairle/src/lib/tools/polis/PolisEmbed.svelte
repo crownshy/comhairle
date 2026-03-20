@@ -17,15 +17,16 @@
 	let showThankYou = $state(false);
 
 	let { polis_id, polis_url, user_id, onDone }: Props = $props();
-	let url = $derived(`${polis_url}/${polis_id}?xid=${user_id}`);
+	let base_url = $derived(polis_url.startsWith('https://') ? polis_url : `https://${polis_url}`);
+	let url = $derived(`${base_url}/${polis_id}?xid=${user_id}`);
 </script>
 
 {#if showThankYou}
 	<div transition:fade={{ duration: 1000 }} class="prose mx-auto mb-20">
 		<h3>This interactive discussion doesn't have a fixed end</h3>
 		<p>
-			You can keep voting or adding statements as long as you link. You're welcome to return later
-			when others have contributed more. Thank you for taking part.
+			You can keep voting or adding statements as long as you link. You're welcome to return
+			later when others have contributed more. Thank you for taking part.
 		</p>
 		<Button variant="secondary" onclick={onDone}>I'm Done</Button>
 	</div>
