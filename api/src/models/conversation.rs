@@ -70,13 +70,15 @@ pub struct Conversation {
     pub supported_languages: Vec<String>,
     #[partially(transparent)]
     pub privacy_policy: Option<TextContentId>,
+    #[partially(transparent)]
+    pub faqs: Option<TextContentId>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ConversationIden; 23] = [
+const DEFAULT_COLUMNS: [ConversationIden; 24] = [
     ConversationIden::Id,
     ConversationIden::Title,
     ConversationIden::ShortDescription,
@@ -100,6 +102,7 @@ const DEFAULT_COLUMNS: [ConversationIden; 23] = [
     ConversationIden::OwnerId,
     ConversationIden::OrganizationId,
     ConversationIden::PrivacyPolicy,
+    ConversationIden::Faqs,
 ];
 
 impl PartialConversation {
@@ -159,6 +162,9 @@ impl PartialConversation {
         };
         if let Some(value) = &self.privacy_policy {
             values.push((ConversationIden::PrivacyPolicy, (*value).into()))
+        };
+        if let Some(value) = &self.faqs {
+            values.push((ConversationIden::Faqs, (*value).into()))
         };
 
         if let Some(value) = &self.supported_languages {
@@ -566,7 +572,6 @@ pub struct CreateConversation {
     pub default_workflow_id: Option<Uuid>,
     pub primary_locale: String,
     pub supported_languages: Vec<String>,
-    pub privacy_policy: Option<String>,
     pub enable_qa_chat_bot: Option<bool>,
 }
 
@@ -677,19 +682,6 @@ pub async fn create(
 
     columns.push(ConversationIden::ShortDescription);
     values.push(short_description.id.into());
-
-    if let Some(privacy_policy) = &conversation.privacy_policy {
-        let privacy_policy_translation = new_translation(
-            db,
-            &conversation.primary_locale,
-            privacy_policy,
-            TextFormat::Rich,
-        )
-        .await?;
-
-        columns.push(ConversationIden::PrivacyPolicy);
-        values.push(privacy_policy_translation.id.into());
-    }
 
     // Generate Slug
 
