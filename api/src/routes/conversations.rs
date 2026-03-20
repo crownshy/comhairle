@@ -437,6 +437,7 @@ mod tests {
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
     use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
     use crate::routes::conversations::ConversationResponse;
+    use crate::routes::translations::dto::TextContentDto;
     use crate::test_helpers::{test_config, test_state};
     use crate::{setup_server, test_helpers::UserSession};
     use axum::http::StatusCode;
@@ -998,7 +999,7 @@ mod tests {
 
         session.signup(&app).await?;
 
-        let (_, convo1, _) = session
+        let (_, convo_res, _) = session
             .create_conversation(
                 &app,
                 json! ({
@@ -1012,13 +1013,50 @@ mod tests {
                     "is_invite_only" : false,
                     "slug" : "new_conversation",
                     "primary_locale" : "en",
-                    "supported_languages" : ["en"],
-                    "privacy_policy": "This conversation's privacy policy"
+                    "supported_languages" : ["en"]
                 }),
             )
             .await?;
+        let conversation: ConversationDto = serde_json::from_value(convo_res)?;
 
-        let conversation: ConversationDto = serde_json::from_value(convo1)?;
+        let create_privacy_policy = json!({
+            "primary_locale": "en",
+            "format": "plain",
+            "content": "Test privacy policy"
+        });
+        let create_faqs = json!({
+            "primary_locale": "en",
+            "format": "plain",
+            "content": "Test faqs"
+        });
+        let (_, privacy_policy_res, _) = session
+            .post(
+                &app,
+                "/translations",
+                create_privacy_policy.to_string().into(),
+            )
+            .await?;
+        let (_, faqs_res, _) = session
+            .post(&app, "/translations", create_faqs.to_string().into())
+            .await?;
+        let privacy_policy: TextContentDto = serde_json::from_value(privacy_policy_res)?;
+        let faqs: TextContentDto = serde_json::from_value(faqs_res)?;
+
+        let (_, update_res, _) = session
+            .put(
+                &app,
+                &format!("/conversation/{}", conversation.id),
+                json!({
+                    "privacy_policy": privacy_policy.id,
+                    "faqs": faqs.id,
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        println!();
+        println!("    >>>>    Updated conversation: {update_res:#?}");
+        println!();
 
         let (status, value, _) = session
             .get(
@@ -1053,8 +1091,13 @@ mod tests {
                         .unwrap()
                         .text_translations[0]
                         .content,
-                    "This conversation's privacy policy",
-                    "incorrect translation for optional field"
+                    "Test privacy policy",
+                    "incorrect translation for optional privacy_policy"
+                );
+                assert_eq!(
+                    conversation.translations.faqs.unwrap().text_translations[0].content,
+                    "Test faqs",
+                    "incorrect translation for optional faqs"
                 );
             }
             _ => panic!("Expected ConversationResponse::WithTranslations"),
