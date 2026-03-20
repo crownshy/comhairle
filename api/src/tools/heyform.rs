@@ -22,6 +22,12 @@ pub struct HeyFormToolConfig {
     pub admin_password: String,
     pub workspace_id: String,
     pub project_id: String,
+    #[serde(default = "default_server_url")]
+    pub server_url: String,
+}
+
+fn default_server_url() -> String {
+    "forms.comhairle.scot".to_string()
 }
 
 impl ToolConfigSanitize for HeyFormToolConfig {
@@ -33,11 +39,15 @@ impl ToolConfigSanitize for HeyFormToolConfig {
             admin_password: "".into(),
             workspace_id: self.workspace_id.clone(),
             project_id: self.project_id.clone(),
+            server_url: "".into(),
         }
     }
 }
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
-pub struct HeyFormToolSetup;
+pub struct HeyFormToolSetup {
+    #[serde(default = "default_server_url")]
+    pub server_url: String,
+}
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
 pub struct HeyFormReport;
@@ -75,8 +85,8 @@ fn generate_password() -> String {
 pub async fn launch(
     preview_config: &HeyFormToolConfig,
 ) -> Result<HeyFormToolConfig, ComhairleError> {
-    let preview_client = HeyFormClient::new("https://forms.comhairle.scot")?;
-    let _live_client = HeyFormClient::new("https://forms.comhairle.scot")?;
+    let preview_client = HeyFormClient::new(format!("https://{}", preview_config.server_url))?;
+    let _live_client = HeyFormClient::new(format!("https://{}", preview_config.server_url))?;
 
     preview_client
         .login(LoginInput {
@@ -94,13 +104,13 @@ pub async fn launch(
 }
 
 async fn heyform_setup(
-    _setup_config: &HeyFormToolSetup,
+    setup_config: &HeyFormToolSetup,
 ) -> Result<HeyFormToolConfig, ComhairleError> {
-    let client = HeyFormClient::new("https://forms.comhairle.scot")?;
+    let client = HeyFormClient::new(format!("https://{}", setup_config.server_url))?;
 
     let username: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
-        .take(6)
+        .take(10)
         .map(char::from)
         .collect();
 
@@ -184,6 +194,7 @@ async fn heyform_setup(
         survey_id: poll_id,
         workspace_id,
         project_id,
+        server_url: setup_config.server_url.to_string(),
     })
 }
 

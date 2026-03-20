@@ -415,6 +415,7 @@ pub async fn setup_tool(
     })
 }
 
+#[instrument(err(Debug), skip(state))]
 pub async fn create(
     state: &Arc<ComhairleState>,
     new_workflow_step: &CreateWorkflowStep,

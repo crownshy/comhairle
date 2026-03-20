@@ -15,6 +15,8 @@ pub fn load() -> Result<ComhairleConfig, ComhairleError> {
         .set_default("mailer.user", "")?
         .set_default("mailer.password", "")?
         .set_default("mailer.from_email", "invites@comhairle.scot")?
+        .set_default("heyform_url", "forms.comhairle.scot")?
+        .set_default("polis_url", "polis.comhairle.scot")?
         .add_source(
             Environment::default()
                 .list_separator(",")
@@ -64,4 +66,6 @@ pub struct ComhairleConfig {
     pub elicitation_bot_agent_id: Option<String>,
     pub whitelisted_domains: Option<Vec<String>>,
     pub enable_rate_limiting: bool,
+    pub heyform_url: String,
+    pub polis_url: String,
 }
