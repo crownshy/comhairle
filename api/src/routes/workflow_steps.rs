@@ -13,6 +13,7 @@ use axum::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::models::workflow_step::{LocalizedWorkflowStep, WorkflowStepWithTranslations};
@@ -97,6 +98,7 @@ impl FromRequestParts<Arc<ComhairleState>> for WorkflowStepPathCtx {
 }
 
 /// Create workflow handler
+#[instrument(err(Debug), skip(state))]
 async fn create_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     SourcePathCtx {
