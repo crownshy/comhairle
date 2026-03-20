@@ -16,7 +16,7 @@
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import type { ConversationWithTranslations, WorkflowDto } from '@crownshy/api-client/api';
-	import { snakeCaseKeys } from '$lib/utils/snakeCaseKeys';
+	import { camelToSnakeCase, snakeCaseKeys } from '$lib/utils/snakeCaseKeys';
 
 	let {
 		data
@@ -43,6 +43,7 @@
 		$form.isPublic = data.conversation.isPublic;
 		$form.isInviteOnly = data.conversation.isInviteOnly;
 		$form.privacyPolicy = data.conversation.privacyPolicy;
+		$form.faqs = data.conversation.faqs;
 		$form.autoLogin = data.workflows[0]?.autoLogin;
 		$form.enableQaChatBot = data.conversation.enableQaChatBot;
 	});
@@ -132,6 +133,7 @@
 			description: data.conversation.description,
 			imageUrl: data.conversation.imageUrl,
 			privacyPolicy: data.conversation.privacyPolicy,
+			faqs: data.conversation.faqs,
 			isPublic: data.conversation.isPublic,
 			isInviteOnly: data.conversation.isInviteOnly,
 			autoLogin: data.workflows[0].autoLogin,
@@ -145,18 +147,18 @@
 		}
 	);
 
-	async function handleInitializePrivacyPolicy(content: string) {
+	async function handleInitOptionalTranslationField(content: string, field: string) {
 		try {
 			if (!conversation) return;
 
-			const res = await apiClient.CreateTextContent({
+			const textContentRes = await apiClient.CreateTextContent({
 				content,
 				format: 'rich',
 				primary_locale: conversation.primaryLocale
 			});
 
 			await apiClient.UpdateConversation(
-				{ privacy_policy: res.id },
+				{ [camelToSnakeCase(field)]: textContentRes.id },
 				{ params: { conversation_id: conversation.id } }
 			);
 		} catch (e) {
@@ -373,7 +375,37 @@
 							onValueChange={(v) => ($form.privacyPolicy = v)}
 							translation={conversation.translations?.privacyPolicy ?? undefined}
 							editorType="rich"
-							onSaveSource={handleInitializePrivacyPolicy}
+							onSaveSource={(content: string) =>
+								handleInitOptionalTranslationField(content, 'privacyPolicy')}
+							primaryLocale={primaryLanguage}
+							{supportedLanguages}
+							inputProps={props}
+						/>
+						<Form.FieldErrors />
+					</div>
+				{/snippet}
+			</Form.Control>
+		</Form.Field>
+	</div>
+
+	<!-- FAQs -->
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
+		<Form.Field form={conversationForm} name="faqs" class="contents">
+			<Form.Control>
+				{#snippet children({ props })}
+					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+						>FAQs</Form.Label
+					>
+					<div class="flex-1">
+						<TranslatableField
+							value={$form.faqs || null}
+							onValueChange={(v) => ($form.faqs = v)}
+							translation={conversation.translations?.faqs ?? undefined}
+							editorType="rich"
+							onSaveSource={(content: string) =>
+								handleInitOptionalTranslationField(content, 'faqs')}
 							primaryLocale={primaryLanguage}
 							{supportedLanguages}
 							inputProps={props}
