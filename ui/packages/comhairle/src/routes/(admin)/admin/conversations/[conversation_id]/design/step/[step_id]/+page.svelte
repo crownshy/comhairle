@@ -30,6 +30,7 @@
 		breadcrumbs: breadcrumbSnippet
 	});
 	let pageTitle = $derived(`Edit Step: ${step?.name ?? 'Step'}`);
+	console.log('Toll config ', toolConfig);
 </script>
 
 <svelte:head>
@@ -68,11 +69,7 @@
 {/snippet}
 
 {#if step}
-	<CommonStepConfig 
-		conversation_id={conversation.id} 
-		conversation={conversation} 
-		step={step} 
-	/>
+	<CommonStepConfig conversation_id={conversation.id} {conversation} {step} />
 {/if}
 
 {#if step && toolConfig?.type === 'learn'}
@@ -99,7 +96,7 @@
 		conversation_id={conversation.id}
 		workflow_id={step.workflowId}
 		workflow_step_id={step.id}
-		survey_url={toolConfig.survey_url}
+		survey_url={toolConfig.server_url}
 		survey_id={toolConfig.survey_id}
 		admin_user={toolConfig.admin_user}
 		admin_password={toolConfig.admin_password}

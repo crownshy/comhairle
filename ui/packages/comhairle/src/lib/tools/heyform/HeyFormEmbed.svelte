@@ -4,11 +4,13 @@
 		surveyId,
 		userId,
 		surveyURL,
+		serverURL,
 		extraSurveyParams
 	}: {
 		onDone: () => void;
 		surveyId: string;
 		surveyURL: string;
+		serverURL: string;
 		userId: string;
 		extraSurveyParams?: Record<string, string>;
 	} = $props();
@@ -28,7 +30,7 @@
 	});
 
 	const base_url = $derived.by(() =>
-		surveyURL.startsWith('https://') ? surveyURL : `https://${surveyURL}`
+		serverURL.startsWith('https://') ? serverURL : `https://${serverURL}`
 	);
 
 	let url = $derived(
@@ -42,6 +44,10 @@
 		}
 		return url;
 	});
+	console.log('hey form embed full url', fullUrl);
+	console.log('url ', url);
+	console.log('base url', base_url);
+	console.log('surveyURL', surveyURL);
 </script>
 
 <iframe
