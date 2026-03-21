@@ -44,10 +44,6 @@
 		}
 		return url;
 	});
-	console.log('hey form embed full url', fullUrl);
-	console.log('url ', url);
-	console.log('base url', base_url);
-	console.log('surveyURL', surveyURL);
 </script>
 
 <iframe
