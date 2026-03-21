@@ -25,6 +25,8 @@ pub struct UserProfile {
     pub gender: Option<String>,
     #[partially(transparent)]
     pub zipcode: Option<String>,
+    #[partially(transparent)]
+    pub political_party: Option<String>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
@@ -39,9 +41,10 @@ pub struct CreateUserProfile {
     pub age: Option<i32>,
     pub gender: Option<String>,
     pub zipcode: Option<String>,
+    pub political_party: Option<String>,
 }
 
-const DEFAULT_COLUMNS: [UserProfileIden; 9] = [
+const DEFAULT_COLUMNS: [UserProfileIden; 10] = [
     UserProfileIden::Id,
     UserProfileIden::UserId,
     UserProfileIden::Consented,
@@ -49,6 +52,7 @@ const DEFAULT_COLUMNS: [UserProfileIden; 9] = [
     UserProfileIden::Age,
     UserProfileIden::Gender,
     UserProfileIden::Zipcode,
+    UserProfileIden::PoliticalParty,
     UserProfileIden::CreatedAt,
     UserProfileIden::UpdatedAt,
 ];
@@ -69,6 +73,9 @@ impl CreateUserProfile {
         if self.zipcode.is_some() {
             columns.push(UserProfileIden::Zipcode);
         }
+        if self.political_party.is_some() {
+            columns.push(UserProfileIden::PoliticalParty);
+        }
 
         columns
     }
@@ -88,6 +95,9 @@ impl CreateUserProfile {
         }
         if let Some(ref zipcode) = self.zipcode {
             values.push(zipcode.clone().into());
+        }
+        if let Some(ref political_party) = self.political_party {
+            values.push(political_party.clone().into());
         }
 
         values
@@ -180,6 +190,12 @@ pub async fn update(
         query = query.value(UserProfileIden::Zipcode, value).to_owned();
         has_updates = true;
     }
+    if let Some(value) = &update.political_party {
+        query = query
+            .value(UserProfileIden::PoliticalParty, value)
+            .to_owned();
+        has_updates = true;
+    }
 
     if !has_updates {
         return get_by_id(db, id).await;
@@ -243,6 +259,7 @@ mod tests {
             age: Some(25),
             gender: Some("Female".to_string()),
             zipcode: Some("12345".to_string()),
+            political_party: None,
         };
 
         let profile = create(&pool, &create_profile).await?;
@@ -289,6 +306,7 @@ mod tests {
             age: Some(30),
             gender: Some("Male".to_string()),
             zipcode: Some("67890".to_string()),
+            political_party: None,
         };
 
         let created_profile = create(&pool, &create_profile).await?;
@@ -325,6 +343,7 @@ mod tests {
             age: None,
             gender: None,
             zipcode: None,
+            political_party: None,
         };
 
         let profile = create(&pool, &create_profile).await?;
@@ -392,6 +411,7 @@ mod tests {
             age: None,
             gender: None,
             zipcode: None,
+            political_party: None,
         };
 
         // Create first profile
@@ -430,6 +450,7 @@ mod tests {
             age: Some(40),
             gender: Some("Male".to_string()),
             zipcode: Some("11111".to_string()),
+            political_party: None,
         };
 
         let profile = create(&pool, &create_profile).await?;

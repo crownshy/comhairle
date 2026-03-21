@@ -50,6 +50,7 @@ pub async fn upsert_profile(
                     age: request.age,
                     gender: request.gender,
                     zipcode: request.zipcode,
+                    political_party: request.political_party,
                 },
             )
             .await?
@@ -63,6 +64,7 @@ pub async fn upsert_profile(
                 age: request.age,
                 gender: request.gender,
                 zipcode: request.zipcode,
+                political_party: request.political_party,
             };
             models::user_profile::create(&state.db, &create_profile).await?
         }
