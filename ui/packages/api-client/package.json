@@ -1,7 +1,7 @@
 {
 	"name": "@crownshy/api-client",
 	"description": "OpenAPI client for the Comhairle deliberative decomracy platform.",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"type": "module",
 	"main": "dist/api.js",
 	"types": "dist/api.d.ts",

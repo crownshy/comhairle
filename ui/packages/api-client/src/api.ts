@@ -186,6 +186,7 @@ export const UserProfileDto = z
     ethnicity: z.union([z.string(), z.null()]).optional(),
     gender: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
+    politicalParty: z.union([z.string(), z.null()]).optional(),
     updatedAt: z.string().datetime({ offset: true }),
     userId: z.string().uuid(),
     zipcode: z.union([z.string(), z.null()]).optional(),
@@ -198,6 +199,7 @@ export const UpsertUserProfileRequest = z
     consented: z.union([z.boolean(), z.null()]),
     ethnicity: z.union([z.string(), z.null()]),
     gender: z.union([z.string(), z.null()]),
+    politicalParty: z.union([z.string(), z.null()]),
     zipcode: z.union([z.string(), z.null()]),
   })
   .partial()
@@ -573,6 +575,7 @@ export const ToolConfig = z.union([
       admin_password: z.string(),
       admin_user: z.string(),
       project_id: z.string(),
+      server_url: z.string().optional().default("forms.comhairle.scot"),
       survey_id: z.string(),
       survey_url: z.string(),
       type: z.literal("heyform"),
@@ -699,7 +702,12 @@ export const ToolSetup = z.union([
   z
     .object({ pages: z.array(LearnPageEntry), type: z.literal("learn") })
     .passthrough(),
-  z.object({ type: z.literal("heyform") }).passthrough(),
+  z
+    .object({
+      server_url: z.string().optional().default("forms.comhairle.scot"),
+      type: z.literal("heyform"),
+    })
+    .passthrough(),
   z
     .object({
       max_time: z.number().int(),
