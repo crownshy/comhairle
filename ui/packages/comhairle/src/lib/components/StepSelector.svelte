@@ -149,7 +149,7 @@
 		{:else}
 			<span
 				class={cn(
-					'text-sm leading-5 font-medium',
+					'px-3 text-sm leading-5 font-medium',
 					step.status === 'completed-locked'
 						? 'text-muted-foreground/60'
 						: 'text-foreground'
