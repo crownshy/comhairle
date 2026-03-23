@@ -39,7 +39,7 @@ impl ToolConfigSanitize for HeyFormToolConfig {
             admin_password: "".into(),
             workspace_id: self.workspace_id.clone(),
             project_id: self.project_id.clone(),
-            server_url: "".into(),
+            server_url: self.server_url.clone(),
         }
     }
 }
