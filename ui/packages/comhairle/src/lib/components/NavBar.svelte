@@ -17,7 +17,8 @@
 		Settings,
 		Bell,
 		LogOut,
-		Briefcase
+		Briefcase,
+		LayoutGrid
 	} from 'lucide-svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
