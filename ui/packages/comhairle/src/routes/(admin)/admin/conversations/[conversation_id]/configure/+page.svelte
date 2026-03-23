@@ -183,6 +183,7 @@
 					_description /* eslint-disable-line @typescript-eslint/no-unused-vars */,
 				privacyPolicy:
 					_privacyPolicy /* eslint-disable-line @typescript-eslint/no-unused-vars */,
+				faqs: _faqs /* eslint-disable-line @typescript-eslint/no-unused-vars */,
 				autoLogin: _auto_login /* eslint-disable-line @typescript-eslint/no-unused-vars */,
 				...conversationData
 			} = result.data;
