@@ -22,7 +22,7 @@
 	let conversation = $derived(data.conversation);
 </script>
 
-<div class="bg-muted flex w-full flex-col justify-between gap-11 border-b-black px-16 py-8">
+<div class="flex w-full flex-col justify-between gap-11 border-b-black px-16 py-8">
 	<Breadcrumb.Root>
 		<Breadcrumb.List>
 			<Breadcrumb.Item>

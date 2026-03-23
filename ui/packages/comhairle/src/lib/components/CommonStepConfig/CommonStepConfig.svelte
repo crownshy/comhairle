@@ -97,7 +97,6 @@
 		<ContentRenderer
 			content={description || sourceDescription}
 			class="text-muted-foreground text-sm"
-			minimal
 		/>
 	</div>
 	<Dialog.Root
@@ -111,7 +110,7 @@
 		</Dialog.Trigger>
 
 		<Dialog.Content class="flex max-h-[90vh] min-w-[70vw] flex-col rounded-xl p-0">
-			<Dialog.Header class="flex-shrink-0 border-b p-6 pb-4">
+			<Dialog.Header class="shrink-0 border-b p-6 pb-4">
 				<Dialog.Title class="text-2xl">Edit Step Metadata</Dialog.Title>
 				<Dialog.Description>
 					Configure the name and description shown to participants.

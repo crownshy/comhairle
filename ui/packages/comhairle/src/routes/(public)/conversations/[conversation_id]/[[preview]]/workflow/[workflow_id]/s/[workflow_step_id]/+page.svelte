@@ -9,11 +9,13 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { createCarta } from '$lib/utils/carta';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import StepSelector from '$lib/components/StepSelector.svelte';
+	import StepSelector, { type StepItem } from '$lib/components/StepSelector.svelte';
+	import StepHeader from '$lib/components/StepHeader.svelte';
 
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
+	import { canRevisitStep } from '$lib/config/step-revisitability';
 
 	let { data }: PageProps = $props();
 	let { user } = data;
@@ -21,6 +23,7 @@
 	let workflowStep = $derived(data.workflowStep);
 	let conversation = $derived(data.conversation);
 	let workflowSteps = $derived(data.workflowSteps);
+	let userProgress = $derived(data.userProgress ?? []);
 
 	let toolConfig = $derived(
 		conversation.isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig
@@ -28,6 +31,63 @@
 
 	let carta = createCarta();
 	let pageTitle = $derived(workflowStep?.name ?? 'Workflow Step');
+
+	let workflowEnded = $derived(
+		workflowSteps.length > 0 &&
+			workflowSteps.every((ws) =>
+				userProgress.some((p) => p.workflowStepId === ws.id && p.status === 'done')
+			)
+	);
+
+	let stepItems = $derived<StepItem[]>(
+		[...workflowSteps]
+			.sort((a, b) => a.stepOrder - b.stepOrder)
+			.map((ws) => {
+				const progress = userProgress.find((p) => p.workflowStepId === ws.id);
+				const isCurrent = ws.id === workflowStep.id;
+				const isCompleted = progress?.status === 'done';
+				const isBefore = ws.stepOrder < workflowStep.stepOrder;
+				const toolType = ws.previewToolConfig?.type ?? ws.toolConfig?.type;
+				const canRevisit = toolType ? canRevisitStep(toolType, workflowEnded) : false;
+
+				const passedThrough = isCompleted || isBefore;
+
+				let status: StepItem['status'];
+				if (isCurrent) {
+					status = 'current';
+				} else if (passedThrough && canRevisit) {
+					status = 'completed';
+				} else if (passedThrough) {
+					status = 'completed-locked';
+				} else {
+					status = 'upcoming';
+				}
+
+				const isPreview = !conversation.isLive;
+				const href =
+					status === 'completed'
+						? workflow_step_url(conversation.id, workflow_id, ws.id, isPreview)
+						: undefined;
+
+				return { id: ws.id, name: ws.name, status, href };
+			})
+	);
+
+	let currentStepNumber = $derived(stepItems.findIndex((s) => s.status === 'current') + 1);
+
+	let prevStepHref = $derived(() => {
+		const currentIdx = stepItems.findIndex((s) => s.status === 'current');
+		if (currentIdx <= 0) return undefined;
+		const prevItem = stepItems[currentIdx - 1];
+		if (!prevItem || prevItem.status !== 'completed') return undefined;
+		return prevItem.href;
+	});
+
+	let currentNextAction = $state<(() => void) | undefined>(undefined);
+
+	function handleNextAction(fn: () => void) {
+		currentNextAction = fn;
+	}
 
 	function goToThankYouPage() {
 		goto(thank_you_page(conversation.id, workflowStep.id));
@@ -76,24 +136,27 @@
 	<title>{pageTitle} - Comhairle</title>
 </svelte:head>
 
-<div class="flex flex-col items-center pt-10">
+<div class="flex flex-col items-center sm:gap-6 sm:py-2 md:py-12">
 	{#if conversation && workflowStep}
-		<StepSelector steps={workflowSteps} currentStepId={workflowStep.id} />
+		<div
+			class="mx-auto flex w-full items-center justify-center px-6 pt-5 pb-2 md:order-2 md:px-0 md:pt-0 md:pb-0"
+		>
+			<StepSelector steps={stepItems} />
+		</div>
 
-		<div class="flex w-full grow flex-col gap-y-2 md:grid md:grid-cols-1 md:gap-x-10">
-			<div class="mt-10 flex flex-col items-center gap-y-2">
-				<h2
-					class="text-center text-4xl font-bold md:col-start-1 md:col-end-2 md:row-start-1 md:row-end-1 md:text-3xl"
-				>
-					{workflowStep.name}
-				</h2>
-				<div class="prose-sm prose-p:text-base prose-li:text-base mx-auto max-w-3xl">
-					{#key workflowStep.description}
-						<ContentRenderer content={workflowStep.description} />
-					{/key}
-				</div>
-			</div>
-			<div class="flex grow flex-col md:row-start-2">
+		<div class="w-full md:order-1 md:px-0">
+			<StepHeader
+				{currentStepNumber}
+				totalSteps={stepItems.length}
+				title={workflowStep.name}
+				description={workflowStep.description}
+				prevHref={prevStepHref()}
+				onNext={currentNextAction ?? stepComplete}
+			/>
+		</div>
+
+		<div class="flex w-full grow flex-col gap-y-2 md:order-3">
+			<div class="flex grow flex-col">
 				{#if !workflowStep.required}
 					<Button onclick={stepComplete} class="mx-auto" variant="secondary"
 						>Skip this step</Button
@@ -105,6 +168,7 @@
 							onDone={stepComplete}
 							pages={toolConfig.pages}
 							user_id={user.id}
+							onNextAction={handleNextAction}
 						/>
 					{/if}
 					{#if toolConfig.type === Polis.TOOL_NAME}

@@ -81,8 +81,10 @@
 		<ConversationSummary {conversation}>
 			{#if user}
 				{#if participation}
-					<Button class="mt-5 w-full md:w-fit" href={firstWorkflowPath}
-						>{m.jump_back_in()}</Button
+					<Button
+						class="mt-5 w-full md:w-fit"
+						variant="primaryDark"
+						href={firstWorkflowPath}>{m.jump_back_in()}</Button
 					>
 				{:else}
 					<Button class="mt-5 w-full md:w-fit" onclick={registerUser}

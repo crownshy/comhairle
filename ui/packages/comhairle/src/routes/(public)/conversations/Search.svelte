@@ -1,30 +1,32 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import MagnifyingGlass from 'svelte-radix/MagnifyingGlass.svelte';
-	import { getSearch } from './utils';
+	import { Input } from '$lib/components/ui/input';
+	import { Search } from 'lucide-svelte';
+	import { getSearch, setSearch } from './utils';
 
-	const props: { url: URL } = $props();
+	let value = $state(getSearch(page.url));
+	let debounceTimer: ReturnType<typeof setTimeout>;
 
-	const action = $derived.by(() => {
-		const url = new URL(props.url);
-		url.searchParams.set('/search', '');
-		return '?' + url.searchParams.toString();
+	$effect(() => {
+		value = getSearch(page.url);
 	});
-	const value = $derived(getSearch(page.url));
+
+	function onInput(e: Event) {
+		const input = e.target as HTMLInputElement;
+		value = input.value;
+
+		clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => {
+			const url = setSearch(page.url, value);
+			goto(url.toString(), { replaceState: true, keepFocus: true, noScroll: true });
+		}, 300);
+	}
 </script>
 
-<form id="search-form" class="space-0 flex max-w-sm items-center" {action} method="POST">
-	<Input
-		name="search"
-		placeholder="search"
-		size={16}
-		{value}
-		class="h-8 rounded-r-none border-r-0"
-		on:focusout={() => document.getElementById('search-form')?.submit()}
+<div class="relative w-72">
+	<Search
+		class="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
 	/>
-	<Button size="sm" type="submit" variant="outline" class="rounded-l-none px-2"
-		><MagnifyingGlass class="h-4 w-4" /></Button
-	>
-</form>
+	<Input placeholder="Search" {value} oninput={onInput} class="pl-9" />
+</div>
