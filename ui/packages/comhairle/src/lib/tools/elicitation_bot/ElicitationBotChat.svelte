@@ -16,7 +16,7 @@
 			{ id: '3', content: 'What decisions will this influence', status: 'editing' as const }
 		],
 		topic,
-		placeholder = 'Ask questions....',
+		placeholder = 'Share your views....',
 		onSendMessage = (message: string) => console.log('Message sent:', message),
 		onClaimApprove = (claimId: string) => console.log('Claim approved:', claimId),
 		onClaimEdit = (claimId: string, newContent: string) =>
@@ -338,12 +338,12 @@
 										class="text-chat-text placeholder:text-chat-text-muted min-h-6 flex-1 resize-none self-center overflow-y-auto bg-transparent px-4 py-3 text-sm leading-5 outline-none"
 										style="max-height: 200px;"
 									></textarea>
-									<button
+									<!-- <button
 										class="text-chat-primary hover:text-chat-primary-dark p-2.5 transition-colors"
 										aria-label="Voice input"
 									>
 										<Mic class="h-5 w-5" />
-									</button>
+									</button> -->
 								</div>
 								<button
 									onclick={sendMessage}
@@ -484,12 +484,12 @@
 									class="text-chat-text placeholder:text-chat-text-muted min-h-6 flex-1 resize-none self-center overflow-y-auto bg-transparent px-4 py-3 text-sm leading-5 outline-none"
 									style="max-height: 200px;"
 								></textarea>
-								<button
+								<!-- <button
 									class="text-chat-primary hover:text-chat-primary-dark p-2.5 transition-colors"
 									aria-label="Voice input"
 								>
 									<Mic class="h-5 w-5" />
-								</button>
+								</button> -->
 							</div>
 							<button
 								onclick={sendMessage}
