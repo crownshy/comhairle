@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as Drawer from '$lib/components/ui/drawer';
 	import * as Tabs from '$lib/components/ui/tabs';
+	import { LucideChevronRight } from 'lucide-svelte';
 	import CircleQuestionMark from '$lib/components/icons/CircleQuestionMark.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import CollapsibleChat from '$lib/components/Chatbot/CollapsibleChat.svelte';
@@ -28,10 +29,16 @@
 </script>
 
 <Drawer.Root direction="right">
-	<Drawer.Trigger class="bg-primary absolute top-1/5 right-0 p-3"
+	<Drawer.Trigger
+		class="bg-primary/50 hover:bg-primary lg:bg-primary fixed top-1/5 right-0 p-3 transition-colors duration-300 ease-in-out"
 		><span><CircleQuestionMark class="stroke-foreground" /></span></Drawer.Trigger
 	>
-	<Drawer.Content class="px-8 py-12">
+	<Drawer.Content
+		class="flex w-screen! max-w-[100vw]! flex-col justify-between px-8 py-12 lg:max-w-[50vw]!"
+	>
+		<Drawer.Close class="absolute top-0 left-0 p-3"
+			><span><LucideChevronRight class="stroke-foreground" /></span></Drawer.Close
+		>
 		<Tabs.Root value="faqs">
 			<div class="bg-sidebar mb-4 flex flex-row gap-0.5 rounded-lg p-1">
 				{#each tabs as tab (tab.value)}
