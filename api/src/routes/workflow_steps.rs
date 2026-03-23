@@ -197,7 +197,7 @@ async fn list_workflows_step(
         ))
     } else {
         let mut workflow_steps =
-            workflow_step::list_localised(&state.db, &workflow_id, &locale).await?;
+            workflow_step::list_localized(&state.db, &workflow_id, &locale).await?;
         if !conversation_owner {
             for workflow_step in workflow_steps.iter_mut() {
                 workflow_step.sanatize();
