@@ -3,6 +3,7 @@ import type { PageLoad } from './$types';
 import { notifications } from '$lib/notifications.svelte';
 import { next_workflow_step_url } from '$lib/urls';
 import type { LocalizedWorkflowStepDto, UserProgressDto } from '@crownshy/api-client/api';
+import { canRevisitStep } from '$lib/config/step-revisitability';
 
 export const load: PageLoad = async (event) => {
 	const { api, conversation, preview } = await event.parent();
@@ -19,28 +20,47 @@ export const load: PageLoad = async (event) => {
 			// Progress may not be available
 		}
 
-		const stepProgress = userProgress.find((p) => p.workflowStepId === workflow_step_id);
-		const isStepAlreadyDone = stepProgress?.status === 'done';
-
-		// If we are in preview mode then let the user see this step regardless of if it
-		// is next. Also dont capture progress
-		if (conversation.isLive && !isStepAlreadyDone) {
-			const current_step = await api.NextConversationWorkflowStepForUser({
-				params: { conversation_id: conversation.id, workflow_id: workflow_id }
-			});
-
-			if (current_step && current_step.id !== workflow_step_id) {
-				return redirect(302, next_workflow_step_url(conversation_id, workflow_id, preview));
-			}
-
-			await api.SetUserProgress('in_progress', {
-				params: { conversation_id, workflow_id, workflow_step_id },
-				headers: { 'Content-Type': 'application/json' }
-			});
-		}
 		const workflowSteps: LocalizedWorkflowStepDto[] = await api.ListConversationWorkflowSteps({
 			params: { conversation_id, workflow_id }
 		});
+
+		const stepProgress = userProgress.find((p) => p.workflowStepId === workflow_step_id);
+		const isStepAlreadyDone = stepProgress?.status === 'done';
+
+		const thisStep = workflowSteps.find((s) => s.id === workflow_step_id);
+		const toolType = thisStep?.previewToolConfig?.type ?? thisStep?.toolConfig?.type;
+		const workflowEnded =
+			workflowSteps.length > 0 &&
+			workflowSteps.every((ws) =>
+				userProgress.some((p) => p.workflowStepId === ws.id && p.status === 'done')
+			);
+		const isRevisitable = toolType ? canRevisitStep(toolType, workflowEnded) : false;
+
+		// If we are in preview mode then let the user see this step regardless of if it
+		// is next. Also dont capture progress
+		if (conversation.isLive) {
+			if (isStepAlreadyDone && !isRevisitable) {
+				return redirect(302, next_workflow_step_url(conversation_id, workflow_id, preview));
+			}
+
+			if (!isStepAlreadyDone) {
+				const current_step = await api.NextConversationWorkflowStepForUser({
+					params: { conversation_id: conversation.id, workflow_id: workflow_id }
+				});
+
+				if (current_step && current_step.id !== workflow_step_id) {
+					return redirect(
+						302,
+						next_workflow_step_url(conversation_id, workflow_id, preview)
+					);
+				}
+
+				await api.SetUserProgress('in_progress', {
+					params: { conversation_id, workflow_id, workflow_step_id },
+					headers: { 'Content-Type': 'application/json' }
+				});
+			}
+		}
 		const workflowStep: LocalizedWorkflowStepDto = await api.GetConversationWorkflowStep({
 			params: {
 				conversation_id: conversation_id,

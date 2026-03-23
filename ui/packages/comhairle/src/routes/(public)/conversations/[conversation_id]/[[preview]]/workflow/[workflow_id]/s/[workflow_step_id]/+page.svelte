@@ -15,6 +15,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
+	import { canRevisitStep } from '$lib/config/step-revisitability';
 
 	let { data }: PageProps = $props();
 	let { user } = data;
@@ -31,6 +32,13 @@
 	let carta = createCarta();
 	let pageTitle = $derived(workflowStep?.name ?? 'Workflow Step');
 
+	let workflowEnded = $derived(
+		workflowSteps.length > 0 &&
+			workflowSteps.every((ws) =>
+				userProgress.some((p) => p.workflowStepId === ws.id && p.status === 'done')
+			)
+	);
+
 	let stepItems = $derived<StepItem[]>(
 		[...workflowSteps]
 			.sort((a, b) => a.stepOrder - b.stepOrder)
@@ -39,18 +47,18 @@
 				const isCurrent = ws.id === workflowStep.id;
 				const isCompleted = progress?.status === 'done';
 				const isBefore = ws.stepOrder < workflowStep.stepOrder;
+				const toolType = ws.previewToolConfig?.type ?? ws.toolConfig?.type;
+				const canRevisit = toolType ? canRevisitStep(toolType, workflowEnded) : false;
+
+				const passedThrough = isCompleted || isBefore;
 
 				let status: StepItem['status'];
 				if (isCurrent) {
 					status = 'current';
-				} else if (isCompleted) {
-					// TODO: Determine navigability from API — for now, completed steps
-					// before current are navigable, completed steps after are locked
-					status = isBefore ? 'completed' : 'completed-locked';
-				} else if (isBefore) {
-					// Step is before current but not marked done — treat as completed
-					// (they must have passed through it to reach current)
+				} else if (passedThrough && canRevisit) {
 					status = 'completed';
+				} else if (passedThrough) {
+					status = 'completed-locked';
 				} else {
 					status = 'upcoming';
 				}
@@ -70,11 +78,9 @@
 	let prevStepHref = $derived(() => {
 		const currentIdx = stepItems.findIndex((s) => s.status === 'current');
 		if (currentIdx <= 0) return undefined;
-		const sortedSteps = [...workflowSteps].sort((a, b) => a.stepOrder - b.stepOrder);
-		const prevWs = sortedSteps[currentIdx - 1];
-		if (!prevWs) return undefined;
-		const isPreview = !conversation.isLive;
-		return workflow_step_url(conversation.id, workflow_id, prevWs.id, isPreview);
+		const prevItem = stepItems[currentIdx - 1];
+		if (!prevItem || prevItem.status !== 'completed') return undefined;
+		return prevItem.href;
 	});
 
 	let currentNextAction = $state<(() => void) | undefined>(undefined);

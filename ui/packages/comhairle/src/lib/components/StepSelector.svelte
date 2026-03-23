@@ -40,6 +40,7 @@
 				href={step.href}
 				class="bg-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all hover:scale-110 hover:shadow-md"
 				aria-label="Step {index + 1}: {step.name} (completed, click to return)"
+				title="Step {index + 1}: {step.name} (completed, click to return)"
 			>
 				<Check class="text-primary-foreground h-5 w-5" />
 			</a>
@@ -47,6 +48,7 @@
 			<div
 				class="bg-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
 				aria-label="Step {index + 1}: {step.name} (completed)"
+				title="Step {index + 1}: {step.name} (completed)"
 			>
 				<Check class="text-primary-foreground h-5 w-5" />
 			</div>
@@ -55,6 +57,7 @@
 		<div
 			class="bg-popover outline-ring/40 flex h-10 w-10 shrink-0 items-center justify-center rounded-full outline-2 -outline-offset-2"
 			aria-label="Step {index + 1}: {step.name} (completed, locked)"
+			title="Step {index + 1}: {step.name} (completed)"
 		>
 			<Check class="text-muted-foreground h-5 w-5" />
 		</div>
@@ -63,6 +66,7 @@
 			class="bg-primary/20 outline-primary/5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full outline-1 -outline-offset-1"
 			aria-current="step"
 			aria-label="Step {index + 1}: {step.name} (current)"
+			title="Step {index + 1}: {step.name} (current)"
 		>
 			<div class="bg-primary h-5 w-5 rounded-full"></div>
 		</div>
@@ -70,6 +74,7 @@
 		<div
 			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full -outline-offset-1 outline-transparent"
 			aria-label="Step {index + 1}: {step.name} (upcoming)"
+			title="Step {index + 1}: {step.name} (upcoming)"
 		>
 			<div class="bg-primary/20 h-5 w-5 rounded-full"></div>
 		</div>

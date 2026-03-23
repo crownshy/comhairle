@@ -8,10 +8,10 @@
 		tags: ['autodocs']
 	});
 
-	// Step 3 of 6: current, steps 1-2 completed (navigable), 4-6 upcoming
+	// Step 3 of 6: current, step 1 revisitable, step 2 locked, 4-6 upcoming
 	const sixStepsMiddle = [
 		{ id: 's1', name: 'Learn about the topic', status: 'completed', href: '#step-1' },
-		{ id: 's2', name: 'Privacy policy', status: 'completed', href: '#step-2' },
+		{ id: 's2', name: 'Privacy policy', status: 'completed-locked' },
 		{ id: 's3', name: 'Tell us about you', status: 'current' },
 		{ id: 's4', name: 'About Scottish government', status: 'upcoming' },
 		{ id: 's5', name: 'Interactive discussion', status: 'upcoming' },
@@ -28,10 +28,10 @@
 		{ id: 's6', name: 'Summary', status: 'upcoming' }
 	];
 
-	// Summary page: all completed, some locked, current at last
+	// Summary page: step 1 revisitable, all others locked, current at last
 	const sixStepsSummary = [
 		{ id: 's1', name: 'Learn about the topic', status: 'completed', href: '#step-1' },
-		{ id: 's2', name: 'Privacy policy', status: 'completed', href: '#step-2' },
+		{ id: 's2', name: 'Privacy policy', status: 'completed-locked' },
 		{ id: 's3', name: 'Tell us about you', status: 'completed-locked' },
 		{ id: 's4', name: 'See how others think', status: 'completed-locked' },
 		{ id: 's5', name: 'What do you think', status: 'completed-locked' },
@@ -89,9 +89,7 @@
 			<StepSelector steps={threeStepsFirst} />
 		</div>
 		<div>
-			<p class="text-muted-foreground mb-2 text-sm">
-				Middle step — navigable completed steps
-			</p>
+			<p class="text-muted-foreground mb-2 text-sm">Middle step — only step 1 revisitable</p>
 			<StepSelector steps={sixStepsMiddle} />
 		</div>
 		<div>

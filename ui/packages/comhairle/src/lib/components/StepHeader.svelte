@@ -24,7 +24,7 @@
 </script>
 
 <!-- Desktop -->
-<div class="bg-background hidden w-full max-w-3xl rounded-2xl p-6 md:block">
+<div class="bg-background mx-auto hidden w-full max-w-3xl rounded-2xl p-6 md:block">
 	<div class="mx-auto flex max-w-lg flex-col items-center gap-2">
 		<p class="text-primary text-center text-2xl leading-7 font-semibold">
 			Step {currentStepNumber} of {totalSteps}
