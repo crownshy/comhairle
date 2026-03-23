@@ -179,6 +179,7 @@
 								userId={user.id}
 								surveyId={toolConfig.survey_id}
 								surveyURL={toolConfig.survey_url}
+								serverURL={toolConfig.server_url}
 								onDone={stepComplete}
 							/>
 						{/key}

@@ -390,6 +390,7 @@
 					class="text-chat-text placeholder:text-chat-text-muted min-h-6 flex-1 resize-none self-center overflow-y-auto bg-transparent px-4 py-3 text-sm leading-5 outline-none disabled:opacity-50"
 					style="max-height: 200px;"
 				></textarea>
+				<!-- TODO: add back in once functionality provided
 				<button
 					class="text-chat-text-muted hover:text-chat-neutral p-2.5 transition-colors disabled:opacity-50"
 					disabled={isInitializing}
@@ -397,6 +398,7 @@
 				>
 					<Mic class="h-5 w-5" />
 				</button>
+				-->
 			</div>
 			<button
 				onclick={sendMessage}

@@ -15,6 +15,7 @@ pub struct UserProfileDto {
     pub age: Option<i32>,
     pub gender: Option<String>,
     pub zipcode: Option<String>,
+    pub political_party: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -29,6 +30,7 @@ impl From<UserProfile> for UserProfileDto {
             age: profile.age,
             gender: profile.gender,
             zipcode: profile.zipcode,
+            political_party: profile.political_party,
             created_at: profile.created_at,
             updated_at: profile.updated_at,
         }
@@ -43,4 +45,5 @@ pub struct UpsertUserProfileRequest {
     pub age: Option<i32>,
     pub gender: Option<String>,
     pub zipcode: Option<String>,
+    pub political_party: Option<String>,
 }

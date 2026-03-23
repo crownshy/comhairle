@@ -20,8 +20,6 @@ use crate::{error::ComhairleError, models, ComhairleState};
 
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 
-pub const POLIS_BASE_URL: &str = "https://polis.comhairle.scot";
-
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
 pub struct PolisToolConfig {
     pub server_url: String,
@@ -61,10 +59,10 @@ impl ToolImpl for PolisTool {
 
     async fn setup(
         setup: &Self::Setup,
-        _state: &Arc<ComhairleState>,
+        state: &Arc<ComhairleState>,
     ) -> Result<Self::Config, ComhairleError> {
         // Delegate to existing setup function
-        polis_setup(setup).await
+        polis_setup(setup, &state.config.polis_url).await
     }
 
     async fn clone_tool(
@@ -144,6 +142,7 @@ struct NewPollResp {
 
 pub struct PolisClient {
     client: reqwest::Client,
+    base_url: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -179,16 +178,19 @@ pub struct SetTopicRequest {
 }
 
 impl PolisClient {
-    pub fn new() -> Self {
+    pub fn new(base_url: &str) -> Self {
         let client = Client::builder().cookie_store(true).build().unwrap();
-        Self { client }
+        Self {
+            client,
+            base_url: base_url.to_string(),
+        }
     }
 
     pub async fn create_random_admin_user(&self) -> Result<(String, String), PolisError> {
         info!("Creating a random admin user");
         let username: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
-            .take(6)
+            .take(10)
             .map(char::from)
             .collect();
 
@@ -196,7 +198,7 @@ impl PolisClient {
 
         let password: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
-            .take(6)
+            .take(10)
             .map(char::from)
             .collect();
 
@@ -210,7 +212,7 @@ impl PolisClient {
 
         let _res = self
             .client
-            .post(format!("{POLIS_BASE_URL}/api/v3/auth/new"))
+            .post(format!("https://{}/api/v3/auth/new", self.base_url))
             .json(&new_user)
             .send()
             .await
@@ -231,7 +233,7 @@ impl PolisClient {
 
     async fn login(&self, login: &PolisLogin) -> Result<String, PolisError> {
         info!("Logging in to polis");
-        let url = format!("{POLIS_BASE_URL}/api/v3/auth/login");
+        let url = format!("https://{}/api/v3/auth/login", self.base_url);
         println!("format {url}");
         let resp = self
             .client
@@ -267,10 +269,10 @@ impl PolisClient {
     }
 
     pub async fn create_poll(&self) -> Result<String, PolisError> {
-        info!("Attepting to create a new poll");
+        info!("Attempting to create a new poll");
         let new_poll = self
             .client
-            .post(format!("{POLIS_BASE_URL}/api/v3/conversations"))
+            .post(format!("https://{}/api/v3/conversations", self.base_url))
             .send()
             .await
             .map_err(|e| {
@@ -290,7 +292,7 @@ impl PolisClient {
     pub async fn set_topic(&self, topic: SetTopicRequest) -> Result<(), PolisError> {
         let body = self
             .client
-            .put(format!("{POLIS_BASE_URL}/api/v3/conversations"))
+            .put(format!("{}/api/v3/conversations", self.base_url))
             .json(&topic)
             .send()
             .await
@@ -314,7 +316,7 @@ impl PolisClient {
 
         let resp = self
             .client
-            .post(format!("{POLIS_BASE_URL}/api/v3/comments"))
+            .post(format!("{}/api/v3/comments", self.base_url))
             .json(&post_json)
             .send()
             .await
@@ -327,7 +329,10 @@ impl PolisClient {
     }
 
     pub async fn get_comments(&self, poll_id: &str) -> Result<Vec<PolisComment>, PolisError> {
-        let url = format!("{POLIS_BASE_URL}/api/v3/comments?conversation_id={poll_id}");
+        let url = format!(
+            "{}/api/v3/comments?conversation_id={poll_id}",
+            self.base_url
+        );
         let comments: Vec<PolisComment> =
             self.client
                 .get(url)
@@ -357,7 +362,7 @@ async fn admin_login(
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
 
     if let ToolConfig::Polis(config) = workflow_step.preview_tool_config {
-        let client = PolisClient::new();
+        let client = PolisClient::new(&config.server_url);
         let cookie = client
             .login(&PolisLogin {
                 email: config.admin_user,
@@ -377,10 +382,14 @@ async fn admin_login(
 
 #[instrument(err(Debug))]
 pub async fn launch(preview_config: &PolisToolConfig) -> Result<PolisToolConfig, ComhairleError> {
-    let preview_client = PolisClient::new();
-    let live_client = PolisClient::new();
+    let preview_client = PolisClient::new(&preview_config.server_url);
+    let live_client = PolisClient::new(&preview_config.server_url);
 
-    let live_poll_config = polis_setup(&PolisToolSetup { topic: "".into() }).await?;
+    let live_poll_config = polis_setup(
+        &PolisToolSetup { topic: "".into() },
+        &preview_config.server_url,
+    )
+    .await?;
 
     preview_client
         .login(&PolisLogin {
@@ -412,9 +421,12 @@ pub async fn launch(preview_config: &PolisToolConfig) -> Result<PolisToolConfig,
     Ok(live_poll_config)
 }
 
-async fn polis_setup(_setup: &PolisToolSetup) -> Result<PolisToolConfig, ComhairleError> {
+async fn polis_setup(
+    _setup: &PolisToolSetup,
+    polis_url: &str,
+) -> Result<PolisToolConfig, ComhairleError> {
     info!("Attempting to set up polis poll");
-    let client = PolisClient::new();
+    let client = PolisClient::new(polis_url);
     let (email, password) = client.create_random_admin_user().await?;
     client
         .login(&PolisLogin {
@@ -426,16 +438,11 @@ async fn polis_setup(_setup: &PolisToolSetup) -> Result<PolisToolConfig, Comhair
     let poll_id = client.create_poll().await?;
 
     Ok(PolisToolConfig {
-        server_url: POLIS_BASE_URL.into(),
+        server_url: polis_url.to_string(),
         poll_id,
         admin_user: email,
         admin_password: password,
     })
-}
-
-// Keep public function for backwards compatibility
-pub async fn setup(setup: &PolisToolSetup) -> Result<PolisToolConfig, ComhairleError> {
-    polis_setup(setup).await
 }
 
 #[cfg(test)]
@@ -445,7 +452,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn login() -> Result<(), Box<dyn std::error::Error>> {
-        let client = PolisClient::new();
+        let client = PolisClient::new("polis.comhairle.scot");
         let login = PolisLogin {
             email: "xVHTX2@comhairle.com".into(),
             password: "GNgTWJ".into(),
@@ -464,7 +471,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn create_poll() -> Result<(), Box<dyn std::error::Error>> {
-        let client = PolisClient::new();
+        let client = PolisClient::new("polis.comhairle.scot");
 
         // let login = PolisLogin {
         //     email: "xVHTX2@comhairle.com".into(),
@@ -484,7 +491,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn sign_up_and_create_poll() -> Result<(), Box<dyn std::error::Error>> {
-        let client = PolisClient::new();
+        let client = PolisClient::new("polis.comhairle.scot");
         let (email, password) = client.create_random_admin_user().await?;
         println!("{email} {password}");
 
@@ -501,7 +508,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn set_topic() -> Result<(), Box<dyn std::error::Error>> {
-        let client = PolisClient::new();
+        let client = PolisClient::new("polis.comhairle.scot");
 
         let _login = PolisLogin {
             email: "xVHTX2@comhairle.com".into(),

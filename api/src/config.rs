@@ -10,10 +10,13 @@ pub fn load() -> Result<ComhairleConfig, ComhairleError> {
             "ababa039cc54b5df83e8899c3c5839e096379d507263c732eb54c52477bf8087",
         )?
         .set_default("domain", "http://localhost:5173")?
+        .set_default("enable_rate_limiting", true)?
         .set_default("mailer.host", "")?
         .set_default("mailer.user", "")?
         .set_default("mailer.password", "")?
         .set_default("mailer.from_email", "invites@comhairle.scot")?
+        .set_default("heyform_url", "forms.comhairle.scot")?
+        .set_default("polis_url", "polis.comhairle.scot")?
         .add_source(
             Environment::default()
                 .list_separator(",")
@@ -62,4 +65,7 @@ pub struct ComhairleConfig {
     pub default_knowledge_base_id: Option<String>,
     pub elicitation_bot_agent_id: Option<String>,
     pub whitelisted_domains: Option<Vec<String>>,
+    pub enable_rate_limiting: bool,
+    pub heyform_url: String,
+    pub polis_url: String,
 }

@@ -4,11 +4,13 @@
 		surveyId,
 		userId,
 		surveyURL,
+		serverURL,
 		extraSurveyParams
 	}: {
 		onDone: () => void;
 		surveyId: string;
 		surveyURL: string;
+		serverURL: string;
 		userId: string;
 		extraSurveyParams?: Record<string, string>;
 	} = $props();
@@ -27,15 +29,25 @@
 		};
 	});
 
-	let url = `https://forms.comhairle.scot/form/${surveyId}?&amp;id=${surveyId}&amp;type=modal&amp;customUrl=https%3A%2F%2Fforms.crown-shy.com%2Fform%2F&amp;widthType=%25&amp;width=100&amp;heightType=px&amp;height=500&amp;autoResizeHeight=true&polis_id=${userId}&hideAfterSubmit=true&autoClose=1`;
-	if (extraSurveyParams) {
-		let params = new URLSearchParams(extraSurveyParams).toString();
-		url = url + '&' + params;
-	}
+	const base_url = $derived.by(() =>
+		serverURL.startsWith('https://') ? serverURL : `https://${serverURL}`
+	);
+
+	let url = $derived(
+		`${base_url}/form/${surveyId}?&amp;id=${surveyId}&amp;type=modal&amp;customUrl=https%3A%2F%2Fforms.crown-shy.com%2Fform%2F&amp;widthType=%25&amp;width=100&amp;heightType=px&amp;height=500&amp;autoResizeHeight=true&polis_id=${userId}&hideAfterSubmit=true&autoClose=1`
+	);
+
+	let fullUrl = $derived.by(() => {
+		if (extraSurveyParams) {
+			let params = new URLSearchParams(extraSurveyParams).toString();
+			return url + '&' + params;
+		}
+		return url;
+	});
 </script>
 
 <iframe
-	src={url}
+	src={fullUrl}
 	title="survey"
 	allow="microphone; camera"
 	class="h-full min-h-[900px] w-full border-none"

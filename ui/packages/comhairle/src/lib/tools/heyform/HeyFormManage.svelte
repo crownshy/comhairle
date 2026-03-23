@@ -1,6 +1,7 @@
 <script lang="ts">
 	let {
 		survey_id,
+		survey_url,
 		admin_user,
 		admin_password,
 		workspace_id,
@@ -18,36 +19,45 @@
 		workflow_step_id: string;
 	} = $props();
 	let iframe = $state();
+	let firstLoad = $state(true);
 
-	const CREATE_PAGE = `https://forms.comhairle.scot/workspace/${workspace_id}/project/${project_id}/form/${survey_id}/create`;
+	const base_url = $derived.by(() =>
+		survey_url.startsWith('https://') ? survey_url : `https://${survey_url}`
+	);
 
-	const HOME = 'https://forms.comhairle.scot/login';
+	const CREATE_PAGE = $derived(
+		`${base_url}/workspace/${workspace_id}/project/${project_id}/form/${survey_id}/create`
+	);
 
-	let url = $state(HOME);
+	const HOME = $derived(`${base_url}/login`);
 
 	function handleLoad(e) {
-		setTimeout(() => {
-			iframe.contentWindow.postMessage(
-				{
-					type: 'HEYFORM_LOGIN',
-					user: admin_user,
-					password: admin_password,
-					redirect: CREATE_PAGE
-				},
-				'https://forms.comhairle.scot'
-			);
-		}, 100);
+		if (firstLoad) {
+			setTimeout(() => {
+				iframe.contentWindow.postMessage(
+					{
+						type: 'HEYFORM_LOGIN',
+						user: admin_user,
+						password: admin_password,
+						redirect: CREATE_PAGE
+					},
+					base_url
+				);
+			}, 100);
 
-		setTimeout(() => {
-			iframe.style.display = 'block';
-		}, 1000);
+			setTimeout(() => {
+				iframe.style.display = 'block';
+			}, 1000);
+
+			firstLoad = false;
+		}
 	}
 </script>
 
 <iframe
 	bind:this={iframe}
 	onload={handleLoad}
-	src={url}
+	src={HOME}
 	title="survey"
 	allow="microphone; camera"
 	class="h-full w-full border-none"

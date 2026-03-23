@@ -43,6 +43,7 @@
 		$form.isPublic = data.conversation.isPublic;
 		$form.isInviteOnly = data.conversation.isInviteOnly;
 		$form.autoLogin = data.workflows[0]?.autoLogin;
+		$form.enableQaChatBot = data.conversation.enableQaChatBot;
 	});
 
 	function updateFormForLanguage(newLanguage: string) {
@@ -131,7 +132,8 @@
 			imageUrl: data.conversation.imageUrl,
 			isPublic: data.conversation.isPublic,
 			isInviteOnly: data.conversation.isInviteOnly,
-			autoLogin: data.workflows[0].autoLogin
+			autoLogin: data.workflows[0].autoLogin,
+			enableQaChatBot: data.conversation.enableQaChatBot
 		},
 		{
 			validators: zodClient(conversationConfigSchema),
@@ -388,6 +390,30 @@
 								</p>
 							</div>
 							<Switch {...props} bind:checked={$form.autoLogin} />
+						</div>
+					{/snippet}
+				</Form.Control>
+				<Form.FieldErrors />
+			</Form.Field>
+
+			<Form.Field form={conversationForm} name="enableQaChatBot">
+				<Form.Control>
+					{#snippet children({ props })}
+						<div class="flex items-center justify-between gap-4">
+							<div class="flex flex-col gap-1">
+								<Form.Label class="text-sm font-medium">Show Tutor Bot</Form.Label>
+								<p class="text-muted-foreground text-sm">
+									Display a Q&A Tutor Bot on the conversation.<br />
+									{#if !conversation.isLive}
+										(Configure Tutor Bot on the
+										<a
+											href={`/admin/conversations/${conversation.id}/knowledge-base`}
+											class="underline">Knowledge Base page</a
+										>)
+									{/if}
+								</p>
+							</div>
+							<Switch {...props} bind:checked={$form.enableQaChatBot} />
 						</div>
 					{/snippet}
 				</Form.Control>

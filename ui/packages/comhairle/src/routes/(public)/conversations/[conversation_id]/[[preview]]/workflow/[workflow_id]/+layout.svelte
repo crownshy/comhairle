@@ -8,7 +8,7 @@
 
 {@render children()}
 
-{#if conversation?.chatBotId}
+{#if conversation?.chatBotId && conversation.enableQaChatBot}
 	<CollapsibleChat
 		chatId={conversation.chatBotId}
 		conversationId={conversation.id}
