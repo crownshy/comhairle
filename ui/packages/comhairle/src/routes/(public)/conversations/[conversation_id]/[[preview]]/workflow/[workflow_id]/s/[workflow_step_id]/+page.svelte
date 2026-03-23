@@ -200,6 +200,7 @@
 							user_id={user.id}
 							polis_id={toolConfig.poll_id}
 							polis_url={toolConfig.server_url}
+							workflowStepId={workflowStep.id}
 							onDone={stepComplete}
 						/>
 					{/if}
