@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use aide::axum::{routing::post_with, ApiRouter};
+use aide::axum::{
+    routing::{get_with, post_with},
+    ApiRouter,
+};
 use async_trait::async_trait;
 use axum::{
     extract::{Json, Query, State},
@@ -86,6 +89,15 @@ impl ToolImpl for PolisTool {
                         .tag("Tools")
                         .summary("Login as Polis admin and proxy cookie")
                         .description("Logs into Polis as admin and returns session cookie")
+                }),
+            )
+            .api_route(
+                "/polis/report_data",
+                get_with(get_report_data, |op| {
+                    op.id("PolisGetReportData")
+                        .tag("Tools")
+                        .summary("Get Polis report data for a workflow step")
+                        .description("Fetches the polis data export for a given workflow step")
                 }),
             )
             .with_state(state.clone())
@@ -345,11 +357,124 @@ impl PolisClient {
 
         Ok(comments)
     }
+
+    pub async fn get_math_pca(&self, poll_id: &str) -> Result<serde_json::Value, PolisError> {
+        let url = format!(
+            "https://{}/api/v3/math/pca2?conversation_id={}&lastVoteTimestamp=0",
+            self.base_url, poll_id
+        );
+
+        info!("Getting PCA data from {url}");
+
+        let response = self.client.get(&url).send().await.map_err(|e| {
+            warn!("Failed to get PCA data: {e}");
+            PolisError::FailedToGetComments(format!("Failed to get PCA data: {e}"))
+        })?;
+
+        info!("Response {response:#?}");
+        let data = response.json::<serde_json::Value>().await.map_err(|e| {
+            warn!("Failed to parse PCA data: {e:#?}");
+            PolisError::FailedToGetComments(format!("Failed to parse PCA data: {e}"))
+        })?;
+
+        Ok(data)
+    }
+
+    pub async fn get_conversation(&self, poll_id: &str) -> Result<serde_json::Value, PolisError> {
+        let url = format!(
+            "https://{}/api/v3/conversations?conversation_id={}",
+            self.base_url, poll_id
+        );
+
+        let response = self.client.get(&url).send().await.map_err(|e| {
+            warn!("Failed to get conversation: {e}");
+            PolisError::FailedToGetComments(format!("Failed to get conversation: {e}"))
+        })?;
+
+        let data = response.json::<serde_json::Value>().await.map_err(|e| {
+            warn!("Failed to parse conversation: {e}");
+            PolisError::FailedToGetComments(format!("Failed to parse conversation: {e}"))
+        })?;
+
+        Ok(data)
+    }
+
+    pub async fn get_comments_with_voting(
+        &self,
+        poll_id: &str,
+    ) -> Result<serde_json::Value, PolisError> {
+        let url = format!(
+            "https://{}/api/v3/comments?conversation_id={}&moderation=true&include_voting_patterns=true",
+            self.base_url, poll_id
+        );
+
+        let response = self.client.get(&url).send().await.map_err(|e| {
+            warn!("Failed to get comments: {e}");
+            PolisError::FailedToGetComments(format!("Failed to get comments: {e}"))
+        })?;
+
+        let data = response.json::<serde_json::Value>().await.map_err(|e| {
+            warn!("Failed to parse comments: {e}");
+            PolisError::FailedToGetComments(format!("Failed to parse comments: {e}"))
+        })?;
+
+        Ok(data)
+    }
+
+    pub async fn get_report_data(&self, poll_id: &str) -> Result<serde_json::Value, PolisError> {
+        info!("Getting full report data for poll_id: {poll_id}");
+
+        // Fetch all the data that powers the report page
+        let math_pca = self.get_math_pca(poll_id).await?;
+        let conversation = self.get_conversation(poll_id).await?;
+        let comments = self.get_comments_with_voting(poll_id).await?;
+
+        // Combine into a single response
+        let report_data = json!({
+            "math": math_pca,
+            "conversation": conversation,
+            "comments": comments
+        });
+
+        Ok(report_data)
+    }
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 struct AdminLoginQuery {
     pub workflow_step_id: Uuid,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema)]
+struct ReportDataQuery {
+    pub workflow_step_id: Uuid,
+}
+
+/// Gets the polis report data for a workflow step
+async fn get_report_data(
+    State(state): State<Arc<ComhairleState>>,
+    Query(ReportDataQuery { workflow_step_id }): Query<ReportDataQuery>,
+) -> Result<(StatusCode, Json<serde_json::Value>), ComhairleError> {
+    let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
+
+    if let ToolConfig::Polis(config) = workflow_step.preview_tool_config {
+        let client = PolisClient::new(&config.server_url);
+
+        // Login as admin to access the data export
+        client
+            .login(&PolisLogin {
+                email: config.admin_user,
+                password: config.admin_password,
+            })
+            .await?;
+
+        // Get the report data
+        let data = client.get_report_data(&config.poll_id).await?;
+
+        Ok((StatusCode::OK, Json(data)))
+    } else {
+        Err(ComhairleError::WorkflowStepHasWrongType("Polis".into()))
+    }
 }
 
 /// Logs a user into polis and proxies the cookie
