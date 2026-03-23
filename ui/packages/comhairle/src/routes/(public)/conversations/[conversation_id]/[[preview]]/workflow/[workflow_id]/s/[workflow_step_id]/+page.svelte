@@ -39,46 +39,58 @@
 			)
 	);
 
-	let stepItems = $derived<StepItem[]>(
-		[...workflowSteps]
-			.sort((a, b) => a.stepOrder - b.stepOrder)
-			.map((ws) => {
-				const progress = userProgress.find((p) => p.workflowStepId === ws.id);
-				const isCurrent = ws.id === workflowStep.id;
-				const isCompleted = progress?.status === 'done';
-				const isBefore = ws.stepOrder < workflowStep.stepOrder;
-				const toolType = ws.previewToolConfig?.type ?? ws.toolConfig?.type;
-				const canRevisit = toolType ? canRevisitStep(toolType, workflowEnded) : false;
+	let sortedSteps = $derived([...workflowSteps].sort((a, b) => a.stepOrder - b.stepOrder));
 
-				const passedThrough = isCompleted || isBefore;
-
-				let status: StepItem['status'];
-				if (isCurrent) {
-					status = 'current';
-				} else if (passedThrough && canRevisit) {
-					status = 'completed';
-				} else if (passedThrough) {
-					status = 'completed-locked';
-				} else {
-					status = 'upcoming';
-				}
-
-				const isPreview = !conversation.isLive;
-				const href =
-					status === 'completed'
-						? workflow_step_url(conversation.id, workflow_id, ws.id, isPreview)
-						: undefined;
-
-				return { id: ws.id, name: ws.name, status, href };
-			})
+	let actualCurrentStep = $derived(
+		sortedSteps.find((ws) => {
+			const progress = userProgress.find((p) => p.workflowStepId === ws.id);
+			return progress?.status !== 'done';
+		}) ?? null
 	);
 
-	let currentStepNumber = $derived(stepItems.findIndex((s) => s.status === 'current') + 1);
+	let isRevisiting = $derived(
+		userProgress.some((p) => p.workflowStepId === workflowStep.id && p.status === 'done')
+	);
+
+	let stepItems = $derived<StepItem[]>(
+		sortedSteps.map((ws) => {
+			const progress = userProgress.find((p) => p.workflowStepId === ws.id);
+			const isCurrent = actualCurrentStep ? ws.id === actualCurrentStep.id : false;
+			const isCompleted = progress?.status === 'done';
+			const actualCurrentOrder = actualCurrentStep?.stepOrder ?? Infinity;
+			const isBefore = ws.stepOrder < actualCurrentOrder;
+			const toolType = ws.previewToolConfig?.type ?? ws.toolConfig?.type;
+			const canRevisit = toolType ? canRevisitStep(toolType, workflowEnded) : false;
+
+			const passedThrough = isCompleted || isBefore;
+
+			let status: StepItem['status'];
+			if (isCurrent) {
+				status = 'current';
+			} else if (passedThrough && canRevisit) {
+				status = 'completed';
+			} else if (passedThrough) {
+				status = 'completed-locked';
+			} else {
+				status = 'upcoming';
+			}
+
+			const isPreview = !conversation.isLive;
+			const href =
+				status === 'completed'
+					? workflow_step_url(conversation.id, workflow_id, ws.id, isPreview)
+					: undefined;
+
+			return { id: ws.id, name: ws.name, status, href };
+		})
+	);
+
+	let currentStepNumber = $derived(sortedSteps.findIndex((ws) => ws.id === workflowStep.id) + 1);
 
 	let prevStepHref = $derived(() => {
-		const currentIdx = stepItems.findIndex((s) => s.status === 'current');
-		if (currentIdx <= 0) return undefined;
-		const prevItem = stepItems[currentIdx - 1];
+		const viewedIdx = sortedSteps.findIndex((ws) => ws.id === workflowStep.id);
+		if (viewedIdx <= 0) return undefined;
+		const prevItem = stepItems[viewedIdx - 1];
 		if (!prevItem || prevItem.status !== 'completed') return undefined;
 		return prevItem.href;
 	});
@@ -94,6 +106,18 @@
 	}
 
 	async function stepComplete() {
+		if (isRevisiting) {
+			if (actualCurrentStep) {
+				const isPreview = !conversation.isLive;
+				goto(
+					workflow_step_url(conversation.id, workflow_id, actualCurrentStep.id, isPreview)
+				);
+			} else {
+				goToThankYouPage();
+			}
+			return;
+		}
+
 		try {
 			if (conversation.isLive) {
 				await apiClient.SetUserProgress('done', {
