@@ -10,6 +10,7 @@ pub mod models;
 mod routes;
 pub mod schema_helpers;
 mod tools;
+pub mod transcription_service;
 pub mod translation_service;
 pub mod websockets;
 pub mod workers;
@@ -44,7 +45,8 @@ use sqlx_postgres::PgPool;
 use tower_http::cors::CorsLayer;
 
 use crate::{
-    bulk_storage::BulkStorageService, routes::workflows::WorkflowRouterContext, workers::JobQueues,
+    bulk_storage::BulkStorageService, routes::workflows::WorkflowRouterContext,
+    transcription_service::Transcriber, workers::JobQueues,
 };
 
 #[derive(Clone)]
@@ -56,6 +58,7 @@ pub struct ComhairleState {
     pub translation_service: Option<Arc<dyn TranslationService>>,
     pub bot_service: Option<Arc<dyn ComhairleBotService>>,
     pub bulk_storage_service: Arc<dyn BulkStorageService>,
+    pub transcription_service: Option<Arc<dyn Transcriber>>,
     pub jobs: Arc<JobQueues>,
 }
 

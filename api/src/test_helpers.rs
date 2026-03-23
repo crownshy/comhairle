@@ -29,6 +29,7 @@ use crate::{
     mailer::MockComhairleMailer,
     models::users::UpdateUserRequest,
     routes::user::dto::UserDto,
+    transcription_service::{MockTranscriber, Transcriber},
     translation_service::{MockTranslationService, TranslationService},
     websockets::{MockWebSocketService, WebSocketService},
     workers::JobQueues,
@@ -56,6 +57,11 @@ pub fn mock_translation_service() -> Option<Arc<dyn TranslationService>> {
     Some(Arc::new(translation_service))
 }
 
+pub fn mock_transcription_service() -> Option<Arc<dyn Transcriber>> {
+    let transcription_service = MockTranscriber::base();
+    Some(Arc::new(transcription_service))
+}
+
 pub fn mock_bot_service() -> Arc<dyn ComhairleBotService> {
     let bot_service = MockComhairleBotService::base();
     Arc::new(bot_service)
@@ -73,6 +79,7 @@ pub fn test_state(
     config: Option<ComhairleConfig>,
     websockets: Option<Arc<dyn WebSocketService>>,
     translation_service: Option<Arc<dyn TranslationService>>,
+    transcription_service: Option<Arc<dyn Transcriber>>,
     bot_service: Option<Arc<dyn ComhairleBotService>>,
     bulk_storage_service: Option<Arc<dyn BulkStorageService>>,
 ) -> Result<ComhairleState, Box<dyn Error>> {
@@ -84,6 +91,9 @@ pub fn test_state(
         translation_service: translation_service
             .map(Some)
             .unwrap_or_else(|| mock_translation_service()),
+        transcription_service: transcription_service
+            .map(Some)
+            .unwrap_or_else(|| mock_transcription_service()),
         bot_service: Some(bot_service.unwrap_or_else(|| mock_bot_service())),
         // TODO: can this be mocked?
         jobs: Arc::new(JobQueues {

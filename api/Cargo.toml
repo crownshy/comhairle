@@ -106,8 +106,17 @@ dotenvy = "0.15.7"
 fake = { version = "4", features = ["chrono", "derive", "uuid"] }
 enum_dispatch = "0.3.13"
 
+# For Transcriber
+bytes = "1.4"
+aws-sdk-transcribestreaming = "1.95.0"
+aws-sdk-transcribe = "1.96.0"
+aws-smithy-types = "1.2.11"
+aws-smithy-http = {version="0.62.6", features=["event-stream"]}
+async-stream = "0.3.6"
+
 [dev-dependencies]
 fake = { version = "4", features = ["derive"] }
 
 [build-dependencies]
 minijinja-embed = "2.10.2"
+

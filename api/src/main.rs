@@ -3,10 +3,11 @@ use aws_config::BehaviorVersion;
 use comhairle::{
     bot_service::{ComhairleBotService, ComhairleRagBotService},
     bulk_storage::s3_storage::S3StorageService,
-    config::TranslatorConfig,
+    config::{TranscriptionServiceConfig, TranslatorConfig},
     db::setup_db,
     mailer::Mailer,
     setup_server,
+    transcription_service::amazon_transcriber::AmazonTranscriber,
     translation_service::GoogleTranslateService,
     websockets::ComhairleWebSocketService,
     workers::{process_documents::process_document_handler, JobQueues},
@@ -74,6 +75,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Setup Websocket service
     let websockets = Arc::new(ComhairleWebSocketService::new());
 
+    // Setup Transcription Service
+    let transcription_service = match &config.transcription_service {
+        Some(TranscriptionServiceConfig::AmazonTranscribe(_)) => {
+            Some(Arc::new(AmazonTranscriber::new().await)
+                as Arc<dyn comhairle::transcription_service::Transcriber>)
+        }
+        None => None,
+    };
+
     // Setup bot service
 
     let bot_service = match (
@@ -100,6 +110,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         config,
         websockets,
         translation_service,
+        transcription_service,
         bot_service,
         jobs,
         bulk_storage_service: Arc::new(bulk_storage_service),
