@@ -645,22 +645,6 @@ export const UserParticipation = z
   })
   .passthrough();
 export type UserParticipation = z.infer<typeof UserParticipation>;
-export const LocalizedWorkflowStepDto = z
-  .object({
-    activationRule: ActivationRule,
-    canRevisit: z.boolean(),
-    description: z.string(),
-    id: z.string().uuid(),
-    isOffline: z.boolean(),
-    name: z.string(),
-    previewToolConfig: ToolConfig,
-    required: z.boolean(),
-    stepOrder: z.number().int(),
-    toolConfig: z.union([ToolConfig, z.null()]).optional(),
-    workflowId: z.string().uuid(),
-  })
-  .passthrough();
-export type LocalizedWorkflowStepDto = z.infer<typeof LocalizedWorkflowStepDto>;
 export const Translation2 = z
   .object({
     textContent: TextContentDto,
@@ -693,9 +677,47 @@ export const WorkflowStepWithTranslations = z
 export type WorkflowStepWithTranslations = z.infer<
   typeof WorkflowStepWithTranslations
 >;
+export const ProgressStatus = z.enum(["not_started", "in_progress", "done"]);
+export type ProgressStatus = z.infer<typeof ProgressStatus>;
+export const LocalizedWorkflowStepWithProgressDto = z
+  .object({
+    activationRule: ActivationRule,
+    canRevisit: z.boolean(),
+    description: z.string(),
+    id: z.string().uuid(),
+    isOffline: z.boolean(),
+    name: z.string(),
+    previewToolConfig: ToolConfig,
+    progressStatus: ProgressStatus,
+    required: z.boolean(),
+    stepOrder: z.number().int(),
+    toolConfig: z.union([ToolConfig, z.null()]).optional(),
+    workflowId: z.string().uuid(),
+  })
+  .passthrough();
+export type LocalizedWorkflowStepWithProgressDto = z.infer<
+  typeof LocalizedWorkflowStepWithProgressDto
+>;
+export const LocalizedWorkflowStepDto = z
+  .object({
+    activationRule: ActivationRule,
+    canRevisit: z.boolean(),
+    description: z.string(),
+    id: z.string().uuid(),
+    isOffline: z.boolean(),
+    name: z.string(),
+    previewToolConfig: ToolConfig,
+    required: z.boolean(),
+    stepOrder: z.number().int(),
+    toolConfig: z.union([ToolConfig, z.null()]).optional(),
+    workflowId: z.string().uuid(),
+  })
+  .passthrough();
+export type LocalizedWorkflowStepDto = z.infer<typeof LocalizedWorkflowStepDto>;
 export const WorkflowStepsListResponse = z.union([
-  z.array(LocalizedWorkflowStepDto),
   z.array(WorkflowStepWithTranslations),
+  z.array(LocalizedWorkflowStepWithProgressDto),
+  z.array(LocalizedWorkflowStepDto),
 ]);
 export type WorkflowStepsListResponse = z.infer<
   typeof WorkflowStepsListResponse
@@ -766,8 +788,6 @@ export const PartialWorkflowStep = z
   .partial()
   .passthrough();
 export type PartialWorkflowStep = z.infer<typeof PartialWorkflowStep>;
-export const ProgressStatus = z.enum(["not_started", "in_progress", "done"]);
-export type ProgressStatus = z.infer<typeof ProgressStatus>;
 export const UserProgressDto = z
   .object({
     id: z.string().uuid(),
@@ -1332,16 +1352,17 @@ export const schemas = {
   WorkflowStepStats,
   WorkflowStats,
   UserParticipation,
-  LocalizedWorkflowStepDto,
   Translation2,
   WorkflowStepTranslations,
   WorkflowStepWithTranslations,
+  ProgressStatus,
+  LocalizedWorkflowStepWithProgressDto,
+  LocalizedWorkflowStepDto,
   WorkflowStepsListResponse,
   ToolSetup,
   CreateWorkflowStep,
   WorkflowStepDto,
   PartialWorkflowStep,
-  ProgressStatus,
   UserProgressDto,
   InviteType,
   LoginBehaviour,
@@ -2026,10 +2047,21 @@ curl -X POST \
     method: "get",
     path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps",
     alias: "ListEventWorkflowSteps",
+    description: `
+List the workflow steps associated with this workflow.
+
+Use query param withTranslations&#x3D;true to get the translation data for each step.
+
+Use query param withUserProgress&#x3D;true to get the active user&#x27;s progress status for each step.`,
     requestFormat: "json",
     parameters: [
       {
         name: "withTranslations",
+        type: "Query",
+        schema: z.boolean().optional().default(false),
+      },
+      {
+        name: "withUserProgress",
         type: "Query",
         schema: z.boolean().optional().default(false),
       },
@@ -2379,10 +2411,21 @@ curl -X POST \
     method: "get",
     path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step",
     alias: "ListConversationWorkflowSteps",
+    description: `
+List the workflow steps associated with this workflow.
+
+Use query param withTranslations&#x3D;true to get the translation data for each step.
+
+Use query param withUserProgress&#x3D;true to get the active user&#x27;s progress status for each step.`,
     requestFormat: "json",
     parameters: [
       {
         name: "withTranslations",
+        type: "Query",
+        schema: z.boolean().optional().default(false),
+      },
+      {
+        name: "withUserProgress",
         type: "Query",
         schema: z.boolean().optional().default(false),
       },

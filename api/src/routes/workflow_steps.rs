@@ -18,7 +18,9 @@ use uuid::Uuid;
 
 use crate::models::workflow_step::{LocalizedWorkflowStep, WorkflowStepWithTranslations};
 use crate::routes::translations::LocaleExtractor;
-use crate::routes::workflow_steps::dto::{LocalizedWorkflowStepDto, WorkflowStepDto};
+use crate::routes::workflow_steps::dto::{
+    LocalizedWorkflowStepDto, LocalizedWorkflowStepWithProgressDto, WorkflowStepDto,
+};
 use crate::routes::workflows::{SourcePathCtx, WorkflowPathCtx, WorkflowRouterContext};
 use crate::tools::ToolConfig;
 use crate::{
@@ -31,10 +33,13 @@ use super::auth::{is_user_admin, RequiredAdminUser, RequiredUser};
 use crate::models::{self, conversation, user_participation};
 use axum::extract::{FromRequestParts, Query};
 
-#[derive(Deserialize, JsonSchema, Debug)]
-pub struct GetWorkflowStepsQuery {
-    #[serde(rename = "withTranslations", default)]
-    pub with_translations: bool,
+#[derive(Deserialize, JsonSchema, Debug, Default)]
+#[serde(rename_all = "camelCase")]
+struct GetWorkflowStepsQuery {
+    #[serde(default)]
+    with_translations: bool,
+    #[serde(default)]
+    with_user_progress: bool,
 }
 
 #[derive(Serialize, JsonSchema)]
@@ -47,8 +52,9 @@ pub enum WorkflowStepResponse {
 #[derive(Serialize, JsonSchema)]
 #[serde(untagged)]
 pub enum WorkflowStepsListResponse {
-    Localized(Vec<LocalizedWorkflowStepDto>),
     WithTranslations(Vec<WorkflowStepWithTranslations>),
+    WithUserProgress(Vec<LocalizedWorkflowStepWithProgressDto>),
+    Localized(Vec<LocalizedWorkflowStepDto>),
 }
 
 pub mod dto;
@@ -195,6 +201,20 @@ async fn list_workflows_step(
                 steps_with_translations,
             )),
         ))
+    } else if query.with_user_progress {
+        let steps_with_progress =
+            workflow_step::list_localized_with_progress(&state.db, &workflow_id, &locale, &user.id)
+                .await?
+                .into_iter()
+                .map(Into::into)
+                .collect();
+
+        Ok((
+            StatusCode::OK,
+            Json(WorkflowStepsListResponse::WithUserProgress(
+                steps_with_progress,
+            )),
+        ))
     } else {
         let mut workflow_steps =
             workflow_step::list_localized(&state.db, &workflow_id, &locale).await?;
@@ -271,7 +291,13 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
             get_with(list_workflows_step, |op| {
                 op.id(&format!("List{ctx}WorkflowSteps"))
                     .tag("Workflow step")
-                    .summary("List the workflow steps associated with this workflow. Use withTranslations=true to get translation data.")
+                    .summary("List workflow steps.")
+                    .description(
+                        "
+List the workflow steps associated with this workflow.\n
+Use query param withTranslations=true to get the translation data for each step.\n
+Use query param withUserProgress=true to get the active user's progress status for each step.",
+                    )
                     .security_requirement("JWT")
                     .response::<200, Json<WorkflowStepsListResponse>>()
             }),

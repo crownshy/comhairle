@@ -400,8 +400,8 @@ pub async fn list_localized(
 pub struct LocalizedWorkflowStepWithProgress {
     #[sqlx(flatten)]
     #[serde(flatten)]
-    step: LocalizedWorkflowStep,
-    status: ProgressStatus,
+    pub step: LocalizedWorkflowStep,
+    pub status: ProgressStatus,
 }
 
 #[instrument(err(Debug))]
@@ -733,11 +733,31 @@ mod tests {
             .await?;
 
         let steps = list_localized_with_progress(&pool, &workflow.id, "en", &user.id).await?;
-        assert_eq!(steps[0].status, ProgressStatus::Done, "incorrect first step progess status");
-        assert_eq!(steps[1].status, ProgressStatus::InProgress, "incorrect second step progess status");
-        assert_eq!(steps[2].status, ProgressStatus::NotStarted, "incorrect third step progess status");
-        assert_eq!(steps[3].status, ProgressStatus::NotStarted, "incorrect fourth step progess status");
-        assert_eq!(steps[4].status, ProgressStatus::NotStarted, "incorrect fifth step progess status");
+        assert_eq!(
+            steps[0].status,
+            ProgressStatus::Done,
+            "incorrect first step progess status"
+        );
+        assert_eq!(
+            steps[1].status,
+            ProgressStatus::InProgress,
+            "incorrect second step progess status"
+        );
+        assert_eq!(
+            steps[2].status,
+            ProgressStatus::NotStarted,
+            "incorrect third step progess status"
+        );
+        assert_eq!(
+            steps[3].status,
+            ProgressStatus::NotStarted,
+            "incorrect fourth step progess status"
+        );
+        assert_eq!(
+            steps[4].status,
+            ProgressStatus::NotStarted,
+            "incorrect fifth step progess status"
+        );
 
         Ok(())
     }
