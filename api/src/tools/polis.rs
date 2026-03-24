@@ -292,7 +292,7 @@ impl PolisClient {
     pub async fn set_topic(&self, topic: SetTopicRequest) -> Result<(), PolisError> {
         let body = self
             .client
-            .put(format!("{}/api/v3/conversations", self.base_url))
+            .put(format!("https:://{}/api/v3/conversations", self.base_url))
             .json(&topic)
             .send()
             .await
@@ -316,7 +316,7 @@ impl PolisClient {
 
         let resp = self
             .client
-            .post(format!("{}/api/v3/comments", self.base_url))
+            .post(format!("https://{}/api/v3/comments", self.base_url))
             .json(&post_json)
             .send()
             .await
@@ -330,7 +330,7 @@ impl PolisClient {
 
     pub async fn get_comments(&self, poll_id: &str) -> Result<Vec<PolisComment>, PolisError> {
         let url = format!(
-            "{}/api/v3/comments?conversation_id={poll_id}",
+            "https://{}/api/v3/comments?conversation_id={poll_id}",
             self.base_url
         );
         let comments: Vec<PolisComment> =
