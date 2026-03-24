@@ -15,7 +15,7 @@ use axum::{
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use bon::builder;
-use chrono::{Duration, TimeDelta};
+use chrono::TimeDelta;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
 use rand_core::OsRng;
 use regex::Regex;
@@ -244,7 +244,7 @@ pub fn generate_jwt<T: Serialize>(
     sub: Option<String>,
 ) -> String {
     let expiration = chrono::Utc::now()
-        .checked_add_signed(duration.unwrap_or_else(|| Duration::hours(24)))
+        .checked_add_signed(duration.unwrap_or_else(|| chrono::Duration::hours(24)))
         .expect("valid timestamp")
         .timestamp() as usize;
 
@@ -292,7 +292,7 @@ async fn signup(
         .user(&user)
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
-        .duration(Duration::minutes(15))
+        .duration(chrono::Duration::minutes(15))
         .call();
     let verify_link = format!(
         "{}/auth/verify-user?token={}",
@@ -447,7 +447,7 @@ async fn resend_verification_email(
         .user(&user)
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
-        .duration(Duration::minutes(15))
+        .duration(chrono::Duration::minutes(15))
         .call();
     let verify_link = format!("{}/auth/verify-user?token={}", state.config.domain, token);
     state
@@ -514,7 +514,7 @@ async fn password_reset_create(
         .user(&user)
         .secret(&state.config.jwt_secret)
         .custom_claims(claims)
-        .duration(Duration::minutes(15))
+        .duration(chrono::Duration::minutes(15))
         .call();
     let reset_link = format!(
         "{}/auth/password-reset/update?token={}",
@@ -1845,7 +1845,11 @@ mod tests {
         let claims = EmailLinkClaims {
             email: Some(email.to_string()),
         };
-        let token = generate_jwt(&user, claims, &state.config.jwt_secret, None);
+        let token = generate_jwt()
+            .user(&user)
+            .secret(&state.config.jwt_secret)
+            .custom_claims(claims)
+            .call();
 
         // Try to reset with weak password
         let weak_password = "weak";

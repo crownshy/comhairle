@@ -52,7 +52,7 @@ pub enum TranslatorConfig {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct JitsiConfig {
+pub struct VideoCallConfig {
     pub jwt_app_id: String,
     pub jwt_app_secret: String,
     pub jwt_sub: String,
@@ -77,5 +77,5 @@ pub struct ComhairleConfig {
     pub enable_rate_limiting: bool,
     pub heyform_url: String,
     pub polis_url: String,
-    pub jitsi: Option<JitsiConfig>,
+    pub video_call_service: Option<VideoCallConfig>,
 }

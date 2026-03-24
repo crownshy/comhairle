@@ -189,15 +189,15 @@ async fn get_jwt(
     let video_meeting_id = event
         .video_meeting_id
         .ok_or(ComhairleError::NoVideoMeetingId)?;
-    let jwt_config = &state
+    let video_call_config = &state
         .config
-        .jitsi
+        .video_call_service
         .as_ref()
         .ok_or(ComhairleError::NoVideoServiceConfigured)?;
 
     let claims = VideoEventJwtClaims {
-        iss: &jwt_config.jwt_app_id,
-        aud: &jwt_config.jwt_app_id,
+        iss: &video_call_config.jwt_app_id,
+        aud: &video_call_config.jwt_app_id,
         room: &video_meeting_id.to_string(),
         context: VideoEventJwtContext {
             user: VideoEventJwtUser {
@@ -209,10 +209,10 @@ async fn get_jwt(
 
     let jwt = generate_jwt()
         .user(&user)
-        .secret(&jwt_config.jwt_app_secret)
+        .secret(&video_call_config.jwt_app_secret)
         .custom_claims(claims)
         .duration(chrono::Duration::hours(1))
-        .sub(jwt_config.jwt_sub.to_owned())
+        .sub(video_call_config.jwt_sub.to_owned())
         .call();
 
     Ok((StatusCode::OK, Json(JwtResponse { jwt })))
