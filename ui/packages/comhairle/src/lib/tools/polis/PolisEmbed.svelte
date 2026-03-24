@@ -238,13 +238,14 @@
 			</div>
 
 			<!-- Add your own opinion -->
-			<button
+			<Button
+				variant="ghost"
 				class="text-muted-foreground hover:text-foreground flex items-center gap-2 pt-2 text-lg font-normal transition-colors"
 				onclick={openAddOpinion}
 			>
 				<MessageSquare fill="currentColor" class="h-5 w-5" />
 				{m.polis_add_opinion()}
-			</button>
+			</Button>
 
 			<!-- Continue to next step (only after threshold) -->
 			{#if canContinue}
@@ -274,13 +275,14 @@
 						{m.polis_add_opinion()}
 					</h2>
 				</div>
-				<button
-					class="text-foreground hover:text-foreground/70 transition-colors"
+				<Button
+					variant="link"
+					class="text-foreground/80 hover:text-foreground/60 text-xl transition-colors"
 					onclick={closeAddOpinion}
 					aria-label={m.polis_close()}
 				>
 					<X class="h-5 w-5" />
-				</button>
+				</Button>
 			</div>
 
 			<div class="text-card-foreground flex flex-col px-4 text-base">
@@ -380,13 +382,14 @@
 			</p>
 
 			<!-- Add your own opinion -->
-			<button
+			<Button
+				variant="ghost"
 				class="text-muted-foreground hover:text-foreground flex items-center gap-2 pt-2 text-xl font-normal transition-colors"
 				onclick={openAddOpinion}
 			>
-				<PenLine class="h-5 w-5" />
+				<MessageSquare fill="currentColor" class="h-5 w-5" />
 				{m.polis_add_opinion()}
-			</button>
+			</Button>
 		</div>
 
 		<Button variant="primaryDark" size="lg" onclick={onDone} class="gap-2 px-6 py-4 text-lg">
