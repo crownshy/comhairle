@@ -2,9 +2,18 @@
 	import { Button } from '$lib/components/ui/button';
 	import { fly, fade } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
-	import { ThumbsUp, ThumbsDown, SkipForward, PenLine, X, ChevronRight } from 'lucide-svelte';
+	import {
+		ThumbsUp,
+		ThumbsDown,
+		SkipForward,
+		PenLine,
+		X,
+		ChevronRight,
+		MessageSquare
+	} from 'lucide-svelte';
 	import PolisApi, { type PolisApiState, type PolisStatement } from './PolisApi';
 	import { getVoteData, incrementVotes, savePid, getSavedPid } from './polisVoteStore';
+	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
 		polis_id: string;
@@ -31,7 +40,7 @@
 	let polisReady = $state(false);
 	let polisRemaining = $state(0);
 	let polisTotal = $state(0);
-	let polisPid = $state<number | undefined>(getSavedPid(stepId));
+	let polisPid = $state<number | undefined>(getSavedPid(user_id, stepId));
 
 	function handlePolisChange(s: PolisApiState) {
 		polisCurrentStatement = s.currentStatement;
@@ -42,7 +51,7 @@
 
 		if (s.pid !== undefined && s.pid !== polisPid) {
 			polisPid = s.pid;
-			savePid(stepId, s.pid);
+			savePid(user_id, stepId, s.pid);
 		}
 
 		const newTxt = s.currentStatement?.txt ?? '';
@@ -62,12 +71,12 @@
 		handlePolisChange,
 		'en',
 		polis_url,
-		getSavedPid(stepId)
+		getSavedPid(user_id, stepId)
 	);
 
 	type Screen = 'voting' | 'add-opinion' | 'continue-prompt' | 'completed';
 
-	const initialData = getVoteData(stepId);
+	const initialData = getVoteData(user_id, stepId);
 	let totalVotes = $state(initialData.totalVotes);
 	let hasMetThreshold = $state(initialData.hasMetThreshold);
 	let screen = $state<Screen>('voting');
@@ -108,7 +117,7 @@
 			anchoredRemaining--;
 		}
 
-		const data = incrementVotes(stepId, requiredVotes);
+		const data = incrementVotes(user_id, stepId, requiredVotes);
 		hasMetThreshold = data.hasMetThreshold;
 
 		if (data.totalVotes === requiredVotes) {
@@ -134,6 +143,10 @@
 		polis.submitStatement(opinionText.trim());
 		opinionText = '';
 		opinionSubmitted = true;
+		setTimeout(() => {
+			screen = 'voting';
+			opinionSubmitted = false;
+		}, 2000);
 	}
 
 	function handleSubmitAndAddAnother() {
@@ -153,7 +166,9 @@
 	}
 </script>
 
-<div class="bg-primary/5 mx-auto flex w-full max-w-4xl flex-col items-center gap-8 py-12">
+<div
+	class="bg-primary/5 relative left-1/2 flex w-screen -translate-x-1/2 flex-col items-center gap-8 overflow-visible py-12"
+>
 	{#if screen === 'voting'}
 		<!-- Voting Screen -->
 		<div
@@ -161,8 +176,11 @@
 			in:fade={{ duration: 300 }}
 		>
 			<!-- Opinion counter -->
-			<p class="text-muted-foreground text-xl font-semibold">
-				Opinion {currentOpinionNumber + 1} of {displayedTotal}
+			<p class="text-muted-foreground text-lg font-semibold">
+				{m.polis_opinion_counter({
+					current: currentOpinionNumber + 1,
+					total: displayedTotal
+				})}
 			</p>
 
 			<!-- Statement text -->
@@ -192,10 +210,10 @@
 					size="lg"
 					{disabled}
 					onclick={() => doVote('agree')}
-					class="gap-2 px-6 py-4 text-lg"
+					class="text-lg"
 				>
 					<ThumbsUp class="h-5 w-5" />
-					Agree
+					{m.polis_agree()}
 				</Button>
 				<Button
 					variant="default"
@@ -205,25 +223,27 @@
 					class="gap-2 px-6 py-4 text-lg"
 				>
 					<ThumbsDown class="h-5 w-5" />
-					Disagree
+					{m.polis_disagree()}
 				</Button>
-				<button
-					class="text-muted-foreground hover:text-foreground flex items-center gap-2 px-6 py-4 text-lg font-medium transition-colors disabled:opacity-50"
+				<Button
+					variant="ghost"
+					size="lg"
+					class="text-lg"
 					{disabled}
 					onclick={() => doVote('pass')}
 				>
-					Skip
+					{m.polis_skip()}
 					<SkipForward class="h-5 w-5" />
-				</button>
+				</Button>
 			</div>
 
 			<!-- Add your own opinion -->
 			<button
-				class="text-muted-foreground hover:text-foreground flex items-center gap-2 pt-2 text-xl font-normal transition-colors"
+				class="text-muted-foreground hover:text-foreground flex items-center gap-2 pt-2 text-lg font-normal transition-colors"
 				onclick={openAddOpinion}
 			>
-				<PenLine class="h-5 w-5" />
-				Add your own opinion
+				<MessageSquare fill="currentColor" class="h-5 w-5" />
+				{m.polis_add_opinion()}
 			</button>
 
 			<!-- Continue to next step (only after threshold) -->
@@ -235,7 +255,7 @@
 						onclick={onDone}
 						class="gap-2 px-6 py-4 text-lg"
 					>
-						Continue to next step
+						{m.polis_continue_to_next_step()}
 						<ChevronRight class="h-5 w-5" />
 					</Button>
 				</div>
@@ -249,38 +269,40 @@
 		>
 			<div class="flex w-full items-center justify-between">
 				<div class="flex items-center gap-4">
-					<PenLine class="text-card-foreground h-8 w-8" />
+					<MessageSquare fill="currentColor" class="text-card-foreground h-8 w-8" />
 					<h2 class="text-card-foreground text-3xl font-semibold">
-						Add your own opinion
+						{m.polis_add_opinion()}
 					</h2>
 				</div>
 				<button
 					class="text-foreground hover:text-foreground/70 transition-colors"
 					onclick={closeAddOpinion}
-					aria-label="Close"
+					aria-label={m.polis_close()}
 				>
 					<X class="h-5 w-5" />
 				</button>
 			</div>
 
-			<div class="text-card-foreground flex flex-col text-base">
-				<p>An opinion should be answerable with "agree" or "disagree"</p>
-				<p>Include only one idea at a time in one opinion</p>
-				<p>Avoid use jargon (if necessary, try unpack with plain language)</p>
+			<div class="text-card-foreground flex flex-col px-4 text-base">
+				<ul class="list-inside list-disc space-y-2">
+					<li>{m.polis_tip_agreeable()}</li>
+					<li>{m.polis_tip_one_idea()}</li>
+					<li>{m.polis_tip_no_jargon()}</li>
+				</ul>
 			</div>
 
 			{#if opinionSubmitted}
 				<div
 					class="bg-primary/10 text-primary w-full rounded-lg p-4 text-center font-medium"
 				>
-					Your opinion has been submitted. Thank you!
+					{m.polis_opinion_submitted()}
 				</div>
 			{/if}
 
 			<div class="w-full pb-6">
 				<textarea
 					bind:value={opinionText}
-					placeholder="Enter your own opinion here"
+					placeholder={m.polis_opinion_placeholder()}
 					class="bg-background text-foreground placeholder:text-muted-foreground border-input focus:ring-primary/30 h-28 w-full resize-none rounded-lg border p-4 text-base shadow-sm outline-none focus:ring-2"
 				></textarea>
 			</div>
@@ -293,23 +315,25 @@
 					onclick={handleSubmitOpinion}
 					class="gap-2 px-6 py-4 text-lg"
 				>
-					Submit
+					{m.submit()}
 				</Button>
-				<button
-					class="text-muted-foreground hover:text-foreground flex items-center gap-2 px-6 py-4 text-lg font-medium transition-colors disabled:opacity-50"
+				<Button
+					variant="ghost"
+					size="lg"
+					class="text-lg"
 					disabled={!opinionText.trim()}
 					onclick={handleSubmitAndAddAnother}
 				>
-					Submit and add another one
+					{m.polis_submit_and_add_another()}
 					<ChevronRight class="h-5 w-5" />
-				</button>
+				</Button>
 			</div>
 
 			<button
 				class="text-muted-foreground hover:text-foreground mt-2 text-base font-medium transition-colors"
 				onclick={closeAddOpinion}
 			>
-				&larr; Back to voting
+				&larr; {m.polis_back_to_voting()}
 			</button>
 		</div>
 	{:else if screen === 'continue-prompt'}
@@ -321,7 +345,7 @@
 			<div class="flex items-center gap-4">
 				<PenLine class="text-card-foreground h-8 w-8" />
 				<h2 class="text-card-foreground text-3xl font-semibold">
-					Do you want to continue?
+					{m.polis_do_you_want_to_continue()}
 				</h2>
 			</div>
 
@@ -332,15 +356,17 @@
 					onclick={resumeVoting}
 					class="w-72 gap-2 px-6 py-4 text-lg"
 				>
-					Continue voting
+					{m.polis_continue_voting()}
 				</Button>
-				<button
+				<Button
+					variant="ghost"
+					size="lg"
 					class="text-muted-foreground hover:text-foreground flex items-center gap-2 px-6 py-4 text-lg font-medium transition-colors"
 					onclick={onDone}
 				>
-					continue to next step
+					{m.polis_continue_to_next_step()}
 					<ChevronRight class="h-5 w-5" />
-				</button>
+				</Button>
 			</div>
 		</div>
 	{:else if screen === 'completed'}
@@ -350,7 +376,7 @@
 			in:fade={{ duration: 300 }}
 		>
 			<p class="text-card-foreground text-3xl font-normal">
-				You have voted on everything. Thank you!
+				{m.polis_voted_everything()}
 			</p>
 
 			<!-- Add your own opinion -->
@@ -359,12 +385,12 @@
 				onclick={openAddOpinion}
 			>
 				<PenLine class="h-5 w-5" />
-				Add your own opinion
+				{m.polis_add_opinion()}
 			</button>
 		</div>
 
 		<Button variant="primaryDark" size="lg" onclick={onDone} class="gap-2 px-6 py-4 text-lg">
-			Continue
+			{m.continue_()}
 			<ChevronRight class="h-5 w-5" />
 		</Button>
 	{/if}

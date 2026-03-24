@@ -113,5 +113,22 @@
 	"welcome_to_comhairle_community_server": "欢迎来到Comhairle社区服务器",
 	"community_server_description_1": "在CrownShy，我们相信各种规模和形式的社区都能从更密切地倾听其成员并学习更有效地自我治理中受益。",
 	"community_server_description_2": "为了帮助实现这一未来，我们运营这个社区服务器。",
-	"comhairle_meaning": "在盖尔语中意为\"议会\""
+	"comhairle_meaning": "在盖尔语中意为\"议会\"",
+	"polis_opinion_counter": "意见 {current} / {total}",
+	"polis_agree": "同意",
+	"polis_disagree": "不同意",
+	"polis_skip": "跳过",
+	"polis_add_opinion": "添加您自己的意见",
+	"polis_continue_to_next_step": "继续下一步",
+	"polis_close": "关闭",
+	"polis_tip_agreeable": "意见应该可以用\"同意\"或\"不同意\"来回答",
+	"polis_tip_one_idea": "每条意见只包含一个想法",
+	"polis_tip_no_jargon": "避免使用专业术语（如有必要，请用通俗语言解释）",
+	"polis_opinion_submitted": "您的意见已提交。谢谢！",
+	"polis_opinion_placeholder": "在此输入您自己的意见",
+	"polis_submit_and_add_another": "提交并添加另一条",
+	"polis_back_to_voting": "返回投票",
+	"polis_do_you_want_to_continue": "您想继续吗？",
+	"polis_continue_voting": "继续投票",
+	"polis_voted_everything": "您已对所有内容投票。谢谢！"
 }

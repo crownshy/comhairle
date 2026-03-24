@@ -114,5 +114,22 @@
 	"welcome_to_comhairle_community_server": "Croeso i Weinydd Cymunedol Comhairle",
 	"community_server_description_1": "Yn CrownShy, credwn fod cymunedau o bob siâp a maint yn elwa o wrando'n fwy agos ar eu haelodau a dysgu llywodraethu eu hunain yn fwy effeithiol.",
 	"community_server_description_2": "I helpu gwireddu'r dyfodol hwn, rydym yn rhedeg y gweinydd cymunedol hwn.",
-	"comhairle_meaning": "Yn golygu \"Cyngor\" yn Gaeleg"
+	"comhairle_meaning": "Yn golygu \"Cyngor\" yn Gaeleg",
+	"polis_opinion_counter": "Barn {current} o {total}",
+	"polis_agree": "Cytuno",
+	"polis_disagree": "Anghytuno",
+	"polis_skip": "Hepgor",
+	"polis_add_opinion": "Ychwanegwch eich barn eich hun",
+	"polis_continue_to_next_step": "Parhau i'r cam nesaf",
+	"polis_close": "Cau",
+	"polis_tip_agreeable": "Dylai barn fod yn atebadwy gyda \"cytuno\" neu \"anghytuno\"",
+	"polis_tip_one_idea": "Cynhwyswch un syniad ar y tro yn unig mewn un farn",
+	"polis_tip_no_jargon": "Osgowch jargon (os oes angen, ceisiwch egluro mewn iaith syml)",
+	"polis_opinion_submitted": "Mae eich barn wedi'i chyflwyno. Diolch!",
+	"polis_opinion_placeholder": "Rhowch eich barn eich hun yma",
+	"polis_submit_and_add_another": "Cyflwyno ac ychwanegu un arall",
+	"polis_back_to_voting": "Yn ôl i bleidleisio",
+	"polis_do_you_want_to_continue": "Ydych chi am barhau?",
+	"polis_continue_voting": "Parhau i bleidleisio",
+	"polis_voted_everything": "Rydych wedi pleidleisio ar bopeth. Diolch!"
 }

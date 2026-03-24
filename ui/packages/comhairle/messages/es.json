@@ -114,5 +114,22 @@
 	"welcome_to_comhairle_community_server": "Bienvenido al Servidor Comunitario de Comhairle",
 	"community_server_description_1": "En CrownShy, creemos que las comunidades de todas las formas y tamaños se benefician al escuchar más de cerca a sus miembros y aprender a gobernarse de manera más efectiva.",
 	"community_server_description_2": "Para ayudar a realizar este futuro, operamos este servidor comunitario.",
-	"comhairle_meaning": "Significa \"Consejo\" en gaélico"
+	"comhairle_meaning": "Significa \"Consejo\" en gaélico",
+	"polis_opinion_counter": "Opinión {current} de {total}",
+	"polis_agree": "De acuerdo",
+	"polis_disagree": "En desacuerdo",
+	"polis_skip": "Saltar",
+	"polis_add_opinion": "Añade tu propia opinión",
+	"polis_continue_to_next_step": "Continuar al siguiente paso",
+	"polis_close": "Cerrar",
+	"polis_tip_agreeable": "Una opinión debe poder responderse con \"de acuerdo\" o \"en desacuerdo\"",
+	"polis_tip_one_idea": "Incluye solo una idea a la vez en cada opinión",
+	"polis_tip_no_jargon": "Evita el uso de jerga (si es necesario, intenta explicarlo en lenguaje sencillo)",
+	"polis_opinion_submitted": "Tu opinión ha sido enviada. ¡Gracias!",
+	"polis_opinion_placeholder": "Escribe tu propia opinión aquí",
+	"polis_submit_and_add_another": "Enviar y añadir otra",
+	"polis_back_to_voting": "Volver a votar",
+	"polis_do_you_want_to_continue": "¿Quieres continuar?",
+	"polis_continue_voting": "Seguir votando",
+	"polis_voted_everything": "Has votado sobre todo. ¡Gracias!"
 }

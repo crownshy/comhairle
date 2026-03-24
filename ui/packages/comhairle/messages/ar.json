@@ -114,5 +114,22 @@
 	"welcome_to_comhairle_community_server": "مرحباً بك في خادم مجتمع Comhairle",
 	"community_server_description_1": "في CrownShy، نؤمن بأن المجتمعات بجميع أشكالها وأحجامها تستفيد من الاستماع عن كثب لأعضائها وتعلم حكم أنفسها بشكل أكثر فعالية.",
 	"community_server_description_2": "للمساعدة في تحقيق هذا المستقبل، نشغل خادم المجتمع هذا.",
-	"comhairle_meaning": "تعني \"مجلس\" بالغيلية"
+	"comhairle_meaning": "تعني \"مجلس\" بالغيلية",
+	"polis_opinion_counter": "الرأي {current} من {total}",
+	"polis_agree": "أوافق",
+	"polis_disagree": "لا أوافق",
+	"polis_skip": "تخطي",
+	"polis_add_opinion": "أضف رأيك الخاص",
+	"polis_continue_to_next_step": "المتابعة إلى الخطوة التالية",
+	"polis_close": "إغلاق",
+	"polis_tip_agreeable": "يجب أن يكون الرأي قابلاً للإجابة بـ \"أوافق\" أو \"لا أوافق\"",
+	"polis_tip_one_idea": "قم بتضمين فكرة واحدة فقط في كل رأي",
+	"polis_tip_no_jargon": "تجنب استخدام المصطلحات المتخصصة (إذا لزم الأمر، حاول الشرح بلغة بسيطة)",
+	"polis_opinion_submitted": "تم إرسال رأيك. شكراً لك!",
+	"polis_opinion_placeholder": "أدخل رأيك الخاص هنا",
+	"polis_submit_and_add_another": "إرسال وإضافة رأي آخر",
+	"polis_back_to_voting": "العودة إلى التصويت",
+	"polis_do_you_want_to_continue": "هل تريد المتابعة؟",
+	"polis_continue_voting": "متابعة التصويت",
+	"polis_voted_everything": "لقد صوّتت على كل شيء. شكراً لك!"
 }
