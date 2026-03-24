@@ -15,6 +15,7 @@
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { useDebounce } from 'runed';
 	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
+	import { camelToSnakeCase } from '$lib/utils/snakeCaseKeys';
 
 	type Props = {
 		conversation_id: string;
@@ -42,7 +43,8 @@
 
 	let name = $state(step?.name ?? '');
 	let description = $state('');
-	let required = $state(step?.required ?? false);
+	let required = $derived(step?.required ?? false);
+	let revisitable = $derived(step?.canRevisit ?? false);
 
 	$effect(() => {
 		name = getTextInLocale(step?.translations?.name, primaryLocale, step?.name ?? '');
@@ -56,14 +58,10 @@
 		);
 	});
 
-	$effect(() => {
-		required = step?.required ?? false;
-	});
-
-	const debouncedUpdateRequired = useDebounce(async (checked: boolean) => {
+	const debouncedUpdateRequired = useDebounce(async (checked: boolean, field: string) => {
 		try {
 			await apiClient.UpdateConversationWorkflowStep(
-				{ required: checked },
+				{ [camelToSnakeCase(field)]: checked },
 				{
 					params: {
 						conversation_id,
@@ -74,13 +72,12 @@
 			);
 			await invalidateAll();
 		} catch (e) {
-			notifications.send({ message: 'Failed to update required status', priority: 'ERROR' });
+			notifications.send({ message: `Failed to update ${field} status`, priority: 'ERROR' });
 		}
 	}, 500);
 
-	function handleRequiredChange(checked: boolean) {
-		required = checked;
-		debouncedUpdateRequired(checked);
+	function handleSwitchChange(checked: boolean, field: string) {
+		debouncedUpdateRequired(checked, field);
 	}
 </script>
 
@@ -111,7 +108,7 @@
 		</Dialog.Trigger>
 
 		<Dialog.Content class="flex max-h-[90vh] min-w-[70vw] flex-col rounded-xl p-0">
-			<Dialog.Header class="flex-shrink-0 border-b p-6 pb-4">
+			<Dialog.Header class="shrink-0 border-b p-6 pb-4">
 				<Dialog.Title class="text-2xl">Edit Step Metadata</Dialog.Title>
 				<Dialog.Description>
 					Configure the name and description shown to participants.
@@ -160,9 +157,22 @@
 			</ScrollArea.Root>
 
 			<!-- Fixed footer with required toggle -->
-			<div class="bg-muted/30 flex-shrink-0 border-t p-6">
+			<div class="bg-muted/30 flex shrink-0 flex-col gap-4 border-t p-6">
 				<div class="flex items-center gap-2">
-					<Switch checked={required} onCheckedChange={handleRequiredChange} />
+					<Switch
+						checked={revisitable}
+						onCheckedChange={(value) => handleSwitchChange(value, 'canRevisit')}
+					/>
+					<Label class="text-base">Revisitable step</Label>
+					<span class="text-muted-foreground ml-2 text-sm"
+						>(Can users revisit this step?)</span
+					>
+				</div>
+				<div class="flex items-center gap-2">
+					<Switch
+						checked={required}
+						onCheckedChange={(value) => handleSwitchChange(value, 'required')}
+					/>
 					<Label class="text-base">Required step</Label>
 					<span class="text-muted-foreground ml-2 text-sm"
 						>(Can users skip this step?)</span
