@@ -196,8 +196,8 @@ export default class PolisApi {
 			.then((data) => {
 				if (typeof data.currentPid === 'number') {
 					this._pid = data.currentPid;
-					this.fetchNextStatement();
 				}
+				this.fetchNextStatement();
 			})
 			.catch((e) => {
 				console.error('[PolisApi] Error with vote:', e);

@@ -380,6 +380,9 @@
 			<p class="text-card-foreground text-3xl font-normal">
 				{m.polis_voted_everything()}
 			</p>
+			<p class="text-muted-foreground text-lg">
+				{m.polis_come_back_later()}
+			</p>
 
 			<!-- Add your own opinion -->
 			<Button

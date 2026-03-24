@@ -129,5 +129,6 @@
 	"polis_back_to_voting": "Retour au vote",
 	"polis_do_you_want_to_continue": "Voulez-vous continuer ?",
 	"polis_continue_voting": "Continuer à voter",
-	"polis_voted_everything": "Vous avez voté sur tout. Merci !"
+	"polis_voted_everything": "Vous avez voté sur tout. Merci !",
+	"polis_come_back_later": "Revenez plus tard pour voir si de nouvelles opinions ont été ajoutées."
 }
