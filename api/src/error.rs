@@ -1,4 +1,7 @@
-use crate::{tools::polis::PolisError, translation_service::TranslationError};
+use crate::{
+    tools::polis::PolisError, translation_service::TranslationError,
+    wiki_poll_service::error::WikiPollServiceError,
+};
 use aide::OperationIo;
 use axum::{
     extract::{multipart::MultipartError, rejection::PathRejection},
@@ -31,6 +34,9 @@ pub enum ComhairleError {
 
     #[error("Polis error: {0}")]
     PolisError(#[from] PolisError),
+
+    #[error("Wiki poll service error: {0}")]
+    WikiPollServiceError(#[from] WikiPollServiceError),
 
     #[error("Translation error: {0}")]
     TranslationError(#[from] TranslationError),
@@ -267,9 +273,7 @@ impl IntoResponse for ComhairleError {
             ComhairleError::EmailAlreadyVerified => StatusCode::CONFLICT,
             ComhairleError::PasswordConfirmationMismatch
             | ComhairleError::WeakPassword(_)
-            | ComhairleError::BadRequest(_) => {
-                StatusCode::BAD_REQUEST
-            }
+            | ComhairleError::BadRequest(_) => StatusCode::BAD_REQUEST,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

@@ -9,6 +9,7 @@ use comhairle::{
     setup_server,
     translation_service::GoogleTranslateService,
     websockets::ComhairleWebSocketService,
+    wiki_poll_service::polis_service::PolisClient,
     workers::{process_documents::process_document_handler, JobQueues},
     ComhairleState,
 };
@@ -89,6 +90,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         _ => None,
     };
 
+    let wiki_poll_service = Arc::new(PolisClient::new(&config.polis_url));
+
     let process_documents_storage = MemoryStorage::new();
     let jobs = Arc::new(JobQueues {
         process_documents: Arc::new(Mutex::new(process_documents_storage.clone())),
@@ -101,6 +104,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         websockets,
         translation_service,
         bot_service,
+        wiki_poll_service,
         jobs,
         bulk_storage_service: Arc::new(bulk_storage_service),
     });

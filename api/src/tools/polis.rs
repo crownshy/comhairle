@@ -7,16 +7,18 @@ use axum::{
     http::StatusCode,
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar};
-use rand::{distributions::Alphanumeric, Rng};
-use reqwest::{header::SET_COOKIE, Client};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use thiserror::Error;
-use tracing::{info, instrument, warn};
+use tracing::{info, instrument};
 use uuid::Uuid;
 
-use crate::{error::ComhairleError, models, ComhairleState};
+use crate::{
+    error::ComhairleError,
+    models,
+    wiki_poll_service::{polis_service::PolisClient, WikiPollLogin, WikiPollService},
+    ComhairleState,
+};
 
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 
@@ -116,48 +118,11 @@ pub enum PolisError {
     ProxyError { from: String, to: String },
 }
 
-#[derive(Deserialize, Serialize)]
-struct NewAdminUser {
-    pub hname: String,
-    pub password: String,
-    pub password2: String,
-    pub email: String,
-    pub gatekeeperTosPrivacy: bool,
-}
-
-#[derive(Deserialize, Serialize)]
-struct PolisLogin {
-    pub email: String,
-    pub password: String,
-}
-
 #[derive(Deserialize, Serialize, Debug)]
 struct NewUserResp {
     pub uid: u32,
     pub hname: String,
     pub email: String,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-struct NewPollResp {
-    conversation_id: String,
-}
-
-pub struct PolisClient {
-    client: reqwest::Client,
-    base_url: String,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct PolisComment {
-    pub tid: u32,
-    pub txt: String,
-    pub is_seed: bool,
-    pub is_meta: bool,
-    pub lang: Option<String>,
-    pub pid: u32,
-    pub quote_src_url: Option<String>,
-    pub created: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -172,179 +137,6 @@ pub struct LoginResp {
     pub uid: u32,
     pub email: String,
     pub token: String,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct SetTopicRequest {
-    pub topic: String,
-    pub conversation_id: String,
-}
-
-impl PolisClient {
-    pub fn new(base_url: &str) -> Self {
-        let client = Client::builder().cookie_store(true).build().unwrap();
-        Self {
-            client,
-            base_url: base_url.to_string(),
-        }
-    }
-
-    pub async fn create_random_admin_user(&self) -> Result<(String, String), PolisError> {
-        info!("Creating a random admin user");
-        let username: String = rand::thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(10)
-            .map(char::from)
-            .collect();
-
-        let email = format!("{username}@comhairle.com");
-
-        let password: String = rand::thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(10)
-            .map(char::from)
-            .collect();
-
-        let new_user = NewAdminUser {
-            hname: username.clone(),
-            password: password.clone(),
-            password2: password,
-            email,
-            gatekeeperTosPrivacy: true,
-        };
-
-        let _res = self
-            .client
-            .post(format!("https://{}/api/v3/auth/new", self.base_url))
-            .json(&new_user)
-            .send()
-            .await
-            .map_err(|e| {
-                warn!("{e}");
-                PolisError::FailedToCreateNewAdminUser
-            })?
-            .text()
-            // .json::<NewUserResp>()
-            .await
-            .map_err(|e| {
-                warn!("{e}");
-                PolisError::FailedToCreateNewAdminUser
-            })?;
-
-        Ok((new_user.email, new_user.password))
-    }
-
-    async fn login(&self, login: &PolisLogin) -> Result<String, PolisError> {
-        info!("Logging in to polis");
-        let url = format!("https://{}/api/v3/auth/login", self.base_url);
-        println!("format {url}");
-        let resp = self
-            .client
-            .post(url)
-            .json(&login)
-            .send()
-            .await
-            .map_err(|e| {
-                println!("First bit {e}");
-                PolisError::FailedToLogin
-            })?;
-
-        let cookie = resp
-            .headers()
-            .get(SET_COOKIE)
-            .ok_or(PolisError::FailedToLogin)?
-            .to_str()
-            .map_err(|_| PolisError::FailedToLogin)?
-            .to_owned();
-
-        let login_resp = resp
-            .json::<LoginResp>()
-            // .text()
-            .await
-            .map_err(|e| {
-                println!("{e}");
-                PolisError::FailedToLogin
-            })?;
-
-        info!("Logged user into polis {login_resp:#?}");
-
-        Ok(cookie)
-    }
-
-    pub async fn create_poll(&self) -> Result<String, PolisError> {
-        info!("Attempting to create a new poll");
-        let new_poll = self
-            .client
-            .post(format!("https://{}/api/v3/conversations", self.base_url))
-            .send()
-            .await
-            .map_err(|e| {
-                warn!("Failed to create new poll: {e:#?}");
-                PolisError::FailedToCreateNewPoll
-            })?
-            // .text()
-            .json::<NewPollResp>()
-            .await
-            .map_err(|e| {
-                warn!("Failed to create new poll: {e:#?}");
-                PolisError::FailedToCreateNewPoll
-            })?;
-        Ok(new_poll.conversation_id.to_owned())
-    }
-
-    pub async fn set_topic(&self, topic: SetTopicRequest) -> Result<(), PolisError> {
-        let body = self
-            .client
-            .put(format!("https:://{}/api/v3/conversations", self.base_url))
-            .json(&topic)
-            .send()
-            .await?
-            .text()
-            .await?;
-
-        println!("{body}");
-        Ok(())
-    }
-
-    #[instrument(err(Debug), skip(self))]
-    pub async fn post_seed_comment(
-        &self,
-        comment: &str,
-        poll_id: &str,
-    ) -> Result<String, PolisError> {
-        let post_json =
-            json!({"txt":comment,"pid":"mypid","conversation_id":poll_id,"is_seed":true});
-
-        let resp = self
-            .client
-            .post(format!("https://{}/api/v3/comments", self.base_url))
-            .json(&post_json)
-            .send()
-            .await
-            .map_err(|e| PolisError::FailedToPostSeedComment(e.to_string()))?
-            .json::<PolisCommentCreateResponse>()
-            .await
-            .map_err(|e| PolisError::FailedToPostSeedComment(e.to_string()))?;
-
-        Ok(resp.tid.to_string())
-    }
-
-    pub async fn get_comments(&self, poll_id: &str) -> Result<Vec<PolisComment>, PolisError> {
-        let url = format!(
-            "https://{}/api/v3/comments?conversation_id={poll_id}",
-            self.base_url
-        );
-        let comments: Vec<PolisComment> = self
-            .client
-            .get(url)
-            .send()
-            .await?
-            .json()
-            .await
-            .map_err(|e| PolisError::FailedToGetComments(e.to_string()))?;
-
-        Ok(comments)
-    }
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -364,7 +156,7 @@ async fn admin_login(
     if let ToolConfig::Polis(config) = workflow_step.preview_tool_config {
         let client = PolisClient::new(&config.server_url);
         let cookie = client
-            .login(&PolisLogin {
+            .login(&WikiPollLogin {
                 email: config.admin_user,
                 password: config.admin_password,
             })
@@ -392,14 +184,14 @@ pub async fn launch(preview_config: &PolisToolConfig) -> Result<PolisToolConfig,
     .await?;
 
     preview_client
-        .login(&PolisLogin {
+        .login(&WikiPollLogin {
             email: preview_config.admin_user.clone(),
             password: preview_config.admin_password.clone(),
         })
         .await?;
 
     live_client
-        .login(&PolisLogin {
+        .login(&WikiPollLogin {
             email: live_poll_config.admin_user.clone(),
             password: live_poll_config.admin_password.clone(),
         })
@@ -429,7 +221,7 @@ async fn polis_setup(
     let client = PolisClient::new(polis_url);
     let (email, password) = client.create_random_admin_user().await?;
     client
-        .login(&PolisLogin {
+        .login(&WikiPollLogin {
             email: email.clone(),
             password: password.clone(),
         })
@@ -447,6 +239,8 @@ async fn polis_setup(
 
 #[cfg(test)]
 mod tests {
+    use crate::wiki_poll_service::polis_service::PolisClient;
+
     use super::*;
 
     #[tokio::test]
