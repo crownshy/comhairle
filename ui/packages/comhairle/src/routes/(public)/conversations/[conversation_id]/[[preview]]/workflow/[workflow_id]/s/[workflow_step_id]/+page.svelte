@@ -42,10 +42,12 @@
 	let sortedSteps = $derived([...workflowSteps].sort((a, b) => a.stepOrder - b.stepOrder));
 
 	let actualCurrentStep = $derived(
-		sortedSteps.find((ws) => {
-			const progress = userProgress.find((p) => p.workflowStepId === ws.id);
-			return progress?.status !== 'done';
-		}) ?? null
+		conversation.isLive
+			? (sortedSteps.find((ws) => {
+					const progress = userProgress.find((p) => p.workflowStepId === ws.id);
+					return progress?.status !== 'done';
+				}) ?? null)
+			: workflowStep
 	);
 
 	let isRevisiting = $derived(
