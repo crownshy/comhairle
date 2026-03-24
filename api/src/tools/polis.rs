@@ -94,6 +94,9 @@ impl ToolImpl for PolisTool {
 
 #[derive(Error, Debug)]
 pub enum PolisError {
+    #[error("HTTP error: {0}")]
+    Http(#[from] reqwest::Error),
+
     #[error("Failed to create new admin user")]
     FailedToCreateNewAdminUser,
 
@@ -295,11 +298,9 @@ impl PolisClient {
             .put(format!("https:://{}/api/v3/conversations", self.base_url))
             .json(&topic)
             .send()
-            .await
-            .unwrap()
+            .await?
             .text()
-            .await
-            .unwrap();
+            .await?;
 
         println!("{body}");
         Ok(())
@@ -333,15 +334,14 @@ impl PolisClient {
             "https://{}/api/v3/comments?conversation_id={poll_id}",
             self.base_url
         );
-        let comments: Vec<PolisComment> =
-            self.client
-                .get(url)
-                .send()
-                .await
-                .unwrap()
-                .json()
-                .await
-                .map_err(|e| PolisError::FailedToGetComments(e.to_string()))?;
+        let comments: Vec<PolisComment> = self
+            .client
+            .get(url)
+            .send()
+            .await?
+            .json()
+            .await
+            .map_err(|e| PolisError::FailedToGetComments(e.to_string()))?;
 
         Ok(comments)
     }
