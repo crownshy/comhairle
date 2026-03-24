@@ -10,13 +10,13 @@ use axum_extra::extract::cookie::{Cookie, CookieJar};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tracing::{info, instrument};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
     models,
-    wiki_poll_service::{polis_service::PolisClient, WikiPollLogin, WikiPollService},
+    wiki_poll_service::{WikiPollLogin, WikiPollService},
     ComhairleState,
 };
 
@@ -64,15 +64,15 @@ impl ToolImpl for PolisTool {
         state: &Arc<ComhairleState>,
     ) -> Result<Self::Config, ComhairleError> {
         // Delegate to existing setup function
-        polis_setup(setup, &state.config.polis_url).await
+        polis_setup(setup, &state.config.polis_url, &state.wiki_poll_service).await
     }
 
     async fn clone_tool(
         config: &Self::Config,
-        _state: &Arc<ComhairleState>,
+        state: &Arc<ComhairleState>,
     ) -> Result<Self::Config, ComhairleError> {
         // Delegate to existing launch function
-        launch(config).await
+        launch(config, &state.wiki_poll_service).await
     }
 
     fn sanitize(config: Self::Config) -> Self::Config {
@@ -118,27 +118,6 @@ pub enum PolisError {
     ProxyError { from: String, to: String },
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-struct NewUserResp {
-    pub uid: u32,
-    pub hname: String,
-    pub email: String,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct PolisCommentCreateResponse {
-    tid: u8,
-    current_pid: u8,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct LoginResp {
-    pub uid: u32,
-    pub email: String,
-    pub token: String,
-}
-
 #[derive(Serialize, Deserialize, JsonSchema)]
 struct AdminLoginQuery {
     pub workflow_step_id: Uuid,
@@ -154,7 +133,7 @@ async fn admin_login(
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
 
     if let ToolConfig::Polis(config) = workflow_step.preview_tool_config {
-        let client = PolisClient::new(&config.server_url);
+        let client = &state.wiki_poll_service;
         let cookie = client
             .login(&WikiPollLogin {
                 email: config.admin_user,
@@ -172,43 +151,44 @@ async fn admin_login(
     }
 }
 
-#[instrument(err(Debug))]
-pub async fn launch(preview_config: &PolisToolConfig) -> Result<PolisToolConfig, ComhairleError> {
-    let preview_client = PolisClient::new(&preview_config.server_url);
-    let live_client = PolisClient::new(&preview_config.server_url);
-
-    let live_poll_config = polis_setup(
-        &PolisToolSetup { topic: "".into() },
-        &preview_config.server_url,
-    )
-    .await?;
-
-    preview_client
+#[instrument(err(Debug), skip(client))]
+pub async fn launch(
+    preview_config: &PolisToolConfig,
+    client: &Arc<dyn WikiPollService>,
+) -> Result<PolisToolConfig, ComhairleError> {
+    // Login as preview config user
+    client
         .login(&WikiPollLogin {
             email: preview_config.admin_user.clone(),
             password: preview_config.admin_password.clone(),
         })
         .await?;
 
-    live_client
+    // Need to also migrate the setting for moderation
+    let seed_statements = client.get_comments(&preview_config.poll_id).await?;
+
+    let live_poll_config = polis_setup(
+        &PolisToolSetup { topic: "".into() },
+        &preview_config.server_url,
+        client,
+    )
+    .await?;
+
+    // Login as live config user
+    client
         .login(&WikiPollLogin {
             email: live_poll_config.admin_user.clone(),
             password: live_poll_config.admin_password.clone(),
         })
         .await?;
 
-    // Need to also migrate the setting for moderation
-    let seed_statements = preview_client.get_comments(&preview_config.poll_id).await?;
-
-    // TODO filter seed statements.
+    // TODO: filter seed statements.
 
     for comment in seed_statements {
-        let result = live_client
+        client
             .post_seed_comment(&comment.txt, &live_poll_config.poll_id)
             .await?;
     }
-
-    let new_seed_comments = live_client.get_comments(&live_poll_config.poll_id).await?;
 
     Ok(live_poll_config)
 }
@@ -216,9 +196,8 @@ pub async fn launch(preview_config: &PolisToolConfig) -> Result<PolisToolConfig,
 async fn polis_setup(
     _setup: &PolisToolSetup,
     polis_url: &str,
+    client: &Arc<dyn WikiPollService>,
 ) -> Result<PolisToolConfig, ComhairleError> {
-    info!("Attempting to set up polis poll");
-    let client = PolisClient::new(polis_url);
     let (email, password) = client.create_random_admin_user().await?;
     client
         .login(&WikiPollLogin {
@@ -226,7 +205,6 @@ async fn polis_setup(
             password: password.clone(),
         })
         .await?;
-    // sleep(Duration::from_millis(1)).await;
     let poll_id = client.create_poll().await?;
 
     Ok(PolisToolConfig {

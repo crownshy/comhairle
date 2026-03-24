@@ -3,7 +3,7 @@ use rand::{distributions::Alphanumeric, Rng};
 use reqwest::{header::SET_COOKIE, Client};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tracing::{info, instrument, warn};
+use tracing::{instrument, warn};
 
 use crate::{
     tools::polis::PolisError,
@@ -30,7 +30,6 @@ impl PolisClient {
 #[async_trait]
 impl WikiPollService for PolisClient {
     async fn create_random_admin_user(&self) -> Result<(String, String), WikiPollServiceError> {
-        info!("Creating a random admin user");
         let username: String = rand::thread_rng()
             .sample_iter(&Alphanumeric)
             .take(10)
@@ -64,7 +63,6 @@ impl WikiPollService for PolisClient {
                 PolisError::FailedToCreateNewAdminUser
             })?
             .text()
-            // .json::<NewUserResp>()
             .await
             .map_err(|e| {
                 warn!("{e}");
@@ -75,19 +73,14 @@ impl WikiPollService for PolisClient {
     }
 
     async fn login(&self, login: &WikiPollLogin) -> Result<String, WikiPollServiceError> {
-        info!("Logging in to polis");
         let url = format!("https://{}/api/v3/auth/login", self.base_url);
-        println!("format {url}");
         let resp = self
             .client
             .post(url)
             .json(&login)
             .send()
             .await
-            .map_err(|e| {
-                println!("First bit {e}");
-                PolisError::FailedToLogin
-            })?;
+            .map_err(|_| PolisError::FailedToLogin)?;
 
         let cookie = resp
             .headers()
@@ -97,22 +90,15 @@ impl WikiPollService for PolisClient {
             .map_err(|_| PolisError::FailedToLogin)?
             .to_owned();
 
-        let login_resp = resp
+        let _ = resp
             .json::<LoginResp>()
-            // .text()
             .await
-            .map_err(|e| {
-                println!("{e}");
-                PolisError::FailedToLogin
-            })?;
-
-        info!("Logged user into polis {login_resp:#?}");
+            .map_err(|_| PolisError::FailedToLogin)?;
 
         Ok(cookie)
     }
 
     async fn create_poll(&self) -> Result<String, WikiPollServiceError> {
-        info!("Attempting to create a new poll");
         let new_poll = self
             .client
             .post(format!("https://{}/api/v3/conversations", self.base_url))
@@ -122,7 +108,6 @@ impl WikiPollService for PolisClient {
                 warn!("Failed to create new poll: {e:#?}");
                 PolisError::FailedToCreateNewPoll
             })?
-            // .text()
             .json::<NewPollResp>()
             .await
             .map_err(|e| {
@@ -188,13 +173,6 @@ struct NewAdminUser {
 #[derive(Deserialize, Serialize, Debug)]
 struct NewPollResp {
     conversation_id: String,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-struct NewUserResp {
-    pub uid: u32,
-    pub hname: String,
-    pub email: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
