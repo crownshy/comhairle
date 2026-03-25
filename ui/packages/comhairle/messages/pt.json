@@ -132,5 +132,8 @@
 	"polis_do_you_want_to_continue": "Deseja continuar?",
 	"polis_continue_voting": "Continuar votando",
 	"polis_voted_everything": "Você votou em tudo. Obrigado!",
-	"polis_come_back_later": "Volte mais tarde para ver se novas opiniões foram adicionadas."
+	"polis_come_back_later": "Volte mais tarde para ver se novas opiniões foram adicionadas.",
+	"password_updated_successfully": "Senha atualizada com sucesso",
+	"password_updated_successfully_body": "Sua senha foi alterada. Você pode continuar usando o aplicativo.",
+	"continue_to_home": "Continuar para a página inicial"
 }

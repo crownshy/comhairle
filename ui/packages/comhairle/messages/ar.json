@@ -132,5 +132,8 @@
 	"polis_do_you_want_to_continue": "هل تريد المتابعة؟",
 	"polis_continue_voting": "متابعة التصويت",
 	"polis_voted_everything": "لقد صوّتت على كل شيء. شكراً لك!",
-	"polis_come_back_later": "عد لاحقاً لمعرفة ما إذا تمت إضافة آراء جديدة."
+	"polis_come_back_later": "عد لاحقاً لمعرفة ما إذا تمت إضافة آراء جديدة.",
+	"password_updated_successfully": "تم تحديث كلمة المرور بنجاح",
+	"password_updated_successfully_body": "تم تغيير كلمة المرور الخاصة بك. يمكنك الاستمرار في استخدام التطبيق.",
+	"continue_to_home": "المتابعة إلى الصفحة الرئيسية"
 }

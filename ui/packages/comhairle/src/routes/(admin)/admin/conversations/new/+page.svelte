@@ -23,7 +23,7 @@
 		resetForm: false
 	});
 
-	const { form: formData, enhance, message: errMessage, validateForm } = form;
+	const { form: formData, enhance, message: errMessage, validateForm, errors } = form;
 
 	let submitting = $state(false);
 	let selectedWorkflowTemplate = $state('empty');
@@ -31,55 +31,60 @@
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
 		submitting = true;
-		const result = await validateForm();
+		const result = await validateForm({ update: false });
 
-		if (result.valid) {
-			try {
-				let fullConversation = {
-					...result.data,
-					description:
-						'This should be a longer description about the conversation. It should introduce people to what is being discussed and outline-solid the actions that might be taken as a result of the conversation',
-					tags: [],
-					image_url: PlaceholderConvo,
-					primary_locale: 'en',
-					supported_languages: ['en'],
-					is_public: false,
-					is_live: false,
-					is_invite_only: false
-				};
+		if (!result.valid) {
+			// Only show errors when validation actually fails
+			$errors = result.errors;
+			submitting = false;
+			return;
+		}
 
-				let conversation = await apiClient.CreateConversation(fullConversation);
+		try {
+			let fullConversation = {
+				...result.data,
+				description:
+					'This should be a longer description about the conversation. It should introduce people to what is being discussed and outline-solid the actions that might be taken as a result of the conversation',
+				tags: [],
+				image_url: PlaceholderConvo,
+				primary_locale: 'en',
+				supported_languages: ['en'],
+				is_public: false,
+				is_live: false,
+				is_invite_only: false
+			};
 
-				let workflow = await apiClient.CreateConversationWorkflow(
-					{
-						name: 'Default Workflow',
-						description: 'The default workflow',
-						is_active: true,
-						is_public: true,
-						auto_login: false
-					},
-					{ params: { conversation_id: conversation.id } }
-				);
+			let conversation = await apiClient.CreateConversation(fullConversation);
 
-				//@ts-ignore
-				let template = workflow_templates[selectedWorkflowTemplate];
-				for (let step of template) {
-					await apiClient.CreateConversationWorkflowStep(step, {
-						params: {
-							conversation_id: conversation.id,
-							workflow_id: workflow.id
-						}
-					});
-				}
+			let workflow = await apiClient.CreateConversationWorkflow(
+				{
+					name: 'Default Workflow',
+					description: 'The default workflow',
+					is_active: true,
+					is_public: true,
+					auto_login: false
+				},
+				{ params: { conversation_id: conversation.id } }
+			);
 
-				notifications.addFlash({ message: 'Conversastion Created' });
-				await invalidateAll();
-
-				goto(manage_conversation_url(conversation.id));
-			} catch (e) {
-				console.warn(e);
-				notifications.send({ message: 'Something went wrong creating the conversation' });
+			//@ts-ignore
+			let template = workflow_templates[selectedWorkflowTemplate];
+			for (let step of template) {
+				await apiClient.CreateConversationWorkflowStep(step, {
+					params: {
+						conversation_id: conversation.id,
+						workflow_id: workflow.id
+					}
+				});
 			}
+
+			notifications.addFlash({ message: 'Conversastion Created' });
+			await invalidateAll();
+
+			goto(manage_conversation_url(conversation.id));
+		} catch (e) {
+			console.warn(e);
+			notifications.send({ message: 'Something went wrong creating the conversation' });
 		}
 	}
 </script>

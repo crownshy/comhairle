@@ -137,5 +137,8 @@
 	"polis_do_you_want_to_continue": "Do you want to continue?",
 	"polis_continue_voting": "Continue voting",
 	"polis_voted_everything": "You have voted on everything. Thank you!",
-	"polis_come_back_later": "Come back later to see if new statements have been added."
+	"polis_come_back_later": "Come back later to see if new statements have been added.",
+	"password_updated_successfully": "Password updated successfully",
+	"password_updated_successfully_body": "Your password has been changed. Use your new password to log in next time.",
+	"continue_to_home": "Continue to Home"
 }
