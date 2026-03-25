@@ -17,109 +17,87 @@
 
 	let { steps }: StepSelectorProps = $props();
 
-	function getLineColor(
-		stepStatus: StepStatus,
-		side: 'left' | 'right',
-		nextStatus?: StepStatus
-	): string {
-		if (stepStatus === 'completed' || stepStatus === 'completed-locked') {
-			return 'bg-primary';
-		}
-		if (stepStatus === 'current') {
-			return 'bg-primary';
-		}
-		// upcoming
-		return 'bg-primary/20';
+	function getLineColor(stepStatus: StepStatus): string {
+		return stepStatus === 'upcoming' ? 'bg-primary/20' : 'bg-primary';
 	}
 </script>
 
-{#snippet circleIndicator(step: StepItem, index: number)}
-	{#if step.status === 'completed'}
-		{#if step.href}
-			<a
-				href={step.href}
-				class="bg-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all hover:scale-110 hover:shadow-md"
-				aria-label="Step {index + 1}: {step.name} (completed, click to return)"
-				title="Step {index + 1}: {step.name} (completed, click to return)"
-			>
-				<Check class="text-primary-foreground h-5 w-5" />
-			</a>
-		{:else}
-			<div
-				class="bg-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-				aria-label="Step {index + 1}: {step.name} (completed)"
-				title="Step {index + 1}: {step.name} (completed)"
-			>
-				<Check class="text-primary-foreground h-5 w-5" />
-			</div>
-		{/if}
-	{:else if step.status === 'completed-locked'}
-		<div
-			class="bg-popover outline-ring/40 flex h-10 w-10 shrink-0 items-center justify-center rounded-full outline-2 -outline-offset-2"
-			aria-label="Step {index + 1}: {step.name} (completed, locked)"
-			title="Step {index + 1}: {step.name} (completed)"
-		>
-			<Check class="text-muted-foreground h-5 w-5" />
-		</div>
-	{:else if step.status === 'current'}
-		<div
-			class="bg-primary/20 outline-primary/5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full outline-1 -outline-offset-1"
-			aria-current="step"
-			aria-label="Step {index + 1}: {step.name} (current)"
-			title="Step {index + 1}: {step.name} (current)"
-		>
-			<div class="bg-primary h-5 w-5 rounded-full"></div>
-		</div>
-	{:else}
-		<div
-			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full -outline-offset-1 outline-transparent"
-			aria-label="Step {index + 1}: {step.name} (upcoming)"
-			title="Step {index + 1}: {step.name} (upcoming)"
-		>
-			<div class="bg-primary/20 h-5 w-5 rounded-full"></div>
-		</div>
-	{/if}
-{/snippet}
+{#snippet stepIndicator(step: StepItem, index: number, size: 'sm' | 'lg')}
+	{@const lg = size === 'lg'}
+	{@const outer = lg ? 'h-10 w-10' : 'h-5 w-5'}
+	{@const icon = lg ? 'h-5 w-5' : 'h-3 w-3'}
+	{@const dot = lg ? 'h-5 w-5' : 'h-2.5 w-2.5'}
+	{@const label = `Step ${index + 1}: ${step.name}`}
 
-{#snippet smallCircleIndicator(step: StepItem, index: number)}
 	{#if step.status === 'completed'}
 		{#if step.href}
 			<a
 				href={step.href}
-				class="bg-primary flex h-5 w-5 shrink-0 items-center justify-center rounded-full outline-1 -outline-offset-1 outline-white"
-				aria-label="Step {index + 1}: {step.name} (completed, click to return)"
+				class={cn(
+					'bg-primary flex shrink-0 items-center justify-center rounded-full',
+					outer,
+					lg
+						? 'transition-all hover:scale-110 hover:shadow-md'
+						: 'outline-1 -outline-offset-1 outline-white'
+				)}
+				aria-label="{label} (completed, click to return)"
+				title={lg ? `${label} (completed, click to return)` : undefined}
 			>
-				<Check class="text-primary-foreground h-3 w-3" />
+				<Check class={cn('text-primary-foreground', icon)} />
 			</a>
 		{:else}
 			<div
-				class="bg-primary flex h-5 w-5 shrink-0 items-center justify-center rounded-full outline-1 -outline-offset-1 outline-white"
-				aria-label="Step {index + 1}: {step.name} (completed)"
+				class={cn(
+					'bg-primary flex shrink-0 items-center justify-center rounded-full',
+					outer,
+					!lg && 'outline-1 -outline-offset-1 outline-white'
+				)}
+				aria-label="{label} (completed)"
+				title={lg ? `${label} (completed)` : undefined}
 			>
-				<Check class="text-primary-foreground h-3 w-3" />
+				<Check class={cn('text-primary-foreground', icon)} />
 			</div>
 		{/if}
 	{:else if step.status === 'completed-locked'}
 		<div
-			class="bg-popover outline-ring/40 flex h-5 w-5 shrink-0 items-center justify-center rounded-full outline-1 -outline-offset-1"
-			aria-label="Step {index + 1}: {step.name} (completed, locked)"
+			class={cn(
+				'bg-popover outline-ring/40 flex shrink-0 items-center justify-center rounded-full',
+				outer,
+				lg ? 'outline-2 -outline-offset-2' : 'outline-1 -outline-offset-1'
+			)}
+			aria-label="{label} (completed, locked)"
+			title={lg ? `${label} (completed)` : undefined}
 		>
-			<Check class="text-primary h-3 w-3" />
+			<Check class={cn(icon, lg ? 'text-muted-foreground' : 'text-primary')} />
 		</div>
 	{:else if step.status === 'current'}
 		<div
-			class="bg-primary/20 flex h-5 w-5 shrink-0 items-center justify-center rounded-full outline-[0.5px] -outline-offset-[0.5px]"
+			class={cn(
+				'bg-primary flex shrink-0 items-center justify-center rounded-full',
+				outer,
+				lg
+					? 'outline-primary outline-1 -outline-offset-1'
+					: 'outline-[0.5px] -outline-offset-[0.5px]'
+			)}
 			aria-current="step"
-			aria-label="Step {index + 1}: {step.name} (current)"
+			aria-label="{label} (current)"
+			title={lg ? `${label} (current)` : undefined}
 		>
-			<div class="bg-primary h-2.5 w-2.5 rounded-full"></div>
+			<div class={cn('bg-background rounded-full', dot)}></div>
 		</div>
 	{:else}
 		<div
-			class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full outline-[0.5px] -outline-offset-[0.5px]"
-			aria-label="Step {index + 1}: {step.name} (upcoming)"
+			class={cn(
+				'flex shrink-0 items-center justify-center rounded-full',
+				outer,
+				lg
+					? '-outline-offset-1 outline-transparent'
+					: 'outline-[0.5px] -outline-offset-[0.5px]'
+			)}
+			aria-label="{label} (upcoming)"
+			title={lg ? `${label} (upcoming)` : undefined}
 		>
-			<div class="bg-primary/20 h-2.5 w-2.5 rounded-full"></div>
+			<div class={cn('bg-primary/20 rounded-full', dot)}></div>
 		</div>
 	{/if}
 {/snippet}
@@ -167,27 +145,24 @@
 		{#each steps as step, index (step.id)}
 			{@const isFirst = index === 0}
 			{@const isLast = index === steps.length - 1}
-			{@const nextStep = steps[index + 1]}
-			<li class="flex flex-1 flex-col items-center gap-4 py-3">
+			<li class="flex flex-1 flex-col items-center gap-2">
 				<!-- Connector line + circle row -->
 				<div class="flex w-full items-center gap-1.5">
 					<!-- Left line -->
 					<div
 						class={cn(
 							'h-0.5 flex-1',
-							isFirst ? 'bg-transparent' : getLineColor(step.status, 'left')
+							isFirst ? 'bg-transparent' : getLineColor(step.status)
 						)}
 					></div>
 
-					{@render circleIndicator(step, index)}
+					{@render stepIndicator(step, index, 'lg')}
 
 					<!-- Right line -->
 					<div
 						class={cn(
 							'h-0.5 flex-1',
-							isLast
-								? 'bg-transparent'
-								: getLineColor(step.status, 'right', nextStep?.status)
+							isLast ? 'bg-transparent' : getLineColor(step.status)
 						)}
 					></div>
 				</div>
@@ -205,16 +180,9 @@
 			{@const isFirst = index === 0}
 			{@const isLast = index === steps.length - 1}
 			<li class="flex flex-1 items-center gap-0.5">
-				<div
-					class={cn('h-[1.5px] flex-1', isFirst ? '' : getLineColor(step.status, 'left'))}
-				></div>
-				{@render smallCircleIndicator(step, index)}
-				<div
-					class={cn(
-						'h-[1.5px] flex-1',
-						isLast ? '' : getLineColor(step.status, 'right', steps[index + 1]?.status)
-					)}
-				></div>
+				<div class={cn('h-[1.5px] flex-1', isFirst ? '' : getLineColor(step.status))}></div>
+				{@render stepIndicator(step, index, 'sm')}
+				<div class={cn('h-[1.5px] flex-1', isLast ? '' : getLineColor(step.status))}></div>
 			</li>
 		{/each}
 	</ol>
