@@ -2,7 +2,6 @@ const STORAGE_PREFIX = 'comhairle-polis-votes';
 
 interface PolisVoteData {
 	totalVotes: number;
-	pid?: number;
 	hasMetThreshold: boolean;
 }
 
@@ -45,14 +44,4 @@ export function incrementVotes(
 	}
 	save(userId, workflowStepId, data);
 	return data;
-}
-
-export function savePid(userId: string, workflowStepId: string, pid: number): void {
-	const data = load(userId, workflowStepId);
-	data.pid = pid;
-	save(userId, workflowStepId, data);
-}
-
-export function getSavedPid(userId: string, workflowStepId: string): number | undefined {
-	return load(userId, workflowStepId).pid;
 }
