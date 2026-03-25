@@ -55,6 +55,10 @@ pub struct ConversationDto {
     pub enable_qa_chat_bot: bool,
     pub supported_languages: Vec<String>,
     pub organization_id: Option<Uuid>,
+    #[schemars(example = "example_uuid")]
+    pub privacy_policy: Option<TextContentId>,
+    #[schemars(example = "example_uuid")]
+    pub faqs: Option<TextContentId>,
 }
 
 /// Data transfer object (public API representation) for a LocalizedConversation.
@@ -101,6 +105,10 @@ pub struct LocalizedConversationDto {
     pub enable_qa_chat_bot: bool,
     pub supported_languages: Vec<String>,
     pub organization_id: Option<Uuid>,
+    #[schemars(example = "example_localized_text")]
+    pub privacy_policy: Option<String>,
+    #[schemars(example = "example_localized_text")]
+    pub faqs: Option<String>,
 }
 
 impl From<Conversation> for ConversationDto {
@@ -124,6 +132,8 @@ impl From<Conversation> for ConversationDto {
             enable_qa_chat_bot: c.enable_qa_chat_bot,
             supported_languages: c.supported_languages,
             organization_id: c.organization_id,
+            privacy_policy: c.privacy_policy,
+            faqs: c.faqs,
         }
     }
 }
@@ -149,6 +159,8 @@ impl From<LocalizedConversation> for LocalizedConversationDto {
             enable_qa_chat_bot: c.enable_qa_chat_bot,
             supported_languages: c.supported_languages,
             organization_id: c.organization_id,
+            privacy_policy: c.privacy_policy,
+            faqs: c.faqs,
         }
     }
 }

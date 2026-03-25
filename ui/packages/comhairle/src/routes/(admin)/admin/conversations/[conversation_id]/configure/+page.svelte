@@ -16,7 +16,7 @@
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import type { ConversationWithTranslations, WorkflowDto } from '@crownshy/api-client/api';
-	import { snakeCaseKeys } from '$lib/utils/snakeCaseKeys';
+	import { camelToSnakeCase, snakeCaseKeys } from '$lib/utils/snakeCaseKeys';
 
 	let {
 		data
@@ -42,6 +42,8 @@
 		$form.imageUrl = data.conversation.imageUrl;
 		$form.isPublic = data.conversation.isPublic;
 		$form.isInviteOnly = data.conversation.isInviteOnly;
+		$form.privacyPolicy = data.conversation.privacyPolicy;
+		$form.faqs = data.conversation.faqs;
 		$form.autoLogin = data.workflows[0]?.autoLogin;
 		$form.enableQaChatBot = data.conversation.enableQaChatBot;
 	});
@@ -130,6 +132,8 @@
 			shortDescription: data.conversation.shortDescription,
 			description: data.conversation.description,
 			imageUrl: data.conversation.imageUrl,
+			privacyPolicy: data.conversation.privacyPolicy,
+			faqs: data.conversation.faqs,
 			isPublic: data.conversation.isPublic,
 			isInviteOnly: data.conversation.isInviteOnly,
 			autoLogin: data.workflows[0].autoLogin,
@@ -142,6 +146,26 @@
 			onSubmit: updateConversation
 		}
 	);
+
+	async function handleInitOptionalTranslationField(content: string, field: string) {
+		try {
+			if (!conversation) return;
+
+			const textContentRes = await apiClient.CreateTextContent({
+				content,
+				format: 'rich',
+				primary_locale: conversation.primaryLocale
+			});
+
+			await apiClient.UpdateConversation(
+				{ [camelToSnakeCase(field)]: textContentRes.id },
+				{ params: { conversation_id: conversation.id } }
+			);
+		} catch (e) {
+			console.error(e);
+			notifications.send({ message: 'Failed to create privacy policy', priority: 'ERROR' });
+		}
+	}
 
 	let { form, enhance, validateForm, submitting, tainted } = conversationForm;
 
@@ -157,6 +181,9 @@
 					_short_description /* eslint-disable-line @typescript-eslint/no-unused-vars */,
 				description:
 					_description /* eslint-disable-line @typescript-eslint/no-unused-vars */,
+				privacyPolicy:
+					_privacyPolicy /* eslint-disable-line @typescript-eslint/no-unused-vars */,
+				faqs: _faqs /* eslint-disable-line @typescript-eslint/no-unused-vars */,
 				autoLogin: _auto_login /* eslint-disable-line @typescript-eslint/no-unused-vars */,
 				...conversationData
 			} = result.data;
@@ -219,7 +246,7 @@
 		<Form.Field form={conversationForm} name="title" class="contents">
 			<Form.Control>
 				{#snippet children({ props })}
-					<Form.Label class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2"
+					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
 						>Title</Form.Label
 					>
 					<div class="flex-1">
@@ -245,7 +272,7 @@
 		<Form.Field form={conversationForm} name="shortDescription" class="contents">
 			<Form.Control>
 				{#snippet children({ props })}
-					<Form.Label class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2"
+					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
 						>Short description</Form.Label
 					>
 					<div class="flex-1">
@@ -272,7 +299,7 @@
 		<Form.Field form={conversationForm} name="description" class="contents">
 			<Form.Control>
 				{#snippet children({ props })}
-					<Form.Label class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2"
+					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
 						>Description</Form.Label
 					>
 					<div class="flex-1">
@@ -296,7 +323,7 @@
 	<div
 		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 	>
-		<p class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2">Language options</p>
+		<p class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Language options</p>
 		<div class="max-w-md flex-1">
 			<LanguageSelector
 				bind:primaryLanguage
@@ -314,7 +341,7 @@
 		<Form.Field form={conversationForm} name="imageUrl" class="contents">
 			<Form.Control>
 				{#snippet children({ props })}
-					<Form.Label class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2"
+					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
 						>Banner image URL</Form.Label
 					>
 					<div class="flex flex-1 flex-col gap-4">
@@ -333,11 +360,69 @@
 		</Form.Field>
 	</div>
 
+	<!-- Privacy policy -->
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
+		<Form.Field form={conversationForm} name="privacyPolicy" class="contents">
+			<Form.Control>
+				{#snippet children({ props })}
+					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+						>Privacy Policy</Form.Label
+					>
+					<div class="flex-1">
+						<TranslatableField
+							value={$form.privacyPolicy || null}
+							onValueChange={(v) => ($form.privacyPolicy = v)}
+							translation={conversation.translations?.privacyPolicy ?? undefined}
+							editorType="rich"
+							onSaveSource={(content: string) =>
+								handleInitOptionalTranslationField(content, 'privacyPolicy')}
+							primaryLocale={primaryLanguage}
+							{supportedLanguages}
+							inputProps={props}
+						/>
+						<Form.FieldErrors />
+					</div>
+				{/snippet}
+			</Form.Control>
+		</Form.Field>
+	</div>
+
+	<!-- FAQs -->
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
+		<Form.Field form={conversationForm} name="faqs" class="contents">
+			<Form.Control>
+				{#snippet children({ props })}
+					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+						>FAQs</Form.Label
+					>
+					<div class="flex-1">
+						<TranslatableField
+							value={$form.faqs || null}
+							onValueChange={(v) => ($form.faqs = v)}
+							translation={conversation.translations?.faqs ?? undefined}
+							editorType="rich"
+							onSaveSource={(content: string) =>
+								handleInitOptionalTranslationField(content, 'faqs')}
+							primaryLocale={primaryLanguage}
+							{supportedLanguages}
+							inputProps={props}
+						/>
+						<Form.FieldErrors />
+					</div>
+				{/snippet}
+			</Form.Control>
+		</Form.Field>
+	</div>
+
 	<!-- Access / Other configuration -->
 	<div
 		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 	>
-		<p class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2">Other configuration</p>
+		<p class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Other configuration</p>
 		<div class="flex flex-1 flex-col gap-6">
 			<Form.Field form={conversationForm} name="isPublic">
 				<Form.Control>
@@ -426,7 +511,7 @@
 	<div
 		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 	>
-		<p class="text-sm font-semibold lg:w-[200px] lg:shrink-0 lg:pt-2">Collaborators</p>
+		<p class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Collaborators</p>
 		<div class="flex-1">
 			<TeamManager />
 		</div>

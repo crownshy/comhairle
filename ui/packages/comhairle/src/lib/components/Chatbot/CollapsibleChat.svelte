@@ -96,52 +96,41 @@
 	{/if}
 {:else}
 	<!-- Desktop: Fixed bottom-right panel -->
-	<div class="fixed right-6 bottom-6 z-50 flex max-h-[calc(100vh-48px)] flex-col items-end">
-		{#if isOpen}
-			<!-- Expanded state -->
-			<div
-				class="border-chat-primary-light mb-2 flex h-[600px] w-[420px] flex-col overflow-hidden rounded-2xl border shadow-xl"
-			>
-				<button
-					onclick={toggle}
-					class="bg-chat-bubble hover:bg-chat-bg flex w-full cursor-pointer items-center justify-start gap-4 rounded-t-2xl p-4 transition-colors"
-				>
-					<div class="relative">
-						<div
-							class="bg-chat-primary ring-chat-primary-light flex h-12 w-12 items-center justify-center rounded-full ring-4"
-						>
-							<MessageCircle class="h-6 w-6 text-white" />
-						</div>
-						<div
-							class="border-chat-bubble absolute right-0 bottom-0 h-3 w-3 rounded-full border-2 bg-green-400"
-						></div>
-					</div>
-
-					<div class="flex flex-1 flex-col items-start">
-						<span class="text-chat-text line-clamp-1 text-lg leading-6 font-semibold"
-							>{botName}</span
-						>
-						<span class="text-chat-primary line-clamp-1 text-sm leading-5 font-normal"
-							>{botSubtitle}</span
-						>
-					</div>
-
-					<ChevronDown class="text-chat-text-muted h-5 w-5" />
-				</button>
-
-				<div class="min-h-0 flex-1 overflow-hidden">
-					<ChatBot {chatId} {conversationId} {userId} {botName} {botSubtitle} />
-				</div>
-			</div>
-		{:else}
-			<!-- Collapsed state - floating button -->
+	<div class="relative bottom-6 z-50 flex h-[30vh] w-full flex-col items-end">
+		<!-- Expanded state -->
+		<div
+			class="border-chat-primary-light flex h-full w-full flex-col overflow-hidden rounded-2xl border shadow-xl"
+		>
 			<button
 				onclick={toggle}
-				class="bg-chat-primary hover:bg-chat-primary-dark ring-chat-primary-light flex h-14 w-14 items-center justify-center rounded-full shadow-lg shadow-md ring-4 transition-colors"
-				aria-label="Open chat"
+				class="bg-chat-bubble hover:bg-chat-bg flex w-full cursor-pointer items-center justify-start gap-4 rounded-t-2xl p-4 transition-colors"
 			>
-				<MessageCircle class="h-7 w-7 text-white" />
+				<div class="relative">
+					<div
+						class="bg-chat-primary ring-chat-primary-light flex h-12 w-12 items-center justify-center rounded-full ring-4"
+					>
+						<MessageCircle class="h-6 w-6 text-white" />
+					</div>
+					<div
+						class="border-chat-bubble absolute right-0 bottom-0 h-3 w-3 rounded-full border-2 bg-green-400"
+					></div>
+				</div>
+
+				<div class="flex flex-1 flex-col items-start">
+					<span class="text-chat-text line-clamp-1 text-lg leading-6 font-semibold"
+						>{botName}</span
+					>
+					<span class="text-chat-primary line-clamp-1 text-sm leading-5 font-normal"
+						>{botSubtitle}</span
+					>
+				</div>
+
+				<ChevronDown class="text-chat-text-muted h-5 w-5" />
 			</button>
-		{/if}
+
+			<div class="min-h-0 flex-1 overflow-hidden">
+				<ChatBot {chatId} {conversationId} {userId} {botName} {botSubtitle} />
+			</div>
+		</div>
 	</div>
 {/if}

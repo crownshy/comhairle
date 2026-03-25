@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput, Fields, Type};
+use syn::{parse_macro_input, Data, DeriveInput, Fields, GenericArgument, PathArguments, Type};
 
 /// Macro used to allow an enum to be
 /// saved as jsonb in the database
@@ -188,6 +188,7 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
 
     let mut localised_fields = Vec::new();
     let mut text_content_fields = Vec::new();
+    let mut optional_text_content_fields = Vec::new();
     let mut non_text_content_fields = Vec::new();
 
     for field in fields {
@@ -200,6 +201,12 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
             // Replace TextContentId with String for both structs
             localised_fields.push(quote! {
                 pub #field_name: String
+            });
+        } else if is_optional_text_content_id_type(field_type) {
+            optional_text_content_fields.push(field_name);
+            // Replace TextContentId with Option<String> for both structs
+            localised_fields.push(quote! {
+                pub #field_name: Option<String>
             });
         } else {
             non_text_content_fields.push(field_name);
@@ -219,16 +226,16 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
         .map(|field| {
             let field_str = field.to_string();
             // Convert snake_case to PascalCase
-            let pascal_case = field_str
-                .split('_')
-                .map(|word| {
-                    let mut chars: Vec<char> = word.chars().collect();
-                    if !chars.is_empty() {
-                        chars[0] = chars[0].to_uppercase().next().unwrap();
-                    }
-                    chars.into_iter().collect::<String>()
-                })
-                .collect::<String>();
+            let pascal_case = snake_case_to_pascal(field_str);
+            syn::Ident::new(&pascal_case, field.span())
+        })
+        .collect();
+    let optional_text_content_field_caps: Vec<_> = optional_text_content_fields
+        .iter()
+        .map(|field| {
+            let field_str = field.to_string();
+            // Convert snake_case to PascalCase
+            let pascal_case = snake_case_to_pascal(field_str);
             syn::Ident::new(&pascal_case, field.span())
         })
         .collect();
@@ -241,6 +248,11 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
     let translation_fields = text_content_fields.iter().map(|field| {
         quote! {
             pub #field: Translation
+        }
+    });
+    let optional_translation_fields = optional_text_content_fields.iter().map(|field| {
+        quote! {
+            pub #field: Option<Translation>
         }
     });
 
@@ -261,6 +273,7 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
         #[serde(rename_all = "camelCase")]
         pub struct #translations_struct_name {
             #(#translation_fields,)*
+            #(#optional_translation_fields,)*
         }
 
         #[derive(serde::Serialize, serde::Deserialize, schemars::JsonSchema, Debug, PartialEq, Clone)]
@@ -332,6 +345,56 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
                     }
                 )*
 
+                #(
+                    {
+                        // Create unique aliases for each text content field
+                        let tc_alias = Alias::new(&format!("tc_{}", stringify!(#optional_text_content_fields)));
+                        let tt_alias = Alias::new(&format!("tt_{}", stringify!(#optional_text_content_fields)));
+                        let tt_primary_alias = Alias::new(&format!("tt_primary_{}", stringify!(#optional_text_content_fields)));
+
+                        // Join with text_content table using alias
+                        query = query
+                            .join_as(
+                                JoinType::LeftJoin,
+                                TextContentIden::Table,
+                                tc_alias.clone(),
+                                Expr::col((#table_iden_name::Table, #table_iden_name::#optional_text_content_field_caps))
+                                    .equals((tc_alias.clone(), TextContentIden::Id))
+                            )
+                            // Join with text_translation table for the specific locale using alias
+                            .join_as(
+                                JoinType::LeftJoin,
+                                TextTranslationIden::Table,
+                                tt_alias.clone(),
+                                Expr::col((tc_alias.clone(), TextContentIden::Id))
+                                    .equals((tt_alias.clone(), TextTranslationIden::ContentId))
+                                    .and(Expr::col((tt_alias.clone(), TextTranslationIden::Locale)).eq(locale))
+                            )
+                            // Join with text_translation table for the primary locale as fallback
+                            .join_as(
+                                JoinType::LeftJoin,
+                                TextTranslationIden::Table,
+                                tt_primary_alias.clone(),
+                                Expr::col((tc_alias.clone(), TextContentIden::Id))
+                                    .equals((tt_primary_alias.clone(), TextTranslationIden::ContentId))
+                                    .and(
+                                        Expr::col((tt_primary_alias.clone(), TextTranslationIden::Locale))
+                                            .equals((tc_alias.clone(), TextContentIden::PrimaryLocale))
+                                    )
+                            )
+                            .to_owned();
+
+                        // Select the translated content with COALESCE fallback to primary locale
+                        query = query.expr_as(
+                            Func::coalesce([
+                                Expr::col((tt_alias, TextTranslationIden::Content)).into(),
+                                Expr::col((tt_primary_alias, TextTranslationIden::Content)).into(),
+                            ]),
+                            Alias::new(stringify!(#optional_text_content_fields))
+                        ).to_owned();
+                    }
+                )*
+
                 query
             }
         }
@@ -362,6 +425,26 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
                             }
                         },
                     )*
+                    #(
+                        #optional_text_content_fields: {
+                            if let Some(field) = &original.#optional_text_content_fields {
+                                // Get the translated text for this locale, fallback to primary locale if needed
+                                match get_text_translation_by_content_and_locale(db, &field, locale).await {
+                                    Ok(translation) => Some(translation.content),
+                                    Err(_) => {
+                                        // Try to get the text content to access primary locale
+                                        let text_content = get_text_content_by_id(db, &field).await?;
+                                        match get_text_translation_by_content_and_locale(db, &field, &text_content.primary_locale).await {
+                                            Ok(translation) => Some(translation.content),
+                                            Err(_) => Some(String::new()), // Fallback to empty string if no translation found
+                                        }
+                                    }
+                                }
+                            } else {
+                                None
+                            }
+                        },
+                    )*
                     // Copy non-TextContentId fields as-is
                     #(
                         #non_text_content_fields: original.#non_text_content_fields,
@@ -380,6 +463,26 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
                                 Translation {
                                     text_content,
                                     text_translations,
+                                }
+                            },
+                        )*
+                        #(
+                            #optional_text_content_fields: {
+                                if let Some(field) = &original.#optional_text_content_fields {
+                                    // Get the TextContent for this field
+                                    let text_content = get_text_content_by_id(db, &field).await?.into();
+
+                                    // Get all translations for this content
+                                    let text_translations =
+                                        (get_text_translations_by_content_id(db, &field).await?).into_iter().map(Into::into).collect();
+
+                                    // Create Translation struct for this field
+                                    Some(Translation {
+                                        text_content,
+                                        text_translations,
+                                    })
+                                } else {
+                                    None
                                 }
                             },
                         )*
@@ -404,4 +507,38 @@ fn is_text_content_id_type(ty: &Type) -> bool {
         }
         _ => false,
     }
+}
+
+/// Helper function to check if a type is <TextContentId>
+fn is_optional_text_content_id_type(ty: &Type) -> bool {
+    match ty {
+        Type::Path(type_path) => {
+            if let Some(segment) = type_path.path.segments.last() {
+                if segment.ident != "Option" {
+                    return false;
+                }
+
+                if let PathArguments::AngleBracketed(args) = &segment.arguments {
+                    if let Some(GenericArgument::Type(inner_type)) = args.args.first() {
+                        return is_text_content_id_type(inner_type);
+                    }
+                }
+            }
+            false
+        }
+        _ => false,
+    }
+}
+
+fn snake_case_to_pascal(snake_word: String) -> String {
+    snake_word
+        .split('_')
+        .map(|word| {
+            let mut chars: Vec<char> = word.chars().collect();
+            if !chars.is_empty() {
+                chars[0] = chars[0].to_uppercase().next().unwrap();
+            }
+            chars.into_iter().collect::<String>()
+        })
+        .collect::<String>()
 }

@@ -7,17 +7,13 @@
 	import { TextStyle } from '@tiptap/extension-text-style';
 	import { Underline } from '@tiptap/extension-underline';
 	import EditorToolbar from './EditorToolbar.svelte';
-	import {
-		CONTENT_TYPES,
-		type ContentType,
-		type ActiveStates
-	} from '$lib/components/RichTextEditor/types';
+	import { type ActiveStates } from '$lib/components/RichTextEditor/types';
 	import { detectContentType } from '$lib/utils/contentDetection';
 	import { getBaseExtensions, getEditorProps } from './editorConfig';
 	import './editor-content.css';
 
 	type Props = {
-		value?: string;
+		value?: string | null;
 		placeholder?: string;
 		editable?: boolean;
 		class?: string;
@@ -28,7 +24,7 @@
 	};
 
 	let {
-		value = '',
+		value = null,
 		placeholder = 'Start typing...',
 		editable = true,
 		class: className = '',
@@ -154,7 +150,13 @@
 	}
 
 	$effect(() => {
-		if (editor && !isInitializing && value !== undefined && value !== previousValue) {
+		if (
+			editor &&
+			!isInitializing &&
+			value !== undefined &&
+			value !== null &&
+			value !== previousValue
+		) {
 			const detected = detectContentType(value);
 
 			editor.commands.setContent(detected.content, {

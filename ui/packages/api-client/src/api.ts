@@ -79,6 +79,7 @@ export const ConversationDto = z
     chatBotId: z.union([z.string(), z.null()]).optional(),
     description: z.string().uuid(),
     enableQaChatBot: z.boolean(),
+    faqs: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     imageUrl: z.string(),
     isComplete: z.boolean(),
@@ -88,6 +89,7 @@ export const ConversationDto = z
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
     organizationId: z.union([z.string(), z.null()]).optional(),
     primaryLocale: z.string(),
+    privacyPolicy: z.union([z.string(), z.null()]).optional(),
     shortDescription: z.string().uuid(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
@@ -108,6 +110,7 @@ export const LocalizedConversationDto = z
     chatBotId: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     enableQaChatBot: z.boolean(),
+    faqs: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     imageUrl: z.string(),
     isComplete: z.boolean(),
@@ -117,6 +120,7 @@ export const LocalizedConversationDto = z
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
     organizationId: z.union([z.string(), z.null()]).optional(),
     primaryLocale: z.string(),
+    privacyPolicy: z.union([z.string(), z.null()]).optional(),
     shortDescription: z.string(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
@@ -407,6 +411,8 @@ export type Translation = z.infer<typeof Translation>;
 export const ConversationTranslations = z
   .object({
     description: Translation,
+    faqs: z.union([Translation, z.null()]).optional(),
+    privacyPolicy: z.union([Translation, z.null()]).optional(),
     shortDescription: Translation,
     title: Translation,
   })
@@ -419,6 +425,7 @@ export const ConversationWithTranslations = z
     defaultWorkflowId: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     enableQaChatBot: z.boolean(),
+    faqs: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     imageUrl: z.string(),
     isComplete: z.boolean(),
@@ -429,6 +436,7 @@ export const ConversationWithTranslations = z
     organizationId: z.union([z.string(), z.null()]).optional(),
     ownerId: z.string().uuid(),
     primaryLocale: z.string(),
+    privacyPolicy: z.union([z.string(), z.null()]).optional(),
     shortDescription: z.string(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
@@ -443,8 +451,8 @@ export type ConversationWithTranslations = z.infer<
   typeof ConversationWithTranslations
 >;
 export const ConversationResponse = z.union([
-  LocalizedConversationDto,
   ConversationWithTranslations,
+  LocalizedConversationDto,
 ]);
 export type ConversationResponse = z.infer<typeof ConversationResponse>;
 export const PartialConversation = z
@@ -453,6 +461,7 @@ export const PartialConversation = z
     default_workflow_id: z.union([z.string(), z.null()]),
     description: z.union([z.string(), z.null()]),
     enable_qa_chat_bot: z.union([z.boolean(), z.null()]),
+    faqs: z.union([z.string(), z.null()]),
     image_url: z.union([z.string(), z.null()]),
     is_complete: z.union([z.boolean(), z.null()]),
     is_invite_only: z.union([z.boolean(), z.null()]),
@@ -460,6 +469,7 @@ export const PartialConversation = z
     is_public: z.union([z.boolean(), z.null()]),
     knowledge_base_id: z.union([z.string(), z.null()]),
     primary_locale: z.union([z.string(), z.null()]),
+    privacy_policy: z.union([z.string(), z.null()]),
     short_description: z.union([z.string(), z.null()]),
     slug: z.union([z.string(), z.null()]),
     supported_languages: z.union([z.array(z.string()), z.null()]),

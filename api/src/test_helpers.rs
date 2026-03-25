@@ -584,7 +584,7 @@ impl UserSession {
         offset: i32,
         limit: i32,
     ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
-        let url = format!("/conversation?limit={}&offset={}", limit, offset);
+        let url = format!("/conversation?limit={}&offset={}&sort=created_at+asc", limit, offset);
         self.get(app, &url).await
     }
 
