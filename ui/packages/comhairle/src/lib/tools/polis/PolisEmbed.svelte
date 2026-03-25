@@ -167,7 +167,7 @@
 </script>
 
 <div
-	class="bg-primary/5 relative left-1/2 flex w-screen -translate-x-1/2 flex-col items-center gap-8 overflow-visible py-4 md:py-12"
+	class="bg-primary/5 relative left-1/2 flex w-screen -translate-x-1/2 flex-col items-center gap-8 overflow-visible py-4 md:py-0"
 >
 	{#if screen === 'voting'}
 		<!-- Voting Screen -->
@@ -232,7 +232,7 @@
 					{disabled}
 					onclick={() => doVote('pass')}
 				>
-					{m.polis_skip()}
+					{m.polis_pass_unsure()}
 					<SkipForward class="h-5 w-5" />
 				</Button>
 			</div>

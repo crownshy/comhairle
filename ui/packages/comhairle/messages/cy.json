@@ -118,7 +118,7 @@
 	"polis_opinion_counter": "Barn {current} o {total}",
 	"polis_agree": "Cytuno",
 	"polis_disagree": "Anghytuno",
-	"polis_skip": "Hepgor",
+	"polis_pass_unsure": "Hepgor",
 	"polis_add_opinion": "Ychwanegwch eich barn eich hun",
 	"polis_continue_to_next_step": "Parhau i'r cam nesaf",
 	"polis_close": "Cau",

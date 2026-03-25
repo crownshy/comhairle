@@ -118,7 +118,7 @@
 	"polis_opinion_counter": "الرأي {current} من {total}",
 	"polis_agree": "أوافق",
 	"polis_disagree": "لا أوافق",
-	"polis_skip": "تخطي",
+	"polis_pass_unsure": "تخطي",
 	"polis_add_opinion": "أضف رأيك الخاص",
 	"polis_continue_to_next_step": "المتابعة إلى الخطوة التالية",
 	"polis_close": "إغلاق",

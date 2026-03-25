@@ -116,7 +116,7 @@
 	"polis_opinion_counter": "Opinion {current} sur {total}",
 	"polis_agree": "D'accord",
 	"polis_disagree": "Pas d'accord",
-	"polis_skip": "Passer",
+	"polis_pass_unsure": "Passer",
 	"polis_add_opinion": "Ajoutez votre propre opinion",
 	"polis_continue_to_next_step": "Continuer à l'étape suivante",
 	"polis_close": "Fermer",
