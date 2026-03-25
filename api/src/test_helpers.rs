@@ -31,6 +31,7 @@ use crate::{
     routes::user::dto::UserDto,
     translation_service::{MockTranslationService, TranslationService},
     websockets::{MockWebSocketService, WebSocketService},
+    wiki_poll_service::{MockWikiPollService, WikiPollService},
     workers::JobQueues,
     ComhairleState,
 };
@@ -61,6 +62,11 @@ pub fn mock_bot_service() -> Arc<dyn ComhairleBotService> {
     Arc::new(bot_service)
 }
 
+pub fn mock_wiki_poll_service() -> Arc<dyn WikiPollService> {
+    let wiki_poll_service = MockWikiPollService::base();
+    Arc::new(wiki_poll_service)
+}
+
 pub fn mock_bulk_storage() -> Arc<dyn BulkStorageService> {
     let bulk_storage_service = MockBulkStorageService::base();
     Arc::new(bulk_storage_service)
@@ -74,6 +80,7 @@ pub fn test_state(
     websockets: Option<Arc<dyn WebSocketService>>,
     translation_service: Option<Arc<dyn TranslationService>>,
     bot_service: Option<Arc<dyn ComhairleBotService>>,
+    wiki_poll_service: Option<Arc<dyn WikiPollService>>,
     bulk_storage_service: Option<Arc<dyn BulkStorageService>>,
 ) -> Result<ComhairleState, Box<dyn Error>> {
     let state = ComhairleState {
@@ -85,6 +92,7 @@ pub fn test_state(
             .map(Some)
             .unwrap_or_else(|| mock_translation_service()),
         bot_service: Some(bot_service.unwrap_or_else(|| mock_bot_service())),
+        wiki_poll_service: wiki_poll_service.unwrap_or_else(|| mock_wiki_poll_service()),
         // TODO: can this be mocked?
         jobs: Arc::new(JobQueues {
             process_documents: Arc::new(Mutex::new(MemoryStorage::new())),

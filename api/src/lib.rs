@@ -12,6 +12,7 @@ pub mod schema_helpers;
 mod tools;
 pub mod translation_service;
 pub mod websockets;
+pub mod wiki_poll_service;
 pub mod workers;
 
 use bot_service::ComhairleBotService;
@@ -44,7 +45,8 @@ use sqlx_postgres::PgPool;
 use tower_http::cors::CorsLayer;
 
 use crate::{
-    bulk_storage::BulkStorageService, routes::workflows::WorkflowRouterContext, workers::JobQueues,
+    bulk_storage::BulkStorageService, routes::workflows::WorkflowRouterContext,
+    wiki_poll_service::WikiPollService, workers::JobQueues,
 };
 
 #[derive(Clone)]
@@ -55,6 +57,7 @@ pub struct ComhairleState {
     pub websockets: Arc<dyn WebSocketService>,
     pub translation_service: Option<Arc<dyn TranslationService>>,
     pub bot_service: Option<Arc<dyn ComhairleBotService>>,
+    pub wiki_poll_service: Arc<dyn WikiPollService>,
     pub bulk_storage_service: Arc<dyn BulkStorageService>,
     pub jobs: Arc<JobQueues>,
 }
