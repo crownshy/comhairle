@@ -7,7 +7,7 @@
 	import LanguageStatusBadge from './LanguageStatusBadge.svelte';
 	import TranslationEditor from './TranslationEditor.svelte';
 	import type { Translation, Translation2 } from '@crownshy/api-client/api';
-	import { Languages, X } from 'lucide-svelte';
+	import { Languages, X, Check, LoaderCircle } from 'lucide-svelte';
 	import { getLanguageName } from '$lib/config/languages';
 	import { invalidateAll } from '$app/navigation';
 	import { useDebounce } from 'runed';
@@ -73,9 +73,21 @@
 
 	let dialogOpen = $state(false);
 	let clickedLang = $state<string | undefined>(undefined);
+	let saveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
+	let savedTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function setSaveStatus(status: 'idle' | 'saving' | 'saved') {
+		clearTimeout(savedTimer);
+		saveStatus = status;
+		if (status === 'saved') {
+			savedTimer = setTimeout(() => (saveStatus = 'idle'), 2000);
+		}
+	}
+
 	const debouncedSaveInline = useDebounce(async (content: string) => {
 		if (isTextContentMode && textContentId) {
 			const id = textContentId;
+			setSaveStatus('saving');
 			try {
 				await saveTranslation(id, primaryLocale, content, {
 					requiresValidation: false
@@ -84,9 +96,10 @@
 				if (approved.length > 0) {
 					await markOtherTranslationsAsDraft(id, primaryLocale, approved);
 				}
-				await invalidateAll();
+				setSaveStatus('saved');
 			} catch (e) {
 				console.error('Failed to save primary content:', e);
+				setSaveStatus('idle');
 			}
 		} else if (onSaveSource) {
 			onSaveSource(content);
@@ -136,6 +149,7 @@
 	}
 
 	function saveInlinePrimary(content: string) {
+		if (isTextContentMode) setSaveStatus('saving');
 		debouncedSaveInline(content);
 	}
 
@@ -302,8 +316,19 @@
 		</div>
 	{/if}
 
-	{#if hasTranslations}
+	{#if hasTranslations || saveStatus !== 'idle'}
 		<div class="flex flex-wrap items-center gap-2">
+			{#if saveStatus === 'saving'}
+				<span class="text-muted-foreground inline-flex items-center gap-1 text-xs">
+					<LoaderCircle class="h-3 w-3 animate-spin" />
+					Saving
+				</span>
+			{:else if saveStatus === 'saved'}
+				<span class="inline-flex items-center gap-1 text-xs text-green-600">
+					<Check class="h-3 w-3" />
+					Saved
+				</span>
+			{/if}
 			{#each badges as badge (badge.language)}
 				<LanguageStatusBadge {...badge} onclick={(lang) => openDialog(lang)} />
 			{/each}
@@ -313,13 +338,19 @@
 
 <!-- Translation dialog -->
 {#if hasTranslations}
-	<Dialog.Root
-		open={dialogOpen}
-		onOpenChange={(open) => {
-			if (!open) closeDialog();
-		}}
-	>
-		<Dialog.Content class="max-h-[90vh] min-w-[70vw] rounded-xl p-12" showCloseButton={false}>
+	<Dialog.Root open={dialogOpen}>
+		<Dialog.Content
+			class="max-h-[90vh] min-w-[70vw] rounded-xl p-12"
+			showCloseButton={false}
+			onInteractOutside={(e) => {
+				e.preventDefault();
+				closeDialog();
+			}}
+			onEscapeKeydown={(e) => {
+				e.preventDefault();
+				closeDialog();
+			}}
+		>
 			<Dialog.Header class="flex flex-row items-center justify-between pr-0">
 				<Dialog.Title
 					class="text-foreground justify-start text-3xl leading-8 font-semibold"
