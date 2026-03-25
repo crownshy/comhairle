@@ -638,12 +638,12 @@ impl UserSession {
         app: &Router,
         conversation_id: &str,
         workflow_id: &str,
-        _no: i32,
+        no: i32,
     ) -> Result<Vec<Value>, Box<dyn Error>> {
         let url = format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step");
         let mut workflow_steps: Vec<serde_json::Value> = vec![];
         // Create a bunch of steps
-        for no in 0..10 {
+        for no in 0..no {
             let (_, step, _) = self
                 .post(
                     app,

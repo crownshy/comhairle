@@ -5,7 +5,10 @@ use uuid::Uuid;
 use crate::{
     models::{
         translations::TextContentId,
-        workflow_step::{ActivationRule, LocalizedWorkflowStep, WorkflowStep},
+        user_progress::ProgressStatus,
+        workflow_step::{
+            ActivationRule, LocalizedWorkflowStep, LocalizedWorkflowStepWithProgress, WorkflowStep,
+        },
     },
     schema_helpers::{example_localized_text, example_uuid},
     tools::ToolConfig,
@@ -40,6 +43,7 @@ pub struct WorkflowStepDto {
     pub description: TextContentId,
     pub is_offline: bool,
     pub required: bool,
+    pub can_revisit: bool,
     pub tool_config: Option<ToolConfig>,
     pub preview_tool_config: ToolConfig,
 }
@@ -73,8 +77,46 @@ pub struct LocalizedWorkflowStepDto {
     pub description: String,
     pub is_offline: bool,
     pub required: bool,
+    pub can_revisit: bool,
     pub tool_config: Option<ToolConfig>,
     pub preview_tool_config: ToolConfig,
+}
+
+/// Data transfer object (public API representation) for a LocalizedWorkflowStepWithProgress.
+/// It represents a `workflow_step` row with localized fields and additionally includes
+/// the active user's progress status for the step for convenience on the frontend.
+///
+/// This DTO is returned by workflow step related endpoints and is safe to expose
+/// to clients. It intentionally omits fields such as:
+///
+/// * `created_at`
+/// * `updated_at`
+///
+/// It includes localized `String` values for translatable fields:
+///
+/// * `name`
+/// * `description`
+///
+/// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalizedWorkflowStepWithProgressDto {
+    #[schemars(example = "example_uuid")]
+    pub id: Uuid,
+    #[schemars(example = "example_uuid")]
+    pub workflow_id: Uuid,
+    #[schemars(example = "example_localized_text")]
+    pub name: String,
+    pub step_order: i32,
+    pub activation_rule: ActivationRule,
+    #[schemars(example = "example_localized_text")]
+    pub description: String,
+    pub is_offline: bool,
+    pub required: bool,
+    pub can_revisit: bool,
+    pub tool_config: Option<ToolConfig>,
+    pub preview_tool_config: ToolConfig,
+    pub progress_status: ProgressStatus,
 }
 
 impl From<WorkflowStep> for WorkflowStepDto {
@@ -88,6 +130,7 @@ impl From<WorkflowStep> for WorkflowStepDto {
             description: w.description,
             is_offline: w.is_offline,
             required: w.required,
+            can_revisit: w.can_revisit,
             tool_config: w.tool_config,
             preview_tool_config: w.preview_tool_config,
         }
@@ -105,8 +148,28 @@ impl From<LocalizedWorkflowStep> for LocalizedWorkflowStepDto {
             description: w.description,
             is_offline: w.is_offline,
             required: w.required,
+            can_revisit: w.can_revisit,
             tool_config: w.tool_config,
             preview_tool_config: w.preview_tool_config,
+        }
+    }
+}
+
+impl From<LocalizedWorkflowStepWithProgress> for LocalizedWorkflowStepWithProgressDto {
+    fn from(w: LocalizedWorkflowStepWithProgress) -> Self {
+        Self {
+            id: w.step.id,
+            workflow_id: w.step.workflow_id,
+            name: w.step.name,
+            step_order: w.step.step_order,
+            activation_rule: w.step.activation_rule,
+            description: w.step.description,
+            is_offline: w.step.is_offline,
+            required: w.step.required,
+            can_revisit: w.step.can_revisit,
+            tool_config: w.step.tool_config,
+            preview_tool_config: w.step.preview_tool_config,
+            progress_status: w.status,
         }
     }
 }

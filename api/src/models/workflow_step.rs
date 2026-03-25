@@ -1,14 +1,15 @@
 use std::sync::Arc;
 
 use crate::models::translations::{new_translation, TextContentId, TextFormat};
+use crate::models::users::UserIden;
 use crate::tools::ToolConfigSanitize;
 use crate::ComhairleState;
 use chrono::{DateTime, Utc};
 use comhairle_macros::{DbJsonBEnum, Translatable};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::PostgresQueryBuilder;
 use sea_query::{enum_def, Expr, Order, Query};
+use sea_query::{JoinType, PostgresQueryBuilder};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::PgConnection;
@@ -40,6 +41,7 @@ pub struct WorkflowStep {
     pub description: TextContentId,
     pub is_offline: bool,
     pub required: bool,
+    pub can_revisit: bool,
     #[partially(transparent)]
     pub tool_config: Option<ToolConfig>,
     pub preview_tool_config: ToolConfig,
@@ -49,7 +51,7 @@ pub struct WorkflowStep {
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [WorkflowStepIden; 12] = [
+const DEFAULT_COLUMNS: [WorkflowStepIden; 13] = [
     WorkflowStepIden::Id,
     WorkflowStepIden::Name,
     WorkflowStepIden::WorkflowId,
@@ -57,6 +59,7 @@ const DEFAULT_COLUMNS: [WorkflowStepIden; 12] = [
     WorkflowStepIden::ActivationRule,
     WorkflowStepIden::Description,
     WorkflowStepIden::IsOffline,
+    WorkflowStepIden::CanRevisit,
     WorkflowStepIden::ToolConfig,
     WorkflowStepIden::PreviewToolConfig,
     WorkflowStepIden::Required,
@@ -173,7 +176,9 @@ impl PartialWorkflowStep {
         if let Some(value) = &self.activation_rule {
             values.push((WorkflowStepIden::ActivationRule, value.into()))
         };
-
+        if let Some(value) = &self.can_revisit {
+            values.push((WorkflowStepIden::CanRevisit, (*value).into()))
+        };
         if let Some(value) = &self.tool_config {
             values.push((WorkflowStepIden::ToolConfig, value.into()))
         };
@@ -363,7 +368,8 @@ pub async fn list(db: &PgPool, workflow_id: &Uuid) -> Result<Vec<WorkflowStep>, 
     Ok(workflow_steps)
 }
 
-pub async fn list_localised(
+#[instrument(err(Debug))]
+pub async fn list_localized(
     db: &PgPool,
     workflow_id: &Uuid,
     locale: &str,
@@ -386,6 +392,55 @@ pub async fn list_localised(
     let workflow_steps = sqlx::query_as_with::<_, LocalizedWorkflowStep, _>(&sql, values)
         .fetch_all(db)
         .await?;
+
+    Ok(workflow_steps)
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug, FromRow)]
+pub struct LocalizedWorkflowStepWithProgress {
+    #[sqlx(flatten)]
+    #[serde(flatten)]
+    pub step: LocalizedWorkflowStep,
+    pub status: ProgressStatus,
+}
+
+#[instrument(err(Debug))]
+pub async fn list_localized_with_progress(
+    db: &PgPool,
+    workflow_id: &Uuid,
+    locale: &str,
+    user_id: &Uuid,
+) -> Result<Vec<LocalizedWorkflowStepWithProgress>, ComhairleError> {
+    let query = Query::select()
+        .from(WorkflowStepIden::Table)
+        .columns(DEFAULT_COLUMNS.map(|col| (WorkflowStepIden::Table, col)))
+        .column((UserProgressIden::Table, UserProgressIden::Status))
+        .join(
+            JoinType::InnerJoin,
+            UserProgressIden::Table,
+            Expr::col((WorkflowStepIden::Table, WorkflowStepIden::Id))
+                .equals((UserProgressIden::Table, UserProgressIden::WorkflowStepId)),
+        )
+        .join(
+            JoinType::InnerJoin,
+            UserIden::Table,
+            Expr::col((UserIden::Table, UserIden::Id))
+                .equals((UserProgressIden::Table, UserProgressIden::UserId)),
+        )
+        .and_where(
+            Expr::col((WorkflowStepIden::Table, WorkflowStepIden::WorkflowId)).eq(*workflow_id),
+        )
+        .and_where(Expr::col((UserIden::Table, UserIden::Id)).eq(*user_id))
+        .order_by(
+            (WorkflowStepIden::Table, WorkflowStepIden::StepOrder),
+            Order::Asc,
+        )
+        .to_owned();
+
+    let (sql, values) = LocalizedWorkflowStep::query_to_localisation(query, locale)
+        .build_sqlx(PostgresQueryBuilder);
+
+    let workflow_steps = sqlx::query_as_with(&sql, values).fetch_all(db).await?;
 
     Ok(workflow_steps)
 }
@@ -561,4 +616,149 @@ pub async fn get_current_active_step_for_user_localised(
         .await?;
 
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        models::{
+            self,
+            model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
+            users::User,
+            workflow,
+        },
+        routes::{
+            auth::SignupRequest, workflow_steps::dto::WorkflowStepDto, workflows::dto::WorkflowDto,
+        },
+    };
+
+    use super::*;
+    use std::error::Error;
+
+    #[sqlx::test]
+    async fn should_update_can_revisit_field(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, workflow_res, _) = session
+            .create_random_workflow(&app, &conversation_id.to_string())
+            .await?;
+        let workflow: WorkflowDto = serde_json::from_value(workflow_res)?;
+        let steps_res = session
+            .create_random_workflow_steps(
+                &app,
+                &conversation_id.to_string(),
+                &workflow.id.to_string(),
+                1,
+            )
+            .await?;
+        let step: WorkflowStepDto = serde_json::from_value(steps_res.first().unwrap().to_owned())?;
+
+        assert!(!step.can_revisit, "incorrect can_revisit before update");
+
+        let step = update(
+            &pool,
+            &step.id,
+            &workflow.id,
+            &PartialWorkflowStep {
+                can_revisit: Some(true),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+        assert!(step.can_revisit, "incorrect can_revisit after update");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_list_localized_steps(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, workflow_res, _) = session
+            .create_random_workflow(&app, &conversation_id.to_string())
+            .await?;
+        let workflow: WorkflowDto = serde_json::from_value(workflow_res)?;
+        let _ = session
+            .create_random_workflow_steps(
+                &app,
+                &conversation_id.to_string(),
+                &workflow.id.to_string(),
+                5,
+            )
+            .await?;
+
+        let steps = list_localized(&pool, &workflow.id, "en").await?;
+
+        assert_eq!(steps.len(), 5, "incorrect number of steps");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_list_localized_steps_with_user_progress(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, workflow_res, _) = session
+            .create_random_workflow(&app, &conversation_id.to_string())
+            .await?;
+        let workflow: WorkflowDto = serde_json::from_value(workflow_res)?;
+        let steps = session
+            .create_random_workflow_steps(
+                &app,
+                &conversation_id.to_string(),
+                &workflow.id.to_string(),
+                5,
+            )
+            .await?;
+        let first_step: WorkflowStepDto = serde_json::from_value(steps.first().unwrap().clone())?;
+        let second_step: WorkflowStepDto = serde_json::from_value(steps.get(1).unwrap().clone())?;
+        let user = models::users::create_user(
+            &SignupRequest {
+                username: "test_user".to_string(),
+                password: "test_pw".to_string(),
+                avatar_url: None,
+                email: "test_email".to_string(),
+            },
+            &pool,
+        )
+        .await?;
+        workflow::register_user(&pool, &workflow.id, &user).await?;
+
+        models::user_progress::update(&pool, &user.id, &first_step.id, ProgressStatus::Done)
+            .await?;
+        models::user_progress::update(&pool, &user.id, &second_step.id, ProgressStatus::InProgress)
+            .await?;
+
+        let steps = list_localized_with_progress(&pool, &workflow.id, "en", &user.id).await?;
+        assert_eq!(
+            steps[0].status,
+            ProgressStatus::Done,
+            "incorrect first step progess status"
+        );
+        assert_eq!(
+            steps[1].status,
+            ProgressStatus::InProgress,
+            "incorrect second step progess status"
+        );
+        assert_eq!(
+            steps[2].status,
+            ProgressStatus::NotStarted,
+            "incorrect third step progess status"
+        );
+        assert_eq!(
+            steps[3].status,
+            ProgressStatus::NotStarted,
+            "incorrect fourth step progess status"
+        );
+        assert_eq!(
+            steps[4].status,
+            ProgressStatus::NotStarted,
+            "incorrect fifth step progess status"
+        );
+
+        Ok(())
+    }
 }
