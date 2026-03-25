@@ -1,6 +1,10 @@
 use async_trait::async_trait;
+use cookie::Cookie;
 use rand::{distributions::Alphanumeric, Rng};
-use reqwest::{header::SET_COOKIE, Client};
+use reqwest::{
+    header::{COOKIE, SET_COOKIE},
+    Client,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tracing::{instrument, warn};
@@ -19,7 +23,7 @@ pub struct PolisClient {
 
 impl PolisClient {
     pub fn new(base_url: &str) -> Self {
-        let client = Client::builder().cookie_store(true).build().unwrap();
+        let client = Client::new();
         Self {
             client,
             base_url: base_url.to_string(),
@@ -72,6 +76,27 @@ impl WikiPollService for PolisClient {
         Ok((new_user.email, new_user.password))
     }
 
+    /// Authenticates with the Polis API and returns the session cookies required
+    /// for subsequent admin requests.
+    ///
+    /// The `Set-Cookie` headers returned by the login response are parsed and
+    /// reformatted into a single `Cookie` header value, stripping attributes
+    /// such as `Max-Age`, `Domain`, and `Expires` which are only valid in
+    /// server responses.
+    ///
+    /// # Example
+    ///
+    /// Given login response headers:
+    /// ```text
+    /// set-cookie: token2=abcd; Max-Age=31536000; Domain=...
+    /// set-cookie: uid2=abcd; Max-Age=31536000; Domain=...
+    /// set-cookie: e=1; Max-Age=31536000; Domain=...
+    /// ```
+    ///
+    /// The returned string will be:
+    /// ```text
+    /// token2=abcd; uid2=abcd; e=1
+    /// ```
     async fn login(&self, login: &WikiPollLogin) -> Result<String, WikiPollServiceError> {
         let url = format!("https://{}/api/v3/auth/login", self.base_url);
         let resp = self
@@ -82,26 +107,29 @@ impl WikiPollService for PolisClient {
             .await
             .map_err(|_| PolisError::FailedToLogin)?;
 
-        let cookie = resp
+        let cookies = resp
             .headers()
-            .get(SET_COOKIE)
-            .ok_or(PolisError::FailedToLogin)?
-            .to_str()
-            .map_err(|_| PolisError::FailedToLogin)?
-            .to_owned();
+            .get_all(SET_COOKIE)
+            .iter()
+            .filter_map(|v| v.to_str().ok())
+            .filter_map(|v| Cookie::parse(v).ok())
+            .map(|c| format!("{}={}", c.name(), c.value()))
+            .collect::<Vec<_>>()
+            .join("; ");
 
         let _ = resp
             .json::<LoginResp>()
             .await
             .map_err(|_| PolisError::FailedToLogin)?;
 
-        Ok(cookie)
+        Ok(cookies)
     }
 
-    async fn create_poll(&self) -> Result<String, WikiPollServiceError> {
+    async fn create_poll(&self, auth_cookies: &str) -> Result<String, WikiPollServiceError> {
         let new_poll = self
             .client
             .post(format!("https://{}/api/v3/conversations", self.base_url))
+            .header(COOKIE, auth_cookies)
             .send()
             .await
             .map_err(|e| {
@@ -122,13 +150,19 @@ impl WikiPollService for PolisClient {
         &self,
         comment: &str,
         poll_id: &str,
+        auth_cookies: &str,
     ) -> Result<String, WikiPollServiceError> {
-        let post_json =
-            json!({"txt":comment,"pid":"mypid","conversation_id":poll_id,"is_seed":true});
+        let post_json = json!({
+            "txt": comment,
+            "pid": "mypid",
+            "conversation_id": poll_id,
+            "is_seed": true
+        });
 
         let resp = self
             .client
             .post(format!("https://{}/api/v3/comments", self.base_url))
+            .header(COOKIE, auth_cookies)
             .json(&post_json)
             .send()
             .await
@@ -187,4 +221,101 @@ pub struct LoginResp {
     pub uid: u32,
     pub email: String,
     pub token: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::wiki_poll_service::polis_service::PolisClient;
+
+    use super::*;
+
+    #[tokio::test]
+    #[ignore]
+    async fn login() -> Result<(), Box<dyn std::error::Error>> {
+        let client = PolisClient::new("polis.comhairle.scot");
+        let login = WikiPollLogin {
+            email: "cJIc2EPhHL@comhairle.com".into(),
+            password: "f8QYSX9U9x".into(),
+        };
+        client.login(&login).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn create_poll() -> Result<(), Box<dyn std::error::Error>> {
+        let client = PolisClient::new("polis.comhairle.scot");
+
+        let login = WikiPollLogin {
+            email: "cJIc2EPhHL@comhairle.com".into(),
+            password: "f8QYSX9U9x".into(),
+        };
+        let cookies = client.login(&login).await?;
+
+        let _result = client.create_poll(&cookies).await?;
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn sign_up_and_create_poll() -> Result<(), Box<dyn std::error::Error>> {
+        let client = PolisClient::new("polis.comhairle.scot");
+        let (email, password) = client.create_random_admin_user().await?;
+        println!("{email} {password}");
+
+        let login = WikiPollLogin { email, password };
+
+        let cookies = client.login(&login).await?;
+
+        let resp = client.create_poll(&cookies).await?;
+        println!("{resp:#?}");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn post_seed_comment() -> Result<(), Box<dyn std::error::Error>> {
+        let client = PolisClient::new("polis.comhairle.scot");
+        let (email, password) = client.create_random_admin_user().await?;
+        println!("{email} {password}");
+
+        let login = WikiPollLogin { email, password };
+
+        let cookies = client.login(&login).await?;
+
+        let poll_id = client.create_poll(&cookies).await?;
+
+        let _response = client
+            .post_seed_comment("test_seed_comment", &poll_id, &cookies)
+            .await?;
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn get_comments() -> Result<(), Box<dyn std::error::Error>> {
+        let client = PolisClient::new("polis.comhairle.scot");
+        let (email, password) = client.create_random_admin_user().await?;
+        println!("{email} {password}");
+
+        let login = WikiPollLogin { email, password };
+
+        let cookies = client.login(&login).await?;
+
+        let poll_id = client.create_poll(&cookies).await?;
+
+        client
+            .post_seed_comment("test_seed_comment_1", &poll_id, &cookies)
+            .await?;
+        client
+            .post_seed_comment("test_seed_comment_2", &poll_id, &cookies)
+            .await?;
+
+        let _comments = client.get_comments(&poll_id).await?;
+
+        Ok(())
+    }
 }
