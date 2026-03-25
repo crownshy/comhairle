@@ -15,8 +15,9 @@
 	const url = $derived(page.url);
 	let { data } = $props();
 	let { user, invite, conversation, error } = data;
-	let pageTitle = $derived(conversation?.title ? `Invitation - ${conversation.title}` : 'Conversation Invite');
-
+	let pageTitle = $derived(
+		conversation?.title ? `Invitation - ${conversation.title}` : 'Conversation Invite'
+	);
 
 	function login() {
 		loginRedirect(url.toString(), 'Login to accept invite');
@@ -56,7 +57,7 @@
 				You have been invited to join the following conversation
 			</h1>
 			<ConversationSummary {conversation}>
-				{#if !user && invite.login_behaviour === 'manual'}
+				{#if !user && invite.loginBehaviour === 'manual'}
 					<p class="mb-5">To join this conversation please either</p>
 					{#if !user && typeof invite.inviteType !== 'string' && 'email' in invite.inviteType && invite.inviteType.email}
 						<div class="mb-5 flex flex-row gap-2">
