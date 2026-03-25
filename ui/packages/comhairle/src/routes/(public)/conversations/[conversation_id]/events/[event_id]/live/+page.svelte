@@ -10,10 +10,11 @@
 	let conversationId = $derived(data.conversationId);
 	let eventId = $derived(data.eventId);
 	let event = $derived(data.event);
+	let jwt = $derived(data.jwt);
 	let apiAttendances = $derived(data.attendances);
 	let user = $derived(data.user);
 
-	let roomName = $derived(`comhairle-event-${eventId}`);
+	let roomName = $derived(event?.videoMeetingId);
 
 	let jitsiApi: any = $state(null);
 	let panelOpen = $state(false);
@@ -164,6 +165,7 @@
 		<div class="relative min-h-0 min-w-0 flex-1">
 			<JitsiMeet
 				{roomName}
+				{jwt}
 				onApiReady={handleApiReady}
 				onParticipantJoined={handleParticipantJoined}
 				onParticipantLeft={handleParticipantLeft}

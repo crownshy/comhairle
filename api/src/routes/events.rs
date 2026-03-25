@@ -24,7 +24,7 @@ use crate::{
         pagination::{PageOptions, PaginatedResults},
     },
     routes::{
-        auth::{is_user_admin, RequiredAdminUser, RequiredUser},
+        auth::{generate_jwt, is_user_admin, RequiredAdminUser, RequiredUser},
         events::dto::{EventDto, LocalizedEventDto},
         translations::LocaleExtractor,
     },
@@ -78,7 +78,7 @@ async fn get(
     RequiredUser(user): RequiredUser,
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<(StatusCode, Json<EventResponse>), ComhairleError> {
-    let event = event::get_by_id(&state.db, &event_id, &locale).await?;
+    let event = event::get_by_id(&state.db, &event_id).await?;
 
     let should_return_with_translations =
         query.with_translations && is_user_admin(&user, &state.config);
@@ -154,6 +154,70 @@ async fn delete(
     Ok((StatusCode::OK, Json(event)))
 }
 
+#[derive(Serialize, JsonSchema, Debug)]
+struct JwtResponse {
+    jwt: String,
+}
+
+#[derive(Serialize, Debug)]
+struct VideoEventJwtClaims<'a> {
+    iss: &'a str,
+    aud: &'a str,
+    room: &'a str,
+    context: VideoEventJwtContext<'a>,
+}
+
+#[derive(Serialize, Debug)]
+struct VideoEventJwtContext<'a> {
+    user: VideoEventJwtUser<'a>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct VideoEventJwtUser<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<&'a str>,
+    id: &'a str,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get_jwt(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
+    RequiredUser(user): RequiredUser,
+) -> Result<(StatusCode, Json<JwtResponse>), ComhairleError> {
+    let event = event::get_by_id(&state.db, &event_id).await?;
+    let video_meeting_id = event
+        .video_meeting_id
+        .ok_or(ComhairleError::NoVideoMeetingId)?;
+    let video_call_config = &state
+        .config
+        .video_call_service
+        .as_ref()
+        .ok_or(ComhairleError::NoVideoServiceConfigured)?;
+
+    let claims = VideoEventJwtClaims {
+        iss: &video_call_config.jwt_app_id,
+        aud: &video_call_config.jwt_app_id,
+        room: &video_meeting_id.to_string(),
+        context: VideoEventJwtContext {
+            user: VideoEventJwtUser {
+                name: user.username.as_deref(),
+                id: &user.id.to_string(),
+            },
+        },
+    };
+
+    let jwt = generate_jwt()
+        .user(&user)
+        .secret(&video_call_config.jwt_app_secret)
+        .custom_claims(claims)
+        .duration(chrono::Duration::hours(1))
+        .sub(video_call_config.jwt_sub.to_owned())
+        .call();
+
+    Ok((StatusCode::OK, Json(JwtResponse { jwt })))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route("/", get_with(list, |op| {
@@ -202,6 +266,16 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Delete an event")
                     .security_requirement("JWT")
                     .response::<200, Json<EventDto>>()
+
+        }))
+        .api_route("/{event_id}/auth", 
+            get_with(get_jwt, |op| {
+                op.id("GetEventJWT")
+                    .tag("Events")
+                    .summary("Get a auth JWT for an event")
+                    .description("Get a auth JWT for an event")
+                    .security_requirement("JWT")
+                    .response::<200, Json<JwtResponse>>()
 
         }))
         .with_state(state)

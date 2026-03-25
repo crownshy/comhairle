@@ -8,7 +8,7 @@
 		roomName: string;
 		displayName?: string;
 		email?: string;
-		jwt?: string;
+		jwt: string;
 		width?: string | number;
 		height?: string | number;
 		startWithAudioMuted?: boolean;
@@ -24,11 +24,11 @@
 	}
 
 	let {
-		domain = env.PUBLIC_JITSI_DOMAIN ?? 'video.comhairle.scot',
+		domain = env.PUBLIC_JITSI_DOMAIN ?? 'jitsi.comhairle.scot',
 		roomName,
 		displayName = '',
 		email = '',
-		jwt = '',
+		jwt,
 		width = '100%',
 		height = '100%',
 		startWithAudioMuted = false,

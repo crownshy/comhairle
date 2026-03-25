@@ -256,7 +256,5 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
         fs::write("open-api-spec.json", json.as_bytes()).await?;
     }
 
-    println!("Config ${:#?}", state.config);
-
     Ok(app)
 }
