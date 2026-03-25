@@ -23,7 +23,7 @@
 	}: StepHeaderProps = $props();
 </script>
 
-<div class="bg-background w-full md:mx-auto md:max-w-4xl md:rounded-2xl md:p-6 md:pt-4">
+<div class="bg-background w-full md:mx-auto md:max-w-4xl md:rounded-2xl md:px-6 md:pt-4">
 	<div class="flex flex-col items-center">
 		<div class="flex w-full items-center justify-between md:gap-12">
 			{#if prevHref}

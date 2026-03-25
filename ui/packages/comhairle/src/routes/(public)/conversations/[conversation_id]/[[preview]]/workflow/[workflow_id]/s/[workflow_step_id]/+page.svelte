@@ -159,7 +159,7 @@
 	<title>{pageTitle} - Comhairle</title>
 </svelte:head>
 
-<div class="flex flex-col items-center gap-4 sm:py-2 md:py-10">
+<div class="flex flex-col items-center sm:py-2 md:py-10">
 	{#if conversation && workflowStep}
 		<div
 			class="mx-auto flex w-full items-center justify-center px-6 pt-5 pb-2 md:px-0 md:pt-0 md:pb-0"
@@ -167,7 +167,7 @@
 			<StepSelector steps={stepItems} />
 		</div>
 
-		<div class="w-full md:px-0">
+		<div class="mt-2 w-full md:mt-6 md:px-0">
 			<StepHeader
 				{currentStepNumber}
 				totalSteps={stepItems.length}
