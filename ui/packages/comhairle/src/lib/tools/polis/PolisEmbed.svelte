@@ -12,7 +12,7 @@
 		MessageSquare
 	} from 'lucide-svelte';
 	import PolisApi, { type PolisApiState, type PolisStatement } from './PolisApi';
-	import { getVoteData, incrementVotes, savePid, getSavedPid } from './polisVoteStore';
+	import { getVoteData, incrementVotes } from './polisVoteStore';
 	import * as m from '$lib/paraglide/messages';
 
 	type Props = {
@@ -40,7 +40,7 @@
 	let polisReady = $state(false);
 	let polisRemaining = $state(0);
 	let polisTotal = $state(0);
-	let polisPid = $state<number | undefined>(getSavedPid(user_id, stepId));
+	let polisPid = $state<number | undefined>(undefined);
 
 	function handlePolisChange(s: PolisApiState) {
 		polisCurrentStatement = s.currentStatement;
@@ -51,7 +51,6 @@
 
 		if (s.pid !== undefined && s.pid !== polisPid) {
 			polisPid = s.pid;
-			savePid(user_id, stepId, s.pid);
 		}
 
 		const newTxt = s.currentStatement?.txt ?? '';
@@ -65,14 +64,7 @@
 		}
 	}
 
-	const polis = new PolisApi(
-		user_id,
-		polis_id,
-		handlePolisChange,
-		'en',
-		polis_url,
-		getSavedPid(user_id, stepId)
-	);
+	const polis = new PolisApi(user_id, polis_id, handlePolisChange, 'en', polis_url);
 
 	type Screen = 'voting' | 'add-opinion' | 'continue-prompt' | 'completed';
 

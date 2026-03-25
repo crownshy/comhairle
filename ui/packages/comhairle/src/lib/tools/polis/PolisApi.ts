@@ -38,18 +38,15 @@ export default class PolisApi {
 		polisId: string,
 		onChange: (state: PolisApiState) => void,
 		lang: string = 'en',
-		baseUrl: string = 'https://polis.comhairle.scot',
-		initialPid?: number
+		baseUrl: string = 'https://polis.comhairle.scot'
 	) {
 		this.polisId = polisId;
 		this.userId = userId;
 		this.lang = lang;
 		this.baseUrl = baseUrl.startsWith('https://') ? baseUrl : `https://${baseUrl}`;
 		this.onChange = onChange;
-		if (initialPid !== undefined) this._pid = initialPid;
 		queueMicrotask(() => {
-			this.tryToGetPidForXid();
-			this.fetchNextStatement();
+			this.tryToGetPidForXid().then(() => this.fetchNextStatement());
 		});
 	}
 
@@ -65,8 +62,8 @@ export default class PolisApi {
 		});
 	}
 
-	private tryToGetPidForXid() {
-		fetch(
+	private tryToGetPidForXid(): Promise<void> {
+		return fetch(
 			`${this.baseUrl}/api/v3/participationInit?conversation_id=${this.polisId}&xid=${this.userId}`,
 			{ credentials: 'omit' }
 		)
