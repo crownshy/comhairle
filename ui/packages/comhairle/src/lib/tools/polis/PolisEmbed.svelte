@@ -176,16 +176,20 @@
 			in:fade={{ duration: 300 }}
 		>
 			<!-- Opinion counter -->
-			<p class="text-muted-foreground tex-base font-semibold md:text-lg">
-				{m.polis_opinion_counter({
-					current: currentOpinionNumber + 1,
-					total: displayedTotal
-				})}
-			</p>
+			{#if !polisReady}
+				<div class="bg-foreground/10 h-5 w-32 animate-pulse rounded md:h-6"></div>
+			{:else}
+				<p class="text-muted-foreground tex-base font-semibold md:text-lg">
+					{m.polis_opinion_counter({
+						current: currentOpinionNumber + 1,
+						total: displayedTotal
+					})}
+				</p>
+			{/if}
 
 			<!-- Statement text -->
 			<div class="w-full pt-2 pb-6">
-				{#if waitingForNext}
+				{#if !polisReady || waitingForNext}
 					<div in:fade={{ duration: 200 }} class="w-full animate-pulse">
 						<div class="space-y-3">
 							<div class="bg-foreground/10 h-8 w-full rounded"></div>
@@ -208,7 +212,7 @@
 				<Button
 					variant="default"
 					size="lg"
-					{disabled}
+					disabled={disabled || !polisReady}
 					onclick={() => doVote('agree')}
 					class="text-lg"
 				>
@@ -218,7 +222,7 @@
 				<Button
 					variant="default"
 					size="lg"
-					{disabled}
+					disabled={disabled || !polisReady}
 					onclick={() => doVote('disagree')}
 					class="gap-2 px-6 py-4 text-lg"
 				>
@@ -229,7 +233,7 @@
 					variant="ghost"
 					size="lg"
 					class="text-lg"
-					{disabled}
+					disabled={disabled || !polisReady}
 					onclick={() => doVote('pass')}
 				>
 					{m.polis_pass_unsure()}
@@ -241,6 +245,7 @@
 			<Button
 				variant="ghost"
 				class="text-muted-foreground hover:text-foreground flex items-center gap-2 pt-2 text-lg font-normal transition-colors"
+				disabled={!polisReady}
 				onclick={openAddOpinion}
 			>
 				<MessageSquare fill="currentColor" class="h-5 w-5" />
