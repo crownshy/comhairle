@@ -117,7 +117,7 @@
 	"polis_opinion_counter": "意见 {current} / {total}",
 	"polis_agree": "同意",
 	"polis_disagree": "不同意",
-	"polis_skip": "跳过",
+	"polis_pass_unsure": "跳过",
 	"polis_add_opinion": "添加您自己的意见",
 	"polis_continue_to_next_step": "继续下一步",
 	"polis_close": "关闭",

@@ -118,7 +118,7 @@
 	"polis_opinion_counter": "Opinião {current} de {total}",
 	"polis_agree": "Concordo",
 	"polis_disagree": "Discordo",
-	"polis_skip": "Pular",
+	"polis_pass_unsure": "Pular",
 	"polis_add_opinion": "Adicione sua própria opinião",
 	"polis_continue_to_next_step": "Continuar para o próximo passo",
 	"polis_close": "Fechar",

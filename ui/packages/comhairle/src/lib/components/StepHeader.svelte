@@ -23,59 +23,35 @@
 	}: StepHeaderProps = $props();
 </script>
 
-<!-- Desktop -->
-<div class="bg-background mx-auto hidden w-full max-w-3xl rounded-2xl p-6 md:block">
-	<div class="mx-auto flex max-w-lg flex-col items-center gap-2">
-		<p class="text-primary text-center text-2xl leading-7 font-semibold">
-			Step {currentStepNumber} of {totalSteps}
-		</p>
-		<h2 class="text-foreground text-center text-4xl leading-[48px] font-semibold">
-			{title}
-		</h2>
-		{#if estimatedMinutes}
-			<p class="text-foreground text-center text-2xl leading-7 font-semibold">
-				({estimatedMinutes}
-				{estimatedMinutes === 1 ? 'minute' : 'minutes'})
-			</p>
-		{/if}
-		{#if description}
-			<div
-				class="prose-sm prose-p:text-base prose-li:text-base text-muted-foreground mx-auto max-w-3xl text-center"
-			>
-				{#key description}
-					<ContentRenderer content={description} />
-				{/key}
-			</div>
-		{/if}
-	</div>
-</div>
-
-<!-- Mobile -->
-<div class="bg-background w-full md:hidden">
-	<div class="flex flex-col items-center gap-2">
-		<div class="flex w-full items-center justify-between">
+<div class="bg-background w-full md:mx-auto md:max-w-4xl md:rounded-2xl md:px-6 md:pt-4">
+	<div class="flex flex-col items-center">
+		<div class="flex w-full items-center justify-between md:gap-12">
 			{#if prevHref}
 				<a
 					href={prevHref}
 					class="text-muted-foreground shrink-0 p-2"
 					aria-label="Previous step"
 				>
-					<ChevronLeft class="h-6 w-6" />
+					<ChevronLeft class="h-6 w-6 md:h-8 md:w-8" />
 				</a>
 			{:else}
 				<span class="text-muted-foreground shrink-0 p-2 opacity-20" aria-hidden="true">
-					<ChevronLeft class="h-6 w-6" />
+					<ChevronLeft class="h-6 w-6 md:h-8 md:w-8" />
 				</span>
 			{/if}
 
 			<div class="flex min-w-0 flex-1 flex-col items-center">
-				<p class="text-primary text-center text-base leading-6 font-medium">
+				<p class="text-primary text-center text-sm leading-5 font-semibold">
 					Step {currentStepNumber} of {totalSteps}
 				</p>
-				<p class="text-foreground mt-1 text-center text-xl leading-6 font-semibold">
+				<p
+					class="text-foreground mt-1 text-center text-xl leading-6 font-semibold md:text-2xl"
+				>
 					{title}
 					{#if estimatedMinutes}
-						<span class="text-foreground text-sm leading-5 font-medium">
+						<span
+							class="text-foreground text-sm leading-5 font-medium md:text-lg md:leading-7 md:font-semibold"
+						>
 							({estimatedMinutes}
 							{estimatedMinutes === 1 ? 'minute' : 'minutes'})
 						</span>
@@ -89,18 +65,18 @@
 					class="text-muted-foreground shrink-0 p-2"
 					aria-label="Next step"
 				>
-					<ChevronRight class="h-6 w-6" />
+					<ChevronRight class="h-6 w-6 md:h-8 md:w-8" />
 				</button>
 			{:else}
 				<span class="text-muted-foreground shrink-0 p-2 opacity-20" aria-hidden="true">
-					<ChevronRight class="h-6 w-6" />
+					<ChevronRight class="h-6 w-6 md:h-8 md:w-8" />
 				</span>
 			{/if}
 		</div>
 
 		{#if description}
 			<div
-				class="prose-sm prose-p:text-sm prose-li:text-sm text-muted-foreground text-center"
+				class="prose-sm prose-p:text-sm prose-p:text-muted-foreground prose-li:text-muted-foreground prose-li:text-sm text-muted-foreground mx-auto max-w-3xl text-center"
 			>
 				{#key description}
 					<ContentRenderer content={description} />

@@ -123,7 +123,7 @@
 	"polis_opinion_counter": "Opinion {current} of {total}",
 	"polis_agree": "Agree",
 	"polis_disagree": "Disagree",
-	"polis_skip": "Skip",
+	"polis_pass_unsure": "Pass/Unsure",
 	"polis_add_opinion": "Add your own opinion",
 	"polis_continue_to_next_step": "Continue to next step",
 	"polis_close": "Close",

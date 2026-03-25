@@ -159,25 +159,29 @@
 </script>
 
 <div
-	class="bg-primary/5 relative left-1/2 flex w-screen -translate-x-1/2 flex-col items-center gap-8 overflow-visible py-12"
+	class="bg-primary/5 relative left-1/2 flex w-screen -translate-x-1/2 flex-col items-center gap-8 overflow-visible py-4 md:py-0"
 >
 	{#if screen === 'voting'}
 		<!-- Voting Screen -->
 		<div
-			class="flex w-full max-w-[808px] flex-col items-start gap-6 px-8 py-8 md:px-24 md:py-12"
+			class="flex w-full max-w-[808px] flex-col items-start gap-1 px-8 md:gap-6 md:px-24 md:py-12"
 			in:fade={{ duration: 300 }}
 		>
 			<!-- Opinion counter -->
-			<p class="text-muted-foreground text-lg font-semibold">
-				{m.polis_opinion_counter({
-					current: currentOpinionNumber + 1,
-					total: displayedTotal
-				})}
-			</p>
+			{#if !polisReady}
+				<div class="bg-foreground/10 h-5 w-32 animate-pulse rounded md:h-6"></div>
+			{:else}
+				<p class="text-muted-foreground tex-base font-semibold md:text-lg">
+					{m.polis_opinion_counter({
+						current: currentOpinionNumber + 1,
+						total: displayedTotal
+					})}
+				</p>
+			{/if}
 
 			<!-- Statement text -->
 			<div class="w-full pt-2 pb-6">
-				{#if waitingForNext}
+				{#if !polisReady || waitingForNext}
 					<div in:fade={{ duration: 200 }} class="w-full animate-pulse">
 						<div class="space-y-3">
 							<div class="bg-foreground/10 h-8 w-full rounded"></div>
@@ -187,7 +191,7 @@
 					</div>
 				{:else if polisCurrentStatement}
 					<p
-						class="text-card-foreground text-3xl leading-9 font-normal"
+						class="text-card-foreground text-xl leading-9 font-normal sm:text-3xl"
 						in:fly={{ y: 20, duration: 500, easing: cubicOut }}
 					>
 						{polisCurrentStatement.txt}
@@ -200,7 +204,7 @@
 				<Button
 					variant="default"
 					size="lg"
-					{disabled}
+					disabled={disabled || !polisReady}
 					onclick={() => doVote('agree')}
 					class="text-lg"
 				>
@@ -210,7 +214,7 @@
 				<Button
 					variant="default"
 					size="lg"
-					{disabled}
+					disabled={disabled || !polisReady}
 					onclick={() => doVote('disagree')}
 					class="gap-2 px-6 py-4 text-lg"
 				>
@@ -221,10 +225,10 @@
 					variant="ghost"
 					size="lg"
 					class="text-lg"
-					{disabled}
+					disabled={disabled || !polisReady}
 					onclick={() => doVote('pass')}
 				>
-					{m.polis_skip()}
+					{m.polis_pass_unsure()}
 					<SkipForward class="h-5 w-5" />
 				</Button>
 			</div>
@@ -233,6 +237,7 @@
 			<Button
 				variant="ghost"
 				class="text-muted-foreground hover:text-foreground flex items-center gap-2 pt-2 text-lg font-normal transition-colors"
+				disabled={!polisReady}
 				onclick={openAddOpinion}
 			>
 				<MessageSquare fill="currentColor" class="h-5 w-5" />

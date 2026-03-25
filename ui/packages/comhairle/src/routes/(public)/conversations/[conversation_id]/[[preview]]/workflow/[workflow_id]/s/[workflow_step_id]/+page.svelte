@@ -7,8 +7,6 @@
 	import type { PageProps } from './$types';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { createCarta } from '$lib/utils/carta';
-	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import StepSelector, { type StepItem } from '$lib/components/StepSelector.svelte';
 	import StepHeader from '$lib/components/StepHeader.svelte';
 
@@ -29,7 +27,6 @@
 		conversation.isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig
 	);
 
-	let carta = createCarta();
 	let pageTitle = $derived(workflowStep?.name ?? 'Workflow Step');
 
 	let workflowEnded = $derived(
@@ -89,7 +86,7 @@
 
 	let currentStepNumber = $derived(sortedSteps.findIndex((ws) => ws.id === workflowStep.id) + 1);
 
-	let prevStepHref = $derived(() => {
+	let prevStepHref = $derived.by(() => {
 		const viewedIdx = sortedSteps.findIndex((ws) => ws.id === workflowStep.id);
 		if (viewedIdx <= 0) return undefined;
 		const prevItem = stepItems[viewedIdx - 1];
@@ -162,21 +159,21 @@
 	<title>{pageTitle} - Comhairle</title>
 </svelte:head>
 
-<div class="flex flex-col items-center sm:gap-6 sm:py-2 md:py-12">
+<div class="flex flex-col items-center sm:py-2 md:py-10">
 	{#if conversation && workflowStep}
 		<div
-			class="mx-auto flex w-full items-center justify-center px-6 pt-5 pb-2 md:order-2 md:px-0 md:pt-0 md:pb-0"
+			class="mx-auto flex w-full items-center justify-center px-6 pt-5 pb-2 md:px-0 md:pt-0 md:pb-0"
 		>
 			<StepSelector steps={stepItems} />
 		</div>
 
-		<div class="w-full md:order-1 md:px-0">
+		<div class="mt-2 w-full md:mt-6 md:px-0">
 			<StepHeader
 				{currentStepNumber}
 				totalSteps={stepItems.length}
 				title={workflowStep.name}
 				description={workflowStep.description}
-				prevHref={prevStepHref()}
+				prevHref={prevStepHref}
 				onNext={currentNextAction ?? stepComplete}
 			/>
 		</div>

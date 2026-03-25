@@ -118,7 +118,7 @@
 	"polis_opinion_counter": "Beachd {current} de {total}",
 	"polis_agree": "Aontaich",
 	"polis_disagree": "Eas-aontaich",
-	"polis_skip": "Leum seachad",
+	"polis_pass_unsure": "Leum seachad",
 	"polis_add_opinion": "Cuir do bheachd fhèin ris",
 	"polis_continue_to_next_step": "Lean air adhart chun ath cheum",
 	"polis_close": "Dùin",
