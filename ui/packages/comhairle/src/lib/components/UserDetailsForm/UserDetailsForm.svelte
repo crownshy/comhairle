@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Form from '$lib/components/ui/form';
+	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
 	import { PasswordInput } from '$lib/components/ui/password-input';
 	import { Button } from '$lib/components/ui/button';
@@ -10,6 +11,8 @@
 	import { userDetailsSchema } from './schema';
 	import type { User } from '@crownshy/api-client/api';
 	import { onMount } from 'svelte';
+	import * as m from '$lib/paraglide/messages.js';
+	import { goto } from '$app/navigation';
 
 	let {
 		user
@@ -19,6 +22,7 @@
 
 	let loading = $state(false);
 	let saving = $state(false);
+	let showSuccessDialog = $state(false);
 
 	const form = superForm(
 		{
@@ -29,16 +33,19 @@
 		{
 			validators: zodClient(userDetailsSchema),
 			taintedMessage: false,
-			validationMethod: 'oninput',
-			onSubmit: saveUserDetails
+			validationMethod: 'onsubmit'
 		}
 	);
 
-	const { form: formData, enhance, validateForm, errors } = form;
+	const { form: formData, validateForm, errors } = form;
 
-	async function saveUserDetails() {
-		const result = await validateForm({ update: true });
-		if (!result.valid) return;
+	async function saveUserDetails(e: Event) {
+		e.preventDefault();
+		const result = await validateForm({ update: false });
+		if (!result.valid) {
+			$errors = result.errors;
+			return;
+		}
 
 		try {
 			saving = true;
@@ -65,14 +72,12 @@
 
 			const updatedUser = await apiClient.UpdateUserDetails(updateData);
 
-			// Clear password fields after successful update
+			// Clear validation errors first, then password fields
+			$errors = {};
 			$formData.password = '';
 			$formData.confirmPassword = '';
 
-			notifications.send({
-				message: 'User details updated successfully!',
-				priority: 'SUCCESS'
-			});
+			showSuccessDialog = true;
 		} catch (error: any) {
 			notifications.send({
 				message:
@@ -93,7 +98,7 @@
 		<p class="text-muted-foreground text-sm">Update your username and password here.</p>
 	</div>
 
-	<form method="POST" class="space-y-4" use:enhance>
+	<form method="POST" class="space-y-4" onsubmit={saveUserDetails}>
 		<Form.Field {form} name="username" class="space-y-2">
 			<Form.Control>
 				{#snippet children({ props })}
@@ -146,4 +151,18 @@
 			</Button>
 		</div>
 	</form>
+
+	<Dialog.Root bind:open={showSuccessDialog}>
+		<Dialog.Content class="sm:max-w-[425px]">
+			<Dialog.Header>
+				<Dialog.Title>{m.password_updated_successfully()}</Dialog.Title>
+				<Dialog.Description>
+					{m.password_updated_successfully_body()}
+				</Dialog.Description>
+			</Dialog.Header>
+			<Dialog.Footer>
+				<Button onclick={() => goto('/')}>{m.continue_to_home()}</Button>
+			</Dialog.Footer>
+		</Dialog.Content>
+	</Dialog.Root>
 </div>

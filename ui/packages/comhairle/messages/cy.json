@@ -132,5 +132,8 @@
 	"polis_do_you_want_to_continue": "Ydych chi am barhau?",
 	"polis_continue_voting": "Parhau i bleidleisio",
 	"polis_voted_everything": "Rydych wedi pleidleisio ar bopeth. Diolch!",
-	"polis_come_back_later": "Dewch yn ôl yn hwyrach i weld a yw barnau newydd wedi'u hychwanegu."
+	"polis_come_back_later": "Dewch yn ôl yn hwyrach i weld a yw barnau newydd wedi'u hychwanegu.",
+	"password_updated_successfully": "Diweddarwyd y cyfrinair yn llwyddiannus",
+	"password_updated_successfully_body": "Mae eich cyfrinair wedi'i newid. Gallwch barhau i ddefnyddio'r rhaglen.",
+	"continue_to_home": "Parhau i'r hafan"
 }

@@ -132,5 +132,8 @@
 	"polis_do_you_want_to_continue": "A bheil thu airson leantainn air adhart?",
 	"polis_continue_voting": "Lean air adhart a' bhòtadh",
 	"polis_voted_everything": "Tha thu air bhòtadh air a h-uile rud. Tapadh leat!",
-	"polis_come_back_later": "Thig air ais nas fhaide air adhart gus faicinn a bheil beachdan ùra air an cur ris."
+	"polis_come_back_later": "Thig air ais nas fhaide air adhart gus faicinn a bheil beachdan ùra air an cur ris.",
+	"password_updated_successfully": "Chaidh am facal-faire ùrachadh gu soirbheachail",
+	"password_updated_successfully_body": "Chaidh am facal-faire agad atharrachadh. Faodaidh tu leantainn air adhart a' cleachdadh na h-aplacaid.",
+	"continue_to_home": "Lean air adhart chun dachaigh"
 }
