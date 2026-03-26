@@ -36,13 +36,17 @@
 	<Drawer.Content
 		class="flex w-screen! max-w-[100vw]! flex-col justify-between px-8 py-12 lg:max-w-[50vw]!"
 	>
-		<Drawer.Close class="absolute top-0 left-0 p-3"
+		<Drawer.Close class="absolute top-0 left-0 p-3 focus:border-none"
 			><span><LucideChevronRight class="stroke-foreground" /></span></Drawer.Close
 		>
 		<Tabs.Root value="faqs">
-			<div class="bg-sidebar mb-4 flex flex-row gap-0.5 rounded-lg p-1">
+			<div class="bg-sidebar mb-4 flex flex-row gap-0.5 rounded-xl p-1">
 				{#each tabs as tab (tab.value)}
-					<Tabs.Trigger value={tab.value} class="border-none">{tab.label}</Tabs.Trigger>
+					<Tabs.Trigger
+						value={tab.value}
+						class="text-sidebar-foreground data-[state=active]:text-foreground border-none"
+						>{tab.label}</Tabs.Trigger
+					>
 				{/each}
 			</div>
 			<div class="max-h-[50vh] overflow-y-auto">
@@ -53,7 +57,7 @@
 						{:else}
 							{@const Component = tab.fallback}
 							<Component
-								class="[&_h1]:text-primary flex flex-col gap-4 [&_h1]:font-bold [&_h2]:font-bold [&_ul]:list-inside [&_ul]:list-[square]!"
+								class="[&_h1]:text-primary [&_h2]:text-primary flex flex-col gap-4 [&_h1,&_h2,&_h3,&_h4,&_h5,&_h6]:font-bold [&_ul]:list-inside [&_ul]:list-[square]!"
 							/>
 						{/if}
 					</Tabs.Content>
