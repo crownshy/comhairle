@@ -36,6 +36,7 @@
 			{ id: '4', text: 'Ask something else', variant: 'default' }
 		],
 		showInitialQuestions = false, // TODO: change back to true once we have a way of configuring
+		active = true,
 		onSendMessage = (message: string) => console.log('Message sent:', message),
 		onQuestionClick = (question: string) => console.log('Question clicked:', question)
 	}: ChatBotProps = $props();
@@ -105,11 +106,21 @@
 
 	$effect(() => {
 		if (needsScroll && scrollAreaRef) {
-			const viewport = scrollAreaRef.querySelector('[data-slot="scroll-area-viewport"]');
-			if (viewport) {
-				viewport.scrollTop = viewport.scrollHeight;
-				needsScroll = false;
-			}
+			tick().then(() => {
+				if (!scrollAreaRef) return;
+				const viewport = scrollAreaRef.querySelector('[data-slot="scroll-area-viewport"]');
+				if (viewport) {
+					viewport.scrollTop = viewport.scrollHeight;
+					needsScroll = false;
+				}
+			});
+		}
+	});
+
+	// Scroll to bottom when tab becomes active
+	$effect(() => {
+		if (active && chatMessages.length > 0) {
+			tick().then(scrollToBottom);
 		}
 	});
 
@@ -232,7 +243,7 @@
 
 {#if isInitializing}
 	<div
-		class="bg-chat-primary-lighter max-w-xxxl mx-auto flex h-full min-h-[60vh] flex-col items-center justify-center p-6"
+		class="bg-chat-primary-lighter mx-auto flex h-full flex-col items-center justify-center p-6"
 	>
 		<div class="flex flex-col items-center gap-3">
 			<div class="flex items-center gap-2">
@@ -254,9 +265,9 @@
 	</div>
 {:else}
 	<div
-		class="bg-chat-primary-lighter max-w-xxxl mx-auto flex h-full min-h-[50vh] flex-col rounded-lg p-6 pt-3"
+		class="bg-chat-primary-lighter max-w-xxxl mx-auto flex h-full min-h-0 flex-col overflow-hidden rounded-lg p-6 pt-3"
 	>
-		<ScrollArea.Root bind:ref={scrollAreaRef} class="min-h-0 flex-1">
+		<ScrollArea.Root bind:ref={scrollAreaRef} class="min-h-0 flex-1 overflow-hidden">
 			<div class="mt-2 mb-4 shrink-0 text-center">
 				<p class="text-chat-text-muted text-xs">
 					{new Date().toISOString().slice(0, 10).replace(/-/g, '.')}

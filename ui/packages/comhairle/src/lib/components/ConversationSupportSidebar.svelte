@@ -12,6 +12,8 @@
 	let { conversation, user }: { conversation: LocalizedConversationDto; user: UserDto } =
 		$props();
 
+	let activeTab = $state('faqs');
+
 	let tabs = [
 		{
 			value: 'faqs',
@@ -33,14 +35,12 @@
 		class="bg-primary/50 hover:bg-primary lg:bg-primary fixed top-1/5 right-0 p-3 transition-colors duration-300 ease-in-out"
 		><span><CircleQuestionMark class="stroke-foreground" /></span></Drawer.Trigger
 	>
-	<Drawer.Content
-		class="flex w-screen! max-w-[100vw]! flex-col justify-between px-8 py-12 lg:max-w-[50vw]!"
-	>
+	<Drawer.Content class="flex w-screen! max-w-[100vw]! flex-col px-8 py-12 lg:max-w-[50vw]!">
 		<Drawer.Close class="absolute top-0 left-0 p-3 focus:border-none"
 			><span><LucideChevronRight class="stroke-foreground" /></span></Drawer.Close
 		>
-		<Tabs.Root value="faqs">
-			<div class="bg-sidebar mb-4 flex flex-row gap-0.5 rounded-xl p-1">
+		<Tabs.Root bind:value={activeTab} class="flex min-h-0 flex-1 flex-col">
+			<div class="bg-sidebar mb-4 flex shrink-0 flex-row gap-0.5 rounded-xl p-1">
 				{#each tabs as tab (tab.value)}
 					<Tabs.Trigger
 						value={tab.value}
@@ -56,9 +56,9 @@
 					>
 				{/if}
 			</div>
-			<div class="max-h-[85vh] overflow-y-auto">
+			<div class="flex min-h-0 flex-1 flex-col">
 				{#each tabs as tab (tab.value)}
-					<Tabs.Content value={tab.value}>
+					<Tabs.Content value={tab.value} class="overflow-y-auto">
 						{#if tab.content}
 							<ContentRenderer content={tab.content} />
 						{:else}
@@ -70,14 +70,15 @@
 					</Tabs.Content>
 				{/each}
 				{#if conversation?.chatBotId && conversation.enableQaChatBot}
-					<Tabs.Content value="tutorBot">
-						<div class="relative">
+					<Tabs.Content value="tutorBot" class="flex min-h-0 flex-1 flex-col">
+						<div class="flex min-h-0 flex-1 flex-col">
 							<ChatBot
 								chatId={conversation.chatBotId}
 								conversationId={conversation.id}
 								userId={user?.id}
 								botName="Tutor bot"
 								botSubtitle="Ask questions"
+								active={activeTab === 'tutorBot'}
 							/>
 						</div>
 					</Tabs.Content>
