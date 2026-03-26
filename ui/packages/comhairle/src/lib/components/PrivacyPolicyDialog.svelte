@@ -37,7 +37,7 @@
 				<ContentRenderer content={privacyPolicy} />
 			{:else}
 				<ComhairlePrivacyPolicy
-					class="flex flex-col gap-4 [&_h1]:text-lg [&_h1]:font-bold [&_h2]:font-bold [&_ul]:list-inside [&_ul]:list-[square]!"
+					class="[&_h1]:text-primary [&_h2]:text-primary flex flex-col gap-4 [&_h1,&_h2,&_h3,&_h4,&_h5,&_h6]:font-bold [&_ul]:list-inside [&_ul]:list-[square]!"
 				/>
 			{/if}
 		</div>

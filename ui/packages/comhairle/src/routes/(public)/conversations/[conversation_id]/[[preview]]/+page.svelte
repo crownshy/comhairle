@@ -17,22 +17,25 @@
 	let pageTitle = $derived(conversation?.title ?? 'Conversation');
 
 	let privacyPolicyOpen = $state(false);
-	let pendingAction: (() => void) | null = $state(null);
 
-	function withPrivacyPolicyCheck(action: () => void) {
+	function handleJoin() {
 		if (conversation.privacyPolicy) {
-			pendingAction = action;
 			privacyPolicyOpen = true;
 		} else {
-			action();
+			doJoin();
+		}
+	}
+
+	function doJoin() {
+		if (!user && firstWorkflow.autoLogin) {
+			registerAnnonUserSignupAndRedirect();
+		} else {
+			registerUser();
 		}
 	}
 
 	function handlePrivacyPolicyAccept() {
-		if (pendingAction) {
-			pendingAction();
-			pendingAction = null;
-		}
+		doJoin();
 	}
 
 	let firstWorkflow = $derived(workflows[0]);
@@ -107,16 +110,12 @@
 						href={firstWorkflowPath}>{m.jump_back_in()}</Button
 					>
 				{:else}
-					<Button
-						class="mt-5 w-full md:w-fit"
-						onclick={() => withPrivacyPolicyCheck(registerUser)}
+					<Button class="mt-5 w-full md:w-fit" onclick={handleJoin}
 						>{m.join_the_conversation()}</Button
 					>
 				{/if}
 			{:else if firstWorkflow.autoLogin}
-				<Button
-					class="mt-5 w-full md:w-fit"
-					onclick={() => withPrivacyPolicyCheck(registerAnnonUserSignupAndRedirect)}
+				<Button class="mt-5 w-full md:w-fit" onclick={handleJoin}
 					>{m.join_the_conversation()}</Button
 				>
 			{:else}
