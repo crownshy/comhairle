@@ -27,6 +27,7 @@ export interface ChatBotProps {
 	placeholder?: string;
 	initialQuestions?: InitialQuestion[];
 	showInitialQuestions?: boolean;
+	active?: boolean;
 	onSendMessage?: (message: string) => void;
 	onQuestionClick?: (question: string) => void;
 }

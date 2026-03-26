@@ -3,7 +3,7 @@
 </script>
 
 <div class={className}>
-	<h1>Privacy</h1>
+	<h2>Privacy</h2>
 
 	<p>
 		To execute the functionality of the website and provide accountability and moderation, we
@@ -26,7 +26,7 @@
 		never publish email addresses or other PII information.
 	</p>
 
-	<h2>Accessing your Personal Information</h2>
+	<h3>Accessing your Personal Information</h3>
 	<p>
 		You can access your personal information and perform actions like downloading a copy of it,
 		or correcting it if it is wrong, in your user preferences. If you have further questions or
@@ -39,7 +39,7 @@
 		not change or that any changes can be transparently observed.
 	</p>
 
-	<h2>Collection of Browser Information</h2>
+	<h3>Collection of Browser Information</h3>
 
 	<p>
 		When you use this website, your computer provides information that is collected by CrownShy.

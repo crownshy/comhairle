@@ -36,6 +36,7 @@
 			{ id: '4', text: 'Ask something else', variant: 'default' }
 		],
 		showInitialQuestions = false, // TODO: change back to true once we have a way of configuring
+		active = true,
 		onSendMessage = (message: string) => console.log('Message sent:', message),
 		onQuestionClick = (question: string) => console.log('Question clicked:', question)
 	}: ChatBotProps = $props();
@@ -105,11 +106,20 @@
 
 	$effect(() => {
 		if (needsScroll && scrollAreaRef) {
-			const viewport = scrollAreaRef.querySelector('[data-slot="scroll-area-viewport"]');
-			if (viewport) {
-				viewport.scrollTop = viewport.scrollHeight;
-				needsScroll = false;
-			}
+			tick().then(() => {
+				if (!scrollAreaRef) return;
+				const viewport = scrollAreaRef.querySelector('[data-slot="scroll-area-viewport"]');
+				if (viewport) {
+					viewport.scrollTop = viewport.scrollHeight;
+					needsScroll = false;
+				}
+			});
+		}
+	});
+
+	$effect(() => {
+		if (active && chatMessages.length > 0) {
+			tick().then(scrollToBottom);
 		}
 	});
 
@@ -142,7 +152,7 @@
 		textareaRef.style.height = '24px';
 		const lineHeight = 20;
 		const maxHeight = lineHeight * 10; // 10 rows max
-		const newHeight = Math.min(textareaRef.scrollHeight, maxHeight);
+		const newHeight = Math.min(textareaRef.scrollHeight || 44, maxHeight);
 		textareaRef.style.height = `${newHeight}px`;
 	}
 
@@ -232,7 +242,7 @@
 
 {#if isInitializing}
 	<div
-		class="bg-chat-primary-lighter max-w-xxxl mx-auto flex h-full min-h-[60vh] flex-col items-center justify-center p-6"
+		class="bg-chat-primary-lighter mx-auto flex h-full flex-col items-center justify-center p-6"
 	>
 		<div class="flex flex-col items-center gap-3">
 			<div class="flex items-center gap-2">
@@ -253,8 +263,10 @@
 		</div>
 	</div>
 {:else}
-	<div class="bg-chat-primary-lighter max-w-xxxl mx-auto flex h-full flex-col p-6 pt-3">
-		<ScrollArea.Root bind:ref={scrollAreaRef} class="min-h-0 flex-1">
+	<div
+		class="bg-chat-primary-lighter max-w-xxxl mx-auto flex h-full min-h-0 flex-col overflow-hidden rounded-lg p-6 pt-3"
+	>
+		<ScrollArea.Root bind:ref={scrollAreaRef} class="min-h-0 flex-1 overflow-hidden">
 			<div class="mt-2 mb-4 shrink-0 text-center">
 				<p class="text-chat-text-muted text-xs">
 					{new Date().toISOString().slice(0, 10).replace(/-/g, '.')}
@@ -322,7 +334,7 @@
 										{/if}
 									</div>
 								{:else}
-									<p class="text-sm text-white">{message.content}</p>
+									<p class="text-primary-foreground text-sm">{message.content}</p>
 								{/if}
 							</div>
 						</div>
@@ -371,7 +383,7 @@
 		</ScrollArea.Root>
 
 		<!-- Input Area -->
-		<div class="flex flex-shrink-0 items-end gap-2 pt-4">
+		<div class="flex shrink-0 items-end gap-2 pt-4">
 			<div
 				class="border-chat-border bg-chat-bubble flex flex-1 items-end gap-2 rounded-xl border shadow-md"
 			>
