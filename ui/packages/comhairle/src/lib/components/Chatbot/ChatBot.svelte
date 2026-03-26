@@ -142,7 +142,7 @@
 		textareaRef.style.height = '24px';
 		const lineHeight = 20;
 		const maxHeight = lineHeight * 10; // 10 rows max
-		const newHeight = Math.min(textareaRef.scrollHeight, maxHeight);
+		const newHeight = Math.min(textareaRef.scrollHeight || 44, maxHeight);
 		textareaRef.style.height = `${newHeight}px`;
 	}
 
@@ -253,7 +253,9 @@
 		</div>
 	</div>
 {:else}
-	<div class="bg-chat-primary-lighter max-w-xxxl mx-auto flex h-full flex-col p-6 pt-3">
+	<div
+		class="bg-chat-primary-lighter max-w-xxxl mx-auto flex h-full min-h-[50vh] flex-col rounded-lg p-6 pt-3"
+	>
 		<ScrollArea.Root bind:ref={scrollAreaRef} class="min-h-0 flex-1">
 			<div class="mt-2 mb-4 shrink-0 text-center">
 				<p class="text-chat-text-muted text-xs">
@@ -371,7 +373,7 @@
 		</ScrollArea.Root>
 
 		<!-- Input Area -->
-		<div class="flex flex-shrink-0 items-end gap-2 pt-4">
+		<div class="flex shrink-0 items-end gap-2 pt-4">
 			<div
 				class="border-chat-border bg-chat-bubble flex flex-1 items-end gap-2 rounded-xl border shadow-md"
 			>

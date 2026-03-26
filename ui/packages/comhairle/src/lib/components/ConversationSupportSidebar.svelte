@@ -4,10 +4,10 @@
 	import { LucideChevronRight } from 'lucide-svelte';
 	import CircleQuestionMark from '$lib/components/icons/CircleQuestionMark.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import CollapsibleChat from '$lib/components/Chatbot/CollapsibleChat.svelte';
 	import type { LocalizedConversationDto, UserDto } from '@crownshy/api-client/api';
 	import ComhairlePrivacyPolicy from './ComhairlePrivacyPolicy.svelte';
 	import ComhairleFAQs from './ComhairleFAQs.svelte';
+	import ChatBot from './Chatbot/ChatBot.svelte';
 
 	let { conversation, user }: { conversation: LocalizedConversationDto; user: UserDto } =
 		$props();
@@ -48,8 +48,15 @@
 						>{tab.label}</Tabs.Trigger
 					>
 				{/each}
+				{#if conversation?.chatBotId && conversation.enableQaChatBot}
+					<Tabs.Trigger
+						value="tutorBot"
+						class="text-sidebar-foreground data-[state=active]:text-foreground border-none"
+						>Tutor bot</Tabs.Trigger
+					>
+				{/if}
 			</div>
-			<div class="max-h-[50vh] overflow-y-auto">
+			<div class="max-h-[85vh] overflow-y-auto">
 				{#each tabs as tab (tab.value)}
 					<Tabs.Content value={tab.value}>
 						{#if tab.content}
@@ -62,15 +69,20 @@
 						{/if}
 					</Tabs.Content>
 				{/each}
+				{#if conversation?.chatBotId && conversation.enableQaChatBot}
+					<Tabs.Content value="tutorBot">
+						<div class="relative">
+							<ChatBot
+								chatId={conversation.chatBotId}
+								conversationId={conversation.id}
+								userId={user?.id}
+								botName="Tutor bot"
+								botSubtitle="Ask questions"
+							/>
+						</div>
+					</Tabs.Content>
+				{/if}
 			</div>
 		</Tabs.Root>
-
-		{#if conversation?.chatBotId && conversation.enableQaChatBot}
-			<CollapsibleChat
-				chatId={conversation.chatBotId}
-				conversationId={conversation.id}
-				userId={user?.id}
-			/>
-		{/if}
 	</Drawer.Content>
 </Drawer.Root>
