@@ -59,6 +59,8 @@ pub struct ConversationDto {
     pub privacy_policy: Option<TextContentId>,
     #[schemars(example = "example_uuid")]
     pub faqs: Option<TextContentId>,
+    #[schemars(example = "example_uuid")]
+    pub thank_you_message: Option<TextContentId>,
 }
 
 /// Data transfer object (public API representation) for a LocalizedConversation.
@@ -109,6 +111,8 @@ pub struct LocalizedConversationDto {
     pub privacy_policy: Option<String>,
     #[schemars(example = "example_localized_text")]
     pub faqs: Option<String>,
+    #[schemars(example = "example_localized_text")]
+    pub thank_you_message: Option<String>,
 }
 
 impl From<Conversation> for ConversationDto {
@@ -134,6 +138,7 @@ impl From<Conversation> for ConversationDto {
             organization_id: c.organization_id,
             privacy_policy: c.privacy_policy,
             faqs: c.faqs,
+            thank_you_message: c.thank_you_message,
         }
     }
 }
@@ -161,6 +166,7 @@ impl From<LocalizedConversation> for LocalizedConversationDto {
             organization_id: c.organization_id,
             privacy_policy: c.privacy_policy,
             faqs: c.faqs,
+            thank_you_message: c.thank_you_message,
         }
     }
 }

@@ -94,6 +94,7 @@ export const ConversationDto = z
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
     tags: z.array(z.string()),
+    thankYouMessage: z.union([z.string(), z.null()]).optional(),
     title: z.string().uuid(),
     videoUrl: z.union([z.string(), z.null()]).optional(),
   })
@@ -125,6 +126,7 @@ export const LocalizedConversationDto = z
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
     tags: z.array(z.string()),
+    thankYouMessage: z.union([z.string(), z.null()]).optional(),
     title: z.string(),
     videoUrl: z.union([z.string(), z.null()]).optional(),
   })
@@ -414,6 +416,7 @@ export const ConversationTranslations = z
     faqs: z.union([Translation, z.null()]).optional(),
     privacyPolicy: z.union([Translation, z.null()]).optional(),
     shortDescription: Translation,
+    thankYouMessage: z.union([Translation, z.null()]).optional(),
     title: Translation,
   })
   .passthrough();
@@ -441,6 +444,7 @@ export const ConversationWithTranslations = z
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
     tags: z.array(z.string()),
+    thankYouMessage: z.union([z.string(), z.null()]).optional(),
     title: z.string(),
     translations: ConversationTranslations,
     updatedAt: z.string().datetime({ offset: true }),
@@ -474,6 +478,7 @@ export const PartialConversation = z
     slug: z.union([z.string(), z.null()]),
     supported_languages: z.union([z.array(z.string()), z.null()]),
     tags: z.union([z.array(z.string()), z.null()]),
+    thank_you_message: z.union([z.string(), z.null()]),
     title: z.union([z.string(), z.null()]),
     video_url: z.union([z.string(), z.null()]),
   })
