@@ -6,6 +6,7 @@
 	import UserConversationPreferencesForm from '$lib/components/UserConversationPreferencesForm/UserConversationPreferencesForm.svelte';
 	import UpgradeAccountModal from '$lib/components/UpgradeAccountModal/UpgradeAccountModal.svelte';
 	import EmailRegistrationForm from '$lib/components/EmailRegistrationForm/EmailRegistrationForm.svelte';
+	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 
 	let { data }: PageProps = $props();
 	let user = $derived(data.user);
@@ -33,6 +34,11 @@
 			and will follow up with notifications on how those results are used.
 		</p>
 	{/if}
+
+	{#if conversation.thankYouMessage}
+		<ContentRenderer content={conversation.thankYouMessage} />
+	{/if}
+
 	<h2>Next steps</h2>
 	You can continue to contribute, let us know what you thought of the process or sign up for updates
 	on this project and others which you might be interested in.

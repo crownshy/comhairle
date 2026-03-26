@@ -16,7 +16,7 @@
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import type { ConversationWithTranslations, WorkflowDto } from '@crownshy/api-client/api';
-	import { camelToSnakeCase, snakeCaseKeys } from '$lib/utils/snakeCaseKeys';
+	import { camelToSentenceCase, camelToSnakeCase, snakeCaseKeys } from '$lib/utils/casingUtils';
 
 	let {
 		data
@@ -44,6 +44,7 @@
 		$form.isInviteOnly = data.conversation.isInviteOnly;
 		$form.privacyPolicy = data.conversation.privacyPolicy;
 		$form.faqs = data.conversation.faqs;
+		$form.thankYouMessage = data.conversation.thankYouMessage;
 		$form.autoLogin = data.workflows[0]?.autoLogin;
 		$form.enableQaChatBot = data.conversation.enableQaChatBot;
 	});
@@ -134,6 +135,7 @@
 			imageUrl: data.conversation.imageUrl,
 			privacyPolicy: data.conversation.privacyPolicy,
 			faqs: data.conversation.faqs,
+			thankYouMessage: data.conversation.thankYouMessage,
 			isPublic: data.conversation.isPublic,
 			isInviteOnly: data.conversation.isInviteOnly,
 			autoLogin: data.workflows[0].autoLogin,
@@ -163,7 +165,10 @@
 			);
 		} catch (e) {
 			console.error(e);
-			notifications.send({ message: 'Failed to create privacy policy', priority: 'ERROR' });
+			notifications.send({
+				message: `Failed to create ${camelToSentenceCase(field)}`,
+				priority: 'ERROR'
+			});
 		}
 	}
 
@@ -184,6 +189,8 @@
 				privacyPolicy:
 					_privacyPolicy /* eslint-disable-line @typescript-eslint/no-unused-vars */,
 				faqs: _faqs /* eslint-disable-line @typescript-eslint/no-unused-vars */,
+				thankYouMessage:
+					_thankYouMessage /* eslint-disable-line @typescript-eslint/no-unused-vars */,
 				autoLogin: _auto_login /* eslint-disable-line @typescript-eslint/no-unused-vars */,
 				...conversationData
 			} = result.data;
@@ -407,6 +414,35 @@
 							editorType="rich"
 							onSaveSource={(content: string) =>
 								handleInitOptionalTranslationField(content, 'faqs')}
+							primaryLocale={primaryLanguage}
+							{supportedLanguages}
+							inputProps={props}
+						/>
+						<Form.FieldErrors />
+					</div>
+				{/snippet}
+			</Form.Control>
+		</Form.Field>
+	</div>
+
+	<!-- Thank you message -->
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
+		<Form.Field form={conversationForm} name="thankYouMessage" class="contents">
+			<Form.Control>
+				{#snippet children({ props })}
+					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+						>Thank you message</Form.Label
+					>
+					<div class="flex-1">
+						<TranslatableField
+							value={$form.thankYouMessage || null}
+							onValueChange={(v) => ($form.thankYouMessage = v)}
+							translation={conversation.translations?.thankYouMessage ?? undefined}
+							editorType="rich"
+							onSaveSource={(content: string) =>
+								handleInitOptionalTranslationField(content, 'thankYouMessage')}
 							primaryLocale={primaryLanguage}
 							{supportedLanguages}
 							inputProps={props}

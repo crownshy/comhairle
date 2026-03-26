@@ -15,7 +15,7 @@
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { useDebounce } from 'runed';
 	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
-	import { camelToSnakeCase } from '$lib/utils/snakeCaseKeys';
+	import { camelToSnakeCase } from '$lib/utils/casingUtils';
 
 	type Props = {
 		conversation_id: string;

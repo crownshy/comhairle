@@ -72,13 +72,15 @@ pub struct Conversation {
     pub privacy_policy: Option<TextContentId>,
     #[partially(transparent)]
     pub faqs: Option<TextContentId>,
+    #[partially(transparent)]
+    pub thank_you_message: Option<TextContentId>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ConversationIden; 24] = [
+const DEFAULT_COLUMNS: [ConversationIden; 25] = [
     ConversationIden::Id,
     ConversationIden::Title,
     ConversationIden::ShortDescription,
@@ -103,6 +105,7 @@ const DEFAULT_COLUMNS: [ConversationIden; 24] = [
     ConversationIden::OrganizationId,
     ConversationIden::PrivacyPolicy,
     ConversationIden::Faqs,
+    ConversationIden::ThankYouMessage,
 ];
 
 impl PartialConversation {
@@ -165,6 +168,9 @@ impl PartialConversation {
         };
         if let Some(value) = &self.faqs {
             values.push((ConversationIden::Faqs, (*value).into()))
+        };
+        if let Some(value) = &self.thank_you_message {
+            values.push((ConversationIden::ThankYouMessage, (*value).into()))
         };
 
         if let Some(value) = &self.supported_languages {
