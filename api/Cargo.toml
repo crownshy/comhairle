@@ -105,6 +105,7 @@ tracing-test = "0.2.5"
 dotenvy = "0.15.7"
 fake = { version = "4", features = ["chrono", "derive", "uuid"] }
 enum_dispatch = "0.3.13"
+cookie = "0.18.1"
 
 [dev-dependencies]
 fake = { version = "4", features = ["derive"] }

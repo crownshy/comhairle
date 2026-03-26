@@ -175,7 +175,7 @@ pub async fn launch(
     .await?;
 
     // Login as live config user
-    client
+    let live_auth_cookies = client
         .login(&WikiPollLogin {
             email: live_poll_config.admin_user.clone(),
             password: live_poll_config.admin_password.clone(),
@@ -186,7 +186,7 @@ pub async fn launch(
 
     for comment in seed_statements {
         client
-            .post_seed_comment(&comment.txt, &live_poll_config.poll_id)
+            .post_seed_comment(&comment.txt, &live_poll_config.poll_id, &live_auth_cookies)
             .await?;
     }
 
@@ -199,13 +199,13 @@ async fn polis_setup(
     client: &Arc<dyn WikiPollService>,
 ) -> Result<PolisToolConfig, ComhairleError> {
     let (email, password) = client.create_random_admin_user().await?;
-    client
+    let auth_cookies = client
         .login(&WikiPollLogin {
             email: email.clone(),
             password: password.clone(),
         })
         .await?;
-    let poll_id = client.create_poll().await?;
+    let poll_id = client.create_poll(&auth_cookies).await?;
 
     Ok(PolisToolConfig {
         server_url: polis_url.to_string(),
