@@ -334,7 +334,7 @@
 										{/if}
 									</div>
 								{:else}
-									<p class="text-sm text-white">{message.content}</p>
+									<p class="text-primary-foreground text-sm">{message.content}</p>
 								{/if}
 							</div>
 						</div>
