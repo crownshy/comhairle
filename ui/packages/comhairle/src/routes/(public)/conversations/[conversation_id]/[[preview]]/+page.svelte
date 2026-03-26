@@ -9,11 +9,34 @@
 	import { page } from '$app/state';
 	import ConversationSummary from '$lib/components/ConversationSummary.svelte';
 	import { loginRedirect, signupRedirect } from '$lib/urls.js';
+	import PrivacyPolicyDialog from '$lib/components/PrivacyPolicyDialog.svelte';
 
 	let { data }: PageProps = $props();
 	let { conversation, workflows, participation } = data;
 	let user = $derived(data.user);
 	let pageTitle = $derived(conversation?.title ?? 'Conversation');
+
+	let privacyPolicyOpen = $state(false);
+
+	function handleJoin() {
+		if (conversation.privacyPolicy) {
+			privacyPolicyOpen = true;
+		} else {
+			doJoin();
+		}
+	}
+
+	function doJoin() {
+		if (!user && firstWorkflow.autoLogin) {
+			registerAnnonUserSignupAndRedirect();
+		} else {
+			registerUser();
+		}
+	}
+
+	function handlePrivacyPolicyAccept() {
+		doJoin();
+	}
 
 	let firstWorkflow = $derived(workflows[0]);
 
@@ -87,12 +110,12 @@
 						href={firstWorkflowPath}>{m.jump_back_in()}</Button
 					>
 				{:else}
-					<Button class="mt-5 w-full md:w-fit" onclick={registerUser}
+					<Button class="mt-5 w-full md:w-fit" onclick={handleJoin}
 						>{m.join_the_conversation()}</Button
 					>
 				{/if}
 			{:else if firstWorkflow.autoLogin}
-				<Button class="mt-5 w-full md:w-fit" onclick={registerAnnonUserSignupAndRedirect}
+				<Button class="mt-5 w-full md:w-fit" onclick={handleJoin}
 					>{m.join_the_conversation()}</Button
 				>
 			{:else}
@@ -104,6 +127,12 @@
 				>
 			{/if}
 		</ConversationSummary>
+
+		<PrivacyPolicyDialog
+			privacyPolicy={conversation.privacyPolicy}
+			bind:open={privacyPolicyOpen}
+			onAccept={handlePrivacyPolicyAccept}
+		/>
 	{:else}
 		<h1>Conversation not found</h1>
 	{/if}
