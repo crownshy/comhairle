@@ -13,6 +13,7 @@ export const conversationConfigSchema = z.object({
 	imageUrl: z.string().url('Must be a valid URL').or(z.literal('')),
 	privacyPolicy: z.string().nullish(),
 	faqs: z.string().nullish(),
+	thankYouMessage: z.string().nullish(),
 	isPublic: z.boolean(),
 	isInviteOnly: z.boolean(),
 	autoLogin: z.boolean(),

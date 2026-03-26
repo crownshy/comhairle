@@ -2,6 +2,10 @@ export function camelToSnakeCase(str: string) {
 	return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
 
+export function camelToSentenceCase(str: string) {
+	return str.replace(/[A-Z]/g, (letter) => ` ${letter.toLowerCase()}`);
+}
+
 export function snakeCaseKeys(obj: { [key: string]: any }) {
 	const temp: { [key: string]: any } = {};
 	for (const [key, value] of Object.entries(obj)) {
