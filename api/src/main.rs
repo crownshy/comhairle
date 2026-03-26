@@ -1,4 +1,5 @@
 use apalis::prelude::{MemoryStorage, Monitor, WorkerBuilder, WorkerFactoryFn};
+use apalis_redis::RedisStorage;
 use aws_config::BehaviorVersion;
 use comhairle::{
     bot_service::{ComhairleBotService, ComhairleRagBotService},
@@ -93,8 +94,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let wiki_poll_service = Arc::new(PolisClient::new(&config.polis_url));
 
     let process_documents_storage = MemoryStorage::new();
+    let redis_connection = apalis_redis::connect(config.workers.redis_url.clone())
+        .await
+        .expect("Could not connect to redis");
+    let process_transcriptions_storage = RedisStorage::new(redis_connection);
     let jobs = Arc::new(JobQueues {
         process_documents: Arc::new(Mutex::new(process_documents_storage.clone())),
+        process_transcriptions: Arc::new(Mutex::new(process_transcriptions_storage.clone())),
     });
 
     let state = Arc::new(ComhairleState {

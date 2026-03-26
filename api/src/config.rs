@@ -61,6 +61,11 @@ pub struct VideoCallConfig {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+pub struct WorkersConfig {
+    pub redis_url: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
 pub struct ComhairleConfig {
     pub database_url: String,
     pub jwt_secret: String,
@@ -78,4 +83,5 @@ pub struct ComhairleConfig {
     pub heyform_url: String,
     pub polis_url: String,
     pub video_call_service: Option<VideoCallConfig>,
+    pub workers: WorkersConfig,
 }
