@@ -51,6 +51,65 @@ pub struct PolisToolSetup {
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct PolisReport;
 
+// Report data structures
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+pub struct CommentReportData {
+    pub tid: u32,
+    pub text: String,
+    pub overall_votes: VoteCounts,
+    pub group_votes: Vec<GroupVoteCounts>,
+    pub group_informed_consensus: Option<f64>,
+    pub divisiveness: Option<f64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+pub struct VoteCounts {
+    pub agrees: u32,
+    pub disagrees: u32,
+    pub passes: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+pub struct GroupVoteCounts {
+    pub group_id: u32,
+    pub agrees: u32,
+    pub disagrees: u32,
+    pub passes: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+pub struct GroupReportData {
+    pub group_id: u32,
+    pub representative_comments: Vec<RepresentativeComment>,
+    pub members: Vec<u32>, // pids
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+pub struct RepresentativeComment {
+    pub tid: u32,
+    pub text: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+pub struct ParticipantReportData {
+    pub pid: u32,
+    pub group_id: Option<u32>,
+    pub pca_position: Option<PcaPosition>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+pub struct PcaPosition {
+    pub x: f64,
+    pub y: f64,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+pub struct PolisReportResponse {
+    pub comments: Vec<CommentReportData>,
+    pub groups: Vec<GroupReportData>,
+    pub participants: Vec<ParticipantReportData>,
+}
+
 /// Zero-sized marker type for Polis tool implementation
 pub struct PolisTool;
 
@@ -421,22 +480,208 @@ impl PolisClient {
         Ok(data)
     }
 
-    pub async fn get_report_data(&self, poll_id: &str) -> Result<serde_json::Value, PolisError> {
+    pub async fn get_report_data(&self, poll_id: &str) -> Result<PolisReportResponse, PolisError> {
         info!("Getting full report data for poll_id: {poll_id}");
 
         // Fetch all the data that powers the report page
         let math_pca = self.get_math_pca(poll_id).await?;
-        let conversation = self.get_conversation(poll_id).await?;
-        let comments = self.get_comments_with_voting(poll_id).await?;
+        let comments_data = self.get_comments_with_voting(poll_id).await?;
 
-        // Combine into a single response
-        let report_data = json!({
-            "math": math_pca,
-            "conversation": conversation,
-            "comments": comments
-        });
+        // Transform the raw data into structured report format
+        self.transform_report_data(math_pca, comments_data)
+    }
 
-        Ok(report_data)
+    fn transform_report_data(
+        &self,
+        math_pca: serde_json::Value,
+        comments_data: serde_json::Value,
+    ) -> Result<PolisReportResponse, PolisError> {
+        // Extract comment texts from comments_data
+        let comments_array = comments_data
+            .as_array()
+            .ok_or_else(|| PolisError::FailedToGetComments("Invalid comments format".into()))?;
+
+        // Create a map of tid -> comment text
+        let mut comment_texts = std::collections::HashMap::new();
+        for comment in comments_array {
+            if let (Some(tid), Some(txt)) = (comment.get("tid").and_then(|t| t.as_u64()), comment.get("txt").and_then(|t| t.as_str())) {
+                comment_texts.insert(tid as u32, txt.to_string());
+            }
+        }
+
+        // Extract data from math_pca
+        let tids = math_pca["tids"]
+            .as_array()
+            .ok_or_else(|| PolisError::FailedToGetComments("No tids in math data".into()))?;
+
+        let group_votes = &math_pca["group-votes"];
+        let group_aware_consensus = &math_pca["group-aware-consensus"];
+        let empty_vec = vec![];
+        let comment_extremity = math_pca["pca"]["comment-extremity"]
+            .as_array()
+            .unwrap_or(&empty_vec);
+
+        // Build comments with vote counts
+        let mut comments_report = Vec::new();
+        for (idx, tid_val) in tids.iter().enumerate() {
+            let tid = tid_val.as_u64().unwrap_or(0) as u32;
+            let text = comment_texts.get(&tid).cloned().unwrap_or_default();
+
+            // Calculate overall votes from group votes
+            let mut total_agrees = 0u32;
+            let mut total_disagrees = 0u32;
+            let mut total_votes = 0u32;
+            let mut group_votes_list = Vec::new();
+
+            if let Some(obj) = group_votes.as_object() {
+                for (group_id_str, group_vote_data) in obj.iter() {
+                    if let Ok(group_id) = group_id_str.parse::<u32>() {
+                        if let Some(votes_for_tid) = group_vote_data.get(tid.to_string()) {
+                            let agrees = votes_for_tid["A"].as_u64().unwrap_or(0) as u32;
+                            let disagrees = votes_for_tid["D"].as_u64().unwrap_or(0) as u32;
+                            let sum = votes_for_tid["S"].as_u64().unwrap_or(0) as u32;
+                            let passes = sum.saturating_sub(agrees + disagrees);
+
+                            total_agrees += agrees;
+                            total_disagrees += disagrees;
+                            total_votes += sum;
+
+                            group_votes_list.push(GroupVoteCounts {
+                                group_id,
+                                agrees,
+                                disagrees,
+                                passes,
+                            });
+                        }
+                    }
+                }
+            }
+
+            let total_passes = total_votes.saturating_sub(total_agrees + total_disagrees);
+
+            let consensus = group_aware_consensus
+                .get(tid.to_string())
+                .and_then(|v| v.as_f64());
+
+            let divisiveness = comment_extremity
+                .get(idx)
+                .and_then(|v| v.as_f64());
+
+            comments_report.push(CommentReportData {
+                tid,
+                text,
+                overall_votes: VoteCounts {
+                    agrees: total_agrees,
+                    disagrees: total_disagrees,
+                    passes: total_passes,
+                },
+                group_votes: group_votes_list,
+                group_informed_consensus: consensus,
+                divisiveness,
+            });
+        }
+
+        // Extract group clusters and build groups
+        let empty_clusters = vec![];
+        let group_clusters = math_pca["group-clusters"]
+            .as_array()
+            .unwrap_or(&empty_clusters);
+
+        let repness = &math_pca["repness"];
+
+        let mut groups_report = Vec::new();
+        for (idx, cluster) in group_clusters.iter().enumerate() {
+            let group_id = idx as u32;
+            let members: Vec<u32> = cluster["members"]
+                .as_array()
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_u64().map(|n| n as u32))
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            // Get representative comments for this group
+            let mut representative_comments = Vec::new();
+            if let Some(rep_array) = repness.get(group_id.to_string()).and_then(|v| v.as_array()) {
+                for rep in rep_array {
+                    if let Some(tid) = rep.get("tid").and_then(|t| t.as_u64()) {
+                        let tid = tid as u32;
+                        let text = comment_texts.get(&tid).cloned().unwrap_or_default();
+                        representative_comments.push(RepresentativeComment { tid, text });
+                    }
+                }
+            }
+
+            groups_report.push(GroupReportData {
+                group_id,
+                representative_comments,
+                members,
+            });
+        }
+
+        // Build participants list with group membership
+        let bid_to_pid = &math_pca["bidToPid"];
+        let pca_x = math_pca["pca"]["x"].as_array();
+        let pca_y = math_pca["pca"]["y"].as_array();
+
+        let mut participants_report = Vec::new();
+        let mut pid_to_group: std::collections::HashMap<u32, u32> = std::collections::HashMap::new();
+
+        // Build pid to group mapping from group clusters
+        for (group_id, cluster) in group_clusters.iter().enumerate() {
+            if let Some(members) = cluster["members"].as_array() {
+                for member in members {
+                    if let Some(pid) = member.as_u64() {
+                        pid_to_group.insert(pid as u32, group_id as u32);
+                    }
+                }
+            }
+        }
+
+        // If we have bidToPid mapping, use it to get all participants
+        if let Some(bid_array) = bid_to_pid.as_array() {
+            for (bid, pids_value) in bid_array.iter().enumerate() {
+                if let Some(pids) = pids_value.as_array() {
+                    for pid_val in pids {
+                        if let Some(pid) = pid_val.as_u64() {
+                            let pid = pid as u32;
+                            let group_id = pid_to_group.get(&pid).copied();
+
+                            // Get PCA position if available
+                            let pca_position = if let (Some(x_arr), Some(y_arr)) = (pca_x, pca_y) {
+                                x_arr.get(bid).and_then(|x| x.as_f64()).and_then(|x| {
+                                    y_arr.get(bid).and_then(|y| y.as_f64()).map(|y| PcaPosition { x, y })
+                                })
+                            } else {
+                                None
+                            };
+
+                            participants_report.push(ParticipantReportData {
+                                pid,
+                                group_id,
+                                pca_position,
+                            });
+                        }
+                    }
+                }
+            }
+        } else {
+            // Fallback: just list participants from groups
+            for (pid, group_id) in pid_to_group.iter() {
+                participants_report.push(ParticipantReportData {
+                    pid: *pid,
+                    group_id: Some(*group_id),
+                    pca_position: None,
+                });
+            }
+        }
+
+        Ok(PolisReportResponse {
+            comments: comments_report,
+            groups: groups_report,
+            participants: participants_report,
+        })
     }
 }
 
@@ -454,7 +699,7 @@ struct ReportDataQuery {
 async fn get_report_data(
     State(state): State<Arc<ComhairleState>>,
     Query(ReportDataQuery { workflow_step_id }): Query<ReportDataQuery>,
-) -> Result<(StatusCode, Json<serde_json::Value>), ComhairleError> {
+) -> Result<(StatusCode, Json<PolisReportResponse>), ComhairleError> {
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
 
     if let ToolConfig::Polis(config) = workflow_step.preview_tool_config {
