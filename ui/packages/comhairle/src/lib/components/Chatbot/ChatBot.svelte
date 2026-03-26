@@ -117,7 +117,6 @@
 		}
 	});
 
-	// Scroll to bottom when tab becomes active
 	$effect(() => {
 		if (active && chatMessages.length > 0) {
 			tick().then(scrollToBottom);
