@@ -2,6 +2,7 @@ import { sequence } from '@sveltejs/kit/hooks';
 import type { Handle } from '@sveltejs/kit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { env } from '$env/dynamic/public';
+import { resolveThemeName, DEFAULT_THEME, THEMES } from '$lib/types/theme';
 
 const isEmbeddable = (pathname: string) =>
 	EMBEDDABLE_PATHS.some((path) => pathname.startsWith(path));
@@ -16,11 +17,13 @@ const handleParaglide: Handle = ({ event, resolve }) =>
 	});
 
 const handleTheme: Handle = async ({ event, resolve }) => {
-	const themeName = env.PUBLIC_THEME ?? 'comhairle';
-	const themeAttr = themeName !== 'comhairle' ? `data-theme="${themeName}"` : '';
+	const themeName = resolveThemeName(env.PUBLIC_THEME);
+	const themeAttr = themeName !== DEFAULT_THEME ? `data-theme="${themeName}"` : '';
+	const { favicon } = THEMES[themeName];
 
 	return resolve(event, {
-		transformPageChunk: ({ html }) => html.replace('%comhairle.theme%', themeAttr)
+		transformPageChunk: ({ html }) =>
+			html.replace('%comhairle.theme%', themeAttr).replace('%comhairle.favicon%', favicon)
 	});
 };
 
