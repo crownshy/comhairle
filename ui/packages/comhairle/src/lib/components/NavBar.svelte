@@ -112,7 +112,6 @@
 			<ProfileMenu {user} />
 		</div>
 
-		<!-- 900 px -->
 		<!-- Mobile Navigation -->
 		<div class="navbar:hidden">
 			<Drawer.Root bind:open={isOpen} direction="bottom">
