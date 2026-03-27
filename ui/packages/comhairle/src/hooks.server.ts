@@ -18,9 +18,11 @@ const handleParaglide: Handle = ({ event, resolve }) =>
 const handleTheme: Handle = async ({ event, resolve }) => {
 	const themeName = env.PUBLIC_THEME ?? 'comhairle';
 	const themeAttr = themeName !== 'comhairle' ? `data-theme="${themeName}"` : '';
+	const favicon = themeName !== 'comhairle' ? `${themeName}-favicon.png` : 'favicon.png';
 
 	return resolve(event, {
-		transformPageChunk: ({ html }) => html.replace('%comhairle.theme%', themeAttr)
+		transformPageChunk: ({ html }) =>
+			html.replace('%comhairle.theme%', themeAttr).replace('%comhairle.favicon%', favicon)
 	});
 };
 
