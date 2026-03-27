@@ -14,7 +14,7 @@
 
 	// Theme name is always determined by the PUBLIC_THEME env var
 	if (browser && themeName) {
-		themeStore.initFromServer(themeName as any);
+		themeStore.initFromServer(themeName);
 	}
 
 	$effect(() => {
