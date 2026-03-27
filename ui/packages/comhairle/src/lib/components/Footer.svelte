@@ -27,10 +27,12 @@
 		<div class="flex w-full max-w-[1280px] flex-col gap-12 px-6">
 			<!-- Top row: Logo + Nav + Subscribe -->
 			<div
-				class="flex flex-col items-center gap-8 lg:h-[84px] lg:flex-row lg:justify-between"
+				class="flex flex-col items-center gap-8 md:h-[84px] md:flex-row md:justify-between"
 			>
 				<!-- Logo + Nav -->
-				<div class="flex flex-col items-center gap-6 lg:flex-1 lg:flex-row">
+				<div
+					class="flex flex-col items-center gap-6 md:flex-1 md:flex-row md:justify-between"
+				>
 					<ComhairleLogo color="text-sidebar-foreground" />
 					<nav class="flex flex-wrap items-center justify-center gap-8">
 						{#each navLinks as link (link.href)}
@@ -50,10 +52,10 @@
 
 			<!-- Bottom row: Copyright + Legal links -->
 			<div class="flex flex-col items-center gap-4 md:flex-row md:justify-between">
-				<p class="text-sidebar-foreground/50 text-base font-normal">
+				<p class="text-sidebar-foreground/50 order-2 text-base font-normal md:order-1">
 					Copyright {new Date().getFullYear()} &copy; Crown Shy
 				</p>
-				<div class="flex flex-wrap items-center justify-center gap-8">
+				<div class="order-1 flex flex-wrap items-center justify-center gap-8 md:order-2">
 					{#each legalLinks as link (link.href)}
 						<a
 							href={link.href}
