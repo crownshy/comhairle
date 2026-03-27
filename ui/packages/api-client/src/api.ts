@@ -1173,6 +1173,12 @@ export const PartialEvent = z
 export type PartialEvent = z.infer<typeof PartialEvent>;
 export const JwtResponse = z.object({ jwt: z.string() }).passthrough();
 export type JwtResponse = z.infer<typeof JwtResponse>;
+export const ProcessTrascriptionResponse = z
+  .object({ job_id: z.string().uuid(), message: z.string() })
+  .passthrough();
+export type ProcessTrascriptionResponse = z.infer<
+  typeof ProcessTrascriptionResponse
+>;
 export const EventAttendanceDto = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
@@ -1486,6 +1492,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EventResponse,
   PartialEvent,
   JwtResponse,
+  ProcessTrascriptionResponse,
   EventAttendanceDto,
   PaginatedResults_for_EventAttendanceDto,
   CreateEventAttendanceRequest,
@@ -2081,6 +2088,14 @@ curl -X POST \
     description: `Get a auth JWT for an event`,
     requestFormat: "json",
     response: z.object({ jwt: z.string() }).passthrough(),
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/transcription",
+    alias: "ProcessVideoCallTranscription",
+    description: `Triggers transcription processing in a background worker`,
+    requestFormat: "json",
+    response: ProcessTrascriptionResponse,
   },
   {
     method: "get",
