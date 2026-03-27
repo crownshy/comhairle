@@ -9,7 +9,9 @@
 		PenLine,
 		X,
 		ChevronRight,
-		MessageSquare
+		MessageSquare,
+		AlertTriangle,
+		RefreshCw
 	} from 'lucide-svelte';
 	import PolisApi, { type PolisApiState, type PolisStatement } from './PolisApi';
 	import { getVoteData, incrementVotes } from './polisVoteStore';
@@ -38,6 +40,7 @@
 	let polisCurrentStatement = $state<PolisStatement | undefined>(undefined);
 	let polisLoading = $state(false);
 	let polisReady = $state(false);
+	let polisError = $state<string | undefined>(undefined);
 	let polisRemaining = $state(0);
 	let polisTotal = $state(0);
 	let polisPid = $state<number | undefined>(undefined);
@@ -46,6 +49,7 @@
 		polisCurrentStatement = s.currentStatement;
 		polisLoading = s.loading;
 		polisReady = s.ready;
+		polisError = s.error;
 		polisRemaining = s.remaining;
 		polisTotal = s.total;
 
@@ -59,7 +63,7 @@
 			waitingForNext = false;
 		}
 
-		if (screen === 'voting' && s.ready && !s.loading && !s.currentStatement) {
+		if (screen === 'voting' && s.ready && !s.loading && !s.currentStatement && !s.error) {
 			screen = 'completed';
 		}
 	}
@@ -170,7 +174,7 @@
 			<!-- Opinion counter -->
 			{#if !polisReady}
 				<div class="bg-foreground/10 h-5 w-32 animate-pulse rounded md:h-6"></div>
-			{:else}
+			{:else if !polisError}
 				<p class="text-muted-foreground tex-base font-semibold md:text-lg">
 					{m.polis_opinion_counter({
 						current: currentOpinionNumber + 1,
@@ -181,7 +185,20 @@
 
 			<!-- Statement text -->
 			<div class="w-full pt-2 pb-6">
-				{#if !polisReady || waitingForNext}
+				{#if polisReady && polisError}
+					<div
+						class="border-destructive/20 bg-destructive/5 flex w-full flex-col items-center gap-4 rounded-lg border p-6 text-center"
+						in:fade={{ duration: 300 }}
+					>
+						<AlertTriangle class="text-destructive h-8 w-8" />
+						<p class="text-foreground text-lg font-medium">
+							{m.something_went_wrong()}
+						</p>
+						<p class="text-muted-foreground text-sm">
+							{m.polis_error_description()}
+						</p>
+					</div>
+				{:else if !polisReady || waitingForNext}
 					<div in:fade={{ duration: 200 }} class="w-full animate-pulse">
 						<div class="space-y-3">
 							<div class="bg-foreground/10 h-8 w-full rounded"></div>
@@ -199,50 +216,52 @@
 				{/if}
 			</div>
 
-			<!-- Vote buttons -->
-			<div class="flex flex-wrap items-start gap-4 md:gap-6">
-				<Button
-					variant="default"
-					size="lg"
-					disabled={disabled || !polisReady}
-					onclick={() => doVote('agree')}
-					class="text-lg"
-				>
-					<ThumbsUp class="h-5 w-5" />
-					{m.polis_agree()}
-				</Button>
-				<Button
-					variant="default"
-					size="lg"
-					disabled={disabled || !polisReady}
-					onclick={() => doVote('disagree')}
-					class="gap-2 px-6 py-4 text-lg"
-				>
-					<ThumbsDown class="h-5 w-5" />
-					{m.polis_disagree()}
-				</Button>
+			{#if !polisError}
+				<!-- Vote buttons -->
+				<div class="flex flex-wrap items-start gap-4 md:gap-6">
+					<Button
+						variant="default"
+						size="lg"
+						disabled={disabled || !polisReady}
+						onclick={() => doVote('agree')}
+						class="text-lg"
+					>
+						<ThumbsUp class="h-5 w-5" />
+						{m.polis_agree()}
+					</Button>
+					<Button
+						variant="default"
+						size="lg"
+						disabled={disabled || !polisReady}
+						onclick={() => doVote('disagree')}
+						class="gap-2 px-6 py-4 text-lg"
+					>
+						<ThumbsDown class="h-5 w-5" />
+						{m.polis_disagree()}
+					</Button>
+					<Button
+						variant="ghost"
+						size="lg"
+						class="text-lg"
+						disabled={disabled || !polisReady}
+						onclick={() => doVote('pass')}
+					>
+						{m.polis_pass_unsure()}
+						<SkipForward class="h-5 w-5" />
+					</Button>
+				</div>
+
+				<!-- Add your own opinion -->
 				<Button
 					variant="ghost"
-					size="lg"
-					class="text-lg"
-					disabled={disabled || !polisReady}
-					onclick={() => doVote('pass')}
+					class="text-muted-foreground hover:text-foreground flex items-center gap-2 pt-2 text-lg font-normal transition-colors"
+					disabled={!polisReady}
+					onclick={openAddOpinion}
 				>
-					{m.polis_pass_unsure()}
-					<SkipForward class="h-5 w-5" />
+					<MessageSquare fill="currentColor" class="h-5 w-5" />
+					{m.polis_add_opinion()}
 				</Button>
-			</div>
-
-			<!-- Add your own opinion -->
-			<Button
-				variant="ghost"
-				class="text-muted-foreground hover:text-foreground flex items-center gap-2 pt-2 text-lg font-normal transition-colors"
-				disabled={!polisReady}
-				onclick={openAddOpinion}
-			>
-				<MessageSquare fill="currentColor" class="h-5 w-5" />
-				{m.polis_add_opinion()}
-			</Button>
+			{/if}
 
 			<!-- Continue to next step (only after threshold) -->
 			{#if canContinue}

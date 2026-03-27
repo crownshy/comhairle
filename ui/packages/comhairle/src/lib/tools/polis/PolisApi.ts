@@ -113,6 +113,7 @@ export default class PolisApi {
 			.catch((err) => {
 				console.error('[PolisApi] Failed to fetch next statement:', err);
 				this._error = err.message;
+				this._ready = true;
 			})
 			.finally(() => {
 				this._loading = false;

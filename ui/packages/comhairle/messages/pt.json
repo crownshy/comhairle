@@ -133,6 +133,7 @@
 	"polis_continue_voting": "Continuar votando",
 	"polis_voted_everything": "Você votou em tudo. Obrigado!",
 	"polis_come_back_later": "Volte mais tarde para ver se novas opiniões foram adicionadas.",
+	"polis_error_description": "Não foi possível carregar as opiniões neste momento. Pode ser um problema temporário.",
 	"password_updated_successfully": "Senha atualizada com sucesso",
 	"password_updated_successfully_body": "Sua senha foi alterada. Você pode continuar usando o aplicativo.",
 	"continue_to_home": "Continuar para a página inicial"
