@@ -492,6 +492,9 @@ impl PolisClient {
         let math_pca = self.get_math_pca(poll_id).await?;
         let comments_data = self.get_comments_with_voting(poll_id).await?;
 
+        info!("math pca {math_pca:#?}");
+        info!("comments {comments_data:#?}");
+
         // Transform the raw data into structured report format
         self.transform_report_data(math_pca, comments_data)
     }
@@ -508,9 +511,37 @@ impl PolisClient {
 
         // Create a map of tid -> comment text
         let mut comment_texts = std::collections::HashMap::new();
+        let comment_votes: HashMap<u32, VoteCounts> = std::collections::HashMap::new();
+
         for comment in comments_array {
-            if let (Some(tid), Some(txt)) = (comment.get("tid").and_then(|t| t.as_u64()), comment.get("txt").and_then(|t| t.as_str())) {
+            if let (Some(tid), Some(txt), agrees, disagrees, passes) = (
+                comment.get("tid").and_then(|t| t.as_u64()),
+                comment.get("txt").and_then(|t| t.as_str()),
+                comment
+                    .get("agree_count")
+                    .and_then(|t| t.as_u64())
+                    .unwrap()
+                    .unwrap_or(0) as u32,
+                comment
+                    .get("disagree_count")
+                    .and_then(|t| t.as_u64())
+                    .unwrap()
+                    .unwrap_or(0) as u32,
+                comment
+                    .get("pass_count")
+                    .and_then(|t| t.as_u64())
+                    .unwrap()
+                    .unwrap_or(0) as u32,
+            ) {
                 comment_texts.insert(tid as u32, txt.to_string());
+                comment_votes.insert(
+                    tid as u32,
+                    VoteCounts {
+                        agrees,
+                        disagrees,
+                        passes,
+                    },
+                );
             }
         }
 
@@ -533,9 +564,6 @@ impl PolisClient {
             let text = comment_texts.get(&tid).cloned().unwrap_or_default();
 
             // Calculate overall votes from group votes
-            let mut total_agrees = 0u32;
-            let mut total_disagrees = 0u32;
-            let mut total_votes = 0u32;
             let mut group_votes_list = Vec::new();
 
             if let Some(obj) = group_votes.as_object() {
@@ -544,13 +572,7 @@ impl PolisClient {
                         if let Some(votes_for_tid) = group_vote_data.get(tid.to_string()) {
                             let agrees = votes_for_tid["A"].as_u64().unwrap_or(0) as u32;
                             let disagrees = votes_for_tid["D"].as_u64().unwrap_or(0) as u32;
-                            let sum = votes_for_tid["S"].as_u64().unwrap_or(0) as u32;
-                            let passes = sum.saturating_sub(agrees + disagrees);
-
-                            total_agrees += agrees;
-                            total_disagrees += disagrees;
-                            total_votes += sum;
-
+                            let passes = votes_for_tid["S"].as_u64().unwrap_or(0) as u32;
                             group_votes_list.push(GroupVoteCounts {
                                 group_id,
                                 agrees,
@@ -562,24 +584,16 @@ impl PolisClient {
                 }
             }
 
-            let total_passes = total_votes.saturating_sub(total_agrees + total_disagrees);
-
             let consensus = group_aware_consensus
                 .get(tid.to_string())
                 .and_then(|v| v.as_f64());
 
-            let divisiveness = comment_extremity
-                .get(idx)
-                .and_then(|v| v.as_f64());
+            let divisiveness = comment_extremity.get(idx).and_then(|v| v.as_f64());
 
             comments_report.push(CommentReportData {
                 tid,
                 text,
-                overall_votes: VoteCounts {
-                    agrees: total_agrees,
-                    disagrees: total_disagrees,
-                    passes: total_passes,
-                },
+                overall_votes: *comment_votes.get(&tid).unwrap().clone(),
                 group_votes: group_votes_list,
                 group_informed_consensus: consensus,
                 divisiveness,
@@ -631,7 +645,8 @@ impl PolisClient {
         let pca_y = math_pca["pca"]["y"].as_array();
 
         let mut participants_report = Vec::new();
-        let mut pid_to_group: std::collections::HashMap<u32, u32> = std::collections::HashMap::new();
+        let mut pid_to_group: std::collections::HashMap<u32, u32> =
+            std::collections::HashMap::new();
 
         // Build pid to group mapping from group clusters
         for (group_id, cluster) in group_clusters.iter().enumerate() {
@@ -656,7 +671,10 @@ impl PolisClient {
                             // Get PCA position if available
                             let pca_position = if let (Some(x_arr), Some(y_arr)) = (pca_x, pca_y) {
                                 x_arr.get(bid).and_then(|x| x.as_f64()).and_then(|x| {
-                                    y_arr.get(bid).and_then(|y| y.as_f64()).map(|y| PcaPosition { x, y })
+                                    y_arr
+                                        .get(bid)
+                                        .and_then(|y| y.as_f64())
+                                        .map(|y| PcaPosition { x, y })
                                 })
                             } else {
                                 None
@@ -707,24 +725,28 @@ async fn get_report_data(
 ) -> Result<(StatusCode, Json<PolisReportResponse>), ComhairleError> {
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
 
-    if let ToolConfig::Polis(config) = workflow_step.preview_tool_config {
-        let client = PolisClient::new(&config.server_url);
+    println!("{workflow_step:#?}");
 
-        // Login as admin to access the data export
-        client
-            .login(&PolisLogin {
-                email: config.admin_user,
-                password: config.admin_password,
-            })
-            .await?;
+    let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
+        (Some(ToolConfig::Polis(config)), _) => config,
+        (None, ToolConfig::Polis(config)) => config,
+        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+    };
 
-        // Get the report data
-        let data = client.get_report_data(&config.poll_id).await?;
+    let client = PolisClient::new(&config.server_url);
 
-        Ok((StatusCode::OK, Json(data)))
-    } else {
-        Err(ComhairleError::WorkflowStepHasWrongType("Polis".into()))
-    }
+    // Login as admin to access the data export
+    client
+        .login(&PolisLogin {
+            email: config.admin_user,
+            password: config.admin_password,
+        })
+        .await?;
+
+    // Get the report data
+    let data = client.get_report_data(&config.poll_id).await?;
+
+    Ok((StatusCode::OK, Json(data)))
 }
 
 /// Logs a user into polis and proxies the cookie
