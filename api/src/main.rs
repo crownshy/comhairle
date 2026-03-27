@@ -1,4 +1,4 @@
-use apalis::prelude::{MemoryStorage, Monitor, WorkerBuilder, WorkerFactoryFn};
+use apalis::prelude::*;
 use apalis_redis::RedisStorage;
 use aws_config::BehaviorVersion;
 use comhairle::{
@@ -11,7 +11,13 @@ use comhairle::{
     translation_service::GoogleTranslateService,
     websockets::ComhairleWebSocketService,
     wiki_poll_service::polis_service::PolisClient,
-    workers::{process_documents::process_document_handler, JobQueues},
+    workers::{
+        process_documents::process_document_handler,
+        process_video_call_transcriptions::{
+            run_sense_making, transcribe_recording, upload_transcription,
+        },
+        JobQueues,
+    },
     ComhairleState,
 };
 use std::{error::Error, sync::Arc};
@@ -93,11 +99,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let wiki_poll_service = Arc::new(PolisClient::new(&config.polis_url));
 
-    let process_documents_storage = MemoryStorage::new();
     let redis_connection = apalis_redis::connect(config.workers.redis_url.clone())
         .await
-        .expect("Could not connect to redis");
-    let process_transcriptions_storage = RedisStorage::new(redis_connection);
+        .expect("Could not connect to redis"); // TODO: remove expect
+    let redis_config =
+        apalis_redis::Config::default().set_namespace("process_video_call_transcription_redis");
+
+    // TODO: refactor to redis storage
+    let process_documents_storage = MemoryStorage::new();
+    let process_transcriptions_storage =
+        RedisStorage::new_with_config(redis_connection.clone(), redis_config);
+
     let jobs = Arc::new(JobQueues {
         process_documents: Arc::new(Mutex::new(process_documents_storage.clone())),
         process_transcriptions: Arc::new(Mutex::new(process_transcriptions_storage.clone())),
@@ -124,12 +136,29 @@ async fn main() -> Result<(), Box<dyn Error>> {
         axum::serve(listener, app).await.unwrap();
     };
 
-    let process_document_worker = WorkerBuilder::new("process_document_job")
+    let transcription_worker_steps = StepBuilder::new()
+        .step_fn(transcribe_recording)
+        .step_fn(upload_transcription)
+        .step_fn(run_sense_making);
+
+    let process_transcriptions_worker = WorkerBuilder::new("process_transcriptions_worker")
+        .data(state.clone())
+        .data(())
+        .enable_tracing()
+        .backend(process_transcriptions_storage)
+        .build_stepped(transcription_worker_steps);
+
+    let process_document_worker = WorkerBuilder::new("process_document_worker")
         .data(state.clone())
         .backend(process_documents_storage.clone())
         .build_fn(process_document_handler);
 
-    let worker_future = { Monitor::new().register(process_document_worker).run() };
+    let worker_future = {
+        Monitor::new()
+            .register(process_document_worker)
+            .register(process_transcriptions_worker)
+            .run()
+    };
 
     let _ = tokio::join!(server_future, worker_future);
 

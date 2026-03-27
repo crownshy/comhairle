@@ -4,6 +4,7 @@ use aide::axum::{
     routing::{delete_with, get_with, post_with, put_with},
     ApiRouter,
 };
+use apalis::prelude::SteppableStorage;
 use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
@@ -22,6 +23,7 @@ use crate::{
             PartialEvent,
         },
         event_attendance,
+        job::{self, CreateJob},
         pagination::{PageOptions, PaginatedResults},
     },
     routes::{
@@ -29,6 +31,7 @@ use crate::{
         events::dto::{EventDto, LocalizedEventDto},
         translations::LocaleExtractor,
     },
+    workers::process_video_call_transcriptions::TranscribeRecording,
     ComhairleState,
 };
 
@@ -223,6 +226,40 @@ async fn get_jwt(
     Ok((StatusCode::OK, Json(JwtResponse { jwt })))
 }
 
+#[derive(Serialize, Debug, JsonSchema)]
+struct ProcessTrascriptionResponse {
+    message: String,
+    job_id: Uuid,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn process_transcription(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
+) -> Result<(StatusCode, Json<ProcessTrascriptionResponse>), ComhairleError> {
+    let create_job = CreateJob {
+        progress: Some(0.0),
+        ..Default::default()
+    };
+    let job = job::create(&state.db, create_job).await?;
+
+    let mut lock = state.jobs.process_transcriptions.lock().await;
+    lock.start_stepped(TranscribeRecording {
+        event_id,
+        job_id: job.id,
+    })
+    .await
+    .map_err(|_| ComhairleError::BackgroundJobFailedToQueue)?;
+
+    Ok((
+        StatusCode::OK,
+        Json(ProcessTrascriptionResponse {
+            message: "Transcription processing moved to background job".to_string(),
+            job_id: job.id,
+        }),
+    ))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route("/", get_with(list, |op| {
@@ -281,6 +318,16 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Get a auth JWT for an event")
                     .security_requirement("JWT")
                     .response::<200, Json<JwtResponse>>()
+
+        }))
+        .api_route("/{event_id}/transcription", 
+            post_with(process_transcription, |op| {
+                op.id("ProcessVideoCallTranscription")
+                    .tag("Events")
+                    .summary("Process video call transcription")
+                    .description("Triggers transcription processing in a background worker")
+                    .security_requirement("JWT")
+                    .response::<200, Json<ProcessTrascriptionResponse>>()
 
         }))
         .with_state(state)
