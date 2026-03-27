@@ -2021,6 +2021,14 @@ curl -X POST \
     response: z.object({ jwt: z.string() }).passthrough(),
   },
   {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/transcription",
+    alias: "ProcessVideoCallTranscription",
+    description: `Triggers transcription processing in a background worker`,
+    requestFormat: "json",
+    response: z.null(),
+  },
+  {
     method: "get",
     path: "/conversation/:conversation_id/events/:event_id/workflows",
     alias: "ListEventWorkflows",
