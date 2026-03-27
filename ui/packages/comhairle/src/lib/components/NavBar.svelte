@@ -81,7 +81,7 @@
 		</div>
 
 		<!-- Desktop Navigation -->
-		<div class="hidden gap-3 md:flex">
+		<div class="navbar:flex hidden gap-3">
 			{#each links as link (link.href)}
 				<Button
 					href={link.href}
@@ -94,7 +94,7 @@
 			{/each}
 		</div>
 
-		<div class="hidden items-center gap-x-4 md:flex">
+		<div class="navbar:flex hidden items-center gap-x-4">
 			<LocaleSwitcher
 				class="data-[placeholder]:text-primary-foreground rounded-full border border-none bg-transparent py-5 text-base shadow-xs hover:bg-white/10"
 			/>
@@ -112,8 +112,9 @@
 			<ProfileMenu {user} />
 		</div>
 
+		<!-- 900 px -->
 		<!-- Mobile Navigation -->
-		<div class="md:hidden">
+		<div class="navbar:hidden">
 			<Drawer.Root bind:open={isOpen} direction="bottom">
 				<Drawer.Trigger>
 					<Button variant="nav" size="icon">
