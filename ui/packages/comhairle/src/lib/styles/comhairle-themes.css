@@ -459,6 +459,7 @@
 }
 
 @theme {
+	--breakpoint-navbar: 900px;
 	--radius: 0.5rem;
 	--radius-xs: calc(0.5rem - 6px);
 	--radius-sm: calc(0.5rem - 4px);
