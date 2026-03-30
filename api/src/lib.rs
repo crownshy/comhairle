@@ -14,7 +14,7 @@ pub mod transcription_service;
 pub mod translation_service;
 pub mod websockets;
 pub mod wiki_poll_service;
-pub mod workers;
+pub mod worker_service;
 
 use bot_service::ComhairleBotService;
 use clap::Parser;
@@ -47,7 +47,8 @@ use tower_http::cors::CorsLayer;
 
 use crate::{
     bulk_storage::BulkStorageService, routes::workflows::WorkflowRouterContext,
-    transcription_service::Transcriber, wiki_poll_service::WikiPollService, workers::JobQueues,
+    transcription_service::Transcriber, wiki_poll_service::WikiPollService,
+    worker_service::WorkerService,
 };
 
 #[derive(Clone)]
@@ -61,7 +62,7 @@ pub struct ComhairleState {
     pub wiki_poll_service: Arc<dyn WikiPollService>,
     pub bulk_storage_service: Arc<dyn BulkStorageService>,
     pub transcription_service: Option<Arc<dyn Transcriber>>,
-    pub jobs: Arc<JobQueues>,
+    pub worker_service: Arc<dyn WorkerService>,
 }
 
 impl ComhairleState {
