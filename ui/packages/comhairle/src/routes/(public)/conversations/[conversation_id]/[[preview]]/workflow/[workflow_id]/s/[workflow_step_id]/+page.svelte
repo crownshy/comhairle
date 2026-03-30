@@ -200,7 +200,7 @@
 						>Skip this step</Button
 					>
 				{/if}
-				<div class="my-10 w-full grow">
+				<div class="mb-10 w-full grow">
 					{#if toolConfig.type === Learn.TOOL_NAME}
 						<Learn.UserUI
 							onDone={stepComplete}
