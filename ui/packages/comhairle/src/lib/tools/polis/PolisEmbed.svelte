@@ -16,6 +16,7 @@
 	import PolisApi, { type PolisApiState, type PolisStatement } from './PolisApi';
 	import { getVoteData, incrementVotes } from './polisVoteStore';
 	import * as m from '$lib/paraglide/messages';
+	import Separator from '$lib/components/ui/separator/separator.svelte';
 
 	type Props = {
 		polis_id: string;
@@ -164,7 +165,11 @@
 	}
 
 	function closeAddOpinion() {
-		screen = 'voting';
+		if (polis.state.remaining === 0) {
+			screen = 'completed';
+		} else {
+			screen = 'voting';
+		}
 	}
 </script>
 
@@ -266,10 +271,14 @@
 					</Button>
 				</div>
 
+				<Separator orientation="horizontal" />
+
 				<!-- Add your own opinion -->
+				<p>{m.polis_dont_see_your_view()}</p>
+
 				<Button
-					variant="ghost"
-					class="text-muted-foreground hover:text-foreground flex items-center gap-2 pt-2 text-lg font-normal transition-colors"
+					variant="secondary"
+					class="text-foreground hover:text-foreground flex items-center gap-2 p-5 text-xl font-bold transition-colors"
 					disabled={!polisReady}
 					onclick={openAddOpinion}
 				>
@@ -414,19 +423,26 @@
 			<p class="text-muted-foreground text-lg">
 				{m.polis_come_back_later()}
 			</p>
+			<Separator orientation="horizontal" />
 
 			<!-- Add your own opinion -->
 			<Button
-				variant="ghost"
-				class="text-muted-foreground hover:text-foreground flex items-center gap-2 pt-2 text-xl font-normal transition-colors"
+				variant="secondary"
+				class="text-foreground hover:text-foreground flex items-center gap-2 p-5 text-xl font-bold transition-colors"
+				disabled={!polisReady}
 				onclick={openAddOpinion}
 			>
 				<MessageSquare fill="currentColor" class="h-5 w-5" />
-				{m.polis_add_opinion()}
+				{m.polis_add_opinion_long()}
 			</Button>
 		</div>
 
-		<Button variant="primaryDark" size="lg" onclick={onDone} class="gap-2 px-6 py-4 text-lg">
+		<Button
+			variant="primaryDark"
+			size="lg"
+			onclick={onDone}
+			class="mb-5 gap-2 px-6 py-4 text-lg"
+		>
 			{m.continue_()}
 			<ChevronRight class="h-5 w-5" />
 		</Button>
