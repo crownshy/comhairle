@@ -95,9 +95,23 @@
 	});
 
 	let currentNextAction = $state<(() => void) | undefined>(undefined);
+	let canProceed = $state(false);
+
+	$effect(() => {
+		const type = toolConfig.type;
+		if (type === Learn.TOOL_NAME || type === LivedExperience.TOOL_NAME) {
+			canProceed = true;
+		} else {
+			canProceed = false;
+		}
+	});
 
 	function handleNextAction(fn: () => void) {
 		currentNextAction = fn;
+	}
+
+	function handleCanContinueChange(value: boolean) {
+		canProceed = value;
 	}
 
 	function goToThankYouPage() {
@@ -175,6 +189,7 @@
 				description={workflowStep.description}
 				prevHref={prevStepHref}
 				onNext={currentNextAction ?? stepComplete}
+				nextDisabled={!canProceed}
 			/>
 		</div>
 
@@ -201,6 +216,7 @@
 							polis_url={toolConfig.server_url}
 							workflowStepId={workflowStep.id}
 							onDone={stepComplete}
+							onCanContinueChange={handleCanContinueChange}
 						/>
 					{/if}
 					{#if toolConfig.type === HeyForm.TOOL_NAME}
@@ -226,6 +242,7 @@
 								userId={user.id}
 								topic={toolConfig.topic}
 								onDone={stepComplete}
+								onCanContinueChange={handleCanContinueChange}
 							/>
 						{/key}
 					{/if}

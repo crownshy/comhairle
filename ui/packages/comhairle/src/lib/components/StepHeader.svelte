@@ -10,6 +10,7 @@
 		estimatedMinutes?: number;
 		prevHref?: string;
 		onNext?: () => void;
+		nextDisabled?: boolean;
 	}
 
 	let {
@@ -19,7 +20,8 @@
 		description,
 		estimatedMinutes,
 		prevHref,
-		onNext
+		onNext,
+		nextDisabled = false
 	}: StepHeaderProps = $props();
 </script>
 
@@ -59,7 +61,7 @@
 				</p>
 			</div>
 
-			{#if onNext}
+			{#if onNext && !nextDisabled}
 				<button
 					onclick={onNext}
 					class="text-muted-foreground shrink-0 p-2"

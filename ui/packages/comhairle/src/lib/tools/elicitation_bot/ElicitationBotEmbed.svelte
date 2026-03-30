@@ -13,9 +13,17 @@
 		userId: string;
 		topic?: string;
 		onDone?: () => void;
+		onCanContinueChange?: (canContinue: boolean) => void;
 	};
 
-	let { conversationId, workflowStepId, userId, topic = 'this topic', onDone }: Props = $props();
+	let {
+		conversationId,
+		workflowStepId,
+		userId,
+		topic = 'this topic',
+		onDone,
+		onCanContinueChange
+	}: Props = $props();
 
 	function cleanBotContent(content: string): string {
 		return content.replace(/<br\s*\/?>/gi, '').trim();
@@ -28,6 +36,12 @@
 	let claims = $state<ExtractedClaim[]>([]);
 	let activeRequestId = $state<string | null>(null);
 	let claimModifications = $state<ClaimModification | null>(null);
+
+	let hasApprovedClaims = $derived(claims.some((c) => c.status === 'approved'));
+
+	$effect(() => {
+		onCanContinueChange?.(hasApprovedClaims);
+	});
 
 	onMount(async () => {
 		try {
@@ -244,6 +258,6 @@
 		onClaimEdit={handleClaimEdit}
 		onClaimRemove={handleClaimRemove}
 		onAddClaim={handleAddClaim}
-		onDone={onDone}
+		{onDone}
 	/>
 {/if}
