@@ -2,7 +2,10 @@ import { isRedirect, redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import { notifications } from '$lib/notifications.svelte';
 import { next_workflow_step_url } from '$lib/urls';
-import type { LocalizedWorkflowStepDto, UserProgressDto } from '@crownshy/api-client/api';
+import type {
+	LocalizedWorkflowStepDto,
+	LocalizedWorkflowStepWithProgressDto
+} from '@crownshy/api-client/api';
 
 export const load: PageLoad = async (event) => {
 	const { api, conversation, preview } = await event.parent();
@@ -10,23 +13,25 @@ export const load: PageLoad = async (event) => {
 	const conversation_id = conversation.id;
 	const { workflow_id, workflow_step_id } = event.params;
 	try {
-		let userProgress: UserProgressDto[] = [];
-		try {
-			userProgress = await api.GetUserProgress({
+		let workflowSteps: LocalizedWorkflowStepWithProgressDto[];
+
+		if (conversation.isLive) {
+			workflowSteps = (await api.ListConversationWorkflowSteps({
+				params: { conversation_id, workflow_id },
+				queries: { withUserProgress: true }
+			})) as LocalizedWorkflowStepWithProgressDto[];
+		} else {
+			const steps = (await api.ListConversationWorkflowSteps({
 				params: { conversation_id, workflow_id }
-			});
-		} catch {
-			// Progress may not be available
+			})) as LocalizedWorkflowStepDto[];
+			workflowSteps = steps.map((s) => ({
+				...s,
+				progressStatus: 'not_started' as const
+			}));
 		}
 
-		const workflowSteps: LocalizedWorkflowStepDto[] = await api.ListConversationWorkflowSteps({
-			params: { conversation_id, workflow_id }
-		});
-
-		const stepProgress = userProgress.find((p) => p.workflowStepId === workflow_step_id);
-		const isStepAlreadyDone = stepProgress?.status === 'done';
-
 		const thisStep = workflowSteps.find((s) => s.id === workflow_step_id);
+		const isStepAlreadyDone = thisStep?.progressStatus === 'done';
 		const isRevisitable = thisStep?.canRevisit ?? false;
 
 		// If we are in preview mode then let the user see this step regardless of if it
@@ -54,15 +59,10 @@ export const load: PageLoad = async (event) => {
 				});
 			}
 		}
-		const workflowStep: LocalizedWorkflowStepDto = await api.GetConversationWorkflowStep({
-			params: {
-				conversation_id: conversation_id,
-				workflow_id: workflow_id,
-				workflow_step_id: workflow_step_id
-			}
-		});
 
-		return { conversation, workflowStep, api, workflowSteps, workflow_id, userProgress };
+		const workflowStep = thisStep!;
+
+		return { conversation, workflowStep, api, workflowSteps, workflow_id };
 	} catch (e: any) {
 		// TODO: figure out how to type this from the generated api
 		/// Throw if error is a redirect
