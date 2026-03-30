@@ -32,7 +32,7 @@
 		polis_url,
 		user_id,
 		onDone,
-		requiredVotes = 5,
+		requiredVotes = 10,
 		workflowStepId = polis_id,
 		onCanContinueChange
 	}: Props = $props();
