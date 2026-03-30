@@ -55,12 +55,19 @@
             openssl
             sqlx-cli
             postgresql
-            cmake 
+            cmake
             clang
             pkg-config
             bacon
             atac
             just
+            # GStreamer and GLib dependencies for jisti-recorder
+            glib
+            gst_all_1.gstreamer
+            gst_all_1.gst-plugins-base
+            gst_all_1.gst-plugins-good  # Provides rtpbin for RTP handling
+            gst_all_1.gst-plugins-bad   # Provides dtlssrtpenc for DTLS-SRTP encryption
+            libnice
           ]) ++ pkgs.lib.optionals pkgs.stdenv.isDarwin (with pkgs; [ libiconv ]);
         };
       });

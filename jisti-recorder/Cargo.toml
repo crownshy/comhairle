@@ -1,0 +1,13 @@
+[package]
+name = "jisti-recorder"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gstreamer = "0.20.7"
+lib-gst-meet = "0.8.0"
+tokio = { version = "1", features = ["full"] }
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+glib = "0.17"
