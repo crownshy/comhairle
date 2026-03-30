@@ -24,6 +24,7 @@
 		onDone: () => void;
 		requiredVotes?: number;
 		workflowStepId?: string;
+		onCanContinueChange?: (canContinue: boolean) => void;
 	};
 
 	let {
@@ -32,7 +33,8 @@
 		user_id,
 		onDone,
 		requiredVotes = 5,
-		workflowStepId = polis_id
+		workflowStepId = polis_id,
+		onCanContinueChange
 	}: Props = $props();
 
 	const stepId = workflowStepId;
@@ -84,6 +86,10 @@
 
 	const disabled = $derived(voteCooldown || waitingForNext);
 	const canContinue = $derived(hasMetThreshold);
+
+	$effect(() => {
+		onCanContinueChange?.(canContinue);
+	});
 
 	let anchoredRemaining = $state<number | null>(null);
 	let anchoredTotal = $state<number | null>(null);
