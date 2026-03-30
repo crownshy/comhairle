@@ -151,7 +151,7 @@ version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "504d52557a16b7b202941660f339c9182910d498cac40f93d15f6b31e6bef290"
 dependencies = [
- "apalis-core 0.7.4",
+ "apalis-core",
  "futures",
  "pin-project-lite",
  "serde",
@@ -178,31 +178,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "apalis-core"
-version = "1.0.0-rc.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cbc053b8daf9235fd974cf2a7d7f8ed7ee8108ba1736d3ecce20529d26c32f66"
-dependencies = [
- "futures-channel",
- "futures-core",
- "futures-sink",
- "futures-timer",
- "futures-util",
- "pin-project",
- "serde",
- "thiserror 2.0.17",
- "tower-layer",
- "tower-service",
- "tracing",
-]
-
-[[package]]
 name = "apalis-redis"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "871367e3dfff2accda824ccc6e4f46f8f155c865065a450c466a7f2835541d55"
 dependencies = [
- "apalis-core 0.7.4",
+ "apalis-core",
  "chrono",
  "futures",
  "log",
@@ -210,22 +191,6 @@ dependencies = [
  "serde",
  "thiserror 2.0.17",
  "tokio",
-]
-
-[[package]]
-name = "apalis-workflow"
-version = "0.1.0-rc.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7d223e7ce6a21e22c4da5ff9a5b82e57578544a73dda04718f8a2801dd13847"
-dependencies = [
- "apalis-core 1.0.0-rc.7",
- "futures",
- "petgraph",
- "serde",
- "thiserror 2.0.17",
- "tower",
- "tracing",
- "ulid",
 ]
 
 [[package]]
@@ -1394,7 +1359,6 @@ dependencies = [
  "aide",
  "apalis",
  "apalis-redis",
- "apalis-workflow",
  "argon2",
  "async-trait",
  "aws-config",
@@ -2261,12 +2225,6 @@ name = "find-msvc-tools"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "645cbb3a84e60b7531617d5ae4e57f7e27308f6445f5abf653209ea76dec8dff"
-
-[[package]]
-name = "fixedbitset"
-version = "0.5.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d674e81391d1e1ab681a28d99df07927c6d4aa5b027d7da16ba32d1d21ecd99"
 
 [[package]]
 name = "flate2"
@@ -4182,19 +4140,6 @@ checksum = "602113b5b5e8621770cfd490cfd90b9f84ab29bd2b0e49ad83eb6d186cef2365"
 dependencies = [
  "pest",
  "sha2",
-]
-
-[[package]]
-name = "petgraph"
-version = "0.8.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8701b58ea97060d5e5b155d383a69952a60943f0e6dfe30b04c287beb0b27455"
-dependencies = [
- "fixedbitset",
- "hashbrown 0.15.5",
- "indexmap 2.12.1",
- "serde",
- "serde_derive",
 ]
 
 [[package]]
