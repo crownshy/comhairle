@@ -29,7 +29,7 @@ pub trait WorkerService: Send + Sync {
 
 #[derive(Clone, Debug)]
 pub struct ComhairleWorkerService {
-    pub process_documents: Arc<Mutex<MemoryStorage<DocumentJob>>>,
+    pub process_documents: Arc<Mutex<RedisStorage<DocumentJob>>>,
     pub process_transcriptions: Arc<Mutex<RedisStorage<StepRequest<Vec<u8>>>>>,
 }
 
@@ -38,7 +38,7 @@ impl WorkerService for ComhairleWorkerService {
     #[instrument(err(Debug))]
     async fn push_document_job(&self, job: DocumentJob) -> Result<(), ComhairleError> {
         let mut lock = self.process_documents.lock().await;
-        lock.enqueue(job)
+        lock.push(job)
             .await
             .map_err(|_| ComhairleError::BackgroundJobFailedToQueue)?;
 
