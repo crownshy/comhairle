@@ -139,6 +139,7 @@
 	"polis_voted_everything": "You have voted on everything. Thank you!",
 	"polis_come_back_later": "Come back later to see if new statements have been added.",
 	"polis_error_description": "We couldn't load the statements right now. This may be a temporary issue.",
+	"polis_seed_statement": "This is a seed statement",
 	"password_updated_successfully": "Password updated successfully",
 	"password_updated_successfully_body": "Your password has been changed. Use your new password to log in next time.",
 	"continue_to_home": "Continue to Home"

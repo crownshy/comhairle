@@ -83,6 +83,9 @@
 	--auth-gradient-2: #7cb342;
 	--auth-gradient-3: #4a6d23;
 	--auth-gradient-4: #2a3d18;
+
+	--seed-highlight: #6b9b3a;
+	--seed-highlight-bg: #6b9b3a1a;
 }
 
 .dark {
@@ -140,6 +143,9 @@
 	--chat-text: var(--foreground);
 	--chat-text-muted: var(--chat-neutral);
 	--chat-bubble: var(--card);
+
+	--seed-highlight: #7cb342;
+	--seed-highlight-bg: #7cb34226;
 }
 
 /* Scottish Government Theme */
@@ -188,6 +194,9 @@
 	--auth-gradient-2: #06b6d4;
 	--auth-gradient-3: #4b92ec;
 	--auth-gradient-4: #1e3a5f;
+
+	--seed-highlight: #16a34a;
+	--seed-highlight-bg: #16a34a1a;
 
 	--font-sans: Inter, sans-serif;
 	--font-serif: Merriweather, serif;
@@ -263,6 +272,9 @@
 	--auth-gradient-2: #0891b2;
 	--auth-gradient-3: #3b7ed0;
 	--auth-gradient-4: #142d4f;
+
+	--seed-highlight: #4ade80;
+	--seed-highlight-bg: #4ade8026;
 
 	--chat-primary-light: color-mix(in oklch, var(--chat-primary), black 50%);
 	--chat-primary-lighter: color-mix(in oklch, var(--chat-primary), black 75%);
@@ -370,6 +382,9 @@
 	--auth-gradient-2: #9492c7;
 	--auth-gradient-3: #88c6ec;
 	--auth-gradient-4: #444749;
+
+	--seed-highlight: #90c46b;
+	--seed-highlight-bg: #90c46b1a;
 }
 
 [data-theme='waves'].dark {
@@ -456,6 +471,9 @@
 	--auth-gradient-2: #9492c7;
 	--auth-gradient-3: #88c6ec;
 	--auth-gradient-4: #444749;
+
+	--seed-highlight: #90c46b;
+	--seed-highlight-bg: #90c46b1a;
 }
 
 @theme {
@@ -529,6 +547,9 @@
 	--color-chat-text: var(--chat-text);
 	--color-chat-text-muted: var(--chat-text-muted);
 	--color-chat-bubble: var(--chat-bubble);
+
+	--color-seed-highlight: var(--seed-highlight);
+	--color-seed-highlight-bg: var(--seed-highlight-bg);
 
 	--font-sans: var(--font-sans);
 	--font-mono: var(--font-mono);

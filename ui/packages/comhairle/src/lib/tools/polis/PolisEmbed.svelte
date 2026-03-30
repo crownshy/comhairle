@@ -11,8 +11,10 @@
 		ChevronRight,
 		MessageSquare,
 		AlertTriangle,
-		RefreshCw
+		RefreshCw,
+		Info
 	} from 'lucide-svelte';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import PolisApi, { type PolisApiState, type PolisStatement } from './PolisApi';
 	import { getVoteData, incrementVotes } from './polisVoteStore';
 	import * as m from '$lib/paraglide/messages';
@@ -207,12 +209,32 @@
 						</div>
 					</div>
 				{:else if polisCurrentStatement}
-					<p
-						class="text-card-foreground text-xl leading-9 font-normal sm:text-3xl"
+					<div
+						class="flex rounded-lg transition-colors {polisCurrentStatement.is_seed
+							? 'bg-seed-highlight-bg px-4 py-3'
+							: ''}"
 						in:fly={{ y: 20, duration: 500, easing: cubicOut }}
 					>
-						{polisCurrentStatement.txt}
-					</p>
+						{#if polisCurrentStatement.is_seed}
+							<div class="mr-2 flex items-center gap-1.5 self-start">
+								<Tooltip.Provider>
+									<Tooltip.Root>
+										<Tooltip.Trigger
+											class="text-seed-highlight hover:text-seed-highlight/80 inline-flex cursor-help items-center gap-1 text-xs font-medium transition-colors"
+										>
+											<Info class="h-3.5 w-3.5" />
+										</Tooltip.Trigger>
+										<Tooltip.Content>
+											{m.polis_seed_statement()}
+										</Tooltip.Content>
+									</Tooltip.Root>
+								</Tooltip.Provider>
+							</div>
+						{/if}
+						<p class="text-card-foreground text-xl leading-9 font-normal sm:text-3xl">
+							{polisCurrentStatement.txt}
+						</p>
+					</div>
 				{/if}
 			</div>
 
