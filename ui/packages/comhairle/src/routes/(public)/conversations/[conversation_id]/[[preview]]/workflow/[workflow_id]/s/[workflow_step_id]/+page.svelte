@@ -13,7 +13,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
-	import { canRevisitStep } from '$lib/config/step-revisitability';
 
 	let { data }: PageProps = $props();
 	let { user } = data;
@@ -28,13 +27,6 @@
 	);
 
 	let pageTitle = $derived(workflowStep?.name ?? 'Workflow Step');
-
-	let workflowEnded = $derived(
-		workflowSteps.length > 0 &&
-			workflowSteps.every((ws) =>
-				userProgress.some((p) => p.workflowStepId === ws.id && p.status === 'done')
-			)
-	);
 
 	let sortedSteps = $derived([...workflowSteps].sort((a, b) => a.stepOrder - b.stepOrder));
 
@@ -58,8 +50,7 @@
 			const isCompleted = progress?.status === 'done';
 			const actualCurrentOrder = actualCurrentStep?.stepOrder ?? Infinity;
 			const isBefore = ws.stepOrder < actualCurrentOrder;
-			const toolType = ws.previewToolConfig?.type ?? ws.toolConfig?.type;
-			const canRevisit = toolType ? canRevisitStep(toolType, workflowEnded) : false;
+			const canRevisit = ws.canRevisit;
 
 			const passedThrough = isCompleted || isBefore;
 

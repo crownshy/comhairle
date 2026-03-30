@@ -3,7 +3,6 @@ import type { PageLoad } from './$types';
 import { notifications } from '$lib/notifications.svelte';
 import { next_workflow_step_url } from '$lib/urls';
 import type { LocalizedWorkflowStepDto, UserProgressDto } from '@crownshy/api-client/api';
-import { canRevisitStep } from '$lib/config/step-revisitability';
 
 export const load: PageLoad = async (event) => {
 	const { api, conversation, preview } = await event.parent();
@@ -28,13 +27,7 @@ export const load: PageLoad = async (event) => {
 		const isStepAlreadyDone = stepProgress?.status === 'done';
 
 		const thisStep = workflowSteps.find((s) => s.id === workflow_step_id);
-		const toolType = thisStep?.previewToolConfig?.type ?? thisStep?.toolConfig?.type;
-		const workflowEnded =
-			workflowSteps.length > 0 &&
-			workflowSteps.every((ws) =>
-				userProgress.some((p) => p.workflowStepId === ws.id && p.status === 'done')
-			);
-		const isRevisitable = toolType ? canRevisitStep(toolType, workflowEnded) : false;
+		const isRevisitable = thisStep?.canRevisit ?? false;
 
 		// If we are in preview mode then let the user see this step regardless of if it
 		// is next. Also dont capture progress
