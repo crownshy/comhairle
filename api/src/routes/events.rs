@@ -4,7 +4,6 @@ use aide::axum::{
     routing::{delete_with, get_with, post_with, put_with},
     ApiRouter,
 };
-use apalis::prelude::SteppableStorage;
 use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
@@ -31,7 +30,7 @@ use crate::{
         events::dto::{EventDto, LocalizedEventDto},
         translations::LocaleExtractor,
     },
-    workers::process_video_call_transcriptions::TranscribeRecording,
+    worker_service::process_video_call_transcriptions::TranscribeRecording,
     ComhairleState,
 };
 
@@ -243,13 +242,13 @@ async fn process_transcription(
     };
     let job = job::create(&state.db, create_job).await?;
 
-    let mut lock = state.jobs.process_transcriptions.lock().await;
-    lock.start_stepped(TranscribeRecording {
-        event_id,
-        job_id: job.id,
-    })
-    .await
-    .map_err(|_| ComhairleError::BackgroundJobFailedToQueue)?;
+    state
+        .worker_service
+        .push_transcription_job(TranscribeRecording {
+            event_id,
+            job_id: job.id,
+        })
+        .await?;
 
     Ok((
         StatusCode::OK,

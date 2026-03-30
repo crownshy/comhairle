@@ -11,12 +11,12 @@ use comhairle::{
     translation_service::GoogleTranslateService,
     websockets::ComhairleWebSocketService,
     wiki_poll_service::polis_service::PolisClient,
-    workers::{
+    worker_service::{
         process_documents::process_document_handler,
         process_video_call_transcriptions::{
             run_sense_making, transcribe_recording, upload_transcription,
         },
-        JobQueues,
+        ComhairleWorkerService,
     },
     ComhairleState,
 };
@@ -110,7 +110,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let process_transcriptions_storage =
         RedisStorage::new_with_config(redis_connection.clone(), redis_config);
 
-    let jobs = Arc::new(JobQueues {
+    let worker_service = Arc::new(ComhairleWorkerService {
         process_documents: Arc::new(Mutex::new(process_documents_storage.clone())),
         process_transcriptions: Arc::new(Mutex::new(process_transcriptions_storage.clone())),
     });
@@ -123,7 +123,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         translation_service,
         bot_service,
         wiki_poll_service,
-        jobs,
+        worker_service,
         bulk_storage_service: Arc::new(bulk_storage_service),
     });
 
