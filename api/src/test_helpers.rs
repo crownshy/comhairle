@@ -1,4 +1,3 @@
-use apalis::prelude::MemoryStorage;
 use chrono::Utc;
 use std::{collections::HashMap, error::Error, sync::Arc};
 use uuid::Uuid;
@@ -17,7 +16,6 @@ use fake::{
 use http_body_util::BodyExt;
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
-use tokio::sync::Mutex;
 
 use sqlx::PgPool;
 use tower::ServiceExt;
@@ -32,7 +30,7 @@ use crate::{
     translation_service::{MockTranslationService, TranslationService},
     websockets::{MockWebSocketService, WebSocketService},
     wiki_poll_service::{MockWikiPollService, WikiPollService},
-    workers::JobQueues,
+    worker_service::{MockWorkerService, WorkerService},
     ComhairleState,
 };
 
@@ -72,6 +70,11 @@ pub fn mock_bulk_storage() -> Arc<dyn BulkStorageService> {
     Arc::new(bulk_storage_service)
 }
 
+pub fn mock_worker_service() -> Arc<dyn WorkerService> {
+    let worker_service = MockWorkerService::base();
+    Arc::new(worker_service)
+}
+
 #[builder]
 pub fn test_state(
     db: PgPool,
@@ -82,6 +85,7 @@ pub fn test_state(
     bot_service: Option<Arc<dyn ComhairleBotService>>,
     wiki_poll_service: Option<Arc<dyn WikiPollService>>,
     bulk_storage_service: Option<Arc<dyn BulkStorageService>>,
+    worker_service: Option<Arc<dyn WorkerService>>,
 ) -> Result<ComhairleState, Box<dyn Error>> {
     let state = ComhairleState {
         db,
@@ -93,11 +97,8 @@ pub fn test_state(
             .unwrap_or_else(|| mock_translation_service()),
         bot_service: Some(bot_service.unwrap_or_else(|| mock_bot_service())),
         wiki_poll_service: wiki_poll_service.unwrap_or_else(|| mock_wiki_poll_service()),
-        // TODO: can this be mocked?
-        jobs: Arc::new(JobQueues {
-            process_documents: Arc::new(Mutex::new(MemoryStorage::new())),
-        }),
         bulk_storage_service: bulk_storage_service.unwrap_or_else(mock_bulk_storage),
+        worker_service: worker_service.unwrap_or_else(|| mock_worker_service()),
     };
     Ok(state)
 }
@@ -584,7 +585,10 @@ impl UserSession {
         offset: i32,
         limit: i32,
     ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
-        let url = format!("/conversation?limit={}&offset={}&sort=created_at+asc", limit, offset);
+        let url = format!(
+            "/conversation?limit={}&offset={}&sort=created_at+asc",
+            limit, offset
+        );
         self.get(app, &url).await
     }
 
