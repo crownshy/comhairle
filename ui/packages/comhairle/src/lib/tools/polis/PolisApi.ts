@@ -2,6 +2,7 @@ export type PolisStatement = {
 	txt: string;
 	tid: number;
 	is_meta: boolean;
+	is_seed: boolean;
 	is_seen: boolean;
 	lang: string | undefined;
 	remaining: number;

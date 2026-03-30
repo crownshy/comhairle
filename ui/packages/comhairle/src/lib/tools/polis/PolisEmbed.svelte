@@ -213,12 +213,21 @@
 						</div>
 					</div>
 				{:else if polisCurrentStatement}
-					<p
-						class="text-card-foreground text-xl leading-9 font-normal sm:text-3xl"
+					{#if polisCurrentStatement.is_seed}
+						<p class="text-seed-highlight mb-1 text-right text-xs font-medium">
+							{m.polis_seed_statement()}
+						</p>
+					{/if}
+					<div
+						class="border-seed-highlight rounded-lg transition-colors {polisCurrentStatement.is_seed
+							? 'bg-seed-highlight-bg border-seed-highlight border px-4 py-3'
+							: ''}"
 						in:fly={{ y: 20, duration: 500, easing: cubicOut }}
 					>
-						{polisCurrentStatement.txt}
-					</p>
+						<p class="text-card-foreground text-xl leading-9 font-normal sm:text-3xl">
+							{polisCurrentStatement.txt}
+						</p>
+					</div>
 				{/if}
 			</div>
 

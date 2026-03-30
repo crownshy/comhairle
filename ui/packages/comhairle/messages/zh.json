@@ -133,6 +133,7 @@
 	"polis_voted_everything": "您已对所有内容投票。谢谢！",
 	"polis_come_back_later": "稍后再来查看是否有新的意见被添加。",
 	"polis_error_description": "我们目前无法加载意见。这可能是一个临时问题。",
+	"polis_seed_statement": "由对话所有者提交",
 	"password_updated_successfully": "密码更新成功",
 	"password_updated_successfully_body": "您的密码已更改。您可以继续使用该应用程序。",
 	"continue_to_home": "继续前往首页"
