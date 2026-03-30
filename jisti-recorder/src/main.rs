@@ -2,114 +2,135 @@ use anyhow::{anyhow, Context, Result};
 use gstreamer as gst;
 use gstreamer::prelude::*;
 use lib_gst_meet::{xmpp_parsers::BareJid, Authentication, Connection, JitsiConference, JitsiConferenceConfig};
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use tracing::{info, error, warn};
+use tracing::{info, error};
 
-/// Creates a GStreamer bin for recording a participant's audio
-async fn create_recording_bin(
-    conference: &JitsiConference,
-    participant_id: &str,
-    filename: &str,
-) -> Result<gst::Bin> {
-    info!("Creating recording bin for participant: {}", participant_id);
+/// Creates a GStreamer recording sink that saves audio to a file
+fn create_recording_sink(filename: &str) -> Result<gst::Element> {
+    info!("Creating recording sink for file: {}", filename);
 
-    // Create a bin to hold the recording pipeline
-    let bin = gst::Bin::new(Some(&format!("recording-{}", participant_id)));
+    // Create a bin to hold our recording pipeline
+    let bin = gst::Bin::new(Some("recording-bin"));
 
-    // Create GStreamer elements for the recording pipeline
+    // Create elements
     let queue = gst::ElementFactory::make("queue")
-        .name(&format!("queue-{}", participant_id))
+        .name("recording-queue")
         .build()
-        .context("Failed to create queue element")?;
+        .context("Failed to create queue")?;
 
     let audioconvert = gst::ElementFactory::make("audioconvert")
-        .name(&format!("audioconvert-{}", participant_id))
+        .name("recording-audioconvert")
         .build()
-        .context("Failed to create audioconvert element")?;
+        .context("Failed to create audioconvert")?;
 
     let audioresample = gst::ElementFactory::make("audioresample")
-        .name(&format!("audioresample-{}", participant_id))
+        .name("recording-audioresample")
         .build()
-        .context("Failed to create audioresample element")?;
+        .context("Failed to create audioresample")?;
 
     let encoder = gst::ElementFactory::make("wavenc")
-        .name(&format!("wavenc-{}", participant_id))
+        .name("recording-wavenc")
         .build()
-        .context("Failed to create wavenc element")?;
+        .context("Failed to create wavenc")?;
 
     let filesink = gst::ElementFactory::make("filesink")
-        .name(&format!("filesink-{}", participant_id))
+        .name("recording-filesink")
         .property("location", filename)
         .build()
-        .context("Failed to create filesink element")?;
+        .context("Failed to create filesink")?;
 
-    // Add elements to the bin
+    // Add elements to bin
     bin.add_many(&[&queue, &audioconvert, &audioresample, &encoder, &filesink])
         .context("Failed to add elements to bin")?;
 
-    // Link elements together
+    // Link elements
     gst::Element::link_many(&[&queue, &audioconvert, &audioresample, &encoder, &filesink])
-        .context("Failed to link elements")?;
+        .context("Failed to link recording elements")?;
 
-    // Create a ghost pad named "audio" on the bin for the queue's sink pad
-    // Note: lib-gst-meet may automatically route participant audio to elements/pads named "audio"
-    let queue_sink = queue.static_pad("sink")
+    // Create ghost pad for the bin's entry point
+    let sink_pad = queue.static_pad("sink")
         .ok_or_else(|| anyhow!("Failed to get queue sink pad"))?;
-    let ghost_pad = gst::GhostPad::with_target(Some("audio"), &queue_sink)
+
+    let ghost_pad = gst::GhostPad::with_target(Some("sink"), &sink_pad)
         .context("Failed to create ghost pad")?;
+
+    // Add a probe to monitor data flow
+    let buffer_count = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let buffer_count_clone = buffer_count.clone();
+    ghost_pad.add_probe(gst::PadProbeType::BUFFER, move |_pad, probe_info| {
+        if let Some(gst::PadProbeData::Buffer(_buffer)) = &probe_info.data {
+            let count = buffer_count_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            if count % 100 == 0 {
+                info!("Recording pipeline: received {} audio buffers", count);
+            }
+        }
+        gst::PadProbeReturn::Ok
+    });
+
     ghost_pad.set_active(true)
         .context("Failed to activate ghost pad")?;
+
     bin.add_pad(&ghost_pad)
-        .context("Failed to add ghost pad to bin")?;
+        .context("Failed to add ghost pad")?;
 
-    // Add the bin to the conference pipeline
-    conference.add_bin(&bin).await
-        .context("Failed to add bin to conference pipeline")?;
+    // Add a bus watch to monitor for errors
+    let bus = bin.bus().ok_or_else(|| anyhow!("Failed to get bus from recording bin"))?;
+    bus.add_watch(move |_bus, msg| {
+        use gst::MessageView;
+        match msg.view() {
+            MessageView::Error(err) => {
+                error!(
+                    "Recording pipeline error from {:?}: {} ({:?})",
+                    err.src().map(|s| s.path_string()),
+                    err.error(),
+                    err.debug()
+                );
+            }
+            MessageView::Warning(warning) => {
+                error!(
+                    "Recording pipeline warning from {:?}: {} ({:?})",
+                    warning.src().map(|s| s.path_string()),
+                    warning.error(),
+                    warning.debug()
+                );
+            }
+            MessageView::Eos(..) => {
+                info!("Recording pipeline received EOS");
+            }
+            MessageView::StateChanged(state_changed) => {
+                if state_changed.src().map(|s| s.type_().name() == "GstBin").unwrap_or(false) {
+                    info!(
+                        "Recording bin state changed from {:?} to {:?}",
+                        state_changed.old(),
+                        state_changed.current()
+                    );
+                }
+            }
+            _ => {}
+        }
+        Continue(true)
+    })
+    .context("Failed to add bus watch")?;
 
-    // Set the bin to playing state
+    // Set the bin to PLAYING state so data can flow through it
     bin.set_state(gst::State::Playing)
-        .context("Failed to set bin to playing state")?;
+        .context("Failed to set recording bin to PLAYING state")?;
 
-    info!("Recording bin created and added to pipeline for: {}", participant_id);
+    info!("Recording bin set to PLAYING state");
 
-    Ok(bin)
-}
-
-/// Cleans up a recording bin
-async fn cleanup_recording_bin(bin: gst::Bin) -> Result<()> {
-    info!("Cleaning up recording bin: {:?}", bin.name());
-
-    // Send EOS to flush the pipeline
-    bin.send_event(gst::event::Eos::new());
-
-    // Wait a bit for EOS to propagate
-    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-
-    // Set bin to null state
-    bin.set_state(gst::State::Null)
-        .context("Failed to set bin to null state")?;
-
-    info!("Recording bin cleaned up");
-
-    Ok(())
+    // Return the bin as an Element
+    Ok(bin.upcast())
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize tracing for logging
+    // Initialize tracing
     tracing_subscriber::fmt::init();
 
     // Initialize GStreamer
     gst::init()?;
     info!("GStreamer initialized");
 
-    // 1. Configure connection parameters
-    let websocket_url = "wss://video.comhairle.scot/xmpp-websocket";
-    let xmpp_domain = "meet.jitsi";
-
-    // Get room name from command line argument, or use default
+    // Get room name from command line
     let args: Vec<String> = std::env::args().collect();
     let room_name = if args.len() > 1 {
         &args[1]
@@ -117,29 +138,35 @@ async fn main() -> Result<()> {
         "test_room"
     };
 
+    // Configuration
+    let websocket_url = "wss://video.comhairle.scot/xmpp-websocket";
+    let xmpp_domain = "meet.jitsi";
     let nickname = "recorder-bot";
 
-    // 2. Create XMPP connection (using anonymous authentication)
+    info!("Connecting to {} as {}", websocket_url, nickname);
+
+    // Create XMPP connection
     let (connection, connection_future) = Connection::new(
         websocket_url,
         xmpp_domain,
         Authentication::Anonymous,
         room_name,
-        false, // tls_insecure = false (verify certificates)
+        false,
     )
     .await
     .context("Failed to create XMPP connection")?;
 
-    // Spawn the connection future to handle the WebSocket
+    // Spawn connection handler
     tokio::spawn(async move {
         connection_future.await;
     });
 
     // Connect to XMPP server
-    connection.connect().await.context("Failed to connect to XMPP server")?;
+    connection.connect().await
+        .context("Failed to connect to XMPP server")?;
     info!("Connected to XMPP server");
 
-    // 3. Create conference configuration
+    // Create conference configuration
     let muc_jid: BareJid = format!("{}@muc.{}", room_name, xmpp_domain)
         .parse()
         .context("Failed to parse MUC JID")?;
@@ -149,7 +176,7 @@ async fn main() -> Result<()> {
         .context("Failed to parse focus JID")?;
 
     let conference_config = JitsiConferenceConfig {
-        muc: muc_jid,
+        muc: muc_jid.clone(),
         focus: focus_jid,
         nick: nickname.to_string(),
         region: None,
@@ -162,11 +189,12 @@ async fn main() -> Result<()> {
         buffer_size: 200,
     };
 
-    // 4. Get glib main context
+    // Get glib main context
     let glib_main_context = glib::MainContext::default();
 
-    // 5. Join the conference
+    // Join the conference
     info!("Joining conference room: {}", room_name);
+    eprintln!("DEBUG: About to call JitsiConference::join()");
     let conference = JitsiConference::join(
         connection,
         glib_main_context.clone(),
@@ -175,82 +203,51 @@ async fn main() -> Result<()> {
     .await
     .context("Failed to join conference")?;
 
-    info!("Successfully joined conference! Waiting for participants...");
+    eprintln!("DEBUG: JitsiConference::join() completed successfully!");
+    info!("Successfully joined conference: {}", muc_jid);
 
-    // 6. Create a map to track participant recording bins
-    let participant_bins: Arc<Mutex<HashMap<String, gst::Bin>>> = Arc::new(Mutex::new(HashMap::new()));
+    // Create recording sink
+    eprintln!("DEBUG: Creating recording sink...");
+    let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
+    let filename = format!("recording_{}_{}.wav", room_name, timestamp);
+    eprintln!("DEBUG: Filename will be: {}", filename);
 
-    // 7. Set up participant handler to record audio for each participant
-    info!("Setting up participant join handler...");
-    let bins_clone = participant_bins.clone();
-    conference
-        .on_participant(move |conference, participant| {
-            let bins = bins_clone.clone();
-            Box::pin(async move {
-                info!("on_participant callback triggered!");
-                let participant_id = participant.muc_jid.resource.to_string();
-                let nick = participant.nick.as_deref().unwrap_or("unknown");
+    match create_recording_sink(&filename) {
+        Ok(sink) => {
+            eprintln!("DEBUG: Recording sink created successfully");
+            info!("Created recording sink, setting as remote participant audio sink");
 
-                info!(
-                    "Participant joined: {} (nick: {})",
-                    participant_id, nick
-                );
+            // Set our recording sink as the destination for remote participant audio
+            eprintln!("DEBUG: About to call set_remote_participant_audio_sink_element");
+            conference.set_remote_participant_audio_sink_element(Some(sink))
+                .await;
+            eprintln!("DEBUG: set_remote_participant_audio_sink_element completed");
 
-                // Create filename for this participant's recording
-                let filename = format!("recording_{}_{}.wav", participant_id, nick);
-                info!("Will record to: {}", filename);
+            info!("Recording to: {}", filename);
+            info!("Bot is now recording mixed audio from all participants in the room");
+        }
+        Err(e) => {
+            eprintln!("DEBUG: Failed to create recording sink: {:?}", e);
+            error!("Failed to create recording sink: {:?}", e);
+            return Err(e);
+        }
+    }
 
-                // Create a GStreamer bin for recording this participant's audio
-                match create_recording_bin(&conference, &participant_id, &filename).await {
-                    Ok(bin) => {
-                        bins.lock().await.insert(participant_id.clone(), bin);
-                        info!("Successfully set up recording for participant: {}", participant_id);
-                    }
-                    Err(e) => {
-                        error!("Failed to create recording bin for {}: {:?}", participant_id, e);
-                    }
-                }
+    eprintln!("DEBUG: Recording setup complete, entering main loop");
 
-                Ok(())
-            })
-        })
-        .await;
-    info!("Participant join handler registered");
-
-    info!("Setting up participant leave handler...");
-    let bins_clone = participant_bins.clone();
-    conference
-        .on_participant_left(move |_conference, participant| {
-            let bins = bins_clone.clone();
-            Box::pin(async move {
-                info!("on_participant_left callback triggered!");
-                let participant_id = participant.muc_jid.resource.to_string();
-                info!(
-                    "Participant left: {} (nick: {:?})",
-                    participant_id, participant.nick
-                );
-
-                // Remove and cleanup the recording bin
-                if let Some(bin) = bins.lock().await.remove(&participant_id) {
-                    info!("Cleaning up recording for: {}", participant_id);
-                    if let Err(e) = cleanup_recording_bin(bin).await {
-                        warn!("Error cleaning up recording bin: {:?}", e);
-                    }
-                }
-
-                Ok(())
-            })
-        })
-        .await;
-    info!("Participant leave handler registered");
-
-    // 8. Keep the application running
-    info!("Ready! Waiting for participants to join the room...");
-    info!("Join the meeting at: https://video.comhairle.scot/{}", room_name);
-    info!("Press Ctrl+C to exit");
-
-    // Keep the main thread alive - in a real application you'd want proper shutdown handling
+    // Keep running
+    info!("Press Ctrl+C to stop recording and exit");
     tokio::signal::ctrl_c().await?;
+
+    info!("Stopping recording...");
+
+    // Clear the audio sink to flush and close the file properly
+    conference.set_remote_participant_audio_sink_element(None).await;
+
+    // Give it a moment to flush
+    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+    info!("Recording saved to: {}", filename);
     info!("Shutting down...");
 
     Ok(())

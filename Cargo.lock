@@ -3535,6 +3535,7 @@ name = "jisti-recorder"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "glib",
  "gstreamer",
  "lib-gst-meet",
