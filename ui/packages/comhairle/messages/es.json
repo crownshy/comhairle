@@ -134,7 +134,7 @@
 	"polis_voted_everything": "Has votado sobre todo. ¡Gracias!",
 	"polis_come_back_later": "Vuelve más tarde para ver si se han añadido nuevas opiniones.",
 	"polis_error_description": "No pudimos cargar las opiniones en este momento. Puede ser un problema temporal.",
-	"polis_seed_statement": "Esta es una opinión semilla",
+	"polis_seed_statement": "Enviado por el propietario de la conversación",
 	"password_updated_successfully": "Contraseña actualizada correctamente",
 	"password_updated_successfully_body": "Tu contraseña ha sido cambiada. Puedes continuar usando la aplicación.",
 	"continue_to_home": "Continuar al inicio"
