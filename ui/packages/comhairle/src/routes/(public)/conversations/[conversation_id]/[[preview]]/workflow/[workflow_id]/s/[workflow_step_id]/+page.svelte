@@ -20,7 +20,6 @@
 	let workflowStep = $derived(data.workflowStep);
 	let conversation = $derived(data.conversation);
 	let workflowSteps = $derived(data.workflowSteps);
-	let userProgress = $derived(data.userProgress ?? []);
 
 	let toolConfig = $derived(
 		conversation.isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig
@@ -32,22 +31,16 @@
 
 	let actualCurrentStep = $derived(
 		conversation.isLive
-			? (sortedSteps.find((ws) => {
-					const progress = userProgress.find((p) => p.workflowStepId === ws.id);
-					return progress?.status !== 'done';
-				}) ?? null)
+			? (sortedSteps.find((ws) => ws.progressStatus !== 'done') ?? null)
 			: workflowStep
 	);
 
-	let isRevisiting = $derived(
-		userProgress.some((p) => p.workflowStepId === workflowStep.id && p.status === 'done')
-	);
+	let isRevisiting = $derived(workflowStep.progressStatus === 'done');
 
 	let stepItems = $derived<StepItem[]>(
 		sortedSteps.map((ws) => {
-			const progress = userProgress.find((p) => p.workflowStepId === ws.id);
 			const isCurrent = actualCurrentStep ? ws.id === actualCurrentStep.id : false;
-			const isCompleted = progress?.status === 'done';
+			const isCompleted = ws.progressStatus === 'done';
 			const actualCurrentOrder = actualCurrentStep?.stepOrder ?? Infinity;
 			const isBefore = ws.stepOrder < actualCurrentOrder;
 			const canRevisit = ws.canRevisit;
