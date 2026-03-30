@@ -101,7 +101,7 @@
 	}
 
 	function goToThankYouPage() {
-		goto(thank_you_page(conversation.id, workflowStep.id));
+		goto(thank_you_page(conversation.id, workflow_id, !conversation.isLive));
 	}
 
 	async function stepComplete() {
