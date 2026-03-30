@@ -81,10 +81,8 @@
 						<Form.Label class="text-sm font-normal">Receive updates by email</Form.Label
 						>
 						<Form.Description class="text-muted-foreground text-xs">
-							By ticking this box I allow Scottish Government or an organisation
-							acting on behalf of Scottish Government to contact me to provide me
-							updates relating to this engagement on the National Performance
-							Framework.
+							By ticking this box I agree to receive updates relating to this
+							engagement.
 						</Form.Description>
 					</div>
 					<Switch
@@ -107,9 +105,7 @@
 							>Receive emails about future engagments</Form.Label
 						>
 						<Form.Description class="text-muted-foreground text-xs">
-							By ticking this box I agree that I am willing to be contacted for future
-							engagement or research purposes relating to the National Performance
-							Framework.
+							By ticking this box I agree to be contacted about future engagments.
 						</Form.Description>
 					</div>
 					<Switch
