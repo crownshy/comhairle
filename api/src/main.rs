@@ -103,10 +103,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await
         .expect("Could not connect to redis"); // TODO: remove expect
     let redis_config =
-        apalis_redis::Config::default().set_namespace("process_video_call_transcription_redis");
+        apalis_redis::Config::default().set_namespace("worker_service_redis_connection");
 
-    // TODO: refactor to redis storage
-    let process_documents_storage = MemoryStorage::new();
+    let process_documents_storage =
+        RedisStorage::new_with_config(redis_connection.clone(), redis_config.clone());
     let process_transcriptions_storage =
         RedisStorage::new_with_config(redis_connection.clone(), redis_config);
 
@@ -136,6 +136,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         axum::serve(listener, app).await.unwrap();
     };
 
+    let process_document_worker = WorkerBuilder::new("process_document_worker")
+        .data(state.clone())
+        .data(())
+        .enable_tracing()
+        .backend(process_documents_storage.clone())
+        .build_fn(process_document_handler);
+
     let transcription_worker_steps = StepBuilder::new()
         .step_fn(transcribe_recording)
         .step_fn(upload_transcription)
@@ -147,11 +154,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .enable_tracing()
         .backend(process_transcriptions_storage)
         .build_stepped(transcription_worker_steps);
-
-    let process_document_worker = WorkerBuilder::new("process_document_worker")
-        .data(state.clone())
-        .backend(process_documents_storage.clone())
-        .build_fn(process_document_handler);
 
     let worker_future = {
         Monitor::new()
