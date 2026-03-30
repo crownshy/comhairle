@@ -13,7 +13,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
-	import { canRevisitStep } from '$lib/config/step-revisitability';
 
 	let { data }: PageProps = $props();
 	let { user } = data;
@@ -21,7 +20,6 @@
 	let workflowStep = $derived(data.workflowStep);
 	let conversation = $derived(data.conversation);
 	let workflowSteps = $derived(data.workflowSteps);
-	let userProgress = $derived(data.userProgress ?? []);
 
 	let toolConfig = $derived(
 		conversation.isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig
@@ -29,37 +27,23 @@
 
 	let pageTitle = $derived(workflowStep?.name ?? 'Workflow Step');
 
-	let workflowEnded = $derived(
-		workflowSteps.length > 0 &&
-			workflowSteps.every((ws) =>
-				userProgress.some((p) => p.workflowStepId === ws.id && p.status === 'done')
-			)
-	);
-
 	let sortedSteps = $derived([...workflowSteps].sort((a, b) => a.stepOrder - b.stepOrder));
 
 	let actualCurrentStep = $derived(
 		conversation.isLive
-			? (sortedSteps.find((ws) => {
-					const progress = userProgress.find((p) => p.workflowStepId === ws.id);
-					return progress?.status !== 'done';
-				}) ?? null)
+			? (sortedSteps.find((ws) => ws.progressStatus !== 'done') ?? null)
 			: workflowStep
 	);
 
-	let isRevisiting = $derived(
-		userProgress.some((p) => p.workflowStepId === workflowStep.id && p.status === 'done')
-	);
+	let isRevisiting = $derived(workflowStep.progressStatus === 'done');
 
 	let stepItems = $derived<StepItem[]>(
 		sortedSteps.map((ws) => {
-			const progress = userProgress.find((p) => p.workflowStepId === ws.id);
 			const isCurrent = actualCurrentStep ? ws.id === actualCurrentStep.id : false;
-			const isCompleted = progress?.status === 'done';
+			const isCompleted = ws.progressStatus === 'done';
 			const actualCurrentOrder = actualCurrentStep?.stepOrder ?? Infinity;
 			const isBefore = ws.stepOrder < actualCurrentOrder;
-			const toolType = ws.previewToolConfig?.type ?? ws.toolConfig?.type;
-			const canRevisit = toolType ? canRevisitStep(toolType, workflowEnded) : false;
+			const canRevisit = ws.canRevisit;
 
 			const passedThrough = isCompleted || isBefore;
 
