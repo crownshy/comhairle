@@ -43,6 +43,7 @@
 		$form.isPublic = data.conversation.isPublic;
 		$form.isInviteOnly = data.conversation.isInviteOnly;
 		$form.privacyPolicy = data.conversation.privacyPolicy;
+		$form.shortPrivacyPolicy = data.conversation.shortPrivacyPolicy;
 		$form.faqs = data.conversation.faqs;
 		$form.thankYouMessage = data.conversation.thankYouMessage;
 		$form.autoLogin = data.workflows[0]?.autoLogin;
@@ -134,6 +135,7 @@
 			description: data.conversation.description,
 			imageUrl: data.conversation.imageUrl,
 			privacyPolicy: data.conversation.privacyPolicy,
+			shortPrivacyPolicy: data.conversation.shortPrivacyPolicy,
 			faqs: data.conversation.faqs,
 			thankYouMessage: data.conversation.thankYouMessage,
 			isPublic: data.conversation.isPublic,
@@ -188,6 +190,8 @@
 					_description /* eslint-disable-line @typescript-eslint/no-unused-vars */,
 				privacyPolicy:
 					_privacyPolicy /* eslint-disable-line @typescript-eslint/no-unused-vars */,
+				shortPrivacyPolicy:
+					_shortPrivacyPolicy /* eslint-disable-line @typescript-eslint/no-unused-vars */,
 				faqs: _faqs /* eslint-disable-line @typescript-eslint/no-unused-vars */,
 				thankYouMessage:
 					_thankYouMessage /* eslint-disable-line @typescript-eslint/no-unused-vars */,
@@ -385,6 +389,35 @@
 							editorType="rich"
 							onSaveSource={(content: string) =>
 								handleInitOptionalTranslationField(content, 'privacyPolicy')}
+							primaryLocale={primaryLanguage}
+							{supportedLanguages}
+							inputProps={props}
+						/>
+						<Form.FieldErrors />
+					</div>
+				{/snippet}
+			</Form.Control>
+		</Form.Field>
+	</div>
+
+	<!-- Short privacy policy -->
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
+		<Form.Field form={conversationForm} name="shortPrivacyPolicy" class="contents">
+			<Form.Control>
+				{#snippet children({ props })}
+					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+						>Short Privacy Policy</Form.Label
+					>
+					<div class="flex-1">
+						<TranslatableField
+							value={$form.shortPrivacyPolicy || null}
+							onValueChange={(v) => ($form.shortPrivacyPolicy = v)}
+							translation={conversation.translations?.shortPrivacyPolicy ?? undefined}
+							editorType="rich"
+							onSaveSource={(content: string) =>
+								handleInitOptionalTranslationField(content, 'shortPrivacyPolicy')}
 							primaryLocale={primaryLanguage}
 							{supportedLanguages}
 							inputProps={props}
