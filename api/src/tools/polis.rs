@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use aide::axum::{
     routing::{get_with, post_with},
@@ -64,7 +64,7 @@ pub struct CommentReportData {
     pub divisiveness: Option<f64>,
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
 pub struct VoteCounts {
     pub agrees: u32,
     pub disagrees: u32,
@@ -511,7 +511,7 @@ impl PolisClient {
 
         // Create a map of tid -> comment text
         let mut comment_texts = std::collections::HashMap::new();
-        let comment_votes: HashMap<u32, VoteCounts> = std::collections::HashMap::new();
+        let mut comment_votes: HashMap<u32, VoteCounts> = std::collections::HashMap::new();
 
         for comment in comments_array {
             if let (Some(tid), Some(txt), agrees, disagrees, passes) = (
@@ -520,20 +520,18 @@ impl PolisClient {
                 comment
                     .get("agree_count")
                     .and_then(|t| t.as_u64())
-                    .unwrap()
                     .unwrap_or(0) as u32,
                 comment
                     .get("disagree_count")
                     .and_then(|t| t.as_u64())
-                    .unwrap()
                     .unwrap_or(0) as u32,
                 comment
                     .get("pass_count")
                     .and_then(|t| t.as_u64())
-                    .unwrap()
                     .unwrap_or(0) as u32,
             ) {
                 comment_texts.insert(tid as u32, txt.to_string());
+
                 comment_votes.insert(
                     tid as u32,
                     VoteCounts {
@@ -593,7 +591,7 @@ impl PolisClient {
             comments_report.push(CommentReportData {
                 tid,
                 text,
-                overall_votes: *comment_votes.get(&tid).unwrap().clone(),
+                overall_votes: (*comment_votes.get(&tid).unwrap()).clone(),
                 group_votes: group_votes_list,
                 group_informed_consensus: consensus,
                 divisiveness,
