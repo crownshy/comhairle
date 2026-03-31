@@ -70,7 +70,7 @@ pub struct ParticipantReportData {
     pub pca_position: Option<PcaPosition>,
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
 pub struct PcaPosition {
     pub x: f64,
     pub y: f64,
@@ -230,20 +230,26 @@ impl PolisClient {
 
             // Calculate overall votes from group votes
             let mut group_votes_list = Vec::new();
-
             if let Some(obj) = group_votes.as_object() {
-                for (group_id_str, group_vote_data) in obj.iter() {
+                for (group_id_str, group_data) in obj.iter() {
                     if let Ok(group_id) = group_id_str.parse::<u32>() {
-                        if let Some(votes_for_tid) = group_vote_data.get(tid.to_string()) {
-                            let agrees = votes_for_tid["A"].as_u64().unwrap_or(0) as u32;
-                            let disagrees = votes_for_tid["D"].as_u64().unwrap_or(0) as u32;
-                            let passes = votes_for_tid["S"].as_u64().unwrap_or(0) as u32;
-                            group_votes_list.push(GroupVoteCounts {
-                                group_id,
-                                agrees,
-                                disagrees,
-                                passes,
-                            });
+                        // Access the "votes" object within each group
+                        if let Some(votes_obj) = group_data.get("votes").and_then(|v| v.as_object())
+                        {
+                            // Get the votes for this specific comment (tid)
+                            if let Some(votes_for_tid) = votes_obj.get(&tid.to_string()) {
+                                let agrees = votes_for_tid["A"].as_u64().unwrap_or(0) as u32;
+                                let disagrees = votes_for_tid["D"].as_u64().unwrap_or(0) as u32;
+                                let saw = votes_for_tid["S"].as_u64().unwrap_or(0) as u32;
+                                // S represents "saw" not "passes". Passes = saw - agrees - disagrees
+                                let passes = saw.saturating_sub(agrees).saturating_sub(disagrees);
+                                group_votes_list.push(GroupVoteCounts {
+                                    group_id,
+                                    agrees,
+                                    disagrees,
+                                    passes,
+                                });
+                            }
                         }
                     }
                 }
@@ -305,10 +311,6 @@ impl PolisClient {
         }
 
         // Build participants list with group membership
-        let bid_to_pid = &math_pca["bidToPid"];
-        let pca_x = math_pca["pca"]["x"].as_array();
-        let pca_y = math_pca["pca"]["y"].as_array();
-
         let mut participants_report = Vec::new();
         let mut pid_to_group: std::collections::HashMap<u32, u32> =
             std::collections::HashMap::new();
@@ -324,45 +326,44 @@ impl PolisClient {
             }
         }
 
-        // If we have bidToPid mapping, use it to get all participants
-        if let Some(bid_array) = bid_to_pid.as_array() {
-            for (bid, pids_value) in bid_array.iter().enumerate() {
-                if let Some(pids) = pids_value.as_array() {
-                    for pid_val in pids {
-                        if let Some(pid) = pid_val.as_u64() {
-                            let pid = pid as u32;
-                            let group_id = pid_to_group.get(&pid).copied();
+        // Build pid to PCA position mapping from base-clusters
+        let mut pid_to_pca: std::collections::HashMap<u32, PcaPosition> =
+            std::collections::HashMap::new();
 
-                            // Get PCA position if available
-                            let pca_position = if let (Some(x_arr), Some(y_arr)) = (pca_x, pca_y) {
-                                x_arr.get(bid).and_then(|x| x.as_f64()).and_then(|x| {
-                                    y_arr
-                                        .get(bid)
-                                        .and_then(|y| y.as_f64())
-                                        .map(|y| PcaPosition { x, y })
-                                })
-                            } else {
-                                None
-                            };
+        if let Some(base_clusters) = math_pca.get("base-clusters") {
+            let base_members = base_clusters["members"].as_array();
+            let base_x = base_clusters["x"].as_array();
+            let base_y = base_clusters["y"].as_array();
 
-                            participants_report.push(ParticipantReportData {
-                                pid,
-                                group_id,
-                                pca_position,
-                            });
+            if let (Some(members_arr), Some(x_arr), Some(y_arr)) = (base_members, base_x, base_y) {
+                for (idx, member_cluster) in members_arr.iter().enumerate() {
+                    if let Some(member_arr) = member_cluster.as_array() {
+                        // Each base cluster typically has one member (participant)
+                        for pid_val in member_arr {
+                            if let Some(pid) = pid_val.as_u64() {
+                                let pid = pid as u32;
+                                if let (Some(x), Some(y)) = (
+                                    x_arr.get(idx).and_then(|v| v.as_f64()),
+                                    y_arr.get(idx).and_then(|v| v.as_f64()),
+                                ) {
+                                    pid_to_pca.insert(pid, PcaPosition { x, y });
+                                }
+                            }
                         }
                     }
                 }
             }
-        } else {
-            // Fallback: just list participants from groups
-            for (pid, group_id) in pid_to_group.iter() {
-                participants_report.push(ParticipantReportData {
-                    pid: *pid,
-                    group_id: Some(*group_id),
-                    pca_position: None,
-                });
-            }
+        }
+
+        // Create participant report entries
+        // Get all participants from group clusters
+        for (pid, group_id) in pid_to_group.iter() {
+            let pca_position = pid_to_pca.get(pid).cloned();
+            participants_report.push(ParticipantReportData {
+                pid: *pid,
+                group_id: Some(*group_id),
+                pca_position,
+            });
         }
 
         Ok(WikiPollReport {
