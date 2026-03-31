@@ -32,8 +32,8 @@
 
 <Drawer.Root direction="right">
 	<Drawer.Trigger
-		class="bg-primary/50 hover:bg-primary lg:bg-primary fixed top-1/5 right-0 p-3 transition-colors duration-300 ease-in-out"
-		><span><CircleQuestionMark class="stroke-foreground" /></span></Drawer.Trigger
+		class="bg-primary/50 hover:bg-primary lg:bg-primary fixed top-1/5 right-0 translate-x-12 -rotate-90 p-3 font-bold text-white transition-colors duration-300 ease-in-out"
+		><span>Find out more</span></Drawer.Trigger
 	>
 	<Drawer.Content class="flex w-screen! max-w-[100vw]! flex-col px-8 py-12 lg:max-w-[50vw]!">
 		<Drawer.Close class="absolute top-0 left-0 p-3 focus:border-none"
