@@ -31,7 +31,7 @@ fn default_server_url() -> String {
 }
 
 impl ToolConfigSanitize for HeyFormToolConfig {
-    fn sanatize(&self) -> Self {
+    fn sanitize(&self) -> Self {
         Self {
             survey_id: self.survey_id.clone(),
             survey_url: self.survey_url.clone(),
@@ -224,7 +224,7 @@ impl ToolImpl for HeyFormTool {
     }
 
     fn sanitize(config: Self::Config) -> Self::Config {
-        config.sanatize()
+        config.sanitize()
     }
 
     fn routes(_state: &Arc<ComhairleState>) -> ApiRouter {

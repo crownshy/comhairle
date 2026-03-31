@@ -201,14 +201,14 @@ impl PartialWorkflowStep {
 }
 impl LocalizedWorkflowStep {
     pub fn sanatize(&mut self) {
-        self.preview_tool_config = self.preview_tool_config.sanatize();
-        self.tool_config = self.tool_config.clone().map(|s| s.sanatize());
+        self.preview_tool_config = self.preview_tool_config.sanitize();
+        self.tool_config = self.tool_config.clone().map(|s| s.sanitize());
     }
 }
 impl WorkflowStep {
     pub fn sanatize(&mut self) {
-        self.preview_tool_config = self.preview_tool_config.sanatize();
-        self.tool_config = self.tool_config.clone().map(|s| s.sanatize());
+        self.preview_tool_config = self.preview_tool_config.sanitize();
+        self.tool_config = self.tool_config.clone().map(|s| s.sanitize());
     }
 }
 
