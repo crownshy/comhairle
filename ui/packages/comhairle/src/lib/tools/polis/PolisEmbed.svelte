@@ -312,7 +312,7 @@
 				<div class="flex items-center gap-4">
 					<MessageSquare fill="currentColor" class="text-card-foreground h-8 w-8" />
 					<h2 class="text-card-foreground text-3xl font-semibold">
-						{m.polis_add_opinion()}
+						{m.polis_add_your_own_opinion()}
 					</h2>
 				</div>
 				<Button
