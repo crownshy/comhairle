@@ -58,6 +58,8 @@ pub struct ConversationDto {
     #[schemars(example = "example_uuid")]
     pub privacy_policy: Option<TextContentId>,
     #[schemars(example = "example_uuid")]
+    pub short_privacy_policy: Option<TextContentId>,
+    #[schemars(example = "example_uuid")]
     pub faqs: Option<TextContentId>,
     #[schemars(example = "example_uuid")]
     pub thank_you_message: Option<TextContentId>,
@@ -110,6 +112,8 @@ pub struct LocalizedConversationDto {
     #[schemars(example = "example_localized_text")]
     pub privacy_policy: Option<String>,
     #[schemars(example = "example_localized_text")]
+    pub short_privacy_policy: Option<String>,
+    #[schemars(example = "example_localized_text")]
     pub faqs: Option<String>,
     #[schemars(example = "example_localized_text")]
     pub thank_you_message: Option<String>,
@@ -137,6 +141,7 @@ impl From<Conversation> for ConversationDto {
             supported_languages: c.supported_languages,
             organization_id: c.organization_id,
             privacy_policy: c.privacy_policy,
+            short_privacy_policy: c.short_privacy_policy,
             faqs: c.faqs,
             thank_you_message: c.thank_you_message,
         }
@@ -165,6 +170,7 @@ impl From<LocalizedConversation> for LocalizedConversationDto {
             supported_languages: c.supported_languages,
             organization_id: c.organization_id,
             privacy_policy: c.privacy_policy,
+            short_privacy_policy: c.short_privacy_policy,
             faqs: c.faqs,
             thank_you_message: c.thank_you_message,
         }
