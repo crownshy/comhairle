@@ -43,7 +43,7 @@
 		</div>
 
 		<Dialog.Footer class="border-t px-6 pt-4 pb-6">
-			<Button class="w-full" onclick={handleAccept}>Continue</Button>
+			<Button class="w-full" onclick={handleAccept}>Accept</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
