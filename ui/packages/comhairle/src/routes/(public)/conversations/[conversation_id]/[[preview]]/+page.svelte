@@ -129,7 +129,7 @@
 		</ConversationSummary>
 
 		<PrivacyPolicyDialog
-			privacyPolicy={conversation.privacyPolicy}
+			{conversation}
 			bind:open={privacyPolicyOpen}
 			onAccept={handlePrivacyPolicyAccept}
 		/>

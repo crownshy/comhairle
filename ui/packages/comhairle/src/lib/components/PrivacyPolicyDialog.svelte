@@ -3,14 +3,15 @@
 	import { Button } from '$lib/components/ui/button';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import ComhairlePrivacyPolicy from './ComhairlePrivacyPolicy.svelte';
+	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
 
 	type Props = {
-		privacyPolicy?: string | null;
+		conversation: LocalizedConversationDto;
 		open: boolean;
 		onAccept: () => void;
 	};
 
-	let { privacyPolicy, open = $bindable(), onAccept }: Props = $props();
+	let { conversation, open = $bindable(), onAccept }: Props = $props();
 
 	function handleAccept() {
 		open = false;
@@ -29,12 +30,20 @@
 			<Dialog.Title>Privacy Policy</Dialog.Title>
 			<Dialog.Description>
 				Please review the privacy policy before joining this conversation.
+				<br />
+				<br />
+				To read the full privacy policy for this conversation
+				<a
+					href={`/conversations/${conversation.id}${conversation.isLive ? '' : '/preview'}/privacy`}
+					target="_blank"
+					class="underline">visit this page.</a
+				>
 			</Dialog.Description>
 		</Dialog.Header>
 
 		<div class="overflow-y-auto px-6 py-4">
-			{#if privacyPolicy}
-				<ContentRenderer content={privacyPolicy} />
+			{#if conversation.shortPrivacyPolicy}
+				<ContentRenderer content={conversation.shortPrivacyPolicy} />
 			{:else}
 				<ComhairlePrivacyPolicy
 					class="[&_h1]:text-primary [&_h2]:text-primary flex flex-col gap-4 [&_h1,&_h2,&_h3,&_h4,&_h5,&_h6]:font-bold [&_ul]:list-inside [&_ul]:list-[square]!"
