@@ -12,7 +12,9 @@
 	let { conversation, user }: { conversation: LocalizedConversationDto; user: UserDto } =
 		$props();
 
-	let activeTab = $state('faqs');
+	let activeTab = $state(
+		conversation?.chatBotId && conversation.enableQaChatBot ? 'tutorBot' : 'faqs'
+	);
 
 	let tabs = [
 		{
@@ -41,13 +43,6 @@
 		>
 		<Tabs.Root bind:value={activeTab} class="flex min-h-0 flex-1 flex-col">
 			<div class="bg-sidebar mb-4 flex shrink-0 flex-row gap-0.5 rounded-xl p-1">
-				{#each tabs as tab (tab.value)}
-					<Tabs.Trigger
-						value={tab.value}
-						class="text-sidebar-foreground data-[state=active]:text-foreground border-none"
-						>{tab.label}</Tabs.Trigger
-					>
-				{/each}
 				{#if conversation?.chatBotId && conversation.enableQaChatBot}
 					<Tabs.Trigger
 						value="tutorBot"
@@ -55,6 +50,13 @@
 						>Tutor bot</Tabs.Trigger
 					>
 				{/if}
+				{#each tabs as tab (tab.value)}
+					<Tabs.Trigger
+						value={tab.value}
+						class="text-sidebar-foreground data-[state=active]:text-foreground border-none"
+						>{tab.label}</Tabs.Trigger
+					>
+				{/each}
 			</div>
 			<div class="flex min-h-0 flex-1 flex-col">
 				{#each tabs as tab (tab.value)}
