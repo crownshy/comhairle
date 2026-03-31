@@ -11,6 +11,7 @@
 		prevHref?: string;
 		onNext?: () => void;
 		nextDisabled?: boolean;
+		boldDescription?: boolean;
 	}
 
 	let {
@@ -21,7 +22,8 @@
 		estimatedMinutes,
 		prevHref,
 		onNext,
-		nextDisabled = false
+		nextDisabled = false,
+		boldDescription = true
 	}: StepHeaderProps = $props();
 </script>
 
@@ -78,7 +80,7 @@
 
 		{#if description}
 			<div
-				class="prose-sm prose-p:text-sm prose-p:text-muted-foreground prose-li:text-muted-foreground prose-li:text-sm text-muted-foreground mx-auto max-w-3xl text-center"
+				class={`prose-sm prose-p:text-sm  prose-li:text-muted-foreground prose-li:text-sm text-muted-foreground mx-auto max-w-3xl text-center ${boldDescription ? '' : 'prose-p:text-muted-foreground'}`}
 			>
 				{#key description}
 					<ContentRenderer content={description} />
