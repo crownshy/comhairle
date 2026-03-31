@@ -174,6 +174,7 @@
 				prevHref={prevStepHref}
 				onNext={currentNextAction ?? stepComplete}
 				nextDisabled={!canProceed}
+				boldDescription={toolConfig.type === Polis.TOOL_NAME}
 			/>
 		</div>
 
