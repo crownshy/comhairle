@@ -330,6 +330,8 @@
 					<li>{m.polis_tip_agreeable()}</li>
 					<li>{m.polis_tip_one_idea()}</li>
 					<li>{m.polis_tip_no_jargon()}</li>
+					<li>{m.polis_tip_many_statements()}</li>
+					<li>{m.polis_tip_come_back()}</li>
 				</ul>
 			</div>
 
