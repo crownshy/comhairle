@@ -53,6 +53,9 @@ pub enum ComhairleError {
     #[error("No video service configured")]
     NoVideoServiceConfigured,
 
+    #[error("No worker service configured")]
+    NoWorkerServiceConfigured,
+
     #[error("HeyForm error: {0}")]
     HeyFormError(#[from] HeyFormError),
 
