@@ -46,7 +46,7 @@ pub async fn setup(config: &StoriesToolSetup) -> Result<StoriesToolConfig, Comha
 }
 
 impl ToolConfigSanitize for StoriesToolConfig {
-    fn sanatize(&self) -> Self {
+    fn sanitize(&self) -> Self {
         self.clone()
     }
 }
@@ -76,7 +76,7 @@ impl ToolImpl for StoriesTool {
     }
 
     fn sanitize(config: Self::Config) -> Self::Config {
-        config.sanatize()
+        config.sanitize()
     }
 
     fn routes(state: &Arc<ComhairleState>) -> ApiRouter {

@@ -60,6 +60,3 @@ pub async fn setup(setup_config: &RankingToolSetup) -> Result<RankingToolSetup, 
             .collect(),
     })
 }
-
-
-}

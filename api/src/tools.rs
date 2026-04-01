@@ -93,7 +93,7 @@ pub trait ToolImpl: Send + Sync + 'static {
 /// Trait for sync operations that can be dispatched via enum_dispatch
 #[enum_dispatch]
 pub trait ToolConfigSanitize {
-    fn sanatize(&self) -> Self;
+    fn sanitize(&self) -> Self;
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, DbJsonBEnum, PartialEq)]

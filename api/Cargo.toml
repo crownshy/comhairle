@@ -77,7 +77,7 @@ aide = { version = "0.14.0", features = ["redoc", "swagger", "scalar", "axum", "
 axum-extra = { version = "0.10.1", features = ["cookie"] }
 aws-sdk-s3 = "1.82.0"
 aws-config = "1.6.1"
-reqwest = {version = "0.12.15", features=["cookies", "json"]}
+reqwest = {version = "0.12.15", features=["cookies", "json", "gzip"]}
 axum-proxy = {version="0.4.1", features=["http2","https","axum"]}
 regex = "1.11.1"
 fancy-regex = "0.14.0"

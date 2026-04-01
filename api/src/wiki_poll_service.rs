@@ -1,7 +1,7 @@
 pub mod error;
 pub mod polis_service;
 
-use crate::wiki_poll_service::error::WikiPollServiceError;
+use crate::wiki_poll_service::{error::WikiPollServiceError, polis_service::WikiPollReport};
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -29,6 +29,8 @@ pub trait WikiPollService: Send + Sync {
         &self,
         poll_id: &str,
     ) -> Result<Vec<WikiPollComment>, WikiPollServiceError>;
+
+    async fn get_report_data(&self, poll_id: &str) -> Result<WikiPollReport, WikiPollServiceError>;
 }
 
 #[derive(Deserialize, Serialize)]

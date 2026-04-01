@@ -39,7 +39,7 @@ pub struct ElicitationBotToolConfig {
 }
 
 impl ToolConfigSanitize for ElicitationBotToolConfig {
-    fn sanatize(&self) -> Self {
+    fn sanitize(&self) -> Self {
         self.clone()
     }
 }
@@ -92,7 +92,7 @@ impl ToolImpl for ElicitationBotTool {
     }
 
     fn sanitize(config: Self::Config) -> Self::Config {
-        config.sanatize()
+        config.sanitize()
     }
 
     fn routes(state: &Arc<ComhairleState>) -> ApiRouter {

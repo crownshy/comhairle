@@ -5,8 +5,8 @@ use async_trait::async_trait;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{error::ComhairleError, ComhairleState};
 use crate::models::translations::TextContentId;
+use crate::{error::ComhairleError, ComhairleState};
 
 use super::{ToolConfigSanitize, ToolImpl};
 
@@ -49,7 +49,7 @@ pub struct LearnToolConfig {
 }
 
 impl ToolConfigSanitize for LearnToolConfig {
-    fn sanatize(&self) -> Self {
+    fn sanitize(&self) -> Self {
         self.clone()
     }
 }
@@ -98,7 +98,7 @@ impl ToolImpl for LearnTool {
     }
 
     fn sanitize(config: Self::Config) -> Self::Config {
-        config.sanatize()
+        config.sanitize()
     }
 
     fn routes(_state: &Arc<ComhairleState>) -> ApiRouter {

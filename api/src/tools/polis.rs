@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use aide::axum::{routing::post_with, ApiRouter};
+use aide::axum::{
+    routing::{get_with, post_with},
+    ApiRouter,
+};
 use async_trait::async_trait;
 use axum::{
     extract::{Json, Query, State},
@@ -16,7 +19,7 @@ use uuid::Uuid;
 use crate::{
     error::ComhairleError,
     models,
-    wiki_poll_service::{WikiPollLogin, WikiPollService},
+    wiki_poll_service::{polis_service::WikiPollReport, WikiPollLogin, WikiPollService},
     ComhairleState,
 };
 
@@ -32,7 +35,7 @@ pub struct PolisToolConfig {
 }
 
 impl ToolConfigSanitize for PolisToolConfig {
-    fn sanatize(&self) -> Self {
+    fn sanitize(&self) -> Self {
         Self {
             admin_user: "".into(),
             admin_password: "".into(),
@@ -76,7 +79,7 @@ impl ToolImpl for PolisTool {
     }
 
     fn sanitize(config: Self::Config) -> Self::Config {
-        config.sanatize()
+        config.sanitize()
     }
 
     fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
@@ -88,6 +91,15 @@ impl ToolImpl for PolisTool {
                         .tag("Tools")
                         .summary("Login as Polis admin and proxy cookie")
                         .description("Logs into Polis as admin and returns session cookie")
+                }),
+            )
+            .api_route(
+                "/polis/report_data",
+                get_with(get_report_data, |op| {
+                    op.id("PolisGetReportData")
+                        .tag("Tools")
+                        .summary("Get Polis report data for a workflow step")
+                        .description("Fetches the polis data export for a given workflow step")
                 }),
             )
             .with_state(state.clone())
@@ -118,9 +130,92 @@ pub enum PolisError {
     ProxyError { from: String, to: String },
 }
 
+#[derive(Deserialize, Serialize)]
+struct NewAdminUser {
+    pub hname: String,
+    pub password: String,
+    pub password2: String,
+    pub email: String,
+    pub gatekeeperTosPrivacy: bool,
+}
+
+#[derive(Deserialize, Serialize)]
+struct PolisLogin {
+    pub email: String,
+    pub password: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct NewUserResp {
+    pub uid: u32,
+    pub hname: String,
+    pub email: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct NewPollResp {
+    conversation_id: String,
+}
+
+pub struct PolisClient {
+    client: reqwest::Client,
+    base_url: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PolisCommentCreateResponse {
+    tid: u8,
+    current_pid: u8,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct LoginResp {
+    pub uid: u32,
+    pub email: String,
+    pub token: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct SetTopicRequest {
+    pub topic: String,
+    pub conversation_id: String,
+}
+
 #[derive(Serialize, Deserialize, JsonSchema)]
 struct AdminLoginQuery {
     pub workflow_step_id: Uuid,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema)]
+struct ReportDataQuery {
+    pub workflow_step_id: Uuid,
+}
+
+/// Gets the polis report data for a workflow step
+
+#[instrument(err(Debug), skip(state))]
+async fn get_report_data(
+    State(state): State<Arc<ComhairleState>>,
+    Query(ReportDataQuery { workflow_step_id }): Query<ReportDataQuery>,
+) -> Result<(StatusCode, Json<WikiPollReport>), ComhairleError> {
+    let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
+
+    println!("{workflow_step:#?}");
+
+    let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
+        (Some(ToolConfig::Polis(config)), _) => config,
+        (None, ToolConfig::Polis(config)) => config,
+        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+    };
+
+    // Get the report data
+    let data = state
+        .wiki_poll_service
+        .get_report_data(&config.poll_id)
+        .await?;
+
+    Ok((StatusCode::OK, Json(data)))
 }
 
 /// Logs a user into polis and proxies the cookie
