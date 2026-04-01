@@ -193,6 +193,8 @@ struct ReportDataQuery {
 }
 
 /// Gets the polis report data for a workflow step
+
+#[instrument(err(Debug), skip(state))]
 async fn get_report_data(
     State(state): State<Arc<ComhairleState>>,
     Query(ReportDataQuery { workflow_step_id }): Query<ReportDataQuery>,
