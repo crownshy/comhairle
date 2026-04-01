@@ -32,6 +32,9 @@ pub enum ComhairleError {
     #[error("Database error: {0}")]
     DatabaseError(#[from] sqlx::Error),
 
+    #[error("HTTP error: {0}")]
+    Http(#[from] axum::http::Error),
+
     #[error("Polis error: {0}")]
     PolisError(#[from] PolisError),
 
@@ -70,6 +73,9 @@ pub enum ComhairleError {
 
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
+
+    #[error("Invalid header: {0}")]
+    InvalidHeaderValue(#[from] hyper::header::InvalidHeaderValue),
 
     #[error("Username {0} already taken")]
     DuplicateUsername(String),

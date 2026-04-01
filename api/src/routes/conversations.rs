@@ -1,8 +1,10 @@
 use std::sync::Arc;
 
 use axum::{
+    body::Body,
     extract::{Json, Path, Query, State},
-    http::StatusCode,
+    http::{HeaderValue, StatusCode},
+    response::Response,
 };
 
 use aide::axum::{
@@ -10,6 +12,8 @@ use aide::axum::{
     ApiRouter,
 };
 
+use hyper::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
+use rand::{distributions::Alphanumeric, Rng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
@@ -33,7 +37,9 @@ use crate::{
         user_participation::{self},
     },
     routes::{
-        conversations::dto::{ConversationDto, LocalizedConversationDto},
+        conversations::dto::{
+            ConversationDto, ImportExportConversationDto, LocalizedConversationDto,
+        },
         translations::LocaleExtractor,
     },
     ComhairleState,
@@ -346,6 +352,43 @@ async fn register_email_for_updates(
     ))
 }
 
+#[instrument(err(Debug), skip(state))]
+async fn export_conversation(
+    State(state): State<Arc<ComhairleState>>,
+    Path(conversation_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+) -> Result<Response, ComhairleError> {
+    let mut conversation: ImportExportConversationDto =
+        conversation::get_localised_by_id(&state.db, &conversation_id, &locale)
+            .await?
+            .into();
+    // Add random suffix to slug to avoid unique constraint on import
+    // TODO: potentially move to import functionality so that export is pure representation of
+    // conversation
+    let slug_suffix: String = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(10)
+        .map(char::from)
+        .collect();
+    conversation.slug = conversation.slug.map(|s| format!("{s}-{slug_suffix}"));
+
+    let json = serde_json::to_vec(&conversation)?;
+    let content_disposition = HeaderValue::from_str(&format!(
+        "attachment; filename=\"conversation-{conversation_id}.json\""
+    ))?;
+
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(CONTENT_TYPE, "application/json")
+        .header(CONTENT_DISPOSITION, content_disposition)
+        .body(Body::from(json))?;
+
+    // TODO: workflows / workflow_steps
+
+    Ok(response)
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -426,6 +469,15 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Allows non-logged-in users to register their email address to receive updates about a public conversation. If the email is already registered, returns existing registration.")
                     .response::<201, Json<RegisterEmailResponse>>()
                     .response::<200, Json<RegisterEmailResponse>>()
+                    .tag("Email Notifications")
+            }),
+        )
+        .api_route(
+            "/{conversation_id}/export",
+            get_with(export_conversation, |op| {
+                op.summary("Export a conversation")
+                    .description("Exports a conversation, workflows, steps etc to a json file.")
+                    .response::<200, Json<ImportExportConversationDto>>()
                     .tag("Email Notifications")
             }),
         )
