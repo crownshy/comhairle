@@ -135,6 +135,8 @@
 	"polis_tip_agreeable": "An opinion should be answerable with \"agree\" or \"disagree\"",
 	"polis_tip_one_idea": "Include only one idea at a time in one opinion",
 	"polis_tip_no_jargon": "Avoid use of jargon (if necessary, try to unpack with plain language)",
+	"polis_tip_many_statements": "You can submit as many statements as you like.",
+	"polis_tip_come_back": "Come back often to vote on the new ideas that other. people have submitted",
 	"polis_opinion_submitted": "Your opinion has been submitted. Thank you!",
 	"polis_opinion_placeholder": "Enter your own opinion here",
 	"polis_submit_and_add_another": "Submit and add another one",
