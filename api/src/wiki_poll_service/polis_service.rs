@@ -150,14 +150,11 @@ impl PolisClient {
             self.base_url, poll_id
         );
 
-        info!("Getting PCA data from {url}");
-
         let response = self.client.get(&url).send().await.map_err(|e| {
             warn!("Failed to get PCA data: {e}");
             PolisError::FailedToGetComments(format!("Failed to get PCA data: {e}"))
         })?;
 
-        info!("Response {response:#?}");
         let data = response.json::<serde_json::Value>().await.map_err(|e| {
             warn!("Failed to parse PCA data: {e:#?}");
             PolisError::FailedToGetComments(format!("Failed to parse PCA data: {e}"))
@@ -538,14 +535,9 @@ impl WikiPollService for PolisClient {
     }
 
     async fn get_report_data(&self, poll_id: &str) -> Result<WikiPollReport, WikiPollServiceError> {
-        info!("Getting full report data for poll_id: {poll_id}");
-
         // Fetch all the data that powers the report page
         let math_pca = self.get_math_pca(poll_id).await?;
         let comments_data = self.get_comments_with_voting(poll_id).await?;
-
-        info!("math pca {math_pca:#?}");
-        info!("comments {comments_data:#?}");
 
         // Transform the raw data into structured report format
         self.transform_report_data(math_pca, comments_data)
@@ -619,14 +611,12 @@ mod tests {
     async fn sign_up_and_create_poll() -> Result<(), Box<dyn std::error::Error>> {
         let client = PolisClient::new("polis.comhairle.scot");
         let (email, password) = client.create_random_admin_user().await?;
-        println!("{email} {password}");
 
         let login = WikiPollLogin { email, password };
 
         let cookies = client.login(&login).await?;
 
         let resp = client.create_poll(&cookies).await?;
-        println!("{resp:#?}");
 
         Ok(())
     }
@@ -636,7 +626,6 @@ mod tests {
     async fn post_seed_comment() -> Result<(), Box<dyn std::error::Error>> {
         let client = PolisClient::new("polis.comhairle.scot");
         let (email, password) = client.create_random_admin_user().await?;
-        println!("{email} {password}");
 
         let login = WikiPollLogin { email, password };
 
@@ -656,7 +645,6 @@ mod tests {
     async fn get_comments() -> Result<(), Box<dyn std::error::Error>> {
         let client = PolisClient::new("polis.comhairle.scot");
         let (email, password) = client.create_random_admin_user().await?;
-        println!("{email} {password}");
 
         let login = WikiPollLogin { email, password };
 
