@@ -16,7 +16,7 @@ use comhairle::{
         process_video_call_transcriptions::{
             run_sense_making, transcribe_recording, upload_transcription,
         },
-        ComhairleWorkerService,
+        ComhairleWorkerService, WorkerService,
     },
     ComhairleState,
 };
@@ -99,21 +99,37 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let wiki_poll_service = Arc::new(PolisClient::new(&config.polis_url));
 
-    let redis_connection = apalis_redis::connect(config.workers.redis_url.clone())
-        .await
-        .expect("Could not connect to redis"); // TODO: remove expect
-    let redis_config =
-        apalis_redis::Config::default().set_namespace("worker_service_redis_connection");
+    let (worker_service, process_documents_storage, process_transcriptions_storage) =
+        match config.worker_service {
+            Some(ref worker_config) => {
+                // TODO: `connect` doesn't appear to error if redis server for url doesn't exist,
+                // it just hangs and the axum server doesn't start
+                let redis_connection = apalis_redis::connect(worker_config.redis_url.clone())
+                    .await
+                    .expect("Could not connect to redis"); // TODO: remove expect
+                let redis_config = apalis_redis::Config::default()
+                    .set_namespace("worker_service_redis_connection");
 
-    let process_documents_storage =
-        RedisStorage::new_with_config(redis_connection.clone(), redis_config.clone());
-    let process_transcriptions_storage =
-        RedisStorage::new_with_config(redis_connection.clone(), redis_config);
+                let process_documents_storage =
+                    RedisStorage::new_with_config(redis_connection.clone(), redis_config.clone());
+                let process_transcriptions_storage =
+                    RedisStorage::new_with_config(redis_connection.clone(), redis_config);
 
-    let worker_service = Arc::new(ComhairleWorkerService {
-        process_documents: Arc::new(Mutex::new(process_documents_storage.clone())),
-        process_transcriptions: Arc::new(Mutex::new(process_transcriptions_storage.clone())),
-    });
+                let worker_service = Arc::new(ComhairleWorkerService {
+                    process_documents: Arc::new(Mutex::new(process_documents_storage.clone())),
+                    process_transcriptions: Arc::new(Mutex::new(
+                        process_transcriptions_storage.clone(),
+                    )),
+                }) as Arc<dyn WorkerService>;
+
+                (
+                    Some(worker_service),
+                    Some(process_documents_storage),
+                    Some(process_transcriptions_storage),
+                )
+            }
+            None => (None, None, None),
+        };
 
     let state = Arc::new(ComhairleState {
         db,
@@ -136,31 +152,36 @@ async fn main() -> Result<(), Box<dyn Error>> {
         axum::serve(listener, app).await.unwrap();
     };
 
-    let process_document_worker = WorkerBuilder::new("process_document_worker")
-        .data(state.clone())
-        .data(())
-        .enable_tracing()
-        .backend(process_documents_storage.clone())
-        .build_fn(process_document_handler);
+    let mut monitor = Monitor::new();
 
-    let transcription_worker_steps = StepBuilder::new()
-        .step_fn(transcribe_recording)
-        .step_fn(upload_transcription)
-        .step_fn(run_sense_making);
+    if let (Some(process_documents_storage), Some(process_transcriptions_storage)) =
+        (process_documents_storage, process_transcriptions_storage)
+    {
+        let process_documents_worker = WorkerBuilder::new("process_document_worker")
+            .data(state.clone())
+            .data(())
+            .enable_tracing()
+            .backend(process_documents_storage.clone())
+            .build_fn(process_document_handler);
 
-    let process_transcriptions_worker = WorkerBuilder::new("process_transcriptions_worker")
-        .data(state.clone())
-        .data(())
-        .enable_tracing()
-        .backend(process_transcriptions_storage)
-        .build_stepped(transcription_worker_steps);
+        let transcription_worker_steps = StepBuilder::new()
+            .step_fn(transcribe_recording)
+            .step_fn(upload_transcription)
+            .step_fn(run_sense_making);
 
-    let worker_future = {
-        Monitor::new()
-            .register(process_document_worker)
-            .register(process_transcriptions_worker)
-            .run()
-    };
+        let process_transcriptions_worker = WorkerBuilder::new("process_transcriptions_worker")
+            .data(state.clone())
+            .data(())
+            .enable_tracing()
+            .backend(process_transcriptions_storage)
+            .build_stepped(transcription_worker_steps);
+
+        monitor = monitor
+            .register(process_documents_worker)
+            .register(process_transcriptions_worker);
+    }
+
+    let worker_future = monitor.run();
 
     let _ = tokio::join!(server_future, worker_future);
 
