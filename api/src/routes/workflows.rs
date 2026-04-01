@@ -19,6 +19,7 @@ use crate::{
     models::{
         conversation::{self, PartialConversation},
         user_participation::{self, UserParticipation},
+        user_profile::{self, DemographicReport},
         workflow::{self, CreateWorkflow, PartialWorkflow, WorkflowStats},
         workflow_step::{self, WorkflowStep},
     },
@@ -204,6 +205,14 @@ async fn get_workflow_stats(
     Ok((StatusCode::OK, Json(stats)))
 }
 
+async fn get_participation_report(
+    State(state): State<Arc<ComhairleState>>,
+    WorkflowPathCtx { workflow_id }: WorkflowPathCtx,
+) -> Result<(StatusCode, Json<DemographicReport>), ComhairleError> {
+    let report = user_profile::get_demographic_report(&state.db, &workflow_id).await?;
+    Ok((StatusCode::OK, Json(report)))
+}
+
 /// Update workflow handler
 async fn update_workflow(
     State(state): State<Arc<ComhairleState>>,
@@ -337,6 +346,15 @@ pub fn router(state: Arc<ComhairleState>, ctx: WorkflowRouterContext) -> ApiRout
                         .tag("Workflow")
                         .summary("Gets participation stats for a workflow")
                         .response::<201, Json<WorkflowStats>>()
+                }),
+            )
+            .api_route(
+                "/{workflow_id}/participation_report",
+                get_with(get_participation_report, |op| {
+                    op.id(&format!("Get{ctx}WorkflowParticipationReport"))
+                        .tag("Workflow")
+                        .summary("Gets demographic report for workflow participants")
+                        .response::<200, Json<DemographicReport>>()
                 }),
             )
             .api_route(
