@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::{
     models::{
-        conversation::{Conversation, LocalizedConversation},
+        conversation::{Conversation, CreateConversation, LocalizedConversation},
         pagination::PaginatedResults,
         translations::TextContentId,
     },
@@ -162,7 +162,6 @@ pub struct ImportExportConversationDto {
     pub tags: Vec<String>,
     pub is_public: bool,
     pub is_live: bool,
-    pub is_complete: bool,
     pub is_invite_only: bool,
     pub slug: Option<String>,
     pub primary_locale: String,
@@ -253,7 +252,6 @@ impl From<LocalizedConversation> for ImportExportConversationDto {
             tags: c.tags,
             is_public: c.is_public,
             is_live: c.is_live,
-            is_complete: c.is_complete,
             is_invite_only: c.is_invite_only,
             slug: c.slug,
             primary_locale: c.primary_locale,
@@ -263,6 +261,32 @@ impl From<LocalizedConversation> for ImportExportConversationDto {
             short_privacy_policy: c.short_privacy_policy,
             faqs: c.faqs,
             thank_you_message: c.thank_you_message,
+        }
+    }
+}
+
+impl From<ImportExportConversationDto> for CreateConversation {
+    fn from(c: ImportExportConversationDto) -> Self {
+        Self {
+            title: c.title,
+            short_description: c.short_description,
+            description: c.description,
+            video_url: c.video_url,
+            image_url: c.image_url,
+            tags: Some(c.tags),
+            is_public: c.is_public,
+            is_live: c.is_live,
+            is_invite_only: c.is_invite_only,
+            slug: c.slug,
+            primary_locale: c.primary_locale,
+            supported_languages: c.supported_languages,
+            default_workflow_id: None,
+            enable_qa_chat_bot: None,
+            // organization_id: c.organization_id, // TODO: possibly add?
+            // privacy_policy: c.privacy_policy,
+            // short_privacy_policy: c.short_privacy_policy,
+            // faqs: c.faqs,
+            // thank_you_message: c.thank_you_message,
         }
     }
 }

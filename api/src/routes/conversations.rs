@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     body::Body,
-    extract::{Json, Path, Query, State},
+    extract::{Json, Multipart, Path, Query, State},
     http::{HeaderValue, StatusCode},
     response::Response,
 };
@@ -432,20 +432,10 @@ async fn export_conversation(
     RequiredAdminUser(_user): RequiredAdminUser,
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<Response, ComhairleError> {
-    let mut conversation: ImportExportConversationDto =
+    let conversation: ImportExportConversationDto =
         conversation::get_localised_by_id(&state.db, &conversation_id, &locale)
             .await?
             .into();
-    // Add random suffix to slug to avoid unique constraint on import
-    // TODO: potentially move to import functionality so that export is pure representation of
-    // conversation
-    let slug_suffix: String = rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(10)
-        .map(char::from)
-        .collect();
-    conversation.slug = conversation.slug.map(|s| format!("{s}-{slug_suffix}"));
-
     let json = serde_json::to_vec(&conversation)?;
     let content_disposition = HeaderValue::from_str(&format!(
         "attachment; filename=\"conversation-{conversation_id}.json\""
@@ -460,6 +450,48 @@ async fn export_conversation(
     // TODO: workflows / workflow_steps
 
     Ok(response)
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn import_conversation(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+    mut form_data: Multipart,
+) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
+    let bytes = match form_data.next_field().await? {
+        Some(field) => field.bytes().await?,
+        None => return Err(ComhairleError::BadRequest("Missing form field".to_string())),
+    };
+    if form_data.next_field().await?.is_some() {
+        return Err(ComhairleError::BadRequest(
+            "Only one file import allowed".to_string(),
+        ));
+    }
+
+    let mut imported_conversation: ImportExportConversationDto = serde_json::from_slice(&bytes)?;
+    // Add random suffix to slug to avoid unique constraint in db
+    let slug_suffix: String = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(10)
+        .map(char::from)
+        .collect();
+    imported_conversation.slug = imported_conversation
+        .slug
+        .map(|s| format!("{s}-{slug_suffix}"));
+
+    let create_conversation_params: CreateConversation = imported_conversation.into();
+    let new_conversation = conversation::create(
+        &state.db,
+        &state.bot_service,
+        &state.config,
+        &create_conversation_params,
+        user.id,
+        user.organization_id,
+    )
+    .await?;
+
+    Ok((StatusCode::CREATED, Json(new_conversation.into()))) // TODO: proper response
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
@@ -560,7 +592,16 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.summary("Export a conversation")
                     .description("Exports a conversation, workflows, steps etc to a json file.")
                     .response::<200, Json<ImportExportConversationDto>>()
-                    .tag("Email Notifications")
+                    .tag("Conversation")
+            }),
+        )
+        .api_route(
+            "/import",
+            post_with(import_conversation, |op| {
+                op.summary("Import a conversation")
+                    .description("Imports a conversation from an exported json file")
+                    .response::<200, Json<()>>()
+                    .tag("Conversation")
             }),
         )
         .with_state(state)

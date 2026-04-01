@@ -544,7 +544,6 @@ export const ImportExportConversationDto = z
     description: z.string(),
     faqs: z.union([z.string(), z.null()]).optional(),
     imageUrl: z.string(),
-    isComplete: z.boolean(),
     isInviteOnly: z.boolean(),
     isLive: z.boolean(),
     isPublic: z.boolean(),
@@ -2642,6 +2641,22 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
       },
     ],
     response: WorkflowStepDto,
+  },
+  {
+    method: "post",
+    path: "/conversation/import",
+    alias: "postConversationimport",
+    description: `Imports a conversation from an exported json file`,
+    requestFormat: "form-data",
+    parameters: [
+      {
+        name: "body",
+        description: `multipart form data`,
+        type: "Body",
+        schema: z.array(z.any()),
+      },
+    ],
+    response: z.null(),
   },
   {
     method: "get",
