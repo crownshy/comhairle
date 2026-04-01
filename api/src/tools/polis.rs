@@ -209,15 +209,6 @@ async fn get_report_data(
         _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
     };
 
-    // Login as admin to access the data export
-    state
-        .wiki_poll_service
-        .login(&WikiPollLogin {
-            email: config.admin_user,
-            password: config.admin_password,
-        })
-        .await?;
-
     // Get the report data
     let data = state
         .wiki_poll_service
