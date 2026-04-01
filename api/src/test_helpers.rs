@@ -98,7 +98,7 @@ pub fn test_state(
         bot_service: Some(bot_service.unwrap_or_else(|| mock_bot_service())),
         wiki_poll_service: wiki_poll_service.unwrap_or_else(|| mock_wiki_poll_service()),
         bulk_storage_service: bulk_storage_service.unwrap_or_else(mock_bulk_storage),
-        worker_service: worker_service.unwrap_or_else(|| mock_worker_service()),
+        worker_service: Some(worker_service.unwrap_or_else(|| mock_worker_service())),
     };
     Ok(state)
 }
