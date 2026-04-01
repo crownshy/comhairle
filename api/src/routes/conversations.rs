@@ -1,8 +1,10 @@
 use std::sync::Arc;
 
 use axum::{
+    body::Body,
     extract::{Json, Path, Query, State},
-    http::StatusCode,
+    http::{HeaderValue, StatusCode},
+    response::Response,
 };
 
 use aide::axum::{
@@ -10,6 +12,8 @@ use aide::axum::{
     ApiRouter,
 };
 
+use hyper::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
+use rand::{distributions::Alphanumeric, Rng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
@@ -30,11 +34,13 @@ use crate::{
             self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
         },
         pagination::{OrderParams, PageOptions, PaginatedResults},
-        user_participation::{self},
         user_conversation_preferences,
+        user_participation::{self},
     },
     routes::{
-        conversations::dto::{ConversationDto, LocalizedConversationDto},
+        conversations::dto::{
+            ConversationDto, ImportExportConversationDto, LocalizedConversationDto,
+        },
         translations::LocaleExtractor,
     },
     ComhairleState,
@@ -356,7 +362,8 @@ async fn export_conversation_contacts(
     conversation::get_by_id(&state.db, &conversation_id).await?;
 
     // Get all contacts who opted in
-    let contacts = user_conversation_preferences::get_contacts_for_export(&state.db, &conversation_id).await?;
+    let contacts =
+        user_conversation_preferences::get_contacts_for_export(&state.db, &conversation_id).await?;
 
     // Generate CSV
     let mut csv_output = Vec::new();
@@ -377,8 +384,18 @@ async fn export_conversation_contacts(
             writer.write_record(&[
                 contact.email,
                 contact.user_type,
-                if contact.conversation_updates { "Yes" } else { "No" }.to_string(),
-                if contact.similar_conversations_updates { "Yes" } else { "No" }.to_string(),
+                if contact.conversation_updates {
+                    "Yes"
+                } else {
+                    "No"
+                }
+                .to_string(),
+                if contact.similar_conversations_updates {
+                    "Yes"
+                } else {
+                    "No"
+                }
+                .to_string(),
                 contact.signup_date.to_rfc3339(),
             ])?;
         }
@@ -395,11 +412,54 @@ async fn export_conversation_contacts(
     Ok((
         StatusCode::OK,
         [
-            ("Content-Type".to_string(), "text/csv; charset=utf-8".to_string()),
-            ("Content-Disposition".to_string(), format!("attachment; filename=\"{}\"", filename)),
+            (
+                "Content-Type".to_string(),
+                "text/csv; charset=utf-8".to_string(),
+            ),
+            (
+                "Content-Disposition".to_string(),
+                format!("attachment; filename=\"{}\"", filename),
+            ),
         ],
         csv_string,
     ))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn export_conversation(
+    State(state): State<Arc<ComhairleState>>,
+    Path(conversation_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+) -> Result<Response, ComhairleError> {
+    let mut conversation: ImportExportConversationDto =
+        conversation::get_localised_by_id(&state.db, &conversation_id, &locale)
+            .await?
+            .into();
+    // Add random suffix to slug to avoid unique constraint on import
+    // TODO: potentially move to import functionality so that export is pure representation of
+    // conversation
+    let slug_suffix: String = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(10)
+        .map(char::from)
+        .collect();
+    conversation.slug = conversation.slug.map(|s| format!("{s}-{slug_suffix}"));
+
+    let json = serde_json::to_vec(&conversation)?;
+    let content_disposition = HeaderValue::from_str(&format!(
+        "attachment; filename=\"conversation-{conversation_id}.json\""
+    ))?;
+
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(CONTENT_TYPE, "application/json")
+        .header(CONTENT_DISPOSITION, content_disposition)
+        .body(Body::from(json))?;
+
+    // TODO: workflows / workflow_steps
+
+    Ok(response)
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
@@ -492,6 +552,15 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Export contact list for conversation")
                     .description("Exports a CSV file containing all users who have opted in to receive email updates for this conversation")
                     .tag("Conversation")
+            }),
+        )
+        .api_route(
+            "/{conversation_id}/export",
+            get_with(export_conversation, |op| {
+                op.summary("Export a conversation")
+                    .description("Exports a conversation, workflows, steps etc to a json file.")
+                    .response::<200, Json<ImportExportConversationDto>>()
+                    .tag("Email Notifications")
             }),
         )
         .with_state(state)
