@@ -135,7 +135,7 @@
 	"polis_voted_everything": "Vous avez voté sur tout. Merci !",
 	"polis_come_back_later": "Revenez plus tard pour voir si de nouvelles opinions ont été ajoutées.",
 	"polis_error_description": "Nous n'avons pas pu charger les opinions pour le moment. Il peut s'agir d'un problème temporaire.",
-	"polis_seed_statement": "Soumis par le propriétaire de la conversation",
+	"polis_seed_statement": "Amorce de conversation",
 	"password_updated_successfully": "Mot de passe mis à jour avec succès",
 	"password_updated_successfully_body": "Votre mot de passe a été modifié. Vous pouvez continuer à utiliser l'application.",
 	"continue_to_home": "Continuer vers l'accueil"
