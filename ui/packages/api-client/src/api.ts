@@ -530,6 +530,31 @@ export const RegisterEmailResponse = z
   })
   .passthrough();
 export type RegisterEmailResponse = z.infer<typeof RegisterEmailResponse>;
+export const ImportExportConversationDto = z
+  .object({
+    description: z.string(),
+    faqs: z.union([z.string(), z.null()]).optional(),
+    imageUrl: z.string(),
+    isComplete: z.boolean(),
+    isInviteOnly: z.boolean(),
+    isLive: z.boolean(),
+    isPublic: z.boolean(),
+    organizationId: z.union([z.string(), z.null()]).optional(),
+    primaryLocale: z.string(),
+    privacyPolicy: z.union([z.string(), z.null()]).optional(),
+    shortDescription: z.string(),
+    shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
+    slug: z.union([z.string(), z.null()]).optional(),
+    supportedLanguages: z.array(z.string()),
+    tags: z.array(z.string()),
+    thankYouMessage: z.union([z.string(), z.null()]).optional(),
+    title: z.string(),
+    videoUrl: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type ImportExportConversationDto = z.infer<
+  typeof ImportExportConversationDto
+>;
 export const WorkflowDto = z
   .object({
     autoLogin: z.boolean(),
@@ -1391,6 +1416,7 @@ export const schemas = {
   SendEmailNotificationResponse,
   RegisterEmailRequest,
   RegisterEmailResponse,
+  ImportExportConversationDto,
   WorkflowDto,
   CreateWorkflow,
   PartialWorkflow,
@@ -2186,6 +2212,14 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
       },
     ],
     response: WorkflowStepDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/export",
+    alias: "getConversationConversation_idexport",
+    description: `Exports a conversation, workflows, steps etc to a json file.`,
+    requestFormat: "json",
+    response: ImportExportConversationDto,
   },
   {
     method: "get",
