@@ -62,7 +62,7 @@ pub struct ComhairleState {
     pub wiki_poll_service: Arc<dyn WikiPollService>,
     pub bulk_storage_service: Arc<dyn BulkStorageService>,
     pub transcription_service: Option<Arc<dyn Transcriber>>,
-    pub worker_service: Arc<dyn WorkerService>,
+    pub worker_service: Option<Arc<dyn WorkerService>>,
 }
 
 impl ComhairleState {
@@ -70,6 +70,12 @@ impl ComhairleState {
         self.bot_service
             .as_ref()
             .ok_or(ComhairleError::NoBotServiceConfigured)
+    }
+
+    fn required_worker_service(&self) -> Result<&Arc<dyn WorkerService>, ComhairleError> {
+        self.worker_service
+            .as_ref()
+            .ok_or(ComhairleError::NoWorkerServiceConfigured)
     }
 }
 

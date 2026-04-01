@@ -55,7 +55,7 @@ pub struct VideoCallConfig {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct WorkersConfig {
+pub struct WorkerConfig {
     pub redis_url: String,
 }
 
@@ -78,5 +78,5 @@ pub struct ComhairleConfig {
     pub polis_url: String,
     pub video_call_service: Option<VideoCallConfig>,
     pub transcription_service: Option<TranscriptionServiceConfig>,
-    pub workers: WorkersConfig,
+    pub worker_service: Option<WorkerConfig>,
 }
