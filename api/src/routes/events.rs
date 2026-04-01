@@ -231,14 +231,15 @@ async fn process_transcription(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<ProcessTrascriptionResponse>), ComhairleError> {
+    let worker_service = state.required_worker_service()?;
+
     let create_job = CreateJob {
         progress: Some(0.0),
         ..Default::default()
     };
     let job = job::create(&state.db, create_job).await?;
 
-    state
-        .worker_service
+    worker_service
         .push_transcription_job(TranscribeRecording {
             event_id,
             job_id: job.id,
