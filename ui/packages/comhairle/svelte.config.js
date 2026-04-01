@@ -4,7 +4,10 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 const TRUSTED_SOURCES = [
 	'https://jitsi.comhairle.scot',
 	'https://forms.comhairle.scot',
-	'https://polis.comhairle.scot'
+	'https://polis.comhairle.scot',
+	'https://www.youtube.com',
+	'https://youtube.com',
+	'https://www.youtube-nocookie.com'
 ];
 
 /** @type {import('@sveltejs/kit').Config} */
