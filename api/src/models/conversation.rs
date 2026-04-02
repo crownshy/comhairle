@@ -76,13 +76,14 @@ pub struct Conversation {
     pub faqs: Option<TextContentId>,
     #[partially(transparent)]
     pub thank_you_message: Option<TextContentId>,
+    pub enable_signup_prompts: bool,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ConversationIden; 26] = [
+const DEFAULT_COLUMNS: [ConversationIden; 27] = [
     ConversationIden::Id,
     ConversationIden::Title,
     ConversationIden::ShortDescription,
@@ -109,6 +110,7 @@ const DEFAULT_COLUMNS: [ConversationIden; 26] = [
     ConversationIden::ShortPrivacyPolicy,
     ConversationIden::Faqs,
     ConversationIden::ThankYouMessage,
+    ConversationIden::EnableSignupPrompts,
 ];
 
 impl PartialConversation {
@@ -177,6 +179,9 @@ impl PartialConversation {
         };
         if let Some(value) = &self.thank_you_message {
             values.push((ConversationIden::ThankYouMessage, (*value).into()))
+        };
+        if let Some(value) = &self.enable_signup_prompts {
+            values.push((ConversationIden::EnableSignupPrompts, (*value).into()))
         };
 
         if let Some(value) = &self.supported_languages {

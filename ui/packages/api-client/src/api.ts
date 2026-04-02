@@ -79,6 +79,7 @@ export const ConversationDto = z
     chatBotId: z.union([z.string(), z.null()]).optional(),
     description: z.string().uuid(),
     enableQaChatBot: z.boolean(),
+    enableSignupPrompts: z.boolean(),
     faqs: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     imageUrl: z.string(),
@@ -112,6 +113,7 @@ export const LocalizedConversationDto = z
     chatBotId: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     enableQaChatBot: z.boolean(),
+    enableSignupPrompts: z.boolean(),
     faqs: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     imageUrl: z.string(),
@@ -431,6 +433,7 @@ export const ConversationWithTranslations = z
     defaultWorkflowId: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     enableQaChatBot: z.boolean(),
+    enableSignupPrompts: z.boolean(),
     faqs: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     imageUrl: z.string(),
@@ -469,6 +472,7 @@ export const PartialConversation = z
     default_workflow_id: z.union([z.string(), z.null()]),
     description: z.union([z.string(), z.null()]),
     enable_qa_chat_bot: z.union([z.boolean(), z.null()]),
+    enable_signup_prompts: z.union([z.boolean(), z.null()]),
     faqs: z.union([z.string(), z.null()]),
     image_url: z.union([z.string(), z.null()]),
     is_complete: z.union([z.boolean(), z.null()]),
@@ -655,6 +659,25 @@ export const WorkflowStats = z
   })
   .passthrough();
 export type WorkflowStats = z.infer<typeof WorkflowStats>;
+export const DemographicCategory = z
+  .object({
+    category: z.string(),
+    count: z.number().int(),
+    value: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type DemographicCategory = z.infer<typeof DemographicCategory>;
+export const DemographicReport = z
+  .object({
+    ageRanges: z.array(DemographicCategory),
+    ethnicity: z.array(DemographicCategory),
+    gender: z.array(DemographicCategory),
+    politicalParty: z.array(DemographicCategory),
+    totalParticipants: z.number().int(),
+    zipcodeCounts: z.record(z.number().int()),
+  })
+  .passthrough();
+export type DemographicReport = z.infer<typeof DemographicReport>;
 export const UserParticipation = z
   .object({
     created_at: z.string().datetime({ offset: true }),
@@ -1373,6 +1396,8 @@ export const schemas = {
   DailySignupStats,
   WorkflowStepStats,
   WorkflowStats,
+  DemographicCategory,
+  DemographicReport,
   UserParticipation,
   Translation2,
   WorkflowStepTranslations,
@@ -2404,6 +2429,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
   },
   {
     method: "get",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/participation_report",
+    alias: "GetConversationWorkflowParticipationReport",
+    requestFormat: "json",
+    response: DemographicReport,
+  },
+  {
+    method: "get",
     path: "/conversation/:conversation_id/workflow/:workflow_id/progress",
     alias: "GetUserProgress",
     requestFormat: "json",
@@ -2877,6 +2909,21 @@ Use a raw HTTP request and process the response body incrementally.
     path: "/tools/polis/admin_login",
     alias: "PolisAdminLogin",
     description: `Logs into Polis as admin and returns session cookie`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/tools/polis/report_data",
+    alias: "PolisGetReportData",
+    description: `Fetches the polis data export for a given workflow step`,
     requestFormat: "json",
     parameters: [
       {
