@@ -194,11 +194,12 @@
 							onNextAction={handleNextAction}
 						/>
 					{/if}
-					{#if toolConfig.type === Polis.TOOL_NAME}
+					{#if toolConfig?.type === Polis.TOOL_NAME}
 						<Polis.UserUI
 							user_id={user.id}
 							polis_id={toolConfig.poll_id}
 							polis_url={toolConfig.server_url}
+							requiredVotes={toolConfig.required_votes}
 							workflowStepId={workflowStep.id}
 							onDone={stepComplete}
 							onCanContinueChange={handleCanContinueChange}

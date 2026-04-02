@@ -10,7 +10,7 @@ use reqwest::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tracing::{info, instrument, warn};
+use tracing::{instrument, warn};
 
 use crate::{
     tools::polis::PolisError,

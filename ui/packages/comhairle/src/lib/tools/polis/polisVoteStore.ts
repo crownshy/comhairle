@@ -5,43 +5,43 @@ interface PolisVoteData {
 	hasMetThreshold: boolean;
 }
 
-function storageKey(userId: string, workflowStepId: string): string {
-	return `${STORAGE_PREFIX}-${userId}-${workflowStepId}`;
+function storageKey(userId: string, polisId: string): string {
+	return `${STORAGE_PREFIX}-${userId}-${polisId}`;
 }
 
-function load(userId: string, workflowStepId: string): PolisVoteData {
+function load(userId: string, polisId: string): PolisVoteData {
 	if (typeof window === 'undefined') return { totalVotes: 0, hasMetThreshold: false };
 	try {
-		const raw = localStorage.getItem(storageKey(userId, workflowStepId));
+		const raw = localStorage.getItem(storageKey(userId, polisId));
 		return raw ? JSON.parse(raw) : { totalVotes: 0, hasMetThreshold: false };
 	} catch {
 		return { totalVotes: 0, hasMetThreshold: false };
 	}
 }
 
-function save(userId: string, workflowStepId: string, data: PolisVoteData): void {
+function save(userId: string, polisId: string, data: PolisVoteData): void {
 	if (typeof window === 'undefined') return;
 	try {
-		localStorage.setItem(storageKey(userId, workflowStepId), JSON.stringify(data));
+		localStorage.setItem(storageKey(userId, polisId), JSON.stringify(data));
 	} catch {
 		/* ignore */
 	}
 }
 
-export function getVoteData(userId: string, workflowStepId: string): PolisVoteData {
-	return load(userId, workflowStepId);
+export function getVoteData(userId: string, polisId: string): PolisVoteData {
+	return load(userId, polisId);
 }
 
 export function incrementVotes(
 	userId: string,
-	workflowStepId: string,
+	polisId: string,
 	requiredVotes: number
 ): PolisVoteData {
-	const data = load(userId, workflowStepId);
+	const data = load(userId, polisId);
 	data.totalVotes++;
 	if (data.totalVotes >= requiredVotes) {
 		data.hasMetThreshold = true;
 	}
-	save(userId, workflowStepId, data);
+	save(userId, polisId, data);
 	return data;
 }
