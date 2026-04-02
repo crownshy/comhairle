@@ -35,7 +35,7 @@ use crate::{
         },
         pagination::{OrderParams, PageOptions, PaginatedResults},
         user_participation::{self},
-        workflow,
+        workflow::{self, CreateWorkflow},
     },
     routes::{
         conversations::dto::{
@@ -406,7 +406,17 @@ async fn import_conversation(
         ));
     }
 
-    let mut imported_conversation: ImportExportConversationDto = serde_json::from_slice(&bytes)?;
+    let import: ImportExportConversationWithWorkflowDto = serde_json::from_slice(&bytes)?;
+    let mut imported_conversation = import.conversation;
+    let imported_workflow =
+        import
+            .workflows
+            .into_iter()
+            .next()
+            .ok_or(ComhairleError::CorruptedData(
+                "Missing workflow".to_string(),
+            ))?;
+
     // Add random suffix to slug to avoid unique constraint in db
     let slug_suffix: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
@@ -425,6 +435,16 @@ async fn import_conversation(
         &create_conversation_params,
         user.id,
         user.organization_id,
+    )
+    .await?;
+
+    let create_workflow_params: CreateWorkflow = imported_workflow.into();
+    let _new_workflow = workflow::create(
+        &state.db,
+        &create_workflow_params,
+        Some(new_conversation.id),
+        None,
+        user.id,
     )
     .await?;
 
