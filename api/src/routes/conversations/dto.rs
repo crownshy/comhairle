@@ -8,7 +8,7 @@ use crate::{
         pagination::PaginatedResults,
         translations::TextContentId,
     },
-    routes::workflows::dto::ImportExportWorkflowDto,
+    routes::workflows::dto::ImportExportWorkflowWithWorkflowStepsDto,
     schema_helpers::{example_bot_service_id, example_localized_text, example_uuid},
 };
 
@@ -161,7 +161,6 @@ pub struct ImportExportConversationDto {
     pub image_url: String,
     pub tags: Vec<String>,
     pub is_public: bool,
-    pub is_live: bool,
     pub is_invite_only: bool,
     pub slug: Option<String>,
     pub primary_locale: String,
@@ -182,7 +181,7 @@ pub struct ImportExportConversationDto {
 pub struct ImportExportConversationWithWorkflowDto {
     #[serde(flatten)]
     pub conversation: ImportExportConversationDto,
-    pub workflows: Vec<ImportExportWorkflowDto>,
+    pub workflows: Vec<ImportExportWorkflowWithWorkflowStepsDto>,
 }
 
 impl From<Conversation> for ConversationDto {
@@ -257,7 +256,6 @@ impl From<LocalizedConversation> for ImportExportConversationDto {
             image_url: c.image_url,
             tags: c.tags,
             is_public: c.is_public,
-            is_live: c.is_live,
             is_invite_only: c.is_invite_only,
             slug: c.slug,
             primary_locale: c.primary_locale,
@@ -281,7 +279,7 @@ impl From<ImportExportConversationDto> for CreateConversation {
             image_url: c.image_url,
             tags: Some(c.tags),
             is_public: c.is_public,
-            is_live: c.is_live,
+            is_live: false,
             is_invite_only: c.is_invite_only,
             slug: c.slug,
             primary_locale: c.primary_locale,

@@ -11,7 +11,7 @@ use crate::{
         },
     },
     schema_helpers::{example_localized_text, example_uuid},
-    tools::ToolConfig,
+    tools::{elicitation_bot::ElicitationBotToolConfig, learn::LearnToolConfig, ToolConfig},
 };
 
 /// Data transfer object (public API representation) for a WorkflowStep.
@@ -119,6 +119,47 @@ pub struct LocalizedWorkflowStepWithProgressDto {
     pub progress_status: ProgressStatus,
 }
 
+/// Data transfer object (public API representation) for importing / exporting
+/// of a workflow_step.
+///
+/// This DTO is returned by workflow step related endpoints and is safe to expose
+/// to clients. It intentionally omits fields such as:
+///
+/// * `id`
+/// * `created_at`
+/// * `updated_at`
+///
+/// It includes localized `String` values for translatable fields:
+///
+/// * `name`
+/// * `description`
+///
+/// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportExportWorkflowStepDto {
+    #[schemars(example = "example_localized_text")]
+    pub name: String,
+    pub step_order: i32,
+    pub activation_rule: ActivationRule,
+    #[schemars(example = "example_localized_text")]
+    pub description: String,
+    pub is_offline: bool,
+    pub required: bool,
+    pub can_revisit: bool,
+    pub preview_tool_config: Option<ImportExportToolConfig>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub enum ImportExportToolConfig {
+    Polis,
+    Learn(LearnToolConfig),
+    HeyForm,
+    Stories,
+    ElicitationBot(ElicitationBotToolConfig),
+}
+
 impl From<WorkflowStep> for WorkflowStepDto {
     fn from(w: WorkflowStep) -> Self {
         Self {
@@ -170,6 +211,21 @@ impl From<LocalizedWorkflowStepWithProgress> for LocalizedWorkflowStepWithProgre
             tool_config: w.step.tool_config,
             preview_tool_config: w.step.preview_tool_config,
             progress_status: w.status,
+        }
+    }
+}
+
+impl From<LocalizedWorkflowStep> for ImportExportWorkflowStepDto {
+    fn from(w: LocalizedWorkflowStep) -> Self {
+        Self {
+            name: w.name,
+            step_order: w.step_order,
+            activation_rule: w.activation_rule,
+            description: w.description,
+            is_offline: w.is_offline,
+            required: w.required,
+            can_revisit: w.can_revisit,
+            preview_tool_config: None,
         }
     }
 }
