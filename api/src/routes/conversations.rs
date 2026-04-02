@@ -35,12 +35,15 @@ use crate::{
         },
         pagination::{OrderParams, PageOptions, PaginatedResults},
         user_participation::{self},
+        workflow,
     },
     routes::{
         conversations::dto::{
-            ConversationDto, ImportExportConversationDto, LocalizedConversationDto,
+            ConversationDto, ImportExportConversationDto, ImportExportConversationWithWorkflowDto,
+            LocalizedConversationDto,
         },
         translations::LocaleExtractor,
+        workflows::dto::ImportExportWorkflowDto,
     },
     ComhairleState,
 };
@@ -359,11 +362,18 @@ async fn export_conversation(
     RequiredAdminUser(_user): RequiredAdminUser,
     LocaleExtractor(locale): LocaleExtractor,
 ) -> Result<Response, ComhairleError> {
-    let conversation: ImportExportConversationDto =
-        conversation::get_localised_by_id(&state.db, &conversation_id, &locale)
-            .await?
-            .into();
-    let json = serde_json::to_vec(&conversation)?;
+    let conversation =
+        conversation::get_localised_by_id(&state.db, &conversation_id, &locale).await?;
+    let workflow = workflow::get_by_conversation_id(&state.db, &conversation_id).await?;
+
+    let conversation: ImportExportConversationDto = conversation.into();
+    let workflow: ImportExportWorkflowDto = workflow.into();
+
+    let combined = ImportExportConversationWithWorkflowDto {
+        conversation,
+        workflows: vec![workflow],
+    };
+    let json = serde_json::to_vec(&combined)?;
     let content_disposition = HeaderValue::from_str(&format!(
         "attachment; filename=\"conversation-{conversation_id}.json\""
     ))?;
@@ -374,7 +384,7 @@ async fn export_conversation(
         .header(CONTENT_DISPOSITION, content_disposition)
         .body(Body::from(json))?;
 
-    // TODO: workflows / workflow_steps
+    // TODO: workflow_steps
 
     Ok(response)
 }
