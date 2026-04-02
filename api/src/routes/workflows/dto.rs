@@ -3,7 +3,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::models::workflow::{CreateWorkflow, Workflow};
+use crate::{
+    models::workflow::{CreateWorkflow, Workflow},
+    routes::workflow_steps::dto::ImportExportWorkflowStepDto,
+};
 
 /// Data transfer object (public API representation) for a Workflow.
 ///
@@ -52,6 +55,14 @@ pub struct ImportExportWorkflowDto {
     pub is_public: bool,
     pub auto_login: bool,
     pub region_id: Option<Uuid>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportExportWorkflowWithWorkflowStepsDto {
+    #[serde(flatten)]
+    pub workflow: ImportExportWorkflowDto,
+    pub workflow_steps: Vec<ImportExportWorkflowStepDto>,
 }
 
 impl From<Workflow> for WorkflowDto {
