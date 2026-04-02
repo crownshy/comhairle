@@ -8,6 +8,7 @@ use crate::{
         pagination::PaginatedResults,
         translations::TextContentId,
     },
+    routes::workflows::dto::ImportExportWorkflowDto,
     schema_helpers::{example_bot_service_id, example_localized_text, example_uuid},
 };
 
@@ -127,12 +128,13 @@ pub struct LocalizedConversationDto {
     pub show_thank_you_page_annon_instructions: bool,
 }
 
-/// Data transfer object (public API representation) for a importing / exporting
+/// Data transfer object (public API representation) for importing / exporting
 /// of a conversation.
 ///
 /// This DTO is returned by conversation related endpoints and is safe to expose
 /// to clients. It intentionally omits fields such as:
 ///
+/// * `id`
 /// * `owner_id`
 /// * `default_workflow_id`
 /// * `knowledge_base_id`
@@ -175,6 +177,14 @@ pub struct ImportExportConversationDto {
     pub faqs: Option<String>,
     #[schemars(example = "example_localized_text")]
     pub thank_you_message: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportExportConversationWithWorkflowDto {
+    #[serde(flatten)]
+    pub conversation: ImportExportConversationDto,
+    pub workflows: Vec<ImportExportWorkflowDto>,
 }
 
 impl From<Conversation> for ConversationDto {
