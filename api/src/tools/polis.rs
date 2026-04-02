@@ -29,9 +29,9 @@ use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
 pub struct PolisToolConfig {
     pub server_url: String,
     pub poll_id: String,
-
     pub admin_user: String,
     pub admin_password: String,
+    pub required_votes: Option<i32>,
 }
 
 impl ToolConfigSanitize for PolisToolConfig {
@@ -41,6 +41,7 @@ impl ToolConfigSanitize for PolisToolConfig {
             admin_password: "".into(),
             server_url: self.server_url.clone(),
             poll_id: self.poll_id.clone(),
+            required_votes: self.required_votes,
         }
     }
 }
@@ -48,6 +49,7 @@ impl ToolConfigSanitize for PolisToolConfig {
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct PolisToolSetup {
     pub topic: String,
+    pub required_votes: Option<i32>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
@@ -201,8 +203,6 @@ async fn get_report_data(
 ) -> Result<(StatusCode, Json<WikiPollReport>), ComhairleError> {
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
 
-    println!("{workflow_step:#?}");
-
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::Polis(config)), _) => config,
         (None, ToolConfig::Polis(config)) => config,
@@ -263,7 +263,10 @@ pub async fn launch(
     let seed_statements = client.get_comments(&preview_config.poll_id).await?;
 
     let live_poll_config = polis_setup(
-        &PolisToolSetup { topic: "".into() },
+        &PolisToolSetup {
+            topic: "".into(),
+            required_votes: preview_config.required_votes,
+        },
         &preview_config.server_url,
         client,
     )
@@ -289,7 +292,7 @@ pub async fn launch(
 }
 
 async fn polis_setup(
-    _setup: &PolisToolSetup,
+    setup: &PolisToolSetup,
     polis_url: &str,
     client: &Arc<dyn WikiPollService>,
 ) -> Result<PolisToolConfig, ComhairleError> {
@@ -307,5 +310,6 @@ async fn polis_setup(
         poll_id,
         admin_user: email,
         admin_password: password,
+        required_votes: Some(setup.required_votes.unwrap_or(10)),
     })
 }

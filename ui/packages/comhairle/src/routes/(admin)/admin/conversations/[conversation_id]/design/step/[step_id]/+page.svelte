@@ -12,6 +12,7 @@
 
 	let conversation = $derived(data.conversation);
 	let step_id = $derived(data.step_id);
+	let workflow = $derived(data.workflows[0]);
 	let workflowSteps = $derived(data.workflowSteps);
 
 	let step = $derived(workflowSteps.find((s) => s.id === step_id));
@@ -30,7 +31,6 @@
 		breadcrumbs: breadcrumbSnippet
 	});
 	let pageTitle = $derived(`Edit Step: ${step?.name ?? 'Step'}`);
-	console.log('Toll config ', toolConfig);
 </script>
 
 <svelte:head>
@@ -83,11 +83,10 @@
 
 {#if toolConfig?.type === 'polis'}
 	<PolisManage
-		polis_id={toolConfig.poll_id}
-		polis_url={toolConfig.server_url}
-		admin_user={toolConfig.admin_user}
-		admin_password={toolConfig.admin_password}
-		workflow_step_id={step.id}
+		{toolConfig}
+		conversationId={conversation.id}
+		workflowId={workflow.id}
+		workflowStepId={step.id}
 	/>
 {/if}
 

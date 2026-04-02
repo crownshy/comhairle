@@ -1,34 +1,98 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
+	import Input from '$lib/components/ui/input/input.svelte';
+	import Label from '$lib/components/ui/label/label.svelte';
+	import { notifications } from '$lib/notifications.svelte';
+	import { camelToSentenceCase, camelToSnakeCase } from '$lib/utils/casingUtils';
+	import { apiClient } from '@crownshy/api-client/client';
+	import { useDebounce } from 'runed';
+
 	let {
-		polis_id,
-		polis_url,
-		admin_password,
-		admin_user
+		toolConfig,
+		conversationId,
+		workflowId,
+		workflowStepId
 	}: {
-		polis_id: string;
-		polis_url: string;
-		workflow_step_id: string;
-		admin_user: string;
-		admin_password: string;
+		toolConfig: any; // TODO:
+		conversationId: string;
+		workflowId: string;
+		workflowStepId: string;
 	} = $props();
 
-	let base_url = $derived(polis_url.startsWith('https://') ? polis_url : `https://${polis_url}`);
-	let url = $derived(`${base_url}/m/${polis_id}`);
+	const {
+		poll_id: polisId,
+		server_url: polisUrl,
+		admin_password: adminPassword,
+		admin_user: adminUser,
+		required_votes: requiredVotes
+	} = $derived(toolConfig);
+
+	let base_url = $derived(polisUrl.startsWith('https://') ? polisUrl : `https://${polisUrl}`);
+	let url = $derived(`${base_url}/m/${polisId}`);
 	let iframe = $state();
 	let firstLoad = $state(true);
 
 	function tryLogin() {
 		if (firstLoad) {
 			iframe.contentWindow.postMessage(
-				{ user: admin_user, password: admin_password, type: 'POLIS_LOGIN' },
+				{ user: adminUser, password: adminPassword, type: 'POLIS_LOGIN' },
 				base_url
 			);
 			firstLoad = false;
 		}
 	}
+
+	const debouncedUpdateToolConfig = useDebounce(async (e: Event, field: string) => {
+		const value = +(e.target as HTMLInputElement).value;
+
+		try {
+			await apiClient.UpdateConversationWorkflowStep(
+				{
+					preview_tool_config: { ...toolConfig, [camelToSnakeCase(field)]: value }
+				},
+				{
+					params: {
+						conversation_id: conversationId,
+						workflow_id: workflowId,
+						workflow_step_id: workflowStepId
+					}
+				}
+			);
+			notifications.send({
+				priority: 'INFO',
+				message: `Updated ${camelToSentenceCase(field)}`
+			});
+			await invalidateAll();
+		} catch (e) {
+			console.error(e);
+			notifications.send({ priority: 'ERROR', message: 'Failed to update tool config' });
+		}
+	}, 500);
+
+	function handleUpdateToolConfig(e: Event, field: string) {
+		debouncedUpdateToolConfig(e, field);
+	}
 </script>
 
 <h2 class="my-5 text-2xl font-bold">Polis Setup</h2>
+
+<div class="mb-8">
+	<div class="flex flex-col">
+		<Label for="requiredVotes" class="text-lg font-semibold">Required votes</Label>
+		<span class="mb-4 text-sm"
+			>Number of votes required before a user is able to progress to the next step</span
+		>
+		<Input
+			id="requiredVotes"
+			name="requiredVotes"
+			type="number"
+			class="w-1/4"
+			defaultvalue={requiredVotes}
+			oninput={(e) => handleUpdateToolConfig(e, 'requiredVotes')}
+		/>
+	</div>
+</div>
+
 <div class="grid grid-cols-[1fr_30vw]">
 	<iframe
 		bind:this={iframe}
