@@ -536,7 +536,6 @@ export const ImportExportConversationDto = z
     faqs: z.union([z.string(), z.null()]).optional(),
     imageUrl: z.string(),
     isInviteOnly: z.boolean(),
-    isLive: z.boolean(),
     isPublic: z.boolean(),
     organizationId: z.union([z.string(), z.null()]).optional(),
     primaryLocale: z.string(),

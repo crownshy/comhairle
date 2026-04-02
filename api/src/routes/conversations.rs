@@ -36,6 +36,7 @@ use crate::{
         pagination::{OrderParams, PageOptions, PaginatedResults},
         user_participation::{self},
         workflow::{self, CreateWorkflow},
+        workflow_step,
     },
     routes::{
         conversations::dto::{
@@ -43,8 +44,10 @@ use crate::{
             LocalizedConversationDto,
         },
         translations::LocaleExtractor,
-        workflows::dto::ImportExportWorkflowDto,
+        workflow_steps::dto::{ImportExportToolConfig, ImportExportWorkflowStepDto},
+        workflows::dto::{ImportExportWorkflowDto, ImportExportWorkflowWithWorkflowStepsDto},
     },
+    tools::ToolConfig,
     ComhairleState,
 };
 
@@ -365,15 +368,39 @@ async fn export_conversation(
     let conversation =
         conversation::get_localised_by_id(&state.db, &conversation_id, &locale).await?;
     let workflow = workflow::get_by_conversation_id(&state.db, &conversation_id).await?;
+    let workflow_steps = workflow_step::list_localized(&state.db, &workflow.id, &locale).await?;
 
-    let conversation: ImportExportConversationDto = conversation.into();
-    let workflow: ImportExportWorkflowDto = workflow.into();
+    let conversation_dto: ImportExportConversationDto = conversation.into();
+    let workflow_dto: ImportExportWorkflowDto = workflow.into();
+    let mut workflow_step_dtos: Vec<ImportExportWorkflowStepDto> = vec![];
 
-    let combined = ImportExportConversationWithWorkflowDto {
-        conversation,
-        workflows: vec![workflow],
+    for step in workflow_steps {
+        // TODO: clone heyform with fresh credentials
+        let export_config = match step.preview_tool_config {
+            ToolConfig::Polis(_) => ImportExportToolConfig::Polis,
+            ToolConfig::HeyForm(_) => ImportExportToolConfig::HeyForm,
+            ToolConfig::Stories(_) => ImportExportToolConfig::Stories,
+            ToolConfig::Learn(ref config) => ImportExportToolConfig::Learn(config.clone()), // TODO:
+            // should figure out how to use clone_tool functionality
+            ToolConfig::ElicitationBot(ref config) => {
+                ImportExportToolConfig::ElicitationBot(config.clone())
+            }
+        };
+        let mut step_dto: ImportExportWorkflowStepDto = step.into();
+        step_dto.preview_tool_config = Some(export_config);
+        workflow_step_dtos.push(step_dto);
+    }
+
+    let combined_workflow = ImportExportWorkflowWithWorkflowStepsDto {
+        workflow: workflow_dto,
+        workflow_steps: workflow_step_dtos,
     };
-    let json = serde_json::to_vec(&combined)?;
+    let combined_conversation = ImportExportConversationWithWorkflowDto {
+        conversation: conversation_dto,
+        workflows: vec![combined_workflow],
+    };
+
+    let json = serde_json::to_vec(&combined_conversation)?;
     let content_disposition = HeaderValue::from_str(&format!(
         "attachment; filename=\"conversation-{conversation_id}.json\""
     ))?;
@@ -383,8 +410,6 @@ async fn export_conversation(
         .header(CONTENT_TYPE, "application/json")
         .header(CONTENT_DISPOSITION, content_disposition)
         .body(Body::from(json))?;
-
-    // TODO: workflow_steps
 
     Ok(response)
 }
@@ -438,7 +463,7 @@ async fn import_conversation(
     )
     .await?;
 
-    let create_workflow_params: CreateWorkflow = imported_workflow.into();
+    let create_workflow_params: CreateWorkflow = imported_workflow.workflow.into();
     let _new_workflow = workflow::create(
         &state.db,
         &create_workflow_params,
