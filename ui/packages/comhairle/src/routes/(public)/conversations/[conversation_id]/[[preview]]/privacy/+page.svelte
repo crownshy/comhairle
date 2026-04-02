@@ -6,6 +6,10 @@
 	let { conversation } = data;
 </script>
 
+<svelte:head>
+	<title>Privacy Policy - Comhairle</title>
+</svelte:head>
+
 {#if conversation.privacyPolicy}
 	<ContentRenderer content={conversation.privacyPolicy} />
 {:else}

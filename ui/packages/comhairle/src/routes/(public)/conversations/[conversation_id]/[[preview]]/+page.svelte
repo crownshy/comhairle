@@ -19,7 +19,7 @@
 	let privacyPolicyOpen = $state(false);
 
 	function handleJoin() {
-		if (conversation.privacyPolicy) {
+		if (conversation.shortPrivacyPolicy) {
 			privacyPolicyOpen = true;
 		} else {
 			doJoin();
