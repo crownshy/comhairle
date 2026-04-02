@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::models::workflow::Workflow;
+use crate::models::workflow::{CreateWorkflow, Workflow};
 
 /// Data transfer object (public API representation) for a Workflow.
 ///
@@ -73,6 +73,19 @@ impl From<Workflow> for WorkflowDto {
 
 impl From<Workflow> for ImportExportWorkflowDto {
     fn from(w: Workflow) -> Self {
+        Self {
+            name: w.name,
+            description: w.description,
+            is_active: w.is_active,
+            is_public: w.is_public,
+            auto_login: w.auto_login,
+            region_id: w.region_id,
+        }
+    }
+}
+
+impl From<ImportExportWorkflowDto> for CreateWorkflow {
+    fn from(w: ImportExportWorkflowDto) -> Self {
         Self {
             name: w.name,
             description: w.description,
