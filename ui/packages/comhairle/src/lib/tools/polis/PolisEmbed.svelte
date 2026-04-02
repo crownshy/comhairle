@@ -13,7 +13,7 @@
 		AlertTriangle
 	} from 'lucide-svelte';
 	import PolisApi, { type PolisApiState, type PolisStatement } from './PolisApi';
-	import { getVoteData, incrementVotes } from './polisVoteStore';
+	import { getVoteData, incrementVotes, resetVoteCount } from './polisVoteStore';
 	import * as m from '$lib/paraglide/messages';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 
@@ -137,6 +137,8 @@
 	}
 
 	function resumeVoting() {
+		resetVoteCount(user_id, polis_id);
+		totalVotes = 0;
 		screen = 'voting';
 	}
 
@@ -170,6 +172,11 @@
 			screen = 'voting';
 		}
 	}
+
+	const remainingBeforeContinue = $derived(requiredVotes - totalVotes);
+	const progress = $derived(
+		requiredVotes > 0 ? ((requiredVotes - remainingBeforeContinue) / requiredVotes) * 100 : 0
+	);
 </script>
 
 <div
@@ -191,6 +198,12 @@
 						total: displayedTotal
 					})}
 				</p>
+				<div class="bg-secondary/30 relative h-1.5 w-full">
+					<div
+						class="bg-secondary absolute top-0 left-0 h-full transition-all duration-300"
+						style="width: {progress}%"
+					></div>
+				</div>
 			{/if}
 
 			<!-- Statement text -->
