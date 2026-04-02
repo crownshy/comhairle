@@ -134,6 +134,7 @@ export default class PolisApi {
 			credentials: 'include',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
+				agid: 1,
 				conversation_id: this.polisId,
 				txt: statement,
 				vote: -1,
