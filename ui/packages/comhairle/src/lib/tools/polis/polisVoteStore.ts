@@ -32,6 +32,13 @@ export function getVoteData(userId: string, polisId: string): PolisVoteData {
 	return load(userId, polisId);
 }
 
+export function resetVoteCount(userId: string, polisId: string): PolisVoteData {
+	const data = load(userId, polisId);
+	data.totalVotes = 0;
+	save(userId, polisId, data);
+	return data;
+}
+
 export function incrementVotes(
 	userId: string,
 	polisId: string,

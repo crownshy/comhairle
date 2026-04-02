@@ -13,7 +13,7 @@
 		AlertTriangle
 	} from 'lucide-svelte';
 	import PolisApi, { type PolisApiState, type PolisStatement } from './PolisApi';
-	import { getVoteData, incrementVotes } from './polisVoteStore';
+	import { getVoteData, incrementVotes, resetVoteCount } from './polisVoteStore';
 	import * as m from '$lib/paraglide/messages';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 
@@ -137,6 +137,8 @@
 	}
 
 	function resumeVoting() {
+		resetVoteCount(user_id, polis_id);
+		totalVotes = 0;
 		screen = 'voting';
 	}
 
