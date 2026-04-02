@@ -10,8 +10,7 @@
 		X,
 		ChevronRight,
 		MessageSquare,
-		AlertTriangle,
-		RefreshCw
+		AlertTriangle
 	} from 'lucide-svelte';
 	import PolisApi, { type PolisApiState, type PolisStatement } from './PolisApi';
 	import { getVoteData, incrementVotes } from './polisVoteStore';
@@ -75,7 +74,7 @@
 
 	type Screen = 'voting' | 'add-opinion' | 'continue-prompt' | 'completed';
 
-	const initialData = getVoteData(user_id, stepId);
+	const initialData = getVoteData(user_id, polis_id);
 	let totalVotes = $state(initialData.totalVotes);
 	let hasMetThreshold = $state(initialData.hasMetThreshold);
 	let screen = $state<Screen>('voting');
@@ -120,7 +119,7 @@
 			anchoredRemaining--;
 		}
 
-		const data = incrementVotes(user_id, stepId, requiredVotes);
+		const data = incrementVotes(user_id, polis_id, requiredVotes);
 		hasMetThreshold = data.hasMetThreshold;
 
 		if (data.totalVotes === requiredVotes) {
