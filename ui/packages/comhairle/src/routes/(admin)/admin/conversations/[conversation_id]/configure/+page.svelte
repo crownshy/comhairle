@@ -48,6 +48,7 @@
 		$form.thankYouMessage = data.conversation.thankYouMessage;
 		$form.autoLogin = data.workflows[0]?.autoLogin;
 		$form.enableQaChatBot = data.conversation.enableQaChatBot;
+		$form.enableSignupPrompts = data.conversation.enableSignupPrompts;
 	});
 
 	function updateFormForLanguage(newLanguage: string) {
@@ -141,7 +142,8 @@
 			isPublic: data.conversation.isPublic,
 			isInviteOnly: data.conversation.isInviteOnly,
 			autoLogin: data.workflows[0].autoLogin,
-			enableQaChatBot: data.conversation.enableQaChatBot
+			enableQaChatBot: data.conversation.enableQaChatBot,
+			enableSignupPrompts: data.conversation.enableSignupPrompts
 		},
 		{
 			validators: zodClient(conversationConfigSchema),
@@ -568,6 +570,25 @@
 								</p>
 							</div>
 							<Switch {...props} bind:checked={$form.enableQaChatBot} />
+						</div>
+					{/snippet}
+				</Form.Control>
+				<Form.FieldErrors />
+			</Form.Field>
+
+			<Form.Field form={conversationForm} name="enableSignupPrompts">
+				<Form.Control>
+					{#snippet children({ props })}
+						<div class="flex items-center justify-between gap-4">
+							<div class="flex flex-col gap-1">
+								<Form.Label class="text-sm font-medium"
+									>Enable signup prompts</Form.Label
+								>
+								<p class="text-muted-foreground text-sm">
+									Toggle whether to display signup prompts on thank you page.
+								</p>
+							</div>
+							<Switch {...props} bind:checked={$form.enableSignupPrompts} />
 						</div>
 					{/snippet}
 				</Form.Control>

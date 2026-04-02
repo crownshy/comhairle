@@ -40,41 +40,44 @@
 		<ContentRenderer content={conversation.thankYouMessage} />
 	{/if}
 
-	<h2>Next steps</h2>
-	You can continue to contribute, let us know what you thought of the process or sign up for updates
-	on this project and others which you might be interested in.
-	<div class="mx-auto mt-10 flex flex-col justify-center gap-2 text-center md:flex-row">
-		<Button
-			class="no-underline"
-			variant="secondary"
-			href={workflow_step_url(conversation.id, workflow.id, 1)}>Contribute some more</Button
-		>
-		<FeedbackModal conversationId={conversation.id} />
-	</div>
-
-	<h2>Keep informed</h2>
-
-	{#if user.authType === 'annon'}
-		<p>
-			To receive updates on this conversation and future conversations, either update to a
-			full account
-		</p>
-
-		<div class="mt-5 mb-10 w-full">
-			<UpgradeAccountModal currentUser={user} />
+	{#if conversation.enableSignupPrompts}
+		<h2>Next steps</h2>
+		You can continue to contribute, let us know what you thought of the process or sign up for updates
+		on this project and others which you might be interested in.
+		<div class="mx-auto mt-10 flex flex-col justify-center gap-2 text-center md:flex-row">
+			<Button
+				class="no-underline"
+				variant="secondary"
+				href={workflow_step_url(conversation.id, workflow.id, 1)}
+				>Contribute some more</Button
+			>
+			<FeedbackModal conversationId={conversation.id} />
 		</div>
-		<p>or submit your email</p>
-		<div class="mb-10">
-			<EmailRegistrationForm conversation_id={conversation.id} />
-		</div>
-	{:else}
-		<p>
-			Use the following switches to opt into future communications. You can also update this
-			on your settings page.
-		</p>
-		<UserConversationPreferencesForm
-			conversationId={conversation.id}
-			isAnnon={user.authType === 'annon'}
-		/>
+
+		<h2>Keep informed</h2>
+
+		{#if user.authType === 'annon'}
+			<p>
+				To receive updates on this conversation and future conversations, either update to a
+				full account
+			</p>
+
+			<div class="mt-5 mb-10 w-full">
+				<UpgradeAccountModal currentUser={user} />
+			</div>
+			<p>or submit your email</p>
+			<div class="mb-10">
+				<EmailRegistrationForm conversation_id={conversation.id} />
+			</div>
+		{:else}
+			<p>
+				Use the following switches to opt into future communications. You can also update
+				this on your settings page.
+			</p>
+			<UserConversationPreferencesForm
+				conversationId={conversation.id}
+				isAnnon={user.authType === 'annon'}
+			/>
+		{/if}
 	{/if}
 </div>

@@ -18,5 +18,6 @@ export const conversationConfigSchema = z.object({
 	isPublic: z.boolean(),
 	isInviteOnly: z.boolean(),
 	autoLogin: z.boolean(),
-	enableQaChatBot: z.boolean()
+	enableQaChatBot: z.boolean(),
+	enableSignupPrompts: z.boolean()
 });
