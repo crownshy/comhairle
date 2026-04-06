@@ -46,6 +46,7 @@
 		$form.shortPrivacyPolicy = data.conversation.shortPrivacyPolicy;
 		$form.faqs = data.conversation.faqs;
 		$form.thankYouMessage = data.conversation.thankYouMessage;
+		$form.callToAction = data.conversation.callToAction;
 		$form.autoLogin = data.workflows[0]?.autoLogin;
 		$form.enableQaChatBot = data.conversation.enableQaChatBot;
 		$form.enableSignupPrompts = data.conversation.enableSignupPrompts;
@@ -139,6 +140,7 @@
 			shortPrivacyPolicy: data.conversation.shortPrivacyPolicy,
 			faqs: data.conversation.faqs,
 			thankYouMessage: data.conversation.thankYouMessage,
+			callToAction: data.conversation.callToAction,
 			isPublic: data.conversation.isPublic,
 			isInviteOnly: data.conversation.isInviteOnly,
 			autoLogin: data.workflows[0].autoLogin,
@@ -153,13 +155,17 @@
 		}
 	);
 
-	async function handleInitOptionalTranslationField(content: string, field: string) {
+	async function handleInitOptionalTranslationField(
+		content: string,
+		field: string,
+		format: 'plain' | 'rich' = 'rich'
+	) {
 		try {
 			if (!conversation) return;
 
 			const textContentRes = await apiClient.CreateTextContent({
 				content,
-				format: 'rich',
+				format,
 				primary_locale: conversation.primaryLocale
 			});
 
@@ -197,6 +203,8 @@
 				faqs: _faqs /* eslint-disable-line @typescript-eslint/no-unused-vars */,
 				thankYouMessage:
 					_thankYouMessage /* eslint-disable-line @typescript-eslint/no-unused-vars */,
+				callToAction:
+					_callToAction /* eslint-disable-line @typescript-eslint/no-unused-vars */,
 				autoLogin: _auto_login /* eslint-disable-line @typescript-eslint/no-unused-vars */,
 				...conversationData
 			} = result.data;
@@ -478,6 +486,38 @@
 							editorType="rich"
 							onSaveSource={(content: string) =>
 								handleInitOptionalTranslationField(content, 'thankYouMessage')}
+							primaryLocale={primaryLanguage}
+							{supportedLanguages}
+							inputProps={props}
+						/>
+						<Form.FieldErrors />
+					</div>
+				{/snippet}
+			</Form.Control>
+		</Form.Field>
+	</div>
+
+	<!-- Call to action -->
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
+		<Form.Field form={conversationForm} name="callToAction" class="contents">
+			<Form.Control>
+				{#snippet children({ props })}
+					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+						>Call to action</Form.Label
+					>
+					<div class="flex-1">
+						<TranslatableField
+							value={$form.callToAction || null}
+							onValueChange={(v) => ($form.callToAction = v)}
+							translation={conversation.translations?.callToAction ?? undefined}
+							onSaveSource={(content: string) =>
+								handleInitOptionalTranslationField(
+									content,
+									'callToAction',
+									'plain'
+								)}
 							primaryLocale={primaryLanguage}
 							{supportedLanguages}
 							inputProps={props}

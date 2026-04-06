@@ -15,6 +15,7 @@ export const conversationConfigSchema = z.object({
 	shortPrivacyPolicy: z.string().nullish(),
 	faqs: z.string().nullish(),
 	thankYouMessage: z.string().nullish(),
+	callToAction: z.string().nullish(),
 	isPublic: z.boolean(),
 	isInviteOnly: z.boolean(),
 	autoLogin: z.boolean(),
