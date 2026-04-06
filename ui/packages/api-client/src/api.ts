@@ -76,6 +76,7 @@ export const UserRoles = z
 export type UserRoles = z.infer<typeof UserRoles>;
 export const ConversationDto = z
   .object({
+    callToAction: z.union([z.string(), z.null()]).optional(),
     chatBotId: z.union([z.string(), z.null()]).optional(),
     description: z.string().uuid(),
     enableQaChatBot: z.boolean(),
@@ -110,6 +111,7 @@ export const limit = z.union([z.number(), z.null()]).optional();
 export type limit = z.infer<typeof limit>;
 export const LocalizedConversationDto = z
   .object({
+    callToAction: z.union([z.string(), z.null()]).optional(),
     chatBotId: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     enableQaChatBot: z.boolean(),
@@ -416,6 +418,7 @@ export const Translation = z
 export type Translation = z.infer<typeof Translation>;
 export const ConversationTranslations = z
   .object({
+    callToAction: z.union([Translation, z.null()]).optional(),
     description: Translation,
     faqs: z.union([Translation, z.null()]).optional(),
     privacyPolicy: z.union([Translation, z.null()]).optional(),
@@ -428,6 +431,7 @@ export const ConversationTranslations = z
 export type ConversationTranslations = z.infer<typeof ConversationTranslations>;
 export const ConversationWithTranslations = z
   .object({
+    callToAction: z.union([z.string(), z.null()]).optional(),
     chatBotId: z.union([z.string(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
     defaultWorkflowId: z.union([z.string(), z.null()]).optional(),
@@ -468,6 +472,7 @@ export const ConversationResponse = z.union([
 export type ConversationResponse = z.infer<typeof ConversationResponse>;
 export const PartialConversation = z
   .object({
+    call_to_action: z.union([z.string(), z.null()]),
     chat_bot_id: z.union([z.string(), z.null()]),
     default_workflow_id: z.union([z.string(), z.null()]),
     description: z.union([z.string(), z.null()]),
@@ -1354,7 +1359,7 @@ export const ComhairleServices = z
   .passthrough();
 export type ComhairleServices = z.infer<typeof ComhairleServices>;
 
-export const schemas = {
+export const schemas: Record<string, z.ZodType<any>> = {
   AnnonLoginRequest,
   UserAuthType,
   UserDto,
@@ -1507,7 +1512,7 @@ export const schemas = {
   ComhairleServices,
 };
 
-const endpoints = makeApi([
+const endpoints: ReturnType<typeof makeApi> = makeApi([
   {
     method: "get",
     path: "/auth/current_user",
@@ -3331,6 +3336,9 @@ This struct contains optional fields that can be updated on a TextTranslation re
 
 export const api: ZodiosInstance<typeof endpoints> = new Zodios(endpoints);
 
-export function createApiClient(baseUrl: string, options?: ZodiosOptions) {
+export function createApiClient(
+  baseUrl: string,
+  options?: ZodiosOptions
+): ZodiosInstance<typeof endpoints> {
   return new Zodios(baseUrl, endpoints, options);
 }

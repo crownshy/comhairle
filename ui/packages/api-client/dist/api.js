@@ -51,11 +51,13 @@ export const UserRoles = z
     .object({ resource: ResourceType, roles: z.array(ResourceRole) })
     .passthrough();
 export const ConversationDto = z
-<<<<<<< HEAD
     .object({
+    callToAction: z.union([z.string(), z.null()]).optional(),
     chatBotId: z.union([z.string(), z.null()]).optional(),
     description: z.string().uuid(),
     enableQaChatBot: z.boolean(),
+    enableSignupPrompts: z.boolean(),
+    faqs: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     imageUrl: z.string(),
     isComplete: z.boolean(),
@@ -63,67 +65,30 @@ export const ConversationDto = z
     isLive: z.boolean(),
     isPublic: z.boolean(),
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    organizationId: z.union([z.string(), z.null()]).optional(),
     primaryLocale: z.string(),
+    privacyPolicy: z.union([z.string(), z.null()]).optional(),
     shortDescription: z.string().uuid(),
+    shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
     tags: z.array(z.string()),
+    thankYouMessage: z.union([z.string(), z.null()]).optional(),
     title: z.string().uuid(),
     videoUrl: z.union([z.string(), z.null()]).optional(),
 })
     .passthrough();
-||||||| parent of e0391e0 (48 filter conversations by organization_id)
-	.object({
-		chatBotId: z.union([z.string(), z.null()]).optional(),
-		description: z.string().uuid(),
-		enableQaChatBot: z.boolean(),
-		id: z.string().uuid(),
-		imageUrl: z.string(),
-		isComplete: z.boolean(),
-		isInviteOnly: z.boolean(),
-		isLive: z.boolean(),
-		isPublic: z.boolean(),
-		knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
-		primaryLocale: z.string(),
-		shortDescription: z.string().uuid(),
-		slug: z.union([z.string(), z.null()]).optional(),
-		supportedLanguages: z.array(z.string()),
-		tags: z.array(z.string()),
-		title: z.string().uuid(),
-		videoUrl: z.union([z.string(), z.null()]).optional()
-	})
-	.passthrough();
-=======
-	.object({
-		chatBotId: z.union([z.string(), z.null()]).optional(),
-		description: z.string().uuid(),
-		enableQaChatBot: z.boolean(),
-		id: z.string().uuid(),
-		imageUrl: z.string(),
-		isComplete: z.boolean(),
-		isInviteOnly: z.boolean(),
-		isLive: z.boolean(),
-		isPublic: z.boolean(),
-		knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
-		organizationId: z.union([z.string(), z.null()]).optional(),
-		primaryLocale: z.string(),
-		shortDescription: z.string().uuid(),
-		slug: z.union([z.string(), z.null()]).optional(),
-		supportedLanguages: z.array(z.string()),
-		tags: z.array(z.string()),
-		title: z.string().uuid(),
-		videoUrl: z.union([z.string(), z.null()]).optional()
-	})
-	.passthrough();
->>>>>>> e0391e0 (48 filter conversations by organization_id)
 export const created_after = z.union([z.string(), z.null()]).optional();
 export const is_complete = z.union([z.boolean(), z.null()]).optional();
 export const limit = z.union([z.number(), z.null()]).optional();
 export const LocalizedConversationDto = z
     .object({
+    callToAction: z.union([z.string(), z.null()]).optional(),
     chatBotId: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     enableQaChatBot: z.boolean(),
+    enableSignupPrompts: z.boolean(),
+    faqs: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     imageUrl: z.string(),
     isComplete: z.boolean(),
@@ -131,11 +96,15 @@ export const LocalizedConversationDto = z
     isLive: z.boolean(),
     isPublic: z.boolean(),
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    organizationId: z.union([z.string(), z.null()]).optional(),
     primaryLocale: z.string(),
+    privacyPolicy: z.union([z.string(), z.null()]).optional(),
     shortDescription: z.string(),
+    shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
     tags: z.array(z.string()),
+    thankYouMessage: z.union([z.string(), z.null()]).optional(),
     title: z.string(),
     videoUrl: z.union([z.string(), z.null()]).optional(),
 })
@@ -178,6 +147,31 @@ export const UpdateUserConversationPreferences = z
     ]),
     receiveUpdatesByEmail: z.union([z.boolean(), z.null()]),
     receiveUpdatesByNotification: z.union([z.boolean(), z.null()]),
+})
+    .partial()
+    .passthrough();
+export const UserProfileDto = z
+    .object({
+    age: z.union([z.number(), z.null()]).optional(),
+    consented: z.boolean(),
+    createdAt: z.string().datetime({ offset: true }),
+    ethnicity: z.union([z.string(), z.null()]).optional(),
+    gender: z.union([z.string(), z.null()]).optional(),
+    id: z.string().uuid(),
+    politicalParty: z.union([z.string(), z.null()]).optional(),
+    updatedAt: z.string().datetime({ offset: true }),
+    userId: z.string().uuid(),
+    zipcode: z.union([z.string(), z.null()]).optional(),
+})
+    .passthrough();
+export const UpsertUserProfileRequest = z
+    .object({
+    age: z.union([z.number(), z.null()]),
+    consented: z.union([z.boolean(), z.null()]),
+    ethnicity: z.union([z.string(), z.null()]),
+    gender: z.union([z.string(), z.null()]),
+    politicalParty: z.union([z.string(), z.null()]),
+    zipcode: z.union([z.string(), z.null()]),
 })
     .partial()
     .passthrough();
@@ -351,19 +345,26 @@ export const Translation = z
     .passthrough();
 export const ConversationTranslations = z
     .object({
+    callToAction: z.union([Translation, z.null()]).optional(),
     description: Translation,
+    faqs: z.union([Translation, z.null()]).optional(),
+    privacyPolicy: z.union([Translation, z.null()]).optional(),
     shortDescription: Translation,
+    shortPrivacyPolicy: z.union([Translation, z.null()]).optional(),
+    thankYouMessage: z.union([Translation, z.null()]).optional(),
     title: Translation,
 })
     .passthrough();
 export const ConversationWithTranslations = z
-<<<<<<< HEAD
     .object({
+    callToAction: z.union([z.string(), z.null()]).optional(),
     chatBotId: z.union([z.string(), z.null()]).optional(),
     createdAt: z.string().datetime({ offset: true }),
     defaultWorkflowId: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     enableQaChatBot: z.boolean(),
+    enableSignupPrompts: z.boolean(),
+    faqs: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     imageUrl: z.string(),
     isComplete: z.boolean(),
@@ -371,87 +372,35 @@ export const ConversationWithTranslations = z
     isLive: z.boolean(),
     isPublic: z.boolean(),
     knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    organizationId: z.union([z.string(), z.null()]).optional(),
     ownerId: z.string().uuid(),
     primaryLocale: z.string(),
+    privacyPolicy: z.union([z.string(), z.null()]).optional(),
     shortDescription: z.string(),
+    shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
     tags: z.array(z.string()),
+    thankYouMessage: z.union([z.string(), z.null()]).optional(),
     title: z.string(),
     translations: ConversationTranslations,
     updatedAt: z.string().datetime({ offset: true }),
     videoUrl: z.union([z.string(), z.null()]).optional(),
 })
     .passthrough();
-||||||| parent of b47468b (48 conversation organization_id)
-	.object({
-		chatBotId: z.union([z.string(), z.null()]).optional(),
-		createdAt: z.string().datetime({ offset: true }),
-		defaultWorkflowId: z.union([z.string(), z.null()]).optional(),
-		description: z.string(),
-		enableQaChatBot: z.boolean(),
-		id: z.string().uuid(),
-		imageUrl: z.string(),
-		isComplete: z.boolean(),
-		isInviteOnly: z.boolean(),
-		isLive: z.boolean(),
-		isPublic: z.boolean(),
-		knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
-<<<<<<< HEAD
-		ownerId: z.string().uuid(),
-||||||| parent of e0391e0 (48 filter conversations by organization_id)
-=======
-		organizationId: z.union([z.string(), z.null()]).optional(),
->>>>>>> e0391e0 (48 filter conversations by organization_id)
-		primaryLocale: z.string(),
-		shortDescription: z.string(),
-		slug: z.union([z.string(), z.null()]).optional(),
-		supportedLanguages: z.array(z.string()),
-		tags: z.array(z.string()),
-		title: z.string(),
-		translations: ConversationTranslations,
-		updatedAt: z.string().datetime({ offset: true }),
-		videoUrl: z.union([z.string(), z.null()]).optional()
-	})
-	.passthrough();
-=======
-	.object({
-		chatBotId: z.union([z.string(), z.null()]).optional(),
-		createdAt: z.string().datetime({ offset: true }),
-		defaultWorkflowId: z.union([z.string(), z.null()]).optional(),
-		description: z.string(),
-		enableQaChatBot: z.boolean(),
-		id: z.string().uuid(),
-		imageUrl: z.string(),
-		isComplete: z.boolean(),
-		isInviteOnly: z.boolean(),
-		isLive: z.boolean(),
-		isPublic: z.boolean(),
-		knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
-		organizationId: z.union([z.string(), z.null()]).optional(),
-		ownerId: z.string().uuid(),
-		primaryLocale: z.string(),
-		shortDescription: z.string(),
-		slug: z.union([z.string(), z.null()]).optional(),
-		supportedLanguages: z.array(z.string()),
-		tags: z.array(z.string()),
-		title: z.string(),
-		translations: ConversationTranslations,
-		updatedAt: z.string().datetime({ offset: true }),
-		videoUrl: z.union([z.string(), z.null()]).optional()
-	})
-	.passthrough();
->>>>>>> b47468b (48 conversation organization_id)
 export const ConversationResponse = z.union([
-    LocalizedConversationDto,
     ConversationWithTranslations,
+    LocalizedConversationDto,
 ]);
 export const PartialConversation = z
     .object({
+    call_to_action: z.union([z.string(), z.null()]),
     chat_bot_id: z.union([z.string(), z.null()]),
     default_workflow_id: z.union([z.string(), z.null()]),
     description: z.union([z.string(), z.null()]),
     enable_qa_chat_bot: z.union([z.boolean(), z.null()]),
+    enable_signup_prompts: z.union([z.boolean(), z.null()]),
+    faqs: z.union([z.string(), z.null()]),
     image_url: z.union([z.string(), z.null()]),
     is_complete: z.union([z.boolean(), z.null()]),
     is_invite_only: z.union([z.boolean(), z.null()]),
@@ -459,10 +408,13 @@ export const PartialConversation = z
     is_public: z.union([z.boolean(), z.null()]),
     knowledge_base_id: z.union([z.string(), z.null()]),
     primary_locale: z.union([z.string(), z.null()]),
+    privacy_policy: z.union([z.string(), z.null()]),
     short_description: z.union([z.string(), z.null()]),
+    short_privacy_policy: z.union([z.string(), z.null()]),
     slug: z.union([z.string(), z.null()]),
     supported_languages: z.union([z.array(z.string()), z.null()]),
     tags: z.union([z.array(z.string()), z.null()]),
+    thank_you_message: z.union([z.string(), z.null()]),
     title: z.union([z.string(), z.null()]),
     video_url: z.union([z.string(), z.null()]),
 })
@@ -509,17 +461,30 @@ export const WorkflowDto = z
     isActive: z.boolean(),
     isPublic: z.boolean(),
     name: z.string(),
+    regionId: z.union([z.string(), z.null()]).optional(),
 })
     .passthrough();
 export const CreateWorkflow = z
     .object({
     auto_login: z.boolean(),
     description: z.string(),
-    event_id: z.union([z.string(), z.null()]).optional(),
     is_active: z.boolean(),
     is_public: z.boolean(),
     name: z.string(),
+    region_id: z.union([z.string(), z.null()]).optional(),
 })
+    .passthrough();
+export const PartialWorkflow = z
+    .object({
+    auto_login: z.union([z.boolean(), z.null()]),
+    description: z.union([z.string(), z.null()]),
+    event_id: z.union([z.string(), z.null()]),
+    is_active: z.union([z.boolean(), z.null()]),
+    is_public: z.union([z.boolean(), z.null()]),
+    name: z.union([z.string(), z.null()]),
+    region_id: z.union([z.string(), z.null()]),
+})
+    .partial()
     .passthrough();
 export const ActivationRule = z.literal("manual");
 export const LearnPage = z
@@ -535,6 +500,7 @@ export const ToolConfig = z.union([
         admin_password: z.string(),
         admin_user: z.string(),
         poll_id: z.string(),
+        required_votes: z.union([z.number(), z.null()]).optional(),
         server_url: z.string(),
         type: z.literal("polis"),
     })
@@ -547,6 +513,7 @@ export const ToolConfig = z.union([
         admin_password: z.string(),
         admin_user: z.string(),
         project_id: z.string(),
+        server_url: z.string().optional().default("forms.comhairle.scot"),
         survey_id: z.string(),
         survey_url: z.string(),
         type: z.literal("heyform"),
@@ -567,6 +534,7 @@ export const ToolConfig = z.union([
 export const WorkflowStep = z
     .object({
     activation_rule: ActivationRule,
+    can_revisit: z.boolean(),
     created_at: z.string().datetime({ offset: true }),
     description: z.string().uuid(),
     id: z.string().uuid(),
@@ -600,16 +568,22 @@ export const WorkflowStats = z
     totalUsers: z.number().int(),
 })
     .passthrough();
-export const PartialWorkflow = z
+export const DemographicCategory = z
     .object({
-    auto_login: z.union([z.boolean(), z.null()]),
-    description: z.union([z.string(), z.null()]),
-    event_id: z.union([z.string(), z.null()]),
-    is_active: z.union([z.boolean(), z.null()]),
-    is_public: z.union([z.boolean(), z.null()]),
-    name: z.union([z.string(), z.null()]),
+    category: z.string(),
+    count: z.number().int(),
+    value: z.union([z.string(), z.null()]).optional(),
 })
-    .partial()
+    .passthrough();
+export const DemographicReport = z
+    .object({
+    ageRanges: z.array(DemographicCategory),
+    ethnicity: z.array(DemographicCategory),
+    gender: z.array(DemographicCategory),
+    politicalParty: z.array(DemographicCategory),
+    totalParticipants: z.number().int(),
+    zipcodeCounts: z.record(z.number().int()),
+})
     .passthrough();
 export const UserParticipation = z
     .object({
@@ -618,20 +592,6 @@ export const UserParticipation = z
     updated_at: z.string().datetime({ offset: true }),
     user_id: z.string().uuid(),
     workflow_id: z.string().uuid(),
-})
-    .passthrough();
-export const LocalizedWorkflowStepDto = z
-    .object({
-    activationRule: ActivationRule,
-    description: z.string(),
-    id: z.string().uuid(),
-    isOffline: z.boolean(),
-    name: z.string(),
-    previewToolConfig: ToolConfig,
-    required: z.boolean(),
-    stepOrder: z.number().int(),
-    toolConfig: z.union([ToolConfig, z.null()]).optional(),
-    workflowId: z.string().uuid(),
 })
     .passthrough();
 export const Translation2 = z
@@ -646,6 +606,7 @@ export const WorkflowStepTranslations = z
 export const WorkflowStepWithTranslations = z
     .object({
     activationRule: ActivationRule,
+    canRevisit: z.boolean(),
     createdAt: z.string().datetime({ offset: true }),
     description: z.string(),
     id: z.string().uuid(),
@@ -660,16 +621,60 @@ export const WorkflowStepWithTranslations = z
     workflowId: z.string().uuid(),
 })
     .passthrough();
+export const ProgressStatus = z.enum(["not_started", "in_progress", "done"]);
+export const LocalizedWorkflowStepWithProgressDto = z
+    .object({
+    activationRule: ActivationRule,
+    canRevisit: z.boolean(),
+    description: z.string(),
+    id: z.string().uuid(),
+    isOffline: z.boolean(),
+    name: z.string(),
+    previewToolConfig: ToolConfig,
+    progressStatus: ProgressStatus,
+    required: z.boolean(),
+    stepOrder: z.number().int(),
+    toolConfig: z.union([ToolConfig, z.null()]).optional(),
+    workflowId: z.string().uuid(),
+})
+    .passthrough();
+export const LocalizedWorkflowStepDto = z
+    .object({
+    activationRule: ActivationRule,
+    canRevisit: z.boolean(),
+    description: z.string(),
+    id: z.string().uuid(),
+    isOffline: z.boolean(),
+    name: z.string(),
+    previewToolConfig: ToolConfig,
+    required: z.boolean(),
+    stepOrder: z.number().int(),
+    toolConfig: z.union([ToolConfig, z.null()]).optional(),
+    workflowId: z.string().uuid(),
+})
+    .passthrough();
 export const WorkflowStepsListResponse = z.union([
-    z.array(LocalizedWorkflowStepDto),
     z.array(WorkflowStepWithTranslations),
+    z.array(LocalizedWorkflowStepWithProgressDto),
+    z.array(LocalizedWorkflowStepDto),
 ]);
 export const ToolSetup = z.union([
-    z.object({ topic: z.string(), type: z.literal("polis") }).passthrough(),
+    z
+        .object({
+        required_votes: z.union([z.number(), z.null()]).optional(),
+        topic: z.string(),
+        type: z.literal("polis"),
+    })
+        .passthrough(),
     z
         .object({ pages: z.array(LearnPageEntry), type: z.literal("learn") })
         .passthrough(),
-    z.object({ type: z.literal("heyform") }).passthrough(),
+    z
+        .object({
+        server_url: z.string().optional().default("forms.comhairle.scot"),
+        type: z.literal("heyform"),
+    })
+        .passthrough(),
     z
         .object({
         max_time: z.number().int(),
@@ -695,6 +700,7 @@ export const CreateWorkflowStep = z
 export const WorkflowStepDto = z
     .object({
     activationRule: ActivationRule,
+    canRevisit: z.boolean(),
     description: z.string().uuid(),
     id: z.string().uuid(),
     isOffline: z.boolean(),
@@ -709,6 +715,7 @@ export const WorkflowStepDto = z
 export const PartialWorkflowStep = z
     .object({
     activation_rule: z.union([ActivationRule, z.null()]),
+    can_revisit: z.union([z.boolean(), z.null()]),
     description: z.union([z.string(), z.null()]),
     is_offline: z.union([z.boolean(), z.null()]),
     name: z.union([z.string(), z.null()]),
@@ -719,7 +726,6 @@ export const PartialWorkflowStep = z
 })
     .partial()
     .passthrough();
-export const ProgressStatus = z.enum(["not_started", "in_progress", "done"]);
 export const UserProgressDto = z
     .object({
     id: z.string().uuid(),
@@ -754,6 +760,7 @@ export const InviteDto = z
     expiresAt: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     inviteType: InviteType,
+    label: z.union([z.string(), z.null()]).optional(),
     loginBehaviour: LoginBehaviour,
     status: InviteStatus,
     tags: z.array(z.string()),
@@ -765,8 +772,25 @@ export const CreateInviteDTO = z
     .object({
     expires_at: z.union([z.string(), z.null()]).optional(),
     invite_type: InviteType,
+    label: z.union([z.string(), z.null()]).optional(),
     login_behaviour: LoginBehaviour.optional(),
 })
+    .passthrough();
+export const PartialInvite = z
+    .object({
+    accept_count: z.union([z.number(), z.null()]),
+    conversation_id: z.union([z.string(), z.null()]),
+    created_by: z.union([z.string(), z.null()]),
+    expires_at: z.union([z.string(), z.null()]),
+    invite_type: z.union([InviteType, z.null()]),
+    label: z.union([z.string(), z.null()]),
+    login_behaviour: z.union([LoginBehaviour, z.null()]),
+    status: z.union([InviteStatus, z.null()]),
+    tags: z.union([z.array(z.string()), z.null()]),
+    workflow_id: z.union([z.string(), z.null()]),
+    workflow_step_id: z.union([z.string(), z.null()]),
+})
+    .partial()
     .passthrough();
 export const DailyResponseStats = z
     .object({
@@ -984,6 +1008,7 @@ export const PartialEvent = z
 })
     .partial()
     .passthrough();
+export const JwtResponse = z.object({ jwt: z.string() }).passthrough();
 export const EventAttendanceDto = z
     .object({
     createdAt: z.string().datetime({ offset: true }),
@@ -1023,43 +1048,17 @@ export const SendToUserMessage = z
     .passthrough();
 export const OrganizationType = z.enum(["non_profit", "governmental", "other"]);
 export const LocalizedOrganizationDto = z
-<<<<<<< HEAD
     .object({
-    created_at: z.string().datetime({ offset: true }),
+    createdAt: z.string().datetime({ offset: true }),
     description: z.string(),
-    external_url: z.union([z.string(), z.null()]).optional(),
+    externalUrl: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     mission: z.string(),
     name: z.string(),
-    org_type: OrganizationType,
+    orgType: OrganizationType,
     regions: z.array(z.string().uuid()),
 })
     .passthrough();
-||||||| parent of e0391e0 (48 filter conversations by organization_id)
-	.object({
-		created_at: z.string().datetime({ offset: true }),
-		description: z.string(),
-		external_url: z.union([z.string(), z.null()]).optional(),
-		id: z.string().uuid(),
-		mission: z.string(),
-		name: z.string(),
-		org_type: OrganizationType,
-		regions: z.array(z.string().uuid())
-	})
-	.passthrough();
-=======
-	.object({
-		createdAt: z.string().datetime({ offset: true }),
-		description: z.string(),
-		externalUrl: z.union([z.string(), z.null()]).optional(),
-		id: z.string().uuid(),
-		mission: z.string(),
-		name: z.string(),
-		orgType: OrganizationType,
-		regions: z.array(z.string().uuid())
-	})
-	.passthrough();
->>>>>>> e0391e0 (48 filter conversations by organization_id)
 export const PaginatedResults_for_LocalizedOrganizationDto = z
     .object({
     records: z.array(LocalizedOrganizationDto),
@@ -1077,43 +1076,17 @@ export const CreateOrganization = z
 })
     .passthrough();
 export const OrganizationDto = z
-<<<<<<< HEAD
     .object({
-    created_at: z.string().datetime({ offset: true }),
+    createdAt: z.string().datetime({ offset: true }),
     description: z.string().uuid(),
-    external_url: z.union([z.string(), z.null()]).optional(),
+    externalUrl: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     mission: z.string().uuid(),
     name: z.string(),
-    org_type: OrganizationType,
+    orgType: OrganizationType,
     regions: z.array(z.string().uuid()),
 })
     .passthrough();
-||||||| parent of e0391e0 (48 filter conversations by organization_id)
-	.object({
-		created_at: z.string().datetime({ offset: true }),
-		description: z.string().uuid(),
-		external_url: z.union([z.string(), z.null()]).optional(),
-		id: z.string().uuid(),
-		mission: z.string().uuid(),
-		name: z.string(),
-		org_type: OrganizationType,
-		regions: z.array(z.string().uuid())
-	})
-	.passthrough();
-=======
-	.object({
-		createdAt: z.string().datetime({ offset: true }),
-		description: z.string().uuid(),
-		externalUrl: z.union([z.string(), z.null()]).optional(),
-		id: z.string().uuid(),
-		mission: z.string().uuid(),
-		name: z.string(),
-		orgType: OrganizationType,
-		regions: z.array(z.string().uuid())
-	})
-	.passthrough();
->>>>>>> e0391e0 (48 filter conversations by organization_id)
 export const PartialOrganization = z
     .object({
     external_url: z.union([z.string(), z.null()]),
@@ -1210,6 +1183,8 @@ export const schemas = {
     UpgradeAccountRequest,
     UserConversationPreferencesDto,
     UpdateUserConversationPreferences,
+    UserProfileDto,
+    UpsertUserProfileRequest,
     DeliveryMethod,
     NotificationContextType,
     NotificationType,
@@ -1243,6 +1218,7 @@ export const schemas = {
     RegisterEmailResponse,
     WorkflowDto,
     CreateWorkflow,
+    PartialWorkflow,
     ActivationRule,
     LearnPage,
     LocalizedPage,
@@ -1252,24 +1228,27 @@ export const schemas = {
     DailySignupStats,
     WorkflowStepStats,
     WorkflowStats,
-    PartialWorkflow,
+    DemographicCategory,
+    DemographicReport,
     UserParticipation,
-    LocalizedWorkflowStepDto,
     Translation2,
     WorkflowStepTranslations,
     WorkflowStepWithTranslations,
+    ProgressStatus,
+    LocalizedWorkflowStepWithProgressDto,
+    LocalizedWorkflowStepDto,
     WorkflowStepsListResponse,
     ToolSetup,
     CreateWorkflowStep,
     WorkflowStepDto,
     PartialWorkflowStep,
-    ProgressStatus,
     UserProgressDto,
     InviteType,
     LoginBehaviour,
     InviteStatus,
     InviteDto,
     CreateInviteDTO,
+    PartialInvite,
     DailyResponseStats,
     FeedbackDto,
     ReportImpactDto,
@@ -1307,6 +1286,7 @@ export const schemas = {
     EventWithTranslations,
     EventResponse,
     PartialEvent,
+    JwtResponse,
     EventAttendanceDto,
     PaginatedResults_for_EventAttendanceDto,
     CreateEventAttendanceRequest,
@@ -1333,7 +1313,6 @@ export const schemas = {
     ComhairleServices,
 };
 const endpoints = makeApi([
-<<<<<<< HEAD
     {
         method: "get",
         path: "/auth/current_user",
@@ -1506,6 +1485,11 @@ const endpoints = makeApi([
                 schema: created_after,
             },
             {
+                name: "organization_id",
+                type: "Query",
+                schema: created_after,
+            },
+            {
                 name: "owner_id",
                 type: "Query",
                 schema: created_after,
@@ -1588,522 +1572,6 @@ const endpoints = makeApi([
         path: "/conversation/:conversation_id/chat_sessions",
         alias: "postConversationConversation_idchat_sessions",
         description: `Streamed LLM response.
-||||||| parent of e0391e0 (48 filter conversations by organization_id)
-	{
-		method: 'get',
-		path: '/auth/current_user',
-		alias: 'CurrentUser',
-		requestFormat: 'json',
-		response: UserDto
-	},
-	{
-		method: 'post',
-		path: '/auth/login',
-		alias: 'LoginUser',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				description: `Expected payload for a login request`,
-				type: 'Body',
-				schema: LoginRequest
-			}
-		],
-		response: UserDto
-	},
-	{
-		method: 'post',
-		path: '/auth/login_annon',
-		alias: 'LoginAnnonUser',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				description: `Expected payload for an annon login request`,
-				type: 'Body',
-				schema: z.object({ username: z.string() }).passthrough()
-			}
-		],
-		response: UserDto
-	},
-	{
-		method: 'post',
-		path: '/auth/logout',
-		alias: 'LogoutUser',
-		requestFormat: 'json',
-		response: z.record(z.string())
-	},
-	{
-		method: 'post',
-		path: '/auth/password_reset_create',
-		alias: 'PasswordResetCreate',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: z.object({ email: z.string() }).passthrough()
-			}
-		],
-		response: z.void()
-	},
-	{
-		method: 'post',
-		path: '/auth/password_reset_update',
-		alias: 'PasswordResetUpdate',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: PasswordResetUpdateRequest
-			}
-		],
-		response: z.void()
-	},
-	{
-		method: 'post',
-		path: '/auth/resend_verification_email',
-		alias: 'ResendVerificationEmail',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: z.object({ id: z.string() }).passthrough()
-			}
-		],
-		response: z.void()
-	},
-	{
-		method: 'post',
-		path: '/auth/signup',
-		alias: 'SignUp',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				description: `Expected payload for a signin request`,
-				type: 'Body',
-				schema: SignupRequest
-			}
-		],
-		response: UserDto
-	},
-	{
-		method: 'post',
-		path: '/auth/signup_annon',
-		alias: 'SignupAnnonUser',
-		requestFormat: 'json',
-		response: UserDto
-	},
-	{
-		method: 'get',
-		path: '/auth/test_requires_roles/:conversation_id',
-		alias: 'TestRequiresRoles',
-		requestFormat: 'json',
-		response: UserDto
-	},
-	{
-		method: 'post',
-		path: '/auth/verify_email_token',
-		alias: 'VerifyEmailToken',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: z.object({ token: z.string() }).passthrough()
-			}
-		],
-		response: UserDto
-	},
-	{
-		method: 'get',
-		path: '/conversation',
-		alias: 'ListConverastions',
-		description: `List conversations`,
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'created_after',
-				type: 'Query',
-				schema: created_after
-			},
-			{
-				name: 'created_before',
-				type: 'Query',
-				schema: created_after
-			},
-			{
-				name: 'is_complete',
-				type: 'Query',
-				schema: is_complete
-			},
-			{
-				name: 'is_invite_only',
-				type: 'Query',
-				schema: is_complete
-			},
-			{
-				name: 'is_live',
-				type: 'Query',
-				schema: is_complete
-			},
-			{
-				name: 'is_public',
-				type: 'Query',
-				schema: is_complete
-			},
-			{
-				name: 'owner_id',
-				type: 'Query',
-				schema: created_after
-			},
-			{
-				name: 'title',
-				type: 'Query',
-				schema: created_after
-			},
-			{
-				name: 'limit',
-				type: 'Query',
-				schema: limit
-			},
-			{
-				name: 'offset',
-				type: 'Query',
-				schema: limit
-			}
-		],
-		response: PaginatedResults_for_LocalizedConversationDto
-	},
-	{
-		method: 'post',
-		path: '/conversation',
-		alias: 'CreateConversation',
-		description: `Creates a new conversation`,
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: CreateConversation
-			}
-		],
-		response: ConversationDto
-	},
-	{
-		method: 'get',
-		path: '/conversation/:conversation_id',
-		alias: 'GetConversation',
-		description: `Get a conversation by id or slug. If user is admin and withTranslations&#x3D;true, returns detailed translation data.`,
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'withTranslations',
-				type: 'Query',
-				schema: z.boolean().optional().default(false)
-			}
-		],
-		response: ConversationResponse
-	},
-	{
-		method: 'put',
-		path: '/conversation/:conversation_id',
-		alias: 'UpdateConversation',
-		description: `Update a conversation`,
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: PartialConversation
-			}
-		],
-		response: ConversationDto
-	},
-	{
-		method: 'delete',
-		path: '/conversation/:conversation_id',
-		alias: 'DeleteConversation',
-		description: `Delete the conversation and all related content`,
-		requestFormat: 'json',
-		response: ConversationDto
-	},
-	{
-		method: 'get',
-		path: '/conversation/:conversation_id/chat_sessions',
-		alias: 'GetChatSessionHistory',
-		requestFormat: 'json',
-		response: ComhairleChatSession
-	},
-	{
-		method: 'post',
-		path: '/conversation/:conversation_id/chat_sessions',
-		alias: 'postConversationConversation_idchat_sessions',
-		description: `Streamed LLM response.
-=======
-	{
-		method: 'get',
-		path: '/auth/current_user',
-		alias: 'CurrentUser',
-		requestFormat: 'json',
-		response: UserDto
-	},
-	{
-		method: 'post',
-		path: '/auth/login',
-		alias: 'LoginUser',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				description: `Expected payload for a login request`,
-				type: 'Body',
-				schema: LoginRequest
-			}
-		],
-		response: UserDto
-	},
-	{
-		method: 'post',
-		path: '/auth/login_annon',
-		alias: 'LoginAnnonUser',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				description: `Expected payload for an annon login request`,
-				type: 'Body',
-				schema: z.object({ username: z.string() }).passthrough()
-			}
-		],
-		response: UserDto
-	},
-	{
-		method: 'post',
-		path: '/auth/logout',
-		alias: 'LogoutUser',
-		requestFormat: 'json',
-		response: z.record(z.string())
-	},
-	{
-		method: 'post',
-		path: '/auth/password_reset_create',
-		alias: 'PasswordResetCreate',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: z.object({ email: z.string() }).passthrough()
-			}
-		],
-		response: z.void()
-	},
-	{
-		method: 'post',
-		path: '/auth/password_reset_update',
-		alias: 'PasswordResetUpdate',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: PasswordResetUpdateRequest
-			}
-		],
-		response: z.void()
-	},
-	{
-		method: 'post',
-		path: '/auth/resend_verification_email',
-		alias: 'ResendVerificationEmail',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: z.object({ id: z.string() }).passthrough()
-			}
-		],
-		response: z.void()
-	},
-	{
-		method: 'post',
-		path: '/auth/signup',
-		alias: 'SignUp',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				description: `Expected payload for a signin request`,
-				type: 'Body',
-				schema: SignupRequest
-			}
-		],
-		response: UserDto
-	},
-	{
-		method: 'post',
-		path: '/auth/signup_annon',
-		alias: 'SignupAnnonUser',
-		requestFormat: 'json',
-		response: UserDto
-	},
-	{
-		method: 'get',
-		path: '/auth/test_requires_roles/:conversation_id',
-		alias: 'TestRequiresRoles',
-		requestFormat: 'json',
-		response: UserDto
-	},
-	{
-		method: 'post',
-		path: '/auth/verify_email_token',
-		alias: 'VerifyEmailToken',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: z.object({ token: z.string() }).passthrough()
-			}
-		],
-		response: UserDto
-	},
-	{
-		method: 'get',
-		path: '/conversation',
-		alias: 'ListConverastions',
-		description: `List conversations`,
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'created_after',
-				type: 'Query',
-				schema: created_after
-			},
-			{
-				name: 'created_before',
-				type: 'Query',
-				schema: created_after
-			},
-			{
-				name: 'is_complete',
-				type: 'Query',
-				schema: is_complete
-			},
-			{
-				name: 'is_invite_only',
-				type: 'Query',
-				schema: is_complete
-			},
-			{
-				name: 'is_live',
-				type: 'Query',
-				schema: is_complete
-			},
-			{
-				name: 'is_public',
-				type: 'Query',
-				schema: is_complete
-			},
-			{
-				name: 'organization_id',
-				type: 'Query',
-				schema: created_after
-			},
-			{
-				name: 'owner_id',
-				type: 'Query',
-				schema: created_after
-			},
-			{
-				name: 'title',
-				type: 'Query',
-				schema: created_after
-			},
-			{
-				name: 'limit',
-				type: 'Query',
-				schema: limit
-			},
-			{
-				name: 'offset',
-				type: 'Query',
-				schema: limit
-			}
-		],
-		response: PaginatedResults_for_LocalizedConversationDto
-	},
-	{
-		method: 'post',
-		path: '/conversation',
-		alias: 'CreateConversation',
-		description: `Creates a new conversation`,
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: CreateConversation
-			}
-		],
-		response: ConversationDto
-	},
-	{
-		method: 'get',
-		path: '/conversation/:conversation_id',
-		alias: 'GetConversation',
-		description: `Get a conversation by id or slug. If user is admin and withTranslations&#x3D;true, returns detailed translation data.`,
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'withTranslations',
-				type: 'Query',
-				schema: z.boolean().optional().default(false)
-			}
-		],
-		response: ConversationResponse
-	},
-	{
-		method: 'put',
-		path: '/conversation/:conversation_id',
-		alias: 'UpdateConversation',
-		description: `Update a conversation`,
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: PartialConversation
-			}
-		],
-		response: ConversationDto
-	},
-	{
-		method: 'delete',
-		path: '/conversation/:conversation_id',
-		alias: 'DeleteConversation',
-		description: `Delete the conversation and all related content`,
-		requestFormat: 'json',
-		response: ConversationDto
-	},
-	{
-		method: 'get',
-		path: '/conversation/:conversation_id/chat_sessions',
-		alias: 'GetChatSessionHistory',
-		requestFormat: 'json',
-		response: ComhairleChatSession
-	},
-	{
-		method: 'post',
-		path: '/conversation/:conversation_id/chat_sessions',
-		alias: 'postConversationConversation_idchat_sessions',
-		description: `Streamed LLM response.
->>>>>>> e0391e0 (48 filter conversations by organization_id)
 
 ⚠️ This endpoint returns a streaming response on success.
 Generated API clients are NOT suitable for consuming this endpoint.
@@ -2408,6 +1876,144 @@ curl -X POST \
     },
     {
         method: "get",
+        path: "/conversation/:conversation_id/events/:event_id/auth",
+        alias: "GetEventJWT",
+        description: `Get a auth JWT for an event`,
+        requestFormat: "json",
+        response: z.object({ jwt: z.string() }).passthrough(),
+    },
+    {
+        method: "get",
+        path: "/conversation/:conversation_id/events/:event_id/workflows",
+        alias: "ListEventWorkflows",
+        requestFormat: "json",
+        response: z.array(WorkflowDto),
+    },
+    {
+        method: "post",
+        path: "/conversation/:conversation_id/events/:event_id/workflows",
+        alias: "CreateEventWorkflow",
+        requestFormat: "json",
+        parameters: [
+            {
+                name: "body",
+                type: "Body",
+                schema: CreateWorkflow,
+            },
+        ],
+        response: WorkflowDto,
+    },
+    {
+        method: "get",
+        path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id",
+        alias: "GetEventWorkflow",
+        requestFormat: "json",
+        response: WorkflowDto,
+    },
+    {
+        method: "put",
+        path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id",
+        alias: "UpdateEventWorkflow",
+        requestFormat: "json",
+        parameters: [
+            {
+                name: "body",
+                type: "Body",
+                schema: PartialWorkflow,
+            },
+        ],
+        response: WorkflowDto,
+    },
+    {
+        method: "delete",
+        path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id",
+        alias: "DeleteEventWorkflow",
+        requestFormat: "json",
+        response: WorkflowDto,
+    },
+    {
+        method: "get",
+        path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps",
+        alias: "ListEventWorkflowSteps",
+        description: `
+List the workflow steps associated with this workflow.
+
+Use query param withTranslations&#x3D;true to get the translation data for each step.
+
+Use query param withUserProgress&#x3D;true to get the active user&#x27;s progress status for each step.`,
+        requestFormat: "json",
+        parameters: [
+            {
+                name: "withTranslations",
+                type: "Query",
+                schema: z.boolean().optional().default(false),
+            },
+            {
+                name: "withUserProgress",
+                type: "Query",
+                schema: z.boolean().optional().default(false),
+            },
+        ],
+        response: WorkflowStepsListResponse,
+    },
+    {
+        method: "post",
+        path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps",
+        alias: "CreateEventWorkflowStep",
+        requestFormat: "json",
+        parameters: [
+            {
+                name: "body",
+                type: "Body",
+                schema: CreateWorkflowStep,
+            },
+        ],
+        response: WorkflowStepDto,
+    },
+    {
+        method: "get",
+        path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps/:workflow_step_id",
+        alias: "GetEventWorkflowStep",
+        requestFormat: "json",
+        response: LocalizedWorkflowStepDto,
+    },
+    {
+        method: "put",
+        path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps/:workflow_step_id",
+        alias: "UpdateEventWorkflowStep",
+        requestFormat: "json",
+        parameters: [
+            {
+                name: "body",
+                type: "Body",
+                schema: PartialWorkflowStep,
+            },
+        ],
+        response: WorkflowStepDto,
+    },
+    {
+        method: "delete",
+        path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps/:workflow_step_id",
+        alias: "DeleteEventWorkflowStep",
+        requestFormat: "json",
+        response: WorkflowStepDto,
+    },
+    {
+        method: "put",
+        path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps/:workflow_step_id/elicitation_bot",
+        alias: "UpdateEventElicitationBotWorkflowStep",
+        requestFormat: "json",
+        parameters: [
+            {
+                name: "body",
+                type: "Body",
+                schema: PartialWorkflowStep,
+            },
+        ],
+        response: WorkflowStepDto,
+    },
+    {
+        method: "get",
         path: "/conversation/:conversation_id/feedback",
         alias: "ListFeedbackForConversation",
         requestFormat: "json",
@@ -2474,6 +2080,20 @@ curl -X POST \
         path: "/conversation/:conversation_id/invite/:invite_id",
         alias: "DeleteInvite",
         requestFormat: "json",
+        response: InviteDto,
+    },
+    {
+        method: "patch",
+        path: "/conversation/:conversation_id/invite/:invite_id",
+        alias: "UpdateInvite",
+        requestFormat: "json",
+        parameters: [
+            {
+                name: "body",
+                type: "Body",
+                schema: PartialInvite,
+            },
+        ],
         response: InviteDto,
     },
     {
@@ -2586,14 +2206,14 @@ curl -X POST \
     {
         method: "get",
         path: "/conversation/:conversation_id/workflow",
-        alias: "ListWorkflows",
+        alias: "ListConversationWorkflows",
         requestFormat: "json",
         response: z.array(WorkflowDto),
     },
     {
         method: "post",
         path: "/conversation/:conversation_id/workflow",
-        alias: "CreateWorkflow",
+        alias: "CreateConversationWorkflow",
         requestFormat: "json",
         parameters: [
             {
@@ -2607,14 +2227,14 @@ curl -X POST \
     {
         method: "get",
         path: "/conversation/:conversation_id/workflow/:workflow_id",
-        alias: "GetWorkflow",
+        alias: "GetConversationWorkflow",
         requestFormat: "json",
         response: WorkflowDto,
     },
     {
         method: "put",
         path: "/conversation/:conversation_id/workflow/:workflow_id",
-        alias: "UpdateWorkflow",
+        alias: "UpdateConversationWorkflow",
         requestFormat: "json",
         parameters: [
             {
@@ -2628,30 +2248,37 @@ curl -X POST \
     {
         method: "delete",
         path: "/conversation/:conversation_id/workflow/:workflow_id",
-        alias: "DeleteWorkflow",
+        alias: "DeleteConversationWorkflow",
         requestFormat: "json",
         response: WorkflowDto,
     },
     {
         method: "delete",
         path: "/conversation/:conversation_id/workflow/:workflow_id/leave",
-        alias: "UnregisterUserForWorkflow",
+        alias: "UnregisterUserForConversationWorkflow",
         requestFormat: "json",
         response: UserParticipation,
     },
     {
         method: "get",
         path: "/conversation/:conversation_id/workflow/:workflow_id/next",
-        alias: "NextWorkflowStepForUser",
+        alias: "NextConversationWorkflowStepForUser",
         requestFormat: "json",
         response: z.union([WorkflowStep, z.null()]),
     },
     {
         method: "get",
         path: "/conversation/:conversation_id/workflow/:workflow_id/participation",
-        alias: "GetUserParticipation",
+        alias: "GetUserConversationParticipation",
         requestFormat: "json",
         response: z.union([UserParticipation, z.null()]),
+    },
+    {
+        method: "get",
+        path: "/conversation/:conversation_id/workflow/:workflow_id/participation_report",
+        alias: "GetConversationWorkflowParticipationReport",
+        requestFormat: "json",
+        response: DemographicReport,
     },
     {
         method: "get",
@@ -2678,25 +2305,36 @@ curl -X POST \
     {
         method: "post",
         path: "/conversation/:conversation_id/workflow/:workflow_id/register",
-        alias: "RegisterUserForWorkflow",
+        alias: "RegisterUserForConversationWorkflow",
         requestFormat: "json",
         response: UserParticipation,
     },
     {
         method: "get",
         path: "/conversation/:conversation_id/workflow/:workflow_id/stats",
-        alias: "GetWorkflowStats",
+        alias: "GetConversationWorkflowStats",
         requestFormat: "json",
         response: WorkflowStats,
     },
     {
         method: "get",
         path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step",
-        alias: "ListWorkflowSteps",
+        alias: "ListConversationWorkflowSteps",
+        description: `
+List the workflow steps associated with this workflow.
+
+Use query param withTranslations&#x3D;true to get the translation data for each step.
+
+Use query param withUserProgress&#x3D;true to get the active user&#x27;s progress status for each step.`,
         requestFormat: "json",
         parameters: [
             {
                 name: "withTranslations",
+                type: "Query",
+                schema: z.boolean().optional().default(false),
+            },
+            {
+                name: "withUserProgress",
                 type: "Query",
                 schema: z.boolean().optional().default(false),
             },
@@ -2706,7 +2344,7 @@ curl -X POST \
     {
         method: "post",
         path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step",
-        alias: "CreateWorkflowStep",
+        alias: "CreateConversationWorkflowStep",
         requestFormat: "json",
         parameters: [
             {
@@ -2720,14 +2358,14 @@ curl -X POST \
     {
         method: "get",
         path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id",
-        alias: "GetWorkflowStep",
+        alias: "GetConversationWorkflowStep",
         requestFormat: "json",
         response: LocalizedWorkflowStepDto,
     },
     {
         method: "put",
         path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id",
-        alias: "UpdateWorkflowStep",
+        alias: "UpdateConversationWorkflowStep",
         requestFormat: "json",
         parameters: [
             {
@@ -2741,14 +2379,14 @@ curl -X POST \
     {
         method: "delete",
         path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id",
-        alias: "DeleteWorkflowStep",
+        alias: "DeleteConversationWorkflowStep",
         requestFormat: "json",
         response: WorkflowStepDto,
     },
     {
         method: "put",
         path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/elicitation_bot",
-        alias: "UpdateElicitationBotWorkflowStep",
+        alias: "UpdateConversationElicitationBotWorkflowStep",
         requestFormat: "json",
         parameters: [
             {
@@ -2932,6 +2570,11 @@ curl -X POST \
                 schema: created_at,
             },
             {
+                name: "region_id",
+                type: "Query",
+                schema: created_after,
+            },
+            {
                 name: "limit",
                 type: "Query",
                 schema: limit,
@@ -3006,6 +2649,11 @@ curl -X POST \
                 name: "name",
                 type: "Query",
                 schema: created_at,
+            },
+            {
+                name: "organization_id",
+                type: "Query",
+                schema: created_after,
             },
             {
                 name: "limit",
@@ -3119,6 +2767,21 @@ Use a raw HTTP request and process the response body incrementally.
     },
     {
         method: "get",
+        path: "/tools/polis/report_data",
+        alias: "PolisGetReportData",
+        description: `Fetches the polis data export for a given workflow step`,
+        requestFormat: "json",
+        parameters: [
+            {
+                name: "workflow_step_id",
+                type: "Query",
+                schema: z.string().uuid(),
+            },
+        ],
+        response: z.void(),
+    },
+    {
+        method: "get",
         path: "/tools/stories/:story_id",
         alias: "GetStory",
         description: `Returns a story by id`,
@@ -3210,7 +2873,6 @@ This struct contains optional fields that can be updated on a TextContent record
                 description: `Data transfer object for updating existing text translations.
 
 This struct contains optional fields that can be updated on a TextTranslation record. Only the provided (Some) fields will be updated in the database.`,
-<<<<<<< HEAD
                 type: "Body",
                 schema: UpdateTextTranslation,
             },
@@ -3322,6 +2984,11 @@ This struct contains optional fields that can be updated on a TextTranslation re
                 schema: created_after,
             },
             {
+                name: "organization_id",
+                type: "Query",
+                schema: created_after,
+            },
+            {
                 name: "owner_id",
                 type: "Query",
                 schema: created_after,
@@ -3369,6 +3036,29 @@ This struct contains optional fields that can be updated on a TextTranslation re
             },
         ],
         response: UserConversationPreferencesDto,
+    },
+    {
+        method: "get",
+        path: "/user/profile",
+        alias: "GetUserProfile",
+        description: `Get the current user&#x27;s profile`,
+        requestFormat: "json",
+        response: UserProfileDto,
+    },
+    {
+        method: "put",
+        path: "/user/profile",
+        alias: "UpsertUserProfile",
+        description: `Create or update the current user&#x27;s profile`,
+        requestFormat: "json",
+        parameters: [
+            {
+                name: "body",
+                type: "Body",
+                schema: UpsertUserProfileRequest,
+            },
+        ],
+        response: UserProfileDto,
     },
     {
         method: "get",
@@ -3442,476 +3132,6 @@ This struct contains optional fields that can be updated on a TextTranslation re
         requestFormat: "json",
         response: WebSocketStats,
     },
-||||||| parent of e0391e0 (48 filter conversations by organization_id)
-				type: 'Body',
-				schema: UpdateTextTranslation
-			}
-		],
-		response: TextTranslationDto
-	},
-	{
-		method: 'post',
-		path: '/translations/:text_content_id/:locale',
-		alias: 'CreateOrUpdateTextTranslation',
-		description: `Create a new translation or update existing one for a specific locale`,
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: CreateOrUpdateTextTranslationRequest
-			}
-		],
-		response: TextTranslationDto
-	},
-	{
-		method: 'delete',
-		path: '/translations/:text_content_id/:locale',
-		alias: 'DeleteTextTranslation',
-		description: `Delete a translation for a specific locale`,
-		requestFormat: 'json',
-		response: TextTranslationDto
-	},
-	{
-		method: 'post',
-		path: '/translations/:text_content_id/:locale/translate',
-		alias: 'AutomaticallyGenerateTranslation',
-		description: `Use the primary_locale language and translate this language from it using the tarnslation service`,
-		requestFormat: 'json',
-		response: TextTranslationDto
-	},
-	{
-		method: 'post',
-		path: '/translations/:text_content_id/translate',
-		alias: 'GenerateAllTranslations',
-		description: `Use the default locale content as the reference text and generate automatic translations for each language form it`,
-		requestFormat: 'json',
-		response: TextContentWithTranslations
-	},
-	{
-		method: 'get',
-		path: '/user/conversations',
-		alias: 'GetConversationsUserIsParticipatingIn',
-		description: `Returns a list of all the conversations the user has taken part in`,
-		requestFormat: 'json',
-		response: z.array(ConversationDto)
-	},
-	{
-		method: 'put',
-		path: '/user/details',
-		alias: 'UpdateUserDetails',
-		description: `Update user details (username and/or password)`,
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: UpdateUserRequest
-			}
-		],
-		response: UserDto
-	},
-	{
-		method: 'get',
-		path: '/user/owned_conversations',
-		alias: 'GetOwnedConversations',
-		description: `Gets a list of the conversations a user owns`,
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'created_after',
-				type: 'Query',
-				schema: created_after
-			},
-			{
-				name: 'created_before',
-				type: 'Query',
-				schema: created_after
-			},
-			{
-				name: 'is_complete',
-				type: 'Query',
-				schema: is_complete
-			},
-			{
-				name: 'is_invite_only',
-				type: 'Query',
-				schema: is_complete
-			},
-			{
-				name: 'is_live',
-				type: 'Query',
-				schema: is_complete
-			},
-			{
-				name: 'is_public',
-				type: 'Query',
-				schema: is_complete
-			},
-			{
-				name: 'owner_id',
-				type: 'Query',
-				schema: created_after
-			},
-			{
-				name: 'title',
-				type: 'Query',
-				schema: created_after
-			},
-			{
-				name: 'limit',
-				type: 'Query',
-				schema: limit
-			},
-			{
-				name: 'offset',
-				type: 'Query',
-				schema: limit
-			}
-		],
-		response: PaginatedResults_for_LocalizedConversationDto
-	},
-	{
-		method: 'get',
-		path: '/user/preferences',
-		alias: 'GetAllUserConversationPreferences',
-		description: `Returns all conversation notification preferences for the authenticated user`,
-		requestFormat: 'json',
-		response: z.array(UserConversationPreferencesDto)
-	},
-	{
-		method: 'get',
-		path: '/user/preferences/conversation/:conversation_id',
-		alias: 'GetUserPreferenceForConversation',
-		description: `Returns the notification preferences for a specific conversation`,
-		requestFormat: 'json',
-		response: UserConversationPreferencesDto
-	},
-	{
-		method: 'put',
-		path: '/user/preferences/conversation/:conversation_id',
-		alias: 'UpdateUserPreferenceForConversation',
-		description: `Updates notification preferences for a specific conversation`,
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: UpdateUserConversationPreferences
-			}
-		],
-		response: UserConversationPreferencesDto
-	},
-	{
-		method: 'get',
-		path: '/user/roles',
-		alias: 'GetUserRoles',
-		description: `Gets a list of roles the current user has`,
-		requestFormat: 'json',
-		response: z.array(UserRoles)
-	},
-	{
-		method: 'put',
-		path: '/user/upgrade',
-		alias: 'UpgradeAccount',
-		description: `Upgrade anonymous account to email/password account`,
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: UpgradeAccountRequest
-			}
-		],
-		response: UserDto
-	},
-	{
-		method: 'post',
-		path: '/ws/broadcast',
-		alias: 'BroadcastMessage',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: BroadcastMessage
-			}
-		],
-		response: BroadcastResponse
-	},
-	{
-		method: 'post',
-		path: '/ws/broadcast/:workflow_id',
-		alias: 'BroadcastMessageToWorkflowParticipants',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: BroadcastMessage
-			}
-		],
-		response: BroadcastResponse
-	},
-	{
-		method: 'post',
-		path: '/ws/send',
-		alias: 'SendToUser',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: SendToUserMessage
-			}
-		],
-		response: BroadcastResponse
-	},
-	{
-		method: 'get',
-		path: '/ws/stats',
-		alias: 'GetWebSocketStats',
-		requestFormat: 'json',
-		response: WebSocketStats
-	}
-=======
-				type: 'Body',
-				schema: UpdateTextTranslation
-			}
-		],
-		response: TextTranslationDto
-	},
-	{
-		method: 'post',
-		path: '/translations/:text_content_id/:locale',
-		alias: 'CreateOrUpdateTextTranslation',
-		description: `Create a new translation or update existing one for a specific locale`,
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: CreateOrUpdateTextTranslationRequest
-			}
-		],
-		response: TextTranslationDto
-	},
-	{
-		method: 'delete',
-		path: '/translations/:text_content_id/:locale',
-		alias: 'DeleteTextTranslation',
-		description: `Delete a translation for a specific locale`,
-		requestFormat: 'json',
-		response: TextTranslationDto
-	},
-	{
-		method: 'post',
-		path: '/translations/:text_content_id/:locale/translate',
-		alias: 'AutomaticallyGenerateTranslation',
-		description: `Use the primary_locale language and translate this language from it using the tarnslation service`,
-		requestFormat: 'json',
-		response: TextTranslationDto
-	},
-	{
-		method: 'post',
-		path: '/translations/:text_content_id/translate',
-		alias: 'GenerateAllTranslations',
-		description: `Use the default locale content as the reference text and generate automatic translations for each language form it`,
-		requestFormat: 'json',
-		response: TextContentWithTranslations
-	},
-	{
-		method: 'get',
-		path: '/user/conversations',
-		alias: 'GetConversationsUserIsParticipatingIn',
-		description: `Returns a list of all the conversations the user has taken part in`,
-		requestFormat: 'json',
-		response: z.array(ConversationDto)
-	},
-	{
-		method: 'put',
-		path: '/user/details',
-		alias: 'UpdateUserDetails',
-		description: `Update user details (username and/or password)`,
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: UpdateUserRequest
-			}
-		],
-		response: UserDto
-	},
-	{
-		method: 'get',
-		path: '/user/owned_conversations',
-		alias: 'GetOwnedConversations',
-		description: `Gets a list of the conversations a user owns`,
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'created_after',
-				type: 'Query',
-				schema: created_after
-			},
-			{
-				name: 'created_before',
-				type: 'Query',
-				schema: created_after
-			},
-			{
-				name: 'is_complete',
-				type: 'Query',
-				schema: is_complete
-			},
-			{
-				name: 'is_invite_only',
-				type: 'Query',
-				schema: is_complete
-			},
-			{
-				name: 'is_live',
-				type: 'Query',
-				schema: is_complete
-			},
-			{
-				name: 'is_public',
-				type: 'Query',
-				schema: is_complete
-			},
-			{
-				name: 'organization_id',
-				type: 'Query',
-				schema: created_after
-			},
-			{
-				name: 'owner_id',
-				type: 'Query',
-				schema: created_after
-			},
-			{
-				name: 'title',
-				type: 'Query',
-				schema: created_after
-			},
-			{
-				name: 'limit',
-				type: 'Query',
-				schema: limit
-			},
-			{
-				name: 'offset',
-				type: 'Query',
-				schema: limit
-			}
-		],
-		response: PaginatedResults_for_LocalizedConversationDto
-	},
-	{
-		method: 'get',
-		path: '/user/preferences',
-		alias: 'GetAllUserConversationPreferences',
-		description: `Returns all conversation notification preferences for the authenticated user`,
-		requestFormat: 'json',
-		response: z.array(UserConversationPreferencesDto)
-	},
-	{
-		method: 'get',
-		path: '/user/preferences/conversation/:conversation_id',
-		alias: 'GetUserPreferenceForConversation',
-		description: `Returns the notification preferences for a specific conversation`,
-		requestFormat: 'json',
-		response: UserConversationPreferencesDto
-	},
-	{
-		method: 'put',
-		path: '/user/preferences/conversation/:conversation_id',
-		alias: 'UpdateUserPreferenceForConversation',
-		description: `Updates notification preferences for a specific conversation`,
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: UpdateUserConversationPreferences
-			}
-		],
-		response: UserConversationPreferencesDto
-	},
-	{
-		method: 'get',
-		path: '/user/roles',
-		alias: 'GetUserRoles',
-		description: `Gets a list of roles the current user has`,
-		requestFormat: 'json',
-		response: z.array(UserRoles)
-	},
-	{
-		method: 'put',
-		path: '/user/upgrade',
-		alias: 'UpgradeAccount',
-		description: `Upgrade anonymous account to email/password account`,
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: UpgradeAccountRequest
-			}
-		],
-		response: UserDto
-	},
-	{
-		method: 'post',
-		path: '/ws/broadcast',
-		alias: 'BroadcastMessage',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: BroadcastMessage
-			}
-		],
-		response: BroadcastResponse
-	},
-	{
-		method: 'post',
-		path: '/ws/broadcast/:workflow_id',
-		alias: 'BroadcastMessageToWorkflowParticipants',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: BroadcastMessage
-			}
-		],
-		response: BroadcastResponse
-	},
-	{
-		method: 'post',
-		path: '/ws/send',
-		alias: 'SendToUser',
-		requestFormat: 'json',
-		parameters: [
-			{
-				name: 'body',
-				type: 'Body',
-				schema: SendToUserMessage
-			}
-		],
-		response: BroadcastResponse
-	},
-	{
-		method: 'get',
-		path: '/ws/stats',
-		alias: 'GetWebSocketStats',
-		requestFormat: 'json',
-		response: WebSocketStats
-	}
->>>>>>> e0391e0 (48 filter conversations by organization_id)
 ]);
 export const api = new Zodios(endpoints);
 export function createApiClient(baseUrl, options) {

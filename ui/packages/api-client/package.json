@@ -1,14 +1,15 @@
 {
 	"name": "@crownshy/api-client",
 	"description": "OpenAPI client for the Comhairle deliberative decomracy platform.",
-	"version": "0.0.4",
+	"version": "0.0.5",
 	"type": "module",
 	"main": "dist/api.js",
 	"types": "dist/api.d.ts",
 	"scripts": {
 		"generateAPI": "openapi-zod-client \"../../../open-api-spec.json\" -o src/api.ts -t src/template.hbs",
 		"ts": "tsc",
-		"build": "pnpm run generateAPI"
+		"build": "pnpm run generateAPI && pnpm run ts",
+		"prepublishOnly": "pnpm run build"
 	},
 	"devDependencies": {
 		"openapi-zod-client": "^1.18.3",

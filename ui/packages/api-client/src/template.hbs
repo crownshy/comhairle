@@ -14,14 +14,14 @@ export type {{@key}} = z.infer<typeof {{@key}}>;
 
 
 {{#ifNotEmptyObj schemas}}
-export const schemas = {
+export const schemas: Record<string, z.ZodType<any>> = {
 {{#each schemas}}
 	{{@key}},
 {{/each}}
 };
 {{/ifNotEmptyObj}}
 
-const endpoints = makeApi([
+const endpoints: ReturnType<typeof makeApi> = makeApi([
 {{#each endpoints}}
 	{
 		method: "{{method}}",
@@ -77,6 +77,6 @@ const endpoints = makeApi([
 
 export const {{options.apiClientName}}: ZodiosInstance<typeof endpoints> = new Zodios({{#if options.baseUrl}}"{{options.baseUrl}}", {{/if}}endpoints);
 
-export function createApiClient(baseUrl: string, options?: ZodiosOptions) {
+export function createApiClient(baseUrl: string, options?: ZodiosOptions): ZodiosInstance<typeof endpoints> {
     return new Zodios(baseUrl, endpoints, options);
 }
