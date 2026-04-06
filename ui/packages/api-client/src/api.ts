@@ -1359,7 +1359,7 @@ export const ComhairleServices = z
   .passthrough();
 export type ComhairleServices = z.infer<typeof ComhairleServices>;
 
-export const schemas = {
+export const schemas: Record<string, z.ZodType<any>> = {
   AnnonLoginRequest,
   UserAuthType,
   UserDto,
@@ -1512,7 +1512,7 @@ export const schemas = {
   ComhairleServices,
 };
 
-const endpoints = makeApi([
+const endpoints: ReturnType<typeof makeApi> = makeApi([
   {
     method: "get",
     path: "/auth/current_user",
@@ -3336,6 +3336,9 @@ This struct contains optional fields that can be updated on a TextTranslation re
 
 export const api: ZodiosInstance<typeof endpoints> = new Zodios(endpoints);
 
-export function createApiClient(baseUrl: string, options?: ZodiosOptions) {
+export function createApiClient(
+  baseUrl: string,
+  options?: ZodiosOptions
+): ZodiosInstance<typeof endpoints> {
   return new Zodios(baseUrl, endpoints, options);
 }
