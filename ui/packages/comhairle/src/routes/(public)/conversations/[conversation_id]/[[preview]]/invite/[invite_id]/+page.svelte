@@ -1,22 +1,30 @@
 <script lang="ts">
 	import ConversationSummary from '$lib/components/ConversationSummary.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import {
-		loginRedirect,
-		signupRedirect,
-		signupAnnonRedirect,
-		conversation_url
-	} from '$lib/urls.js';
+	import PrivacyPolicyDialog from '$lib/components/PrivacyPolicyDialog.svelte';
+	import * as m from '$lib/paraglide/messages';
+
+	import { loginRedirect, signupRedirect, signupAnnonRedirect } from '$lib/urls.js';
 
 	import { page } from '$app/state';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
+
+	let loginType = $state<'automatic' | 'login'>('login');
+
+	let privacyPolicyOpen = $state(false);
 
 	const url = $derived(page.url);
 	let { data } = $props();
-	let { user, invite, conversation, error } = data;
+	let { user, invite, conversation, error, workflows } = data;
+
 	let pageTitle = $derived(
 		conversation?.title ? `Invitation - ${conversation.title}` : 'Conversation Invite'
+	);
+
+	let firstWorkflow = $derived(workflows[0]);
+	let firstWorkflowPath = $derived(
+		`/conversations/${conversation.id}/workflow/${firstWorkflow.id}/next`
 	);
 
 	function login() {
@@ -31,11 +39,33 @@
 		signupAnnonRedirect(url.toString(), 'Signup to accept invite');
 	}
 
+	function showAnnonPrivacy() {
+		loginType = 'automatic';
+		privacyPolicyOpen = true;
+	}
+
+	function showUserPrivacy() {
+		loginType = 'automatic';
+		privacyPolicyOpen = true;
+	}
+
+	async function handlePrivacyPolicyAccept() {
+		try {
+			if (loginType === 'automatic') {
+				await apiClient.SignupAnnonUser(undefined, {});
+			}
+			await acceptInvite();
+			await invalidateAll();
+			await goto(firstWorkflowPath);
+		} catch (e) {
+			console.error(e);
+		}
+	}
+
 	async function acceptInvite() {
 		await apiClient.AcceptInvite(undefined, {
 			params: { conversation_id: conversation!.id, invite_id: invite!.id }
 		});
-		goto(conversation_url(conversation.id));
 	}
 
 	async function rejectInvite() {
@@ -57,7 +87,7 @@
 				You have been invited to join the following conversation
 			</h1>
 			<ConversationSummary {conversation}>
-				{#if !user && invite.loginBehaviour === 'manual'}
+				{#if !user && invite.loginBehaviour === 'manual' && firstWorkflow.autoLogin === false}
 					<p class="mb-5">To join this conversation please either</p>
 					{#if !user && typeof invite.inviteType !== 'string' && 'email' in invite.inviteType && invite.inviteType.email}
 						<div class="mb-5 flex flex-row gap-2">
@@ -79,12 +109,15 @@
 				{/if}
 
 				{#if user}
-					<Button onclick={acceptInvite}>Accept Invite</Button>
-					<Button onclick={rejectInvite}>Reject Invite</Button>
+					<Button onclick={showUserPrivacy}
+						>{conversation.callToAction || m.join_the_conversation()}</Button
+					>
 				{/if}
 
-				{#if !user && invite.loginBehaviour === 'auto_create_annon'}
-					<Button>Join</Button>
+				{#if !user && (invite.loginBehaviour === 'auto_create_annon' || firstWorkflow.autoLogin)}
+					<Button onclick={showAnnonPrivacy}
+						>{conversation.callToAction || m.join_the_conversation()}</Button
+					>
 				{/if}
 			</ConversationSummary>
 		</div>
@@ -107,3 +140,9 @@
 		</div>
 	</div>
 {/if}
+
+<PrivacyPolicyDialog
+	{conversation}
+	bind:open={privacyPolicyOpen}
+	onAccept={handlePrivacyPolicyAccept}
+/>

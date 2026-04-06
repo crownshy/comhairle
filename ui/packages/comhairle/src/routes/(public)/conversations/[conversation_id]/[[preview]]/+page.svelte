@@ -42,7 +42,9 @@
 
 	let url = $derived(page.url);
 
-	let firstWorkflowPath = $derived(`${url}/workflow/${firstWorkflow.id}/next`);
+	let firstWorkflowPath = $derived(
+		`/conversations/${conversation.slug}/workflow/${firstWorkflow.id}/next`
+	);
 
 	async function redirectToLogin() {
 		loginRedirect(url.pathname, 'Login to join the conversation');
@@ -111,12 +113,12 @@
 					>
 				{:else}
 					<Button class="mt-5 w-full md:w-fit" onclick={handleJoin}
-						>{m.join_the_conversation()}</Button
+						>{conversation.callToAction || m.join_the_conversation()}</Button
 					>
 				{/if}
 			{:else if firstWorkflow.autoLogin}
 				<Button class="mt-5 w-full md:w-fit" onclick={handleJoin}
-					>{m.join_the_conversation()}</Button
+					>{conversation.callToAction || m.join_the_conversation()}</Button
 				>
 			{:else}
 				<Button class="mt-5 w-full md:w-fit" onclick={redirectToLogin}
