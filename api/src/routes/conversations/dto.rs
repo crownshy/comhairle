@@ -63,6 +63,8 @@ pub struct ConversationDto {
     pub faqs: Option<TextContentId>,
     #[schemars(example = "example_uuid")]
     pub thank_you_message: Option<TextContentId>,
+    #[schemars(example = "example_uuid")]
+    pub call_to_action: Option<TextContentId>,
     pub enable_signup_prompts: bool,
 }
 
@@ -118,6 +120,8 @@ pub struct LocalizedConversationDto {
     pub faqs: Option<String>,
     #[schemars(example = "example_localized_text")]
     pub thank_you_message: Option<String>,
+    #[schemars(example = "example_localized_text")]
+    pub call_to_action: Option<String>,
     pub enable_signup_prompts: bool,
 }
 
@@ -146,6 +150,7 @@ impl From<Conversation> for ConversationDto {
             short_privacy_policy: c.short_privacy_policy,
             faqs: c.faqs,
             thank_you_message: c.thank_you_message,
+            call_to_action: c.call_to_action,
             enable_signup_prompts: c.enable_signup_prompts,
         }
     }
@@ -176,6 +181,7 @@ impl From<LocalizedConversation> for LocalizedConversationDto {
             short_privacy_policy: c.short_privacy_policy,
             faqs: c.faqs,
             thank_you_message: c.thank_you_message,
+            call_to_action: c.call_to_action,
             enable_signup_prompts: c.enable_signup_prompts,
         }
     }
