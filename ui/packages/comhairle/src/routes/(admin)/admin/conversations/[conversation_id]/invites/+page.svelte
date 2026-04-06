@@ -7,6 +7,7 @@
 	import * as Card from '$lib/components/ui/card';
 
 	import EmailInviteForm from '$lib/components/ui/EmailInviteForm/EmailInviteForm.svelte';
+	import InviteLabelDialog from '$lib/components/InviteLabelDialog.svelte';
 
 	import { formatDistanceToNow } from 'date-fns';
 	import QrCode from 'svelte-qrcode';
@@ -19,6 +20,8 @@
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte.js';
 
 	let sendEmailDiaglogOpen = $state(false);
+	let labelDialogOpen = $state(false);
+	let selectedInvite = $state<InviteDto | null>(null);
 
 	let url = $page.url;
 	let { data } = $props();
@@ -26,11 +29,17 @@
 
 	let { conversation } = data;
 
-	async function createInviteLink() {
-		await apiClient.CreateInvite(
-			{ invite_type: 'open' },
-			{ params: { conversation_id: data.conversation.id } }
-		);
+	function createInviteLink() {
+		selectedInvite = null;
+		labelDialogOpen = true;
+	}
+
+	function editInviteLabel(invite: InviteDto) {
+		selectedInvite = invite;
+		labelDialogOpen = true;
+	}
+
+	async function handleLabelSaved() {
 		await invalidateAll();
 	}
 
@@ -138,6 +147,7 @@
 		<Table.Root>
 			<Table.Header>
 				<Table.Row>
+					<Table.Head class="w-[150px]">Label</Table.Head>
 					<Table.Head class="w-[100px]">Link</Table.Head>
 					<Table.Head class="w-[100px]">Created At</Table.Head>
 					<Table.Head class="w-[100px]">Expires</Table.Head>
@@ -149,6 +159,17 @@
 			<Table.Body>
 				{#each openInvites as invite (invite.id)}
 					<Table.Row>
+						<Table.Cell>
+							<Button
+								variant="ghost"
+								size="sm"
+								onclick={() => editInviteLabel(invite)}
+								class="h-auto p-1 font-normal"
+							>
+								{invite.label || '(click to add label)'}
+							</Button>
+						</Table.Cell>
+
 						<Table.Cell>
 							{@render InviteLink(invite, 'Link')}
 						</Table.Cell>
@@ -186,3 +207,10 @@
 		<h2>Generate physical QR Codes for an inperson event</h2>
 	</Tabs.Content>
 </Tabs.Root>
+
+<InviteLabelDialog
+	bind:open={labelDialogOpen}
+	invite={selectedInvite}
+	conversationId={conversation.id}
+	onSave={handleLabelSaved}
+/>

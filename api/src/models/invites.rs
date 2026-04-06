@@ -27,6 +27,7 @@ pub struct Invite {
     pub workflow_step_id: Option<Uuid>,
     pub login_behaviour: LoginBehaviour,
     pub tags: Vec<String>,
+    pub label: Option<String>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
@@ -166,9 +167,10 @@ pub struct CreateInviteDTO {
     #[serde(default)]
     login_behaviour: LoginBehaviour,
     expires_at: Option<DateTime<Utc>>,
+    label: Option<String>,
 }
 
-const DEFAULT_COLUMNS: [InviteIden; 13] = [
+const DEFAULT_COLUMNS: [InviteIden; 14] = [
     InviteIden::Id,
     InviteIden::InviteType,
     InviteIden::CreatedBy,
@@ -179,6 +181,7 @@ const DEFAULT_COLUMNS: [InviteIden; 13] = [
     InviteIden::WorkflowStepId,
     InviteIden::LoginBehaviour,
     InviteIden::Tags,
+    InviteIden::Label,
     InviteIden::CreatedAt,
     InviteIden::UpdatedAt,
     InviteIden::AcceptCount,
@@ -236,6 +239,32 @@ pub async fn get(db: &PgPool, invite_id: &Uuid) -> Result<Invite, ComhairleError
 }
 
 #[instrument(err(Debug))]
+pub async fn update(
+    db: &PgPool,
+    id: &Uuid,
+    partial_invite: PartialInvite,
+) -> Result<Invite, ComhairleError> {
+    let mut query = Query::update();
+    query.table(InviteIden::Table);
+
+    if let Some(label) = partial_invite.label {
+        query.value(InviteIden::Label, label);
+    }
+
+    let (sql, values) = query
+        .and_where(Expr::col(InviteIden::Id).eq(id.to_owned()))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let invite = sqlx::query_as_with::<_, Invite, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .map_err(|_| ComhairleError::ResourceNotFound("Invite".into()))?;
+
+    Ok(invite)
+}
+
+#[instrument(err(Debug))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Invite, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(InviteIden::Table)
@@ -272,6 +301,7 @@ pub async fn create(
             InviteIden::LoginBehaviour,
             InviteIden::Status,
             InviteIden::ExpiresAt,
+            InviteIden::Label,
         ])
         .values(vec![
             user_id.to_owned().into(),
@@ -280,6 +310,7 @@ pub async fn create(
             create_invite.login_behaviour.into(),
             starting_status.into(),
             create_invite.expires_at.into(),
+            create_invite.label.into(),
         ])
         .unwrap()
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
@@ -362,6 +393,7 @@ mod tests {
             workflow_step_id: None,
             login_behaviour: LoginBehaviour::Manual,
             tags: vec![],
+            label: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
             accept_count: 0,
@@ -426,6 +458,7 @@ mod tests {
                 invite_type: InviteType::Open,
                 login_behaviour: LoginBehaviour::Manual,
                 expires_at: None,
+                label: None,
             },
             &conversation.id,
             &user1.id,

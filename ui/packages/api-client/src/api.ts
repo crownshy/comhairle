@@ -876,6 +876,7 @@ export const InviteDto = z
     expiresAt: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     inviteType: InviteType,
+    label: z.union([z.string(), z.null()]).optional(),
     loginBehaviour: LoginBehaviour,
     status: InviteStatus,
     tags: z.array(z.string()),
@@ -888,10 +889,28 @@ export const CreateInviteDTO = z
   .object({
     expires_at: z.union([z.string(), z.null()]).optional(),
     invite_type: InviteType,
+    label: z.union([z.string(), z.null()]).optional(),
     login_behaviour: LoginBehaviour.optional(),
   })
   .passthrough();
 export type CreateInviteDTO = z.infer<typeof CreateInviteDTO>;
+export const PartialInvite = z
+  .object({
+    accept_count: z.union([z.number(), z.null()]),
+    conversation_id: z.union([z.string(), z.null()]),
+    created_by: z.union([z.string(), z.null()]),
+    expires_at: z.union([z.string(), z.null()]),
+    invite_type: z.union([InviteType, z.null()]),
+    label: z.union([z.string(), z.null()]),
+    login_behaviour: z.union([LoginBehaviour, z.null()]),
+    status: z.union([InviteStatus, z.null()]),
+    tags: z.union([z.array(z.string()), z.null()]),
+    workflow_id: z.union([z.string(), z.null()]),
+    workflow_step_id: z.union([z.string(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type PartialInvite = z.infer<typeof PartialInvite>;
 export const DailyResponseStats = z
   .object({
     accept: z.number().int(),
@@ -1423,6 +1442,7 @@ export const schemas = {
   InviteStatus,
   InviteDto,
   CreateInviteDTO,
+  PartialInvite,
   DailyResponseStats,
   FeedbackDto,
   ReportImpactDto,
@@ -2255,6 +2275,20 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/conversation/:conversation_id/invite/:invite_id",
     alias: "DeleteInvite",
     requestFormat: "json",
+    response: InviteDto,
+  },
+  {
+    method: "patch",
+    path: "/conversation/:conversation_id/invite/:invite_id",
+    alias: "UpdateInvite",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: PartialInvite,
+      },
+    ],
     response: InviteDto,
   },
   {
