@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{delete_with, get_with, post_with},
+    routing::{get_with, patch_with, post_with},
     ApiRouter,
 };
 use axum::{
@@ -17,7 +17,7 @@ use crate::{
     error::ComhairleError,
     models::{
         self,
-        invites::{CreateInviteDTO, DailyResponseStats},
+        invites::{CreateInviteDTO, DailyResponseStats, PartialInvite},
         workflow,
     },
     routes::invites::dto::InviteDto,
@@ -168,6 +168,20 @@ async fn get_invite_stats(
 }
 
 #[instrument(err(Debug), skip(state))]
+async fn update_invite(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_, invite_id)): Path<(Uuid, Uuid)>,
+    RequiredAdminUser(_): RequiredAdminUser,
+    Json(partial_invite): Json<PartialInvite>,
+) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
+    let invite = models::invites::update(&state.db, &invite_id, partial_invite)
+        .await?
+        .into();
+
+    Ok((StatusCode::OK, Json(invite)))
+}
+
+#[instrument(err(Debug), skip(state))]
 async fn delete_invite(
     State(state): State<Arc<ComhairleState>>,
     Path((_, invite_id)): Path<(Uuid, Uuid)>,
@@ -243,7 +257,14 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         )
         .api_route(
             "/{invite_id}",
-            delete_with(delete_invite, |op| {
+            patch_with(update_invite, |op| {
+                op.id("UpdateInvite")
+                    .summary("Update an invite")
+                    .tag("Invites")
+                    .security_requirement("JWT")
+                    .response::<200, Json<InviteDto>>()
+            })
+            .delete_with(delete_invite, |op| {
                 op.id("DeleteInvite")
                     .summary("Destroy and invite")
                     .tag("Invites")

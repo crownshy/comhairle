@@ -26,6 +26,7 @@ pub struct InviteDto {
     pub workflow_step_id: Option<Uuid>,
     pub login_behaviour: LoginBehaviour,
     pub tags: Vec<String>,
+    pub label: Option<String>,
     pub accept_count: i32,
     pub created_at: DateTime<Utc>,
 }
@@ -43,6 +44,7 @@ impl From<Invite> for InviteDto {
             workflow_step_id: i.workflow_step_id,
             login_behaviour: i.login_behaviour,
             tags: i.tags,
+            label: i.label,
             accept_count: i.accept_count,
             created_at: i.created_at,
         }
