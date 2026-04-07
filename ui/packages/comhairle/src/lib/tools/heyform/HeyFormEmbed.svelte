@@ -17,7 +17,9 @@
 
 	function onFrameMessage(e: any) {
 		if (e.data.eventName === 'HIDE_EMBED_MODAL') {
-			onDone();
+			setTimeout(() => {
+				onDone();
+			}, 2000);
 		}
 	}
 
