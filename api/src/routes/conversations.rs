@@ -37,7 +37,7 @@ use crate::{
         user_conversation_preferences,
         user_participation::{self},
         workflow::{self, CreateWorkflow},
-        workflow_step,
+        workflow_step::{self, CreateWorkflowStep},
     },
     routes::{
         conversations::dto::{
@@ -45,8 +45,13 @@ use crate::{
             LocalizedConversationDto,
         },
         translations::LocaleExtractor,
-        workflow_steps::dto::{ImportExportToolConfig, ImportExportWorkflowStepDto},
-        workflows::dto::{ImportExportWorkflowDto, ImportExportWorkflowWithWorkflowStepsDto},
+        workflow_steps::{
+            self,
+            dto::{ImportExportToolConfig, ImportExportWorkflowStepDto, WorkflowStepDto},
+        },
+        workflows::dto::{
+            ImportExportWorkflowDto, ImportExportWorkflowWithWorkflowStepsDto, WorkflowDto,
+        },
     },
     tools::ToolConfig,
     ComhairleState,
@@ -459,8 +464,16 @@ async fn export_conversation(
                 ImportExportToolConfig::ElicitationBot(config.clone())
             }
         };
-        let mut step_dto: ImportExportWorkflowStepDto = step.into();
-        step_dto.preview_tool_config = Some(export_config);
+        let step_dto = ImportExportWorkflowStepDto {
+            name: step.name,
+            step_order: step.step_order,
+            activation_rule: step.activation_rule,
+            description: step.description,
+            is_offline: step.is_offline,
+            required: step.required,
+            can_revisit: step.can_revisit,
+            preview_tool_config: export_config,
+        };
         workflow_step_dtos.push(step_dto);
     }
 
@@ -487,13 +500,20 @@ async fn export_conversation(
     Ok(response)
 }
 
+#[derive(Serialize, Debug, JsonSchema)]
+struct ImportConversationResponse {
+    conversation: ConversationDto,
+    workflow: WorkflowDto,
+    workflow_steps: Vec<WorkflowStepDto>,
+}
+
 #[instrument(err(Debug), skip(state))]
 async fn import_conversation(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
     LocaleExtractor(locale): LocaleExtractor,
     mut form_data: Multipart,
-) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
+) -> Result<(StatusCode, Json<ImportConversationResponse>), ComhairleError> {
     let bytes = match form_data.next_field().await? {
         Some(field) => field.bytes().await?,
         None => return Err(ComhairleError::BadRequest("Missing form field".to_string())),
@@ -506,6 +526,7 @@ async fn import_conversation(
 
     let import: ImportExportConversationWithWorkflowDto = serde_json::from_slice(&bytes)?;
     let mut imported_conversation = import.conversation;
+    // Presumes one workflow per conversation
     let imported_workflow =
         import
             .workflows
@@ -537,7 +558,7 @@ async fn import_conversation(
     .await?;
 
     let create_workflow_params: CreateWorkflow = imported_workflow.workflow.into();
-    let _new_workflow = workflow::create(
+    let new_workflow = workflow::create(
         &state.db,
         &create_workflow_params,
         Some(new_conversation.id),
@@ -546,7 +567,22 @@ async fn import_conversation(
     )
     .await?;
 
-    Ok((StatusCode::CREATED, Json(new_conversation.into()))) // TODO: proper response
+    let mut new_steps: Vec<WorkflowStepDto> = vec![];
+    for step in imported_workflow.workflow_steps {
+        let create_step_params: CreateWorkflowStep = step.into();
+        let new_workflow_step =
+            workflow_step::create(&state, &create_step_params, new_workflow.id, &locale).await?;
+        new_steps.push(new_workflow_step.into());
+    }
+
+    Ok((
+        StatusCode::CREATED,
+        Json(ImportConversationResponse {
+            conversation: new_conversation.into(),
+            workflow: new_workflow.into(),
+            workflow_steps: new_steps,
+        }),
+    ))
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
@@ -655,7 +691,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             post_with(import_conversation, |op| {
                 op.summary("Import a conversation")
                     .description("Imports a conversation from an exported json file")
-                    .response::<200, Json<()>>()
+                    .response::<200, Json<ImportConversationResponse>>()
                     .tag("Conversation")
             }),
         )
