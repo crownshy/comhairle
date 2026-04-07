@@ -1,0 +1,95 @@
+{
+        "title": "Test export import conversation",
+        "shortDescription": "Test export import conversation",
+        "description": "This should be a longer description about the conversation. It should introduce people to what is being discussed and outline-solid the actions that might be taken as a result of the conversation",
+        "videoUrl": null,
+        "imageUrl": "/src/lib/assets/placeholder_convo.png",
+        "tags": [],
+        "isPublic": false,
+        "isInviteOnly": false,
+        "slug": "test-export-import-conversation",
+        "primaryLocale": "en",
+        "supportedLanguages": [
+                "en"
+        ],
+        "organizationId": null,
+        "privacyPolicy": null,
+        "shortPrivacyPolicy": null,
+        "faqs": null,
+        "thankYouMessage": null,
+        "workflows": [
+                {
+                        "name": "Default Workflow",
+                        "description": "The default workflow",
+                        "isActive": true,
+                        "isPublic": true,
+                        "autoLogin": false,
+                        "regionId": null,
+                        "workflowSteps": [
+                                {
+                                        "name": "Learn about the topic",
+                                        "stepOrder": 1,
+                                        "activationRule": "manual",
+                                        "description": "Before we can hear what you think, we want to tell you a bit more about the topic at hand",
+                                        "isOffline": false,
+                                        "required": true,
+                                        "canRevisit": false,
+                                        "previewToolConfig": {
+                                                "learn": {
+                                                        "pages": [
+                                                                [
+                                                                        {
+                                                                                "lang": "en",
+                                                                                "type": "markdown",
+                                                                                "content": "{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"textAlign\":null,\"level\":1},\"content\":[{\"type\":\"text\",\"text\":\"Updated first page\"}]},{\"type\":\"paragraph\",\"attrs\":{\"textAlign\":null},\"content\":[{\"type\":\"text\",\"text\":\"With some paragraph text\"}]},{\"type\":\"paragraph\",\"attrs\":{\"textAlign\":null}}]}",
+                                                                                "requires_validation": true
+                                                                        },
+                                                                        {
+                                                                                "lang": "gd",
+                                                                                "type": "markdown",
+                                                                                "content": "# Leathanach 1 \n\n",
+                                                                                "requires_validation": true
+                                                                        }
+                                                                ],
+                                                                [
+                                                                        {
+                                                                                "lang": "en",
+                                                                                "type": "markdown",
+                                                                                "content": "{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"textAlign\":null,\"level\":1},\"content\":[{\"type\":\"text\",\"text\":\"Updated second page\"}]},{\"type\":\"paragraph\",\"attrs\":{\"textAlign\":null}}]}",
+                                                                                "requires_validation": true
+                                                                        },
+                                                                        {
+                                                                                "lang": "gd",
+                                                                                "type": "markdown",
+                                                                                "content": "# Leathanach 2 \n\n",
+                                                                                "requires_validation": true
+                                                                        }
+                                                                ]
+                                                        ]
+                                                }
+                                        }
+                                },
+                                {
+                                        "name": "Take a short survey",
+                                        "stepOrder": 2,
+                                        "activationRule": "manual",
+                                        "description": "Take a short survey about your views",
+                                        "isOffline": false,
+                                        "required": true,
+                                        "canRevisit": false,
+                                        "previewToolConfig": "heyForm"
+                                },
+                                {
+                                        "name": "Tell us what you think",
+                                        "stepOrder": 3,
+                                        "activationRule": "manual",
+                                        "description": "Tell us what you think bellow and vote on what others thing",
+                                        "isOffline": false,
+                                        "required": true,
+                                        "canRevisit": false,
+                                        "previewToolConfig": "polis"
+                                }
+                        ]
+                }
+        ]
+}
