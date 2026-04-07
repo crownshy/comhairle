@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     models::workflow::{CreateWorkflow, Workflow},
-    routes::workflow_steps::dto::ImportExportWorkflowStepDto,
+    routes::workflow_steps::dto::ImexWorkflowStepDto,
 };
 
 /// Data transfer object (public API representation) for a Workflow.
@@ -48,7 +48,7 @@ pub struct WorkflowDto {
 /// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ImportExportWorkflowDto {
+pub struct ImexWorkflowDto {
     pub name: String,
     pub description: String,
     pub is_active: bool,
@@ -59,10 +59,10 @@ pub struct ImportExportWorkflowDto {
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ImportExportWorkflowWithWorkflowStepsDto {
+pub struct ImexWorkflowWithStepsDto {
     #[serde(flatten)]
-    pub workflow: ImportExportWorkflowDto,
-    pub workflow_steps: Vec<ImportExportWorkflowStepDto>,
+    pub workflow: ImexWorkflowDto,
+    pub workflow_steps: Vec<ImexWorkflowStepDto>,
 }
 
 impl From<Workflow> for WorkflowDto {
@@ -82,7 +82,7 @@ impl From<Workflow> for WorkflowDto {
     }
 }
 
-impl From<Workflow> for ImportExportWorkflowDto {
+impl From<Workflow> for ImexWorkflowDto {
     fn from(w: Workflow) -> Self {
         Self {
             name: w.name,
@@ -95,8 +95,8 @@ impl From<Workflow> for ImportExportWorkflowDto {
     }
 }
 
-impl From<ImportExportWorkflowDto> for CreateWorkflow {
-    fn from(w: ImportExportWorkflowDto) -> Self {
+impl From<ImexWorkflowDto> for CreateWorkflow {
+    fn from(w: ImexWorkflowDto) -> Self {
         Self {
             name: w.name,
             description: w.description,

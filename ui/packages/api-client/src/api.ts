@@ -535,7 +535,7 @@ export const RegisterEmailResponse = z
   })
   .passthrough();
 export type RegisterEmailResponse = z.infer<typeof RegisterEmailResponse>;
-export const ImportExportConversationDto = z
+export const ImexConversationDto = z
   .object({
     description: z.string(),
     faqs: z.union([z.string(), z.null()]).optional(),
@@ -555,9 +555,7 @@ export const ImportExportConversationDto = z
     videoUrl: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type ImportExportConversationDto = z.infer<
-  typeof ImportExportConversationDto
->;
+export type ImexConversationDto = z.infer<typeof ImexConversationDto>;
 export const WorkflowDto = z
   .object({
     autoLogin: z.boolean(),
@@ -1449,7 +1447,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   SendEmailNotificationResponse,
   RegisterEmailRequest,
   RegisterEmailResponse,
-  ImportExportConversationDto,
+  ImexConversationDto,
   WorkflowDto,
   ActivationRule,
   LearnPage,
@@ -2254,7 +2252,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "getConversationConversation_idexport",
     description: `Exports a conversation, workflows, steps etc to a json file.`,
     requestFormat: "json",
-    response: ImportExportConversationDto,
+    response: ImexConversationDto,
   },
   {
     method: "get",

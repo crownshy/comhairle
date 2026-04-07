@@ -200,7 +200,7 @@ impl From<LocalizedWorkflowStepWithProgress> for LocalizedWorkflowStepWithProgre
 /// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ImportExportWorkflowStepDto {
+pub struct ImexWorkflowStepDto {
     #[schemars(example = "example_localized_text")]
     pub name: String,
     pub step_order: i32,
@@ -210,12 +210,12 @@ pub struct ImportExportWorkflowStepDto {
     pub is_offline: bool,
     pub required: bool,
     pub can_revisit: bool,
-    pub preview_tool_config: ImportExportToolConfig,
+    pub preview_tool_config: ImexToolConfig,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
-pub enum ImportExportToolConfig {
+pub enum ImexToolConfig {
     Polis,
     Learn(LearnToolConfig),
     HeyForm,
@@ -223,25 +223,25 @@ pub enum ImportExportToolConfig {
     ElicitationBot(ElicitationBotToolConfig),
 }
 
-impl From<ImportExportToolConfig> for ToolSetup {
-    fn from(c: ImportExportToolConfig) -> Self {
+impl From<ImexToolConfig> for ToolSetup {
+    fn from(c: ImexToolConfig) -> Self {
         match c {
-            ImportExportToolConfig::Learn(config) => Self::Learn(LearnToolSetup {
+            ImexToolConfig::Learn(config) => Self::Learn(LearnToolSetup {
                 pages: config.pages,
             }),
-            ImportExportToolConfig::Polis => Self::Polis(PolisToolSetup {
+            ImexToolConfig::Polis => Self::Polis(PolisToolSetup {
                 topic: "".to_string(),
                 required_votes: None,
             }),
-            ImportExportToolConfig::HeyForm => Self::HeyForm(HeyFormToolSetup {
+            ImexToolConfig::HeyForm => Self::HeyForm(HeyFormToolSetup {
                 server_url: "forms.comhairle.scot".to_string(), // TODO:
             }),
-            ImportExportToolConfig::ElicitationBot(config) => {
+            ImexToolConfig::ElicitationBot(config) => {
                 Self::ElicitationBot(ElicitationBotToolSetup {
                     topic: config.topic,
                 })
             }
-            ImportExportToolConfig::Stories => Self::Stories(StoriesToolSetup {
+            ImexToolConfig::Stories => Self::Stories(StoriesToolSetup {
                 max_time: 10,
                 to_see: 3,
             }),
@@ -249,8 +249,8 @@ impl From<ImportExportToolConfig> for ToolSetup {
     }
 }
 
-impl From<ImportExportWorkflowStepDto> for CreateWorkflowStep {
-    fn from(s: ImportExportWorkflowStepDto) -> Self {
+impl From<ImexWorkflowStepDto> for CreateWorkflowStep {
+    fn from(s: ImexWorkflowStepDto) -> Self {
         Self {
             name: s.name,
             step_order: s.step_order,
