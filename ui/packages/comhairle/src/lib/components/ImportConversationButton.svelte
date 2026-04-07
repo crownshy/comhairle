@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { notifications } from '$lib/notifications.svelte';
 	import { Import } from 'lucide-svelte';
+	import { Spinner } from './ui/spinner';
 
 	let fileInput: HTMLInputElement | null = $state(null);
 
@@ -10,7 +11,10 @@
 		fileInput?.click();
 	}
 
+	let loading = $state(false);
+
 	async function handleFileSelect(e: Event) {
+		loading = true;
 		const target = e.target as HTMLInputElement;
 		const files = target.files;
 
@@ -53,10 +57,13 @@
 				message: 'Failed to upload JSON file '
 			});
 		}
+		loading = false;
 	}
 </script>
 
 <span>
-	<Button variant="outline" onclick={triggerFileSelect}><Import />Import New Conversation</Button>
+	<Button variant="outline" onclick={triggerFileSelect}
+		>{#if loading}<Spinner />{:else}<Import />{/if}Import New Conversation</Button
+	>
 	<input bind:this={fileInput} hidden type="file" accept=".json" onchange={handleFileSelect} />
 </span>

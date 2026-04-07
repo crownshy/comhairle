@@ -573,30 +573,6 @@ export const WorkflowDto = z
   })
   .passthrough();
 export type WorkflowDto = z.infer<typeof WorkflowDto>;
-export const CreateWorkflow = z
-  .object({
-    auto_login: z.boolean(),
-    description: z.string(),
-    is_active: z.boolean(),
-    is_public: z.boolean(),
-    name: z.string(),
-    region_id: z.union([z.string(), z.null()]).optional(),
-  })
-  .passthrough();
-export type CreateWorkflow = z.infer<typeof CreateWorkflow>;
-export const PartialWorkflow = z
-  .object({
-    auto_login: z.union([z.boolean(), z.null()]),
-    description: z.union([z.string(), z.null()]),
-    event_id: z.union([z.string(), z.null()]),
-    is_active: z.union([z.boolean(), z.null()]),
-    is_public: z.union([z.boolean(), z.null()]),
-    name: z.union([z.string(), z.null()]),
-    region_id: z.union([z.string(), z.null()]),
-  })
-  .partial()
-  .passthrough();
-export type PartialWorkflow = z.infer<typeof PartialWorkflow>;
 export const ActivationRule = z.literal("manual");
 export type ActivationRule = z.infer<typeof ActivationRule>;
 export const LearnPage = z
@@ -647,6 +623,56 @@ export const ToolConfig = z.union([
     .passthrough(),
 ]);
 export type ToolConfig = z.infer<typeof ToolConfig>;
+export const WorkflowStepDto = z
+  .object({
+    activationRule: ActivationRule,
+    canRevisit: z.boolean(),
+    description: z.string().uuid(),
+    id: z.string().uuid(),
+    isOffline: z.boolean(),
+    name: z.string().uuid(),
+    previewToolConfig: ToolConfig,
+    required: z.boolean(),
+    stepOrder: z.number().int(),
+    toolConfig: z.union([ToolConfig, z.null()]).optional(),
+    workflowId: z.string().uuid(),
+  })
+  .passthrough();
+export type WorkflowStepDto = z.infer<typeof WorkflowStepDto>;
+export const ImportConversationResponse = z
+  .object({
+    conversation: ConversationDto,
+    workflow: WorkflowDto,
+    workflow_steps: z.array(WorkflowStepDto),
+  })
+  .passthrough();
+export type ImportConversationResponse = z.infer<
+  typeof ImportConversationResponse
+>;
+export const CreateWorkflow = z
+  .object({
+    auto_login: z.boolean(),
+    description: z.string(),
+    is_active: z.boolean(),
+    is_public: z.boolean(),
+    name: z.string(),
+    region_id: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type CreateWorkflow = z.infer<typeof CreateWorkflow>;
+export const PartialWorkflow = z
+  .object({
+    auto_login: z.union([z.boolean(), z.null()]),
+    description: z.union([z.string(), z.null()]),
+    event_id: z.union([z.string(), z.null()]),
+    is_active: z.union([z.boolean(), z.null()]),
+    is_public: z.union([z.boolean(), z.null()]),
+    name: z.union([z.string(), z.null()]),
+    region_id: z.union([z.string(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type PartialWorkflow = z.infer<typeof PartialWorkflow>;
 export const WorkflowStep = z
   .object({
     activation_rule: ActivationRule,
@@ -826,6 +852,7 @@ export type ToolSetup = z.infer<typeof ToolSetup>;
 export const CreateWorkflowStep = z
   .object({
     activation_rule: ActivationRule,
+    can_revisit: z.boolean(),
     description: z.string(),
     is_offline: z.boolean(),
     name: z.string(),
@@ -835,22 +862,6 @@ export const CreateWorkflowStep = z
   })
   .passthrough();
 export type CreateWorkflowStep = z.infer<typeof CreateWorkflowStep>;
-export const WorkflowStepDto = z
-  .object({
-    activationRule: ActivationRule,
-    canRevisit: z.boolean(),
-    description: z.string().uuid(),
-    id: z.string().uuid(),
-    isOffline: z.boolean(),
-    name: z.string().uuid(),
-    previewToolConfig: ToolConfig,
-    required: z.boolean(),
-    stepOrder: z.number().int(),
-    toolConfig: z.union([ToolConfig, z.null()]).optional(),
-    workflowId: z.string().uuid(),
-  })
-  .passthrough();
-export type WorkflowStepDto = z.infer<typeof WorkflowStepDto>;
 export const PartialWorkflowStep = z
   .object({
     activation_rule: z.union([ActivationRule, z.null()]),
@@ -1440,13 +1451,15 @@ export const schemas: Record<string, z.ZodType<any>> = {
   RegisterEmailResponse,
   ImportExportConversationDto,
   WorkflowDto,
-  CreateWorkflow,
-  PartialWorkflow,
   ActivationRule,
   LearnPage,
   LocalizedPage,
   LearnPageEntry,
   ToolConfig,
+  WorkflowStepDto,
+  ImportConversationResponse,
+  CreateWorkflow,
+  PartialWorkflow,
   WorkflowStep,
   DailySignupStats,
   WorkflowStepStats,
@@ -1463,7 +1476,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   WorkflowStepsListResponse,
   ToolSetup,
   CreateWorkflowStep,
-  WorkflowStepDto,
   PartialWorkflowStep,
   UserProgressDto,
   InviteType,
@@ -2643,7 +2655,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
         schema: z.array(z.any()),
       },
     ],
-    response: z.null(),
+    response: ImportConversationResponse,
   },
   {
     method: "get",
