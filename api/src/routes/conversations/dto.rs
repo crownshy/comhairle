@@ -299,11 +299,6 @@ impl From<ImexConversationDto> for CreateConversation {
             supported_languages: c.supported_languages,
             default_workflow_id: None,
             enable_qa_chat_bot: None,
-            // organization_id: c.organization_id, // TODO: possibly add?
-            // privacy_policy: c.privacy_policy,
-            // short_privacy_policy: c.short_privacy_policy,
-            // faqs: c.faqs,
-            // thank_you_message: c.thank_you_message,
         }
     }
 }
