@@ -62,7 +62,7 @@
 	let { form: formData, enhance, validateForm, message } = form;
 </script>
 
-<form class="space-y-4 border-1 bg-white p-5" method="POST" use:enhance>
+<form class="bg-background space-y-4 border p-5" method="POST" use:enhance>
 	<Form.Field {form} name="email">
 		<Form.Control>
 			{#snippet children({ props })}
