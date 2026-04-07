@@ -318,7 +318,7 @@ mod tests {
     use super::*;
 
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
-    use crate::test_helpers::test_state;
+    use crate::test_helpers::{multipart_body_builder, test_state};
     use crate::{setup_server, test_helpers::UserSession};
     use axum::{body::Body, http::StatusCode, Router};
     use mockall::predicate::eq;
@@ -545,14 +545,10 @@ mod tests {
             .await?;
 
         let boundary = "test-boundary";
-        let body = format!(
-            "--{boundary}\r\n\
-            Content-Disposition: form-data; name=\"file\"; filename=\"test.txt\"\r\n\
-            Content-Type: text/plain\r\n\
-            \r\n\
-            test multipart\r\n\
-            --{boundary}--\r\n"
-        );
+        let body = multipart_body_builder()
+            .content("test multipart")
+            .filename("test.txt")
+            .call();
         let body = Body::from(body);
 
         let (status, value, _) = session

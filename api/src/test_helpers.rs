@@ -160,6 +160,26 @@ pub async fn response_to_json(response: Response) -> Value {
     })
 }
 
+#[builder]
+pub fn multipart_body_builder(
+    content: &str,
+    boundary: Option<&str>,
+    filename: Option<&str>,
+    content_type: Option<&str>,
+) -> String {
+    let boundary = boundary.unwrap_or("test-boundary");
+    let filename = filename.unwrap_or("test-file.txt");
+    let content_type = content_type.unwrap_or("text/plain");
+    format!(
+        "--{boundary}\r\n\
+            Content-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\n\
+            Content-Type: {content_type}\r\n\
+            \r\n\
+            {content}\r\n\
+            --{boundary}--\r\n"
+    )
+}
+
 pub struct UserSession {
     pub id: Option<Uuid>,
     pub username: Option<String>,

@@ -495,7 +495,7 @@ async fn export_conversation(
     Ok(response)
 }
 
-#[derive(Serialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 struct ImportConversationResponse {
     conversation: ConversationDto,
     workflow: WorkflowDto,
@@ -700,11 +700,12 @@ mod tests {
     use crate::routes::conversations::dto::{
         ConversationDto, ImexConversationWithWorkflowDto, LocalizedConversationDto,
     };
-    use crate::routes::conversations::ConversationResponse;
+    use crate::routes::conversations::{ConversationResponse, ImportConversationResponse};
     use crate::routes::translations::dto::TextContentDto;
     use crate::routes::workflows::dto::WorkflowDto;
     use crate::test_helpers::{
-        learn_tool_config, polis_tool_config, response_to_json, test_config, test_state,
+        learn_tool_config, multipart_body_builder, polis_tool_config, response_to_json,
+        test_config, test_state,
     };
     use crate::{setup_server, test_helpers::UserSession};
     use axum::{
@@ -1314,7 +1315,7 @@ mod tests {
         let privacy_policy: TextContentDto = serde_json::from_value(privacy_policy_res)?;
         let faqs: TextContentDto = serde_json::from_value(faqs_res)?;
 
-        let (_, update_res, _) = session
+        let _ = session
             .put(
                 &app,
                 &format!("/conversation/{}", conversation.id),
@@ -1326,9 +1327,6 @@ mod tests {
                 .into(),
             )
             .await?;
-        println!();
-        println!("    >>>>    Updated conversation: {update_res:#?}");
-        println!();
 
         let (status, value, _) = session
             .get(
@@ -1617,6 +1615,38 @@ mod tests {
                 "attachment; filename=\"conversation-{}.json\"",
                 conversation.id
             )
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_import_conversation_json_and_create_resources(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+
+        let json = include_str!("../../../fixtures/conversation-export.json");
+        let boundary = "test-boundary";
+        let body = multipart_body_builder()
+            .content(json)
+            .filename("conversation-export.json")
+            .content_type("application/json")
+            .call();
+        let body = Body::from(body);
+
+        let (_, value, _) = session
+            .post_multipart(&app, "/conversation/import", boundary, body)
+            .await?;
+        let imported_conversation: ImportConversationResponse = serde_json::from_value(value)?;
+
+        assert!(
+            imported_conversation
+                .conversation
+                .slug
+                .unwrap()
+                .contains("test-export-import-conversation"),
+            "conversation slug doesn't match fixture file"
         );
 
         Ok(())
