@@ -41,16 +41,16 @@ use crate::{
     },
     routes::{
         conversations::dto::{
-            ConversationDto, ImportExportConversationDto, ImportExportConversationWithWorkflowDto,
+            ConversationDto, ImexConversationDto, ImexConversationWithWorkflowDto,
             LocalizedConversationDto,
         },
         translations::LocaleExtractor,
         workflow_steps::{
             self,
-            dto::{ImportExportToolConfig, ImportExportWorkflowStepDto, WorkflowStepDto},
+            dto::{ImexToolConfig, ImexWorkflowStepDto, WorkflowStepDto},
         },
         workflows::dto::{
-            ImportExportWorkflowDto, ImportExportWorkflowWithWorkflowStepsDto, WorkflowDto,
+            ImexWorkflowDto, ImexWorkflowWithStepsDto, WorkflowDto,
         },
     },
     tools::ToolConfig,
@@ -448,23 +448,23 @@ async fn export_conversation(
     let workflow = workflow::get_by_conversation_id(&state.db, &conversation_id).await?;
     let workflow_steps = workflow_step::list_localized(&state.db, &workflow.id, &locale).await?;
 
-    let conversation_dto: ImportExportConversationDto = conversation.into();
-    let workflow_dto: ImportExportWorkflowDto = workflow.into();
-    let mut workflow_step_dtos: Vec<ImportExportWorkflowStepDto> = vec![];
+    let conversation_dto: ImexConversationDto = conversation.into();
+    let workflow_dto: ImexWorkflowDto = workflow.into();
+    let mut workflow_step_dtos: Vec<ImexWorkflowStepDto> = vec![];
 
     for step in workflow_steps {
         // TODO: clone heyform with fresh credentials
         let export_config = match step.preview_tool_config {
-            ToolConfig::Polis(_) => ImportExportToolConfig::Polis,
-            ToolConfig::HeyForm(_) => ImportExportToolConfig::HeyForm,
-            ToolConfig::Stories(_) => ImportExportToolConfig::Stories,
-            ToolConfig::Learn(ref config) => ImportExportToolConfig::Learn(config.clone()), // TODO:
+            ToolConfig::Polis(_) => ImexToolConfig::Polis,
+            ToolConfig::HeyForm(_) => ImexToolConfig::HeyForm,
+            ToolConfig::Stories(_) => ImexToolConfig::Stories,
+            ToolConfig::Learn(ref config) => ImexToolConfig::Learn(config.clone()), // TODO:
             // should figure out how to use clone_tool functionality
             ToolConfig::ElicitationBot(ref config) => {
-                ImportExportToolConfig::ElicitationBot(config.clone())
+                ImexToolConfig::ElicitationBot(config.clone())
             }
         };
-        let step_dto = ImportExportWorkflowStepDto {
+        let step_dto = ImexWorkflowStepDto {
             name: step.name,
             step_order: step.step_order,
             activation_rule: step.activation_rule,
@@ -477,11 +477,11 @@ async fn export_conversation(
         workflow_step_dtos.push(step_dto);
     }
 
-    let combined_workflow = ImportExportWorkflowWithWorkflowStepsDto {
+    let combined_workflow = ImexWorkflowWithStepsDto {
         workflow: workflow_dto,
         workflow_steps: workflow_step_dtos,
     };
-    let combined_conversation = ImportExportConversationWithWorkflowDto {
+    let combined_conversation = ImexConversationWithWorkflowDto {
         conversation: conversation_dto,
         workflows: vec![combined_workflow],
     };
@@ -524,7 +524,7 @@ async fn import_conversation(
         ));
     }
 
-    let import: ImportExportConversationWithWorkflowDto = serde_json::from_slice(&bytes)?;
+    let import: ImexConversationWithWorkflowDto = serde_json::from_slice(&bytes)?;
     let mut imported_conversation = import.conversation;
     // Presumes one workflow per conversation
     let imported_workflow =
@@ -682,7 +682,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(export_conversation, |op| {
                 op.summary("Export a conversation")
                     .description("Exports a conversation, workflows, steps etc to a json file.")
-                    .response::<200, Json<ImportExportConversationDto>>()
+                    .response::<200, Json<ImexConversationDto>>()
                     .tag("Conversation")
             }),
         )

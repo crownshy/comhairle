@@ -8,7 +8,7 @@ use crate::{
         pagination::PaginatedResults,
         translations::TextContentId,
     },
-    routes::workflows::dto::ImportExportWorkflowWithWorkflowStepsDto,
+    routes::workflows::dto::ImexWorkflowWithStepsDto,
     schema_helpers::{example_bot_service_id, example_localized_text, example_uuid},
 };
 
@@ -70,6 +70,38 @@ pub struct ConversationDto {
     pub show_thank_you_page_annon_instructions: bool,
 }
 
+impl From<Conversation> for ConversationDto {
+    fn from(c: Conversation) -> Self {
+        Self {
+            id: c.id,
+            title: c.title,
+            short_description: c.short_description,
+            description: c.description,
+            video_url: c.video_url,
+            image_url: c.image_url,
+            tags: c.tags,
+            is_public: c.is_public,
+            is_live: c.is_live,
+            is_complete: c.is_complete,
+            is_invite_only: c.is_invite_only,
+            slug: c.slug,
+            primary_locale: c.primary_locale,
+            knowledge_base_id: c.knowledge_base_id,
+            chat_bot_id: c.chat_bot_id,
+            enable_qa_chat_bot: c.enable_qa_chat_bot,
+            supported_languages: c.supported_languages,
+            organization_id: c.organization_id,
+            privacy_policy: c.privacy_policy,
+            short_privacy_policy: c.short_privacy_policy,
+            faqs: c.faqs,
+            thank_you_message: c.thank_you_message,
+            call_to_action: c.call_to_action,
+            enable_signup_prompts: c.enable_signup_prompts,
+            show_thank_you_page_annon_instructions: c.show_thank_you_page_annon_instructions,
+        }
+    }
+}
+
 /// Data transfer object (public API representation) for a LocalizedConversation.
 ///
 /// This DTO is returned by conversation related endpoints and is safe to expose
@@ -128,96 +160,6 @@ pub struct LocalizedConversationDto {
     pub show_thank_you_page_annon_instructions: bool,
 }
 
-/// Data transfer object (public API representation) for importing / exporting
-/// of a conversation.
-///
-/// This DTO is returned by conversation related endpoints and is safe to expose
-/// to clients. It intentionally omits fields such as:
-///
-/// * `id`
-/// * `owner_id`
-/// * `default_workflow_id`
-/// * `knowledge_base_id`
-/// * `chat_bot_id`
-/// * `enable_chat_bot_id`
-/// * `created_at`
-/// * `updated_at`
-///
-/// It includes localized `String` values for translatable fields:
-///
-/// * `title`
-/// * `short_description`
-/// * `description`
-///
-/// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct ImportExportConversationDto {
-    #[schemars(example = "example_localized_text")]
-    pub title: String,
-    #[schemars(example = "example_localized_text")]
-    pub short_description: String,
-    #[schemars(example = "example_localized_text")]
-    pub description: String,
-    pub video_url: Option<String>,
-    pub image_url: String,
-    pub tags: Vec<String>,
-    pub is_public: bool,
-    pub is_invite_only: bool,
-    pub slug: Option<String>,
-    pub primary_locale: String,
-    pub supported_languages: Vec<String>,
-    pub organization_id: Option<Uuid>,
-    #[schemars(example = "example_localized_text")]
-    pub privacy_policy: Option<String>,
-    #[schemars(example = "example_localized_text")]
-    pub short_privacy_policy: Option<String>,
-    #[schemars(example = "example_localized_text")]
-    pub faqs: Option<String>,
-    #[schemars(example = "example_localized_text")]
-    pub thank_you_message: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct ImportExportConversationWithWorkflowDto {
-    #[serde(flatten)]
-    pub conversation: ImportExportConversationDto,
-    pub workflows: Vec<ImportExportWorkflowWithWorkflowStepsDto>,
-}
-
-impl From<Conversation> for ConversationDto {
-    fn from(c: Conversation) -> Self {
-        Self {
-            id: c.id,
-            title: c.title,
-            short_description: c.short_description,
-            description: c.description,
-            video_url: c.video_url,
-            image_url: c.image_url,
-            tags: c.tags,
-            is_public: c.is_public,
-            is_live: c.is_live,
-            is_complete: c.is_complete,
-            is_invite_only: c.is_invite_only,
-            slug: c.slug,
-            primary_locale: c.primary_locale,
-            knowledge_base_id: c.knowledge_base_id,
-            chat_bot_id: c.chat_bot_id,
-            enable_qa_chat_bot: c.enable_qa_chat_bot,
-            supported_languages: c.supported_languages,
-            organization_id: c.organization_id,
-            privacy_policy: c.privacy_policy,
-            short_privacy_policy: c.short_privacy_policy,
-            faqs: c.faqs,
-            thank_you_message: c.thank_you_message,
-            call_to_action: c.call_to_action,
-            enable_signup_prompts: c.enable_signup_prompts,
-            show_thank_you_page_annon_instructions: c.show_thank_you_page_annon_instructions,
-        }
-    }
-}
-
 impl From<LocalizedConversation> for LocalizedConversationDto {
     fn from(c: LocalizedConversation) -> Self {
         Self {
@@ -250,7 +192,74 @@ impl From<LocalizedConversation> for LocalizedConversationDto {
     }
 }
 
-impl From<LocalizedConversation> for ImportExportConversationDto {
+impl From<PaginatedResults<LocalizedConversation>> for PaginatedResults<LocalizedConversationDto> {
+    fn from(r: PaginatedResults<LocalizedConversation>) -> Self {
+        Self {
+            total: r.total,
+            records: r.records.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+/// Data transfer object (public API representation) for importing / exporting
+/// of a conversation.
+///
+/// This DTO is returned by conversation related endpoints and is safe to expose
+/// to clients. It intentionally omits fields such as:
+///
+/// * `id`
+/// * `owner_id`
+/// * `default_workflow_id`
+/// * `knowledge_base_id`
+/// * `chat_bot_id`
+/// * `enable_chat_bot_id`
+/// * `created_at`
+/// * `updated_at`
+///
+/// It includes localized `String` values for translatable fields:
+///
+/// * `title`
+/// * `short_description`
+/// * `description`
+///
+/// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ImexConversationDto {
+    #[schemars(example = "example_localized_text")]
+    pub title: String,
+    #[schemars(example = "example_localized_text")]
+    pub short_description: String,
+    #[schemars(example = "example_localized_text")]
+    pub description: String,
+    pub video_url: Option<String>,
+    pub image_url: String,
+    pub tags: Vec<String>,
+    pub is_public: bool,
+    pub is_invite_only: bool,
+    pub slug: Option<String>,
+    pub primary_locale: String,
+    pub supported_languages: Vec<String>,
+    pub organization_id: Option<Uuid>,
+    #[schemars(example = "example_localized_text")]
+    pub privacy_policy: Option<String>,
+    #[schemars(example = "example_localized_text")]
+    pub short_privacy_policy: Option<String>,
+    #[schemars(example = "example_localized_text")]
+    pub faqs: Option<String>,
+    #[schemars(example = "example_localized_text")]
+    pub thank_you_message: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ImexConversationWithWorkflowDto {
+    #[serde(flatten)]
+    pub conversation: ImexConversationDto,
+    pub workflows: Vec<ImexWorkflowWithStepsDto>,
+}
+
+impl From<LocalizedConversation> for ImexConversationDto {
     fn from(c: LocalizedConversation) -> Self {
         Self {
             title: c.title,
@@ -273,8 +282,8 @@ impl From<LocalizedConversation> for ImportExportConversationDto {
     }
 }
 
-impl From<ImportExportConversationDto> for CreateConversation {
-    fn from(c: ImportExportConversationDto) -> Self {
+impl From<ImexConversationDto> for CreateConversation {
+    fn from(c: ImexConversationDto) -> Self {
         Self {
             title: c.title,
             short_description: c.short_description,
@@ -295,15 +304,6 @@ impl From<ImportExportConversationDto> for CreateConversation {
             // short_privacy_policy: c.short_privacy_policy,
             // faqs: c.faqs,
             // thank_you_message: c.thank_you_message,
-        }
-    }
-}
-
-impl From<PaginatedResults<LocalizedConversation>> for PaginatedResults<LocalizedConversationDto> {
-    fn from(r: PaginatedResults<LocalizedConversation>) -> Self {
-        Self {
-            total: r.total,
-            records: r.records.into_iter().map(Into::into).collect(),
         }
     }
 }
