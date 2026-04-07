@@ -56,7 +56,7 @@
 			}
 			await acceptInvite();
 			await invalidateAll();
-			await goto(firstWorkflowPath);
+			await goto(firstWorkflowPath + url.search);
 		} catch (e) {
 			console.error(e);
 		}

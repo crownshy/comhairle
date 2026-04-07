@@ -12,6 +12,10 @@ export const load: PageLoad = async (event) => {
 
 	const conversation_id = conversation.id;
 	const { workflow_id, workflow_step_id } = event.params;
+
+	// Preserve query parameters for redirects
+	const queryString = event.url.search;
+
 	try {
 		let workflowSteps: LocalizedWorkflowStepWithProgressDto[];
 
@@ -38,7 +42,10 @@ export const load: PageLoad = async (event) => {
 		// is next. Also dont capture progress
 		if (conversation.isLive) {
 			if (isStepAlreadyDone && !isRevisitable) {
-				return redirect(302, next_workflow_step_url(conversation_id, workflow_id, preview));
+				return redirect(
+					302,
+					next_workflow_step_url(conversation_id, workflow_id, preview) + queryString
+				);
 			}
 
 			if (!isStepAlreadyDone) {
@@ -49,7 +56,7 @@ export const load: PageLoad = async (event) => {
 				if (current_step && current_step.id !== workflow_step_id) {
 					return redirect(
 						302,
-						next_workflow_step_url(conversation_id, workflow_id, preview)
+						next_workflow_step_url(conversation_id, workflow_id, preview) + queryString
 					);
 				}
 
@@ -77,8 +84,8 @@ export const load: PageLoad = async (event) => {
 				message: 'Login or signup to take part in the conversation',
 				priority: 'INFO'
 			});
-			redirect(307, '/auth/login');
+			redirect(307, '/auth/login' + queryString);
 		}
-		redirect(307, '/');
+		redirect(307, '/' + queryString);
 	}
 };
