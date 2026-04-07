@@ -6,9 +6,13 @@ import type { LocalizedWorkflowStepDto } from '@crownshy/api-client/api';
 export const ssr = false;
 export const csr = true;
 
-export const load: PageLoad = async ({ parent, params }) => {
+export const load: PageLoad = async ({ parent, params, url }) => {
 	const { api, conversation, preview } = await parent();
 	const workflow_id = params.workflow_id;
+
+	// Preserve query parameters for redirects
+	const queryString = url.search;
+
 	let redirect_url = '/';
 	try {
 		if (conversation.isLive) {
@@ -34,5 +38,5 @@ export const load: PageLoad = async ({ parent, params }) => {
 			redirect_url = workflow_step_url(conversation.id, workflow_id, firstStep.id, preview);
 		}
 	} catch (e) {}
-	return redirect(302, redirect_url);
+	return redirect(302, redirect_url + queryString);
 };

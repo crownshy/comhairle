@@ -13,6 +13,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
+	import { page } from '$app/state';
+
+	const url = $derived(page.url);
+	const queryString = $derived(url.search);
 
 	let { data }: PageProps = $props();
 	let { user } = data;
@@ -61,7 +65,8 @@
 			const isPreview = !conversation.isLive;
 			const href =
 				status === 'completed'
-					? workflow_step_url(conversation.id, workflow_id, ws.id, isPreview)
+					? workflow_step_url(conversation.id, workflow_id, ws.id, isPreview) +
+						queryString
 					: undefined;
 
 			return { id: ws.id, name: ws.name, status, href };
@@ -99,7 +104,7 @@
 	}
 
 	function goToThankYouPage() {
-		goto(thank_you_page(conversation.id, workflow_id, !conversation.isLive));
+		goto(thank_you_page(conversation.id, workflow_id, !conversation.isLive) + queryString);
 	}
 
 	async function stepComplete() {
@@ -107,7 +112,12 @@
 			if (actualCurrentStep) {
 				const isPreview = !conversation.isLive;
 				goto(
-					workflow_step_url(conversation.id, workflow_id, actualCurrentStep.id, isPreview)
+					workflow_step_url(
+						conversation.id,
+						workflow_id,
+						actualCurrentStep.id,
+						isPreview
+					) + queryString
 				);
 			} else {
 				goToThankYouPage();
@@ -126,7 +136,9 @@
 					headers: { 'Content-Type': 'application/json' }
 				});
 
-				goto(next_workflow_step_url(conversation.id, workflowStep.workflowId));
+				goto(
+					next_workflow_step_url(conversation.id, workflowStep.workflowId) + queryString
+				);
 			} else {
 				let next = workflowSteps.find((w) => w.stepOrder === workflowStep.stepOrder + 1);
 				if (next) {
@@ -136,7 +148,7 @@
 						next.id,
 						!conversation.isLive
 					);
-					goto(next_step_url);
+					goto(next_step_url + queryString);
 				} else {
 					goToThankYouPage();
 				}
