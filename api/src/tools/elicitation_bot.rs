@@ -322,6 +322,7 @@ mod tests {
                     "description": "A test workflow_step with elicitation bot",
                     "is_offline": false,
                     "required": false,
+                    "can_revisit": false,
                     "tool_setup": elicitation_bot_tool_config()
                 }),
             )
