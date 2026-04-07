@@ -87,7 +87,7 @@
 
 {#if invite}
 	{#if conversation}
-		<div class="mt-10">
+		<div class="mt-10 mb-20 md:mb-0">
 			<h1 class="mb-5 text-2xl font-bold">
 				{inviteHeading}
 			</h1>
