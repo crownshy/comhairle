@@ -584,7 +584,10 @@ impl UserSession {
         offset: i32,
         limit: i32,
     ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
-        let url = format!("/conversation?limit={}&offset={}&sort=created_at+asc", limit, offset);
+        let url = format!(
+            "/conversation?limit={}&offset={}&sort=created_at+asc",
+            limit, offset
+        );
         self.get(app, &url).await
     }
 
@@ -663,6 +666,7 @@ impl UserSession {
                     "description": "A manually retired polis workflow step",
                     "required":false,
                     "is_offline": false,
+                    "can_revisit": false,
                     "tool_setup": learn_tool_config()})
                     .to_string()
                     .into(),
@@ -793,6 +797,7 @@ impl UserSession {
                 "description": "A manually retired polis workflow step",
                 "required":false,
                 "is_offline": false,
+                "can_revisit": false,
                 "tool_setup": learn_tool_config()
             })
             .to_string()

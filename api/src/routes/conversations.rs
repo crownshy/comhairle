@@ -45,13 +45,8 @@ use crate::{
             LocalizedConversationDto,
         },
         translations::LocaleExtractor,
-        workflow_steps::{
-            self,
-            dto::{ImexToolConfig, ImexWorkflowStepDto, WorkflowStepDto},
-        },
-        workflows::dto::{
-            ImexWorkflowDto, ImexWorkflowWithStepsDto, WorkflowDto,
-        },
+        workflow_steps::dto::{ImexToolConfig, ImexWorkflowStepDto, WorkflowStepDto},
+        workflows::dto::{ImexWorkflowDto, ImexWorkflowWithStepsDto, WorkflowDto},
     },
     tools::ToolConfig,
     ComhairleState,
