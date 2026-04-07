@@ -696,17 +696,28 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 #[cfg(test)]
 mod tests {
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
-    use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::routes::conversations::dto::{
+        ConversationDto, ImexConversationWithWorkflowDto, LocalizedConversationDto,
+    };
     use crate::routes::conversations::ConversationResponse;
     use crate::routes::translations::dto::TextContentDto;
-    use crate::test_helpers::{test_config, test_state};
+    use crate::routes::workflows::dto::WorkflowDto;
+    use crate::test_helpers::{
+        learn_tool_config, polis_tool_config, response_to_json, test_config, test_state,
+    };
     use crate::{setup_server, test_helpers::UserSession};
-    use axum::http::StatusCode;
+    use axum::{
+        body::Body,
+        http::{Request, StatusCode},
+    };
+    use hyper::header::{CONTENT_DISPOSITION, COOKIE};
     use serde_json::json;
     use sqlx::PgPool;
     use std::collections::HashMap;
     use std::error::Error;
     use std::sync::Arc;
+    use tower::ServiceExt;
 
     #[sqlx::test]
     fn should_be_able_to_create_conversation_without_bot_service_resources(
@@ -1493,6 +1504,120 @@ mod tests {
             .await?;
 
         assert_eq!(status, StatusCode::CONFLICT, "Slugs should be unique");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_export_conversation_json(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, conversation, _) = session
+            .create_conversation(
+                &app,
+                json!({
+                    "title": "Conversation to export".to_string(),
+                    "short_description": "test conversation".to_string(),
+                    "description": "test conversation".to_string(),
+                    "image_url": "https://foo.com".to_string(),
+                    "is_public": false,
+                    "is_live": false,
+                    "is_invite_only": false,
+                    "primary_locale": "en".to_string(),
+                    "supported_languages": vec!["en".to_string()]
+                }),
+            )
+            .await?;
+        let conversation: ConversationDto = serde_json::from_value(conversation)?;
+        let (_, workflow, _) = session
+            .create_random_workflow(&app, &conversation.id.to_string())
+            .await?;
+        let workflow: WorkflowDto = serde_json::from_value(workflow)?;
+        session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/workflow/{}/workflow_step",
+                    conversation.id, workflow.id
+                ),
+                json!({
+                "name": "Polis Workflow step",
+                "step_order": 1,
+                "activation_rule" : "manual",
+                "description": "A manually retired polis workflow step",
+                "is_offline": false,
+                "required":true,
+                "can_revisit": false,
+                "tool_setup": polis_tool_config()
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/workflow/{}/workflow_step",
+                    conversation.id, workflow.id
+                ),
+                json!({
+                    "name": "Learn Workflow Step",
+                    "step_order": 2,
+                    "activation_rule" : "manual",
+                    "description": "A manually retired learnworkflow step",
+                    "required":true,
+                    "is_offline": false,
+                    "can_revisit": true,
+                    "tool_setup": learn_tool_config()
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        let mut request = Request::builder()
+            .uri(format!("/conversation/{}/export", conversation.id))
+            .method("GET");
+        if let Some(cookie) = &session.cookie {
+            request = request.header(COOKIE, cookie)
+        }
+        let request = request.body(Body::empty()).unwrap();
+        let response = app.clone().oneshot(request).await?;
+        let content_disposition = response
+            .headers()
+            .get(CONTENT_DISPOSITION)
+            .map(|h| h.to_owned());
+        let json = response_to_json(response).await;
+
+        let export: ImexConversationWithWorkflowDto = serde_json::from_value(json)?;
+
+        assert_eq!(
+            export.conversation.title,
+            "Conversation to export".to_string(),
+            "incorrect title"
+        );
+        assert_eq!(
+            export.workflows.first().unwrap().workflow_steps.len(),
+            2,
+            "incorrect number of workflow steps"
+        );
+        assert_eq!(
+            export.workflows.first().unwrap().workflow_steps[0].name,
+            "Polis Workflow step".to_string(),
+            "incorrect first workflow step name"
+        );
+        assert!(
+            export.workflows.first().unwrap().workflow_steps[1].can_revisit,
+            "incorrect second workflow step can_revisit"
+        );
+        assert_eq!(
+            content_disposition.unwrap().to_str().unwrap(),
+            &format!(
+                "attachment; filename=\"conversation-{}.json\"",
+                conversation.id
+            )
+        );
 
         Ok(())
     }
