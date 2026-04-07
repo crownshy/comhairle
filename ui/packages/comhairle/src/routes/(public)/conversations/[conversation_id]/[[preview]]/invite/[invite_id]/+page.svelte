@@ -9,6 +9,7 @@
 	import { page } from '$app/state';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { goto, invalidateAll } from '$app/navigation';
+	import { env } from '$env/dynamic/public';
 
 	let loginType = $state<'automatic' | 'login'>('login');
 
@@ -25,6 +26,10 @@
 	let firstWorkflow = $derived(workflows[0]);
 	let firstWorkflowPath = $derived(
 		`/conversations/${conversation.id}/workflow/${firstWorkflow.id}/next`
+	);
+
+	const inviteHeading = $derived(
+		env.PUBLIC_INVITE_HEADING_TEXT || 'You have been invited to join the following conversation'
 	);
 
 	function login() {
@@ -84,7 +89,7 @@
 	{#if conversation}
 		<div class="mt-10">
 			<h1 class="mb-5 text-2xl font-bold">
-				You have been invited to join the following conversation
+				{inviteHeading}
 			</h1>
 			<ConversationSummary {conversation}>
 				{#if !user && invite.loginBehaviour === 'manual' && firstWorkflow.autoLogin === false}
