@@ -39,15 +39,20 @@ const handleHeaders: Handle = async ({ event, resolve }) => {
 		// Allow any site to embed these paths
 		response.headers.set('Content-Security-Policy', 'frame-ancestors *');
 		response.headers.delete('X-Frame-Options'); // XFO has no wildcard — must remove it
+		// Allow jitsi iframes to access camera / microphone on embeddable paths
+		response.headers.set(
+			'Permissions-Policy',
+			'geolocation=(), camera=(self, https://jitsi.comhairle.scot), microphone=(self, https://jitsi.comhairle.scot)'
+		);
 	} else {
 		// Deny framing everywhere else
 		response.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
 		response.headers.set('X-Frame-Options', 'DENY');
+		response.headers.set('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
 	}
 
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-	response.headers.set('Permissions-Policy', 'geolocation=(), camera=(), microphone=()');
 	response.headers.set(
 		'Strict-Transport-Security',
 		'max-age=63072000; includeSubDomains; preload'
