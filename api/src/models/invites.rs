@@ -87,9 +87,15 @@ impl Invite {
 
     #[instrument(err(Debug))]
     pub async fn reject(&self, db: &PgPool, user: &User) -> Result<Invite, ComhairleError> {
+        let new_status = if self.status == InviteStatus::Pending {
+            InviteStatus::Rejected
+        } else {
+            self.status.clone()
+        };
+
         let (sql, values) = Query::update()
             .table(InviteIden::Table)
-            .values([(InviteIden::Status, InviteStatus::Rejected.into())])
+            .values([(InviteIden::Status, new_status.into())])
             .and_where(Expr::col(InviteIden::Id).eq(self.id.to_owned()))
             .returning(Query::returning().columns(DEFAULT_COLUMNS))
             .build_sqlx(PostgresQueryBuilder);
@@ -483,6 +489,158 @@ mod tests {
                 reject: 1
             }],
             "should get the correct daily stats"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn open_invite_should_remain_open_when_rejected(db: PgPool) -> Result<(), Box<dyn Error>> {
+        let user1 = users::create_user(&Faker.fake(), &db).await?;
+        let user2 = users::create_user(&Faker.fake(), &db).await?;
+
+        let bot_service = MockComhairleBotService::base();
+        let bot_service: Arc<dyn ComhairleBotService> = Arc::new(bot_service);
+        let config = test_config().unwrap();
+
+        let conversation = conversation::create(
+            &db,
+            &Some(bot_service),
+            &config,
+            &CreateConversation {
+                is_public: true,
+                is_invite_only: true,
+                ..Faker.fake()
+            },
+            user1.id,
+            None,
+        )
+        .await?;
+
+        let workflow = workflow::create(
+            &db,
+            &CreateWorkflow {
+                region_id: None,
+                ..Faker.fake()
+            },
+            Some(conversation.id),
+            None,
+            user1.id,
+        )
+        .await?;
+
+        let conversation = conversation::update(
+            &db,
+            &conversation.id,
+            &PartialConversation {
+                default_workflow_id: Some(workflow.id),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+        let invite = create(
+            &db,
+            CreateInviteDTO {
+                invite_type: InviteType::Open,
+                login_behaviour: LoginBehaviour::Manual,
+                expires_at: None,
+                label: None,
+            },
+            &conversation.id,
+            &user1.id,
+        )
+        .await?;
+
+        assert_eq!(
+            invite.status,
+            InviteStatus::Open,
+            "Invite should start as Open"
+        );
+
+        let rejected_invite = invite.reject(&db, &user2).await?;
+
+        assert_eq!(
+            rejected_invite.status,
+            InviteStatus::Open,
+            "Open invite should remain Open after rejection"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn pending_invite_should_be_marked_rejected_when_rejected(
+        db: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let user1 = users::create_user(&Faker.fake(), &db).await?;
+        let user2 = users::create_user(&Faker.fake(), &db).await?;
+
+        let bot_service = MockComhairleBotService::base();
+        let bot_service: Arc<dyn ComhairleBotService> = Arc::new(bot_service);
+        let config = test_config().unwrap();
+
+        let conversation = conversation::create(
+            &db,
+            &Some(bot_service),
+            &config,
+            &CreateConversation {
+                is_public: true,
+                is_invite_only: true,
+                ..Faker.fake()
+            },
+            user1.id,
+            None,
+        )
+        .await?;
+
+        let workflow = workflow::create(
+            &db,
+            &CreateWorkflow {
+                region_id: None,
+                ..Faker.fake()
+            },
+            Some(conversation.id),
+            None,
+            user1.id,
+        )
+        .await?;
+
+        let conversation = conversation::update(
+            &db,
+            &conversation.id,
+            &PartialConversation {
+                default_workflow_id: Some(workflow.id),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+        let invite = create(
+            &db,
+            CreateInviteDTO {
+                invite_type: InviteType::Email(user2.email.clone().unwrap()),
+                login_behaviour: LoginBehaviour::Manual,
+                expires_at: None,
+                label: None,
+            },
+            &conversation.id,
+            &user1.id,
+        )
+        .await?;
+
+        assert_eq!(
+            invite.status,
+            InviteStatus::Pending,
+            "Email invite should start as Pending"
+        );
+
+        let rejected_invite = invite.reject(&db, &user2).await?;
+
+        assert_eq!(
+            rejected_invite.status,
+            InviteStatus::Rejected,
+            "Pending invite should be marked as Rejected after rejection"
         );
 
         Ok(())
