@@ -178,7 +178,7 @@ impl PolisClient {
         let mut comment_votes: HashMap<u32, VoteCounts> = std::collections::HashMap::new();
 
         for comment in comments_array {
-            if let (Some(tid), Some(txt), agrees, disagrees, passes) = (
+            if let (Some(tid), Some(txt), agrees, disagrees, passes, moderation) = (
                 comment.get("tid").and_then(|t| t.as_u64()),
                 comment.get("txt").and_then(|t| t.as_str()),
                 comment
@@ -193,17 +193,19 @@ impl PolisClient {
                     .get("pass_count")
                     .and_then(|t| t.as_u64())
                     .unwrap_or(0) as u32,
+                comment.get("mod").and_then(|t| t.as_f64()).unwrap_or(1) as f64,
             ) {
-                comment_texts.insert(tid as u32, txt.to_string());
-
-                comment_votes.insert(
-                    tid as u32,
-                    VoteCounts {
-                        agrees,
-                        disagrees,
-                        passes,
-                    },
-                );
+                if moderation > 0 {
+                    comment_texts.insert(tid as u32, txt.to_string());
+                    comment_votes.insert(
+                        tid as u32,
+                        VoteCounts {
+                            agrees,
+                            disagrees,
+                            passes,
+                        },
+                    );
+                }
             }
         }
 
