@@ -401,11 +401,18 @@ mod tests {
 
         let conversation_id: String = extract("id", &conversation);
 
-        let mut regular_user_session = UserSession::new("bob", crate::test_helpers::TEST_PASSWORD, "bob@some_email.com");
+        let mut regular_user_session = UserSession::new(
+            "bob",
+            crate::test_helpers::TEST_PASSWORD,
+            "bob@some_email.com",
+        );
         regular_user_session.signup(&app).await?;
 
-        let mut wrong_regular_user_session =
-            UserSession::new("notbob", crate::test_helpers::TEST_PASSWORD, "not_bob@some_email.com");
+        let mut wrong_regular_user_session = UserSession::new(
+            "notbob",
+            crate::test_helpers::TEST_PASSWORD,
+            "not_bob@some_email.com",
+        );
         wrong_regular_user_session.signup(&app).await?;
 
         let (_, invite, _) = session
