@@ -221,6 +221,7 @@ pub struct CreateWorkflowStep {
     pub is_offline: bool,
     pub tool_setup: ToolSetup,
     pub required: bool,
+    pub can_revisit: bool,
 }
 
 impl CreateWorkflowStep {
@@ -230,6 +231,7 @@ impl CreateWorkflowStep {
             WorkflowStepIden::ActivationRule,
             WorkflowStepIden::IsOffline,
             WorkflowStepIden::Required,
+            WorkflowStepIden::CanRevisit,
         ]
     }
 
@@ -241,6 +243,7 @@ impl CreateWorkflowStep {
                 .into(),
             self.is_offline.into(),
             self.required.into(),
+            self.can_revisit.into(),
         ]
     }
 }

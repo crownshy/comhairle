@@ -67,7 +67,10 @@
 			{/if}
 		</div>
 
-		<div>
+		<div class="flex gap-4">
+			<Button variant="outline" href={`/api/conversation/${conversation.id}/export`} download
+				>Export conversation</Button
+			>
 			{#if conversation.isLive}
 				<Badge
 					variant="default"

@@ -535,6 +535,27 @@ export const RegisterEmailResponse = z
   })
   .passthrough();
 export type RegisterEmailResponse = z.infer<typeof RegisterEmailResponse>;
+export const ImexConversationDto = z
+  .object({
+    description: z.string(),
+    faqs: z.union([z.string(), z.null()]).optional(),
+    imageUrl: z.string(),
+    isInviteOnly: z.boolean(),
+    isPublic: z.boolean(),
+    organizationId: z.union([z.string(), z.null()]).optional(),
+    primaryLocale: z.string(),
+    privacyPolicy: z.union([z.string(), z.null()]).optional(),
+    shortDescription: z.string(),
+    shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
+    slug: z.union([z.string(), z.null()]).optional(),
+    supportedLanguages: z.array(z.string()),
+    tags: z.array(z.string()),
+    thankYouMessage: z.union([z.string(), z.null()]).optional(),
+    title: z.string(),
+    videoUrl: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type ImexConversationDto = z.infer<typeof ImexConversationDto>;
 export const WorkflowDto = z
   .object({
     autoLogin: z.boolean(),
@@ -550,30 +571,6 @@ export const WorkflowDto = z
   })
   .passthrough();
 export type WorkflowDto = z.infer<typeof WorkflowDto>;
-export const CreateWorkflow = z
-  .object({
-    auto_login: z.boolean(),
-    description: z.string(),
-    is_active: z.boolean(),
-    is_public: z.boolean(),
-    name: z.string(),
-    region_id: z.union([z.string(), z.null()]).optional(),
-  })
-  .passthrough();
-export type CreateWorkflow = z.infer<typeof CreateWorkflow>;
-export const PartialWorkflow = z
-  .object({
-    auto_login: z.union([z.boolean(), z.null()]),
-    description: z.union([z.string(), z.null()]),
-    event_id: z.union([z.string(), z.null()]),
-    is_active: z.union([z.boolean(), z.null()]),
-    is_public: z.union([z.boolean(), z.null()]),
-    name: z.union([z.string(), z.null()]),
-    region_id: z.union([z.string(), z.null()]),
-  })
-  .partial()
-  .passthrough();
-export type PartialWorkflow = z.infer<typeof PartialWorkflow>;
 export const ActivationRule = z.literal("manual");
 export type ActivationRule = z.infer<typeof ActivationRule>;
 export const LearnPage = z
@@ -624,6 +621,56 @@ export const ToolConfig = z.union([
     .passthrough(),
 ]);
 export type ToolConfig = z.infer<typeof ToolConfig>;
+export const WorkflowStepDto = z
+  .object({
+    activationRule: ActivationRule,
+    canRevisit: z.boolean(),
+    description: z.string().uuid(),
+    id: z.string().uuid(),
+    isOffline: z.boolean(),
+    name: z.string().uuid(),
+    previewToolConfig: ToolConfig,
+    required: z.boolean(),
+    stepOrder: z.number().int(),
+    toolConfig: z.union([ToolConfig, z.null()]).optional(),
+    workflowId: z.string().uuid(),
+  })
+  .passthrough();
+export type WorkflowStepDto = z.infer<typeof WorkflowStepDto>;
+export const ImportConversationResponse = z
+  .object({
+    conversation: ConversationDto,
+    workflow: WorkflowDto,
+    workflow_steps: z.array(WorkflowStepDto),
+  })
+  .passthrough();
+export type ImportConversationResponse = z.infer<
+  typeof ImportConversationResponse
+>;
+export const CreateWorkflow = z
+  .object({
+    auto_login: z.boolean(),
+    description: z.string(),
+    is_active: z.boolean(),
+    is_public: z.boolean(),
+    name: z.string(),
+    region_id: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type CreateWorkflow = z.infer<typeof CreateWorkflow>;
+export const PartialWorkflow = z
+  .object({
+    auto_login: z.union([z.boolean(), z.null()]),
+    description: z.union([z.string(), z.null()]),
+    event_id: z.union([z.string(), z.null()]),
+    is_active: z.union([z.boolean(), z.null()]),
+    is_public: z.union([z.boolean(), z.null()]),
+    name: z.union([z.string(), z.null()]),
+    region_id: z.union([z.string(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type PartialWorkflow = z.infer<typeof PartialWorkflow>;
 export const WorkflowStep = z
   .object({
     activation_rule: ActivationRule,
@@ -803,6 +850,7 @@ export type ToolSetup = z.infer<typeof ToolSetup>;
 export const CreateWorkflowStep = z
   .object({
     activation_rule: ActivationRule,
+    can_revisit: z.boolean(),
     description: z.string(),
     is_offline: z.boolean(),
     name: z.string(),
@@ -812,22 +860,6 @@ export const CreateWorkflowStep = z
   })
   .passthrough();
 export type CreateWorkflowStep = z.infer<typeof CreateWorkflowStep>;
-export const WorkflowStepDto = z
-  .object({
-    activationRule: ActivationRule,
-    canRevisit: z.boolean(),
-    description: z.string().uuid(),
-    id: z.string().uuid(),
-    isOffline: z.boolean(),
-    name: z.string().uuid(),
-    previewToolConfig: ToolConfig,
-    required: z.boolean(),
-    stepOrder: z.number().int(),
-    toolConfig: z.union([ToolConfig, z.null()]).optional(),
-    workflowId: z.string().uuid(),
-  })
-  .passthrough();
-export type WorkflowStepDto = z.infer<typeof WorkflowStepDto>;
 export const PartialWorkflowStep = z
   .object({
     activation_rule: z.union([ActivationRule, z.null()]),
@@ -1415,14 +1447,17 @@ export const schemas: Record<string, z.ZodType<any>> = {
   SendEmailNotificationResponse,
   RegisterEmailRequest,
   RegisterEmailResponse,
+  ImexConversationDto,
   WorkflowDto,
-  CreateWorkflow,
-  PartialWorkflow,
   ActivationRule,
   LearnPage,
   LocalizedPage,
   LearnPageEntry,
   ToolConfig,
+  WorkflowStepDto,
+  ImportConversationResponse,
+  CreateWorkflow,
+  PartialWorkflow,
   WorkflowStep,
   DailySignupStats,
   WorkflowStepStats,
@@ -1439,7 +1474,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   WorkflowStepsListResponse,
   ToolSetup,
   CreateWorkflowStep,
-  WorkflowStepDto,
   PartialWorkflowStep,
   UserProgressDto,
   InviteType,
@@ -2214,6 +2248,14 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
   },
   {
     method: "get",
+    path: "/conversation/:conversation_id/export",
+    alias: "getConversationConversation_idexport",
+    description: `Exports a conversation, workflows, steps etc to a json file.`,
+    requestFormat: "json",
+    response: ImexConversationDto,
+  },
+  {
+    method: "get",
     path: "/conversation/:conversation_id/feedback",
     alias: "ListFeedbackForConversation",
     requestFormat: "json",
@@ -2596,6 +2638,22 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
       },
     ],
     response: WorkflowStepDto,
+  },
+  {
+    method: "post",
+    path: "/conversation/import",
+    alias: "postConversationimport",
+    description: `Imports a conversation from an exported json file`,
+    requestFormat: "form-data",
+    parameters: [
+      {
+        name: "body",
+        description: `multipart form data`,
+        type: "Body",
+        schema: z.array(z.any()),
+      },
+    ],
+    response: ImportConversationResponse,
   },
   {
     method: "get",

@@ -89,13 +89,33 @@ impl PartialWorkflow {
     }
 }
 
-/// Get a conversation by ID
+/// Get a workflow by ID
 #[instrument(err(Debug))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Workflow, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(WorkflowIden::Table)
         .and_where(Expr::col(WorkflowIden::Id).eq(id.to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let conversation = sqlx::query_as_with::<_, Workflow, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .map_err(|_| ComhairleError::ResourceNotFound("Workflow".into()))?;
+
+    Ok(conversation)
+}
+
+/// Get a workflow by conversation_id
+#[instrument(err(Debug))]
+pub async fn get_by_conversation_id(
+    db: &PgPool,
+    conversation_id: &Uuid,
+) -> Result<Workflow, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns(DEFAULT_COLUMNS)
+        .from(WorkflowIden::Table)
+        .and_where(Expr::col(WorkflowIden::ConversationId).eq(conversation_id.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
     let conversation = sqlx::query_as_with::<_, Workflow, _>(&sql, values)
@@ -514,6 +534,32 @@ mod tests {
             region.id,
             "incorrect region_id"
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_get_workflow_by_conversation_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, convo_res, _) = session.create_random_conversation(&app).await?;
+        let conversation: ConversationDto = serde_json::from_value(convo_res)?;
+
+        let (_, user, _) = session.current_user(&app).await?;
+
+        let params = CreateWorkflow {
+            name: "test_workflow".to_string(),
+            description: "a test workflow".to_string(),
+            is_active: true,
+            is_public: true,
+            auto_login: false,
+            region_id: None,
+        };
+
+        let new_workflow = create(&pool, &params, Some(conversation.id), None, user.id).await?;
+
+        let workflow = get_by_conversation_id(&pool, &conversation.id).await?;
+
+        assert_eq!(workflow.id, new_workflow.id, "incorrect id");
 
         Ok(())
     }

@@ -1,8 +1,10 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::{Json, Path, Query, State},
-    http::StatusCode,
+    body::Body,
+    extract::{Json, Multipart, Path, Query, State},
+    http::{HeaderValue, StatusCode},
+    response::Response,
 };
 
 use aide::axum::{
@@ -10,6 +12,8 @@ use aide::axum::{
     ApiRouter,
 };
 
+use hyper::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
+use rand::{distributions::Alphanumeric, Rng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
@@ -31,11 +35,19 @@ use crate::{
         },
         pagination::{OrderParams, PageOptions, PaginatedResults},
         user_participation::{self},
+        workflow::{self, CreateWorkflow},
+        workflow_step::{self, CreateWorkflowStep},
     },
     routes::{
-        conversations::dto::{ConversationDto, LocalizedConversationDto},
+        conversations::dto::{
+            ConversationDto, ImexConversationDto, ImexConversationWithWorkflowDto,
+            LocalizedConversationDto,
+        },
         translations::LocaleExtractor,
+        workflow_steps::dto::{ImexToolConfig, ImexWorkflowStepDto, WorkflowStepDto},
+        workflows::dto::{ImexWorkflowDto, ImexWorkflowWithStepsDto, WorkflowDto},
     },
+    tools::ToolConfig,
     ComhairleState,
 };
 
@@ -346,6 +358,155 @@ async fn register_email_for_updates(
     ))
 }
 
+#[instrument(err(Debug), skip(state))]
+async fn export_conversation(
+    State(state): State<Arc<ComhairleState>>,
+    Path(conversation_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+) -> Result<Response, ComhairleError> {
+    let conversation =
+        conversation::get_localised_by_id(&state.db, &conversation_id, &locale).await?;
+    let workflow = workflow::get_by_conversation_id(&state.db, &conversation_id).await?;
+    let workflow_steps = workflow_step::list_localized(&state.db, &workflow.id, &locale).await?;
+
+    let conversation_dto: ImexConversationDto = conversation.into();
+    let workflow_dto: ImexWorkflowDto = workflow.into();
+    let mut workflow_step_dtos: Vec<ImexWorkflowStepDto> = vec![];
+
+    for step in workflow_steps {
+        // TODO: clone heyform with fresh credentials
+        let export_config = match step.preview_tool_config {
+            ToolConfig::Polis(_) => ImexToolConfig::Polis,
+            ToolConfig::HeyForm(_) => ImexToolConfig::HeyForm,
+            ToolConfig::Stories(_) => ImexToolConfig::Stories,
+            ToolConfig::Learn(ref config) => ImexToolConfig::Learn(config.clone()), // TODO:
+            // should figure out how to use clone_tool functionality
+            ToolConfig::ElicitationBot(ref config) => {
+                ImexToolConfig::ElicitationBot(config.clone())
+            }
+        };
+        let step_dto = ImexWorkflowStepDto {
+            name: step.name,
+            step_order: step.step_order,
+            activation_rule: step.activation_rule,
+            description: step.description,
+            is_offline: step.is_offline,
+            required: step.required,
+            can_revisit: step.can_revisit,
+            preview_tool_config: export_config,
+        };
+        workflow_step_dtos.push(step_dto);
+    }
+
+    let combined_workflow = ImexWorkflowWithStepsDto {
+        workflow: workflow_dto,
+        workflow_steps: workflow_step_dtos,
+    };
+    let combined_conversation = ImexConversationWithWorkflowDto {
+        conversation: conversation_dto,
+        workflows: vec![combined_workflow],
+    };
+
+    let json = serde_json::to_vec(&combined_conversation)?;
+    let content_disposition = HeaderValue::from_str(&format!(
+        "attachment; filename=\"conversation-{conversation_id}.json\""
+    ))?;
+
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(CONTENT_TYPE, "application/json")
+        .header(CONTENT_DISPOSITION, content_disposition)
+        .body(Body::from(json))?;
+
+    Ok(response)
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+struct ImportConversationResponse {
+    conversation: ConversationDto,
+    workflow: WorkflowDto,
+    workflow_steps: Vec<WorkflowStepDto>,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn import_conversation(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+    mut form_data: Multipart,
+) -> Result<(StatusCode, Json<ImportConversationResponse>), ComhairleError> {
+    let bytes = match form_data.next_field().await? {
+        Some(field) => field.bytes().await?,
+        None => return Err(ComhairleError::BadRequest("Missing form field".to_string())),
+    };
+    if form_data.next_field().await?.is_some() {
+        return Err(ComhairleError::BadRequest(
+            "Only one file import allowed".to_string(),
+        ));
+    }
+
+    let import: ImexConversationWithWorkflowDto = serde_json::from_slice(&bytes)?;
+    let mut imported_conversation = import.conversation;
+    // Presumes one workflow per conversation
+    let imported_workflow =
+        import
+            .workflows
+            .into_iter()
+            .next()
+            .ok_or(ComhairleError::CorruptedData(
+                "Missing workflow".to_string(),
+            ))?;
+
+    // Add random suffix to slug to avoid unique constraint in db
+    let slug_suffix: String = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(10)
+        .map(char::from)
+        .collect();
+    imported_conversation.slug = imported_conversation
+        .slug
+        .map(|s| format!("{s}-{slug_suffix}"));
+
+    let create_conversation_params: CreateConversation = imported_conversation.into();
+    let new_conversation = conversation::create(
+        &state.db,
+        &state.bot_service,
+        &state.config,
+        &create_conversation_params,
+        user.id,
+        user.organization_id,
+    )
+    .await?;
+
+    let create_workflow_params: CreateWorkflow = imported_workflow.workflow.into();
+    let new_workflow = workflow::create(
+        &state.db,
+        &create_workflow_params,
+        Some(new_conversation.id),
+        None,
+        user.id,
+    )
+    .await?;
+
+    let mut new_steps: Vec<WorkflowStepDto> = vec![];
+    for step in imported_workflow.workflow_steps {
+        let create_step_params: CreateWorkflowStep = step.into();
+        let new_workflow_step =
+            workflow_step::create(&state, &create_step_params, new_workflow.id, &locale).await?;
+        new_steps.push(new_workflow_step.into());
+    }
+
+    Ok((
+        StatusCode::CREATED,
+        Json(ImportConversationResponse {
+            conversation: new_conversation.into(),
+            workflow: new_workflow.into(),
+            workflow_steps: new_steps,
+        }),
+    ))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -429,23 +590,53 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Email Notifications")
             }),
         )
+        .api_route(
+            "/{conversation_id}/export",
+            get_with(export_conversation, |op| {
+                op.summary("Export a conversation")
+                    .description("Exports a conversation, workflows, steps etc to a json file.")
+                    .response::<200, Json<ImexConversationDto>>()
+                    .tag("Conversation")
+            }),
+        )
+        .api_route(
+            "/import",
+            post_with(import_conversation, |op| {
+                op.summary("Import a conversation")
+                    .description("Imports a conversation from an exported json file")
+                    .response::<200, Json<ImportConversationResponse>>()
+                    .tag("Conversation")
+            }),
+        )
         .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
-    use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
-    use crate::routes::conversations::ConversationResponse;
+    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::routes::conversations::dto::{
+        ConversationDto, ImexConversationWithWorkflowDto, LocalizedConversationDto,
+    };
+    use crate::routes::conversations::{ConversationResponse, ImportConversationResponse};
     use crate::routes::translations::dto::TextContentDto;
-    use crate::test_helpers::{test_config, test_state};
+    use crate::routes::workflows::dto::WorkflowDto;
+    use crate::test_helpers::{
+        learn_tool_config, multipart_body_builder, polis_tool_config, response_to_json,
+        test_config, test_state,
+    };
     use crate::{setup_server, test_helpers::UserSession};
-    use axum::http::StatusCode;
+    use axum::{
+        body::Body,
+        http::{Request, StatusCode},
+    };
+    use hyper::header::{CONTENT_DISPOSITION, COOKIE};
     use serde_json::json;
     use sqlx::PgPool;
     use std::collections::HashMap;
     use std::error::Error;
     use std::sync::Arc;
+    use tower::ServiceExt;
 
     #[sqlx::test]
     fn should_be_able_to_create_conversation_without_bot_service_resources(
@@ -1042,7 +1233,7 @@ mod tests {
         let privacy_policy: TextContentDto = serde_json::from_value(privacy_policy_res)?;
         let faqs: TextContentDto = serde_json::from_value(faqs_res)?;
 
-        let (_, update_res, _) = session
+        let _ = session
             .put(
                 &app,
                 &format!("/conversation/{}", conversation.id),
@@ -1054,9 +1245,6 @@ mod tests {
                 .into(),
             )
             .await?;
-        println!();
-        println!("    >>>>    Updated conversation: {update_res:#?}");
-        println!();
 
         let (status, value, _) = session
             .get(
@@ -1232,6 +1420,152 @@ mod tests {
             .await?;
 
         assert_eq!(status, StatusCode::CONFLICT, "Slugs should be unique");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_export_conversation_json(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, conversation, _) = session
+            .create_conversation(
+                &app,
+                json!({
+                    "title": "Conversation to export".to_string(),
+                    "short_description": "test conversation".to_string(),
+                    "description": "test conversation".to_string(),
+                    "image_url": "https://foo.com".to_string(),
+                    "is_public": false,
+                    "is_live": false,
+                    "is_invite_only": false,
+                    "primary_locale": "en".to_string(),
+                    "supported_languages": vec!["en".to_string()]
+                }),
+            )
+            .await?;
+        let conversation: ConversationDto = serde_json::from_value(conversation)?;
+        let (_, workflow, _) = session
+            .create_random_workflow(&app, &conversation.id.to_string())
+            .await?;
+        let workflow: WorkflowDto = serde_json::from_value(workflow)?;
+        session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/workflow/{}/workflow_step",
+                    conversation.id, workflow.id
+                ),
+                json!({
+                "name": "Polis Workflow step",
+                "step_order": 1,
+                "activation_rule" : "manual",
+                "description": "A manually retired polis workflow step",
+                "is_offline": false,
+                "required":true,
+                "can_revisit": false,
+                "tool_setup": polis_tool_config()
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/workflow/{}/workflow_step",
+                    conversation.id, workflow.id
+                ),
+                json!({
+                    "name": "Learn Workflow Step",
+                    "step_order": 2,
+                    "activation_rule" : "manual",
+                    "description": "A manually retired learnworkflow step",
+                    "required":true,
+                    "is_offline": false,
+                    "can_revisit": true,
+                    "tool_setup": learn_tool_config()
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        let mut request = Request::builder()
+            .uri(format!("/conversation/{}/export", conversation.id))
+            .method("GET");
+        if let Some(cookie) = &session.cookie {
+            request = request.header(COOKIE, cookie)
+        }
+        let request = request.body(Body::empty()).unwrap();
+        let response = app.clone().oneshot(request).await?;
+        let content_disposition = response
+            .headers()
+            .get(CONTENT_DISPOSITION)
+            .map(|h| h.to_owned());
+        let json = response_to_json(response).await;
+
+        let export: ImexConversationWithWorkflowDto = serde_json::from_value(json)?;
+
+        assert_eq!(
+            export.conversation.title,
+            "Conversation to export".to_string(),
+            "incorrect title"
+        );
+        assert_eq!(
+            export.workflows.first().unwrap().workflow_steps.len(),
+            2,
+            "incorrect number of workflow steps"
+        );
+        assert_eq!(
+            export.workflows.first().unwrap().workflow_steps[0].name,
+            "Polis Workflow step".to_string(),
+            "incorrect first workflow step name"
+        );
+        assert!(
+            export.workflows.first().unwrap().workflow_steps[1].can_revisit,
+            "incorrect second workflow step can_revisit"
+        );
+        assert_eq!(
+            content_disposition.unwrap().to_str().unwrap(),
+            &format!(
+                "attachment; filename=\"conversation-{}.json\"",
+                conversation.id
+            )
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_import_conversation_json_and_create_resources(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+
+        let json = include_str!("../../../fixtures/conversation-export.json");
+        let boundary = "test-boundary";
+        let body = multipart_body_builder()
+            .content(json)
+            .filename("conversation-export.json")
+            .content_type("application/json")
+            .call();
+        let body = Body::from(body);
+
+        let (_, value, _) = session
+            .post_multipart(&app, "/conversation/import", boundary, body)
+            .await?;
+        let imported_conversation: ImportConversationResponse = serde_json::from_value(value)?;
+
+        assert!(
+            imported_conversation
+                .conversation
+                .slug
+                .unwrap()
+                .contains("test-export-import-conversation"),
+            "conversation slug doesn't match fixture file"
+        );
 
         Ok(())
     }
