@@ -245,6 +245,25 @@ impl HeyFormClient {
         Ok(embed_url)
     }
 
+    pub async fn update_poll(&self, form_id: &str, form: Form) -> Result<bool> {
+        let variables = json!({
+            "input": {
+                "formId": form_id,
+                "fields": form.fields
+            }
+        });
+
+        let response: HashMap<String, bool> = self
+            .execute_graphql(
+                UPDATE_FORM_SCHEMAS_MUTATION,
+                variables,
+                Some("updateFormSchemas"),
+            )
+            .await?;
+
+        Ok(response.get("updateFormSchemas").copied().unwrap_or(false))
+    }
+
     /// Set custom CSS on a form
     pub async fn set_custom_css(&self, form_id: &str, custom_css: &str) -> Result<bool> {
         let theme = FormTheme {
@@ -289,7 +308,7 @@ impl HeyFormClient {
             .await?;
 
         response
-            .get("form")
+            .get("formDetail")
             .cloned()
             .ok_or_else(|| HeyFormError::NotFound("Form not found".to_string()))
     }
@@ -335,9 +354,16 @@ impl HeyFormClient {
     pub async fn create_form_hidden_field(&self, input: CreateHiddenFieldInput) -> Result<bool> {
         let variables = json!({ "input": input });
         let response: HashMap<String, bool> = self
-            .execute_graphql(CREATE_FORM_HIDDEN_FIELD_MUTATION, variables, Some("createFormHiddenField"))
+            .execute_graphql(
+                CREATE_FORM_HIDDEN_FIELD_MUTATION,
+                variables,
+                Some("createFormHiddenField"),
+            )
             .await?;
 
-        Ok(response.get("createFormHiddenField").copied().unwrap_or(false))
+        Ok(response
+            .get("createFormHiddenField")
+            .copied()
+            .unwrap_or(false))
     }
 }
