@@ -86,7 +86,7 @@ pub async fn launch(
     preview_config: &HeyFormToolConfig,
 ) -> Result<HeyFormToolConfig, ComhairleError> {
     let preview_client = HeyFormClient::new(format!("https://{}", preview_config.server_url))?;
-    let _live_client = HeyFormClient::new(format!("https://{}", preview_config.server_url))?;
+    let live_client = HeyFormClient::new(format!("https://{}", preview_config.server_url))?;
 
     preview_client
         .login(LoginInput {
@@ -95,12 +95,25 @@ pub async fn launch(
         })
         .await?;
 
-    let new_form_id = preview_client.clone_form(&preview_config.survey_id).await?;
-    let mut new_config = preview_config.clone();
+    let preview_form = preview_client.get_form(&preview_config.survey_id).await?;
 
-    new_config.survey_id = new_form_id;
+    let live_config = heyform_setup(&HeyFormToolSetup {
+        server_url: preview_config.server_url.clone(),
+    })
+    .await?;
 
-    Ok(new_config)
+    live_client
+        .login(LoginInput {
+            email: live_config.admin_user.clone(),
+            password: live_config.admin_password.clone(),
+        })
+        .await?;
+    // Update newly created survey with form fields from preview survey
+    live_client
+        .update_poll(&live_config.survey_id, preview_form)
+        .await?;
+
+    Ok(live_config)
 }
 
 async fn heyform_setup(
