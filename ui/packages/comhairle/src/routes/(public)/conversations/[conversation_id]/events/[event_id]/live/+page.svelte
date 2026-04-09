@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import JitsiMeet from '$lib/components/JitsiMeet/JitsiMeet.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Drawer from '$lib/components/ui/drawer';
@@ -29,14 +28,6 @@
 	let jitsiApi: any = $state(null);
 	let activeTab: 'agenda' | 'details' | 'participants' | 'controls' = $state('agenda');
 
-	let layoutReady = $state(false);
-	let isDesktop = $state(true);
-
-	onMount(() => {
-		isDesktop = window.matchMedia('(min-width: 768px)').matches;
-		layoutReady = true;
-	});
-
 	// Jitsi-synced state
 	let jitsiParticipants = $state<Array<{ id: string; displayName: string }>>([]);
 	let conferenceJoined = $state(false);
@@ -45,16 +36,14 @@
 	let attendanceRegistered = $state(false);
 
 	// Prototype agenda items
-	let agendaItems = $state([
-		{
-			id: '1',
-			title: 'Welcome & Introductions',
-			duration: '5 min',
-			status: 'current' as const
-		},
-		{ id: '2', title: 'Topic Discussion', duration: '20 min', status: 'upcoming' as const },
-		{ id: '3', title: 'Q&A Session', duration: '10 min', status: 'upcoming' as const },
-		{ id: '4', title: 'Wrap-up & Next Steps', duration: '5 min', status: 'upcoming' as const }
+	type AgendaStatus = 'done' | 'current' | 'upcoming';
+	let agendaItems = $state<
+		Array<{ id: string; title: string; duration: string; status: AgendaStatus }>
+	>([
+		{ id: '1', title: 'Welcome & Introductions', duration: '5 min', status: 'current' },
+		{ id: '2', title: 'Topic Discussion', duration: '20 min', status: 'upcoming' },
+		{ id: '3', title: 'Q&A Session', duration: '10 min', status: 'upcoming' },
+		{ id: '4', title: 'Wrap-up & Next Steps', duration: '5 min', status: 'upcoming' }
 	]);
 
 	function advanceAgenda() {
@@ -409,25 +398,43 @@
 	<title>{event?.name ?? 'Live Event'}</title>
 </svelte:head>
 
-<!-- ===== mobile (< md) ===== -->
-<div class="-mb-4 flex h-dvh flex-col overflow-hidden md:hidden">
-	<!-- Back bar -->
-	<div class="bg-card flex items-center gap-3 px-6 py-3">
-		<a
-			href="/conversations/{conversationId}/events/{eventId}"
-			class="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 text-sm font-medium"
-		>
-			<span
-				class="border-input flex h-9 w-9 items-center justify-center rounded-full border bg-white shadow-sm"
-				>←</span
+<div class="md:bg-muted -mb-4 flex h-dvh flex-col overflow-hidden md:-mx-20 md:h-auto md:min-h-dvh">
+	<!-- Top bar -->
+	<div
+		class="bg-card px-6 py-3 md:mx-auto md:w-full md:max-w-[1440px] md:bg-transparent md:pt-12 md:pb-4"
+	>
+		<div class="flex items-center gap-3">
+			<a
+				href="/conversations/{conversationId}/events/{eventId}"
+				class="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 text-sm font-medium"
 			>
-			Back to conversation
-		</a>
+				<span
+					class="border-input flex h-9 w-9 items-center justify-center rounded-full border bg-white shadow-sm"
+					>←</span
+				>
+				Back to conversation
+			</a>
+			<span class="text-muted-foreground hidden text-sm md:inline">|</span>
+			<h1 class="text-foreground hidden text-lg font-semibold md:block">
+				{event?.name ?? `Event: ${eventId}`}
+			</h1>
+			{#if conferenceJoined}
+				<span
+					class="hidden shrink-0 items-center gap-1.5 rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600 md:inline-flex"
+				>
+					<span class="h-1.5 w-1.5 rounded-full bg-green-500"></span>
+					Live
+				</span>
+			{/if}
+		</div>
 	</div>
 
-	<!-- Jitsi fills the rest -->
-	<div class="relative mx-4 min-h-0 flex-1 overflow-hidden rounded-3xl">
-		{#if layoutReady && !isDesktop}
+	<!-- Main content: Jitsi full-width on mobile, side-by-side with panel on desktop -->
+	<div
+		class="mx-4 flex min-h-0 flex-1 md:mx-auto md:w-full md:max-w-[1440px] md:gap-16 md:px-6 md:pb-24"
+	>
+		<!-- Jitsi -->
+		<div class="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-3xl md:min-h-[600px]">
 			<JitsiMeet
 				{roomName}
 				{jwt}
@@ -452,13 +459,21 @@
 					hideConferenceSubject: true
 				}}
 			/>
-		{/if}
+		</div>
+
+		<!-- Desktop panel -->
+		<div
+			class="bg-card hidden min-w-0 flex-1 flex-col overflow-hidden rounded-3xl shadow-[0px_2px_4px_0px_rgba(0,0,0,0.12)] md:flex"
+		>
+			{@render panelTabs()}
+			{@render panelContent()}
+		</div>
 	</div>
 
-	<!-- Mobile Drawer trigger + bottom sheet -->
+	<!-- Mobile drawer -->
 	<Drawer.Root>
 		<Drawer.Trigger
-			class="bg-primary hover:bg-primary/90 fixed bottom-4 left-1/2 z-50 inline-flex -translate-x-1/2 items-center gap-2 rounded-full px-6 py-3 font-semibold text-white shadow-lg transition-colors"
+			class="bg-primary hover:bg-primary/90 fixed bottom-4 left-1/2 z-50 inline-flex -translate-x-1/2 items-center gap-2 rounded-full px-6 py-3 font-semibold text-white shadow-lg transition-colors md:hidden"
 		>
 			<ChevronUp class="h-4 w-4" />
 			<span>Agenda</span>
@@ -468,76 +483,4 @@
 			{@render panelContent()}
 		</Drawer.Content>
 	</Drawer.Root>
-</div>
-
-<!-- ===== desktop (md+) ===== -->
-<div class="bg-muted -mb-4 hidden min-h-dvh flex-col overflow-hidden md:-mx-20 md:flex">
-	<!-- Top bar -->
-	<div class="mx-auto w-full max-w-[1440px] px-6 pt-12 pb-4">
-		<div class="flex items-center gap-3">
-			<a
-				href="/conversations/{conversationId}/events/{eventId}"
-				class="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 text-sm font-medium"
-			>
-				<span
-					class="border-input flex h-9 w-9 items-center justify-center rounded-full border bg-white shadow-sm"
-					>←</span
-				>
-				Back to conversation
-			</a>
-			<span class="text-muted-foreground text-sm">|</span>
-			<h1 class="text-foreground text-lg font-semibold">
-				{event?.name ?? `Event: ${eventId}`}
-			</h1>
-			{#if conferenceJoined}
-				<span
-					class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600"
-				>
-					<span class="h-1.5 w-1.5 rounded-full bg-green-500"></span>
-					Live
-				</span>
-			{/if}
-		</div>
-	</div>
-
-	<!-- Half-and-half -->
-	<div class="mx-auto flex w-full max-w-[1440px] flex-1 gap-16 px-6 pb-24">
-		<!-- Jitsi -->
-		<div class="relative min-h-[600px] min-w-0 flex-1 overflow-hidden rounded-3xl">
-			{#if layoutReady && isDesktop}
-				<JitsiMeet
-					{roomName}
-					{jwt}
-					onApiReady={handleApiReady}
-					onParticipantJoined={handleParticipantJoined}
-					onParticipantLeft={handleParticipantLeft}
-					onVideoConferenceJoined={handleConferenceJoined}
-					onVideoConferenceLeft={handleConferenceLeft}
-					startWithAudioMuted={true}
-					configOverwrite={{
-						toolbarButtons: [
-							'microphone',
-							'camera',
-							'desktop',
-							'chat',
-							'raisehand',
-							'tileview',
-							'hangup',
-							'fullscreen'
-						],
-						disableDeepLinking: true,
-						hideConferenceSubject: true
-					}}
-				/>
-			{/if}
-		</div>
-
-		<!-- Panel card -->
-		<div
-			class="bg-card flex min-w-0 flex-1 flex-col overflow-hidden rounded-3xl shadow-[0px_2px_4px_0px_rgba(0,0,0,0.12)]"
-		>
-			{@render panelTabs()}
-			{@render panelContent()}
-		</div>
-	</div>
 </div>
