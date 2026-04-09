@@ -17,8 +17,8 @@ use crate::{
     error::ComhairleError,
     models::{
         event_attendance::{
-            self, CreateEventAttendance, EventAttendanceFilterOptions, EventAttendanceOrderOptions,
-            UpdateEventAttendance,
+            self, CreateEventAttendance, EventAttendanceEtx, EventAttendanceFilterOptions,
+            EventAttendanceOrderOptions, UpdateEventAttendance,
         },
         pagination::{PageOptions, PaginatedResults},
         users,
@@ -40,11 +40,15 @@ pub async fn list(
     Query(page_options): Query<PageOptions>,
     RequiredUser(_user): RequiredUser,
     Path((conversation_id, event_id)): Path<(Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<PaginatedResults<EventAttendanceDto>>), ComhairleError> {
-    let event_attendances =
-        event_attendance::list(&state.db, page_options, filter_options, order_options)
-            .await?
-            .into();
+) -> Result<(StatusCode, Json<PaginatedResults<EventAttendanceEtx>>), ComhairleError> {
+    let event_attendances = event_attendance::list(
+        &state.db,
+        event_id,
+        page_options,
+        filter_options,
+        order_options,
+    )
+    .await?;
 
     Ok((StatusCode::OK, Json(event_attendances)))
 }
@@ -162,7 +166,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         "List attendances for a conversation event with optional filtering
                         and ordering",
                     )
-                    .response::<200, Json<PaginatedResults<EventAttendanceDto>>>()
+                    .response::<200, Json<PaginatedResults<EventAttendanceEtx>>>()
             }),
         )
         .api_route(

@@ -1177,6 +1177,30 @@ export const PartialEvent = z
 export type PartialEvent = z.infer<typeof PartialEvent>;
 export const JwtResponse = z.object({ jwt: z.string() }).passthrough();
 export type JwtResponse = z.infer<typeof JwtResponse>;
+export const EventAttendanceEtx = z
+  .object({
+    createdAt: z.string().datetime({ offset: true }),
+    email: z.union([z.string(), z.null()]).optional(),
+    eventId: z.string().uuid(),
+    id: z.string().uuid(),
+    role: z.string(),
+    updatedAt: z.string().datetime({ offset: true }),
+    userId: z.string().uuid(),
+  })
+  .passthrough();
+export type EventAttendanceEtx = z.infer<typeof EventAttendanceEtx>;
+export const PaginatedResults_for_EventAttendanceEtx = z
+  .object({ records: z.array(EventAttendanceEtx), total: z.number().int() })
+  .passthrough();
+export type PaginatedResults_for_EventAttendanceEtx = z.infer<
+  typeof PaginatedResults_for_EventAttendanceEtx
+>;
+export const CreateEventAttendanceRequest = z
+  .object({ role: z.string() })
+  .passthrough();
+export type CreateEventAttendanceRequest = z.infer<
+  typeof CreateEventAttendanceRequest
+>;
 export const EventAttendanceDto = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
@@ -1187,18 +1211,6 @@ export const EventAttendanceDto = z
   })
   .passthrough();
 export type EventAttendanceDto = z.infer<typeof EventAttendanceDto>;
-export const PaginatedResults_for_EventAttendanceDto = z
-  .object({ records: z.array(EventAttendanceDto), total: z.number().int() })
-  .passthrough();
-export type PaginatedResults_for_EventAttendanceDto = z.infer<
-  typeof PaginatedResults_for_EventAttendanceDto
->;
-export const CreateEventAttendanceRequest = z
-  .object({ role: z.string() })
-  .passthrough();
-export type CreateEventAttendanceRequest = z.infer<
-  typeof CreateEventAttendanceRequest
->;
 export const UpdateEventAttendanceRequest = z
   .object({ role: z.union([z.string(), z.null()]) })
   .partial()
@@ -1494,9 +1506,10 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EventResponse,
   PartialEvent,
   JwtResponse,
-  EventAttendanceDto,
-  PaginatedResults_for_EventAttendanceDto,
+  EventAttendanceEtx,
+  PaginatedResults_for_EventAttendanceEtx,
   CreateEventAttendanceRequest,
+  EventAttendanceDto,
   UpdateEventAttendanceRequest,
   CreateFacilitatorRequest,
   WebSocketStats,
@@ -2020,7 +2033,7 @@ curl -X POST \
         schema: created_at,
       },
       {
-        name: "event_id",
+        name: "role",
         type: "Query",
         schema: created_after,
       },
@@ -2035,7 +2048,7 @@ curl -X POST \
         schema: limit,
       },
     ],
-    response: PaginatedResults_for_EventAttendanceDto,
+    response: PaginatedResults_for_EventAttendanceEtx,
   },
   {
     method: "post",
