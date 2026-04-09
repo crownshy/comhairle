@@ -1,22 +1,14 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import Button from '$lib/components/ui/button/button.svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { formatDateShort, formatTime } from '$lib/utils';
+	import { CalendarDays, Users } from 'lucide-svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
 	let conversationId = $derived(data.conversationId);
 	let events = $derived(data.events);
-
-	function formatDate(iso: string) {
-		return new Date(iso).toLocaleDateString(undefined, {
-			weekday: 'short',
-			month: 'short',
-			day: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
-	}
 
 	function eventStatus(start: string, end: string): 'upcoming' | 'live' | 'past' {
 		const now = Date.now();
@@ -32,88 +24,103 @@
 	<title>Events</title>
 </svelte:head>
 
-<div class="mx-auto max-w-3xl py-8">
-	<div class="mb-6 flex items-center justify-between">
-		<div>
-			<h1 class="text-2xl font-bold">Events</h1>
-			<p class="text-muted-foreground mt-1 text-sm">
-				{events.length} event{events.length !== 1 ? 's' : ''} scheduled
-			</p>
+<div class="mx-auto flex max-w-[700px] flex-col items-center gap-6 py-8">
+	<div class="w-full">
+		<div class="flex items-center gap-3">
+			<h1 class="text-3xl font-semibold">Events</h1>
 		</div>
-		<a
-			href="/conversations/{conversationId}"
-			class="text-muted-foreground hover:text-foreground text-sm"
-		>
-			← Back to conversation
-		</a>
+		<p class="text-muted-foreground mt-2 text-base font-medium">
+			{events.length} event{events.length !== 1 ? 's' : ''} scheduled for this conversation.
+		</p>
 	</div>
 
 	{#if events.length === 0}
-		<div class="border-border rounded-xl border border-dashed p-12 text-center">
+		<div class="border-border w-full rounded-3xl border border-dashed p-12 text-center">
 			<p class="text-muted-foreground">No events scheduled for this conversation yet.</p>
 		</div>
 	{:else}
-		<div class="space-y-3">
+		<div class="flex w-full flex-col gap-6">
 			{#each events as event (event.id)}
 				{@const status = eventStatus(event.startTime, event.endTime)}
-				<a
-					href="/conversations/{conversationId}/events/{event.id}"
-					class="border-border bg-card hover:border-primary/30 hover:bg-accent/50 block rounded-xl border p-4 transition-colors"
+				<div
+					class="bg-card border-border relative flex flex-col gap-4 overflow-hidden rounded-3xl border p-6 shadow-sm"
 				>
-					<div class="flex items-start justify-between gap-3">
-						<div class="min-w-0 flex-1">
-							<div class="flex items-center gap-2">
-								<h2 class="truncate text-base font-semibold">{event.name}</h2>
-								{#if status === 'live'}
-									<span
-										class="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600"
-									>
-										<span
-											class="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500"
-										></span>
-										Live
-									</span>
-								{:else if status === 'past'}
-									<span
-										class="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-xs"
-										>Past</span
-									>
-								{:else}
-									<span
-										class="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-xs font-medium"
-										>Upcoming</span
-									>
-								{/if}
-							</div>
-							{#if event.description}
-								<p class="text-muted-foreground mt-1 line-clamp-2 text-sm">
-									{event.description}
-								</p>
-							{/if}
-							<div
-								class="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs"
-							>
-								<span
-									>{formatDate(event.startTime)} — {formatDate(
-										event.endTime
-									)}</span
-								>
-								<span
-									>{event.currentAttendance} attending{event.capacity
-										? ` / ${event.capacity} capacity`
-										: ''}</span
-								>
-							</div>
-						</div>
-
+					<!-- Action button (top-right) -->
+					<div class="absolute top-6 right-6">
 						{#if status === 'live'}
-							<Button variant="default" size="sm" class="shrink-0">Join Live</Button>
-						{:else if status === 'upcoming'}
-							<Button variant="outline" size="sm" class="shrink-0">View</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								href="/conversations/{conversationId}/events/{event.id}/live"
+							>
+								Join Live
+							</Button>
+						{:else}
+							<Button
+								variant="outline"
+								size="sm"
+								href="/conversations/{conversationId}/events/{event.id}"
+							>
+								View event
+							</Button>
 						{/if}
 					</div>
-				</a>
+
+					<!-- Title + badge -->
+					<div class="flex items-center gap-2 pr-28">
+						<h2 class="text-2xl leading-7 font-semibold">{event.name}</h2>
+						{#if status === 'live'}
+							<Badge
+								variant="outline"
+								class="shrink-0 border-green-200 bg-green-50 text-green-700"
+							>
+								<span
+									class="mr-1 h-1.5 w-1.5 animate-pulse rounded-full bg-green-500"
+								></span>
+								Live
+							</Badge>
+						{:else if status === 'past'}
+							<Badge variant="secondary" class="shrink-0">Past</Badge>
+						{:else}
+							<Badge variant="outline" class="bg-primary/10 shrink-0">Upcoming</Badge>
+						{/if}
+					</div>
+
+					<!-- Description -->
+					{#if event.description}
+						<p class="text-muted-foreground text-base leading-6 font-medium">
+							{event.description}
+						</p>
+					{/if}
+
+					<!-- Info rows -->
+					<div class="flex flex-col gap-2">
+						<div class="flex items-center gap-2 text-sm">
+							<CalendarDays class="text-foreground h-4 w-4 shrink-0" />
+							<span class="font-medium">{formatDateShort(event.startTime)}</span>
+							<span class="text-muted-foreground line-clamp-1"
+								>{formatTime(event.startTime)} - {formatTime(event.endTime)}</span
+							>
+						</div>
+						<div class="flex items-center gap-2 text-sm">
+							<Users class="text-foreground h-4 w-4 shrink-0" />
+							<span class="font-medium">Current attendees</span>
+							<span class="text-muted-foreground line-clamp-1"
+								>{event.currentAttendance}{event.capacity
+									? ` / ${event.capacity}`
+									: ''}</span
+							>
+						</div>
+					</div>
+				</div>
 			{/each}
 		</div>
 	{/if}
+
+	<a
+		href="/conversations/{conversationId}"
+		class="text-muted-foreground hover:text-foreground text-sm"
+	>
+		← Back to conversation
+	</a>
 </div>
