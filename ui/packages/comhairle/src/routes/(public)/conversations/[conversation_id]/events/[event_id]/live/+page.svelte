@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dev } from '$app/environment';
 	import { onMount, onDestroy } from 'svelte';
 	import JitsiMeet from '$lib/components/JitsiMeet/JitsiMeet.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
@@ -26,7 +27,7 @@
 	let jwt = $derived(data.jwt);
 	let apiAttendances = $derived(data.attendances);
 	let user = $derived(data.user);
-	let isModerator = $derived(data.isModerator);
+	let isModerator = $state(data.isModerator);
 
 	let roomName = $derived(event?.videoMeetingId);
 
@@ -573,6 +574,21 @@
 			<h1 class="text-foreground hidden text-lg font-semibold md:block">
 				{event?.name ?? `Event: ${eventId}`}
 			</h1>
+			{#if dev}
+				<button
+					class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors {isModerator
+						? 'bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/30'
+						: 'bg-muted text-muted-foreground ring-border ring-1'}"
+					onclick={() => (isModerator = !isModerator)}
+				>
+					<span
+						class="h-2 w-2 rounded-full {isModerator
+							? 'bg-amber-500'
+							: 'bg-muted-foreground/40'}"
+					></span>
+					{isModerator ? 'Host' : 'Attendee'}
+				</button>
+			{/if}
 			{#if conferenceJoined}
 				<span
 					class="hidden shrink-0 items-center gap-1.5 rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600 md:inline-flex"
