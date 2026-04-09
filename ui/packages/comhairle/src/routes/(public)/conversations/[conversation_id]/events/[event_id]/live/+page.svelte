@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/state';
+	import { onMount } from 'svelte';
 	import JitsiMeet from '$lib/components/JitsiMeet/JitsiMeet.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Drawer from '$lib/components/ui/drawer';
@@ -27,8 +27,15 @@
 	let roomName = $derived(event?.videoMeetingId);
 
 	let jitsiApi: any = $state(null);
-	let panelOpen = $state(true);
 	let activeTab: 'agenda' | 'details' | 'participants' | 'controls' = $state('agenda');
+
+	let layoutReady = $state(false);
+	let isDesktop = $state(true);
+
+	onMount(() => {
+		isDesktop = window.matchMedia('(min-width: 768px)').matches;
+		layoutReady = true;
+	});
 
 	// Jitsi-synced state
 	let jitsiParticipants = $state<Array<{ id: string; displayName: string }>>([]);
@@ -420,30 +427,32 @@
 
 	<!-- Jitsi fills the rest -->
 	<div class="relative mx-4 min-h-0 flex-1 overflow-hidden rounded-3xl">
-		<JitsiMeet
-			{roomName}
-			{jwt}
-			onApiReady={handleApiReady}
-			onParticipantJoined={handleParticipantJoined}
-			onParticipantLeft={handleParticipantLeft}
-			onVideoConferenceJoined={handleConferenceJoined}
-			onVideoConferenceLeft={handleConferenceLeft}
-			startWithAudioMuted={true}
-			configOverwrite={{
-				toolbarButtons: [
-					'microphone',
-					'camera',
-					'desktop',
-					'chat',
-					'raisehand',
-					'tileview',
-					'hangup',
-					'fullscreen'
-				],
-				disableDeepLinking: true,
-				hideConferenceSubject: true
-			}}
-		/>
+		{#if layoutReady && !isDesktop}
+			<JitsiMeet
+				{roomName}
+				{jwt}
+				onApiReady={handleApiReady}
+				onParticipantJoined={handleParticipantJoined}
+				onParticipantLeft={handleParticipantLeft}
+				onVideoConferenceJoined={handleConferenceJoined}
+				onVideoConferenceLeft={handleConferenceLeft}
+				startWithAudioMuted={true}
+				configOverwrite={{
+					toolbarButtons: [
+						'microphone',
+						'camera',
+						'desktop',
+						'chat',
+						'raisehand',
+						'tileview',
+						'hangup',
+						'fullscreen'
+					],
+					disableDeepLinking: true,
+					hideConferenceSubject: true
+				}}
+			/>
+		{/if}
 	</div>
 
 	<!-- Mobile Drawer trigger + bottom sheet -->
@@ -495,30 +504,32 @@
 	<div class="mx-auto flex w-full max-w-[1440px] flex-1 gap-16 px-6 pb-24">
 		<!-- Jitsi -->
 		<div class="relative min-h-[600px] min-w-0 flex-1 overflow-hidden rounded-3xl">
-			<JitsiMeet
-				{roomName}
-				{jwt}
-				onApiReady={handleApiReady}
-				onParticipantJoined={handleParticipantJoined}
-				onParticipantLeft={handleParticipantLeft}
-				onVideoConferenceJoined={handleConferenceJoined}
-				onVideoConferenceLeft={handleConferenceLeft}
-				startWithAudioMuted={true}
-				configOverwrite={{
-					toolbarButtons: [
-						'microphone',
-						'camera',
-						'desktop',
-						'chat',
-						'raisehand',
-						'tileview',
-						'hangup',
-						'fullscreen'
-					],
-					disableDeepLinking: true,
-					hideConferenceSubject: true
-				}}
-			/>
+			{#if layoutReady && isDesktop}
+				<JitsiMeet
+					{roomName}
+					{jwt}
+					onApiReady={handleApiReady}
+					onParticipantJoined={handleParticipantJoined}
+					onParticipantLeft={handleParticipantLeft}
+					onVideoConferenceJoined={handleConferenceJoined}
+					onVideoConferenceLeft={handleConferenceLeft}
+					startWithAudioMuted={true}
+					configOverwrite={{
+						toolbarButtons: [
+							'microphone',
+							'camera',
+							'desktop',
+							'chat',
+							'raisehand',
+							'tileview',
+							'hangup',
+							'fullscreen'
+						],
+						disableDeepLinking: true,
+						hideConferenceSubject: true
+					}}
+				/>
+			{/if}
 		</div>
 
 		<!-- Panel card -->

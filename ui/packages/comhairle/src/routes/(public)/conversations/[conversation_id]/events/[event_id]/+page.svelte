@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import { goto, invalidateAll } from '$app/navigation';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Badge } from '$lib/components/ui/badge';
