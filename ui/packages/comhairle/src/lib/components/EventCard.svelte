@@ -2,6 +2,7 @@
 	import type { LocalizedEventDto } from '@crownshy/api-client/api';
 	import { Badge } from './ui/badge';
 	import Button from '$lib/components/ui/button/button.svelte';
+	import { formatDateShort, formatTime } from '$lib/utils';
 	import { ArrowRight, CalendarDays, Users } from 'lucide-svelte';
 
 	type Props = {
@@ -13,21 +14,6 @@
 
 	function isUpcoming(event: LocalizedEventDto) {
 		return new Date(event.startTime).getTime() > Date.now();
-	}
-
-	function formatDateShort(iso: string) {
-		return new Date(iso).toLocaleDateString(undefined, {
-			weekday: 'short',
-			month: 'long',
-			day: 'numeric'
-		});
-	}
-
-	function formatTime(iso: string) {
-		return new Date(iso).toLocaleTimeString(undefined, {
-			hour: '2-digit',
-			minute: '2-digit'
-		});
 	}
 </script>
 
