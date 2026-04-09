@@ -21,7 +21,7 @@ export const load: PageLoad = async ({ parent, params }) => {
 			event: event as LocalizedEventDto,
 			attendances: attendancesResult.records as EventAttendanceDto[],
 			jwt: authRes.jwt,
-			isModerator: (authRes as any).isModerator ?? false,
+			isModerator: authRes.is_moderator ?? false,
 			user
 		};
 	} catch (e) {

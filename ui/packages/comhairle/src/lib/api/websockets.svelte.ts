@@ -29,9 +29,12 @@ export class WSConnection {
 	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	private reconnectAttempts = 0;
 	private maxReconnectAttempts = 10;
+	private static readonly MAX_MESSAGES = 200;
+	private static readonly MAX_SEND_RETRIES = 5;
 
 	connect() {
 		if (!browser) return;
+		this.maxReconnectAttempts = 10;
 
 		const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 		const host = window.location.host;
@@ -58,7 +61,7 @@ export class WSConnection {
 					return;
 				}
 
-				this.messages = [...this.messages, message];
+				this.messages = [...this.messages.slice(-WSConnection.MAX_MESSAGES + 1), message];
 				this.handlers.forEach((handler) => handler(message));
 			} catch (e) {
 				console.warn('WS: failed to parse message', event.data, e);
@@ -90,12 +93,16 @@ export class WSConnection {
 		};
 	}
 
-	send(data: any) {
+	send(data: any, _retries = 0) {
 		if (this.socket && this.socket.readyState === WebSocket.OPEN) {
 			this.socket.send(JSON.stringify(data));
+		} else if (_retries < WSConnection.MAX_SEND_RETRIES) {
+			console.warn(
+				`WebSocket not open; retry ${_retries + 1}/${WSConnection.MAX_SEND_RETRIES}...`
+			);
+			setTimeout(() => this.send(data, _retries + 1), 500);
 		} else {
-			console.warn('WebSocket not open; retrying soon...');
-			setTimeout(() => this.send(data), 500);
+			console.error('WebSocket not open after max retries; message dropped.');
 		}
 	}
 

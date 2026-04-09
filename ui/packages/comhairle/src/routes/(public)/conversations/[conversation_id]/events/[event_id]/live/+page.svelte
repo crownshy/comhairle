@@ -6,6 +6,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { ws } from '$lib/api/websockets.svelte';
 	import type { WSMessage } from '$lib/api/websockets.svelte';
+	import { formatDateShort, formatTime } from '$lib/utils';
 	import {
 		List,
 		Info,
@@ -25,8 +26,7 @@
 	let jwt = $derived(data.jwt);
 	let apiAttendances = $derived(data.attendances);
 	let user = $derived(data.user);
-	// DEV TOGGLE: flip between Host and Attendee for testing
-	let isModerator = $state(true);
+	let isModerator = $derived(data.isModerator);
 
 	let roomName = $derived(event?.videoMeetingId);
 
@@ -158,16 +158,6 @@
 		jitsiParticipants = [];
 	}
 
-	function formatDate(iso: string) {
-		return new Date(iso).toLocaleDateString(undefined, {
-			weekday: 'short',
-			month: 'short',
-			day: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
-	}
-
 	const tabs = [
 		{ key: 'agenda' as const, label: 'Agenda', icon: List },
 		{ key: 'details' as const, label: 'Details', icon: Info },
@@ -283,11 +273,17 @@
 						<div class="grid gap-2 text-xs">
 							<div class="flex justify-between">
 								<span class="text-muted-foreground">Starts</span>
-								<span>{formatDate(event.startTime)}</span>
+								<span
+									>{formatDateShort(event.startTime)}
+									{formatTime(event.startTime)}</span
+								>
 							</div>
 							<div class="flex justify-between">
 								<span class="text-muted-foreground">Ends</span>
-								<span>{formatDate(event.endTime)}</span>
+								<span
+									>{formatDateShort(event.endTime)}
+									{formatTime(event.endTime)}</span
+								>
 							</div>
 							<div class="flex justify-between">
 								<span class="text-muted-foreground">Attendance</span>
@@ -585,19 +581,6 @@
 					Live
 				</span>
 			{/if}
-			<button
-				class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors {isModerator
-					? 'bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/30'
-					: 'bg-muted text-muted-foreground ring-border ring-1'}"
-				onclick={() => (isModerator = !isModerator)}
-			>
-				<span
-					class="h-2 w-2 rounded-full {isModerator
-						? 'bg-amber-500'
-						: 'bg-muted-foreground/40'}"
-				></span>
-				{isModerator ? 'Host' : 'Attendee'}
-			</button>
 		</div>
 	</div>
 
