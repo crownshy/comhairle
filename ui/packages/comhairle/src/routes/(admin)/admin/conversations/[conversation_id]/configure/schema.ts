@@ -20,5 +20,6 @@ export const conversationConfigSchema = z.object({
 	isInviteOnly: z.boolean(),
 	autoLogin: z.boolean(),
 	enableQaChatBot: z.boolean(),
-	enableSignupPrompts: z.boolean()
+	enableSignupPrompts: z.boolean(),
+	showThankYouPageAnnonInstructions: z.boolean()
 });

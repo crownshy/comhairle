@@ -50,6 +50,8 @@
 		$form.autoLogin = data.workflows[0]?.autoLogin;
 		$form.enableQaChatBot = data.conversation.enableQaChatBot;
 		$form.enableSignupPrompts = data.conversation.enableSignupPrompts;
+		$form.showThankYouPageAnnonInstructions =
+			data.conversation.showThankYouPageAnnonInstructions;
 	});
 
 	function updateFormForLanguage(newLanguage: string) {
@@ -145,7 +147,8 @@
 			isInviteOnly: data.conversation.isInviteOnly,
 			autoLogin: data.workflows[0].autoLogin,
 			enableQaChatBot: data.conversation.enableQaChatBot,
-			enableSignupPrompts: data.conversation.enableSignupPrompts
+			enableSignupPrompts: data.conversation.enableSignupPrompts,
+			showThankYouPageAnnonInstructions: data.conversation.showThankYouPageAnnonInstructions
 		},
 		{
 			validators: zodClient(conversationConfigSchema),
@@ -629,6 +632,28 @@
 								</p>
 							</div>
 							<Switch {...props} bind:checked={$form.enableSignupPrompts} />
+						</div>
+					{/snippet}
+				</Form.Control>
+				<Form.FieldErrors />
+			</Form.Field>
+
+			<Form.Field form={conversationForm} name="showThankYouPageAnnonInstructions">
+				<Form.Control>
+					{#snippet children({ props })}
+						<div class="flex items-center justify-between gap-4">
+							<div class="flex flex-col gap-1">
+								<Form.Label class="text-sm font-medium"
+									>Show thank you page anonymous instructions</Form.Label
+								>
+								<p class="text-muted-foreground text-sm">
+									Display instructions for anonymous users on the thank you page.
+								</p>
+							</div>
+							<Switch
+								{...props}
+								bind:checked={$form.showThankYouPageAnnonInstructions}
+							/>
 						</div>
 					{/snippet}
 				</Form.Control>
