@@ -42,7 +42,7 @@
 
 <div class="mx-auto flex max-w-[700px] flex-col gap-6">
 	{#each events as event (event.id)}
-		<Card.Root class="overflow-hidden rounded-3xl shadow-sm">
+		<Card.Root class="overflow-hidden rounded-3xl pb-0 shadow-sm">
 			<EventCard {event} conversationId={conversation.id} />
 		</Card.Root>
 	{/each}
