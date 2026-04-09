@@ -33,6 +33,7 @@
 
 	const event = $derived(data.event);
 	const conversation = $derived(data.conversation);
+	const facilitators = $derived(data.facilitators);
 	let primaryLanguage = $derived(data.conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(data.conversation.supportedLanguages ?? ['en']);
 
@@ -111,9 +112,6 @@
 	let eventDate = $derived($form.start_date ? parseDate($form.start_date) : undefined);
 	let pageTitle = $derived(`Edit Event: ${event.name}`);
 
-	// TODO: get from facilitators
-	let facilitators = $state([]);
-
 	async function handleAddFacilitator(value: string) {
 		try {
 			await apiClient.CreateFacilitatorEventAttendance(
@@ -144,11 +142,11 @@
 
 	async function handleDeleteFacilitator(id: string) {
 		try {
-			await apiClient.DeleteEventAttendance({
+			await apiClient.DeleteEventAttendance(undefined, {
 				params: {
 					conversation_id: conversation.id,
 					event_id: event.id,
-					event_attendance_id: id
+					attendance_id: id
 				}
 			});
 
@@ -424,7 +422,7 @@
 				<BadgeInput
 					onAddBadge={handleAddFacilitator}
 					onDeleteBadge={handleDeleteFacilitator}
-					badges={facilitators}
+					badges={facilitators.map((f) => ({ id: f.id, value: f.email }))}
 					placeholder="Enter an email address"
 				/>
 			</div>

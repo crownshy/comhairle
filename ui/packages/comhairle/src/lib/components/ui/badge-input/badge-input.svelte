@@ -38,12 +38,14 @@
 			}}><Plus /></Button
 		>
 	</div>
-	{#each badges as badge (badge.id)}
-		<Badge class="px-3 py-2">
-			{badge.value}
-			<button type="button" onclick={() => onDeleteBadge(badge.id)}
-				><X class="h-4 w-4" /></button
-			>
-		</Badge>
-	{/each}
+	<div class="flex gap-3">
+		{#each badges as badge (badge.id)}
+			<Badge class="px-3 py-2">
+				{badge.value}
+				<button type="button" onclick={() => onDeleteBadge(badge.id)}
+					><X class="h-4 w-4" /></button
+				>
+			</Badge>
+		{/each}
+	</div>
 </div>

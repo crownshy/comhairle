@@ -13,7 +13,12 @@ export const load: PageLoad = async ({ params, parent }) => {
 			queries: { withTranslations: true }
 		});
 
-		return { event, conversation };
+		const facilitators = await api.ListEventAttendances({
+			params: { conversation_id, event_id },
+			queries: { role: 'facilitator' }
+		});
+
+		return { event, conversation, facilitators: facilitators.records };
 	} catch (e) {
 		console.error(e);
 		notifications.addFlash({ priority: 'WARNING', message: 'Problem loading event' });
