@@ -3,6 +3,7 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { apiClient } from '@crownshy/api-client/client';
+	import { formatDateShort, formatTime } from '$lib/utils';
 	import { ArrowLeft, CalendarDays, Clock, Users, UserCheck } from 'lucide-svelte';
 	import type { PageProps } from './$types';
 
@@ -27,21 +28,6 @@
 	});
 
 	let userAttendance = $derived(user ? attendances.find((a) => a.userId === user.id) : undefined);
-
-	function formatDateShort(iso: string) {
-		return new Date(iso).toLocaleDateString(undefined, {
-			weekday: 'short',
-			month: 'long',
-			day: 'numeric'
-		});
-	}
-
-	function formatTime(iso: string) {
-		return new Date(iso).toLocaleTimeString(undefined, {
-			hour: '2-digit',
-			minute: '2-digit'
-		});
-	}
 
 	function formatDuration(start: string, end: string) {
 		const ms = new Date(end).getTime() - new Date(start).getTime();

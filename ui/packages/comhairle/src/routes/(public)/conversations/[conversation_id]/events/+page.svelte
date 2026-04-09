@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Badge } from '$lib/components/ui/badge';
+	import { formatDateShort, formatTime } from '$lib/utils';
 	import { CalendarDays, Users } from 'lucide-svelte';
 	import type { PageProps } from './$types';
 
@@ -8,21 +9,6 @@
 
 	let conversationId = $derived(data.conversationId);
 	let events = $derived(data.events);
-
-	function formatDateShort(iso: string) {
-		return new Date(iso).toLocaleDateString(undefined, {
-			weekday: 'short',
-			month: 'long',
-			day: 'numeric'
-		});
-	}
-
-	function formatTime(iso: string) {
-		return new Date(iso).toLocaleTimeString(undefined, {
-			hour: '2-digit',
-			minute: '2-digit'
-		});
-	}
 
 	function eventStatus(start: string, end: string): 'upcoming' | 'live' | 'past' {
 		const now = Date.now();
