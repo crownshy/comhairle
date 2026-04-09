@@ -1206,6 +1206,10 @@ export const UpdateEventAttendanceRequest = z
 export type UpdateEventAttendanceRequest = z.infer<
   typeof UpdateEventAttendanceRequest
 >;
+export const CreateFacilitatorRequest = z
+  .object({ email: z.string() })
+  .passthrough();
+export type CreateFacilitatorRequest = z.infer<typeof CreateFacilitatorRequest>;
 export const WebSocketStats = z
   .object({
     connected_users: z.array(z.string().uuid()),
@@ -1494,6 +1498,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PaginatedResults_for_EventAttendanceDto,
   CreateEventAttendanceRequest,
   UpdateEventAttendanceRequest,
+  CreateFacilitatorRequest,
   WebSocketStats,
   BroadcastMessage,
   BroadcastResponse,
@@ -2076,6 +2081,21 @@ curl -X POST \
     alias: "DeleteEventAttendance",
     description: `Delete an event attendance by id`,
     requestFormat: "json",
+    response: EventAttendanceDto,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/attendances/facilitator",
+    alias: "CreateFacilitatorEventAttendance",
+    description: `Create a new attendance for a conversation event with facilitator role`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ email: z.string() }).passthrough(),
+      },
+    ],
     response: EventAttendanceDto,
   },
   {

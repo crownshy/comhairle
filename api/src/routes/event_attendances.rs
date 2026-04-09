@@ -21,6 +21,7 @@ use crate::{
             UpdateEventAttendance,
         },
         pagination::{PageOptions, PaginatedResults},
+        users,
     },
     routes::{
         auth::{RequiredAdminUser, RequiredUser},
@@ -70,13 +71,40 @@ pub struct CreateEventAttendanceRequest {
 pub async fn create(
     State(state): State<Arc<ComhairleState>>,
     Path((conversation_id, event_id)): Path<(Uuid, Uuid)>,
-    RequiredAdminUser(user): RequiredAdminUser,
+    RequiredUser(user): RequiredUser,
     Json(payload): Json<CreateEventAttendanceRequest>,
 ) -> Result<(StatusCode, Json<EventAttendanceDto>), ComhairleError> {
     let create_event_attendance = CreateEventAttendance {
         user_id: user.id,
         event_id,
         role: payload.role,
+    };
+
+    let event_attendance = event_attendance::create(&state.db, &create_event_attendance)
+        .await?
+        .into();
+
+    Ok((StatusCode::CREATED, Json(event_attendance)))
+}
+
+#[derive(Deserialize, JsonSchema, Debug)]
+struct CreateFacilitatorRequest {
+    email: String,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn create_facilitator(
+    State(state): State<Arc<ComhairleState>>,
+    Path((conversation_id, event_id)): Path<(Uuid, Uuid)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Json(payload): Json<CreateFacilitatorRequest>,
+) -> Result<(StatusCode, Json<EventAttendanceDto>), ComhairleError> {
+    let user = users::get_user_by_email(&payload.email, &state.db).await?;
+
+    let create_event_attendance = CreateEventAttendance {
+        user_id: user.id,
+        event_id,
+        role: "facilitator".to_string(),
     };
 
     let event_attendance = event_attendance::create(&state.db, &create_event_attendance)
@@ -156,6 +184,19 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Event Attendances")
                     .security_requirement("JWT")
                     .description("Create a new attendance for a conversation event")
+                    .response::<201, Json<EventAttendanceDto>>()
+            }),
+        )
+        .api_route(
+            "/facilitator",
+            post_with(create_facilitator, |op| {
+                op.id("CreateFacilitatorEventAttendance")
+                    .summary("Create a new event attendance with facilitator role")
+                    .tag("Event Attendances")
+                    .security_requirement("JWT")
+                    .description(
+                        "Create a new attendance for a conversation event with facilitator role",
+                    )
                     .response::<201, Json<EventAttendanceDto>>()
             }),
         )
