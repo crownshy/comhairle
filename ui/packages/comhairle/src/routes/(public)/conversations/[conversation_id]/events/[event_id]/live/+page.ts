@@ -21,6 +21,7 @@ export const load: PageLoad = async ({ parent, params }) => {
 			event: event as LocalizedEventDto,
 			attendances: attendancesResult.records as EventAttendanceDto[],
 			jwt: authRes.jwt,
+			isModerator: authRes.is_moderator ?? false,
 			user
 		};
 	} catch (e) {
@@ -31,7 +32,8 @@ export const load: PageLoad = async ({ parent, params }) => {
 			event: null,
 			attendances: [] as EventAttendanceDto[],
 			user,
-			jwt: ''
+			jwt: '',
+			isModerator: false
 		};
 	}
 };

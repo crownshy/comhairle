@@ -1,8 +1,13 @@
 <script lang="ts">
+	import { dev } from '$app/environment';
+	import { onMount, onDestroy } from 'svelte';
 	import JitsiMeet from '$lib/components/JitsiMeet/JitsiMeet.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Drawer from '$lib/components/ui/drawer';
 	import { apiClient } from '@crownshy/api-client/client';
+	import { ws } from '$lib/api/websockets.svelte';
+	import type { WSMessage } from '$lib/api/websockets.svelte';
+	import { formatDateShort, formatTime } from '$lib/utils';
 	import {
 		List,
 		Info,
@@ -22,6 +27,7 @@
 	let jwt = $derived(data.jwt);
 	let apiAttendances = $derived(data.attendances);
 	let user = $derived(data.user);
+	let isModerator = $state(data.isModerator);
 
 	let roomName = $derived(event?.videoMeetingId);
 
@@ -34,6 +40,52 @@
 	let audioMuted = $state(false);
 	let videoMuted = $state(false);
 	let attendanceRegistered = $state(false);
+
+	// Notification popup state
+	let activeNotification = $state<{ message: string; timestamp: number } | null>(null);
+	let notificationTimeout: ReturnType<typeof setTimeout> | null = null;
+	let announcementText = $state('');
+	let announcementSending = $state(false);
+
+	// Listen for incoming WS broadcast/notification messages
+	let unsubWs: (() => void) | null = null;
+
+	onMount(() => {
+		unsubWs = ws.onMessage((msg: WSMessage) => {
+			if (msg.type === 'broadcast' || msg.type === 'notification') {
+				const text = msg.payload.message || msg.payload.title || 'New notification';
+				showNotification(text);
+			}
+		});
+	});
+
+	onDestroy(() => {
+		unsubWs?.();
+		if (notificationTimeout) clearTimeout(notificationTimeout);
+	});
+
+	function showNotification(message: string) {
+		activeNotification = { message, timestamp: Date.now() };
+		if (notificationTimeout) clearTimeout(notificationTimeout);
+		notificationTimeout = setTimeout(() => {
+			activeNotification = null;
+		}, 8000);
+	}
+
+	async function sendAnnouncement() {
+		if (!announcementText.trim() || announcementSending) return;
+		announcementSending = true;
+		try {
+			await apiClient.BroadcastMessage({
+				body: { message: announcementText.trim(), authenticated_only: true }
+			});
+			announcementText = '';
+		} catch (e) {
+			console.error('Failed to send announcement:', e);
+		} finally {
+			announcementSending = false;
+		}
+	}
 
 	// Prototype agenda items
 	type AgendaStatus = 'done' | 'current' | 'upcoming';
@@ -107,22 +159,45 @@
 		jitsiParticipants = [];
 	}
 
-	function formatDate(iso: string) {
-		return new Date(iso).toLocaleDateString(undefined, {
-			weekday: 'short',
-			month: 'short',
-			day: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
-	}
-
 	const tabs = [
 		{ key: 'agenda' as const, label: 'Agenda', icon: List },
 		{ key: 'details' as const, label: 'Details', icon: Info },
 		{ key: 'participants' as const, label: 'People', icon: Users },
 		{ key: 'controls' as const, label: 'Controls', icon: Settings }
 	];
+
+	// --- Breakout room helpers (moderator only) ---
+
+	async function autoCreateBreakoutRooms(maxPerRoom = 6) {
+		if (!jitsiApi || !isModerator) return;
+
+		const participantsInfo = await jitsiApi.getParticipantsInfo();
+		const total = participantsInfo.length;
+		const roomCount = Math.max(1, Math.ceil(total / maxPerRoom));
+
+		// Build rooms array for Jitsi IFrame API
+		const rooms: Array<{ name: string; participants: string[] }> = [];
+		for (let i = 0; i < roomCount; i++) {
+			rooms.push({ name: `Group ${i + 1}`, participants: [] });
+		}
+
+		// Round-robin distribute participants
+		participantsInfo.forEach((p: any, idx: number) => {
+			rooms[idx % roomCount].participants.push(p.participantId);
+		});
+
+		// TODO: Use jitsiApi.executeCommand('overwriteBreakoutRooms', rooms) once
+		// we confirm the exact API shape on our Jitsi version. For now, log the plan.
+		console.log('Breakout room plan:', rooms);
+		alert(
+			`Would create ${roomCount} rooms for ${total} participants (max ${maxPerRoom}/room).\n\nCheck console for details.`
+		);
+	}
+
+	async function reshuffleBreakoutRooms(maxPerRoom = 6) {
+		// TODO: Track previous assignments to avoid same-group-twice
+		await autoCreateBreakoutRooms(maxPerRoom);
+	}
 </script>
 
 {#snippet panelTabs()}
@@ -199,11 +274,17 @@
 						<div class="grid gap-2 text-xs">
 							<div class="flex justify-between">
 								<span class="text-muted-foreground">Starts</span>
-								<span>{formatDate(event.startTime)}</span>
+								<span
+									>{formatDateShort(event.startTime)}
+									{formatTime(event.startTime)}</span
+								>
 							</div>
 							<div class="flex justify-between">
 								<span class="text-muted-foreground">Ends</span>
-								<span>{formatDate(event.endTime)}</span>
+								<span
+									>{formatDateShort(event.endTime)}
+									{formatTime(event.endTime)}</span
+								>
 							</div>
 							<div class="flex justify-between">
 								<span class="text-muted-foreground">Attendance</span>
@@ -330,6 +411,81 @@
 					</Button>
 				</div>
 
+				{#if isModerator}
+					<hr class="border-border" />
+
+					<div class="space-y-2">
+						<p
+							class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
+						>
+							Announcements
+						</p>
+
+						<div class="flex gap-2">
+							<input
+								type="text"
+								placeholder="Type a message for all participants..."
+								bind:value={announcementText}
+								onkeydown={(e) => e.key === 'Enter' && sendAnnouncement()}
+								class="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-primary flex-1 rounded-lg border px-2.5 py-1.5 text-xs focus:ring-1 focus:outline-none"
+							/>
+							<Button
+								variant="default"
+								size="sm"
+								class="shrink-0 text-xs"
+								disabled={!announcementText.trim() || announcementSending}
+								onclick={sendAnnouncement}
+							>
+								{announcementSending ? 'Sending...' : 'Send'}
+							</Button>
+						</div>
+					</div>
+
+					<hr class="border-border" />
+
+					<div class="space-y-2">
+						<p
+							class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
+						>
+							Breakout Rooms
+						</p>
+
+						<div class="grid grid-cols-2 gap-2">
+							<Button
+								variant="default"
+								size="sm"
+								class="w-full justify-start text-xs"
+								onclick={() => autoCreateBreakoutRooms(6)}
+							>
+								Auto-assign Breakouts
+							</Button>
+
+							<Button
+								variant="outline"
+								size="sm"
+								class="w-full justify-start text-xs"
+								onclick={() => reshuffleBreakoutRooms(6)}
+							>
+								Reshuffle Groups
+							</Button>
+
+							<Button
+								variant="outline"
+								size="sm"
+								class="w-full justify-start text-xs"
+								onclick={async () => {
+									if (!jitsiApi) return;
+									const rooms = await jitsiApi.getRoomsInfo();
+									console.log('Breakout rooms:', rooms);
+									alert(JSON.stringify(rooms, null, 2));
+								}}
+							>
+								Inspect Rooms
+							</Button>
+						</div>
+					</div>
+				{/if}
+
 				<hr class="border-border" />
 
 				<div class="space-y-2">
@@ -418,6 +574,21 @@
 			<h1 class="text-foreground hidden text-lg font-semibold md:block">
 				{event?.name ?? `Event: ${eventId}`}
 			</h1>
+			{#if dev}
+				<button
+					class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors {isModerator
+						? 'bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/30'
+						: 'bg-muted text-muted-foreground ring-border ring-1'}"
+					onclick={() => (isModerator = !isModerator)}
+				>
+					<span
+						class="h-2 w-2 rounded-full {isModerator
+							? 'bg-amber-500'
+							: 'bg-muted-foreground/40'}"
+					></span>
+					{isModerator ? 'Host' : 'Attendee'}
+				</button>
+			{/if}
 			{#if conferenceJoined}
 				<span
 					class="hidden shrink-0 items-center gap-1.5 rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600 md:inline-flex"
@@ -483,4 +654,26 @@
 			{@render panelContent()}
 		</Drawer.Content>
 	</Drawer.Root>
+
+	<!-- Floating notification popup -->
+	{#if activeNotification}
+		<div
+			class="animate-in fade-in slide-in-from-top-2 pointer-events-auto fixed top-4 left-1/2 z-50 -translate-x-1/2 duration-300"
+		>
+			<div
+				class="bg-card border-border flex max-w-md items-start gap-3 rounded-xl border px-4 py-3 shadow-lg"
+			>
+				<div class="flex-1">
+					<p class="text-foreground text-sm font-medium">Announcement</p>
+					<p class="text-muted-foreground mt-0.5 text-sm">{activeNotification.message}</p>
+				</div>
+				<button
+					class="text-muted-foreground hover:text-foreground shrink-0 text-sm"
+					onclick={() => (activeNotification = null)}
+				>
+					✕
+				</button>
+			</div>
+		</div>
+	{/if}
 </div>
