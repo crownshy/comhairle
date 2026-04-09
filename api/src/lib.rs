@@ -255,6 +255,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
         .layer(cors);
 
     if args.export_api_spec {
+        println!("Exporting API Spec ");
         let json = serde_json::to_string_pretty(&api).unwrap();
         fs::write("open-api-spec.json", json.as_bytes()).await?;
     }
