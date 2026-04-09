@@ -25,7 +25,8 @@
 	let jwt = $derived(data.jwt);
 	let apiAttendances = $derived(data.attendances);
 	let user = $derived(data.user);
-	let isModerator = $derived(data.isModerator);
+	// DEV TOGGLE: flip between Host and Attendee for testing
+	let isModerator = $state(true);
 
 	let roomName = $derived(event?.videoMeetingId);
 
@@ -584,13 +585,19 @@
 					Live
 				</span>
 			{/if}
-			{#if isModerator}
+			<button
+				class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors {isModerator
+					? 'bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/30'
+					: 'bg-muted text-muted-foreground ring-border ring-1'}"
+				onclick={() => (isModerator = !isModerator)}
+			>
 				<span
-					class="inline-flex shrink-0 items-center rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 md:px-2 md:text-xs"
-				>
-					Moderator
-				</span>
-			{/if}
+					class="h-2 w-2 rounded-full {isModerator
+						? 'bg-amber-500'
+						: 'bg-muted-foreground/40'}"
+				></span>
+				{isModerator ? 'Host' : 'Attendee'}
+			</button>
 		</div>
 	</div>
 
