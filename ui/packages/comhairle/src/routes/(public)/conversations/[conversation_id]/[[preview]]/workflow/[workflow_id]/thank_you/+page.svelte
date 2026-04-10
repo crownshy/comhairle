@@ -19,11 +19,14 @@
 </svelte:head>
 
 <div class="prose mx-auto mt-20">
-	<h1>Thank You For Participating</h1>
+	{#if !conversation.thankYouMessage}
+		<h1>Thank You For Participating</h1>
 
-	Thank you for taking part in the conversation:&nbsp;<strong> {conversation.title}</strong>
-	<br />
-	We value your time and effort.
+		Thank you for taking part in the conversation:&nbsp;<strong> {conversation.title}</strong>
+		<br />
+		We value your time and effort.
+	{/if}
+
 	{#if conversation.showThankYouPageAnnonInstructions}
 		{#if user.authType === 'annon'}
 			<p>You are currently signed in as an anonymous user. Use your anonymous id</p>
