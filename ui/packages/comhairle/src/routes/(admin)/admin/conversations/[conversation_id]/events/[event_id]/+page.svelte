@@ -28,6 +28,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import BadgeInput from '$lib/components/ui/badge-input/badge-input.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
+	import { utcTimeToLocal } from '$lib/utils/date-time';
 
 	let { data } = $props();
 
@@ -37,8 +38,9 @@
 	let primaryLanguage = $derived(data.conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(data.conversation.supportedLanguages ?? ['en']);
 
-	const [startDate, startTimeWithZone] = $derived(event.startTime.split('T'));
-	const [, endTimeWithZone] = $derived(event.endTime.split('T'));
+	const timeZone = getLocalTimeZone();
+	const [startDate, _startTimeWithZone] = $derived(event.startTime.split('T'));
+	const [, _endTimeWithZone] = $derived(event.endTime.split('T'));
 
 	const eventForm = superForm(
 		{
@@ -46,8 +48,8 @@
 			description: event.description,
 			capacity: event.capacity,
 			start_date: startDate,
-			start_time: startTimeWithZone.replace('Z', ''),
-			end_time: endTimeWithZone.replace('Z', ''),
+			start_time: utcTimeToLocal(event.startTime, timeZone),
+			end_time: utcTimeToLocal(event.endTime, timeZone),
 			signup_mode: event.signupMode
 		},
 		{
