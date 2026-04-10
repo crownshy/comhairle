@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { PageProps } from './$types';
@@ -52,15 +52,17 @@
 		joining = true;
 		error = null;
 		try {
-			await apiClient.CreateEventAttendance({
-				params: {
-					conversation_id: conversationId,
-					event_id: event.id
-				},
-				body: { role: 'attendee' }
-			});
+			await apiClient.CreateEventAttendance(
+				{ role: 'participant' },
+				{
+					params: {
+						conversation_id: conversationId,
+						event_id: event.id
+					}
+				}
+			);
 			// Reload to refresh attendance data
-			window.location.reload();
+			await invalidateAll();
 		} catch (e: any) {
 			error = e?.message || 'Failed to register';
 		} finally {

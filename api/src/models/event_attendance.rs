@@ -87,6 +87,11 @@ pub async fn create(
             Expr::col((EventAttendanceIden::Table, EventAttendanceIden::EventId))
                 .eq(new_event_attendance.event_id),
         )
+        // Only check capacity against participant attendees
+        .and_where(
+            Expr::col((EventAttendanceIden::Table, EventAttendanceIden::Role))
+                .eq("participant".to_string()),
+        )
         .build_sqlx(PostgresQueryBuilder);
 
     let current_attendance: i64 = sqlx::query_scalar_with(&sql, values)
@@ -94,7 +99,8 @@ pub async fn create(
         .await?;
 
     if let Some(capacity) = capacity {
-        if current_attendance >= capacity as i64 {
+        // Only disallow creation of new participant attendees if at participant capacity
+        if current_attendance >= capacity as i64 && new_event_attendance.role == "participant" {
             return Err(ComhairleError::EventAtCapacity);
         }
     }
@@ -342,6 +348,81 @@ mod tests {
 
         assert_eq!(attendance.event_id, new_event.id, "incorrect event_id");
         assert_eq!(attendance.user_id, user_id, "incorrect user_id");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_only_check_capacity_against_participant_attendees(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let user_id_1 = get_random_user_id(&app, &mut session).await?;
+        let user_id_2 = get_random_user_id(&app, &mut session).await?;
+        let user_id_3 = get_random_user_id(&app, &mut session).await?;
+        let user_id_4 = get_random_user_id(&app, &mut session).await?;
+        let user_id_5 = get_random_user_id(&app, &mut session).await?;
+        let user_id_6 = get_random_user_id(&app, &mut session).await?;
+
+        let create_event = CreateEvent {
+            name: "test_event".to_string(),
+            conversation_id,
+            capacity: Some(3),
+            signup_mode: "invite".to_string(),
+            ..Default::default()
+        };
+        let new_event = event::create(&pool, &create_event).await?;
+
+        let create_attendance_1 = CreateEventAttendance {
+            event_id: new_event.id,
+            user_id: user_id_1,
+            role: "participant".to_string(),
+        };
+        let create_attendance_2 = CreateEventAttendance {
+            event_id: new_event.id,
+            user_id: user_id_2,
+            role: "participant".to_string(),
+        };
+        let create_attendance_3 = CreateEventAttendance {
+            event_id: new_event.id,
+            user_id: user_id_3,
+            role: "participant".to_string(),
+        };
+        let create_attendance_4 = CreateEventAttendance {
+            event_id: new_event.id,
+            user_id: user_id_4,
+            role: "facilitator".to_string(),
+        };
+        let create_attendance_5 = CreateEventAttendance {
+            event_id: new_event.id,
+            user_id: user_id_5,
+            role: "participant".to_string(),
+        };
+        let create_attendance_6 = CreateEventAttendance {
+            event_id: new_event.id,
+            user_id: user_id_6,
+            role: "something_different".to_string(),
+        };
+        let _ = create(&pool, &create_attendance_1).await?;
+        let _ = create(&pool, &create_attendance_2).await?;
+        let _ = create(&pool, &create_attendance_3).await?;
+        let attendance_4 = create(&pool, &create_attendance_4).await?;
+        let err = create(&pool, &create_attendance_5).await.unwrap_err();
+        let attendance_6 = create(&pool, &create_attendance_6).await?;
+
+        assert_eq!(
+            attendance_4.event_id, new_event.id,
+            "facilitator attendance not successful"
+        );
+        match err {
+            ComhairleError::EventAtCapacity => (),
+            _ => panic!("incorrect error type"),
+        };
+        assert_eq!(
+            attendance_6.event_id, new_event.id,
+            "post error attendance not successful"
+        );
 
         Ok(())
     }

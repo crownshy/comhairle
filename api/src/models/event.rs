@@ -406,7 +406,8 @@ fn add_current_attendance(mut query: sea_query::SelectStatement) -> sea_query::S
             Expr::cust(
                 "(SELECT COUNT(*)
                 FROM event_attendance
-                WHERE event_attendance.event_id = event.id)
+                WHERE event_attendance.event_id = event.id
+                AND event_attendance.role = 'participant')
                 ",
             ),
             Alias::new("current_attendance"),
