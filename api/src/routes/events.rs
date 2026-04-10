@@ -21,6 +21,7 @@ use crate::{
             self, CreateEvent, EventFilterOptions, EventOrderOptions, EventWithTranslations,
             PartialEvent,
         },
+        event_attendance,
         pagination::{PageOptions, PaginatedResults},
     },
     routes::{
@@ -177,6 +178,7 @@ struct VideoEventJwtUser<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     name: Option<&'a str>,
     id: &'a str,
+    moderator: bool,
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -185,6 +187,8 @@ async fn get_jwt(
     Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
     RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<JwtResponse>), ComhairleError> {
+    let attendance = event_attendance::get_by_user_id(&state.db, &user.id).await?;
+
     let event = event::get_by_id(&state.db, &event_id).await?;
     let video_meeting_id = event
         .video_meeting_id
@@ -203,6 +207,7 @@ async fn get_jwt(
             user: VideoEventJwtUser {
                 name: user.username.as_deref(),
                 id: &user.id.to_string(),
+                moderator: attendance.role == "facilitator",
             },
         },
     };

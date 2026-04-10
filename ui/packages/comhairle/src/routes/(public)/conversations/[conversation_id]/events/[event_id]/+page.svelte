@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { PageProps } from './$types';
@@ -52,15 +52,17 @@
 		joining = true;
 		error = null;
 		try {
-			await apiClient.CreateEventAttendance({
-				params: {
-					conversation_id: conversationId,
-					event_id: event.id
-				},
-				body: { role: 'attendee' }
-			});
+			await apiClient.CreateEventAttendance(
+				{ role: 'participant' },
+				{
+					params: {
+						conversation_id: conversationId,
+						event_id: event.id
+					}
+				}
+			);
 			// Reload to refresh attendance data
-			window.location.reload();
+			await invalidateAll();
 		} catch (e: any) {
 			error = e?.message || 'Failed to register';
 		} finally {
@@ -170,7 +172,7 @@
 
 			<!-- Actions -->
 			<div class="flex flex-wrap gap-3">
-				{#if status === 'live'}
+				{#if status === 'live' && userAttendance}
 					<Button
 						variant="default"
 						onclick={() =>
@@ -178,6 +180,14 @@
 					>
 						Join Live Event
 					</Button>
+				{/if}
+
+				{#if status === 'live' && !userAttendance}
+					<span
+						class="inline-flex items-center rounded-full bg-green-500/10 px-3 py-1.5 text-sm font-medium text-green-600"
+					>
+						Registration for this event is closed
+					</span>
 				{/if}
 
 				{#if status === 'upcoming' && !userAttendance && user}

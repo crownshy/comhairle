@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, LockType, PostgresQueryBuilder, Query};
+use sea_query::{enum_def, Expr, JoinType, LockType, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
@@ -12,6 +12,7 @@ use crate::{
     models::{
         event::EventIden,
         pagination::{Order, PageOptions, PaginatedResults},
+        users::UserIden,
     },
 };
 
@@ -86,6 +87,11 @@ pub async fn create(
             Expr::col((EventAttendanceIden::Table, EventAttendanceIden::EventId))
                 .eq(new_event_attendance.event_id),
         )
+        // Only check capacity against participant attendees
+        .and_where(
+            Expr::col((EventAttendanceIden::Table, EventAttendanceIden::Role))
+                .eq("participant".to_string()),
+        )
         .build_sqlx(PostgresQueryBuilder);
 
     let current_attendance: i64 = sqlx::query_scalar_with(&sql, values)
@@ -93,7 +99,8 @@ pub async fn create(
         .await?;
 
     if let Some(capacity) = capacity {
-        if current_attendance >= capacity as i64 {
+        // Only disallow creation of new participant attendees if at participant capacity
+        if current_attendance >= capacity as i64 && new_event_attendance.role == "participant" {
             return Err(ComhairleError::EventAtCapacity);
         }
     }
@@ -158,6 +165,18 @@ pub async fn update(
     Ok(event_attendance)
 }
 
+#[derive(Serialize, Deserialize, Debug, FromRow, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct EventAttendanceEtx {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub event_id: Uuid,
+    pub role: String,
+    pub email: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
 #[derive(Deserialize, Debug, Default, JsonSchema)]
 pub struct EventAttendanceOrderOptions {
     created_at: Option<Order>,
@@ -179,15 +198,15 @@ impl EventAttendanceOrderOptions {
 
 #[derive(Deserialize, Debug, Default, JsonSchema)]
 pub struct EventAttendanceFilterOptions {
-    event_id: Option<Uuid>,
+    role: Option<String>,
 }
 
 impl EventAttendanceFilterOptions {
     fn apply(&self, mut query: sea_query::SelectStatement) -> sea_query::SelectStatement {
-        if let Some(value) = self.event_id {
+        if let Some(value) = &self.role {
             query = query
                 .and_where(
-                    Expr::col((EventAttendanceIden::Table, EventAttendanceIden::EventId)).eq(value),
+                    Expr::col((EventAttendanceIden::Table, EventAttendanceIden::Role)).eq(value),
                 )
                 .to_owned();
         }
@@ -199,13 +218,21 @@ impl EventAttendanceFilterOptions {
 #[instrument(err(Debug))]
 pub async fn list(
     db: &PgPool,
+    event_id: Uuid,
     page_options: PageOptions,
     filter_options: EventAttendanceFilterOptions,
     order_options: EventAttendanceOrderOptions,
-) -> Result<PaginatedResults<EventAttendance>, ComhairleError> {
+) -> Result<PaginatedResults<EventAttendanceEtx>, ComhairleError> {
     let query = Query::select()
         .from(EventAttendanceIden::Table)
         .columns(DEFAULT_COLUMNS.map(|col| (EventAttendanceIden::Table, col)))
+        .column((UserIden::Table, UserIden::Email))
+        .join(
+            JoinType::InnerJoin,
+            UserIden::Table,
+            Expr::col((UserIden::Table, UserIden::Id))
+                .equals((EventAttendanceIden::Table, EventAttendanceIden::UserId)),
+        )
         .to_owned();
 
     let query = filter_options.apply(query);
@@ -223,6 +250,29 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<EventAttendance, Comhai
         .from(EventAttendanceIden::Table)
         .and_where(
             Expr::col((EventAttendanceIden::Table, EventAttendanceIden::Id)).eq(id.to_owned()),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    let event_attendance = sqlx::query_as_with::<_, EventAttendance, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ComhairleError::ResourceNotFound("EventAttendance".to_string())
+            }
+            other => ComhairleError::DatabaseError(other),
+        })?;
+
+    Ok(event_attendance)
+}
+
+#[instrument(err(Debug))]
+pub async fn get_by_user_id(db: &PgPool, user_id: &Uuid) -> Result<EventAttendance, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns(DEFAULT_COLUMNS.map(|col| (EventAttendanceIden::Table, col)))
+        .from(EventAttendanceIden::Table)
+        .and_where(
+            Expr::col((EventAttendanceIden::Table, EventAttendanceIden::UserId)).eq(user_id.to_owned()),
         )
         .build_sqlx(PostgresQueryBuilder);
 
@@ -321,6 +371,81 @@ mod tests {
 
         assert_eq!(attendance.event_id, new_event.id, "incorrect event_id");
         assert_eq!(attendance.user_id, user_id, "incorrect user_id");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_only_check_capacity_against_participant_attendees(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let user_id_1 = get_random_user_id(&app, &mut session).await?;
+        let user_id_2 = get_random_user_id(&app, &mut session).await?;
+        let user_id_3 = get_random_user_id(&app, &mut session).await?;
+        let user_id_4 = get_random_user_id(&app, &mut session).await?;
+        let user_id_5 = get_random_user_id(&app, &mut session).await?;
+        let user_id_6 = get_random_user_id(&app, &mut session).await?;
+
+        let create_event = CreateEvent {
+            name: "test_event".to_string(),
+            conversation_id,
+            capacity: Some(3),
+            signup_mode: "invite".to_string(),
+            ..Default::default()
+        };
+        let new_event = event::create(&pool, &create_event).await?;
+
+        let create_attendance_1 = CreateEventAttendance {
+            event_id: new_event.id,
+            user_id: user_id_1,
+            role: "participant".to_string(),
+        };
+        let create_attendance_2 = CreateEventAttendance {
+            event_id: new_event.id,
+            user_id: user_id_2,
+            role: "participant".to_string(),
+        };
+        let create_attendance_3 = CreateEventAttendance {
+            event_id: new_event.id,
+            user_id: user_id_3,
+            role: "participant".to_string(),
+        };
+        let create_attendance_4 = CreateEventAttendance {
+            event_id: new_event.id,
+            user_id: user_id_4,
+            role: "facilitator".to_string(),
+        };
+        let create_attendance_5 = CreateEventAttendance {
+            event_id: new_event.id,
+            user_id: user_id_5,
+            role: "participant".to_string(),
+        };
+        let create_attendance_6 = CreateEventAttendance {
+            event_id: new_event.id,
+            user_id: user_id_6,
+            role: "something_different".to_string(),
+        };
+        let _ = create(&pool, &create_attendance_1).await?;
+        let _ = create(&pool, &create_attendance_2).await?;
+        let _ = create(&pool, &create_attendance_3).await?;
+        let attendance_4 = create(&pool, &create_attendance_4).await?;
+        let err = create(&pool, &create_attendance_5).await.unwrap_err();
+        let attendance_6 = create(&pool, &create_attendance_6).await?;
+
+        assert_eq!(
+            attendance_4.event_id, new_event.id,
+            "facilitator attendance not successful"
+        );
+        match err {
+            ComhairleError::EventAtCapacity => (),
+            _ => panic!("incorrect error type"),
+        };
+        assert_eq!(
+            attendance_6.event_id, new_event.id,
+            "post error attendance not successful"
+        );
 
         Ok(())
     }
@@ -487,6 +612,34 @@ mod tests {
     }
 
     #[sqlx::test]
+    async fn should_get_attendance_by_user_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let user_id = get_random_user_id(&app, &mut session).await?;
+
+        let create_event = CreateEvent {
+            name: "test_event".to_string(),
+            conversation_id,
+            signup_mode: "invite".to_string(),
+            ..Default::default()
+        };
+        let new_event = event::create(&pool, &create_event).await?;
+
+        let create_attendance = CreateEventAttendance {
+            event_id: new_event.id,
+            user_id,
+            role: "participant".to_string(),
+        };
+        let attendance = create(&pool, &create_attendance).await?;
+
+        let get_attendance = get_by_user_id(&pool, &user_id).await?;
+
+        assert_eq!(get_attendance.id, attendance.id, "ids do not match");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
     async fn should_list_attendance(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
@@ -525,9 +678,16 @@ mod tests {
             offset: None,
             limit: None,
         };
-        let filter_options = EventAttendanceFilterOptions { event_id: None };
+        let filter_options = EventAttendanceFilterOptions { role: None };
         let order_options = EventAttendanceOrderOptions { created_at: None };
-        let results = list(&pool, page_options, filter_options, order_options).await?;
+        let results = list(
+            &pool,
+            new_event.id,
+            page_options,
+            filter_options,
+            order_options,
+        )
+        .await?;
 
         assert_eq!(results.total, 3, "incorrect total");
         assert_eq!(
@@ -540,74 +700,68 @@ mod tests {
     }
 
     #[sqlx::test]
-    async fn should_filter_attendance_by_event_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn should_filter_attendance_by_role(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let user_id_1 = get_random_user_id(&app, &mut session).await?;
         let user_id_2 = get_random_user_id(&app, &mut session).await?;
         let user_id_3 = get_random_user_id(&app, &mut session).await?;
+        let user_id_4 = get_random_user_id(&app, &mut session).await?;
 
-        let create_event_1 = CreateEvent {
-            name: "test_event_1".to_string(),
+        let create_event = CreateEvent {
+            name: "test_event".to_string(),
             conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
-        let new_event_1 = event::create(&pool, &create_event_1).await?;
-        let create_event_2 = CreateEvent {
-            name: "test_event_2".to_string(),
-            conversation_id,
-            signup_mode: "invite".to_string(),
-            ..Default::default()
-        };
-        let new_event_2 = event::create(&pool, &create_event_2).await?;
+        let new_event = event::create(&pool, &create_event).await?;
 
         let create_attendance_1 = CreateEventAttendance {
-            event_id: new_event_1.id,
+            event_id: new_event.id,
             user_id: user_id_1,
             role: "participant".to_string(),
         };
         let create_attendance_2 = CreateEventAttendance {
-            event_id: new_event_1.id,
+            event_id: new_event.id,
             user_id: user_id_2,
             role: "participant".to_string(),
         };
         let create_attendance_3 = CreateEventAttendance {
-            event_id: new_event_1.id,
+            event_id: new_event.id,
             user_id: user_id_3,
             role: "facilitator".to_string(),
         };
         let create_attendance_4 = CreateEventAttendance {
-            event_id: new_event_2.id,
-            user_id: user_id_1,
-            role: "participant".to_string(),
-        };
-        let create_attendance_5 = CreateEventAttendance {
-            event_id: new_event_2.id,
-            user_id: user_id_2,
+            event_id: new_event.id,
+            user_id: user_id_4,
             role: "facilitator".to_string(),
         };
         let _ = create(&pool, &create_attendance_1).await?;
         let _ = create(&pool, &create_attendance_2).await?;
         let _ = create(&pool, &create_attendance_3).await?;
         let _ = create(&pool, &create_attendance_4).await?;
-        let _ = create(&pool, &create_attendance_5).await?;
 
         let page_options = PageOptions {
             offset: None,
             limit: None,
         };
         let filter_options = EventAttendanceFilterOptions {
-            event_id: Some(new_event_2.id),
+            role: Some("facilitator".to_string()),
         };
         let order_options = EventAttendanceOrderOptions { created_at: None };
-        let results = list(&pool, page_options, filter_options, order_options).await?;
+        let results = list(
+            &pool,
+            new_event.id,
+            page_options,
+            filter_options,
+            order_options,
+        )
+        .await?;
 
         assert_eq!(results.total, 2, "incorrect total");
-        assert_eq!(
-            results.records[1].role,
-            "facilitator".to_string(),
-            "incorrect role type"
+        assert!(
+            results.records.iter().all(|e| e.role == "facilitator"),
+            "not all attendances have facilitator role"
         );
 
         Ok(())

@@ -10,7 +10,7 @@ export const load: PageLoad = async ({ parent, params }) => {
 			api.GetEvent({ params: { conversation_id, event_id } }),
 			api.ListEventAttendances({
 				params: { conversation_id, event_id },
-				queries: { limit: 100 }
+				queries: { limit: 100, role: 'participant' }
 			})
 		]);
 
