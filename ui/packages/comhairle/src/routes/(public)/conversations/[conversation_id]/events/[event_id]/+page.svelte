@@ -1,8 +1,10 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import Button from '$lib/components/ui/button/button.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import { apiClient } from '@crownshy/api-client/client';
+	import { formatDateShort, formatTime } from '$lib/utils';
+	import { ArrowLeft, CalendarDays, Clock, Users, UserCheck } from 'lucide-svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -26,17 +28,6 @@
 	});
 
 	let userAttendance = $derived(user ? attendances.find((a) => a.userId === user.id) : undefined);
-
-	function formatDate(iso: string) {
-		return new Date(iso).toLocaleDateString(undefined, {
-			weekday: 'long',
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
-	}
 
 	function formatDuration(start: string, end: string) {
 		const ms = new Date(end).getTime() - new Date(start).getTime();
@@ -73,162 +64,171 @@
 	<title>{event?.name ?? 'Event'}</title>
 </svelte:head>
 
-<div class="mx-auto max-w-3xl py-8">
-	<a
-		href="/conversations/{conversationId}/events"
-		class="text-muted-foreground hover:text-foreground mb-4 inline-block text-sm"
-	>
-		← All events
-	</a>
+<div class="flex flex-col items-center">
+	<!-- Back navigation -->
+	<div class="w-full max-w-[1280px] px-6 py-12">
+		<div class="flex items-center gap-3">
+			<Button
+				variant="outline"
+				size="icon"
+				href="/conversations/{conversationId}/events"
+				class="h-9 w-9"
+			>
+				<ArrowLeft class="h-4 w-4" />
+			</Button>
+			<span class="text-foreground text-sm font-medium">All events</span>
+		</div>
+	</div>
 
 	{#if !event}
-		<div class="border-border rounded-xl border border-dashed p-12 text-center">
+		<div
+			class="border-border w-full max-w-[700px] rounded-3xl border border-dashed p-12 text-center"
+		>
 			<p class="text-muted-foreground">Event not found.</p>
 		</div>
 	{:else}
-		<div class="space-y-6">
-			<!-- Header -->
-			<div>
-				<div class="flex items-center gap-3">
-					<h1 class="text-2xl font-bold">{event.name}</h1>
-					{#if status === 'live'}
-						<span
-							class="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2.5 py-1 text-xs font-medium text-green-600"
-						>
-							<span class="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500"
-							></span>
-							Live Now
-						</span>
-					{:else if status === 'past'}
-						<span
-							class="bg-muted text-muted-foreground rounded-full px-2.5 py-1 text-xs"
-							>Past</span
-						>
-					{:else}
-						<span
-							class="bg-primary/10 text-primary rounded-full px-2.5 py-1 text-xs font-medium"
-							>Upcoming</span
-						>
-					{/if}
-				</div>
-				{#if event.description}
-					<p class="text-muted-foreground mt-2">{event.description}</p>
-				{/if}
-			</div>
-
-			<!-- Details card -->
-			<div class="border-border bg-card rounded-xl border p-5">
-				<dl class="grid gap-4 sm:grid-cols-2">
-					<div>
-						<dt
-							class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
-						>
-							Starts
-						</dt>
-						<dd class="mt-1 text-sm">{formatDate(event.startTime)}</dd>
-					</div>
-					<div>
-						<dt
-							class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
-						>
-							Ends
-						</dt>
-						<dd class="mt-1 text-sm">{formatDate(event.endTime)}</dd>
-					</div>
-					<div>
-						<dt
-							class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
-						>
-							Duration
-						</dt>
-						<dd class="mt-1 text-sm">
-							{formatDuration(event.startTime, event.endTime)}
-						</dd>
-					</div>
-					<div>
-						<dt
-							class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
-						>
-							Attendance
-						</dt>
-						<dd class="mt-1 text-sm">
-							{event.currentAttendance} registered{event.capacity
-								? ` / ${event.capacity} capacity`
-								: ''}
-						</dd>
-					</div>
-					<div>
-						<dt
-							class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
-						>
-							Signup Mode
-						</dt>
-						<dd class="mt-1 text-sm capitalize">{event.signupMode}</dd>
-					</div>
-				</dl>
-			</div>
-
-			<!-- Actions -->
-			<div class="flex flex-wrap gap-3">
+		<!-- Hero section -->
+		<div class="flex flex-col items-center gap-6 pb-8">
+			<div class="flex items-center gap-3">
+				<h1 class="text-foreground text-center text-4xl leading-[48px] font-semibold">
+					{event.name}
+				</h1>
 				{#if status === 'live'}
-					<Button
-						variant="default"
-						onclick={() =>
-							goto(`/conversations/${conversationId}/events/${event.id}/live`)}
+					<Badge
+						variant="outline"
+						class="shrink-0 border-green-200 bg-green-50 text-green-700"
 					>
-						Join Live Event
-					</Button>
-				{/if}
-
-				{#if status === 'upcoming' && !userAttendance && user}
-					<Button variant="default" onclick={registerAttendance} disabled={joining}>
-						{joining ? 'Registering…' : 'Register to Attend'}
-					</Button>
-				{/if}
-
-				{#if userAttendance}
-					<span
-						class="inline-flex items-center rounded-full bg-green-500/10 px-3 py-1.5 text-sm font-medium text-green-600"
-					>
-						✓ You're registered ({userAttendance.role})
-					</span>
-				{/if}
-
-				{#if !user && status !== 'past'}
-					<p class="text-muted-foreground text-sm">Log in to register for this event.</p>
+						<span class="mr-1 h-1.5 w-1.5 animate-pulse rounded-full bg-green-500"
+						></span>
+						Live
+					</Badge>
+				{:else if status === 'past'}
+					<Badge variant="secondary" class="shrink-0">Past</Badge>
+				{:else}
+					<Badge variant="outline" class="bg-primary/10 shrink-0">Upcoming</Badge>
 				{/if}
 			</div>
+
+			{#if event.description}
+				<p
+					class="text-muted-foreground max-w-[1280px] px-6 text-center text-lg leading-7 font-medium"
+				>
+					{event.description}
+				</p>
+			{/if}
+		</div>
+
+		<!-- Details card -->
+		<div class="w-full max-w-[700px] px-6 pt-8 pb-8">
+			<div class="bg-card border-border flex rounded-3xl border p-6 shadow-sm">
+				<div class="flex flex-1 gap-6">
+					<!-- Left column: Date, Time, Duration -->
+					<div class="flex flex-col gap-6">
+						<div class="flex flex-col gap-1">
+							<div class="flex items-center gap-2">
+								<CalendarDays class="text-muted-foreground h-4 w-4" />
+								<span class="text-muted-foreground text-sm font-medium">Date</span>
+							</div>
+							<p class="text-foreground line-clamp-1 text-base leading-6 font-medium">
+								{formatDateShort(event.startTime)}
+							</p>
+						</div>
+
+						<div class="flex flex-col gap-1">
+							<div class="flex items-center gap-2">
+								<Clock class="text-muted-foreground h-4 w-4" />
+								<span class="text-muted-foreground text-sm font-medium">Time</span>
+							</div>
+							<p class="text-foreground line-clamp-1 text-base leading-6 font-medium">
+								{formatTime(event.startTime)} - {formatTime(event.endTime)}
+							</p>
+						</div>
+
+						<div class="flex flex-col gap-1">
+							<div class="flex items-center gap-2">
+								<span class="text-muted-foreground text-sm font-medium"
+									>Duration</span
+								>
+							</div>
+							<p class="text-foreground line-clamp-1 text-base leading-6 font-medium">
+								{formatDuration(event.startTime, event.endTime)}
+							</p>
+						</div>
+					</div>
+
+					<!-- Right column: Attendance, Signup Mode -->
+					<div class="flex flex-col gap-6">
+						<div class="flex flex-col gap-1">
+							<div class="flex items-center gap-2">
+								<Users class="text-muted-foreground h-4 w-4" />
+								<span class="text-muted-foreground text-sm font-medium"
+									>Attendance</span
+								>
+							</div>
+							<p class="text-foreground line-clamp-1 text-base leading-6 font-medium">
+								{event.currentAttendance} registered{event.capacity
+									? ` / ${event.capacity} capacity`
+									: ''}
+							</p>
+						</div>
+
+						<div class="flex flex-col gap-1">
+							<div class="flex items-center gap-2">
+								<UserCheck class="text-muted-foreground h-4 w-4" />
+								<span class="text-muted-foreground text-sm font-medium"
+									>Signup Mode</span
+								>
+							</div>
+							<p
+								class="text-foreground line-clamp-1 text-base leading-6 font-medium capitalize"
+							>
+								{event.signupMode}
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Actions -->
+		<div class="flex flex-col items-center gap-4 pt-4 pb-24">
+			{#if status === 'live'}
+				<Button
+					variant="primaryDark"
+					size="lg"
+					class="h-12 px-8 text-base"
+					onclick={() => goto(`/conversations/${conversationId}/events/${event.id}/live`)}
+				>
+					Join Live Event
+				</Button>
+			{/if}
+
+			{#if status === 'upcoming' && !userAttendance && user}
+				<Button
+					variant="primaryDark"
+					size="lg"
+					class="h-12 px-8 text-base"
+					onclick={registerAttendance}
+					disabled={joining}
+				>
+					{joining ? 'Registering…' : 'Register to Attend'}
+				</Button>
+			{/if}
+
+			{#if userAttendance}
+				<span
+					class="inline-flex items-center rounded-full bg-green-500/10 px-4 py-2 text-sm font-medium text-green-600"
+				>
+					✓ You're registered ({userAttendance.role})
+				</span>
+			{/if}
+
+			{#if !user && status !== 'past'}
+				<p class="text-muted-foreground text-sm">Log in to register for this event.</p>
+			{/if}
 
 			{#if error}
 				<p class="text-destructive text-sm">{error}</p>
-			{/if}
-
-			<!-- Attendees list -->
-			{#if attendances.length > 0}
-				<div>
-					<h2 class="mb-3 text-sm font-semibold">
-						Registered Attendees ({attendances.length})
-					</h2>
-					<div class="space-y-2">
-						{#each attendances as attendance (attendance.id)}
-							<div
-								class="border-border flex items-center gap-3 rounded-lg border p-2.5"
-							>
-								<div
-									class="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium"
-								>
-									{attendance.userId.charAt(0).toUpperCase()}
-								</div>
-								<div class="min-w-0 flex-1">
-									<span class="text-sm">{attendance.userId}</span>
-									<span class="text-muted-foreground ml-2 text-xs capitalize"
-										>{attendance.role}</span
-									>
-								</div>
-							</div>
-						{/each}
-					</div>
-				</div>
 			{/if}
 		</div>
 	{/if}

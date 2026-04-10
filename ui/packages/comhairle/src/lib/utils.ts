@@ -1,7 +1,7 @@
-import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-import { cubicOut } from "svelte/easing";
-import type { TransitionConfig } from "svelte/transition";
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+import { cubicOut } from 'svelte/easing';
+import type { TransitionConfig } from 'svelte/transition';
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
@@ -14,34 +14,33 @@ type FlyAndScaleParams = {
 	duration?: number;
 };
 
-
 export const userInitials = (username: string | null) => {
-	if (!username) return null
+	if (!username) return null;
 	return username
 		.split(/\s/)
 		.map((s) => s.charAt(0).toUpperCase())
-		.join('')
-}
+		.join('');
+};
 
 export const infoURLForTool = (tool: string) => {
 	switch (tool) {
-		case "polis":
-			return "/admin/info/tools/polis"
-		case "learn":
-			return "/admin/info/tools/learn"
-		case "heyform":
-			return "/admin/info/tools/heyform"
-		case "stories":
-			return "/admin/info/tools/lived_experince"
+		case 'polis':
+			return '/admin/info/tools/polis';
+		case 'learn':
+			return '/admin/info/tools/learn';
+		case 'heyform':
+			return '/admin/info/tools/heyform';
+		case 'stories':
+			return '/admin/info/tools/lived_experince';
 	}
-}
+};
 
 export const flyAndScale = (
 	node: Element,
 	params: FlyAndScaleParams = { y: -8, x: 0, start: 0.95, duration: 150 }
 ): TransitionConfig => {
 	const style = getComputedStyle(node);
-	const transform = style.transform === "none" ? "" : style.transform;
+	const transform = style.transform === 'none' ? '' : style.transform;
 
 	const scaleConversion = (
 		valueA: number,
@@ -57,13 +56,11 @@ export const flyAndScale = (
 		return valueB;
 	};
 
-	const styleToString = (
-		style: Record<string, number | string | undefined>
-	): string => {
+	const styleToString = (style: Record<string, number | string | undefined>): string => {
 		return Object.keys(style).reduce((str, key) => {
 			if (style[key] === undefined) return str;
 			return str + `${key}:${style[key]};`;
-		}, "");
+		}, '');
 	};
 
 	return {
@@ -83,9 +80,24 @@ export const flyAndScale = (
 	};
 };
 
+export function formatDateShort(iso: string) {
+	return new Date(iso).toLocaleDateString(undefined, {
+		weekday: 'short',
+		month: 'long',
+		day: 'numeric'
+	});
+}
+
+export function formatTime(iso: string) {
+	return new Date(iso).toLocaleTimeString(undefined, {
+		hour: '2-digit',
+		minute: '2-digit'
+	});
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type WithoutChild<T> = T extends { child?: any } ? Omit<T, "child"> : T;
+export type WithoutChild<T> = T extends { child?: any } ? Omit<T, 'child'> : T;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type WithoutChildren<T> = T extends { children?: any } ? Omit<T, "children"> : T;
+export type WithoutChildren<T> = T extends { children?: any } ? Omit<T, 'children'> : T;
 export type WithoutChildrenOrChild<T> = WithoutChildren<WithoutChild<T>>;
 export type WithElementRef<T, U extends HTMLElement = HTMLElement> = T & { ref?: U | null };

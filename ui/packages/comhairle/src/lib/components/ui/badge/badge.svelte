@@ -6,6 +6,7 @@
 		variants: {
 			variant: {
 				default: 'bg-primary/20',
+				secondary: 'bg-muted text-muted-foreground',
 				draft: 'bg-muted',
 				destructive: 'bg-destructive text-white outline-destructive',
 				outline: 'bg-primary/20 text-base-foreground'
