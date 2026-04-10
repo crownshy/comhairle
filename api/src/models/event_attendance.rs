@@ -267,6 +267,29 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<EventAttendance, Comhai
 }
 
 #[instrument(err(Debug))]
+pub async fn get_by_user_id(db: &PgPool, user_id: &Uuid) -> Result<EventAttendance, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns(DEFAULT_COLUMNS.map(|col| (EventAttendanceIden::Table, col)))
+        .from(EventAttendanceIden::Table)
+        .and_where(
+            Expr::col((EventAttendanceIden::Table, EventAttendanceIden::UserId)).eq(user_id.to_owned()),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    let event_attendance = sqlx::query_as_with::<_, EventAttendance, _>(&sql, values)
+        .fetch_one(db)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => {
+                ComhairleError::ResourceNotFound("EventAttendance".to_string())
+            }
+            other => ComhairleError::DatabaseError(other),
+        })?;
+
+    Ok(event_attendance)
+}
+
+#[instrument(err(Debug))]
 pub async fn delete(db: &PgPool, id: &Uuid) -> Result<EventAttendance, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(EventAttendanceIden::Table)
@@ -582,6 +605,34 @@ mod tests {
         let attendance = create(&pool, &create_attendance).await?;
 
         let get_attendance = get_by_id(&pool, &attendance.id).await?;
+
+        assert_eq!(get_attendance.id, attendance.id, "ids do not match");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_get_attendance_by_user_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let user_id = get_random_user_id(&app, &mut session).await?;
+
+        let create_event = CreateEvent {
+            name: "test_event".to_string(),
+            conversation_id,
+            signup_mode: "invite".to_string(),
+            ..Default::default()
+        };
+        let new_event = event::create(&pool, &create_event).await?;
+
+        let create_attendance = CreateEventAttendance {
+            event_id: new_event.id,
+            user_id,
+            role: "participant".to_string(),
+        };
+        let attendance = create(&pool, &create_attendance).await?;
+
+        let get_attendance = get_by_user_id(&pool, &user_id).await?;
 
         assert_eq!(get_attendance.id, attendance.id, "ids do not match");
 

@@ -172,7 +172,7 @@
 
 			<!-- Actions -->
 			<div class="flex flex-wrap gap-3">
-				{#if status === 'live'}
+				{#if status === 'live' && userAttendance}
 					<Button
 						variant="default"
 						onclick={() =>
@@ -180,6 +180,14 @@
 					>
 						Join Live Event
 					</Button>
+				{/if}
+
+				{#if status === 'live' && !userAttendance}
+					<span
+						class="inline-flex items-center rounded-full bg-green-500/10 px-3 py-1.5 text-sm font-medium text-green-600"
+					>
+						Registration for this event is closed
+					</span>
 				{/if}
 
 				{#if status === 'upcoming' && !userAttendance && user}
