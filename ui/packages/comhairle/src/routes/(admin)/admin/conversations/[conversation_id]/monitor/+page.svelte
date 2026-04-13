@@ -6,6 +6,8 @@
 	import GenderComparison from '$lib/components/GenderComparison.svelte';
 	import GeoComparison from '$lib/components/GeoComparison/GeoComparison.svelte';
 	import * as Card from '$lib/components/ui/card';
+	import { Download } from 'lucide-svelte';
+	import { Button } from '$lib/components/ui/button';
 
 	import type { PageProps } from './$types';
 	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb';
@@ -13,6 +15,33 @@
 
 	let { data }: PageProps = $props();
 	let { workflowSteps, workflowStats } = data;
+
+	async function downloadContacts() {
+		try {
+			const response = await fetch(
+				`/api/conversation/${data.conversation.id}/contacts/export`,
+				{ credentials: 'include' }
+			);
+
+			if (!response.ok) throw new Error('Failed to download contacts');
+
+			const contentDisposition = response.headers.get('Content-Disposition');
+			const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
+			const filename =
+				filenameMatch?.[1] ||
+				`conversation-contacts-${new Date().toISOString().split('T')[0]}.csv`;
+
+			const blob = await response.blob();
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = filename;
+			a.click();
+			URL.revokeObjectURL(url);
+		} catch (error) {
+			console.error('Error downloading contacts:', error);
+		}
+	}
 
 	let stats = [
 		{
@@ -50,7 +79,13 @@
 </svelte:head>
 
 {#snippet titleSnippet()}
-	<h1 class="text-4xl font-bold">Monitor</h1>
+	<div class="flex items-center justify-between">
+		<h1 class="text-4xl font-bold">Monitor</h1>
+		<Button onclick={downloadContacts} variant="outline">
+			<Download class="mr-2 h-4 w-4" />
+			Download Contacts
+		</Button>
+	</div>
 {/snippet}
 
 {#snippet breadcrumbSnippet()}
