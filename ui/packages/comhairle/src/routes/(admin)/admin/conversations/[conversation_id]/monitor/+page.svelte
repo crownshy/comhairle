@@ -2,9 +2,6 @@
 	import DailyStatsChart from '$lib/components/DailyStatsChart.svelte';
 	import StatsBar from '$lib/components/StatsBar.svelte';
 	import StatProgressIndicator from '$lib/components/StatProgressIndicator.svelte';
-	import PopulationComparison from '$lib/components/PopulationComparison.svelte';
-	import GenderComparison from '$lib/components/GenderComparison.svelte';
-	import GeoComparison from '$lib/components/GeoComparison/GeoComparison.svelte';
 	import * as Card from '$lib/components/ui/card';
 	import { Download } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -157,7 +154,12 @@
 
 <div class="grid w-full grid-cols-1 gap-10 md:grid-cols-1">
 	<p>Download a list of users who have opted in to being contacted on this engagment</p>
-	<Button onclick={downloadContacts} variant="outline">
+	<Button
+		onclick={downloadContacts}
+		href={`/api/conversation/${data.conversation.id}/contacts/export`}
+		download
+		variant="outline"
+	>
 		<Download class="mr-2 h-4 w-4" />
 		Download Contacts
 	</Button>
