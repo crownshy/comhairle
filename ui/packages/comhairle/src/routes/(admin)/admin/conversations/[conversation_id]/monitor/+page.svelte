@@ -153,13 +153,6 @@
 	</div>
 {/each}
 
-<h2 class="my-10 text-2xl">Reach</h2>
-
-<div class="grid w-full grid-cols-1 gap-10 md:grid-cols-2">
-	<PopulationComparison />
-	<GenderComparison />
-</div>
-
 <h2 class="my-10 text-2xl">Follow up</h2>
 
 <div class="grid w-full grid-cols-1 gap-10 md:grid-cols-1">
