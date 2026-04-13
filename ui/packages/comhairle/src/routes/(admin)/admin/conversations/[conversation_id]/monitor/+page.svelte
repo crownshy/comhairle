@@ -2,10 +2,9 @@
 	import DailyStatsChart from '$lib/components/DailyStatsChart.svelte';
 	import StatsBar from '$lib/components/StatsBar.svelte';
 	import StatProgressIndicator from '$lib/components/StatProgressIndicator.svelte';
-	import PopulationComparison from '$lib/components/PopulationComparison.svelte';
-	import GenderComparison from '$lib/components/GenderComparison.svelte';
-	import GeoComparison from '$lib/components/GeoComparison/GeoComparison.svelte';
 	import * as Card from '$lib/components/ui/card';
+	import { Download } from 'lucide-svelte';
+	import { Button } from '$lib/components/ui/button';
 
 	import type { PageProps } from './$types';
 	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb';
@@ -13,6 +12,33 @@
 
 	let { data }: PageProps = $props();
 	let { workflowSteps, workflowStats } = data;
+
+	async function downloadContacts() {
+		try {
+			const response = await fetch(
+				`/api/conversation/${data.conversation.id}/contacts/export`,
+				{ credentials: 'include' }
+			);
+
+			if (!response.ok) throw new Error('Failed to download contacts');
+
+			const contentDisposition = response.headers.get('Content-Disposition');
+			const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
+			const filename =
+				filenameMatch?.[1] ||
+				`conversation-contacts-${new Date().toISOString().split('T')[0]}.csv`;
+
+			const blob = await response.blob();
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = filename;
+			a.click();
+			URL.revokeObjectURL(url);
+		} catch (error) {
+			console.error('Error downloading contacts:', error);
+		}
+	}
 
 	let stats = [
 		{
@@ -50,7 +76,9 @@
 </svelte:head>
 
 {#snippet titleSnippet()}
-	<h1 class="text-4xl font-bold">Monitor</h1>
+	<div class="flex items-center justify-between">
+		<h1 class="text-4xl font-bold">Monitor</h1>
+	</div>
 {/snippet}
 
 {#snippet breadcrumbSnippet()}
@@ -122,11 +150,17 @@
 	</div>
 {/each}
 
-<h2 class="my-10 text-2xl">Reach</h2>
+<h2 class="my-10 text-2xl">Follow up</h2>
 
-<div class="grid w-full grid-cols-1 gap-10 md:grid-cols-2">
-	<PopulationComparison />
-
-	<GenderComparison />
-	<GeoComparison />
+<div class="grid w-full grid-cols-1 gap-10 md:grid-cols-1">
+	<p>Download a list of users who have opted in to being contacted on this engagment</p>
+	<Button
+		onclick={downloadContacts}
+		href={`/api/conversation/${data.conversation.id}/contacts/export`}
+		download
+		variant="outline"
+	>
+		<Download class="mr-2 h-4 w-4" />
+		Download Contacts
+	</Button>
 </div>
