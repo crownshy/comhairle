@@ -81,10 +81,6 @@
 {#snippet titleSnippet()}
 	<div class="flex items-center justify-between">
 		<h1 class="text-4xl font-bold">Monitor</h1>
-		<Button onclick={downloadContacts} variant="outline">
-			<Download class="mr-2 h-4 w-4" />
-			Download Contacts
-		</Button>
 	</div>
 {/snippet}
 
@@ -161,7 +157,15 @@
 
 <div class="grid w-full grid-cols-1 gap-10 md:grid-cols-2">
 	<PopulationComparison />
-
 	<GenderComparison />
-	<GeoComparison />
+</div>
+
+<h2 class="my-10 text-2xl">Follow up</h2>
+
+<div class="grid w-full grid-cols-1 gap-10 md:grid-cols-1">
+	<p>Download a list of users who have opted in to being contacted on this engagment</p>
+	<Button onclick={downloadContacts} variant="outline">
+		<Download class="mr-2 h-4 w-4" />
+		Download Contacts
+	</Button>
 </div>
