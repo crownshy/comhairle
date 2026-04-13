@@ -13,33 +13,6 @@
 	let { data }: PageProps = $props();
 	let { workflowSteps, workflowStats } = data;
 
-	async function downloadContacts() {
-		try {
-			const response = await fetch(
-				`/api/conversation/${data.conversation.id}/contacts/export`,
-				{ credentials: 'include' }
-			);
-
-			if (!response.ok) throw new Error('Failed to download contacts');
-
-			const contentDisposition = response.headers.get('Content-Disposition');
-			const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
-			const filename =
-				filenameMatch?.[1] ||
-				`conversation-contacts-${new Date().toISOString().split('T')[0]}.csv`;
-
-			const blob = await response.blob();
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = filename;
-			a.click();
-			URL.revokeObjectURL(url);
-		} catch (error) {
-			console.error('Error downloading contacts:', error);
-		}
-	}
-
 	let stats = [
 		{
 			name: 'Total Users',
@@ -155,7 +128,6 @@
 <div class="grid w-full grid-cols-1 gap-10 md:grid-cols-1">
 	<p>Download a list of users who have opted in to being contacted on this engagment</p>
 	<Button
-		onclick={downloadContacts}
 		href={`/api/conversation/${data.conversation.id}/contacts/export`}
 		download
 		variant="outline"
