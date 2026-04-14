@@ -7,11 +7,19 @@ use crate::{
         translations::TextContentId,
         user_progress::ProgressStatus,
         workflow_step::{
-            ActivationRule, LocalizedWorkflowStep, LocalizedWorkflowStepWithProgress, WorkflowStep,
+            ActivationRule, CreateWorkflowStep, LocalizedWorkflowStep,
+            LocalizedWorkflowStepWithProgress, WorkflowStep,
         },
     },
     schema_helpers::{example_localized_text, example_uuid},
-    tools::ToolConfig,
+    tools::{
+        elicitation_bot::{ElicitationBotToolConfig, ElicitationBotToolSetup},
+        heyform::HeyFormToolSetup,
+        learn::{LearnToolConfig, LearnToolSetup},
+        polis::PolisToolSetup,
+        stories::StoriesToolSetup,
+        ToolConfig, ToolSetup,
+    },
 };
 
 /// Data transfer object (public API representation) for a WorkflowStep.
@@ -48,6 +56,24 @@ pub struct WorkflowStepDto {
     pub preview_tool_config: ToolConfig,
 }
 
+impl From<WorkflowStep> for WorkflowStepDto {
+    fn from(w: WorkflowStep) -> Self {
+        Self {
+            id: w.id,
+            workflow_id: w.workflow_id,
+            name: w.name,
+            step_order: w.step_order,
+            activation_rule: w.activation_rule,
+            description: w.description,
+            is_offline: w.is_offline,
+            required: w.required,
+            can_revisit: w.can_revisit,
+            tool_config: w.tool_config,
+            preview_tool_config: w.preview_tool_config,
+        }
+    }
+}
+
 /// Data transfer object (public API representation) for a LocalizedWorkflowStep.
 ///
 /// This DTO is returned by workflow step related endpoints and is safe to expose
@@ -80,6 +106,24 @@ pub struct LocalizedWorkflowStepDto {
     pub can_revisit: bool,
     pub tool_config: Option<ToolConfig>,
     pub preview_tool_config: ToolConfig,
+}
+
+impl From<LocalizedWorkflowStep> for LocalizedWorkflowStepDto {
+    fn from(w: LocalizedWorkflowStep) -> Self {
+        Self {
+            id: w.id,
+            workflow_id: w.workflow_id,
+            name: w.name,
+            step_order: w.step_order,
+            activation_rule: w.activation_rule,
+            description: w.description,
+            is_offline: w.is_offline,
+            required: w.required,
+            can_revisit: w.can_revisit,
+            tool_config: w.tool_config,
+            preview_tool_config: w.preview_tool_config,
+        }
+    }
 }
 
 /// Data transfer object (public API representation) for a LocalizedWorkflowStepWithProgress.
@@ -119,42 +163,6 @@ pub struct LocalizedWorkflowStepWithProgressDto {
     pub progress_status: ProgressStatus,
 }
 
-impl From<WorkflowStep> for WorkflowStepDto {
-    fn from(w: WorkflowStep) -> Self {
-        Self {
-            id: w.id,
-            workflow_id: w.workflow_id,
-            name: w.name,
-            step_order: w.step_order,
-            activation_rule: w.activation_rule,
-            description: w.description,
-            is_offline: w.is_offline,
-            required: w.required,
-            can_revisit: w.can_revisit,
-            tool_config: w.tool_config,
-            preview_tool_config: w.preview_tool_config,
-        }
-    }
-}
-
-impl From<LocalizedWorkflowStep> for LocalizedWorkflowStepDto {
-    fn from(w: LocalizedWorkflowStep) -> Self {
-        Self {
-            id: w.id,
-            workflow_id: w.workflow_id,
-            name: w.name,
-            step_order: w.step_order,
-            activation_rule: w.activation_rule,
-            description: w.description,
-            is_offline: w.is_offline,
-            required: w.required,
-            can_revisit: w.can_revisit,
-            tool_config: w.tool_config,
-            preview_tool_config: w.preview_tool_config,
-        }
-    }
-}
-
 impl From<LocalizedWorkflowStepWithProgress> for LocalizedWorkflowStepWithProgressDto {
     fn from(w: LocalizedWorkflowStepWithProgress) -> Self {
         Self {
@@ -170,6 +178,88 @@ impl From<LocalizedWorkflowStepWithProgress> for LocalizedWorkflowStepWithProgre
             tool_config: w.step.tool_config,
             preview_tool_config: w.step.preview_tool_config,
             progress_status: w.status,
+        }
+    }
+}
+
+/// Data transfer object (public API representation) for importing / exporting
+/// of a workflow_step.
+///
+/// This DTO is returned by workflow step related endpoints and is safe to expose
+/// to clients. It intentionally omits fields such as:
+///
+/// * `id`
+/// * `created_at`
+/// * `updated_at`
+///
+/// It includes localized `String` values for translatable fields:
+///
+/// * `name`
+/// * `description`
+///
+/// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ImexWorkflowStepDto {
+    #[schemars(example = "example_localized_text")]
+    pub name: String,
+    pub step_order: i32,
+    pub activation_rule: ActivationRule,
+    #[schemars(example = "example_localized_text")]
+    pub description: String,
+    pub is_offline: bool,
+    pub required: bool,
+    pub can_revisit: bool,
+    pub preview_tool_config: ImexToolConfig,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub enum ImexToolConfig {
+    Polis,
+    Learn(LearnToolConfig),
+    HeyForm,
+    Stories,
+    ElicitationBot(ElicitationBotToolConfig),
+}
+
+impl From<ImexToolConfig> for ToolSetup {
+    fn from(c: ImexToolConfig) -> Self {
+        match c {
+            ImexToolConfig::Learn(config) => Self::Learn(LearnToolSetup {
+                pages: config.pages,
+            }),
+            ImexToolConfig::Polis => Self::Polis(PolisToolSetup {
+                topic: "".to_string(),
+                required_votes: None,
+            }),
+            ImexToolConfig::HeyForm => Self::HeyForm(HeyFormToolSetup {
+                server_url: "forms.comhairle.scot".to_string(), // TODO:
+            }),
+            ImexToolConfig::ElicitationBot(config) => {
+                Self::ElicitationBot(ElicitationBotToolSetup {
+                    topic: config.topic,
+                })
+            }
+            ImexToolConfig::Stories => Self::Stories(StoriesToolSetup {
+                max_time: 10,
+                to_see: 3,
+            }),
+        }
+    }
+}
+
+impl From<ImexWorkflowStepDto> for CreateWorkflowStep {
+    fn from(s: ImexWorkflowStepDto) -> Self {
+        Self {
+            name: s.name,
+            step_order: s.step_order,
+            activation_rule: s.activation_rule,
+            description: s.description,
+            is_offline: s.is_offline,
+            required: s.required,
+            can_revisit: s.can_revisit,
+            tool_setup: s.preview_tool_config.into(),
         }
     }
 }
