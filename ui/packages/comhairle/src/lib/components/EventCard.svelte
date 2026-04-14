@@ -1,9 +1,9 @@
 <script lang="ts">
 	import type { LocalizedEventDto } from '@crownshy/api-client/api';
 	import { Badge } from './ui/badge';
-	import { ArrowRight } from 'lucide-svelte';
-	import { cn } from '$lib/utils';
-	import { buttonVariants } from '$lib/components/ui/button';
+	import Button from '$lib/components/ui/button/button.svelte';
+	import { formatDateShort, formatTime } from '$lib/utils';
+	import { ArrowRight, CalendarDays, Users } from 'lucide-svelte';
 
 	type Props = {
 		event: LocalizedEventDto;
@@ -17,43 +17,54 @@
 	}
 </script>
 
-<article>
-	<a href={`/admin/conversations/${conversationId}/events/${event.id}`}>
-		<div
-			class="flex w-full max-w-7xl min-w-95 flex-col items-start justify-start gap-6 md:min-w-120 lg:flex-row lg:justify-between lg:gap-16"
-		>
-			<div class="flex flex-col items-start justify-start gap-3 self-stretch lg:gap-4">
-				{#if isUpcoming(event)}
-					<Badge variant="default" class="h-7 text-sm">Upcoming</Badge>
-				{:else}
-					<Badge variant="default" class="h-7 text-sm">Past</Badge>
-				{/if}
+<article class="flex flex-col">
+	<!-- Card body -->
+	<div class="flex flex-col gap-4 px-6 pb-6">
+		<!-- Title + badge -->
+		<div class="flex items-center gap-2">
+			<h2 class="text-xl font-semibold">{event.name}</h2>
+			{#if isUpcoming(event)}
+				<Badge variant="outline" class="bg-primary/10">Upcoming</Badge>
+			{:else}
+				<Badge variant="secondary">Past</Badge>
+			{/if}
+		</div>
 
-				<h2
-					class="text-foreground self-stretch text-xl leading-7 font-semibold lg:text-2xl"
+		<!-- Description -->
+		{#if event.description}
+			<p class="text-muted-foreground text-base font-medium">
+				{event.description}
+			</p>
+		{/if}
+
+		<!-- Info rows -->
+		<div class="flex flex-col gap-2">
+			<div class="flex items-center gap-2 text-sm">
+				<CalendarDays class="text-foreground h-4 w-4 shrink-0" />
+				<span class="font-medium">{formatDateShort(event.startTime)}</span>
+				<span class="text-muted-foreground line-clamp-1"
+					>{formatTime(event.startTime)} - {formatTime(event.endTime)}</span
 				>
-					{event.name}
-				</h2>
-
-				<p class="text-foreground self-stretch text-sm leading-5 font-medium">
-					{event.description}
-				</p>
-
-				<span
-					class={cn(
-						buttonVariants({ variant: 'default' }),
-						'bg-sidebar hover:bg-sidebar/90 text-sidebar-foreground rounded-full px-4 py-3'
-					)}
-				>
-					Edit event
-					<ArrowRight class="ml-1 size-4" />
-				</span>
 			</div>
-			<div>
-				<p class="text-foreground text-lg font-semibold">
-					Current attendance: <Badge class="text-base">{event.currentAttendance}</Badge>
-				</p>
+			<div class="flex items-center gap-2 text-sm">
+				<Users class="text-foreground h-4 w-4 shrink-0" />
+				<span class="font-medium">Current attendees</span>
+				<span class="text-muted-foreground line-clamp-1"
+					>{event.currentAttendance}{event.capacity ? ` / ${event.capacity}` : ''}</span
+				>
 			</div>
 		</div>
-	</a>
+	</div>
+
+	<!-- Card footer -->
+	<div class="border-border flex items-center justify-center border-t px-6 py-4">
+		<Button
+			variant="default"
+			size="sm"
+			href="/admin/conversations/{conversationId}/events/{event.id}"
+		>
+			Edit event
+			<ArrowRight class="ml-1 h-4 w-4" />
+		</Button>
+	</div>
 </article>

@@ -36,16 +36,20 @@
 	<Breadcrumb.Item>Events</Breadcrumb.Item>
 {/snippet}
 
-<p class="mb-10">Use this space to manage your conversation's events.</p>
+<p class="text-muted-foreground mb-10 text-base font-medium">
+	Use this space to manage your conversation's events.
+</p>
 
-<div class="grid w-full grid-cols-1 gap-x-2 gap-y-6 overflow-y-auto mb-8">
+<div class="mx-auto flex max-w-[700px] flex-col gap-6">
 	{#each events as event (event.id)}
-		<Card.Root class="transition-all px-6">
+		<Card.Root class="overflow-hidden rounded-3xl pb-0 shadow-sm">
 			<EventCard {event} conversationId={conversation.id} />
 		</Card.Root>
 	{/each}
-</div>
 
-<Button variant="secondary" href={`/admin/conversations/${conversation.id}/events/new`}>
-	<Plus /> Add Event
-</Button>
+	<div class="flex justify-center pt-6">
+		<Button variant="default" href={`/admin/conversations/${conversation.id}/events/new`}>
+			<Plus class="h-4 w-4" /> Add event
+		</Button>
+	</div>
+</div>
