@@ -219,7 +219,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .merge(elicitation_bot::ElicitationBotTool::routes(&state))
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
+#[derive(PartialEq, Debug, Deserialize, Serialize, Clone, JsonSchema)]
 pub enum ReportConfig {
     Polis(PolisReport),
     HeyForm(HeyFormReport),

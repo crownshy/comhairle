@@ -49,7 +49,7 @@ pub struct ElicitationBotToolSetup {
     pub topic: String,
 }
 
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
+#[derive(PartialEq, Clone, Deserialize, Serialize, Debug, JsonSchema)]
 pub struct ElicitationBotReport;
 
 async fn elicitation_bot_setup(

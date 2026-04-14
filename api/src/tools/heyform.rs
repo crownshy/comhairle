@@ -49,7 +49,7 @@ pub struct HeyFormToolSetup {
     pub server_url: String,
 }
 
-#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
+#[derive(PartialEq, Clone, Deserialize, Serialize, Debug, JsonSchema)]
 pub struct HeyFormReport;
 
 fn generate_password() -> String {

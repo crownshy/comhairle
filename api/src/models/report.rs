@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use comhairle_macros::Translatable;
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
@@ -15,6 +16,7 @@ use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
+    models::translations::TextContentId,
     routes::{
         feedback::dto::FeedbackDto, report_impacts::dto::ReportImpactDto, reports::dto::ReportDto,
     },
@@ -61,7 +63,7 @@ impl FullReportDto {
     }
 }
 
-#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
+#[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "report")]
 #[partially(derive(Deserialize, Debug, JsonSchema))]
 pub struct Report {
@@ -69,7 +71,7 @@ pub struct Report {
     pub id: Uuid,
     pub is_public: bool,
     pub conversation_id: Uuid,
-    pub summary: String,
+    pub summary: TextContentId,
     pub section_configs: ReportSectionConfigs,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
@@ -87,10 +89,10 @@ const DEFAULT_COLUMNS: [ReportIden; 7] = [
     ReportIden::UpdatedAt,
 ];
 
-#[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
+#[derive(PartialEq, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 pub struct ReportSectionConfigs(pub Vec<ReportSectionConfig>);
 
-#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
+#[derive(PartialEq, Debug, Deserialize, Serialize, Clone, JsonSchema)]
 #[serde(rename_all = "lowercase", tag = "type")]
 pub struct ReportSectionConfig {
     workflow_step_id: Uuid,

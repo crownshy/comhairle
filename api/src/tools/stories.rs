@@ -24,7 +24,7 @@ pub struct StoriesToolConfig {
     pub to_see: i32,
 }
 
-#[derive(Debug, Default, JsonSchema, Serialize, Deserialize, Clone)]
+#[derive(PartialEq, Debug, Default, JsonSchema, Serialize, Deserialize, Clone)]
 pub struct StoriesReport;
 
 #[derive(Debug, Default, JsonSchema, Serialize, Deserialize, Clone)]

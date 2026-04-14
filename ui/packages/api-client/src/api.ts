@@ -987,7 +987,7 @@ export const FullReportDto = z
     isPublic: z.boolean(),
     participantFeedback: z.array(FeedbackDto),
     sectionConfigs: ReportSectionConfigs,
-    summary: z.string(),
+    summary: z.string().uuid(),
   })
   .passthrough();
 export type FullReportDto = z.infer<typeof FullReportDto>;
@@ -1008,7 +1008,7 @@ export const ReportDto = z
     id: z.string().uuid(),
     isPublic: z.boolean(),
     sectionConfigs: ReportSectionConfigs,
-    summary: z.string(),
+    summary: z.string().uuid(),
   })
   .passthrough();
 export type ReportDto = z.infer<typeof ReportDto>;
@@ -1788,6 +1788,14 @@ Use a raw HTTP request and process the response body incrementally.`,
         schema: z.object({ question: z.string() }).passthrough(),
       },
     ],
+    response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/contacts/export",
+    alias: "ExportConversationContacts",
+    description: `Exports a CSV file containing all users who have opted in to receive email updates for this conversation`,
+    requestFormat: "json",
     response: z.void(),
   },
   {
