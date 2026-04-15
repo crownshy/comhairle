@@ -22,7 +22,11 @@
 	const significantComments = $derived(getSignificantComments(data.reportData));
 	const totalParticipants = $derived(data.reportData.participants.length);
 
-	let selectedTid = $state<number | null>(significantComments[0]?.tid ?? null);
+	let selectedTid = $state<number | null>(
+		significantComments.length > 0
+			? significantComments[Math.floor(Math.random() * significantComments.length)].tid
+			: null
+	);
 
 	const activeComment = $derived.by(() => {
 		const tid = selectedTid ?? null;
@@ -65,21 +69,21 @@
 {/snippet}
 
 <ReportNav />
-<div class="flex flex-col items-center overflow-hidden py-20">
+<div class="flex flex-col items-center overflow-hidden pb-20">
 	<!-- Header -->
 	<header
 		id="dive-in"
-		class="bg-card mb-16 flex w-full max-w-[1200px] flex-col items-center gap-4 rounded-xl px-24 py-12 text-center"
+		class="bg-card mb-16 flex w-full flex-col items-center gap-4 rounded-xl px-24 pt-24 pb-12 text-center"
 	>
 		<Badge
 			class="bg-primary/10 text-muted-foreground rounded-3xl px-4 py-2 text-lg font-semibold"
 		>
 			Interim Report
 		</Badge>
-		<h1 class="text-foreground text-5xl leading-[52px] font-bold">
+		<h1 class="text-foreground max-w-4xl text-5xl leading-[52px] font-bold">
 			South Staffordshire Local Plan Public Engagement
 		</h1>
-		<p class="text-muted-foreground text-sm">
+		<p class="text-muted-foreground max-w-4xl text-sm">
 			After 1 week of engagement (Draft report created on 14th April '26)
 		</p>
 
