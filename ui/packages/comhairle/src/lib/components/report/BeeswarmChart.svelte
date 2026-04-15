@@ -4,7 +4,6 @@
 	import type { ReportComment } from '$lib/types/report';
 
 	import BeeswarmDots from './beeswarm/BeeswarmDots.svelte';
-	import BeeswarmAxisX from './beeswarm/BeeswarmAxisX.svelte';
 
 	interface Props {
 		comments: ReportComment[];
@@ -39,13 +38,12 @@
 
 <div class="chart-container" style="height: {height}px;">
 	<LayerCake
-		padding={{ top: 10, bottom: 28, left: 16, right: 16 }}
+		padding={{ top: 10, bottom: 10, left: 16, right: 16 }}
 		x="divisiveness"
 		data={comments}
 	>
 		{#snippet children({ width })}
 			<Svg>
-				<BeeswarmAxisX baseline snapLabels />
 				<BeeswarmDots
 					r={width < 500 ? dotRadius / 1.4 : dotRadius}
 					spacing={1}

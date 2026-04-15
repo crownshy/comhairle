@@ -4,40 +4,40 @@
 			"tid": 0,
 			"text": "I would welcome new development in my area if it meant it helped to reduce flooding.\n",
 			"overall_votes": {
-				"agrees": 89,
-				"disagrees": 112,
+				"agrees": 90,
+				"disagrees": 114,
 				"passes": 47
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 75,
-					"disagrees": 19,
+					"agrees": 76,
+					"disagrees": 20,
 					"passes": 30
 				},
 				{
 					"group_id": 1,
 					"agrees": 14,
-					"disagrees": 93,
+					"disagrees": 94,
 					"passes": 17
 				}
 			],
-			"group_informed_consensus": 0.07180650037792895,
-			"divisiveness": 4.906959060912229
+			"group_informed_consensus": 0.07105068897637795,
+			"divisiveness": 4.9707335641962835
 		},
 		{
 			"tid": 1,
 			"text": "I would welcome new development in my area if it meant new or improved local sports facilities.\n",
 			"overall_votes": {
 				"agrees": 70,
-				"disagrees": 132,
+				"disagrees": 133,
 				"passes": 42
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 62,
-					"disagrees": 29,
+					"disagrees": 30,
 					"passes": 27
 				},
 				{
@@ -47,108 +47,108 @@
 					"passes": 15
 				}
 			],
-			"group_informed_consensus": 0.03333333333333333,
-			"divisiveness": 4.780869121374767
+			"group_informed_consensus": 0.03305785123966942,
+			"divisiveness": 4.809245519662417
 		},
 		{
 			"tid": 2,
 			"text": "I would be happy to see more development in my area if it meant we had access to more places where local people could socialise and hold events.\n",
 			"overall_votes": {
 				"agrees": 83,
-				"disagrees": 128,
+				"disagrees": 130,
 				"passes": 42
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 73,
-					"disagrees": 26,
+					"disagrees": 27,
 					"passes": 25
 				},
 				{
 					"group_id": 1,
 					"agrees": 8,
-					"disagrees": 99,
+					"disagrees": 100,
 					"passes": 16
 				}
 			],
-			"group_informed_consensus": 0.04228571428571429,
-			"divisiveness": 5.35467341841965
+			"group_informed_consensus": 0.04161979752530933,
+			"divisiveness": 5.411553276110375
 		},
 		{
 			"tid": 3,
 			"text": "I would support new development in our area if it meant more funding or improvements to local health services and schools.\n",
 			"overall_votes": {
-				"agrees": 140,
-				"disagrees": 92,
-				"passes": 25
+				"agrees": 141,
+				"disagrees": 93,
+				"passes": 27
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 112,
+					"agrees": 113,
 					"disagrees": 3,
-					"passes": 14
+					"passes": 15
 				},
 				{
 					"group_id": 1,
 					"agrees": 28,
-					"disagrees": 89,
-					"passes": 10
+					"disagrees": 90,
+					"passes": 11
 				}
 			],
-			"group_informed_consensus": 0.1939167998106397,
-			"divisiveness": 3.861122417889352
+			"group_informed_consensus": 0.1897491821155943,
+			"divisiveness": 3.923231213625708
 		},
 		{
 			"tid": 4,
 			"text": "It is important that new homes in the future are located near village centres, helping to keep homes near community facilities and protect the surrounding countryside.\n",
 			"overall_votes": {
-				"agrees": 155,
+				"agrees": 156,
 				"disagrees": 59,
-				"passes": 35
+				"passes": 37
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 73,
+					"agrees": 74,
 					"disagrees": 27,
-					"passes": 18
+					"passes": 19
 				},
 				{
 					"group_id": 1,
 					"agrees": 77,
 					"disagrees": 32,
-					"passes": 16
+					"passes": 17
 				}
 			],
-			"group_informed_consensus": 0.378740157480315,
-			"divisiveness": 1.2978887178560046
+			"group_informed_consensus": 0.3746157786885246,
+			"divisiveness": 1.326916466670302
 		},
 		{
 			"tid": 5,
 			"text": "It would be best if new homes were not concentrated near village centres, but located in the surrounding countryside to provide more rural homes.",
 			"overall_votes": {
 				"agrees": 51,
-				"disagrees": 128,
+				"disagrees": 131,
 				"passes": 33
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 29,
-					"disagrees": 53,
+					"disagrees": 54,
 					"passes": 22
 				},
 				{
 					"group_id": 1,
 					"agrees": 22,
-					"disagrees": 75,
+					"disagrees": 77,
 					"passes": 11
 				}
 			],
-			"group_informed_consensus": 0.05917667238421955,
-			"divisiveness": 1.696851867338421
+			"group_informed_consensus": 0.057576769025367146,
+			"divisiveness": 1.719487300450038
 		},
 		{
 			"tid": 6,
@@ -156,14 +156,14 @@
 			"overall_votes": {
 				"agrees": 54,
 				"disagrees": 111,
-				"passes": 53
+				"passes": 54
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 28,
 					"disagrees": 49,
-					"passes": 31
+					"passes": 32
 				},
 				{
 					"group_id": 1,
@@ -172,71 +172,71 @@
 					"passes": 21
 				}
 			],
-			"group_informed_consensus": 0.06412776412776412,
-			"divisiveness": 1.1360582627694038
+			"group_informed_consensus": 0.06355003652300949,
+			"divisiveness": 1.1464228745388731
 		},
 		{
 			"tid": 7,
 			"text": "Having more green energy sources, such as wind and solar farms, is really important for the future – even if it means changing the landscape.\n",
 			"overall_votes": {
-				"agrees": 116,
+				"agrees": 118,
 				"disagrees": 82,
-				"passes": 32
+				"passes": 33
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 74,
+					"agrees": 75,
 					"disagrees": 21,
-					"passes": 16
+					"passes": 17
 				},
 				{
 					"group_id": 1,
-					"agrees": 42,
+					"agrees": 43,
 					"disagrees": 60,
 					"passes": 16
 				}
 			],
-			"group_informed_consensus": 0.23783185840707963,
-			"divisiveness": 2.5031955220008193
+			"group_informed_consensus": 0.24031620553359684,
+			"divisiveness": 2.5161021117190896
 		},
 		{
 			"tid": 8,
 			"text": "New development should be shared across many villages, so growth feels fair.\n\n",
 			"overall_votes": {
-				"agrees": 180,
-				"disagrees": 30,
-				"passes": 28
+				"agrees": 182,
+				"disagrees": 31,
+				"passes": 29
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 105,
+					"agrees": 107,
 					"disagrees": 3,
 					"passes": 12
 				},
 				{
 					"group_id": 1,
 					"agrees": 75,
-					"disagrees": 27,
-					"passes": 16
+					"disagrees": 28,
+					"passes": 17
 				}
 			],
-			"group_informed_consensus": 0.5502732240437159,
-			"divisiveness": 0.81871502265028
+			"group_informed_consensus": 0.5425700687466949,
+			"divisiveness": 0.8489352848807853
 		},
 		{
 			"tid": 9,
 			"text": "New housing should be affordable giving young people from the district the chance to get on the housing ladder, rather than having to find homes outside of South Staffordshire.\n",
 			"overall_votes": {
-				"agrees": 192,
+				"agrees": 193,
 				"disagrees": 27,
-				"passes": 21
+				"passes": 22
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 104,
+					"agrees": 105,
 					"disagrees": 5,
 					"passes": 7
 				},
@@ -244,24 +244,24 @@
 					"group_id": 1,
 					"agrees": 86,
 					"disagrees": 22,
-					"passes": 14
+					"passes": 15
 				}
 			],
-			"group_informed_consensus": 0.624316566429743,
-			"divisiveness": 0.8150505079423525
+			"group_informed_consensus": 0.6199663865546219,
+			"divisiveness": 0.828743709470751
 		},
 		{
 			"tid": 10,
 			"text": "New housing should be built in such a way that modifications can be made to enhance the quality of life for people as they age, or for those with additional needs or disabilities.\n",
 			"overall_votes": {
-				"agrees": 185,
+				"agrees": 186,
 				"disagrees": 24,
 				"passes": 31
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 98,
+					"agrees": 99,
 					"disagrees": 8,
 					"passes": 10
 				},
@@ -272,46 +272,46 @@
 					"passes": 21
 				}
 			],
-			"group_informed_consensus": 0.579785035138487,
-			"divisiveness": 0.6644553809976599
+			"group_informed_consensus": 0.580720092915215,
+			"divisiveness": 0.6691533189285873
 		},
 		{
 			"tid": 11,
 			"text": "By 2045, there should be more bungalows, retirement accommodation, and care homes in the district.\n",
 			"overall_votes": {
-				"agrees": 156,
-				"disagrees": 49,
-				"passes": 38
+				"agrees": 157,
+				"disagrees": 50,
+				"passes": 39
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 80,
-					"disagrees": 20,
-					"passes": 20
+					"disagrees": 21,
+					"passes": 21
 				},
 				{
 					"group_id": 1,
-					"agrees": 75,
+					"agrees": 76,
 					"disagrees": 29,
 					"passes": 17
 				}
 			],
-			"group_informed_consensus": 0.410235905637745,
-			"divisiveness": 1.4683532913679138
+			"group_informed_consensus": 0.4056321540062435,
+			"divisiveness": 1.4836839765921512
 		},
 		{
 			"tid": 12,
 			"text": "New homes should be built within walking distance of schools, shops, and bus stops.\n",
 			"overall_votes": {
-				"agrees": 163,
+				"agrees": 165,
 				"disagrees": 48,
-				"passes": 31
+				"passes": 32
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 93,
+					"agrees": 95,
 					"disagrees": 11,
 					"passes": 14
 				},
@@ -319,49 +319,49 @@
 					"group_id": 1,
 					"agrees": 67,
 					"disagrees": 37,
-					"passes": 17
+					"passes": 18
 				}
 			],
-			"group_informed_consensus": 0.43306233062330624,
-			"divisiveness": 1.5572438749458768
+			"group_informed_consensus": 0.43151771549444734,
+			"divisiveness": 1.5761581628971213
 		},
 		{
 			"tid": 13,
 			"text": "I would welcome new housing in my area if it improved public transport.\n",
 			"overall_votes": {
 				"agrees": 87,
-				"disagrees": 134,
+				"disagrees": 138,
 				"passes": 36
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 79,
-					"disagrees": 24,
+					"disagrees": 25,
 					"passes": 25
 				},
 				{
 					"group_id": 1,
 					"agrees": 8,
-					"disagrees": 110,
+					"disagrees": 113,
 					"passes": 11
 				}
 			],
-			"group_informed_consensus": 0.042278332354668234,
-			"divisiveness": 5.647236983001089
+			"group_informed_consensus": 0.041016292582887096,
+			"divisiveness": 5.753003911723337
 		},
 		{
 			"tid": 14,
 			"text": "I would welcome the creation of more local small business premises.\n",
 			"overall_votes": {
-				"agrees": 159,
+				"agrees": 160,
 				"disagrees": 48,
 				"passes": 38
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 100,
+					"agrees": 101,
 					"disagrees": 7,
 					"passes": 19
 				},
@@ -372,33 +372,33 @@
 					"passes": 19
 				}
 			],
-			"group_informed_consensus": 0.3776709401709402,
-			"divisiveness": 1.8353436789647877
+			"group_informed_consensus": 0.37845358775591337,
+			"divisiveness": 1.845873477727388
 		},
 		{
 			"tid": 15,
 			"text": "I would welcome new large business sites in my local area if it meant creation of jobs and more investment into the district.\n",
 			"overall_votes": {
-				"agrees": 90,
-				"disagrees": 131,
+				"agrees": 91,
+				"disagrees": 133,
 				"passes": 38
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 80,
-					"disagrees": 34,
+					"disagrees": 35,
 					"passes": 19
 				},
 				{
 					"group_id": 1,
-					"agrees": 9,
-					"disagrees": 96,
+					"agrees": 10,
+					"disagrees": 97,
 					"passes": 19
 				}
 			],
-			"group_informed_consensus": 0.047619047619047616,
-			"divisiveness": 4.935008597050734
+			"group_informed_consensus": 0.05118336397058824,
+			"divisiveness": 4.957488448659935
 		},
 		{
 			"tid": 16,
@@ -406,14 +406,14 @@
 			"overall_votes": {
 				"agrees": 117,
 				"disagrees": 71,
-				"passes": 51
+				"passes": 52
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 72,
 					"disagrees": 16,
-					"passes": 27
+					"passes": 28
 				},
 				{
 					"group_id": 1,
@@ -422,21 +422,21 @@
 					"passes": 23
 				}
 			],
-			"group_informed_consensus": 0.22960683760683764,
-			"divisiveness": 2.0684798726200677
+			"group_informed_consensus": 0.22766101694915256,
+			"divisiveness": 2.080924247236169
 		},
 		{
 			"tid": 17,
 			"text": "Spaces and activities for children and teenagers should be a priority when creating new housing.\n",
 			"overall_votes": {
-				"agrees": 174,
+				"agrees": 175,
 				"disagrees": 42,
-				"passes": 29
+				"passes": 30
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 99,
+					"agrees": 100,
 					"disagrees": 9,
 					"passes": 12
 				},
@@ -444,24 +444,24 @@
 					"group_id": 1,
 					"agrees": 74,
 					"disagrees": 33,
-					"passes": 17
+					"passes": 18
 				}
 			],
-			"group_informed_consensus": 0.4879000780640125,
-			"divisiveness": 1.4327087411909274
+			"group_informed_consensus": 0.4849241405799885,
+			"divisiveness": 1.449475979772303
 		},
 		{
 			"tid": 18,
 			"text": "A high priority should be ensuring South Staffordshire is an attractive place to visit for tourists.\n",
 			"overall_votes": {
-				"agrees": 169,
+				"agrees": 171,
 				"disagrees": 52,
 				"passes": 31
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 89,
+					"agrees": 91,
 					"disagrees": 20,
 					"passes": 18
 				},
@@ -472,96 +472,96 @@
 					"passes": 12
 				}
 			],
-			"group_informed_consensus": 0.4424276800907545,
-			"divisiveness": 1.4189579747454637
+			"group_informed_consensus": 0.4453546825544592,
+			"divisiveness": 1.4284811434082396
 		},
 		{
 			"tid": 19,
 			"text": "Local village centres should have a good mix of independent shops and services.\n",
 			"overall_votes": {
-				"agrees": 213,
+				"agrees": 215,
 				"disagrees": 5,
 				"passes": 16
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 108,
+					"agrees": 109,
 					"disagrees": 0,
 					"passes": 6
 				},
 				{
 					"group_id": 1,
-					"agrees": 102,
+					"agrees": 103,
 					"disagrees": 5,
 					"passes": 10
 				}
 			],
-			"group_informed_consensus": 0.8133149811648797,
-			"divisiveness": 0.1492427335548847
+			"group_informed_consensus": 0.8148148148148149,
+			"divisiveness": 0.1494465211660992
 		},
 		{
 			"tid": 20,
 			"text": "I would welcome new housing in my areas if it meant improvements to road infrastructure to accommodate it.\n",
 			"overall_votes": {
-				"agrees": 117,
-				"disagrees": 121,
-				"passes": 28
+				"agrees": 118,
+				"disagrees": 123,
+				"passes": 30
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 105,
-					"disagrees": 12,
+					"agrees": 106,
+					"disagrees": 13,
 					"passes": 15
 				},
 				{
 					"group_id": 1,
 					"agrees": 12,
-					"disagrees": 106,
-					"passes": 12
+					"disagrees": 107,
+					"passes": 14
 				}
 			],
-			"group_informed_consensus": 0.07790592492085029,
-			"divisiveness": 5.271230834936336
+			"group_informed_consensus": 0.07576252723311547,
+			"divisiveness": 5.33801591373292
 		},
 		{
 			"tid": 21,
 			"text": "A key priority is making sure everyone in the community has access to nature and green spaces.\n",
 			"overall_votes": {
-				"agrees": 204,
+				"agrees": 206,
 				"disagrees": 11,
 				"passes": 15
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 99,
+					"agrees": 100,
 					"disagrees": 4,
 					"passes": 8
 				},
 				{
 					"group_id": 1,
-					"agrees": 103,
+					"agrees": 104,
 					"disagrees": 7,
 					"passes": 7
 				}
 			],
-			"group_informed_consensus": 0.7734067078158697,
-			"divisiveness": 0.25673508009925505
+			"group_informed_consensus": 0.775219298245614,
+			"divisiveness": 0.25695818713742885
 		},
 		{
 			"tid": 22,
 			"text": "I would rather see more green spaces and trees on business and housing development sites, even if it means sites need to be bigger or more areas need to be found for development.\n",
 			"overall_votes": {
-				"agrees": 139,
+				"agrees": 141,
 				"disagrees": 56,
 				"passes": 42
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 77,
+					"agrees": 79,
 					"disagrees": 22,
 					"passes": 16
 				},
@@ -572,8 +572,8 @@
 					"passes": 26
 				}
 			],
-			"group_informed_consensus": 0.33333333333333337,
-			"divisiveness": 1.6430643655080115
+			"group_informed_consensus": 0.3361344537815126,
+			"divisiveness": 1.6555304969427485
 		},
 		{
 			"tid": 23,
@@ -629,14 +629,14 @@
 			"tid": 25,
 			"text": "I believe that new housing developments should be built on brownfield sites first. Green belt sites should be Avery last resort, and only with the consent of local people after full consultation with them.",
 			"overall_votes": {
-				"agrees": 187,
+				"agrees": 189,
 				"disagrees": 17,
 				"passes": 10
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 86,
+					"agrees": 88,
 					"disagrees": 16,
 					"passes": 8
 				},
@@ -647,58 +647,58 @@
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.7474730458221024,
-			"divisiveness": 0.6932586201530282
+			"group_informed_consensus": 0.7512413108242304,
+			"divisiveness": 0.6944664545844751
 		},
 		{
 			"tid": 26,
 			"text": "I believe a development of more than 50 homes should contribute towards providing a bus route to within 400m of the new site.",
 			"overall_votes": {
-				"agrees": 148,
-				"disagrees": 36,
-				"passes": 24
+				"agrees": 149,
+				"disagrees": 37,
+				"passes": 25
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 76,
 					"disagrees": 11,
-					"passes": 18
+					"passes": 19
 				},
 				{
 					"group_id": 1,
-					"agrees": 71,
-					"disagrees": 25,
+					"agrees": 72,
+					"disagrees": 26,
 					"passes": 6
 				}
 			],
-			"group_informed_consensus": 0.4982027318475916,
-			"divisiveness": 1.4081099357957847
+			"group_informed_consensus": 0.4910027952480782,
+			"divisiveness": 1.4439612950457597
 		},
 		{
 			"tid": 27,
 			"text": "Stop the re designation of Greenbelt becoming grey belt.",
 			"overall_votes": {
-				"agrees": 162,
+				"agrees": 167,
 				"disagrees": 18,
 				"passes": 20
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 68,
+					"agrees": 70,
 					"disagrees": 17,
 					"passes": 17
 				},
 				{
 					"group_id": 1,
-					"agrees": 94,
+					"agrees": 97,
 					"disagrees": 1,
 					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.6302884615384616,
-			"divisiveness": 0.8279559208717314
+			"group_informed_consensus": 0.6372962080967209,
+			"divisiveness": 0.8161181936901987
 		},
 		{
 			"tid": 28,
@@ -729,90 +729,90 @@
 			"tid": 29,
 			"text": "I feel that no new builds should be built till there is a thorough investigation of the land that’s it being built on and what strain is put on the existing facility’s",
 			"overall_votes": {
-				"agrees": 180,
+				"agrees": 183,
 				"disagrees": 21,
 				"passes": 12
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 71,
+					"agrees": 72,
 					"disagrees": 20,
 					"passes": 12
 				},
 				{
 					"group_id": 1,
-					"agrees": 106,
+					"agrees": 108,
 					"disagrees": 1,
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.6731323722149412,
-			"divisiveness": 0.9353902776740683
+			"group_informed_consensus": 0.6762706102328743,
+			"divisiveness": 0.9315146232766028
 		},
 		{
 			"tid": 30,
 			"text": "I would welcome all new houses be built on brown belt land as there is loads of it ! and then you can stop DESTROYING OUR LOVERLY GREEN BELT",
 			"overall_votes": {
-				"agrees": 167,
-				"disagrees": 27,
+				"agrees": 169,
+				"disagrees": 28,
 				"passes": 24
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 72,
-					"disagrees": 22,
+					"agrees": 73,
+					"disagrees": 23,
 					"passes": 20
 				},
 				{
 					"group_id": 1,
-					"agrees": 95,
+					"agrees": 96,
 					"disagrees": 5,
 					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.5753694581280788,
-			"divisiveness": 1.2913673392674696
+			"group_informed_consensus": 0.5738727214582667,
+			"divisiveness": 1.331364936612737
 		},
 		{
 			"tid": 31,
 			"text": "I think all new homes should be BUILT ON Brown Belt land, also no NEW homes should be built if your local Infrastructure like Doctors and Roads are FAILING.",
 			"overall_votes": {
-				"agrees": 173,
+				"agrees": 174,
 				"disagrees": 25,
-				"passes": 18
+				"passes": 19
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 75,
 					"disagrees": 20,
-					"passes": 16
+					"passes": 17
 				},
 				{
 					"group_id": 1,
-					"agrees": 94,
+					"agrees": 95,
 					"disagrees": 5,
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.6203282068906262,
-			"divisiveness": 0.94062621475654
+			"group_informed_consensus": 0.6153846153846154,
+			"divisiveness": 0.9599649222902478
 		},
 		{
 			"tid": 32,
 			"text": "NO Planner should be allowed to Sign Plans off without Speaking Directly to at least 200 homeowners that the build would effect.",
 			"overall_votes": {
-				"agrees": 17,
-				"disagrees": 3,
+				"agrees": 18,
+				"disagrees": 4,
 				"passes": 2
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 6,
-					"disagrees": 3,
+					"agrees": 7,
+					"disagrees": 4,
 					"passes": 1
 				},
 				{
@@ -822,71 +822,71 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.4999999999999999,
-			"divisiveness": 0.14300138602220516
+			"group_informed_consensus": 0.48979591836734687,
+			"divisiveness": 0.17321800830497472
 		},
 		{
 			"tid": 33,
 			"text": "NO NEW BUILDS WHERE GREENBELT IS ROBBED, ERODED AWAY",
 			"overall_votes": {
-				"agrees": 163,
-				"disagrees": 31,
+				"agrees": 164,
+				"disagrees": 32,
 				"passes": 22
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 64,
-					"disagrees": 28,
+					"disagrees": 29,
 					"passes": 18
 				},
 				{
 					"group_id": 1,
-					"agrees": 97,
+					"agrees": 98,
 					"disagrees": 3,
 					"passes": 4
 				}
 			],
-			"group_informed_consensus": 0.5365566037735848,
-			"divisiveness": 1.5828391592528723
+			"group_informed_consensus": 0.5322140435034323,
+			"divisiveness": 1.6338505456242491
 		},
 		{
 			"tid": 34,
 			"text": "i agree with development if social housing is part of the process and developers cant water down once permission is granted and must be water tight",
 			"overall_votes": {
-				"agrees": 123,
+				"agrees": 126,
 				"disagrees": 64,
 				"passes": 33
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 81,
+					"agrees": 83,
 					"disagrees": 12,
 					"passes": 21
 				},
 				{
 					"group_id": 1,
-					"agrees": 41,
+					"agrees": 42,
 					"disagrees": 51,
 					"passes": 12
 				}
 			],
-			"group_informed_consensus": 0.28009108653220555,
-			"divisiveness": 2.789034690541747
+			"group_informed_consensus": 0.28607635038808804,
+			"divisiveness": 2.790522838206049
 		},
 		{
 			"tid": 35,
 			"text": "It is important to develop brown field sites early before the need to use green field sites. However given the need for 12000 houses into the future it is inevitable that some green field sites will be required",
 			"overall_votes": {
-				"agrees": 93,
+				"agrees": 95,
 				"disagrees": 88,
 				"passes": 29
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 72,
+					"agrees": 74,
 					"disagrees": 20,
 					"passes": 17
 				},
@@ -897,22 +897,22 @@
 					"passes": 11
 				}
 			],
-			"group_informed_consensus": 0.13674070109713674,
-			"divisiveness": 3.4692006295947437
+			"group_informed_consensus": 0.13800052571628843,
+			"divisiveness": 3.498506408272723
 		},
 		{
 			"tid": 36,
 			"text": "New bike paths and bridleways need to be developed and existing footpaths turned into bridleways where possible.",
 			"overall_votes": {
 				"agrees": 93,
-				"disagrees": 68,
+				"disagrees": 69,
 				"passes": 32
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 56,
-					"disagrees": 25,
+					"disagrees": 26,
 					"passes": 22
 				},
 				{
@@ -922,21 +922,21 @@
 					"passes": 10
 				}
 			],
-			"group_informed_consensus": 0.22422360248447207,
-			"divisiveness": 2.010788675722916
+			"group_informed_consensus": 0.22210828547990155,
+			"divisiveness": 2.041719426553011
 		},
 		{
 			"tid": 37,
 			"text": "The views and feedback from a community nearby any development should be seen to be taken into account.",
 			"overall_votes": {
-				"agrees": 183,
+				"agrees": 185,
 				"disagrees": 8,
 				"passes": 9
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 88,
+					"agrees": 90,
 					"disagrees": 6,
 					"passes": 9
 				},
@@ -947,8 +947,8 @@
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.8295845997973659,
-			"divisiveness": 0.14516534349128926
+			"group_informed_consensus": 0.8323722410021873,
+			"divisiveness": 0.14524428388774915
 		},
 		{
 			"tid": 38,
@@ -956,14 +956,14 @@
 			"overall_votes": {
 				"agrees": 156,
 				"disagrees": 31,
-				"passes": 25
+				"passes": 26
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 90,
 					"disagrees": 10,
-					"passes": 13
+					"passes": 14
 				},
 				{
 					"group_id": 1,
@@ -972,8 +972,8 @@
 					"passes": 12
 				}
 			],
-			"group_informed_consensus": 0.5139399372478709,
-			"divisiveness": 0.9576979223472232
+			"group_informed_consensus": 0.5095094205474582,
+			"divisiveness": 0.9720833389478436
 		},
 		{
 			"tid": 39,
@@ -1005,38 +1005,38 @@
 			"text": "Most of our homes were built on green land so I have no objection to it being used to relieve the housing shortage",
 			"overall_votes": {
 				"agrees": 36,
-				"disagrees": 131,
+				"disagrees": 133,
 				"passes": 22
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 34,
-					"disagrees": 47,
+					"disagrees": 48,
 					"passes": 21
 				},
 				{
 					"group_id": 1,
 					"agrees": 1,
-					"disagrees": 83,
+					"disagrees": 84,
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.007736516357206013,
-			"divisiveness": 5.681044538355559
+			"group_informed_consensus": 0.007575757575757577,
+			"divisiveness": 5.7542374014631354
 		},
 		{
 			"tid": 41,
 			"text": "There should be at least 30% social housing, some bungalows with disabled access (all one level), and priority for these should be for people who have lived in area for longest.",
 			"overall_votes": {
-				"agrees": 139,
+				"agrees": 141,
 				"disagrees": 49,
-				"passes": 18
+				"passes": 19
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 80,
+					"agrees": 82,
 					"disagrees": 11,
 					"passes": 14
 				},
@@ -1044,11 +1044,11 @@
 					"group_id": 1,
 					"agrees": 50,
 					"disagrees": 38,
-					"passes": 4
+					"passes": 5
 				}
 			],
-			"group_informed_consensus": 0.4107178365480214,
-			"divisiveness": 1.5980700913401855
+			"group_informed_consensus": 0.4087880251086432,
+			"divisiveness": 1.6150966717053687
 		},
 		{
 			"tid": 42,
@@ -1079,64 +1079,64 @@
 			"tid": 43,
 			"text": "New development should prevent settlements merging to retain their character.",
 			"overall_votes": {
-				"agrees": 130,
+				"agrees": 132,
 				"disagrees": 24,
 				"passes": 34
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 60,
+					"agrees": 61,
 					"disagrees": 18,
 					"passes": 25
 				},
 				{
 					"group_id": 1,
-					"agrees": 69,
+					"agrees": 70,
 					"disagrees": 6,
 					"passes": 9
 				}
 			],
-			"group_informed_consensus": 0.4728682170542636,
-			"divisiveness": 1.0303559738700712
+			"group_informed_consensus": 0.47733680329646494,
+			"divisiveness": 1.0299797011147238
 		},
 		{
 			"tid": 44,
 			"text": "New developments should be focused on creating new villages with their own infrastructure.",
 			"overall_votes": {
-				"agrees": 104,
+				"agrees": 106,
 				"disagrees": 61,
 				"passes": 22
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 55,
+					"agrees": 56,
 					"disagrees": 29,
 					"passes": 14
 				},
 				{
 					"group_id": 1,
-					"agrees": 46,
+					"agrees": 47,
 					"disagrees": 32,
 					"passes": 8
 				}
 			],
-			"group_informed_consensus": 0.29909090909090913,
-			"divisiveness": 2.0968917463313477
+			"group_informed_consensus": 0.30437201023473137,
+			"divisiveness": 2.096211340584752
 		},
 		{
 			"tid": 45,
 			"text": "New developments should be climate-proof to meet the needs of future residents.",
 			"overall_votes": {
-				"agrees": 156,
+				"agrees": 158,
 				"disagrees": 21,
 				"passes": 14
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 90,
+					"agrees": 92,
 					"disagrees": 2,
 					"passes": 9
 				},
@@ -1147,83 +1147,83 @@
 					"passes": 5
 				}
 			],
-			"group_informed_consensus": 0.6434149430139299,
-			"divisiveness": 0.7660190957187655
+			"group_informed_consensus": 0.6450310559006212,
+			"divisiveness": 0.768303629920563
 		},
 		{
 			"tid": 46,
 			"text": "New development must positively restore nature within the plan area,  above legal minimum requirements.",
 			"overall_votes": {
-				"agrees": 153,
+				"agrees": 156,
 				"disagrees": 15,
 				"passes": 15
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 80,
+					"agrees": 81,
 					"disagrees": 10,
 					"passes": 8
 				},
 				{
 					"group_id": 1,
-					"agrees": 73,
+					"agrees": 75,
 					"disagrees": 5,
 					"passes": 7
 				}
 			],
-			"group_informed_consensus": 0.6889655172413793,
-			"divisiveness": 0.7289153944056926
+			"group_informed_consensus": 0.6932918010902214,
+			"divisiveness": 0.7254089675094869
 		},
 		{
 			"tid": 47,
 			"text": "New major developments must significantly improve the green infrastructure of the area to above national minimum standards (ie access to multi functional green recreational spaces, better nature areas, public health benefits (eg green walking routes), flood and climate-proofing).",
 			"overall_votes": {
-				"agrees": 162,
+				"agrees": 165,
 				"disagrees": 13,
 				"passes": 13
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 92,
+					"agrees": 94,
 					"disagrees": 6,
 					"passes": 4
 				},
 				{
 					"group_id": 1,
-					"agrees": 70,
+					"agrees": 71,
 					"disagrees": 7,
 					"passes": 8
 				}
 			],
-			"group_informed_consensus": 0.7297745358090186,
-			"divisiveness": 0.5013722358508172
+			"group_informed_consensus": 0.7332761578044596,
+			"divisiveness": 0.49925020460425046
 		},
 		{
 			"tid": 48,
 			"text": "New major developments must provide sustainable and significant tree cover over roads and carparks to improve the visual appeal and environmental quality of the area.",
 			"overall_votes": {
-				"agrees": 145,
+				"agrees": 148,
 				"disagrees": 27,
-				"passes": 21
+				"passes": 22
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 75,
+					"agrees": 77,
 					"disagrees": 14,
 					"passes": 12
 				},
 				{
 					"group_id": 1,
-					"agrees": 69,
+					"agrees": 70,
 					"disagrees": 13,
-					"passes": 8
+					"passes": 9
 				}
 			],
-			"group_informed_consensus": 0.5614183199662304,
-			"divisiveness": 1.415487884743407
+			"group_informed_consensus": 0.5610942249240122,
+			"divisiveness": 1.4248586345076624
 		},
 		{
 			"tid": 49,
@@ -1254,26 +1254,26 @@
 			"tid": 50,
 			"text": "It is important when building new family homes that catchments to schools and footpaths to walk to school are considered. Many schools are already full and this causes too many to drive to school.",
 			"overall_votes": {
-				"agrees": 153,
+				"agrees": 156,
 				"disagrees": 10,
 				"passes": 7
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 86,
+					"agrees": 88,
 					"disagrees": 2,
 					"passes": 5
 				},
 				{
 					"group_id": 1,
-					"agrees": 67,
+					"agrees": 68,
 					"disagrees": 8,
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.7882744836775483,
-			"divisiveness": 0.2479511360355292
+			"group_informed_consensus": 0.7913659793814433,
+			"divisiveness": 0.2465711885033559
 		},
 		{
 			"tid": 51,
@@ -1304,114 +1304,114 @@
 			"tid": 52,
 			"text": "Solar farms should not be installed on good agricultural land",
 			"overall_votes": {
-				"agrees": 109,
+				"agrees": 113,
 				"disagrees": 36,
 				"passes": 26
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 44,
+					"agrees": 46,
 					"disagrees": 25,
 					"passes": 23
 				},
 				{
 					"group_id": 1,
-					"agrees": 64,
+					"agrees": 66,
 					"disagrees": 9,
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.4041171594363084,
-			"divisiveness": 1.286357411487875
+			"group_informed_consensus": 0.4152162447257384,
+			"divisiveness": 1.2694000480026206
 		},
 		{
 			"tid": 53,
 			"text": "Solar panels should be installed on community owned buildings",
 			"overall_votes": {
-				"agrees": 135,
+				"agrees": 138,
 				"disagrees": 18,
 				"passes": 11
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 77,
+					"agrees": 79,
 					"disagrees": 6,
 					"passes": 9
 				},
 				{
 					"group_id": 1,
-					"agrees": 57,
+					"agrees": 58,
 					"disagrees": 12,
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.6592830078694257,
-			"divisiveness": 0.47300726011863503
+			"group_informed_consensus": 0.6644144144144144,
+			"divisiveness": 0.47157232423705575
 		},
 		{
 			"tid": 54,
 			"text": "The village /town infrastructure capability should always be taken into consideration when increasing the population.",
 			"overall_votes": {
-				"agrees": 145,
+				"agrees": 147,
 				"disagrees": 5,
 				"passes": 8
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 75,
+					"agrees": 76,
 					"disagrees": 2,
 					"passes": 6
 				},
 				{
 					"group_id": 1,
-					"agrees": 68,
+					"agrees": 69,
 					"disagrees": 3,
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.8225882352941176,
-			"divisiveness": 0.16219153558162916
+			"group_informed_consensus": 0.8246634026927785,
+			"divisiveness": 0.16209445788915247
 		},
 		{
 			"tid": 55,
 			"text": "New business is required but not at the expense of green belt land. Businesses should be kept in areas to keep residential properties pleasant to view and live in.",
 			"overall_votes": {
-				"agrees": 117,
+				"agrees": 119,
 				"disagrees": 19,
 				"passes": 19
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 47,
+					"agrees": 48,
 					"disagrees": 16,
 					"passes": 17
 				},
 				{
 					"group_id": 1,
-					"agrees": 70,
+					"agrees": 71,
 					"disagrees": 3,
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.5397529299968326,
-			"divisiveness": 0.9772899976621529
+			"group_informed_consensus": 0.5449490268767377,
+			"divisiveness": 0.9745037009879944
 		},
 		{
 			"tid": 56,
 			"text": "Give Consideration of where village centres can be pedestrianised to enable seating and community get togethers. Making it easier for all ages to engage with others.",
 			"overall_votes": {
-				"agrees": 112,
+				"agrees": 113,
 				"disagrees": 22,
 				"passes": 19
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 63,
+					"agrees": 64,
 					"disagrees": 5,
 					"passes": 12
 				},
@@ -1422,58 +1422,58 @@
 					"passes": 7
 				}
 			],
-			"group_informed_consensus": 0.5203252032520326,
-			"divisiveness": 0.724359030038474
+			"group_informed_consensus": 0.5220883534136548,
+			"divisiveness": 0.7275089043084078
 		},
 		{
 			"tid": 57,
 			"text": "Unless children live more than 1 mile from their school, they should be healthy, getting exercise and walk to school.",
 			"overall_votes": {
-				"agrees": 128,
+				"agrees": 130,
 				"disagrees": 23,
-				"passes": 14
+				"passes": 15
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 65,
+					"agrees": 66,
 					"disagrees": 9,
 					"passes": 12
 				},
 				{
 					"group_id": 1,
-					"agrees": 61,
+					"agrees": 62,
 					"disagrees": 14,
-					"passes": 2
+					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.5886075949367089,
-			"divisiveness": 0.6649180343009157
+			"group_informed_consensus": 0.5855181023720348,
+			"divisiveness": 0.6728191386582609
 		},
 		{
 			"tid": 58,
 			"text": "New developments must be accompanied by parking facilities for local shopping and using public transport.",
 			"overall_votes": {
-				"agrees": 134,
+				"agrees": 136,
 				"disagrees": 22,
 				"passes": 12
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 80,
+					"agrees": 81,
 					"disagrees": 4,
 					"passes": 7
 				},
 				{
 					"group_id": 1,
-					"agrees": 52,
+					"agrees": 53,
 					"disagrees": 18,
 					"passes": 5
 				}
 			],
-			"group_informed_consensus": 0.5994972769166318,
-			"divisiveness": 0.8019794970084964
+			"group_informed_consensus": 0.6039279869067102,
+			"divisiveness": 0.801379790045866
 		},
 		{
 			"tid": 59,
@@ -1481,14 +1481,14 @@
 			"overall_votes": {
 				"agrees": 105,
 				"disagrees": 22,
-				"passes": 34
+				"passes": 35
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 53,
 					"disagrees": 11,
-					"passes": 24
+					"passes": 25
 				},
 				{
 					"group_id": 1,
@@ -1497,21 +1497,21 @@
 					"passes": 10
 				}
 			],
-			"group_informed_consensus": 0.424,
-			"divisiveness": 0.9963496643110576
+			"group_informed_consensus": 0.41934065934065934,
+			"divisiveness": 1.015577886178436
 		},
 		{
 			"tid": 60,
 			"text": "Development should attract artisan shop keepers, and small new businesses.",
 			"overall_votes": {
-				"agrees": 121,
+				"agrees": 122,
 				"disagrees": 24,
 				"passes": 20
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 69,
+					"agrees": 70,
 					"disagrees": 8,
 					"passes": 13
 				},
@@ -1522,21 +1522,21 @@
 					"passes": 7
 				}
 			],
-			"group_informed_consensus": 0.5205949656750571,
-			"divisiveness": 0.9435338915341892
+			"group_informed_consensus": 0.522354272778721,
+			"divisiveness": 0.9475297624052684
 		},
 		{
 			"tid": 61,
 			"text": "Finance is need to improve schools, health care, leisure centre, roads, for the current number of houses",
 			"overall_votes": {
-				"agrees": 139,
+				"agrees": 140,
 				"disagrees": 9,
 				"passes": 12
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 72,
+					"agrees": 73,
 					"disagrees": 3,
 					"passes": 8
 				},
@@ -1547,8 +1547,8 @@
 					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.7472880061115356,
-			"divisiveness": 0.2970295819096763
+			"group_informed_consensus": 0.7487163998791906,
+			"divisiveness": 0.29825222561948184
 		},
 		{
 			"tid": 62,
@@ -1579,14 +1579,14 @@
 			"tid": 63,
 			"text": "The new homes should be one and two bedrooms, well built, energy saving and affordable.",
 			"overall_votes": {
-				"agrees": 88,
+				"agrees": 89,
 				"disagrees": 56,
 				"passes": 22
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 51,
+					"agrees": 52,
 					"disagrees": 21,
 					"passes": 17
 				},
@@ -1597,8 +1597,8 @@
 					"passes": 5
 				}
 			],
-			"group_informed_consensus": 0.274864376130199,
-			"divisiveness": 2.0586742524429646
+			"group_informed_consensus": 0.2771051183269125,
+			"divisiveness": 2.0654390034736583
 		},
 		{
 			"tid": 64,
@@ -1654,14 +1654,14 @@
 			"tid": 66,
 			"text": "It should also cater for the environment of wild life.",
 			"overall_votes": {
-				"agrees": 135,
+				"agrees": 136,
 				"disagrees": 7,
-				"passes": 14
+				"passes": 15
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 71,
+					"agrees": 72,
 					"disagrees": 1,
 					"passes": 10
 				},
@@ -1669,36 +1669,36 @@
 					"group_id": 1,
 					"agrees": 64,
 					"disagrees": 6,
-					"passes": 4
+					"passes": 5
 				}
 			],
-			"group_informed_consensus": 0.7330827067669172,
-			"divisiveness": 0.205293393045273
+			"group_informed_consensus": 0.7249809014514897,
+			"divisiveness": 0.21292378939164944
 		},
 		{
 			"tid": 67,
 			"text": "Car parking areas of the future should provide an open covering to provide shade in the increasing heatwaves, these covered car parks should also be topped with solar panels for electricity local use.",
 			"overall_votes": {
-				"agrees": 98,
+				"agrees": 101,
 				"disagrees": 49,
 				"passes": 17
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 60,
+					"agrees": 62,
 					"disagrees": 17,
 					"passes": 12
 				},
 				{
 					"group_id": 1,
-					"agrees": 38,
+					"agrees": 39,
 					"disagrees": 32,
 					"passes": 5
 				}
 			],
-			"group_informed_consensus": 0.33951762523191104,
-			"divisiveness": 1.7563416904291471
+			"group_informed_consensus": 0.34739454094292804,
+			"divisiveness": 1.759991156212754
 		},
 		{
 			"tid": 68,
@@ -1729,39 +1729,39 @@
 			"tid": 69,
 			"text": "More frequent and reliable public transport is required in villages whether or not we build more houses.",
 			"overall_votes": {
-				"agrees": 87,
+				"agrees": 90,
 				"disagrees": 12,
 				"passes": 8
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 50,
+					"agrees": 52,
 					"disagrees": 5,
 					"passes": 4
 				},
 				{
 					"group_id": 1,
-					"agrees": 37,
+					"agrees": 38,
 					"disagrees": 7,
 					"passes": 4
 				}
 			],
-			"group_informed_consensus": 0.6354098360655738,
-			"divisiveness": 0.5514336726386428
+			"group_informed_consensus": 0.6433239962651726,
+			"divisiveness": 0.5435719336149737
 		},
 		{
 			"tid": 70,
 			"text": "Small play areas for young children could be included. Government should allow youth clubs for teenagers not close them as they have in the past.",
 			"overall_votes": {
-				"agrees": 74,
+				"agrees": 75,
 				"disagrees": 3,
 				"passes": 7
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 37,
+					"agrees": 38,
 					"disagrees": 1,
 					"passes": 6
 				},
@@ -1772,33 +1772,33 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.7474120082815734,
-			"divisiveness": 0.1358156855205576
+			"group_informed_consensus": 0.7507598784194528,
+			"divisiveness": 0.1357014641087435
 		},
 		{
 			"tid": 71,
 			"text": "Local residents should have the final say regarding new developments.",
 			"overall_votes": {
-				"agrees": 51,
-				"disagrees": 18,
+				"agrees": 52,
+				"disagrees": 19,
 				"passes": 9
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 19,
-					"disagrees": 17,
+					"disagrees": 18,
 					"passes": 8
 				},
 				{
 					"group_id": 1,
-					"agrees": 32,
+					"agrees": 33,
 					"disagrees": 1,
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.3985507246376811,
-			"divisiveness": 1.4563184898867556
+			"group_informed_consensus": 0.39102932719954,
+			"divisiveness": 1.5122794421830443
 		},
 		{
 			"tid": 72,
@@ -1830,14 +1830,14 @@
 			"text": "It should not be an option to change ANY green belt land. It should remain greenbelt. If there are not enough houses then close our borders.",
 			"overall_votes": {
 				"agrees": 40,
-				"disagrees": 18,
+				"disagrees": 19,
 				"passes": 4
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 15,
-					"disagrees": 14,
+					"disagrees": 15,
 					"passes": 2
 				},
 				{
@@ -1847,33 +1847,33 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.4040404040404041,
-			"divisiveness": 1.1716633813304989
+			"group_informed_consensus": 0.392156862745098,
+			"divisiveness": 1.2354762890214
 		},
 		{
 			"tid": 74,
 			"text": "At least 50% social housing",
 			"overall_votes": {
-				"agrees": 20,
-				"disagrees": 60,
+				"agrees": 21,
+				"disagrees": 61,
 				"passes": 16
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 14,
+					"agrees": 15,
 					"disagrees": 27,
 					"passes": 15
 				},
 				{
 					"group_id": 1,
 					"agrees": 5,
-					"disagrees": 33,
+					"disagrees": 34,
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.03784693019343987,
-			"divisiveness": 1.9494656789743268
+			"group_informed_consensus": 0.038740920096852295,
+			"divisiveness": 1.9671175447170457
 		},
 		{
 			"tid": 75,
@@ -1929,14 +1929,14 @@
 			"tid": 77,
 			"text": "I agree with the idea of new villages, because there is a danger that we could end up in one large urban sprawl which would eventually merge into nearby cities and towns.  These villages should retain their own identity.",
 			"overall_votes": {
-				"agrees": 65,
+				"agrees": 66,
 				"disagrees": 16,
 				"passes": 20
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 41,
+					"agrees": 42,
 					"disagrees": 4,
 					"passes": 14
 				},
@@ -1947,47 +1947,47 @@
 					"passes": 6
 				}
 			],
-			"group_informed_consensus": 0.3842927945101029,
-			"divisiveness": 0.8561734488194982
+			"group_informed_consensus": 0.3870967741935483,
+			"divisiveness": 0.8572753418631285
 		},
 		{
 			"tid": 78,
 			"text": "there has to be a ceiling as how many houses that can be built \nSouth Staffordshire it is a rural county and we need the countryside",
 			"overall_votes": {
-				"agrees": 65,
-				"disagrees": 8,
+				"agrees": 66,
+				"disagrees": 9,
 				"passes": 6
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 32,
-					"disagrees": 8,
+					"disagrees": 9,
 					"passes": 6
 				},
 				{
 					"group_id": 1,
-					"agrees": 32,
+					"agrees": 33,
 					"disagrees": 0,
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.6672794117647058,
-			"divisiveness": 0.4754121672584932
+			"group_informed_consensus": 0.6542274052478134,
+			"divisiveness": 0.5171935144085616
 		},
 		{
 			"tid": 79,
 			"text": "Councillors should meet with residents at every stage of a development.",
 			"overall_votes": {
 				"agrees": 67,
-				"disagrees": 6,
+				"disagrees": 7,
 				"passes": 9
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 34,
-					"disagrees": 6,
+					"disagrees": 7,
 					"passes": 9
 				},
 				{
@@ -1997,21 +1997,21 @@
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.6666666666666666,
-			"divisiveness": 0.32602681219383706
+			"group_informed_consensus": 0.6538461538461539,
+			"divisiveness": 0.361008626079839
 		},
 		{
 			"tid": 80,
 			"text": "there should be AT LEAST 50% of houses for under privileged for a \nhousing association to make full use of",
 			"overall_votes": {
-				"agrees": 15,
+				"agrees": 16,
 				"disagrees": 44,
 				"passes": 10
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 11,
+					"agrees": 12,
 					"disagrees": 21,
 					"passes": 8
 				},
@@ -2022,8 +2022,8 @@
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.03809523809523809,
-			"divisiveness": 0.94236983146688
+			"group_informed_consensus": 0.04031007751937984,
+			"divisiveness": 0.957082505959156
 		},
 		{
 			"tid": 81,
@@ -2080,14 +2080,14 @@
 			"text": "Finance is needed to improve the roads and health care, not schools and leisure centre",
 			"overall_votes": {
 				"agrees": 34,
-				"disagrees": 28,
+				"disagrees": 30,
 				"passes": 18
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 16,
-					"disagrees": 16,
+					"disagrees": 18,
 					"passes": 12
 				},
 				{
@@ -2097,47 +2097,47 @@
 					"passes": 6
 				}
 			],
-			"group_informed_consensus": 0.18478260869565216,
-			"divisiveness": 1.1567550116020768
+			"group_informed_consensus": 0.17708333333333331,
+			"divisiveness": 1.1982534186129186
 		},
 		{
 			"tid": 84,
 			"text": "No more new houses.",
 			"overall_votes": {
 				"agrees": 10,
-				"disagrees": 20,
-				"passes": 3
+				"disagrees": 21,
+				"passes": 4
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 1,
-					"disagrees": 14,
+					"disagrees": 15,
 					"passes": 1
 				},
 				{
 					"group_id": 1,
 					"agrees": 9,
 					"disagrees": 6,
-					"passes": 2
+					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.05847953216374269,
-			"divisiveness": 1.0812536154480237
+			"group_informed_consensus": 0.05263157894736842,
+			"divisiveness": 1.11698896494128
 		},
 		{
 			"tid": 85,
 			"text": "Encouraging new business into a village environment will fracture the very fabiric of village life. The roads through these villages are very narrow so is the council thinking of widening the current system, no I think not, therefore I disagree.",
 			"overall_votes": {
 				"agrees": 19,
-				"disagrees": 22,
+				"disagrees": 23,
 				"passes": 15
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 8,
-					"disagrees": 14,
+					"disagrees": 15,
 					"passes": 8
 				},
 				{
@@ -2147,8 +2147,8 @@
 					"passes": 6
 				}
 			],
-			"group_informed_consensus": 0.11899038461538464,
-			"divisiveness": 0.7411230867514816
+			"group_informed_consensus": 0.1153846153846154,
+			"divisiveness": 0.7738928450628059
 		},
 		{
 			"tid": 86,
@@ -2255,25 +2255,25 @@
 			"text": "Solar is only a short term fix. Once the solar panels reach the end of their usable life they cannot currently be recycled. Invest in FUSION or Hydrogen clean fuels and no waste.",
 			"overall_votes": {
 				"agrees": 25,
-				"disagrees": 22,
-				"passes": 24
+				"disagrees": 23,
+				"passes": 25
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 8,
-					"disagrees": 16,
+					"disagrees": 17,
 					"passes": 16
 				},
 				{
 					"group_id": 1,
 					"agrees": 17,
 					"disagrees": 6,
-					"passes": 8
+					"passes": 9
 				}
 			],
-			"group_informed_consensus": 0.11688311688311688,
-			"divisiveness": 1.2743586038146235
+			"group_informed_consensus": 0.11080711354309164,
+			"divisiveness": 1.3154254717003466
 		},
 		{
 			"tid": 91,
@@ -2329,14 +2329,14 @@
 			"tid": 93,
 			"text": "Efficient and reliable public transport must be provided from when the first residents move into any new development even if that means a service having to be heavily subsidised. It is of no use waiting until the majority of houses are occupied as by then people's travel habits using private cars will have become established and it is very difficult to get them to change. Failure to do this results in even more traffic than at present.",
 			"overall_votes": {
-				"agrees": 72,
+				"agrees": 73,
 				"disagrees": 21,
 				"passes": 14
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 41,
+					"agrees": 42,
 					"disagrees": 9,
 					"passes": 11
 				},
@@ -2347,8 +2347,8 @@
 					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.4397163120567376,
-			"divisiveness": 1.0019830171642718
+			"group_informed_consensus": 0.4431515957446808,
+			"divisiveness": 1.002873134396771
 		},
 		{
 			"tid": 94,
@@ -2379,14 +2379,14 @@
 			"tid": 95,
 			"text": "We cannot avoid housing development as the population grows but \"not in my back yard\" (nimby) has to be avoided.",
 			"overall_votes": {
-				"agrees": 35,
+				"agrees": 36,
 				"disagrees": 30,
 				"passes": 12
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 28,
+					"agrees": 29,
 					"disagrees": 7,
 					"passes": 6
 				},
@@ -2397,8 +2397,8 @@
 					"passes": 6
 				}
 			],
-			"group_informed_consensus": 0.14198286413708688,
-			"divisiveness": 1.4029526704288935
+			"group_informed_consensus": 0.14354066985645933,
+			"divisiveness": 1.409673487234384
 		},
 		{
 			"tid": 96,
@@ -2454,14 +2454,14 @@
 			"tid": 98,
 			"text": "New developments should prioritise getting people in housing with a garden and access for cars",
 			"overall_votes": {
-				"agrees": 54,
+				"agrees": 55,
 				"disagrees": 12,
 				"passes": 10
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 32,
+					"agrees": 33,
 					"disagrees": 4,
 					"passes": 8
 				},
@@ -2472,8 +2472,8 @@
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.4782608695652174,
-			"divisiveness": 0.35166629911775776
+			"group_informed_consensus": 0.4822695035460993,
+			"divisiveness": 0.35027938681767695
 		},
 		{
 			"tid": 99,
@@ -2504,14 +2504,14 @@
 			"tid": 100,
 			"text": "Housing should be affordable but it should not be critical to be a home owner. New council housing to help families get started would be best.",
 			"overall_votes": {
-				"agrees": 58,
+				"agrees": 59,
 				"disagrees": 27,
 				"passes": 16
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 41,
+					"agrees": 42,
 					"disagrees": 7,
 					"passes": 10
 				},
@@ -2522,22 +2522,22 @@
 					"passes": 6
 				}
 			],
-			"group_informed_consensus": 0.27999999999999997,
-			"divisiveness": 1.2085101517284291
+			"group_informed_consensus": 0.2819672131147541,
+			"divisiveness": 1.2118861936502738
 		},
 		{
 			"tid": 101,
 			"text": "Covered car parks are a continental warm climate idea. They will not work in the UK as they will be vandalised, kids jumping on the roofs, graffiti, and moss and grass growing, because Staffordshire council do not carry out manitainance.",
 			"overall_votes": {
 				"agrees": 16,
-				"disagrees": 12,
+				"disagrees": 13,
 				"passes": 6
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 6,
-					"disagrees": 8,
+					"disagrees": 9,
 					"passes": 4
 				},
 				{
@@ -2547,8 +2547,8 @@
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.21388888888888888,
-			"divisiveness": 0.3811752260146497
+			"group_informed_consensus": 0.2037037037037037,
+			"divisiveness": 0.4099308004180016
 		},
 		{
 			"tid": 102,
@@ -2556,14 +2556,14 @@
 			"overall_votes": {
 				"agrees": 11,
 				"disagrees": 3,
-				"passes": 10
+				"passes": 11
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 5,
 					"disagrees": 2,
-					"passes": 5
+					"passes": 6
 				},
 				{
 					"group_id": 1,
@@ -2572,8 +2572,8 @@
 					"passes": 5
 				}
 			],
-			"group_informed_consensus": 0.21428571428571427,
-			"divisiveness": 0.08664861204459412
+			"group_informed_consensus": 0.2,
+			"divisiveness": 0.0901726908026912
 		},
 		{
 			"tid": 103,
@@ -2954,26 +2954,26 @@
 			"tid": 118,
 			"text": "If you build there is less space for everyone including wildlife and we reduce our ability to be self sufficient in food.",
 			"overall_votes": {
-				"agrees": 51,
-				"disagrees": 18,
-				"passes": 10
+				"agrees": 53,
+				"disagrees": 19,
+				"passes": 11
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 22,
-					"disagrees": 15,
-					"passes": 7
+					"disagrees": 16,
+					"passes": 8
 				},
 				{
 					"group_id": 1,
-					"agrees": 28,
+					"agrees": 30,
 					"disagrees": 3,
 					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.40277777777777773,
-			"divisiveness": 1.290901102804392
+			"group_informed_consensus": 0.3908991228070175,
+			"divisiveness": 1.3373210503402244
 		},
 		{
 			"tid": 119,
@@ -3004,26 +3004,26 @@
 			"tid": 120,
 			"text": "No new developments - then no need for additional parking, besides where are you going to put a new car park in a village?",
 			"overall_votes": {
-				"agrees": 24,
-				"disagrees": 28,
+				"agrees": 25,
+				"disagrees": 29,
 				"passes": 19
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 5,
-					"disagrees": 19,
+					"disagrees": 20,
 					"passes": 16
 				},
 				{
 					"group_id": 1,
-					"agrees": 19,
+					"agrees": 20,
 					"disagrees": 9,
 					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.08658008658008658,
-			"divisiveness": 1.724431468474545
+			"group_informed_consensus": 0.08618331053351573,
+			"divisiveness": 1.768712630882206
 		},
 		{
 			"tid": 121,
@@ -3080,14 +3080,14 @@
 			"text": "No need for climate proofing and we don't want new developments.",
 			"overall_votes": {
 				"agrees": 21,
-				"disagrees": 39,
+				"disagrees": 40,
 				"passes": 10
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 3,
-					"disagrees": 28,
+					"disagrees": 29,
 					"passes": 7
 				},
 				{
@@ -3097,8 +3097,8 @@
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.057575757575757586,
-			"divisiveness": 1.9031026788386296
+			"group_informed_consensus": 0.05617147080561715,
+			"divisiveness": 1.9513781843389293
 		},
 		{
 			"tid": 124,
@@ -3129,26 +3129,26 @@
 			"tid": 125,
 			"text": "New housing should be accompanied by expansion in school places, medical services, public transport and road infrastructure",
 			"overall_votes": {
-				"agrees": 75,
+				"agrees": 77,
 				"disagrees": 2,
 				"passes": 4
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 40,
+					"agrees": 41,
 					"disagrees": 1,
 					"passes": 3
 				},
 				{
 					"group_id": 1,
-					"agrees": 35,
+					"agrees": 36,
 					"disagrees": 1,
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.8227424749163879,
-			"divisiveness": 0.05928626614621464
+			"group_informed_consensus": 0.8265957446808511,
+			"divisiveness": 0.05862359984552656
 		},
 		{
 			"tid": 126,
@@ -3179,15 +3179,15 @@
 			"tid": 127,
 			"text": "As we have a lot of canal in the area, canal boats should be recognised as homes so access to services is more available to boat dwellers",
 			"overall_votes": {
-				"agrees": 61,
-				"disagrees": 22,
+				"agrees": 62,
+				"disagrees": 23,
 				"passes": 21
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 40,
-					"disagrees": 7,
+					"agrees": 41,
+					"disagrees": 8,
 					"passes": 12
 				},
 				{
@@ -3197,8 +3197,8 @@
 					"passes": 9
 				}
 			],
-			"group_informed_consensus": 0.3146145797000349,
-			"divisiveness": 1.2933902986541597
+			"group_informed_consensus": 0.3120567375886525,
+			"divisiveness": 1.3032221999565727
 		},
 		{
 			"tid": 128,
@@ -3254,39 +3254,39 @@
 			"tid": 130,
 			"text": "I do not agree with more houses until existing infrastructure is IMPROVED and roads fixed properly",
 			"overall_votes": {
-				"agrees": 58,
+				"agrees": 60,
 				"disagrees": 8,
 				"passes": 11
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 25,
+					"agrees": 26,
 					"disagrees": 7,
 					"passes": 9
 				},
 				{
 					"group_id": 1,
-					"agrees": 33,
+					"agrees": 34,
 					"disagrees": 1,
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.5556253928346951,
-			"divisiveness": 0.6777419157672624
+			"group_informed_consensus": 0.5651913875598086,
+			"divisiveness": 0.668242562156261
 		},
 		{
 			"tid": 131,
 			"text": "Public footpaths and canal tow paths should have measures to prevent or discourage anti-social, fast cycling on push bikes and particularly motorised bikes, while not hindering responsible cyclists, mobility vehicles and pushchairs",
 			"overall_votes": {
-				"agrees": 65,
+				"agrees": 66,
 				"disagrees": 7,
 				"passes": 7
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 34,
+					"agrees": 35,
 					"disagrees": 3,
 					"passes": 7
 				},
@@ -3297,33 +3297,33 @@
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.6580493537015276,
-			"divisiveness": 0.3134488670883348
+			"group_informed_consensus": 0.6624496837262795,
+			"divisiveness": 0.3128858521902398
 		},
 		{
 			"tid": 132,
 			"text": "New housing developments over a minimum size should include safe spaces and equipment for children to play",
 			"overall_votes": {
-				"agrees": 83,
+				"agrees": 86,
 				"disagrees": 11,
 				"passes": 9
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 52,
+					"agrees": 54,
 					"disagrees": 2,
 					"passes": 5
 				},
 				{
 					"group_id": 1,
-					"agrees": 31,
+					"agrees": 32,
 					"disagrees": 9,
 					"passes": 4
 				}
 			],
-			"group_informed_consensus": 0.6044191019244477,
-			"divisiveness": 0.6015302829853258
+			"group_informed_consensus": 0.6129685916919959,
+			"divisiveness": 0.5935725293205838
 		},
 		{
 			"tid": 133,
@@ -3331,14 +3331,14 @@
 			"overall_votes": {
 				"agrees": 65,
 				"disagrees": 7,
-				"passes": 8
+				"passes": 9
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 31,
 					"disagrees": 4,
-					"passes": 7
+					"passes": 8
 				},
 				{
 					"group_id": 1,
@@ -3347,8 +3347,8 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.6340326340326341,
-			"divisiveness": 0.4660731319912339
+			"group_informed_consensus": 0.6199430199430199,
+			"divisiveness": 0.48765102666330273
 		},
 		{
 			"tid": 134,
@@ -3379,14 +3379,14 @@
 			"tid": 135,
 			"text": "No new housing until existing infrastructure has been improved to the level that more than needed by existing housing , to allow for growth of the area",
 			"overall_votes": {
-				"agrees": 53,
+				"agrees": 54,
 				"disagrees": 10,
 				"passes": 11
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 22,
+					"agrees": 23,
 					"disagrees": 8,
 					"passes": 10
 				},
@@ -3397,33 +3397,33 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.4850340136054421,
-			"divisiveness": 0.8152694480873561
+			"group_informed_consensus": 0.4943521594684385,
+			"divisiveness": 0.8122395334529837
 		},
 		{
 			"tid": 136,
 			"text": "Affordable electric vehicle charging points should be provided close to flats and housing that does not have space to have their own charging points. Prices should be in line with what people pay for electric vehicle charging on their own property, otherwise people living in flats are being disadvantaged.",
 			"overall_votes": {
-				"agrees": 75,
+				"agrees": 77,
 				"disagrees": 17,
 				"passes": 14
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 46,
+					"agrees": 47,
 					"disagrees": 5,
 					"passes": 8
 				},
 				{
 					"group_id": 1,
-					"agrees": 29,
+					"agrees": 30,
 					"disagrees": 11,
 					"passes": 6
 				}
 			],
-			"group_informed_consensus": 0.4815573770491804,
-			"divisiveness": 0.6477440761734029
+			"group_informed_consensus": 0.48979591836734687,
+			"divisiveness": 0.6430961826064346
 		},
 		{
 			"tid": 137,
@@ -3479,14 +3479,14 @@
 			"tid": 139,
 			"text": "When a company is permitted to dig up a road, they should be required to relay the road surface to a high quality. If it disintegrates within a certain minimum time, they should be required to relay the surface again for free and/or be fined the cost of closing the road and relaying.",
 			"overall_votes": {
-				"agrees": 68,
+				"agrees": 69,
 				"disagrees": 1,
 				"passes": 6
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 35,
+					"agrees": 36,
 					"disagrees": 1,
 					"passes": 5
 				},
@@ -3497,8 +3497,8 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.7906976744186046,
-			"divisiveness": 0.07670375837459346
+			"group_informed_consensus": 0.7941919191919192,
+			"divisiveness": 0.07646939774933752
 		},
 		{
 			"tid": 140,
@@ -3529,14 +3529,14 @@
 			"tid": 141,
 			"text": "Public libraries should be run by the council",
 			"overall_votes": {
-				"agrees": 44,
+				"agrees": 45,
 				"disagrees": 4,
 				"passes": 9
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 25,
+					"agrees": 26,
 					"disagrees": 3,
 					"passes": 5
 				},
@@ -3547,21 +3547,21 @@
 					"passes": 4
 				}
 			],
-			"group_informed_consensus": 0.5645714285714286,
-			"divisiveness": 0.14929292461725666
+			"group_informed_consensus": 0.5700000000000001,
+			"divisiveness": 0.14781789437757054
 		},
 		{
 			"tid": 142,
 			"text": "There should be an environmentally friendly funeral process available in the area",
 			"overall_votes": {
-				"agrees": 19,
+				"agrees": 20,
 				"disagrees": 8,
 				"passes": 10
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 12,
+					"agrees": 13,
 					"disagrees": 1,
 					"passes": 8
 				},
@@ -3572,8 +3572,8 @@
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.251207729468599,
-			"divisiveness": 0.3788766615005301
+			"group_informed_consensus": 0.2592592592592592,
+			"divisiveness": 0.37971129346119575
 		},
 		{
 			"tid": 143,
@@ -3604,14 +3604,14 @@
 			"tid": 144,
 			"text": "There should be redistribution of wealth such that there is no need for food banks and no child goes hungry",
 			"overall_votes": {
-				"agrees": 12,
+				"agrees": 13,
 				"disagrees": 11,
 				"passes": 6
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 9,
+					"agrees": 10,
 					"disagrees": 5,
 					"passes": 2
 				},
@@ -3622,22 +3622,22 @@
 					"passes": 4
 				}
 			],
-			"group_informed_consensus": 0.14814814814814814,
-			"divisiveness": 0.3714889407818446
+			"group_informed_consensus": 0.1543859649122807,
+			"divisiveness": 0.3739671007000466
 		},
 		{
 			"tid": 145,
 			"text": "The unnecessary construction of these new developments creates the public transport issue",
 			"overall_votes": {
 				"agrees": 41,
-				"disagrees": 24,
+				"disagrees": 25,
 				"passes": 15
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 13,
-					"disagrees": 17,
+					"disagrees": 18,
 					"passes": 12
 				},
 				{
@@ -3647,8 +3647,8 @@
 					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.22843822843822845,
-			"divisiveness": 1.5160314592664563
+			"group_informed_consensus": 0.22336182336182336,
+			"divisiveness": 1.570251506300658
 		},
 		{
 			"tid": 146,
@@ -3704,14 +3704,14 @@
 			"tid": 148,
 			"text": "Greater consideration should be given to allowing disabled people to build a home that meets their specific needs, particularly where the land has been in their family’s ownership for generations.",
 			"overall_votes": {
-				"agrees": 43,
+				"agrees": 44,
 				"disagrees": 12,
-				"passes": 13
+				"passes": 14
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 23,
+					"agrees": 24,
 					"disagrees": 4,
 					"passes": 10
 				},
@@ -3719,11 +3719,11 @@
 					"group_id": 1,
 					"agrees": 20,
 					"disagrees": 8,
-					"passes": 3
+					"passes": 4
 				}
 			],
-			"group_informed_consensus": 0.3916083916083916,
-			"divisiveness": 0.3084142595491105
+			"group_informed_consensus": 0.3860294117647059,
+			"divisiveness": 0.3112921274008495
 		},
 		{
 			"tid": 149,
@@ -3754,14 +3754,14 @@
 			"tid": 150,
 			"text": "New developments should only be allowed with a suitable infrastructure including schools, shops, public transport, and suitable off road parking",
 			"overall_votes": {
-				"agrees": 74,
+				"agrees": 76,
 				"disagrees": 1,
 				"passes": 4
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 42,
+					"agrees": 44,
 					"disagrees": 1,
 					"passes": 3
 				},
@@ -3772,8 +3772,8 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.8431372549019607,
-			"divisiveness": 0.04441971677846821
+			"group_informed_consensus": 0.8470588235294118,
+			"divisiveness": 0.043957715387810785
 		},
 		{
 			"tid": 151,
@@ -3804,14 +3804,14 @@
 			"tid": 152,
 			"text": "At least 25% of new build accommodation should be available for social housing. This would deter people moving out of South Staffordshire solely to seek affordable housing.",
 			"overall_votes": {
-				"agrees": 39,
+				"agrees": 40,
 				"disagrees": 24,
 				"passes": 14
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 28,
+					"agrees": 29,
 					"disagrees": 5,
 					"passes": 11
 				},
@@ -3822,8 +3822,8 @@
 					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.21614906832298136,
-			"divisiveness": 1.1182731843459597
+			"group_informed_consensus": 0.2188449848024316,
+			"divisiveness": 1.1219765627657905
 		},
 		{
 			"tid": 153,
@@ -3879,26 +3879,26 @@
 			"tid": 155,
 			"text": "Has anyone thought about smaller buses.  The ones we have at the moment seem to be the same as the ones used in large towns. It must be expensive to run and maintain these.  They are not always full and run infrequently.  There needs to be regular buses to villages that people can rely on and therefor less reliant on cars",
 			"overall_votes": {
-				"agrees": 58,
+				"agrees": 60,
 				"disagrees": 7,
-				"passes": 9
+				"passes": 10
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 32,
+					"agrees": 33,
 					"disagrees": 3,
 					"passes": 5
 				},
 				{
 					"group_id": 1,
-					"agrees": 26,
+					"agrees": 27,
 					"disagrees": 4,
-					"passes": 4
+					"passes": 5
 				}
 			],
-			"group_informed_consensus": 0.5892857142857143,
-			"divisiveness": 0.164004066131686
+			"group_informed_consensus": 0.5826193390452876,
+			"divisiveness": 0.1656056574288364
 		},
 		{
 			"tid": 156,
@@ -3930,14 +3930,14 @@
 			"text": "Children will not play in these green spaces unless with parents as it is unsafe to do so. So building with green spaces is a waste of time and money, therefore do not build to start with.",
 			"overall_votes": {
 				"agrees": 15,
-				"disagrees": 43,
+				"disagrees": 44,
 				"passes": 13
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 6,
-					"disagrees": 26,
+					"disagrees": 27,
 					"passes": 8
 				},
 				{
@@ -3947,8 +3947,8 @@
 					"passes": 5
 				}
 			],
-			"group_informed_consensus": 0.050505050505050504,
-			"divisiveness": 1.2670306271915162
+			"group_informed_consensus": 0.049330514446793525,
+			"divisiveness": 1.2980941046296763
 		},
 		{
 			"tid": 158,
@@ -4005,25 +4005,25 @@
 			"text": "Highly unlikely in South Staffs people living in flats could afford an EV. This is not London, so the question is not realistic. There is enough EV charging points at filling stations, pubs, and supermarkets.",
 			"overall_votes": {
 				"agrees": 26,
-				"disagrees": 28,
+				"disagrees": 30,
 				"passes": 17
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 7,
-					"disagrees": 21,
+					"disagrees": 22,
 					"passes": 13
 				},
 				{
 					"group_id": 1,
 					"agrees": 18,
-					"disagrees": 7,
+					"disagrees": 8,
 					"passes": 4
 				}
 			],
-			"group_informed_consensus": 0.1140285071267817,
-			"divisiveness": 1.2865157554991926
+			"group_informed_consensus": 0.10795454545454546,
+			"divisiveness": 1.3253589396628314
 		},
 		{
 			"tid": 161,
@@ -4080,14 +4080,14 @@
 			"text": "The planning process should allow for easier ways to protest against applications. Currently this is difficult because authorities need to fulfill government quotas",
 			"overall_votes": {
 				"agrees": 49,
-				"disagrees": 16,
+				"disagrees": 17,
 				"passes": 11
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 19,
-					"disagrees": 14,
+					"disagrees": 15,
 					"passes": 11
 				},
 				{
@@ -4097,8 +4097,8 @@
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.39641943734015345,
-			"divisiveness": 1.1786026991527323
+			"group_informed_consensus": 0.3879849812265332,
+			"divisiveness": 1.2390189577044397
 		},
 		{
 			"tid": 164,
@@ -4130,25 +4130,25 @@
 			"text": "Canal boat owners could be classed as displaced people as they can move on at a minuites notice, so the council has made all these provisions and wasted tax payers money again.",
 			"overall_votes": {
 				"agrees": 4,
-				"disagrees": 2,
-				"passes": 3
+				"disagrees": 3,
+				"passes": 5
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 2,
-					"disagrees": 2,
-					"passes": 1
+					"disagrees": 3,
+					"passes": 2
 				},
 				{
 					"group_id": 1,
 					"agrees": 2,
 					"disagrees": 0,
-					"passes": 2
+					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.21428571428571427,
-			"divisiveness": 0.08600328667523395
+			"group_informed_consensus": 0.14285714285714285,
+			"divisiveness": 0.14128622401951285
 		},
 		{
 			"tid": 166,
@@ -4279,14 +4279,14 @@
 			"tid": 171,
 			"text": "Our roads are blighted with pot holes. The introduction of bus routes on unsuitable residential streets with less than 50mm substrate has decimated local roads and devalued properties. If your going to have a bus route ensure the street is properly surfaced first.",
 			"overall_votes": {
-				"agrees": 64,
+				"agrees": 65,
 				"disagrees": 3,
 				"passes": 12
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 34,
+					"agrees": 35,
 					"disagrees": 2,
 					"passes": 8
 				},
@@ -4297,8 +4297,8 @@
 					"passes": 4
 				}
 			],
-			"group_informed_consensus": 0.6340579710144927,
-			"divisiveness": 0.12871268078864417
+			"group_informed_consensus": 0.6382978723404255,
+			"divisiveness": 0.12816251090148362
 		},
 		{
 			"tid": 172,
@@ -4329,39 +4329,39 @@
 			"tid": 173,
 			"text": "We need to ensure there is adequate provision for our aging population, This can be a mix of purpose built small communities and homes within new builds. This will allow those who want to remain local to do so and those that want to join a like community to do that.",
 			"overall_votes": {
-				"agrees": 30,
+				"agrees": 32,
 				"disagrees": 2,
 				"passes": 3
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 16,
+					"agrees": 17,
 					"disagrees": 1,
 					"passes": 2
 				},
 				{
 					"group_id": 1,
-					"agrees": 13,
+					"agrees": 14,
 					"disagrees": 1,
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.6666666666666666,
-			"divisiveness": 0.08503624569291392
+			"group_informed_consensus": 0.6818181818181818,
+			"divisiveness": 0.08252599693965537
 		},
 		{
 			"tid": 174,
 			"text": "We need to ensure there is plenty of smaller and cheaper accommodation mixed into new builds to allow younger people to get a foothold on the housing ladder.",
 			"overall_votes": {
-				"agrees": 33,
+				"agrees": 34,
 				"disagrees": 4,
 				"passes": 2
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 19,
+					"agrees": 20,
 					"disagrees": 0,
 					"passes": 2
 				},
@@ -4372,21 +4372,21 @@
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.6521739130434783,
-			"divisiveness": 0.09967247049894302
+			"group_informed_consensus": 0.65625,
+			"divisiveness": 0.09907136510919748
 		},
 		{
 			"tid": 175,
 			"text": "New build areas should include proper provision for walking, cycling, motoring and public transport.",
 			"overall_votes": {
-				"agrees": 36,
+				"agrees": 37,
 				"disagrees": 1,
 				"passes": 4
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 21,
+					"agrees": 22,
 					"disagrees": 0,
 					"passes": 2
 				},
@@ -4397,46 +4397,46 @@
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.7040000000000001,
-			"divisiveness": 0.05607360290389712
+			"group_informed_consensus": 0.7076923076923078,
+			"divisiveness": 0.05555345093837505
 		},
 		{
 			"tid": 176,
 			"text": "New properties should include provision for adequate parking of vehicles. Those for single people should have one parking space, small starter homes should have 50% of them having 2 spaces with family homes having 2 spaces and again some having 3 spaces and larger family homes at least 3 spaces.\nThis will allow enough space for current vehicle use.",
 			"overall_votes": {
-				"agrees": 26,
+				"agrees": 28,
 				"disagrees": 2,
 				"passes": 8
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 17,
+					"agrees": 18,
 					"disagrees": 0,
 					"passes": 5
 				},
 				{
 					"group_id": 1,
-					"agrees": 9,
+					"agrees": 10,
 					"disagrees": 2,
 					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.46875,
-			"divisiveness": 0.1182795611031995
+			"group_informed_consensus": 0.491764705882353,
+			"divisiveness": 0.11462743999280411
 		},
 		{
 			"tid": 177,
 			"text": "New properties of all sizes should have electric car charging points accessible with their parking spaces.",
 			"overall_votes": {
-				"agrees": 23,
+				"agrees": 24,
 				"disagrees": 10,
 				"passes": 6
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 16,
+					"agrees": 17,
 					"disagrees": 3,
 					"passes": 4
 				},
@@ -4447,21 +4447,21 @@
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.3022222222222222,
-			"divisiveness": 0.3733087999794379
+			"group_informed_consensus": 0.30769230769230765,
+			"divisiveness": 0.37348833546532695
 		},
 		{
 			"tid": 178,
 			"text": "New estates should have all mains services easily accessible to the companies. This may mean running them through, say underground tunnels, with regular access points.\nThis would cost more initially, but reduce future maintenance costs, and allow additions to be made to areas without the constant digging up of roads and pavements.",
 			"overall_votes": {
-				"agrees": 27,
+				"agrees": 29,
 				"disagrees": 4,
 				"passes": 10
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 13,
+					"agrees": 15,
 					"disagrees": 4,
 					"passes": 7
 				},
@@ -4472,21 +4472,21 @@
 					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.42510121457489886,
-			"divisiveness": 0.4704875892297882
+			"group_informed_consensus": 0.45112781954887216,
+			"divisiveness": 0.4565088675626543
 		},
 		{
 			"tid": 179,
 			"text": "The council should prioritise brownfield sites, followed by bringing unlived in properties back into use and then green belt land for development.",
 			"overall_votes": {
-				"agrees": 30,
+				"agrees": 31,
 				"disagrees": 1,
 				"passes": 6
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 14,
+					"agrees": 15,
 					"disagrees": 1,
 					"passes": 6
 				},
@@ -4497,21 +4497,21 @@
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.6159420289855072,
-			"divisiveness": 0.09519493306654328
+			"group_informed_consensus": 0.6296296296296295,
+			"divisiveness": 0.0935932728225776
 		},
 		{
 			"tid": 180,
 			"text": "Cycleways should be promoted separately from bridlepaths",
 			"overall_votes": {
-				"agrees": 20,
+				"agrees": 21,
 				"disagrees": 10,
-				"passes": 10
+				"passes": 11
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 10,
+					"agrees": 11,
 					"disagrees": 6,
 					"passes": 6
 				},
@@ -4519,24 +4519,24 @@
 					"group_id": 1,
 					"agrees": 10,
 					"disagrees": 4,
-					"passes": 3
+					"passes": 4
 				}
 			],
-			"group_informed_consensus": 0.26535087719298245,
-			"divisiveness": 0.492070045570489
+			"group_informed_consensus": 0.264,
+			"divisiveness": 0.4919140346079764
 		},
 		{
 			"tid": 181,
 			"text": "Bridleways should be separate as horses make footpaths inaccessible in muddy conditions",
 			"overall_votes": {
-				"agrees": 26,
+				"agrees": 27,
 				"disagrees": 10,
 				"passes": 5
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 14,
+					"agrees": 15,
 					"disagrees": 6,
 					"passes": 3
 				},
@@ -4547,8 +4547,8 @@
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.39,
-			"divisiveness": 0.5531356790767424
+			"group_informed_consensus": 0.4,
+			"divisiveness": 0.546182536230597
 		},
 		{
 			"tid": 182,
@@ -4604,14 +4604,14 @@
 			"tid": 184,
 			"text": "Elderly people homes should be well designed for health eventualities. Shower rooms open plan living to enable easy movement of wheelchair or walkers and easy access with support handles already in place.",
 			"overall_votes": {
-				"agrees": 30,
+				"agrees": 31,
 				"disagrees": 0,
 				"passes": 5
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 15,
+					"agrees": 16,
 					"disagrees": 0,
 					"passes": 3
 				},
@@ -4622,21 +4622,21 @@
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.6666666666666666,
-			"divisiveness": 0.008370600370128182
+			"group_informed_consensus": 0.6746031746031745,
+			"divisiveness": 0.008140973789130647
 		},
 		{
 			"tid": 185,
 			"text": "New developments should be around large towns - leave our villages as villages  as they provide character to the county",
 			"overall_votes": {
-				"agrees": 24,
+				"agrees": 25,
 				"disagrees": 6,
 				"passes": 4
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 9,
+					"agrees": 10,
 					"disagrees": 4,
 					"passes": 4
 				},
@@ -4647,8 +4647,8 @@
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.4432132963988919,
-			"divisiveness": 0.3330574561650828
+			"group_informed_consensus": 0.4631578947368421,
+			"divisiveness": 0.3249398724391482
 		},
 		{
 			"tid": 186,
@@ -4679,14 +4679,14 @@
 			"tid": 187,
 			"text": "South Staffs has become a motorway corridor and needs to preserve existing villages to retain some character in the county. All new housing should be on brownfield land in and around the cities and towns.",
 			"overall_votes": {
-				"agrees": 25,
+				"agrees": 26,
 				"disagrees": 3,
 				"passes": 5
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 9,
+					"agrees": 10,
 					"disagrees": 3,
 					"passes": 4
 				},
@@ -4697,8 +4697,8 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.4970760233918128,
-			"divisiveness": 0.33522999013087856
+			"group_informed_consensus": 0.5180055401662049,
+			"divisiveness": 0.32859400246742565
 		},
 		{
 			"tid": 188,
@@ -4780,14 +4780,14 @@
 			"text": "New developments should only be allowed with local residents agreement. This should be enhanced in law.",
 			"overall_votes": {
 				"agrees": 21,
-				"disagrees": 10,
+				"disagrees": 11,
 				"passes": 4
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 5,
-					"disagrees": 10,
+					"disagrees": 11,
 					"passes": 3
 				},
 				{
@@ -4797,8 +4797,8 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.26842105263157895,
-			"divisiveness": 0.7424371257022676
+			"group_informed_consensus": 0.25563909774436083,
+			"divisiveness": 0.8009197101830127
 		},
 		{
 			"tid": 192,
@@ -4879,14 +4879,14 @@
 			"tid": 195,
 			"text": "Green belt should absolutely be the last resort, far too often derelict unused land is left under utilised",
 			"overall_votes": {
-				"agrees": 25,
+				"agrees": 26,
 				"disagrees": 3,
 				"passes": 2
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 10,
+					"agrees": 11,
 					"disagrees": 3,
 					"passes": 2
 				},
@@ -4897,8 +4897,8 @@
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.6089965397923875,
-			"divisiveness": 0.17481326485752982
+			"group_informed_consensus": 0.6274509803921569,
+			"divisiveness": 0.17098988834922493
 		},
 		{
 			"tid": 196,
@@ -4955,14 +4955,14 @@
 			"text": "South Staffordshire contains alot of rural villages. Residents should be able to set the maximum for any residential development size of number of houses as well the overall capacity the village can take over the plan period. Example Trysull max 5 houses per development and total of 15 houses in plan period.",
 			"overall_votes": {
 				"agrees": 20,
-				"disagrees": 7,
+				"disagrees": 8,
 				"passes": 6
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 6,
-					"disagrees": 5,
+					"disagrees": 6,
 					"passes": 6
 				},
 				{
@@ -4972,47 +4972,47 @@
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.3070175438596491,
-			"divisiveness": 0.46686417742761216
+			"group_informed_consensus": 0.2916666666666667,
+			"divisiveness": 0.5094337506928047
 		},
 		{
 			"tid": 199,
 			"text": "Climate proof should not mean off setting, buying carbon credits. It should mean actually, physically reducing carbon as well as other waste products and having capture as well as responsible disposal, or captured storage.",
 			"overall_votes": {
-				"agrees": 23,
+				"agrees": 24,
 				"disagrees": 5,
-				"passes": 6
+				"passes": 7
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 10,
 					"disagrees": 3,
-					"passes": 3
+					"passes": 4
 				},
 				{
 					"group_id": 1,
-					"agrees": 12,
+					"agrees": 13,
 					"disagrees": 2,
 					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.4181286549707601,
-			"divisiveness": 0.28661014590749895
+			"group_informed_consensus": 0.4052631578947369,
+			"divisiveness": 0.29424040301239807
 		},
 		{
 			"tid": 200,
 			"text": "New developments should prioritise getting people in housing with a garden however not all properties require access for cars, as not everyone owns a private vehicle.",
 			"overall_votes": {
 				"agrees": 7,
-				"disagrees": 17,
+				"disagrees": 18,
 				"passes": 6
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 4,
-					"disagrees": 7,
+					"disagrees": 8,
 					"passes": 4
 				},
 				{
@@ -5022,8 +5022,8 @@
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.06920415224913495,
-			"divisiveness": 0.53971932911772
+			"group_informed_consensus": 0.06535947712418301,
+			"divisiveness": 0.5510072343019439
 		},
 		{
 			"tid": 201,
@@ -5054,14 +5054,14 @@
 			"tid": 202,
 			"text": "The local community who have lived here all their lives must be prioritised for housing, jobs, schools and healthcare.",
 			"overall_votes": {
-				"agrees": 19,
+				"agrees": 20,
 				"disagrees": 11,
 				"passes": 7
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 9,
+					"agrees": 10,
 					"disagrees": 7,
 					"passes": 3
 				},
@@ -5072,21 +5072,21 @@
 					"passes": 4
 				}
 			],
-			"group_informed_consensus": 0.2619047619047619,
-			"divisiveness": 0.4234103406242641
+			"group_informed_consensus": 0.275,
+			"divisiveness": 0.4124332294476713
 		},
 		{
 			"tid": 203,
 			"text": "We do not need more out of village businesses such as burger shops and barbers that do not support employment of the local community.",
 			"overall_votes": {
-				"agrees": 29,
+				"agrees": 30,
 				"disagrees": 3,
 				"passes": 4
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 13,
+					"agrees": 14,
 					"disagrees": 3,
 					"passes": 3
 				},
@@ -5097,8 +5097,8 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.5964912280701753,
-			"divisiveness": 0.0860186953192015
+			"group_informed_consensus": 0.6100478468899522,
+			"divisiveness": 0.08329449964308595
 		},
 		{
 			"tid": 204,
@@ -5129,26 +5129,26 @@
 			"tid": 205,
 			"text": "A broad range of residential accommodation is required to accommodate the needs of the district, both young and old.",
 			"overall_votes": {
-				"agrees": 29,
+				"agrees": 31,
 				"disagrees": 4,
 				"passes": 3
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 18,
+					"agrees": 19,
 					"disagrees": 0,
 					"passes": 1
 				},
 				{
 					"group_id": 1,
-					"agrees": 11,
+					"agrees": 12,
 					"disagrees": 4,
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.5714285714285713,
-			"divisiveness": 0.14291716029172458
+			"group_informed_consensus": 0.5909090909090909,
+			"divisiveness": 0.13781192338376114
 		},
 		{
 			"tid": 206,
@@ -5205,50 +5205,50 @@
 			"text": "Growth should be proportionally spread",
 			"overall_votes": {
 				"agrees": 27,
-				"disagrees": 4,
+				"disagrees": 6,
 				"passes": 4
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 13,
-					"disagrees": 2,
+					"disagrees": 3,
 					"passes": 2
 				},
 				{
 					"group_id": 1,
 					"agrees": 14,
-					"disagrees": 2,
+					"disagrees": 3,
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.5526315789473684,
-			"divisiveness": 0.14518492276694453
+			"group_informed_consensus": 0.5,
+			"divisiveness": 0.17289200449070052
 		},
 		{
 			"tid": 209,
 			"text": "Walking is mentioned - we need more pavements/space along roads to walk safely, this is impossible along the A449 in many places.",
 			"overall_votes": {
-				"agrees": 24,
+				"agrees": 26,
 				"disagrees": 3,
 				"passes": 6
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 12,
+					"agrees": 13,
 					"disagrees": 1,
 					"passes": 4
 				},
 				{
 					"group_id": 1,
-					"agrees": 12,
+					"agrees": 13,
 					"disagrees": 2,
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.4941520467836257,
-			"divisiveness": 0.15720922294918688
+			"group_informed_consensus": 0.5157894736842106,
+			"divisiveness": 0.15021251559375115
 		},
 		{
 			"tid": 210,
@@ -5354,26 +5354,26 @@
 			"tid": 214,
 			"text": "There will always be vehicles - whether personal or communal so there should be sufficient space for them to be parked to individual premises and for shops and also the roads need to be wide enough for them to pass safely and not possibly collide with each other, as happens around and in Kinver. More traffic means more road surface erosion and more maintenance costs - that should be thought about too..",
 			"overall_votes": {
-				"agrees": 27,
+				"agrees": 29,
 				"disagrees": 4,
-				"passes": 4
+				"passes": 5
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 14,
+					"agrees": 15,
 					"disagrees": 2,
 					"passes": 3
 				},
 				{
 					"group_id": 1,
-					"agrees": 13,
+					"agrees": 14,
 					"disagrees": 2,
-					"passes": 1
+					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.5555555555555554,
-			"divisiveness": 0.05992567810842983
+			"group_informed_consensus": 0.5454545454545454,
+			"divisiveness": 0.06261679546366407
 		},
 		{
 			"tid": 215,
@@ -5429,39 +5429,39 @@
 			"tid": 217,
 			"text": "'Planning policies and decisions should protect and enhance public rights of way and access' (NPPF, para 105), so conditions should be made on developments to connect existing off-road paths to protect and improve safe access for all vulnerable road users (walkers, wheelers, horses and riders/handlers).",
 			"overall_votes": {
-				"agrees": 26,
-				"disagrees": 2,
+				"agrees": 27,
+				"disagrees": 3,
 				"passes": 7
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 13,
+					"agrees": 14,
 					"disagrees": 1,
 					"passes": 5
 				},
 				{
 					"group_id": 1,
 					"agrees": 13,
-					"disagrees": 1,
+					"disagrees": 2,
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.5185185185185184,
-			"divisiveness": 0.08018499463692012
+			"group_informed_consensus": 0.5023923444976077,
+			"divisiveness": 0.0805007011445909
 		},
 		{
 			"tid": 218,
 			"text": "Infrastructure and transport plans must include road crossings (underpass, overbridge or at level) where new or existing off-road access is impacted for all vulnerable road users (walkers, wheelers, horses and riders/handlers).",
 			"overall_votes": {
-				"agrees": 22,
+				"agrees": 23,
 				"disagrees": 5,
-				"passes": 7
+				"passes": 8
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 10,
+					"agrees": 11,
 					"disagrees": 3,
 					"passes": 5
 				},
@@ -5469,11 +5469,11 @@
 					"group_id": 1,
 					"agrees": 11,
 					"disagrees": 2,
-					"passes": 2
+					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.38823529411764707,
-			"divisiveness": 0.3911771932276443
+			"group_informed_consensus": 0.380952380952381,
+			"divisiveness": 0.3936387701105494
 		},
 		{
 			"tid": 219,
@@ -5529,9 +5529,84 @@
 			"tid": 221,
 			"text": "New developments should not be built on flood zones. Planning permission should ONLY BE GIVEN with this enhanced in law. Councils should be forced to follow this to the letter.",
 			"overall_votes": {
-				"agrees": 31,
+				"agrees": 32,
 				"disagrees": 1,
-				"passes": 1
+				"passes": 2
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 16,
+					"disagrees": 1,
+					"passes": 1
+				},
+				{
+					"group_id": 1,
+					"agrees": 16,
+					"disagrees": 0,
+					"passes": 1
+				}
+			],
+			"group_informed_consensus": 0.7605263157894737,
+			"divisiveness": 0.04113643908217119
+		},
+		{
+			"tid": 222,
+			"text": "The play parks need to be updated to allow children with disabilities to access them",
+			"overall_votes": {
+				"agrees": 20,
+				"disagrees": 5,
+				"passes": 6
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 14,
+					"disagrees": 0,
+					"passes": 3
+				},
+				{
+					"group_id": 1,
+					"agrees": 6,
+					"disagrees": 5,
+					"passes": 3
+				}
+			],
+			"group_informed_consensus": 0.34539473684210525,
+			"divisiveness": 0.2139229833923328
+		},
+		{
+			"tid": 223,
+			"text": "Funding to be given to the community centres to offer activities for vulnerable children and those with SEND",
+			"overall_votes": {
+				"agrees": 22,
+				"disagrees": 6,
+				"passes": 6
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 14,
+					"disagrees": 1,
+					"passes": 4
+				},
+				{
+					"group_id": 1,
+					"agrees": 8,
+					"disagrees": 5,
+					"passes": 2
+				}
+			],
+			"group_informed_consensus": 0.3781512605042016,
+			"divisiveness": 0.24627994306777143
+		},
+		{
+			"tid": 224,
+			"text": "There is a need for more housing but it should be Eco Friendly and there should be areas of green where wildlife can exist",
+			"overall_votes": {
+				"agrees": 26,
+				"disagrees": 3,
+				"passes": 2
 			},
 			"group_votes": [
 				{
@@ -5542,103 +5617,28 @@
 				},
 				{
 					"group_id": 1,
-					"agrees": 16,
-					"disagrees": 0,
-					"passes": 0
-				}
-			],
-			"group_informed_consensus": 0.7953216374269005,
-			"divisiveness": 0.03373356868074386
-		},
-		{
-			"tid": 222,
-			"text": "The play parks need to be updated to allow children with disabilities to access them",
-			"overall_votes": {
-				"agrees": 19,
-				"disagrees": 5,
-				"passes": 5
-			},
-			"group_votes": [
-				{
-					"group_id": 0,
-					"agrees": 13,
-					"disagrees": 0,
-					"passes": 2
-				},
-				{
-					"group_id": 1,
-					"agrees": 6,
-					"disagrees": 5,
-					"passes": 3
-				}
-			],
-			"group_informed_consensus": 0.3602941176470588,
-			"divisiveness": 0.2113596360026842
-		},
-		{
-			"tid": 223,
-			"text": "Funding to be given to the community centres to offer activities for vulnerable children and those with SEND",
-			"overall_votes": {
-				"agrees": 21,
-				"disagrees": 6,
-				"passes": 5
-			},
-			"group_votes": [
-				{
-					"group_id": 0,
-					"agrees": 13,
-					"disagrees": 1,
-					"passes": 4
-				},
-				{
-					"group_id": 1,
-					"agrees": 8,
-					"disagrees": 5,
-					"passes": 1
-				}
-			],
-			"group_informed_consensus": 0.39375,
-			"divisiveness": 0.23990153765476255
-		},
-		{
-			"tid": 224,
-			"text": "There is a need for more housing but it should be Eco Friendly and there should be areas of green where wildlife can exist",
-			"overall_votes": {
-				"agrees": 25,
-				"disagrees": 3,
-				"passes": 2
-			},
-			"group_votes": [
-				{
-					"group_id": 0,
-					"agrees": 14,
-					"disagrees": 1,
-					"passes": 1
-				},
-				{
-					"group_id": 1,
 					"agrees": 11,
 					"disagrees": 2,
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.625,
-			"divisiveness": 0.09752733705916522
+			"group_informed_consensus": 0.631578947368421,
+			"divisiveness": 0.09592056069480548
 		},
 		{
 			"tid": 225,
 			"text": "Grey belt should not be classified on farmland that is providing food.",
 			"overall_votes": {
 				"agrees": 19,
-				"disagrees": 8,
-				"passes": 6
+				"disagrees": 9,
+				"passes": 7
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 7,
-					"disagrees": 6,
-					"passes": 5
+					"disagrees": 7,
+					"passes": 6
 				},
 				{
 					"group_id": 1,
@@ -5647,33 +5647,33 @@
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.325,
-			"divisiveness": 0.594710054577617
+			"group_informed_consensus": 0.29545454545454547,
+			"divisiveness": 0.6409545640069888
 		},
 		{
 			"tid": 226,
 			"text": "Existing infrastructure and facilities should be able to accommodate any new developments",
 			"overall_votes": {
-				"agrees": 25,
-				"disagrees": 6,
+				"agrees": 26,
+				"disagrees": 7,
 				"passes": 2
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 14,
-					"disagrees": 3,
+					"disagrees": 4,
 					"passes": 2
 				},
 				{
 					"group_id": 1,
-					"agrees": 11,
+					"agrees": 12,
 					"disagrees": 3,
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.5357142857142856,
-			"divisiveness": 0.1753431794943394
+			"group_informed_consensus": 0.5213903743315508,
+			"divisiveness": 0.20056394528622704
 		},
 		{
 			"tid": 227,
@@ -5681,14 +5681,14 @@
 			"overall_votes": {
 				"agrees": 5,
 				"disagrees": 18,
-				"passes": 5
+				"passes": 6
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 3,
 					"disagrees": 8,
-					"passes": 4
+					"passes": 5
 				},
 				{
 					"group_id": 1,
@@ -5697,21 +5697,21 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.04705882352941176,
-			"divisiveness": 0.3280973120025122
+			"group_informed_consensus": 0.044444444444444446,
+			"divisiveness": 0.3329880711213939
 		},
 		{
 			"tid": 228,
 			"text": "More housing means more people, more need for school, more need for GP’s, better infrastructure in terms of water / energy supply etc",
 			"overall_votes": {
-				"agrees": 33,
+				"agrees": 34,
 				"disagrees": 0,
 				"passes": 1
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 17,
+					"agrees": 18,
 					"disagrees": 0,
 					"passes": 1
 				},
@@ -5722,46 +5722,46 @@
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.85,
-			"divisiveness": 0.0031448041925315703
+			"group_informed_consensus": 0.8544973544973544,
+			"divisiveness": 0.0030937408925112196
 		},
 		{
 			"tid": 229,
 			"text": "Attracting tourists brings more problems. More cars, more parking requirements, more people etc.",
 			"overall_votes": {
 				"agrees": 10,
-				"disagrees": 14,
+				"disagrees": 16,
 				"passes": 4
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 4,
-					"disagrees": 8,
+					"disagrees": 9,
 					"passes": 4
 				},
 				{
 					"group_id": 1,
 					"agrees": 6,
-					"disagrees": 6,
+					"disagrees": 7,
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.1388888888888889,
-			"divisiveness": 0.4202632662896994
+			"group_informed_consensus": 0.12280701754385964,
+			"divisiveness": 0.431335246690561
 		},
 		{
 			"tid": 230,
 			"text": "Currently the infrastructure around south staffs is not designed to deal with more people, cars etc. Roads look like in East Ukraine, traffic jams in a village?! Insufficient schools and other facilities",
 			"overall_votes": {
-				"agrees": 24,
+				"agrees": 25,
 				"disagrees": 2,
 				"passes": 6
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 10,
+					"agrees": 11,
 					"disagrees": 2,
 					"passes": 4
 				},
@@ -5772,46 +5772,46 @@
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.5092592592592592,
-			"divisiveness": 0.2301691040434445
+			"group_informed_consensus": 0.5263157894736842,
+			"divisiveness": 0.22566894056603473
 		},
 		{
 			"tid": 231,
 			"text": "Encourage to develop the area so people, families, children can walk or cycle safely around.",
 			"overall_votes": {
-				"agrees": 25,
+				"agrees": 27,
 				"disagrees": 3,
 				"passes": 4
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 14,
+					"agrees": 15,
 					"disagrees": 1,
 					"passes": 3
 				},
 				{
 					"group_id": 1,
-					"agrees": 11,
+					"agrees": 12,
 					"disagrees": 2,
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.5625,
-			"divisiveness": 0.2044551145849663
+			"group_informed_consensus": 0.5826330532212884,
+			"divisiveness": 0.19737352604195205
 		},
 		{
 			"tid": 232,
 			"text": "Become environmentally independent from fossil fuel.",
 			"overall_votes": {
-				"agrees": 14,
+				"agrees": 16,
 				"disagrees": 11,
 				"passes": 5
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 9,
+					"agrees": 11,
 					"disagrees": 3,
 					"passes": 3
 				},
@@ -5822,21 +5822,21 @@
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.20761245674740483,
-			"divisiveness": 0.5634876298253866
+			"group_informed_consensus": 0.22291021671826625,
+			"divisiveness": 0.5631464154392144
 		},
 		{
 			"tid": 233,
 			"text": "Tackle noise pollution (from cars and very noisy bikes)",
 			"overall_votes": {
-				"agrees": 20,
+				"agrees": 21,
 				"disagrees": 5,
 				"passes": 7
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 10,
+					"agrees": 11,
 					"disagrees": 3,
 					"passes": 5
 				},
@@ -5847,21 +5847,21 @@
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.378125,
-			"divisiveness": 0.2694805188602319
+			"group_informed_consensus": 0.3928571428571429,
+			"divisiveness": 0.26511932902420926
 		},
 		{
 			"tid": 234,
 			"text": "Better train network to nearby cities",
 			"overall_votes": {
-				"agrees": 22,
+				"agrees": 23,
 				"disagrees": 2,
 				"passes": 6
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 10,
+					"agrees": 11,
 					"disagrees": 1,
 					"passes": 5
 				},
@@ -5872,8 +5872,8 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.49652777777777773,
-			"divisiveness": 0.03668870120377117
+			"group_informed_consensus": 0.513157894736842,
+			"divisiveness": 0.035404728837242744
 		},
 		{
 			"tid": 235,
@@ -5881,14 +5881,14 @@
 			"overall_votes": {
 				"agrees": 14,
 				"disagrees": 7,
-				"passes": 8
+				"passes": 9
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 10,
 					"disagrees": 2,
-					"passes": 4
+					"passes": 5
 				},
 				{
 					"group_id": 1,
@@ -5897,8 +5897,8 @@
 					"passes": 4
 				}
 			],
-			"group_informed_consensus": 0.2037037037037037,
-			"divisiveness": 0.3681115418044548
+			"group_informed_consensus": 0.19298245614035087,
+			"divisiveness": 0.3743206970274439
 		},
 		{
 			"tid": 236,
@@ -5906,14 +5906,14 @@
 			"overall_votes": {
 				"agrees": 9,
 				"disagrees": 11,
-				"passes": 9
+				"passes": 10
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 6,
 					"disagrees": 4,
-					"passes": 6
+					"passes": 7
 				},
 				{
 					"group_id": 1,
@@ -5922,33 +5922,33 @@
 					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.10370370370370369,
-			"divisiveness": 0.7000207710732904
+			"group_informed_consensus": 0.09824561403508772,
+			"divisiveness": 0.7073760467493581
 		},
 		{
 			"tid": 237,
 			"text": "Solar infrastructure on public building should be mandatory and discounted for domestic use.",
 			"overall_votes": {
-				"agrees": 25,
+				"agrees": 27,
 				"disagrees": 7,
 				"passes": 1
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 14,
+					"agrees": 15,
 					"disagrees": 3,
 					"passes": 1
 				},
 				{
 					"group_id": 1,
-					"agrees": 11,
+					"agrees": 12,
 					"disagrees": 4,
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.5294117647058822,
-			"divisiveness": 0.13667601173604244
+			"group_informed_consensus": 0.5502645502645502,
+			"divisiveness": 0.13482033652132397
 		},
 		{
 			"tid": 238,
@@ -5980,38 +5980,38 @@
 			"text": "Solar farms should be explored in combination with agrivoltaics to provide additional income for farmers as well as balancing the energy grid.",
 			"overall_votes": {
 				"agrees": 21,
-				"disagrees": 8,
-				"passes": 5
+				"disagrees": 9,
+				"passes": 6
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 13,
-					"disagrees": 3,
+					"disagrees": 4,
 					"passes": 3
 				},
 				{
 					"group_id": 1,
 					"agrees": 8,
 					"disagrees": 5,
-					"passes": 2
+					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.3529411764705882,
-			"divisiveness": 0.37747682780949365
+			"group_informed_consensus": 0.3181818181818182,
+			"divisiveness": 0.4046316583064716
 		},
 		{
 			"tid": 240,
 			"text": "Affordable and spacious bungalows. All too often living space is compromised to allow for more homes on the property/estates etc",
 			"overall_votes": {
-				"agrees": 24,
+				"agrees": 25,
 				"disagrees": 4,
 				"passes": 3
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 13,
+					"agrees": 14,
 					"disagrees": 1,
 					"passes": 2
 				},
@@ -6022,46 +6022,46 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.5490196078431371,
-			"divisiveness": 0.14600683570580938
+			"group_informed_consensus": 0.5572755417956656,
+			"divisiveness": 0.1434462393527688
 		},
 		{
 			"tid": 241,
 			"text": "I would not welcome any form of large business as it brings ugly clad buildings. Just look at the mess of the buildings at the Midland rail interchange, Staffordshire changed the landscape from pleasant to ugly.",
 			"overall_votes": {
 				"agrees": 15,
-				"disagrees": 7,
-				"passes": 7
+				"disagrees": 8,
+				"passes": 8
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 6,
-					"disagrees": 5,
+					"disagrees": 6,
 					"passes": 4
 				},
 				{
 					"group_id": 1,
 					"agrees": 9,
 					"disagrees": 2,
-					"passes": 3
+					"passes": 4
 				}
 			],
-			"group_informed_consensus": 0.25735294117647056,
-			"divisiveness": 0.48141480341309184
+			"group_informed_consensus": 0.22875816993464052,
+			"divisiveness": 0.5232867060050774
 		},
 		{
 			"tid": 242,
 			"text": "South Staffordshire’s rural character is exactly what makes it desirable, and it must be protected.",
 			"overall_votes": {
-				"agrees": 32,
+				"agrees": 34,
 				"disagrees": 1,
 				"passes": 1
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 15,
+					"agrees": 17,
 					"disagrees": 1,
 					"passes": 1
 				},
@@ -6072,21 +6072,21 @@
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.7977839335180055,
-			"divisiveness": 0.009896410858477872
+			"group_informed_consensus": 0.8120300751879699,
+			"divisiveness": 0.00951763937928798
 		},
 		{
 			"tid": 243,
 			"text": "The A41 and our village roads are already over capacity and in poor condition, so further large-scale development here is not sustainable. Any future growth should be limited to small, sensitive developments on brownfield land only, not expansion into the countryside that cannot support more traffic",
 			"overall_votes": {
-				"agrees": 21,
+				"agrees": 22,
 				"disagrees": 6,
 				"passes": 4
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 8,
+					"agrees": 9,
 					"disagrees": 6,
 					"passes": 3
 				},
@@ -6097,22 +6097,22 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.4144736842105262,
-			"divisiveness": 0.4826586670024481
+			"group_informed_consensus": 0.4375,
+			"divisiveness": 0.47152791729000304
 		},
 		{
 			"tid": 244,
 			"text": "If South Staffs was a tourist area then there would be B&Bs, self catering accommodation and hotels lining the streets. Somerset has a good balance. Currently nobody wants to come to South Staffordshireas it has nothing to offer.",
 			"overall_votes": {
 				"agrees": 9,
-				"disagrees": 12,
+				"disagrees": 13,
 				"passes": 9
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 6,
-					"disagrees": 6,
+					"disagrees": 7,
 					"passes": 6
 				},
 				{
@@ -6122,22 +6122,22 @@
 					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.1,
-			"divisiveness": 0.3963053866409861
+			"group_informed_consensus": 0.09523809523809525,
+			"divisiveness": 0.40227546989909135
 		},
 		{
 			"tid": 245,
 			"text": "Widen roads using existing foot paths to improve road safety",
 			"overall_votes": {
 				"agrees": 4,
-				"disagrees": 20,
+				"disagrees": 21,
 				"passes": 3
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 3,
-					"disagrees": 11,
+					"disagrees": 12,
 					"passes": 1
 				},
 				{
@@ -6147,33 +6147,33 @@
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.03361344537815126,
-			"divisiveness": 0.3866643384964037
+			"group_informed_consensus": 0.031746031746031744,
+			"divisiveness": 0.3888791796747021
 		},
 		{
 			"tid": 246,
 			"text": "New development should blend in to the surrounding environment.",
 			"overall_votes": {
-				"agrees": 31,
+				"agrees": 33,
 				"disagrees": 0,
 				"passes": 2
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 17,
+					"agrees": 18,
 					"disagrees": 0,
 					"passes": 2
 				},
 				{
 					"group_id": 1,
-					"agrees": 14,
+					"agrees": 15,
 					"disagrees": 0,
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.8035714285714285,
-			"divisiveness": 0.006535552917779639
+			"group_informed_consensus": 0.8128342245989305,
+			"divisiveness": 0.006279647002417837
 		},
 		{
 			"tid": 247,
@@ -6229,14 +6229,14 @@
 			"tid": 249,
 			"text": "Building 4 bed homes is not the priority we should be building starter homes 2 or 3 bed modern versions of terrace homes.  These would give greater number of new homes to land available.  Avoiding building on more land than necessary",
 			"overall_votes": {
-				"agrees": 13,
+				"agrees": 14,
 				"disagrees": 6,
 				"passes": 2
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 8,
+					"agrees": 9,
 					"disagrees": 2,
 					"passes": 1
 				},
@@ -6247,8 +6247,8 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.34615384615384615,
-			"divisiveness": 0.12236044127629817
+			"group_informed_consensus": 0.3571428571428571,
+			"divisiveness": 0.12290552683910544
 		},
 		{
 			"tid": 250,
@@ -6354,26 +6354,26 @@
 			"tid": 254,
 			"text": "Add biking paths, add routes where kids and families can go on long bike rides instead of rising in the roads which are getting increasingly busy.",
 			"overall_votes": {
-				"agrees": 15,
-				"disagrees": 1,
+				"agrees": 16,
+				"disagrees": 2,
 				"passes": 3
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 6,
+					"agrees": 7,
 					"disagrees": 1,
 					"passes": 2
 				},
 				{
 					"group_id": 1,
 					"agrees": 8,
-					"disagrees": 0,
+					"disagrees": 1,
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.5727272727272728,
-			"divisiveness": 0.011485066152992846
+			"group_informed_consensus": 0.5454545454545454,
+			"divisiveness": 0.02002535330997292
 		},
 		{
 			"tid": 255,
@@ -6429,14 +6429,14 @@
 			"tid": 257,
 			"text": "The state of the roads needs to be addressed. The pot holes everywhere are awful. Cars are getting damaged and they are causing accidents. Priority needs to be on fixing the roads to make them safe again",
 			"overall_votes": {
-				"agrees": 15,
+				"agrees": 16,
 				"disagrees": 0,
 				"passes": 2
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 9,
+					"agrees": 10,
 					"disagrees": 0,
 					"passes": 2
 				},
@@ -6447,8 +6447,8 @@
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.6730769230769231,
-			"divisiveness": 0.003641213928588284
+			"group_informed_consensus": 0.6875,
+			"divisiveness": 0.003514466573563112
 		},
 		{
 			"tid": 258,
@@ -6479,14 +6479,14 @@
 			"tid": 259,
 			"text": "Empty houses in villages, both private and council owned should have pressures put on to be occupied at all times.",
 			"overall_votes": {
-				"agrees": 14,
+				"agrees": 15,
 				"disagrees": 2,
 				"passes": 3
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 9,
+					"agrees": 10,
 					"disagrees": 1,
 					"passes": 2
 				},
@@ -6497,22 +6497,22 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.4761904761904761,
-			"divisiveness": 0.06043375176564717
+			"group_informed_consensus": 0.4888888888888888,
+			"divisiveness": 0.0590341535239493
 		},
 		{
 			"tid": 260,
 			"text": "The Village centre needs to be considered FIRST when looking at increasing the size of a village - the village is lost now for Kinver due to too much inconsiderate house building and not enough thought on existing residents",
 			"overall_votes": {
 				"agrees": 3,
-				"disagrees": 4,
+				"disagrees": 5,
 				"passes": 8
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 1,
-					"disagrees": 4,
+					"disagrees": 5,
 					"passes": 5
 				},
 				{
@@ -6522,21 +6522,21 @@
 					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.07142857142857142,
-			"divisiveness": 0.461435825201765
+			"group_informed_consensus": 0.06593406593406594,
+			"divisiveness": 0.4869099090650492
 		},
 		{
 			"tid": 261,
 			"text": "What we need is a good local parking site to encourage people to use the High Street as a long walk puts people off",
 			"overall_votes": {
-				"agrees": 13,
+				"agrees": 14,
 				"disagrees": 2,
 				"passes": 2
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 9,
+					"agrees": 10,
 					"disagrees": 2,
 					"passes": 1
 				},
@@ -6547,21 +6547,21 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.510204081632653,
-			"divisiveness": 0.008416633252132275
+			"group_informed_consensus": 0.5238095238095237,
+			"divisiveness": 0.006862276286550847
 		},
 		{
 			"tid": 262,
 			"text": "What we need is better health facilities locally without having to travel to Kingswinford.",
 			"overall_votes": {
-				"agrees": 6,
+				"agrees": 7,
 				"disagrees": 1,
 				"passes": 8
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 4,
+					"agrees": 5,
 					"disagrees": 1,
 					"passes": 5
 				},
@@ -6572,66 +6572,41 @@
 					"passes": 3
 				}
 			],
-			"group_informed_consensus": 0.17857142857142855,
-			"divisiveness": 0.05910049570064675
+			"group_informed_consensus": 0.1978021978021978,
+			"divisiveness": 0.05609296517775524
 		},
 		{
 			"tid": 263,
 			"text": "If there is an increase in people moving to South Staffordshire, crime rates will surely rise",
 			"overall_votes": {
 				"agrees": 6,
-				"disagrees": 8,
-				"passes": 2
+				"disagrees": 9,
+				"passes": 3
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 2,
-					"disagrees": 6,
+					"disagrees": 7,
 					"passes": 2
 				},
 				{
 					"group_id": 1,
 					"agrees": 4,
 					"disagrees": 2,
-					"passes": 0
+					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.15625,
-			"divisiveness": 0.6412684459201456
+			"group_informed_consensus": 0.12820512820512822,
+			"divisiveness": 0.6700987401697346
 		},
 		{
 			"tid": 264,
 			"text": "Improve parks and outdoor recreational spaces.",
 			"overall_votes": {
-				"agrees": 15,
+				"agrees": 16,
 				"disagrees": 0,
-				"passes": 4
-			},
-			"group_votes": [
-				{
-					"group_id": 0,
-					"agrees": 8,
-					"disagrees": 0,
-					"passes": 3
-				},
-				{
-					"group_id": 1,
-					"agrees": 6,
-					"disagrees": 0,
-					"passes": 0
-				}
-			],
-			"group_informed_consensus": 0.6057692307692307,
-			"divisiveness": 0.003985295280419443
-		},
-		{
-			"tid": 265,
-			"text": "Improve the countryside walks and the bridle paths.",
-			"overall_votes": {
-				"agrees": 15,
-				"disagrees": 0,
-				"passes": 3
+				"passes": 5
 			},
 			"group_votes": [
 				{
@@ -6644,25 +6619,50 @@
 					"group_id": 1,
 					"agrees": 6,
 					"disagrees": 0,
-					"passes": 0
+					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.6249999999999999,
-			"divisiveness": 0.005888014886279299
+			"group_informed_consensus": 0.5555555555555554,
+			"divisiveness": 0.007664076667931556
+		},
+		{
+			"tid": 265,
+			"text": "Improve the countryside walks and the bridle paths.",
+			"overall_votes": {
+				"agrees": 16,
+				"disagrees": 0,
+				"passes": 4
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 10,
+					"disagrees": 0,
+					"passes": 3
+				},
+				{
+					"group_id": 1,
+					"agrees": 6,
+					"disagrees": 0,
+					"passes": 1
+				}
+			],
+			"group_informed_consensus": 0.5703703703703703,
+			"divisiveness": 0.003750183924303229
 		},
 		{
 			"tid": 266,
 			"text": "Don’t make footpaths into bridleways as they would be dangerous for walkers",
 			"overall_votes": {
 				"agrees": 8,
-				"disagrees": 5,
+				"disagrees": 6,
 				"passes": 3
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 5,
-					"disagrees": 4,
+					"disagrees": 5,
 					"passes": 2
 				},
 				{
@@ -6672,8 +6672,8 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.26373626373626374,
-			"divisiveness": 0.24434094547863083
+			"group_informed_consensus": 0.24489795918367344,
+			"divisiveness": 0.26243327141049394
 		},
 		{
 			"tid": 267,
@@ -6681,14 +6681,14 @@
 			"overall_votes": {
 				"agrees": 6,
 				"disagrees": 0,
-				"passes": 2
+				"passes": 3
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 4,
 					"disagrees": 0,
-					"passes": 1
+					"passes": 2
 				},
 				{
 					"group_id": 1,
@@ -6697,22 +6697,22 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.4285714285714286,
-			"divisiveness": 0.0062952108646380945
+			"group_informed_consensus": 0.37500000000000006,
+			"divisiveness": 0.011033882569043417
 		},
 		{
 			"tid": 268,
 			"text": "If local government wishes to oppose privately or professionally, to local developments, they should propose equivalent acreage with equivalent access and facilities. If they cannot, they need to shut up.",
 			"overall_votes": {
 				"agrees": 3,
-				"disagrees": 2,
+				"disagrees": 3,
 				"passes": 3
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 2,
-					"disagrees": 2,
+					"disagrees": 3,
 					"passes": 1
 				},
 				{
@@ -6722,32 +6722,32 @@
 					"passes": 2
 				}
 			],
-			"group_informed_consensus": 0.17142857142857143,
-			"divisiveness": 0.03604543929759726
+			"group_informed_consensus": 0.15000000000000002,
+			"divisiveness": 0.04635777108825092
 		},
 		{
 			"tid": 269,
 			"text": "Councils need to understand village identity.",
 			"overall_votes": {
-				"agrees": 9,
+				"agrees": 13,
 				"disagrees": 0,
 				"passes": 0
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 6,
+					"agrees": 8,
 					"disagrees": 0,
 					"passes": 0
 				},
 				{
 					"group_id": 1,
-					"agrees": 3,
+					"agrees": 5,
 					"disagrees": 0,
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.7000000000000001,
+			"group_informed_consensus": 0.7714285714285714,
 			"divisiveness": 0.0
 		},
 		{
@@ -6805,75 +6805,75 @@
 			"text": "Mobility products that can assist in people’s homes should be considered before building new bungalows as bungalows historically take up a larger footprint.",
 			"overall_votes": {
 				"agrees": 5,
-				"disagrees": 1,
+				"disagrees": 4,
 				"passes": 2
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 4,
-					"disagrees": 0,
+					"disagrees": 2,
 					"passes": 1
 				},
 				{
 					"group_id": 1,
 					"agrees": 1,
-					"disagrees": 1,
+					"disagrees": 2,
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.2857142857142857,
-			"divisiveness": 0.05375123963169288
+			"group_informed_consensus": 0.18518518518518515,
+			"divisiveness": 0.1686326726898155
 		},
 		{
 			"tid": 273,
 			"text": "People shouldn’t be forced out of their current homes for which they may have had many memories of raising children",
 			"overall_votes": {
-				"agrees": 5,
-				"disagrees": 1,
+				"agrees": 7,
+				"disagrees": 2,
 				"passes": 1
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 3,
-					"disagrees": 1,
+					"agrees": 4,
+					"disagrees": 2,
 					"passes": 1
 				},
 				{
 					"group_id": 1,
-					"agrees": 2,
+					"agrees": 3,
 					"disagrees": 0,
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.42857142857142855,
-			"divisiveness": 0.029879728358422737
+			"group_informed_consensus": 0.4444444444444445,
+			"divisiveness": 0.04434024049533692
 		},
 		{
 			"tid": 274,
 			"text": "Parks and open spaces should be made safe for children to enjoy.",
 			"overall_votes": {
-				"agrees": 8,
+				"agrees": 12,
 				"disagrees": 0,
 				"passes": 1
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 6,
+					"agrees": 8,
 					"disagrees": 0,
 					"passes": 0
 				},
 				{
 					"group_id": 1,
-					"agrees": 2,
+					"agrees": 4,
 					"disagrees": 0,
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.5250000000000001,
-			"divisiveness": 0.004153730052345598
+			"group_informed_consensus": 0.6428571428571428,
+			"divisiveness": 0.002366199478480874
 		},
 		{
 			"tid": 275,
@@ -6906,88 +6906,13 @@
 			"overall_votes": {
 				"agrees": 3,
 				"disagrees": 2,
-				"passes": 2
-			},
-			"group_votes": [
-				{
-					"group_id": 0,
-					"agrees": 3,
-					"disagrees": 1,
-					"passes": 1
-				},
-				{
-					"group_id": 1,
-					"agrees": 0,
-					"disagrees": 1,
-					"passes": 1
-				}
-			],
-			"group_informed_consensus": 0.14285714285714285,
-			"divisiveness": 0.10342316778629408
-		},
-		{
-			"tid": 277,
-			"text": "Care homes should be more like they are in France: unbelievably good with respect and care.",
-			"overall_votes": {
-				"agrees": 6,
-				"disagrees": 0,
-				"passes": 2
-			},
-			"group_votes": [
-				{
-					"group_id": 0,
-					"agrees": 5,
-					"disagrees": 0,
-					"passes": 1
-				},
-				{
-					"group_id": 1,
-					"agrees": 1,
-					"disagrees": 0,
-					"passes": 1
-				}
-			],
-			"group_informed_consensus": 0.375,
-			"divisiveness": 0.0040720356090624115
-		},
-		{
-			"tid": 278,
-			"text": "New home owners should do their own decoration. Frills like full carpets, light fittings and being  painted and decorated should not be expected if someone wants an affordable home.",
-			"overall_votes": {
-				"agrees": 3,
-				"disagrees": 3,
-				"passes": 1
-			},
-			"group_votes": [
-				{
-					"group_id": 0,
-					"agrees": 2,
-					"disagrees": 2,
-					"passes": 1
-				},
-				{
-					"group_id": 1,
-					"agrees": 1,
-					"disagrees": 1,
-					"passes": 0
-				}
-			],
-			"group_informed_consensus": 0.21428571428571427,
-			"divisiveness": 0.025485812374701423
-		},
-		{
-			"tid": 279,
-			"text": "The streets should be safe for children. Currently they are unsafe from passing traffic and undesirables wondering about. In these times I would not let my child walk to school, especially in winter in the dark.",
-			"overall_votes": {
-				"agrees": 3,
-				"disagrees": 1,
 				"passes": 3
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
 					"agrees": 3,
-					"disagrees": 0,
+					"disagrees": 1,
 					"passes": 2
 				},
 				{
@@ -6997,33 +6922,108 @@
 					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.14285714285714285,
-			"divisiveness": 0.08785504311519128
+			"group_informed_consensus": 0.125,
+			"divisiveness": 0.10863100860433342
+		},
+		{
+			"tid": 277,
+			"text": "Care homes should be more like they are in France: unbelievably good with respect and care.",
+			"overall_votes": {
+				"agrees": 8,
+				"disagrees": 0,
+				"passes": 2
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 7,
+					"disagrees": 0,
+					"passes": 1
+				},
+				{
+					"group_id": 1,
+					"agrees": 1,
+					"disagrees": 0,
+					"passes": 1
+				}
+			],
+			"group_informed_consensus": 0.4,
+			"divisiveness": 0.003863583187740019
+		},
+		{
+			"tid": 278,
+			"text": "New home owners should do their own decoration. Frills like full carpets, light fittings and being  painted and decorated should not be expected if someone wants an affordable home.",
+			"overall_votes": {
+				"agrees": 3,
+				"disagrees": 3,
+				"passes": 3
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 2,
+					"disagrees": 2,
+					"passes": 2
+				},
+				{
+					"group_id": 1,
+					"agrees": 1,
+					"disagrees": 1,
+					"passes": 1
+				}
+			],
+			"group_informed_consensus": 0.15000000000000002,
+			"divisiveness": 0.02657204544718548
+		},
+		{
+			"tid": 279,
+			"text": "The streets should be safe for children. Currently they are unsafe from passing traffic and undesirables wondering about. In these times I would not let my child walk to school, especially in winter in the dark.",
+			"overall_votes": {
+				"agrees": 5,
+				"disagrees": 2,
+				"passes": 3
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 3,
+					"disagrees": 1,
+					"passes": 2
+				},
+				{
+					"group_id": 1,
+					"agrees": 2,
+					"disagrees": 1,
+					"passes": 1
+				}
+			],
+			"group_informed_consensus": 0.25,
+			"divisiveness": 0.06281611791877786
 		},
 		{
 			"tid": 280,
 			"text": "Adequate parking must be allowed for blue badges to ensure that disabled people are not excluded if places are pedestrianised.",
 			"overall_votes": {
-				"agrees": 8,
+				"agrees": 12,
 				"disagrees": 0,
-				"passes": 0
+				"passes": 1
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
-					"agrees": 5,
+					"agrees": 7,
 					"disagrees": 0,
 					"passes": 0
 				},
 				{
 					"group_id": 1,
-					"agrees": 3,
+					"agrees": 5,
 					"disagrees": 0,
-					"passes": 0
+					"passes": 1
 				}
 			],
-			"group_informed_consensus": 0.6857142857142857,
-			"divisiveness": 0.0
+			"group_informed_consensus": 0.6666666666666666,
+			"divisiveness": 0.0019736536315052605
 		},
 		{
 			"tid": 281,
@@ -7054,190 +7054,290 @@
 			"tid": 282,
 			"text": "I would support new development in the area if it was based on clear, justifiable need (e.g. a lack of housing, appropriate size for needs etc.), was small in scope, liveable (i.e. not skimping on off-road parking, thereby creating problems for everyone nearby).",
 			"overall_votes": {
-				"agrees": 1,
-				"disagrees": 0,
-				"passes": 0
-			},
-			"group_votes": [
-				{
-					"group_id": 0,
-					"agrees": 1,
-					"disagrees": 0,
-					"passes": 0
-				},
-				{
-					"group_id": 1,
-					"agrees": 0,
-					"disagrees": 0,
-					"passes": 0
-				}
-			],
-			"group_informed_consensus": 0.3333333333333333,
-			"divisiveness": 0.0
-		},
-		{
-			"tid": 283,
-			"text": "Adequate parking should exist for blue badge holders to reduce dangerous parking in inappropriate places such as blocking visibility, at junctions/on bends etc.",
-			"overall_votes": {
-				"agrees": 1,
-				"disagrees": 0,
-				"passes": 0
-			},
-			"group_votes": [
-				{
-					"group_id": 0,
-					"agrees": 1,
-					"disagrees": 0,
-					"passes": 0
-				},
-				{
-					"group_id": 1,
-					"agrees": 0,
-					"disagrees": 0,
-					"passes": 0
-				}
-			],
-			"group_informed_consensus": 0.3333333333333333,
-			"divisiveness": 0.0
-		},
-		{
-			"tid": 284,
-			"text": "Councils should take advantage of powers to impose parking restrictions and enforce fines on people who people whose inconsiderate parking adversely effects people who live there. e.g. a cul-de-sac too narrow to have two cars pass each other should not be overrun by parents on the school run, preventing residents from exiting or accessing their drive.",
-			"overall_votes": {
-				"agrees": 1,
-				"disagrees": 0,
-				"passes": 0
-			},
-			"group_votes": [
-				{
-					"group_id": 0,
-					"agrees": 1,
-					"disagrees": 0,
-					"passes": 0
-				},
-				{
-					"group_id": 1,
-					"agrees": 0,
-					"disagrees": 0,
-					"passes": 0
-				}
-			],
-			"group_informed_consensus": 0.3333333333333333,
-			"divisiveness": 0.0
-		},
-		{
-			"tid": 285,
-			"text": "Provide sufficient school places closer to where people live, to reduce the impact of parents driving children to school. Parking is particularly a problem not just because because of the number of vehicles but their size - hatchbacks don't exist any more, it seems - it's just humungous SUVs which due to their size, reduce the no of vehicles that can be parked in any one place. The answer has to be for fewer parents to drive children, and that means closer, and possibly smaller, schools.",
-			"overall_votes": {
-				"agrees": 1,
-				"disagrees": 0,
-				"passes": 0
-			},
-			"group_votes": [
-				{
-					"group_id": 0,
-					"agrees": 1,
-					"disagrees": 0,
-					"passes": 0
-				},
-				{
-					"group_id": 1,
-					"agrees": 0,
-					"disagrees": 0,
-					"passes": 0
-				}
-			],
-			"group_informed_consensus": 0.3333333333333333,
-			"divisiveness": 0.0
-		},
-		{
-			"tid": 286,
-			"text": "South Staffordshire should not take on housing quotas for neighbouring counties",
-			"overall_votes": {
-				"agrees": 2,
-				"disagrees": 0,
-				"passes": 0
-			},
-			"group_votes": [
-				{
-					"group_id": 0,
-					"agrees": 0,
-					"disagrees": 0,
-					"passes": 0
-				},
-				{
-					"group_id": 1,
-					"agrees": 1,
-					"disagrees": 0,
-					"passes": 0
-				}
-			],
-			"group_informed_consensus": 0.3333333333333333,
-			"divisiveness": 0.0
-		},
-		{
-			"tid": 287,
-			"text": "Given the need for employment it is increasingly important to ensure the sustainability of villages/towns",
-			"overall_votes": {
-				"agrees": 2,
-				"disagrees": 0,
-				"passes": 0
-			},
-			"group_votes": [
-				{
-					"group_id": 0,
-					"agrees": 0,
-					"disagrees": 0,
-					"passes": 0
-				},
-				{
-					"group_id": 1,
-					"agrees": 1,
-					"disagrees": 0,
-					"passes": 0
-				}
-			],
-			"group_informed_consensus": 0.3333333333333333,
-			"divisiveness": 0.0
-		},
-		{
-			"tid": 288,
-			"text": "We should pay attention to existing infrastructure, such as canal bridges, where we are now beginning to see issues.",
-			"overall_votes": {
-				"agrees": 1,
-				"disagrees": 0,
-				"passes": 0
-			},
-			"group_votes": [
-				{
-					"group_id": 0,
-					"agrees": 0,
-					"disagrees": 0,
-					"passes": 0
-				},
-				{
-					"group_id": 1,
-					"agrees": 0,
-					"disagrees": 0,
-					"passes": 0
-				}
-			],
-			"group_informed_consensus": 0.25,
-			"divisiveness": 0.0
-		},
-		{
-			"tid": 289,
-			"text": "Local villages need more affordable 3/4 bedroom houses provided by the Council",
-			"overall_votes": {
-				"agrees": 1,
+				"agrees": 5,
 				"disagrees": 0,
 				"passes": 1
 			},
 			"group_votes": [
 				{
 					"group_id": 0,
+					"agrees": 3,
+					"disagrees": 0,
+					"passes": 0
+				},
+				{
+					"group_id": 1,
+					"agrees": 2,
+					"disagrees": 0,
+					"passes": 1
+				}
+			],
+			"group_informed_consensus": 0.4800000000000001,
+			"divisiveness": 0.0031081372744762646
+		},
+		{
+			"tid": 283,
+			"text": "Adequate parking should exist for blue badge holders to reduce dangerous parking in inappropriate places such as blocking visibility, at junctions/on bends etc.",
+			"overall_votes": {
+				"agrees": 3,
+				"disagrees": 1,
+				"passes": 1
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 2,
+					"disagrees": 1,
+					"passes": 0
+				},
+				{
+					"group_id": 1,
+					"agrees": 1,
+					"disagrees": 0,
+					"passes": 1
+				}
+			],
+			"group_informed_consensus": 0.30000000000000004,
+			"divisiveness": 0.02086004358508225
+		},
+		{
+			"tid": 284,
+			"text": "Councils should take advantage of powers to impose parking restrictions and enforce fines on people who people whose inconsiderate parking adversely effects people who live there. e.g. a cul-de-sac too narrow to have two cars pass each other should not be overrun by parents on the school run, preventing residents from exiting or accessing their drive.",
+			"overall_votes": {
+				"agrees": 6,
+				"disagrees": 0,
+				"passes": 0
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 3,
+					"disagrees": 0,
+					"passes": 0
+				},
+				{
+					"group_id": 1,
+					"agrees": 3,
+					"disagrees": 0,
+					"passes": 0
+				}
+			],
+			"group_informed_consensus": 0.6400000000000001,
+			"divisiveness": 0.0
+		},
+		{
+			"tid": 285,
+			"text": "Provide sufficient school places closer to where people live, to reduce the impact of parents driving children to school. Parking is particularly a problem not just because because of the number of vehicles but their size - hatchbacks don't exist any more, it seems - it's just humungous SUVs which due to their size, reduce the no of vehicles that can be parked in any one place. The answer has to be for fewer parents to drive children, and that means closer, and possibly smaller, schools.",
+			"overall_votes": {
+				"agrees": 4,
+				"disagrees": 0,
+				"passes": 1
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 3,
+					"disagrees": 0,
+					"passes": 0
+				},
+				{
+					"group_id": 1,
+					"agrees": 1,
+					"disagrees": 0,
+					"passes": 1
+				}
+			],
+			"group_informed_consensus": 0.4,
+			"divisiveness": 0.004306779847353655
+		},
+		{
+			"tid": 286,
+			"text": "South Staffordshire should not take on housing quotas for neighbouring counties",
+			"overall_votes": {
+				"agrees": 7,
+				"disagrees": 0,
+				"passes": 0
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 2,
+					"disagrees": 0,
+					"passes": 0
+				},
+				{
+					"group_id": 1,
+					"agrees": 4,
+					"disagrees": 0,
+					"passes": 0
+				}
+			],
+			"group_informed_consensus": 0.625,
+			"divisiveness": 0.0
+		},
+		{
+			"tid": 287,
+			"text": "Given the need for employment it is increasingly important to ensure the sustainability of villages/towns",
+			"overall_votes": {
+				"agrees": 7,
+				"disagrees": 0,
+				"passes": 0
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 2,
+					"disagrees": 0,
+					"passes": 0
+				},
+				{
+					"group_id": 1,
+					"agrees": 4,
+					"disagrees": 0,
+					"passes": 0
+				}
+			],
+			"group_informed_consensus": 0.625,
+			"divisiveness": 0.0
+		},
+		{
+			"tid": 288,
+			"text": "We should pay attention to existing infrastructure, such as canal bridges, where we are now beginning to see issues.",
+			"overall_votes": {
+				"agrees": 5,
+				"disagrees": 0,
+				"passes": 0
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 2,
+					"disagrees": 0,
+					"passes": 0
+				},
+				{
+					"group_id": 1,
+					"agrees": 2,
+					"disagrees": 0,
+					"passes": 0
+				}
+			],
+			"group_informed_consensus": 0.5625,
+			"divisiveness": 0.0
+		},
+		{
+			"tid": 289,
+			"text": "Local villages need more affordable 3/4 bedroom houses provided by the Council",
+			"overall_votes": {
+				"agrees": 3,
+				"disagrees": 0,
+				"passes": 2
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 2,
+					"disagrees": 0,
+					"passes": 0
+				},
+				{
+					"group_id": 1,
 					"agrees": 0,
 					"disagrees": 0,
+					"passes": 2
+				}
+			],
+			"group_informed_consensus": 0.1875,
+			"divisiveness": 0.010851157582328647
+		},
+		{
+			"tid": 290,
+			"text": "The Council should not permit new development that stops families being able to attend old graves",
+			"overall_votes": {
+				"agrees": 3,
+				"disagrees": 1,
+				"passes": 0
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 0,
+					"disagrees": 1,
+					"passes": 0
+				},
+				{
+					"group_id": 1,
+					"agrees": 2,
+					"disagrees": 0,
+					"passes": 0
+				}
+			],
+			"group_informed_consensus": 0.25,
+			"divisiveness": 0.019807153830920743
+		},
+		{
+			"tid": 291,
+			"text": "New development should not result in Villages merging or getting closer together",
+			"overall_votes": {
+				"agrees": 6,
+				"disagrees": 0,
+				"passes": 0
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 3,
+					"disagrees": 0,
+					"passes": 0
+				},
+				{
+					"group_id": 1,
+					"agrees": 3,
+					"disagrees": 0,
+					"passes": 0
+				}
+			],
+			"group_informed_consensus": 0.6400000000000001,
+			"divisiveness": 0.0
+		},
+		{
+			"tid": 292,
+			"text": "Currently we have sufficient facilities for our children, because as technology advances children don't play out as it's unsafe, so they stay by their parents and use electronic devices. Safer option all round.",
+			"overall_votes": {
+				"agrees": 1,
+				"disagrees": 3,
+				"passes": 0
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 1,
+					"disagrees": 2,
+					"passes": 0
+				},
+				{
+					"group_id": 1,
+					"agrees": 0,
+					"disagrees": 1,
+					"passes": 0
+				}
+			],
+			"group_informed_consensus": 0.13333333333333333,
+			"divisiveness": 0.021015039150740152
+		},
+		{
+			"tid": 293,
+			"text": "The Council should give people a real say, unlike this questionnaire.",
+			"overall_votes": {
+				"agrees": 1,
+				"disagrees": 1,
+				"passes": 1
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 1,
+					"disagrees": 1,
 					"passes": 0
 				},
 				{
@@ -7248,13 +7348,113 @@
 				}
 			],
 			"group_informed_consensus": 0.16666666666666666,
-			"divisiveness": 0.004112069738738777
+			"divisiveness": 0.017288174923827136
 		},
 		{
-			"tid": 290,
-			"text": "The Council should not permit new development that stops families being able to attend old graves",
+			"tid": 294,
+			"text": "Carbon makes up .4% of the air we breath. I would stop cloud seeding which adds toxins into the air and tries to reduce sun light.",
 			"overall_votes": {
 				"agrees": 2,
+				"disagrees": 0,
+				"passes": 2
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 2,
+					"disagrees": 0,
+					"passes": 1
+				},
+				{
+					"group_id": 1,
+					"agrees": 0,
+					"disagrees": 0,
+					"passes": 1
+				}
+			],
+			"group_informed_consensus": 0.2,
+			"divisiveness": 0.005963062481761129
+		},
+		{
+			"tid": 295,
+			"text": "Solar panels should only be allowed on rooftops or alongside motorways, runways.",
+			"overall_votes": {
+				"agrees": 2,
+				"disagrees": 2,
+				"passes": 1
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 2,
+					"disagrees": 1,
+					"passes": 0
+				},
+				{
+					"group_id": 1,
+					"agrees": 0,
+					"disagrees": 1,
+					"passes": 1
+				}
+			],
+			"group_informed_consensus": 0.15000000000000002,
+			"divisiveness": 0.023852249927044517
+		},
+		{
+			"tid": 296,
+			"text": "I will NEVER be so stupid to rely on an electric car. When grid gets down, how can they be charged. They stopworking in extreme heat or extreme cold. They can be tampered with as computerised. I do not wish to sit at a public charging point waiting for my car to be ready to drive. Hybrid are far more reliable.",
+			"overall_votes": {
+				"agrees": 2,
+				"disagrees": 2,
+				"passes": 1
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 1,
+					"disagrees": 2,
+					"passes": 0
+				},
+				{
+					"group_id": 1,
+					"agrees": 1,
+					"disagrees": 0,
+					"passes": 1
+				}
+			],
+			"group_informed_consensus": 0.2,
+			"divisiveness": 0.04362933233421434
+		},
+		{
+			"tid": 297,
+			"text": "Consider the local demographic when looking at house building. It seems to me its just a case of here's a local unoccupied space - be it, green, brown, whatever classification and lets build a lot of houses here to make a lot of money - with no thought to the existing population and environment, get building and leave the mess later for everyone attitude...",
+			"overall_votes": {
+				"agrees": 4,
+				"disagrees": 1,
+				"passes": 1
+			},
+			"group_votes": [
+				{
+					"group_id": 0,
+					"agrees": 2,
+					"disagrees": 1,
+					"passes": 0
+				},
+				{
+					"group_id": 1,
+					"agrees": 2,
+					"disagrees": 0,
+					"passes": 1
+				}
+			],
+			"group_informed_consensus": 0.3600000000000001,
+			"divisiveness": 0.012972003701691812
+		},
+		{
+			"tid": 298,
+			"text": "Protecting farm land and greenbelt should be a top priority when planning for new buildings.",
+			"overall_votes": {
+				"agrees": 1,
 				"disagrees": 0,
 				"passes": 0
 			},
@@ -7276,8 +7476,8 @@
 			"divisiveness": 0.0
 		},
 		{
-			"tid": 291,
-			"text": "New development should not result in Villages merging or getting closer together",
+			"tid": 299,
+			"text": "There should be no new development near to Areas of Outstanding Natural Beauty.",
 			"overall_votes": {
 				"agrees": 1,
 				"disagrees": 0,
@@ -7292,17 +7492,17 @@
 				},
 				{
 					"group_id": 1,
-					"agrees": 0,
+					"agrees": 1,
 					"disagrees": 0,
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.25,
+			"group_informed_consensus": 0.3333333333333333,
 			"divisiveness": 0.0
 		},
 		{
-			"tid": 292,
-			"text": "Currently we have sufficient facilities for our children, because as technology advances children don't play out as it's unsafe, so they stay by their parents and use electronic devices. Safer option all round.",
+			"tid": 300,
+			"text": "Agree, but Also Hack with horses",
 			"overall_votes": {
 				"agrees": 1,
 				"disagrees": 0,
@@ -7317,37 +7517,12 @@
 				},
 				{
 					"group_id": 1,
-					"agrees": 0,
+					"agrees": 1,
 					"disagrees": 0,
 					"passes": 0
 				}
 			],
-			"group_informed_consensus": 0.25,
-			"divisiveness": 0.0
-		},
-		{
-			"tid": 293,
-			"text": "The Council should give people a real say, unlike this questionnaire.",
-			"overall_votes": {
-				"agrees": 1,
-				"disagrees": 0,
-				"passes": 0
-			},
-			"group_votes": [
-				{
-					"group_id": 0,
-					"agrees": 0,
-					"disagrees": 0,
-					"passes": 0
-				},
-				{
-					"group_id": 1,
-					"agrees": 0,
-					"disagrees": 0,
-					"passes": 0
-				}
-			],
-			"group_informed_consensus": 0.25,
+			"group_informed_consensus": 0.3333333333333333,
 			"divisiveness": 0.0
 		}
 	],
@@ -7415,101 +7590,48 @@
 	],
 	"participants": [
 		{
-			"pid": 136,
-			"group_id": 0,
+			"pid": 21,
+			"group_id": 1,
 			"pca_position": {
-				"x": 1.7459014952570129,
-				"y": -0.4433114508244705
-			}
-		},
-		{
-			"pid": 65,
-			"group_id": 0,
-			"pca_position": null
-		},
-		{
-			"pid": 62,
-			"group_id": 0,
-			"pca_position": {
-				"x": 3.468120176223883,
-				"y": -1.6964948569576153
+				"x": 1.550227570264426,
+				"y": 1.4817920115071088
 			}
 		},
 		{
 			"pid": 34,
 			"group_id": 1,
 			"pca_position": {
-				"x": -4.6005979512938175,
-				"y": 0.9192424884381608
+				"x": -4.278309631935466,
+				"y": 1.2049293356980235
 			}
 		},
 		{
-			"pid": 57,
-			"group_id": 0,
-			"pca_position": {
-				"x": 2.4674060121794765,
-				"y": 2.297491057549031
-			}
-		},
-		{
-			"pid": 26,
+			"pid": 53,
 			"group_id": 1,
 			"pca_position": null
 		},
 		{
-			"pid": 50,
+			"pid": 139,
+			"group_id": 0,
+			"pca_position": {
+				"x": 0.6784219086721144,
+				"y": -0.2509654867965675
+			}
+		},
+		{
+			"pid": 80,
+			"group_id": 0,
+			"pca_position": {
+				"x": -2.9472663427445633,
+				"y": -1.9610856696117367
+			}
+		},
+		{
+			"pid": 9,
 			"group_id": 1,
 			"pca_position": {
-				"x": -0.7808832364059431,
-				"y": -0.8760193257403124
-			}
-		},
-		{
-			"pid": 16,
-			"group_id": 0,
-			"pca_position": {
-				"x": -1.8047635329927336,
-				"y": -0.91582151982862
-			}
-		},
-		{
-			"pid": 14,
-			"group_id": 0,
-			"pca_position": {
-				"x": -0.4209981473732411,
-				"y": -0.697076922340898
-			}
-		},
-		{
-			"pid": 35,
-			"group_id": 0,
-			"pca_position": {
-				"x": 2.3497894025740997,
-				"y": 0.05022074341467535
-			}
-		},
-		{
-			"pid": 6,
-			"group_id": 0,
-			"pca_position": {
-				"x": 1.4959093038421931,
-				"y": 0.21070373531589864
-			}
-		},
-		{
-			"pid": 89,
-			"group_id": 0,
-			"pca_position": {
-				"x": 3.0581826983404836,
-				"y": -1.532706319451104
-			}
-		},
-		{
-			"pid": 54,
-			"group_id": 1,
-			"pca_position": {
-				"x": -4.039009349923391,
-				"y": 0.10758623857299048
+				"x": -0.09499777068207228,
+				"y": -0.13316037577425807
 			}
 		},
 		{
@@ -7518,506 +7640,11 @@
 			"pca_position": null
 		},
 		{
-			"pid": 143,
-			"group_id": 0,
-			"pca_position": {
-				"x": -2.4645090300198893,
-				"y": 1.825911156393713
-			}
-		},
-		{
-			"pid": 132,
-			"group_id": 0,
-			"pca_position": null
-		},
-		{
-			"pid": 82,
-			"group_id": 0,
-			"pca_position": {
-				"x": 0.780098032433523,
-				"y": 0.8318916276564517
-			}
-		},
-		{
-			"pid": 15,
+			"pid": 61,
 			"group_id": 1,
 			"pca_position": {
-				"x": 3.320397775445889,
-				"y": 0.03175500086580516
-			}
-		},
-		{
-			"pid": 58,
-			"group_id": 1,
-			"pca_position": {
-				"x": 0.6797513726206983,
-				"y": -0.25443924339868285
-			}
-		},
-		{
-			"pid": 88,
-			"group_id": 1,
-			"pca_position": {
-				"x": 0.2990310150699506,
-				"y": 1.4706700384776992
-			}
-		},
-		{
-			"pid": 135,
-			"group_id": 0,
-			"pca_position": {
-				"x": 0.26841053390414776,
-				"y": -1.092318518982479
-			}
-		},
-		{
-			"pid": 105,
-			"group_id": 1,
-			"pca_position": {
-				"x": 5.09264107744549,
-				"y": 0.2221758768765085
-			}
-		},
-		{
-			"pid": 109,
-			"group_id": 1,
-			"pca_position": {
-				"x": -3.727105222761036,
-				"y": -0.9023187949076024
-			}
-		},
-		{
-			"pid": 113,
-			"group_id": 1,
-			"pca_position": {
-				"x": -3.727105222761036,
-				"y": -0.9023187949076024
-			}
-		},
-		{
-			"pid": 114,
-			"group_id": 1,
-			"pca_position": {
-				"x": 0.423472865075514,
-				"y": -1.8984953207413409
-			}
-		},
-		{
-			"pid": 117,
-			"group_id": 1,
-			"pca_position": {
-				"x": 2.0843375232736636,
-				"y": -2.9849452376351366
-			}
-		},
-		{
-			"pid": 96,
-			"group_id": 0,
-			"pca_position": null
-		},
-		{
-			"pid": 146,
-			"group_id": 0,
-			"pca_position": null
-		},
-		{
-			"pid": 71,
-			"group_id": 1,
-			"pca_position": {
-				"x": 3.0581826983404836,
-				"y": -1.532706319451104
-			}
-		},
-		{
-			"pid": 80,
-			"group_id": 0,
-			"pca_position": {
-				"x": -2.962602628798719,
-				"y": -1.9772428778378883
-			}
-		},
-		{
-			"pid": 93,
-			"group_id": 0,
-			"pca_position": {
-				"x": -3.4335332171511475,
-				"y": -0.5016523302706727
-			}
-		},
-		{
-			"pid": 118,
-			"group_id": 1,
-			"pca_position": null
-		},
-		{
-			"pid": 134,
-			"group_id": 1,
-			"pca_position": {
-				"x": -0.8042658985727227,
-				"y": 0.27382036298288137
-			}
-		},
-		{
-			"pid": 37,
-			"group_id": 0,
-			"pca_position": {
-				"x": -2.810185068233786,
-				"y": -0.45658712348889385
-			}
-		},
-		{
-			"pid": 19,
-			"group_id": 1,
-			"pca_position": {
-				"x": -1.869002244769344,
-				"y": 1.1676743853627811
-			}
-		},
-		{
-			"pid": 112,
-			"group_id": 1,
-			"pca_position": {
-				"x": -4.773364874141925,
-				"y": 1.1077924855719472
-			}
-		},
-		{
-			"pid": 4,
-			"group_id": 1,
-			"pca_position": {
-				"x": -0.4209981473732411,
-				"y": -0.697076922340898
-			}
-		},
-		{
-			"pid": 133,
-			"group_id": 1,
-			"pca_position": {
-				"x": 3.2133943989316514,
-				"y": 2.6135096535657
-			}
-		},
-		{
-			"pid": 138,
-			"group_id": 1,
-			"pca_position": {
-				"x": -1.7283075765638505,
-				"y": -0.12368356933648024
-			}
-		},
-		{
-			"pid": 3,
-			"group_id": 0,
-			"pca_position": {
-				"x": 0.28822646744749014,
-				"y": 0.1482300407780182
-			}
-		},
-		{
-			"pid": 124,
-			"group_id": 0,
-			"pca_position": {
-				"x": -2.4645090300198893,
-				"y": 1.825911156393713
-			}
-		},
-		{
-			"pid": 122,
-			"group_id": 0,
-			"pca_position": {
-				"x": 2.295911180794473,
-				"y": -1.6483088934531098
-			}
-		},
-		{
-			"pid": 12,
-			"group_id": 0,
-			"pca_position": {
-				"x": 0.8477027588829837,
-				"y": 0.2528292138075624
-			}
-		},
-		{
-			"pid": 51,
-			"group_id": 0,
-			"pca_position": {
-				"x": 0.2990310150699506,
-				"y": 1.4706700384776992
-			}
-		},
-		{
-			"pid": 121,
-			"group_id": 0,
-			"pca_position": {
-				"x": -4.6005979512938175,
-				"y": 0.9192424884381608
-			}
-		},
-		{
-			"pid": 139,
-			"group_id": 0,
-			"pca_position": {
-				"x": 0.6797513726206983,
-				"y": -0.25443924339868285
-			}
-		},
-		{
-			"pid": 87,
-			"group_id": 0,
-			"pca_position": null
-		},
-		{
-			"pid": 10,
-			"group_id": 0,
-			"pca_position": {
-				"x": 3.320397775445889,
-				"y": 0.03175500086580516
-			}
-		},
-		{
-			"pid": 74,
-			"group_id": 1,
-			"pca_position": null
-		},
-		{
-			"pid": 145,
-			"group_id": 1,
-			"pca_position": {
-				"x": 1.7982829892053245,
-				"y": -1.1857842710008513
-			}
-		},
-		{
-			"pid": 69,
-			"group_id": 0,
-			"pca_position": {
-				"x": -3.196766562374787,
-				"y": -0.09067485041529708
-			}
-		},
-		{
-			"pid": 21,
-			"group_id": 1,
-			"pca_position": {
-				"x": 1.5621872485647512,
-				"y": 1.487665186215687
-			}
-		},
-		{
-			"pid": 52,
-			"group_id": 1,
-			"pca_position": {
-				"x": -3.4335332171511475,
-				"y": -0.5016523302706727
-			}
-		},
-		{
-			"pid": 76,
-			"group_id": 0,
-			"pca_position": {
-				"x": -5.709308321931464,
-				"y": 1.3353633896603334
-			}
-		},
-		{
-			"pid": 27,
-			"group_id": 1,
-			"pca_position": {
-				"x": -0.6023689333834847,
-				"y": 1.2026395245272692
-			}
-		},
-		{
-			"pid": 103,
-			"group_id": 0,
-			"pca_position": null
-		},
-		{
-			"pid": 36,
-			"group_id": 1,
-			"pca_position": {
-				"x": 1.4959093038421931,
-				"y": 0.21070373531589864
-			}
-		},
-		{
-			"pid": 107,
-			"group_id": 0,
-			"pca_position": {
-				"x": 0.8477027588829837,
-				"y": 0.2528292138075624
-			}
-		},
-		{
-			"pid": 116,
-			"group_id": 0,
-			"pca_position": {
-				"x": -1.03007524953855,
-				"y": -0.4722540471902427
-			}
-		},
-		{
-			"pid": 2,
-			"group_id": 1,
-			"pca_position": {
-				"x": 3.320397775445889,
-				"y": 0.03175500086580516
-			}
-		},
-		{
-			"pid": 123,
-			"group_id": 0,
-			"pca_position": {
-				"x": -2.717254028285044,
-				"y": -1.2807220790234974
-			}
-		},
-		{
-			"pid": 55,
-			"group_id": 1,
-			"pca_position": {
-				"x": 2.4674060121794765,
-				"y": 2.297491057549031
-			}
-		},
-		{
-			"pid": 100,
-			"group_id": 1,
-			"pca_position": {
-				"x": -2.962602628798719,
-				"y": -1.9772428778378883
-			}
-		},
-		{
-			"pid": 137,
-			"group_id": 0,
-			"pca_position": {
-				"x": 1.293800754538074,
-				"y": -1.8099342827809457
-			}
-		},
-		{
-			"pid": 84,
-			"group_id": 1,
-			"pca_position": null
-		},
-		{
-			"pid": 131,
-			"group_id": 1,
-			"pca_position": {
-				"x": -2.292563606331014,
-				"y": -0.5838401907533539
-			}
-		},
-		{
-			"pid": 141,
-			"group_id": 0,
-			"pca_position": {
-				"x": -5.65709716781697,
-				"y": 3.651275937667236
-			}
-		},
-		{
-			"pid": 144,
-			"group_id": 1,
-			"pca_position": null
-		},
-		{
-			"pid": 78,
-			"group_id": 0,
-			"pca_position": {
-				"x": -0.7808832364059431,
-				"y": -0.8760193257403124
-			}
-		},
-		{
-			"pid": 111,
-			"group_id": 1,
-			"pca_position": {
-				"x": 4.4058645041721345,
-				"y": -0.5884266379318264
-			}
-		},
-		{
-			"pid": 110,
-			"group_id": 1,
-			"pca_position": {
-				"x": 4.0806200818229055,
-				"y": 0.8604897837414889
-			}
-		},
-		{
-			"pid": 83,
-			"group_id": 0,
-			"pca_position": {
-				"x": -2.717254028285044,
-				"y": -1.2807220790234974
-			}
-		},
-		{
-			"pid": 92,
-			"group_id": 0,
-			"pca_position": null
-		},
-		{
-			"pid": 23,
-			"group_id": 0,
-			"pca_position": {
-				"x": 1.4959093038421931,
-				"y": 0.21070373531589864
-			}
-		},
-		{
-			"pid": 129,
-			"group_id": 0,
-			"pca_position": {
-				"x": 3.914387304014524,
-				"y": 4.496559080392151
-			}
-		},
-		{
-			"pid": 81,
-			"group_id": 0,
-			"pca_position": null
-		},
-		{
-			"pid": 7,
-			"group_id": 0,
-			"pca_position": {
-				"x": 1.155928888668794,
-				"y": -1.2493769208386825
-			}
-		},
-		{
-			"pid": 108,
-			"group_id": 0,
-			"pca_position": {
-				"x": 4.472010383416515,
-				"y": -1.9652964900091583
-			}
-		},
-		{
-			"pid": 101,
-			"group_id": 0,
-			"pca_position": {
-				"x": 3.468120176223883,
-				"y": -1.6964948569576153
-			}
-		},
-		{
-			"pid": 24,
-			"group_id": 1,
-			"pca_position": {
-				"x": -2.812432604416162,
-				"y": 0.5126521010157368
-			}
-		},
-		{
-			"pid": 91,
-			"group_id": 1,
-			"pca_position": {
-				"x": -1.8504690548835268,
-				"y": -1.4824084535742583
+				"x": 2.343540180297473,
+				"y": 0.047188410130063585
 			}
 		},
 		{
@@ -8026,11 +7653,48 @@
 			"pca_position": null
 		},
 		{
-			"pid": 1,
+			"pid": 62,
 			"group_id": 0,
 			"pca_position": {
-				"x": -0.6023689333834847,
-				"y": 1.2026395245272692
+				"x": 3.450643814389373,
+				"y": -1.6851190054540837
+			}
+		},
+		{
+			"pid": 87,
+			"group_id": 0,
+			"pca_position": null
+		},
+		{
+			"pid": 15,
+			"group_id": 1,
+			"pca_position": {
+				"x": 3.293652210944383,
+				"y": 0.03342652759620514
+			}
+		},
+		{
+			"pid": 24,
+			"group_id": 1,
+			"pca_position": {
+				"x": -2.7779628881342755,
+				"y": 0.5132148625621814
+			}
+		},
+		{
+			"pid": 55,
+			"group_id": 1,
+			"pca_position": {
+				"x": 2.446843237050779,
+				"y": 2.283272457963977
+			}
+		},
+		{
+			"pid": 75,
+			"group_id": 1,
+			"pca_position": {
+				"x": 1.034712654523296,
+				"y": -0.6528886712419343
 			}
 		},
 		{
@@ -8039,23 +7703,537 @@
 			"pca_position": null
 		},
 		{
-			"pid": 128,
+			"pid": 109,
+			"group_id": 1,
+			"pca_position": {
+				"x": -3.698374290844544,
+				"y": -0.8906112703193664
+			}
+		},
+		{
+			"pid": 146,
+			"group_id": 0,
+			"pca_position": null
+		},
+		{
+			"pid": 112,
+			"group_id": 1,
+			"pca_position": {
+				"x": -4.278309631935466,
+				"y": 1.2049293356980235
+			}
+		},
+		{
+			"pid": 19,
+			"group_id": 1,
+			"pca_position": {
+				"x": -1.8801787394154652,
+				"y": 1.1630895148433045
+			}
+		},
+		{
+			"pid": 133,
+			"group_id": 1,
+			"pca_position": {
+				"x": 3.199008957145936,
+				"y": 2.6162239778627665
+			}
+		},
+		{
+			"pid": 32,
+			"group_id": 1,
+			"pca_position": {
+				"x": -2.536017021045433,
+				"y": 0.16555129130135923
+			}
+		},
+		{
+			"pid": 145,
+			"group_id": 1,
+			"pca_position": {
+				"x": 1.828262675594868,
+				"y": -1.0775475589695636
+			}
+		},
+		{
+			"pid": 31,
 			"group_id": 0,
 			"pca_position": {
-				"x": -0.4209981473732411,
-				"y": -0.697076922340898
+				"x": -3.453519823391149,
+				"y": 0.609612577746448
+			}
+		},
+		{
+			"pid": 3,
+			"group_id": 0,
+			"pca_position": {
+				"x": 0.28249648782171877,
+				"y": 0.1484529538941793
+			}
+		},
+		{
+			"pid": 116,
+			"group_id": 0,
+			"pca_position": {
+				"x": -1.012814012414177,
+				"y": -0.4494812341017337
+			}
+		},
+		{
+			"pid": 123,
+			"group_id": 0,
+			"pca_position": {
+				"x": -2.6911235694961726,
+				"y": -1.2633156150770166
+			}
+		},
+		{
+			"pid": 137,
+			"group_id": 0,
+			"pca_position": {
+				"x": 1.295301160189304,
+				"y": -1.7792108007710283
+			}
+		},
+		{
+			"pid": 65,
+			"group_id": 0,
+			"pca_position": null
+		},
+		{
+			"pid": 135,
+			"group_id": 0,
+			"pca_position": {
+				"x": 0.26601132148876216,
+				"y": -1.081505381821056
+			}
+		},
+		{
+			"pid": 56,
+			"group_id": 1,
+			"pca_position": {
+				"x": 1.153880027066472,
+				"y": -1.234777858699737
+			}
+		},
+		{
+			"pid": 69,
+			"group_id": 0,
+			"pca_position": {
+				"x": -3.160870086085499,
+				"y": -0.07818712879719271
+			}
+		},
+		{
+			"pid": 103,
+			"group_id": 0,
+			"pca_position": null
+		},
+		{
+			"pid": 121,
+			"group_id": 0,
+			"pca_position": {
+				"x": -4.857082411530117,
+				"y": 0.9220362920786074
+			}
+		},
+		{
+			"pid": 136,
+			"group_id": 0,
+			"pca_position": {
+				"x": 1.7673597773534704,
+				"y": -0.40052368570240304
+			}
+		},
+		{
+			"pid": 84,
+			"group_id": 1,
+			"pca_position": null
+		},
+		{
+			"pid": 91,
+			"group_id": 1,
+			"pca_position": {
+				"x": -1.8439535338159367,
+				"y": -1.4709022372889793
+			}
+		},
+		{
+			"pid": 122,
+			"group_id": 0,
+			"pca_position": {
+				"x": 2.284889429145468,
+				"y": -1.634971275815203
+			}
+		},
+		{
+			"pid": 92,
+			"group_id": 0,
+			"pca_position": null
+		},
+		{
+			"pid": 117,
+			"group_id": 1,
+			"pca_position": {
+				"x": 2.0772974984390453,
+				"y": -2.973786667200742
+			}
+		},
+		{
+			"pid": 89,
+			"group_id": 0,
+			"pca_position": {
+				"x": 3.040520209437835,
+				"y": -1.518626118535639
+			}
+		},
+		{
+			"pid": 141,
+			"group_id": 0,
+			"pca_position": {
+				"x": -5.643977156924566,
+				"y": 3.643581390206406
+			}
+		},
+		{
+			"pid": 51,
+			"group_id": 0,
+			"pca_position": {
+				"x": 0.3004069338545921,
+				"y": 1.4665395873293718
+			}
+		},
+		{
+			"pid": 88,
+			"group_id": 1,
+			"pca_position": {
+				"x": 0.3004069338545921,
+				"y": 1.4665395873293718
+			}
+		},
+		{
+			"pid": 73,
+			"group_id": 1,
+			"pca_position": {
+				"x": -1.012814012414177,
+				"y": -0.4494812341017337
+			}
+		},
+		{
+			"pid": 93,
+			"group_id": 0,
+			"pca_position": {
+				"x": -3.4043384841936932,
+				"y": -0.49099211576772506
+			}
+		},
+		{
+			"pid": 131,
+			"group_id": 1,
+			"pca_position": {
+				"x": -2.2669871428712316,
+				"y": -0.5666067266238528
+			}
+		},
+		{
+			"pid": 52,
+			"group_id": 1,
+			"pca_position": {
+				"x": -3.4043384841936932,
+				"y": -0.49099211576772506
+			}
+		},
+		{
+			"pid": 138,
+			"group_id": 1,
+			"pca_position": {
+				"x": -1.6695997222884402,
+				"y": -0.09375061512075934
+			}
+		},
+		{
+			"pid": 14,
+			"group_id": 0,
+			"pca_position": {
+				"x": -0.4336713385249443,
+				"y": -0.6458613242158909
+			}
+		},
+		{
+			"pid": 101,
+			"group_id": 0,
+			"pca_position": {
+				"x": 3.450643814389373,
+				"y": -1.6851190054540837
+			}
+		},
+		{
+			"pid": 83,
+			"group_id": 0,
+			"pca_position": {
+				"x": -2.6911235694961726,
+				"y": -1.2633156150770166
+			}
+		},
+		{
+			"pid": 2,
+			"group_id": 1,
+			"pca_position": {
+				"x": 3.293652210944383,
+				"y": 0.03342652759620514
+			}
+		},
+		{
+			"pid": 37,
+			"group_id": 0,
+			"pca_position": {
+				"x": -2.771840356311282,
+				"y": -0.45161821604380936
+			}
+		},
+		{
+			"pid": 106,
+			"group_id": 0,
+			"pca_position": {
+				"x": 2.284889429145468,
+				"y": -1.634971275815203
 			}
 		},
 		{
 			"pid": 140,
 			"group_id": 0,
 			"pca_position": {
-				"x": -1.6922802926355314,
-				"y": -1.8745970904312568
+				"x": -1.6763372423111975,
+				"y": -1.852012731049244
 			}
 		},
 		{
-			"pid": 53,
+			"pid": 16,
+			"group_id": 0,
+			"pca_position": {
+				"x": -1.7728147546348838,
+				"y": -0.9023250361641268
+			}
+		},
+		{
+			"pid": 107,
+			"group_id": 0,
+			"pca_position": {
+				"x": 1.0092623607371412,
+				"y": 0.29985955633929845
+			}
+		},
+		{
+			"pid": 71,
+			"group_id": 1,
+			"pca_position": {
+				"x": 3.040520209437835,
+				"y": -1.518626118535639
+			}
+		},
+		{
+			"pid": 134,
+			"group_id": 1,
+			"pca_position": {
+				"x": -0.8055605589163878,
+				"y": 0.27564557999665706
+			}
+		},
+		{
+			"pid": 10,
+			"group_id": 0,
+			"pca_position": {
+				"x": 3.293652210944383,
+				"y": 0.03342652759620514
+			}
+		},
+		{
+			"pid": 129,
+			"group_id": 0,
+			"pca_position": {
+				"x": 3.893681174173345,
+				"y": 4.4985916377310105
+			}
+		},
+		{
+			"pid": 57,
+			"group_id": 0,
+			"pca_position": {
+				"x": 2.446843237050779,
+				"y": 2.283272457963977
+			}
+		},
+		{
+			"pid": 144,
+			"group_id": 1,
+			"pca_position": null
+		},
+		{
+			"pid": 12,
+			"group_id": 0,
+			"pca_position": {
+				"x": 1.0092623607371412,
+				"y": 0.29985955633929845
+			}
+		},
+		{
+			"pid": 82,
+			"group_id": 0,
+			"pca_position": {
+				"x": 0.7718518137447101,
+				"y": 0.8252499465600565
+			}
+		},
+		{
+			"pid": 108,
+			"group_id": 0,
+			"pca_position": {
+				"x": 4.453478675971068,
+				"y": -1.944074781336144
+			}
+		},
+		{
+			"pid": 35,
+			"group_id": 0,
+			"pca_position": {
+				"x": 2.343540180297473,
+				"y": 0.047188410130063585
+			}
+		},
+		{
+			"pid": 124,
+			"group_id": 0,
+			"pca_position": {
+				"x": -2.4488126948680025,
+				"y": 1.8248314426866925
+			}
+		},
+		{
+			"pid": 113,
+			"group_id": 1,
+			"pca_position": {
+				"x": -3.698374290844544,
+				"y": -0.8906112703193664
+			}
+		},
+		{
+			"pid": 25,
+			"group_id": 0,
+			"pca_position": {
+				"x": -0.12598953088162437,
+				"y": 0.531721567497904
+			}
+		},
+		{
+			"pid": 128,
+			"group_id": 0,
+			"pca_position": {
+				"x": -0.4336713385249443,
+				"y": -0.6458613242158909
+			}
+		},
+		{
+			"pid": 50,
+			"group_id": 1,
+			"pca_position": {
+				"x": -0.7819196030384395,
+				"y": -0.8642754161020298
+			}
+		},
+		{
+			"pid": 26,
+			"group_id": 1,
+			"pca_position": null
+		},
+		{
+			"pid": 105,
+			"group_id": 1,
+			"pca_position": {
+				"x": 5.060398574817981,
+				"y": 0.23513117332103653
+			}
+		},
+		{
+			"pid": 110,
+			"group_id": 1,
+			"pca_position": {
+				"x": 4.066338750515904,
+				"y": 0.8564664714491504
+			}
+		},
+		{
+			"pid": 81,
+			"group_id": 0,
+			"pca_position": null
+		},
+		{
+			"pid": 1,
+			"group_id": 0,
+			"pca_position": {
+				"x": -0.5950154729854,
+				"y": 1.1932530326195037
+			}
+		},
+		{
+			"pid": 76,
+			"group_id": 0,
+			"pca_position": {
+				"x": -5.664091006778941,
+				"y": 1.3314398112493089
+			}
+		},
+		{
+			"pid": 100,
+			"group_id": 1,
+			"pca_position": {
+				"x": -2.9472663427445633,
+				"y": -1.9610856696117367
+			}
+		},
+		{
+			"pid": 54,
+			"group_id": 1,
+			"pca_position": {
+				"x": -4.020381875890957,
+				"y": 0.11408173799018406
+			}
+		},
+		{
+			"pid": 27,
+			"group_id": 1,
+			"pca_position": {
+				"x": -0.5950154729854,
+				"y": 1.1932530326195037
+			}
+		},
+		{
+			"pid": 132,
+			"group_id": 0,
+			"pca_position": null
+		},
+		{
+			"pid": 36,
+			"group_id": 1,
+			"pca_position": {
+				"x": 1.5414796018662695,
+				"y": 0.1634383998891841
+			}
+		},
+		{
+			"pid": 70,
+			"group_id": 1,
+			"pca_position": null
+		},
+		{
+			"pid": 6,
+			"group_id": 0,
+			"pca_position": {
+				"x": 1.5414796018662695,
+				"y": 0.1634383998891841
+			}
+		},
+		{
+			"pid": 74,
 			"group_id": 1,
 			"pca_position": null
 		},
@@ -8065,96 +8243,93 @@
 			"pca_position": null
 		},
 		{
-			"pid": 31,
+			"pid": 111,
+			"group_id": 1,
+			"pca_position": {
+				"x": 4.384645279607854,
+				"y": -0.5807290245262382
+			}
+		},
+		{
+			"pid": 114,
+			"group_id": 1,
+			"pca_position": {
+				"x": 0.41168550155274497,
+				"y": -1.8959049391464
+			}
+		},
+		{
+			"pid": 96,
+			"group_id": 0,
+			"pca_position": null
+		},
+		{
+			"pid": 143,
 			"group_id": 0,
 			"pca_position": {
-				"x": -3.4676421848712016,
-				"y": 0.6082630872038834
+				"x": -2.4488126948680025,
+				"y": 1.8248314426866925
 			}
 		},
 		{
-			"pid": 5,
-			"group_id": 1,
+			"pid": 78,
+			"group_id": 0,
 			"pca_position": {
-				"x": -2.5629332542073247,
-				"y": 0.16622707957664967
+				"x": -0.7819196030384395,
+				"y": -0.8642754161020298
 			}
 		},
 		{
-			"pid": 61,
+			"pid": 23,
+			"group_id": 0,
+			"pca_position": {
+				"x": 1.5414796018662695,
+				"y": 0.1634383998891841
+			}
+		},
+		{
+			"pid": 4,
 			"group_id": 1,
 			"pca_position": {
-				"x": 2.3497894025740997,
-				"y": 0.05022074341467535
+				"x": -0.4336713385249443,
+				"y": -0.6458613242158909
+			}
+		},
+		{
+			"pid": 7,
+			"group_id": 0,
+			"pca_position": {
+				"x": 1.153880027066472,
+				"y": -1.234777858699737
+			}
+		},
+		{
+			"pid": 58,
+			"group_id": 1,
+			"pca_position": {
+				"x": 0.6784219086721144,
+				"y": -0.2509654867965675
 			}
 		},
 		{
 			"pid": 28,
 			"group_id": 1,
 			"pca_position": {
-				"x": -2.5629332542073247,
-				"y": 0.16622707957664967
+				"x": -2.536017021045433,
+				"y": 0.16555129130135923
 			}
 		},
 		{
-			"pid": 73,
-			"group_id": 1,
-			"pca_position": {
-				"x": -1.03007524953855,
-				"y": -0.4722540471902427
-			}
-		},
-		{
-			"pid": 25,
-			"group_id": 0,
-			"pca_position": {
-				"x": -0.12649615923339377,
-				"y": 0.5348830627000284
-			}
-		},
-		{
-			"pid": 106,
-			"group_id": 0,
-			"pca_position": {
-				"x": 2.295911180794473,
-				"y": -1.6483088934531098
-			}
-		},
-		{
-			"pid": 70,
+			"pid": 118,
 			"group_id": 1,
 			"pca_position": null
 		},
 		{
-			"pid": 75,
+			"pid": 5,
 			"group_id": 1,
 			"pca_position": {
-				"x": 1.0501487645381302,
-				"y": -0.6558095825076604
-			}
-		},
-		{
-			"pid": 56,
-			"group_id": 1,
-			"pca_position": {
-				"x": 1.155928888668794,
-				"y": -1.2493769208386825
-			}
-		},
-		{
-			"pid": 32,
-			"group_id": 1,
-			"pca_position": {
-				"x": -2.5629332542073247,
-				"y": 0.16622707957664967
-			}
-		},
-		{
-			"pid": 9,
-			"group_id": 1,
-			"pca_position": {
-				"x": -0.1076726228233288,
-				"y": -0.15566841200366263
+				"x": -2.536017021045433,
+				"y": 0.16555129130135923
 			}
 		}
 	]
