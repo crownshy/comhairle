@@ -56,7 +56,7 @@ pub struct GroupReportData {
     pub group_id: u32,
     pub representative_comments: Vec<RepresentativeComment>,
     pub members: Vec<u32>, // pids
-    pub total_members: u32,
+    pub total_members: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
@@ -265,15 +265,19 @@ impl PolisClient {
 
             let divisiveness = comment_extremity.get(idx).and_then(|v| v.as_f64());
 
-            comments_report.push(CommentReportData {
-                tid,
-                text,
-                overall_votes: (*comment_votes.get(&tid).unwrap()).clone(),
-                group_votes: group_votes_list,
-                group_informed_consensus: consensus,
-                divisiveness,
-                is_seed: (comment_is_seed.get(&tid).unwrap()).clone(),
-            });
+            if let (Some(overall_votes), Some(is_seed)) =
+                (comment_votes.get(&tid), comment_is_seed.get(&tid))
+            {
+                comments_report.push(CommentReportData {
+                    tid,
+                    text,
+                    overall_votes: overall_votes.clone(),
+                    group_votes: group_votes_list,
+                    group_informed_consensus: consensus,
+                    divisiveness,
+                    is_seed: is_seed.clone(),
+                });
+            }
         }
 
         // Extract group clusters and build groups
@@ -283,6 +287,19 @@ impl PolisClient {
             .unwrap_or(&empty_clusters);
 
         let repness = &math_pca["repness"];
+
+        let mut group_sizes: Vec<u64> = vec![];
+
+        println!("{group_votes:#?}");
+
+        for g in group_votes
+            .as_object()
+            .unwrap()
+            .values()
+        {
+            let members = g.get("n-members").and_then(|v| v.as_u64()).unwrap() as u64;
+            group_sizes.push(members);
+        }
 
         let mut groups_report = Vec::new();
         for (idx, cluster) in group_clusters.iter().enumerate() {
@@ -308,18 +325,11 @@ impl PolisClient {
                 }
             }
 
-            let total_members = group_votes
-                .get(idx)
-                .unwrap()
-                .get("n-members")
-                .and_then(|v| v.as_u64())
-                .unwrap();
-
             groups_report.push(GroupReportData {
                 group_id,
                 representative_comments,
                 members,
-                total_members: total_members as u32,
+                total_members: group_sizes.get(idx).unwrap().clone(),
             });
         }
 
