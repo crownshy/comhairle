@@ -2,18 +2,18 @@
 	import ArrowDown from '@lucide/svelte/icons/arrow-down';
 	import ArrowUp from '@lucide/svelte/icons/arrow-up';
 
-	const sections = [
-		{ id: 'engagement', label: 'Dive In' },
-		{ id: 'agreement', label: 'Areas of agreement' },
-		{ id: 'groups', label: 'Emerging opinion groups' },
-		{ id: 'deep-dive', label: 'Deep Dive' },
-		{ id: 'back-to-top', label: 'Back to Top' }
-	];
+	interface Props {
+		sections: { id: string; label: string }[];
+	}
+
+	let { sections }: Props = $props();
+
+	const navSections = $derived([...sections, { id: 'back-to-top', label: 'Back to Top' }]);
 
 	let nextIndex = $state(0);
 	let hidden = $state(false);
 
-	const nextSection = $derived(sections[nextIndex] ?? null);
+	const nextSection = $derived(navSections[nextIndex] ?? null);
 	const isBackToTop = $derived(nextSection?.id === 'back-to-top');
 
 	function scrollToNext() {
@@ -29,16 +29,11 @@
 	}
 
 	function handleScroll() {
-		// find how many sections we've passed
 		let passed = 0;
 		for (let i = 0; i < sections.length; i++) {
-			if (sections[i].id === 'back-to-top') continue;
 			const el = document.getElementById(sections[i].id);
-			if (el) {
-				const rect = el.getBoundingClientRect();
-				if (rect.top <= 150) {
-					passed = i + 1;
-				}
+			if (el && el.getBoundingClientRect().top <= 150) {
+				passed = i + 1;
 			}
 		}
 		nextIndex = passed;

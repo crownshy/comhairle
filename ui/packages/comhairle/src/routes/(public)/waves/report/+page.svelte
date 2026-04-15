@@ -74,7 +74,14 @@
 	</div>
 {/snippet}
 
-<ReportNav />
+<ReportNav
+	sections={[
+		{ id: 'engagement', label: 'Dive In' },
+		{ id: 'agreement', label: 'Areas of agreement' },
+		{ id: 'groups', label: 'Emerging opinion groups' },
+		{ id: 'deep-dive', label: 'Deep Dive' }
+	]}
+/>
 <div class="flex flex-col items-center overflow-hidden pb-20">
 	<!-- Header -->
 	<header
