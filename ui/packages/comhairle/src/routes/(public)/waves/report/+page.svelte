@@ -198,21 +198,22 @@
 		title="Engagement so far, at a glance"
 		bind:open={engagementOpen}
 	>
+		<!-- TODO: all stat cards below are hardcoded — replace with real data once available:
+			 stats.totalParticipants.toLocaleString()
+			 stats.totalVotes.toLocaleString()
+			 stats.totalStatements.toLocaleString()
+			 Math.round((stats.totalVotes / Math.max(stats.totalParticipants, 1)) * 100) / 100
+			 data.reportData.groups.length
+		-->
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8 lg:grid-cols-3">
 			<!-- Row 1 -->
-			{@render statCard(
-				'Participants have taken part',
-				stats.totalParticipants.toLocaleString()
-			)}
-			{@render statCard('Votes cast', stats.totalVotes.toLocaleString())}
-			{@render statCard('Statements submitted', stats.totalStatements.toLocaleString())}
+			{@render statCard('Participants have taken part', '357')}
+			{@render statCard('Votes cast', '79,315')}
+			{@render statCard('Statements submitted', '611')}
 
 			<!-- Row 2 -->
-			{@render statCard(
-				'Votes per participants on average',
-				Math.round((stats.totalVotes / Math.max(stats.totalParticipants, 1)) * 100) / 100
-			)}
-			{@render statCard('Opinion groups were identified', data.reportData.groups.length)}
+			{@render statCard('Votes per participants on average', '52.74')}
+			{@render statCard('Opinion groups were identified', '2')}
 		</div>
 	</ReportSection>
 
@@ -227,9 +228,8 @@
 		<div class="text-card-foreground text-lg leading-6">
 			<span class="italic">
 				So far demographic information was voluntarily provided by
-				<span class="font-bold"
-					>178 of {stats.totalParticipants.toLocaleString()} participants.</span
-				>
+				<!-- TODO: use this once we get the correct number {stats.totalParticipants.toLocaleString()} -->
+				<span class="font-bold">178 of 357 participants.</span>
 				This represents half of the total consultation participants and so the following figures
 				should be treated as a rough indication.
 			</span>
@@ -370,7 +370,11 @@
 	<div class="mt-10"></div>
 
 	<!-- Emerging opinion groups -->
-	<ReportSection id="groups" title="Emerging opinion groups after 2 weeks" bind:open={groupsOpen}>
+	<ReportSection
+		id="groups"
+		title="Emerging opinion groups after 2 weeks..."
+		bind:open={groupsOpen}
+	>
 		{#each data.reportData.groups as group (group.group_id)}
 			{@const label = String.fromCharCode(65 + group.group_id)}
 			{@const repComments = group.representative_comments
@@ -380,11 +384,12 @@
 			<div
 				class="text-foreground w-full max-w-[960px] justify-start text-xl leading-7 font-semibold md:text-3xl md:leading-9"
 			>
-				Group {label} ({group.members.length} participants):
+				<!-- TODO: use real number {group.members.length} once data is correct -->
+				Group {label} ({group.group_id === 0 ? 158 : 138} participants):
 				{#if group.group_id === 0}
 					"Supportive of growth where it improves local infrastructure"
 				{:else if group.group_id === 1}
-					"Protection-focused, cautious on development"
+					"Protection-focused and cautious on development"
 				{/if}
 			</div>
 
@@ -443,7 +448,9 @@
 				<div
 					class="inline-flex w-full max-w-[984px] items-start justify-start gap-3 md:gap-6"
 				>
-					<div class="justify-start text-xl leading-6 font-semibold text-gray-400/50">
+					<div
+						class="text-muted-foreground justify-start text-xl leading-6 font-semibold"
+					>
 						#{i + 1}
 					</div>
 					<div class="flex-1">
@@ -460,9 +467,9 @@
 
 	<div class="mt-10"></div>
 
-	<!-- Taking a deeper look — Beeswarm -->
+	<!-- Beeswarm -->
 	<ReportSection
-		title="Taking a deeper look at the results"
+		title="Taking a deeper look at the results..."
 		bind:open={deeperLookOpen}
 		id="deep-dive"
 	>
