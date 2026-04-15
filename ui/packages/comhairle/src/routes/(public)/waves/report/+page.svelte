@@ -22,7 +22,7 @@
 	const significantComments = $derived(getSignificantComments(data.reportData));
 	const totalParticipants = $derived(data.reportData.participants.length);
 
-	let selectedTid = $state<number | null>(null);
+	let selectedTid = $state<number | null>(significantComments[0]?.tid ?? null);
 
 	const activeComment = $derived.by(() => {
 		const tid = selectedTid ?? null;
