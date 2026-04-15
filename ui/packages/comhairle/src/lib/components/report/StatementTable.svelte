@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ReportComment, ReportGroup } from '$lib/types/report';
-	import { computeGroupVotePercents, computeOverallVotePercents } from '$lib/types/report';
+	import { computeGroupVotePercents, computeOverallVotePercents } from '$lib/utils/report';
 	import VoteBarChart from './VoteBarChart.svelte';
 
 	interface Props {

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ReportComment, ReportGroup } from '$lib/types/report';
-	import { computeGroupVotePercents, computeOverallVotePercents } from '$lib/types/report';
+	import { computeGroupVotePercents, computeOverallVotePercents } from '$lib/utils/report';
 	import InfoIcon from '@lucide/svelte/icons/info';
 	import VoteBarChart from './VoteBarChart.svelte';
 

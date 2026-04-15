@@ -12,7 +12,7 @@
 		getConsensusStatements,
 		getDivisiveStatements,
 		getSignificantComments
-	} from '$lib/types/report';
+	} from '$lib/utils/report';
 
 	let { data }: PageProps = $props();
 
