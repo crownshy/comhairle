@@ -20,11 +20,7 @@
 	{#if !isEmbed && !isAuthPage}
 		<NavBar user={data.user} {isAdmin} />
 	{/if}
-	{#if isAuthPage}
-		<div class="grow">
-			{@render children()}
-		</div>
-	{:else if isReportPage}
+	{#if isAuthPage || isReportPage}
 		<div class="grow">
 			{@render children()}
 		</div>
