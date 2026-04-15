@@ -7,7 +7,7 @@
 	import { ascending } from 'd3-array';
 	import type { ReportComment } from '$lib/types/report';
 
-	const { data, xGet, height, config } = getContext('LayerCake');
+	const { data, xGet, height } = getContext('LayerCake');
 
 	interface Props {
 		r?: number;
@@ -16,7 +16,6 @@
 		stroke?: string;
 		hoveredTid?: number | null;
 		selectedTid?: number | null;
-		maxDivisiveness?: number;
 		onmouseenter?: (e: MouseEvent, comment: ReportComment) => void;
 		onmouseleave?: () => void;
 		onclick?: (comment: ReportComment) => void;
@@ -29,7 +28,6 @@
 		stroke = '#fff',
 		hoveredTid = null,
 		selectedTid = null,
-		maxDivisiveness = 0,
 		onmouseenter,
 		onmouseleave,
 		onclick
