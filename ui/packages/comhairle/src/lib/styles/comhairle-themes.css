@@ -86,6 +86,14 @@
 
 	--seed-highlight: #6b9b3a;
 	--seed-highlight-bg: #6b9b3a1a;
+
+	--vote-agreed: #2a9d90;
+	--vote-disagreed: #e76e50;
+	--vote-passed: #9ca3af;
+	--vote-not-voted: #ffffff;
+	--vote-not-voted-border: #e5e7eb;
+
+	--beeswarm-dot: #030712;
 }
 
 .dark {

@@ -27,7 +27,7 @@
 		r = 4,
 		spacing = 1.5,
 		strokeWidth = 0,
-		stroke = '#fff',
+		stroke = 'var(--background)',
 		hoveredTid = null,
 		selectedTid = null,
 		onmouseenter,
@@ -112,8 +112,8 @@
 			cx={d.x}
 			cy={$height - r - spacing - strokeWidth / 2 - d.y}
 			{r}
-			fill={isHovered || isSelected ? '#374151' : '#1f2937'}
-			stroke={isHovered || isSelected ? '#feca3a' : stroke}
+			fill={isHovered || isSelected ? 'var(--chart-1)' : 'var(--beeswarm-dot)'}
+			stroke={isHovered || isSelected ? 'var(--primary)' : stroke}
 			stroke-width={isHovered || isSelected ? 2 : strokeWidth}
 			opacity={hoveredTid != null && !isHovered ? 0.3 : 1}
 			class="cursor-pointer transition-opacity duration-150"

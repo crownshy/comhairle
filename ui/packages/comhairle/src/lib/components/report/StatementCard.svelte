@@ -73,7 +73,7 @@
 		<div class="flex min-w-0 flex-1 flex-col">
 			<!-- Statement text -->
 			<div class="flex items-center gap-2 px-4 pt-3 pb-3">
-				<div class="flex-1 text-2xl leading-7 font-semibold text-gray-950">
+				<div class="text-card-foreground flex-1 text-2xl leading-7 font-semibold">
 					{comment.text.trim()}
 				</div>
 			</div>
@@ -83,7 +83,9 @@
 				<div class="flex flex-col gap-0.5">
 					{#each allRows as row (row.label)}
 						<div class="flex items-center gap-1">
-							<div class="w-14 shrink-0 text-xs leading-4 font-medium text-black">
+							<div
+								class="text-card-foreground w-14 shrink-0 text-xs leading-4 font-medium"
+							>
 								{row.label}
 							</div>
 							<div class="flex-1">
@@ -100,21 +102,33 @@
 					</div>
 					<div class="flex items-center gap-3">
 						<div class="flex items-center gap-0.5">
-							<div class="h-2 w-2 rounded bg-teal-600"></div>
+							<div
+								class="h-2 w-2 rounded"
+								style="background: var(--vote-agreed);"
+							></div>
 							<div class="text-xs leading-4 font-medium text-gray-600">%Agreed</div>
 						</div>
 						<div class="flex items-center gap-0.5">
-							<div class="h-2 w-2 rounded bg-red-400"></div>
+							<div
+								class="h-2 w-2 rounded"
+								style="background: var(--vote-disagreed);"
+							></div>
 							<div class="text-xs leading-4 font-medium text-gray-600">
 								%Disagreed
 							</div>
 						</div>
 						<div class="flex items-center gap-0.5">
-							<div class="h-2 w-2 rounded bg-gray-400"></div>
+							<div
+								class="h-2 w-2 rounded"
+								style="background: var(--vote-passed);"
+							></div>
 							<div class="text-xs leading-4 font-medium text-gray-600">%Passed</div>
 						</div>
 						<div class="flex items-center gap-0.5">
-							<div class="h-2 w-2 rounded border border-gray-200 bg-white"></div>
+							<div
+								class="h-2 w-2 rounded"
+								style="background: var(--vote-not-voted); border: 1px solid var(--vote-not-voted-border);"
+							></div>
 							<div class="text-xs leading-4 font-medium text-gray-600">
 								%not voted
 							</div>

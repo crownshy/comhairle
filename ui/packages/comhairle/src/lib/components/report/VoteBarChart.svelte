@@ -10,11 +10,16 @@
 
 	const voteColorScale = scaleOrdinal<string, string>()
 		.domain(['agreed', 'disagreed', 'passed', 'notVoted'])
-		.range(['#0d9488', '#f87171', '#9ca3af', '#ffffff']);
+		.range([
+			'var(--vote-agreed)',
+			'var(--vote-disagreed)',
+			'var(--vote-passed)',
+			'var(--vote-not-voted)'
+		]);
 
 	const voteBorderScale = scaleOrdinal<string, string | undefined>()
 		.domain(['agreed', 'disagreed', 'passed', 'notVoted'])
-		.range([undefined, undefined, undefined, '#e5e7eb']);
+		.range([undefined, undefined, undefined, 'var(--vote-not-voted-border)']);
 
 	interface Props {
 		data: GroupVotePercent;

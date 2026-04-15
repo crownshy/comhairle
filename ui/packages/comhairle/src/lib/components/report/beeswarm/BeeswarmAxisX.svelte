@@ -53,7 +53,14 @@
 <g class="axis x-axis" class:snapLabels>
 	{#each tickVals as tick, i (tick)}
 		{#if baseline === true && i === 0}
-			<line class="baseline" y1={$height} y2={$height} x1="0" x2={$width} stroke="#e5e7eb" />
+			<line
+				class="baseline"
+				y1={$height}
+				y2={$height}
+				x1="0"
+				x2={$width}
+				stroke="var(--border)"
+			/>
 		{/if}
 		<g class="tick tick-{i}" transform="translate({$xScale(tick)},{Math.max(...$yRange)})">
 			{#if tickMarks === true}
@@ -63,7 +70,7 @@
 					x2={halfBand}
 					y1={0}
 					y2={tickLen}
-					stroke="#aaa"
+					stroke="var(--muted-foreground)"
 				/>
 			{/if}
 			<text

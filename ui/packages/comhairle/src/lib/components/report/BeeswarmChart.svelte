@@ -52,6 +52,13 @@
 	</LayerCake>
 </div>
 
+<div class="border-muted-foreground/40 mx-4 border-t">
+	<div class="text-muted-foreground flex justify-between pt-2 text-xs">
+		<span>consensus statement</span>
+		<span>divisive statement</span>
+	</div>
+</div>
+
 <style>
 	.chart-container {
 		width: 100%;
