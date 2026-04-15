@@ -50,6 +50,9 @@ pub enum ComhairleError {
     #[error("No video service configured")]
     NoVideoServiceConfigured,
 
+    #[error("No captcha configured")]
+    NoCaptchaConfigured,
+
     #[error("HeyForm error: {0}")]
     HeyFormError(#[from] HeyFormError),
 
@@ -253,6 +256,15 @@ pub enum ComhairleError {
 
     #[error("UTF-8 conversion error: {0}")]
     Utf8Error(#[from] std::string::FromUtf8Error),
+
+    #[error("System time error: {0}")]
+    SystemTimeError(#[from] std::time::SystemTimeError),
+
+    #[error("Altcha error: {0}")]
+    AltchaError(#[from] altcha::Error),
+
+    #[error("Base64 decode error: {0}")]
+    Base64DecodeError(#[from] base64::DecodeError),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]

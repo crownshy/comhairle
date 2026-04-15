@@ -1667,6 +1667,14 @@ const endpoints = makeApi([
   },
   {
     method: "get",
+    path: "/captcha/challenge",
+    alias: "GetChallenge",
+    description: `Returns a captcha challenge for frontend widget to solve`,
+    requestFormat: "json",
+    response: z.void(),
+  },
+  {
+    method: "get",
     path: "/conversation",
     alias: "ListConverastions",
     description: `List conversations`,

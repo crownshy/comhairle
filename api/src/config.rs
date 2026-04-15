@@ -61,6 +61,12 @@ pub struct VideoCallConfig {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+pub struct CaptchaConfig {
+    pub signature_secret: String,
+    pub key_secret: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
 pub struct ComhairleConfig {
     pub database_url: String,
     pub jwt_secret: String,
@@ -78,4 +84,5 @@ pub struct ComhairleConfig {
     pub heyform_url: String,
     pub polis_url: String,
     pub video_call_service: Option<VideoCallConfig>,
+    pub captcha: Option<CaptchaConfig>,
 }
