@@ -68,12 +68,14 @@
 	{/if}
 
 	<!-- Main layout -->
-	<div class="flex" style="padding-top: {comment.is_seed ? '30px' : '0'};">
+	<div class="flex flex-col sm:flex-row" style="padding-top: {comment.is_seed ? '30px' : '0'};">
 		<!-- Left: statement text + vote bars -->
 		<div class="flex min-w-0 flex-1 flex-col">
 			<!-- Statement text -->
 			<div class="flex items-center gap-2 px-4 pt-3 pb-3">
-				<div class="text-card-foreground flex-1 text-2xl leading-7 font-semibold">
+				<div
+					class="text-card-foreground flex-1 text-base leading-6 font-semibold sm:text-2xl sm:leading-7"
+				>
 					{comment.text.trim()}
 				</div>
 			</div>
@@ -96,11 +98,11 @@
 				</div>
 
 				<!-- Legend -->
-				<div class="mt-1 flex items-center">
+				<div class="mt-2 flex flex-col gap-1 sm:mt-1 sm:flex-row sm:items-center sm:gap-0">
 					<div class="w-14 shrink-0 text-xs leading-4 font-medium text-gray-600">
 						Legend
 					</div>
-					<div class="flex items-center gap-3">
+					<div class="flex flex-wrap items-center gap-2 sm:gap-3">
 						<div class="flex items-center gap-0.5">
 							<div
 								class="h-2 w-2 rounded"
@@ -139,7 +141,7 @@
 		</div>
 
 		<!-- Right: bridging strength + tags -->
-		<div class="flex w-[100px] shrink-0 flex-col gap-2 pt-3 pr-4">
+		<div class="flex shrink-0 flex-col gap-2 px-4 pt-2 sm:px-0 sm:pt-3 sm:pr-4">
 			<!-- Bridging label -->
 			<!-- <div>
 				<span class="{bridgingColor} text-sm leading-4 font-medium">{bridgingLabel}</span>

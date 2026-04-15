@@ -55,17 +55,17 @@
 {#if nextSection}
 	<button
 		onclick={scrollToNext}
-		class="bg-background fixed bottom-8 left-1/2 z-50
-			inline-flex -translate-x-1/2 items-center gap-2.5 rounded-full px-3.5 py-3
-			text-base
-			leading-6 font-semibold shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)]
+		class="bg-background fixed bottom-4 left-1/2 z-50
+			inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full px-3 py-2
+			text-sm leading-5 font-semibold shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25)]
 			transition-all duration-300
+			md:bottom-8 md:gap-2.5 md:px-3.5 md:py-3 md:text-base md:leading-6
 			{hidden ? 'pointer-events-none translate-y-4 opacity-0' : 'opacity-100'}"
 	>
 		{#if isBackToTop}
-			<ArrowUp class="size-5" />
+			<ArrowUp class="size-4 md:size-5" />
 		{:else}
-			<ArrowDown class="size-5" />
+			<ArrowDown class="size-4 md:size-5" />
 		{/if}
 		{nextSection.label}
 	</button>

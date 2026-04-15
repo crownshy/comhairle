@@ -49,8 +49,8 @@
 {#snippet numberedStatements(statements: ReportComment[])}
 	<div class="flex flex-col gap-6">
 		{#each statements as comment, i (comment.tid)}
-			<div class="flex items-start gap-6">
-				<span class="text-xl font-semibold text-gray-400/50">#{i + 1}</span>
+			<div class="flex items-start gap-3 md:gap-6">
+				<span class="text-base font-semibold text-gray-400/50 md:text-xl">#{i + 1}</span>
 				<div class="flex-1">
 					<StatementCard {comment} groups={data.reportData.groups} {totalParticipants} />
 				</div>
@@ -61,10 +61,16 @@
 
 {#snippet statCard(label: string, value: string | number)}
 	<div
-		class="bg-card ring-border h-44 w-72 content-center items-center rounded-xl p-6 text-center shadow-[0px_2px_4px_0px_rgba(0,0,0,0.10)] ring-1"
+		class="bg-card ring-border content-center items-center rounded-xl p-5 text-center shadow-[0px_2px_4px_0px_rgba(0,0,0,0.10)] ring-1 md:h-44 md:p-6"
 	>
-		<p class="text-card-foreground text-3xl leading-9 font-semibold">{value}</p>
-		<p class="text-muted-foreground mt-1.5 text-lg leading-7 font-semibold">{label}</p>
+		<p class="text-card-foreground text-2xl leading-8 font-semibold md:text-3xl md:leading-9">
+			{value}
+		</p>
+		<p
+			class="text-muted-foreground mt-1 text-base leading-6 font-semibold md:mt-1.5 md:text-lg md:leading-7"
+		>
+			{label}
+		</p>
 	</div>
 {/snippet}
 
@@ -73,21 +79,25 @@
 	<!-- Header -->
 	<header
 		id="dive-in"
-		class="bg-card mb-16 flex w-full flex-col items-center gap-4 rounded-xl px-24 pt-24 pb-12 text-center"
+		class="bg-card mb-8 flex w-full flex-col items-center gap-4 rounded-xl px-5 pt-10 pb-8 text-center md:mb-16 md:px-24 md:pt-24 md:pb-12"
 	>
 		<Badge
 			class="bg-primary/10 text-muted-foreground rounded-3xl px-4 py-2 text-lg font-semibold"
 		>
 			Interim Report
 		</Badge>
-		<h1 class="text-foreground max-w-4xl text-5xl leading-[52px] font-bold">
+		<h1
+			class="text-foreground max-w-4xl text-2xl leading-8 font-bold md:text-5xl md:leading-[52px]"
+		>
 			South Staffordshire Local Plan Public Engagement
 		</h1>
 		<p class="max-w-4xl">After 1 week of engagement (Draft report created on 14th April '26)</p>
 
 		<!-- Executive Summary -->
-		<div class="mt-10 flex w-full max-w-4xl flex-col gap-6 text-left">
-			<h2 class="text-card-foreground text-4xl leading-[48px] font-semibold">
+		<div class="mt-6 flex w-full max-w-4xl flex-col gap-4 text-left md:mt-10 md:gap-6">
+			<h2
+				class="text-card-foreground text-2xl leading-8 font-semibold md:text-4xl md:leading-[48px]"
+			>
 				Executive Summary
 			</h2>
 
@@ -181,7 +191,7 @@
 		title="Engagement so far, at a glance"
 		bind:open={engagementOpen}
 	>
-		<div class="grid grid-cols-3 gap-8">
+		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8 lg:grid-cols-3">
 			<!-- Row 1 -->
 			{@render statCard(
 				'Participants have taken part',
@@ -210,8 +220,9 @@
 		<div class="text-card-foreground text-lg leading-6">
 			<span class="italic">
 				So far demographic information was voluntarily provided by
-				<!-- TODO: figure out why this is not bolding :/// -->
-				<strong>178 of {stats.totalParticipants.toLocaleString()} participants.</strong>
+				<span class="font-bold"
+					>178 of {stats.totalParticipants.toLocaleString()} participants.</span
+				>
 				This represents half of the total consultation participants and so the following figures
 				should be treated as a rough indication.
 			</span>
@@ -359,7 +370,9 @@
 				.map((rc) => data.reportData.comments.find((c) => c.tid === rc.tid))
 				.filter((c) => c != null)}
 
-			<div class="text-foreground w-[960px] justify-start text-3xl leading-9 font-semibold">
+			<div
+				class="text-foreground w-full max-w-[960px] justify-start text-xl leading-7 font-semibold md:text-3xl md:leading-9"
+			>
 				Group {label} ({group.members.length} participants):
 				{#if group.group_id === 0}
 					"Supportive of growth where it improves local infrastructure"
@@ -420,7 +433,9 @@
 			</div>
 
 			{#each repComments as comment, i (comment.tid)}
-				<div class="inline-flex w-[984px] items-start justify-start gap-6">
+				<div
+					class="inline-flex w-full max-w-[984px] items-start justify-start gap-3 md:gap-6"
+				>
 					<div class="justify-start text-xl leading-6 font-semibold text-gray-400/50">
 						#{i + 1}
 					</div>
