@@ -87,7 +87,7 @@
 								{row.label}
 							</div>
 							<div class="flex-1">
-								<VoteBarChart data={row} height={20} />
+								<VoteBarChart data={row} />
 							</div>
 						</div>
 					{/each}

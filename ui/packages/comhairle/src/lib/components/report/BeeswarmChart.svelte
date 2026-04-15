@@ -21,8 +21,6 @@
 		onHoverComment
 	}: Props = $props();
 
-	const maxDivisiveness = $derived(max(comments, (c) => c.divisiveness) ?? 0);
-
 	function handleMouseEnter(_e: MouseEvent, comment: ReportComment) {
 		onHoverComment?.(comment);
 	}
@@ -44,7 +42,6 @@
 					r={width < 500 ? dotRadius / 1.4 : dotRadius}
 					spacing={1}
 					{selectedTid}
-					{maxDivisiveness}
 					onmouseenter={handleMouseEnter}
 					onmouseleave={handleMouseLeave}
 				/>

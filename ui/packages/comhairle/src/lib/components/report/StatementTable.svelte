@@ -51,7 +51,7 @@
 						</div>
 					</td>
 					<td class="px-2 py-3">
-						<VoteBarChart data={overall} height={10} showLabels={false} />
+						<VoteBarChart data={overall} showLabels={false} />
 						<div class="mt-0.5 flex gap-1 text-[10px] leading-none">
 							<span class="text-teal-700">{Math.round(overall.agreed)}%</span>
 							<span class="text-red-500">{Math.round(overall.disagreed)}%</span>
@@ -60,7 +60,7 @@
 					</td>
 					{#each groupPercents as gp (gp.group_id)}
 						<td class="px-2 py-3">
-							<VoteBarChart data={gp} height={10} showLabels={false} />
+							<VoteBarChart data={gp} showLabels={false} />
 							<div class="mt-0.5 flex gap-1 text-[10px] leading-none">
 								<span class="text-teal-700">{Math.round(gp.agreed)}%</span>
 								<span class="text-red-500">{Math.round(gp.disagreed)}%</span>
