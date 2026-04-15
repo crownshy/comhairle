@@ -18,7 +18,6 @@
 
 	interface Props {
 		data: GroupVotePercent;
-		height?: number;
 		showLabels?: boolean;
 	}
 
@@ -38,7 +37,7 @@
 	const chartData = $derived([{ total: 100 }]);
 </script>
 
-<div class="w-full" style="height: 10px; round">
+<div class="w-full" style="height: 10px;">
 	<LayerCake data={chartData}>
 		<Svg>
 			<StackedBar {segments} {showLabels} />
