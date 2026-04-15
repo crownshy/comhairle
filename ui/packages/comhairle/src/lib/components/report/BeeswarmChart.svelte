@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { LayerCake, Svg } from 'layercake';
-	import { max } from 'd3-array';
 	import type { ReportComment } from '$lib/types/report';
 
 	import BeeswarmDots from './beeswarm/BeeswarmDots.svelte';
@@ -39,7 +38,7 @@
 		{#snippet children({ width })}
 			<Svg>
 				<BeeswarmDots
-					r={width < 500 ? dotRadius / 1.4 : dotRadius}
+					radius={width < 500 ? dotRadius / 1.4 : dotRadius}
 					spacing={1}
 					{selectedTid}
 					onmouseenter={handleMouseEnter}

@@ -26,8 +26,8 @@
 		dy = 12
 	}: Props = $props();
 
-	function textAnchor(i: number, sl: boolean): string {
-		if (sl === true) {
+	function textAnchor(i: number, snapLabels: boolean): string {
+		if (snapLabels === true) {
 			if (i === 0) return 'start';
 			if (i === tickVals.length - 1) return 'end';
 		}

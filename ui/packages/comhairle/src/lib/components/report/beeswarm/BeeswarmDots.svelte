@@ -10,7 +10,7 @@
 	const { data, xGet, height } = getContext('LayerCake');
 
 	interface Props {
-		r?: number;
+		radius?: number;
 		spacing?: number;
 		strokeWidth?: number;
 		stroke?: string;
@@ -24,7 +24,7 @@
 	}
 
 	let {
-		r = 4,
+		radius = 4,
 		spacing = 1.5,
 		strokeWidth = 0,
 		stroke = 'var(--background)',
@@ -97,7 +97,7 @@
 	}
 
 	let circles = $derived(
-		dodge($data as ReportComment[], { rds: r * 2 + spacing + strokeWidth, x: $xGet })
+		dodge($data as ReportComment[], { rds: radius * 2 + spacing + strokeWidth, x: $xGet })
 	);
 </script>
 
@@ -110,8 +110,8 @@
 			aria-label={d.data.text.trim()}
 			tabindex="0"
 			cx={d.x}
-			cy={$height - r - spacing - strokeWidth / 2 - d.y}
-			{r}
+			cy={$height - radius - spacing - strokeWidth / 2 - d.y}
+			r={radius}
 			fill={isHovered || isSelected ? 'var(--chart-1)' : 'var(--beeswarm-dot)'}
 			stroke={isHovered || isSelected ? 'var(--primary)' : stroke}
 			stroke-width={isHovered || isSelected ? 2 : strokeWidth}

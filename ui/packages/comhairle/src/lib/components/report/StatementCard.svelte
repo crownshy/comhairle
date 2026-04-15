@@ -130,7 +130,7 @@
 								style="background: var(--vote-not-voted); border: 1px solid var(--vote-not-voted-border);"
 							></div>
 							<div class="text-xs leading-4 font-medium text-gray-600">
-								%not voted
+								%Not voted
 							</div>
 						</div>
 					</div>
