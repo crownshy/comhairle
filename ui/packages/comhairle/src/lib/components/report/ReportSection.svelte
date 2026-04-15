@@ -18,10 +18,7 @@
 	let { id, title, subtitle, open = $bindable(true), children }: Props = $props();
 </script>
 
-<div
-	{id}
-	class="bg-card border-primary w-full max-w-[1200px] scroll-mt-4 rounded-xl border-t-4 px-24 py-12"
->
+<div {id} class="bg-card border-primary w-full max-w-[1200px] scroll-mt-4 border-t-4 px-24 py-12">
 	<Collapsible bind:open>
 		<CollapsibleTrigger class=" group flex w-full items-center justify-between gap-6">
 			<h2 class="text-card-foreground text-4xl leading-[48px] font-semibold">{title}</h2>

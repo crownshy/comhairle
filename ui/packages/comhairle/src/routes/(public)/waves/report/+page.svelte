@@ -146,6 +146,8 @@
 		</div>
 	</ReportSection>
 
+	<div class="mt-10"></div>
+
 	<!-- Who is participating? -->
 	<ReportSection
 		id="who-participating"
@@ -189,6 +191,8 @@
 			</p>
 		</div>
 	</ReportSection>
+
+	<div class="mt-10"></div>
 
 	<!-- Areas of Agreement -->
 	<ReportSection id="agreement" title="Areas of agreement" bind:open={agreementOpen}>
@@ -249,6 +253,8 @@
 		{@render numberedStatements(consensusStatements)}
 	</ReportSection>
 
+	<div class="mt-10"></div>
+
 	<!-- Where there are differences -->
 	<ReportSection title="Where there are differences" bind:open={differencesOpen}>
 		<div class="max-w-4xl pt-2 pb-6">
@@ -307,6 +313,8 @@
 
 		{@render numberedStatements(divisiveStatements)}
 	</ReportSection>
+
+	<div class="mt-10"></div>
 
 	<!-- Emerging opinion groups -->
 	<ReportSection id="groups" title="Emerging opinion groups after 2 weeks" bind:open={groupsOpen}>
@@ -377,6 +385,8 @@
 			{/each}
 		{/each}
 	</ReportSection>
+
+	<div class="mt-10"></div>
 
 	<!-- Taking a deeper look — Beeswarm -->
 	<ReportSection
