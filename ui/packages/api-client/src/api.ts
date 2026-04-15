@@ -3,6 +3,7 @@ import {
   Zodios,
   type ZodiosOptions,
   type ZodiosInstance,
+  type ZodiosEndpointDefinitions,
 } from "@zodios/core";
 import { z } from "zod";
 
@@ -1534,7 +1535,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ComhairleServices,
 };
 
-const endpoints: ReturnType<typeof makeApi> = makeApi([
+const endpoints = makeApi([
   {
     method: "get",
     path: "/auth/current_user",
@@ -1806,6 +1807,14 @@ Use a raw HTTP request and process the response body incrementally.`,
         schema: z.object({ question: z.string() }).passthrough(),
       },
     ],
+    response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/contacts/export",
+    alias: "ExportConversationContacts",
+    description: `Exports a CSV file containing all users who have opted in to receive email updates for this conversation`,
+    requestFormat: "json",
     response: z.void(),
   },
   {
@@ -3369,7 +3378,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
     requestFormat: "json",
     response: WebSocketStats,
   },
-]);
+] as const satisfies ZodiosEndpointDefinitions);
 
 export const api: ZodiosInstance<typeof endpoints> = new Zodios(endpoints);
 
