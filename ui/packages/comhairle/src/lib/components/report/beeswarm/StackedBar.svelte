@@ -39,22 +39,20 @@
 
 	const rects = $derived.by(() => {
 		if (total === 0) return [];
-		const w = $width;
-		const h = $height;
 		let x = 0;
 
 		return segments
 			.filter((seg) => seg.value > 0)
 			.map((seg) => {
 				const pct = seg.value / total;
-				const barW = pct * w;
+				const barW = pct * $width;
 				const fitsInside = barW >= MIN_LABEL_WIDTH;
 				const rect = {
 					key: seg.key,
 					x,
 					y: 0,
 					width: barW,
-					height: h,
+					height: $height,
 					color: seg.color,
 					borderColor: seg.borderColor,
 					pct: seg.value,
