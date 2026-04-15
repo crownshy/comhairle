@@ -721,6 +721,7 @@ mod tests {
                 password: "test_pw".to_string(),
                 avatar_url: None,
                 email: "test_email".to_string(),
+                ..Default::default()
             },
             &pool,
         )

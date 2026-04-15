@@ -265,6 +265,9 @@ pub enum ComhairleError {
 
     #[error("Base64 decode error: {0}")]
     Base64DecodeError(#[from] base64::DecodeError),
+
+    #[error("Missing captcha solution")]
+    MissingCaptchaSolution,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]

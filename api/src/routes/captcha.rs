@@ -67,7 +67,7 @@ impl From<VerifySolutionResult> for CaptchaVerificationResult {
 }
 
 pub fn verify(
-    solution: String,
+    solution: &str,
     captcha_config: &CaptchaConfig,
 ) -> Result<CaptchaVerificationResult, ComhairleError> {
     let bytes = BASE64.decode(solution)?;
@@ -106,11 +106,21 @@ mod tests {
     use sqlx::PgPool;
     use std::error::Error;
 
-    use crate::models::model_test_helpers::setup_default_app_and_session;
+    use crate::{
+        setup_server,
+        test_helpers::{test_config, test_state, UserSession},
+    };
 
     #[sqlx::test]
     fn should_return_captcha_challenge(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let mut config = test_config()?;
+        config.captcha = Some(CaptchaConfig {
+            key_secret: "123".to_string(),
+            signature_secret: "321".to_string(),
+        });
+        let state = test_state().db(pool).config(config).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new("test_user", "test_password", "test_email");
 
         let (_, value, _) = session.get(&app, "/captcha/challenge").await?;
 

@@ -104,6 +104,7 @@
 		"@tiptap/markdown": "^3.11.0",
 		"@tiptap/starter-kit": "^3.11.0",
 		"@zodios/core": "^10.9.6",
+		"altcha": "^3.0.2",
 		"carta-md": "^4.9.0",
 		"carta-plugin-video": "^2.1.0",
 		"d3-array": "^3.2.4",

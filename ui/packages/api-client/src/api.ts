@@ -32,6 +32,7 @@ export type LoginRequest = z.infer<typeof LoginRequest>;
 export const SignupRequest = z
   .object({
     avatar_url: z.union([z.string(), z.null()]).optional(),
+    captcha_solution: z.union([z.string(), z.null()]).optional(),
     email: z.string(),
     password: z.string(),
     username: z.string(),

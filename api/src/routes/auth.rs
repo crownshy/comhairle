@@ -51,7 +51,7 @@ use crate::{
         get_user_resource_roles, update_user, Resource, Role, UpdateUserRequest, User,
         UserAuthType, UserResourceRole,
     },
-    routes::user::dto::UserDto,
+    routes::{captcha::verify, user::dto::UserDto},
     ComhairleState,
 };
 
@@ -264,13 +264,14 @@ pub fn generate_jwt<T: Serialize>(
 }
 
 /// Expected payload for a signin request  
-#[derive(Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Default)]
 #[cfg_attr(test, derive(Dummy))]
 pub struct SignupRequest {
     pub username: String,
     pub password: String,
     pub avatar_url: Option<String>,
     pub email: String,
+    pub captcha_solution: Option<String>,
 }
 
 /// Signup handler
@@ -281,6 +282,14 @@ async fn signup(
     jar: CookieJar,
     Json(payload): Json<SignupRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
+    if let Some(captcha_config) = state.config.captcha.as_ref() {
+        if let Some(solution) = payload.captcha_solution.as_ref() {
+            verify(solution, captcha_config)?;
+        } else {
+            return Err(ComhairleError::MissingCaptchaSolution);
+        }
+    }
+
     // Validate password strength
     validate_password_strength(&payload.password)?;
 
@@ -944,17 +953,18 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
 mod tests {
 
     use crate::{
+        config::CaptchaConfig,
         mailer::MockComhairleMailer,
         models::users::{
             add_user_resource_role, get_user_by_email, Resource, Role, UpdateUserRequest, User,
             UserAuthType,
         },
         routes::{
-            auth::{generate_jwt, EmailLinkClaims, SessionClaims},
+            auth::{generate_jwt, EmailLinkClaims, SessionClaims, SignupRequest},
             user::dto::UserDto,
         },
         setup_server,
-        test_helpers::{test_state, UserSession},
+        test_helpers::{test_config, test_state, UserSession},
     };
 
     use argon2::{Argon2, PasswordHash, PasswordVerifier};
@@ -999,6 +1009,42 @@ mod tests {
         );
 
         assert_ne!(user.id, Uuid::nil(), "current user should contain an id");
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_fail_signup_if_captcha_solution_missing(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut config = test_config()?;
+        config.captcha = Some(CaptchaConfig {
+            key_secret: "123".to_string(),
+            signature_secret: "321".to_string(),
+        });
+        let state = test_state().db(pool).config(config).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new_anon();
+
+        let params = SignupRequest {
+            username: "test_user".to_string(),
+            email: "test_email".to_string(),
+            password: "test_password".to_string(),
+            captcha_solution: None,
+            ..Default::default()
+        };
+
+        let bytes = serde_json::to_vec(&params)?;
+        let (_, value, _) = session.post(&app, "/auth/signup", bytes.into()).await?;
+
+        assert_eq!(
+            value.get("err").and_then(|v| v.as_str()).unwrap(),
+            "Missing captcha solution",
+            "incorrect error message"
+        );
+        println!();
+        println!("    >>>>    Response: {value:#?}");
+        println!();
+
         Ok(())
     }
 

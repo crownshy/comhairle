@@ -94,6 +94,9 @@ importers:
       '@zodios/core':
         specifier: ^10.9.6
         version: 10.9.6(axios@1.13.5)(zod@3.25.76)
+      altcha:
+        specifier: ^3.0.2
+        version: 3.0.2
       carta-md:
         specifier: ^4.9.0
         version: 4.11.1(svelte@5.53.3)
@@ -1549,15 +1552,8 @@ packages:
     peerDependencies:
       '@testing-library/dom': '>=7.21.4'
 
-  '@thisux/sveltednd@0.0.12':
-    resolution: {integrity: sha512-9edVcakYkoCzU6pNIwmJ6Cf+9anECod26Ue/rL3Ssf5LyuLaBLXtBx4H4U8YwQCkwtMeSGFf0OsiMpPpFjvCcg==}
-    peerDependencies:
-      svelte: ^5.0.0
-
   '@thisux/sveltednd@0.0.14':
     resolution: {integrity: sha512-Vbq69SU3HUomPg6oCXtb89OG89hka0YIkdaErYibn3waK7tYE66IcQxD/Fzg8YNW3EVsXoA9kc7kW5EUBCSQGg==}
-    peerDependencies:
-      svelte: ^5.0.0
 
   '@thisux/sveltednd@0.0.17':
     resolution: {integrity: sha512-lRninjw439phhA8xAHqCpMAX0hnwFMdbXW4M0XJgAdnGxeum+QsLiIC4P3HnkNXAygsVKUqxRcbS84CxDZ9hPw==}
@@ -2108,6 +2104,9 @@ packages:
 
   ajv@8.18.0:
     resolution: {integrity: sha512-PlXPeEWMXMZ7sPYOHqmDyCJzcfNrUr3fGNKtezX14ykXOEIvyK81d+qydx89KY5O71FKMPaQ2vBfBFI5NHR63A==}
+
+  altcha@3.0.2:
+    resolution: {integrity: sha512-rk1qln0bYNykWkLbsrXr6DChUTRCrh3KH+dNryV6O94UbwVVp3W3xmOTxL8byWYGq0F4uJmPUt1hiHBabh3UTw==}
 
   ansi-regex@5.0.1:
     resolution: {integrity: sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==}
@@ -2969,6 +2968,9 @@ packages:
   has-tostringtag@1.0.2:
     resolution: {integrity: sha512-NqADB8VjPFLM2V0VvHUewwwsw0ZWBaIdgo+ieHtK3hasLz4qeCRjYcqfB6AQrBggRKppKF8L52/VqdVsO47Dlw==}
     engines: {node: '>= 0.4'}
+
+  hash-wasm@4.12.0:
+    resolution: {integrity: sha512-+/2B2rYLb48I/evdOIhP+K/DD2ca2fgBjp6O+GBEnCDk2e4rpeXIK8GvIyRPjTezgmWn9gmKwkQjjx6BtqDHVQ==}
 
   hasown@2.0.2:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
@@ -5788,18 +5790,11 @@ snapshots:
     dependencies:
       '@testing-library/dom': 10.4.0
 
-  '@thisux/sveltednd@0.0.12(svelte@5.53.3)':
-    dependencies:
-      svelte: 5.53.3
-
-  '@thisux/sveltednd@0.0.14(svelte@5.53.3)':
-    dependencies:
-      '@thisux/sveltednd': 0.0.12(svelte@5.53.3)
-      svelte: 5.53.3
+  '@thisux/sveltednd@0.0.14': {}
 
   '@thisux/sveltednd@0.0.17(svelte@5.53.3)':
     dependencies:
-      '@thisux/sveltednd': 0.0.14(svelte@5.53.3)
+      '@thisux/sveltednd': 0.0.14
       svelte: 5.53.3
 
   '@thisux/sveltednd@0.0.18(svelte@5.53.3)':
@@ -6464,6 +6459,10 @@ snapshots:
       fast-uri: 3.1.0
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
+
+  altcha@3.0.2:
+    dependencies:
+      hash-wasm: 4.12.0
 
   ansi-regex@5.0.1: {}
 
@@ -7353,6 +7352,8 @@ snapshots:
   has-tostringtag@1.0.2:
     dependencies:
       has-symbols: 1.1.0
+
+  hash-wasm@4.12.0: {}
 
   hasown@2.0.2:
     dependencies:

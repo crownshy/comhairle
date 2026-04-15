@@ -414,6 +414,7 @@ mod tests {
                 password: "test_pw".to_string(),
                 email: "test@example.com".to_string(),
                 avatar_url: None,
+                ..Default::default()
             },
             &pool,
         )
@@ -461,6 +462,7 @@ mod tests {
                 password: "test_pw".to_string(),
                 email: "test@example.com".to_string(),
                 avatar_url: None,
+                ..Default::default()
             },
             &pool,
         )
@@ -498,6 +500,7 @@ mod tests {
                 password: "test_pw".to_string(),
                 email: "test@example.com".to_string(),
                 avatar_url: None,
+                ..Default::default()
             },
             &pool,
         )
@@ -566,6 +569,7 @@ mod tests {
                 password: "test_pw".to_string(),
                 email: "test@example.com".to_string(),
                 avatar_url: None,
+                ..Default::default()
             },
             &pool,
         )
@@ -605,6 +609,7 @@ mod tests {
                 password: "test_pw".to_string(),
                 email: "test@example.com".to_string(),
                 avatar_url: None,
+                ..Default::default()
             },
             &pool,
         )
@@ -666,6 +671,7 @@ mod tests {
                 password: "pw1".to_string(),
                 email: "user1@example.com".to_string(),
                 avatar_url: None,
+                ..Default::default()
             },
             &pool,
         )
@@ -691,6 +697,7 @@ mod tests {
                 password: "pw2".to_string(),
                 email: "user2@example.com".to_string(),
                 avatar_url: None,
+                ..Default::default()
             },
             &pool,
         )
@@ -716,6 +723,7 @@ mod tests {
                 password: "pw3".to_string(),
                 email: "user3@example.com".to_string(),
                 avatar_url: None,
+                ..Default::default()
             },
             &pool,
         )
@@ -846,6 +854,7 @@ mod tests {
                 password: "pw".to_string(),
                 email: "consented@example.com".to_string(),
                 avatar_url: None,
+                ..Default::default()
             },
             &pool,
         )
@@ -872,6 +881,7 @@ mod tests {
                 password: "pw".to_string(),
                 email: "non_consented@example.com".to_string(),
                 avatar_url: None,
+                ..Default::default()
             },
             &pool,
         )
@@ -965,6 +975,7 @@ mod tests {
                 password: "pw".to_string(),
                 email: "user@example.com".to_string(),
                 avatar_url: None,
+                ..Default::default()
             },
             &pool,
         )

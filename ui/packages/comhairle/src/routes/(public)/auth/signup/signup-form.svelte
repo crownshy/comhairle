@@ -10,6 +10,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import { useLoading } from '$lib/hooks/use-loading.svelte';
+	import Altcha from '$lib/components/Altcha.svelte';
 
 	let { backTo } = $props();
 	let responseMessage = $state(null);
@@ -29,13 +30,15 @@
 	async function attemptLogin() {
 		let result = await validateForm({ update: true });
 		if (result.valid) {
+			let altchaInput = document.querySelector('[name="altcha"]');
 			let { username, password, email } = result.data;
 			await loader.run(async () => {
 				try {
 					const user = await apiClient.SignUp({
 						username,
 						password,
-						email
+						email,
+						captcha_solution: altchaInput?.value ?? null
 					});
 					await invalidateAll();
 					if (user.auth_type === 'annon') {
@@ -124,6 +127,8 @@
 			</Form.Control>
 			<Form.FieldErrors />
 		</Form.Field>
+
+		<Altcha />
 	</div>
 
 	<div class="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center lg:gap-4">
