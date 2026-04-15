@@ -141,12 +141,12 @@
 		<!-- Right: bridging strength + tags -->
 		<div class="flex w-[100px] shrink-0 flex-col gap-2 pt-3 pr-4">
 			<!-- Bridging label -->
-			<div>
+			<!-- <div>
 				<span class="{bridgingColor} text-sm leading-4 font-medium">{bridgingLabel}</span>
 				<br />
 				<span class="text-[8px] leading-4 font-medium text-gray-600">bridging strength</span
 				>
-			</div>
+			</div> -->
 
 			<!-- Topic tags -->
 			{#if comment.topics?.length}

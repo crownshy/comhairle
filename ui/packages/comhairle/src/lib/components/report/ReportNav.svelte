@@ -1,20 +1,27 @@
 <script lang="ts">
 	import ArrowDown from '@lucide/svelte/icons/arrow-down';
+	import ArrowUp from '@lucide/svelte/icons/arrow-up';
 
 	const sections = [
 		{ id: 'engagement', label: 'Dive In' },
 		{ id: 'agreement', label: 'Areas of agreement' },
 		{ id: 'groups', label: 'Emerging opinion groups' },
-		{ id: 'deep-dive', label: 'Deep Dive' }
+		{ id: 'deep-dive', label: 'Deep Dive' },
+		{ id: 'back-to-top', label: 'Back to Top' }
 	];
 
 	let nextIndex = $state(0);
 	let hidden = $state(false);
 
 	const nextSection = $derived(sections[nextIndex] ?? null);
+	const isBackToTop = $derived(nextSection?.id === 'back-to-top');
 
 	function scrollToNext() {
 		if (!nextSection) return;
+		if (isBackToTop) {
+			window.scrollTo({ top: 0, behavior: 'smooth' });
+			return;
+		}
 		const el = document.getElementById(nextSection.id);
 		if (el) {
 			el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -25,6 +32,7 @@
 		// find how many sections we've passed
 		let passed = 0;
 		for (let i = 0; i < sections.length; i++) {
+			if (sections[i].id === 'back-to-top') continue;
 			const el = document.getElementById(sections[i].id);
 			if (el) {
 				const rect = el.getBoundingClientRect();
@@ -34,7 +42,7 @@
 			}
 		}
 		nextIndex = passed;
-		hidden = passed >= sections.length;
+		hidden = false;
 	}
 
 	$effect(() => {
@@ -54,7 +62,11 @@
 			transition-all duration-300
 			{hidden ? 'pointer-events-none translate-y-4 opacity-0' : 'opacity-100'}"
 	>
-		<ArrowDown class="size-5" />
+		{#if isBackToTop}
+			<ArrowUp class="size-5" />
+		{:else}
+			<ArrowDown class="size-5" />
+		{/if}
 		{nextSection.label}
 	</button>
 {/if}
