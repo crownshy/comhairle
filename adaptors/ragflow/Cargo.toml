@@ -1,7 +1,11 @@
 [package]
-name = "ragflow"
-version = "0.1.0"
+name = "ragflow_client"
+version = "0.0.1"
 edition = "2021"
+authors = ["crownshy"]
+description = "A rust client for the RAGFlow HTTP API"
+keywords = ["rag", "ragflow", "api", "client"]
+categories = ["api-bindings", "web-programming"]
 
 [dependencies]
 bytes = "1.11.0"
