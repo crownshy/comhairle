@@ -77,8 +77,19 @@
 				b.y = Infinity;
 				do {
 					if (a) {
-						const candidateY = a.y + Math.sqrt(radius2 - (a.x - b.x) ** 2);
-						if (candidateY < b.y && !intersects(b.x, candidateY)) b.y = candidateY;
+						const dy = Math.sqrt(radius2 - (a.x - b.x) ** 2);
+						const candidatePos = a.y + dy;
+						const candidateNeg = a.y - dy;
+						if (
+							Math.abs(candidatePos) < Math.abs(b.y) &&
+							!intersects(b.x, candidatePos)
+						)
+							b.y = candidatePos;
+						if (
+							Math.abs(candidateNeg) < Math.abs(b.y) &&
+							!intersects(b.x, candidateNeg)
+						)
+							b.y = candidateNeg;
 						a = a.next;
 					}
 				} while (a);
@@ -110,7 +121,7 @@
 			aria-label={d.data.text.trim()}
 			tabindex="0"
 			cx={d.x}
-			cy={$height - radius - spacing - strokeWidth / 2 - d.y}
+			cy={$height / 2 - d.y}
 			r={radius}
 			fill={isHovered || isSelected ? 'var(--chart-1)' : 'var(--beeswarm-dot)'}
 			stroke={isHovered || isSelected ? 'var(--primary)' : stroke}

@@ -61,7 +61,7 @@
 
 {#snippet statCard(label: string, value: string | number)}
 	<div
-		class="bg-cards ring-border h-44 w-72 content-center items-center rounded-xl p-6 text-center shadow-[0px_2px_4px_0px_rgba(0,0,0,0.10)] ring-1"
+		class="bg-card ring-border h-44 w-72 content-center items-center rounded-xl p-6 text-center shadow-[0px_2px_4px_0px_rgba(0,0,0,0.10)] ring-1"
 	>
 		<p class="text-card-foreground text-3xl leading-9 font-semibold">{value}</p>
 		<p class="text-muted-foreground mt-1.5 text-lg leading-7 font-semibold">{label}</p>
