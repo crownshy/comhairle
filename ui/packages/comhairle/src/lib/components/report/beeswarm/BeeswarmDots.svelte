@@ -19,6 +19,8 @@
 		onmouseenter?: (e: MouseEvent, comment: ReportComment) => void;
 		onmouseleave?: () => void;
 		onclick?: (comment: ReportComment) => void;
+		onfocus?: (e: FocusEvent, comment: ReportComment) => void;
+		onblur?: () => void;
 	}
 
 	let {
@@ -30,7 +32,9 @@
 		selectedTid = null,
 		onmouseenter,
 		onmouseleave,
-		onclick
+		onclick,
+		onfocus,
+		onblur
 	}: Props = $props();
 
 	interface DodgedCircle {
@@ -101,10 +105,10 @@
 	{#each circles as d (d.data.tid)}
 		{@const isHovered = hoveredTid === d.data.tid}
 		{@const isSelected = selectedTid === d.data.tid}
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<circle
-			role="img"
+			role="button"
 			aria-label={d.data.text.trim()}
+			tabindex="0"
 			cx={d.x}
 			cy={$height - r - spacing - strokeWidth / 2 - d.y}
 			{r}
@@ -116,6 +120,14 @@
 			onmouseenter={(e) => onmouseenter?.(e, d.data)}
 			onmouseleave={() => onmouseleave?.()}
 			onclick={() => onclick?.(d.data)}
+			onfocus={(e) => onfocus?.(e, d.data)}
+			onblur={() => onblur?.()}
+			onkeydown={(e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					onclick?.(d.data);
+				}
+			}}
 		/>
 	{/each}
 </g>

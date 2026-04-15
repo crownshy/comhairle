@@ -44,6 +44,8 @@
 					{selectedTid}
 					onmouseenter={handleMouseEnter}
 					onmouseleave={handleMouseLeave}
+					onfocus={handleMouseEnter}
+					onblur={handleMouseLeave}
 				/>
 			</Svg>
 		{/snippet}
