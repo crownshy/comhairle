@@ -20,7 +20,9 @@
 	const consensusStatements = $derived(getConsensusStatements(data.reportData, 5));
 	const divisiveStatements = $derived(getDivisiveStatements(data.reportData, 5));
 	const significantComments = $derived(getSignificantComments(data.reportData));
-	const totalParticipants = $derived(data.reportData.participants.length);
+	const totalParticipants = $derived(
+		data.reportData.groups.reduce((sum, g) => sum + g.total_members, 0)
+	);
 
 	let selectedTid = $state<number | null>(
 		significantComments.length > 0
@@ -386,7 +388,7 @@
 			<div
 				class="text-foreground w-full max-w-[960px] justify-start text-xl leading-7 font-semibold md:text-3xl md:leading-9"
 			>
-				<!-- TODO: use real number {group.members.length} once data is correct -->
+				<!-- TODO: use real number {group.total_members} once data is verified -->
 				Group {label} ({group.group_id === 0 ? 158 : 138} participants):
 				{#if group.group_id === 0}
 					"Supportive of growth where it improves local infrastructure"

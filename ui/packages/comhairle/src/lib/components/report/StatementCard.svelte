@@ -16,7 +16,7 @@
 	const overall = $derived(
 		computeOverallVotePercents(
 			comment,
-			totalParticipants || groups.reduce((s, g) => s + g.members.length, 0)
+			totalParticipants || groups.reduce((s, g) => s + g.total_members, 0)
 		)
 	);
 	const allRows = $derived([overall, ...groupPercents]);

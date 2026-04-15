@@ -32,6 +32,7 @@ export interface ReportGroup {
 	group_id: number;
 	representative_comments: RepresentativeComment[];
 	members: number[];
+	total_members: number;
 }
 
 export interface PcaPosition {

@@ -40,7 +40,7 @@ export function computeGroupVotePercents(
 ): GroupVotePercent[] {
 	return comment.group_votes.map((gv) => {
 		const group = groups.find((g) => g.group_id === gv.group_id);
-		const totalMembers = group ? group.members.length : gv.agrees + gv.disagrees + gv.passes;
+		const totalMembers = group ? group.total_members : gv.agrees + gv.disagrees + gv.passes;
 		const totalVoted = gv.agrees + gv.disagrees + gv.passes;
 		const denom = Math.max(totalMembers, totalVoted);
 
@@ -67,7 +67,7 @@ export function computeGroupVotePercents(
 }
 
 export function getEngagementStats(data: PolisReportData) {
-	const totalParticipants = data.participants.length;
+	const totalParticipants = data.groups.reduce((sum, g) => sum + g.total_members, 0);
 	const totalGroups = data.groups.length;
 	const totalStatements = data.comments.length;
 	const totalVotes = data.comments.reduce((sum, c) => {
