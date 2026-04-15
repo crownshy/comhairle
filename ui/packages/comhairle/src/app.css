@@ -53,3 +53,12 @@ a {
 	right: 0.5rem !important;
 	left: auto !important;
 }
+
+/* Report page utilities */
+@utility report-body {
+	@apply text-card-foreground text-lg leading-6;
+}
+
+@utility report-subheading {
+	@apply text-primary text-xl leading-6 font-semibold;
+}

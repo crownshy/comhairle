@@ -103,6 +103,9 @@ importers:
       d3-array:
         specifier: ^3.2.4
         version: 3.2.4
+      d3-format:
+        specifier: ^3.1.2
+        version: 3.1.2
       d3-scale:
         specifier: ^4.0.2
         version: 4.0.2
@@ -209,6 +212,9 @@ importers:
       '@tanstack/table-core':
         specifier: ^8.21.3
         version: 8.21.3
+      '@types/d3-format':
+        specifier: ^3.0.4
+        version: 3.0.4
       '@types/d3-scale':
         specifier: ^4.0.9
         version: 4.0.9
