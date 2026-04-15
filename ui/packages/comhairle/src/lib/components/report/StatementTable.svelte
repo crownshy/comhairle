@@ -6,13 +6,22 @@
 	interface Props {
 		comments: ReportComment[];
 		groups: ReportGroup[];
+		totalParticipants?: number;
 		highlightedTid?: number | null;
 		onSelectComment?: (comment: ReportComment) => void;
 	}
 
-	let { comments, groups, highlightedTid = null, onSelectComment }: Props = $props();
+	let {
+		comments,
+		groups,
+		totalParticipants = 0,
+		highlightedTid = null,
+		onSelectComment
+	}: Props = $props();
 
-	const totalParticipants = $derived(groups.reduce((sum, g) => sum + g.members.length, 0));
+	const effectiveTotal = $derived(
+		totalParticipants || groups.reduce((sum, g) => sum + g.members.length, 0)
+	);
 </script>
 
 <div class="w-full overflow-x-auto">
@@ -33,7 +42,7 @@
 		</thead>
 		<tbody>
 			{#each comments as comment (comment.tid)}
-				{@const overall = computeOverallVotePercents(comment, totalParticipants)}
+				{@const overall = computeOverallVotePercents(comment, effectiveTotal)}
 				{@const groupPercents = computeGroupVotePercents(comment, groups)}
 				<tr
 					class="cursor-pointer border-b border-gray-100 transition-colors hover:bg-gray-50"
