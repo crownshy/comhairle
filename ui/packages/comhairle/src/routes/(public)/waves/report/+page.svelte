@@ -137,9 +137,14 @@
 			)}
 			{@render statCard(
 				'Of those were identified as forming opinion clusters',
-				data.reportData.participants
-					.filter((p) => p.group_id != null)
-					.length.toLocaleString()
+				(() => {
+					const clusteredGroupIds = new Set(
+						data.reportData.groups.map((group) => group.group_id)
+					);
+					return data.reportData.participants
+						.filter((participant) => clusteredGroupIds.has(participant.group_id))
+						.length.toLocaleString();
+				})()
 			)}
 			{@render statCard('Votes have been cast', stats.totalVotes.toLocaleString())}
 			{@render statCard(
