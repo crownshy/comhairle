@@ -93,7 +93,12 @@
 		<div class="w-full max-w-4xl text-left">
 			<p class="report-body">
 				Participants (anyone who lives in, works in or visits the district) can participate
-				online here.
+				online <a
+					href="https://waves.comhairle.scot/conversations/shaping-south-staffordshire/invite/0e6fbb72-49c5-42b1-bcf1-79f56d58fc62"
+					class="text-primary hover:underline"
+					rel="noopener noreferrer"
+					target="_blank">here</a
+				>.
 			</p>
 			<ol class="report-body mt-2 list-inside list-decimal pl-1">
 				<li>They can learn about the topic.</li>
