@@ -91,9 +91,6 @@ importers:
       '@tiptap/starter-kit':
         specifier: ^3.11.0
         version: 3.20.0
-      '@types/d3-format':
-        specifier: ^3.0.4
-        version: 3.0.4
       '@zodios/core':
         specifier: ^10.9.6
         version: 10.9.6(axios@1.13.5)(zod@3.25.76)
@@ -215,6 +212,9 @@ importers:
       '@tanstack/table-core':
         specifier: ^8.21.3
         version: 8.21.3
+      '@types/d3-format':
+        specifier: ^3.0.4
+        version: 3.0.4
       '@types/d3-scale':
         specifier: ^4.0.9
         version: 4.0.9
@@ -1549,8 +1549,15 @@ packages:
     peerDependencies:
       '@testing-library/dom': '>=7.21.4'
 
+  '@thisux/sveltednd@0.0.12':
+    resolution: {integrity: sha512-9edVcakYkoCzU6pNIwmJ6Cf+9anECod26Ue/rL3Ssf5LyuLaBLXtBx4H4U8YwQCkwtMeSGFf0OsiMpPpFjvCcg==}
+    peerDependencies:
+      svelte: ^5.0.0
+
   '@thisux/sveltednd@0.0.14':
     resolution: {integrity: sha512-Vbq69SU3HUomPg6oCXtb89OG89hka0YIkdaErYibn3waK7tYE66IcQxD/Fzg8YNW3EVsXoA9kc7kW5EUBCSQGg==}
+    peerDependencies:
+      svelte: ^5.0.0
 
   '@thisux/sveltednd@0.0.17':
     resolution: {integrity: sha512-lRninjw439phhA8xAHqCpMAX0hnwFMdbXW4M0XJgAdnGxeum+QsLiIC4P3HnkNXAygsVKUqxRcbS84CxDZ9hPw==}
@@ -5781,11 +5788,18 @@ snapshots:
     dependencies:
       '@testing-library/dom': 10.4.0
 
-  '@thisux/sveltednd@0.0.14': {}
+  '@thisux/sveltednd@0.0.12(svelte@5.53.3)':
+    dependencies:
+      svelte: 5.53.3
+
+  '@thisux/sveltednd@0.0.14(svelte@5.53.3)':
+    dependencies:
+      '@thisux/sveltednd': 0.0.12(svelte@5.53.3)
+      svelte: 5.53.3
 
   '@thisux/sveltednd@0.0.17(svelte@5.53.3)':
     dependencies:
-      '@thisux/sveltednd': 0.0.14
+      '@thisux/sveltednd': 0.0.14(svelte@5.53.3)
       svelte: 5.53.3
 
   '@thisux/sveltednd@0.0.18(svelte@5.53.3)':
