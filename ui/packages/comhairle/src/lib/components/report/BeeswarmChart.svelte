@@ -30,10 +30,6 @@
 	function handleMouseLeave() {
 		onHoverComment?.(null);
 	}
-
-	function handleClick(comment: ReportComment) {
-		onSelectComment?.(comment);
-	}
 </script>
 
 <div class="chart-container" style="height: {height}px;">
@@ -51,7 +47,6 @@
 					{maxDivisiveness}
 					onmouseenter={handleMouseEnter}
 					onmouseleave={handleMouseLeave}
-					onclick={handleClick}
 				/>
 			</Svg>
 		{/snippet}

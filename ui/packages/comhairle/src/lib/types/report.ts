@@ -81,7 +81,7 @@ export function computeOverallVotePercents(
 
 	return {
 		group_id: -1,
-		label: 'Overal',
+		label: 'OVERALL',
 		agreed: (agrees / denom) * 100,
 		disagreed: (disagrees / denom) * 100,
 		passed: (passes / denom) * 100,
