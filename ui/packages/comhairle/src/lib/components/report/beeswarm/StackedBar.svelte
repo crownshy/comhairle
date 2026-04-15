@@ -27,7 +27,13 @@
 
 	const total = $derived(sum(segments, (seg) => seg.value));
 	const fmtPct = format('.0f');
-	const clipId = $derived(`bar-clip-${segments.map((s) => s.key).join('-')}`);
+	const instanceClipSuffix =
+		typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+			? crypto.randomUUID()
+			: Math.random().toString(36).slice(2);
+	const clipId = $derived(
+		`bar-clip-${instanceClipSuffix}-${segments.map((s) => s.key).join('-')}`
+	);
 
 	const MIN_LABEL_WIDTH = 28;
 

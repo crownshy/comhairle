@@ -7,14 +7,12 @@
 	import ReportSection from '$lib/components/report/ReportSection.svelte';
 	import AiCallout from '$lib/components/report/AiCallout.svelte';
 	import ReportNav from '$lib/components/report/ReportNav.svelte';
-	import Down from '@lucide/svelte/icons/download';
 	import {
 		getEngagementStats,
 		getConsensusStatements,
 		getDivisiveStatements,
 		getSignificantComments
 	} from '$lib/types/report';
-	import { Button } from '$lib/components/ui/button';
 
 	let { data }: PageProps = $props();
 
