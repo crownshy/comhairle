@@ -3,6 +3,7 @@ import {
   Zodios,
   type ZodiosOptions,
   type ZodiosInstance,
+  type ZodiosEndpointDefinitions,
 } from "@zodios/core";
 import { z } from "zod";
 
@@ -94,6 +95,7 @@ export const ConversationDto = z
     privacyPolicy: z.union([z.string(), z.null()]).optional(),
     shortDescription: z.string().uuid(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
+    showThankYouPageAnnonInstructions: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
     tags: z.array(z.string()),
@@ -129,6 +131,7 @@ export const LocalizedConversationDto = z
     privacyPolicy: z.union([z.string(), z.null()]).optional(),
     shortDescription: z.string(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
+    showThankYouPageAnnonInstructions: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
     tags: z.array(z.string()),
@@ -452,6 +455,7 @@ export const ConversationWithTranslations = z
     privacyPolicy: z.union([z.string(), z.null()]).optional(),
     shortDescription: z.string(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
+    showThankYouPageAnnonInstructions: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
     tags: z.array(z.string()),
@@ -489,6 +493,7 @@ export const PartialConversation = z
     privacy_policy: z.union([z.string(), z.null()]),
     short_description: z.union([z.string(), z.null()]),
     short_privacy_policy: z.union([z.string(), z.null()]),
+    show_thank_you_page_annon_instructions: z.union([z.boolean(), z.null()]),
     slug: z.union([z.string(), z.null()]),
     supported_languages: z.union([z.array(z.string()), z.null()]),
     tags: z.union([z.array(z.string()), z.null()]),
@@ -1173,6 +1178,30 @@ export const PartialEvent = z
 export type PartialEvent = z.infer<typeof PartialEvent>;
 export const JwtResponse = z.object({ jwt: z.string(), is_moderator: z.boolean() }).passthrough();
 export type JwtResponse = z.infer<typeof JwtResponse>;
+export const EventAttendanceEtx = z
+  .object({
+    createdAt: z.string().datetime({ offset: true }),
+    email: z.union([z.string(), z.null()]).optional(),
+    eventId: z.string().uuid(),
+    id: z.string().uuid(),
+    role: z.string(),
+    updatedAt: z.string().datetime({ offset: true }),
+    userId: z.string().uuid(),
+  })
+  .passthrough();
+export type EventAttendanceEtx = z.infer<typeof EventAttendanceEtx>;
+export const PaginatedResults_for_EventAttendanceEtx = z
+  .object({ records: z.array(EventAttendanceEtx), total: z.number().int() })
+  .passthrough();
+export type PaginatedResults_for_EventAttendanceEtx = z.infer<
+  typeof PaginatedResults_for_EventAttendanceEtx
+>;
+export const CreateEventAttendanceRequest = z
+  .object({ role: z.string() })
+  .passthrough();
+export type CreateEventAttendanceRequest = z.infer<
+  typeof CreateEventAttendanceRequest
+>;
 export const EventAttendanceDto = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
@@ -1183,18 +1212,6 @@ export const EventAttendanceDto = z
   })
   .passthrough();
 export type EventAttendanceDto = z.infer<typeof EventAttendanceDto>;
-export const PaginatedResults_for_EventAttendanceDto = z
-  .object({ records: z.array(EventAttendanceDto), total: z.number().int() })
-  .passthrough();
-export type PaginatedResults_for_EventAttendanceDto = z.infer<
-  typeof PaginatedResults_for_EventAttendanceDto
->;
-export const CreateEventAttendanceRequest = z
-  .object({ role: z.string() })
-  .passthrough();
-export type CreateEventAttendanceRequest = z.infer<
-  typeof CreateEventAttendanceRequest
->;
 export const UpdateEventAttendanceRequest = z
   .object({ role: z.union([z.string(), z.null()]) })
   .partial()
@@ -1202,6 +1219,10 @@ export const UpdateEventAttendanceRequest = z
 export type UpdateEventAttendanceRequest = z.infer<
   typeof UpdateEventAttendanceRequest
 >;
+export const CreateFacilitatorRequest = z
+  .object({ email: z.string() })
+  .passthrough();
+export type CreateFacilitatorRequest = z.infer<typeof CreateFacilitatorRequest>;
 export const WebSocketStats = z
   .object({
     connected_users: z.array(z.string().uuid()),
@@ -1486,10 +1507,12 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EventResponse,
   PartialEvent,
   JwtResponse,
-  EventAttendanceDto,
-  PaginatedResults_for_EventAttendanceDto,
+  EventAttendanceEtx,
+  PaginatedResults_for_EventAttendanceEtx,
   CreateEventAttendanceRequest,
+  EventAttendanceDto,
   UpdateEventAttendanceRequest,
+  CreateFacilitatorRequest,
   WebSocketStats,
   BroadcastMessage,
   BroadcastResponse,
@@ -1512,7 +1535,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ComhairleServices,
 };
 
-const endpoints: ReturnType<typeof makeApi> = makeApi([
+const endpoints = makeApi([
   {
     method: "get",
     path: "/auth/current_user",
@@ -1788,6 +1811,14 @@ Use a raw HTTP request and process the response body incrementally.`,
   },
   {
     method: "get",
+    path: "/conversation/:conversation_id/contacts/export",
+    alias: "ExportConversationContacts",
+    description: `Exports a CSV file containing all users who have opted in to receive email updates for this conversation`,
+    requestFormat: "json",
+    response: z.void(),
+  },
+  {
+    method: "get",
     path: "/conversation/:conversation_id/documents",
     alias: "ListDocuments",
     requestFormat: "json",
@@ -2011,7 +2042,7 @@ curl -X POST \
         schema: created_at,
       },
       {
-        name: "event_id",
+        name: "role",
         type: "Query",
         schema: created_after,
       },
@@ -2026,7 +2057,7 @@ curl -X POST \
         schema: limit,
       },
     ],
-    response: PaginatedResults_for_EventAttendanceDto,
+    response: PaginatedResults_for_EventAttendanceEtx,
   },
   {
     method: "post",
@@ -2072,6 +2103,21 @@ curl -X POST \
     alias: "DeleteEventAttendance",
     description: `Delete an event attendance by id`,
     requestFormat: "json",
+    response: EventAttendanceDto,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/attendances/facilitator",
+    alias: "CreateFacilitatorEventAttendance",
+    description: `Create a new attendance for a conversation event with facilitator role`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ email: z.string() }).passthrough(),
+      },
+    ],
     response: EventAttendanceDto,
   },
   {
@@ -3332,7 +3378,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
     requestFormat: "json",
     response: WebSocketStats,
   },
-]);
+] as const satisfies ZodiosEndpointDefinitions);
 
 export const api: ZodiosInstance<typeof endpoints> = new Zodios(endpoints);
 

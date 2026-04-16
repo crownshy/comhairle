@@ -1,4 +1,4 @@
-import { makeApi, Zodios, type ZodiosOptions, type ZodiosInstance } from "@zodios/core";
+import { makeApi, Zodios, type ZodiosOptions, type ZodiosInstance, type ZodiosEndpointDefinitions } from "@zodios/core";
 import { z } from "zod";
 
 {{#if imports}}
@@ -21,7 +21,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
 };
 {{/ifNotEmptyObj}}
 
-const endpoints: ReturnType<typeof makeApi> = makeApi([
+const endpoints = makeApi([
 {{#each endpoints}}
 	{
 		method: "{{method}}",
@@ -73,7 +73,7 @@ const endpoints: ReturnType<typeof makeApi> = makeApi([
 		{{/if}}
 	},
 {{/each}}
-]);
+] as const satisfies ZodiosEndpointDefinitions);
 
 export const {{options.apiClientName}}: ZodiosInstance<typeof endpoints> = new Zodios({{#if options.baseUrl}}"{{options.baseUrl}}", {{/if}}endpoints);
 

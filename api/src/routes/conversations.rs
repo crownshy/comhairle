@@ -31,6 +31,7 @@ use crate::{
         },
         pagination::{OrderParams, PageOptions, PaginatedResults},
         user_participation::{self},
+        user_conversation_preferences,
     },
     routes::{
         conversations::dto::{ConversationDto, LocalizedConversationDto},
@@ -346,6 +347,61 @@ async fn register_email_for_updates(
     ))
 }
 
+async fn export_conversation_contacts(
+    State(state): State<Arc<ComhairleState>>,
+    Path(conversation_id): Path<Uuid>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, [(String, String); 2], String), ComhairleError> {
+    // Verify conversation exists
+    conversation::get_by_id(&state.db, &conversation_id).await?;
+
+    // Get all contacts who opted in
+    let contacts = user_conversation_preferences::get_contacts_for_export(&state.db, &conversation_id).await?;
+
+    // Generate CSV
+    let mut csv_output = Vec::new();
+    {
+        let mut writer = csv::Writer::from_writer(&mut csv_output);
+
+        // Write headers
+        writer.write_record(&[
+            "Email",
+            "User Type",
+            "Conversation Updates",
+            "Similar Conversations Updates",
+            "Signup Date",
+        ])?;
+
+        // Write data rows
+        for contact in contacts {
+            writer.write_record(&[
+                contact.email,
+                contact.user_type,
+                if contact.conversation_updates { "Yes" } else { "No" }.to_string(),
+                if contact.similar_conversations_updates { "Yes" } else { "No" }.to_string(),
+                contact.signup_date.to_rfc3339(),
+            ])?;
+        }
+
+        writer.flush()?;
+    }
+
+    let csv_string = String::from_utf8(csv_output)?;
+    let filename = format!(
+        "conversation-contacts-{}.csv",
+        chrono::Utc::now().format("%Y-%m-%d")
+    );
+
+    Ok((
+        StatusCode::OK,
+        [
+            ("Content-Type".to_string(), "text/csv; charset=utf-8".to_string()),
+            ("Content-Disposition".to_string(), format!("attachment; filename=\"{}\"", filename)),
+        ],
+        csv_string,
+    ))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -427,6 +483,15 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<201, Json<RegisterEmailResponse>>()
                     .response::<200, Json<RegisterEmailResponse>>()
                     .tag("Email Notifications")
+            }),
+        )
+        .api_route(
+            "/{conversation_id}/contacts/export",
+            get_with(export_conversation_contacts, |op| {
+                op.id("ExportConversationContacts")
+                    .summary("Export contact list for conversation")
+                    .description("Exports a CSV file containing all users who have opted in to receive email updates for this conversation")
+                    .tag("Conversation")
             }),
         )
         .with_state(state)

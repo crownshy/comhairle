@@ -66,6 +66,7 @@ pub struct ConversationDto {
     #[schemars(example = "example_uuid")]
     pub call_to_action: Option<TextContentId>,
     pub enable_signup_prompts: bool,
+    pub show_thank_you_page_annon_instructions: bool,
 }
 
 /// Data transfer object (public API representation) for a LocalizedConversation.
@@ -123,6 +124,7 @@ pub struct LocalizedConversationDto {
     #[schemars(example = "example_localized_text")]
     pub call_to_action: Option<String>,
     pub enable_signup_prompts: bool,
+    pub show_thank_you_page_annon_instructions: bool,
 }
 
 impl From<Conversation> for ConversationDto {
@@ -152,6 +154,7 @@ impl From<Conversation> for ConversationDto {
             thank_you_message: c.thank_you_message,
             call_to_action: c.call_to_action,
             enable_signup_prompts: c.enable_signup_prompts,
+            show_thank_you_page_annon_instructions: c.show_thank_you_page_annon_instructions,
         }
     }
 }
@@ -183,6 +186,7 @@ impl From<LocalizedConversation> for LocalizedConversationDto {
             thank_you_message: c.thank_you_message,
             call_to_action: c.call_to_action,
             enable_signup_prompts: c.enable_signup_prompts,
+            show_thank_you_page_annon_instructions: c.show_thank_you_page_annon_instructions,
         }
     }
 }

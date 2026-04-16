@@ -1,3 +1,4 @@
+import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import type { LocalizedEventDto, EventAttendanceDto } from '@crownshy/api-client/api';
 
@@ -26,14 +27,6 @@ export const load: PageLoad = async ({ parent, params }) => {
 		};
 	} catch (e) {
 		console.error('Failed to load live event:', e);
-		return {
-			conversationId: conversation_id,
-			eventId: event_id,
-			event: null,
-			attendances: [] as EventAttendanceDto[],
-			user,
-			jwt: '',
-			isModerator: false
-		};
+		redirect(302, `/conversations/${conversation_id}/events/${event_id}`);
 	}
 };

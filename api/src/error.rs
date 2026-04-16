@@ -247,6 +247,12 @@ pub enum ComhairleError {
 
     #[error("Event missing video_meeting_id")]
     NoVideoMeetingId,
+
+    #[error("CSV error: {0}")]
+    CsvError(#[from] csv::Error),
+
+    #[error("UTF-8 conversion error: {0}")]
+    Utf8Error(#[from] std::string::FromUtf8Error),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
