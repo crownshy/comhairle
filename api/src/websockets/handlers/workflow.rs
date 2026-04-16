@@ -33,12 +33,20 @@ use crate::{
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,no_run
+/// # use std::sync::Arc;
+/// # use uuid::Uuid;
+/// # use comhairle::ComhairleState;
+/// use comhairle::websockets::messages::WebSocketMessage;
+///
+/// # async fn example(state: Arc<ComhairleState>, step_id: Uuid) -> Result<(), Box<dyn std::error::Error>> {
 /// // In your workflow step component/handler:
 /// let message = WebSocketMessage::UserStartedWorkflowStep {
 ///     workflow_step_id: step_id,
 /// };
 /// state.websockets.broadcast_to_all(&message).await?;
+/// # Ok(())
+/// # }
 /// ```
 ///
 /// # Database Integration

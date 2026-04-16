@@ -33,10 +33,14 @@ use crate::{
 ///
 /// # Example Usage
 ///
-/// ```rust
-/// use crate::websockets::handlers::notifications::NotificationMessageHandler;
-/// use crate::models::notification::{NotificationType, NotificationContextType};
+/// ```rust,no_run
+/// # use std::sync::Arc;
+/// # use uuid::Uuid;
+/// use comhairle::websockets::handlers::notifications::NotificationMessageHandler;
+/// use comhairle::models::notification::{NotificationType, NotificationContextType};
+/// # use comhairle::ComhairleState;
 ///
+/// # async fn example(state: Arc<ComhairleState>, user_id: Uuid, conversation_id: Uuid) -> Result<(), Box<dyn std::error::Error>> {
 /// // Send a notification to a user (creates DB record + sends via WebSocket)
 /// NotificationMessageHandler::create_and_send_notification(
 ///     &state,
@@ -47,6 +51,8 @@ use crate::{
 ///     NotificationContextType::Conversation,
 ///     Some(&conversation_id),
 /// ).await?;
+/// # Ok(())
+/// # }
 /// ```
 ///
 /// # Registration
@@ -91,15 +97,23 @@ impl NotificationMessageHandler {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```rust,no_run
+    /// # use std::sync::Arc;
+    /// # use uuid::Uuid;
+    /// # use comhairle::ComhairleState;
+    /// use comhairle::websockets::handlers::notifications::NotificationMessageHandler;
+    ///
+    /// # async fn example(state: Arc<ComhairleState>, user_id: Uuid, notification_id: Uuid) -> Result<(), Box<dyn std::error::Error>> {
     /// NotificationMessageHandler::send_notification_to_user(
     ///     &state,
     ///     &user_id,
-    ///     &notification.id,
+    ///     &notification_id,
     ///     "System Alert",
     ///     "Your session will expire in 5 minutes",
     ///     "warning",
     /// ).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn send_notification_to_user(
         state: &Arc<ComhairleState>,
@@ -162,9 +176,14 @@ impl NotificationMessageHandler {
     ///
     /// # Example
     ///
-    /// ```rust
-    /// use crate::models::notification::{NotificationType, NotificationContextType};
+    /// ```rust,no_run
+    /// # use std::sync::Arc;
+    /// # use uuid::Uuid;
+    /// # use comhairle::ComhairleState;
+    /// use comhairle::websockets::handlers::notifications::NotificationMessageHandler;
+    /// use comhairle::models::notification::{NotificationType, NotificationContextType};
     ///
+    /// # async fn example(state: Arc<ComhairleState>, recipient_id: Uuid, conversation_id: Uuid) -> Result<(), Box<dyn std::error::Error>> {
     /// // Notify user of a new conversation message
     /// let notification = NotificationMessageHandler::create_and_send_notification(
     ///     &state,
@@ -175,6 +194,8 @@ impl NotificationMessageHandler {
     ///     NotificationContextType::Conversation,
     ///     Some(&conversation_id),
     /// ).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn create_and_send_notification(
         state: &Arc<ComhairleState>,

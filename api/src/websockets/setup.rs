@@ -29,14 +29,15 @@ use super::handlers::{notifications::NotificationMessageHandler, workflow::Workf
 /// 2. Import it in this module
 /// 3. Register it in this function:
 ///
-/// ```rust
+/// ```rust,ignore
+/// // Example (assuming you have a MyHandler implementation):
 /// let my_handler = Arc::new(MyHandler::new());
 /// state.websockets.register_handler(my_handler);
 /// ```
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,ignore
 /// // In main.rs, after creating the application state:
 /// let state = Arc::new(ComhairleState { /* ... */ });
 ///

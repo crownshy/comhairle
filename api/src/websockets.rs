@@ -47,9 +47,12 @@ use crate::{
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,no_run
 /// use async_trait::async_trait;
 /// use std::sync::Arc;
+/// use comhairle::websockets::{WebSocketMessageHandler, WebSocketConnection};
+/// use comhairle::websockets::messages::WebSocketMessage;
+/// use comhairle::{ComhairleState, error::ComhairleError};
 ///
 /// pub struct ChatHandler;
 ///
@@ -81,6 +84,7 @@ use crate::{
 /// }
 ///
 /// // Register the handler
+/// # let state: Arc<ComhairleState> = unimplemented!();
 /// state.websockets.register_handler(Arc::new(ChatHandler));
 /// ```
 #[async_trait]
@@ -426,7 +430,8 @@ impl WebSocketService for ComhairleWebSocketService {
     ///
     /// # Example
     ///
-    /// ```rust
+    /// ```rust,ignore
+    /// // Assuming you have a handler implementation:
     /// let handler = Arc::new(MyHandler::new());
     /// state.websockets.register_handler(handler);
     /// ```
