@@ -1,5 +1,7 @@
+pub mod handlers;
 pub mod messages;
 pub mod routes;
+pub mod setup;
 
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
@@ -18,7 +20,7 @@ use futures_util::{SinkExt, StreamExt};
 use messages::{NotificationLevel, WebSocketMessage};
 use std::net::SocketAddr;
 use tokio::sync::mpsc;
-use tracing::{error, info, warn};
+use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
 #[cfg(test)]
@@ -29,6 +31,92 @@ use async_trait::async_trait;
 use crate::{
     error::ComhairleError, models::users::User, routes::auth::RequiredUser, ComhairleState,
 };
+
+/// Trait for handling domain-specific WebSocket messages.
+///
+/// Implement this trait to create handlers for specific message domains.
+/// Handlers are registered with the WebSocket service and automatically receive
+/// messages that match their domain.
+///
+/// # Message Routing
+///
+/// Messages are routed to handlers based on their type or event prefix:
+/// - `UserStartedWorkflowStep`, `UserFinishedWorkflowStep`, `UserIdle` → domain "workflow"
+/// - `Custom { event: "notification:xyz", ... }` → domain "notification"
+/// - `Custom { event: "my_domain:xyz", ... }` → domain "my_domain"
+///
+/// # Example
+///
+/// ```rust
+/// use async_trait::async_trait;
+/// use std::sync::Arc;
+///
+/// pub struct ChatHandler;
+///
+/// #[async_trait]
+/// impl WebSocketMessageHandler for ChatHandler {
+///     fn domain(&self) -> &str {
+///         "chat"
+///     }
+///
+///     async fn handle_message(
+///         &self,
+///         message: &WebSocketMessage,
+///         connection: &WebSocketConnection,
+///         state: &Arc<ComhairleState>,
+///     ) -> Result<(), ComhairleError> {
+///         match message {
+///             WebSocketMessage::Custom { event, data } if event.starts_with("chat:") => {
+///                 // Handle chat messages
+///                 let response = WebSocketMessage::Custom {
+///                     event: "chat:response".to_string(),
+///                     data: serde_json::json!({"status": "received"}),
+///                 };
+///                 connection.send_message(&response).await?;
+///             }
+///             _ => {}
+///         }
+///         Ok(())
+///     }
+/// }
+///
+/// // Register the handler
+/// state.websockets.register_handler(Arc::new(ChatHandler));
+/// ```
+#[async_trait]
+pub trait WebSocketMessageHandler: Send + Sync {
+    /// Returns the domain/service identifier this handler manages.
+    ///
+    /// The domain is used to route messages to the appropriate handler.
+    /// Common domains include "notification", "workflow", "chat", etc.
+    fn domain(&self) -> &str;
+
+    /// Handle an incoming WebSocket message.
+    ///
+    /// This method is called when a message matching this handler's domain is received.
+    /// The handler can:
+    /// - Query the database via `state.db`
+    /// - Send responses via `connection.send_message()`
+    /// - Broadcast to other users via `state.websockets`
+    /// - Access user information via `connection.user`
+    ///
+    /// # Parameters
+    ///
+    /// - `message`: The parsed WebSocket message
+    /// - `connection`: Information about the sender's connection
+    /// - `state`: Application state (database, services, etc.)
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(())` if the message was handled successfully
+    /// - `Err(ComhairleError)` if an error occurred
+    async fn handle_message(
+        &self,
+        message: &WebSocketMessage,
+        connection: &WebSocketConnection,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), ComhairleError>;
+}
 
 static NEXT_CONNECTION_ID: AtomicUsize = AtomicUsize::new(1);
 
@@ -88,12 +176,13 @@ impl WebSocketConnection {
 
 pub type ConnectionMap = Arc<DashMap<ConnectionId, WebSocketConnection>>;
 pub type UserConnectionMap = Arc<DashMap<Uuid, Vec<ConnectionId>>>;
+pub type HandlerRegistry = Arc<DashMap<String, Arc<dyn WebSocketMessageHandler>>>;
 
 #[derive(Clone)]
-
 pub struct ComhairleWebSocketService {
     pub connections: ConnectionMap,
     pub user_connections: UserConnectionMap,
+    pub handlers: HandlerRegistry,
 }
 
 #[async_trait]
@@ -127,6 +216,13 @@ pub trait WebSocketService: Send + Sync {
     fn get_user_connection_count(&self, user_id: &Uuid) -> usize;
 
     fn get_connected_user_ids(&self) -> Vec<Uuid>;
+
+    // Handler registry methods
+    fn register_handler(&self, handler: Arc<dyn WebSocketMessageHandler>);
+
+    fn unregister_handler(&self, domain: &str) -> Option<Arc<dyn WebSocketMessageHandler>>;
+
+    fn get_handler(&self, domain: &str) -> Option<Arc<dyn WebSocketMessageHandler>>;
 }
 
 #[cfg(test)]
@@ -154,6 +250,9 @@ impl MockWebSocketService {
         websockets
             .expect_get_connected_user_ids()
             .returning(Vec::new);
+        websockets.expect_register_handler().returning(|_| ());
+        websockets.expect_unregister_handler().returning(|_| None);
+        websockets.expect_get_handler().returning(|_| None);
         websockets
     }
 }
@@ -163,6 +262,7 @@ impl ComhairleWebSocketService {
         Self {
             connections: Arc::new(DashMap::new()),
             user_connections: Arc::new(DashMap::new()),
+            handlers: Arc::new(DashMap::new()),
         }
     }
 }
@@ -318,8 +418,41 @@ impl WebSocketService for ComhairleWebSocketService {
             .map(|entry| *entry.key())
             .collect()
     }
+
+    /// Register a message handler for a specific domain.
+    ///
+    /// Handlers are routed messages based on their domain. Multiple handlers
+    /// cannot be registered for the same domain - the last one wins.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// let handler = Arc::new(MyHandler::new());
+    /// state.websockets.register_handler(handler);
+    /// ```
+    fn register_handler(&self, handler: Arc<dyn WebSocketMessageHandler>) {
+        let domain = handler.domain().to_string();
+        info!("Registering WebSocket handler for domain: {}", domain);
+        self.handlers.insert(domain, handler);
+    }
+
+    /// Unregister a message handler for a specific domain.
+    ///
+    /// Returns the removed handler if one was registered for this domain.
+    fn unregister_handler(&self, domain: &str) -> Option<Arc<dyn WebSocketMessageHandler>> {
+        info!("Unregistering WebSocket handler for domain: {}", domain);
+        self.handlers.remove(domain).map(|(_, handler)| handler)
+    }
+
+    /// Get a handler for a specific domain.
+    ///
+    /// Returns `None` if no handler is registered for this domain.
+    fn get_handler(&self, domain: &str) -> Option<Arc<dyn WebSocketMessageHandler>> {
+        self.handlers.get(domain).map(|entry| entry.value().clone())
+    }
 }
 
+#[instrument(skip(state, ws))]
 pub async fn websocket_handler(
     ws: WebSocketUpgrade,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
@@ -327,8 +460,10 @@ pub async fn websocket_handler(
     RequiredUser(user): RequiredUser,
 ) -> Response {
     info!(
-        "WebSocket connection from {}, user: {:?}",
-        addr, user.username
+        "WebSocket connection from {}, user: {} (id: {})",
+        addr,
+        user.username.as_deref().unwrap_or("anonymous"),
+        user.id
     );
 
     ws.on_upgrade(move |socket| handle_websocket(socket, user, addr, state))
@@ -420,38 +555,31 @@ async fn handle_websocket(
 async fn handle_websocket_message(
     msg: Message,
     connection: &WebSocketConnection,
-    _state: &Arc<ComhairleState>,
+    state: &Arc<ComhairleState>,
 ) -> Result<(), ComhairleError> {
     match msg {
         Message::Text(text) => {
             if let Ok(ws_message) = serde_json::from_str::<WebSocketMessage>(&text) {
-                match ws_message {
+                // Handle core protocol messages
+                match &ws_message {
                     WebSocketMessage::Ping { timestamp } => {
-                        let pong = WebSocketMessage::Pong { timestamp };
+                        let pong = WebSocketMessage::Pong {
+                            timestamp: *timestamp,
+                        };
                         connection.send_message(&pong).await?;
+                        return Ok(());
                     }
-                    WebSocketMessage::Custom { event, data } => {
-                        info!(
-                            "Received custom event '{}' from connection {:?}: {}",
-                            event, connection.id, data
-                        );
-                        // Handle custom events here
-                    }
-                    WebSocketMessage::UserStartedWorkflowStep { workflow_step_id } => {
-                        info!("User started workflow step {}", workflow_step_id);
-                    }
-                    WebSocketMessage::UserFinishedWorkflowStep { workflow_step_id } => {
-                        info!("User finished workflow step {}", workflow_step_id);
-                    }
-                    WebSocketMessage::UserIdle { workflow_step_id } => {
-                        info!("User idle on {workflow_step_id}");
-                    }
-                    _ => {
-                        info!(
-                            "Received message from connection {:?}: {:?}",
-                            connection.id, ws_message
-                        );
-                    }
+                    _ => {}
+                }
+
+                // Route message to registered handlers based on message type
+                let handled = route_to_handler(&ws_message, connection, state).await?;
+
+                if !handled {
+                    info!(
+                        "Unhandled message from connection {:?}: {:?}",
+                        connection.id, ws_message
+                    );
                 }
             } else {
                 info!(
@@ -481,4 +609,45 @@ async fn handle_websocket_message(
     }
 
     Ok(())
+}
+
+/// Route a message to the appropriate registered handler based on message type or event prefix.
+///
+/// # Routing Rules
+///
+/// - `UserStartedWorkflowStep`, `UserFinishedWorkflowStep`, `UserIdle` → domain "workflow"
+/// - `Custom { event: "domain:action", ... }` → extracts "domain" from event prefix
+/// - Other message types → not routed (handled by core protocol)
+///
+/// # Returns
+///
+/// - `Ok(true)` if a handler was found and executed
+/// - `Ok(false)` if no handler was found for this message
+/// - `Err(ComhairleError)` if the handler execution failed
+async fn route_to_handler(
+    message: &WebSocketMessage,
+    connection: &WebSocketConnection,
+    state: &Arc<ComhairleState>,
+) -> Result<bool, ComhairleError> {
+    // Determine domain from message type
+    let domain = match message {
+        WebSocketMessage::UserStartedWorkflowStep { .. }
+        | WebSocketMessage::UserFinishedWorkflowStep { .. }
+        | WebSocketMessage::UserIdle { .. } => Some("workflow"),
+        WebSocketMessage::Custom { event, .. } => {
+            // For custom messages, extract domain from event prefix if present
+            // Format: "domain:event_name" or just use the event as-is
+            event.split(':').next()
+        }
+        _ => None,
+    };
+
+    if let Some(domain) = domain {
+        if let Some(handler) = state.websockets.get_handler(domain) {
+            handler.handle_message(message, connection, state).await?;
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
 }
