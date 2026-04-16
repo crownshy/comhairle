@@ -7,6 +7,9 @@ pub enum TranscriptionServiceError {
     #[error("Current transciber does not support batch operations")]
     StreamingProcessingUnsupported,
 
+    #[error("Transcription failed: {0}")]
+    TranscriptionFailure(String),
+
     #[error("Streaming transcription failed: {0}")]
     StreamingTranscriptionFailure(String),
 

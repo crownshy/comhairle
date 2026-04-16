@@ -3,6 +3,7 @@ use super::{Transcriber, TranscriptEvent, Transcription};
 use async_trait::async_trait;
 use aws_config;
 use aws_sdk_transcribe;
+use aws_sdk_transcribe::types::{LanguageCode, Media, MediaFormat, TranscriptionJobStatus};
 use aws_sdk_transcribestreaming;
 use aws_sdk_transcribestreaming::primitives::Blob;
 use aws_sdk_transcribestreaming::types::{AudioEvent, AudioStream, MediaEncoding};
@@ -384,6 +385,90 @@ impl Transcriber for AmazonTranscriber {
         Err(TranscriptionServiceError::BatchProcessingUnsupported)
     }
 
+    async fn transcribe_from_bulk_store(&self, store_name: &str, location: &str) -> Result<()> {
+        let uri = format!("s3://{store_name}/{location}/main_room_recording.wav"); // TODO: change
+                                                                                   // to recording.wav
+        let audio_file = Media::builder().media_file_uri(uri).build();
+        let job_name = "audio_test_3"; // TODO: use uuid?
+
+        self.transcribe_client
+            .start_transcription_job()
+            .transcription_job_name(job_name)
+            .output_bucket_name(store_name)
+            .output_key(format!("{location}/transcript.json"))
+            .media(audio_file)
+            .media_format(MediaFormat::Wav)
+            .language_code(LanguageCode::EnUs)
+            .send()
+            .await
+            // .inspect_err(|e| error!("Failed to start transcription: {e:#?}"))
+            .inspect_err(|e| {
+                error!("Failed to start transcription: {e:#?}");
+
+                // Extract AWS service error metadata
+                use aws_sdk_transcribe::error::ProvideErrorMetadata;
+                error!("  code:    {:?}", e.code());
+                error!("  message: {:?}", e.message());
+
+                // If it's specifically a service error, get HTTP status
+                if let aws_sdk_transcribe::error::SdkError::ServiceError(se) = e {
+                    error!("  HTTP status: {}", se.raw().status());
+                    error!("  raw body: {:?}", se.raw().body());
+                }
+            })
+            // .map_err(|e| TranscriptionServiceError::TranscriptionFailure(e.to_string()))?;
+            .map_err(|e| {
+                use aws_sdk_transcribe::error::ProvideErrorMetadata;
+                let detail = format!("code={:?} message={:?} debug={e:#?}", e.code(), e.message());
+                TranscriptionServiceError::TranscriptionFailure(detail)
+            })?;
+
+        let mut snooze: u64 = 100;
+        let mut snooze_total = snooze;
+
+        let mut found = false;
+
+        println!("Waiting for transcription job to finish");
+
+        while !found {
+            let response = self
+                .transcribe_client
+                .get_transcription_job()
+                .transcription_job_name(job_name)
+                .send()
+                .await
+                .inspect_err(|e| error!("Failed to get transcription job: {e:#?}"))
+                .map_err(|e| TranscriptionServiceError::TranscriptionFailure(e.to_string()))?;
+
+            let job = response.transcription_job.unwrap(); // TODO:
+            let status = job.transcription_job_status.unwrap(); // TODO:
+
+            if status == TranscriptionJobStatus::Completed
+                || status == TranscriptionJobStatus::Failed
+            {
+                println!("Waited {} milliseconds for job to finish", snooze_total);
+
+                if status == TranscriptionJobStatus::Completed {
+                    println!("Transcription: ");
+
+                    let uri = job.transcript.unwrap().transcript_file_uri.unwrap(); // TODO:
+                    println!();
+                    println!("    >>>>    Uri for transcription: {uri:#?}");
+                    println!();
+                }
+
+                found = true
+            } else {
+                snooze *= 2;
+                snooze_total += snooze;
+
+                tokio::time::sleep(tokio::time::Duration::from_millis(snooze)).await;
+            }
+        }
+
+        Ok(())
+    }
+
     fn model_detects_speakers(&self) -> bool {
         true
     }
@@ -529,6 +614,8 @@ impl AmazonTranscriber {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use std::error::Error;
 
     fn create_event(
         text: &str,
@@ -846,5 +933,20 @@ mod tests {
         assert_eq!(consolidated.events[1].speaker_id, Some("1".to_string()));
         assert_eq!(consolidated.events[1].text, "I think you're wrong.");
         assert_eq!(consolidated.events[1].start_time, 9.876);
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_transcription_of_bulk_storage_audio_file(
+    ) -> std::result::Result<(), Box<dyn Error>> {
+        let transcriber = AmazonTranscriber::new().await;
+        let result = transcriber
+            .transcribe_from_bulk_store(
+                "comhairle-media",
+                "events/3c22d53d-07df-4d46-802e-486b79dd1a80",
+            )
+            .await?;
+
+        Ok(())
     }
 }
