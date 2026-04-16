@@ -24,21 +24,28 @@ export default defineConfig({
 				rewrite: (path) => path.replace(/^\/api/, ''),
 				configure: (proxy, _options) => {
 					proxy.on('error', (err, _req, _res) => {
-						console.log('Websocket proxy error', err);
+						console.error('❌ WebSocket proxy error:', err);
 					});
 					proxy.on('proxyReq', (proxyReq, req, _res) => {
 						console.log(
-							'Websocket Sending Request to the Target:',
+							'📤 WebSocket proxying:',
 							req.method,
-							req.url
+							req.url,
+							'→',
+							proxyReq.path
 						);
 					});
 					proxy.on('proxyRes', (proxyRes, req, _res) => {
-						console.log(
-							'Websocket Received Response from the Target:',
-							proxyRes.statusCode,
-							req.url
-						);
+						console.log('📥 WebSocket response:', proxyRes.statusCode, req.url);
+					});
+					proxy.on('upgrade', (req, socket, head) => {
+						console.log('⬆️  WebSocket upgrade:', req.url);
+					});
+					proxy.on('open', (proxySocket) => {
+						console.log('✅ WebSocket proxy connection opened');
+					});
+					proxy.on('close', (res, socket, head) => {
+						console.log('❌ WebSocket proxy connection closed');
 					});
 				}
 			},
