@@ -20,9 +20,7 @@
 	const consensusStatements = $derived(getConsensusStatements(data.reportData, 5));
 	const divisiveStatements = $derived(getDivisiveStatements(data.reportData, 5));
 	const significantComments = $derived(getSignificantComments(data.reportData));
-	const totalParticipants = $derived(
-		data.reportData.groups.reduce((sum, g) => sum + g.total_members, 0)
-	);
+	const totalParticipants = $derived(stats.totalParticipants);
 
 	let selectedTid = $state<number | null>(
 		significantComments.length > 0
