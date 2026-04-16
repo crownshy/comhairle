@@ -23,8 +23,8 @@
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { userInitials } from '$lib/utils';
-	import { apiClient } from '@crownshy/api-client/client';
 	import { Separator } from '$lib/components/ui/separator';
+	import { notificationService } from '$lib/services/notifications.svelte';
 
 	let links = [
 		{
@@ -51,22 +51,15 @@
 		isOpen = false;
 	});
 
+	$effect(() => {
+		console.log('Unread count ', notificationService.unreadCount);
+	});
+
 	let { user, isAdmin } = $props();
 
 	let user_initials = $derived(userInitials(user?.username ?? ''));
-	let notifications: number | undefined = $state();
 
 	const linkIcons = [Home, Info, MessageSquare, Shield];
-
-	$effect(() => {
-		if (!user) return;
-		async function checkNotifications() {
-			notifications = (await apiClient.GetUnreadNotificationsCount()).count;
-		}
-		checkNotifications();
-		const interval = setInterval(checkNotifications, 5000);
-		return () => clearInterval(interval);
-	});
 </script>
 
 <nav
@@ -177,8 +170,10 @@
 								>
 									<Bell class="text-muted-foreground size-5" />
 									{m.notifications()}
-									{#if notifications && notifications > 0}
-										<Badge class="ml-auto">{notifications}</Badge>
+									{#if notificationService.unreadCount > 0}
+										<Badge class="ml-auto"
+											>{notificationService.unreadCount}</Badge
+										>
 									{/if}
 								</Button>
 								<Button

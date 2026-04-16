@@ -109,13 +109,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
         bulk_storage_service: Arc::new(bulk_storage_service),
     });
 
+    // Register WebSocket message handlers
+    comhairle::websockets::setup::register_handlers(&state);
+
     let app = setup_server(state.clone()).await?;
 
     let server_future = async move {
         // run our app with hyper
         let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
         tracing::info!("listening on {}", listener.local_addr().unwrap());
-        axum::serve(listener, app).await.unwrap();
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .await
+        .unwrap();
     };
 
     let process_document_worker = WorkerBuilder::new("process_document_job")
