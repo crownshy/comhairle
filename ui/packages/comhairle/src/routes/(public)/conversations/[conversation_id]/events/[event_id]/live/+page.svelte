@@ -1,8 +1,10 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import JitsiMeet from '$lib/components/JitsiMeet/JitsiMeet.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Drawer from '$lib/components/ui/drawer';
 	import { apiClient } from '@crownshy/api-client/client';
+	import { formatDateShort, formatTime } from '$lib/utils';
 	import {
 		List,
 		Info,
@@ -19,9 +21,10 @@
 	let conversationId = $derived(data.conversationId);
 	let eventId = $derived(data.eventId);
 	let event = $derived(data.event);
-	let jwt = $derived(data.jwt);
+	let jwt = $state(data.jwt);
 	let apiAttendances = $derived(data.attendances);
 	let user = $derived(data.user);
+	let isModerator = $state(data.isModerator);
 
 	let roomName = $derived(event?.videoMeetingId);
 
@@ -34,6 +37,36 @@
 	let audioMuted = $state(false);
 	let videoMuted = $state(false);
 	let attendanceRegistered = $state(false);
+
+	// Notification popup state
+	let activeNotification = $state<{ message: string; timestamp: number } | null>(null);
+	let notificationTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	// Announcement UI state (not yet wired to WebSocket — placeholder for future)
+	let announcementText = $state('');
+	let announcementSending = $state(false);
+
+	async function sendAnnouncement() {
+		if (!announcementText.trim() || announcementSending) return;
+		announcementSending = true;
+		// TODO: Wire to WebSocket broadcast once event-scoped WS is ready
+		console.log('[Announcement stub]', announcementText.trim());
+		showNotification(announcementText.trim());
+		announcementText = '';
+		announcementSending = false;
+	}
+
+	onDestroy(() => {
+		if (notificationTimeout) clearTimeout(notificationTimeout);
+	});
+
+	function showNotification(message: string) {
+		activeNotification = { message, timestamp: Date.now() };
+		if (notificationTimeout) clearTimeout(notificationTimeout);
+		notificationTimeout = setTimeout(() => {
+			activeNotification = null;
+		}, 8000);
+	}
 
 	// Prototype agenda items
 	type AgendaStatus = 'done' | 'current' | 'upcoming';
@@ -80,41 +113,45 @@
 		jitsiParticipants = jitsiParticipants.filter((p) => p.id !== data.id);
 	}
 
-	async function handleConferenceJoined(data: any) {
-		conferenceJoined = true;
+	let joining = $state(false);
 
-		// Auto-register attendance when joining the live call
-		if (user && !attendanceRegistered) {
-			try {
-				await apiClient.CreateEventAttendance({
-					params: {
-						conversation_id: conversationId,
-						event_id: eventId
-					},
-					body: { role: 'attendee' }
-				});
-				attendanceRegistered = true;
-			} catch (e) {
-				// May already be registered — that's fine
-				console.warn('Attendance registration:', e);
+	async function joinEvent() {
+		if (joining) return;
+		joining = true;
+		try {
+			// Register attendance if not already registered
+			if (!attendanceRegistered) {
+				try {
+					await apiClient.CreateEventAttendance(
+						{ role: 'participant' },
+						{ params: { conversation_id: conversationId, event_id: eventId } }
+					);
+				} catch {
+					// Already registered — fine
+				}
 				attendanceRegistered = true;
 			}
+			// Now fetch JWT
+			const authRes = await apiClient.GetEventJWT({
+				params: { conversation_id: conversationId, event_id: eventId }
+			});
+			jwt = authRes.jwt;
+			isModerator = authRes.is_moderator ?? false;
+		} catch (e) {
+			console.error('Failed to join event:', e);
+			showNotification('Failed to join — please try again');
+		} finally {
+			joining = false;
 		}
+	}
+
+	async function handleConferenceJoined(data: any) {
+		conferenceJoined = true;
 	}
 
 	function handleConferenceLeft() {
 		conferenceJoined = false;
 		jitsiParticipants = [];
-	}
-
-	function formatDate(iso: string) {
-		return new Date(iso).toLocaleDateString(undefined, {
-			weekday: 'short',
-			month: 'short',
-			day: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
 	}
 
 	const tabs = [
@@ -123,6 +160,103 @@
 		{ key: 'participants' as const, label: 'People', icon: Users },
 		{ key: 'controls' as const, label: 'Controls', icon: Settings }
 	];
+
+	// --- Breakout room helpers (moderator only) ---
+
+	let previousAssignments = $state<Map<string, Set<string>>>(new Map());
+
+	function buildBreakoutRooms(
+		participants: Array<{ participantId: string }>,
+		maxPerRoom: number,
+		shuffle: boolean
+	): Array<{ name: string; participants: string[] }> {
+		const ids = participants.map((p) => p.participantId);
+		const total = ids.length;
+		const roomCount = Math.max(1, Math.ceil(total / maxPerRoom));
+
+		const rooms: Array<{ name: string; participants: string[] }> = [];
+		for (let i = 0; i < roomCount; i++) {
+			rooms.push({ name: `Group ${i + 1}`, participants: [] });
+		}
+
+		if (shuffle && previousAssignments.size > 0) {
+			// Shuffle and try to avoid putting people in same group as last time
+			const shuffled = [...ids].sort(() => Math.random() - 0.5);
+			shuffled.forEach((id) => {
+				const prev = previousAssignments.get(id);
+				// Prefer room where fewest previous groupmates are
+				const scored = rooms
+					.filter((r) => r.participants.length < maxPerRoom)
+					.map((r) => ({
+						room: r,
+						overlap: prev ? r.participants.filter((pid) => prev.has(pid)).length : 0
+					}))
+					.sort((a, b) => a.overlap - b.overlap);
+				(scored[0]?.room ?? rooms[0]).participants.push(id);
+			});
+		} else {
+			// round-robin
+			ids.forEach((id, idx) => {
+				rooms[idx % roomCount].participants.push(id);
+			});
+		}
+
+		// Record assignments for next reshuffle
+		const newAssignments = new Map<string, Set<string>>();
+		for (const room of rooms) {
+			const memberSet = new Set(room.participants);
+			for (const id of room.participants) {
+				newAssignments.set(id, memberSet);
+			}
+		}
+		previousAssignments = newAssignments;
+
+		return rooms;
+	}
+
+	async function autoCreateBreakoutRooms(maxPerRoom = 6) {
+		if (!jitsiApi || !isModerator) return;
+
+		const participantsInfo = await jitsiApi.getParticipantsInfo();
+		const rooms = buildBreakoutRooms(participantsInfo, maxPerRoom, false);
+
+		try {
+			jitsiApi.executeCommand('overwriteBreakoutRooms', rooms);
+			showNotification(
+				`Created ${rooms.length} breakout rooms for ${participantsInfo.length} participants`
+			);
+		} catch (e) {
+			console.error('Breakout room creation failed:', e);
+			showNotification('Failed to create breakout rooms — check console');
+		}
+	}
+
+	async function reshuffleBreakoutRooms(maxPerRoom = 6) {
+		if (!jitsiApi || !isModerator) return;
+
+		const participantsInfo = await jitsiApi.getParticipantsInfo();
+		const rooms = buildBreakoutRooms(participantsInfo, maxPerRoom, true);
+
+		try {
+			jitsiApi.executeCommand('overwriteBreakoutRooms', rooms);
+			showNotification(
+				`Reshuffled ${rooms.length} breakout rooms (avoiding previous groups)`
+			);
+		} catch (e) {
+			console.error('Breakout reshuffle failed:', e);
+			showNotification('Failed to reshuffle breakout rooms — check console');
+		}
+	}
+
+	async function closeBreakoutRooms() {
+		if (!jitsiApi || !isModerator) return;
+		try {
+			jitsiApi.executeCommand('closeBreakoutRooms');
+			showNotification('Breakout rooms closed — participants returning to main room');
+		} catch (e) {
+			console.error('Close breakout rooms failed:', e);
+		}
+	}
 </script>
 
 {#snippet panelTabs()}
@@ -199,11 +333,17 @@
 						<div class="grid gap-2 text-xs">
 							<div class="flex justify-between">
 								<span class="text-muted-foreground">Starts</span>
-								<span>{formatDate(event.startTime)}</span>
+								<span
+									>{formatDateShort(event.startTime)}
+									{formatTime(event.startTime)}</span
+								>
 							</div>
 							<div class="flex justify-between">
 								<span class="text-muted-foreground">Ends</span>
-								<span>{formatDate(event.endTime)}</span>
+								<span
+									>{formatDateShort(event.endTime)}
+									{formatTime(event.endTime)}</span
+								>
 							</div>
 							<div class="flex justify-between">
 								<span class="text-muted-foreground">Attendance</span>
@@ -330,6 +470,90 @@
 					</Button>
 				</div>
 
+				{#if isModerator}
+					<hr class="border-border" />
+
+					<div class="space-y-2">
+						<p
+							class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
+						>
+							Announcements
+						</p>
+
+						<div class="flex gap-2">
+							<input
+								type="text"
+								placeholder="Type a message for all participants..."
+								bind:value={announcementText}
+								onkeydown={(e) => e.key === 'Enter' && sendAnnouncement()}
+								class="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-primary flex-1 rounded-lg border px-2.5 py-1.5 text-xs focus:ring-1 focus:outline-none"
+							/>
+							<Button
+								variant="default"
+								size="sm"
+								class="shrink-0 text-xs"
+								disabled={!announcementText.trim() || announcementSending}
+								onclick={sendAnnouncement}
+							>
+								{announcementSending ? 'Sending...' : 'Send'}
+							</Button>
+						</div>
+					</div>
+
+					<hr class="border-border" />
+
+					<div class="space-y-2">
+						<p
+							class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
+						>
+							Breakout Rooms
+						</p>
+
+						<div class="grid grid-cols-2 gap-2">
+							<Button
+								variant="default"
+								size="sm"
+								class="w-full justify-start text-xs"
+								onclick={() => autoCreateBreakoutRooms(6)}
+							>
+								Auto-assign Breakouts
+							</Button>
+
+							<Button
+								variant="outline"
+								size="sm"
+								class="w-full justify-start text-xs"
+								onclick={() => reshuffleBreakoutRooms(6)}
+							>
+								Reshuffle Groups
+							</Button>
+
+							<Button
+								variant="outline"
+								size="sm"
+								class="w-full justify-start text-xs"
+								onclick={closeBreakoutRooms}
+							>
+								Close Breakouts
+							</Button>
+
+							<Button
+								variant="outline"
+								size="sm"
+								class="w-full justify-start text-xs"
+								onclick={async () => {
+									if (!jitsiApi) return;
+									const rooms = await jitsiApi.getRoomsInfo();
+									console.log('Breakout rooms:', rooms);
+									alert(JSON.stringify(rooms, null, 2));
+								}}
+							>
+								Inspect Rooms
+							</Button>
+						</div>
+					</div>
+				{/if}
+
 				<hr class="border-border" />
 
 				<div class="space-y-2">
@@ -418,6 +642,14 @@
 			<h1 class="text-foreground hidden text-lg font-semibold md:block">
 				{event?.name ?? `Event: ${eventId}`}
 			</h1>
+			{#if isModerator}
+				<span
+					class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-600 ring-1 ring-amber-500/30"
+				>
+					<span class="h-2 w-2 rounded-full bg-amber-500"></span>
+					Host
+				</span>
+			{/if}
 			{#if conferenceJoined}
 				<span
 					class="hidden shrink-0 items-center gap-1.5 rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600 md:inline-flex"
@@ -435,30 +667,47 @@
 	>
 		<!-- Jitsi -->
 		<div class="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-3xl md:min-h-[600px]">
-			<JitsiMeet
-				{roomName}
-				{jwt}
-				onApiReady={handleApiReady}
-				onParticipantJoined={handleParticipantJoined}
-				onParticipantLeft={handleParticipantLeft}
-				onVideoConferenceJoined={handleConferenceJoined}
-				onVideoConferenceLeft={handleConferenceLeft}
-				startWithAudioMuted={true}
-				configOverwrite={{
-					toolbarButtons: [
-						'microphone',
-						'camera',
-						'desktop',
-						'chat',
-						'raisehand',
-						'tileview',
-						'hangup',
-						'fullscreen'
-					],
-					disableDeepLinking: true,
-					hideConferenceSubject: true
-				}}
-			/>
+			{#if jwt}
+				<JitsiMeet
+					{roomName}
+					{jwt}
+					onApiReady={handleApiReady}
+					onParticipantJoined={handleParticipantJoined}
+					onParticipantLeft={handleParticipantLeft}
+					onVideoConferenceJoined={handleConferenceJoined}
+					onVideoConferenceLeft={handleConferenceLeft}
+					startWithAudioMuted={true}
+					configOverwrite={{
+						toolbarButtons: [
+							'microphone',
+							'camera',
+							'desktop',
+							'chat',
+							'raisehand',
+							'tileview',
+							'hangup',
+							'fullscreen'
+						],
+						disableDeepLinking: true,
+						hideConferenceSubject: true
+					}}
+				/>
+			{:else}
+				<div class="bg-muted/50 flex h-full items-center justify-center">
+					<div class="flex flex-col items-center gap-4 text-center">
+						<h2 class="text-foreground text-xl font-semibold">
+							{event?.name ?? 'Live Event'}
+						</h2>
+						<p class="text-muted-foreground max-w-sm text-sm">
+							Join this event to enter the video call. You'll be registered as a
+							participant.
+						</p>
+						<Button onclick={joinEvent} disabled={joining} size="lg">
+							{joining ? 'Joining...' : 'Join Event'}
+						</Button>
+					</div>
+				</div>
+			{/if}
 		</div>
 
 		<!-- Desktop panel -->
@@ -483,4 +732,26 @@
 			{@render panelContent()}
 		</Drawer.Content>
 	</Drawer.Root>
+
+	<!-- Floating notification popup -->
+	{#if activeNotification}
+		<div
+			class="animate-in fade-in slide-in-from-top-2 pointer-events-auto fixed top-4 left-1/2 z-50 -translate-x-1/2 duration-300"
+		>
+			<div
+				class="bg-card border-border flex max-w-md items-start gap-3 rounded-xl border px-4 py-3 shadow-lg"
+			>
+				<div class="flex-1">
+					<p class="text-foreground text-sm font-medium">Announcement</p>
+					<p class="text-muted-foreground mt-0.5 text-sm">{activeNotification.message}</p>
+				</div>
+				<button
+					class="text-muted-foreground hover:text-foreground shrink-0 text-sm"
+					onclick={() => (activeNotification = null)}
+				>
+					✕
+				</button>
+			</div>
+		</div>
+	{/if}
 </div>

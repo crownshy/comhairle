@@ -158,6 +158,7 @@ async fn delete(
 #[derive(Serialize, JsonSchema, Debug)]
 struct JwtResponse {
     jwt: String,
+    is_moderator: bool,
 }
 
 #[derive(Serialize, Debug)]
@@ -199,6 +200,11 @@ async fn get_jwt(
         .as_ref()
         .ok_or(ComhairleError::NoVideoServiceConfigured)?;
 
+    // TODO: Replace with real role lookup once we decide on the mechanism.
+    // Options: EventAttendance.role == "facilitator", or UserResourceRole on the conversation,
+    // or some combination. For now, admin users are moderators.
+    let is_moderator = is_user_admin(&user, &state.config);
+
     let claims = VideoEventJwtClaims {
         iss: &video_call_config.jwt_app_id,
         aud: &video_call_config.jwt_app_id,
@@ -220,7 +226,7 @@ async fn get_jwt(
         .sub(video_call_config.jwt_sub.to_owned())
         .call();
 
-    Ok((StatusCode::OK, Json(JwtResponse { jwt })))
+    Ok((StatusCode::OK, Json(JwtResponse { jwt, is_moderator })))
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
