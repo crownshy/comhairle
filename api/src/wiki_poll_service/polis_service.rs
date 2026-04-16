@@ -312,6 +312,19 @@ impl PolisClient {
             .map(|g| g.n_members)
             .collect();
 
+        let mut group_sizes: Vec<u64> = vec![];
+
+        println!("{group_votes:#?}");
+
+        for g in group_votes
+            .as_object()
+            .unwrap()
+            .values()
+        {
+            let members = g.get("n-members").and_then(|v| v.as_u64()).unwrap() as u64;
+            group_sizes.push(members);
+        }
+
         let mut groups_report = Vec::new();
         for (idx, cluster) in math_pca.group_clusters.iter().enumerate() {
             let group_id = idx as u32;
