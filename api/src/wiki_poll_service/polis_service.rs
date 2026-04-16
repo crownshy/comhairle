@@ -19,6 +19,78 @@ use crate::{
     },
 };
 
+// Raw Polis API response structures
+
+#[derive(Deserialize, Debug)]
+struct PolisCommentWithVoting {
+    tid: u32,
+    txt: String,
+    #[serde(default)]
+    agree_count: u32,
+    #[serde(default)]
+    disagree_count: u32,
+    #[serde(default)]
+    pass_count: u32,
+    is_seed: bool,
+    #[serde(rename = "mod")]
+    moderation: f64,
+}
+
+#[derive(Deserialize, Debug)]
+struct PolisMathPca {
+    tids: Vec<u32>,
+    #[serde(rename = "group-votes")]
+    group_votes: HashMap<String, GroupVoteData>,
+    #[serde(rename = "group-aware-consensus")]
+    group_aware_consensus: HashMap<String, f64>,
+    pca: PcaData,
+    #[serde(rename = "group-clusters")]
+    group_clusters: Vec<GroupCluster>,
+    repness: HashMap<String, Vec<RepnessEntry>>,
+    #[serde(rename = "base-clusters")]
+    base_clusters: BaseClusters,
+}
+
+#[derive(Deserialize, Debug)]
+struct GroupVoteData {
+    #[serde(rename = "n-members")]
+    n_members: u64,
+    votes: HashMap<String, VoteBreakdown>,
+}
+
+#[derive(Deserialize, Debug)]
+struct VoteBreakdown {
+    #[serde(rename = "A")]
+    agrees: u32,
+    #[serde(rename = "D")]
+    disagrees: u32,
+    #[serde(rename = "S")]
+    saw: u32,
+}
+
+#[derive(Deserialize, Debug)]
+struct PcaData {
+    #[serde(rename = "comment-extremity")]
+    comment_extremity: Vec<f64>,
+}
+
+#[derive(Deserialize, Debug)]
+struct GroupCluster {
+    members: Vec<u32>,
+}
+
+#[derive(Deserialize, Debug)]
+struct RepnessEntry {
+    tid: u32,
+}
+
+#[derive(Deserialize, Debug)]
+struct BaseClusters {
+    members: Vec<Vec<u32>>,
+    x: Vec<f64>,
+    y: Vec<f64>,
+}
+
 pub struct PolisClient {
     client: reqwest::Client,
     base_url: String,
@@ -106,10 +178,10 @@ impl PolisClient {
         }
     }
 
-    pub async fn get_comments_with_voting(
+    async fn get_comments_with_voting(
         &self,
         poll_id: &str,
-    ) -> Result<serde_json::Value, PolisError> {
+    ) -> Result<Vec<PolisCommentWithVoting>, PolisError> {
         let url = format!(
             "https://{}/api/v3/comments?conversation_id={}&moderation=true&include_voting_patterns=true",
             self.base_url, poll_id
@@ -120,7 +192,7 @@ impl PolisClient {
             PolisError::FailedToGetComments(format!("Failed to get comments: {e}"))
         })?;
 
-        let data = response.json::<serde_json::Value>().await.map_err(|e| {
+        let data = response.json::<Vec<PolisCommentWithVoting>>().await.map_err(|e| {
             warn!("Failed to parse comments: {e}");
             PolisError::FailedToGetComments(format!("Failed to parse comments: {e}"))
         })?;
@@ -146,7 +218,7 @@ impl PolisClient {
         Ok(comments)
     }
 
-    pub async fn get_math_pca(&self, poll_id: &str) -> Result<serde_json::Value, PolisError> {
+    async fn get_math_pca(&self, poll_id: &str) -> Result<PolisMathPca, PolisError> {
         let url = format!(
             "https://{}/api/v3/math/pca2?conversation_id={}&lastVoteTimestamp=0",
             self.base_url, poll_id
@@ -157,7 +229,7 @@ impl PolisClient {
             PolisError::FailedToGetComments(format!("Failed to get PCA data: {e}"))
         })?;
 
-        let data = response.json::<serde_json::Value>().await.map_err(|e| {
+        let data = response.json::<PolisMathPca>().await.map_err(|e| {
             warn!("Failed to parse PCA data: {e:#?}");
             PolisError::FailedToGetComments(format!("Failed to parse PCA data: {e}"))
         })?;
@@ -165,105 +237,58 @@ impl PolisClient {
         Ok(data)
     }
 
-    pub fn transform_report_data(
+    fn transform_report_data(
         &self,
-        math_pca: serde_json::Value,
-        comments_data: serde_json::Value,
+        math_pca: PolisMathPca,
+        comments_data: Vec<PolisCommentWithVoting>,
     ) -> Result<WikiPollReport, WikiPollServiceError> {
-        // Extract comment texts from comments_data
-        let comments_array = comments_data
-            .as_array()
-            .ok_or_else(|| PolisError::FailedToGetComments("Invalid comments format".into()))?;
+        // Create maps for easy lookup
+        let mut comment_texts = HashMap::new();
+        let mut comment_votes = HashMap::new();
+        let mut comment_is_seed = HashMap::new();
 
-        // Create a map of tid -> comment text
-        let mut comment_texts = std::collections::HashMap::new();
-        let mut comment_votes: HashMap<u32, VoteCounts> = std::collections::HashMap::new();
-        let mut comment_is_seed: HashMap<u32, bool> = std::collections::HashMap::new();
-
-        for comment in comments_array {
-            if let (Some(tid), Some(txt), agrees, disagrees, passes, is_seed, is_moderated) = (
-                comment.get("tid").and_then(|t| t.as_u64()),
-                comment.get("txt").and_then(|t| t.as_str()),
-                comment
-                    .get("agree_count")
-                    .and_then(|t| t.as_u64())
-                    .unwrap_or(0) as u32,
-                comment
-                    .get("disagree_count")
-                    .and_then(|t| t.as_u64())
-                    .unwrap_or(0) as u32,
-                comment
-                    .get("pass_count")
-                    .and_then(|t| t.as_u64())
-                    .unwrap_or(0) as u32,
-                comment.get("is_seed").and_then(|t| t.as_bool()).unwrap(),
-                comment.get("mod").and_then(|t| t.as_f64()).unwrap(),
-            ) {
-                comment_texts.insert(tid as u32, txt.to_string());
-                if is_moderated > 0.0 {
-                    comment_is_seed.insert(tid as u32, is_seed);
-                    comment_votes.insert(
-                        tid as u32,
-                        VoteCounts {
-                            agrees,
-                            disagrees,
-                            passes,
-                        },
-                    );
-                }
+        for comment in comments_data.iter() {
+            comment_texts.insert(comment.tid, comment.txt.clone());
+            if comment.moderation > 0.0 {
+                comment_is_seed.insert(comment.tid, comment.is_seed);
+                comment_votes.insert(
+                    comment.tid,
+                    VoteCounts {
+                        agrees: comment.agree_count,
+                        disagrees: comment.disagree_count,
+                        passes: comment.pass_count,
+                    },
+                );
             }
         }
 
-        // Extract data from math_pca
-        let tids = math_pca["tids"]
-            .as_array()
-            .ok_or_else(|| PolisError::FailedToGetComments("No tids in math data".into()))?;
-
-        let group_votes = &math_pca["group-votes"];
-        let group_aware_consensus = &math_pca["group-aware-consensus"];
-        let empty_vec = vec![];
-        let comment_extremity = math_pca["pca"]["comment-extremity"]
-            .as_array()
-            .unwrap_or(&empty_vec);
-
         // Build comments with vote counts
         let mut comments_report = Vec::new();
-        for (idx, tid_val) in tids.iter().enumerate() {
-            let tid = tid_val.as_u64().unwrap_or(0) as u32;
+        for (idx, &tid) in math_pca.tids.iter().enumerate() {
             let text = comment_texts.get(&tid).cloned().unwrap_or_default();
 
-            // Calculate overall votes from group votes
+            // Calculate group votes for this comment
             let mut group_votes_list = Vec::new();
-            if let Some(obj) = group_votes.as_object() {
-                for (group_id_str, group_data) in obj.iter() {
-                    if let Ok(group_id) = group_id_str.parse::<u32>() {
-                        // Access the "votes" object within each group
-                        if let Some(votes_obj) = group_data.get("votes").and_then(|v| v.as_object())
-                        {
-                            // Get the votes for this specific comment (tid)
-                            if let Some(votes_for_tid) = votes_obj.get(&tid.to_string()) {
-                                let agrees = votes_for_tid["A"].as_u64().unwrap_or(0) as u32;
-                                let disagrees = votes_for_tid["D"].as_u64().unwrap_or(0) as u32;
-                                let saw = votes_for_tid["S"].as_u64().unwrap_or(0) as u32;
-                                // S represents "saw" not "passes". Passes = saw - agrees - disagrees
-                                let passes = saw.saturating_sub(agrees).saturating_sub(disagrees);
-                                group_votes_list.push(GroupVoteCounts {
-                                    group_id,
-                                    agrees,
-                                    disagrees,
-                                    passes,
-                                });
-                            }
-                        }
+            for (group_id_str, group_data) in math_pca.group_votes.iter() {
+                if let Ok(group_id) = group_id_str.parse::<u32>() {
+                    if let Some(vote_breakdown) = group_data.votes.get(&tid.to_string()) {
+                        let passes = vote_breakdown
+                            .saw
+                            .saturating_sub(vote_breakdown.agrees)
+                            .saturating_sub(vote_breakdown.disagrees);
+
+                        group_votes_list.push(GroupVoteCounts {
+                            group_id,
+                            agrees: vote_breakdown.agrees,
+                            disagrees: vote_breakdown.disagrees,
+                            passes,
+                        });
                     }
                 }
             }
 
-            let consensus = group_aware_consensus
-                .get(tid.to_string())
-                .and_then(|v| v.as_f64());
-
-            let divisiveness = comment_extremity.get(idx).and_then(|v| v.as_f64());
+            let consensus = math_pca.group_aware_consensus.get(&tid.to_string()).copied();
+            let divisiveness = math_pca.pca.comment_extremity.get(idx).copied();
 
             if let (Some(overall_votes), Some(is_seed)) =
                 (comment_votes.get(&tid), comment_is_seed.get(&tid))
@@ -275,119 +300,81 @@ impl PolisClient {
                     group_votes: group_votes_list,
                     group_informed_consensus: consensus,
                     divisiveness,
-                    is_seed: is_seed.clone(),
+                    is_seed: *is_seed,
                 });
             }
         }
 
-        // Extract group clusters and build groups
-        let empty_clusters = vec![];
-        let group_clusters = math_pca["group-clusters"]
-            .as_array()
-            .unwrap_or(&empty_clusters);
-
-        let repness = &math_pca["repness"];
-
-        let mut group_sizes: Vec<u64> = vec![];
-
-        println!("{group_votes:#?}");
-
-        for g in group_votes
-            .as_object()
-            .unwrap()
+        // Build groups report
+        let group_sizes: Vec<u64> = math_pca
+            .group_votes
             .values()
-        {
-            let members = g.get("n-members").and_then(|v| v.as_u64()).unwrap() as u64;
-            group_sizes.push(members);
-        }
+            .map(|g| g.n_members)
+            .collect();
 
         let mut groups_report = Vec::new();
-        for (idx, cluster) in group_clusters.iter().enumerate() {
+        for (idx, cluster) in math_pca.group_clusters.iter().enumerate() {
             let group_id = idx as u32;
-            let members: Vec<u32> = cluster["members"]
-                .as_array()
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|v| v.as_u64().map(|n| n as u32))
+
+            // Get representative comments for this group
+            let representative_comments = math_pca
+                .repness
+                .get(&group_id.to_string())
+                .map(|rep_entries| {
+                    rep_entries
+                        .iter()
+                        .map(|entry| {
+                            let text = comment_texts.get(&entry.tid).cloned().unwrap_or_default();
+                            RepresentativeComment {
+                                tid: entry.tid,
+                                text,
+                            }
+                        })
                         .collect()
                 })
                 .unwrap_or_default();
 
-            // Get representative comments for this group
-            let mut representative_comments = Vec::new();
-            if let Some(rep_array) = repness.get(group_id.to_string()).and_then(|v| v.as_array()) {
-                for rep in rep_array {
-                    if let Some(tid) = rep.get("tid").and_then(|t| t.as_u64()) {
-                        let tid = tid as u32;
-                        let text = comment_texts.get(&tid).cloned().unwrap_or_default();
-                        representative_comments.push(RepresentativeComment { tid, text });
-                    }
-                }
-            }
-
             groups_report.push(GroupReportData {
                 group_id,
                 representative_comments,
-                members,
-                total_members: group_sizes.get(idx).unwrap().clone(),
+                members: cluster.members.clone(),
+                total_members: *group_sizes.get(idx).unwrap_or(&0),
             });
         }
 
         // Build participants list with group membership
-        let mut participants_report = Vec::new();
-        let mut pid_to_group: std::collections::HashMap<u32, u32> =
-            std::collections::HashMap::new();
-
-        // Build pid to group mapping from group clusters
-        for (group_id, cluster) in group_clusters.iter().enumerate() {
-            if let Some(members) = cluster["members"].as_array() {
-                for member in members {
-                    if let Some(pid) = member.as_u64() {
-                        pid_to_group.insert(pid as u32, group_id as u32);
-                    }
-                }
+        let mut pid_to_group = HashMap::new();
+        for (group_id, cluster) in math_pca.group_clusters.iter().enumerate() {
+            for &pid in cluster.members.iter() {
+                pid_to_group.insert(pid, group_id as u32);
             }
         }
 
         // Build pid to PCA position mapping from base-clusters
-        let mut pid_to_pca: std::collections::HashMap<u32, PcaPosition> =
-            std::collections::HashMap::new();
-
-        if let Some(base_clusters) = math_pca.get("base-clusters") {
-            let base_members = base_clusters["members"].as_array();
-            let base_x = base_clusters["x"].as_array();
-            let base_y = base_clusters["y"].as_array();
-
-            if let (Some(members_arr), Some(x_arr), Some(y_arr)) = (base_members, base_x, base_y) {
-                for (idx, member_cluster) in members_arr.iter().enumerate() {
-                    if let Some(member_arr) = member_cluster.as_array() {
-                        // Each base cluster typically has one member (participant)
-                        for pid_val in member_arr {
-                            if let Some(pid) = pid_val.as_u64() {
-                                let pid = pid as u32;
-                                if let (Some(x), Some(y)) = (
-                                    x_arr.get(idx).and_then(|v| v.as_f64()),
-                                    y_arr.get(idx).and_then(|v| v.as_f64()),
-                                ) {
-                                    pid_to_pca.insert(pid, PcaPosition { x, y });
-                                }
-                            }
-                        }
-                    }
+        let mut pid_to_pca = HashMap::new();
+        for (idx, member_cluster) in math_pca.base_clusters.members.iter().enumerate() {
+            for &pid in member_cluster.iter() {
+                if let (Some(&x), Some(&y)) = (
+                    math_pca.base_clusters.x.get(idx),
+                    math_pca.base_clusters.y.get(idx),
+                ) {
+                    pid_to_pca.insert(pid, PcaPosition { x, y });
                 }
             }
         }
 
         // Create participant report entries
-        // Get all participants from group clusters
-        for (pid, group_id) in pid_to_group.iter() {
-            let pca_position = pid_to_pca.get(pid).cloned();
-            participants_report.push(ParticipantReportData {
-                pid: *pid,
-                group_id: Some(*group_id),
-                pca_position,
-            });
-        }
+        let participants_report = pid_to_group
+            .iter()
+            .map(|(&pid, &group_id)| {
+                let pca_position = pid_to_pca.get(&pid).cloned();
+                ParticipantReportData {
+                    pid,
+                    group_id: Some(group_id),
+                    pca_position,
+                }
+            })
+            .collect();
 
         Ok(WikiPollReport {
             comments: comments_report,
