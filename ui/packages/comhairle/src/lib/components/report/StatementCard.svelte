@@ -16,7 +16,7 @@
 	const overall = $derived(
 		computeOverallVotePercents(
 			comment,
-			totalParticipants || groups.reduce((s, g) => s + g.members.length, 0)
+			totalParticipants || groups.reduce((s, g) => s + g.total_members, 0)
 		)
 	);
 	const allRows = $derived([overall, ...groupPercents]);
@@ -40,11 +40,7 @@
 	let showSeedTooltip = $state(false);
 </script>
 
-<div
-	class="{comment.is_seed
-		? 'pt-10'
-		: ''} bg-card relative w-full rounded border border-gray-200 p-3"
->
+<div class="bg-card relative w-full rounded border border-gray-200 p-3">
 	<!-- Seed badge -->
 	{#if comment.is_seed}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
