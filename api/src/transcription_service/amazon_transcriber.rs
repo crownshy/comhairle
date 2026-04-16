@@ -133,6 +133,7 @@ fn ffmpeg_convert_stream(mut audio_in: mpsc::Receiver<Bytes>) -> Result<mpsc::Re
             }
         }
 
+        // TODO: this may be unneccessary and be already written above
         // Send any remaining buffer data
         if !buffer.is_empty() {
             info!("Sending final buffer: {} bytes", buffer.len());
@@ -155,6 +156,7 @@ fn ffmpeg_convert_stream(mut audio_in: mpsc::Receiver<Bytes>) -> Result<mpsc::Re
         let mut total_audio = Vec::new();
         let min_chunk_size = 3200; // 200ms at 16kHz mono 16-bit = 3200 bytes (reduce frequency)
         let mut last_send = std::time::Instant::now();
+        // TODO: probably safe to remove?
         let min_send_interval = std::time::Duration::from_millis(0); // Minimum 100ms between sends
 
         loop {
@@ -436,6 +438,7 @@ impl Transcriber for AmazonTranscriber {
                     Ok(event) => {
                         if let Some(event) = event {
                             if let Some(transcript) =
+                                // TODO: remove unwrap
                                 event.as_transcript_event().unwrap().transcript()
                             {
                                 if let Some(results) = &transcript.results {
