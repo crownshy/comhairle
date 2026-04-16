@@ -31,6 +31,7 @@ body {
 	--tw-prose-counters: var(--muted-foreground);
 	--tw-prose-bullets: var(--muted-foreground);
 	--tw-prose-quotes: var(--foreground);
+	--tw-prose-links: var(--foreground);
 	--tw-prose-quote-borders: var(--border);
 	--tw-prose-captions: var(--muted-foreground);
 	--tw-prose-th-borders: var(--border);
