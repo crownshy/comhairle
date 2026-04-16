@@ -1,12 +1,9 @@
 <script lang="ts">
-	import { dev } from '$app/environment';
-	import { onMount, onDestroy } from 'svelte';
+	import { onDestroy } from 'svelte';
 	import JitsiMeet from '$lib/components/JitsiMeet/JitsiMeet.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Drawer from '$lib/components/ui/drawer';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { ws } from '$lib/api/websockets.svelte';
-	import type { WSMessage } from '$lib/api/websockets.svelte';
 	import { formatDateShort, formatTime } from '$lib/utils';
 	import {
 		List,
@@ -24,7 +21,7 @@
 	let conversationId = $derived(data.conversationId);
 	let eventId = $derived(data.eventId);
 	let event = $derived(data.event);
-	let jwt = $derived(data.jwt);
+	let jwt = $state(data.jwt);
 	let apiAttendances = $derived(data.attendances);
 	let user = $derived(data.user);
 	let isModerator = $state(data.isModerator);
@@ -44,23 +41,22 @@
 	// Notification popup state
 	let activeNotification = $state<{ message: string; timestamp: number } | null>(null);
 	let notificationTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	// Announcement UI state (not yet wired to WebSocket — placeholder for future)
 	let announcementText = $state('');
 	let announcementSending = $state(false);
 
-	// Listen for incoming WS broadcast/notification messages
-	let unsubWs: (() => void) | null = null;
-
-	onMount(() => {
-		unsubWs = ws.onMessage((msg: WSMessage) => {
-			if (msg.type === 'broadcast' || msg.type === 'notification') {
-				const text = msg.payload.message || msg.payload.title || 'New notification';
-				showNotification(text);
-			}
-		});
-	});
+	async function sendAnnouncement() {
+		if (!announcementText.trim() || announcementSending) return;
+		announcementSending = true;
+		// TODO: Wire to WebSocket broadcast once event-scoped WS is ready
+		console.log('[Announcement stub]', announcementText.trim());
+		showNotification(announcementText.trim());
+		announcementText = '';
+		announcementSending = false;
+	}
 
 	onDestroy(() => {
-		unsubWs?.();
 		if (notificationTimeout) clearTimeout(notificationTimeout);
 	});
 
@@ -70,21 +66,6 @@
 		notificationTimeout = setTimeout(() => {
 			activeNotification = null;
 		}, 8000);
-	}
-
-	async function sendAnnouncement() {
-		if (!announcementText.trim() || announcementSending) return;
-		announcementSending = true;
-		try {
-			await apiClient.BroadcastMessage({
-				body: { message: announcementText.trim(), authenticated_only: true }
-			});
-			announcementText = '';
-		} catch (e) {
-			console.error('Failed to send announcement:', e);
-		} finally {
-			announcementSending = false;
-		}
 	}
 
 	// Prototype agenda items
@@ -132,26 +113,40 @@
 		jitsiParticipants = jitsiParticipants.filter((p) => p.id !== data.id);
 	}
 
-	async function handleConferenceJoined(data: any) {
-		conferenceJoined = true;
+	let joining = $state(false);
 
-		// Auto-register attendance when joining the live call
-		if (user && !attendanceRegistered) {
-			try {
-				await apiClient.CreateEventAttendance({
-					params: {
-						conversation_id: conversationId,
-						event_id: eventId
-					},
-					body: { role: 'attendee' }
-				});
-				attendanceRegistered = true;
-			} catch (e) {
-				// May already be registered — that's fine
-				console.warn('Attendance registration:', e);
+	async function joinEvent() {
+		if (joining) return;
+		joining = true;
+		try {
+			// Register attendance if not already registered
+			if (!attendanceRegistered) {
+				try {
+					await apiClient.CreateEventAttendance(
+						{ role: 'participant' },
+						{ params: { conversation_id: conversationId, event_id: eventId } }
+					);
+				} catch {
+					// Already registered — fine
+				}
 				attendanceRegistered = true;
 			}
+			// Now fetch JWT
+			const authRes = await apiClient.GetEventJWT({
+				params: { conversation_id: conversationId, event_id: eventId }
+			});
+			jwt = authRes.jwt;
+			isModerator = authRes.is_moderator ?? false;
+		} catch (e) {
+			console.error('Failed to join event:', e);
+			showNotification('Failed to join — please try again');
+		} finally {
+			joining = false;
 		}
+	}
+
+	async function handleConferenceJoined(data: any) {
+		conferenceJoined = true;
 	}
 
 	function handleConferenceLeft() {
@@ -168,35 +163,99 @@
 
 	// --- Breakout room helpers (moderator only) ---
 
-	async function autoCreateBreakoutRooms(maxPerRoom = 6) {
-		if (!jitsiApi || !isModerator) return;
+	let previousAssignments = $state<Map<string, Set<string>>>(new Map());
 
-		const participantsInfo = await jitsiApi.getParticipantsInfo();
-		const total = participantsInfo.length;
+	function buildBreakoutRooms(
+		participants: Array<{ participantId: string }>,
+		maxPerRoom: number,
+		shuffle: boolean
+	): Array<{ name: string; participants: string[] }> {
+		const ids = participants.map((p) => p.participantId);
+		const total = ids.length;
 		const roomCount = Math.max(1, Math.ceil(total / maxPerRoom));
 
-		// Build rooms array for Jitsi IFrame API
 		const rooms: Array<{ name: string; participants: string[] }> = [];
 		for (let i = 0; i < roomCount; i++) {
 			rooms.push({ name: `Group ${i + 1}`, participants: [] });
 		}
 
-		// Round-robin distribute participants
-		participantsInfo.forEach((p: any, idx: number) => {
-			rooms[idx % roomCount].participants.push(p.participantId);
-		});
+		if (shuffle && previousAssignments.size > 0) {
+			// Shuffle and try to avoid putting people in same group as last time
+			const shuffled = [...ids].sort(() => Math.random() - 0.5);
+			shuffled.forEach((id) => {
+				const prev = previousAssignments.get(id);
+				// Prefer room where fewest previous groupmates are
+				const scored = rooms
+					.filter((r) => r.participants.length < maxPerRoom)
+					.map((r) => ({
+						room: r,
+						overlap: prev ? r.participants.filter((pid) => prev.has(pid)).length : 0
+					}))
+					.sort((a, b) => a.overlap - b.overlap);
+				(scored[0]?.room ?? rooms[0]).participants.push(id);
+			});
+		} else {
+			// round-robin
+			ids.forEach((id, idx) => {
+				rooms[idx % roomCount].participants.push(id);
+			});
+		}
 
-		// TODO: Use jitsiApi.executeCommand('overwriteBreakoutRooms', rooms) once
-		// we confirm the exact API shape on our Jitsi version. For now, log the plan.
-		console.log('Breakout room plan:', rooms);
-		alert(
-			`Would create ${roomCount} rooms for ${total} participants (max ${maxPerRoom}/room).\n\nCheck console for details.`
-		);
+		// Record assignments for next reshuffle
+		const newAssignments = new Map<string, Set<string>>();
+		for (const room of rooms) {
+			const memberSet = new Set(room.participants);
+			for (const id of room.participants) {
+				newAssignments.set(id, memberSet);
+			}
+		}
+		previousAssignments = newAssignments;
+
+		return rooms;
+	}
+
+	async function autoCreateBreakoutRooms(maxPerRoom = 6) {
+		if (!jitsiApi || !isModerator) return;
+
+		const participantsInfo = await jitsiApi.getParticipantsInfo();
+		const rooms = buildBreakoutRooms(participantsInfo, maxPerRoom, false);
+
+		try {
+			jitsiApi.executeCommand('overwriteBreakoutRooms', rooms);
+			showNotification(
+				`Created ${rooms.length} breakout rooms for ${participantsInfo.length} participants`
+			);
+		} catch (e) {
+			console.error('Breakout room creation failed:', e);
+			showNotification('Failed to create breakout rooms — check console');
+		}
 	}
 
 	async function reshuffleBreakoutRooms(maxPerRoom = 6) {
-		// TODO: Track previous assignments to avoid same-group-twice
-		await autoCreateBreakoutRooms(maxPerRoom);
+		if (!jitsiApi || !isModerator) return;
+
+		const participantsInfo = await jitsiApi.getParticipantsInfo();
+		const rooms = buildBreakoutRooms(participantsInfo, maxPerRoom, true);
+
+		try {
+			jitsiApi.executeCommand('overwriteBreakoutRooms', rooms);
+			showNotification(
+				`Reshuffled ${rooms.length} breakout rooms (avoiding previous groups)`
+			);
+		} catch (e) {
+			console.error('Breakout reshuffle failed:', e);
+			showNotification('Failed to reshuffle breakout rooms — check console');
+		}
+	}
+
+	async function closeBreakoutRooms() {
+		if (!jitsiApi || !isModerator) return;
+		try {
+			jitsiApi.executeCommand('closeBreakoutRooms');
+			showNotification('Breakout rooms closed — participants returning to main room');
+		} catch (e) {
+			console.error('Close breakout rooms failed:', e);
+		}
 	}
 </script>
 
@@ -473,6 +532,15 @@
 								variant="outline"
 								size="sm"
 								class="w-full justify-start text-xs"
+								onclick={closeBreakoutRooms}
+							>
+								Close Breakouts
+							</Button>
+
+							<Button
+								variant="outline"
+								size="sm"
+								class="w-full justify-start text-xs"
 								onclick={async () => {
 									if (!jitsiApi) return;
 									const rooms = await jitsiApi.getRoomsInfo();
@@ -574,20 +642,13 @@
 			<h1 class="text-foreground hidden text-lg font-semibold md:block">
 				{event?.name ?? `Event: ${eventId}`}
 			</h1>
-			{#if dev}
-				<button
-					class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors {isModerator
-						? 'bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/30'
-						: 'bg-muted text-muted-foreground ring-border ring-1'}"
-					onclick={() => (isModerator = !isModerator)}
+			{#if isModerator}
+				<span
+					class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-600 ring-1 ring-amber-500/30"
 				>
-					<span
-						class="h-2 w-2 rounded-full {isModerator
-							? 'bg-amber-500'
-							: 'bg-muted-foreground/40'}"
-					></span>
-					{isModerator ? 'Host' : 'Attendee'}
-				</button>
+					<span class="h-2 w-2 rounded-full bg-amber-500"></span>
+					Host
+				</span>
 			{/if}
 			{#if conferenceJoined}
 				<span
@@ -606,30 +667,47 @@
 	>
 		<!-- Jitsi -->
 		<div class="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-3xl md:min-h-[600px]">
-			<JitsiMeet
-				{roomName}
-				{jwt}
-				onApiReady={handleApiReady}
-				onParticipantJoined={handleParticipantJoined}
-				onParticipantLeft={handleParticipantLeft}
-				onVideoConferenceJoined={handleConferenceJoined}
-				onVideoConferenceLeft={handleConferenceLeft}
-				startWithAudioMuted={true}
-				configOverwrite={{
-					toolbarButtons: [
-						'microphone',
-						'camera',
-						'desktop',
-						'chat',
-						'raisehand',
-						'tileview',
-						'hangup',
-						'fullscreen'
-					],
-					disableDeepLinking: true,
-					hideConferenceSubject: true
-				}}
-			/>
+			{#if jwt}
+				<JitsiMeet
+					{roomName}
+					{jwt}
+					onApiReady={handleApiReady}
+					onParticipantJoined={handleParticipantJoined}
+					onParticipantLeft={handleParticipantLeft}
+					onVideoConferenceJoined={handleConferenceJoined}
+					onVideoConferenceLeft={handleConferenceLeft}
+					startWithAudioMuted={true}
+					configOverwrite={{
+						toolbarButtons: [
+							'microphone',
+							'camera',
+							'desktop',
+							'chat',
+							'raisehand',
+							'tileview',
+							'hangup',
+							'fullscreen'
+						],
+						disableDeepLinking: true,
+						hideConferenceSubject: true
+					}}
+				/>
+			{:else}
+				<div class="bg-muted/50 flex h-full items-center justify-center">
+					<div class="flex flex-col items-center gap-4 text-center">
+						<h2 class="text-foreground text-xl font-semibold">
+							{event?.name ?? 'Live Event'}
+						</h2>
+						<p class="text-muted-foreground max-w-sm text-sm">
+							Join this event to enter the video call. You'll be registered as a
+							participant.
+						</p>
+						<Button onclick={joinEvent} disabled={joining} size="lg">
+							{joining ? 'Joining...' : 'Join Event'}
+						</Button>
+					</div>
+				</div>
+			{/if}
 		</div>
 
 		<!-- Desktop panel -->
