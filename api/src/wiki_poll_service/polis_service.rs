@@ -33,6 +33,7 @@ pub struct CommentReportData {
     pub group_votes: Vec<GroupVoteCounts>,
     pub group_informed_consensus: Option<f64>,
     pub divisiveness: Option<f64>,
+    pub is_seed: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
@@ -55,6 +56,7 @@ pub struct GroupReportData {
     pub group_id: u32,
     pub representative_comments: Vec<RepresentativeComment>,
     pub members: Vec<u32>, // pids
+    pub total_members: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
@@ -176,9 +178,10 @@ impl PolisClient {
         // Create a map of tid -> comment text
         let mut comment_texts = std::collections::HashMap::new();
         let mut comment_votes: HashMap<u32, VoteCounts> = std::collections::HashMap::new();
+        let mut comment_is_seed: HashMap<u32, bool> = std::collections::HashMap::new();
 
         for comment in comments_array {
-            if let (Some(tid), Some(txt), agrees, disagrees, passes) = (
+            if let (Some(tid), Some(txt), agrees, disagrees, passes, is_seed, is_moderated) = (
                 comment.get("tid").and_then(|t| t.as_u64()),
                 comment.get("txt").and_then(|t| t.as_str()),
                 comment
@@ -193,17 +196,21 @@ impl PolisClient {
                     .get("pass_count")
                     .and_then(|t| t.as_u64())
                     .unwrap_or(0) as u32,
+                comment.get("is_seed").and_then(|t| t.as_bool()).unwrap(),
+                comment.get("mod").and_then(|t| t.as_f64()).unwrap(),
             ) {
                 comment_texts.insert(tid as u32, txt.to_string());
-
-                comment_votes.insert(
-                    tid as u32,
-                    VoteCounts {
-                        agrees,
-                        disagrees,
-                        passes,
-                    },
-                );
+                if is_moderated > 0.0 {
+                    comment_is_seed.insert(tid as u32, is_seed);
+                    comment_votes.insert(
+                        tid as u32,
+                        VoteCounts {
+                            agrees,
+                            disagrees,
+                            passes,
+                        },
+                    );
+                }
             }
         }
 
@@ -258,14 +265,19 @@ impl PolisClient {
 
             let divisiveness = comment_extremity.get(idx).and_then(|v| v.as_f64());
 
-            comments_report.push(CommentReportData {
-                tid,
-                text,
-                overall_votes: (*comment_votes.get(&tid).unwrap()).clone(),
-                group_votes: group_votes_list,
-                group_informed_consensus: consensus,
-                divisiveness,
-            });
+            if let (Some(overall_votes), Some(is_seed)) =
+                (comment_votes.get(&tid), comment_is_seed.get(&tid))
+            {
+                comments_report.push(CommentReportData {
+                    tid,
+                    text,
+                    overall_votes: overall_votes.clone(),
+                    group_votes: group_votes_list,
+                    group_informed_consensus: consensus,
+                    divisiveness,
+                    is_seed: is_seed.clone(),
+                });
+            }
         }
 
         // Extract group clusters and build groups
@@ -275,6 +287,19 @@ impl PolisClient {
             .unwrap_or(&empty_clusters);
 
         let repness = &math_pca["repness"];
+
+        let mut group_sizes: Vec<u64> = vec![];
+
+        println!("{group_votes:#?}");
+
+        for g in group_votes
+            .as_object()
+            .unwrap()
+            .values()
+        {
+            let members = g.get("n-members").and_then(|v| v.as_u64()).unwrap() as u64;
+            group_sizes.push(members);
+        }
 
         let mut groups_report = Vec::new();
         for (idx, cluster) in group_clusters.iter().enumerate() {
@@ -304,6 +329,7 @@ impl PolisClient {
                 group_id,
                 representative_comments,
                 members,
+                total_members: group_sizes.get(idx).unwrap().clone(),
             });
         }
 
