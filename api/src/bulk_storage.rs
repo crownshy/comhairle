@@ -6,6 +6,7 @@ pub mod s3_storage;
 use mockall::automock;
 
 /// Result of a file upload operation.
+#[derive(Debug)]
 pub struct UploadResult {
     /// The URL where the uploaded file can be accessed.
     pub url: String,
@@ -141,13 +142,13 @@ impl MockBulkStorageService {
             })
         });
 
-        storage.expect_get_file().returning(|_| {
-            Box::pin(async move { Ok(vec![0u8; 100]) })
-        });
+        storage
+            .expect_get_file()
+            .returning(|_| Box::pin(async move { Ok(vec![0u8; 100]) }));
 
-        storage.expect_delete_file().returning(|_| {
-            Box::pin(async move { Ok(()) })
-        });
+        storage
+            .expect_delete_file()
+            .returning(|_| Box::pin(async move { Ok(()) }));
 
         storage.expect_get_write_file_url().returning(|_| {
             Box::pin(async move { Ok("https://storage.com/signed_upload_path".to_owned()) })

@@ -1,20 +1,28 @@
+use crate::bulk_storage::BulkStorageService;
+use crate::transcription_service::TranscribeFromBulkResponse;
+
 use super::error::{Result, TranscriptionServiceError};
 use super::{Transcriber, TranscriptEvent, Transcription};
 use async_trait::async_trait;
 use aws_config;
 use aws_sdk_transcribe;
-use aws_sdk_transcribe::types::{LanguageCode, Media, MediaFormat, TranscriptionJobStatus};
+use aws_sdk_transcribe::types::{
+    builders::SettingsBuilder, LanguageCode, Media, MediaFormat, TranscriptionJobStatus,
+};
 use aws_sdk_transcribestreaming;
 use aws_sdk_transcribestreaming::primitives::Blob;
 use aws_sdk_transcribestreaming::types::{AudioEvent, AudioStream, MediaEncoding};
 use aws_smithy_http::event_stream::EventStreamSender;
 use bytes::Bytes;
+use chrono::Utc;
 use std::process::Stdio;
+use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 use tokio::sync::mpsc::{self, Receiver};
 use tracing::{error, info, warn};
+use uuid::Uuid;
 
 async fn write_stream(mut rx: Receiver<Bytes>, filename: &str) -> std::io::Result<()> {
     let mut file = File::create(filename).await?;
@@ -385,41 +393,36 @@ impl Transcriber for AmazonTranscriber {
         Err(TranscriptionServiceError::BatchProcessingUnsupported)
     }
 
-    async fn transcribe_from_bulk_store(&self, store_name: &str, location: &str) -> Result<()> {
-        let uri = format!("s3://{store_name}/{location}/main_room_recording.wav"); // TODO: change
-                                                                                   // to recording.wav
+    async fn transcribe_from_bulk_store(
+        &self,
+        store_name: &str,
+        location: &str,
+        _bulk_storage_service: &Arc<dyn BulkStorageService>,
+    ) -> Result<TranscribeFromBulkResponse> {
+        let uri = format!("s3://{store_name}/{location}/recording.wav");
+
         let audio_file = Media::builder().media_file_uri(uri).build();
-        let job_name = format!("transcription-job-{location}"); // TODO: use uuid?
+        let job_name = Uuid::new_v4().to_string();
+
+        let settings = SettingsBuilder::default()
+            .show_speaker_labels(true)
+            .max_speaker_labels(10) // Capped at 30
+            .build();
 
         self.transcribe_client
             .start_transcription_job()
             .transcription_job_name(&job_name)
+            .settings(settings)
             .output_bucket_name(store_name)
-            .output_key(format!("{location}/raw-transcript.json"))
+            .output_key(format!("{location}/transcript.json"))
             .media(audio_file)
             .media_format(MediaFormat::Wav)
             .language_code(LanguageCode::EnUs)
             .send()
             .await
-            // .inspect_err(|e| error!("Failed to start transcription: {e:#?}"))
-            .inspect_err(|e| {
-                error!("Failed to start transcription: {e:#?}");
-
-                // Extract AWS service error metadata
-                use aws_sdk_transcribe::error::ProvideErrorMetadata;
-                error!("  code:    {:?}", e.code());
-                error!("  message: {:?}", e.message());
-
-                // If it's specifically a service error, get HTTP status
-                if let aws_sdk_transcribe::error::SdkError::ServiceError(se) = e {
-                    error!("  HTTP status: {}", se.raw().status());
-                    error!("  raw body: {:?}", se.raw().body());
-                }
-            })
-            // .map_err(|e| TranscriptionServiceError::TranscriptionFailure(e.to_string()))?;
             .map_err(|e| {
                 use aws_sdk_transcribe::error::ProvideErrorMetadata;
-                let detail = format!("code={:?} message={:?} debug={e:#?}", e.code(), e.message());
+                let detail = format!("code={:?} message={:?}", e.code(), e.message());
                 TranscriptionServiceError::TranscriptionFailure(detail)
             })?;
 
@@ -456,18 +459,17 @@ impl Transcriber for AmazonTranscriber {
             {
                 info!("Waited {} milliseconds for job to finish", snooze_total);
 
-                if status == TranscriptionJobStatus::Completed {
-                    let uri = job
-                        .transcript
-                        .and_then(|t| t.transcript_file_uri)
-                        .ok_or_else(|| {
-                            TranscriptionServiceError::TranscriptionFailure(
-                                "Completed job had no transcription URI".to_string(),
-                            )
-                        })?;
-                    println!();
-                    println!("    >>>>    Uri for transcription: {uri:#?}");
-                    println!();
+                if status == TranscriptionJobStatus::Failed {
+                    let failure_reason = job.failure_reason.ok_or_else(|| {
+                        TranscriptionServiceError::TranscriptionFailure(format!(
+                            "Transcription job {} failed for unknown reason",
+                            job_name
+                        ))
+                    })?;
+
+                    return Err(TranscriptionServiceError::TranscriptionFailure(format!(
+                        "Transcription job failed: {failure_reason}",
+                    )));
                 }
 
                 found = true
@@ -479,7 +481,10 @@ impl Transcriber for AmazonTranscriber {
             }
         }
 
-        Ok(())
+        Ok(TranscribeFromBulkResponse {
+            success: true,
+            completed_at: Utc::now(),
+        })
     }
 
     fn model_detects_speakers(&self) -> bool {
@@ -626,6 +631,10 @@ impl AmazonTranscriber {
 
 #[cfg(test)]
 mod tests {
+    use sqlx::PgPool;
+
+    use crate::test_helpers::test_state;
+
     use super::*;
 
     use std::error::Error;
@@ -948,15 +957,18 @@ mod tests {
         assert_eq!(consolidated.events[1].start_time, 9.876);
     }
 
-    #[tokio::test]
+    #[sqlx::test]
     #[ignore]
     async fn test_transcription_of_bulk_storage_audio_file(
+        pool: PgPool,
     ) -> std::result::Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
         let transcriber = AmazonTranscriber::new().await;
-        let result = transcriber
+        let _result = transcriber
             .transcribe_from_bulk_store(
                 "comhairle-media",
                 "events/3c22d53d-07df-4d46-802e-486b79dd1a80",
+                &state.bulk_storage_service,
             )
             .await?;
 
