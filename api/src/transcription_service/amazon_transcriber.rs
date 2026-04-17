@@ -389,13 +389,13 @@ impl Transcriber for AmazonTranscriber {
         let uri = format!("s3://{store_name}/{location}/main_room_recording.wav"); // TODO: change
                                                                                    // to recording.wav
         let audio_file = Media::builder().media_file_uri(uri).build();
-        let job_name = "audio_test_3"; // TODO: use uuid?
+        let job_name = format!("transcription-job-{location}"); // TODO: use uuid?
 
         self.transcribe_client
             .start_transcription_job()
-            .transcription_job_name(job_name)
+            .transcription_job_name(&job_name)
             .output_bucket_name(store_name)
-            .output_key(format!("{location}/transcript.json"))
+            .output_key(format!("{location}/raw-transcript.json"))
             .media(audio_file)
             .media_format(MediaFormat::Wav)
             .language_code(LanguageCode::EnUs)
@@ -428,30 +428,43 @@ impl Transcriber for AmazonTranscriber {
 
         let mut found = false;
 
-        println!("Waiting for transcription job to finish");
+        info!("Waiting for transcription job to finish");
 
         while !found {
             let response = self
                 .transcribe_client
                 .get_transcription_job()
-                .transcription_job_name(job_name)
+                .transcription_job_name(&job_name)
                 .send()
                 .await
                 .inspect_err(|e| error!("Failed to get transcription job: {e:#?}"))
                 .map_err(|e| TranscriptionServiceError::TranscriptionFailure(e.to_string()))?;
 
-            let job = response.transcription_job.unwrap(); // TODO:
-            let status = job.transcription_job_status.unwrap(); // TODO:
+            let job = response.transcription_job.ok_or_else(|| {
+                TranscriptionServiceError::TranscriptionFailure(
+                    "Response contained no transcription".to_string(),
+                )
+            })?;
+            let status = job.transcription_job_status.ok_or_else(|| {
+                TranscriptionServiceError::TranscriptionFailure(
+                    "Transcription job contained no status".to_string(),
+                )
+            })?;
 
             if status == TranscriptionJobStatus::Completed
                 || status == TranscriptionJobStatus::Failed
             {
-                println!("Waited {} milliseconds for job to finish", snooze_total);
+                info!("Waited {} milliseconds for job to finish", snooze_total);
 
                 if status == TranscriptionJobStatus::Completed {
-                    println!("Transcription: ");
-
-                    let uri = job.transcript.unwrap().transcript_file_uri.unwrap(); // TODO:
+                    let uri = job
+                        .transcript
+                        .and_then(|t| t.transcript_file_uri)
+                        .ok_or_else(|| {
+                            TranscriptionServiceError::TranscriptionFailure(
+                                "Completed job had no transcription URI".to_string(),
+                            )
+                        })?;
                     println!();
                     println!("    >>>>    Uri for transcription: {uri:#?}");
                     println!();
