@@ -29,6 +29,12 @@ mutation updateForm($input: UpdateFormInput!) {
 }
 "#;
 
+pub const UPDATE_FORM_SCHEMAS_MUTATION: &str = r#"
+mutation updateFormSchemas($input: UpdateFormSchemasInput!) {
+  updateFormSchemas(input: $input)
+}
+"#;
+
 pub const UPDATE_FORM_THEME_MUTATION: &str = r#"
 mutation updateFormTheme($input: UpdateFormThemeInput!) {
   updateFormTheme(input: $input)
@@ -49,7 +55,7 @@ mutation duplicateForm($input: FormDetailInput!) {
 
 pub const FORM_DETAIL_QUERY: &str = r#"
 query formDetail($input: FormDetailInput!) {
-  form(input: $input) {
+  formDetail(input: $input) {
     id
     teamId
     projectId
