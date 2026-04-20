@@ -267,12 +267,21 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<EventAttendance, Comhai
 }
 
 #[instrument(err(Debug))]
-pub async fn get_by_user_id(db: &PgPool, user_id: &Uuid) -> Result<EventAttendance, ComhairleError> {
+pub async fn get_by_event_and_user(
+    db: &PgPool,
+    event_id: &Uuid,
+    user_id: &Uuid,
+) -> Result<EventAttendance, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS.map(|col| (EventAttendanceIden::Table, col)))
         .from(EventAttendanceIden::Table)
         .and_where(
-            Expr::col((EventAttendanceIden::Table, EventAttendanceIden::UserId)).eq(user_id.to_owned()),
+            Expr::col((EventAttendanceIden::Table, EventAttendanceIden::EventId))
+                .eq(event_id.to_owned()),
+        )
+        .and_where(
+            Expr::col((EventAttendanceIden::Table, EventAttendanceIden::UserId))
+                .eq(user_id.to_owned()),
         )
         .build_sqlx(PostgresQueryBuilder);
 
@@ -632,7 +641,7 @@ mod tests {
         };
         let attendance = create(&pool, &create_attendance).await?;
 
-        let get_attendance = get_by_user_id(&pool, &user_id).await?;
+        let get_attendance = get_by_event_and_user(&pool, &new_event.id, &user_id).await?;
 
         assert_eq!(get_attendance.id, attendance.id, "ids do not match");
 
