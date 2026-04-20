@@ -9,6 +9,8 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Bell, LogOut, Settings, ChevronsUpDown } from 'lucide-svelte';
 	import ModeToggle from '$lib/components/ModeToggle.svelte';
+
+	import { notificationService } from '$lib/services/notifications.svelte';
 	import type { UserDto } from '@crownshy/api-client/api';
 
 	type Props = {
@@ -18,13 +20,6 @@
 	const { user, triggerVariant = 'outline' }: Props = $props();
 
 	let user_initials = $derived(userInitials(user?.username ?? ''));
-	let notifications: number | undefined = $state();
-
-	$effect(() => {
-		async function checkNotifications() {
-			notifications = (await apiClient.GetUnreadNotificationsCount()).count;
-		}
-	});
 </script>
 
 {#if user}
@@ -45,8 +40,8 @@
 					{user.username}
 				{/if}
 			</p>
-			{#if notifications && notifications > 0}
-				<Badge>{notifications}</Badge>
+			{#if notificationService.unreadCount > 0}
+				<Badge>{notificationService.unreadCount}</Badge>
 			{/if}
 			<ChevronsUpDown class="text-card-foreground size-3" />
 		</DropdownMenu.Trigger>
@@ -68,8 +63,8 @@
 				<DropdownMenu.Item>
 					<Button href="/notifications" type="submit" variant="ghost"
 						><Bell />Notifications
-						{#if notifications && notifications > 0}
-							<Badge>{notifications}</Badge>
+						{#if notificationService.unreadCount > 0}
+							<Badge>{notificationService.unreadCount}</Badge>
 						{/if}
 					</Button>
 				</DropdownMenu.Item>

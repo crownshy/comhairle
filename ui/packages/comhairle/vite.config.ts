@@ -1,8 +1,7 @@
-
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import devtoolsJson from 'vite-plugin-devtools-json';
 
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 
@@ -14,26 +13,41 @@ export default defineConfig({
 		paraglideVitePlugin({
 			project: './project.inlang',
 			outdir: './src/lib/paraglide'
-		}),
+		})
 	],
 	server: {
 		proxy: {
 			'/api/ws': {
-				target: 'ws://localhost:3000',
+				target: 'http://localhost:3000',
+				ws: true,
 				changeOrigin: true,
 				rewrite: (path) => path.replace(/^\/api/, ''),
-				ws: true,
 				configure: (proxy, _options) => {
 					proxy.on('error', (err, _req, _res) => {
-						console.log('Websocket proxy error', err);
+						console.error('❌ WebSocket proxy error:', err);
 					});
 					proxy.on('proxyReq', (proxyReq, req, _res) => {
-						console.log('Websocket Sending Request to the Target:', req.method, req.url);
+						console.log(
+							'📤 WebSocket proxying:',
+							req.method,
+							req.url,
+							'→',
+							proxyReq.path
+						);
 					});
 					proxy.on('proxyRes', (proxyRes, req, _res) => {
-						console.log('Websocket Received Response from the Target:', proxyRes.statusCode, req.url);
+						console.log('📥 WebSocket response:', proxyRes.statusCode, req.url);
 					});
-				},
+					proxy.on('upgrade', (req, socket, head) => {
+						console.log('⬆️  WebSocket upgrade:', req.url);
+					});
+					proxy.on('open', (proxySocket) => {
+						console.log('✅ WebSocket proxy connection opened');
+					});
+					proxy.on('close', (res, socket, head) => {
+						console.log('❌ WebSocket proxy connection closed');
+					});
+				}
 			},
 			'/api': {
 				target: 'http://localhost:3000',
@@ -47,15 +61,13 @@ export default defineConfig({
 						console.log('Sending Request to the Target:', req.method, req.url);
 					});
 					proxy.on('proxyRes', (proxyRes, req, _res) => {
-						console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+						console.log(
+							'Received Response from the Target:',
+							proxyRes.statusCode,
+							req.url
+						);
 					});
-				},
-			},
-
-			"/proxy/polis": {
-				target: 'https://poliscommunity.crown-shy.com',
-				changeOrigin: false,
-				rewrite: (path) => path.replace(/^\/proxy\/polis/, '')
+				}
 			}
 		}
 	},

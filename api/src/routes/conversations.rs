@@ -284,6 +284,21 @@ async fn send_notification_to_participants(
     let created_deliveries =
         notification_delivery_model::create_bulk(&state.db, &deliveries).await?;
 
+    // Send WebSocket notifications to connected users
+    let notification_level = notification.notification_type.to_string();
+
+    for delivery in &created_deliveries {
+        let _ = crate::websockets::handlers::notifications::NotificationMessageHandler::send_notification_to_user(
+            &state,
+            &delivery.user_id,
+            &notification.id,
+            &notification.title,
+            &notification.content,
+            &notification_level,
+        )
+        .await;
+    }
+
     Ok((
         StatusCode::CREATED,
         Json(SendEmailNotificationResponse {
