@@ -1,6 +1,6 @@
 use crate::{
-    tools::polis::PolisError, translation_service::TranslationError,
-    wiki_poll_service::error::WikiPollServiceError,
+    tools::polis::PolisError, transcription_service::error::TranscriptionServiceError,
+    translation_service::error::TranslationError, wiki_poll_service::error::WikiPollServiceError,
 };
 use aide::OperationIo;
 use axum::{
@@ -40,6 +40,9 @@ pub enum ComhairleError {
 
     #[error("Translation error: {0}")]
     TranslationError(#[from] TranslationError),
+
+    #[error("Transcription error: {0}")]
+    TranscriptionError(#[from] TranscriptionServiceError),
 
     #[error("No translation service configured")]
     NoTranslationServiceConfigured,

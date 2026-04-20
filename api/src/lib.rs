@@ -10,6 +10,7 @@ pub mod models;
 mod routes;
 pub mod schema_helpers;
 mod tools;
+pub mod transcription_service;
 pub mod translation_service;
 pub mod websockets;
 pub mod wiki_poll_service;
@@ -46,7 +47,7 @@ use tower_http::cors::CorsLayer;
 
 use crate::{
     bulk_storage::BulkStorageService, routes::workflows::WorkflowRouterContext,
-    wiki_poll_service::WikiPollService, workers::JobQueues,
+    transcription_service::Transcriber, wiki_poll_service::WikiPollService, workers::JobQueues,
 };
 
 #[derive(Clone)]
@@ -59,6 +60,7 @@ pub struct ComhairleState {
     pub bot_service: Option<Arc<dyn ComhairleBotService>>,
     pub wiki_poll_service: Arc<dyn WikiPollService>,
     pub bulk_storage_service: Arc<dyn BulkStorageService>,
+    pub transcription_service: Option<Arc<dyn Transcriber>>,
     pub jobs: Arc<JobQueues>,
 }
 
