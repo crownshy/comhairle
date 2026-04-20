@@ -72,6 +72,12 @@ impl ComhairleState {
             .ok_or(ComhairleError::NoBotServiceConfigured)
     }
 
+    fn required_transcription_service(&self) -> Result<&Arc<dyn Transcriber>, ComhairleError> {
+        self.transcription_service
+            .as_ref()
+            .ok_or(ComhairleError::NoTranscriptionServiceConfigured)
+    }
+
     fn required_worker_service(&self) -> Result<&Arc<dyn WorkerService>, ComhairleError> {
         self.worker_service
             .as_ref()
