@@ -3,17 +3,20 @@
 	import JitsiMeet from '$lib/components/JitsiMeet/JitsiMeet.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Drawer from '$lib/components/ui/drawer';
-	import { formatDateShort, formatTime } from '$lib/utils';
-	import {
-		List,
-		Info,
-		Users,
-		Settings,
-		CircleCheck,
-		ChevronRight,
-		ChevronUp
-	} from 'lucide-svelte';
+	import { ChevronUp, Megaphone, Plus, X as XIcon, Bug } from 'lucide-svelte';
 	import type { PageProps } from './$types';
+	import type {
+		AgendaItem,
+		BreakoutRoom,
+		ActivePanel,
+		RoomContext
+	} from '$lib/components/LiveEvent/types';
+	import AgendaPanel from '$lib/components/LiveEvent/AgendaPanel.svelte';
+	import BreakoutCreateDialog from '$lib/components/LiveEvent/BreakoutCreateDialog.svelte';
+	import type { BreakoutConfig } from '$lib/components/LiveEvent/BreakoutCreateDialog.svelte';
+	import BreakoutRoomsList from '$lib/components/LiveEvent/BreakoutRoomsList.svelte';
+	import BroadcastMessage from '$lib/components/LiveEvent/BroadcastMessage.svelte';
+	import DebugPanel from '$lib/components/LiveEvent/DebugPanel.svelte';
 
 	let { data }: PageProps = $props();
 
@@ -28,29 +31,69 @@
 	let roomName = $derived(event?.videoMeetingId);
 
 	let jitsiApi: any = $state(null);
-	let activeTab: 'agenda' | 'details' | 'participants' | 'controls' = $state('agenda');
+
+	// Panel & room state
+	let activePanel: ActivePanel = $state(null);
+	let roomContext: RoomContext = $state({ type: 'plenary' });
+	let roomLabel = $derived(
+		roomContext.type === 'plenary' ? 'Plenary room' : roomContext.roomName
+	);
 
 	// Jitsi-synced state
 	let jitsiParticipants = $state<Array<{ id: string; displayName: string }>>([]);
 	let conferenceJoined = $state(false);
 	let audioMuted = $state(false);
 	let videoMuted = $state(false);
+
 	// Notification popup state
 	let activeNotification = $state<{ message: string; timestamp: number } | null>(null);
 	let notificationTimeout: ReturnType<typeof setTimeout> | null = null;
 
-	// Announcement UI state (not yet wired to WebSocket — placeholder for future)
-	let announcementText = $state('');
-	let announcementSending = $state(false);
+	// Dialog states
+	let showBreakoutDialog = $state(false);
+	let showBroadcastDialog = $state(false);
 
-	async function sendAnnouncement() {
-		if (!announcementText.trim() || announcementSending) return;
-		announcementSending = true;
-		// TODO: Wire to WebSocket broadcast once event-scoped WS is ready
-		console.log('[Announcement stub]', announcementText.trim());
-		showNotification(announcementText.trim());
-		announcementText = '';
-		announcementSending = false;
+	// Agenda items per room
+	let plenaryAgenda = $state<AgendaItem[]>([
+		{ id: '1', title: 'Ice breaker', isCurrent: true },
+		{ id: '2', title: 'Introduction', isCurrent: false },
+		{ id: '3', title: 'Discussion', isCurrent: false },
+		{ id: '4', title: 'Breakout in groups', isCurrent: false }
+	]);
+
+	let breakoutAgendas = $state<Map<string, AgendaItem[]>>(new Map());
+
+	let currentAgendaItems = $derived(
+		roomContext.type === 'plenary'
+			? plenaryAgenda
+			: (breakoutAgendas.get(roomContext.roomId) ?? [])
+	);
+
+	// Breakout rooms state
+	let breakoutRooms = $state<BreakoutRoom[]>([]);
+	let breakoutRoomsActive = $derived(breakoutRooms.length > 0);
+
+	function setCurrentAgendaItem(itemId: string) {
+		if (!isModerator) return;
+		// TODO: Wire to WebSocket for real-time propagation
+		if (roomContext.type === 'plenary') {
+			plenaryAgenda = plenaryAgenda.map((item) => ({
+				...item,
+				isCurrent: item.id === itemId
+			}));
+		} else {
+			const roomId = roomContext.roomId;
+			const items = breakoutAgendas.get(roomId) ?? [];
+			breakoutAgendas.set(
+				roomId,
+				items.map((item) => ({ ...item, isCurrent: item.id === itemId }))
+			);
+			breakoutAgendas = new Map(breakoutAgendas);
+		}
+	}
+
+	function togglePanel(panel: 'agenda' | 'breakoutRooms' | 'debug') {
+		activePanel = activePanel === panel ? null : panel;
 	}
 
 	onDestroy(() => {
@@ -63,28 +106,6 @@
 		notificationTimeout = setTimeout(() => {
 			activeNotification = null;
 		}, 8000);
-	}
-
-	// Prototype agenda items
-	type AgendaStatus = 'done' | 'current' | 'upcoming';
-	let agendaItems = $state<
-		Array<{ id: string; title: string; duration: string; status: AgendaStatus }>
-	>([
-		{ id: '1', title: 'Welcome & Introductions', duration: '5 min', status: 'current' },
-		{ id: '2', title: 'Topic Discussion', duration: '20 min', status: 'upcoming' },
-		{ id: '3', title: 'Q&A Session', duration: '10 min', status: 'upcoming' },
-		{ id: '4', title: 'Wrap-up & Next Steps', duration: '5 min', status: 'upcoming' }
-	]);
-
-	function advanceAgenda() {
-		const currentIdx = agendaItems.findIndex((item) => item.status === 'current');
-		if (currentIdx === -1) return;
-
-		agendaItems = agendaItems.map((item, i) => {
-			if (i === currentIdx) return { ...item, status: 'done' as const };
-			if (i === currentIdx + 1) return { ...item, status: 'current' as const };
-			return item;
-		});
 	}
 
 	function handleApiReady(api: any) {
@@ -119,14 +140,7 @@
 		jitsiParticipants = [];
 	}
 
-	const tabs = [
-		{ key: 'agenda' as const, label: 'Agenda', icon: List },
-		{ key: 'details' as const, label: 'Details', icon: Info },
-		{ key: 'participants' as const, label: 'People', icon: Users },
-		{ key: 'controls' as const, label: 'Controls', icon: Settings }
-	];
-
-	// --- Breakout room helpers (moderator only) ---
+	// --- Jitsi raw breakout helpers (for debug panel) ---
 
 	let previousAssignments = $state<Map<string, Set<string>>>(new Map());
 
@@ -139,572 +153,322 @@
 		return a;
 	}
 
-	function buildBreakoutRooms(
+	function buildRawBreakoutRooms(
 		participants: Array<{ participantId: string }>,
-		maxPerRoom: number,
-		shuffle: boolean
+		maxPerRoom: number
 	): Array<{ name: string; participants: string[] }> {
 		const ids = participants.map((p) => p.participantId);
 		const total = ids.length;
 		if (total === 0) return [];
 		const roomCount = Math.ceil(total / maxPerRoom);
-
 		const rooms: Array<{ name: string; participants: string[] }> = [];
-		for (let i = 0; i < roomCount; i++) {
+		for (let i = 0; i < roomCount; i++)
 			rooms.push({ name: `Group ${i + 1}`, participants: [] });
-		}
-
-		if (shuffle && previousAssignments.size > 0) {
-			// Shuffle and try to avoid putting people in same group as last time
-			const shuffled = fisherYatesShuffle(ids);
-			shuffled.forEach((id) => {
-				const prev = previousAssignments.get(id);
-				// Prefer room where fewest previous groupmates are
-				const scored = rooms
-					.filter((r) => r.participants.length < maxPerRoom)
-					.map((r) => ({
-						room: r,
-						overlap: prev ? r.participants.filter((pid) => prev.has(pid)).length : 0
-					}))
-					.sort((a, b) => a.overlap - b.overlap);
-				(scored[0]?.room ?? rooms[0]).participants.push(id);
-			});
-		} else {
-			// round-robin
-			ids.forEach((id, idx) => {
-				rooms[idx % roomCount].participants.push(id);
-			});
-		}
-
-		// Record assignments for next reshuffle
-		const newAssignments = new Map<string, Set<string>>();
-		for (const room of rooms) {
-			const memberSet = new Set(room.participants);
-			for (const id of room.participants) {
-				newAssignments.set(id, memberSet);
-			}
-		}
-		previousAssignments = newAssignments;
-
+		const shuffled = fisherYatesShuffle(ids);
+		shuffled.forEach((id, idx) => rooms[idx % roomCount].participants.push(id));
 		return rooms;
 	}
 
-	async function autoCreateBreakoutRooms(maxPerRoom = 6) {
+	async function debugAutoBreakout(maxPerRoom = 6) {
 		if (!jitsiApi || !isModerator) return;
-
-		const participantsInfo = await jitsiApi.getParticipantsInfo();
-		const rooms = buildBreakoutRooms(participantsInfo, maxPerRoom, false);
-
+		const info = await jitsiApi.getParticipantsInfo();
+		const rooms = buildRawBreakoutRooms(info, maxPerRoom);
 		if (rooms.length === 0) {
-			showNotification('No participants to assign to breakout rooms');
+			showNotification('No participants to assign');
 			return;
 		}
-
 		try {
 			jitsiApi.executeCommand('overwriteBreakoutRooms', rooms);
-			showNotification(
-				`Created ${rooms.length} breakout rooms for ${participantsInfo.length} participants`
-			);
+			showNotification(`Created ${rooms.length} raw breakout rooms`);
 		} catch (e) {
-			console.error('Breakout room creation failed:', e);
-			showNotification('Failed to create breakout rooms — check console');
+			console.error('Raw breakout creation failed:', e);
+			showNotification('Failed — check console');
 		}
 	}
 
-	async function reshuffleBreakoutRooms(maxPerRoom = 6) {
-		if (!jitsiApi || !isModerator) return;
-
-		const participantsInfo = await jitsiApi.getParticipantsInfo();
-		const rooms = buildBreakoutRooms(participantsInfo, maxPerRoom, true);
-
-		if (rooms.length === 0) {
-			showNotification('No participants to assign to breakout rooms');
-			return;
-		}
-
-		try {
-			jitsiApi.executeCommand('overwriteBreakoutRooms', rooms);
-			showNotification(
-				`Reshuffled ${rooms.length} breakout rooms (avoiding previous groups)`
-			);
-		} catch (e) {
-			console.error('Breakout reshuffle failed:', e);
-			showNotification('Failed to reshuffle breakout rooms — check console');
-		}
-	}
-
-	async function closeBreakoutRooms() {
+	function debugCloseBreakout() {
 		if (!jitsiApi || !isModerator) return;
 		try {
 			jitsiApi.executeCommand('closeBreakoutRooms');
-			showNotification('Breakout rooms closed — participants returning to main room');
+			showNotification('Raw breakout rooms closed');
 		} catch (e) {
-			console.error('Close breakout rooms failed:', e);
+			console.error('Close failed:', e);
 		}
 	}
+
+	// --- Breakout room handlers ---
+
+	function handleBreakoutCreate(config: BreakoutConfig) {
+		// TODO: Wire to Jitsi API + backend for real room creation
+		console.log('[Breakout create]', config);
+
+		const mockRooms: BreakoutRoom[] = [];
+		const roomCount = config.rooms ?? 3;
+		for (let i = 0; i < roomCount; i++) {
+			const roomId = `room-${i + 1}`;
+			mockRooms.push({
+				id: roomId,
+				name: `Room #${i + 1}`,
+				participants: []
+			});
+			breakoutAgendas.set(roomId, [
+				{ id: `${roomId}-q1`, title: 'Question 1', isCurrent: true },
+				{ id: `${roomId}-q2`, title: 'Question 2', isCurrent: false },
+				{ id: `${roomId}-q3`, title: 'Question 3', isCurrent: false }
+			]);
+		}
+		breakoutAgendas = new Map(breakoutAgendas);
+		breakoutRooms = mockRooms;
+		showNotification(`Created ${roomCount} breakout rooms`);
+	}
+
+	function handleBreakoutPreview(config: BreakoutConfig) {
+		// TODO: Show preview of room assignments
+		console.log('[Breakout preview]', config);
+		showNotification('Preview not yet implemented — will show room assignments');
+	}
+
+	function handleEnterRoom(roomId: string) {
+		const room = breakoutRooms.find((r) => r.id === roomId);
+		if (!room) return;
+		roomContext = { type: 'breakout', roomId, roomName: room.name };
+		// TODO: Actually join the Jitsi breakout room
+		showNotification(`Entered ${room.name}`);
+	}
+
+	function handleViewTranscript(roomId: string) {
+		const room = breakoutRooms.find((r) => r.id === roomId);
+		// TODO: Open transcript viewer
+		showNotification(`Transcript view for ${room?.name} — not yet implemented`);
+	}
+
+	function handleBroadcast(message: string) {
+		// TODO: Wire to WebSocket broadcast
+		console.log('[Broadcast]', message);
+		showNotification(`Broadcast sent: "${message}"`);
+	}
+
+	function returnToPlenary() {
+		roomContext = { type: 'plenary' };
+		// TODO: Actually leave breakout room in Jitsi
+		showNotification('Returned to Plenary room');
+	}
+
+	function closeAllBreakoutRooms() {
+		if (!isModerator) return;
+		breakoutRooms = [];
+		breakoutAgendas = new Map();
+		roomContext = { type: 'plenary' };
+		if (jitsiApi) {
+			try {
+				jitsiApi.executeCommand('closeBreakoutRooms');
+			} catch (e) {
+				console.error('Close breakout rooms failed:', e);
+			}
+		}
+		showNotification('Breakout rooms closed — participants returning to main room');
+	}
 </script>
-
-{#snippet panelTabs()}
-	<div class="border-border flex border-b-[3px]">
-		{#each tabs as tab}
-			<button
-				class="flex-1 py-1.5 transition-colors {activeTab === tab.key
-					? 'border-primary text-foreground border-b-[3px] font-semibold'
-					: 'text-muted-foreground hover:text-foreground font-medium'}"
-				onclick={() => (activeTab = tab.key)}
-			>
-				<span class="inline-flex items-center gap-2 rounded-lg px-3 py-2">
-					<tab.icon class="h-4 w-4" />
-					<span class="text-base">{tab.label}</span>
-				</span>
-			</button>
-		{/each}
-	</div>
-{/snippet}
-
-{#snippet panelContent()}
-	<div class="flex-1 overflow-y-auto p-6">
-		{#if activeTab === 'agenda'}
-			<div class="flex flex-col gap-6">
-				<div class="flex items-center justify-between">
-					<h3 class="text-2xl font-semibold">Meeting Agenda</h3>
-					<Button variant="outline" onclick={advanceAgenda}>
-						Next
-						<ChevronRight class="h-4 w-4" />
-					</Button>
-				</div>
-
-				<div class="flex flex-col gap-3">
-					{#each agendaItems as item (item.id)}
-						<div
-							class="flex h-14 items-center justify-between overflow-hidden rounded-full px-5 py-2 shadow-sm transition-colors
-								{item.status === 'current'
-								? 'bg-primary/10 ring-primary ring-2'
-								: item.status === 'done'
-									? 'bg-muted ring-muted ring-1'
-									: 'bg-background ring-border ring-1'}"
-						>
-							<div class="flex items-center gap-2">
-								{#if item.status === 'done'}
-									<CircleCheck class="h-5 w-5 text-emerald-500" />
-								{:else if item.status === 'current'}
-									<span class="bg-primary h-3 w-3 animate-pulse rounded-full"
-									></span>
-								{:else}
-									<span class="bg-border h-3 w-3 rounded-full"></span>
-								{/if}
-								<span
-									class="line-clamp-1 text-base {item.status === 'current'
-										? 'font-semibold'
-										: 'font-medium'}">{item.title}</span
-								>
-							</div>
-							<span class="text-primary line-clamp-1 text-sm font-medium"
-								>{item.duration}</span
-							>
-						</div>
-					{/each}
-				</div>
-			</div>
-		{:else if activeTab === 'details'}
-			<div class="space-y-3">
-				<h3 class="text-sm font-semibold">Event Details</h3>
-
-				{#if event}
-					<div class="space-y-2 text-sm">
-						{#if event.description}
-							<p class="text-muted-foreground">{event.description}</p>
-						{/if}
-						<div class="grid gap-2 text-xs">
-							<div class="flex justify-between">
-								<span class="text-muted-foreground">Starts</span>
-								<span
-									>{formatDateShort(event.startTime)}
-									{formatTime(event.startTime)}</span
-								>
-							</div>
-							<div class="flex justify-between">
-								<span class="text-muted-foreground">Ends</span>
-								<span
-									>{formatDateShort(event.endTime)}
-									{formatTime(event.endTime)}</span
-								>
-							</div>
-							<div class="flex justify-between">
-								<span class="text-muted-foreground">Attendance</span>
-								<span>
-									{event.currentAttendance}{event.capacity
-										? ` / ${event.capacity}`
-										: ''}
-								</span>
-							</div>
-							<div class="flex justify-between">
-								<span class="text-muted-foreground">Signup</span>
-								<span class="capitalize">{event.signupMode}</span>
-							</div>
-						</div>
-					</div>
-				{:else}
-					<p class="text-muted-foreground text-xs">Event details unavailable.</p>
-				{/if}
-			</div>
-		{:else if activeTab === 'participants'}
-			<div class="space-y-2">
-				<h3 class="text-sm font-semibold">
-					In Call ({jitsiParticipants.length})
-				</h3>
-
-				{#if jitsiParticipants.length === 0}
-					<p class="text-muted-foreground py-6 text-center text-xs">
-						{conferenceJoined
-							? 'No other participants yet'
-							: 'Join the meeting to see participants'}
-					</p>
-				{:else}
-					{#each jitsiParticipants as p (p.id)}
-						<div class="border-border flex items-center gap-2 rounded-lg border p-2">
-							<div
-								class="bg-primary/10 text-primary flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium"
-							>
-								{p.displayName.charAt(0).toUpperCase()}
-							</div>
-							<span class="text-sm">{p.displayName}</span>
-						</div>
-					{/each}
-				{/if}
-
-				{#if apiAttendances.length > 0}
-					<hr class="border-border my-3" />
-					<h3 class="text-sm font-semibold">
-						Registered ({apiAttendances.length})
-					</h3>
-					{#each apiAttendances as a (a.id)}
-						<div class="border-border flex items-center gap-2 rounded-lg border p-2">
-							<div
-								class="bg-muted text-muted-foreground flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium"
-							>
-								{a.userId.charAt(0).toUpperCase()}
-							</div>
-							<div class="min-w-0 flex-1">
-								<span class="text-sm">{a.userId}</span>
-								<span class="text-muted-foreground ml-1 text-xs capitalize"
-									>{a.role}</span
-								>
-							</div>
-						</div>
-					{/each}
-				{/if}
-			</div>
-		{:else if activeTab === 'controls'}
-			<div class="space-y-3">
-				<h3 class="text-sm font-semibold">Meeting Controls</h3>
-
-				<div class="grid grid-cols-2 gap-2">
-					<Button
-						variant={audioMuted ? 'default' : 'outline'}
-						size="sm"
-						class="w-full justify-start text-xs"
-						onclick={() => jitsiApi?.executeCommand('toggleAudio')}
-					>
-						{audioMuted ? 'Unmute' : 'Mute'}
-					</Button>
-
-					<Button
-						variant={videoMuted ? 'default' : 'outline'}
-						size="sm"
-						class="w-full justify-start text-xs"
-						onclick={() => jitsiApi?.executeCommand('toggleVideo')}
-					>
-						{videoMuted ? 'Video On' : 'Video Off'}
-					</Button>
-
-					<Button
-						variant="outline"
-						size="sm"
-						class="w-full justify-start text-xs"
-						onclick={() => jitsiApi?.executeCommand('toggleShareScreen')}
-					>
-						Share
-					</Button>
-
-					<Button
-						variant="outline"
-						size="sm"
-						class="w-full justify-start text-xs"
-						onclick={() => jitsiApi?.executeCommand('toggleTileView')}
-					>
-						Tiles
-					</Button>
-
-					<Button
-						variant="outline"
-						size="sm"
-						class="w-full justify-start text-xs"
-						onclick={() => jitsiApi?.executeCommand('toggleRaiseHand')}
-					>
-						Hand
-					</Button>
-
-					<Button
-						variant="outline"
-						size="sm"
-						class="w-full justify-start text-xs"
-						onclick={() => jitsiApi?.executeCommand('muteEveryone')}
-					>
-						Mute All
-					</Button>
-				</div>
-
-				{#if isModerator}
-					<hr class="border-border" />
-
-					<div class="space-y-2">
-						<p
-							class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
-						>
-							Announcements
-						</p>
-
-						<div class="flex gap-2">
-							<input
-								type="text"
-								placeholder="Type a message for all participants..."
-								bind:value={announcementText}
-								onkeydown={(e) => e.key === 'Enter' && sendAnnouncement()}
-								class="border-border bg-background text-foreground placeholder:text-muted-foreground focus:ring-primary flex-1 rounded-lg border px-2.5 py-1.5 text-xs focus:ring-1 focus:outline-none"
-							/>
-							<Button
-								variant="default"
-								size="sm"
-								class="shrink-0 text-xs"
-								disabled={!announcementText.trim() || announcementSending}
-								onclick={sendAnnouncement}
-							>
-								{announcementSending ? 'Sending...' : 'Send'}
-							</Button>
-						</div>
-					</div>
-
-					<hr class="border-border" />
-
-					<div class="space-y-2">
-						<p
-							class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
-						>
-							Breakout Rooms
-						</p>
-
-						<div class="grid grid-cols-2 gap-2">
-							<Button
-								variant="default"
-								size="sm"
-								class="w-full justify-start text-xs"
-								onclick={() => autoCreateBreakoutRooms(6)}
-							>
-								Auto-assign Breakouts
-							</Button>
-
-							<Button
-								variant="outline"
-								size="sm"
-								class="w-full justify-start text-xs"
-								onclick={() => reshuffleBreakoutRooms(6)}
-							>
-								Reshuffle Groups
-							</Button>
-
-							<Button
-								variant="outline"
-								size="sm"
-								class="w-full justify-start text-xs"
-								onclick={closeBreakoutRooms}
-							>
-								Close Breakouts
-							</Button>
-
-							<Button
-								variant="outline"
-								size="sm"
-								class="w-full justify-start text-xs"
-								onclick={async () => {
-									if (!jitsiApi) return;
-									const rooms = await jitsiApi.getRoomsInfo();
-									console.log('Breakout rooms:', rooms);
-									alert(JSON.stringify(rooms, null, 2));
-								}}
-							>
-								Inspect Rooms
-							</Button>
-						</div>
-					</div>
-				{/if}
-
-				<hr class="border-border" />
-
-				<div class="space-y-2">
-					<p class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-						API Explorer
-					</p>
-
-					<div class="grid grid-cols-2 gap-2">
-						<Button
-							variant="outline"
-							size="sm"
-							class="w-full justify-start text-xs"
-							onclick={async () => {
-								if (!jitsiApi) return;
-								const rooms = await jitsiApi.getRoomsInfo();
-								console.log('Rooms info:', rooms);
-								alert(JSON.stringify(rooms, null, 2));
-							}}
-						>
-							Rooms
-						</Button>
-
-						<Button
-							variant="outline"
-							size="sm"
-							class="w-full justify-start text-xs"
-							onclick={async () => {
-								if (!jitsiApi) return;
-								const devices = await jitsiApi.getAvailableDevices();
-								console.log('Available devices:', devices);
-								alert(JSON.stringify(devices, null, 2));
-							}}
-						>
-							Devices
-						</Button>
-
-						<Button
-							variant="outline"
-							size="sm"
-							class="w-full justify-start text-xs"
-							onclick={() => {
-								if (!jitsiApi) return;
-								const n = jitsiApi.getNumberOfParticipants();
-								alert(`Participants: ${n}`);
-							}}
-						>
-							Count
-						</Button>
-
-						<Button
-							variant="outline"
-							size="sm"
-							class="w-full justify-start text-xs"
-							onclick={() => jitsiApi?.executeCommand('toggleLobby', true)}
-						>
-							Lobby
-						</Button>
-					</div>
-				</div>
-			</div>
-		{/if}
-	</div>
-{/snippet}
 
 <svelte:head>
 	<title>{event?.name ?? 'Live Event'}</title>
 </svelte:head>
 
-<div class="md:bg-muted -mb-4 flex h-dvh flex-col overflow-hidden md:-mx-20 md:h-auto md:min-h-dvh">
-	<!-- Top bar -->
-	<div
-		class="bg-card px-6 py-3 md:mx-auto md:w-full md:max-w-[1440px] md:bg-transparent md:pt-12 md:pb-4"
-	>
-		<div class="flex items-center gap-3">
-			<a
-				href="/conversations/{conversationId}/events/{eventId}"
-				class="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 text-sm font-medium"
-			>
-				<span
-					class="border-input flex h-9 w-9 items-center justify-center rounded-full border bg-white shadow-sm"
-					>←</span
-				>
-				Back to conversation
-			</a>
-			<span class="text-muted-foreground hidden text-sm md:inline">|</span>
-			<h1 class="text-foreground hidden text-lg font-semibold md:block">
-				{event?.name ?? `Event: ${eventId}`}
-			</h1>
-			{#if isModerator}
-				<span
-					class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-600 ring-1 ring-amber-500/30"
-				>
-					<span class="h-2 w-2 rounded-full bg-amber-500"></span>
-					Host
-				</span>
-			{/if}
-			{#if conferenceJoined}
-				<span
-					class="hidden shrink-0 items-center gap-1.5 rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600 md:inline-flex"
-				>
-					<span class="h-1.5 w-1.5 rounded-full bg-green-500"></span>
-					Live
-				</span>
-			{/if}
-		</div>
+<div class="relative flex h-dvh flex-col overflow-hidden bg-[#4a4a4a]">
+	<!-- Jitsi — full screen -->
+	<div class="absolute inset-0">
+		<JitsiMeet
+			{roomName}
+			{jwt}
+			onApiReady={handleApiReady}
+			onParticipantJoined={handleParticipantJoined}
+			onParticipantLeft={handleParticipantLeft}
+			onVideoConferenceJoined={handleConferenceJoined}
+			onVideoConferenceLeft={handleConferenceLeft}
+			startWithAudioMuted={true}
+			configOverwrite={{
+				toolbarButtons: [
+					'microphone',
+					'camera',
+					'desktop',
+					'chat',
+					'raisehand',
+					'tileview',
+					'hangup',
+					'fullscreen'
+				],
+				disableDeepLinking: true,
+				hideConferenceSubject: true
+			}}
+		/>
 	</div>
 
-	<!-- Main content: Jitsi full-width on mobile, side-by-side with panel on desktop -->
+	<!-- Right-edge vertical tabs (desktop) -->
 	<div
-		class="mx-4 flex min-h-0 flex-1 md:mx-auto md:w-full md:max-w-[1440px] md:gap-16 md:px-6 md:pb-24"
+		class="absolute top-1/2 z-50 hidden -translate-y-1/2 flex-col gap-1.5 md:flex"
+		style="right: {activePanel
+			? '20rem'
+			: '0'}; transition: right 300ms cubic-bezier(0.4, 0, 0.2, 1)"
 	>
-		<!-- Jitsi -->
-		<div class="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-3xl md:min-h-[600px]">
-			<JitsiMeet
-				{roomName}
-				{jwt}
-				onApiReady={handleApiReady}
-				onParticipantJoined={handleParticipantJoined}
-				onParticipantLeft={handleParticipantLeft}
-				onVideoConferenceJoined={handleConferenceJoined}
-				onVideoConferenceLeft={handleConferenceLeft}
-				startWithAudioMuted={true}
-				configOverwrite={{
-					toolbarButtons: [
-						'microphone',
-						'camera',
-						'desktop',
-						'chat',
-						'raisehand',
-						'tileview',
-						'hangup',
-						'fullscreen'
-					],
-					disableDeepLinking: true,
-					hideConferenceSubject: true
-				}}
-			/>
-		</div>
-
-		<!-- Desktop panel -->
-		<div
-			class="bg-card hidden min-w-0 flex-1 flex-col overflow-hidden rounded-3xl shadow-[0px_2px_4px_0px_rgba(0,0,0,0.12)] md:flex"
+		<button
+			class="flex items-center justify-center rounded-l-lg px-1.5 py-6 text-xs font-semibold shadow-lg transition-colors
+				{activePanel === 'agenda'
+				? 'bg-primary text-primary-foreground'
+				: 'bg-white/95 text-gray-700 hover:bg-white'}"
+			style="writing-mode: vertical-rl; text-orientation: mixed"
+			onclick={() => togglePanel('agenda')}
 		>
-			{@render panelTabs()}
-			{@render panelContent()}
-		</div>
+			Agenda
+		</button>
+
+		{#if breakoutRoomsActive && isModerator}
+			<button
+				class="flex items-center justify-center rounded-l-lg px-1.5 py-6 text-xs font-semibold shadow-lg transition-colors
+					{activePanel === 'breakoutRooms'
+					? 'bg-primary text-primary-foreground'
+					: 'bg-white/95 text-gray-700 hover:bg-white'}"
+				style="writing-mode: vertical-rl; text-orientation: mixed"
+				onclick={() => togglePanel('breakoutRooms')}
+			>
+				Rooms
+			</button>
+		{/if}
+
+		{#if isModerator}
+			<button
+				class="flex items-center justify-center rounded-l-lg px-2 py-3 shadow-lg transition-colors
+					{activePanel === 'debug' ? 'bg-amber-500 text-white' : 'bg-white/95 text-gray-700 hover:bg-white'}"
+				onclick={() => togglePanel('debug')}
+				title="Debug panel"
+			>
+				<Bug class="h-4 w-4" />
+			</button>
+		{/if}
 	</div>
+
+	<!-- Slide-out panel (desktop) -->
+	<div
+		class="bg-card absolute top-0 bottom-0 z-40 hidden w-80 flex-col shadow-2xl md:flex"
+		style="right: 0; transform: translateX({activePanel
+			? '0'
+			: '100%'}); transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1)"
+	>
+		{#if activePanel === 'agenda'}
+			<AgendaPanel
+				items={currentAgendaItems}
+				isFacilitator={isModerator}
+				onSetCurrent={setCurrentAgendaItem}
+				onClose={() => (activePanel = null)}
+			/>
+		{:else if activePanel === 'breakoutRooms'}
+			<BreakoutRoomsList
+				rooms={breakoutRooms}
+				onEnterRoom={handleEnterRoom}
+				onViewTranscript={handleViewTranscript}
+				onClose={() => (activePanel = null)}
+			/>
+		{:else if activePanel === 'debug'}
+			<DebugPanel
+				{jitsiApi}
+				{audioMuted}
+				{videoMuted}
+				participantCount={jitsiParticipants.length}
+				{conferenceJoined}
+				onAutoBreakout={debugAutoBreakout}
+				onCloseBreakout={debugCloseBreakout}
+				onNotify={showNotification}
+				onClose={() => (activePanel = null)}
+			/>
+		{/if}
+	</div>
+
+	<!-- Facilitator floating controls (bottom-right, desktop) -->
+	{#if isModerator}
+		<div class="absolute right-4 bottom-24 z-50 hidden flex-col gap-2 md:flex">
+			{#if !breakoutRoomsActive}
+				<Button
+					variant="default"
+					size="sm"
+					class="shadow-lg"
+					onclick={() => (showBreakoutDialog = true)}
+				>
+					<Plus class="mr-1.5 h-4 w-4" />
+					Create Breakout Rooms
+				</Button>
+			{:else}
+				<Button
+					variant="default"
+					size="sm"
+					class="shadow-lg"
+					onclick={() => (showBroadcastDialog = true)}
+				>
+					<Megaphone class="mr-1.5 h-4 w-4" />
+					Broadcast
+				</Button>
+				<Button
+					variant="secondary"
+					size="sm"
+					class="shadow-lg"
+					onclick={closeAllBreakoutRooms}
+				>
+					<XIcon class="mr-1.5 h-4 w-4" />
+					Close Breakout Rooms
+				</Button>
+			{/if}
+		</div>
+	{/if}
 
 	<!-- Mobile drawer -->
 	<Drawer.Root>
 		<Drawer.Trigger
 			class="bg-primary hover:bg-primary/90 fixed bottom-4 left-1/2 z-50 inline-flex -translate-x-1/2 items-center gap-2 rounded-full px-6 py-3 font-semibold text-white shadow-lg transition-colors md:hidden"
 		>
-			<ChevronUp class="h-4 w-4" />
+			<ChevronUp class="h-4 w-2" />
 			<span>Agenda</span>
 		</Drawer.Trigger>
 		<Drawer.Content class="bg-card flex max-h-[80dvh] flex-col rounded-t-3xl">
-			{@render panelTabs()}
-			{@render panelContent()}
+			<div class="p-4">
+				<AgendaPanel
+					items={currentAgendaItems}
+					isFacilitator={isModerator}
+					onSetCurrent={setCurrentAgendaItem}
+					onClose={() => {}}
+				/>
+
+				{#if isModerator}
+					<div class="border-border mt-4 flex flex-col gap-2 border-t pt-4">
+						{#if !breakoutRoomsActive}
+							<Button
+								variant="default"
+								size="sm"
+								onclick={() => (showBreakoutDialog = true)}
+							>
+								<Plus class="mr-1.5 h-4 w-4" />
+								Create Breakout Rooms
+							</Button>
+						{:else}
+							<Button
+								variant="default"
+								size="sm"
+								onclick={() => (showBroadcastDialog = true)}
+							>
+								<Megaphone class="mr-1.5 h-4 w-4" />
+								Broadcast
+							</Button>
+							<Button variant="secondary" size="sm" onclick={closeAllBreakoutRooms}>
+								Close Breakout Rooms
+							</Button>
+						{/if}
+					</div>
+				{/if}
+			</div>
 		</Drawer.Content>
 	</Drawer.Root>
 
 	<!-- Floating notification popup -->
 	{#if activeNotification}
 		<div
-			class="animate-in fade-in slide-in-from-top-2 pointer-events-auto fixed top-4 left-1/2 z-50 -translate-x-1/2 duration-300"
+			class="animate-in fade-in slide-in-from-top-2 pointer-events-auto fixed top-16 left-1/2 z-50 -translate-x-1/2 duration-300"
 		>
 			<div
 				class="bg-card border-border flex max-w-md items-start gap-3 rounded-xl border px-4 py-3 shadow-lg"
@@ -723,3 +487,17 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Dialogs -->
+<BreakoutCreateDialog
+	open={showBreakoutDialog}
+	onOpenChange={(v) => (showBreakoutDialog = v)}
+	onPreview={handleBreakoutPreview}
+	onCreate={handleBreakoutCreate}
+/>
+
+<BroadcastMessage
+	open={showBroadcastDialog}
+	onOpenChange={(v) => (showBroadcastDialog = v)}
+	onSend={handleBroadcast}
+/>
