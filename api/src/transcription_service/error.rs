@@ -4,6 +4,7 @@ use thiserror::Error;
 pub enum TranscriptionServiceError {
     #[error("Current transciber does not support batch operations")]
     BatchProcessingUnsupported,
+
     #[error("Current transciber does not support batch operations")]
     StreamingProcessingUnsupported,
 

@@ -69,9 +69,15 @@ fn ffmpeg_convert_stream(mut audio_in: mpsc::Receiver<Bytes>) -> Result<mpsc::Re
         .inspect_err(|e| error!("FFmpeg spawn error: {e:#?}"))
         .map_err(|e| TranscriptionServiceError::StreamingTranscriptionFailure(e.to_string()))?;
 
-    let mut ffmpeg_stdin = ffmpeg.stdin.take().unwrap();
-    let mut ffmpeg_stdout = ffmpeg.stdout.take().unwrap();
-    let ffmpeg_stderr = ffmpeg.stderr.take().unwrap();
+    let mut ffmpeg_stdin = ffmpeg.stdin.take().ok_or_else(|| {
+        TranscriptionServiceError::StreamingTranscriptionFailure("Missing stdin".to_string())
+    })?;
+    let mut ffmpeg_stdout = ffmpeg.stdout.take().ok_or_else(|| {
+        TranscriptionServiceError::StreamingTranscriptionFailure("Missing stdout".to_string())
+    })?;
+    let ffmpeg_stderr = ffmpeg.stderr.take().ok_or_else(|| {
+        TranscriptionServiceError::StreamingTranscriptionFailure("Missing stderr".to_string())
+    })?;
 
     // Spawn FFmpeg with streaming-optimized parameters
     // Monitor FFmpeg stderr for debugging
@@ -273,7 +279,7 @@ fn consolidated_transcription(raw_transcription: &Transcription) -> Transcriptio
             // utterance and this one is short enough then we want to just append
             // the content to the running transcript
             else if speaker_id == event.speaker_id
-                && event.start_time - segment_end_time.unwrap() < pause_split
+                && event.start_time - segment_end_time.unwrap_or(event.end_time) < pause_split
             {
                 segment_end_time = Some(event.end_time);
                 if running_segment.is_empty() {
@@ -289,8 +295,8 @@ fn consolidated_transcription(raw_transcription: &Transcription) -> Transcriptio
                 if !running_segment.is_empty() {
                     new_events.push(TranscriptEvent {
                         text: running_segment.clone(),
-                        start_time: segment_start_time.unwrap(),
-                        end_time: segment_end_time.unwrap(),
+                        start_time: segment_start_time.unwrap_or(event.start_time),
+                        end_time: segment_end_time.unwrap_or(event.end_time),
                         speaker_id: speaker_id.clone(),
                         is_pending: false,
                     });
@@ -304,13 +310,13 @@ fn consolidated_transcription(raw_transcription: &Transcription) -> Transcriptio
         // If there are no speaker ids then this is easier
         // we simply look for gaps
         else {
-            if event.start_time - segment_end_time.unwrap() > pause_split {
+            if event.start_time - segment_end_time.unwrap_or(event.end_time) > pause_split {
                 // Only push if we have accumulated text (not the first event)
                 if !running_segment.is_empty() {
                     new_events.push(TranscriptEvent {
                         text: running_segment.clone(),
-                        start_time: segment_start_time.unwrap(),
-                        end_time: segment_end_time.unwrap(),
+                        start_time: segment_start_time.unwrap_or(event.start_time),
+                        end_time: segment_end_time.unwrap_or(event.end_time),
                         speaker_id: speaker_id.clone(),
                         is_pending: false,
                     });
@@ -331,13 +337,15 @@ fn consolidated_transcription(raw_transcription: &Transcription) -> Transcriptio
 
     // Push the final accumulated segment if it's not empty
     if !running_segment.is_empty() {
-        new_events.push(TranscriptEvent {
-            text: running_segment,
-            start_time: segment_start_time.unwrap(),
-            end_time: segment_end_time.unwrap(),
-            speaker_id: speaker_id,
-            is_pending: false,
-        });
+        if let (Some(start_time), Some(end_time)) = (segment_start_time, segment_end_time) {
+            new_events.push(TranscriptEvent {
+                text: running_segment,
+                start_time,
+                end_time,
+                speaker_id,
+                is_pending: false,
+            });
+        }
     }
 
     // Now consolidate all trailing pending events into a single event
