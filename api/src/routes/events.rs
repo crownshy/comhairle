@@ -156,6 +156,7 @@ async fn delete(
 }
 
 #[derive(Serialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
 struct JwtResponse {
     jwt: String,
     is_moderator: bool,
@@ -200,10 +201,7 @@ async fn get_jwt(
         .as_ref()
         .ok_or(ComhairleError::NoVideoServiceConfigured)?;
 
-    // TODO: Replace with real role lookup once we decide on the mechanism.
-    // Options: EventAttendance.role == "facilitator", or UserResourceRole on the conversation,
-    // or some combination. For now, admin users are moderators.
-    let is_moderator = is_user_admin(&user, &state.config);
+    let is_moderator = attendance.role == "facilitator";
 
     let claims = VideoEventJwtClaims {
         iss: &video_call_config.jwt_app_id,

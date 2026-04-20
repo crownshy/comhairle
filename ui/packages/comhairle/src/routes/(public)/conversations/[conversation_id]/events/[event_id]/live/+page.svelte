@@ -36,8 +36,6 @@
 	let conferenceJoined = $state(false);
 	let audioMuted = $state(false);
 	let videoMuted = $state(false);
-	let attendanceRegistered = $state(false);
-
 	// Notification popup state
 	let activeNotification = $state<{ message: string; timestamp: number } | null>(null);
 	let notificationTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -119,24 +117,11 @@
 		if (joining) return;
 		joining = true;
 		try {
-			// Register attendance if not already registered
-			if (!attendanceRegistered) {
-				try {
-					await apiClient.CreateEventAttendance(
-						{ role: 'participant' },
-						{ params: { conversation_id: conversationId, event_id: eventId } }
-					);
-				} catch {
-					// Already registered — fine
-				}
-				attendanceRegistered = true;
-			}
-			// Now fetch JWT
 			const authRes = await apiClient.GetEventJWT({
 				params: { conversation_id: conversationId, event_id: eventId }
 			});
 			jwt = authRes.jwt;
-			isModerator = authRes.is_moderator ?? false;
+			isModerator = authRes.isModerator ?? false;
 		} catch (e) {
 			console.error('Failed to join event:', e);
 			showNotification('Failed to join — please try again');
@@ -699,12 +684,14 @@
 							{event?.name ?? 'Live Event'}
 						</h2>
 						<p class="text-muted-foreground max-w-sm text-sm">
-							Join this event to enter the video call. You'll be registered as a
-							participant.
+							You need to register for this event before you can join the video call.
 						</p>
-						<Button onclick={joinEvent} disabled={joining} size="lg">
-							{joining ? 'Joining...' : 'Join Event'}
-						</Button>
+						<a
+							href="/conversations/{conversationId}/events/{eventId}"
+							class="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center justify-center rounded-full px-6 py-2.5 text-sm font-semibold transition-colors"
+						>
+							Register for Event
+						</a>
 					</div>
 				</div>
 			{/if}

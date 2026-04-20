@@ -30,7 +30,7 @@ export const load: PageLoad = async ({ parent, params }) => {
 	try {
 		const authRes = await api.GetEventJWT({ params: { conversation_id, event_id } });
 		jwt = authRes.jwt;
-		isModerator = authRes.is_moderator ?? false;
+		isModerator = authRes.isModerator ?? false;
 	} catch (e) {
 		console.warn('JWT not available (user may not be registered yet):', e);
 	}
