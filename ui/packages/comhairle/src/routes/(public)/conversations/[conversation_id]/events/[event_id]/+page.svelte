@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/stores';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -13,6 +14,8 @@
 	let event = $derived(data.event);
 	let attendances = $derived(data.attendances);
 	let user = $derived(data.user);
+
+	let redirectError = $derived($page.url.searchParams.get('error'));
 
 	let joining = $state(false);
 	let error = $state<string | null>(null);
@@ -194,18 +197,15 @@
 
 		<!-- Actions -->
 		<div class="flex flex-col items-center gap-4 pt-4 pb-24">
-			{#if status === 'live'}
-				<Button
-					variant="primaryDark"
-					size="lg"
-					class="h-12 px-8 text-base"
-					onclick={() => goto(`/conversations/${conversationId}/events/${event.id}/live`)}
+			{#if redirectError === 'not-registered'}
+				<div
+					class="bg-destructive/10 text-destructive mb-2 max-w-md rounded-xl px-4 py-3 text-center text-sm font-medium"
 				>
-					Join Live Event
-				</Button>
+					You need to register for this event before joining the live session.
+				</div>
 			{/if}
 
-			{#if status === 'upcoming' && !userAttendance && user}
+			{#if !userAttendance && user && status !== 'past'}
 				<Button
 					variant="primaryDark"
 					size="lg"

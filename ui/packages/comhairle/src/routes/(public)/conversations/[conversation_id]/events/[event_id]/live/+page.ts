@@ -1,12 +1,12 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
-import type { LocalizedEventDto, EventAttendanceDto } from '@crownshy/api-client/api';
+import type { EventResponse, EventAttendanceDto } from '@crownshy/api-client/api';
 
 export const load: PageLoad = async ({ parent, params }) => {
 	const { api, user } = await parent();
 	const { conversation_id, event_id } = params;
 
-	let event: LocalizedEventDto;
+	let event: EventResponse;
 	let attendances: EventAttendanceDto[];
 
 	try {
@@ -17,15 +17,15 @@ export const load: PageLoad = async ({ parent, params }) => {
 				queries: { limit: 200 }
 			})
 		]);
-		event = eventRes as LocalizedEventDto;
+		event = eventRes;
 		attendances = attendancesResult.records as EventAttendanceDto[];
 	} catch (e) {
 		console.error('Failed to load live event:', e);
 		redirect(302, `/conversations/${conversation_id}/events/${event_id}`);
 	}
 
-	// JWT may fail if user has no attendance yet — load page anyway
-	let jwt: string | null = null;
+	// No JWT → user not registered, send back to event detail page
+	let jwt: string;
 	let isModerator = false;
 	try {
 		const authRes = await api.GetEventJWT({ params: { conversation_id, event_id } });
@@ -33,6 +33,7 @@ export const load: PageLoad = async ({ parent, params }) => {
 		isModerator = authRes.isModerator ?? false;
 	} catch (e) {
 		console.warn('JWT not available (user may not be registered yet):', e);
+		redirect(302, `/conversations/${conversation_id}/events/${event_id}?error=not-registered`);
 	}
 
 	return {

@@ -3,7 +3,6 @@
 	import JitsiMeet from '$lib/components/JitsiMeet/JitsiMeet.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Drawer from '$lib/components/ui/drawer';
-	import { apiClient } from '@crownshy/api-client/client';
 	import { formatDateShort, formatTime } from '$lib/utils';
 	import {
 		List,
@@ -21,7 +20,7 @@
 	let conversationId = $derived(data.conversationId);
 	let eventId = $derived(data.eventId);
 	let event = $derived(data.event);
-	let jwt = $state(data.jwt);
+	let jwt = $derived(data.jwt);
 	let apiAttendances = $derived(data.attendances);
 	let user = $derived(data.user);
 	let isModerator = $state(data.isModerator);
@@ -111,25 +110,6 @@
 		jitsiParticipants = jitsiParticipants.filter((p) => p.id !== data.id);
 	}
 
-	let joining = $state(false);
-
-	async function joinEvent() {
-		if (joining) return;
-		joining = true;
-		try {
-			const authRes = await apiClient.GetEventJWT({
-				params: { conversation_id: conversationId, event_id: eventId }
-			});
-			jwt = authRes.jwt;
-			isModerator = authRes.isModerator ?? false;
-		} catch (e) {
-			console.error('Failed to join event:', e);
-			showNotification('Failed to join — please try again');
-		} finally {
-			joining = false;
-		}
-	}
-
 	async function handleConferenceJoined(data: any) {
 		conferenceJoined = true;
 	}
@@ -150,6 +130,15 @@
 
 	let previousAssignments = $state<Map<string, Set<string>>>(new Map());
 
+	function fisherYatesShuffle<T>(arr: T[]): T[] {
+		const a = [...arr];
+		for (let i = a.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[a[i], a[j]] = [a[j], a[i]];
+		}
+		return a;
+	}
+
 	function buildBreakoutRooms(
 		participants: Array<{ participantId: string }>,
 		maxPerRoom: number,
@@ -157,7 +146,8 @@
 	): Array<{ name: string; participants: string[] }> {
 		const ids = participants.map((p) => p.participantId);
 		const total = ids.length;
-		const roomCount = Math.max(1, Math.ceil(total / maxPerRoom));
+		if (total === 0) return [];
+		const roomCount = Math.ceil(total / maxPerRoom);
 
 		const rooms: Array<{ name: string; participants: string[] }> = [];
 		for (let i = 0; i < roomCount; i++) {
@@ -166,7 +156,7 @@
 
 		if (shuffle && previousAssignments.size > 0) {
 			// Shuffle and try to avoid putting people in same group as last time
-			const shuffled = [...ids].sort(() => Math.random() - 0.5);
+			const shuffled = fisherYatesShuffle(ids);
 			shuffled.forEach((id) => {
 				const prev = previousAssignments.get(id);
 				// Prefer room where fewest previous groupmates are
@@ -205,6 +195,11 @@
 		const participantsInfo = await jitsiApi.getParticipantsInfo();
 		const rooms = buildBreakoutRooms(participantsInfo, maxPerRoom, false);
 
+		if (rooms.length === 0) {
+			showNotification('No participants to assign to breakout rooms');
+			return;
+		}
+
 		try {
 			jitsiApi.executeCommand('overwriteBreakoutRooms', rooms);
 			showNotification(
@@ -221,6 +216,11 @@
 
 		const participantsInfo = await jitsiApi.getParticipantsInfo();
 		const rooms = buildBreakoutRooms(participantsInfo, maxPerRoom, true);
+
+		if (rooms.length === 0) {
+			showNotification('No participants to assign to breakout rooms');
+			return;
+		}
 
 		try {
 			jitsiApi.executeCommand('overwriteBreakoutRooms', rooms);
@@ -652,49 +652,30 @@
 	>
 		<!-- Jitsi -->
 		<div class="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-3xl md:min-h-[600px]">
-			{#if jwt}
-				<JitsiMeet
-					{roomName}
-					{jwt}
-					onApiReady={handleApiReady}
-					onParticipantJoined={handleParticipantJoined}
-					onParticipantLeft={handleParticipantLeft}
-					onVideoConferenceJoined={handleConferenceJoined}
-					onVideoConferenceLeft={handleConferenceLeft}
-					startWithAudioMuted={true}
-					configOverwrite={{
-						toolbarButtons: [
-							'microphone',
-							'camera',
-							'desktop',
-							'chat',
-							'raisehand',
-							'tileview',
-							'hangup',
-							'fullscreen'
-						],
-						disableDeepLinking: true,
-						hideConferenceSubject: true
-					}}
-				/>
-			{:else}
-				<div class="bg-muted/50 flex h-full items-center justify-center">
-					<div class="flex flex-col items-center gap-4 text-center">
-						<h2 class="text-foreground text-xl font-semibold">
-							{event?.name ?? 'Live Event'}
-						</h2>
-						<p class="text-muted-foreground max-w-sm text-sm">
-							You need to register for this event before you can join the video call.
-						</p>
-						<a
-							href="/conversations/{conversationId}/events/{eventId}"
-							class="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center justify-center rounded-full px-6 py-2.5 text-sm font-semibold transition-colors"
-						>
-							Register for Event
-						</a>
-					</div>
-				</div>
-			{/if}
+			<JitsiMeet
+				{roomName}
+				{jwt}
+				onApiReady={handleApiReady}
+				onParticipantJoined={handleParticipantJoined}
+				onParticipantLeft={handleParticipantLeft}
+				onVideoConferenceJoined={handleConferenceJoined}
+				onVideoConferenceLeft={handleConferenceLeft}
+				startWithAudioMuted={true}
+				configOverwrite={{
+					toolbarButtons: [
+						'microphone',
+						'camera',
+						'desktop',
+						'chat',
+						'raisehand',
+						'tileview',
+						'hangup',
+						'fullscreen'
+					],
+					disableDeepLinking: true,
+					hideConferenceSubject: true
+				}}
+			/>
 		</div>
 
 		<!-- Desktop panel -->

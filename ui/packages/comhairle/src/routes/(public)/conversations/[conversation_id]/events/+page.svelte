@@ -42,28 +42,19 @@
 		<div class="flex w-full flex-col gap-6">
 			{#each events as event (event.id)}
 				{@const status = eventStatus(event.startTime, event.endTime)}
-				<div
-					class="bg-card border-border relative flex flex-col gap-4 overflow-hidden rounded-3xl border p-6 shadow-sm"
+				<a
+					href="/conversations/{conversationId}/events/{event.id}"
+					class="bg-card border-border hover:border-primary/40 relative flex flex-col gap-4 overflow-hidden rounded-3xl border p-6 shadow-sm transition-colors"
 				>
 					<!-- Action button (top-right) -->
 					<div class="absolute top-6 right-6">
-						{#if status === 'live'}
-							<Button
-								variant="outline"
-								size="sm"
-								href="/conversations/{conversationId}/events/{event.id}/live"
-							>
-								Join Live
-							</Button>
-						{:else}
-							<Button
-								variant="outline"
-								size="sm"
-								href="/conversations/{conversationId}/events/{event.id}"
-							>
-								View event
-							</Button>
-						{/if}
+						<Button
+							variant="outline"
+							size="sm"
+							href="/conversations/{conversationId}/events/{event.id}"
+						>
+							View event
+						</Button>
 					</div>
 
 					<!-- Title + badge -->
@@ -112,7 +103,7 @@
 							>
 						</div>
 					</div>
-				</div>
+				</a>
 			{/each}
 		</div>
 	{/if}
