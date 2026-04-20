@@ -80,6 +80,16 @@ pub async fn mark_notification_as_read(
     let updated_delivery =
         notification_delivery::mark_as_read(&state.db, &delivery_id, Utc::now()).await?;
 
+    // Send updated unread count via WebSocket
+    let unread_count = notification_delivery::get_unread_count_for_user(&state.db, &user.id).await?;
+    let ws_message = crate::websockets::messages::WebSocketMessage::Custom {
+        event: "notification:unread_count".to_string(),
+        data: serde_json::json!({
+            "count": unread_count,
+        }),
+    };
+    let _ = state.websockets.send_to_user(&user.id, &ws_message).await;
+
     Ok((StatusCode::OK, Json(updated_delivery)))
 }
 
@@ -92,6 +102,16 @@ pub async fn mark_all_notifications_as_read(
     // Mark all unread notifications as read for this user
     let updated_deliveries =
         notification_delivery::mark_all_as_read_for_user(&state.db, &user.id, Utc::now()).await?;
+
+    // Send updated unread count via WebSocket (should be 0)
+    let unread_count = notification_delivery::get_unread_count_for_user(&state.db, &user.id).await?;
+    let ws_message = crate::websockets::messages::WebSocketMessage::Custom {
+        event: "notification:unread_count".to_string(),
+        data: serde_json::json!({
+            "count": unread_count,
+        }),
+    };
+    let _ = state.websockets.send_to_user(&user.id, &ws_message).await;
 
     Ok((
         StatusCode::OK,

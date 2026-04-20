@@ -1,13 +1,15 @@
 import { toast, type ExternalToast } from 'svelte-sonner';
 export { Toaster as NotificationsToaster } from '$lib/components/ui/sonner';
-import { z } from 'zod'
+import { z } from 'zod';
 
 // Use to serialize and deserialize the flash notifications
-let FlashString: z.ZodType<Array<SendOpts>> = z.array(z.object({
-	message: z.string(),
-	priority: z.optional(z.enum(['INFO', 'WARNING', 'ERROR', 'SUCCESS'])),
-	duration: z.optional(z.number())
-}))
+let FlashString: z.ZodType<Array<SendOpts>> = z.array(
+	z.object({
+		message: z.string(),
+		priority: z.optional(z.enum(['INFO', 'WARNING', 'ERROR', 'SUCCESS'])),
+		duration: z.optional(z.number())
+	})
+);
 
 class NotificationsManager {
 	private static DEFAULT_DURATION = 60000;
@@ -20,14 +22,10 @@ class NotificationsManager {
 	}
 
 	public async listen() {
-		// TODO: implement
-
-		// // hacky testing snippet:
-		// let id = 0;
-		// setInterval(() => {
-		// 	++id;
-		// 	this.sendServerNotification(`server message ${id}`, `${id}`);
-		// }, 6000);
+		// Notification listening is now handled by the NotificationService
+		// which uses WebSockets. This method is kept for backwards compatibility
+		// but doesn't need to do anything as the service auto-initializes.
+		console.log('Notification listening is handled by WebSocket service');
 	}
 
 	private sendServerNotification(opts: SendServerNotificationOpts) {
@@ -44,21 +42,19 @@ class NotificationsManager {
 
 	// TODO this doesn't work when running on server side
 	// need to perhaps move to cookies to store and
-	// retrive the flash notifications 
+	// retrive the flash notifications
 	public addFlash(opts: SendOpts) {
 		try {
 			let flashString = sessionStorage.getItem('comhairle_flash_notfifications');
 			let flash;
 			if (flashString) {
-				flash = FlashString.parse(JSON.parse(flashString))
+				flash = FlashString.parse(JSON.parse(flashString));
+			} else {
+				flash = [opts];
 			}
-			else {
-				flash = [opts]
-			}
-			sessionStorage.setItem("comhairle_flash_notfifications", JSON.stringify(flash))
-		}
-		catch (e) {
-			console.warn("Failed to set session storage, probably on server")
+			sessionStorage.setItem('comhairle_flash_notfifications', JSON.stringify(flash));
+		} catch (e) {
+			console.warn('Failed to set session storage, probably on server');
 		}
 	}
 
@@ -66,12 +62,12 @@ class NotificationsManager {
 		if (!sessionStorage) return;
 		let flashString = sessionStorage.getItem('comhairle_flash_notfifications');
 		if (flashString) {
-			let flash = FlashString.parse(JSON.parse(flashString))
+			let flash = FlashString.parse(JSON.parse(flashString));
 			for (let message of flash) {
-				this.send(message)
+				this.send(message);
 			}
 		}
-		sessionStorage.removeItem("comhairle_flash_notfifications")
+		sessionStorage.removeItem('comhairle_flash_notfifications');
 	}
 
 	private async ack(id: string) {

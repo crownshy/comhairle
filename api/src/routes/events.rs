@@ -189,7 +189,8 @@ async fn get_jwt(
     Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
     RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<JwtResponse>), ComhairleError> {
-    let attendance = event_attendance::get_by_user_id(&state.db, &user.id).await?;
+    let attendance =
+        event_attendance::get_by_event_and_user(&state.db, &event_id, &user.id).await?;
 
     let event = event::get_by_id(&state.db, &event_id).await?;
     let video_meeting_id = event

@@ -1,17 +1,12 @@
-use aide::OperationIo;
 use async_trait::async_trait;
+use error::{Result, TranslationError};
 use reqwest::Client;
 use serde::Deserialize;
+pub mod config;
+pub mod error;
 
 #[cfg(test)]
 use mockall::{automock, predicate::*};
-
-use thiserror::Error;
-#[derive(Error, Debug, OperationIo)]
-pub enum TranslationError {
-    #[error("Translation Failed")]
-    TranslationFailed(String),
-}
 
 #[cfg_attr(test, automock)]
 #[async_trait]
@@ -21,7 +16,7 @@ pub trait TranslationService: Send + Sync {
         content: &str,
         from_locale: &str,
         to_locale: &str,
-    ) -> Result<String, TranslationError>;
+    ) -> Result<String>;
 }
 
 pub struct GoogleTranslateService {
@@ -70,7 +65,7 @@ impl TranslationService for GoogleTranslateService {
         content: &str,
         from_locale: &str,
         to_locale: &str,
-    ) -> Result<String, TranslationError> {
+    ) -> Result<String> {
         let url = format!(
             "https://translation.googleapis.com/language/translate/v2?key={}",
             self.api_key

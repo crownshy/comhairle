@@ -3,6 +3,11 @@ use serde::Deserialize;
 
 use crate::error::ComhairleError;
 
+pub use crate::{
+    transcription_service::config::TranscriptionServiceConfig,
+    translation_service::config::TranslatorConfig,
+};
+
 pub fn load() -> Result<ComhairleConfig, ComhairleError> {
     let config = Config::builder()
         .set_default(
@@ -40,17 +45,6 @@ pub struct MailerConfig {
     pub from_email: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Default)]
-pub struct GoogleTranslateConfig {
-    pub api_key: String,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(tag = "type", rename_all = "lowercase")]
-pub enum TranslatorConfig {
-    Google(GoogleTranslateConfig),
-}
-
 #[derive(Clone, Debug, Deserialize)]
 pub struct VideoCallConfig {
     pub jwt_app_id: String,
@@ -78,4 +72,5 @@ pub struct ComhairleConfig {
     pub heyform_url: String,
     pub polis_url: String,
     pub video_call_service: Option<VideoCallConfig>,
+    pub transcription_service: Option<TranscriptionServiceConfig>,
 }

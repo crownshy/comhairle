@@ -20,7 +20,7 @@
 	}: Props = $props();
 
 	const effectiveTotal = $derived(
-		totalParticipants || groups.reduce((sum, g) => sum + g.members.length, 0)
+		totalParticipants || groups.reduce((sum, g) => sum + g.total_members, 0)
 	);
 </script>
 
@@ -34,8 +34,7 @@
 					{@const label = String.fromCharCode(65 + group.group_id)}
 					<th class="w-40 px-2 pb-2 font-bold text-gray-950 uppercase">
 						{label}
-						<span class="text-xs font-normal text-gray-500">{group.members.length}</span
-						>
+						<span class="text-xs font-normal text-gray-500">{group.total_members}</span>
 					</th>
 				{/each}
 			</tr>
