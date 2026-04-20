@@ -15,7 +15,7 @@ use comhairle::{
     worker_service::{
         process_documents::process_document_handler,
         process_video_call_transcriptions::{
-            run_sense_making, transcribe_recording, upload_transcription,
+            generate_report_from_sensemaking, transcribe_recording, upload_report,
         },
         ComhairleWorkerService, WorkerService,
     },
@@ -117,13 +117,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let redis_connection = apalis_redis::connect(worker_config.redis_url.clone())
                     .await
                     .expect("Could not connect to redis"); // TODO: remove expect
-                let redis_config = apalis_redis::Config::default()
-                    .set_namespace("worker_service_redis_connection");
+                let documents_config =
+                    apalis_redis::Config::default().set_namespace("worker_service_documents");
+                let transcriptions_config =
+                    apalis_redis::Config::default().set_namespace("worker_service_transcriptions");
 
                 let process_documents_storage =
-                    RedisStorage::new_with_config(redis_connection.clone(), redis_config.clone());
+                    RedisStorage::new_with_config(redis_connection.clone(), documents_config);
                 let process_transcriptions_storage =
-                    RedisStorage::new_with_config(redis_connection.clone(), redis_config);
+                    RedisStorage::new_with_config(redis_connection.clone(), transcriptions_config);
 
                 let worker_service = Arc::new(ComhairleWorkerService {
                     process_documents: Arc::new(Mutex::new(process_documents_storage.clone())),
@@ -185,8 +187,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         let transcription_worker_steps = StepBuilder::new()
             .step_fn(transcribe_recording)
-            .step_fn(upload_transcription)
-            .step_fn(run_sense_making);
+            .step_fn(generate_report_from_sensemaking)
+            .step_fn(upload_report);
 
         let process_transcriptions_worker = WorkerBuilder::new("process_transcriptions_worker")
             .data(state.clone())

@@ -1207,6 +1207,12 @@ export const JwtResponse = z
   .object({ isModerator: z.boolean(), jwt: z.string() })
   .passthrough();
 export type JwtResponse = z.infer<typeof JwtResponse>;
+export const ProcessTrascriptionResponse = z
+  .object({ job_id: z.string().uuid(), message: z.string() })
+  .passthrough();
+export type ProcessTrascriptionResponse = z.infer<
+  typeof ProcessTrascriptionResponse
+>;
 export const EventAttendanceEtx = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
@@ -1539,6 +1545,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EventResponse,
   PartialEvent,
   JwtResponse,
+  ProcessTrascriptionResponse,
   EventAttendanceEtx,
   PaginatedResults_for_EventAttendanceEtx,
   CreateEventAttendanceRequest,
@@ -2159,6 +2166,14 @@ curl -X POST \
     description: `Get a auth JWT for an event`,
     requestFormat: "json",
     response: JwtResponse,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/transcription",
+    alias: "ProcessVideoCallTranscription",
+    description: `Triggers transcription processing in a background worker`,
+    requestFormat: "json",
+    response: ProcessTrascriptionResponse,
   },
   {
     method: "get",

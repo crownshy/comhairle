@@ -254,6 +254,7 @@ async fn process_transcription(
     worker_service
         .push_transcription_job(TranscribeRecording {
             event_id,
+            room_id: None,
             job_id: job.id,
         })
         .await?;
