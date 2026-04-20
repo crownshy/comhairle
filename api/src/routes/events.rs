@@ -156,8 +156,10 @@ async fn delete(
 }
 
 #[derive(Serialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
 struct JwtResponse {
     jwt: String,
+    is_moderator: bool,
 }
 
 #[derive(Serialize, Debug)]
@@ -200,6 +202,8 @@ async fn get_jwt(
         .as_ref()
         .ok_or(ComhairleError::NoVideoServiceConfigured)?;
 
+    let is_moderator = attendance.role == "facilitator";
+
     let claims = VideoEventJwtClaims {
         iss: &video_call_config.jwt_app_id,
         aud: &video_call_config.jwt_app_id,
@@ -221,7 +225,7 @@ async fn get_jwt(
         .sub(video_call_config.jwt_sub.to_owned())
         .call();
 
-    Ok((StatusCode::OK, Json(JwtResponse { jwt })))
+    Ok((StatusCode::OK, Json(JwtResponse { jwt, is_moderator })))
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {

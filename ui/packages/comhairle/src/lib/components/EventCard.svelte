@@ -12,9 +12,16 @@
 
 	let { event, conversationId }: Props = $props();
 
-	function isUpcoming(event: LocalizedEventDto) {
-		return new Date(event.startTime).getTime() > Date.now();
+	function getEventStatus(ev: LocalizedEventDto): 'upcoming' | 'live' | 'past' {
+		const now = Date.now();
+		const start = new Date(ev.startTime).getTime();
+		const end = new Date(ev.endTime).getTime();
+		if (now < start) return 'upcoming';
+		if (now <= end) return 'live';
+		return 'past';
 	}
+
+	let status = $derived(getEventStatus(event));
 </script>
 
 <article class="flex flex-col">
@@ -23,7 +30,12 @@
 		<!-- Title + badge -->
 		<div class="flex items-center gap-2">
 			<h2 class="text-xl font-semibold">{event.name}</h2>
-			{#if isUpcoming(event)}
+			{#if status === 'live'}
+				<Badge variant="outline" class="border-green-200 bg-green-50 text-green-700">
+					<span class="mr-1 h-1.5 w-1.5 animate-pulse rounded-full bg-green-500"></span>
+					Live
+				</Badge>
+			{:else if status === 'upcoming'}
 				<Badge variant="outline" class="bg-primary/10">Upcoming</Badge>
 			{:else}
 				<Badge variant="secondary">Past</Badge>
