@@ -1,3 +1,5 @@
+pub mod config;
+pub mod error;
 pub mod process_documents;
 pub mod process_video_call_transcriptions;
 

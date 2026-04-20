@@ -6,10 +6,12 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::{
-    error::ComhairleError,
     models::job::{self, UpdateJob},
+    worker_service::error::WorkerServiceError,
     ComhairleState,
 };
+
+use super::error::{Result, RecordWorkerError};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TranscribeRecording {
@@ -33,8 +35,12 @@ pub struct UploadReport {
 pub async fn transcribe_recording(
     req: TranscribeRecording,
     state: Data<Arc<ComhairleState>>,
-) -> Result<GoTo<GenerateReport>, ComhairleError> {
-    let transcription_service = state.required_transcription_service()?;
+) -> Result<GoTo<GenerateReport>> {
+    let transcription_service = state
+        .required_transcription_service()
+        .map_err(|_| WorkerServiceError::NoTranscriptionServiceConfigured)
+        .ok_or_record_failure(&req.job_id, &state.db)
+        .await?;
 
     info!(
         event_id = %req.event_id,
@@ -56,6 +62,9 @@ pub async fn transcribe_recording(
             &recording_location,
             &state.bulk_storage_service,
         )
+        .await
+        .map_err(|e| WorkerServiceError::TranscriptionServiceError(e.to_string()))
+        .ok_or_record_failure(&req.job_id, &state.db)
         .await?;
 
     Ok::<_, _>(GoTo::Next(GenerateReport {
@@ -67,7 +76,7 @@ pub async fn transcribe_recording(
 pub async fn generate_report_from_sensemaking(
     req: GenerateReport,
     _state: Data<Arc<ComhairleState>>,
-) -> Result<GoTo<UploadReport>, ComhairleError> {
+) -> Result<GoTo<UploadReport>> {
     info!(
         transcription_id = %req.transcription_id,
         job_id = %req.job_id,
@@ -83,7 +92,7 @@ pub async fn generate_report_from_sensemaking(
 pub async fn upload_report(
     req: UploadReport,
     state: Data<Arc<ComhairleState>>,
-) -> Result<GoTo<&'static str>, ComhairleError> {
+) -> Result<GoTo<&'static str>> {
     info!(
         transcription_id = %req.transcription_id,
         job_id = %req.job_id,
@@ -99,7 +108,9 @@ pub async fn upload_report(
         ..Default::default()
     };
 
-    let _ = job::update(&state.db, &req.job_id, update_job).await?;
+    let _ = job::update(&state.db, &req.job_id, update_job)
+        .await
+        .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
 
     Ok::<_, _>(GoTo::Done(
         "Transcription sensemaking pipeline completed successfully",

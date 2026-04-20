@@ -1,6 +1,7 @@
 use crate::{
     tools::polis::PolisError, transcription_service::error::TranscriptionServiceError,
     translation_service::error::TranslationError, wiki_poll_service::error::WikiPollServiceError,
+    worker_service::error::WorkerServiceError,
 };
 use aide::OperationIo;
 use axum::{
@@ -44,6 +45,9 @@ pub enum ComhairleError {
     #[error("Transcription error: {0}")]
     TranscriptionError(#[from] TranscriptionServiceError),
 
+    #[error("Worker error: {0}")]
+    WorkerError(#[from] WorkerServiceError),
+
     #[error("No translation service configured")]
     NoTranslationServiceConfigured,
 
@@ -53,7 +57,7 @@ pub enum ComhairleError {
     #[error("No video service configured")]
     NoVideoServiceConfigured,
 
-    #[error("No worker service configured")]
+    #[error("No transcription service configured")]
     NoTranscriptionServiceConfigured,
 
     #[error("No worker service configured")]

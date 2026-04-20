@@ -1,11 +1,9 @@
 use config::{Config, Environment, File};
 use serde::Deserialize;
 
-use crate::error::ComhairleError;
-
 pub use crate::{
-    transcription_service::config::TranscriptionServiceConfig,
-    translation_service::config::TranslatorConfig,
+    error::ComhairleError, transcription_service::config::TranscriptionServiceConfig,
+    translation_service::config::TranslatorConfig, worker_service::config::WorkerConfig,
 };
 
 pub fn load() -> Result<ComhairleConfig, ComhairleError> {
@@ -52,11 +50,6 @@ pub struct VideoCallConfig {
     pub jwt_sub: String,
     pub jwt_accepted_issuers: String,
     pub jwt_accepted_audiences: String,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-pub struct WorkerConfig {
-    pub redis_url: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
