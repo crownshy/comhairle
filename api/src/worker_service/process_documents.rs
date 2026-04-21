@@ -9,7 +9,6 @@ use uuid::Uuid;
 
 use crate::{
     bot_service::UpdateChatRequest,
-    error::ComhairleError,
     models::{self, job::UpdateJob},
     ComhairleState,
 };

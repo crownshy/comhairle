@@ -230,38 +230,74 @@ async fn get_jwt(
     Ok((StatusCode::OK, Json(JwtResponse { jwt, is_moderator })))
 }
 
-#[derive(Serialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 struct ProcessTrascriptionResponse {
     message: String,
-    job_id: Uuid,
+    job_ids: Vec<Uuid>,
 }
 
 #[instrument(err(Debug), skip(state))]
-async fn process_transcription(
+async fn process_transcriptions(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<ProcessTrascriptionResponse>), ComhairleError> {
     let worker_service = state.required_worker_service()?;
 
-    let create_job = CreateJob {
+    let entries = state
+        .bulk_storage_service
+        .list("comhairle-media", Some(&format!("events/{event_id}/")))
+        .await?;
+
+    let br_room_entries: Vec<String> = entries
+        .into_iter()
+        .filter(|entry| entry.contains("rooms/"))
+        .collect();
+
+    let create_core_event_job = CreateJob {
         progress: Some(0.0),
         ..Default::default()
     };
-    let job = job::create(&state.db, create_job).await?;
+    let core_event_job = job::create(&state.db, create_core_event_job).await?;
 
     worker_service
         .push_transcription_job(TranscribeRecording {
             event_id,
             room_id: None,
-            job_id: job.id,
+            job_id: core_event_job.id,
         })
         .await?;
+
+    let mut br_room_job_ids = vec![];
+    for entry in br_room_entries {
+        // TODO: feels a little brittle and scoped to aws S3 api
+        let room_id = entry.trim_start_matches("/").split("/").nth(3);
+
+        if let Some(room_id) = room_id {
+            let create_job = CreateJob {
+                progress: Some(0.0),
+                ..Default::default()
+            };
+            let job = job::create(&state.db, create_job).await?;
+            br_room_job_ids.push(job.id);
+
+            worker_service
+                .push_transcription_job(TranscribeRecording {
+                    event_id,
+                    room_id: Some(room_id.to_string()),
+                    job_id: job.id,
+                })
+                .await?;
+        }
+    }
+
+    let mut job_ids = vec![core_event_job.id];
+    job_ids.extend(br_room_job_ids);
 
     Ok((
         StatusCode::OK,
         Json(ProcessTrascriptionResponse {
-            message: "Transcription processing moved to background job".to_string(),
-            job_id: job.id,
+            message: "Transcription processing moved to background jobs".to_string(),
+            job_ids,
         }),
     ))
 }
@@ -326,9 +362,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<JwtResponse>>()
 
         }))
-        .api_route("/{event_id}/transcription", 
-            post_with(process_transcription, |op| {
-                op.id("ProcessVideoCallTranscription")
+        .api_route("/{event_id}/transcriptions", 
+            post_with(process_transcriptions, |op| {
+                op.id("ProcessVideoCallTranscriptions")
                     .tag("Events")
                     .summary("Process video call transcription")
                     .description("Triggers transcription processing in a background worker")
@@ -341,12 +377,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
+    use axum::body::Body;
     use serde_json::json;
     use sqlx::PgPool;
     use std::error::Error;
 
-    use crate::models::model_test_helpers::{
-        get_random_conversation_id, setup_default_app_and_session,
+    use crate::{
+        bulk_storage::MockBulkStorageService,
+        models::model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
+        setup_server,
+        test_helpers::{test_state, UserSession},
+        worker_service::MockWorkerService,
     };
 
     use super::*;
@@ -706,6 +747,122 @@ mod tests {
             response.get("err").and_then(|v| v.as_str()).unwrap(),
             "Event not found",
             "incorrect error message"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_start_transcription_single_pipeline_for_event(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut worker_service = MockWorkerService::new();
+
+        worker_service
+            .expect_push_transcription_job()
+            .once()
+            .returning(|_| Box::pin(async move { Ok(()) }));
+
+        let mut storage_service = MockBulkStorageService::new();
+
+        storage_service.expect_list().once().returning(|_, _| {
+            Box::pin(async move { Ok(vec!["events/1234/recording.wav".to_string()]) })
+        });
+
+        let state = test_state()
+            .db(pool)
+            .worker_service(Arc::new(worker_service))
+            .bulk_storage_service(Arc::new(storage_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        let (_, response, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(response)?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/transcriptions",
+                    conversation_id, event.id
+                ),
+                Body::empty(),
+            )
+            .await?;
+        let response: ProcessTrascriptionResponse = serde_json::from_value(value)?;
+
+        assert_eq!(
+            response.job_ids.len(),
+            1,
+            "incorrect number of jobs spawned"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_start_transcription_pipelines_for_event_with_breakout_rooms(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut worker_service = MockWorkerService::new();
+
+        worker_service
+            .expect_push_transcription_job()
+            .times(5)
+            .returning(|_| Box::pin(async move { Ok(()) }));
+
+        let mut storage_service = MockBulkStorageService::new();
+
+        storage_service.expect_list().once().returning(|_, _| {
+            Box::pin(async move {
+                Ok(vec![
+                    "events/1234/recording.wav".to_string(),
+                    "events/1234/rooms/1234/recording.wav".to_string(),
+                    "events/1234/rooms/4321/recording.wav".to_string(),
+                    "events/1234/rooms/5678/recording.wav".to_string(),
+                    "events/1234/rooms/8765/recording.wav".to_string(),
+                ])
+            })
+        });
+
+        let state = test_state()
+            .db(pool)
+            .worker_service(Arc::new(worker_service))
+            .bulk_storage_service(Arc::new(storage_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        let (_, response, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(response)?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/transcriptions",
+                    conversation_id, event.id
+                ),
+                Body::empty(),
+            )
+            .await?;
+        let response: ProcessTrascriptionResponse = serde_json::from_value(value)?;
+
+        assert_eq!(
+            response.job_ids.len(),
+            5,
+            "incorrect number of jobs spawned"
         );
 
         Ok(())
