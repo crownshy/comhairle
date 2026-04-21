@@ -53,7 +53,8 @@ use crate::{
 /// use std::sync::Arc;
 /// use comhairle::websockets::{WebSocketMessageHandler, WebSocketConnection};
 /// use comhairle::websockets::messages::WebSocketMessage;
-/// use comhairle::{ComhairleState, error::ComhairleError};
+/// use comhairle::websockets::error::WebsocketError;
+/// use comhairle::ComhairleState;
 ///
 /// pub struct ChatHandler;
 ///
@@ -68,7 +69,7 @@ use crate::{
 ///         message: &WebSocketMessage,
 ///         connection: &WebSocketConnection,
 ///         state: &Arc<ComhairleState>,
-///     ) -> Result<(), ComhairleError> {
+///     ) -> Result<(), WebsocketError> {
 ///         match message {
 ///             WebSocketMessage::Custom { event, data } if event.starts_with("chat:") => {
 ///                 // Handle chat messages
@@ -76,7 +77,8 @@ use crate::{
 ///                     event: "chat:response".to_string(),
 ///                     data: serde_json::json!({"status": "received"}),
 ///                 };
-///                 connection.send_message(&response).await?;
+///                 // Ignore send errors in this example
+///                 let _ = connection.send_message(&response).await;
 ///             }
 ///             _ => {}
 ///         }
