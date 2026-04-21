@@ -3,7 +3,10 @@ use tracing::info;
 
 use crate::ComhairleState;
 
-use super::handlers::{notifications::NotificationMessageHandler, workflow::WorkflowMessageHandler};
+use super::handlers::{
+    notifications::NotificationMessageHandler, video_call::VideoCallMessageHandler,
+    workflow::WorkflowMessageHandler,
+};
 
 /// Register all WebSocket message handlers with the application state.
 ///
@@ -20,6 +23,10 @@ use super::handlers::{notifications::NotificationMessageHandler, workflow::Workf
 /// - **WorkflowMessageHandler**: Handles workflow progress tracking
 ///   - Domain: `"workflow"`
 ///   - Events: `user_started_workflow_step`, `user_finished_workflow_step`, etc.
+///
+/// - **VideoCallMessageHandler**: Handles video call state and interactions
+///   - Domain: `"video_call"`
+///   - Events: `video_call:user_joined`, `video_call:user_left`, `video_call:change_state`, etc.
 ///
 /// # Adding New Handlers
 ///
@@ -61,6 +68,10 @@ pub fn register_handlers(state: &Arc<ComhairleState>) {
     // Register workflow handler
     let workflow_handler = Arc::new(WorkflowMessageHandler::new());
     state.websockets.register_handler(workflow_handler);
+
+    // Register video call handler
+    let video_call_handler = Arc::new(VideoCallMessageHandler::new());
+    state.websockets.register_handler(video_call_handler);
 
     info!("WebSocket message handlers registered successfully");
 }
