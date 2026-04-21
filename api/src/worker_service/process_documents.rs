@@ -14,6 +14,8 @@ use crate::{
     ComhairleState,
 };
 
+use super::error::{RecordWorkerError, Result, WorkerServiceError};
+
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct DocumentJob {
     pub job_id: Uuid,
@@ -52,13 +54,20 @@ pub struct DocumentJob {
 pub async fn process_document_handler(
     job: DocumentJob,
     state: Data<Arc<ComhairleState>>,
-) -> Result<(), ComhairleError> {
-    let bot_service = state.required_bot_service()?;
+) -> Result<()> {
+    let bot_service = state
+        .required_bot_service()
+        .map_err(|_| WorkerServiceError::NoBotServiceConfigured)
+        .ok_or_record_failure(&job.job_id, &state.db)
+        .await?;
+
     let default_knowledge_base_id = state
         .config
         .default_knowledge_base_id
         .as_ref()
-        .ok_or(ComhairleError::NoBotServiceConfigured)?;
+        .ok_or(WorkerServiceError::NoBotServiceConfigured)
+        .ok_or_record_failure(&job.job_id, &state.db)
+        .await?;
 
     info!(
         job_id = %job.job_id,
@@ -66,25 +75,33 @@ pub async fn process_document_handler(
     );
 
     let conversation =
-        models::conversation::get_localised_by_id(&state.db, &job.conversation_id, "en").await?;
-    let knowledge_base_id = match conversation.knowledge_base_id {
-        Some(id) => id,
-        None => {
-            return Err(ComhairleError::BackgroundJobFailed(format!(
-                "Missing knowledge_base_id on conversation {}",
+        models::conversation::get_localised_by_id(&state.db, &job.conversation_id, "en")
+            .await
+            .map_err(|e| WorkerServiceError::DbError(e.to_string()))
+            .ok_or_record_failure(&job.job_id, &state.db)
+            .await?;
+
+    let knowledge_base_id = conversation
+        .knowledge_base_id
+        .ok_or_else(|| {
+            WorkerServiceError::InvalidState(format!(
+                "Missing knowledge_base_id on conversation: {}",
                 conversation.id
-            )))
-        }
-    };
-    let chat_bot_id = match conversation.chat_bot_id {
-        Some(id) => id,
-        None => {
-            return Err(ComhairleError::BackgroundJobFailed(format!(
-                "Missing chat_bot_id on conversation {}",
+            ))
+        })
+        .ok_or_record_failure(&job.job_id, &state.db)
+        .await?;
+
+    let chat_bot_id = conversation
+        .chat_bot_id
+        .ok_or_else(|| {
+            WorkerServiceError::InvalidState(format!(
+                "Missing chat_bot_id on conversation: {}",
                 conversation.id
-            )))
-        }
-    };
+            ))
+        })
+        .ok_or_record_failure(&job.job_id, &state.db)
+        .await?;
 
     let max_attempts = 360; // 1 hour
     let poll_interval = Duration::from_secs(10);
@@ -100,13 +117,18 @@ pub async fn process_document_handler(
 
         let (_, document) = bot_service
             .get_document(&job.document_id, &knowledge_base_id)
+            .await
+            .map_err(|e| WorkerServiceError::ExternalServiceFailure(e.to_string()))
+            .ok_or_record_failure(&job.job_id, &state.db)
             .await?;
 
         let update_job = UpdateJob {
             progress: Some(document.parse_progress),
             ..Default::default()
         };
-        let _job = models::job::update(&state.db, &job.job_id, update_job).await?;
+        let _job = models::job::update(&state.db, &job.job_id, update_job)
+            .await
+            .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
 
         if document.parse_status == "DONE" && document.parse_progress >= 1.0 {
             info!(
@@ -127,15 +149,24 @@ pub async fn process_document_handler(
                 error: Some(message.to_string()),
                 ..Default::default()
             };
-            let _ = models::job::update(&state.db, &job.job_id, update_job).await?;
+            let _ = models::job::update(&state.db, &job.job_id, update_job)
+                .await
+                .map_err(|e| WorkerServiceError::DbError(e.to_string()))
+                .ok_or_record_failure(&job.job_id, &state.db)
+                .await?;
 
-            return Err(ComhairleError::BackgroundJobFailed(message.to_string()));
+            return Err(WorkerServiceError::JobFailure(message.to_string()));
         }
 
         sleep(poll_interval).await;
     }
 
-    let (_, chat) = bot_service.get_chat(&chat_bot_id).await?;
+    let (_, chat) = bot_service
+        .get_chat(&chat_bot_id)
+        .await
+        .map_err(|e| WorkerServiceError::ExternalServiceFailure(e.to_string()))
+        .ok_or_record_failure(&job.job_id, &state.db)
+        .await?;
 
     if !chat.knowledge_base_ids.contains(&knowledge_base_id) {
         info!(
@@ -152,7 +183,12 @@ pub async fn process_document_handler(
             ..Default::default()
         };
 
-        let _ = bot_service.update_chat(&chat_bot_id, update_params).await?;
+        let _ = bot_service
+            .update_chat(&chat_bot_id, update_params)
+            .await
+            .map_err(|e| WorkerServiceError::ExternalServiceFailure(e.to_string()))
+            .ok_or_record_failure(&job.job_id, &state.db)
+            .await?;
 
         info!(
             job_id = %job.job_id,
@@ -173,7 +209,9 @@ pub async fn process_document_handler(
         completion_message: Some("Document successfully parsed".to_string()),
         ..Default::default()
     };
-    let _ = models::job::update(&state.db, &job.job_id, update_job).await?;
+    let _ = models::job::update(&state.db, &job.job_id, update_job)
+        .await
+        .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
 
     Ok(())
 }
