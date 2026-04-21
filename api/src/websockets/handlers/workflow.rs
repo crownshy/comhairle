@@ -1,12 +1,15 @@
 use async_trait::async_trait;
 use std::sync::Arc;
+use thiserror::Error;
 use tracing::info;
 
 use crate::{
-    error::ComhairleError,
-    websockets::{messages::WebSocketMessage, WebSocketConnection, WebSocketMessageHandler},
+    websockets::{error::WebsocketError, messages::WebSocketMessage, WebSocketConnection, WebSocketMessageHandler},
     ComhairleState,
 };
+
+#[derive(Error, Debug)]
+pub enum WorkflowWSError {}
 
 /// Handler for workflow-related WebSocket messages.
 ///
@@ -80,7 +83,7 @@ impl WebSocketMessageHandler for WorkflowMessageHandler {
         message: &WebSocketMessage,
         connection: &WebSocketConnection,
         state: &Arc<ComhairleState>,
-    ) -> Result<(), ComhairleError> {
+    ) -> Result<(), WebsocketError> {
         match message {
             WebSocketMessage::UserStartedWorkflowStep { workflow_step_id } => {
                 self.handle_workflow_step_started(workflow_step_id, connection, state)
@@ -108,8 +111,8 @@ impl WorkflowMessageHandler {
         &self,
         workflow_step_id: &uuid::Uuid,
         connection: &WebSocketConnection,
-        state: &Arc<ComhairleState>,
-    ) -> Result<(), ComhairleError> {
+        _state: &Arc<ComhairleState>,
+    ) -> Result<(), WebsocketError> {
         info!(
             "User {} started workflow step {}",
             connection.user.id, workflow_step_id
@@ -153,7 +156,7 @@ impl WorkflowMessageHandler {
         workflow_step_id: &uuid::Uuid,
         connection: &WebSocketConnection,
         _state: &Arc<ComhairleState>,
-    ) -> Result<(), ComhairleError> {
+    ) -> Result<(), WebsocketError> {
         info!(
             "User {} finished workflow step {}",
             connection.user.id, workflow_step_id
@@ -178,7 +181,10 @@ impl WorkflowMessageHandler {
                 "completed": true,
             }),
         };
-        connection.send_message(&response).await?;
+        connection
+            .send_message(&response)
+            .await
+            .map_err(|e| WebsocketError::SendError(e.to_string()))?;
 
         Ok(())
     }
@@ -188,7 +194,7 @@ impl WorkflowMessageHandler {
         workflow_step_id: &uuid::Uuid,
         connection: &WebSocketConnection,
         _state: &Arc<ComhairleState>,
-    ) -> Result<(), ComhairleError> {
+    ) -> Result<(), WebsocketError> {
         info!(
             "User {} is idle on workflow step {}",
             connection.user.id, workflow_step_id
@@ -206,7 +212,7 @@ impl WorkflowMessageHandler {
         data: &serde_json::Value,
         connection: &WebSocketConnection,
         _state: &Arc<ComhairleState>,
-    ) -> Result<(), ComhairleError> {
+    ) -> Result<(), WebsocketError> {
         info!(
             "Custom workflow event '{}' from user {}: {:?}",
             event, connection.user.id, data

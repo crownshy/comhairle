@@ -1,3 +1,4 @@
+pub mod error;
 pub mod handlers;
 pub mod messages;
 pub mod routes;
@@ -113,13 +114,19 @@ pub trait WebSocketMessageHandler: Send + Sync {
     /// # Returns
     ///
     /// - `Ok(())` if the message was handled successfully
-    /// - `Err(ComhairleError)` if an error occurred
+    /// - `Err(WebsocketError)` if an error occurred
+    ///
+    /// # Implementation Note
+    ///
+    /// Each handler can define its own error type and convert it to WebsocketError
+    /// using the `?` operator or `.map_err(Into::into)`, since each handler's error
+    /// type implements `Into<WebsocketError>` via the `#[from]` attribute.
     async fn handle_message(
         &self,
         message: &WebSocketMessage,
         connection: &WebSocketConnection,
         state: &Arc<ComhairleState>,
-    ) -> Result<(), ComhairleError>;
+    ) -> Result<(), crate::websockets::error::WebsocketError>;
 }
 
 static NEXT_CONNECTION_ID: AtomicUsize = AtomicUsize::new(1);
@@ -649,7 +656,10 @@ async fn route_to_handler(
 
     if let Some(domain) = domain {
         if let Some(handler) = state.websockets.get_handler(domain) {
-            handler.handle_message(message, connection, state).await?;
+            handler
+                .handle_message(message, connection, state)
+                .await
+                .map_err(|e| ComhairleError::WebSocketHandlerError(Box::new(e)))?;
             return Ok(true);
         }
     }

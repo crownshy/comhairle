@@ -1,6 +1,7 @@
 use crate::{
     tools::polis::PolisError, transcription_service::error::TranscriptionServiceError,
-    translation_service::error::TranslationError, wiki_poll_service::error::WikiPollServiceError,
+    translation_service::error::TranslationError, websockets::error::WebsocketError,
+    wiki_poll_service::error::WikiPollServiceError,
 };
 use aide::OperationIo;
 use axum::{
@@ -208,6 +209,9 @@ pub enum ComhairleError {
 
     #[error("WebSocket send error: {0}")]
     WebSocketSendError(String),
+
+    #[error("WebSocket handler error: {0}")]
+    WebSocketHandlerError(Box<WebsocketError>),
 
     #[error("Serialization error: {0}")]
     SerializationError(String),
