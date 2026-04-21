@@ -3,15 +3,16 @@ pub mod error;
 pub mod process_documents;
 pub mod process_video_call_transcriptions;
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use apalis::prelude::*;
 use apalis_redis::RedisStorage;
 use async_trait::async_trait;
-use tokio::sync::Mutex;
-use tracing::instrument;
+use tokio::{sync::Mutex, time::timeout};
+use tracing::{error, instrument};
 
 use crate::{
+    config::WorkerConfig,
     error::ComhairleError,
     worker_service::{
         process_documents::DocumentJob, process_video_call_transcriptions::TranscribeRecording,
@@ -56,6 +57,54 @@ impl WorkerService for ComhairleWorkerService {
 
         Ok(())
     }
+}
+
+pub struct WorkerStorage {
+    pub documents: RedisStorage<DocumentJob>,
+    pub transcriptions: RedisStorage<StepRequest<Vec<u8>>>,
+}
+
+pub async fn init_worker_service(
+    config: &Option<WorkerConfig>,
+) -> Option<(Arc<dyn WorkerService>, WorkerStorage)> {
+    let config = config.as_ref()?;
+
+    // Manually handle connection timeout as apalis default too long
+    let redis_connection = timeout(
+        Duration::from_secs(10),
+        apalis_redis::connect(config.redis_url.clone()),
+    )
+    .await
+    .ok()
+    .and_then(|r| r.ok())
+    .or_else(|| {
+        error!("Timed out attempting to establish connection to Redis");
+        error!("Worker service unavailable");
+        None
+    })?;
+
+    let documents_config =
+        apalis_redis::Config::default().set_namespace("worker_service_documents");
+    let transcriptions_config =
+        apalis_redis::Config::default().set_namespace("worker_service_transcriptions");
+
+    let documents_storage =
+        RedisStorage::new_with_config(redis_connection.clone(), documents_config);
+    let transcriptions_storage =
+        RedisStorage::new_with_config(redis_connection.clone(), transcriptions_config);
+
+    let worker_service = Arc::new(ComhairleWorkerService {
+        process_documents: Arc::new(Mutex::new(documents_storage.clone())),
+        process_transcriptions: Arc::new(Mutex::new(transcriptions_storage.clone())),
+    });
+
+    Some((
+        worker_service,
+        WorkerStorage {
+            documents: documents_storage,
+            transcriptions: transcriptions_storage,
+        },
+    ))
 }
 
 #[cfg(test)]
