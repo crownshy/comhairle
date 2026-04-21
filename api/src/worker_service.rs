@@ -68,5 +68,9 @@ impl MockWorkerService {
             .returning(|_| Box::pin(async move { Ok(()) }));
 
         worker_service
+            .expect_push_transcription_job()
+            .returning(|_| Box::pin(async move { Ok(()) }));
+
+        worker_service
     }
 }

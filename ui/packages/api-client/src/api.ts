@@ -1208,7 +1208,7 @@ export const JwtResponse = z
   .passthrough();
 export type JwtResponse = z.infer<typeof JwtResponse>;
 export const ProcessTrascriptionResponse = z
-  .object({ job_id: z.string().uuid(), message: z.string() })
+  .object({ job_ids: z.array(z.string().uuid()), message: z.string() })
   .passthrough();
 export type ProcessTrascriptionResponse = z.infer<
   typeof ProcessTrascriptionResponse
@@ -2169,8 +2169,8 @@ curl -X POST \
   },
   {
     method: "post",
-    path: "/conversation/:conversation_id/events/:event_id/transcription",
-    alias: "ProcessVideoCallTranscription",
+    path: "/conversation/:conversation_id/events/:event_id/transcriptions",
+    alias: "ProcessVideoCallTranscriptions",
     description: `Triggers transcription processing in a background worker`,
     requestFormat: "json",
     response: ProcessTrascriptionResponse,

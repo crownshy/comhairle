@@ -1,5 +1,6 @@
 use crate::{
-    tools::polis::PolisError, transcription_service::error::TranscriptionServiceError,
+    bulk_storage::BulkStorageError, tools::polis::PolisError,
+    transcription_service::error::TranscriptionServiceError,
     translation_service::error::TranslationError, websockets::error::WebsocketError,
     wiki_poll_service::error::WikiPollServiceError, worker_service::error::WorkerServiceError,
 };
@@ -47,6 +48,9 @@ pub enum ComhairleError {
 
     #[error("Worker error: {0}")]
     WorkerError(#[from] WorkerServiceError),
+
+    #[error("Bulk storage error: {0}")]
+    BulkStorageError(#[from] BulkStorageError),
 
     #[error("No translation service configured")]
     NoTranslationServiceConfigured,

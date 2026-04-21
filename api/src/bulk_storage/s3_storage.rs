@@ -1,6 +1,8 @@
 use async_trait::async_trait;
 use aws_config::SdkConfig;
-use aws_sdk_s3::{presigning::PresigningConfig, primitives::ByteStream, types::ObjectCannedAcl, Client};
+use aws_sdk_s3::{
+    presigning::PresigningConfig, primitives::ByteStream, types::ObjectCannedAcl, Client,
+};
 use std::time::Duration;
 
 use crate::bulk_storage::{BulkStorageError, BulkStorageService, FileMetadata};
@@ -148,5 +150,31 @@ impl BulkStorageService for S3StorageService {
             .map_err(|e| BulkStorageError::FailedToGetDownloadPresign(e.to_string()))?;
 
         Ok(url.uri().into())
+    }
+
+    /// Returns a list of objects within an S3 bucket with an optional path prefix.
+    async fn list(
+        &self,
+        store: &str,
+        prefix: Option<&str>,
+    ) -> Result<Vec<String>, BulkStorageError> {
+        let result = self
+            .s3_client
+            .list_objects_v2()
+            .bucket(store)
+            .prefix(prefix.unwrap_or(""))
+            .delimiter("/")
+            .send()
+            .await
+            .map_err(|e| BulkStorageError::FailedList(e.to_string()))?;
+
+        let entries = result
+            .contents()
+            .iter()
+            .filter_map(|entry| entry.key())
+            .map(str::to_string)
+            .collect();
+
+        Ok(entries)
     }
 }

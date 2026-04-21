@@ -52,6 +52,9 @@ pub enum BulkStorageError {
 
     #[error("Failed to get file: {0}")]
     FailedToGetFile(String),
+
+    #[error("Failed list: {0}")]
+    FailedList(String),
 }
 
 /// Service for managing file storage operations.
@@ -127,6 +130,23 @@ pub trait BulkStorageService: Send + Sync {
     ///
     /// Returns a presigned URL that can be used to download the file via HTTP GET.
     async fn get_read_file_url(&self, path: &str) -> Result<String, BulkStorageError>;
+
+    /// Lists objects and prefixes under the given prefix.
+    ///
+    /// Analogous to listing a directory: when called with a delimiter of `/`.
+    ///
+    /// # Arguments
+    ///
+    /// * `prefix` - The key prefix to list under, e.g. `"events/abc123/"`
+    ///
+    /// # Returns
+    ///
+    /// A vector of [`StorageEntry`] items found under the prefix.
+    async fn list(
+        &self,
+        store: &str,
+        prefix: Option<&str>,
+    ) -> Result<Vec<String>, BulkStorageError>;
 }
 
 #[cfg(test)]
@@ -156,6 +176,10 @@ impl MockBulkStorageService {
 
         storage.expect_get_read_file_url().returning(|_| {
             Box::pin(async move { Ok("https://storage.com/signed_dowload_path".to_owned()) })
+        });
+
+        storage.expect_list().returning(|_, _| {
+            Box::pin(async move { Ok(vec!["events/1234/recording.wav".to_string()]) })
         });
 
         storage
