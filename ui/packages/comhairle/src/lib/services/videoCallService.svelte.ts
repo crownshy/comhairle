@@ -4,11 +4,8 @@ import { ws } from '$lib/api/websockets.svelte';
 export type VideoCallStatus = 'Waiting' | 'InProgress' | 'Ended';
 
 export interface VideoCallParticipant {
-	user: {
-		id: string;
-		username: string;
-		email: string;
-	};
+	user_id: string;
+	username: string | null;
 	role: string;
 }
 

@@ -11,18 +11,19 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::{
-    models::users::User,
     websockets::{messages::WebSocketMessage, WebSocketConnection, WebSocketMessageHandler},
     ComhairleState,
 };
 
 /// Represents a participant in a video call.
 ///
-/// Contains the user information and their role in the call (e.g., moderator, facilitator, participant).
-#[derive(Serialize, Deserialize, Debug)]
+/// Contains minimal user information and their role in the call (e.g., moderator, facilitator, participant).
+/// Email addresses and other sensitive data are not included for privacy reasons.
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct VideoCallParticipant {
-    user: User,
-    role: String,
+    pub user_id: Uuid,
+    pub username: Option<String>,
+    pub role: String,
 }
 
 /// Represents a breakout room assignment with a list of participant UUIDs.
@@ -376,12 +377,18 @@ impl VideoCallMessageHandler {
 
         let role = attendance.role;
         let user_id = connection.user.id;
-        let user = connection.user.clone();
+        let username = connection.user.username.clone();
 
         // Add the participant to the video call and auto-assign to breakout room if needed
         self.with_video_call_state_mut(&join_data.event_id, |call| {
-            call.participants
-                .insert(user_id, VideoCallParticipant { user, role });
+            call.participants.insert(
+                user_id,
+                VideoCallParticipant {
+                    user_id,
+                    username,
+                    role,
+                },
+            );
 
             // If breakout rooms exist, auto-assign the user to a room
             if !call.breakout_rooms.is_empty() {
