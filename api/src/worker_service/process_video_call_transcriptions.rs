@@ -7,11 +7,10 @@ use uuid::Uuid;
 
 use crate::{
     models::job::{self, UpdateJob},
-    worker_service::error::WorkerServiceError,
     ComhairleState,
 };
 
-use super::error::{Result, RecordWorkerError};
+use super::error::{RecordWorkerError, Result, WorkerServiceError};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TranscribeRecording {

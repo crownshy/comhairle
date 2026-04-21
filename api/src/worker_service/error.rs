@@ -10,21 +10,33 @@ pub enum WorkerServiceError {
     #[error("No transcription service configured")]
     NoTranscriptionServiceConfigured,
 
+    #[error("No bot service configured")]
+    NoBotServiceConfigured,
+
     #[error("DbError: {0}")]
     DbError(String),
 
     #[error("Transcription service error: {0}")]
     TranscriptionServiceError(String),
+
+    #[error("Invalid state: {0}")]
+    InvalidState(String),
+
+    #[error("External service failure: {0}")]
+    ExternalServiceFailure(String),
+
+    #[error("Job failure: {0}")]
+    JobFailure(String),
 }
 
 pub type Result<T> = std::result::Result<T, WorkerServiceError>;
 
-/// Extension trait for [`worker_service::error::Result`] that records job failures 
+/// Extension trait for [`worker_service::error::Result`] that records job failures
 /// to the database _before_ propagating the error.
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,ignore
 /// let response = failable_operation()
 ///     .await
 ///     .ok_or_record_failure(&req.job_id, &state.db)
