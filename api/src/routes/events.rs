@@ -15,6 +15,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
+    bulk_storage::extract_room_id_from_key,
     error::ComhairleError,
     models::{
         event::{
@@ -245,7 +246,7 @@ async fn process_transcriptions(
 
     let entries = state
         .bulk_storage_service
-        .list("comhairle-media", Some(&format!("events/{event_id}/")))
+        .list_keys("comhairle-media", Some(&format!("events/{event_id}/")))
         .await?;
 
     let br_room_entries: Vec<String> = entries
@@ -269,8 +270,7 @@ async fn process_transcriptions(
 
     let mut br_room_job_ids = vec![];
     for entry in br_room_entries {
-        // TODO: feels a little brittle and scoped to aws S3 api
-        let room_id = entry.trim_start_matches("/").split("/").nth(3);
+        let room_id = extract_room_id_from_key(&entry);
 
         if let Some(room_id) = room_id {
             let create_job = CreateJob {
@@ -765,9 +765,10 @@ mod tests {
 
         let mut storage_service = MockBulkStorageService::new();
 
-        storage_service.expect_list().once().returning(|_, _| {
-            Box::pin(async move { Ok(vec!["events/1234/recording.wav".to_string()]) })
-        });
+        storage_service
+            .expect_list_keys()
+            .once()
+            .returning(|_, _| Box::pin(async move { Ok(vec!["recording.wav".to_string()]) }));
 
         let state = test_state()
             .db(pool)
@@ -819,14 +820,14 @@ mod tests {
 
         let mut storage_service = MockBulkStorageService::new();
 
-        storage_service.expect_list().once().returning(|_, _| {
+        storage_service.expect_list_keys().once().returning(|_, _| {
             Box::pin(async move {
                 Ok(vec![
-                    "events/1234/recording.wav".to_string(),
-                    "events/1234/rooms/1234/recording.wav".to_string(),
-                    "events/1234/rooms/4321/recording.wav".to_string(),
-                    "events/1234/rooms/5678/recording.wav".to_string(),
-                    "events/1234/rooms/8765/recording.wav".to_string(),
+                    "recording.wav".to_string(),
+                    "rooms/1234/recording.wav".to_string(),
+                    "rooms/4321/recording.wav".to_string(),
+                    "rooms/5678/recording.wav".to_string(),
+                    "rooms/8765/recording.wav".to_string(),
                 ])
             })
         });
