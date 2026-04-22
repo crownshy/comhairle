@@ -373,7 +373,8 @@
 			<div
 				class="text-card-foreground justify-start self-stretch text-lg leading-6 font-bold"
 			>
-				Statements this group agrees with:
+				Statements and voting that reveal Group {group.group_id === 0 ? 'A' : 'B'}'s
+				distinct views:
 			</div>
 
 			{#each repComments as comment, i (comment.tid)}
