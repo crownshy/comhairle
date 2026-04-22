@@ -3,7 +3,7 @@ pub mod error;
 pub mod process_documents;
 pub mod process_video_call_transcriptions;
 
-use std::{sync::Arc, time::Duration};
+use std::{future::Future, sync::Arc, time::Duration};
 
 use apalis::prelude::*;
 use apalis_redis::RedisStorage;
@@ -15,8 +15,13 @@ use crate::{
     config::WorkerConfig,
     error::ComhairleError,
     worker_service::{
-        process_documents::DocumentJob, process_video_call_transcriptions::TranscribeRecording,
+        process_documents::{process_document_handler, DocumentJob},
+        process_video_call_transcriptions::{
+            generate_report_from_sensemaking, transcribe_recording, upload_report,
+            TranscribeRecording,
+        },
     },
+    ComhairleState,
 };
 
 #[cfg(test)]
@@ -105,6 +110,42 @@ pub async fn init_worker_service(
             transcriptions: transcriptions_storage,
         },
     ))
+}
+
+pub fn init_monitor(
+    storage: Option<WorkerStorage>,
+    state: &Arc<ComhairleState>,
+) -> Option<impl Future<Output = std::io::Result<()>>> {
+    if let Some(storage) = storage {
+        let mut monitor = Monitor::new();
+
+        let process_documents_worker = WorkerBuilder::new("process_document_worker")
+            .data(state.clone())
+            .data(())
+            .enable_tracing()
+            .backend(storage.documents.clone())
+            .build_fn(process_document_handler);
+
+        let transcription_worker_steps = StepBuilder::new()
+            .step_fn(transcribe_recording)
+            .step_fn(generate_report_from_sensemaking)
+            .step_fn(upload_report);
+
+        let process_transcriptions_worker = WorkerBuilder::new("process_transcriptions_worker")
+            .data(state.clone())
+            .data(())
+            .enable_tracing()
+            .backend(storage.transcriptions.clone())
+            .build_stepped(transcription_worker_steps);
+
+        monitor = monitor
+            .register(process_documents_worker)
+            .register(process_transcriptions_worker);
+
+        Some(monitor.run())
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]

@@ -2,7 +2,7 @@ use apalis::prelude::*;
 use aws_config::BehaviorVersion;
 use comhairle::{
     bot_service::{ComhairleBotService, ComhairleRagBotService},
-    bulk_storage::s3_storage::S3StorageService,
+    bulk_storage::{s3_storage::S3StorageService, BulkStorageService},
     config::{TranscriptionServiceConfig, TranslatorConfig},
     db::setup_db,
     mailer::Mailer,
@@ -11,13 +11,7 @@ use comhairle::{
     translation_service::GoogleTranslateService,
     websockets::ComhairleWebSocketService,
     wiki_poll_service::polis_service::PolisClient,
-    worker_service::{
-        init_worker_service,
-        process_documents::process_document_handler,
-        process_video_call_transcriptions::{
-            generate_report_from_sensemaking, transcribe_recording, upload_report,
-        },
-    },
+    worker_service::{ init_monitor, init_worker_service},
     ComhairleState,
 };
 use std::{error::Error, sync::Arc};
@@ -76,7 +70,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Setup Bulk Storage Service
     //
     let s3_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
-    let bulk_storage_service = S3StorageService::new(&s3_config, "comhairle".to_owned());
+    let bulk_storage_service = Arc::new(S3StorageService::new(&s3_config, "comhairle".to_owned()))
+        as Arc<dyn BulkStorageService>;
 
     // Setup Websocket service
     let websockets = Arc::new(ComhairleWebSocketService::new());
@@ -122,7 +117,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         bot_service,
         wiki_poll_service,
         worker_service,
-        bulk_storage_service: Arc::new(bulk_storage_service),
+        bulk_storage_service,
     });
 
     // Register WebSocket message handlers
@@ -142,36 +137,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .unwrap();
     };
 
-    let mut monitor = Monitor::new();
+    let worker_future = init_monitor(storage, &state);
 
-    if let Some(storage) = storage {
-        let process_documents_worker = WorkerBuilder::new("process_document_worker")
-            .data(state.clone())
-            .data(())
-            .enable_tracing()
-            .backend(storage.documents.clone())
-            .build_fn(process_document_handler);
-
-        let transcription_worker_steps = StepBuilder::new()
-            .step_fn(transcribe_recording)
-            .step_fn(generate_report_from_sensemaking)
-            .step_fn(upload_report);
-
-        let process_transcriptions_worker = WorkerBuilder::new("process_transcriptions_worker")
-            .data(state.clone())
-            .data(())
-            .enable_tracing()
-            .backend(storage.transcriptions.clone())
-            .build_stepped(transcription_worker_steps);
-
-        monitor = monitor
-            .register(process_documents_worker)
-            .register(process_transcriptions_worker);
+    if let Some(worker_future) = worker_future {
+        let _ = tokio::join!(server_future, worker_future);
+    } else {
+        server_future.await;
     }
-
-    let worker_future = monitor.run();
-
-    let _ = tokio::join!(server_future, worker_future);
 
     Ok(())
 }
