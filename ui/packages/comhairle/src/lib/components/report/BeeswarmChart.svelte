@@ -3,6 +3,7 @@
 	import type { ReportComment } from '$lib/types/report';
 
 	import BeeswarmDots from './beeswarm/BeeswarmDots.svelte';
+	import { LucideMoveLeft, LucideMoveRight } from 'lucide-svelte';
 
 	interface Props {
 		comments: ReportComment[];
@@ -52,8 +53,10 @@
 </div>
 
 <div class="border-muted-foreground/40 mx-4 border-t">
-	<div class="text-muted-foreground flex justify-between pt-2 text-xs">
+	<div class="text-muted-foreground flex items-center justify-center gap-8 pt-2 text-xs">
 		<span>consensus statement</span>
+		<LucideMoveLeft />
+		<LucideMoveRight />
 		<span>divisive statement</span>
 	</div>
 </div>
