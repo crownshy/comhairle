@@ -129,7 +129,7 @@
 					This report reflects what you as residents are actually saying. We are sharing
 					your words back to you to provide an honest and transparent update on what we’re
 					hearing. The council can't commit to making all of your thoughts and ideas
-					happen. Where we can’t, we will do our best to explain why.
+					happen. Where we can’t, we will explain why.
 				</p>
 			</div>
 
