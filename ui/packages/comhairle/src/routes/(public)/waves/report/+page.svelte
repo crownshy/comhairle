@@ -11,13 +11,15 @@
 		getEngagementStats,
 		getConsensusStatements,
 		getDivisiveStatements,
-		getSignificantComments
+		getSignificantComments,
+		getAgreementStatements
 	} from '$lib/utils/report';
 
 	let { data }: PageProps = $props();
 
 	const stats = $derived(getEngagementStats(data.reportData));
 	const consensusStatements = $derived(getConsensusStatements(data.reportData, 5));
+	const agreementStatements = $derived(getAgreementStatements(data.reportData, 5));
 	const divisiveStatements = $derived(getDivisiveStatements(data.reportData, 5));
 	const significantComments = $derived(getSignificantComments(data.reportData));
 	const totalParticipants = $derived(stats.totalParticipants);
@@ -96,34 +98,55 @@
 		<h1
 			class="text-foreground max-w-4xl text-2xl leading-8 font-bold md:text-5xl md:leading-[52px]"
 		>
-			South Staffordshire Local Plan Public Engagement
+			Conversation update: Shaping South Staffordshire
 		</h1>
-		<p class="max-w-4xl">After 1 week of engagement (Draft report created on 14th April '26)</p>
+		<p class="max-w-4xl">
+			<span class="font-bold">What we're hearing so far</span>
+			<br />
+			<span class="italic">Created on 20th April 2026</span>
+		</p>
+		<p class="max-w-4xl italic">This stage closes at midnight 4th May</p>
 
 		<!-- Executive Summary -->
 		<div class="mt-6 flex w-full max-w-4xl flex-col gap-4 text-left md:mt-10 md:gap-6">
 			<h2
 				class="text-card-foreground text-2xl leading-8 font-semibold md:text-4xl md:leading-[48px]"
 			>
-				Executive Summary
+				What we're hearing so far
 			</h2>
 
 			<div class="">
 				<p class="text-card-foreground text-lg leading-6">
-					This Interim report (at the half way stage before it closes on 5th May) shares
-					what people in South Staffordshire want for their area by 2045. So far, based on
-					thousands of votes from hundreds of residents, we can see what is emerging in
-					terms of agreement and where opinions differ.
+					This update shares what people in South Staffordshire want for their area by
+					2045. We created this update mid-way through the <strong>first stage</strong> of the
+					public engagement. We are listening to your views to help shape the district’s future
+					Local Plan.
+				</p>
+			</div>
+
+			<div class="">
+				<p class="text-card-foreground text-lg leading-6 font-bold">
+					This report reflects what you as residents are actually saying. We are sharing
+					your words back to you to provide an honest and transparent update on what we’re
+					hearing. The council can't commit to making all of your thoughts and ideas
+					happen. Where we can’t, we will do our best to explain why.
+				</p>
+			</div>
+
+			<div class="">
+				<p class="text-card-foreground text-lg leading-6">
+					So far, based on over 21,000 votes from 420 participants, we can see what the
+					community agrees on and where opinions differ.
 				</p>
 			</div>
 
 			<div class="pt-2">
 				<p class="text-card-foreground text-lg leading-6">
-					<strong>What everyone agrees on:</strong> From the residents who have taken part so
-					far, they want to protect the countryside and the unique character of our villages.
-					There is strong support for building new homes on old industrial sites (brownfield)
-					first, rather than on greenbelt land. Everyone also agrees that new housing must come
-					with better roads, schools, and green spaces.
+					<strong>Areas of agreement:</strong>
+					Almost all participants want to protect the countryside and the unique character of
+					our villages. There is strong support for building new homes on old industrial sites
+					(brownfield) first, rather than on greenbelt land. Most agree that new housing must
+					come with better roads, schools, and green spaces.
 				</p>
 			</div>
 
@@ -160,32 +183,14 @@
 
 			<div class="pt-2">
 				<p class="text-card-foreground text-lg leading-6">
-					Participants (anyone who lives in, works in or visits the district) can
-					participate online <a
+					Anyone who lives in, works in or visits South Staffordshire can vote on what
+					other people are saying and share their own thoughts. Click <a
 						href="https://waves.comhairle.scot/conversations/shaping-south-staffordshire/invite/0e6fbb72-49c5-42b1-bcf1-79f56d58fc62"
 						class="text-primary hover:underline"
 						rel="noopener noreferrer"
 						target="_blank">here</a
-					>.
+					> to join the conversation.
 				</p>
-				<ol
-					class="mt-4 flex list-inside list-decimal flex-col gap-3 pl-1 text-lg leading-6"
-				>
-					<li>They can learn about the topic.</li>
-					<li>
-						Then take part in an interactive discussion which asked the question
-						"Imagine your ideal South Staffordshire in 2045. What do you hope to see in
-						the future?" Participants voted on others' statements and submitted their
-						own views for others to vote on. This report shares the results so far from
-						that discussion.
-					</li>
-					<li>
-						Participants also have the option to register for a prize draw of £1000 and
-						register interest to be part of a citizens panel on the local plan. By
-						filling in a survey they shared demographic information that informs the
-						"Who is participating?" section of this report.
-					</li>
-				</ol>
 			</div>
 		</div>
 	</header>
@@ -205,55 +210,13 @@
 		-->
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8 lg:grid-cols-3">
 			<!-- Row 1 -->
-			{@render statCard('Participants have taken part', '357')}
-			{@render statCard('Votes cast', '79,315')}
-			{@render statCard('Statements submitted', '611')}
+			{@render statCard('Participants have taken part', '425')}
+			{@render statCard('Votes cast', '22,036')}
+			{@render statCard('Statements submitted', '318')}
 
 			<!-- Row 2 -->
-			{@render statCard('Votes per participants on average', '52.74')}
+			{@render statCard('Votes per participants on average', '51.85')}
 			{@render statCard('Opinion groups were identified', '2')}
-		</div>
-	</ReportSection>
-
-	<div class="mt-10"></div>
-
-	<!-- Who is participating? -->
-	<ReportSection
-		id="who-participating"
-		title="Who is participating?"
-		bind:open={whoParticipatingOpen}
-	>
-		<div class="text-card-foreground text-lg leading-6">
-			<span class="italic">
-				So far demographic information was voluntarily provided by
-				<!-- TODO: use this once we get the correct number {stats.totalParticipants.toLocaleString()} -->
-				<span class="font-bold">178 of 357 participants.</span>
-				This represents half of the total consultation participants and so the following figures
-				should be treated as a rough indication.
-			</span>
-			<br /><br />
-			<strong>Age:</strong> The participant base skews significantly older, with
-			<strong>78% aged 51+</strong> (46% are 65+, 32% are 51-64). Only 7% are under 35 years
-			old.
-			<br /><br />
-			<strong>Location:</strong> The vast majority (87%) live within the South Staffordshire
-			Council area, with strong representation from Codsall (16%), Wombourne (14%), Brewood &
-			Coven (8%), and Penkridge (8%).
-			<br /><br />
-			<strong>Housing:</strong> Most participants are
-			<strong>homeowners (87% combined)</strong>, with 70% owning outright and 17% with a
-			mortgage. Only 11% rent (7% social housing, 4% private).
-			<br /><br />
-			<strong>Ethnicity:</strong> The sample is predominantly
-			<strong>White British (92%),</strong> with smaller representation from Asian (2%), White
-			Other (2%), and other ethnic groups (3%).
-			<br /><br />
-			<strong>Gender:</strong> Slightly more men (57%) than women (41%), with 2% preferring
-			not to say.
-			<br /><br />
-			<strong>Civic Engagement:</strong> Participants are relatively engaged citizens — 88% have
-			voted, 70% have signed petitions, 57% have contacted officials, and 39% have previously engaged
-			in council consultations.
 		</div>
 	</ReportSection>
 
@@ -269,46 +232,37 @@
 			<p class="mt-4">There is strong overall support for:</p>
 			<ul class="mt-4 flex list-disc flex-col gap-2 pl-6">
 				<li>
-					Rural character protection: South Staffordshire's rural character is exactly
-					what makes it desirable, and it must be protected.
+					<strong>Rural character protection:</strong> South Staffordshire's rural character
+					is exactly what makes it desirable, and it must be protected.
 				</li>
 				<li>
-					Brownfield first: New housing developments should be built on brownfield sites
-					first. Green belt sites should be a last resort, with local consent after full
+					<strong>Brownfield first:</strong> New housing developments should be built on brownfield
+					sites first. Green belt sites should be a last resort, with local consent after full
 					consultation.
 				</li>
 				<li>
-					Infrastructure requirements: New developments should only be allowed with
+					<strong>Infrastructure first:</strong> New developments should only be allowed with
 					suitable infrastructure including schools, shops, public transport, and parking.
 				</li>
 				<li>
-					Community input: The views and feedback from a community nearby any development
-					should be seen to be taken into account.
+					<strong>Listening to locals:</strong> The views of the community nearby any development
+					must be taken into account.
 				</li>
 				<li>
-					Green spaces: A key priority is making sure everyone in the community has access
-					to nature and green spaces.
+					<strong>Green spaces:</strong> Everyone should have access to nature and green spaces.
 				</li>
 				<li>
-					Flood zone protection: New developments should not be built on flood zones.
-					Planning permission should only be given with this enhanced in law.
-				</li>
-				<li>
-					Road conditions: The state of the roads needs to be addressed. Potholes are
-					causing accidents and damage.
+					<strong>Safety:</strong> New homes should not be built on flood zones, and our roads
+					need fixing to stop potholes and accidents.
 				</li>
 			</ul>
-			<p class="mt-4">
-				These areas represent shared priorities across much of the conversation, even where
-				participants differ on more contentious issues
-			</p>
 		</div>
 
 		<div class="text-card-foreground mt-6 text-lg leading-6 font-bold">
 			Examples of statements of where there is agreement
 		</div>
 
-		{@render numberedStatements(consensusStatements)}
+		{@render numberedStatements(agreementStatements)}
 	</ReportSection>
 
 	<div class="mt-10"></div>
@@ -317,55 +271,33 @@
 	<ReportSection id="differences" title="Where there are differences" bind:open={differencesOpen}>
 		<div class="text-card-foreground text-lg leading-6">
 			<p>
-				The Interactive discussion element (called Pol.is) on Comhairle looks at patterns in
-				how people vote on statements and groups similar responses together. This is done
-				anonymously, no one is identified.
+				The platform groups people anonymously based on how they voted. This helps us see
+				the range of opinions. So far, after 2 weeks of participation the platform has
+				identified 2 distinctive opinion clusters.
 			</p>
 			<p class="mt-4">
-				This helps make sense of a large conversation, so we can see the range of opinions
-				and find areas of agreement.
-			</p>
-			<p class="mt-4">
-				So far, after 2 of the 4 weeks of this engagement the platform has identified {data
-					.reportData.groups.length} distinctive opinion clusters.
-			</p>
-			<p class="mt-4">
-				The main differences emerge around the pace and location of development, green belt
-				protection, and the relationship between housing growth and infrastructure.
+				The main difference we’re seeing are about <strong>how fast</strong> we build,
+				<strong>where</strong>
+				we build, and <strong>how much</strong> we protect the greenbelt.
 			</p>
 			<ul class="mt-4 list-disc space-y-3 pl-6">
 				<li>
-					<strong>Green belt designation:</strong>
-					Group A expresses strong concern about any re-designation of green belt becoming "grey
-					belt," while Group B is more open to reassessing green belt in the context of the
-					housing crisis.
+					<strong>Green belt:</strong>
+					One group is concerned about any change to greenbelt land ("grey belt"), while the
+					other is more open to reviewing it if it helps ease the housing crisis.
 				</li>
 				<li>
-					<strong>Location of development:</strong>
-					Group A strongly supports keeping new developments around large towns and leaving
-					villages as villages. Group B is more divided on this question, with some supporting
-					development if linked to specific improvements.
+					<strong>Location:</strong>
+					One group wants to keep villages as villages and build only around large towns. The
+					other is more flexible if it brings improvements to infrastructure.
 				</li>
 				<li>
-					<strong>No new housing stance:</strong>
-					Group A shows stronger support for moratoriums on new housing until infrastructure
-					improves. Group B is more willing to accept development alongside improvements.
-				</li>
-				<li>
-					<strong>Scale and distribution:</strong>
-					There is division between those favouring smaller, sensitive developments on brownfield
-					land only, and those supporting broader growth with infrastructure investment.
-				</li>
-				<li>
-					<strong>Perception of urgency:</strong>
-					Participants also differ in how urgently they see the housing shortage versus environmental
-					protection, which shapes their support for different measures.
+					<strong>Timing:</strong>
+					One group says "no new homes until roads and schools are fixed." The other says "we
+					can accept new homes, but we have to make sure we get the improvements at the same
+					time."
 				</li>
 			</ul>
-			<p class="mt-4">
-				Overall, the divide is less about whether development is needed, and more about
-				where, how much, and under what conditions change should happen.
-			</p>
 		</div>
 	</ReportSection>
 
@@ -374,7 +306,7 @@
 	<!-- Emerging opinion groups -->
 	<ReportSection
 		id="groups"
-		title="Emerging opinion groups after 2 weeks..."
+		title="Opinion groups as they stand so far (after 2 weeks)"
 		bind:open={groupsOpen}
 	>
 		{#each data.reportData.groups as group (group.group_id)}
@@ -391,13 +323,16 @@
 				{#if group.group_id === 0}
 					"Supportive of growth where it improves local infrastructure"
 				{:else if group.group_id === 1}
-					"Protection-focused and cautious on development"
+					"Protection first"
 				{/if}
 			</div>
 
 			<div class="justify-start self-stretch">
 				{#if group.group_id === 0}
-					<p class="text-card-foreground text-lg leading-6 font-normal">This group:</p>
+					<p class="text-card-foreground text-lg leading-6 font-normal">
+						This group is more willing to accept new development if it brings clear
+						benefits.
+					</p>
 					<ul
 						class="text-card-foreground mt-2 list-disc pl-6 text-lg leading-6 font-normal"
 					>
@@ -413,24 +348,19 @@
 					</ul>
 				{:else if group.group_id === 1}
 					<p class="text-card-foreground text-lg leading-6 font-normal">
-						This group expresses:
+						This group is very cautious about new building.
 					</p>
 					<ul
 						class="text-card-foreground mt-2 list-disc pl-6 text-lg leading-6 font-normal"
 					>
+						<li>They are strongly against changing greenbelt land.</li>
 						<li>
-							Strong concern about green belt erosion and "grey belt" re-designation.
-						</li>
-						<li>
-							Preference for keeping villages as villages, not expanding into the
+							They want to keep villages as villages and stop expansion into the
 							countryside.
 						</li>
 						<li>
-							Support for moratoriums on new housing until infrastructure is improved.
-						</li>
-						<li>
-							Higher concern about traffic, road conditions, and village character
-							loss.
+							They believe we should not build new homes until existing roads and
+							infrastructure are fixed.
 						</li>
 					</ul>
 				{:else}
@@ -443,7 +373,7 @@
 			<div
 				class="text-card-foreground justify-start self-stretch text-lg leading-6 font-bold"
 			>
-				Key Statements this group agrees with:
+				Statements this group agrees with:
 			</div>
 
 			{#each repComments as comment, i (comment.tid)}
@@ -476,7 +406,10 @@
 		id="deep-dive"
 	>
 		<div class="max-w-4xl pt-2 pb-6">
-			<p class="report-body">Hover over or click on a dot to see the statement.</p>
+			<p class="report-body">
+				Hover over or click on a dot to see the statement and the voting it has received so
+				far.
+			</p>
 		</div>
 
 		<div class="overflow-x-auto">

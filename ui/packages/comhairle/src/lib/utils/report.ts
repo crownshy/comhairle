@@ -89,6 +89,12 @@ export function getConsensusStatements(data: PolisReportData, count = 10): Repor
 		.slice(0, count);
 }
 
+export function getAgreementStatements(data: PolisReportData, count = 10): ReportComment[] {
+	return [...data.comments]
+		.sort((a, b) => b.overall_votes.agrees - a.overall_votes.agrees)
+		.slice(0, count);
+}
+
 export function getDivisiveStatements(data: PolisReportData, count = 10): ReportComment[] {
 	const minVotes = 10;
 	return [...data.comments]
