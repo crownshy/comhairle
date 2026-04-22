@@ -232,7 +232,7 @@ async fn get_jwt(
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
-struct ProcessTrascriptionResponse {
+struct ProcessTranscriptionResponse {
     message: String,
     job_ids: Vec<Uuid>,
 }
@@ -241,7 +241,7 @@ struct ProcessTrascriptionResponse {
 async fn process_transcriptions(
     State(state): State<Arc<ComhairleState>>,
     Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<ProcessTrascriptionResponse>), ComhairleError> {
+) -> Result<(StatusCode, Json<ProcessTranscriptionResponse>), ComhairleError> {
     let worker_service = state.required_worker_service()?;
 
     let entries = state
@@ -249,9 +249,19 @@ async fn process_transcriptions(
         .list_keys("comhairle-media", Some(&format!("events/{event_id}/")))
         .await?;
 
+    let is_missing_main_recording = !entries
+        .iter()
+        .any(|entry| entry.contains("recording.wav") && !entry.contains("rooms/"));
+
+    if is_missing_main_recording {
+        return Err(ComhairleError::ResourceNotFound(format!(
+            "recording.wav for event {event_id}"
+        )));
+    }
+
     let br_room_entries: Vec<String> = entries
         .into_iter()
-        .filter(|entry| entry.contains("rooms/"))
+        .filter(|entry| entry.contains("rooms/") && entry.contains("recording.wav"))
         .collect();
 
     let create_core_event_job = CreateJob {
@@ -295,7 +305,7 @@ async fn process_transcriptions(
 
     Ok((
         StatusCode::OK,
-        Json(ProcessTrascriptionResponse {
+        Json(ProcessTranscriptionResponse {
             message: "Transcription processing moved to background jobs".to_string(),
             job_ids,
         }),
@@ -369,7 +379,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Process video call transcription")
                     .description("Triggers transcription processing in a background worker")
                     .security_requirement("JWT")
-                    .response::<200, Json<ProcessTrascriptionResponse>>()
+                    .response::<200, Json<ProcessTranscriptionResponse>>()
 
         }))
         .with_state(state)
@@ -796,7 +806,7 @@ mod tests {
                 Body::empty(),
             )
             .await?;
-        let response: ProcessTrascriptionResponse = serde_json::from_value(value)?;
+        let response: ProcessTranscriptionResponse = serde_json::from_value(value)?;
 
         assert_eq!(
             response.job_ids.len(),
@@ -858,7 +868,7 @@ mod tests {
                 Body::empty(),
             )
             .await?;
-        let response: ProcessTrascriptionResponse = serde_json::from_value(value)?;
+        let response: ProcessTranscriptionResponse = serde_json::from_value(value)?;
 
         assert_eq!(
             response.job_ids.len(),
