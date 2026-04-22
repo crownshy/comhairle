@@ -818,6 +818,50 @@ mod tests {
     }
 
     #[sqlx::test]
+    async fn should_return_err_if_recording_missing(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let mut storage_service = MockBulkStorageService::new();
+
+        storage_service
+            .expect_list_keys()
+            .once()
+            .returning(|_, _| Box::pin(async move { Ok(vec!["not-a-recording.pdf".to_string()]) }));
+
+        let state = test_state()
+            .db(pool)
+            .bulk_storage_service(Arc::new(storage_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        let (_, response, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(response)?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/transcriptions",
+                    conversation_id, event.id
+                ),
+                Body::empty(),
+            )
+            .await?;
+
+        assert_eq!(
+            value.get("err").and_then(|v| v.as_str()).unwrap(),
+            &format!("recording.wav for event {} not found", event.id),
+            "incorrect error message"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
     async fn should_start_transcription_pipelines_for_event_with_breakout_rooms(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -834,7 +878,9 @@ mod tests {
             Box::pin(async move {
                 Ok(vec![
                     "recording.wav".to_string(),
+                    ".secret-file.temp".to_string(),
                     "rooms/1234/recording.wav".to_string(),
+                    "rooms/1234/.secret-file.temp".to_string(),
                     "rooms/4321/recording.wav".to_string(),
                     "rooms/5678/recording.wav".to_string(),
                     "rooms/8765/recording.wav".to_string(),
