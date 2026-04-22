@@ -1207,11 +1207,11 @@ export const JwtResponse = z
   .object({ isModerator: z.boolean(), jwt: z.string() })
   .passthrough();
 export type JwtResponse = z.infer<typeof JwtResponse>;
-export const ProcessTrascriptionResponse = z
+export const ProcessTranscriptionResponse = z
   .object({ job_ids: z.array(z.string().uuid()), message: z.string() })
   .passthrough();
-export type ProcessTrascriptionResponse = z.infer<
-  typeof ProcessTrascriptionResponse
+export type ProcessTranscriptionResponse = z.infer<
+  typeof ProcessTranscriptionResponse
 >;
 export const EventAttendanceEtx = z
   .object({
@@ -1545,7 +1545,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EventResponse,
   PartialEvent,
   JwtResponse,
-  ProcessTrascriptionResponse,
+  ProcessTranscriptionResponse,
   EventAttendanceEtx,
   PaginatedResults_for_EventAttendanceEtx,
   CreateEventAttendanceRequest,
@@ -2173,7 +2173,7 @@ curl -X POST \
     alias: "ProcessVideoCallTranscriptions",
     description: `Triggers transcription processing in a background worker`,
     requestFormat: "json",
-    response: ProcessTrascriptionResponse,
+    response: ProcessTranscriptionResponse,
   },
   {
     method: "get",

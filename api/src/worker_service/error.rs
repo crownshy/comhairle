@@ -63,7 +63,8 @@ pub trait RecordWorkerError<T> {
     /// # Errors
     ///
     /// Returns the original error converted into [`WorkerServiceError`] if
-    /// `self` is [`Err`].
+    /// `self` is [`Err`] or [`WorkerService::DbError`] if updating the job
+    /// record itself fails.
     async fn ok_or_record_failure(self, job_id: &Uuid, db: &PgPool) -> Result<T>;
 }
 

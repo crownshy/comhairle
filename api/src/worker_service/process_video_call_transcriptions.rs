@@ -48,11 +48,11 @@ pub async fn transcribe_recording(
     );
 
     let recording_location = format!(
-        "/events/{}{}",
+        "events/{}{}",
         req.event_id,
         req.room_id
             .as_deref()
-            .map_or(String::new(), |id| format!("rooms/{id}"))
+            .map_or(String::new(), |id| format!("/rooms/{id}"))
     );
 
     let _result = transcription_service

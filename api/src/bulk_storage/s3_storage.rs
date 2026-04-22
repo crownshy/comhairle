@@ -165,7 +165,6 @@ impl BulkStorageService for S3StorageService {
             .list_objects_v2()
             .bucket(store)
             .prefix(prefix)
-            .delimiter("/")
             .send()
             .await
             .map_err(|e| BulkStorageError::FailedList(e.to_string()))?;

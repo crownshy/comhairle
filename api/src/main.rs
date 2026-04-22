@@ -1,4 +1,3 @@
-use apalis::prelude::*;
 use aws_config::BehaviorVersion;
 use comhairle::{
     bot_service::{ComhairleBotService, ComhairleRagBotService},
