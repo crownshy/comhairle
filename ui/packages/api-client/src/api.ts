@@ -1176,7 +1176,9 @@ export const PartialEvent = z
   .partial()
   .passthrough();
 export type PartialEvent = z.infer<typeof PartialEvent>;
-export const JwtResponse = z.object({ jwt: z.string(), isModerator: z.boolean() }).passthrough();
+export const JwtResponse = z
+  .object({ isModerator: z.boolean(), jwt: z.string() })
+  .passthrough();
 export type JwtResponse = z.infer<typeof JwtResponse>;
 export const EventAttendanceEtx = z
   .object({
@@ -2126,7 +2128,7 @@ curl -X POST \
     alias: "GetEventJWT",
     description: `Get a auth JWT for an event`,
     requestFormat: "json",
-    response: z.object({ jwt: z.string(), isModerator: z.boolean() }).passthrough(),
+    response: JwtResponse,
   },
   {
     method: "get",

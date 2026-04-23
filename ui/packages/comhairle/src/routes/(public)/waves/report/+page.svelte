@@ -184,12 +184,12 @@
 			<div class="pt-2">
 				<p class="text-card-foreground text-lg leading-6">
 					Anyone who lives in, works in or visits South Staffordshire can vote on what
-					other people are saying and share their own thoughts. Click <a
+					other people are saying and share their own thoughts. <a
 						href="https://waves.comhairle.scot/conversations/shaping-south-staffordshire/invite/0e6fbb72-49c5-42b1-bcf1-79f56d58fc62"
-						class="text-primary hover:underline"
+						class="text-primary font-bold hover:underline"
 						rel="noopener noreferrer"
-						target="_blank">here</a
-					> to join the conversation.
+						target="_blank">Click here to join the conversation.</a
+					>
 				</p>
 			</div>
 		</div>
