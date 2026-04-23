@@ -69,7 +69,8 @@
 					activation_rule: 'manual',
 					step_order: new_step_order,
 					tool_setup,
-					required: true
+					required: true,
+					can_revisit: false
 				},
 				{ params: { conversation_id: conversation.id, workflow_id: workflow.id } }
 			);

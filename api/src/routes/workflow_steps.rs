@@ -392,6 +392,7 @@ mod tests {
                 "description": "A manually retired polis workflow step",
                 "is_offline": false,
                 "required":true,
+                "can_revisit": false,
                 "tool_setup": {
                     "type": "polis",
                     "topic": "topic"
@@ -433,6 +434,7 @@ mod tests {
                 "description": "A manually retired polis workflow step",
                 "is_offline": false,
                 "required":true,
+                "can_revisit": false,
                 "tool_setup": {
                     "type": "polis",
                     "topic": "topic"
@@ -481,6 +483,7 @@ mod tests {
                 "description": "A manually retired polis workflow step",
                 "is_offline": false,
                 "required":true,
+                "can_revisit": false,
                 "tool_setup": polis_tool_config()})
                 .to_string()
                 .into(),
@@ -498,6 +501,7 @@ mod tests {
                     "description": "A manually retired learnworkflow step",
                     "required":true,
                     "is_offline": false,
+                    "can_revisit": false,
                     "tool_setup": learn_tool_config()
                 })
                 .to_string()
@@ -561,6 +565,7 @@ mod tests {
                 "description": "A manually retired polis workflow step",
                 "required":true,
                 "is_offline": false,
+                "can_revisit": false,
                 "tool_setup": polis_tool_config()})
                 .to_string()
                 .into(),
@@ -578,6 +583,7 @@ mod tests {
                 "required":true,
                 "description": "A manually retired learnworkflow step",
                 "is_offline": false,
+                "can_revisit": false,
                 "tool_setup": learn_tool_config()})
                 .to_string()
                 .into(),
@@ -683,6 +689,7 @@ mod tests {
                     "description": "A manually retired polis workflow step",
                     "required":true,
                     "is_offline": false,
+                    "can_revisit": false,
                     "tool_setup": learn_tool_config()})
                     .to_string()
                     .into(),
@@ -768,6 +775,7 @@ mod tests {
                     "required":true,
                     "description": "A manually retired polis workflow step",
                     "is_offline": false,
+                    "can_revisit": false,
                     "tool_setup": learn_tool_config()})
                     .to_string()
                     .into(),
@@ -829,6 +837,7 @@ mod tests {
                 "required":true,
                 "description": "A manually retired polis workflow step",
                 "is_offline": false,
+                "can_revisit": false,
                 "tool_setup": learn_tool_config()})
                 .to_string()
                 .into(),
@@ -846,6 +855,7 @@ mod tests {
                 "description": "A manually retired learnworkflow step",
                 "is_offline": false,
                 "required":true,
+                "can_revisit": false,
                 "tool_setup": learn_tool_config()})
                 .to_string()
                 .into(),
@@ -920,6 +930,7 @@ mod tests {
                     "description": "A manually retired polis workflow step",
                     "required":true,
                     "is_offline": false,
+                    "can_revisit": false,
                     "tool_setup": learn_tool_config()})
                     .to_string()
                     .into(),
