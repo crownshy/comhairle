@@ -1,6 +1,7 @@
 use config::{Config, Environment, File};
 use serde::Deserialize;
 
+use crate::categorization_service::config::CategorizationConfig;
 pub use crate::{
     error::ComhairleError, transcription_service::config::TranscriptionServiceConfig,
     translation_service::config::TranslatorConfig, worker_service::config::WorkerConfig,
@@ -72,4 +73,5 @@ pub struct ComhairleConfig {
     pub video_call_service: Option<VideoCallConfig>,
     pub transcription_service: Option<TranscriptionServiceConfig>,
     pub worker_service: Option<WorkerConfig>,
+    pub categorization_service: Option<CategorizationConfig>,
 }
