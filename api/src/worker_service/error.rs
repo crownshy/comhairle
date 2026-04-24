@@ -13,11 +13,17 @@ pub enum WorkerServiceError {
     #[error("No bot service configured")]
     NoBotServiceConfigured,
 
+    #[error("Serde json error: {0}")]
+    SerdeJsonError(#[from] serde_json::Error),
+
     #[error("DbError: {0}")]
     DbError(String),
 
     #[error("Transcription service error: {0}")]
     TranscriptionServiceError(String),
+
+    #[error("Bulk storage service error: {0}")]
+    BulkStorageServiceError(String),
 
     #[error("Invalid state: {0}")]
     InvalidState(String),

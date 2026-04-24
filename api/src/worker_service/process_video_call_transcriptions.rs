@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::{
     models::job::{self, UpdateJob},
+    transcription_service::amazon_transcriber::AwsTranscription,
     ComhairleState,
 };
 
@@ -21,13 +22,12 @@ pub struct TranscribeRecording {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GenerateReport {
-    pub transcription_id: Uuid,
+    pub transcription_key: String,
     pub job_id: Uuid,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UploadReport {
-    pub transcription_id: Uuid,
     pub job_id: Uuid,
 }
 
@@ -67,25 +67,31 @@ pub async fn transcribe_recording(
         .await?;
 
     Ok::<_, _>(GoTo::Next(GenerateReport {
-        transcription_id: req.event_id,
+        transcription_key: format!("{recording_location}/transcript.json"),
         job_id: req.job_id,
     }))
 }
 
-pub async fn generate_report_from_sensemaking(
+pub async fn generate_sensemaking_report(
     req: GenerateReport,
-    _state: Data<Arc<ComhairleState>>,
+    state: Data<Arc<ComhairleState>>,
 ) -> Result<GoTo<UploadReport>> {
     info!(
-        transcription_id = %req.transcription_id,
+        transcription_id = %req.transcription_key,
         job_id = %req.job_id,
         "Run audio transcription through sense making service and generate report"
     );
 
-    Ok::<_, _>(GoTo::Next(UploadReport {
-        transcription_id: req.transcription_id,
-        job_id: req.job_id,
-    }))
+    let bytes = state
+        .bulk_storage_service
+        .get_file(&req.transcription_key)
+        .await
+        .map_err(|e| WorkerServiceError::BulkStorageServiceError(e.to_string()))?;
+
+    // TODO: reformat in transcribe call into comhairle format so that aws types aren't used here
+    let transcription: AwsTranscription = serde_json::from_slice(&bytes)?;
+
+    Ok::<_, _>(GoTo::Next(UploadReport { job_id: req.job_id }))
 }
 
 pub async fn upload_report(
@@ -93,7 +99,6 @@ pub async fn upload_report(
     state: Data<Arc<ComhairleState>>,
 ) -> Result<GoTo<&'static str>> {
     info!(
-        transcription_id = %req.transcription_id,
         job_id = %req.job_id,
         "Upload report via bulk storage service"
     );
@@ -114,4 +119,54 @@ pub async fn upload_report(
     Ok::<_, _>(GoTo::Done(
         "Transcription sensemaking pipeline completed successfully",
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use aws_config::BehaviorVersion;
+    use sqlx::PgPool;
+
+    use crate::{
+        bulk_storage::{s3_storage::S3StorageService, BulkStorageService},
+        test_helpers::{test_config, test_state},
+    };
+
+    use super::*;
+
+    use std::error::Error;
+
+    async fn worker_state(
+        pool: PgPool,
+    ) -> std::result::Result<Data<Arc<ComhairleState>>, Box<dyn Error>> {
+        let _config = test_config().unwrap();
+        let s3_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+        let bulk_storage_service = Arc::new(S3StorageService::new(
+            &s3_config,
+            "comhairle-media".to_owned(),
+        )) as Arc<dyn BulkStorageService>;
+        let state = test_state()
+            .db(pool)
+            .bulk_storage_service(bulk_storage_service)
+            .call()?;
+
+        Ok(Data::new(Arc::new(state)))
+    }
+
+    #[sqlx::test]
+    #[ignore]
+    async fn should_generate_sense_making_report_from_transcript(
+        pool: PgPool,
+    ) -> std::result::Result<(), Box<dyn Error>> {
+        let state = worker_state(pool).await?;
+
+        let request = GenerateReport {
+            transcription_key: "events/3c22d53d-07df-4d46-802e-486b79dd1a80/raw-transcript-3.json"
+                .to_string(),
+            job_id: Uuid::new_v4(),
+        };
+
+        let result = generate_sensemaking_report(request, state).await?;
+
+        Ok(())
+    }
 }

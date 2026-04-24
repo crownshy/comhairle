@@ -17,7 +17,7 @@ use crate::{
     worker_service::{
         process_documents::{process_document_handler, DocumentJob},
         process_video_call_transcriptions::{
-            generate_report_from_sensemaking, transcribe_recording, upload_report,
+            generate_sensemaking_report, transcribe_recording, upload_report,
             TranscribeRecording,
         },
     },
@@ -128,7 +128,7 @@ pub fn init_monitor(
 
         let transcription_worker_steps = StepBuilder::new()
             .step_fn(transcribe_recording)
-            .step_fn(generate_report_from_sensemaking)
+            .step_fn(generate_sensemaking_report)
             .step_fn(upload_report);
 
         let process_transcriptions_worker = WorkerBuilder::new("process_transcriptions_worker")

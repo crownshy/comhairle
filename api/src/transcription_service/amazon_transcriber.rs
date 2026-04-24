@@ -15,6 +15,7 @@ use aws_sdk_transcribestreaming::types::{AudioEvent, AudioStream, MediaEncoding}
 use aws_smithy_http::event_stream::EventStreamSender;
 use bytes::Bytes;
 use chrono::Utc;
+use serde::Deserialize;
 use std::process::Stdio;
 use std::sync::Arc;
 use tokio::fs::File;
@@ -634,6 +635,37 @@ impl AmazonTranscriber {
         Self {
             transcribe_client,
             streaming_client,
+        }
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AwsTranscription {
+    pub results: AwsTranscriptionResults,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AwsTranscriptionResults {
+    pub audio_segments: Vec<AwsTranscriptionAudioSegment>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AwsTranscriptionAudioSegment {
+    pub id: i32,
+    pub transcript: String,
+    pub start_time: String,
+    pub end_time: String,
+    pub speaker_label: Option<String>,
+}
+
+impl From<AwsTranscriptionAudioSegment> for TranscriptEvent {
+    fn from(e: AwsTranscriptionAudioSegment) -> Self {
+        Self {
+            text: e.transcript,
+            start_time: e.start_time.parse::<f64>().unwrap_or(0.0),
+            end_time: e.end_time.parse::<f64>().unwrap_or(0.0),
+            speaker_id: e.speaker_label,
+            is_pending: false,
         }
     }
 }

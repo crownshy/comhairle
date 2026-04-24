@@ -70,8 +70,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Setup Bulk Storage Service
     //
     let s3_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
-    let bulk_storage_service = Arc::new(S3StorageService::new(&s3_config, "comhairle".to_owned()))
-        as Arc<dyn BulkStorageService>;
+    let bulk_storage_service = Arc::new(S3StorageService::new(
+        &s3_config,
+        "comhairle-media".to_owned(),
+    )) as Arc<dyn BulkStorageService>;
 
     // Setup Websocket service
     let websockets = Arc::new(ComhairleWebSocketService::new());
