@@ -67,6 +67,9 @@ pub enum ComhairleError {
     #[error("No worker service configured")]
     NoWorkerServiceConfigured,
 
+    #[error("No categorization service configured")]
+    NoCategorizationServiceConfigured,
+
     #[error("HeyForm error: {0}")]
     HeyFormError(#[from] HeyFormError),
 

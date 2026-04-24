@@ -2,6 +2,7 @@ use aws_config::BehaviorVersion;
 use comhairle::{
     bot_service::{ComhairleBotService, ComhairleRagBotService},
     bulk_storage::{s3_storage::S3StorageService, BulkStorageService},
+    categorization_service::{tttc_categorizer::TttcCategorizer, CategorizationService},
     config::{TranscriptionServiceConfig, TranslatorConfig},
     db::setup_db,
     mailer::Mailer,
@@ -10,7 +11,7 @@ use comhairle::{
     translation_service::GoogleTranslateService,
     websockets::ComhairleWebSocketService,
     wiki_poll_service::polis_service::PolisClient,
-    worker_service::{ init_monitor, init_worker_service},
+    worker_service::{init_monitor, init_worker_service},
     ComhairleState,
 };
 use std::{error::Error, sync::Arc};
@@ -69,8 +70,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Setup Bulk Storage Service
     //
     let s3_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
-    let bulk_storage_service = Arc::new(S3StorageService::new(&s3_config, "comhairle".to_owned()))
-        as Arc<dyn BulkStorageService>;
+    let bulk_storage_service = Arc::new(S3StorageService::new(
+        &s3_config,
+        "comhairle-media".to_owned(),
+    )) as Arc<dyn BulkStorageService>;
 
     // Setup Websocket service
     let websockets = Arc::new(ComhairleWebSocketService::new());
@@ -106,6 +109,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         _ => (None, None),
     };
 
+    let categorization_service = match &config.categorization_service {
+        Some(config) => Some(
+            Arc::new(TttcCategorizer::new(&config.server_url, &config.api_key))
+                as Arc<dyn CategorizationService>,
+        ),
+        None => None,
+    };
+
     let state = Arc::new(ComhairleState {
         db,
         mailer,
@@ -117,6 +128,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         wiki_poll_service,
         worker_service,
         bulk_storage_service,
+        categorization_service,
     });
 
     // Register WebSocket message handlers

@@ -23,6 +23,7 @@ use tower::ServiceExt;
 use crate::{
     bot_service::{ComhairleBotService, MockComhairleBotService},
     bulk_storage::{BulkStorageService, MockBulkStorageService},
+    categorization_service::{CategorizationService, MockCategorizationService},
     config::ComhairleConfig,
     mailer::MockComhairleMailer,
     models::users::UpdateUserRequest,
@@ -81,6 +82,11 @@ pub fn mock_worker_service() -> Arc<dyn WorkerService> {
     Arc::new(worker_service)
 }
 
+pub fn mock_categorization_service() -> Arc<dyn CategorizationService> {
+    let categorization_service = MockCategorizationService::base();
+    Arc::new(categorization_service)
+}
+
 #[builder]
 pub fn test_state(
     db: PgPool,
@@ -93,6 +99,7 @@ pub fn test_state(
     wiki_poll_service: Option<Arc<dyn WikiPollService>>,
     bulk_storage_service: Option<Arc<dyn BulkStorageService>>,
     worker_service: Option<Arc<dyn WorkerService>>,
+    categorization_service: Option<Arc<dyn CategorizationService>>,
 ) -> Result<ComhairleState, Box<dyn Error>> {
     let state = ComhairleState {
         db,
@@ -109,6 +116,9 @@ pub fn test_state(
         wiki_poll_service: wiki_poll_service.unwrap_or_else(|| mock_wiki_poll_service()),
         bulk_storage_service: bulk_storage_service.unwrap_or_else(mock_bulk_storage),
         worker_service: Some(worker_service.unwrap_or_else(|| mock_worker_service())),
+        categorization_service: Some(
+            categorization_service.unwrap_or_else(|| mock_categorization_service()),
+        ),
     };
     Ok(state)
 }
