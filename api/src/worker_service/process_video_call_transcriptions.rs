@@ -142,7 +142,7 @@ mod tests {
         let s3_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
         let bulk_storage_service = Arc::new(S3StorageService::new(
             &s3_config,
-            "comhairle-media".to_owned(),
+            "comhairle-media-test".to_owned(),
         )) as Arc<dyn BulkStorageService>;
         let state = test_state()
             .db(pool)
@@ -160,7 +160,7 @@ mod tests {
         let state = worker_state(pool).await?;
 
         let request = GenerateReport {
-            transcription_key: "events/3c22d53d-07df-4d46-802e-486b79dd1a80/raw-transcript-3.json"
+            transcription_key: "events/3c22d53d-07df-4d46-802e-486b79dd1a80/raw-transcript.json"
                 .to_string(),
             job_id: Uuid::new_v4(),
         };
