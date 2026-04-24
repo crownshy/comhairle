@@ -6,8 +6,9 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::{
+    categorization_service::Comment,
     models::job::{self, UpdateJob},
-    transcription_service::amazon_transcriber::AwsTranscription,
+    transcription_service::Transcription,
     ComhairleState,
 };
 
@@ -28,6 +29,7 @@ pub struct GenerateReport {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UploadReport {
+    pub report_job_id: String,
     pub job_id: Uuid,
 }
 
@@ -76,6 +78,12 @@ pub async fn generate_sensemaking_report(
     req: GenerateReport,
     state: Data<Arc<ComhairleState>>,
 ) -> Result<GoTo<UploadReport>> {
+    let categorization_service = state
+        .required_categorization_service()
+        .map_err(|_| WorkerServiceError::NoCategorizationServiceError)
+        .ok_or_record_failure(&req.job_id, &state.db)
+        .await?;
+
     info!(
         transcription_id = %req.transcription_key,
         job_id = %req.job_id,
@@ -86,12 +94,36 @@ pub async fn generate_sensemaking_report(
         .bulk_storage_service
         .get_file(&req.transcription_key)
         .await
-        .map_err(|e| WorkerServiceError::BulkStorageServiceError(e.to_string()))?;
+        .map_err(|e| WorkerServiceError::BulkStorageServiceError(e.to_string()))
+        .ok_or_record_failure(&req.job_id, &state.db)
+        .await?;
 
-    // TODO: reformat in transcribe call into comhairle format so that aws types aren't used here
-    let transcription: AwsTranscription = serde_json::from_slice(&bytes)?;
+    let transcription: Transcription = serde_json::from_slice(&bytes)?;
 
-    Ok::<_, _>(GoTo::Next(UploadReport { job_id: req.job_id }))
+    let comments: Vec<Comment> = transcription
+        .events
+        .iter()
+        .filter_map(|event| {
+            event.speaker_id.as_ref().map(|speaker| Comment {
+                id: Uuid::new_v4().to_string(), // TODO:
+                comment: event.text.clone(),
+                speaker: speaker.to_owned(),
+            })
+        })
+        .collect();
+
+    let analysis_job = categorization_service
+        // TODO: webhook url
+        .create_analysis_job(comments, Some("https://comhairle.scot/api/".to_string()))
+        .await
+        .map_err(|e| WorkerServiceError::CategorizationServiceError(e.to_string()))
+        .ok_or_record_failure(&req.job_id, &state.db)
+        .await?;
+
+    Ok::<_, _>(GoTo::Next(UploadReport {
+        report_job_id: analysis_job.id,
+        job_id: req.job_id,
+    }))
 }
 
 pub async fn upload_report(
@@ -128,28 +160,66 @@ mod tests {
 
     use crate::{
         bulk_storage::{s3_storage::S3StorageService, BulkStorageService},
+        categorization_service::{tttc_categorizer::TttcCategorizer, CategorizationService},
+        config::TranscriptionServiceConfig,
         test_helpers::{test_config, test_state},
+        transcription_service::amazon_transcriber::AmazonTranscriber,
     };
 
     use super::*;
 
-    use std::error::Error;
+    use std::{error::Error, str::FromStr};
 
     async fn worker_state(
         pool: PgPool,
     ) -> std::result::Result<Data<Arc<ComhairleState>>, Box<dyn Error>> {
-        let _config = test_config().unwrap();
+        let config = test_config().unwrap();
+
         let s3_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
         let bulk_storage_service = Arc::new(S3StorageService::new(
             &s3_config,
             "comhairle-media-test".to_owned(),
         )) as Arc<dyn BulkStorageService>;
+
+        let categorization_service = config.categorization_service.as_ref().map(|config| {
+            Arc::new(TttcCategorizer::new(&config.server_url, &config.api_key))
+                as Arc<dyn CategorizationService>
+        });
+
+        let transcription_service = match &config.transcription_service {
+            Some(TranscriptionServiceConfig::AmazonTranscribe(_)) => {
+                Some(Arc::new(AmazonTranscriber::new().await)
+                    as Arc<dyn crate::transcription_service::Transcriber>)
+            }
+            None => None,
+        };
+
         let state = test_state()
             .db(pool)
             .bulk_storage_service(bulk_storage_service)
+            .categorization_service(categorization_service.unwrap())
+            .transcription_service(transcription_service.unwrap())
             .call()?;
 
         Ok(Data::new(Arc::new(state)))
+    }
+
+    #[sqlx::test]
+    #[ignore]
+    async fn should_transcribe_audio_recording(
+        pool: PgPool,
+    ) -> std::result::Result<(), Box<dyn Error>> {
+        let state = worker_state(pool).await?;
+
+        let request = TranscribeRecording {
+            event_id: Uuid::from_str("3c22d53d-07df-4d46-802e-486b79dd1a80").unwrap(),
+            room_id: None,
+            job_id: Uuid::new_v4(),
+        };
+
+        let _result = transcribe_recording(request, state).await?;
+
+        Ok(())
     }
 
     #[sqlx::test]
@@ -160,12 +230,12 @@ mod tests {
         let state = worker_state(pool).await?;
 
         let request = GenerateReport {
-            transcription_key: "events/3c22d53d-07df-4d46-802e-486b79dd1a80/raw-transcript.json"
+            transcription_key: "events/3c22d53d-07df-4d46-802e-486b79dd1a80/transcript.json"
                 .to_string(),
             job_id: Uuid::new_v4(),
         };
 
-        let result = generate_sensemaking_report(request, state).await?;
+        let _result = generate_sensemaking_report(request, state).await?;
 
         Ok(())
     }

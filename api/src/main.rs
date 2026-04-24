@@ -109,13 +109,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         _ => (None, None),
     };
 
-    let categorization_service = match &config.categorization_service {
-        Some(config) => Some(
-            Arc::new(TttcCategorizer::new(&config.server_url, &config.api_key))
-                as Arc<dyn CategorizationService>,
-        ),
-        None => None,
-    };
+    let categorization_service = config.categorization_service.as_ref().map(|config| {
+        Arc::new(TttcCategorizer::new(&config.server_url, &config.api_key))
+            as Arc<dyn CategorizationService>
+    });
 
     let state = Arc::new(ComhairleState {
         db,

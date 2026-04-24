@@ -397,7 +397,7 @@ fn consolidated_transcription(raw_transcription: &Transcription) -> Transcriptio
 }
 
 /// Fetch transcription from bulk storage and convert to [`Transcription`] type.
-/// 
+///
 /// Allows transcriptions to be re-uploaded to bulk storage in JSON format which
 /// is consistent across service providers. Also allows AWS specific types to
 /// be kept out of other Comhairle application code.

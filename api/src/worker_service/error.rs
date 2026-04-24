@@ -13,6 +13,9 @@ pub enum WorkerServiceError {
     #[error("No bot service configured")]
     NoBotServiceConfigured,
 
+    #[error("No categorization service configured")]
+    NoCategorizationServiceError,
+
     #[error("Serde json error: {0}")]
     SerdeJsonError(#[from] serde_json::Error),
 
@@ -24,6 +27,9 @@ pub enum WorkerServiceError {
 
     #[error("Bulk storage service error: {0}")]
     BulkStorageServiceError(String),
+
+    #[error("Categorization service error: {0}")]
+    CategorizationServiceError(String),
 
     #[error("Invalid state: {0}")]
     InvalidState(String),
