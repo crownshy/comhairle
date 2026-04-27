@@ -342,11 +342,14 @@ struct SubmitReportResponse {
 async fn submit_report(
     State(state): State<Arc<ComhairleState>>,
     Query(params): Query<SubmitReportParams>,
-    Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
+    Path((conversation_id, event_id)): Path<(Uuid, Uuid)>,
     Json(payload): Json<SubmitReportRequest>,
 ) -> Result<(StatusCode, Json<SubmitReportResponse>), ComhairleError> {
-    let _event = get_by_id(&state.db, &event_id).await?;
+    let event = get_by_id(&state.db, &event_id).await?;
 
+    if event.conversation_id != conversation_id {
+        return Err(StatusCode::NOT_FOUND.into());
+    }
     let path = if let Some(room_id) = params.room_id {
         format!("events/{}/rooms/{}/report.json", event_id, room_id)
     } else {
