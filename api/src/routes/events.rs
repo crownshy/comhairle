@@ -244,6 +244,12 @@ async fn process_transcriptions(
     State(state): State<Arc<ComhairleState>>,
     Path((conversation_id, event_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<ProcessTranscriptionResponse>), ComhairleError> {
+    let db_event = event::read(&state.db, event_id).await?;
+    if db_event.conversation_id != conversation_id {
+        return Err(ComhairleError::ResourceNotFound(format!(
+            "event {event_id} for conversation {conversation_id}"
+        )));
+    }
     let worker_service = state.required_worker_service()?;
 
     let entries = state
