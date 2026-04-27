@@ -17,8 +17,7 @@ use crate::{
     worker_service::{
         process_documents::{process_document_handler, DocumentJob},
         process_video_call_transcriptions::{
-            generate_sensemaking_report, transcribe_recording, upload_report,
-            TranscribeRecording,
+            generate_sensemaking_report, transcribe_recording, TranscribeRecording,
         },
     },
     ComhairleState,
@@ -128,8 +127,7 @@ pub fn init_monitor(
 
         let transcription_worker_steps = StepBuilder::new()
             .step_fn(transcribe_recording)
-            .step_fn(generate_sensemaking_report)
-            .step_fn(upload_report);
+            .step_fn(generate_sensemaking_report);
 
         let process_transcriptions_worker = WorkerBuilder::new("process_transcriptions_worker")
             .data(state.clone())

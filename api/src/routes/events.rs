@@ -15,12 +15,12 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
-    bulk_storage::extract_room_id_from_key,
+    bulk_storage::{extract_room_id_from_key, FileMetadata},
     error::ComhairleError,
     models::{
         event::{
-            self, CreateEvent, EventFilterOptions, EventOrderOptions, EventWithTranslations,
-            PartialEvent,
+            self, get_by_id, CreateEvent, EventFilterOptions, EventOrderOptions,
+            EventWithTranslations, PartialEvent,
         },
         event_attendance,
         job::{self, CreateJob},
@@ -242,7 +242,7 @@ struct ProcessTranscriptionResponse {
 #[instrument(err(Debug), skip(state))]
 async fn process_transcriptions(
     State(state): State<Arc<ComhairleState>>,
-    Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
+    Path((conversation_id, event_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<ProcessTranscriptionResponse>), ComhairleError> {
     let worker_service = state.required_worker_service()?;
 
@@ -275,6 +275,7 @@ async fn process_transcriptions(
     worker_service
         .push_transcription_job(TranscribeRecording {
             event_id,
+            conversation_id,
             room_id: None,
             job_id: core_event_job.id,
         })
@@ -295,6 +296,7 @@ async fn process_transcriptions(
             worker_service
                 .push_transcription_job(TranscribeRecording {
                     event_id,
+                    conversation_id,
                     room_id: Some(room_id.to_string()),
                     job_id: job.id,
                 })
@@ -310,6 +312,57 @@ async fn process_transcriptions(
         Json(ProcessTranscriptionResponse {
             message: "Transcription processing moved to background jobs".to_string(),
             job_ids,
+        }),
+    ))
+}
+
+#[derive(Deserialize, JsonSchema, Debug, Default)]
+struct SubmitReportParams {
+    room_id: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema, Debug, Default)]
+struct SubmitReportRequest {
+    result: serde_json::Value,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+struct SubmitReportResponse {
+    url: String,
+    success: bool,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn submit_report(
+    State(state): State<Arc<ComhairleState>>,
+    Query(params): Query<SubmitReportParams>,
+    Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
+    Json(payload): Json<SubmitReportRequest>,
+) -> Result<(StatusCode, Json<SubmitReportResponse>), ComhairleError> {
+    let _event = get_by_id(&state.db, &event_id).await?;
+
+    let path = if let Some(room_id) = params.room_id {
+        format!("events/{}/rooms/{}/report.json", event_id, room_id)
+    } else {
+        format!("events/{}/report.json", event_id)
+    };
+
+    let bytes = serde_json::to_vec(&payload.result)?;
+    let metadata = FileMetadata {
+        is_public: false,
+        content_type: "application/json".to_string(),
+    };
+
+    let result = state
+        .bulk_storage_service
+        .upload_file(&path, bytes, metadata)
+        .await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(SubmitReportResponse {
+            success: true,
+            url: result.url,
         }),
     ))
 }
@@ -384,6 +437,15 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<ProcessTranscriptionResponse>>()
 
         }))
+        .api_route("/{event_id}/report", 
+            post_with(submit_report, |op| {
+                op.id("SubmitEventReport")
+                    .tag("Events")
+                    .summary("Categorization report")
+                    .description("Submit categorization report to bulk storage")
+                    .response::<200, Json<SubmitReportResponse>>()
+
+        }))
         .with_state(state)
 }
 
@@ -395,8 +457,9 @@ mod tests {
     use std::error::Error;
 
     use crate::{
-        bulk_storage::MockBulkStorageService,
+        bulk_storage::{MockBulkStorageService, UploadResult},
         models::model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
+        routes::conversations::dto::ConversationDto,
         setup_server,
         test_helpers::{test_state, UserSession},
         worker_service::MockWorkerService,
@@ -923,6 +986,59 @@ mod tests {
             response.job_ids.len(),
             5,
             "incorrect number of jobs spawned"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_upload_report_to_bulk_storage(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let mut bulk_storage_service = MockBulkStorageService::new();
+
+        bulk_storage_service
+            .expect_upload_file()
+            .once()
+            .returning(|_, _, _| {
+                Box::pin(async move {
+                    Ok(UploadResult {
+                        url: "https://storage.com/some_file".to_owned(),
+                    })
+                })
+            });
+
+        let state = test_state()
+            .db(pool)
+            .bulk_storage_service(Arc::new(bulk_storage_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let (_, value, _) = session.create_random_conversation(&app).await?;
+        let conversation: ConversationDto = serde_json::from_value(value)?;
+        let (_, value, _) = session
+            .create_random_event(&app, &conversation.id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(value)?;
+
+        let body = include_str!("../../../fixtures/tttc-report.json");
+        let (_, value, _) = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/report",
+                    conversation.id, event.id
+                ),
+                body.into(),
+            )
+            .await?;
+        let response: SubmitReportResponse = serde_json::from_value(value)?;
+
+        assert!(response.success, "incorrect success");
+        assert_eq!(
+            response.url,
+            "https://storage.com/some_file".to_string(),
+            "incorrect url"
         );
 
         Ok(())

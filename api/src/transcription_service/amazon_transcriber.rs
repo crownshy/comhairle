@@ -1109,9 +1109,6 @@ mod tests {
             !transcription.events.is_empty(),
             "missing transcription events"
         );
-        println!();
-        println!("    >>>>    Transcription: {transcription:#?}");
-        println!();
 
         Ok(())
     }

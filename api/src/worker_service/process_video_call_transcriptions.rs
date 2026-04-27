@@ -17,6 +17,7 @@ use super::error::{RecordWorkerError, Result, WorkerServiceError};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TranscribeRecording {
     pub event_id: Uuid,
+    pub conversation_id: Uuid,
     pub room_id: Option<String>,
     pub job_id: Uuid,
 }
@@ -24,12 +25,15 @@ pub struct TranscribeRecording {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GenerateReport {
     pub transcription_key: String,
+    pub event_id: Uuid,
+    pub conversation_id: Uuid,
     pub job_id: Uuid,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UploadReport {
     pub report_job_id: String,
+    pub conversation_id: Uuid,
     pub job_id: Uuid,
 }
 
@@ -70,6 +74,8 @@ pub async fn transcribe_recording(
 
     Ok::<_, _>(GoTo::Next(GenerateReport {
         transcription_key: format!("{recording_location}/transcript.json"),
+        event_id: req.event_id,
+        conversation_id: req.conversation_id,
         job_id: req.job_id,
     }))
 }
@@ -77,7 +83,7 @@ pub async fn transcribe_recording(
 pub async fn generate_sensemaking_report(
     req: GenerateReport,
     state: Data<Arc<ComhairleState>>,
-) -> Result<GoTo<UploadReport>> {
+) -> Result<GoTo<&'static str>> {
     let categorization_service = state
         .required_categorization_service()
         .map_err(|_| WorkerServiceError::NoCategorizationServiceError)
@@ -112,28 +118,18 @@ pub async fn generate_sensemaking_report(
         })
         .collect();
 
-    let analysis_job = categorization_service
-        // TODO: webhook url
-        .create_analysis_job(comments, Some("https://comhairle.scot/api/".to_string()))
+    let _analysis_job = categorization_service
+        .create_analysis_job(
+            comments,
+            Some(format!(
+                "{}/api/conversation/{}/events/{}/report",
+                state.config.domain, req.conversation_id, req.event_id
+            )),
+        )
         .await
         .map_err(|e| WorkerServiceError::CategorizationServiceError(e.to_string()))
         .ok_or_record_failure(&req.job_id, &state.db)
         .await?;
-
-    Ok::<_, _>(GoTo::Next(UploadReport {
-        report_job_id: analysis_job.id,
-        job_id: req.job_id,
-    }))
-}
-
-pub async fn upload_report(
-    req: UploadReport,
-    state: Data<Arc<ComhairleState>>,
-) -> Result<GoTo<&'static str>> {
-    info!(
-        job_id = %req.job_id,
-        "Upload report via bulk storage service"
-    );
 
     let update_job = UpdateJob {
         status: Some("completed".to_string()),
@@ -213,6 +209,7 @@ mod tests {
 
         let request = TranscribeRecording {
             event_id: Uuid::from_str("3c22d53d-07df-4d46-802e-486b79dd1a80").unwrap(),
+            conversation_id: Uuid::new_v4(),
             room_id: None,
             job_id: Uuid::new_v4(),
         };
@@ -232,6 +229,8 @@ mod tests {
         let request = GenerateReport {
             transcription_key: "events/3c22d53d-07df-4d46-802e-486b79dd1a80/transcript.json"
                 .to_string(),
+            event_id: Uuid::from_str("3c22d53d-07df-4d46-802e-486b79dd1a80").unwrap(),
+            conversation_id: Uuid::new_v4(),
             job_id: Uuid::new_v4(),
         };
 

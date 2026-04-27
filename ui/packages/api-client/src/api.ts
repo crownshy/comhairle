@@ -1213,6 +1213,14 @@ export const ProcessTranscriptionResponse = z
 export type ProcessTranscriptionResponse = z.infer<
   typeof ProcessTranscriptionResponse
 >;
+export const SubmitReportRequest = z
+  .object({ result: z.unknown() })
+  .passthrough();
+export type SubmitReportRequest = z.infer<typeof SubmitReportRequest>;
+export const SubmitReportResponse = z
+  .object({ success: z.boolean(), url: z.string() })
+  .passthrough();
+export type SubmitReportResponse = z.infer<typeof SubmitReportResponse>;
 export const EventAttendanceEtx = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
@@ -1546,6 +1554,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PartialEvent,
   JwtResponse,
   ProcessTranscriptionResponse,
+  SubmitReportRequest,
+  SubmitReportResponse,
   EventAttendanceEtx,
   PaginatedResults_for_EventAttendanceEtx,
   CreateEventAttendanceRequest,
@@ -2166,6 +2176,26 @@ curl -X POST \
     description: `Get a auth JWT for an event`,
     requestFormat: "json",
     response: JwtResponse,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/report",
+    alias: "SubmitEventReport",
+    description: `Submit categorization report to bulk storage`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ result: z.unknown() }).passthrough(),
+      },
+      {
+        name: "room_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: SubmitReportResponse,
   },
   {
     method: "post",
