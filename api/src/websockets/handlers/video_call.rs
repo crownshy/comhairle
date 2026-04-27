@@ -151,7 +151,7 @@ struct BroadcastMessageData {
 
 /// Data structure for changing the call state.
 #[derive(Serialize, Deserialize, Debug)]
-struct ChangeCallStateData {
+struct ChangeCallStatusData {
     pub event_id: Uuid,
     pub status: VideoCallStatus,
 }
@@ -499,14 +499,14 @@ impl VideoCallMessageHandler {
     /// - User is not authorized (`UnauthorizedStateChange`)
     /// - Failed to acquire lock on the call state
     /// - Broadcasting fails
-    pub async fn change_call_state(
+    pub async fn change_call_status(
         &self,
         _event_id: &Uuid,
         data: &serde_json::Value,
         connection: &WebSocketConnection,
         state: &Arc<ComhairleState>,
     ) -> Result<(), VideoCallWSError> {
-        let state_data: ChangeCallStateData = serde_json::from_value(data.clone())?;
+        let state_data: ChangeCallStatusData = serde_json::from_value(data.clone())?;
 
         let user_id = connection.user.id;
         let new_status = state_data.status;
@@ -706,7 +706,7 @@ impl WebSocketMessageHandler for VideoCallMessageHandler {
                             .await?
                     }
                     "video_call:change_state" => {
-                        self.change_call_state(&event_id, data, connection, state)
+                        self.change_call_status(&event_id, data, connection, state)
                             .await?
                     }
                     "video_call:assign_breakout_rooms" => {
