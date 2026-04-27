@@ -5,7 +5,6 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::{
-    error::ComhairleError,
     models::{notification, notification_delivery},
     websockets::{
         error::WebsocketError, messages::WebSocketMessage, WebSocketConnection,
@@ -15,7 +14,19 @@ use crate::{
 };
 
 #[derive(Error, Debug)]
-pub enum NotificationWSError {}
+pub enum NotificationWSError {
+    #[error("Invalid or missing delivery ID")]
+    InvalidDeliveryId,
+
+    #[error("User not authorized to access this notification")]
+    Unauthorized,
+
+    #[error("Database error: {0}")]
+    DatabaseError(String),
+
+    #[error("Failed to send WebSocket message: {0}")]
+    SendError(String),
+}
 
 /// Handler for notification-related WebSocket messages.
 ///
@@ -129,7 +140,7 @@ impl NotificationMessageHandler {
         title: &str,
         message: &str,
         level: &str,
-    ) -> Result<(), ComhairleError> {
+    ) -> Result<(), NotificationWSError> {
         let ws_message = WebSocketMessage::Custom {
             event: "notification:new".to_string(),
             data: serde_json::json!({
@@ -140,7 +151,11 @@ impl NotificationMessageHandler {
             }),
         };
 
-        let sent_count = state.websockets.send_to_user(user_id, &ws_message).await?;
+        let sent_count = state
+            .websockets
+            .send_to_user(user_id, &ws_message)
+            .await
+            .map_err(|e| NotificationWSError::SendError(e.to_string()))?;
 
         if sent_count > 0 {
             info!(
@@ -212,7 +227,7 @@ impl NotificationMessageHandler {
         notification_type: notification::NotificationType,
         context_type: notification::NotificationContextType,
         context_id: Option<&Uuid>,
-    ) -> Result<notification::Notification, ComhairleError> {
+    ) -> Result<notification::Notification, NotificationWSError> {
         // Create the notification in the database
         let new_notification = notification::CreateNotification {
             title: title.to_string(),
@@ -222,7 +237,9 @@ impl NotificationMessageHandler {
             context_id: context_id.copied(),
         };
 
-        let created_notification = notification::create(&state.db, &new_notification).await?;
+        let created_notification = notification::create(&state.db, &new_notification)
+            .await
+            .map_err(|e| NotificationWSError::DatabaseError(e.to_string()))?;
 
         // Create delivery record
         let delivery = notification_delivery::CreateNotificationDelivery {
@@ -231,7 +248,9 @@ impl NotificationMessageHandler {
             delivery_method: Some(notification_delivery::DeliveryMethod::InApp),
         };
 
-        let _created_delivery = notification_delivery::create(&state.db, &delivery).await?;
+        let _created_delivery = notification_delivery::create(&state.db, &delivery)
+            .await
+            .map_err(|e| NotificationWSError::DatabaseError(e.to_string()))?;
 
         // Send via WebSocket if user is connected
         Self::send_notification_to_user(
@@ -264,19 +283,19 @@ impl WebSocketMessageHandler for NotificationMessageHandler {
             WebSocketMessage::Custom { event, data } if event.starts_with("notification:") => {
                 match event.as_str() {
                     "notification:mark_read" => {
-                        self.handle_mark_read(data, connection, state).await
+                        self.handle_mark_read(data, connection, state).await?
                     }
                     "notification:mark_all_read" => {
-                        self.handle_mark_all_read(connection, state).await
+                        self.handle_mark_all_read(connection, state).await?
                     }
                     "notification:get_unread_count" => {
-                        self.handle_get_unread_count(connection, state).await
+                        self.handle_get_unread_count(connection, state).await?
                     }
                     _ => {
                         info!("Unhandled notification event: {}", event);
-                        Ok(())
                     }
                 }
+                Ok(())
             }
             _ => Ok(()),
         }
@@ -289,24 +308,24 @@ impl NotificationMessageHandler {
         data: &serde_json::Value,
         connection: &WebSocketConnection,
         state: &Arc<ComhairleState>,
-    ) -> Result<(), WebsocketError> {
+    ) -> Result<(), NotificationWSError> {
         let delivery_id = data["delivery_id"]
             .as_str()
             .and_then(|s| Uuid::parse_str(s).ok())
-            .ok_or_else(|| WebsocketError::DatabaseError("Missing or invalid delivery_id".into()))?;
+            .ok_or(NotificationWSError::InvalidDeliveryId)?;
 
         // Verify the delivery belongs to this user
         let delivery = notification_delivery::get_by_id(&state.db, &delivery_id)
             .await
-            .map_err(|e| WebsocketError::DatabaseError(e.to_string()))?;
+            .map_err(|e| NotificationWSError::DatabaseError(e.to_string()))?;
         if delivery.user_id != connection.user.id {
-            return Err(WebsocketError::DatabaseError("User not authorized".into()));
+            return Err(NotificationWSError::Unauthorized);
         }
 
         // Mark as read
         notification_delivery::mark_as_read(&state.db, &delivery_id, chrono::Utc::now())
             .await
-            .map_err(|e| WebsocketError::DatabaseError(e.to_string()))?;
+            .map_err(|e| NotificationWSError::DatabaseError(e.to_string()))?;
 
         // Send confirmation back
         let response = WebSocketMessage::Custom {
@@ -319,7 +338,7 @@ impl NotificationMessageHandler {
         connection
             .send_message(&response)
             .await
-            .map_err(|e| WebsocketError::SendError(e.to_string()))?;
+            .map_err(|e| NotificationWSError::SendError(e.to_string()))?;
 
         // Also send updated unread count
         self.send_unread_count(connection, state).await?;
@@ -336,7 +355,7 @@ impl NotificationMessageHandler {
         &self,
         connection: &WebSocketConnection,
         state: &Arc<ComhairleState>,
-    ) -> Result<(), WebsocketError> {
+    ) -> Result<(), NotificationWSError> {
         // Mark all as read for this user
         let updated_deliveries = notification_delivery::mark_all_as_read_for_user(
             &state.db,
@@ -344,7 +363,7 @@ impl NotificationMessageHandler {
             chrono::Utc::now(),
         )
         .await
-        .map_err(|e| WebsocketError::DatabaseError(e.to_string()))?;
+        .map_err(|e| NotificationWSError::DatabaseError(e.to_string()))?;
 
         // Send confirmation back
         let response = WebSocketMessage::Custom {
@@ -357,7 +376,7 @@ impl NotificationMessageHandler {
         connection
             .send_message(&response)
             .await
-            .map_err(|e| WebsocketError::SendError(e.to_string()))?;
+            .map_err(|e| NotificationWSError::SendError(e.to_string()))?;
 
         // Also send updated unread count (should be 0)
         self.send_unread_count(connection, state).await?;
@@ -375,7 +394,7 @@ impl NotificationMessageHandler {
         &self,
         connection: &WebSocketConnection,
         state: &Arc<ComhairleState>,
-    ) -> Result<(), WebsocketError> {
+    ) -> Result<(), NotificationWSError> {
         self.send_unread_count(connection, state).await
     }
 
@@ -383,11 +402,11 @@ impl NotificationMessageHandler {
         &self,
         connection: &WebSocketConnection,
         state: &Arc<ComhairleState>,
-    ) -> Result<(), WebsocketError> {
+    ) -> Result<(), NotificationWSError> {
         let count =
             notification_delivery::get_unread_count_for_user(&state.db, &connection.user.id)
                 .await
-                .map_err(|e| WebsocketError::DatabaseError(e.to_string()))?;
+                .map_err(|e| NotificationWSError::DatabaseError(e.to_string()))?;
 
         let response = WebSocketMessage::Custom {
             event: "notification:unread_count".to_string(),
@@ -398,7 +417,7 @@ impl NotificationMessageHandler {
         connection
             .send_message(&response)
             .await
-            .map_err(|e| WebsocketError::SendError(e.to_string()))?;
+            .map_err(|e| NotificationWSError::SendError(e.to_string()))?;
 
         Ok(())
     }
