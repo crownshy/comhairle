@@ -1083,8 +1083,31 @@ export const TimeStatus = z.enum(["past", "future"]);
 export type TimeStatus = z.infer<typeof TimeStatus>;
 export const time_status = z.union([TimeStatus, z.null()]).optional();
 export type time_status = z.infer<typeof time_status>;
+export const BasicEventAgendaItem = z
+  .object({
+    description: z.string(),
+    estimated_time: z.number().int().gte(0),
+    title: z.string(),
+  })
+  .passthrough();
+export type BasicEventAgendaItem = z.infer<typeof BasicEventAgendaItem>;
+export const BreakoutRoomAgendaItem = z
+  .object({
+    estimated_time: z.number().int().gte(0),
+    instructions: z.string(),
+    prompt: z.string(),
+    time_limit: z.union([z.number(), z.null()]).optional(),
+  })
+  .passthrough();
+export type BreakoutRoomAgendaItem = z.infer<typeof BreakoutRoomAgendaItem>;
+export const EventAgendaItem = z.union([
+  z.object({ Basic: BasicEventAgendaItem }),
+  z.object({ BreakoutRoom: BreakoutRoomAgendaItem }),
+]);
+export type EventAgendaItem = z.infer<typeof EventAgendaItem>;
 export const LocalizedEventDto = z
   .object({
+    agenda: z.array(EventAgendaItem),
     capacity: z.union([z.number(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
@@ -1107,6 +1130,7 @@ export type PaginatedResults_for_LocalizedEventDto = z.infer<
 >;
 export const CreateEventRequest = z
   .object({
+    agenda: z.union([z.array(EventAgendaItem), z.null()]).optional(),
     capacity: z.union([z.number(), z.null()]).optional(),
     description: z.string(),
     end_time: z.string().datetime({ offset: true }),
@@ -1118,6 +1142,7 @@ export const CreateEventRequest = z
 export type CreateEventRequest = z.infer<typeof CreateEventRequest>;
 export const EventDto = z
   .object({
+    agenda: z.array(EventAgendaItem),
     capacity: z.union([z.number(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
@@ -1144,6 +1169,7 @@ export const EventTranslations = z
 export type EventTranslations = z.infer<typeof EventTranslations>;
 export const EventWithTranslations = z
   .object({
+    agenda: z.array(EventAgendaItem),
     capacity: z.union([z.number(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
@@ -1166,6 +1192,7 @@ export const EventResponse = z.union([
 export type EventResponse = z.infer<typeof EventResponse>;
 export const PartialEvent = z
   .object({
+    agenda: z.union([z.array(EventAgendaItem), z.null()]).default(null),
     capacity: z.union([z.number(), z.null()]),
     description: z.union([z.string(), z.null()]),
     end_time: z.union([z.string(), z.null()]),
@@ -1499,6 +1526,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   capacity_status,
   TimeStatus,
   time_status,
+  BasicEventAgendaItem,
+  BreakoutRoomAgendaItem,
+  EventAgendaItem,
   LocalizedEventDto,
   PaginatedResults_for_LocalizedEventDto,
   CreateEventRequest,
