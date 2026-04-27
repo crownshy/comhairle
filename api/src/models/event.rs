@@ -29,6 +29,7 @@ pub struct BreakoutRoomAgendaItem {
     pub prompt: String,
     pub instructions: String,
     pub estimated_time: u32,
+    pub time_limit: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
