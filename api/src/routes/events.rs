@@ -8,7 +8,7 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -18,8 +18,8 @@ use crate::{
     error::ComhairleError,
     models::{
         event::{
-            self, CreateEvent, EventFilterOptions, EventOrderOptions, EventWithTranslations,
-            PartialEvent,
+            self, get_by_id, CreateEvent, EventFilterOptions, EventOrderOptions,
+            EventWithTranslations, PartialEvent,
         },
         event_attendance,
         pagination::{PageOptions, PaginatedResults},
@@ -228,6 +228,45 @@ async fn get_jwt(
     Ok((StatusCode::OK, Json(JwtResponse { jwt, is_moderator })))
 }
 
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+struct SignupLinkRequest {
+    email: String,
+    username: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+struct SignupLinkResponse {
+    url: String,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn generate_signup_link(
+    State(state): State<Arc<ComhairleState>>,
+    Path((conversation_id, event_id)): Path<(Uuid, Uuid)>,
+    RequiredUser(user): RequiredUser,
+    Json(payload): Json<SignupLinkRequest>,
+) -> Result<(StatusCode, Json<SignupLinkResponse>), ComhairleError> {
+    let event = get_by_id(&state.db, &event_id).await?;
+
+    let now: DateTime<Utc> = Utc::now();
+    let expiry = event.end_time - now + TimeDelta::minutes(15);
+
+    let jwt = generate_jwt()
+        .user(&user)
+        .sub(payload.email.clone())
+        .secret(&state.config.jwt_secret)
+        .custom_claims(payload)
+        .duration(expiry)
+        .call();
+
+    let url = format!(
+        "{}/conversation/{}/events/{}/live?signupToken={}",
+        state.config.domain, conversation_id, event_id, jwt
+    );
+
+    Ok((StatusCode::OK, Json(SignupLinkResponse { url })))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route("/", get_with(list, |op| {
@@ -288,17 +327,32 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<JwtResponse>>()
 
         }))
+        .api_route("/{event_id}/signup_link", 
+            post_with(generate_signup_link, |op| {
+                op.id("GenerateEventSignupLink")
+                    .tag("Events")
+                    .summary("Generate event signup link")
+                    .description("Generate a signup link for a user with a unique jwt for user validation")
+                    .security_requirement("JWT")
+                    .response::<200, Json<SignupLinkResponse>>()
+
+        }))
         .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
+    use chrono::TimeDelta;
     use serde_json::json;
     use sqlx::PgPool;
-    use std::error::Error;
+    use std::{collections::HashMap, error::Error};
+    use url::Url;
 
-    use crate::models::model_test_helpers::{
-        get_random_conversation_id, setup_default_app_and_session,
+    use crate::{
+        models::model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
+        routes::auth::decode_jwt,
+        setup_server,
+        test_helpers::{test_state, UserSession},
     };
 
     use super::*;
@@ -658,6 +712,73 @@ mod tests {
             response.get("err").and_then(|v| v.as_str()).unwrap(),
             "Event not found",
             "incorrect error message"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_create_signup_link_with_jwt(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state.clone())).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        let start_time = Utc::now();
+        let end_time = start_time + TimeDelta::minutes(15);
+
+        let (_, value, _) = session
+            .create_event(
+                &app,
+                &conversation_id.to_string(),
+                json!({
+                "name": "test_event",
+                "description": "test_event",
+                "capacity": 10,
+                "start_time": start_time,
+                "end_time": end_time,
+                "signup_mode": "invite"
+                }),
+            )
+            .await?;
+        let event: EventDto = serde_json::from_value(value)?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/signup_link",
+                    conversation_id, event.id
+                ),
+                json!({
+                    "email": "foo@bar.com",
+                    "username": "foo_bar"
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        let response: SignupLinkResponse = serde_json::from_value(value)?;
+
+        let url = Url::parse(&response.url)?;
+
+        let params: HashMap<_, _> = url.query_pairs().into_owned().collect();
+        let token = params.get("signupToken").unwrap();
+
+        let token_data = decode_jwt::<SignupLinkRequest>(token, &state.config.jwt_secret).unwrap();
+
+        assert_eq!(
+            token_data.claims.details.email, "foo@bar.com",
+            "incorrect email on token"
+        );
+
+        let expected_exp = (end_time + TimeDelta::minutes(15)).timestamp();
+
+        assert_eq!(
+            token_data.claims.exp as i64, expected_exp,
+            "incorrect expiration"
         );
 
         Ok(())

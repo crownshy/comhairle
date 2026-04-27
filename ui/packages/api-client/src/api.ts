@@ -1180,6 +1180,15 @@ export const JwtResponse = z
   .object({ isModerator: z.boolean(), jwt: z.string() })
   .passthrough();
 export type JwtResponse = z.infer<typeof JwtResponse>;
+export const SignupLinkRequest = z
+  .object({
+    email: z.string(),
+    username: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type SignupLinkRequest = z.infer<typeof SignupLinkRequest>;
+export const SignupLinkResponse = z.object({ url: z.string() }).passthrough();
+export type SignupLinkResponse = z.infer<typeof SignupLinkResponse>;
 export const EventAttendanceEtx = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
@@ -1509,6 +1518,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EventResponse,
   PartialEvent,
   JwtResponse,
+  SignupLinkRequest,
+  SignupLinkResponse,
   EventAttendanceEtx,
   PaginatedResults_for_EventAttendanceEtx,
   CreateEventAttendanceRequest,
@@ -2129,6 +2140,21 @@ curl -X POST \
     description: `Get a auth JWT for an event`,
     requestFormat: "json",
     response: JwtResponse,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/signup_link",
+    alias: "GenerateEventSignupLink",
+    description: `Generate a signup link for a user with a unique jwt for user validation`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: SignupLinkRequest,
+      },
+    ],
+    response: z.object({ url: z.string() }).passthrough(),
   },
   {
     method: "get",

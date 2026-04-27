@@ -228,10 +228,10 @@ where
     T: Serialize,
 {
     sub: String,
-    exp: usize,
+    pub exp: usize,
     id: String,
     #[serde(flatten)]
-    details: T,
+    pub details: T,
 }
 
 /// Generate JWT

@@ -115,6 +115,7 @@ aws-sdk-transcribe = "1.96.0"
 aws-smithy-types = "1.2.11"
 aws-smithy-http = {version="0.62.6", features=["event-stream"]}
 async-stream = "0.3.6"
+url = "2.5.8"
 
 [dev-dependencies]
 fake = { version = "4", features = ["derive"] }
