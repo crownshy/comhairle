@@ -452,7 +452,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Events")
                     .summary("Categorization report")
                     .description("Submit categorization report to bulk storage")
-                    .response::<200, Json<SubmitReportResponse>>()
+                    .response::<201, Json<SubmitReportResponse>>()
 
         }))
         .with_state(state)
