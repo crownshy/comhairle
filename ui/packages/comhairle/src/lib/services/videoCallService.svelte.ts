@@ -13,11 +13,16 @@ export interface BreakoutRoomAssignments {
 	participants: string[];
 }
 
+export interface BreakoutRoomAssistanceRequest {
+	made_by_user: string;
+}
+
 export interface VideoCallState {
 	video_call_id: string;
 	status: VideoCallStatus;
 	participants: Record<string, VideoCallParticipant>;
 	breakout_rooms: BreakoutRoomAssignments[];
+	breakout_room_assistance_requests: Record<string, BreakoutRoomAssistanceRequest>;
 	jitsi_call_id: string;
 	current_agenda_step: number;
 }
@@ -62,6 +67,10 @@ export class VideoCallService {
 
 	get callStatus(): VideoCallStatus | null {
 		return this._currentCallState?.status ?? null;
+	}
+
+	get assistanceRequests(): Record<string, BreakoutRoomAssistanceRequest> {
+		return this._currentCallState?.breakout_room_assistance_requests ?? {};
 	}
 
 	private setupListeners() {
@@ -136,6 +145,22 @@ export class VideoCallService {
 		});
 	}
 
+	// Request assistance in a breakout room
+	requestBreakoutRoomAssistance(eventId: string, roomName: string) {
+		ws.sendCustom('video_call:breakout_room_assistance_request', {
+			event_id: eventId,
+			room_name: roomName
+		});
+	}
+
+	// Resolve (clear) an assistance request from a breakout room (moderator/facilitator only)
+	resolveBreakoutRoomAssistanceRequest(eventId: string, roomName: string) {
+		ws.sendCustom('video_call:resolve_breakout_room_assistance_request', {
+			event_id: eventId,
+			room_name: roomName
+		});
+	}
+
 	// Helper to check if current user is in a specific breakout room
 	getUserBreakoutRoom(userId: string): number | null {
 		if (!this._currentCallState) return null;
@@ -168,6 +193,26 @@ export class VideoCallService {
 		if (!participant) return false;
 
 		return participant.role === 'moderator' || participant.role === 'facilitator';
+	}
+
+	// Check if a specific room has an active assistance request
+	hasAssistanceRequest(roomName: string): boolean {
+		if (!this._currentCallState) return false;
+		return roomName in this._currentCallState.breakout_room_assistance_requests;
+	}
+
+	// Get all room names with active assistance requests
+	getRoomsWithAssistanceRequests(): string[] {
+		if (!this._currentCallState) return [];
+		return Object.keys(this._currentCallState.breakout_room_assistance_requests);
+	}
+
+	// Get the user who made the assistance request for a specific room
+	getAssistanceRequestUser(roomName: string): string | null {
+		if (!this._currentCallState) return null;
+		return (
+			this._currentCallState.breakout_room_assistance_requests[roomName]?.made_by_user ?? null
+		);
 	}
 
 	// Clear last broadcast message

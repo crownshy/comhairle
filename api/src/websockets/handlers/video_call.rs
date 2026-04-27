@@ -34,6 +34,11 @@ pub struct BreakoutRoomAssignments {
     pub participants: Vec<Uuid>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct BreakoutRoomAssistanceRequest {
+    made_by_user: Uuid,
+}
+
 /// Complete state of a video call.
 ///
 /// Contains all information about the call including participants, status,
@@ -48,8 +53,8 @@ pub struct VideoCallState {
     pub participants: HashMap<Uuid, VideoCallParticipant>,
     /// List of breakout room assignments
     pub breakout_rooms: Vec<BreakoutRoomAssignments>,
-    /// Jitsi meeting room identifier
-    pub jitsi_call_id: Uuid,
+    /// Active requests for assistance from breakout rooms
+    pub breakout_room_assistance_requests: HashMap<String, BreakoutRoomAssistanceRequest>,
     /// Current step in the agenda (0-indexed)
     pub current_agenda_step: u32,
 }
@@ -111,16 +116,29 @@ impl VideoCallState {
     /// - No participants
     /// - No breakout rooms
     /// - Agenda step: 0
-    pub fn new(video_call_id: Uuid, jitsi_call_id: Uuid) -> Self {
+    pub fn new(video_call_id: Uuid) -> Self {
         Self {
             status: VideoCallStatus::Waiting,
             participants: HashMap::new(),
             video_call_id,
-            jitsi_call_id,
+            breakout_room_assistance_requests: HashMap::new(),
             current_agenda_step: 0,
             breakout_rooms: vec![],
         }
     }
+}
+
+#[derive(Serialize, Deserialize)]
+struct BreakoutRoomAssistanceRequestData {
+    pub event_id: Uuid,
+    pub room_name: String,
+}
+
+/// Data structure for resolving breakout room assistance requests.
+#[derive(Serialize, Deserialize)]
+struct ResolveBreakoutRoomAssistanceRequestData {
+    pub event_id: Uuid,
+    pub room_name: String,
 }
 
 /// Data structure for user join events.
@@ -534,6 +552,106 @@ impl VideoCallMessageHandler {
         Ok(())
     }
 
+    /// Requests assistance from moderators or facilitators in a breakout room
+    ///
+    /// Can be triggered by a participant in a breakout room if they need assistance
+    /// from a facilitator or moderator. Only one request per room
+    ///
+    /// # Arguments
+    ///
+    /// * `event_id` - The UUID of the event (unused, extracted from data)
+    /// * `data` - JSON data containing event_id and the room_name
+    /// * `connection` - WebSocket connection of the user requesting the assignment
+    /// * `state` - Application state for broadcasting
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - JSON deserialization fails
+    async fn breakout_room_assistance_request(
+        &self,
+        event_id: &Uuid,
+        data: &serde_json::Value,
+        connection: &WebSocketConnection,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), VideoCallWSError> {
+        let request: BreakoutRoomAssistanceRequestData = serde_json::from_value(data.clone())
+            .map_err(|e| VideoCallWSError::IncorrectMessageFormat(e))?;
+
+        self.with_video_call_state_mut(event_id, |call| {
+            call.breakout_room_assistance_requests
+                .entry(request.room_name)
+                .or_insert(BreakoutRoomAssistanceRequest {
+                    made_by_user: connection.user.id.clone(),
+                });
+        })?;
+
+        self.broadcast_state(&request.event_id, state).await?;
+
+        Ok(())
+    }
+
+    /// Resolves (clears) an assistance request from a breakout room.
+    ///
+    /// Only moderators and facilitators are authorized to resolve assistance requests.
+    /// This removes the request from the active assistance requests map and broadcasts
+    /// the updated state to all participants.
+    ///
+    /// # Arguments
+    ///
+    /// * `_event_id` - The UUID of the event (unused, extracted from data)
+    /// * `data` - JSON data containing event_id and room_name
+    /// * `connection` - WebSocket connection of the user resolving the request
+    /// * `state` - Application state for broadcasting
+    ///
+    /// # Authorization
+    ///
+    /// Only users with role "moderator" or "facilitator" can resolve assistance requests.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - JSON deserialization fails
+    /// - User is not authorized (`UnauthorizedStateChange`)
+    /// - Failed to acquire lock on the call state
+    /// - Broadcasting fails
+    pub async fn resolve_breakout_room_assistance_request(
+        &self,
+        _event_id: &Uuid,
+        data: &serde_json::Value,
+        connection: &WebSocketConnection,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), VideoCallWSError> {
+        let request: ResolveBreakoutRoomAssistanceRequestData =
+            serde_json::from_value(data.clone())?;
+
+        let user_id = connection.user.id;
+
+        // Check authorization and remove the assistance request
+        let authorized = self
+            .with_video_call_state_mut(&request.event_id, |call| {
+                // Check if the user is authorized (moderator or facilitator)
+                if let Some(participant) = call.participants.get(&user_id) {
+                    if participant.role == "moderator" || participant.role == "facilitator" {
+                        // Remove the assistance request for this room
+                        call.breakout_room_assistance_requests
+                            .remove(&request.room_name);
+                        return true;
+                    }
+                }
+                false
+            })?
+            .unwrap_or(false);
+
+        if !authorized {
+            return Err(VideoCallWSError::UnauthorizedStateChange);
+        }
+
+        self.broadcast_state(&request.event_id, state).await?;
+
+        Ok(())
+    }
+
     /// Randomly assigns all participants to breakout rooms.
     ///
     /// Only moderators and facilitators are authorized to assign breakout rooms.
@@ -712,6 +830,19 @@ impl WebSocketMessageHandler for VideoCallMessageHandler {
                     "video_call:assign_breakout_rooms" => {
                         self.assign_breakout_rooms(&event_id, data, connection, state)
                             .await?
+                    }
+                    "video_call:breakout_room_assistance_request" => {
+                        self.breakout_room_assistance_request(&event_id, data, connection, state)
+                            .await?
+                    }
+                    "video_call:resolve_breakout_room_assistance_request" => {
+                        self.resolve_breakout_room_assistance_request(
+                            &event_id,
+                            data,
+                            connection,
+                            state,
+                        )
+                        .await?
                     }
                     "video_call:set_agenda_item" => {
                         self.set_agenda_item(&event_id, data, connection, state)
