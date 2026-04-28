@@ -4,6 +4,8 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Drawer from '$lib/components/ui/drawer';
 	import { formatDateShort, formatTime } from '$lib/utils';
+	import { videoCallService } from '$lib/services/videoCallService.svelte';
+
 	import {
 		List,
 		Info,
@@ -13,6 +15,7 @@
 		ChevronRight,
 		ChevronUp
 	} from 'lucide-svelte';
+
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -24,6 +27,11 @@
 	let apiAttendances = $derived(data.attendances);
 	let user = $derived(data.user);
 	let isModerator = $state(data.isModerator);
+
+	let callState = videoCallService.currentCallState;
+
+	$inspect('Call state ', callState);
+	videoCallService.joinCall(eventId);
 
 	let roomName = $derived(event?.videoMeetingId);
 

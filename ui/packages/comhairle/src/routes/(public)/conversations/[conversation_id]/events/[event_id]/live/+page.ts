@@ -17,6 +17,7 @@ export const load: PageLoad = async ({ parent, params }) => {
 				queries: { limit: 200 }
 			})
 		]);
+		console.log({ eventRes, attendancesResult });
 		event = eventRes;
 		attendances = attendancesResult.records as EventAttendanceDto[];
 	} catch (e) {
@@ -28,6 +29,7 @@ export const load: PageLoad = async ({ parent, params }) => {
 	let jwt: string;
 	let isModerator = false;
 	try {
+		console.log('Attemptng to get JWT');
 		const authRes = await api.GetEventJWT({ params: { conversation_id, event_id } });
 		jwt = authRes.jwt;
 		isModerator = authRes.isModerator ?? false;
