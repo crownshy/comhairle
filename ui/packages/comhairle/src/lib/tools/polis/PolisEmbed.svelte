@@ -24,6 +24,7 @@
 		onDone: () => void;
 		requiredVotes?: number;
 		workflowStepId?: string;
+		showRemainingStatementCount?: boolean;
 		onCanContinueChange?: (canContinue: boolean) => void;
 	};
 
@@ -34,7 +35,8 @@
 		onDone,
 		requiredVotes = 10,
 		workflowStepId = polis_id,
-		onCanContinueChange
+		onCanContinueChange,
+		showRemainingStatementCount
 	}: Props = $props();
 
 	const stepId = workflowStepId;
@@ -191,7 +193,7 @@
 			<!-- Opinion counter -->
 			{#if !polisReady}
 				<div class="bg-foreground/10 h-5 w-32 animate-pulse rounded md:h-6"></div>
-			{:else if !polisError}
+			{:else if !polisError && showRemainingStatementCount}
 				<p class="text-muted-foreground tex-base font-semibold md:text-lg">
 					{m.polis_opinion_counter({
 						current: currentOpinionNumber + 1,

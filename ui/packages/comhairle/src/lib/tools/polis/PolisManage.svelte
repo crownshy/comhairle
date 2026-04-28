@@ -2,6 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
+	import Switch from '$lib/components/ui/switch/switch.svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { camelToSentenceCase, camelToSnakeCase } from '$lib/utils/casingUtils';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -24,7 +25,8 @@
 		server_url: polisUrl,
 		admin_password: adminPassword,
 		admin_user: adminUser,
-		required_votes: requiredVotes
+		required_votes: requiredVotes,
+		show_remaining_statements: showRemainingStatements = true
 	} = $derived(toolConfig);
 
 	let base_url = $derived(polisUrl.startsWith('https://') ? polisUrl : `https://${polisUrl}`);
@@ -72,11 +74,36 @@
 	function handleUpdateToolConfig(e: Event, field: string) {
 		debouncedUpdateToolConfig(e, field);
 	}
+
+	async function handleToggleShowRemainingUpdate(checked: boolean, field: string) {
+		try {
+			await apiClient.UpdateConversationWorkflowStep(
+				{
+					preview_tool_config: { ...toolConfig, [camelToSnakeCase(field)]: checked }
+				},
+				{
+					params: {
+						conversation_id: conversationId,
+						workflow_id: workflowId,
+						workflow_step_id: workflowStepId
+					}
+				}
+			);
+			notifications.send({
+				priority: 'INFO',
+				message: `Updated ${camelToSentenceCase(field)}`
+			});
+			await invalidateAll();
+		} catch (e) {
+			console.error(e);
+			notifications.send({ priority: 'ERROR', message: 'Failed to update tool config' });
+		}
+	}
 </script>
 
 <h2 class="my-5 text-2xl font-bold">Polis Setup</h2>
 
-<div class="mb-8">
+<div class="mb-8 space-y-6">
 	<div class="flex flex-col">
 		<Label for="requiredVotes" class="text-lg font-semibold">Required votes</Label>
 		<span class="mb-4 text-sm"
@@ -90,6 +117,23 @@
 			defaultvalue={requiredVotes}
 			oninput={(e) => handleUpdateToolConfig(e, 'requiredVotes')}
 		/>
+	</div>
+
+	<div class="flex flex-col">
+		<div class="flex items-center space-x-2">
+			<Switch
+				id="showRemainingStatements"
+				checked={showRemainingStatements}
+				onCheckedChange={(checked) =>
+					handleToggleShowRemainingUpdate(checked, 'showRemainingStatements')}
+			/>
+			<Label for="showRemainingStatements" class="text-lg font-semibold"
+				>Show remaining statements</Label
+			>
+		</div>
+		<span class="mt-2 text-sm"
+			>Display the number of remaining statements to participants during voting</span
+		>
 	</div>
 </div>
 
