@@ -32,6 +32,12 @@ pub struct PolisToolConfig {
     pub admin_user: String,
     pub admin_password: String,
     pub required_votes: Option<i32>,
+    #[serde(default = "default_show_remaining_statements")]
+    pub show_remaining_statements: bool,
+}
+
+fn default_show_remaining_statements() -> bool {
+    true
 }
 
 impl ToolConfigSanitize for PolisToolConfig {
@@ -42,6 +48,7 @@ impl ToolConfigSanitize for PolisToolConfig {
             server_url: self.server_url.clone(),
             poll_id: self.poll_id.clone(),
             required_votes: self.required_votes,
+            show_remaining_statements: self.show_remaining_statements,
         }
     }
 }
@@ -50,6 +57,8 @@ impl ToolConfigSanitize for PolisToolConfig {
 pub struct PolisToolSetup {
     pub topic: String,
     pub required_votes: Option<i32>,
+    #[serde(default = "default_show_remaining_statements")]
+    pub show_remaining_statements: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
@@ -266,6 +275,7 @@ pub async fn launch(
         &PolisToolSetup {
             topic: "".into(),
             required_votes: preview_config.required_votes,
+            show_remaining_statements: preview_config.show_remaining_statements,
         },
         &preview_config.server_url,
         client,
@@ -311,5 +321,6 @@ async fn polis_setup(
         admin_user: email,
         admin_password: password,
         required_votes: Some(setup.required_votes.unwrap_or(10)),
+        show_remaining_statements: setup.show_remaining_statements,
     })
 }

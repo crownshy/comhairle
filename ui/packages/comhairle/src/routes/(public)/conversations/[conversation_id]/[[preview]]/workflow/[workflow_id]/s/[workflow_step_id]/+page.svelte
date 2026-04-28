@@ -215,6 +215,7 @@
 							workflowStepId={workflowStep.id}
 							onDone={stepComplete}
 							onCanContinueChange={handleCanContinueChange}
+							showRemainingStatementCount={toolConfig.show_remaining_statements}
 						/>
 					{/if}
 					{#if toolConfig.type === HeyForm.TOOL_NAME}

@@ -42,7 +42,8 @@ export const basic_learn_config = {
 
 export const basic_polis_config = {
 	type: 'polis',
-	topic: 'new polis poll'
+	topic: 'new polis poll',
+	show_remaining_statements: true
 };
 
 export const basic_survey_config = {
