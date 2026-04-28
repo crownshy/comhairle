@@ -4,6 +4,7 @@ use std::{
 };
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -39,6 +40,13 @@ pub struct BreakoutRoomAssistanceRequest {
     made_by_user: Uuid,
 }
 
+/// Represents an active breakout session with a scheduled end time.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct BreakoutSession {
+    /// The time at which the current breakout session is scheduled to end
+    pub ends: DateTime<Utc>,
+}
+
 /// Complete state of a video call.
 ///
 /// Contains all information about the call including participants, status,
@@ -57,6 +65,8 @@ pub struct VideoCallState {
     pub breakout_room_assistance_requests: HashMap<String, BreakoutRoomAssistanceRequest>,
     /// Current step in the agenda (0-indexed)
     pub current_agenda_step: u32,
+    /// Active breakout session with scheduled end time (None when no session is active)
+    pub breakout_session: Option<BreakoutSession>,
 }
 
 /// WebSocket message handler for video call events.
@@ -124,6 +134,7 @@ impl VideoCallState {
             breakout_room_assistance_requests: HashMap::new(),
             current_agenda_step: 0,
             breakout_rooms: vec![],
+            breakout_session: None,
         }
     }
 }
@@ -179,6 +190,26 @@ struct ChangeCallStatusData {
 struct AssignBreakoutRoomsData {
     pub event_id: Uuid,
     pub max_users_per_room: usize,
+}
+
+/// Data structure for starting a breakout session.
+#[derive(Serialize, Deserialize, Debug)]
+struct StartBreakoutSessionData {
+    pub event_id: Uuid,
+    pub ends: DateTime<Utc>,
+}
+
+/// Data structure for extending an active breakout session.
+#[derive(Serialize, Deserialize, Debug)]
+struct ExtendBreakoutSessionData {
+    pub event_id: Uuid,
+    pub ends: DateTime<Utc>,
+}
+
+/// Data structure for ending an active breakout session.
+#[derive(Serialize, Deserialize, Debug)]
+struct EndBreakoutSessionData {
+    pub event_id: Uuid,
 }
 
 impl VideoCallMessageHandler {
@@ -738,6 +769,184 @@ impl VideoCallMessageHandler {
         Ok(())
     }
 
+    /// Starts a breakout session with a specified end time.
+    ///
+    /// Only moderators and facilitators are authorized to start breakout sessions.
+    /// The breakout session will be scheduled to end at the specified time.
+    ///
+    /// # Arguments
+    ///
+    /// * `_event_id` - The UUID of the event (unused, extracted from data)
+    /// * `data` - JSON data containing event_id and the end time
+    /// * `connection` - WebSocket connection of the user requesting to start the session
+    /// * `state` - Application state for broadcasting
+    ///
+    /// # Authorization
+    ///
+    /// Only users with role "moderator" or "facilitator" can start breakout sessions.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - JSON deserialization fails
+    /// - User is not authorized (`UnauthorizedStateChange`)
+    /// - Failed to acquire lock on the call state
+    /// - Broadcasting fails
+    pub async fn start_breakout_session(
+        &self,
+        _event_id: &Uuid,
+        data: &serde_json::Value,
+        connection: &WebSocketConnection,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), VideoCallWSError> {
+        let session_data: StartBreakoutSessionData = serde_json::from_value(data.clone())?;
+
+        let user_id = connection.user.id;
+        let ends = session_data.ends;
+
+        // Check authorization and start the breakout session
+        let authorized = self
+            .with_video_call_state_mut(&session_data.event_id, |call| {
+                // Check if the user is authorized (moderator or facilitator)
+                if let Some(participant) = call.participants.get(&user_id) {
+                    if participant.role == "moderator" || participant.role == "facilitator" {
+                        call.breakout_session = Some(BreakoutSession { ends });
+                        return true;
+                    }
+                }
+                false
+            })?
+            .unwrap_or(false);
+
+        if !authorized {
+            return Err(VideoCallWSError::UnauthorizedStateChange);
+        }
+
+        self.broadcast_state(&session_data.event_id, state).await?;
+
+        Ok(())
+    }
+
+    /// Extends the end time of an active breakout session.
+    ///
+    /// Only moderators and facilitators are authorized to extend breakout sessions.
+    /// If no breakout session is currently active, this operation will fail.
+    ///
+    /// # Arguments
+    ///
+    /// * `_event_id` - The UUID of the event (unused, extracted from data)
+    /// * `data` - JSON data containing event_id and the new end time
+    /// * `connection` - WebSocket connection of the user requesting the extension
+    /// * `state` - Application state for broadcasting
+    ///
+    /// # Authorization
+    ///
+    /// Only users with role "moderator" or "facilitator" can extend breakout sessions.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - JSON deserialization fails
+    /// - User is not authorized (`UnauthorizedStateChange`)
+    /// - No breakout session is currently active
+    /// - Failed to acquire lock on the call state
+    /// - Broadcasting fails
+    pub async fn extend_breakout_session(
+        &self,
+        _event_id: &Uuid,
+        data: &serde_json::Value,
+        connection: &WebSocketConnection,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), VideoCallWSError> {
+        let extension_data: ExtendBreakoutSessionData = serde_json::from_value(data.clone())?;
+
+        let user_id = connection.user.id;
+        let new_ends = extension_data.ends;
+
+        // Check authorization and extend the breakout session
+        let authorized = self
+            .with_video_call_state_mut(&extension_data.event_id, |call| {
+                // Check if the user is authorized (moderator or facilitator)
+                if let Some(participant) = call.participants.get(&user_id) {
+                    if participant.role == "moderator" || participant.role == "facilitator" {
+                        // Update the end time if a session is active
+                        if let Some(session) = &mut call.breakout_session {
+                            session.ends = new_ends;
+                            return true;
+                        }
+                    }
+                }
+                false
+            })?
+            .unwrap_or(false);
+
+        if !authorized {
+            return Err(VideoCallWSError::UnauthorizedStateChange);
+        }
+
+        self.broadcast_state(&extension_data.event_id, state)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Ends an active breakout session.
+    ///
+    /// Only moderators and facilitators are authorized to end breakout sessions.
+    /// This sets the breakout_session field to None, indicating no session is active.
+    ///
+    /// # Arguments
+    ///
+    /// * `_event_id` - The UUID of the event (unused, extracted from data)
+    /// * `data` - JSON data containing event_id
+    /// * `connection` - WebSocket connection of the user requesting to end the session
+    /// * `state` - Application state for broadcasting
+    ///
+    /// # Authorization
+    ///
+    /// Only users with role "moderator" or "facilitator" can end breakout sessions.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - JSON deserialization fails
+    /// - User is not authorized (`UnauthorizedStateChange`)
+    /// - Failed to acquire lock on the call state
+    /// - Broadcasting fails
+    pub async fn end_breakout_session(
+        &self,
+        _event_id: &Uuid,
+        data: &serde_json::Value,
+        connection: &WebSocketConnection,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), VideoCallWSError> {
+        let end_data: EndBreakoutSessionData = serde_json::from_value(data.clone())?;
+
+        let user_id = connection.user.id;
+
+        // Check authorization and end the breakout session
+        let authorized = self
+            .with_video_call_state_mut(&end_data.event_id, |call| {
+                // Check if the user is authorized (moderator or facilitator)
+                if let Some(participant) = call.participants.get(&user_id) {
+                    if participant.role == "moderator" || participant.role == "facilitator" {
+                        call.breakout_session = None;
+                        return true;
+                    }
+                }
+                false
+            })?
+            .unwrap_or(false);
+
+        if !authorized {
+            return Err(VideoCallWSError::UnauthorizedStateChange);
+        }
+
+        self.broadcast_state(&end_data.event_id, state).await?;
+
+        Ok(())
+    }
+
     /// Broadcasts the current video call state to all participants.
     ///
     /// This is a convenience method used internally to synchronize state across
@@ -850,6 +1059,18 @@ impl WebSocketMessageHandler for VideoCallMessageHandler {
                     }
                     "video_call:send_message" => {
                         self.broadcast_message(&event_id, data, connection, state)
+                            .await?
+                    }
+                    "video_call:start_breakout_session" => {
+                        self.start_breakout_session(&event_id, data, connection, state)
+                            .await?
+                    }
+                    "video_call:extend_breakout_session" => {
+                        self.extend_breakout_session(&event_id, data, connection, state)
+                            .await?
+                    }
+                    "video_call:end_breakout_session" => {
+                        self.end_breakout_session(&event_id, data, connection, state)
                             .await?
                     }
                     _ => {

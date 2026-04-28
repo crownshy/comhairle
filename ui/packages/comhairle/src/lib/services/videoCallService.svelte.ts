@@ -17,6 +17,10 @@ export interface BreakoutRoomAssistanceRequest {
 	made_by_user: string;
 }
 
+export interface BreakoutSession {
+	ends: string; // ISO 8601 datetime string
+}
+
 export interface VideoCallState {
 	video_call_id: string;
 	status: VideoCallStatus;
@@ -25,6 +29,7 @@ export interface VideoCallState {
 	breakout_room_assistance_requests: Record<string, BreakoutRoomAssistanceRequest>;
 	jitsi_call_id: string;
 	current_agenda_step: number;
+	breakout_session: BreakoutSession | null;
 }
 
 export interface BroadcastMessage {
@@ -71,6 +76,10 @@ export class VideoCallService {
 
 	get assistanceRequests(): Record<string, BreakoutRoomAssistanceRequest> {
 		return this._currentCallState?.breakout_room_assistance_requests ?? {};
+	}
+
+	get breakoutSession(): BreakoutSession | null {
+		return this._currentCallState?.breakout_session ?? null;
 	}
 
 	private setupListeners() {
@@ -161,6 +170,29 @@ export class VideoCallService {
 		});
 	}
 
+	// Start a breakout session with a specified end time (moderator/facilitator only)
+	startBreakoutSession(eventId: string, ends: string) {
+		ws.sendCustom('video_call:start_breakout_session', {
+			event_id: eventId,
+			ends
+		});
+	}
+
+	// Extend an active breakout session with a new end time (moderator/facilitator only)
+	extendBreakoutSession(eventId: string, ends: string) {
+		ws.sendCustom('video_call:extend_breakout_session', {
+			event_id: eventId,
+			ends
+		});
+	}
+
+	// End the current breakout session (moderator/facilitator only)
+	endBreakoutSession(eventId: string) {
+		ws.sendCustom('video_call:end_breakout_session', {
+			event_id: eventId
+		});
+	}
+
 	// Helper to check if current user is in a specific breakout room
 	getUserBreakoutRoom(userId: string): number | null {
 		if (!this._currentCallState) return null;
@@ -218,6 +250,24 @@ export class VideoCallService {
 	// Clear last broadcast message
 	clearLastMessage() {
 		this._lastBroadcastMessage = null;
+	}
+
+	// Check if a breakout session is currently active
+	isBreakoutSessionActive(): boolean {
+		return this._currentCallState?.breakout_session !== null;
+	}
+
+	// Get the end time of the current breakout session as a Date object
+	getBreakoutSessionEndTime(): Date | null {
+		if (!this._currentCallState?.breakout_session) return null;
+		return new Date(this._currentCallState.breakout_session.ends);
+	}
+
+	// Get time remaining in breakout session in milliseconds
+	getBreakoutSessionTimeRemaining(): number | null {
+		const endTime = this.getBreakoutSessionEndTime();
+		if (!endTime) return null;
+		return endTime.getTime() - Date.now();
 	}
 }
 
