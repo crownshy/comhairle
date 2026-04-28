@@ -899,6 +899,7 @@ export const InviteDto = z
 export type InviteDto = z.infer<typeof InviteDto>;
 export const CreateInviteDTO = z
   .object({
+    event_id: z.union([z.string(), z.null()]).optional(),
     expires_at: z.union([z.string(), z.null()]).optional(),
     invite_type: InviteType,
     label: z.union([z.string(), z.null()]).optional(),
@@ -911,6 +912,7 @@ export const PartialInvite = z
     accept_count: z.union([z.number(), z.null()]),
     conversation_id: z.union([z.string(), z.null()]),
     created_by: z.union([z.string(), z.null()]),
+    event_id: z.union([z.string(), z.null()]),
     expires_at: z.union([z.string(), z.null()]),
     invite_type: z.union([InviteType, z.null()]),
     label: z.union([z.string(), z.null()]),

@@ -23,6 +23,8 @@ pub struct Invite {
     pub status: InviteStatus,
     pub expires_at: Option<DateTime<Utc>>,
     pub conversation_id: Uuid,
+    #[partially(transparent)]
+    pub event_id: Option<Uuid>,
     pub workflow_id: Option<Uuid>,
     pub workflow_step_id: Option<Uuid>,
     pub login_behaviour: LoginBehaviour,
@@ -174,15 +176,17 @@ pub struct CreateInviteDTO {
     login_behaviour: LoginBehaviour,
     expires_at: Option<DateTime<Utc>>,
     label: Option<String>,
+    event_id: Option<Uuid>,
 }
 
-const DEFAULT_COLUMNS: [InviteIden; 14] = [
+const DEFAULT_COLUMNS: [InviteIden; 15] = [
     InviteIden::Id,
     InviteIden::InviteType,
     InviteIden::CreatedBy,
     InviteIden::Status,
     InviteIden::ExpiresAt,
     InviteIden::ConversationId,
+    InviteIden::EventId,
     InviteIden::WorkflowId,
     InviteIden::WorkflowStepId,
     InviteIden::LoginBehaviour,
@@ -308,6 +312,7 @@ pub async fn create(
             InviteIden::Status,
             InviteIden::ExpiresAt,
             InviteIden::Label,
+            InviteIden::EventId,
         ])
         .values(vec![
             user_id.to_owned().into(),
@@ -317,6 +322,7 @@ pub async fn create(
             starting_status.into(),
             create_invite.expires_at.into(),
             create_invite.label.into(),
+            create_invite.event_id.into(),
         ])
         .unwrap()
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
@@ -395,6 +401,7 @@ mod tests {
             status: InviteStatus::Pending,
             expires_at: None,
             conversation_id: Uuid::new_v4(),
+            event_id: None,
             workflow_id: None,
             workflow_step_id: None,
             login_behaviour: LoginBehaviour::Manual,
@@ -465,6 +472,7 @@ mod tests {
                 login_behaviour: LoginBehaviour::Manual,
                 expires_at: None,
                 label: None,
+                event_id: None,
             },
             &conversation.id,
             &user1.id,
@@ -495,7 +503,9 @@ mod tests {
     }
 
     #[sqlx::test]
-    async fn open_invite_should_remain_open_when_rejected(db: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn open_invite_should_remain_open_when_rejected(
+        db: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
         let user1 = users::create_user(&Faker.fake(), &db).await?;
         let user2 = users::create_user(&Faker.fake(), &db).await?;
 
@@ -546,6 +556,7 @@ mod tests {
                 login_behaviour: LoginBehaviour::Manual,
                 expires_at: None,
                 label: None,
+                event_id: None,
             },
             &conversation.id,
             &user1.id,
@@ -623,6 +634,7 @@ mod tests {
                 login_behaviour: LoginBehaviour::Manual,
                 expires_at: None,
                 label: None,
+                event_id: None,
             },
             &conversation.id,
             &user1.id,
