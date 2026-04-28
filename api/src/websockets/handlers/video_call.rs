@@ -97,6 +97,9 @@ pub enum VideoCallWSError {
     #[error("Failed to get lock on room")]
     FailedToGetLockOnRoom,
 
+    #[error("Video call state not found for event")]
+    VideoCallNotFound,
+
     #[error("User is not authorized to change call state")]
     UnauthorizedStateChange,
 }
@@ -396,6 +399,18 @@ impl VideoCallMessageHandler {
         let role = attendance.role;
         let user_id = connection.user.id;
         let username = connection.user.username.clone();
+
+        // Initialize video call state if it doesn't exist
+        {
+            let mut video_calls = self
+                .video_calls
+                .write()
+                .map_err(|_| VideoCallWSError::FailedToGetLockOnRoom)?;
+
+            video_calls
+                .entry(join_data.event_id)
+                .or_insert_with(|| VideoCallState::new(join_data.event_id));
+        }
 
         // Add the participant to the video call and auto-assign to breakout room if needed
         self.with_video_call_state_mut(&join_data.event_id, |call| {
@@ -777,7 +792,7 @@ impl VideoCallMessageHandler {
                 Some((ids, serialized))
             })?
             .flatten()
-            .ok_or(VideoCallWSError::FailedToGetLockOnRoom)?;
+            .ok_or(VideoCallWSError::VideoCallNotFound)?;
 
         // Broadcast the state to all participants
         let message = WebSocketMessage::Custom {
