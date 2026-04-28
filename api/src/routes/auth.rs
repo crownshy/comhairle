@@ -556,6 +556,81 @@ async fn password_reset_update(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct SigninFromTokenClaims {
+    pub email: String,
+    pub username: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema, Debug)]
+struct SigninFromTokenRequest {
+    token: String,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn signin_from_token(
+    State(state): State<Arc<ComhairleState>>,
+    jar: CookieJar,
+    Json(payload): Json<SigninFromTokenRequest>,
+) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
+    let token_data =
+        match decode_jwt::<SigninFromTokenClaims>(&payload.token, &state.config.jwt_secret) {
+            Ok(data) => data,
+            Err(_) => {
+                return Err(ComhairleError::AuthJWTError(
+                    "Unable to decode token".to_string(),
+                ));
+            }
+        };
+
+    let email = token_data.claims.sub;
+
+    let (status, user) = match get_user_by_email(&email, &state.db).await.ok() {
+        Some(user) => (StatusCode::OK, user),
+        None => {
+            let username = token_data.claims.details.username;
+            let mut user = create_annon_user(&state.db).await?;
+
+            // Update annon user's username to one provided by JWT instead of
+            // randomly generated username
+            if let Some(username) = username {
+                user = update_user(
+                    &user.id,
+                    &UpdateUserRequest {
+                        username: Some(username),
+                        ..Default::default()
+                    },
+                    &state.db,
+                )
+                .await?;
+            }
+
+            (StatusCode::CREATED, user)
+        }
+    };
+
+    let claims = SessionClaims {
+        username: user.username.clone(),
+        sudo_user: None,
+        email_verified: user.email_verified,
+        roles: Vec::new(),
+    };
+    let token = generate_jwt()
+        .user(&user)
+        .secret(&state.config.jwt_secret)
+        .custom_claims(claims)
+        .call();
+    let cookie = Cookie::build((AUTH_KEY, token))
+        .path("/")
+        .secure(true)
+        .http_only(true)
+        .same_site(SameSite::None)
+        .max_age(Duration::days(7));
+
+    let user: UserDto = user.into();
+    Ok((jar.add(cookie), (status, Json(user))))
+}
+
 /// Decode a JWT
 pub fn decode_jwt<T: Serialize + DeserializeOwned>(
     jwt: &str,
@@ -795,7 +870,7 @@ pub async fn validate_jwt<T: Serialize + DeserializeOwned>(
     };
 
     // Fetch the user details from the database
-    let uuid = Uuid::parse_str(&token_data.claims.id).unwrap();
+    let uuid = Uuid::parse_str(&token_data.claims.id)?;
     let current_user = match get_user_by_id(&uuid, &state.db).await {
         Ok(user) => user,
         Err(e) => {
@@ -862,6 +937,20 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Signup a user with email and password")
                     .response::<201, Json<UserDto>>()
+            }),
+        )
+        .api_route(
+            "/signin_from_token",
+            post_with(signin_from_token, |op| {
+                op.id("SigninFromToken")
+                    .tag("Auth")
+                    .summary("Signin from JWT")
+                    .description(
+                        "Signs user in from generated signin link token and creates new user if 
+they don't already exist",
+                    )
+                    .response::<201, Json<UserDto>>()
+                    .response::<200, Json<UserDto>>()
             }),
         )
         .api_route(
@@ -946,11 +1035,11 @@ mod tests {
     use crate::{
         mailer::MockComhairleMailer,
         models::users::{
-            add_user_resource_role, get_user_by_email, Resource, Role, UpdateUserRequest, User,
-            UserAuthType,
+            add_user_resource_role, create_user, get_user_by_email, Resource, Role,
+            UpdateUserRequest, User, UserAuthType,
         },
         routes::{
-            auth::{generate_jwt, EmailLinkClaims, SessionClaims},
+            auth::{generate_jwt, EmailLinkClaims, SessionClaims, SignupRequest},
             user::dto::UserDto,
         },
         setup_server,
@@ -960,6 +1049,7 @@ mod tests {
     use argon2::{Argon2, PasswordHash, PasswordVerifier};
     use axum::http::StatusCode;
     use mockall::predicate::{always, eq};
+    use serde_json::json;
     use sqlx::PgPool;
     use std::{error::Error, sync::Arc};
     use uuid::Uuid;
@@ -1899,6 +1989,94 @@ mod tests {
             response.0,
             StatusCode::BAD_REQUEST,
             "should reject weak password on update"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_create_new_annon_user_from_token_and_signin(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state.clone())).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let email = "foo@bar.com";
+        let username = "foo_bar";
+
+        let token = session
+            .create_single_signup_token(&app, email, username)
+            .await?;
+
+        let (_, value, cookies) = session
+            .post(
+                &app,
+                "/auth/signin_from_token",
+                json!({ "token": token }).to_string().into(),
+            )
+            .await?;
+
+        let user: UserDto = serde_json::from_value(value)?;
+
+        assert_eq!(
+            user.username,
+            Some(username.to_string()),
+            "incorrect username"
+        );
+        assert_eq!(user.auth_type, UserAuthType::Annon, "incorrect auth type");
+        assert!(
+            cookies.unwrap().to_str().unwrap().contains("auth-token"),
+            "missing auth cookie"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_signin_existing_user_from_token(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool.clone()).call()?;
+        let app = setup_server(Arc::new(state.clone())).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let params = SignupRequest {
+            username: "test_user".to_string(),
+            email: "test@user.com".to_string(),
+            password: "test_pw".to_string(),
+            avatar_url: None,
+        };
+
+        let created_user = create_user(&params, &pool).await?;
+
+        let token = session
+            .create_single_signup_token(
+                &app,
+                &created_user.email.unwrap(),
+                &created_user.username.clone().unwrap(),
+            )
+            .await?;
+
+        let (_, value, cookies) = session
+            .post(
+                &app,
+                "/auth/signin_from_token",
+                json!({ "token": token }).to_string().into(),
+            )
+            .await?;
+
+        let user: UserDto = serde_json::from_value(value)?;
+
+        assert_eq!(user.username, created_user.username, "incorrect username");
+        assert_eq!(
+            user.auth_type,
+            UserAuthType::EmailPassword,
+            "incorrect auth type"
+        );
+        assert!(
+            cookies.unwrap().to_str().unwrap().contains("auth-token"),
+            "missing auth cookie"
         );
 
         Ok(())

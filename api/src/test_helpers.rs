@@ -1,6 +1,7 @@
 use apalis::prelude::MemoryStorage;
 use chrono::Utc;
 use std::{collections::HashMap, error::Error, sync::Arc};
+use url::Url;
 use uuid::Uuid;
 
 use axum::{
@@ -27,8 +28,11 @@ use crate::{
     bulk_storage::{BulkStorageService, MockBulkStorageService},
     config::ComhairleConfig,
     mailer::MockComhairleMailer,
-    models::users::UpdateUserRequest,
-    routes::user::dto::UserDto,
+    models::{model_test_helpers::get_random_conversation_id, users::UpdateUserRequest},
+    routes::{
+        events::{dto::EventDto, SignupLinkResponse},
+        user::dto::UserDto,
+    },
     transcription_service::{MockTranscriber, Transcriber},
     translation_service::{MockTranslationService, TranslationService},
     websockets::{MockWebSocketService, WebSocketService},
@@ -594,7 +598,10 @@ impl UserSession {
         offset: i32,
         limit: i32,
     ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
-        let url = format!("/conversation?limit={}&offset={}&sort=created_at+asc", limit, offset);
+        let url = format!(
+            "/conversation?limit={}&offset={}&sort=created_at+asc",
+            limit, offset
+        );
         self.get(app, &url).await
     }
 
@@ -883,5 +890,43 @@ impl UserSession {
         let (status, value, cookie) = self.post(app, "/jobs", new_job.to_string().into()).await?;
 
         Ok((status, value, cookie))
+    }
+
+    pub async fn create_single_signup_token(
+        &mut self,
+        app: &Router,
+        email: &str,
+        username: &str,
+    ) -> Result<String, Box<dyn Error>> {
+        let conversation_id = get_random_conversation_id(app, self).await?;
+        let (_, value, _) = self
+            .create_random_event(app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(value)?;
+
+        let (_, value, _) = self
+            .post(
+                app,
+                &format!(
+                    "/conversation/{}/events/{}/signup_link",
+                    conversation_id, event.id
+                ),
+                json!({
+                    "email": email,
+                    "username": username,
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        let response: SignupLinkResponse = serde_json::from_value(value)?;
+
+        let url = Url::parse(&response.url)?;
+
+        let params: HashMap<_, _> = url.query_pairs().into_owned().collect();
+        let token = params.get("signupToken").unwrap().to_owned();
+
+        Ok(token)
     }
 }

@@ -75,6 +75,9 @@ pub enum ComhairleError {
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
 
+    #[error("Uuid error: {0}")]
+    UuidError(#[from] uuid::Error),
+
     #[error("Username {0} already taken")]
     DuplicateUsername(String),
 

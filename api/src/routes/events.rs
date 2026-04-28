@@ -25,7 +25,7 @@ use crate::{
         pagination::{PageOptions, PaginatedResults},
     },
     routes::{
-        auth::{generate_jwt, is_user_admin, RequiredAdminUser, RequiredUser},
+        auth::{generate_jwt, is_user_admin, RequiredAdminUser, RequiredUser, SigninFromTokenClaims},
         events::dto::{EventDto, LocalizedEventDto},
         translations::LocaleExtractor,
     },
@@ -229,14 +229,8 @@ async fn get_jwt(
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
-struct SignupLinkRequest {
-    email: String,
-    username: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
-struct SignupLinkResponse {
-    url: String,
+pub struct SignupLinkResponse {
+    pub url: String,
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -244,12 +238,11 @@ async fn generate_signup_link(
     State(state): State<Arc<ComhairleState>>,
     Path((conversation_id, event_id)): Path<(Uuid, Uuid)>,
     RequiredUser(user): RequiredUser,
-    Json(payload): Json<SignupLinkRequest>,
+    Json(payload): Json<SigninFromTokenClaims>,
 ) -> Result<(StatusCode, Json<SignupLinkResponse>), ComhairleError> {
-    let event = get_by_id(&state.db, &event_id).await?;
+    let _event = get_by_id(&state.db, &event_id).await?;
 
-    let now: DateTime<Utc> = Utc::now();
-    let expiry = event.end_time - now + TimeDelta::minutes(15);
+    let expiry = TimeDelta::days(2);
 
     let jwt = generate_jwt()
         .user(&user)
@@ -767,18 +760,23 @@ mod tests {
         let params: HashMap<_, _> = url.query_pairs().into_owned().collect();
         let token = params.get("signupToken").unwrap();
 
-        let token_data = decode_jwt::<SignupLinkRequest>(token, &state.config.jwt_secret).unwrap();
+        let token_data = decode_jwt::<SigninFromTokenClaims>(token, &state.config.jwt_secret).unwrap();
 
         assert_eq!(
             token_data.claims.details.email, "foo@bar.com",
             "incorrect email on token"
         );
 
-        let expected_exp = (end_time + TimeDelta::minutes(15)).timestamp();
+        let plus_1 = (start_time + TimeDelta::days(1)).timestamp();
+        let plus_3 = (start_time + TimeDelta::days(3)).timestamp();
 
-        assert_eq!(
-            token_data.claims.exp as i64, expected_exp,
-            "incorrect expiration"
+        assert!(
+            (token_data.claims.exp as i64) > plus_1,
+            "expires before 1 day"
+        );
+        assert!(
+            (token_data.claims.exp as i64) < plus_3,
+            "expires after more than 2 days"
         );
 
         Ok(())

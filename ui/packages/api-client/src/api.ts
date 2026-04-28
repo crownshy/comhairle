@@ -38,6 +38,10 @@ export const SignupRequest = z
   })
   .passthrough();
 export type SignupRequest = z.infer<typeof SignupRequest>;
+export const SigninFromTokenRequest = z
+  .object({ token: z.string() })
+  .passthrough();
+export type SigninFromTokenRequest = z.infer<typeof SigninFromTokenRequest>;
 export const VerifyEmailTokenRequest = z
   .object({ token: z.string() })
   .passthrough();
@@ -1180,13 +1184,13 @@ export const JwtResponse = z
   .object({ isModerator: z.boolean(), jwt: z.string() })
   .passthrough();
 export type JwtResponse = z.infer<typeof JwtResponse>;
-export const SignupLinkRequest = z
+export const SigninFromTokenClaims = z
   .object({
     email: z.string(),
     username: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
-export type SignupLinkRequest = z.infer<typeof SignupLinkRequest>;
+export type SigninFromTokenClaims = z.infer<typeof SigninFromTokenClaims>;
 export const SignupLinkResponse = z.object({ url: z.string() }).passthrough();
 export type SignupLinkResponse = z.infer<typeof SignupLinkResponse>;
 export const EventAttendanceEtx = z
@@ -1397,6 +1401,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UserDto,
   LoginRequest,
   SignupRequest,
+  SigninFromTokenRequest,
   VerifyEmailTokenRequest,
   ResendVerificationEmailRequest,
   CreatePasswordResetRequest,
@@ -1518,7 +1523,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EventResponse,
   PartialEvent,
   JwtResponse,
-  SignupLinkRequest,
+  SigninFromTokenClaims,
   SignupLinkResponse,
   EventAttendanceEtx,
   PaginatedResults_for_EventAttendanceEtx,
@@ -1634,6 +1639,22 @@ const endpoints = makeApi([
       },
     ],
     response: z.void(),
+  },
+  {
+    method: "post",
+    path: "/auth/signin_from_token",
+    alias: "SigninFromToken",
+    description: `Signs user in from generated signin link token and creates new user if 
+they don&#x27;t already exist`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ token: z.string() }).passthrough(),
+      },
+    ],
+    response: UserDto,
   },
   {
     method: "post",
@@ -2151,7 +2172,7 @@ curl -X POST \
       {
         name: "body",
         type: "Body",
-        schema: SignupLinkRequest,
+        schema: SigninFromTokenClaims,
       },
     ],
     response: z.object({ url: z.string() }).passthrough(),
