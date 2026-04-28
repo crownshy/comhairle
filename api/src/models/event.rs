@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use comhairle_macros::Translatable;
+use comhairle_macros::{DbJsonBEnum, Translatable};
 use partially::Partial;
 use schemars::JsonSchema;
 use sea_query::{enum_def, Alias, Expr, PostgresQueryBuilder, Query};
@@ -16,6 +16,37 @@ use crate::{
         translations::{new_translation, TextContentId, TextFormat},
     },
 };
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
+pub struct BasicEventAgendaItem {
+    pub title: String,
+    pub description: String,
+    pub estimated_time: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
+pub struct BreakoutRoomAgendaItem {
+    pub prompt: String,
+    pub instructions: String,
+    pub estimated_time: u32,
+    pub time_limit: Option<u32>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
+pub enum EventAgendaItem {
+    Basic(BasicEventAgendaItem),
+    BreakoutRoom(BreakoutRoomAgendaItem),
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, DbJsonBEnum, Clone, PartialEq)]
+#[serde(transparent)]
+pub struct EventAgenda(pub Vec<EventAgendaItem>);
+
+impl Default for EventAgenda {
+    fn default() -> Self {
+        Self(Vec::new())
+    }
+}
 
 #[derive(Serialize, Deserialize, Partial, Debug, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "event")]
@@ -34,13 +65,15 @@ pub struct Event {
     pub signup_mode: String,
     #[partially(omit)]
     pub video_meeting_id: Option<Uuid>,
+    #[serde(default)]
+    pub agenda: EventAgenda,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [EventIden; 11] = [
+const DEFAULT_COLUMNS: [EventIden; 12] = [
     EventIden::Id,
     EventIden::Name,
     EventIden::Description,
@@ -50,6 +83,7 @@ const DEFAULT_COLUMNS: [EventIden; 11] = [
     EventIden::EndTime,
     EventIden::SignupMode,
     EventIden::VideoMeetingId,
+    EventIden::Agenda,
     EventIden::CreatedAt,
     EventIden::UpdatedAt,
 ];
@@ -63,6 +97,7 @@ pub struct CreateEvent {
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
     pub signup_mode: String,
+    pub agenda: Option<EventAgenda>,
 }
 
 impl CreateEvent {
@@ -78,6 +113,10 @@ impl CreateEvent {
             columns.push(EventIden::Capacity);
         }
 
+        if self.agenda.is_some() {
+            columns.push(EventIden::Agenda)
+        }
+
         columns
     }
 
@@ -90,6 +129,10 @@ impl CreateEvent {
         ];
 
         if let Some(value) = self.capacity {
+            values.push(value.into());
+        }
+
+        if let Some(ref value) = self.agenda {
             values.push(value.into());
         }
 
@@ -442,6 +485,7 @@ mod tests {
             start_time: Utc::now(),
             end_time: Utc::now(),
             signup_mode: "invite".to_string(),
+            agenda: None,
         };
 
         let event = create(&pool, &new_event).await?;
@@ -471,6 +515,7 @@ mod tests {
             start_time: Utc::now(),
             end_time: Utc::now(),
             signup_mode: "invite".to_string(),
+            agenda: None,
         };
         let event = create(&pool, &new_event).await?;
 
@@ -516,6 +561,7 @@ mod tests {
             start_time: Utc::now(),
             end_time: Utc::now(),
             signup_mode: "invite".to_string(),
+            agenda: None,
         };
         let new_event_2 = CreateEvent {
             name: "test_event_2".to_string(),
@@ -525,6 +571,7 @@ mod tests {
             start_time: Utc::now(),
             end_time: Utc::now(),
             signup_mode: "invite".to_string(),
+            agenda: None,
         };
         let event_1 = create(&pool, &new_event_1).await?;
         let event_2 = create(&pool, &new_event_2).await?;
@@ -564,6 +611,7 @@ mod tests {
             start_time: Utc::now(),
             end_time: Utc::now(),
             signup_mode: "invite".to_string(),
+            agenda: None,
         };
         let event = create(&pool, &new_event).await?;
 
@@ -944,6 +992,7 @@ mod tests {
             start_time: Utc::now(),
             end_time: Utc::now(),
             signup_mode: "invite".to_string(),
+            agenda: None,
         };
 
         let event = create(&pool, &new_event).await?;

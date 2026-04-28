@@ -109,6 +109,7 @@ pub struct CreateEventRequest {
     start_time: DateTime<Utc>,
     end_time: DateTime<Utc>,
     signup_mode: String,
+    agenda: Option<crate::models::event::EventAgenda>,
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -126,6 +127,7 @@ async fn create(
         end_time: payload.end_time,
         signup_mode: payload.signup_mode,
         conversation_id,
+        agenda: payload.agenda,
     };
     let event = event::create(&state.db, &event).await?.into();
 
@@ -315,6 +317,7 @@ mod tests {
             start_time: Utc::now(),
             end_time: Utc::now(),
             signup_mode: "invite".to_string(),
+            agenda: None,
         };
 
         let body = serde_json::to_vec(&new_event)?;
