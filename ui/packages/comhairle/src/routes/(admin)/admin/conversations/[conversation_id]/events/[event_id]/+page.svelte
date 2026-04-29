@@ -132,7 +132,7 @@
 					type: 'breakout',
 					title: '',
 					duration: item.BreakoutRoom.estimated_time,
-					groupSize: 4,
+					groupSize: item.BreakoutRoom.max_per_room ?? 4,
 					prompts: [
 						{
 							title: item.BreakoutRoom.prompt,
@@ -164,7 +164,8 @@
 						prompt: firstPrompt?.title || '',
 						instructions: firstPrompt?.instructions || '',
 						estimated_time: item.duration ?? 10,
-						time_limit: item.duration ? item.duration * 60 : null
+						time_limit: item.duration ? item.duration * 60 : null,
+						max_per_room: item.groupSize ?? null
 					}
 				};
 			}

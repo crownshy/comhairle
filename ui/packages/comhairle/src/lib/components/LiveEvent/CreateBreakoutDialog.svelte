@@ -7,14 +7,23 @@
 	interface Props {
 		open: boolean;
 		participants: VideoCallParticipant[];
+		defaultMaxPerRoom?: number;
+		defaultDuration?: number;
 		onClose: () => void;
 		onCreate: (config: { maxPerRoom: number; durationMinutes: number }) => void;
 	}
 
-	let { open = $bindable(), participants, onClose, onCreate }: Props = $props();
+	let {
+		open = $bindable(),
+		participants,
+		defaultMaxPerRoom = 4,
+		defaultDuration = 10,
+		onClose,
+		onCreate
+	}: Props = $props();
 
-	let maxPerRoom = $state(4);
-	let durationMinutes = $state(10);
+	let maxPerRoom = $state(defaultMaxPerRoom);
+	let durationMinutes = $state(defaultDuration);
 
 	// Mutable room assignments for drag and drop
 	let roomAssignments = $state<VideoCallParticipant[][]>([]);
@@ -22,19 +31,27 @@
 	// Pinned participants stay in their room on reshuffle
 	let pinnedUsers = $state<Set<string>>(new Set());
 
-	// Build rooms when participants change or dialog opens
-	$effect(() => {
-		if (open && participants.length > 0 && roomAssignments.length === 0) {
-			distributeParticipants();
-		}
-	});
+	// Track previous open state to detect open/close transitions
+	let wasOpen = $state(false);
 
-	// Reset when dialog closes
 	$effect(() => {
-		if (!open) {
+		if (open && !wasOpen) {
+			// Dialog just opened — sync defaults and distribute
+			maxPerRoom = defaultMaxPerRoom;
+			durationMinutes = defaultDuration;
 			roomAssignments = [];
 			pinnedUsers = new Set();
+			if (participants.length > 0) {
+				distributeParticipants();
+			}
+		} else if (!open && wasOpen) {
+			// Dialog just closed — reset
+			roomAssignments = [];
+			pinnedUsers = new Set();
+			maxPerRoom = defaultMaxPerRoom;
+			durationMinutes = defaultDuration;
 		}
+		wasOpen = open;
 	});
 
 	function shuffle(arr: VideoCallParticipant[]): VideoCallParticipant[] {
@@ -205,7 +222,10 @@
 </script>
 
 <Dialog.Root bind:open onOpenChange={(v) => !v && onClose()}>
-	<Dialog.Content class="w-[70vw] rounded-3xl p-9 sm:max-w-none" showCloseButton={false}>
+	<Dialog.Content
+		class="flex max-h-[85vh] w-[70vw] flex-col overflow-hidden rounded-3xl p-6 sm:max-w-none sm:p-9"
+		showCloseButton={false}
+	>
 		<button
 			class="text-muted-foreground hover:text-foreground absolute top-6 right-6"
 			onclick={onClose}
@@ -213,12 +233,14 @@
 			<X class="h-5 w-5" />
 		</button>
 
-		<div class="flex flex-col gap-6">
+		<div class="flex min-h-0 flex-1 flex-col gap-6">
 			<!-- Title -->
-			<h2 class="text-foreground text-2xl leading-7 font-semibold">Create breakout rooms</h2>
+			<h2 class="text-foreground shrink-0 text-2xl leading-7 font-semibold">
+				Create breakout rooms
+			</h2>
 
 			<!-- Time left row -->
-			<div class="flex items-center gap-2">
+			<div class="flex shrink-0 items-center gap-2">
 				<Clock class="text-foreground h-5 w-5" />
 				<span class="text-foreground text-sm font-normal">Time left</span>
 				<input
@@ -233,7 +255,9 @@
 
 			<!-- Rooms container (dark blue) -->
 			{#if roomAssignments.length > 0}
-				<div class="bg-sidebar flex flex-col gap-3 rounded-2xl p-4">
+				<div
+					class="bg-sidebar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl p-3 sm:p-4"
+				>
 					{#each roomAssignments as room, roomIdx}
 						<div
 							class="flex items-center gap-2 rounded-lg border p-5 transition-colors {dropTargetRoom ===
@@ -314,7 +338,7 @@
 			{/if}
 
 			<!-- Create button -->
-			<div class="flex items-center justify-center">
+			<div class="flex shrink-0 items-center justify-center pt-2">
 				<Button
 					variant="primaryDark"
 					class="h-10 min-w-32 px-5 text-base font-medium"

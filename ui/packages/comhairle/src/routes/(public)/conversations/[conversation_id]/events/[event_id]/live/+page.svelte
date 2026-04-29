@@ -78,6 +78,7 @@
 
 	// Dialog states
 	let showCreateBreakout = $state(false);
+	let breakoutDialogItem = $state<AgendaItem | null>(null);
 	let showBroadcast = $state(false);
 	let showAddTime = $state(false);
 	let seenAssistanceRequests = $state<Set<string>>(new Set());
@@ -114,7 +115,8 @@
 					type: 'breakout' as const,
 					breakoutQuestion: item.BreakoutRoom.prompt,
 					breakoutDescription: item.BreakoutRoom.instructions,
-					durationMinutes: item.BreakoutRoom.estimated_time
+					durationMinutes: item.BreakoutRoom.estimated_time,
+					maxPerRoom: item.BreakoutRoom.max_per_room ?? undefined
 				};
 			}
 		});
@@ -351,6 +353,7 @@
 	function handleSetAgendaItem(index: number) {
 		videoCallService.setAgendaItem(eventId, index);
 		if (isModerator && agendaItems[index]?.type === 'breakout' && !isBreakoutActive) {
+			breakoutDialogItem = agendaItems[index];
 			showCreateBreakout = true;
 		}
 	}
@@ -625,6 +628,8 @@
 <CreateBreakoutDialog
 	bind:open={showCreateBreakout}
 	participants={allParticipants}
+	defaultDuration={breakoutDialogItem?.durationMinutes}
+	defaultMaxPerRoom={breakoutDialogItem?.maxPerRoom}
 	onClose={() => (showCreateBreakout = false)}
 	onCreate={handleCreateBreakout}
 />

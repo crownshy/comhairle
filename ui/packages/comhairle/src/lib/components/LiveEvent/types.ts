@@ -9,6 +9,7 @@ export interface AgendaItem {
 	breakoutQuestion?: string;
 	breakoutDescription?: string;
 	durationMinutes?: number;
+	maxPerRoom?: number;
 }
 
 export type MeetingPhase = 'lobby' | 'incall' | 'ended';
