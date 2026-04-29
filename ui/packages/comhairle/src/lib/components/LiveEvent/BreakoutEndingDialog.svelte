@@ -30,7 +30,7 @@
 			</p>
 
 			<p class="text-foreground text-center text-lg leading-7 font-medium">
-				in {secondsLeft} second{secondsLeft !== 1 ? 's' : ''}..
+				in {secondsLeft} second{secondsLeft !== 1 ? 's' : ''}.
 			</p>
 
 			<div class="flex w-full justify-center">
