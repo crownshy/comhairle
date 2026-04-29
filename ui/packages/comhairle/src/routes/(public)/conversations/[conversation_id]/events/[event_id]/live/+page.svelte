@@ -8,6 +8,7 @@
 	import AgendaPanel from '$lib/components/LiveEvent/AgendaPanel.svelte';
 	import BreakoutSessionPanel from '$lib/components/LiveEvent/BreakoutSessionPanel.svelte';
 	import BreakoutRoomsPanel from '$lib/components/LiveEvent/BreakoutRoomsPanel.svelte';
+	import BreakoutEndingDialog from '$lib/components/LiveEvent/BreakoutEndingDialog.svelte';
 	import CreateBreakoutDialog from '$lib/components/LiveEvent/CreateBreakoutDialog.svelte';
 	import BroadcastMessageDialog from '$lib/components/LiveEvent/BroadcastMessageDialog.svelte';
 	import AddTimeDialog from '$lib/components/LiveEvent/AddTimeDialog.svelte';
@@ -86,7 +87,8 @@
 	let noticeQueue = $state<{ message: string; actionLabel?: string; onAction?: () => void }[]>(
 		[]
 	);
-	let breakoutEndingNotified = $state(false);
+	let showBreakoutEnding = $state(false);
+	let breakoutEndingDismissed = $state(false);
 	let breakoutAutoEnded = $state(false);
 
 	// Lightweight toast for admin confirmations
@@ -248,22 +250,36 @@
 		}
 	});
 
-	// Show ending notice at 5 seconds, auto-end at 0
+	// Auto-enter participants into their assigned breakout room
 	$effect(() => {
+		if (isBreakoutActive && !isModerator && typeof roomContext === 'string') {
+			const assignedRoom = user ? videoCallService.getUserBreakoutRoom(user.id) : null;
+			// Use assigned room from backend, or default to room 0 for mock testing
+			handleEnterBreakoutRoom(assignedRoom ?? 0);
+		}
+		if (!isBreakoutActive && typeof roomContext !== 'string' && !isModerator) {
+			roomContext = 'plenary';
+		}
+	});
+
+	// Breakout ending: show countdown dialog for participants, silently auto-end for facilitator
+	let breakoutSecondsLeft = $derived(
+		breakoutTimeRemaining !== null ? Math.ceil(breakoutTimeRemaining / 1000) : 0
+	);
+
+	$effect(() => {
+		// Show countdown dialog to participants at 5 seconds
 		if (
+			!isModerator &&
 			breakoutTimeRemaining !== null &&
 			breakoutTimeRemaining <= 5000 &&
 			breakoutTimeRemaining > 0 &&
 			isBreakoutActive &&
-			!breakoutEndingNotified
+			!breakoutEndingDismissed
 		) {
-			pushNotice({
-				message: 'Breakout session ending soon. Go back to the plenary room.',
-				actionLabel: 'Go back',
-				onAction: handleGoBackToPlenary
-			});
-			breakoutEndingNotified = true;
+			showBreakoutEnding = true;
 		}
+		// Auto-end at 0
 		if (
 			breakoutTimeRemaining !== null &&
 			breakoutTimeRemaining <= 0 &&
@@ -273,8 +289,10 @@
 			breakoutAutoEnded = true;
 			handleGoBackToPlenary();
 		}
+		// Dismiss dialog once back in plenary / breakout ended
 		if (!isBreakoutActive) {
-			breakoutEndingNotified = false;
+			showBreakoutEnding = false;
+			breakoutEndingDismissed = false;
 			breakoutAutoEnded = false;
 		}
 	});
@@ -590,7 +608,7 @@
 						showTabs={isBreakoutActive && isModerator && !inBreakoutRoom}
 						onTabChange={(tab) => (activePanel = tab)}
 					>
-						{#if isBreakoutActive && (inBreakoutRoom || !isModerator)}
+						{#if isBreakoutActive && inBreakoutRoom}
 							<BreakoutSessionPanel
 								roomName={roomChipText}
 								question={currentAgendaItem?.breakoutQuestion}
@@ -668,6 +686,16 @@
 	{timeLeftFormatted}
 	onClose={() => (showAddTime = false)}
 	onAddTime={handleAddTime}
+/>
+
+<BreakoutEndingDialog
+	bind:open={showBreakoutEnding}
+	secondsLeft={breakoutSecondsLeft}
+	onGoBack={() => {
+		showBreakoutEnding = false;
+		breakoutEndingDismissed = true;
+		handleGoBackToPlenary();
+	}}
 />
 
 {#if noticeQueue.length > 0}
