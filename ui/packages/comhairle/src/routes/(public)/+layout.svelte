@@ -8,6 +8,7 @@
 	const isEmbed = $derived(page.url.searchParams.get('embed') === 'true');
 	const isAuthPage = $derived(page.url.pathname.startsWith('/auth/'));
 	const isReportPage = $derived(page.url.pathname.endsWith('/report'));
+	const isLivePage = $derived(page.url.pathname.endsWith('/live'));
 
 	let isAdmin = $derived(
 		data.userRoles
@@ -24,12 +25,16 @@
 		<div class="grow">
 			{@render children()}
 		</div>
+	{:else if isLivePage}
+		<div class="w-full grow">
+			{@render children()}
+		</div>
 	{:else}
 		<div class="mx-auto min-h-[80vh] w-full max-w-[1300px] grow px-4 md:px-20">
 			{@render children()}
 		</div>
 	{/if}
-	{#if !isEmbed}
+	{#if !isEmbed && !isLivePage}
 		<Footer />
 	{/if}
 </div>

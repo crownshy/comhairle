@@ -15,6 +15,7 @@
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import { cn } from '$lib/utils';
 	import { buttonVariants } from '$lib/components/ui/button';
+	import Button from '$lib/components/ui/button/button.svelte';
 	import {
 		DateFormatter,
 		getLocalTimeZone,
@@ -29,6 +30,8 @@
 	import BadgeInput from '$lib/components/ui/badge-input/badge-input.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import { utcTimeToLocal } from '$lib/utils/date-time';
+	import AgendaEditor from './AgendaEditor.svelte';
+	import type { EventAgendaItem } from '@crownshy/api-client/api';
 
 	let { data } = $props();
 
@@ -114,6 +117,92 @@
 	let eventDate = $derived($form.start_date ? parseDate($form.start_date) : undefined);
 	let pageTitle = $derived(`Edit Event: ${event.name}`);
 
+	// Map API agenda items to editor format
+	function apiAgendaToEditor(items: EventAgendaItem[]): any[] {
+		return items.map((item) => {
+			if ('Basic' in item) {
+				return {
+					id: crypto.randomUUID(),
+					type: 'standard',
+					title: item.Basic.title
+				};
+			} else {
+				return {
+					id: crypto.randomUUID(),
+					type: 'breakout',
+					title: '',
+					duration: item.BreakoutRoom.estimated_time,
+					groupSize: 4,
+					prompts: [
+						{
+							title: item.BreakoutRoom.prompt,
+							instructions: item.BreakoutRoom.instructions
+						}
+					],
+					assignmentMode: 'random',
+					balanceBy: []
+				};
+			}
+		});
+	}
+
+	// Map editor format back to API agenda items
+	function editorAgendaToApi(items: any[]): EventAgendaItem[] {
+		return items.map((item) => {
+			if (item.type === 'standard') {
+				return {
+					Basic: {
+						title: item.title || '',
+						description: '',
+						estimated_time: 0
+					}
+				};
+			} else {
+				const firstPrompt = item.prompts?.[0];
+				return {
+					BreakoutRoom: {
+						prompt: firstPrompt?.title || '',
+						instructions: firstPrompt?.instructions || '',
+						estimated_time: item.duration ?? 10,
+						time_limit: item.duration ? item.duration * 60 : null
+					}
+				};
+			}
+		});
+	}
+
+	let agendaItems = $state<any[]>(apiAgendaToEditor(event.agenda ?? []));
+	let agendaDirty = $state(false);
+	let agendaSaving = $state(false);
+
+	function handleAgendaUpdate(items: any[]) {
+		agendaItems = items;
+		agendaDirty = true;
+	}
+
+	async function handleSaveAgenda() {
+		agendaSaving = true;
+		try {
+			await apiClient.UpdateEvent(
+				{ agenda: editorAgendaToApi(agendaItems) },
+				{
+					params: {
+						conversation_id: conversation.id,
+						event_id: event.id
+					}
+				}
+			);
+			await invalidateAll();
+			agendaDirty = false;
+			notifications.send({ message: 'Agenda saved', priority: 'INFO' });
+		} catch (e) {
+			console.error(e);
+			notifications.send({ message: 'Failed to save agenda', priority: 'ERROR' });
+		} finally {
+			agendaSaving = false;
+		}
+	}
+
 	async function handleAddFacilitator(value: string) {
 		try {
 			await apiClient.CreateFacilitatorEventAttendance(
@@ -191,6 +280,12 @@
 			class="text-sidebar-foreground data-[state=active]:text-foreground border-none"
 		>
 			Details
+		</Tabs.Trigger>
+		<Tabs.Trigger
+			value="eventStructure"
+			class="text-sidebar-foreground data-[state=active]:text-foreground border-none"
+		>
+			Event Structure
 		</Tabs.Trigger>
 		<Tabs.Trigger
 			value="facilitators"
@@ -413,6 +508,29 @@
 				</Form.Button>
 			</div>
 		</form>
+	</Tabs.Content>
+	<Tabs.Content value="eventStructure">
+		<div class="flex flex-col gap-10 py-6">
+			<div class="flex flex-col gap-2">
+				<h2 class="text-3xl font-bold">
+					Event structure <span class="font-bold">(for facilitator)</span>
+				</h2>
+				<p class="text-muted-foreground text-base">Plan how your meeting will run</p>
+			</div>
+
+			<AgendaEditor bind:items={agendaItems} onUpdate={handleAgendaUpdate} />
+
+			<div class="border-border flex justify-center border-t py-6">
+				<Button
+					variant="default"
+					class="px-12"
+					disabled={!agendaDirty || agendaSaving}
+					onclick={handleSaveAgenda}
+				>
+					{agendaSaving ? 'Saving...' : 'Save Agenda'}
+				</Button>
+			</div>
+		</div>
 	</Tabs.Content>
 	<Tabs.Content value="facilitators">
 		<div

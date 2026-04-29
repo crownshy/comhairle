@@ -192,6 +192,9 @@ impl PartialEvent {
         if let Some(value) = &self.signup_mode {
             values.push((EventIden::SignupMode, value.into()));
         }
+        if let Some(value) = &self.agenda {
+            values.push((EventIden::Agenda, value.into()));
+        }
 
         values
     }
