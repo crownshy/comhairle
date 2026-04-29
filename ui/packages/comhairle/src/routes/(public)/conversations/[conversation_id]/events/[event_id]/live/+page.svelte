@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy, untrack } from 'svelte';
+	import { dev } from '$app/environment';
 	import JitsiMeet from '$lib/components/JitsiMeet/JitsiMeet.svelte';
 	import * as Drawer from '$lib/components/ui/drawer';
 	import { formatDateShort, formatTime } from '$lib/utils';
@@ -34,7 +35,7 @@
 	let user = $derived(data.user);
 	let isModerator = $derived(data.isModerator);
 
-	// Mock participants for testing (todo: remove)
+	/** @todo remove — mock participants for dev testing */
 	const mockParticipants: VideoCallParticipant[] = [
 		{ user_id: 'user-1', username: 'Alice Johnson', role: 'participant' },
 		{ user_id: 'user-2', username: 'Bob Smith', role: 'participant' },
@@ -50,10 +51,11 @@
 		{ user_id: 'user-12', username: 'Leo Garcia', role: 'participant' }
 	];
 
-	// Reactive reads from videoCallService
 	let callStatus = $derived(videoCallService.callStatus);
 	let realParticipants = $derived(videoCallService.participants);
-	let allParticipants = $derived([...realParticipants, ...mockParticipants]);
+	let allParticipants = $derived(
+		dev ? [...realParticipants, ...mockParticipants] : realParticipants
+	);
 	let otherParticipants = $derived(allParticipants.filter((p) => p.user_id !== user?.id));
 	let currentStep = $derived(videoCallService.currentAgendaStep);
 	let breakoutSession = $derived(videoCallService.breakoutSession);
@@ -67,23 +69,21 @@
 		return () => videoCallService.leaveCall(eventId);
 	});
 
-	// Local UI state
 	let hasJoinedCall = $state(false);
 	let jitsiApi: any = $state(null);
 	let roomContext = $state<RoomContext>('plenary');
 	let activePanel = $state<PanelTab>('agenda');
 
-	// Mock breakout rooms (for testing with mock participants)
+	/** Mock breakout rooms for dev testing */
 	let mockBreakoutRooms = $state<BreakoutRoomDisplay[]>([]);
 
-	// Dialog states
 	let showCreateBreakout = $state(false);
 	let breakoutDialogItem = $state<AgendaItem | null>(null);
 	let showBroadcast = $state(false);
 	let showAddTime = $state(false);
 	let seenAssistanceRequests = $state<Set<string>>(new Set());
 
-	// Notice queue (assistance requests, broadcasts, time warnings, etc.)
+	/** Notice queue for assistance requests, broadcasts, time warnings */
 	let noticeQueue = $state<{ message: string; actionLabel?: string; onAction?: () => void }[]>(
 		[]
 	);
@@ -91,15 +91,14 @@
 	let breakoutEndingDismissed = $state(false);
 	let breakoutAutoEnded = $state(false);
 
-	// Lightweight toast for admin confirmations
+	/** Lightweight toast for admin confirmations */
 	let toastMessage = $state<string | null>(null);
 	let toastTimeout: ReturnType<typeof setTimeout> | null = null;
 
-	// Breakout countdown
 	let breakoutTimeRemaining = $state<number | null>(null);
 	let countdownInterval: ReturnType<typeof setInterval> | null = null;
 
-	// Map API agenda items to live event format
+	/** Map API agenda items to live event format */
 	function mapApiAgenda(items: EventAgendaItem[]): AgendaItem[] {
 		return items.map((item, index) => {
 			if ('Basic' in item) {
@@ -124,7 +123,6 @@
 
 	let agendaItems = $derived(mapApiAgenda(event?.agenda ?? []));
 
-	// Derived state
 	let meetingPhase = $derived.by(() => {
 		if (callStatus === null) return 'loading' as const;
 		if (callStatus === 'Ended') return 'ended' as const;
@@ -178,7 +176,6 @@
 		return mockBreakoutRooms;
 	});
 
-	// Breakout countdown effect
 	$effect(() => {
 		const session = breakoutSession;
 		if (session) {
@@ -208,13 +205,16 @@
 		if (!isModerator) return;
 		const reqs = assistanceRequests;
 		for (const rn of Object.keys(reqs)) {
-			const key = `${rn}:${reqs[rn].made_by_user}`;
+			const userId = reqs[rn].made_by_user;
+			const key = `${rn}:${userId}`;
 			if (seenAssistanceRequests.has(key)) continue;
 			const match = rn.match(/room-(\d+)/);
 			const ri = match ? parseInt(match[1]) : 0;
 			const roomName = `Breakout room #${ri + 1}`;
+			const participant = allParticipants.find((p) => p.user_id === userId);
+			const displayName = participant?.username ?? userId.slice(0, 8);
 			pushNotice({
-				message: `${reqs[rn].made_by_user} from ${roomName} requested help.`,
+				message: `${displayName} from ${roomName} requested help.`,
 				actionLabel: `Enter ${roomName}`,
 				onAction: () => handleEnterBreakoutRoom(ri)
 			});
@@ -241,7 +241,6 @@
 		}
 	});
 
-	// Auto-switch panel when breakout session starts/ends
 	$effect(() => {
 		if (isBreakoutActive && isModerator) {
 			activePanel = 'breakoutRooms';
@@ -313,7 +312,6 @@
 		if (toastTimeout) clearTimeout(toastTimeout);
 	});
 
-	// Handlers
 	function pushNotice(notice: { message: string; actionLabel?: string; onAction?: () => void }) {
 		noticeQueue = [...noticeQueue, notice];
 	}
@@ -330,15 +328,17 @@
 		}, 4000);
 	}
 
-	// DEV ONLY: reset call state to Waiting
+	/** DEV ONLY: reset call state to Waiting */
 	function devResetCall() {
-		videoCallService.changeCallState(eventId, 'Waiting');
-		videoCallService.setAgendaItem(eventId, 0);
-		videoCallService.endBreakoutSession(eventId);
-		hasJoinedCall = false;
-		roomContext = 'plenary';
-		showCreateBreakout = false;
-		console.log('DEV: Call state reset to Waiting');
+		if (dev) {
+			videoCallService.changeCallState(eventId, 'Waiting');
+			videoCallService.setAgendaItem(eventId, 0);
+			videoCallService.endBreakoutSession(eventId);
+			hasJoinedCall = false;
+			roomContext = 'plenary';
+			showCreateBreakout = false;
+			console.log('DEV: Call state reset to Waiting');
+		}
 	}
 
 	function handleStartMeeting() {
@@ -365,18 +365,22 @@
 		}
 	}
 
-	function handleCreateBreakout(config: { maxPerRoom: number; durationMinutes: number }) {
+	function handleCreateBreakout(config: {
+		maxPerRoom: number;
+		durationMinutes: number;
+		roomAssignments: VideoCallParticipant[][];
+	}) {
+		// TODO: when backend supports explicit assignments, send config.roomAssignments
 		videoCallService.assignBreakoutRooms(eventId, config.maxPerRoom);
 		const ends = new Date(Date.now() + config.durationMinutes * 60 * 1000).toISOString();
 		videoCallService.startBreakoutSession(eventId, ends);
 		showCreateBreakout = false;
 
-		// Generate mock rooms from mock participants for testing
-		const roomCount = Math.ceil(allParticipants.length / config.maxPerRoom);
-		mockBreakoutRooms = Array.from({ length: roomCount }, (_, i) => ({
+		// Use dialog's room assignments for local display until backend confirms
+		mockBreakoutRooms = config.roomAssignments.map((participants, i) => ({
 			index: i,
 			name: `Room #${i + 1}`,
-			participants: allParticipants.slice(i * config.maxPerRoom, (i + 1) * config.maxPerRoom),
+			participants,
 			hasAssistanceRequest: false,
 			assistanceRequestUser: null
 		}));
@@ -497,13 +501,14 @@
 							</span>
 						</div>
 					</div>
-					<!-- DEV ONLY -->
-					<button
-						class="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded px-3 py-1 text-xs font-medium"
-						onclick={devResetCall}
-					>
-						DEV: Reset Call
-					</button>
+					{#if dev}
+						<button
+							class="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded px-3 py-1 text-xs font-medium"
+							onclick={devResetCall}
+						>
+							DEV: Reset Call
+						</button>
+					{/if}
 				</div>
 
 				<!-- Jitsi iframe -->

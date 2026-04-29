@@ -117,7 +117,7 @@
 	let eventDate = $derived($form.start_date ? parseDate($form.start_date) : undefined);
 	let pageTitle = $derived(`Edit Event: ${event.name}`);
 
-	// Map API agenda items to editor format
+	/** Map API agenda items to editor format */
 	function apiAgendaToEditor(items: EventAgendaItem[]): any[] {
 		return items.map((item) => {
 			if ('Basic' in item) {
@@ -146,7 +146,7 @@
 		});
 	}
 
-	// Map editor format back to API agenda items
+	/** Map editor format back to API agenda items */
 	function editorAgendaToApi(items: any[]): EventAgendaItem[] {
 		return items.map((item) => {
 			if (item.type === 'standard') {

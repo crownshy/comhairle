@@ -118,7 +118,7 @@
 	</div>
 
 	<!-- Footer controls -->
-	<div class="flex flex-col items-center gap-3 border-t px-3 pt-4 pb-3">
+	<div class="flex flex-col items-center border-t px-3 pt-4 pb-3">
 		<Button
 			variant="primaryDark"
 			class="h-10 w-full text-sm font-medium"
@@ -127,23 +127,13 @@
 			<Megaphone class="mr-1.5 h-4 w-4" />
 			Broadcast message
 		</Button>
-		<div class="flex w-full items-center gap-2">
-			<Button
-				variant="primaryDark"
-				class="h-10 flex-1 text-sm font-medium"
-				onclick={onAddTime}
-			>
-				<Clock class="mr-1.5 h-4 w-4" />
-				Add time
-			</Button>
-			<Button
-				variant="destructive"
-				class="h-10 flex-1 text-sm font-medium"
-				onclick={onEndSession}
-			>
-				<CircleStop class="mr-1.5 h-4 w-4" />
-				End session
-			</Button>
-		</div>
+		<Button
+			variant="destructive"
+			class="h-10 w-full text-sm font-medium"
+			onclick={onEndSession}
+		>
+			<CircleStop class="mr-1.5 h-4 w-4" />
+			End session
+		</Button>
 	</div>
 </div>

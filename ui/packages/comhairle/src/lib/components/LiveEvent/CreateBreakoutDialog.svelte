@@ -10,7 +10,11 @@
 		defaultMaxPerRoom?: number;
 		defaultDuration?: number;
 		onClose: () => void;
-		onCreate: (config: { maxPerRoom: number; durationMinutes: number }) => void;
+		onCreate: (config: {
+			maxPerRoom: number;
+			durationMinutes: number;
+			roomAssignments: VideoCallParticipant[][];
+		}) => void;
 	}
 
 	let {
@@ -25,13 +29,12 @@
 	let maxPerRoom = $state(defaultMaxPerRoom);
 	let durationMinutes = $state(defaultDuration);
 
-	// Mutable room assignments for drag and drop
+	/** Mutable room assignments for drag and drop */
 	let roomAssignments = $state<VideoCallParticipant[][]>([]);
 
-	// Pinned participants stay in their room on reshuffle
+	/** Pinned participants stay in their room on reshuffle */
 	let pinnedUsers = $state<Set<string>>(new Set());
 
-	// Track previous open state to detect open/close transitions
 	let wasOpen = $state(false);
 
 	$effect(() => {
@@ -125,11 +128,10 @@
 	}
 
 	function handleCreate() {
-		onCreate({ maxPerRoom, durationMinutes });
+		onCreate({ maxPerRoom, durationMinutes, roomAssignments });
 		open = false;
 	}
 
-	// --- Drag and drop state ---
 	let dragSource: { roomIdx: number; pIdx: number } | null = $state(null);
 	let dropTargetRoom: number | null = $state(null);
 
@@ -188,7 +190,6 @@
 		dragSource = null;
 	}
 
-	// --- Helpers ---
 	const avatarColors = [
 		'bg-blue-600',
 		'bg-emerald-500',
@@ -198,7 +199,7 @@
 		'bg-cyan-500'
 	];
 
-	// Stable color per participant based on user_id
+	/** Stable color per participant based on user_id */
 	function getColorForParticipant(p: VideoCallParticipant): string {
 		let hash = 0;
 		const id = p.user_id;
