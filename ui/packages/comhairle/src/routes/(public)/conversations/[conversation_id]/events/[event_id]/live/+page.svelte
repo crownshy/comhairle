@@ -71,7 +71,6 @@
 	let hasJoinedCall = $state(false);
 	let jitsiApi: any = $state(null);
 	let roomContext = $state<RoomContext>('plenary');
-	let panelOpen = $state(true);
 	let activePanel = $state<PanelTab>('agenda');
 
 	// Mock breakout rooms (for testing with mock participants)
@@ -555,92 +554,47 @@
 						{/if}
 					</div>
 				</div>
-
-				<!-- Host panel toggle tabs (visible when panel closed) -->
-				{#if isModerator && !panelOpen}
-					<div class="absolute top-12 right-0 z-10 flex flex-col rounded-3xl shadow-lg">
-						<button
-							class="bg-background h-12 w-48 px-6 py-3 text-left text-sm font-semibold {isBreakoutActive &&
-							!inBreakoutRoom
-								? 'rounded-t-[20px]'
-								: 'rounded-[20px]'}"
-							onclick={() => {
-								activePanel = 'agenda';
-								panelOpen = true;
-							}}
-						>
-							Agenda
-						</button>
-						{#if isBreakoutActive && !inBreakoutRoom}
-							<button
-								class="bg-background relative h-12 w-48 rounded-b-[20px] border-t px-6 py-3 text-left text-sm font-semibold"
-								onclick={() => {
-									activePanel = 'breakoutRooms';
-									panelOpen = true;
-								}}
-							>
-								Breakout rooms
-								{#if Object.keys(assistanceRequests).length > 0}
-									<span
-										class="bg-destructive absolute top-3.5 right-4 h-2 w-2 rounded-full"
-									></span>
-								{/if}
-							</button>
-						{/if}
-					</div>
-				{/if}
 			</div>
 
 			<!-- Right panel (side-by-side) -->
-			{#if panelOpen || !isModerator}
-				<div class="relative h-full w-[360px] shrink-0 p-3">
-					{#if isModerator}
-						<button
-							class="text-muted-foreground hover:text-foreground absolute top-5 right-5 z-10 flex h-6 w-6 items-center justify-center rounded-full"
-							onclick={() => (panelOpen = false)}
-							aria-label="Close panel"
-						>
-							✕
-						</button>
+			<div class="relative h-full w-[360px] shrink-0 p-3">
+				<SidePanel
+					activeTab={activePanel}
+					showTabs={isBreakoutActive && isModerator && !inBreakoutRoom}
+					onTabChange={(tab) => (activePanel = tab)}
+				>
+					{#if isBreakoutActive && inBreakoutRoom}
+						<BreakoutSessionPanel
+							roomName={roomChipText}
+							question={currentAgendaItem?.breakoutQuestion}
+							description={currentAgendaItem?.breakoutDescription}
+							{timeLeftFormatted}
+							{isModerator}
+							onCallForSupport={handleCallForSupport}
+							onLeaveBreakoutRoom={handleLeaveBreakoutRoom}
+						/>
+					{:else if activePanel === 'breakoutRooms' && breakoutRoomDisplays.length > 0}
+						<BreakoutRoomsPanel
+							rooms={breakoutRoomDisplays}
+							{timeLeftFormatted}
+							{isModerator}
+							onEnterRoom={handleEnterBreakoutRoom}
+							onAddTime={() => (showAddTime = true)}
+							onEndSession={handleEndBreakoutSession}
+							onBroadcastMessage={() => (showBroadcast = true)}
+						/>
+					{:else}
+						<AgendaPanel
+							items={agendaItems}
+							{currentStep}
+							{isModerator}
+							readOnly={isBreakoutActive}
+							onSetCurrent={handleSetAgendaItem}
+							onNext={handleNextAgendaItem}
+						/>
 					{/if}
-					<SidePanel
-						activeTab={activePanel}
-						showTabs={isBreakoutActive && isModerator && !inBreakoutRoom}
-						onTabChange={(tab) => (activePanel = tab)}
-					>
-						{#if isBreakoutActive && inBreakoutRoom}
-							<BreakoutSessionPanel
-								roomName={roomChipText}
-								question={currentAgendaItem?.breakoutQuestion}
-								description={currentAgendaItem?.breakoutDescription}
-								{timeLeftFormatted}
-								{isModerator}
-								onCallForSupport={handleCallForSupport}
-								onLeaveBreakoutRoom={handleLeaveBreakoutRoom}
-							/>
-						{:else if activePanel === 'breakoutRooms' && breakoutRoomDisplays.length > 0}
-							<BreakoutRoomsPanel
-								rooms={breakoutRoomDisplays}
-								{timeLeftFormatted}
-								{isModerator}
-								onEnterRoom={handleEnterBreakoutRoom}
-								onAddTime={() => (showAddTime = true)}
-								onEndSession={handleEndBreakoutSession}
-								onBroadcastMessage={() => (showBroadcast = true)}
-							/>
-						{:else}
-							<AgendaPanel
-								items={agendaItems}
-								{currentStep}
-								{isModerator}
-								readOnly={isBreakoutActive}
-								onSetCurrent={handleSetAgendaItem}
-								onNext={handleNextAgendaItem}
-							/>
-						{/if}
-					</SidePanel>
-				</div>
-			{/if}
+				</SidePanel>
+			</div>
 		</div>
 	</div>
 
