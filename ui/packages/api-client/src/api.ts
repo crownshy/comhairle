@@ -11,7 +11,12 @@ export const AnnonLoginRequest = z
   .object({ username: z.string() })
   .passthrough();
 export type AnnonLoginRequest = z.infer<typeof AnnonLoginRequest>;
-export const UserAuthType = z.enum(["annon", "email_password", "scot_account"]);
+export const UserAuthType = z.enum([
+  "annon",
+  "email_password",
+  "otp",
+  "scot_account",
+]);
 export type UserAuthType = z.infer<typeof UserAuthType>;
 export const UserDto = z
   .object({
@@ -38,6 +43,8 @@ export const SignupRequest = z
   })
   .passthrough();
 export type SignupRequest = z.infer<typeof SignupRequest>;
+export const OtpSignupRequest = z.object({ email: z.string() }).passthrough();
+export type OtpSignupRequest = z.infer<typeof OtpSignupRequest>;
 export const VerifyEmailTokenRequest = z
   .object({ token: z.string() })
   .passthrough();
@@ -1420,6 +1427,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UserDto,
   LoginRequest,
   SignupRequest,
+  OtpSignupRequest,
   VerifyEmailTokenRequest,
   ResendVerificationEmailRequest,
   CreatePasswordResetRequest,
@@ -1679,6 +1687,20 @@ const endpoints = makeApi([
     path: "/auth/signup_annon",
     alias: "SignupAnnonUser",
     requestFormat: "json",
+    response: UserDto,
+  },
+  {
+    method: "post",
+    path: "/auth/signup_otp",
+    alias: "SignupOtp",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ email: z.string() }).passthrough(),
+      },
+    ],
     response: UserDto,
   },
   {
