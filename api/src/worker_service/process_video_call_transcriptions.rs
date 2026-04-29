@@ -89,6 +89,14 @@ pub async fn generate_sensemaking_report(
         .map_err(|_| WorkerServiceError::NoCategorizationServiceError)
         .ok_or_record_failure(&req.job_id, &state.db)
         .await?;
+    let webhook_signature = &state
+        .config
+        .categorization_service
+        .as_ref()
+        .ok_or(WorkerServiceError::NoCategorizationServiceError)
+        .ok_or_record_failure(&req.job_id, &state.db)
+        .await?
+        .webhook_signature;
 
     info!(
         transcription_id = %req.transcription_key,
@@ -121,10 +129,11 @@ pub async fn generate_sensemaking_report(
     let _analysis_job = categorization_service
         .create_analysis_job(
             comments,
-            Some(format!(
+            format!(
                 "{}/api/conversation/{}/events/{}/report",
                 state.config.domain, req.conversation_id, req.event_id
-            )),
+            ),
+            webhook_signature.to_string(),
         )
         .await
         .map_err(|e| WorkerServiceError::CategorizationServiceError(e.to_string()))

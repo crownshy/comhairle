@@ -31,7 +31,8 @@ impl CategorizationService for TttcCategorizer {
     async fn create_analysis_job(
         &self,
         comments: Vec<Comment>,
-        webhook_url: Option<String>,
+        webhook_url: String,
+        webhook_signature: String,
     ) -> Result<CreateAnalysisJobResponse> {
         let url = format!("{}{}/jobs", self.base_url, self.path_prefix);
 
@@ -49,8 +50,8 @@ impl CategorizationService for TttcCategorizer {
                     ..Default::default()
                 },
             },
-            webhook_url: webhook_url.unwrap_or("https://comhairle.scot/api".to_string()),
-            webhook_secret: None,
+            webhook_url,
+            webhook_secret: Some(webhook_signature),
         };
 
         let response = self
@@ -191,7 +192,13 @@ mod tests {
 
         let tttc_client = TttcCategorizer::new(&config.server_url.clone(), &config.api_key.clone());
 
-        let response = tttc_client.create_analysis_job(comments, None).await?;
+        let response = tttc_client
+            .create_analysis_job(
+                comments,
+                "http://localhost:3000/api".to_string(),
+                "signature".to_string(),
+            )
+            .await?;
 
         assert_eq!(response.status, "queued".to_string());
 

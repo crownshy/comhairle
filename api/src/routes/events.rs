@@ -27,7 +27,9 @@ use crate::{
         pagination::{PageOptions, PaginatedResults},
     },
     routes::{
-        auth::{generate_jwt, is_user_admin, RequiredAdminUser, RequiredUser},
+        auth::{
+            generate_jwt, is_user_admin, RequiredAdminUser, RequiredUser, RequiredWebhookSignature,
+        },
         events::dto::{EventDto, LocalizedEventDto},
         translations::LocaleExtractor,
     },
@@ -244,12 +246,7 @@ async fn process_transcriptions(
     State(state): State<Arc<ComhairleState>>,
     Path((conversation_id, event_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<ProcessTranscriptionResponse>), ComhairleError> {
-    let db_event = event::read(&state.db, event_id).await?;
-    if db_event.conversation_id != conversation_id {
-        return Err(ComhairleError::ResourceNotFound(format!(
-            "event {event_id} for conversation {conversation_id}"
-        )));
-    }
+    let _event = event::get_by_id(&state.db, &event_id).await?;
     let worker_service = state.required_worker_service()?;
 
     let entries = state
@@ -343,13 +340,17 @@ async fn submit_report(
     State(state): State<Arc<ComhairleState>>,
     Query(params): Query<SubmitReportParams>,
     Path((conversation_id, event_id)): Path<(Uuid, Uuid)>,
+    RequiredWebhookSignature: RequiredWebhookSignature,
     Json(payload): Json<SubmitReportRequest>,
 ) -> Result<(StatusCode, Json<SubmitReportResponse>), ComhairleError> {
     let event = get_by_id(&state.db, &event_id).await?;
 
     if event.conversation_id != conversation_id {
-        return Err(StatusCode::NOT_FOUND.into());
+        return Err(ComhairleError::ResourceNotFound(format!(
+            "No event {event_id} found for conversation {conversation_id}"
+        )));
     }
+
     let path = if let Some(room_id) = params.room_id {
         format!("events/{}/rooms/{}/report.json", event_id, room_id)
     } else {
@@ -460,10 +461,13 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
-    use axum::body::Body;
+    use axum::{
+        body::Body,
+        http::{HeaderName, HeaderValue},
+    };
     use serde_json::json;
     use sqlx::PgPool;
-    use std::error::Error;
+    use std::{error::Error, str::FromStr};
 
     use crate::{
         bulk_storage::{MockBulkStorageService, UploadResult},
@@ -1019,7 +1023,7 @@ mod tests {
             .db(pool)
             .bulk_storage_service(Arc::new(bulk_storage_service))
             .call()?;
-        let app = setup_server(Arc::new(state)).await?;
+        let app = setup_server(Arc::new(state.clone())).await?;
         let mut session = UserSession::new_admin();
         session.signup(&app).await?;
 
@@ -1031,14 +1035,23 @@ mod tests {
         let event: EventDto = serde_json::from_value(value)?;
 
         let body = include_str!("../../../fixtures/tttc-report.json");
+        let webhook_hname = HeaderName::from_str("X-Webhook-Signature")?;
+        let webhook_hval = HeaderValue::from_str(
+            &state
+                .config
+                .categorization_service
+                .unwrap()
+                .webhook_signature,
+        )?;
         let (_, value, _) = session
-            .post(
+            .post_with_headers(
                 &app,
                 &format!(
                     "/conversation/{}/events/{}/report",
                     conversation.id, event.id
                 ),
                 body.into(),
+                &[(webhook_hname, webhook_hval)],
             )
             .await?;
         let response: SubmitReportResponse = serde_json::from_value(value)?;

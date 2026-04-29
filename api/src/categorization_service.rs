@@ -21,10 +21,12 @@ pub trait CategorizationService: Sync + Send {
     /// # Arguments
     ///
     /// * `comments` — The free-text comments to be analyzed and categorized.
-    /// * `webhook_url` — An optional URL to be called by the service when the analysis
-    ///   job completes. If provided, the service will POST the finished report to this
+    /// * `webhook_url` — A URL to be called by the service when the analysis
+    ///   job completes. The service will POST the finished report to this
     ///   endpoint. Not all implementations support webhooks; those that don't may
     ///   ignore this parameter.
+    /// * `webhook_signature` - A secret added to the webhook request on completion
+    ///   which can be used to authenticate the webhook endpoints.
     ///
     /// # Errors
     ///
@@ -33,7 +35,8 @@ pub trait CategorizationService: Sync + Send {
     async fn create_analysis_job(
         &self,
         comments: Vec<Comment>,
-        webhook_url: Option<String>,
+        webhook_url: String,
+        webhook_signature: String,
     ) -> Result<CreateAnalysisJobResponse>;
 }
 
@@ -42,11 +45,13 @@ impl MockCategorizationService {
     pub fn base() -> MockCategorizationService {
         let mut categorizer = MockCategorizationService::new();
 
-        categorizer.expect_create_analysis_job().returning(|_, _| {
-            Ok(CreateAnalysisJobResponse {
-                ..Default::default()
-            })
-        });
+        categorizer
+            .expect_create_analysis_job()
+            .returning(|_, _, _| {
+                Ok(CreateAnalysisJobResponse {
+                    ..Default::default()
+                })
+            });
 
         categorizer
     }

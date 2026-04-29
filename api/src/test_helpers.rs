@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use axum::{
     body::Body,
-    http::{header::COOKIE, HeaderValue, Request, StatusCode},
+    http::{header::COOKIE, HeaderName, HeaderValue, Request, StatusCode},
     response::Response,
     Router,
 };
@@ -355,6 +355,43 @@ impl UserSession {
 
         if let Some(cookie) = &self.cookie {
             request = request.header(COOKIE, cookie)
+        }
+
+        let request = request.body(body).unwrap();
+        let response = app.clone().oneshot(request).await?;
+        let status = response.status();
+
+        let cookie = response
+            .headers()
+            .get(axum::http::header::SET_COOKIE)
+            .map(|cookie| cookie.to_owned());
+
+        if let Some(cookie) = &cookie {
+            self.cookie = Some(cookie.clone());
+        }
+
+        let value = response_to_json(response).await;
+        Ok((status, value, cookie))
+    }
+
+    pub async fn post_with_headers(
+        &mut self,
+        app: &Router,
+        url: &str,
+        body: Body,
+        headers: &[(HeaderName, HeaderValue)],
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        let mut request = Request::builder()
+            .uri(url)
+            .method("POST")
+            .header("content-type", "application/json");
+
+        if let Some(cookie) = &self.cookie {
+            request = request.header(COOKIE, cookie)
+        }
+
+        for (name, value) in headers {
+            request = request.header(name, value);
         }
 
         let request = request.body(body).unwrap();

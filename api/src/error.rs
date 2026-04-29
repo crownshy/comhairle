@@ -118,6 +118,9 @@ pub enum ComhairleError {
     #[error("Auth Error {0}")]
     AuthJWTError(String),
 
+    #[error("Auth Error {0}")]
+    AuthWebhookSignatureError(String),
+
     #[error("Locale Error {0}")]
     LocaleError(String),
 
