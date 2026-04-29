@@ -538,11 +538,14 @@
 					</div>
 				</div>
 
-				<!-- Host panel toggle tabs (visible when panel closed during breakout) -->
-				{#if isModerator && isBreakoutActive && !inBreakoutRoom && !panelOpen}
+				<!-- Host panel toggle tabs (visible when panel closed) -->
+				{#if isModerator && !panelOpen}
 					<div class="absolute top-12 right-0 z-10 flex flex-col rounded-3xl shadow-lg">
 						<button
-							class="bg-background h-12 w-48 rounded-t-[20px] px-6 py-3 text-left text-sm font-semibold"
+							class="bg-background h-12 w-48 px-6 py-3 text-left text-sm font-semibold {isBreakoutActive &&
+							!inBreakoutRoom
+								? 'rounded-t-[20px]'
+								: 'rounded-[20px]'}"
 							onclick={() => {
 								activePanel = 'agenda';
 								panelOpen = true;
@@ -550,20 +553,22 @@
 						>
 							Agenda
 						</button>
-						<button
-							class="bg-background relative h-12 w-48 rounded-b-[20px] border-t px-6 py-3 text-left text-sm font-semibold"
-							onclick={() => {
-								activePanel = 'breakoutRooms';
-								panelOpen = true;
-							}}
-						>
-							Breakout rooms
-							{#if Object.keys(assistanceRequests).length > 0}
-								<span
-									class="bg-destructive absolute top-3.5 right-4 h-2 w-2 rounded-full"
-								></span>
-							{/if}
-						</button>
+						{#if isBreakoutActive && !inBreakoutRoom}
+							<button
+								class="bg-background relative h-12 w-48 rounded-b-[20px] border-t px-6 py-3 text-left text-sm font-semibold"
+								onclick={() => {
+									activePanel = 'breakoutRooms';
+									panelOpen = true;
+								}}
+							>
+								Breakout rooms
+								{#if Object.keys(assistanceRequests).length > 0}
+									<span
+										class="bg-destructive absolute top-3.5 right-4 h-2 w-2 rounded-full"
+									></span>
+								{/if}
+							</button>
+						{/if}
 					</div>
 				{/if}
 			</div>
