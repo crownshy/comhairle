@@ -109,7 +109,9 @@
 							{/if}
 						</div>
 						<p class="text-foreground w-80 text-xl font-normal">
-							{firstParticipantName} and others are waiting to join.
+							{firstParticipantName}{participants.length > 1
+								? ' and others are'
+								: ' is'} waiting to join.
 						</p>
 					</div>
 				{/if}
@@ -120,6 +122,26 @@
 					onclick={onStartMeeting}
 				>
 					Start meeting
+				</Button>
+			</div>
+		{:else if isModerator && isStarted}
+			<!-- Host rejoin state -->
+			<div class="flex flex-col items-center gap-14">
+				<div class="flex flex-col items-center gap-4">
+					<h1 class="text-foreground text-center text-5xl leading-[52px] font-bold">
+						{title}
+					</h1>
+					<p class="text-foreground text-center text-2xl leading-7 font-semibold">
+						{scheduledTime}
+					</p>
+				</div>
+
+				<Button
+					variant="primaryDark"
+					class="h-12 px-8 text-xl font-semibold"
+					onclick={onJoinMeeting}
+				>
+					Rejoin meeting
 				</Button>
 			</div>
 		{:else if !isModerator && isWaiting}
@@ -162,7 +184,9 @@
 							{/if}
 						</div>
 						<p class="text-foreground w-80 text-xl font-normal">
-							{firstParticipantName} and others are waiting to join.
+							{firstParticipantName}{participants.length > 1
+								? ' and others are'
+								: ' is'} waiting to join.
 						</p>
 					</div>
 				{/if}
@@ -215,7 +239,9 @@
 							{/if}
 						</div>
 						<p class="text-foreground w-80 text-xl font-normal">
-							{firstParticipantName} and others are in the call.
+							{firstParticipantName}{participants.length > 1
+								? ' and others are'
+								: ' is'} in the call.
 						</p>
 					</div>
 				{/if}

@@ -87,6 +87,7 @@
 		[]
 	);
 	let breakoutEndingNotified = $state(false);
+	let breakoutAutoEnded = $state(false);
 
 	// Lightweight toast for admin confirmations
 	let toastMessage = $state<string | null>(null);
@@ -232,7 +233,7 @@
 
 	// Auto-join when arriving at an already in-progress call
 	$effect(() => {
-		if (callStatus === 'InProgress' && !hasJoinedCall) {
+		if (callStatus === 'InProgress' && !hasJoinedCall && isModerator) {
 			hasJoinedCall = true;
 		}
 	});
@@ -263,11 +264,18 @@
 			});
 			breakoutEndingNotified = true;
 		}
-		if (breakoutTimeRemaining !== null && breakoutTimeRemaining <= 0 && isBreakoutActive) {
+		if (
+			breakoutTimeRemaining !== null &&
+			breakoutTimeRemaining <= 0 &&
+			isBreakoutActive &&
+			!breakoutAutoEnded
+		) {
+			breakoutAutoEnded = true;
 			handleGoBackToPlenary();
 		}
 		if (!isBreakoutActive) {
 			breakoutEndingNotified = false;
+			breakoutAutoEnded = false;
 		}
 	});
 
@@ -480,26 +488,28 @@
 
 				<!-- Jitsi iframe -->
 				<div class="relative flex-1 overflow-hidden">
-					<JitsiMeet
-						roomName={currentJitsiRoom}
-						{jwt}
-						onApiReady={handleApiReady}
-						startWithAudioMuted={true}
-						configOverwrite={{
-							toolbarButtons: [
-								'microphone',
-								'camera',
-								'desktop',
-								'chat',
-								'raisehand',
-								'tileview',
-								'hangup',
-								'fullscreen'
-							],
-							disableDeepLinking: true,
-							hideConferenceSubject: true
-						}}
-					/>
+					{#key currentJitsiRoom}
+						<JitsiMeet
+							roomName={currentJitsiRoom}
+							{jwt}
+							onApiReady={handleApiReady}
+							startWithAudioMuted={true}
+							configOverwrite={{
+								toolbarButtons: [
+									'microphone',
+									'camera',
+									'desktop',
+									'chat',
+									'raisehand',
+									'tileview',
+									'hangup',
+									'fullscreen'
+								],
+								disableDeepLinking: true,
+								hideConferenceSubject: true
+							}}
+						/>
+					{/key}
 
 					<!-- Room chip overlay -->
 					<div class="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
@@ -560,7 +570,16 @@
 
 			<!-- Right panel (side-by-side) -->
 			{#if panelOpen || !isModerator}
-				<div class="h-full w-[360px] shrink-0 p-3">
+				<div class="relative h-full w-[360px] shrink-0 p-3">
+					{#if isModerator}
+						<button
+							class="text-muted-foreground hover:text-foreground absolute top-5 right-5 z-10 flex h-6 w-6 items-center justify-center rounded-full"
+							onclick={() => (panelOpen = false)}
+							aria-label="Close panel"
+						>
+							✕
+						</button>
+					{/if}
 					<SidePanel
 						activeTab={activePanel}
 						showTabs={isBreakoutActive && isModerator && !inBreakoutRoom}

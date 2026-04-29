@@ -254,7 +254,7 @@ export class VideoCallService {
 
 	// Check if a breakout session is currently active
 	isBreakoutSessionActive(): boolean {
-		return this._currentCallState?.breakout_session !== null;
+		return this._currentCallState?.breakout_session != null;
 	}
 
 	// Get the end time of the current breakout session as a Date object

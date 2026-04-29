@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
 	import type { BreakoutRoomDisplay } from './types';
-	import { PenLine, MoveUpRight, AlignLeft, Megaphone, Clock, CircleStop } from '@lucide/svelte';
+	import { PenLine, MoveUpRight, AlignLeft, Megaphone, Clock, CircleStop } from 'lucide-svelte';
 
 	interface Props {
 		rooms: BreakoutRoomDisplay[];
