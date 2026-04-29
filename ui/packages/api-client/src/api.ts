@@ -892,6 +892,7 @@ export const InviteDto = z
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
     createdBy: z.string().uuid(),
+    eventId: z.union([z.string(), z.null()]).optional(),
     expiresAt: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     inviteType: InviteType,
