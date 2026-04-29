@@ -5,25 +5,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import { Trash2, GripVertical } from 'lucide-svelte';
 	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
-
-	type AgendaItemType = 'standard' | 'breakout';
-
-	interface BreakoutPrompt {
-		title: string;
-		instructions: string;
-	}
-
-	interface AgendaItemData {
-		id: string;
-		type: AgendaItemType;
-		title: string;
-		// Breakout-specific fields
-		duration?: number;
-		groupSize?: number;
-		prompts?: BreakoutPrompt[];
-		assignmentMode?: string;
-		balanceBy?: string[];
-	}
+	import type { AgendaItemData } from './agenda-types';
 
 	interface Props {
 		items: AgendaItemData[];

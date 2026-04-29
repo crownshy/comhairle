@@ -32,6 +32,7 @@
 	import { utcTimeToLocal } from '$lib/utils/date-time';
 	import AgendaEditor from './AgendaEditor.svelte';
 	import type { EventAgendaItem } from '@crownshy/api-client/api';
+	import type { AgendaItemData } from './agenda-types';
 
 	let { data } = $props();
 
@@ -118,7 +119,7 @@
 	let pageTitle = $derived(`Edit Event: ${event.name}`);
 
 	/** Map API agenda items to editor format */
-	function apiAgendaToEditor(items: EventAgendaItem[]): any[] {
+	function apiAgendaToEditor(items: EventAgendaItem[]): AgendaItemData[] {
 		return items.map((item) => {
 			if ('Basic' in item) {
 				return {
@@ -147,7 +148,7 @@
 	}
 
 	/** Map editor format back to API agenda items */
-	function editorAgendaToApi(items: any[]): EventAgendaItem[] {
+	function editorAgendaToApi(items: AgendaItemData[]): EventAgendaItem[] {
 		return items.map((item) => {
 			if (item.type === 'standard') {
 				return {
@@ -172,11 +173,11 @@
 		});
 	}
 
-	let agendaItems = $state<any[]>(apiAgendaToEditor(event.agenda ?? []));
+	let agendaItems = $state<AgendaItemData[]>(apiAgendaToEditor(event.agenda ?? []));
 	let agendaDirty = $state(false);
 	let agendaSaving = $state(false);
 
-	function handleAgendaUpdate(items: any[]) {
+	function handleAgendaUpdate(items: AgendaItemData[]) {
 		agendaItems = items;
 		agendaDirty = true;
 	}

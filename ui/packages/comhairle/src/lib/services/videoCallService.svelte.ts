@@ -96,6 +96,14 @@ export class VideoCallService {
 
 	private handleStateUpdate(state: VideoCallState) {
 		console.log('Video call state updated:', state);
+		console.log(
+			'[BREAKOUT-SVC] breakout_rooms:',
+			state.breakout_rooms?.length,
+			'breakout_session:',
+			state.breakout_session,
+			'participants:',
+			Object.keys(state.participants ?? {})
+		);
 		this._currentCallState = state;
 	}
 
@@ -125,11 +133,13 @@ export class VideoCallService {
 		});
 	}
 
-	/** Moderator/facilitator only */
-	assignBreakoutRooms(eventId: string, maxUsersPerRoom: number) {
+	/** Moderator/facilitator only. When roomAssignments is provided, uses explicit
+	 *  room assignments instead of random server-side chunking. */
+	assignBreakoutRooms(eventId: string, maxUsersPerRoom: number, roomAssignments?: string[][]) {
 		ws.sendCustom('video_call:assign_breakout_rooms', {
 			event_id: eventId,
-			max_users_per_room: maxUsersPerRoom
+			max_users_per_room: maxUsersPerRoom,
+			...(roomAssignments ? { room_assignments: roomAssignments } : {})
 		});
 	}
 
@@ -161,6 +171,15 @@ export class VideoCallService {
 		ws.sendCustom('video_call:resolve_breakout_room_assistance_request', {
 			event_id: eventId,
 			room_name: roomName
+		});
+	}
+
+	/** Moderator/facilitator only: move a participant to a different breakout room */
+	moveParticipantToRoom(eventId: string, userId: string, targetRoomIndex: number) {
+		ws.sendCustom('video_call:move_participant', {
+			event_id: eventId,
+			user_id: userId,
+			target_room_index: targetRoomIndex
 		});
 	}
 

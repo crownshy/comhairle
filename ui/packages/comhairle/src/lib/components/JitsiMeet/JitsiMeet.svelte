@@ -15,12 +15,14 @@
 		startWithVideoMuted?: boolean;
 		configOverwrite?: Record<string, any>;
 		interfaceConfigOverwrite?: Record<string, any>;
+		loadingMessage?: string;
 		onApiReady?: (api: any) => void;
 		onReadyToClose?: () => void;
 		onParticipantJoined?: (participant: any) => void;
 		onParticipantLeft?: (participant: any) => void;
 		onVideoConferenceJoined?: (data: any) => void;
 		onVideoConferenceLeft?: (data: any) => void;
+		onBreakoutRoomsUpdated?: (rooms: Record<string, any>) => void;
 	}
 
 	let {
@@ -35,12 +37,14 @@
 		startWithVideoMuted = false,
 		configOverwrite = {},
 		interfaceConfigOverwrite = {},
+		loadingMessage = 'Connecting to meeting...',
 		onApiReady,
 		onReadyToClose,
 		onParticipantJoined,
 		onParticipantLeft,
 		onVideoConferenceJoined,
-		onVideoConferenceLeft
+		onVideoConferenceLeft,
+		onBreakoutRoomsUpdated
 	}: JitsiMeetProps = $props();
 
 	let containerEl: HTMLDivElement;
@@ -64,6 +68,14 @@
 	}
 
 	function initJitsi() {
+		console.log(
+			'[JITSI] initJitsi called for room:',
+			roomName,
+			'| jwt present:',
+			!!jwt,
+			'| jwt length:',
+			jwt?.length
+		);
 		const JitsiMeetExternalAPI = (window as any).JitsiMeetExternalAPI;
 		if (!JitsiMeetExternalAPI) {
 			error = 'JitsiMeetExternalAPI not available';
@@ -98,31 +110,47 @@
 		}
 
 		try {
+			console.log('[JITSI] Creating JitsiMeetExternalAPI:', {
+				domain,
+				roomName,
+				jwt: jwt ? jwt.substring(0, 50) + '...' : 'none'
+			});
 			api = new JitsiMeetExternalAPI(domain, options);
 
 			api.addListener('videoConferenceJoined', (data: any) => {
+				console.log('[JITSI] videoConferenceJoined:', data);
 				loading = false;
 				onVideoConferenceJoined?.(data);
 			});
 
 			api.addListener('readyToClose', () => {
+				console.log('[JITSI] readyToClose fired');
 				onReadyToClose?.();
 			});
 
 			api.addListener('participantJoined', (data: any) => {
+				console.log('[JITSI] participantJoined:', data);
 				onParticipantJoined?.(data);
 			});
 
 			api.addListener('participantLeft', (data: any) => {
+				console.log('[JITSI] participantLeft:', data);
 				onParticipantLeft?.(data);
 			});
 
 			api.addListener('videoConferenceLeft', (data: any) => {
+				console.log('[JITSI] videoConferenceLeft:', data);
 				onVideoConferenceLeft?.(data);
+			});
+
+			api.addListener('breakoutRoomsUpdated', (data: any) => {
+				console.log('[JITSI] breakoutRoomsUpdated:', data);
+				onBreakoutRoomsUpdated?.(data);
 			});
 
 			onApiReady?.(api);
 		} catch (e) {
+			console.error('[JITSI] Failed to initialize:', e);
 			error = e instanceof Error ? e.message : 'Failed to initialize Jitsi';
 			loading = false;
 		}
@@ -139,6 +167,7 @@
 			});
 
 		return () => {
+			console.log('[JITSI] onMount cleanup — disposing API for room:', roomName);
 			if (api) {
 				api.dispose();
 				api = null;
@@ -184,7 +213,7 @@
 				<div
 					class="border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent"
 				></div>
-				<span class="text-muted-foreground text-sm">Connecting to meeting...</span>
+				<span class="text-muted-foreground text-sm">{loadingMessage}</span>
 			</div>
 		</div>
 	{/if}

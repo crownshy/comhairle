@@ -209,7 +209,7 @@ async fn get_jwt(
     let claims = VideoEventJwtClaims {
         iss: &video_call_config.jwt_app_id,
         aud: &video_call_config.jwt_app_id,
-        room: &video_meeting_id.to_string(),
+        room: "*",
         context: VideoEventJwtContext {
             user: VideoEventJwtUser {
                 name: user.username.as_deref(),

@@ -193,6 +193,9 @@ struct ChangeCallStatusData {
 struct AssignBreakoutRoomsData {
     pub event_id: Uuid,
     pub max_users_per_room: usize,
+    /// When provided, use these explicit assignments instead of random chunking.
+    /// Each inner Vec is the list of user IDs for one breakout room.
+    pub room_assignments: Option<Vec<Vec<Uuid>>>,
 }
 
 /// Data structure for starting a breakout session.
@@ -750,21 +753,36 @@ impl VideoCallMessageHandler {
                 // Check if the user is authorized (moderator or facilitator)
                 if let Some(participant) = call.participants.get(&user_id) {
                     if participant.role == "moderator" || participant.role == "facilitator" {
-                        // Collect all participant IDs
-                        let mut participant_ids: Vec<Uuid> =
-                            call.participants.keys().copied().collect();
+                        let breakout_rooms = if let Some(ref explicit) = assignment_data.room_assignments {
+                            // Use explicit assignments, filtering to known participants
+                            explicit
+                                .iter()
+                                .map(|room_ids| BreakoutRoomAssignments {
+                                    participants: room_ids
+                                        .iter()
+                                        .filter(|id| call.participants.contains_key(id))
+                                        .copied()
+                                        .collect(),
+                                })
+                                .filter(|room| !room.participants.is_empty())
+                                .collect()
+                        } else {
+                            // Collect all participant IDs
+                            let mut participant_ids: Vec<Uuid> =
+                                call.participants.keys().copied().collect();
 
-                        // Shuffle participants randomly
-                        let mut rng = rand::thread_rng();
-                        participant_ids.shuffle(&mut rng);
+                            // Shuffle participants randomly
+                            let mut rng = rand::thread_rng();
+                            participant_ids.shuffle(&mut rng);
 
-                        // Divide into rooms with max_users_per_room
-                        let breakout_rooms: Vec<BreakoutRoomAssignments> = participant_ids
-                            .chunks(max_users)
-                            .map(|chunk| BreakoutRoomAssignments {
-                                participants: chunk.to_vec(),
-                            })
-                            .collect();
+                            // Divide into rooms with max_users_per_room
+                            participant_ids
+                                .chunks(max_users)
+                                .map(|chunk| BreakoutRoomAssignments {
+                                    participants: chunk.to_vec(),
+                                })
+                                .collect()
+                        };
 
                         call.breakout_rooms = breakout_rooms;
                         return true;
