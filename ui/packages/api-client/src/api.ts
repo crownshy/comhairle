@@ -2401,6 +2401,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     response: z.array(DailyResponseStats),
   },
   {
+    method: "get",
+    path: "/conversation/:conversation_id/invite/events/:event_id",
+    alias: "ListInvitesForEvent",
+    requestFormat: "json",
+    response: z.array(InviteDto),
+  },
+  {
     method: "put",
     path: "/conversation/:conversation_id/launch",
     alias: "LaunchConversation",

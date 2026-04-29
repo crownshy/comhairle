@@ -52,6 +52,14 @@
 	$inspect('Facilitators ', facilitators);
 	$inspect('Moderators ', moderators);
 
+	let emailInvites = $derived(
+		data.invites.filter(
+			(invite) =>
+				typeof invite.inviteType !== 'string' &&
+				'email' in invite.inviteType &&
+				invite.inviteType.email
+		)
+	);
 	let primaryLanguage = $derived(data.conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(data.conversation.supportedLanguages ?? ['en']);
 
@@ -283,10 +291,8 @@
 		}
 	}
 
-	const emailInvites = []; // TODO:
-
 	async function emailInvitesSubmitted() {
-		// TODO:
+		await invalidateAll();
 	}
 </script>
 
@@ -303,10 +309,15 @@
 	{#if conversation && event}
 		<Button href={`/conversations/${conversation.id}/events/${event.id}`}>Event Link</Button>
 	{/if}
-	<!-- TODO: figure out these -->
-	<!-- <AdminPrevNextControls -->
-	<!-- 	next={{ name: 'design', url: `/admin/conversations/${conversation.id}/design` }} -->
-	<!-- /> -->
+	<AdminPrevNextControls
+		prev={{
+			name: 'Knowledge base',
+			url: `/admin/conversations/${conversation.id}/knowledge-base`
+		}}
+		next={conversation.isLive
+			? { name: 'Recruit', url: `/admin/conversations/${conversation.id}/invites` }
+			: undefined}
+	/>
 {/snippet}
 
 <Tabs.Root value="eventDetails" class="flex min-h-0 flex-1 flex-col">

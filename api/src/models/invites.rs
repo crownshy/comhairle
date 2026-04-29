@@ -139,7 +139,7 @@ impl Invite {
 }
 
 /// Determines the type of invite that is being sent
-#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, DbJsonBEnum)]
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, DbJsonBEnum, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum InviteType {
     /// Send an invite by email to a specific person
@@ -226,6 +226,23 @@ pub async fn list_for_conversation(
     let invites = sqlx::query_as_with::<_, Invite, _>(&sql, values)
         .fetch_all(db)
         .await?;
+    Ok(invites)
+}
+
+#[instrument(err(Debug))]
+pub async fn list_for_event(db: &PgPool, event_id: &Uuid) -> Result<Vec<Invite>, ComhairleError> {
+    let query = Query::select()
+        .from(InviteIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .and_where(Expr::col(InviteIden::EventId).eq(*event_id))
+        .order_by(InviteIden::CreatedAt, Order::Desc)
+        .to_owned();
+
+    let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
+    let invites = sqlx::query_as_with::<_, Invite, _>(&sql, values)
+        .fetch_all(db)
+        .await?;
+
     Ok(invites)
 }
 
@@ -370,9 +387,11 @@ mod tests {
         bot_service::{ComhairleBotService, MockComhairleBotService},
         models::{
             conversation::{self, CreateConversation, PartialConversation},
+            model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
             users,
             workflow::{self, CreateWorkflow},
         },
+        routes::events::dto::EventDto,
         test_helpers::test_config,
     };
 
@@ -653,6 +672,81 @@ mod tests {
             rejected_invite.status,
             InviteStatus::Rejected,
             "Pending invite should be marked as Rejected after rejection"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_list_invites_for_an_event(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let user1 = users::create_user(&Faker.fake(), &pool).await?;
+        let user2 = users::create_user(&Faker.fake(), &pool).await?;
+        let user3 = users::create_user(&Faker.fake(), &pool).await?;
+        let user4 = users::create_user(&Faker.fake(), &pool).await?;
+
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, value, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(value)?;
+
+        create(
+            &pool,
+            CreateInviteDTO {
+                invite_type: InviteType::Email(user2.email.clone().unwrap()),
+                login_behaviour: LoginBehaviour::Manual,
+                expires_at: None,
+                label: None,
+                event_id: Some(event.id),
+            },
+            &conversation_id,
+            &user1.id,
+        )
+        .await?;
+        create(
+            &pool,
+            CreateInviteDTO {
+                invite_type: InviteType::Email(user3.email.clone().unwrap()),
+                login_behaviour: LoginBehaviour::Manual,
+                expires_at: None,
+                label: None,
+                event_id: Some(event.id),
+            },
+            &conversation_id,
+            &user1.id,
+        )
+        .await?;
+        create(
+            &pool,
+            CreateInviteDTO {
+                invite_type: InviteType::Email(user4.email.clone().unwrap()),
+                login_behaviour: LoginBehaviour::Manual,
+                expires_at: None,
+                label: None,
+                event_id: Some(event.id),
+            },
+            &conversation_id,
+            &user1.id,
+        )
+        .await?;
+
+        let invites = list_for_event(&pool, &event.id).await?;
+
+        assert!(
+            invites.iter().any(|invite| invite.invite_type
+                == InviteType::Email(user2.email.as_ref().unwrap().clone())),
+            "missing user2"
+        );
+        assert!(
+            invites.iter().any(|invite| invite.invite_type
+                == InviteType::Email(user3.email.as_ref().unwrap().clone())),
+            "missing user3"
+        );
+        assert!(
+            invites.iter().any(|invite| invite.invite_type
+                == InviteType::Email(user4.email.as_ref().unwrap().clone())),
+            "missing user4"
         );
 
         Ok(())

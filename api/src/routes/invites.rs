@@ -198,7 +198,22 @@ async fn list_invites_for_conversation(
     Path(conversation_id): Path<Uuid>,
     RequiredAdminUser(_): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<Vec<InviteDto>>), ComhairleError> {
-    let invites = (models::invites::list_for_conversation(&state.db, &conversation_id).await?)
+    let invites = models::invites::list_for_conversation(&state.db, &conversation_id)
+        .await?
+        .into_iter()
+        .map(Into::into)
+        .collect();
+    Ok((StatusCode::OK, Json(invites)))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn list_invites_for_event(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_conversation_id, event_id)): Path<(Uuid, Uuid)>,
+    RequiredAdminUser(_): RequiredAdminUser,
+) -> Result<(StatusCode, Json<Vec<InviteDto>>), ComhairleError> {
+    let invites = models::invites::list_for_event(&state.db, &event_id)
+        .await?
         .into_iter()
         .map(Into::into)
         .collect();
@@ -277,6 +292,16 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             get_with(list_invites_for_conversation, |op| {
                 op.id("ListInvitesForConversation")
                     .summary("Return a list of invites statements for a conversation")
+                    .tag("Invites")
+                    .security_requirement("JWT")
+                    .response::<200, Json<Vec<InviteDto>>>()
+            }),
+        )
+        .api_route(
+            "/events/{event_id}",
+            get_with(list_invites_for_event, |op| {
+                op.id("ListInvitesForEvent")
+                    .summary("Return a list of invite for an event")
                     .tag("Invites")
                     .security_requirement("JWT")
                     .response::<200, Json<Vec<InviteDto>>>()
