@@ -28,7 +28,6 @@ export const load: PageLoad = async ({ parent, params }) => {
 	let jwt: string;
 	let isModerator = false;
 	try {
-		console.log('Attempting to get JWT');
 		const authRes = await api.GetEventJWT({ params: { conversation_id, event_id } });
 		jwt = authRes.jwt;
 		isModerator = authRes.isModerator ?? false;
