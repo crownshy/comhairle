@@ -52,7 +52,7 @@
 			<Button
 				class="no-underline"
 				variant="secondary"
-				href={workflow_step_url(conversation.id, workflow.id, 1)}
+				href={workflow_step_url(conversation.id, workflow.id, 'revisit')}
 				>Contribute some more</Button
 			>
 			<FeedbackModal conversationId={conversation.id} />
