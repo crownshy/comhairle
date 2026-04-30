@@ -941,16 +941,6 @@ export const DailyResponseStats = z
   })
   .passthrough();
 export type DailyResponseStats = z.infer<typeof DailyResponseStats>;
-export const EventAttendanceDto = z
-  .object({
-    createdAt: z.string().datetime({ offset: true }),
-    eventId: z.string().uuid(),
-    id: z.string().uuid(),
-    role: z.string(),
-    userId: z.string().uuid(),
-  })
-  .passthrough();
-export type EventAttendanceDto = z.infer<typeof EventAttendanceDto>;
 export const FeedbackDto = z
   .object({
     content: z.string(),
@@ -1254,6 +1244,16 @@ export const CreateEventAttendanceRequest = z
 export type CreateEventAttendanceRequest = z.infer<
   typeof CreateEventAttendanceRequest
 >;
+export const EventAttendanceDto = z
+  .object({
+    createdAt: z.string().datetime({ offset: true }),
+    eventId: z.string().uuid(),
+    id: z.string().uuid(),
+    role: z.string(),
+    userId: z.string().uuid(),
+  })
+  .passthrough();
+export type EventAttendanceDto = z.infer<typeof EventAttendanceDto>;
 export const UpdateEventAttendanceRequest = z
   .object({ role: z.union([z.string(), z.null()]) })
   .partial()
@@ -1513,7 +1513,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateInviteDTO,
   PartialInvite,
   DailyResponseStats,
-  EventAttendanceDto,
   FeedbackDto,
   ReportImpactDto,
   PolisReport,
@@ -1557,6 +1556,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EventAttendanceEtx,
   PaginatedResults_for_EventAttendanceEtx,
   CreateEventAttendanceRequest,
+  EventAttendanceDto,
   UpdateEventAttendanceRequest,
   CreateFacilitatorRequest,
   WebSocketStats,
@@ -2414,7 +2414,7 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/conversation/:conversation_id/invite/:invite_id/events",
     alias: "AutoRegisterEventAttendance",
     requestFormat: "json",
-    response: EventAttendanceDto,
+    response: InviteDto,
   },
   {
     method: "post",

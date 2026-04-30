@@ -24,7 +24,6 @@ use crate::{
     },
     routes::{
         auth::{create_session_cookie, OtpSignupRequest},
-        event_attendances::dto::EventAttendanceDto,
         invites::dto::InviteDto,
     },
     ComhairleState,
@@ -229,8 +228,8 @@ async fn list_invites_for_event(
 #[instrument(err(Debug), skip(state))]
 async fn auto_register_event_attendance(
     State(state): State<Arc<ComhairleState>>,
-    jar: CookieJar,
     Path((_conversation_id, invite_id)): Path<(Uuid, Uuid)>,
+    jar: CookieJar,
 ) -> Result<(CookieJar, (StatusCode, Json<InviteDto>)), ComhairleError> {
     let mut invite = models::invites::get_by_id(&state.db, &invite_id).await?;
     invite.is_still_valid()?;
@@ -274,7 +273,7 @@ async fn auto_register_event_attendance(
     }
 
     let cookie = create_session_cookie(&user, &state);
-    invite = invite.accept(&state.db, &user).await?;
+    // invite = invite.accept(&state.db, &user).await?;
 
     Ok((jar.add(cookie), (StatusCode::OK, Json(invite.into()))))
 }
@@ -372,7 +371,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("AutoRegisterEventAttendance")
                     .summary("Auto register event attendance")
                     .tag("Invites")
-                    .response::<200, Json<EventAttendanceDto>>()
+                    .response::<200, Json<InviteDto>>()
             }),
         )
         .with_state(state)

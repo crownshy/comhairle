@@ -20,7 +20,6 @@ export const load: PageLoad = async ({ parent, params }) => {
 		event = eventRes;
 		attendances = attendancesResult.records as EventAttendanceDto[];
 	} catch (e) {
-		console.error('Failed to load live event:', e);
 		redirect(302, `/conversations/${conversation_id}/events/${event_id}`);
 	}
 
