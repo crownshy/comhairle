@@ -34,7 +34,10 @@ export const load: PageLoad = async (event) => {
 			}));
 		}
 
-		const thisStep = workflowSteps.find((s) => s.id === workflow_step_id);
+		const thisStep =
+			workflow_step_id === 'revisit'
+				? workflowSteps.find((s) => s.canRevisit)
+				: workflowSteps.find((s) => s.id === workflow_step_id);
 		const isStepAlreadyDone = thisStep?.progressStatus === 'done';
 		const isRevisitable = thisStep?.canRevisit ?? false;
 
