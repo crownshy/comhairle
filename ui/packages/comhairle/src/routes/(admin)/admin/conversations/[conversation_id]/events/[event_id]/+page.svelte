@@ -39,6 +39,11 @@
 	const event = $derived(data.event);
 	const conversation = $derived(data.conversation);
 	const facilitators = $derived(data.facilitators);
+	const moderators = $derived(data.moderators);
+
+	$inspect('Facilitators ', facilitators);
+	$inspect('Moderators ', moderators);
+
 	let primaryLanguage = $derived(data.conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(data.conversation.supportedLanguages ?? ['en']);
 
@@ -544,7 +549,10 @@
 				<BadgeInput
 					onAddBadge={handleAddFacilitator}
 					onDeleteBadge={handleDeleteFacilitator}
-					badges={facilitators.map((f) => ({ id: f.id, value: f.email }))}
+					badges={[...facilitators, ...moderators].map((f) => ({
+						id: f.id,
+						value: f.email
+					}))}
 					placeholder="Enter an email address"
 				/>
 			</div>
