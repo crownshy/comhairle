@@ -158,12 +158,6 @@
 						{/if}
 					</button>
 					<div class="border-border h-6 border-l"></div>
-					<button
-						class="text-foreground hover:bg-muted flex flex-1 items-center justify-center gap-2 px-4 py-3 text-xs font-medium"
-					>
-						<AlignLeft class="h-4 w-4" />
-						View Transcription
-					</button>
 				</div>
 			</div>
 		{/each}
