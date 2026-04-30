@@ -563,7 +563,7 @@
 	/>
 {:else}
 	<!-- In-call: full-width black background, stays in document flow -->
-	<div class="bg-sidebar flex h-[calc(100dvh-64px)] w-full flex-col overflow-hidden">
+	<div class="bg-sidebar flex h-dvh w-full flex-col overflow-hidden">
 		<div class="flex min-h-0 flex-1">
 			<!-- Jitsi area -->
 			<div class="relative flex min-h-0 min-w-0 flex-1 flex-col">
@@ -649,8 +649,8 @@
 				</div>
 			</div>
 
-			<!-- Right panel (side-by-side) -->
-			<div class="relative h-full w-[360px] shrink-0 p-3">
+			<!-- Right panel (side-by-side, hidden on mobile) -->
+			<div class="relative hidden h-full w-[360px] shrink-0 p-3 md:block">
 				<SidePanel
 					activeTab={activePanel}
 					showTabs={isBreakoutActive && isModerator && !inBreakoutRoom}
@@ -691,7 +691,7 @@
 		</div>
 	</div>
 
-	<!-- Mobile drawer -->
+	<!-- Mobile agenda pill + drawer -->
 	<Drawer.Root>
 		<Drawer.Trigger
 			class="bg-primary hover:bg-primary/90 fixed bottom-4 left-1/2 z-50 inline-flex -translate-x-1/2 items-center gap-2 rounded-full px-6 py-3 font-semibold text-white shadow-lg md:hidden"
