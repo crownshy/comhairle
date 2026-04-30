@@ -204,7 +204,7 @@ async fn get_jwt(
         .as_ref()
         .ok_or(ComhairleError::NoVideoServiceConfigured)?;
 
-    let is_moderator = attendance.role == "facilitator";
+    let is_moderator = attendance.role == "facilitator" || attendance.role == "moderator";
 
     let claims = VideoEventJwtClaims {
         iss: &video_call_config.jwt_app_id,
