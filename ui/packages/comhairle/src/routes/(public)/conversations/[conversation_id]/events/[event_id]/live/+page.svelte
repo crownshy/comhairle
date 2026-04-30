@@ -14,6 +14,8 @@
 	import BroadcastMessageDialog from '$lib/components/LiveEvent/BroadcastMessageDialog.svelte';
 	import AddTimeDialog from '$lib/components/LiveEvent/AddTimeDialog.svelte';
 	import NoticeDialog from '$lib/components/LiveEvent/NoticeDialog.svelte';
+	import EndMeetingDialog from '$lib/components/LiveEvent/EndMeetingDialog.svelte';
+	import MeetingEndedScreen from '$lib/components/LiveEvent/MeetingEndedScreen.svelte';
 	import SidePanel from '$lib/components/LiveEvent/SidePanel.svelte';
 	import type {
 		AgendaItem,
@@ -62,6 +64,7 @@
 	let breakoutDialogItem = $state<AgendaItem | null>(null);
 	let showBroadcast = $state(false);
 	let showAddTime = $state(false);
+	let showEndMeeting = $state(false);
 	let seenAssistanceRequests = $state<Set<string>>(new Set());
 
 	/** Notice queue for assistance requests, broadcasts, time warnings */
@@ -408,6 +411,14 @@
 		}
 	}
 
+	/** Moderator ends the meeting for everyone */
+	function handleEndMeeting() {
+		showEndMeeting = false;
+		videoCallService.changeCallState(eventId, 'Ended');
+		jitsiApi?.executeCommand('hangup');
+		hasJoinedCall = false;
+	}
+
 	function handleCreateBreakout(config: {
 		maxPerRoom: number;
 		durationMinutes: number;
@@ -550,7 +561,12 @@
 			</div>
 		</div>
 	</div>
-{:else if meetingPhase === 'lobby' || meetingPhase === 'ended'}
+{:else if meetingPhase === 'ended'}
+	<MeetingEndedScreen
+		title={event?.name ?? 'Meeting'}
+		conversationUrl={`/conversations/${conversationId}`}
+	/>
+{:else if meetingPhase === 'lobby'}
 	<MeetingLobby
 		title={event?.name ?? 'Meeting'}
 		scheduledTime={scheduledTimeText}
@@ -684,6 +700,7 @@
 							readOnly={isBreakoutActive}
 							onSetCurrent={handleSetAgendaItem}
 							onNext={handleNextAgendaItem}
+							onEndMeeting={() => (showEndMeeting = true)}
 						/>
 					{/if}
 				</SidePanel>
@@ -708,6 +725,7 @@
 					readOnly={isBreakoutActive}
 					onSetCurrent={handleSetAgendaItem}
 					onNext={handleNextAgendaItem}
+					onEndMeeting={() => (showEndMeeting = true)}
 				/>
 			</div>
 		</Drawer.Content>
@@ -735,6 +753,12 @@
 	{timeLeftFormatted}
 	onClose={() => (showAddTime = false)}
 	onAddTime={handleAddTime}
+/>
+
+<EndMeetingDialog
+	bind:open={showEndMeeting}
+	onConfirm={handleEndMeeting}
+	onCancel={() => (showEndMeeting = false)}
 />
 
 <BreakoutEndingDialog

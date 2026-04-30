@@ -10,6 +10,7 @@
 		readOnly?: boolean;
 		onSetCurrent?: (index: number) => void;
 		onNext?: () => void;
+		onEndMeeting?: () => void;
 	}
 
 	let {
@@ -18,7 +19,8 @@
 		isModerator,
 		readOnly = false,
 		onSetCurrent,
-		onNext
+		onNext,
+		onEndMeeting
 	}: Props = $props();
 
 	let interactive = $derived(isModerator && !readOnly);
@@ -35,6 +37,7 @@
 	}
 
 	let hasNext = $derived(currentStep < items.length - 1);
+	let isLastItem = $derived(currentStep === items.length - 1 && items.length > 0);
 </script>
 
 <div class="flex h-full flex-col overflow-hidden">
@@ -55,14 +58,24 @@
 	<!-- Footer (fixed at bottom) -->
 	{#if interactive}
 		<div class="shrink-0 border-t p-4">
-			<Button
-				variant="primaryDark"
-				class="h-10 w-full text-sm font-medium"
-				onclick={() => onNext?.()}
-				disabled={!hasNext}
-			>
-				Next
-			</Button>
+			{#if isLastItem}
+				<Button
+					variant="destructive"
+					class="h-10 w-full text-sm font-medium"
+					onclick={() => onEndMeeting?.()}
+				>
+					End meeting
+				</Button>
+			{:else}
+				<Button
+					variant="primaryDark"
+					class="h-10 w-full text-sm font-medium"
+					onclick={() => onNext?.()}
+					disabled={!hasNext}
+				>
+					Next
+				</Button>
+			{/if}
 		</div>
 	{/if}
 </div>
