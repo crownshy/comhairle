@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::models::invites::{Invite, InviteStatus, InviteType, LoginBehaviour};
@@ -13,7 +13,7 @@ use crate::models::invites::{Invite, InviteStatus, InviteType, LoginBehaviour};
 /// * `updated_at`
 ///
 /// Serialized to JSON using camelCase field names for frontend (JavaScript) compatibility.
-#[derive(Serialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct InviteDto {
     pub id: Uuid,

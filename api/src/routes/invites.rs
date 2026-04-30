@@ -8,19 +8,25 @@ use axum::{
     extract::{Path, State},
     Json,
 };
+use axum_extra::extract::CookieJar;
 use hyper::StatusCode;
 use minijinja::context;
-use tracing::instrument;
+use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
     models::{
-        self,
-        invites::{CreateInviteDTO, DailyResponseStats, PartialInvite},
-        workflow,
+        self, event,
+        event_attendance::{self, CreateEventAttendance},
+        invites::{CreateInviteDTO, DailyResponseStats, InviteType, PartialInvite},
+        users, workflow,
     },
-    routes::invites::dto::InviteDto,
+    routes::{
+        auth::{create_session_cookie, OtpSignupRequest},
+        event_attendances::dto::EventAttendanceDto,
+        invites::dto::InviteDto,
+    },
     ComhairleState,
 };
 
@@ -34,7 +40,7 @@ async fn accept_invite(
     RequiredUser(user): RequiredUser,
     Path((conversation_id, invite_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
-    let invite = models::invites::get(&state.db, &invite_id).await?;
+    let invite = models::invites::get_by_id(&state.db, &invite_id).await?;
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
     // Check to see if the invite is valid
@@ -63,7 +69,7 @@ async fn reject_invite(
     RequiredUser(user): RequiredUser,
     Path((_, invite_id)): Path<(Uuid, Uuid)>,
 ) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
-    let invite = models::invites::get(&state.db, &invite_id).await?;
+    let invite = models::invites::get_by_id(&state.db, &invite_id).await?;
 
     // Check to see if the invite is valid
     invite.is_still_valid()?;
@@ -133,7 +139,7 @@ async fn get_invite(
     Path((_, invite_id)): Path<(Uuid, Uuid)>,
     OptionalUser(user): OptionalUser,
 ) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
-    let invite = models::invites::get(&state.db, &invite_id).await?;
+    let invite = models::invites::get_by_id(&state.db, &invite_id).await?;
     invite.is_still_valid()?;
 
     // If we have a signed in user
@@ -160,7 +166,7 @@ async fn get_invite_stats(
     RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<Vec<DailyResponseStats>>), ComhairleError> {
     // Check that invite exists
-    models::invites::get(&state.db, &invite_id).await?;
+    models::invites::get_by_id(&state.db, &invite_id).await?;
 
     // Generate stats``
     let stats = models::invites::get_stats_for_invite(&state.db, &invite_id).await?;
@@ -218,6 +224,59 @@ async fn list_invites_for_event(
         .map(Into::into)
         .collect();
     Ok((StatusCode::OK, Json(invites)))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn auto_register_event_attendance(
+    State(state): State<Arc<ComhairleState>>,
+    jar: CookieJar,
+    Path((_conversation_id, invite_id)): Path<(Uuid, Uuid)>,
+) -> Result<(CookieJar, (StatusCode, Json<InviteDto>)), ComhairleError> {
+    let mut invite = models::invites::get_by_id(&state.db, &invite_id).await?;
+    invite.is_still_valid()?;
+
+    let event_id = invite
+        .event_id
+        .ok_or_else(|| ComhairleError::InvalidInviteResource("Missing event_id".to_string()))?;
+    let _event = event::get_by_id(&state.db, &event_id).await?;
+
+    let email = match invite.invite_type {
+        InviteType::Email(ref email) => email,
+        _ => return Err(ComhairleError::InvalidInviteType),
+    };
+
+    let user = match users::get_user_by_email(email, &state.db).await.ok() {
+        Some(existing) => existing,
+        None => {
+            users::create_otp_user(
+                &OtpSignupRequest {
+                    email: email.to_string(),
+                },
+                &state.db,
+            )
+            .await?
+        }
+    };
+
+    // Register for event — existing users may already be registered, so treat
+    // as a soft failure and log error rather than a hard failure
+    if let Err(error) = event_attendance::create(
+        &state.db,
+        &CreateEventAttendance {
+            user_id: user.id,
+            event_id,
+            role: "participant".to_string(),
+        },
+    )
+    .await
+    {
+        warn!("Error registering user for event: {error}");
+    }
+
+    let cookie = create_session_cookie(&user, &state);
+    invite = invite.accept(&state.db, &user).await?;
+
+    Ok((jar.add(cookie), (StatusCode::OK, Json(invite.into()))))
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
@@ -307,6 +366,15 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<Vec<InviteDto>>>()
             }),
         )
+        .api_route(
+            "/{invite_id}/events",
+            post_with(auto_register_event_attendance, |op| {
+                op.id("AutoRegisterEventAttendance")
+                    .summary("Auto register event attendance")
+                    .tag("Invites")
+                    .response::<200, Json<EventAttendanceDto>>()
+            }),
+        )
         .with_state(state)
 }
 
@@ -322,6 +390,12 @@ mod tests {
 
     use crate::{
         mailer::MockComhairleMailer,
+        models::{
+            invites::{InviteStatus, LoginBehaviour},
+            model_test_helpers::get_random_conversation_id,
+            users::UserAuthType,
+        },
+        routes::{events::dto::EventDto, user::dto::UserDto},
         setup_server,
         test_helpers::{extract, test_state, UserSession},
     };
@@ -477,6 +551,350 @@ mod tests {
             .await?;
 
         assert_eq!(status, StatusCode::OK, "Should be ok");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_create_attendance_for_existing_user_and_sign_in(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let email = "test_email@test.com";
+        let username = "test_name";
+        let password = "test_PW_123_(*&)";
+
+        let state = test_state().db(pool.clone()).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, value, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(value)?;
+
+        let create_invite = CreateInviteDTO {
+            invite_type: InviteType::Email(email.to_string()),
+            login_behaviour: LoginBehaviour::Manual,
+            expires_at: None,
+            label: None,
+            event_id: Some(event.id),
+        };
+        let bytes = serde_json::to_vec(&create_invite)?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                &format!("/conversation/{}/invite", conversation_id),
+                bytes.into(),
+            )
+            .await?;
+        let invite: InviteDto = serde_json::from_value(value)?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/auth/signup",
+                json!({ "email": email, "password": password, "username": username })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        let user: UserDto = serde_json::from_value(value)?;
+
+        let (_, value, cookies) = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/invite/{}/events",
+                    conversation_id, invite.id
+                ),
+                Body::empty(),
+            )
+            .await?;
+        let invite: InviteDto = serde_json::from_value(value)?;
+
+        let attendance =
+            event_attendance::get_by_event_and_user(&pool, &event.id, &user.id).await?;
+
+        assert_eq!(
+            invite.status,
+            InviteStatus::Accepted,
+            "incorrect invite status"
+        );
+        assert_eq!(
+            attendance.user_id, user.id,
+            "incorrect user_id on event attendance"
+        );
+        assert!(
+            cookies.unwrap().to_str()?.contains("auth-token"),
+            "missing auth-token cookie"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_continue_with_invite_update_if_user_already_registered(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let email = "test_email@test.com";
+        let username = "test_name";
+        let password = "test_PW_123_(*&)";
+
+        let state = test_state().db(pool.clone()).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, value, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(value)?;
+
+        let create_invite = CreateInviteDTO {
+            invite_type: InviteType::Email(email.to_string()),
+            login_behaviour: LoginBehaviour::Manual,
+            expires_at: None,
+            label: None,
+            event_id: Some(event.id),
+        };
+        let bytes = serde_json::to_vec(&create_invite)?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                &format!("/conversation/{}/invite", conversation_id),
+                bytes.into(),
+            )
+            .await?;
+        let invite: InviteDto = serde_json::from_value(value)?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/auth/signup",
+                json!({ "email": email, "password": password, "username": username })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        let user: UserDto = serde_json::from_value(value)?;
+
+        let _ = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/attendances",
+                    conversation_id, event.id
+                ),
+                json!({ "role": "participant" }).to_string().into(),
+            )
+            .await?;
+
+        let (_, value, cookies) = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/invite/{}/events",
+                    conversation_id, invite.id
+                ),
+                Body::empty(),
+            )
+            .await?;
+        let invite: InviteDto = serde_json::from_value(value)?;
+
+        let attendance =
+            event_attendance::get_by_event_and_user(&pool, &event.id, &user.id).await?;
+
+        assert_eq!(
+            invite.status,
+            InviteStatus::Accepted,
+            "incorrect invite status"
+        );
+        assert_eq!(
+            attendance.user_id, user.id,
+            "incorrect user_id on event attendance"
+        );
+        assert!(
+            cookies.unwrap().to_str()?.contains("auth-token"),
+            "missing auth-token cookie"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_create_new_otp_user_with_attendance_and_signin(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let email = "test_email@test.com";
+
+        let state = test_state().db(pool.clone()).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, value, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(value)?;
+
+        let create_invite = CreateInviteDTO {
+            invite_type: InviteType::Email(email.to_string()),
+            login_behaviour: LoginBehaviour::Manual,
+            expires_at: None,
+            label: None,
+            event_id: Some(event.id),
+        };
+        let bytes = serde_json::to_vec(&create_invite)?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                &format!("/conversation/{}/invite", conversation_id),
+                bytes.into(),
+            )
+            .await?;
+        let invite: InviteDto = serde_json::from_value(value)?;
+
+        let (_, value, cookies) = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/invite/{}/events",
+                    conversation_id, invite.id
+                ),
+                Body::empty(),
+            )
+            .await?;
+        let invite: InviteDto = serde_json::from_value(value)?;
+
+        session.logout(&app).await?;
+
+        let user = users::get_user_by_email(email, &pool).await?;
+        let attendance =
+            event_attendance::get_by_event_and_user(&pool, &event.id, &user.id).await?;
+
+        assert_eq!(
+            invite.status,
+            InviteStatus::Accepted,
+            "incorrect invite status"
+        );
+        assert_eq!(
+            user.auth_type,
+            UserAuthType::Otp,
+            "incorrect user auth_type"
+        );
+        assert_eq!(
+            attendance.user_id, user.id,
+            "incorrect user_id on event attendance"
+        );
+        assert!(
+            cookies.unwrap().to_str()?.contains("auth-token"),
+            "missing auth-token cookie"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_fail_if_invite_type_incorrect(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool.clone()).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, value, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(value)?;
+
+        let create_invite = CreateInviteDTO {
+            invite_type: InviteType::Open,
+            login_behaviour: LoginBehaviour::Manual,
+            expires_at: None,
+            label: None,
+            event_id: Some(event.id),
+        };
+        let bytes = serde_json::to_vec(&create_invite)?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                &format!("/conversation/{}/invite", conversation_id),
+                bytes.into(),
+            )
+            .await?;
+        let invite: InviteDto = serde_json::from_value(value)?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/invite/{}/events",
+                    conversation_id, invite.id
+                ),
+                Body::empty(),
+            )
+            .await?;
+
+        assert_eq!(
+            value.get("err").unwrap(),
+            "This invite is has an invalid type",
+            "incorrect error message"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_fail_if_invite_missing_event_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool.clone()).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        let create_invite = CreateInviteDTO {
+            invite_type: InviteType::Email("test@test.com".to_string()),
+            login_behaviour: LoginBehaviour::Manual,
+            expires_at: None,
+            label: None,
+            event_id: None,
+        };
+        let bytes = serde_json::to_vec(&create_invite)?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                &format!("/conversation/{}/invite", conversation_id),
+                bytes.into(),
+            )
+            .await?;
+        let invite: InviteDto = serde_json::from_value(value)?;
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{}/invite/{}/events",
+                    conversation_id, invite.id
+                ),
+                Body::empty(),
+            )
+            .await?;
+
+        assert_eq!(
+            value.get("err").unwrap(),
+            "This invite has an invalid resource: Missing event_id",
+            "incorrect error message"
+        );
 
         Ok(())
     }

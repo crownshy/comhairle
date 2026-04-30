@@ -832,7 +832,7 @@ fn send_verification_email(user: &User, state: &Arc<ComhairleState>) -> Result<(
     Ok(())
 }
 
-fn create_session_cookie<'a>(user: &User, state: &Arc<ComhairleState>) -> CookieBuilder<'a> {
+pub fn create_session_cookie<'a>(user: &User, state: &Arc<ComhairleState>) -> CookieBuilder<'a> {
     let claims = SessionClaims {
         username: user.username.clone(),
         sudo_user: None,

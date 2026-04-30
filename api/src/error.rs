@@ -183,6 +183,12 @@ pub enum ComhairleError {
     #[error("This invite has expired")]
     InviteExpired,
 
+    #[error("This invite is has an invalid type")]
+    InvalidInviteType,
+
+    #[error("This invite has an invalid resource: {0}")]
+    InvalidInviteResource(String),
+
     #[error("Failed to update feedback")]
     FailedToUpdateFeedback,
 

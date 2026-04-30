@@ -171,12 +171,12 @@ pub enum InviteStatus {
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 pub struct CreateInviteDTO {
-    invite_type: InviteType,
+    pub invite_type: InviteType,
     #[serde(default)]
-    login_behaviour: LoginBehaviour,
-    expires_at: Option<DateTime<Utc>>,
-    label: Option<String>,
-    event_id: Option<Uuid>,
+    pub login_behaviour: LoginBehaviour,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub label: Option<String>,
+    pub event_id: Option<Uuid>,
 }
 
 const DEFAULT_COLUMNS: [InviteIden; 15] = [
@@ -247,7 +247,7 @@ pub async fn list_for_event(db: &PgPool, event_id: &Uuid) -> Result<Vec<Invite>,
 }
 
 #[instrument(err(Debug))]
-pub async fn get(db: &PgPool, invite_id: &Uuid) -> Result<Invite, ComhairleError> {
+pub async fn get_by_id(db: &PgPool, invite_id: &Uuid) -> Result<Invite, ComhairleError> {
     let (sql, values) = Query::select()
         .from(InviteIden::Table)
         .columns(DEFAULT_COLUMNS)
