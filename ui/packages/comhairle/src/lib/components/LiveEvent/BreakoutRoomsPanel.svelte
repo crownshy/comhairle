@@ -1,22 +1,13 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
 	import type { BreakoutRoomDisplay } from './types';
-	import {
-		PenLine,
-		MoveUpRight,
-		AlignLeft,
-		Megaphone,
-		Clock,
-		CircleStop,
-		ArrowRightLeft
-	} from 'lucide-svelte';
+	import { PenLine, MoveUpRight, Megaphone, CircleStop } from 'lucide-svelte';
 
 	interface Props {
 		rooms: BreakoutRoomDisplay[];
 		timeLeftFormatted: string;
 		isModerator: boolean;
 		onEnterRoom: (roomIndex: number) => void;
-		onMoveParticipant?: (userId: string, targetRoomIndex: number) => void;
 		onAddTime: () => void;
 		onEndSession: () => void;
 		onBroadcastMessage: () => void;
@@ -27,23 +18,10 @@
 		timeLeftFormatted,
 		isModerator,
 		onEnterRoom,
-		onMoveParticipant,
 		onAddTime,
 		onEndSession,
 		onBroadcastMessage
 	}: Props = $props();
-
-	/** User ID whose move-to-room picker is currently visible */
-	let moveTargetUserId = $state<string | null>(null);
-
-	function toggleMovePicker(userId: string) {
-		moveTargetUserId = moveTargetUserId === userId ? null : userId;
-	}
-
-	function handleMove(userId: string, targetRoomIndex: number) {
-		onMoveParticipant?.(userId, targetRoomIndex);
-		moveTargetUserId = null;
-	}
 
 	const avatarColors = [
 		'bg-blue-500',
@@ -111,35 +89,7 @@
 									<span class="text-foreground text-sm font-medium">
 										{p.username ?? p.user_id.slice(0, 8)}
 									</span>
-									{#if isModerator && rooms.length > 1}
-										<button
-											class="text-muted-foreground hover:text-foreground ml-auto flex h-5 w-5 items-center justify-center rounded transition-colors {moveTargetUserId ===
-											p.user_id
-												? 'text-primary bg-primary/10'
-												: ''}"
-											title="Move to another room"
-											onclick={() => toggleMovePicker(p.user_id)}
-										>
-											<ArrowRightLeft class="h-3.5 w-3.5" />
-										</button>
-									{/if}
 								</div>
-								{#if isModerator && moveTargetUserId === p.user_id}
-									<div class="mt-1 ml-7.5 flex flex-wrap items-center gap-1">
-										<span class="text-muted-foreground text-xs">Move to:</span>
-										{#each rooms as targetRoom (targetRoom.index)}
-											{#if targetRoom.index !== room.index}
-												<button
-													class="bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors"
-													onclick={() =>
-														handleMove(p.user_id, targetRoom.index)}
-												>
-													#{targetRoom.index + 1}
-												</button>
-											{/if}
-										{/each}
-									</div>
-								{/if}
 							</div>
 						{/each}
 					</div>
@@ -157,7 +107,6 @@
 							<span class="bg-destructive h-2 w-2 shrink-0 rounded-full"></span>
 						{/if}
 					</button>
-					<div class="border-border h-6 border-l"></div>
 				</div>
 			</div>
 		{/each}

@@ -504,31 +504,6 @@
 		}
 	}
 
-	function handleMoveParticipant(userId: string, targetRoomIndex: number) {
-		videoCallService.moveParticipantToRoom(eventId, userId, targetRoomIndex);
-
-		// Optimistic update: move participant in local mock rooms
-		if (mockBreakoutRooms.length > 0) {
-			const updated = mockBreakoutRooms.map((room) => ({
-				...room,
-				participants: room.participants.filter((p) => p.user_id !== userId)
-			}));
-			const participant = mockBreakoutRooms
-				.flatMap((r) => r.participants)
-				.find((p) => p.user_id === userId);
-			if (participant && updated[targetRoomIndex]) {
-				updated[targetRoomIndex].participants = [
-					...updated[targetRoomIndex].participants,
-					participant
-				];
-			}
-			mockBreakoutRooms = updated;
-		}
-
-		const target = breakoutRoomDisplays[targetRoomIndex];
-		showToast(`Participant moved to ${target?.name ?? `Room #${targetRoomIndex + 1}`}`);
-	}
-
 	function handleEndBreakoutSession() {
 		console.log('[BREAKOUT] handleEndBreakoutSession');
 		videoCallService.endBreakoutSession(eventId);
@@ -697,7 +672,6 @@
 							{timeLeftFormatted}
 							{isModerator}
 							onEnterRoom={handleEnterBreakoutRoom}
-							onMoveParticipant={handleMoveParticipant}
 							onAddTime={() => (showAddTime = true)}
 							onEndSession={handleEndBreakoutSession}
 							onBroadcastMessage={() => (showBroadcast = true)}

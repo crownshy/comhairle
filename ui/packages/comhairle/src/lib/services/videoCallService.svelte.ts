@@ -174,15 +174,6 @@ export class VideoCallService {
 		});
 	}
 
-	/** Moderator/facilitator only: move a participant to a different breakout room */
-	moveParticipantToRoom(eventId: string, userId: string, targetRoomIndex: number) {
-		ws.sendCustom('video_call:move_participant', {
-			event_id: eventId,
-			user_id: userId,
-			target_room_index: targetRoomIndex
-		});
-	}
-
 	/** Moderator/facilitator only */
 	startBreakoutSession(eventId: string, ends: string) {
 		ws.sendCustom('video_call:start_breakout_session', {
