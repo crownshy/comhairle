@@ -640,6 +640,7 @@
 								'hangup',
 								'fullscreen'
 							],
+							prejoinPageEnabled: false,
 							disableDeepLinking: true,
 							hideConferenceSubject: true
 						}}
