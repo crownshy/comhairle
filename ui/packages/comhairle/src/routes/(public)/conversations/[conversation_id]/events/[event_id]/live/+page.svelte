@@ -829,7 +829,7 @@
 								</span>
 							</div>
 							{#if currentJitsiRoomName}
-								{#if dev && isModerator}
+								{#if dev}
 									<span class="text-sidebar-foreground/60 text-xs">
 										Room: {currentJitsiRoomName.slice(0, 8)}...
 									</span>
