@@ -23,6 +23,7 @@
 		onVideoConferenceJoined?: (data: any) => void;
 		onVideoConferenceLeft?: (data: any) => void;
 		onBreakoutRoomsUpdated?: (rooms: Record<string, any>) => void;
+		onModeratorStatusChanged?: (isModerator: boolean) => void;
 	}
 
 	let {
@@ -44,7 +45,8 @@
 		onParticipantLeft,
 		onVideoConferenceJoined,
 		onVideoConferenceLeft,
-		onBreakoutRoomsUpdated
+		onBreakoutRoomsUpdated,
+		onModeratorStatusChanged
 	}: JitsiMeetProps = $props();
 
 	let containerEl: HTMLDivElement;
@@ -67,6 +69,20 @@
 		});
 	}
 
+	function decodeJwt(token: string) {
+		try {
+			const parts = token.split('.');
+			if (parts.length !== 3) return null;
+			// Decode the payload (second part)
+			const payload = parts[1];
+			const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+			return JSON.parse(decoded);
+		} catch (e) {
+			console.error('[JITSI] Failed to decode JWT:', e);
+			return null;
+		}
+	}
+
 	function initJitsi() {
 		console.log(
 			'[JITSI] initJitsi called for room:',
@@ -76,6 +92,14 @@
 			'| jwt length:',
 			jwt?.length
 		);
+
+		// Decode and log JWT claims
+		if (jwt) {
+			const claims = decodeJwt(jwt);
+			console.log('[JITSI] JWT Claims:', claims);
+			console.log('[JITSI] Moderator status in JWT:', claims?.context?.user?.moderator);
+		}
+
 		const JitsiMeetExternalAPI = (window as any).JitsiMeetExternalAPI;
 		if (!JitsiMeetExternalAPI) {
 			error = 'JitsiMeetExternalAPI not available';
@@ -117,8 +141,33 @@
 			});
 			api = new JitsiMeetExternalAPI(domain, options);
 
+			let localParticipantId: string | null = null;
+
 			api.addListener('videoConferenceJoined', (data: any) => {
+				console.log('[JITSI] ===== JOINED CONFERENCE =====');
 				console.log('[JITSI] videoConferenceJoined:', data);
+				console.log('[JITSI] Room name:', data.roomName);
+				console.log('[JITSI] Display name:', data.displayName);
+				console.log('[JITSI] Participant ID:', data.id);
+
+				// Store local participant ID
+				localParticipantId = data.id;
+
+				// Log the user's role/moderator status
+				const isModerator = api.isModeratorEnabled?.() ?? false;
+				const participantInfo = api.getParticipantsInfo?.();
+				console.log('[JITSI] Current user role:', {
+					isModerator,
+					displayName: data.displayName,
+					participantId: data.id,
+					participantInfo
+				});
+				console.log('[JITSI] ==============================');
+
+				// Notify parent of moderator status
+				console.log('[JITSI] Setting initial moderator status:', isModerator);
+				onModeratorStatusChanged?.(isModerator);
+
 				loading = false;
 				onVideoConferenceJoined?.(data);
 			});
@@ -139,13 +188,49 @@
 			});
 
 			api.addListener('videoConferenceLeft', (data: any) => {
+				console.log('[JITSI] ===== LEFT CONFERENCE =====');
 				console.log('[JITSI] videoConferenceLeft:', data);
+				console.log('[JITSI] Room name:', data.roomName);
+				console.log('[JITSI] ==========================');
 				onVideoConferenceLeft?.(data);
 			});
 
 			api.addListener('breakoutRoomsUpdated', (data: any) => {
-				console.log('[JITSI] breakoutRoomsUpdated:', data);
-				onBreakoutRoomsUpdated?.(data);
+				console.log('[JITSI] breakoutRoomsUpdated event received');
+				console.log('[JITSI] Data structure:', data);
+				const rooms = data?.rooms || data || {};
+				console.log('[JITSI] Parsed rooms:', rooms);
+				console.log('[JITSI] Room count:', Object.keys(rooms).length);
+				console.log(
+					'[JITSI] Room details:',
+					Object.values(rooms).map((r: any) => ({
+						id: r.id,
+						jid: r.jid,
+						name: r.name,
+						isMainRoom: r.isMainRoom
+					}))
+				);
+				onBreakoutRoomsUpdated?.(rooms);
+			});
+
+			api.addListener('participantRoleChanged', (data: any) => {
+				const isModeratorFromRole = data.role === 'moderator';
+				const isModeratorFromAPI = api.isModeratorEnabled?.() ?? false;
+				console.log('[JITSI] participantRoleChanged:', {
+					participantId: data.id,
+					role: data.role,
+					isLocalUser: data.id === localParticipantId,
+					localParticipantId,
+					isModeratorFromRole,
+					isModeratorFromAPI
+				});
+
+				// Only update moderator status if this is the local user's role changing
+				if (data.id === localParticipantId) {
+					console.log('[JITSI] Local user role changed to:', data.role);
+					// Use the role from the event, not isModeratorEnabled()
+					onModeratorStatusChanged?.(isModeratorFromRole);
+				}
 			});
 
 			onApiReady?.(api);

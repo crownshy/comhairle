@@ -195,7 +195,7 @@ async fn get_jwt(
         event_attendance::get_by_event_and_user(&state.db, &event_id, &user.id).await?;
 
     let event = event::get_by_id(&state.db, &event_id).await?;
-    let video_meeting_id = event
+    let _video_meeting_id = event
         .video_meeting_id
         .ok_or(ComhairleError::NoVideoMeetingId)?;
     let video_call_config = &state
@@ -214,7 +214,7 @@ async fn get_jwt(
             user: VideoEventJwtUser {
                 name: user.username.as_deref(),
                 id: &user.id.to_string(),
-                moderator: attendance.role == "facilitator",
+                moderator: is_moderator,
             },
         },
     };
