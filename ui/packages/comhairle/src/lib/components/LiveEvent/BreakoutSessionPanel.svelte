@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
+	import { Hand } from 'lucide-svelte';
 
 	interface Props {
 		roomName: string;
@@ -27,7 +28,7 @@
 	class="bg-muted flex h-full flex-col overflow-hidden rounded-3xl shadow-[0px_2px_4px_0px_rgba(0,0,0,0.12)]"
 >
 	<!-- Header -->
-	<div class="flex flex-col items-start gap-6 px-5">
+	<div class="gap-6px-5 flex flex-col items-start">
 		<div class="flex w-full max-w-[1304px] items-center justify-center">
 			<h2 class="text-muted-foreground text-center text-xl leading-7 font-semibold">
 				Breakout session
@@ -78,6 +79,7 @@
 				class="h-10 px-4 text-sm font-medium"
 				onclick={() => onCallForSupport?.()}
 			>
+				<Hand class="h-4 w-4" />
 				Call for support
 			</Button>
 		{/if}
