@@ -828,7 +828,7 @@
 							{/if}
 						</div>
 					</div>
-					{#if dev}
+					{#if dev && isModerator}
 						<button
 							class="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded px-3 py-1 text-xs font-medium"
 							onclick={devResetCall}
