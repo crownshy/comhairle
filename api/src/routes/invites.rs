@@ -272,8 +272,15 @@ async fn auto_register_event_attendance(
         warn!("Error registering user for event: {error}");
     }
 
+    invite = match invite.accept(&state.db, &user).await {
+        Ok(new_invite) => new_invite,
+        Err(error) => {
+            warn!("Error accepting invite: {error}");
+            invite
+        }
+    };
+
     let cookie = create_session_cookie(&user, &state);
-    // invite = invite.accept(&state.db, &user).await?;
 
     Ok((jar.add(cookie), (StatusCode::OK, Json(invite.into()))))
 }

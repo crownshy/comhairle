@@ -68,6 +68,8 @@ impl Invite {
             InviteStatus::Accepted
         };
 
+        invite_response::create(db, &user.id, &self.id, invite_response::Response::Accept).await?;
+
         let (sql, values) = Query::update()
             .table(InviteIden::Table)
             .values([
@@ -82,8 +84,6 @@ impl Invite {
             .fetch_one(db)
             .await?;
 
-        invite_response::create(db, &user.id, &invite.id, invite_response::Response::Accept)
-            .await?;
         Ok(invite)
     }
 
