@@ -13,7 +13,6 @@
 		callStatus: VideoCallStatus | null;
 		isModerator: boolean;
 		onStartMeeting: () => void;
-		onJoinMeeting: () => void;
 	}
 
 	let {
@@ -23,8 +22,7 @@
 		participants,
 		callStatus,
 		isModerator,
-		onStartMeeting,
-		onJoinMeeting
+		onStartMeeting
 	}: Props = $props();
 
 	let displayParticipants = $derived(participants.slice(0, 3));
@@ -124,26 +122,6 @@
 					Start meeting
 				</Button>
 			</div>
-		{:else if isModerator && isStarted}
-			<!-- Host rejoin state -->
-			<div class="flex flex-col items-center gap-14">
-				<div class="flex flex-col items-center gap-4">
-					<h1 class="text-foreground text-center text-5xl leading-[52px] font-bold">
-						{title}
-					</h1>
-					<p class="text-foreground text-center text-2xl leading-7 font-semibold">
-						{scheduledTime}
-					</p>
-				</div>
-
-				<Button
-					variant="primaryDark"
-					class="h-12 px-8 text-xl font-semibold"
-					onclick={onJoinMeeting}
-				>
-					Rejoin meeting
-				</Button>
-			</div>
 		{:else if !isModerator && isWaiting}
 			<!-- Participant waiting state -->
 			<h2 class="text-foreground text-center text-5xl leading-[52px] font-bold">
@@ -190,69 +168,6 @@
 						</p>
 					</div>
 				{/if}
-
-				<Button
-					variant="primaryDark"
-					class="h-12 px-8 text-xl font-semibold opacity-40"
-					disabled
-				>
-					Join meeting
-				</Button>
-			</div>
-		{:else if !isModerator && isStarted}
-			<!-- Participant can join state -->
-			<h2 class="text-foreground text-center text-5xl leading-[52px] font-bold">
-				The meeting has started.
-			</h2>
-
-			<div class="flex flex-col items-center gap-14">
-				<div class="flex flex-col items-center gap-4">
-					<h1 class="text-foreground text-center text-5xl leading-[52px] font-bold">
-						{title}
-					</h1>
-					<p class="text-foreground text-center text-2xl leading-7 font-semibold">
-						{scheduledTime}
-					</p>
-				</div>
-
-				{#if participants.length > 0}
-					<div class="flex flex-col items-start gap-3.5">
-						<div class="flex items-center gap-2">
-							<div class="flex items-center">
-								{#each displayParticipants as p, i}
-									<div
-										class="{getAvatarColor(
-											i
-										)} -ring-offset-2 ring-background flex h-12 w-12 items-center justify-center rounded-full text-lg font-semibold text-white ring-2 {i >
-										0
-											? '-ml-3'
-											: ''}"
-									>
-										{getInitials(p)}
-									</div>
-								{/each}
-							</div>
-							{#if extraCount > 0}
-								<span class="text-foreground text-xl font-semibold"
-									>+{extraCount} more</span
-								>
-							{/if}
-						</div>
-						<p class="text-foreground w-80 text-xl font-normal">
-							{firstParticipantName}{participants.length > 1
-								? ' and others are'
-								: ' is'} in the call.
-						</p>
-					</div>
-				{/if}
-
-				<Button
-					variant="primaryDark"
-					class="h-12 px-8 text-xl font-semibold"
-					onclick={onJoinMeeting}
-				>
-					Join meeting
-				</Button>
 			</div>
 		{/if}
 	</div>

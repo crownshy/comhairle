@@ -277,10 +277,10 @@
 		}
 	});
 
-	// Auto-join when arriving at an already in-progress call
+	// Auto-join when call is in progress (moderator started it)
 	$effect(() => {
-		if (callStatus === 'InProgress' && !hasJoinedCall && isModerator) {
-			console.log('[BREAKOUT] Auto-joining moderator into call');
+		if (callStatus === 'InProgress' && !hasJoinedCall) {
+			console.log('[BREAKOUT] Auto-joining into call, isModerator:', isModerator);
 			hasJoinedCall = true;
 		}
 	});
@@ -438,10 +438,6 @@
 
 	function handleStartMeeting() {
 		videoCallService.changeCallState(eventId, 'InProgress');
-		hasJoinedCall = true;
-	}
-
-	function handleJoinMeeting() {
 		hasJoinedCall = true;
 	}
 
@@ -785,7 +781,6 @@
 		{callStatus}
 		{isModerator}
 		onStartMeeting={handleStartMeeting}
-		onJoinMeeting={handleJoinMeeting}
 	/>
 {:else}
 	<!-- In-call: full-width black background, stays in document flow -->
