@@ -30,6 +30,7 @@
 
 	let { data }: PageProps = $props();
 
+	let conversationId = $derived(data.conversationId);
 	let eventId = $derived(data.eventId);
 	let event = $derived(data.event);
 	let jwt = $derived(data.jwt);
@@ -383,6 +384,14 @@
 		}
 	});
 
+	// When callStatus becomes 'Ended', hang up Jitsi for ALL participants
+	$effect(() => {
+		if (callStatus === 'Ended' && jitsiApi) {
+			jitsiApi.executeCommand('hangup');
+			hasJoinedCall = false;
+		}
+	});
+
 	// Watch for broadcast messages (participants only — moderator gets toast confirmation)
 	$effect(() => {
 		if (lastBroadcast) {
@@ -452,11 +461,16 @@
 	}
 
 	/** Moderator ends the meeting for everyone */
-	function handleEndMeeting() {
+	async function handleEndMeeting() {
 		showEndMeeting = false;
+
+		// Close breakout rooms first if a session is active
+		if (isBreakoutActive) {
+			await handleEndBreakoutSession();
+		}
+
+		// Broadcast 'Ended' state to all participants via WS
 		videoCallService.changeCallState(eventId, 'Ended');
-		jitsiApi?.executeCommand('hangup');
-		hasJoinedCall = false;
 	}
 
 	function handleCreateBreakout(config: {
@@ -753,6 +767,14 @@
 	<MeetingEndedScreen
 		title={event?.name ?? 'Meeting'}
 		conversationUrl={`/conversations/${conversationId}`}
+		{isModerator}
+		onResetCall={() => {
+			videoCallService.changeCallState(eventId, 'Waiting');
+			videoCallService.setAgendaItem(eventId, 0);
+			videoCallService.endBreakoutSession(eventId);
+			hasJoinedCall = false;
+			roomContext = 'plenary';
+		}}
 	/>
 {:else if meetingPhase === 'lobby'}
 	<MeetingLobby

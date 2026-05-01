@@ -5,9 +5,11 @@
 	interface Props {
 		title: string;
 		conversationUrl?: string;
+		isModerator?: boolean;
+		onResetCall?: () => void;
 	}
 
-	let { title, conversationUrl }: Props = $props();
+	let { title, conversationUrl, isModerator = false, onResetCall }: Props = $props();
 </script>
 
 <div class="bg-background flex min-h-dvh w-full items-center justify-center">
@@ -47,14 +49,25 @@
 		</div>
 
 		<!-- CTA -->
-		{#if conversationUrl}
-			<Button
-				variant="primaryDark"
-				class="h-12 px-8 text-base font-semibold"
-				onclick={() => (window.location.href = conversationUrl)}
-			>
-				Back to conversation
-			</Button>
-		{/if}
+		<div class="flex flex-col items-center gap-3">
+			{#if conversationUrl}
+				<Button
+					variant="primaryDark"
+					class="h-12 px-8 text-base font-semibold"
+					onclick={() => (window.location.href = conversationUrl)}
+				>
+					Back to conversation
+				</Button>
+			{/if}
+			{#if isModerator && onResetCall}
+				<Button
+					variant="outline"
+					class="h-10 px-6 text-sm font-medium"
+					onclick={onResetCall}
+				>
+					Reset call
+				</Button>
+			{/if}
+		</div>
 	</div>
 </div>
