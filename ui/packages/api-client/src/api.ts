@@ -599,6 +599,7 @@ export const ToolConfig = z.union([
       poll_id: z.string(),
       required_votes: z.union([z.number(), z.null()]).optional(),
       server_url: z.string(),
+      show_remaining_statements: z.boolean().optional().default(true),
       type: z.literal("polis"),
     })
     .passthrough(),
@@ -780,6 +781,7 @@ export const ToolSetup = z.union([
   z
     .object({
       required_votes: z.union([z.number(), z.null()]).optional(),
+      show_remaining_statements: z.boolean().optional().default(true),
       topic: z.string(),
       type: z.literal("polis"),
     })

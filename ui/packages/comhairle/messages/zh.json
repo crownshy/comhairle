@@ -143,5 +143,8 @@
 	"polis_seed_statement": "对话开场白",
 	"password_updated_successfully": "密码更新成功",
 	"password_updated_successfully_body": "您的密码已更改。您可以继续使用该应用程序。",
+	"conversation_closed_title": "此对话已关闭",
+	"conversation_closed_description": "对话的参与现已结束。",
+	"conversation_closed_link": "返回其他对话",
 	"continue_to_home": "继续前往首页"
 }

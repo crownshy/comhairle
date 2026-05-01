@@ -142,5 +142,8 @@
 	"polis_seed_statement": "Amorce de conversation",
 	"password_updated_successfully": "Mot de passe mis à jour avec succès",
 	"password_updated_successfully_body": "Votre mot de passe a été modifié. Vous pouvez continuer à utiliser l'application.",
+	"conversation_closed_title": "Cette conversation est fermée",
+	"conversation_closed_description": "La participation à la conversation est maintenant terminée.",
+	"conversation_closed_link": "Retourner aux autres conversations",
 	"continue_to_home": "Continuer vers l'accueil"
 }

@@ -103,38 +103,46 @@
 		<div class="hidden md:block">
 			<Breadcrumbs {conversation} />
 		</div>
-		<ConversationSummary {conversation}>
-			{#if user}
-				{#if participation}
-					<Button
-						class="mt-5 w-full md:w-fit"
-						variant="primaryDark"
-						href={firstWorkflowPath}>{m.jump_back_in()}</Button
-					>
-				{:else}
+		{#if conversation.isComplete}
+			<div class="flex flex-col gap-4">
+				<h1 class="text-xl font-bold">{m.conversation_closed_title()}</h1>
+				<p>{m.conversation_closed_description()}</p>
+				<Button href="/conversations">{m.conversation_closed_link()}</Button>
+			</div>
+		{:else}
+			<ConversationSummary {conversation}>
+				{#if user}
+					{#if participation}
+						<Button
+							class="mt-5 w-full md:w-fit"
+							variant="primaryDark"
+							href={firstWorkflowPath}>{m.jump_back_in()}</Button
+						>
+					{:else}
+						<Button class="mt-5 w-full md:w-fit" onclick={handleJoin}
+							>{conversation.callToAction || m.join_the_conversation()}</Button
+						>
+					{/if}
+				{:else if firstWorkflow.autoLogin}
 					<Button class="mt-5 w-full md:w-fit" onclick={handleJoin}
 						>{conversation.callToAction || m.join_the_conversation()}</Button
 					>
+				{:else}
+					<Button class="mt-5 w-full md:w-fit" onclick={redirectToLogin}
+						>{m.login_to_take_part()}</Button
+					>
+					<Button class="mt-5 w-full md:w-fit" onclick={redirectToSignIn}
+						>{m.signup_to_take_part()}</Button
+					>
 				{/if}
-			{:else if firstWorkflow.autoLogin}
-				<Button class="mt-5 w-full md:w-fit" onclick={handleJoin}
-					>{conversation.callToAction || m.join_the_conversation()}</Button
-				>
-			{:else}
-				<Button class="mt-5 w-full md:w-fit" onclick={redirectToLogin}
-					>{m.login_to_take_part()}</Button
-				>
-				<Button class="mt-5 w-full md:w-fit" onclick={redirectToSignIn}
-					>{m.signup_to_take_part()}</Button
-				>
-			{/if}
-		</ConversationSummary>
+			</ConversationSummary>
 
-		<PrivacyPolicyDialog
-			{conversation}
-			bind:open={privacyPolicyOpen}
-			onAccept={handlePrivacyPolicyAccept}
-		/>
+			<PrivacyPolicyDialog
+				{conversation}
+				bind:open={privacyPolicyOpen}
+				onAccept={handlePrivacyPolicyAccept}
+			/>
+		{/if}
 	{:else}
 		<h1>Conversation not found</h1>
 	{/if}
