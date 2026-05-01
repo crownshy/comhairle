@@ -30,6 +30,7 @@ pub struct BreakoutRoomAgendaItem {
     pub instructions: String,
     pub estimated_time: u32,
     pub time_limit: Option<u32>,
+    pub max_per_room: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
@@ -191,6 +192,9 @@ impl PartialEvent {
         }
         if let Some(value) = &self.signup_mode {
             values.push((EventIden::SignupMode, value.into()));
+        }
+        if let Some(value) = &self.agenda {
+            values.push((EventIden::Agenda, value.into()));
         }
 
         values

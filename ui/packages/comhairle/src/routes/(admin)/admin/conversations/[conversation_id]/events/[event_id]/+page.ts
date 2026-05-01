@@ -17,8 +17,17 @@ export const load: PageLoad = async ({ params, parent }) => {
 			params: { conversation_id, event_id },
 			queries: { role: 'facilitator' }
 		});
+		const moderators = await api.ListEventAttendances({
+			params: { conversation_id, event_id },
+			queries: { role: 'moderator' }
+		});
 
-		return { event, conversation, facilitators: facilitators.records };
+		return {
+			event,
+			conversation,
+			facilitators: facilitators.records,
+			moderators: moderators.records
+		};
 	} catch (e) {
 		console.error(e);
 		notifications.addFlash({ priority: 'WARNING', message: 'Problem loading event' });
