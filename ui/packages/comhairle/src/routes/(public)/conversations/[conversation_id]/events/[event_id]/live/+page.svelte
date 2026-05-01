@@ -40,6 +40,11 @@
 	let callStatus = $derived(videoCallService.callStatus);
 	let allParticipants = $derived(videoCallService.participants);
 	let otherParticipants = $derived(allParticipants.filter((p) => p.user_id !== user?.id));
+
+	/** Participants actually in Jitsi call (excludes current user + lobby-only users) */
+	let inCallParticipants = $derived(
+		allParticipants.filter((p) => jitsiParticipantMap.has(p.user_id))
+	);
 	let currentStep = $derived(videoCallService.currentAgendaStep);
 	let breakoutSession = $derived(videoCallService.breakoutSession);
 	let breakoutRooms = $derived(videoCallService.breakoutRooms);
@@ -184,7 +189,9 @@
 			return breakoutRooms.map((_, index) => ({
 				index,
 				name: `Room #${index + 1}`,
-				participants: videoCallService.getBreakoutRoomParticipants(index),
+				participants: videoCallService
+					.getBreakoutRoomParticipants(index)
+					.filter((p) => p.user_id !== user?.id),
 				hasAssistanceRequest: videoCallService.hasAssistanceRequest(`room-${index}`),
 				assistanceRequestUser: videoCallService.getAssistanceRequestUser(`room-${index}`)
 			}));
@@ -970,7 +977,7 @@
 <!-- Dialogs -->
 <CreateBreakoutDialog
 	bind:open={showCreateBreakout}
-	participants={allParticipants}
+	participants={inCallParticipants}
 	defaultDuration={breakoutDialogItem?.durationMinutes}
 	defaultMaxPerRoom={breakoutDialogItem?.maxPerRoom}
 	onClose={() => (showCreateBreakout = false)}
