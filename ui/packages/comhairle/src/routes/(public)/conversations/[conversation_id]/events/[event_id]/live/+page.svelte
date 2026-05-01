@@ -829,15 +829,18 @@
 								</span>
 							</div>
 							{#if currentJitsiRoomName}
-								<span class="text-sidebar-foreground/60 text-xs">
-									Room: {currentJitsiRoomName.slice(0, 8)}...
-								</span>
+								{#if dev && isModerator}
+									<span class="text-sidebar-foreground/60 text-xs">
+										Room: {currentJitsiRoomName.slice(0, 8)}...
+									</span>
+								{/if}
 								{#if isBreakoutActive && inBreakoutRoom}
 									<div
 										class="bg-primary/20 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white"
 									>
 										<span class="text-xs font-medium">{roomChipText}</span>
-										<span class="text-xs opacity-70">· {timeLeftFormatted}</span>
+										<span class="text-xs opacity-70">· {timeLeftFormatted}</span
+										>
 									</div>
 								{:else}
 									<div
