@@ -28,7 +28,6 @@
 
 	let { data }: PageProps = $props();
 
-	let conversationId = $derived(data.conversationId);
 	let eventId = $derived(data.eventId);
 	let event = $derived(data.event);
 	let jwt = $derived(data.jwt);
@@ -54,6 +53,8 @@
 	let jitsiApi: any = $state(null);
 	let roomContext = $state<RoomContext>('plenary');
 	let activePanel = $state<PanelTab>('agenda');
+	let jitsiModeratorStatus = $state<boolean>(false);
+	let currentJitsiRoomName = $state<string>('');
 
 	// Map Jitsi participant IDs to backend user IDs
 	let jitsiParticipantMap = $state<Map<string, string>>(new Map());
@@ -827,39 +828,37 @@
 
 				<!-- Jitsi iframe -->
 				<div class="relative flex-1 overflow-hidden">
-					{#key jitsiReloadKey}
-						<JitsiMeet
-							roomName={plenaryRoomName}
-							{jwt}
-							onApiReady={handleApiReady}
-							onBreakoutRoomsUpdated={(rooms) => {
-								jitsiBreakoutRooms = rooms;
-							}}
-							onModeratorStatusChanged={handleModeratorStatusChanged}
-							onVideoConferenceJoined={handleVideoConferenceJoined}
-							onVideoConferenceLeft={handleVideoConferenceLeft}
-							onParticipantJoined={handleParticipantJoined}
-							onParticipantLeft={handleParticipantLeft}
-							startWithAudioMuted={true}
-							configOverwrite={{
-								toolbarButtons: [
-									'microphone',
-									'camera',
-									'desktop',
-									'participants-pane',
-									'chat',
-									'raisehand',
-									'breakoutrooms',
-									'tileview',
-									'hangup',
-									'fullscreen'
-								],
-								prejoinPageEnabled: false,
-								disableDeepLinking: true,
-								hideConferenceSubject: true
-							}}
-						/>
-					{/key}
+					<JitsiMeet
+						roomName={plenaryRoomName}
+						{jwt}
+						onApiReady={handleApiReady}
+						onBreakoutRoomsUpdated={(rooms) => {
+							jitsiBreakoutRooms = rooms;
+						}}
+						onModeratorStatusChanged={handleModeratorStatusChanged}
+						onVideoConferenceJoined={handleVideoConferenceJoined}
+						onVideoConferenceLeft={handleVideoConferenceLeft}
+						onParticipantJoined={handleParticipantJoined}
+						onParticipantLeft={handleParticipantLeft}
+						startWithAudioMuted={true}
+						configOverwrite={{
+							toolbarButtons: [
+								'microphone',
+								'camera',
+								'desktop',
+								'participants-pane',
+								'chat',
+								'raisehand',
+								'breakoutrooms',
+								'tileview',
+								'hangup',
+								'fullscreen'
+							],
+							prejoinPageEnabled: false,
+							disableDeepLinking: true,
+							hideConferenceSubject: true
+						}}
+					/>
 
 					<!-- Room chip overlay -->
 					<div class="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
