@@ -135,7 +135,7 @@
 				? ('loading' as const)
 				: callStatus === 'Ended'
 					? ('ended' as const)
-					: callStatus === 'InProgress' && hasJoinedCall
+					: hasJoinedCall
 						? ('incall' as const)
 						: ('lobby' as const);
 		console.log(
@@ -437,7 +437,7 @@
 	}
 
 	function handleStartMeeting() {
-		videoCallService.changeCallState(eventId, 'InProgress');
+		// Only render Jitsi — don't broadcast InProgress until moderator is actually in the call
 		hasJoinedCall = true;
 	}
 
@@ -698,6 +698,10 @@
 	function handleVideoConferenceJoined(data: any) {
 		console.log('[BREAKOUT] Entered Jitsi room:', data.roomName);
 		currentJitsiRoomName = data.roomName;
+		// Moderator is now in Jitsi — safe to let participants in
+		if (isModerator && callStatus === 'Waiting') {
+			videoCallService.changeCallState(eventId, 'InProgress');
+		}
 	}
 
 	function handleVideoConferenceLeft(data: any) {
