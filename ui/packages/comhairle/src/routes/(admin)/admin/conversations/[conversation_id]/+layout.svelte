@@ -6,6 +6,7 @@
 	import type { AdminPageSlots } from './slotTypes';
 	import LaunchConversationModal from '$lib/components/LaunchConversationModal.svelte';
 	import { Badge } from '$lib/components/ui/badge';
+	import EndConversationModal from '$lib/components/EndConversationModal.svelte';
 
 	let breadcrumbContent = $state<Snippet | null>(null);
 	let titleContent = $state<Snippet | null>(null);
@@ -44,10 +45,15 @@
 	</Breadcrumb.Root>
 	<div class="flex w-full flex-row items-start justify-between">
 		<div class="flex flex-row gap-4">
-			<h2 class="text-primary flex flex-row items-center gap-2 text-2xl font-bold">
-				<MessageSquareText />
-				{conversation.title}
-			</h2>
+			<div class="flex flex-col gap-4">
+				<h2 class="text-primary flex flex-row items-center gap-2 text-2xl font-bold">
+					<MessageSquareText />
+					{conversation.title}
+				</h2>
+				{#if conversation.isComplete}
+					<p class="text-sm text-red-400">This conversation has closed</p>
+				{/if}
+			</div>
 			<Button
 				href={`/conversations/${conversation.id}/preview`}
 				target="_blank"
@@ -67,13 +73,18 @@
 			{/if}
 		</div>
 
-		<div>
+		<div class="flex flex-col gap-4 md:flex-row">
 			{#if conversation.isLive}
-				<Badge
-					variant="default"
-					class="flex flex-row items-center justify-between gap-2 px-8 py-2 text-sm"
-					>Launched! <Check class="text-primary size-4 rounded-full bg-white" /></Badge
-				>
+				{#if !conversation.isComplete}
+					<Badge
+						variant="default"
+						class="flex flex-row items-center justify-between gap-2 px-8 py-2 text-sm"
+						>Launched! <Check
+							class="text-primary size-4 rounded-full bg-white"
+						/></Badge
+					>
+				{/if}
+				<EndConversationModal {conversation} />
 			{:else}
 				<LaunchConversationModal conversation_id={conversation.id} />
 			{/if}

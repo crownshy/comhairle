@@ -149,5 +149,8 @@
 	"polis_seed_statement": "Conversation starter",
 	"password_updated_successfully": "Password updated successfully",
 	"password_updated_successfully_body": "Your password has been changed. Use your new password to log in next time.",
+	"conversation_closed_title": "This conversation is closed",
+	"conversation_closed_description": "Participation in the conversation has now ended.",
+	"conversation_closed_link": "Return to other conversations",
 	"continue_to_home": "Continue to Home"
 }
