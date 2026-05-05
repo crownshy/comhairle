@@ -4,6 +4,7 @@ CREATE TABLE media (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     store_name TEXT NOT NULL,
     storage_key TEXT NOT NULL,
+    url TEXT NOT NULL,
     filename TEXT NOT NULL,
     content_type TEXT NOT NULL,
     owner_id UUID REFERENCES comhairle_user(id),

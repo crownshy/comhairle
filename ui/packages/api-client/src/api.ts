@@ -84,7 +84,7 @@ export const ConversationDto = z
     enableSignupPrompts: z.boolean(),
     faqs: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
-    imageUrl: z.string(),
+    image: z.union([z.string(), z.null()]).optional(),
     isComplete: z.boolean(),
     isInviteOnly: z.boolean(),
     isLive: z.boolean(),
@@ -101,7 +101,7 @@ export const ConversationDto = z
     tags: z.array(z.string()),
     thankYouMessage: z.union([z.string(), z.null()]).optional(),
     title: z.string().uuid(),
-    videoUrl: z.union([z.string(), z.null()]).optional(),
+    video: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type ConversationDto = z.infer<typeof ConversationDto>;
@@ -120,7 +120,7 @@ export const LocalizedConversationDto = z
     enableSignupPrompts: z.boolean(),
     faqs: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
-    imageUrl: z.string(),
+    image: z.union([z.string(), z.null()]).optional(),
     isComplete: z.boolean(),
     isInviteOnly: z.boolean(),
     isLive: z.boolean(),
@@ -137,7 +137,7 @@ export const LocalizedConversationDto = z
     tags: z.array(z.string()),
     thankYouMessage: z.union([z.string(), z.null()]).optional(),
     title: z.string(),
-    videoUrl: z.union([z.string(), z.null()]).optional(),
+    video: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type LocalizedConversationDto = z.infer<typeof LocalizedConversationDto>;
@@ -398,7 +398,6 @@ export const CreateConversation = z
     default_workflow_id: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     enable_qa_chat_bot: z.union([z.boolean(), z.null()]).optional(),
-    image_url: z.string(),
     is_invite_only: z.boolean(),
     is_live: z.boolean(),
     is_public: z.boolean(),
@@ -408,7 +407,6 @@ export const CreateConversation = z
     supported_languages: z.array(z.string()),
     tags: z.union([z.array(z.string()), z.null()]).optional(),
     title: z.string(),
-    video_url: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type CreateConversation = z.infer<typeof CreateConversation>;
@@ -443,7 +441,7 @@ export const ConversationWithTranslations = z
     enableSignupPrompts: z.boolean(),
     faqs: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
-    imageUrl: z.string(),
+    image: z.union([z.string(), z.null()]).optional(),
     isComplete: z.boolean(),
     isInviteOnly: z.boolean(),
     isLive: z.boolean(),
@@ -463,7 +461,7 @@ export const ConversationWithTranslations = z
     title: z.string(),
     translations: ConversationTranslations,
     updatedAt: z.string().datetime({ offset: true }),
-    videoUrl: z.union([z.string(), z.null()]).optional(),
+    video: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type ConversationWithTranslations = z.infer<
@@ -483,7 +481,7 @@ export const PartialConversation = z
     enable_qa_chat_bot: z.union([z.boolean(), z.null()]),
     enable_signup_prompts: z.union([z.boolean(), z.null()]),
     faqs: z.union([z.string(), z.null()]),
-    image_url: z.union([z.string(), z.null()]),
+    image: z.union([z.string(), z.null()]),
     is_complete: z.union([z.boolean(), z.null()]),
     is_invite_only: z.union([z.boolean(), z.null()]),
     is_live: z.union([z.boolean(), z.null()]),
@@ -499,7 +497,7 @@ export const PartialConversation = z
     tags: z.union([z.array(z.string()), z.null()]),
     thank_you_message: z.union([z.string(), z.null()]),
     title: z.union([z.string(), z.null()]),
-    video_url: z.union([z.string(), z.null()]),
+    video: z.union([z.string(), z.null()]),
   })
   .partial()
   .passthrough();
@@ -1403,6 +1401,7 @@ export const MediaDto = z
     ownerId: z.string().uuid(),
     storageKey: z.string(),
     storeName: z.string(),
+    url: z.string(),
   })
   .passthrough();
 export type MediaDto = z.infer<typeof MediaDto>;
