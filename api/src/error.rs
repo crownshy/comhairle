@@ -260,6 +260,9 @@ pub enum ComhairleError {
 
     #[error("UTF-8 conversion error: {0}")]
     Utf8Error(#[from] std::string::FromUtf8Error),
+
+    #[error("Unsupported Content-Type: {0}")]
+    UnsupportedContentType(String),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -292,6 +295,7 @@ impl IntoResponse for ComhairleError {
             ComhairleError::EmailAlreadyVerified => StatusCode::CONFLICT,
             ComhairleError::PasswordConfirmationMismatch
             | ComhairleError::WeakPassword(_)
+            | ComhairleError::UnsupportedContentType(_)
             | ComhairleError::BadRequest(_) => StatusCode::BAD_REQUEST,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };

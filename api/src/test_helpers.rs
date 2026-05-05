@@ -170,6 +170,7 @@ pub async fn response_to_json(response: Response) -> Value {
     })
 }
 
+#[derive(Debug)]
 pub struct UserSession {
     pub id: Option<Uuid>,
     pub username: Option<String>,
@@ -594,7 +595,10 @@ impl UserSession {
         offset: i32,
         limit: i32,
     ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
-        let url = format!("/conversation?limit={}&offset={}&sort=created_at+asc", limit, offset);
+        let url = format!(
+            "/conversation?limit={}&offset={}&sort=created_at+asc",
+            limit, offset
+        );
         self.get(app, &url).await
     }
 

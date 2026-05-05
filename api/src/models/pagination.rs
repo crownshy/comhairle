@@ -140,8 +140,6 @@ impl PageOptions {
         // Generate SQL for count query
         let (count_sql, count_values) = count_query.build_sqlx(PostgresQueryBuilder);
 
-        println!("Final Count Query {count_sql}");
-
         let total: i32 = sqlx::query_scalar_with(&count_sql, count_values)
             .fetch_one(pool)
             .await?;
@@ -149,7 +147,6 @@ impl PageOptions {
         // Generate SQL for paginated query
         let (query_sql, query_values) = paginated_query.build_sqlx(PostgresQueryBuilder);
 
-        println!("Final Query {query_sql}");
         let records: Vec<T> = sqlx::query_as_with(&query_sql, query_values)
             .fetch_all(pool)
             .await?;

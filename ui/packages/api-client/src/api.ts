@@ -1097,9 +1097,9 @@ export const BreakoutRoomAgendaItem = z
   .object({
     estimated_time: z.number().int().gte(0),
     instructions: z.string(),
+    max_per_room: z.union([z.number(), z.null()]).optional(),
     prompt: z.string(),
     time_limit: z.union([z.number(), z.null()]).optional(),
-    max_per_room: z.union([z.number().int().gte(0), z.null()]).optional(),
   })
   .passthrough();
 export type BreakoutRoomAgendaItem = z.infer<typeof BreakoutRoomAgendaItem>;
