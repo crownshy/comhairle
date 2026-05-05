@@ -50,7 +50,6 @@
 	}
 
 	function showUserPrivacy() {
-		loginType = 'automatic';
 		privacyPolicyOpen = true;
 	}
 
@@ -88,43 +87,51 @@
 {#if invite}
 	{#if conversation}
 		<div class="mt-10 mb-20 md:mb-0">
-			<h1 class="mb-5 text-2xl font-bold">
-				{inviteHeading}
-			</h1>
-			<ConversationSummary {conversation}>
-				{#if !user && invite.loginBehaviour === 'manual' && firstWorkflow.autoLogin === false}
-					<p class="mb-5">To join this conversation please either</p>
-					{#if !user && typeof invite.inviteType !== 'string' && 'email' in invite.inviteType && invite.inviteType.email}
-						<div class="mb-5 flex flex-row gap-2">
-							<Button onclick={login}>Login</Button>
-							<Button onclick={create_account}>Create an account</Button>
-						</div>
-						<p>
-							using the email account <span class="font-bold"
-								>{invite.inviteType.email}</span
-							>
-						</p>
-					{:else}
-						<div class="flex flex-col gap-2">
-							<Button onclick={login}>Login</Button>
-							<Button onclick={create_account}>Create an account</Button>
-							<Button onclick={take_part_annon}>Take part anonymously</Button>
-						</div>
+			{#if conversation.isComplete}
+				<div class="flex flex-col gap-4">
+					<h1 class="text-xl font-bold">{m.conversation_closed_title()}</h1>
+					<p>{m.conversation_closed_description()}</p>
+					<Button href="/conversations">{m.conversation_closed_link()}</Button>
+				</div>
+			{:else}
+				<h1 class="mb-5 text-2xl font-bold">
+					{inviteHeading}
+				</h1>
+				<ConversationSummary {conversation}>
+					{#if !user && invite.loginBehaviour === 'manual' && firstWorkflow.autoLogin === false}
+						<p class="mb-5">To join this conversation please either</p>
+						{#if !user && typeof invite.inviteType !== 'string' && 'email' in invite.inviteType && invite.inviteType.email}
+							<div class="mb-5 flex flex-row gap-2">
+								<Button onclick={login}>Login</Button>
+								<Button onclick={create_account}>Create an account</Button>
+							</div>
+							<p>
+								using the email account <span class="font-bold"
+									>{invite.inviteType.email}</span
+								>
+							</p>
+						{:else}
+							<div class="flex flex-col gap-2">
+								<Button onclick={login}>Login</Button>
+								<Button onclick={create_account}>Create an account</Button>
+								<Button onclick={take_part_annon}>Take part anonymously</Button>
+							</div>
+						{/if}
 					{/if}
-				{/if}
 
-				{#if user}
-					<Button onclick={showUserPrivacy}
-						>{conversation.callToAction || m.join_the_conversation()}</Button
-					>
-				{/if}
+					{#if user}
+						<Button onclick={showUserPrivacy}
+							>{conversation.callToAction || m.join_the_conversation()}</Button
+						>
+					{/if}
 
-				{#if !user && (invite.loginBehaviour === 'auto_create_annon' || firstWorkflow.autoLogin)}
-					<Button onclick={showAnnonPrivacy}
-						>{conversation.callToAction || m.join_the_conversation()}</Button
-					>
-				{/if}
-			</ConversationSummary>
+					{#if !user && (invite.loginBehaviour === 'auto_create_annon' || firstWorkflow.autoLogin)}
+						<Button onclick={showAnnonPrivacy}
+							>{conversation.callToAction || m.join_the_conversation()}</Button
+						>
+					{/if}
+				</ConversationSummary>
+			{/if}
 		</div>
 	{/if}
 {/if}
