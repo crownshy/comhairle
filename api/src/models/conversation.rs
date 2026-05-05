@@ -192,7 +192,10 @@ impl PartialConversation {
             values.push((ConversationIden::EnableSignupPrompts, (*value).into()))
         };
         if let Some(value) = &self.show_thank_you_page_annon_instructions {
-            values.push((ConversationIden::ShowThankYouPageAnnonInstructions, (*value).into()))
+            values.push((
+                ConversationIden::ShowThankYouPageAnnonInstructions,
+                (*value).into(),
+            ))
         };
 
         if let Some(value) = &self.supported_languages {
@@ -743,8 +746,7 @@ pub async fn create(
     let (sql, values) = Query::insert()
         .into_table(ConversationIden::Table)
         .columns(columns)
-        .values(values)
-        .unwrap()
+        .values(values)?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 

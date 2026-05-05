@@ -170,6 +170,7 @@ pub async fn response_to_json(response: Response) -> Value {
     })
 }
 
+#[derive(Debug)]
 pub struct UserSession {
     pub id: Option<Uuid>,
     pub username: Option<String>,
