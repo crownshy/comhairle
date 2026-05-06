@@ -2925,6 +2925,14 @@ curl -X POST \
     response: MediaDto,
   },
   {
+    method: "delete",
+    path: "/media/:media_id",
+    alias: "DeleteMedia",
+    description: `Delete media record by id`,
+    requestFormat: "json",
+    response: MediaDto,
+  },
+  {
     method: "get",
     path: "/notifications",
     alias: "GetAllNotifications",
