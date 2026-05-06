@@ -144,5 +144,8 @@
 	"polis_seed_statement": "Cychwynnwr sgwrs",
 	"password_updated_successfully": "Diweddarwyd y cyfrinair yn llwyddiannus",
 	"password_updated_successfully_body": "Mae eich cyfrinair wedi'i newid. Gallwch barhau i ddefnyddio'r rhaglen.",
+	"conversation_closed_title": "Mae'r sgwrs hon wedi'i chau",
+	"conversation_closed_description": "Mae cyfranogiad yn y sgwrs wedi dod i ben bellach.",
+	"conversation_closed_link": "Dychwelyd at sgyrsiau eraill",
 	"continue_to_home": "Parhau i'r hafan"
 }

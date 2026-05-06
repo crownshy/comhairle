@@ -144,5 +144,8 @@
 	"polis_seed_statement": "بادئ المحادثة",
 	"password_updated_successfully": "تم تحديث كلمة المرور بنجاح",
 	"password_updated_successfully_body": "تم تغيير كلمة المرور الخاصة بك. يمكنك الاستمرار في استخدام التطبيق.",
+	"conversation_closed_title": "هذه المحادثة مغلقة",
+	"conversation_closed_description": "لقد انتهت المشاركة في المحادثة الآن.",
+	"conversation_closed_link": "العودة إلى المحادثات الأخرى",
 	"continue_to_home": "المتابعة إلى الصفحة الرئيسية"
 }

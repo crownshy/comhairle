@@ -849,9 +849,28 @@
 								</span>
 							</div>
 							{#if currentJitsiRoomName}
-								<span class="text-sidebar-foreground/60 text-xs">
-									Room: {currentJitsiRoomName.slice(0, 8)}...
-								</span>
+								{#if dev}
+									<span class="text-sidebar-foreground/60 text-xs">
+										Room: {currentJitsiRoomName.slice(0, 8)}...
+									</span>
+								{/if}
+								{#if isBreakoutActive && inBreakoutRoom}
+									<div
+										class="bg-primary/20 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white"
+									>
+										<span class="text-xs font-medium">{roomChipText}</span>
+										<span class="text-xs opacity-70">· {timeLeftFormatted}</span
+										>
+									</div>
+								{:else}
+									<div
+										class="bg-sidebar-foreground/20 inline-flex items-center rounded-full px-3 py-1"
+									>
+										<span class="text-xs font-medium text-white">
+											{roomChipText}
+										</span>
+									</div>
+								{/if}
 							{/if}
 						</div>
 					</div>
@@ -898,32 +917,6 @@
 							hideConferenceSubject: true
 						}}
 					/>
-
-					<!-- Room chip overlay -->
-					<div class="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
-						{#if isBreakoutActive && inBreakoutRoom}
-							<div
-								class="bg-background pointer-events-auto mt-2 inline-flex items-center justify-between rounded-full px-6 py-2 shadow-md"
-							>
-								<span class="text-foreground text-sm leading-6 font-medium">
-									{roomChipText}
-								</span>
-								<span
-									class="text-muted-foreground ml-3 text-xs leading-6 font-medium"
-								>
-									Time left {timeLeftFormatted}
-								</span>
-							</div>
-						{:else}
-							<div
-								class="bg-muted-foreground pointer-events-auto mt-2 inline-flex items-center rounded-full px-4 py-2 shadow-md"
-							>
-								<span class="text-muted text-sm leading-6 font-medium">
-									{roomChipText}
-								</span>
-							</div>
-						{/if}
-					</div>
 				</div>
 			</div>
 
