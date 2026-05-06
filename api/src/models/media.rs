@@ -81,7 +81,7 @@ impl std::fmt::Display for MediaContentType {
 }
 
 impl MediaContentType {
-    fn try_from(&self, source: &str) -> Result<Self, ComhairleError> {
+    pub fn try_from_mime(source: &str) -> Result<Self, ComhairleError> {
         match source {
             "image/jpeg" => Ok(Self::Jpeg),
             "image/png" => Ok(Self::Png),
@@ -91,6 +91,21 @@ impl MediaContentType {
             "video/mpeg" => Ok(Self::Mpeg),
             "video/webm" => Ok(Self::Webm),
             ct => Err(ComhairleError::UnsupportedContentType(ct.to_string())),
+        }
+    }
+}
+
+impl MediaContentType {
+    pub fn try_from_extension(extension: &str) -> Result<Self, ComhairleError> {
+        match extension.to_lowercase().as_str() {
+            "jpg" | "jpeg" => Ok(Self::Jpeg),
+            "png" => Ok(Self::Png),
+            "gif" => Ok(Self::Gif),
+            "webp" => Ok(Self::Webp),
+            "mp4" => Ok(Self::Mp4),
+            "mpeg" | "mpg" => Ok(Self::Mpeg),
+            "webm" => Ok(Self::Webm),
+            ext => Err(ComhairleError::UnsupportedContentType(ext.to_string())),
         }
     }
 }
