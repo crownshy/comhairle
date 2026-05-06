@@ -1,5 +1,5 @@
 pub mod bot_service;
-pub mod bulk_storage;
+pub mod bulk_storage_service;
 pub mod config;
 pub mod db;
 mod docs;
@@ -46,7 +46,7 @@ use sqlx_postgres::PgPool;
 use tower_http::cors::CorsLayer;
 
 use crate::{
-    bulk_storage::BulkStorageService, routes::workflows::WorkflowRouterContext,
+    bulk_storage_service::BulkStorageService, routes::workflows::WorkflowRouterContext,
     transcription_service::Transcriber, wiki_poll_service::WikiPollService, workers::JobQueues,
 };
 
@@ -59,7 +59,7 @@ pub struct ComhairleState {
     pub translation_service: Option<Arc<dyn TranslationService>>,
     pub bot_service: Option<Arc<dyn ComhairleBotService>>,
     pub wiki_poll_service: Arc<dyn WikiPollService>,
-    pub bulk_storage_service: Arc<dyn BulkStorageService>,
+    pub bulk_storage_service: Option<Arc<dyn BulkStorageService>>,
     pub transcription_service: Option<Arc<dyn Transcriber>>,
     pub jobs: Arc<JobQueues>,
 }
@@ -69,6 +69,14 @@ impl ComhairleState {
         self.bot_service
             .as_ref()
             .ok_or(ComhairleError::NoBotServiceConfigured)
+    }
+
+    fn required_bulk_storage_service(
+        &self,
+    ) -> Result<&Arc<dyn BulkStorageService>, ComhairleError> {
+        self.bulk_storage_service
+            .as_ref()
+            .ok_or(ComhairleError::NoBulkStorageServiceConfigured)
     }
 }
 

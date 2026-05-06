@@ -12,7 +12,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
-    bulk_storage::FileMetadata,
+    bulk_storage_service::FileMetadata,
     error::ComhairleError,
     models::{
         media::{self, CreateMedia, MediaContentType, MediaFilterOptions, MediaOrderOptions},
@@ -53,6 +53,13 @@ async fn upload(
     RequiredAdminUser(user): RequiredAdminUser,
     mut form_data: Multipart,
 ) -> Result<(StatusCode, Json<MediaDto>), ComhairleError> {
+    let bulk_storage_service = state.required_bulk_storage_service()?;
+    let bulk_storage_config = state
+        .config
+        .bulk_storage_service
+        .as_ref()
+        .ok_or(ComhairleError::NoBulkStorageServiceConfigured)?;
+
     let (filename, content_type_header, bytes) = match form_data.next_field().await? {
         Some(field) => {
             let content_type = field.content_type().map(|ct| ct.to_string());
@@ -95,19 +102,16 @@ async fn upload(
         MediaContentType::Mp4 | MediaContentType::Mpeg | MediaContentType::Webm => "video",
     };
     let storage_key = format!("{prefix}/{filename}");
-
-    let _upload_result = state
-        .bulk_storage_service
+    bulk_storage_service
         .upload_file(&storage_key, bytes, metadata)
         .await?;
 
     let create_media = CreateMedia {
-        store_name: "comhairle-media-test".to_string(), // TODO: should come from config
+        store_name: bulk_storage_config.store_name.to_string(),
         storage_key,
         filename,
         content_type,
     };
-
     let media = media::create(&state.db, &create_media, &user.id).await?;
 
     Ok((StatusCode::CREATED, Json(media.into())))
@@ -119,12 +123,11 @@ async fn delete(
     RequiredAdminUser(user): RequiredAdminUser,
     Path(media_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<MediaDto>), ComhairleError> {
+    let bulk_storage_service = state.required_bulk_storage_service()?;
+
     let media = media::get_by_id(&state.db, &media_id).await?;
 
-    state
-        .bulk_storage_service
-        .delete_file(&media.storage_key)
-        .await?;
+    bulk_storage_service.delete_file(&media.storage_key).await?;
 
     let media = media::delete(&state.db, &media_id).await?;
 
@@ -201,7 +204,7 @@ mod tests {
     use std::error::Error;
 
     use crate::{
-        bulk_storage::{MockBulkStorageService, UploadResult},
+        bulk_storage_service::{MockBulkStorageService, UploadResult},
         models::{
             media::Media, model_test_helpers::setup_default_app_and_session,
             pagination::PaginatedResults,

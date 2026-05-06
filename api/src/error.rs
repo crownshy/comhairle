@@ -1,5 +1,5 @@
 use crate::{
-    bulk_storage::BulkStorageError, tools::polis::PolisError,
+    bulk_storage_service::error::BulkStorageError, tools::polis::PolisError,
     transcription_service::error::TranscriptionServiceError,
     translation_service::error::TranslationError, websockets::error::WebsocketError,
     wiki_poll_service::error::WikiPollServiceError,
@@ -54,6 +54,9 @@ pub enum ComhairleError {
 
     #[error("No bot service configured")]
     NoBotServiceConfigured,
+
+    #[error("No bulk storage service configured")]
+    NoBulkStorageServiceConfigured,
 
     #[error("No video service configured")]
     NoVideoServiceConfigured,
