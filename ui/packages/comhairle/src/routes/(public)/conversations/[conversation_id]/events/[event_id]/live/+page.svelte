@@ -13,7 +13,6 @@
 	import BreakoutEndingDialog from '$lib/components/LiveEvent/BreakoutEndingDialog.svelte';
 	import CreateBreakoutDialog from '$lib/components/LiveEvent/CreateBreakoutDialog.svelte';
 	import BroadcastMessageDialog from '$lib/components/LiveEvent/BroadcastMessageDialog.svelte';
-	import AddTimeDialog from '$lib/components/LiveEvent/AddTimeDialog.svelte';
 	import NoticeDialog from '$lib/components/LiveEvent/NoticeDialog.svelte';
 	import EndMeetingDialog from '$lib/components/LiveEvent/EndMeetingDialog.svelte';
 	import MeetingEndedScreen from '$lib/components/LiveEvent/MeetingEndedScreen.svelte';
@@ -85,7 +84,6 @@
 	let showCreateBreakout = $state(false);
 	let breakoutDialogItem = $state<AgendaItem | null>(null);
 	let showBroadcast = $state(false);
-	let showAddTime = $state(false);
 	let showEndMeeting = $state(false);
 	let mobileRoomIndex = $state(0);
 	let mobileAgendaViewIndex = $state(0);
@@ -629,9 +627,12 @@
 		if (currentEnd) {
 			const newEnd = new Date(currentEnd.getTime() + minutes * 60 * 1000).toISOString();
 			videoCallService.extendBreakoutSession(eventId, newEnd);
-			const msg = `${minutes} minute(s) added to breakout session`;
+			const abs = Math.abs(minutes);
+			const verb = minutes >= 0 ? 'added' : 'removed';
+			const preposition = minutes >= 0 ? 'to' : 'from';
+			const msg = `${abs} minute(s) ${verb} ${preposition} breakout session`;
 			videoCallService.broadcastMessage(eventId, msg);
-			showToast(`${minutes} minute(s) added`);
+			showToast(`${abs} minute(s) ${verb}`);
 		}
 	}
 
@@ -1159,13 +1160,6 @@
 	onSend={handleBroadcast}
 />
 
-<AddTimeDialog
-	bind:open={showAddTime}
-	{timeLeftFormatted}
-	onClose={() => (showAddTime = false)}
-	onAddTime={handleUpdateTime}
-/>
-
 <EndMeetingDialog
 	bind:open={showEndMeeting}
 	onConfirm={handleEndMeeting}
@@ -1227,7 +1221,7 @@
 			? 'bg-primary/30 text-foreground'
 			: status === 'done'
 				? 'bg-muted-foreground/10 text-muted-foreground'
-				: 'bg-background text-foreground'}"
+				: 'bg-background text-card-foreground'}"
 	>
 		{#if status === 'done'}
 			<div
