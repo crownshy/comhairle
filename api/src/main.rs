@@ -2,7 +2,7 @@ use apalis::prelude::{MemoryStorage, Monitor, WorkerBuilder, WorkerFactoryFn};
 use aws_config::BehaviorVersion;
 use comhairle::{
     bot_service::{ComhairleBotService, ComhairleRagBotService},
-    bulk_storage::s3_storage::S3StorageService,
+    bulk_storage_service::{s3_storage::S3StorageService, BulkStorageService},
     config::{TranscriptionServiceConfig, TranslatorConfig},
     db::setup_db,
     mailer::Mailer,
@@ -69,9 +69,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
             });
 
     // Setup Bulk Storage Service
-    //
-    let s3_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
-    let bulk_storage_service = S3StorageService::new(&s3_config, "comhairle".to_owned());
+    let bulk_storage_service = if let Some(bulk_storage_config) = &config.bulk_storage_service {
+        let s3_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+        Some(Arc::new(S3StorageService::new(
+            &s3_config,
+            bulk_storage_config.store_name.to_owned(),
+        )) as Arc<dyn BulkStorageService>)
+    } else {
+        None
+    };
 
     // Setup Websocket service
     let websockets = Arc::new(ComhairleWebSocketService::new());
@@ -117,7 +123,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         bot_service,
         wiki_poll_service,
         jobs,
-        bulk_storage_service: Arc::new(bulk_storage_service),
+        bulk_storage_service,
     });
 
     // Register WebSocket message handlers

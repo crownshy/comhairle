@@ -9,7 +9,7 @@ use tokio::sync::mpsc::Receiver;
 #[cfg(test)]
 use mockall::{automock, predicate::*};
 
-use crate::bulk_storage::BulkStorageService;
+use crate::bulk_storage_service::BulkStorageService;
 
 pub mod amazon_transcriber;
 pub mod config;

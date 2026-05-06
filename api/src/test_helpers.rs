@@ -24,7 +24,7 @@ use tower::ServiceExt;
 
 use crate::{
     bot_service::{ComhairleBotService, MockComhairleBotService},
-    bulk_storage::{BulkStorageService, MockBulkStorageService},
+    bulk_storage_service::{BulkStorageService, MockBulkStorageService},
     config::ComhairleConfig,
     mailer::MockComhairleMailer,
     models::users::UpdateUserRequest,
@@ -73,9 +73,9 @@ pub fn mock_wiki_poll_service() -> Arc<dyn WikiPollService> {
     Arc::new(wiki_poll_service)
 }
 
-pub fn mock_bulk_storage() -> Arc<dyn BulkStorageService> {
+pub fn mock_bulk_storage() -> Option<Arc<dyn BulkStorageService>> {
     let bulk_storage_service = MockBulkStorageService::base();
-    Arc::new(bulk_storage_service)
+    Some(Arc::new(bulk_storage_service))
 }
 
 #[builder]
@@ -107,7 +107,9 @@ pub fn test_state(
         jobs: Arc::new(JobQueues {
             process_documents: Arc::new(Mutex::new(MemoryStorage::new())),
         }),
-        bulk_storage_service: bulk_storage_service.unwrap_or_else(mock_bulk_storage),
+        bulk_storage_service: bulk_storage_service
+            .map(Some)
+            .unwrap_or_else(mock_bulk_storage),
     };
     Ok(state)
 }
