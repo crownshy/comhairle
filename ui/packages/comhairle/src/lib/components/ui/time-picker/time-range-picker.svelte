@@ -55,6 +55,8 @@
 		start: stringToTime(startValue),
 		end: stringToTime(endValue)
 	});
+
+	const types = ['start', 'end'] as const;
 </script>
 
 <TimeRangeField.Root
@@ -84,7 +86,7 @@
 		className
 	)}
 >
-	{#each ['start', 'end'] as const as type (type)}
+	{#each types as type (type)}
 		<TimeRangeField.Input
 			{type}
 			id={type === 'start' ? startId : endId}

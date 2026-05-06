@@ -228,7 +228,13 @@
 					class="bg-primary/10 text-foreground mb-2 flex max-w-md items-start gap-2 rounded-xl px-4 py-3 text-sm"
 				>
 					<Info class="text-primary mt-0.5 h-4 w-4 shrink-0" />
-					<span> Register below to join this event when it goes live. </span>
+					<span>
+						{#if user}
+							Register below to join this event when it goes live.
+						{:else}
+							Log in and register to join this event when it goes live.
+						{/if}
+					</span>
 				</div>
 			{/if}
 
