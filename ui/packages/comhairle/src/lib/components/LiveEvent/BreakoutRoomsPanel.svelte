@@ -1,14 +1,14 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
 	import type { BreakoutRoomDisplay } from './types';
-	import { PenLine, MoveUpRight, Megaphone, CircleStop } from 'lucide-svelte';
+	import { MoveUpRight, Megaphone, CircleStop } from 'lucide-svelte';
 
 	interface Props {
 		rooms: BreakoutRoomDisplay[];
 		timeLeftFormatted: string;
 		isModerator: boolean;
 		onEnterRoom: (roomIndex: number) => void;
-		onAddTime: () => void;
+		onUpdateTime: (minutes: number) => void;
 		onEndSession: () => void;
 		onBroadcastMessage: () => void;
 	}
@@ -18,17 +18,17 @@
 		timeLeftFormatted,
 		isModerator,
 		onEnterRoom,
-		onAddTime,
+		onUpdateTime,
 		onEndSession,
 		onBroadcastMessage
 	}: Props = $props();
 
 	const avatarColors = [
-		'bg-blue-500',
 		'bg-emerald-500',
-		'bg-amber-500',
+		'bg-primary',
+		'bg-indigo-500',
+		'bg-orange-500',
 		'bg-rose-500',
-		'bg-violet-500',
 		'bg-cyan-500'
 	];
 
@@ -39,66 +39,69 @@
 </script>
 
 <div class="flex h-full flex-col overflow-hidden">
-	<!-- Time left + controls -->
-	<div class="flex flex-col items-center gap-2 pt-1 pb-2">
+	<!-- Time left + chips -->
+	<div class="flex items-center justify-center gap-2.5 px-5">
+		<span class="text-ring text-sm font-medium">
+			Time left&nbsp;&nbsp;{timeLeftFormatted}
+		</span>
 		{#if isModerator}
-			<button
-				class="text-primary flex cursor-pointer items-center gap-1 text-xs font-medium hover:underline"
-				onclick={() => onAddTime()}
-			>
-				<span>Time left {timeLeftFormatted}</span>
-				<PenLine class="h-2.5 w-2.5" />
-			</button>
-		{:else}
-			<span class="text-primary text-xs font-medium">
-				Time left {timeLeftFormatted}
-			</span>
+			<div class="flex items-center gap-1.5">
+				<button
+					class="bg-primary/20 text-ring hover:bg-primary/30 h-6 cursor-pointer rounded-full px-2 text-xs font-medium shadow-sm transition-colors"
+					onclick={() => onUpdateTime(-1)}
+				>
+					-1min
+				</button>
+				<button
+					class="bg-primary/20 text-ring hover:bg-primary/30 h-6 cursor-pointer rounded-full px-2 text-xs font-medium shadow-sm transition-colors"
+					onclick={() => onUpdateTime(1)}
+				>
+					+1min
+				</button>
+				<button
+					class="bg-primary/20 text-ring hover:bg-primary/30 h-6 cursor-pointer rounded-full px-2 text-xs font-medium shadow-sm transition-colors"
+					onclick={() => onUpdateTime(2)}
+				>
+					+2min
+				</button>
+			</div>
 		{/if}
 	</div>
 
 	<!-- Room list -->
-	<div class="flex flex-1 flex-col gap-2 overflow-y-auto px-3">
+	<div class="flex flex-1 flex-col gap-2 overflow-y-auto p-5">
 		{#each rooms as room (room.index)}
 			<div
-				class="bg-card border-border flex flex-col overflow-hidden rounded-xl border shadow-sm"
+				class="bg-card border-border flex flex-col overflow-hidden rounded-[10px] border shadow-sm"
 			>
-				<div class="flex flex-col gap-4 px-5 py-4">
-					<div class="flex items-center justify-between">
-						<span
-							class="text-foreground line-clamp-1 text-base leading-6 font-semibold"
-						>
-							{room.name}
-						</span>
-						{#if room.hasAssistanceRequest}
-							<span class="bg-destructive h-2 w-2 shrink-0 rounded-full"></span>
-						{/if}
-					</div>
+				<div class="flex flex-col gap-2 px-5 py-4">
+					<span class="text-foreground w-28 truncate text-base leading-6 font-semibold">
+						{room.name}
+					</span>
 
-					<!-- Participant list -->
-					<div class="flex flex-col gap-1.5">
+					<!-- Participant list (horizontal wrap) -->
+					<div class="flex flex-wrap items-start gap-5">
 						{#each room.participants as p, i (p.user_id)}
-							<div class="flex flex-col">
-								<div class="flex items-center gap-1.5">
-									<div
-										class="{avatarColors[
-											i % avatarColors.length
-										]} flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium text-white uppercase"
-									>
-										{getInitial(p.username, p.user_id)}
-									</div>
-									<span class="text-foreground text-sm font-medium">
-										{p.username ?? p.user_id.slice(0, 8)}
-									</span>
+							<div class="flex items-center gap-1.5">
+								<div
+									class="{avatarColors[
+										i % avatarColors.length
+									]} flex h-5 w-5 items-center justify-center rounded-full text-xs font-medium text-white uppercase"
+								>
+									{getInitial(p.username, p.user_id)}
 								</div>
+								<span class="text-foreground text-xs font-medium">
+									{p.username ?? p.user_id.slice(0, 8)}
+								</span>
 							</div>
 						{/each}
 					</div>
 				</div>
 
-				<!-- Card footer: Enter | View Transcription -->
-				<div class="border-border flex items-center border-t">
+				<!-- Card footer: Enter -->
+				<div class="border-border flex items-center border-t p-1">
 					<button
-						class="text-foreground hover:bg-muted flex flex-1 items-center justify-center gap-2 px-1 py-3 text-xs font-medium"
+						class="text-foreground hover:bg-muted flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium"
 						onclick={() => onEnterRoom(room.index)}
 					>
 						<MoveUpRight class="h-4 w-4" />
@@ -113,22 +116,22 @@
 	</div>
 
 	<!-- Footer controls -->
-	<div class="flex flex-col items-center gap-2 border-t px-3 pt-4 pb-3">
+	<div class="flex flex-col gap-1.5 p-5">
 		<Button
 			variant="primaryDark"
 			class="h-10 w-full text-sm font-medium"
 			onclick={onBroadcastMessage}
 		>
-			<Megaphone class="mr-1.5 h-4 w-4" />
+			<Megaphone class=" h-4 w-4" />
 			Broadcast message
 		</Button>
 		<Button
-			variant="destructive"
-			class="h-10 w-full text-sm font-medium"
+			variant="outline"
+			class="border-input text-destructive hover:bg-destructive/5 hover:text-destructive h-10 w-full"
 			onclick={onEndSession}
 		>
-			<CircleStop class="mr-1.5 h-4 w-4" />
-			End session
+			<CircleStop class=" h-4 w-4" />
+			End breakout session
 		</Button>
 	</div>
 </div>

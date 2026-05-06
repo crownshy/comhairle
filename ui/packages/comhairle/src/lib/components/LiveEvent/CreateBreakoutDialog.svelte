@@ -255,7 +255,16 @@
 			</div>
 
 			<!-- Rooms container (dark blue) -->
-			{#if roomAssignments.length > 0}
+			{#if participants.length === 0}
+				<div
+					class="flex flex-1 items-center justify-center rounded-2xl border border-dashed p-8"
+				>
+					<p class="text-muted-foreground text-sm">
+						No participants in the call yet. Participants need to join before you can
+						create breakout rooms.
+					</p>
+				</div>
+			{:else if roomAssignments.length > 0}
 				<div
 					class="bg-sidebar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl p-3 sm:p-4"
 				>
@@ -343,6 +352,7 @@
 				<Button
 					variant="primaryDark"
 					class="h-10 min-w-32 px-5 text-base font-medium"
+					disabled={participants.length === 0 || roomAssignments.length === 0}
 					onclick={handleCreate}
 				>
 					Create

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
+	import { Hand } from 'lucide-svelte';
 
 	interface Props {
 		roomName: string;
@@ -78,6 +79,7 @@
 				class="h-10 px-4 text-sm font-medium"
 				onclick={() => onCallForSupport?.()}
 			>
+				<Hand class="h-4 w-4" />
 				Call for support
 			</Button>
 		{/if}
