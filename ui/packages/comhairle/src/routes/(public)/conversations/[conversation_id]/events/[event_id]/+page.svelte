@@ -50,6 +50,8 @@
 
 	/** Grace window before the scheduled start during which an admin may open the meeting. */
 	const EARLY_START_WINDOW_MS = 60 * 60 * 1000;
+	/** Window before the scheduled start during which a participant may enter the lobby. */
+	const PARTICIPANT_JOIN_WINDOW_MS = 15 * 60 * 1000;
 
 	/** Reactive clock so the countdown updates without a refresh. Ticks once per minute. */
 	let now = $state(Date.now());
@@ -61,6 +63,9 @@
 	let msUntilStart = $derived(event ? new Date(event.startTime).getTime() - now : 0);
 	let canStartEarly = $derived(
 		status === 'upcoming' && msUntilStart > 0 && msUntilStart <= EARLY_START_WINDOW_MS
+	);
+	let canJoinLobbySoon = $derived(
+		status === 'upcoming' && msUntilStart > 0 && msUntilStart <= PARTICIPANT_JOIN_WINDOW_MS
 	);
 
 	let countdownText = $derived.by(() => {
@@ -262,9 +267,9 @@
 				<p class="text-muted-foreground text-xs">
 					You'll be able to start the meeting up to an hour before it begins.
 				</p>
-			{:else if status !== 'past' && isToday && userAttendance}
+			{:else if userAttendance && canJoinLobbySoon}
 				<Button variant="primaryDark" size="lg" class="h-12 px-8 text-base" href={liveHref}>
-					Go to lobby{countdownText ? ` (in ${countdownText})` : ''}
+					Go to lobby (in {countdownText})
 				</Button>
 				<p class="text-muted-foreground text-xs">
 					The lobby will open when the facilitator starts the meeting.
@@ -274,7 +279,7 @@
 					Starts in {countdownText}
 				</Button>
 				<p class="text-muted-foreground text-xs">
-					Come back on the day to join the meeting lobby.
+					You'll be able to join the lobby 15 minutes before the meeting starts.
 				</p>
 			{:else if !userAttendance && user && status !== 'past'}
 				<Button
