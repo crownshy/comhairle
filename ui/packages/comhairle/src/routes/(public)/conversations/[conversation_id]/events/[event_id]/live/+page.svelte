@@ -833,11 +833,11 @@
 			<div class="relative flex min-h-0 min-w-0 flex-1 flex-col">
 				<!-- Header bar -->
 				<div
-					class="border-sidebar-foreground/20 flex flex-col gap-2 border-b px-4 pt-4 pb-3 md:flex-row md:items-end md:justify-between md:px-6 md:pb-2"
+					class="border-sidebar-foreground/20 flex flex-col gap-2 border-b px-4 pt-4 pb-3 md:flex-row md:items-center md:justify-between md:px-6 md:pb-3"
 				>
-					<!-- Top row: event name + recording (mobile title row) -->
+					<!-- Top row: event name + recording + chip (desktop inline) -->
 					<div
-						class="flex items-center justify-between gap-3 md:flex-wrap md:justify-start"
+						class="flex items-center justify-between gap-3 md:flex-wrap md:justify-start md:gap-4"
 					>
 						<span class="text-sidebar-foreground text-lg font-medium md:text-xl">
 							{event?.name ?? 'Event'}
@@ -870,6 +870,12 @@
 								</span>
 							{/if}
 						</div>
+						<!-- Desktop chip inline -->
+						{#if currentJitsiRoomName}
+							<div class="hidden md:block">
+								{@render roomChip()}
+							</div>
+						{/if}
 						{#if dev && isModerator}
 							<button
 								class="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded px-3 py-1 text-xs font-medium md:hidden"
@@ -880,35 +886,16 @@
 						{/if}
 					</div>
 
-					<!-- Room chip: full-width pill on mobile, inline on desktop -->
+					<!-- Mobile full-width chip below title row -->
 					{#if currentJitsiRoomName}
-						{#if isBreakoutActive && inBreakoutRoom}
-							<div
-								class="bg-sidebar-foreground/40 md:bg-primary/20 flex items-center justify-center gap-2 rounded-full px-4 py-2 text-white md:inline-flex md:self-end md:px-3 md:py-1"
-							>
-								<span class="text-sm font-medium md:text-xs">{roomChipText}</span>
-								<span
-									class="text-primary text-sm font-medium md:text-xs md:opacity-70"
-								>
-									<span class="md:hidden">Time left </span>
-									<span class="hidden md:inline">· </span>
-									{timeLeftFormatted}
-								</span>
-							</div>
-						{:else}
-							<div
-								class="bg-sidebar-foreground/40 md:bg-sidebar-foreground/20 flex items-center justify-center rounded-full px-4 py-2 md:inline-flex md:self-end md:px-3 md:py-1"
-							>
-								<span class="text-sm font-medium text-white md:text-xs">
-									{roomChipText}
-								</span>
-							</div>
-						{/if}
+						<div class="md:hidden">
+							{@render roomChip()}
+						</div>
 					{/if}
 
 					{#if dev && isModerator}
 						<button
-							class="bg-destructive text-destructive-foreground hover:bg-destructive/90 hidden rounded px-3 py-1 text-xs font-medium md:block"
+							class="bg-destructive text-destructive-foreground hover:bg-destructive/90 hidden shrink-0 rounded px-3 py-1 text-xs font-medium md:block"
 							onclick={devResetCall}
 						>
 							DEV: Reset Call
@@ -1205,6 +1192,31 @@
 		onDismiss={dismissCurrentNotice}
 	/>
 {/if}
+
+{#snippet roomChip()}
+	{#if isBreakoutActive && inBreakoutRoom}
+		<div
+			class="bg-sidebar-foreground/20 flex items-center justify-center gap-2 rounded-full px-4 py-2 md:px-3 md:py-1"
+		>
+			<span class="text-sidebar-foreground text-sm font-medium md:text-xs">
+				{roomChipText}
+			</span>
+			<span class="text-primary text-sm font-medium md:text-xs">
+				<span class="md:hidden">Time left </span>
+				<span class="hidden md:inline">·</span>
+				{timeLeftFormatted}
+			</span>
+		</div>
+	{:else}
+		<div
+			class="bg-sidebar-foreground/20 flex items-center justify-center rounded-full px-4 py-2 md:px-3 md:py-1"
+		>
+			<span class="text-sidebar-foreground text-sm font-medium md:text-xs">
+				{roomChipText}
+			</span>
+		</div>
+	{/if}
+{/snippet}
 
 {#snippet agendaChip(index: number)}
 	{@const item = agendaItems[index]}
