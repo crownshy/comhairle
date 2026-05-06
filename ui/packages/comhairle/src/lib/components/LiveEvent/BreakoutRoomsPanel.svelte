@@ -8,7 +8,7 @@
 		timeLeftFormatted: string;
 		isModerator: boolean;
 		onEnterRoom: (roomIndex: number) => void;
-		onAddTime: (minutes: number) => void;
+		onUpdateTime: (minutes: number) => void;
 		onEndSession: () => void;
 		onBroadcastMessage: () => void;
 	}
@@ -18,7 +18,7 @@
 		timeLeftFormatted,
 		isModerator,
 		onEnterRoom,
-		onAddTime,
+		onUpdateTime,
 		onEndSession,
 		onBroadcastMessage
 	}: Props = $props();
@@ -48,19 +48,19 @@
 			<div class="flex items-center gap-1.5">
 				<button
 					class="bg-primary/20 text-ring hover:bg-primary/30 h-6 cursor-pointer rounded-full px-2 text-xs font-medium shadow-sm transition-colors"
-					onclick={() => onAddTime(-1)}
+					onclick={() => onUpdateTime(-1)}
 				>
 					-1min
 				</button>
 				<button
 					class="bg-primary/20 text-ring hover:bg-primary/30 h-6 cursor-pointer rounded-full px-2 text-xs font-medium shadow-sm transition-colors"
-					onclick={() => onAddTime(1)}
+					onclick={() => onUpdateTime(1)}
 				>
 					+1min
 				</button>
 				<button
 					class="bg-primary/20 text-ring hover:bg-primary/30 h-6 cursor-pointer rounded-full px-2 text-xs font-medium shadow-sm transition-colors"
-					onclick={() => onAddTime(2)}
+					onclick={() => onUpdateTime(2)}
 				>
 					+2min
 				</button>

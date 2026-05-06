@@ -624,7 +624,7 @@
 		showToast('Broadcast sent');
 	}
 
-	function handleAddTime(minutes: number) {
+	function handleUpdateTime(minutes: number) {
 		const currentEnd = videoCallService.getBreakoutSessionEndTime();
 		if (currentEnd) {
 			const newEnd = new Date(currentEnd.getTime() + minutes * 60 * 1000).toISOString();
@@ -962,7 +962,7 @@
 							{timeLeftFormatted}
 							{isModerator}
 							onEnterRoom={handleEnterBreakoutRoom}
-							onAddTime={handleAddTime}
+							onUpdateTime={handleUpdateTime}
 							onEndSession={handleEndBreakoutSession}
 							onBroadcastMessage={() => (showBroadcast = true)}
 						/>
@@ -1163,7 +1163,7 @@
 	bind:open={showAddTime}
 	{timeLeftFormatted}
 	onClose={() => (showAddTime = false)}
-	onAddTime={handleAddTime}
+	onAddTime={handleUpdateTime}
 />
 
 <EndMeetingDialog
@@ -1324,21 +1324,21 @@
 				<button
 					type="button"
 					class="bg-primary/20 text-ring h-6 cursor-pointer rounded-full px-2 text-xs font-medium shadow-sm"
-					onclick={() => handleAddTime(-1)}
+					onclick={() => handleUpdateTime(-1)}
 				>
 					-1min
 				</button>
 				<button
 					type="button"
 					class="bg-primary/20 text-ring h-6 cursor-pointer rounded-full px-2 text-xs font-medium shadow-sm"
-					onclick={() => handleAddTime(1)}
+					onclick={() => handleUpdateTime(1)}
 				>
 					+1min
 				</button>
 				<button
 					type="button"
 					class="bg-primary/20 text-ring h-6 cursor-pointer rounded-full px-2 text-xs font-medium shadow-sm"
-					onclick={() => handleAddTime(2)}
+					onclick={() => handleUpdateTime(2)}
 				>
 					+2min
 				</button>
