@@ -50,7 +50,13 @@
 
 	let callStatus = $derived(videoCallService.callStatus);
 	let allParticipants = $derived(videoCallService.participants);
-	let otherParticipants = $derived(allParticipants.filter((p) => p.user_id !== user?.id));
+	let otherParticipants = $derived(
+		allParticipants.filter((p) => {
+			if (p.user_id === user?.id) return false;
+			if (!isModerator && (p.role === 'moderator' || p.role === 'facilitator')) return false;
+			return true;
+		})
+	);
 
 	/** Participants actually in Jitsi call (excludes current user + lobby-only users) */
 	let inCallParticipants = $derived(

@@ -30,7 +30,19 @@
 		return 'live' as const;
 	});
 
+	let isToday = $derived.by(() => {
+		if (!event) return false;
+		const start = new Date(event.startTime);
+		const now = new Date();
+		return (
+			start.getFullYear() === now.getFullYear() &&
+			start.getMonth() === now.getMonth() &&
+			start.getDate() === now.getDate()
+		);
+	});
+
 	let userAttendance = $derived(user ? attendances.find((a) => a.userId === user.id) : undefined);
+	let liveHref = $derived(`/conversations/${conversationId}/events/${event?.id}/live`);
 
 	function formatDuration(start: string, end: string) {
 		const ms = new Date(end).getTime() - new Date(start).getTime();
@@ -205,7 +217,15 @@
 				</div>
 			{/if}
 
-			{#if !userAttendance && user && status !== 'past'}
+			{#if status === 'live' && userAttendance}
+				<Button variant="primaryDark" size="lg" class="h-12 px-8 text-base" href={liveHref}>
+					Join meeting
+				</Button>
+			{:else if status !== 'past' && isToday && userAttendance}
+				<Button variant="primaryDark" size="lg" class="h-12 px-8 text-base" href={liveHref}>
+					Go to lobby
+				</Button>
+			{:else if !userAttendance && user && status !== 'past'}
 				<Button
 					variant="primaryDark"
 					size="lg"
