@@ -161,7 +161,7 @@ impl CreateMedia {
 ///
 /// Returns a `Result` containing the created `Media` record if successful or a
 /// `ComhairleError` if the query fails.
-#[instrument]
+#[instrument(err(Debug))]
 pub async fn create(
     db: &PgPool,
     create_media: &CreateMedia,
@@ -197,7 +197,7 @@ pub async fn create(
 /// Returns a `Result` containing the `Media` record if found,
 /// a `ComhairleError::ResourceNotFound` if not found, or a
 /// `ComhairleError` if the query fails for any other reason.
-#[instrument]
+#[instrument(err(Debug))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -275,7 +275,7 @@ impl MediaFilterOptions {
 ///
 /// Returns a `Result` containing a `PaginatedResults<Media>` if successful,
 /// or a `ComhairleError` if the query fails.
-#[instrument]
+#[instrument(err(Debug))]
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,
@@ -291,6 +291,30 @@ pub async fn list(
     let query = order_options.apply(query);
 
     let media = page_options.fetch_paginated_results(db, query).await?;
+
+    Ok(media)
+}
+
+/// Deletes a media record by its ID.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `id` - Unique identifier of the media record to delete
+///
+/// # Returns
+///
+/// Returns a `Result` containing the deleted `Media` record, or `ComhairleError`
+/// if the query fails.
+#[instrument(err(Debug))]
+pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> {
+    let (sql, values) = Query::delete()
+        .from_table(MediaIden::Table)
+        .and_where(Expr::col(MediaIden::Id).eq(id.to_owned()))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let media = sqlx::query_as_with(&sql, values).fetch_one(db).await?;
 
     Ok(media)
 }
@@ -340,7 +364,7 @@ mod tests {
     }
 
     #[sqlx::test]
-    async fn should_media_record_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn should_get_media_record_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         session.signup(&app).await?;
         session
@@ -489,6 +513,39 @@ mod tests {
         assert_eq!(results.total, 2, "incorrect total");
         assert_eq!(results.records[0].id, media_2.id, "incorrect first id");
         assert_eq!(results.records[1].id, media_3.id, "incorrect second id");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_delete_media_record(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        session.signup(&app).await?;
+        session
+            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
+            .await?;
+
+        let (_, user, _) = session.current_user(&app).await?;
+
+        let params = CreateMedia {
+            store_name: "test_media".to_string(),
+            storage_key: "asd123/test-image.jpg".to_string(),
+            filename: "test-image.jpg".to_string(),
+            content_type: MediaContentType::Jpeg,
+        };
+
+        let created_media = create(&pool, &params, &user.id).await?;
+
+        let _ = delete(&pool, &created_media.id).await?;
+
+        let err = get_by_id(&pool, &created_media.id).await.unwrap_err();
+
+        match err {
+            ComhairleError::ResourceNotFound(e) => {
+                assert_eq!(e, "Media".to_string(), "incorrect error message");
+            }
+            _ => panic!("Expected ResourceNotFound error"),
+        }
 
         Ok(())
     }

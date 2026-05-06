@@ -3,7 +3,7 @@ pub mod dto;
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{get_with, post_with},
+    routing::{delete_with, get_with, post_with},
     ApiRouter,
 };
 use axum::extract::{Json, Multipart, Path, Query, State};
@@ -113,6 +113,24 @@ async fn upload(
     Ok((StatusCode::CREATED, Json(media.into())))
 }
 
+#[instrument(err(Debug), skip(state))]
+async fn delete(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    Path(media_id): Path<Uuid>,
+) -> Result<(StatusCode, Json<MediaDto>), ComhairleError> {
+    let media = media::get_by_id(&state.db, &media_id).await?;
+
+    state
+        .bulk_storage_service
+        .delete_file(&media.storage_key)
+        .await?;
+
+    let media = media::delete(&state.db, &media_id).await?;
+
+    Ok((StatusCode::OK, Json(media.into())))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -160,6 +178,17 @@ curl -X POST \\
                     )
                     .security_requirement("JWT")
                     .response::<201, Json<MediaDto>>()
+            }),
+        )
+        .api_route(
+            "/{media_id}",
+            delete_with(delete, |op| {
+                op.id("DeleteMedia")
+                    .tag("Media")
+                    .summary("Delete media record")
+                    .description("Delete media record by id")
+                    .security_requirement("JWT")
+                    .response::<200, Json<MediaDto>>()
             }),
         )
         .with_state(state)
@@ -292,6 +321,46 @@ mod tests {
         assert_eq!(
             results.records[0].id, created_media_1.id,
             "incorrect first id"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_delete_media(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let mut bulk_storage_service = MockBulkStorageService::new();
+        bulk_storage_service
+            .expect_delete_file()
+            .once()
+            .returning(|_| Box::pin(async move { Ok(()) }));
+        let state = test_state()
+            .db(pool.clone())
+            .bulk_storage_service(Arc::new(bulk_storage_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        session
+            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
+            .await?;
+
+        let (_, user, _) = session.current_user(&app).await?;
+
+        let created_media = create_random_image_record(&pool, &user.id).await?;
+
+        let _ = session
+            .delete(&app, &format!("/media/{}", created_media.id))
+            .await?;
+
+        let (_, value, _) = session
+            .get(&app, &format!("/media/{}", created_media.id))
+            .await?;
+
+        assert_eq!(
+            value.get("err").and_then(|v| v.as_str()).unwrap(),
+            "Media not found",
+            "incorrect error message"
         );
 
         Ok(())
