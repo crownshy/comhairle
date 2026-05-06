@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onDestroy, untrack } from 'svelte';
+	import { slide } from 'svelte/transition';
+	import { cubicOut } from 'svelte/easing';
 	import { dev } from '$app/environment';
 	import JitsiMeet from '$lib/components/JitsiMeet/JitsiMeet.svelte';
-	import * as Drawer from '$lib/components/ui/drawer';
 	import { formatDateShort, formatTime } from '$lib/utils';
 	import { videoCallService } from '$lib/services/videoCallService.svelte';
 	import MeetingLobby from '$lib/components/LiveEvent/MeetingLobby.svelte';
@@ -17,6 +18,7 @@
 	import EndMeetingDialog from '$lib/components/LiveEvent/EndMeetingDialog.svelte';
 	import MeetingEndedScreen from '$lib/components/LiveEvent/MeetingEndedScreen.svelte';
 	import SidePanel from '$lib/components/LiveEvent/SidePanel.svelte';
+	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import type {
 		AgendaItem,
 		RoomContext,
@@ -25,13 +27,14 @@
 	} from '$lib/components/LiveEvent/types';
 	import type { VideoCallParticipant } from '$lib/services/videoCallService.svelte';
 	import {
-		ChevronUp,
 		ChevronLeft,
 		ChevronRight,
 		MoveUpRight,
 		Megaphone,
 		CircleStop,
-		Check
+		Check,
+		Hand,
+		ArrowRight
 	} from 'lucide-svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import type { PageProps } from './$types';
@@ -86,6 +89,8 @@
 	let showEndMeeting = $state(false);
 	let mobileRoomIndex = $state(0);
 	let mobileAgendaViewIndex = $state(0);
+	/** Whether the mobile bottom sheet is collapsed (peek) or expanded */
+	let mobileSheetCollapsed = $state(false);
 	let seenAssistanceRequests = $state<Set<string>>(new Set());
 
 	/** Notice queue for assistance requests, broadcasts, time warnings */
@@ -315,6 +320,13 @@
 	// Sync mobile agenda view with current step
 	$effect(() => {
 		mobileAgendaViewIndex = currentStep;
+	});
+
+	// Reset mobile sheet collapse state when a participant enters a breakout room (peek)
+	$effect(() => {
+		if (inBreakoutRoom && !isModerator) {
+			mobileSheetCollapsed = true;
+		}
 	});
 
 	// Auto-enter participants into their assigned breakout room
@@ -815,16 +827,19 @@
 	/>
 {:else}
 	<!-- In-call: full-width black background, stays in document flow -->
-	<div class="bg-sidebar flex h-dvh w-full flex-col overflow-hidden">
+	<div class="bg-sidebar relative flex h-dvh w-full flex-col overflow-hidden">
 		<div class="flex min-h-0 flex-1">
 			<!-- Jitsi area -->
 			<div class="relative flex min-h-0 min-w-0 flex-1 flex-col">
 				<!-- Header bar -->
 				<div
-					class="border-sidebar-foreground/20 flex items-end justify-between border-b px-6 pt-4 pb-2"
+					class="border-sidebar-foreground/20 flex flex-col gap-2 border-b px-4 pt-4 pb-3 md:flex-row md:items-end md:justify-between md:px-6 md:pb-2"
 				>
-					<div class="flex items-center gap-3">
-						<span class="text-sidebar-foreground text-xl font-medium">
+					<!-- Top row: event name + recording (mobile title row) -->
+					<div
+						class="flex items-center justify-between gap-3 md:flex-wrap md:justify-start"
+					>
+						<span class="text-sidebar-foreground text-lg font-medium md:text-xl">
 							{event?.name ?? 'Event'}
 						</span>
 						<div class="flex items-center gap-1.5">
@@ -835,7 +850,8 @@
 								Recording
 							</span>
 						</div>
-						<div class="flex items-center gap-2">
+						<!-- Desktop-only: moderator status + dev info -->
+						<div class="hidden items-center gap-2 md:flex">
 							<div class="flex items-center gap-1.5">
 								<span
 									class="{jitsiModeratorStatus
@@ -848,35 +864,51 @@
 									{jitsiModeratorStatus ? 'Moderator' : 'Participant'}
 								</span>
 							</div>
-							{#if currentJitsiRoomName}
-								{#if dev}
-									<span class="text-sidebar-foreground/60 text-xs">
-										Room: {currentJitsiRoomName.slice(0, 8)}...
-									</span>
-								{/if}
-								{#if isBreakoutActive && inBreakoutRoom}
-									<div
-										class="bg-primary/20 inline-flex items-center gap-2 rounded-full px-3 py-1 text-white"
-									>
-										<span class="text-xs font-medium">{roomChipText}</span>
-										<span class="text-xs opacity-70">· {timeLeftFormatted}</span
-										>
-									</div>
-								{:else}
-									<div
-										class="bg-sidebar-foreground/20 inline-flex items-center rounded-full px-3 py-1"
-									>
-										<span class="text-xs font-medium text-white">
-											{roomChipText}
-										</span>
-									</div>
-								{/if}
+							{#if currentJitsiRoomName && dev}
+								<span class="text-sidebar-foreground/60 text-xs">
+									Room: {currentJitsiRoomName.slice(0, 8)}...
+								</span>
 							{/if}
 						</div>
+						{#if dev && isModerator}
+							<button
+								class="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded px-3 py-1 text-xs font-medium md:hidden"
+								onclick={devResetCall}
+							>
+								Reset
+							</button>
+						{/if}
 					</div>
+
+					<!-- Room chip: full-width pill on mobile, inline on desktop -->
+					{#if currentJitsiRoomName}
+						{#if isBreakoutActive && inBreakoutRoom}
+							<div
+								class="bg-sidebar-foreground/40 md:bg-primary/20 flex items-center justify-center gap-2 rounded-full px-4 py-2 text-white md:inline-flex md:self-end md:px-3 md:py-1"
+							>
+								<span class="text-sm font-medium md:text-xs">{roomChipText}</span>
+								<span
+									class="text-primary text-sm font-medium md:text-xs md:opacity-70"
+								>
+									<span class="md:hidden">Time left </span>
+									<span class="hidden md:inline">· </span>
+									{timeLeftFormatted}
+								</span>
+							</div>
+						{:else}
+							<div
+								class="bg-sidebar-foreground/40 md:bg-sidebar-foreground/20 flex items-center justify-center rounded-full px-4 py-2 md:inline-flex md:self-end md:px-3 md:py-1"
+							>
+								<span class="text-sm font-medium text-white md:text-xs">
+									{roomChipText}
+								</span>
+							</div>
+						{/if}
+					{/if}
+
 					{#if dev && isModerator}
 						<button
-							class="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded px-3 py-1 text-xs font-medium"
+							class="bg-destructive text-destructive-foreground hover:bg-destructive/90 hidden rounded px-3 py-1 text-xs font-medium md:block"
 							onclick={devResetCall}
 						>
 							DEV: Reset Call
@@ -962,246 +994,165 @@
 			</div>
 		</div>
 
-		<!-- Mobile bottom bar + drawer (in flow, not overlapping iframe) -->
-		<Drawer.Root>
+		<!-- Mobile drawers: peek is in-flow (pushes iframe), expansion overlays -->
+		{#if isBreakoutActive && inBreakoutRoom}
+			<!-- Inline spacer reserves peek height so iframe is pushed up -->
+			<div class="h-16 shrink-0 md:hidden" aria-hidden="true"></div>
+			<!-- In breakout room (participant or moderator): peek/expand drawer -->
 			<div
-				class="border-sidebar-foreground/20 flex items-center gap-2 border-t px-3 py-2 md:hidden"
+				class="bg-muted absolute inset-x-0 bottom-0 z-30 flex max-h-[75dvh] flex-col overflow-hidden rounded-t-3xl rounded-b-none shadow-[0_-4px_20px_rgba(0,0,0,0.25)] md:hidden"
 			>
-				{#if isBreakoutActive}
-					<Drawer.Trigger
-						class="bg-muted text-muted-foreground flex w-full items-center justify-center rounded-full px-6 py-3 font-semibold"
+				<button
+					type="button"
+					class="flex h-16 w-full shrink-0 cursor-pointer flex-col items-center justify-center gap-2"
+					onclick={() => (mobileSheetCollapsed = !mobileSheetCollapsed)}
+					aria-expanded={!mobileSheetCollapsed}
+					aria-label={mobileSheetCollapsed
+						? 'Expand breakout session'
+						: 'Collapse breakout session'}
+				>
+					<div class="bg-foreground/20 h-1 w-10 rounded-full"></div>
+					<span class="text-foreground text-sm font-medium">Breakout Session</span>
+				</button>
+
+				{#if !mobileSheetCollapsed}
+					<div
+						class="flex min-h-0 flex-col gap-5 overflow-y-auto px-4 pb-5"
+						transition:slide={{ duration: 280, easing: cubicOut }}
 					>
-						Breakout Session
-					</Drawer.Trigger>
-				{:else}
-					<button
-						class="text-sidebar-foreground shrink-0 p-1 disabled:opacity-30"
-						disabled={mobileAgendaViewIndex <= 0}
-						onclick={() => mobileAgendaViewIndex--}
-					>
-						<ChevronLeft class="h-5 w-5" />
-					</button>
-					<Drawer.Trigger
-						class="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-full px-4 py-2.5 {mobileAgendaViewIndex ===
-						currentStep
-							? 'bg-primary text-primary-foreground'
-							: 'bg-muted text-foreground'}"
-					>
-						{#if mobileAgendaViewIndex < currentStep}
-							<Check class="h-4 w-4 shrink-0" />
-						{:else if mobileAgendaViewIndex === currentStep}
-							<span class="text-xs font-semibold">Current</span>
-						{:else}
-							<span class="text-xs font-semibold">{mobileAgendaViewIndex + 1}</span>
+						{#if currentAgendaItem?.breakoutQuestion}
+							<div
+								class="bg-background flex flex-col items-center gap-4 rounded-2xl px-5 py-5"
+							>
+								<div class="flex flex-col items-center gap-2">
+									<span class="text-primary text-xs font-medium uppercase">
+										Question
+									</span>
+									<p
+										class="text-foreground text-center text-lg leading-tight font-semibold"
+									>
+										{currentAgendaItem.breakoutQuestion}
+									</p>
+								</div>
+								{#if currentAgendaItem.breakoutDescription}
+									<div class="bg-border h-px w-full"></div>
+									<div class="text-muted-foreground w-full text-sm">
+										<ContentRenderer
+											content={currentAgendaItem.breakoutDescription}
+										/>
+									</div>
+								{/if}
+							</div>
 						{/if}
-						<span class="truncate text-sm font-medium">
-							{agendaItems[mobileAgendaViewIndex]?.title ?? 'Agenda'}
-						</span>
-					</Drawer.Trigger>
-					<button
-						class="text-sidebar-foreground shrink-0 p-1 disabled:opacity-30"
-						disabled={mobileAgendaViewIndex >= agendaItems.length - 1}
-						onclick={() => mobileAgendaViewIndex++}
-					>
-						<ChevronRight class="h-5 w-5" />
-					</button>
+
+						{#if isModerator}
+							<Button
+								variant="destructive"
+								class="h-11 w-full text-sm font-medium"
+								onclick={handleLeaveBreakoutRoom}
+							>
+								Leave {roomChipText}
+							</Button>
+						{:else}
+							<Button
+								variant="primaryDark"
+								class="h-11 w-full text-sm font-medium"
+								onclick={handleCallForSupport}
+							>
+								<Hand class="mr-1.5 h-4 w-4" />
+								Call for support
+							</Button>
+						{/if}
+					</div>
 				{/if}
 			</div>
-			<Drawer.Content class="bg-muted flex max-h-[80dvh] flex-col rounded-t-3xl">
-				{#if isBreakoutActive && isModerator && !inBreakoutRoom}
-					<!-- Facilitator: breakout rooms management -->
-					<div class="flex flex-col gap-5 p-5">
-						<!-- Tabs -->
-						<div class="border-b pb-5">
-							<div class="flex items-center rounded-2xl p-1.5">
-								<button
-									class="flex h-9 flex-1 items-center justify-center rounded-2xl px-3 py-2 text-sm transition-all {activePanel ===
-									'agenda'
-										? 'bg-background text-foreground font-semibold shadow-sm'
-										: 'text-muted-foreground font-semibold'}"
-									onclick={() => (activePanel = 'agenda')}
-								>
-									Agenda
-								</button>
-								<button
-									class="flex h-9 flex-1 items-center justify-center rounded-2xl px-3 py-2 text-sm transition-all {activePanel ===
-									'breakoutRooms'
-										? 'bg-background text-foreground font-semibold shadow-sm'
-										: 'text-muted-foreground font-semibold'}"
-									onclick={() => (activePanel = 'breakoutRooms')}
-								>
-									Breakout Session
-								</button>
-							</div>
-						</div>
+		{:else if isModerator}
+			<!-- Inline spacer reserves peek height so iframe is pushed up -->
+			<div class="h-16 shrink-0 md:hidden" aria-hidden="true"></div>
+			<!-- Facilitator (not in breakout): collapsible sheet with tabs (when breakout active) -->
+			<div
+				class="bg-muted absolute inset-x-0 bottom-0 z-30 flex max-h-[75dvh] flex-col overflow-hidden rounded-t-3xl rounded-b-none shadow-[0_-4px_20px_rgba(0,0,0,0.25)] md:hidden"
+			>
+				<button
+					type="button"
+					class="flex h-16 w-full shrink-0 cursor-pointer flex-col items-center justify-center gap-2"
+					onclick={() => (mobileSheetCollapsed = !mobileSheetCollapsed)}
+					aria-expanded={!mobileSheetCollapsed}
+					aria-label={mobileSheetCollapsed ? 'Expand controls' : 'Collapse controls'}
+				>
+					<div class="bg-foreground/20 h-1 w-10 rounded-full"></div>
+					<span class="text-foreground text-sm font-medium">
+						{isBreakoutActive ? 'Breakout Session' : 'Agenda'}
+					</span>
+				</button>
 
-						{#if activePanel === 'breakoutRooms'}
-							<!-- Timer + chips -->
-							<div class="flex items-center justify-center gap-2.5 border-b pb-3">
-								<span class="text-ring text-sm font-semibold">
-									Time left&nbsp;&nbsp;{timeLeftFormatted}
-								</span>
-								<div class="flex items-center gap-1.5">
+				{#if !mobileSheetCollapsed}
+					<div
+						class="flex min-h-0 flex-col overflow-hidden"
+						transition:slide={{ duration: 280, easing: cubicOut }}
+					>
+						<!-- Tabs only shown while breakout session is active -->
+						{#if isBreakoutActive}
+							<div class="shrink-0 px-4 pt-1 pb-3">
+								<div class="flex items-center gap-1 rounded-2xl">
 									<button
-										class="bg-primary/20 text-ring h-6 cursor-pointer rounded-full px-2 text-xs font-medium shadow-sm"
-										onclick={() => handleAddTime(-1)}
+										type="button"
+										class="h-9 flex-1 rounded-xl px-3 text-sm transition-all {activePanel ===
+										'agenda'
+											? 'bg-background text-foreground font-semibold shadow-sm'
+											: 'text-muted-foreground font-semibold'}"
+										onclick={() => (activePanel = 'agenda')}
 									>
-										-1min
+										Agenda
 									</button>
 									<button
-										class="bg-primary/20 text-ring h-6 cursor-pointer rounded-full px-2 text-xs font-medium shadow-sm"
-										onclick={() => handleAddTime(1)}
+										type="button"
+										class="h-9 flex-1 rounded-xl px-3 text-sm transition-all {activePanel ===
+										'breakoutRooms'
+											? 'bg-background text-foreground font-semibold shadow-sm'
+											: 'text-muted-foreground font-semibold'}"
+										onclick={() => (activePanel = 'breakoutRooms')}
 									>
-										+1min
-									</button>
-									<button
-										class="bg-primary/20 text-ring h-6 cursor-pointer rounded-full px-2 text-xs font-medium shadow-sm"
-										onclick={() => handleAddTime(2)}
-									>
-										+2min
+										Breakout Session
 									</button>
 								</div>
 							</div>
+						{/if}
 
-							<!-- Room carousel -->
-							<div class="flex items-center gap-2">
-								<button
-									class="text-foreground shrink-0 disabled:opacity-30"
-									disabled={mobileRoomIndex <= 0}
-									onclick={() =>
-										(mobileRoomIndex = Math.max(0, mobileRoomIndex - 1))}
-								>
-									<ChevronLeft class="h-5 w-5" />
-								</button>
-
-								{#if breakoutRoomDisplays[mobileRoomIndex]}
-									{@const room = breakoutRoomDisplays[mobileRoomIndex]}
-									<div
-										class="bg-card border-border flex min-w-0 flex-1 flex-col overflow-hidden rounded-[10px] border shadow-sm"
-									>
-										<div class="flex flex-col gap-2 px-5 py-4">
-											<span
-												class="text-foreground w-28 truncate text-base leading-6 font-semibold"
-											>
-												{room.name}
-											</span>
-											<div class="flex flex-wrap items-start gap-4">
-												{#each room.participants as p, i (p.user_id)}
-													<div class="flex items-center gap-1.5">
-														<div
-															class="{[
-																'bg-emerald-500',
-																'bg-primary',
-																'bg-indigo-500',
-																'bg-orange-500',
-																'bg-rose-500',
-																'bg-cyan-500'
-															][
-																i % 6
-															]} flex h-5 w-5 items-center justify-center rounded-full text-xs font-medium text-white uppercase"
-														>
-															{(p.username ?? p.user_id)
-																.charAt(0)
-																.toUpperCase()}
-														</div>
-														<span
-															class="text-foreground text-sm font-medium"
-														>
-															{p.username ?? p.user_id.slice(0, 8)}
-														</span>
-													</div>
-												{/each}
-											</div>
-										</div>
-										<div class="border-border flex items-center border-t p-2">
-											<button
-												class="text-foreground hover:bg-muted flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium"
-												onclick={() => handleEnterBreakoutRoom(room.index)}
-											>
-												<MoveUpRight class="h-4 w-4" />
-												Enter
-												{#if room.hasAssistanceRequest}
-													<span
-														class="bg-destructive h-2 w-2 shrink-0 rounded-full"
-													></span>
-												{/if}
-											</button>
-										</div>
-									</div>
-								{/if}
-
-								<button
-									class="text-foreground shrink-0 disabled:opacity-30"
-									disabled={mobileRoomIndex >= breakoutRoomDisplays.length - 1}
-									onclick={() =>
-										(mobileRoomIndex = Math.min(
-											breakoutRoomDisplays.length - 1,
-											mobileRoomIndex + 1
-										))}
-								>
-									<ChevronRight class="h-5 w-5" />
-								</button>
-							</div>
-
-							<!-- Broadcast + End -->
-							<div class="flex flex-col gap-1.5">
-								<Button
-									variant="primaryDark"
-									class="h-10 w-full text-sm font-medium"
-									onclick={() => (showBroadcast = true)}
-								>
-									<Megaphone class="mr-1.5 h-4 w-4" />
-									Broadcast message
-								</Button>
-								<Button
-									variant="outline"
-									class="border-input text-destructive hover:bg-destructive/5 hover:text-destructive h-10 w-full"
-									onclick={handleEndBreakoutSession}
-								>
-									<CircleStop class="mr-1.5 h-4 w-4" />
-									End breakout session
-								</Button>
-							</div>
+						{#if isBreakoutActive && activePanel === 'breakoutRooms'}
+							{@render facilitatorBreakoutPanel()}
 						{:else}
-							<AgendaPanel
-								items={agendaItems}
-								{currentStep}
-								{isModerator}
-								readOnly={isBreakoutActive}
-								onSetCurrent={handleSetAgendaItem}
-								onNext={handleNextAgendaItem}
-								onEndMeeting={() => (showEndMeeting = true)}
-							/>
+							{@render facilitatorAgendaPanel()}
 						{/if}
 					</div>
-				{:else if isBreakoutActive && inBreakoutRoom}
-					<!-- In breakout room (facilitator or participant) -->
-					<div class="p-3">
-						<BreakoutSessionPanel
-							roomName={roomChipText}
-							question={currentAgendaItem?.breakoutQuestion}
-							description={currentAgendaItem?.breakoutDescription}
-							{timeLeftFormatted}
-							{isModerator}
-							onCallForSupport={handleCallForSupport}
-							onLeaveBreakoutRoom={handleLeaveBreakoutRoom}
-						/>
-					</div>
-				{:else}
-					<div class="p-4">
-						<AgendaPanel
-							items={agendaItems}
-							{currentStep}
-							{isModerator}
-							readOnly={isBreakoutActive}
-							onSetCurrent={handleSetAgendaItem}
-							onNext={handleNextAgendaItem}
-							onEndMeeting={() => (showEndMeeting = true)}
-						/>
-					</div>
 				{/if}
-			</Drawer.Content>
-		</Drawer.Root>
+			</div>
+		{:else}
+			<!-- Participant (not in breakout): chip navigation row, no drawer -->
+			<div
+				class="border-sidebar-foreground/20 bg-sidebar flex shrink-0 items-center gap-2 border-t px-3 py-4 md:hidden"
+			>
+				<button
+					type="button"
+					class="text-sidebar-foreground shrink-0 p-1 disabled:opacity-30"
+					disabled={mobileAgendaViewIndex <= 0}
+					onclick={() => mobileAgendaViewIndex--}
+					aria-label="Previous agenda item"
+				>
+					<ChevronLeft class="h-5 w-5" />
+				</button>
+				{@render agendaChip(mobileAgendaViewIndex)}
+				<button
+					type="button"
+					class="text-sidebar-foreground shrink-0 p-1 disabled:opacity-30"
+					disabled={mobileAgendaViewIndex >= agendaItems.length - 1}
+					onclick={() => mobileAgendaViewIndex++}
+					aria-label="Next agenda item"
+				>
+					<ChevronRight class="h-5 w-5" />
+				</button>
+			</div>
+		{/if}
 	</div>
 {/if}
 
@@ -1254,6 +1205,231 @@
 		onDismiss={dismissCurrentNotice}
 	/>
 {/if}
+
+{#snippet agendaChip(index: number)}
+	{@const item = agendaItems[index]}
+	{@const status = index < currentStep ? 'done' : index === currentStep ? 'current' : 'upcoming'}
+	<div
+		class="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-full px-4 py-2.5 {status ===
+		'current'
+			? 'bg-primary/30 text-foreground'
+			: status === 'done'
+				? 'bg-muted-foreground/10 text-muted-foreground'
+				: 'bg-background text-foreground'}"
+	>
+		{#if status === 'done'}
+			<div
+				class="bg-muted-foreground/20 flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+			>
+				<Check class="text-muted-foreground h-3 w-3" />
+			</div>
+		{:else if status === 'current'}
+			<span
+				class="text-primary bg-background flex h-5 shrink-0 items-center rounded-full border px-2 text-[10px] font-semibold"
+			>
+				Current
+			</span>
+		{:else}
+			<div
+				class="bg-primary/10 flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+			>
+				<span class="text-primary text-[10px] font-semibold">{index + 1}</span>
+			</div>
+		{/if}
+		<span class="truncate text-sm font-medium">
+			{item?.title ?? 'Agenda'}
+		</span>
+	</div>
+{/snippet}
+
+{#snippet facilitatorAgendaPanel()}
+	{@const hasNext = currentStep < agendaItems.length - 1}
+	{@const isLastItem = currentStep === agendaItems.length - 1 && agendaItems.length > 0}
+	<div class="flex flex-col gap-3 px-4 pb-5">
+		<div class="flex items-center gap-2">
+			<button
+				type="button"
+				class="text-foreground shrink-0 p-1 disabled:opacity-30"
+				disabled={mobileAgendaViewIndex <= 0}
+				onclick={() => mobileAgendaViewIndex--}
+				aria-label="Previous agenda item"
+			>
+				<ChevronLeft class="h-5 w-5" />
+			</button>
+			<button
+				type="button"
+				class="flex min-w-0 flex-1 cursor-pointer"
+				onclick={() => !isBreakoutActive && handleSetAgendaItem(mobileAgendaViewIndex)}
+				disabled={isBreakoutActive || mobileAgendaViewIndex === currentStep}
+			>
+				{@render agendaChip(mobileAgendaViewIndex)}
+			</button>
+			<button
+				type="button"
+				class="text-foreground shrink-0 p-1 disabled:opacity-30"
+				disabled={mobileAgendaViewIndex >= agendaItems.length - 1}
+				onclick={() => mobileAgendaViewIndex++}
+				aria-label="Next agenda item"
+			>
+				<ChevronRight class="h-5 w-5" />
+			</button>
+		</div>
+
+		{#if isBreakoutActive}
+			<p class="text-muted-foreground px-2 text-center text-xs leading-relaxed">
+				End the breakout session to continue with the agenda.
+			</p>
+		{:else if isLastItem}
+			<Button
+				variant="destructive"
+				class="h-11 w-full text-sm font-medium"
+				onclick={() => (showEndMeeting = true)}
+			>
+				End meeting
+			</Button>
+		{:else}
+			<Button
+				variant="primaryDark"
+				class="h-11 w-full text-sm font-medium"
+				onclick={handleNextAgendaItem}
+				disabled={!hasNext}
+			>
+				Start next step
+				<ArrowRight class="ml-1.5 h-4 w-4" />
+			</Button>
+		{/if}
+	</div>
+{/snippet}
+
+{#snippet facilitatorBreakoutPanel()}
+	<div class="flex min-h-0 flex-col gap-4 overflow-y-auto px-4 pb-5">
+		<!-- Timer + chips -->
+		<div class="flex items-center justify-center gap-2.5">
+			<span class="text-ring text-sm font-semibold">
+				Time left&nbsp;&nbsp;{timeLeftFormatted}
+			</span>
+			<div class="flex items-center gap-1.5">
+				<button
+					type="button"
+					class="bg-primary/20 text-ring h-6 cursor-pointer rounded-full px-2 text-xs font-medium shadow-sm"
+					onclick={() => handleAddTime(-1)}
+				>
+					-1min
+				</button>
+				<button
+					type="button"
+					class="bg-primary/20 text-ring h-6 cursor-pointer rounded-full px-2 text-xs font-medium shadow-sm"
+					onclick={() => handleAddTime(1)}
+				>
+					+1min
+				</button>
+				<button
+					type="button"
+					class="bg-primary/20 text-ring h-6 cursor-pointer rounded-full px-2 text-xs font-medium shadow-sm"
+					onclick={() => handleAddTime(2)}
+				>
+					+2min
+				</button>
+			</div>
+		</div>
+
+		<!-- Room carousel -->
+		<div class="flex items-center gap-2">
+			<button
+				type="button"
+				class="text-foreground shrink-0 p-1 disabled:opacity-30"
+				disabled={mobileRoomIndex <= 0}
+				onclick={() => (mobileRoomIndex = Math.max(0, mobileRoomIndex - 1))}
+				aria-label="Previous room"
+			>
+				<ChevronLeft class="h-5 w-5" />
+			</button>
+
+			{#if breakoutRoomDisplays[mobileRoomIndex]}
+				{@const room = breakoutRoomDisplays[mobileRoomIndex]}
+				<div
+					class="bg-card border-border flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border shadow-sm"
+				>
+					<div class="flex flex-col gap-3 px-5 py-4">
+						<span class="text-foreground truncate text-base font-semibold">
+							{room.name}
+						</span>
+						<div class="flex flex-wrap items-start gap-3">
+							{#each room.participants as p, i (p.user_id)}
+								<div class="flex items-center gap-1.5">
+									<div
+										class="{[
+											'bg-emerald-500',
+											'bg-primary',
+											'bg-indigo-500',
+											'bg-orange-500',
+											'bg-rose-500',
+											'bg-cyan-500'
+										][
+											i % 6
+										]} flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold text-white uppercase"
+									>
+										{(p.username ?? p.user_id).charAt(0).toUpperCase()}
+									</div>
+									<span class="text-foreground text-sm font-medium">
+										{p.username ?? p.user_id.slice(0, 8)}
+									</span>
+								</div>
+							{/each}
+						</div>
+					</div>
+					<div class="border-border flex items-center border-t">
+						<button
+							type="button"
+							class="text-foreground hover:bg-muted relative flex flex-1 items-center justify-center gap-2 px-3 py-3 text-xs font-medium"
+							onclick={() => handleEnterBreakoutRoom(room.index)}
+						>
+							<MoveUpRight class="h-4 w-4" />
+							Enter
+							{#if room.hasAssistanceRequest}
+								<span class="bg-destructive h-2 w-2 shrink-0 rounded-full"></span>
+							{/if}
+						</button>
+					</div>
+				</div>
+			{/if}
+
+			<button
+				type="button"
+				class="text-foreground shrink-0 p-1 disabled:opacity-30"
+				disabled={mobileRoomIndex >= breakoutRoomDisplays.length - 1}
+				onclick={() =>
+					(mobileRoomIndex = Math.min(
+						breakoutRoomDisplays.length - 1,
+						mobileRoomIndex + 1
+					))}
+				aria-label="Next room"
+			>
+				<ChevronRight class="h-5 w-5" />
+			</button>
+		</div>
+
+		<!-- Broadcast + End -->
+		<div class="flex flex-col gap-2">
+			<Button
+				variant="primaryDark"
+				class="h-11 w-full text-sm font-medium"
+				onclick={() => (showBroadcast = true)}
+			>
+				<Megaphone class="mr-1.5 h-4 w-4" />
+				Broadcast message
+			</Button>
+			<Button
+				variant="outline"
+				class="border-input text-destructive hover:bg-destructive/5 hover:text-destructive h-11 w-full text-sm font-medium"
+				onclick={handleEndBreakoutSession}
+			>
+				<CircleStop class="mr-1.5 h-4 w-4" />
+				End breakout session
+			</Button>
+		</div>
+	</div>
+{/snippet}
 
 <!-- Lightweight toast for confirmations -->
 {#if toastMessage}

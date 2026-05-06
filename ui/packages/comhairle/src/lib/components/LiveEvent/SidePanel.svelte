@@ -22,7 +22,7 @@
 		<div class="p-5">
 			<div class="bg-muted-foreground/10 flex items-center rounded-2xl p-1.5">
 				<button
-					class="flex h-10 flex-1 items-center justify-center rounded-2xl px-3 py-2 text-sm transition-all {activeTab ===
+					class="flex h-10 flex-1 items-center justify-center rounded-xl px-3 py-2 text-sm transition-all {activeTab ===
 					'agenda'
 						? 'bg-background text-foreground font-semibold shadow-sm'
 						: 'text-muted-foreground font-semibold'}"
@@ -31,7 +31,7 @@
 					Agenda
 				</button>
 				<button
-					class="flex h-10 flex-1 items-center justify-center rounded-2xl px-3 py-2 text-sm transition-all {activeTab ===
+					class="flex h-10 flex-1 items-center justify-center rounded-xl px-3 py-2 text-sm transition-all {activeTab ===
 					'breakoutRooms'
 						? 'bg-background text-foreground font-semibold shadow-sm'
 						: 'text-muted-foreground font-semibold'}"

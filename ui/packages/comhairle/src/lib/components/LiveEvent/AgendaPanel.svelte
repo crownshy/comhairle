@@ -77,6 +77,12 @@
 				</Button>
 			{/if}
 		</div>
+	{:else if isModerator && readOnly}
+		<div class="shrink-0 border-t p-4">
+			<p class="text-muted-foreground text-center text-xs leading-relaxed">
+				End the breakout session to continue with the agenda.
+			</p>
+		</div>
 	{/if}
 </div>
 

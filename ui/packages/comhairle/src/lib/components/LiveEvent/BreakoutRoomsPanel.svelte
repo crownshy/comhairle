@@ -90,7 +90,7 @@
 								>
 									{getInitial(p.username, p.user_id)}
 								</div>
-								<span class="text-foreground text-sm font-medium">
+								<span class="text-foreground text-xs font-medium">
 									{p.username ?? p.user_id.slice(0, 8)}
 								</span>
 							</div>
@@ -99,7 +99,7 @@
 				</div>
 
 				<!-- Card footer: Enter -->
-				<div class="border-border flex items-center border-t p-2">
+				<div class="border-border flex items-center border-t p-1">
 					<button
 						class="text-foreground hover:bg-muted flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium"
 						onclick={() => onEnterRoom(room.index)}
@@ -122,7 +122,7 @@
 			class="h-10 w-full text-sm font-medium"
 			onclick={onBroadcastMessage}
 		>
-			<Megaphone class="mr-1.5 h-4 w-4" />
+			<Megaphone class=" h-4 w-4" />
 			Broadcast message
 		</Button>
 		<Button
@@ -130,7 +130,7 @@
 			class="border-input text-destructive hover:bg-destructive/5 hover:text-destructive h-10 w-full"
 			onclick={onEndSession}
 		>
-			<CircleStop class="mr-1.5 h-4 w-4" />
+			<CircleStop class=" h-4 w-4" />
 			End breakout session
 		</Button>
 	</div>
