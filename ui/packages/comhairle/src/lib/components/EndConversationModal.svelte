@@ -58,7 +58,31 @@
 </script>
 
 {#if conversation.isComplete}
-	<Button variant="outline" onclick={toggleComplete}>Re-open Conversation</Button>
+	{#if !hideTrigger}
+		<Button variant="outline" onclick={toggleComplete}>Re-open Conversation</Button>
+	{/if}
+
+	<Dialog bind:open>
+		<DialogContent>
+			<DialogHeader>
+				<DialogTitle>Re-open this conversation?</DialogTitle>
+			</DialogHeader>
+
+			<Alert>
+				<AlertTitle>Re-open</AlertTitle>
+				<AlertDescription>
+					This will re-open the conversation so participants can take part again.
+				</AlertDescription>
+			</Alert>
+
+			<DialogFooter>
+				<LoadingButton variant="default" onclick={toggleComplete} loading={loader.loading}>
+					Re-open
+				</LoadingButton>
+				<Button onclick={cancel} variant="outline">cancel</Button>
+			</DialogFooter>
+		</DialogContent>
+	</Dialog>
 {:else}
 	<Dialog bind:open>
 		{#if !hideTrigger}
