@@ -834,7 +834,6 @@
 		title={event?.name ?? 'Meeting'}
 		scheduledTime={scheduledTimeText}
 		endedTime={event ? `${formatDateShort(event.endTime)} ${formatTime(event.endTime)}` : ''}
-		startTimeIso={event?.startTime}
 		endTimeIso={event?.endTime}
 		participants={otherParticipants}
 		{callStatus}

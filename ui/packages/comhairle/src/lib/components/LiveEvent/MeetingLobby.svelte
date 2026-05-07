@@ -10,7 +10,6 @@
 		title: string;
 		scheduledTime: string;
 		endedTime?: string;
-		startTimeIso?: string;
 		endTimeIso?: string;
 		participants: VideoCallParticipant[];
 		callStatus: VideoCallStatus | null;
@@ -24,7 +23,6 @@
 		title,
 		scheduledTime,
 		endedTime,
-		startTimeIso,
 		endTimeIso,
 		participants,
 		callStatus,
