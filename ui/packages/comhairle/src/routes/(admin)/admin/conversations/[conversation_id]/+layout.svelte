@@ -123,14 +123,16 @@
 									Live Conversation Link
 								</a>
 							</DropdownMenu.Item>
-							<DropdownMenu.Separator />
-							<DropdownMenu.Item
-								class="text-destructive focus:text-destructive focus:bg-destructive/10 hover:text-destructive! hover:bg-destructive/20!"
-								onclick={() => (endModalOpen = true)}
-							>
-								<CircleX class="text-destructive size-4" />
-								End Conversation
-							</DropdownMenu.Item>
+							{#if !conversation.isComplete}
+								<DropdownMenu.Separator />
+								<DropdownMenu.Item
+									class="text-destructive focus:text-destructive focus:bg-destructive/10 hover:text-destructive! hover:bg-destructive/20!"
+									onclick={() => (endModalOpen = true)}
+								>
+									<CircleX class="text-destructive size-4" />
+									End Conversation
+								</DropdownMenu.Item>
+							{/if}
 						</DropdownMenu.Content>
 					</DropdownMenu.Root>
 
