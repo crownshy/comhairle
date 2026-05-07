@@ -158,7 +158,7 @@
 		const phase =
 			callStatus === null
 				? ('loading' as const)
-				: callStatus === 'Ended'
+				: hasJoinedCall && callStatus === 'Ended'
 					? ('ended' as const)
 					: hasJoinedCall
 						? ('incall' as const)
@@ -174,6 +174,13 @@
 		);
 		return phase;
 	});
+
+	/** True if any moderator/facilitator (other than current user) is in the lobby. */
+	let hostPresent = $derived(
+		allParticipants.some(
+			(p) => p.user_id !== user?.id && (p.role === 'moderator' || p.role === 'facilitator')
+		)
+	);
 
 	let isBreakoutActive = $derived(breakoutSession !== null);
 	let inBreakoutRoom = $derived(typeof roomContext !== 'string');
@@ -827,10 +834,20 @@
 		title={event?.name ?? 'Meeting'}
 		scheduledTime={scheduledTimeText}
 		endedTime={event ? `${formatDateShort(event.endTime)} ${formatTime(event.endTime)}` : ''}
+		startTimeIso={event?.startTime}
+		endTimeIso={event?.endTime}
 		participants={otherParticipants}
 		{callStatus}
 		{isModerator}
+		{hostPresent}
 		onStartMeeting={handleStartMeeting}
+		onResetCall={() => {
+			videoCallService.changeCallState(eventId, 'Waiting');
+			videoCallService.setAgendaItem(eventId, 0);
+			videoCallService.endBreakoutSession(eventId);
+			hasJoinedCall = false;
+			roomContext = 'plenary';
+		}}
 	/>
 {:else}
 	<!-- In-call: full-width black background, stays in document flow -->

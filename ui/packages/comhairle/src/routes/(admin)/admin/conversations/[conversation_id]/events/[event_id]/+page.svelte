@@ -274,7 +274,7 @@
 
 {#snippet titleContentSnippet()}
 	<h1 class="text-4xl font-bold">Event: {event?.name}</h1>
-	<Button href={`/conversations/${conversation.id}/events/${event.id}/live`}>Event Link</Button>
+	<Button href={`/conversations/${conversation.id}/events/${event.id}`}>Event Link</Button>
 	<!-- TODO: figure out these -->
 	<!-- <AdminPrevNextControls -->
 	<!-- 	next={{ name: 'design', url: `/admin/conversations/${conversation.id}/design` }} -->
