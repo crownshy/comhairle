@@ -469,15 +469,36 @@
 		}, 4000);
 	}
 
+	/** clears all call and UI state */
+	function resetCall() {
+		videoCallService.changeCallState(eventId, 'Waiting');
+		videoCallService.setAgendaItem(eventId, 0);
+		videoCallService.endBreakoutSession(eventId);
+		hasJoinedCall = false;
+		roomContext = 'plenary';
+		showCreateBreakout = false;
+		breakoutDialogItem = null;
+		showBroadcast = false;
+		showEndMeeting = false;
+		activePanel = 'agenda';
+		noticeQueue = [];
+		showBreakoutEnding = false;
+		breakoutEndingDismissed = false;
+		breakoutAutoEnded = false;
+		trackedRoomIndex = null;
+		jitsiBreakoutRooms = {};
+		breakoutRoomsReady = false;
+		mockBreakoutRooms = [];
+		mobileRoomIndex = 0;
+		mobileAgendaViewIndex = 0;
+		mobileSheetCollapsed = false;
+		seenAssistanceRequests = new Set();
+	}
+
 	/** DEV ONLY: reset call state to Waiting */
 	function devResetCall() {
 		if (dev) {
-			videoCallService.changeCallState(eventId, 'Waiting');
-			videoCallService.setAgendaItem(eventId, 0);
-			videoCallService.endBreakoutSession(eventId);
-			hasJoinedCall = false;
-			roomContext = 'plenary';
-			showCreateBreakout = false;
+			resetCall();
 			console.log('DEV: Call state reset to Waiting');
 		}
 	}
@@ -821,13 +842,7 @@
 		title={event?.name ?? 'Meeting'}
 		conversationUrl={`/conversations/${conversationId}`}
 		{isModerator}
-		onResetCall={() => {
-			videoCallService.changeCallState(eventId, 'Waiting');
-			videoCallService.setAgendaItem(eventId, 0);
-			videoCallService.endBreakoutSession(eventId);
-			hasJoinedCall = false;
-			roomContext = 'plenary';
-		}}
+		onResetCall={resetCall}
 	/>
 {:else if meetingPhase === 'lobby'}
 	<MeetingLobby
@@ -840,13 +855,7 @@
 		{isModerator}
 		{hostPresent}
 		onStartMeeting={handleStartMeeting}
-		onResetCall={() => {
-			videoCallService.changeCallState(eventId, 'Waiting');
-			videoCallService.setAgendaItem(eventId, 0);
-			videoCallService.endBreakoutSession(eventId);
-			hasJoinedCall = false;
-			roomContext = 'plenary';
-		}}
+		onResetCall={resetCall}
 	/>
 {:else}
 	<!-- In-call: full-width black background, stays in document flow -->
