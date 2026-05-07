@@ -103,7 +103,6 @@ async fn create_invite(
             "Invitation to take part in the National Performance Framework consultation",
             "conversation_invite.html",
             context! {
-                conversation_hero => conversation.image_url,
                 conversation_title=> conversation.title,
                 invite_link => format!("{}/conversations/{}/invite/{}",state.config.domain, conversation.slug.unwrap_or_else(|| conversation.id.to_string()), invite.id )
             },
@@ -113,11 +112,11 @@ async fn create_invite(
             let user = models::users::get_user_by_id(user_id, &state.db).await?;
             if let Some(email) = &user.email {
                 state.mailer.send_email(
-                email,
-                "You have been invited to the conversation",
-                "conversation_invite.html",
-                context! {user=>user, conversation_hero => conversation.image_url , conversation_title=>conversation.title},
-            )?;
+                    email,
+                    "You have been invited to the conversation",
+                    "conversation_invite.html",
+                    context! {user=>user, conversation_title=>conversation.title},
+                )?;
             }
         }
         models::invites::InviteType::Open | models::invites::InviteType::SingleUse => {}

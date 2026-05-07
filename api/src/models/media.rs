@@ -1,3 +1,5 @@
+use std::{fmt, str::FromStr};
+
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr};
@@ -300,6 +302,154 @@ pub async fn list(
     Ok(media)
 }
 
+/// Deletes a media record by its ID.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `id` - Unique identifier of the media record to delete
+///
+/// # Returns
+///
+/// Returns a `Result` containing the deleted `Media` record, or `ComhairleError`
+/// if the query fails.
+#[instrument(err(Debug))]
+pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> {
+    let (sql, values) = Query::delete()
+        .from_table(MediaIden::Table)
+        .and_where(Expr::col(MediaIden::Id).eq(id.to_owned()))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let media = sqlx::query_as_with(&sql, values).fetch_one(db).await?;
+
+    Ok(media)
+}
+
+/// A type-safe wrapper around Uuid for referencing media records.
+///
+/// This wrapper provides type safety when referencing Media records from other models.
+/// It ensures that only media ids are used where media is expected, preventing
+/// accidental confusion with other UUID fields.
+///
+/// # Examples
+///
+/// ```rust
+/// use uuid::Uuid;
+/// use comhairle::models::media::MediaId;
+///
+/// // Create from a UUID
+/// let uuid = Uuid::new_v4();
+/// let content_id = MediaId::from(uuid);
+///
+/// // Convert back to UUID when needed
+/// let uuid_back: Uuid = content_id.into();
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(transparent)]
+pub struct MediaId(pub Uuid);
+
+impl MediaId {
+    /// Creates a MediaId from a UUID.
+    ///
+    /// # Arguments
+    ///
+    /// * `uuid` - The UUID to wrap
+    ///
+    /// # Returns
+    ///
+    /// A new MediaId wrapping the provided UUID.
+    pub fn from_uuid(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+
+    /// Returns the inner UUID value.
+    ///
+    /// # Returns
+    ///
+    /// The UUID wrapped by this MediaId.
+    pub fn as_uuid(&self) -> &Uuid {
+        &self.0
+    }
+
+    /// Consumes the MediaId and returns the inner UUID.
+    ///
+    /// # Returns
+    ///
+    /// The UUID that was wrapped by this MediaId.
+    pub fn into_uuid(self) -> Uuid {
+        self.0
+    }
+}
+
+impl From<Uuid> for MediaId {
+    fn from(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+}
+
+impl From<MediaId> for Uuid {
+    fn from(media_id: MediaId) -> Self {
+        media_id.0
+    }
+}
+
+impl From<MediaId> for sea_query::Value {
+    fn from(value: MediaId) -> Self {
+        value.0.into()
+    }
+}
+
+impl From<&MediaId> for sea_query::Value {
+    fn from(value: &MediaId) -> Self {
+        value.0.into()
+    }
+}
+
+impl sea_query::Nullable for MediaId {
+    fn null() -> sea_query::Value {
+        sea_query::Value::Uuid(None)
+    }
+}
+
+impl fmt::Display for MediaId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl FromStr for MediaId {
+    type Err = uuid::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(Uuid::from_str(s)?))
+    }
+}
+
+impl sqlx::Type<sqlx::Postgres> for MediaId {
+    fn type_info() -> sqlx::postgres::PgTypeInfo {
+        <Uuid as sqlx::Type<sqlx::Postgres>>::type_info()
+    }
+}
+
+impl<'r> sqlx::Decode<'r, sqlx::Postgres> for MediaId {
+    fn decode(
+        value: sqlx::postgres::PgValueRef<'r>,
+    ) -> Result<Self, Box<dyn std::error::Error + 'static + Send + Sync>> {
+        let uuid = <Uuid as sqlx::Decode<sqlx::Postgres>>::decode(value)?;
+        Ok(Self(uuid))
+    }
+}
+
+impl<'q> sqlx::Encode<'q, sqlx::Postgres> for MediaId {
+    fn encode_by_ref(
+        &self,
+        buf: &mut sqlx::postgres::PgArgumentBuffer,
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        <Uuid as sqlx::Encode<sqlx::Postgres>>::encode_by_ref(&self.0, buf)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -324,6 +474,7 @@ mod tests {
         let params = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/test-image.jpg".to_string(),
+            url: "https://comhairle-media-test.bulk-storage.com/asd123/test-image.jpg".to_string(),
             filename: "test-image.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
@@ -357,6 +508,7 @@ mod tests {
         let params = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/test-image.jpg".to_string(),
+            url: "https://comhairle-media-test.bulk-storage.com/asd123/test-image.jpg".to_string(),
             filename: "test-image.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
@@ -390,30 +542,35 @@ mod tests {
         let params_1 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-b.jpg".to_string(),
+            url: "https://comhairle-media-test.bulk-storage.com/asd123/image-b.jpg".to_string(),
             filename: "image-b.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_2 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-a.jpg".to_string(),
+            url: "https://comhairle-media-test.bulk-storage.com/asd123/image-a.jpg".to_string(),
             filename: "image-a.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_3 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-d.jpg".to_string(),
+            url: "https://comhairle-media-test.bulk-storage.com/asd123/image-d.jpg".to_string(),
             filename: "image-d.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_4 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-c.jpg".to_string(),
+            url: "https://comhairle-media-test.bulk-storage.com/asd123/image-c.jpg".to_string(),
             filename: "image-c.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_5 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-e.jpg".to_string(),
+            url: "https://comhairle-media-test.bulk-storage.com/asd123/image-e.jpg".to_string(),
             filename: "image-e.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
@@ -457,18 +614,21 @@ mod tests {
         let params_1 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-b.jpg".to_string(),
+            url: "https://comhairle-media-test.bulk-storage.com/asd123/image-b.jpg".to_string(),
             filename: "image-b.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_2 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-a.jpg".to_string(),
+            url: "https://comhairle-media-test.bulk-storage.com/asd123/image-a.jpg".to_string(),
             filename: "image-a.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_3 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-d.jpg".to_string(),
+            url: "https://comhairle-media-test.bulk-storage.com/asd123/image-d.jpg".to_string(),
             filename: "image-d.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
@@ -494,6 +654,40 @@ mod tests {
         assert_eq!(results.total, 2, "incorrect total");
         assert_eq!(results.records[0].id, media_2.id, "incorrect first id");
         assert_eq!(results.records[1].id, media_3.id, "incorrect second id");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_delete_media_record(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        session.signup(&app).await?;
+        session
+            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
+            .await?;
+
+        let (_, user, _) = session.current_user(&app).await?;
+
+        let params = CreateMedia {
+            store_name: "test_media".to_string(),
+            storage_key: "asd123/test-image.jpg".to_string(),
+            url: "https://comhairle-media-test.bulk-storage.com/asd123/test-image.jpg".to_string(),
+            filename: "test-image.jpg".to_string(),
+            content_type: MediaContentType::Jpeg,
+        };
+
+        let created_media = create(&pool, &params, &user.id).await?;
+
+        let _ = delete(&pool, &created_media.id).await?;
+
+        let err = get_by_id(&pool, &created_media.id).await.unwrap_err();
+
+        match err {
+            ComhairleError::ResourceNotFound(e) => {
+                assert_eq!(e, "Media".to_string(), "incorrect error message");
+            }
+            _ => panic!("Expected ResourceNotFound error"),
+        }
 
         Ok(())
     }

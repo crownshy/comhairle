@@ -224,6 +224,7 @@ mod tests {
         let params = CreateMedia {
             store_name: "comhairle-media-test".to_string(),
             storage_key: format!("images/{random_name}.jpg"),
+            url: format!("https://comhairle-media-test.bulk-storage.com/images/{random_name}.jpg"),
             filename: format!("{random_name}.jpg"),
             content_type: MediaContentType::Jpeg,
         };

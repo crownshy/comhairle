@@ -30,8 +30,8 @@ use crate::{
             self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
         },
         pagination::{OrderParams, PageOptions, PaginatedResults},
-        user_participation::{self},
         user_conversation_preferences,
+        user_participation::{self},
     },
     routes::{
         conversations::dto::{ConversationDto, LocalizedConversationDto},
@@ -371,7 +371,8 @@ async fn export_conversation_contacts(
     conversation::get_by_id(&state.db, &conversation_id).await?;
 
     // Get all contacts who opted in
-    let contacts = user_conversation_preferences::get_contacts_for_export(&state.db, &conversation_id).await?;
+    let contacts =
+        user_conversation_preferences::get_contacts_for_export(&state.db, &conversation_id).await?;
 
     // Generate CSV
     let mut csv_output = Vec::new();
@@ -392,8 +393,18 @@ async fn export_conversation_contacts(
             writer.write_record(&[
                 contact.email,
                 contact.user_type,
-                if contact.conversation_updates { "Yes" } else { "No" }.to_string(),
-                if contact.similar_conversations_updates { "Yes" } else { "No" }.to_string(),
+                if contact.conversation_updates {
+                    "Yes"
+                } else {
+                    "No"
+                }
+                .to_string(),
+                if contact.similar_conversations_updates {
+                    "Yes"
+                } else {
+                    "No"
+                }
+                .to_string(),
                 contact.signup_date.to_rfc3339(),
             ])?;
         }
@@ -410,8 +421,14 @@ async fn export_conversation_contacts(
     Ok((
         StatusCode::OK,
         [
-            ("Content-Type".to_string(), "text/csv; charset=utf-8".to_string()),
-            ("Content-Disposition".to_string(), format!("attachment; filename=\"{}\"", filename)),
+            (
+                "Content-Type".to_string(),
+                "text/csv; charset=utf-8".to_string(),
+            ),
+            (
+                "Content-Disposition".to_string(),
+                format!("attachment; filename=\"{}\"", filename),
+            ),
         ],
         csv_string,
     ))
@@ -550,7 +567,6 @@ mod tests {
                     "title" : "Test conversation",
                     "short_description" : "A test conversation",
                     "description" : "A longer description",
-                    "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
                     "is_live": true,
@@ -564,11 +580,6 @@ mod tests {
         let conversation: ConversationDto = serde_json::from_value(response)?;
 
         assert_eq!(status, StatusCode::CREATED, "Should be created");
-        assert_eq!(
-            conversation.image_url,
-            "http://someimage.png".to_string(),
-            "incorrect json response"
-        );
         assert!(
             conversation.knowledge_base_id.is_none(),
             "incorrect knowledge_base_id"
@@ -601,7 +612,6 @@ mod tests {
                     "title" : "Test conversation",
                     "short_description" : "A test conversation",
                     "description" : "A longer description",
-                    "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
                     "is_live": true,
@@ -615,11 +625,6 @@ mod tests {
         let conversation: ConversationDto = serde_json::from_value(response)?;
 
         assert_eq!(status, StatusCode::CREATED, "Should be created");
-        assert_eq!(
-            conversation.image_url,
-            "http://someimage.png".to_string(),
-            "incorrect json response"
-        );
         assert!(
             conversation.knowledge_base_id.is_some(),
             "incorrect knowledge_base_id"
@@ -1134,9 +1139,6 @@ mod tests {
                 .into(),
             )
             .await?;
-        println!();
-        println!("    >>>>    Updated conversation: {update_res:#?}");
-        println!();
 
         let (status, value, _) = session
             .get(

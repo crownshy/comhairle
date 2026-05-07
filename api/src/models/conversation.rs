@@ -13,7 +13,8 @@ use crate::{
     },
     config::ComhairleConfig,
     error::ComhairleError,
-    models, ComhairleState,
+    models::{self, media::MediaId},
+    ComhairleState,
 };
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
@@ -48,8 +49,9 @@ pub struct Conversation {
     pub short_description: TextContentId,
     pub description: TextContentId,
     #[partially(transparent)]
-    pub video_url: Option<String>,
-    pub image_url: String,
+    pub video: Option<MediaId>,
+    #[partially(transparent)]
+    pub image: Option<MediaId>,
     pub tags: Vec<String>,
     pub is_public: bool,
     pub is_live: bool,
@@ -91,8 +93,8 @@ const DEFAULT_COLUMNS: [ConversationIden; 29] = [
     ConversationIden::Title,
     ConversationIden::ShortDescription,
     ConversationIden::Description,
-    ConversationIden::VideoUrl,
-    ConversationIden::ImageUrl,
+    ConversationIden::Video,
+    ConversationIden::Image,
     ConversationIden::Tags,
     ConversationIden::IsPublic,
     ConversationIden::IsLive,
@@ -130,11 +132,11 @@ impl PartialConversation {
         if let Some(value) = &self.description {
             values.push((ConversationIden::Description, value.into()))
         };
-        if let Some(value) = &self.video_url {
-            values.push((ConversationIden::VideoUrl, value.into()))
+        if let Some(value) = &self.video {
+            values.push((ConversationIden::Video, value.into()))
         };
-        if let Some(value) = &self.image_url {
-            values.push((ConversationIden::ImageUrl, value.into()))
+        if let Some(value) = &self.image {
+            values.push((ConversationIden::Image, value.into()))
         };
         if let Some(value) = &self.tags {
             values.push((
@@ -592,8 +594,6 @@ pub struct CreateConversation {
     pub title: String,
     pub short_description: String,
     pub description: String,
-    pub video_url: Option<String>,
-    pub image_url: String,
     pub tags: Option<Vec<String>>,
     pub is_public: bool,
     pub is_live: bool,
@@ -609,8 +609,6 @@ pub struct CreateConversation {
 impl CreateConversation {
     pub fn columns(&self) -> Vec<ConversationIden> {
         vec![
-            ConversationIden::VideoUrl,
-            ConversationIden::ImageUrl,
             ConversationIden::Tags,
             ConversationIden::IsPublic,
             ConversationIden::IsLive,
@@ -623,8 +621,6 @@ impl CreateConversation {
         let tags = self.tags.to_owned().unwrap_or_default();
 
         vec![
-            self.video_url.to_owned().into(),
-            self.image_url.to_owned().into(),
             tags.into(),
             self.is_public.into(),
             self.is_live.into(),
