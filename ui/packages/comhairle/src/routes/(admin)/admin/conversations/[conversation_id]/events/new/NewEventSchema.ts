@@ -16,7 +16,10 @@ const NewEventSchema = z.object({
 		errorMap: () => ({
 			message: 'Signup mode must be either "invite" or "open".'
 		})
-	})
+	}),
+	facilitators: z
+		.array(z.string().email({ message: 'Each facilitator must be a valid email address.' }))
+		.min(1, { message: 'Add at least one facilitator.' })
 });
 
 export default NewEventSchema;
