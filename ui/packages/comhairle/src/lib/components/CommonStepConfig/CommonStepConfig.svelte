@@ -21,12 +21,6 @@
 		conversation_id: string;
 		conversation: ConversationWithTranslations;
 		step: WorkflowStepWithTranslations;
-		/**
-		 * When true, renders only the edit-metadata dialog (no
-		 * inline header / trigger). Useful when the consumer renders the step
-		 * name + description + edit button in the page header itself and just
-		 * wants to bind `open` to control the dialog.
-		 */
 		headerless?: boolean;
 		open?: boolean;
 	};
