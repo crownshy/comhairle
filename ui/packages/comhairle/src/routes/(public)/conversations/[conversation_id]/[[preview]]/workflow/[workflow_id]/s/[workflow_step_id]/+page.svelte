@@ -204,6 +204,7 @@
 							pages={toolConfig.pages}
 							user_id={user.id}
 							onNextAction={handleNextAction}
+							{conversation}
 						/>
 					{/if}
 					{#if toolConfig?.type === Polis.TOOL_NAME}

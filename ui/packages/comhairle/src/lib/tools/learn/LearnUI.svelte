@@ -3,24 +3,34 @@
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime.js';
-	import type { Page } from '@crownshy/api-client/api';
+	import type { Page, LocalizedConversationDto } from '@crownshy/api-client/api';
 	import { tick } from 'svelte';
+	import LearnTutor from './LearnTutor.svelte';
 
 	let {
 		pages,
 		onDone,
-		onNextAction
+		onNextAction,
+		conversation
 	}: {
 		pages: Array<Page>;
 		onDone: () => void;
 		onNextAction?: (fn: () => void) => void;
+		conversation?: LocalizedConversationDto;
 	} = $props();
+
+	let tutorAvailable = $derived(
+		!!conversation?.id && !!conversation?.chatBotId && !!conversation?.enableQaChatBot
+	);
 
 	let currentPageNo = $state(0);
 	let currentPage = $derived(pages[currentPageNo]);
 	let currentPageTranslation = $derived(currentPage.filter((p) => p.lang === getLocale()));
 	let content = $derived(currentPageTranslation[0]?.content);
 	let isLastPage = $derived(currentPageNo === pages.length - 1);
+	let pageHeading = $derived(
+		(currentPageTranslation[0] as { title?: string } | undefined)?.title ?? ''
+	);
 
 	function nextPage() {
 		currentPageNo += 1;
@@ -43,6 +53,15 @@
 				<ContentRenderer {content} />
 			{/key}
 		</article>
+		{#if tutorAvailable && conversation}
+			<div class="mx-auto w-full max-w-[65ch]">
+				<LearnTutor
+					conversationId={conversation.id}
+					pageKey={currentPageNo}
+					pageTitle={pageHeading}
+				/>
+			</div>
+		{/if}
 	{:else}
 		<h1>Sorry this page is currently not avaliable in this language</h1>
 	{/if}
