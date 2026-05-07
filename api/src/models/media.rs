@@ -84,7 +84,7 @@ impl std::fmt::Display for MediaContentType {
 }
 
 impl MediaContentType {
-    fn try_from(&self, source: &str) -> Result<Self, ComhairleError> {
+    pub fn try_from_mime(source: &str) -> Result<Self, ComhairleError> {
         match source {
             "image/jpeg" => Ok(Self::Jpeg),
             "image/png" => Ok(Self::Png),
@@ -168,7 +168,7 @@ impl CreateMedia {
 ///
 /// Returns a `Result` containing the created `Media` record if successful or a
 /// `ComhairleError` if the query fails.
-#[instrument]
+#[instrument(err(Debug))]
 pub async fn create(
     db: &PgPool,
     create_media: &CreateMedia,
@@ -204,7 +204,7 @@ pub async fn create(
 /// Returns a `Result` containing the `Media` record if found,
 /// a `ComhairleError::ResourceNotFound` if not found, or a
 /// `ComhairleError` if the query fails for any other reason.
-#[instrument]
+#[instrument(err(Debug))]
 pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -282,7 +282,7 @@ impl MediaFilterOptions {
 ///
 /// Returns a `Result` containing a `PaginatedResults<Media>` if successful,
 /// or a `ComhairleError` if the query fails.
-#[instrument]
+#[instrument(err(Debug))]
 pub async fn list(
     db: &PgPool,
     page_options: PageOptions,
@@ -496,7 +496,7 @@ mod tests {
     }
 
     #[sqlx::test]
-    async fn should_media_record_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn should_get_media_record_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         session.signup(&app).await?;
         session
