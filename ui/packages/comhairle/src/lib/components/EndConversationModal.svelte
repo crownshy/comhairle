@@ -19,10 +19,11 @@
 
 	type Props = {
 		conversation: ConversationDto;
+		open?: boolean;
+		hideTrigger?: boolean;
 	};
 
-	let { conversation }: Props = $props();
-	let open = $state(false);
+	let { conversation, open = $bindable(false), hideTrigger = false }: Props = $props();
 	const loader = useLoading();
 
 	async function toggleComplete() {
@@ -59,12 +60,16 @@
 {#if conversation.isComplete}
 	<Button variant="outline" onclick={toggleComplete}>Re-open Conversation</Button>
 {:else}
-	<Dialog {open}>
-		<DialogTrigger>
-			<Button variant="outline" class="text-red-400"
-				><LucideCircleX /> End Conversation</Button
-			>
-		</DialogTrigger>
+	<Dialog bind:open>
+		{#if !hideTrigger}
+			<DialogTrigger>
+				<Button
+					variant="outline"
+					class="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive!"
+					><LucideCircleX /> End Conversation</Button
+				>
+			</DialogTrigger>
+		{/if}
 
 		<DialogContent>
 			<DialogHeader>
