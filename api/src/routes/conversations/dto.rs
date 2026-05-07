@@ -98,8 +98,8 @@ pub struct LocalizedConversationDto {
     pub short_description: String,
     #[schemars(example = "example_localized_text")]
     pub description: String,
-    pub video: Option<MediaId>,
-    pub image: Option<MediaId>,
+    pub video: Option<String>,
+    pub image: Option<String>,
     pub tags: Vec<String>,
     pub is_public: bool,
     pub is_live: bool,

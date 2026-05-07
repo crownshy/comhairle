@@ -189,6 +189,8 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
     let mut localised_fields = Vec::new();
     let mut text_content_fields = Vec::new();
     let mut optional_text_content_fields = Vec::new();
+    let mut media_fields = Vec::new();
+    let mut optional_media_fields = Vec::new();
     let mut non_text_content_fields = Vec::new();
 
     for field in fields {
@@ -204,7 +206,19 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
             });
         } else if is_optional_text_content_id_type(field_type) {
             optional_text_content_fields.push(field_name);
-            // Replace TextContentId with Option<String> for both structs
+            // Replace Option<TextContentId> with Option<String> for both structs
+            localised_fields.push(quote! {
+                pub #field_name: Option<String>
+            });
+        } else if is_media_id_type(field_type) {
+            media_fields.push(field_name);
+            // Replace Media with String for both structs
+            localised_fields.push(quote! {
+                pub #field_name: String
+            });
+        } else if is_optional_media_id_type(field_type) {
+            optional_media_fields.push(field_name);
+            // Replace Option<Media> with Option<String> for both structs
             localised_fields.push(quote! {
                 pub #field_name: Option<String>
             });
@@ -231,6 +245,24 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
         })
         .collect();
     let optional_text_content_field_caps: Vec<_> = optional_text_content_fields
+        .iter()
+        .map(|field| {
+            let field_str = field.to_string();
+            // Convert snake_case to PascalCase
+            let pascal_case = snake_case_to_pascal(field_str);
+            syn::Ident::new(&pascal_case, field.span())
+        })
+        .collect();
+    let media_field_caps: Vec<_> = media_fields
+        .iter()
+        .map(|field| {
+            let field_str = field.to_string();
+            // Convert snake_case to PascalCase
+            let pascal_case = snake_case_to_pascal(field_str);
+            syn::Ident::new(&pascal_case, field.span())
+        })
+        .collect();
+    let optional_media_field_caps: Vec<_> = optional_media_fields
         .iter()
         .map(|field| {
             let field_str = field.to_string();
@@ -293,7 +325,7 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
                 locale: &str,
             ) -> sea_query::SelectStatement {
                 use sea_query::{Expr, JoinType, Alias, Func};
-                use crate::models::translations::{TextContentIden, TextTranslationIden};
+                use crate::models::{translations::{TextContentIden, TextTranslationIden}, media::MediaIden};
 
                 #(
                     {
@@ -395,6 +427,50 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
                     }
                 )*
 
+                #(
+                    {
+                        // Create unique aliases for each media field
+                    let m_alias = Alias::new(&format!("m_{}", stringify!(#media_fields)));
+
+                        // Join with media table using alias
+                        query = query
+                            .join_as(
+                                JoinType::LeftJoin,
+                                MediaIden::Table,
+                                m_alias.clone(),
+                                Expr::col((#table_iden_name::Table, #table_iden_name::#media_field_caps))
+                                    .equals((m_alias.clone(), MediaIden::Id))
+                        ).to_owned();
+
+                        query = query.expr_as(
+                            Expr::col((m_alias, MediaIden::Url)),
+                            Alias::new(stringify!(#media_fields))
+                        ).to_owned();
+                    }
+                )*
+
+                #(
+                    {
+                        // Create unique aliases for each optional media field
+                    let m_alias = Alias::new(&format!("m_{}", stringify!(#optional_media_fields)));
+
+                        // Join with media table using alias
+                        query = query
+                            .join_as(
+                                JoinType::LeftJoin,
+                                MediaIden::Table,
+                                m_alias.clone(),
+                                Expr::col((#table_iden_name::Table, #table_iden_name::#optional_media_field_caps))
+                                    .equals((m_alias.clone(), MediaIden::Id))
+                        ).to_owned();
+
+                        query = query.expr_as(
+                            Expr::col((m_alias, MediaIden::Url)),
+                            Alias::new(stringify!(#optional_media_fields))
+                        ).to_owned();
+                    }
+                )*
+
                 query
             }
         }
@@ -406,9 +482,30 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
                 original: #struct_name,
                 locale: &str,
             ) -> Result<Self, crate::error::ComhairleError> {
-                use crate::models::translations::{get_text_content_by_id, get_text_translations_by_content_id, get_text_translation_by_content_and_locale};
+                use crate::models::{media, translations::{get_text_content_by_id, get_text_translations_by_content_id, get_text_translation_by_content_and_locale}};
 
                 Ok(Self {
+                    #(
+                        #media_fields: {
+                            match media::get_by_id(db, &original.#media_fields.to_owned().into()).await {
+                                Ok(media) => Some(media.url),
+                                Err(_) => None,
+                            }
+                        },
+                    )*
+                    #(
+                        #optional_media_fields: {
+                            if let Some(media_field) = &original.#optional_media_fields {
+                                // TODO: change model method to take MediaId instead of converting here
+                                match media::get_by_id(db, &media_field.to_owned().into()).await {
+                                    Ok(media) => Some(media.url),
+                                    Err(_) => None,
+                                }
+                            } else {
+                                None
+                            }
+                        },
+                    )*
                     #(
                         #text_content_fields: {
                             // Get the translated text for this locale, fallback to primary locale if needed
@@ -521,6 +618,41 @@ fn is_optional_text_content_id_type(ty: &Type) -> bool {
                 if let PathArguments::AngleBracketed(args) = &segment.arguments {
                     if let Some(GenericArgument::Type(inner_type)) = args.args.first() {
                         return is_text_content_id_type(inner_type);
+                    }
+                }
+            }
+            false
+        }
+        _ => false,
+    }
+}
+
+/// Helper function to check if a type is MediaId
+fn is_media_id_type(ty: &Type) -> bool {
+    match ty {
+        Type::Path(type_path) => {
+            if let Some(segment) = type_path.path.segments.last() {
+                segment.ident == "MediaId"
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
+}
+
+/// Helper function to check if a type is <TextContentId>
+fn is_optional_media_id_type(ty: &Type) -> bool {
+    match ty {
+        Type::Path(type_path) => {
+            if let Some(segment) = type_path.path.segments.last() {
+                if segment.ident != "Option" {
+                    return false;
+                }
+
+                if let PathArguments::AngleBracketed(args) = &segment.arguments {
+                    if let Some(GenericArgument::Type(inner_type)) = args.args.first() {
+                        return is_media_id_type(inner_type);
                     }
                 }
             }
