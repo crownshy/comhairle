@@ -44,7 +44,7 @@
 	let userAttendance = $derived(user ? attendances.find((a) => a.userId === user.id) : undefined);
 	let liveHref = $derived(`/conversations/${conversationId}/events/${event?.id}/live`);
 
-	let isAdmin = $derived(
+	let canStartMeeting = $derived(
 		userAttendance?.role === 'moderator' || userAttendance?.role === 'facilitator'
 	);
 
@@ -245,7 +245,7 @@
 				<Button variant="primaryDark" size="lg" class="h-12 px-8 text-base" href={liveHref}>
 					Join meeting
 				</Button>
-			{:else if isAdmin && status === 'upcoming'}
+			{:else if canStartMeeting && status === 'upcoming'}
 				<Button variant="primaryDark" size="lg" class="h-12 px-8 text-base" href={liveHref}>
 					Start meeting{msUntilStart > 0 ? ` (in ${countdownText})` : ''}
 				</Button>
