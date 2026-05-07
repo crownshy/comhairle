@@ -121,6 +121,11 @@
 			interfaceConfigOverwrite: {
 				SHOW_JITSI_WATERMARK: false,
 				SHOW_WATERMARK_FOR_GUESTS: false,
+				SHOW_BRAND_WATERMARK: false,
+				HIDE_DEEP_LINKING_LOGO: true,
+				JITSI_WATERMARK_LINK: '',
+				DEFAULT_LOGO_URL: '',
+				DEFAULT_WELCOME_PAGE_LOGO_URL: '',
 				...interfaceConfigOverwrite
 			}
 		};
