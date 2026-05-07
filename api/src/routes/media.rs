@@ -102,13 +102,14 @@ async fn upload(
         MediaContentType::Mp4 | MediaContentType::Mpeg | MediaContentType::Webm => "video",
     };
     let storage_key = format!("{prefix}/{filename}");
-    bulk_storage_service
+    let upload_result = bulk_storage_service
         .upload_file(&storage_key, bytes, metadata)
         .await?;
 
     let create_media = CreateMedia {
         store_name: bulk_storage_config.store_name.to_string(),
         storage_key,
+        url: upload_result.url,
         filename,
         content_type,
     };

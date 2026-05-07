@@ -24,6 +24,7 @@ pub struct Media {
     pub store_name: String,
     /// Identifier in bulk_storage_service
     pub storage_key: String,
+    pub url: String,
     pub filename: String,
     /// MIME type of the media uploaded
     pub content_type: MediaContentType,
@@ -95,10 +96,26 @@ impl MediaContentType {
     }
 }
 
-const DEFAULT_COLUMNS: [MediaIden; 8] = [
+impl MediaContentType {
+    pub fn try_from_extension(extension: &str) -> Result<Self, ComhairleError> {
+        match extension.to_lowercase().as_str() {
+            "jpg" | "jpeg" => Ok(Self::Jpeg),
+            "png" => Ok(Self::Png),
+            "gif" => Ok(Self::Gif),
+            "webp" => Ok(Self::Webp),
+            "mp4" => Ok(Self::Mp4),
+            "mpeg" | "mpg" => Ok(Self::Mpeg),
+            "webm" => Ok(Self::Webm),
+            ext => Err(ComhairleError::UnsupportedContentType(ext.to_string())),
+        }
+    }
+}
+
+const DEFAULT_COLUMNS: [MediaIden; 9] = [
     MediaIden::Id,
     MediaIden::StoreName,
     MediaIden::StorageKey,
+    MediaIden::Url,
     MediaIden::Filename,
     MediaIden::ContentType,
     MediaIden::OwnerId,
@@ -110,6 +127,7 @@ const DEFAULT_COLUMNS: [MediaIden; 8] = [
 pub struct CreateMedia {
     pub store_name: String,
     pub storage_key: String,
+    pub url: String,
     pub filename: String,
     pub content_type: MediaContentType,
 }
@@ -119,6 +137,7 @@ impl CreateMedia {
         vec![
             MediaIden::StoreName,
             MediaIden::StorageKey,
+            MediaIden::Url,
             MediaIden::Filename,
             MediaIden::ContentType,
         ]
@@ -128,6 +147,7 @@ impl CreateMedia {
         vec![
             (*self.store_name).into(),
             (*self.storage_key).into(),
+            (*self.url).into(),
             (*self.filename).into(),
             self.content_type.clone().into(),
         ]
