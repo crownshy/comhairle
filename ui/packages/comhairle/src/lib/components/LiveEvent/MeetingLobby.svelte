@@ -49,7 +49,8 @@
 
 	let phase = $derived.by(() => {
 		if (callStatus === 'Ended') return 'ended' as const;
-		if (!isModerator && endMs && now > endMs && callStatus !== 'InProgress') return 'ended' as const;
+		if (!isModerator && endMs && now > endMs && callStatus !== 'InProgress')
+			return 'ended' as const;
 		return 'waiting' as const;
 	});
 
@@ -142,7 +143,11 @@
 
 				{#if phase === 'waiting' && !isModerator && hostPresent}
 					<p class="text-foreground text-center text-base leading-6 font-medium">
-						The admin is about to start the meeting.
+						The host is about to start the meeting.
+					</p>
+				{:else if phase === 'waiting' && !isModerator && !hostPresent}
+					<p class="text-foreground text-center text-base leading-6 font-medium">
+						Waiting for the host to join...
 					</p>
 				{:else if phase === 'waiting' && participants.length > 0}
 					<p class="text-foreground text-center text-base leading-6 font-medium">
