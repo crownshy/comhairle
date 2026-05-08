@@ -3,19 +3,14 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { notifications } from '$lib/notifications.svelte';
-	import { invalidateAll } from '$app/navigation';
 
 	type Props = {
-		conversation_id: string;
 		accept?: string;
 		maxSizeMB?: number;
+		onUpload: (file: File) => void;
 	};
 
-	let {
-		conversation_id,
-		accept = '.jpeg,.jpg,.png,.pdf,.mp4,.txt',
-		maxSizeMB = 50
-	}: Props = $props();
+	let { accept = '.jpeg,.jpg,.png,.pdf,.mp4,.txt', maxSizeMB = 50, onUpload }: Props = $props();
 
 	let fileInput: HTMLInputElement | null = $state(null);
 	let urlInput = $state('');
@@ -24,7 +19,18 @@
 
 	const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
-	async function uploadFile(file: File) {
+	function handleFileSelect(event: Event) {
+		const target = event.target as HTMLInputElement;
+		const files = target.files;
+		if (files && files.length > 0) {
+			for (const file of files) {
+				isUploading = true;
+				verifyFileThenProceed(file, onUpload).then(() => (isUploading = false));
+			}
+		}
+	}
+
+	async function verifyFileThenProceed(file: File, cb: (file: File) => void) {
 		if (file.size > maxSizeBytes) {
 			notifications.send({
 				message: `File size exceeds ${maxSizeMB}MB limit`,
@@ -33,86 +39,7 @@
 			return;
 		}
 
-		isUploading = true;
-		const formData = new FormData();
-		formData.append('documents', file);
-
-		try {
-			const response = await fetch(`/api/conversation/${conversation_id}/documents`, {
-				method: 'POST',
-				body: formData,
-				credentials: 'include'
-			});
-
-			if (!response.ok) {
-				throw new Error(`Upload failed: ${response.statusText}`);
-			}
-
-			notifications.send({
-				message: 'File uploaded successfully',
-				priority: 'INFO'
-			});
-		} catch (e) {
-			console.error(e);
-			notifications.send({
-				message: 'Failed to upload file',
-				priority: 'ERROR'
-			});
-		} finally {
-			isUploading = false;
-			await invalidateAll();
-		}
-	}
-
-	async function uploadFromUrl() {
-		if (!urlInput.trim()) {
-			notifications.send({
-				message: 'Please enter a valid URL',
-				priority: 'ERROR'
-			});
-			return;
-		}
-
-		isUploading = true;
-		try {
-			const response = await fetch(`/api/conversation/${conversation_id}/upload_document`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ url: urlInput }),
-				credentials: 'include'
-			});
-
-			if (!response.ok) {
-				throw new Error(`Upload failed: ${response.statusText}`);
-			}
-
-			notifications.send({
-				message: 'File uploaded from URL successfully',
-				priority: 'INFO'
-			});
-			urlInput = '';
-		} catch (e) {
-			console.error(e);
-			notifications.send({
-				message: 'Failed to upload from URL',
-				priority: 'ERROR'
-			});
-		} finally {
-			isUploading = false;
-			await invalidateAll();
-		}
-	}
-
-	function handleFileSelect(event: Event) {
-		const target = event.target as HTMLInputElement;
-		const files = target.files;
-		if (files && files.length > 0) {
-			for (const file of files) {
-				uploadFile(file);
-			}
-		}
+		cb(file);
 	}
 
 	function handleDrop(event: DragEvent) {
@@ -122,7 +49,8 @@
 		const files = event.dataTransfer?.files;
 		if (files && files.length > 0) {
 			for (const file of files) {
-				uploadFile(file);
+				isUploading = true;
+				verifyFileThenProceed(file, onUpload).then(() => (isUploading = false));
 			}
 		}
 	}
@@ -147,7 +75,7 @@
 		<div
 			role="button"
 			tabindex="0"
-			class="flex cursor-pointer flex-col items-center gap-4 rounded-xl border border-input bg-gray-50 dark:bg-input/30 p-8 transition-colors"
+			class="border-input dark:bg-input/30 flex cursor-pointer flex-col items-center gap-4 rounded-xl border bg-gray-50 p-8 transition-colors"
 			class:bg-gray-100={isDragging}
 			class:border-primary={isDragging}
 			ondrop={handleDrop}
@@ -178,6 +106,7 @@
 				onchange={handleFileSelect}
 			/>
 		</div>
+		<!-- TODO: commenting out as we don't currently support this functionality
 		<div class="flex flex-col gap-2">
 			<div class="text-muted-foreground text-sm">or upload from URL</div>
 			<div class="flex gap-2">
@@ -188,14 +117,8 @@
 					bind:value={urlInput}
 					disabled={isUploading}
 				/>
-				<Button
-					variant="outline"
-					onclick={uploadFromUrl}
-					disabled={isUploading || !urlInput.trim()}
-				>
-					Upload
-				</Button>
 			</div>
 		</div>
+		-->
 	</div>
 </div>

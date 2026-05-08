@@ -6,6 +6,8 @@
 	import ParsingFileList from '$lib/components/KnowledgeBase/ParsingFileList.svelte';
 	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
+	import { notifications } from '$lib/notifications.svelte';
+	import { invalidateAll } from '$app/navigation';
 
 	type Props = {
 		data: {
@@ -28,6 +30,36 @@
 				(doc.parse_progress === 0 && doc.parse_status === 'CANCEL')
 		)
 	);
+
+	async function uploadFile(file: File) {
+		const formData = new FormData();
+		formData.append('documents', file);
+
+		try {
+			const response = await fetch(`/api/conversation/${conversation.id}/documents`, {
+				method: 'POST',
+				body: formData,
+				credentials: 'include'
+			});
+
+			if (!response.ok) {
+				throw new Error(`Upload failed: ${response.statusText}`);
+			}
+
+			notifications.send({
+				message: 'File uploaded successfully',
+				priority: 'INFO'
+			});
+		} catch (e) {
+			console.error(e);
+			notifications.send({
+				message: 'Failed to upload file',
+				priority: 'ERROR'
+			});
+		} finally {
+			await invalidateAll();
+		}
+	}
 
 	useAdminLayoutSlots({
 		title: titleSnippet,
@@ -60,7 +92,7 @@
 </p>
 
 <section class="mb-4">
-	<FileUpload conversation_id={conversation.id} />
+	<FileUpload onUpload={uploadFile} />
 </section>
 {#if parsingDocuments?.length}
 	<section class="mb-8">

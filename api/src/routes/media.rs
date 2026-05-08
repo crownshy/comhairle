@@ -43,7 +43,7 @@ async fn get(
     RequiredAdminUser(user): RequiredAdminUser,
     Path(media_id): Path<MediaId>,
 ) -> Result<(StatusCode, Json<MediaDto>), ComhairleError> {
-    let media = media::get_by_id(&state.db, &media_id.into()).await?;
+    let media = media::get_by_id(&state.db, &media_id).await?;
 
     Ok((StatusCode::OK, Json(media.into())))
 }

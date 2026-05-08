@@ -15,8 +15,14 @@
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
-	import type { ConversationWithTranslations, WorkflowDto } from '@crownshy/api-client/api';
+	import type {
+		ConversationWithTranslations,
+		MediaDto,
+		WorkflowDto
+	} from '@crownshy/api-client/api';
 	import { camelToSentenceCase, camelToSnakeCase, snakeCaseKeys } from '$lib/utils/casingUtils';
+	import ImageModal from '$lib/components/ImageModal.svelte';
+	import { X } from 'lucide-svelte';
 
 	let {
 		data
@@ -24,10 +30,12 @@
 		data: {
 			conversation: ConversationWithTranslations;
 			workflows: WorkflowDto[];
+			media: MediaDto[];
 		};
 	} = $props();
 	let conversation = $derived(data.conversation);
 	let workflow = $derived(data.workflows[0]);
+	let media = $derived(data.media);
 
 	let primaryLanguage = $state(data.conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $state(data.conversation.supportedLanguages ?? ['en']);
@@ -39,7 +47,6 @@
 		$form.title = data.conversation.title;
 		$form.shortDescription = data.conversation.shortDescription;
 		$form.description = data.conversation.description;
-		$form.imageUrl = data.conversation.imageUrl;
 		$form.isPublic = data.conversation.isPublic;
 		$form.isInviteOnly = data.conversation.isInviteOnly;
 		$form.privacyPolicy = data.conversation.privacyPolicy;
@@ -137,7 +144,6 @@
 			title: data.conversation.title,
 			shortDescription: data.conversation.shortDescription,
 			description: data.conversation.description,
-			imageUrl: data.conversation.imageUrl,
 			privacyPolicy: data.conversation.privacyPolicy,
 			shortPrivacyPolicy: data.conversation.shortPrivacyPolicy,
 			faqs: data.conversation.faqs,
@@ -233,6 +239,65 @@
 			notifications.send({ message: 'Updated conversation', priority: 'INFO' });
 		} catch (e) {
 			notifications.send({ message: 'Failed to save changes', priority: 'ERROR' });
+		}
+	}
+
+	async function handleUploadImage(file: File) {
+		const formData = new FormData();
+		formData.append('images', file);
+
+		try {
+			const response = await fetch(`/api/media`, {
+				method: 'POST',
+				body: formData,
+				credentials: 'include'
+			});
+
+			if (!response.ok) {
+				throw new Error(`Upload failed: ${response.statusText}`);
+			}
+
+			notifications.send({
+				message: 'Image uploaded successfully',
+				priority: 'INFO'
+			});
+
+			const json: MediaDto = await response.json();
+
+			await apiClient.UpdateConversation(
+				{ image: json.id },
+				{ params: { conversation_id: conversation.id } }
+			);
+
+			notifications.send({
+				message: 'Conversation image updated',
+				priority: 'INFO'
+			});
+
+			await invalidateAll();
+		} catch (e) {
+			console.error(e);
+			notifications.send({ priority: 'ERROR', message: 'Failed to upload image' });
+		}
+	}
+
+	async function handleSelectExistingImage(image: MediaDto) {
+		try {
+			await apiClient.UpdateConversation(
+				{ image: image.id },
+				{ params: { conversation_id: conversation.id } }
+			);
+
+			notifications.send({
+				message: 'Conversation image updated',
+				priority: 'INFO'
+			});
+		} catch (e) {
+			console.error(e);
+			notifications.send({
+				priority: 'ERROR',
+				message: `Failed to update conversation image to ${image.filename}`
+			});
 		}
 	}
 
@@ -362,26 +427,17 @@
 	<div
 		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 	>
-		<Form.Field form={conversationForm} name="imageUrl" class="contents">
-			<Form.Control>
-				{#snippet children({ props })}
-					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-						>Banner image URL</Form.Label
-					>
-					<div class="flex flex-1 flex-col gap-4">
-						<Input {...props} bind:value={$form.imageUrl} />
-						<Form.FieldErrors />
-						{#if $form.imageUrl}
-							<img
-								class="bg-muted w-full max-w-md rounded-lg object-cover"
-								alt="Conversation Banner"
-								src={$form.imageUrl}
-							/>
-						{/if}
-					</div>
-				{/snippet}
-			</Form.Control>
-		</Form.Field>
+		<div class="contents">
+			<p class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Banner image</p>
+			<div class="flex flex-1 gap-4">
+				<Input disabled value={conversation.image ?? ''} placeholder="Image url..." />
+				<ImageModal
+					assets={media}
+					onUpload={handleUploadImage}
+					onSelectExistingAsset={handleSelectExistingImage}
+				/>
+			</div>
+		</div>
 	</div>
 
 	<!-- Privacy policy -->
