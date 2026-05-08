@@ -49,7 +49,7 @@
 
 	let phase = $derived.by(() => {
 		if (callStatus === 'Ended') return 'ended' as const;
-		if (endMs && now > endMs && callStatus !== 'InProgress') return 'ended' as const;
+		if (!isModerator && endMs && now > endMs && callStatus !== 'InProgress') return 'ended' as const;
 		return 'waiting' as const;
 	});
 
