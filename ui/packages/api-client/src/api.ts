@@ -2825,11 +2825,6 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
         schema: content_type,
       },
       {
-        name: "owner_id",
-        type: "Query",
-        schema: created_after,
-      },
-      {
         name: "limit",
         type: "Query",
         schema: limit,

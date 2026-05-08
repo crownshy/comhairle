@@ -248,18 +248,12 @@ impl MediaOrderOptions {
 
 #[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct MediaFilterOptions {
-    pub owner_id: Option<Uuid>,
     pub content_type: Option<MediaContentType>,
 }
 
 impl MediaFilterOptions {
     fn apply(&self, mut query: SelectStatement) -> SelectStatement {
-        if let Some(value) = self.owner_id {
-            query = query
-                .and_where(Expr::col((MediaIden::Table, MediaIden::OwnerId)).eq(value))
-                .to_owned()
-        }
-        if let Some(ref value) = self.content_type {
+        if let Some(value) = &self.content_type {
             query = query
                 .and_where(Expr::col((MediaIden::Table, MediaIden::ContentType)).eq(value.clone()))
                 .to_owned()
@@ -288,10 +282,12 @@ pub async fn list(
     page_options: PageOptions,
     order_options: MediaOrderOptions,
     filter_options: MediaFilterOptions,
+    owner_id: &Uuid,
 ) -> Result<PaginatedResults<Media>, ComhairleError> {
     let query = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(MediaIden::Table)
+        .and_where(Expr::col((MediaIden::Table, MediaIden::OwnerId)).eq(owner_id.to_owned()))
         .to_owned();
 
     let query = filter_options.apply(query);
@@ -593,7 +589,7 @@ mod tests {
             ..Default::default()
         };
 
-        let results = list(&pool, page_options, order_options, filter_options).await?;
+        let results = list(&pool, page_options, order_options, filter_options, &user.id).await?;
 
         assert_eq!(results.records.len(), 3, "incorrect number of results");
         assert_eq!(results.records[0].id, media_4.id, "incorrect first id");
@@ -604,26 +600,25 @@ mod tests {
     }
 
     #[sqlx::test]
-    async fn should_filter_media_by_owner(pool: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn should_filter_media_by_content_types(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         session.signup(&app).await?;
 
-        let user_1 = users::create_annon_user(&pool).await?;
-        let user_2 = users::create_annon_user(&pool).await?;
+        let user = users::create_annon_user(&pool).await?;
 
         let params_1 = CreateMedia {
             store_name: "test_media".to_string(),
-            storage_key: "asd123/image-b.jpg".to_string(),
-            url: "https://comhairle-media-test.bulk-storage.com/asd123/image-b.jpg".to_string(),
+            storage_key: "asd123/image-b.png".to_string(),
+            url: "https://comhairle-media-test.bulk-storage.com/asd123/image-b.png".to_string(),
             filename: "image-b.jpg".to_string(),
-            content_type: MediaContentType::Jpeg,
+            content_type: MediaContentType::Png,
         };
         let params_2 = CreateMedia {
             store_name: "test_media".to_string(),
-            storage_key: "asd123/image-a.jpg".to_string(),
-            url: "https://comhairle-media-test.bulk-storage.com/asd123/image-a.jpg".to_string(),
+            storage_key: "asd123/video.mpeg".to_string(),
+            url: "https://comhairle-media-test.bulk-storage.com/asd123/video.mpeg".to_string(),
             filename: "image-a.jpg".to_string(),
-            content_type: MediaContentType::Jpeg,
+            content_type: MediaContentType::Mpeg,
         };
         let params_3 = CreateMedia {
             store_name: "test_media".to_string(),
@@ -633,9 +628,9 @@ mod tests {
             content_type: MediaContentType::Jpeg,
         };
 
-        let _ = create(&pool, &params_1, &user_2.id).await?;
-        let media_2 = create(&pool, &params_2, &user_1.id).await?;
-        let media_3 = create(&pool, &params_3, &user_1.id).await?;
+        let _ = create(&pool, &params_1, &user.id).await?;
+        let _ = create(&pool, &params_2, &user.id).await?;
+        let _ = create(&pool, &params_3, &user.id).await?;
 
         let page_options = PageOptions {
             offset: None,
@@ -645,15 +640,39 @@ mod tests {
             ..Default::default()
         };
         let filter_options = MediaFilterOptions {
-            owner_id: Some(user_1.id),
+            content_type: Some(MediaContentType::Jpeg),
             ..Default::default()
         };
 
-        let results = list(&pool, page_options, order_options, filter_options).await?;
+        let results = list(
+            &pool,
+            page_options.clone(),
+            order_options,
+            filter_options,
+            &user.id,
+        )
+        .await?;
 
-        assert_eq!(results.total, 2, "incorrect total");
-        assert_eq!(results.records[0].id, media_2.id, "incorrect first id");
-        assert_eq!(results.records[1].id, media_3.id, "incorrect second id");
+        assert_eq!(results.total, 1, "incorrect total");
+        assert!(results
+            .records
+            .iter()
+            .all(|m| m.content_type == MediaContentType::Jpeg));
+
+        let order_options = MediaOrderOptions {
+            ..Default::default()
+        };
+        let filter_options = MediaFilterOptions {
+            content_type: Some(MediaContentType::Mpeg),
+            ..Default::default()
+        };
+        let results = list(&pool, page_options, order_options, filter_options, &user.id).await?;
+
+        assert_eq!(results.total, 1, "incorrect total");
+        assert!(results
+            .records
+            .iter()
+            .all(|m| m.content_type == MediaContentType::Mpeg));
 
         Ok(())
     }

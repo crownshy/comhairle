@@ -32,7 +32,14 @@ async fn list(
     Query(page_options): Query<PageOptions>,
     RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<PaginatedResults<MediaDto>>), ComhairleError> {
-    let results = media::list(&state.db, page_options, order_options, filter_options).await?;
+    let results = media::list(
+        &state.db,
+        page_options,
+        order_options,
+        filter_options,
+        &user.id,
+    )
+    .await?;
 
     Ok((StatusCode::OK, Json(results.into())))
 }
