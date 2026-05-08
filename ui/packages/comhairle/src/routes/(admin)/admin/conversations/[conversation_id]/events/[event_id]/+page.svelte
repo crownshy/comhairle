@@ -5,6 +5,7 @@
 	import * as RadioGroup from '$lib/components/ui/radio-group';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
+	import { TimeRangePicker } from '$lib/components/ui/time-picker';
 	import { CalendarIcon } from 'lucide-svelte';
 	import Calendar from '$lib/components/ui/calendar/calendar.svelte';
 	import { superForm } from 'sveltekit-superforms';
@@ -71,10 +72,20 @@
 
 	let { form, enhance, validateForm, submitting, tainted } = $derived(eventForm);
 
-	async function handleUpdateEvent() {
+	let saving = $state(false);
+
+	async function handleUpdateEvent({ cancel }: { cancel: () => void }) {
+		// We submit via the API client below — prevent SvelteKit from POSTing the form to the
+		// page route (which has no server actions and would return 405 Method Not Allowed).
+		cancel();
+
+		if (saving) return;
+
 		const result = await validateForm({ update: true });
 
 		if (!result.valid) return;
+
+		saving = true;
 
 		const dateOption = result.data.start_date;
 		let startTime = parseDateTime(`${dateOption}T${result.data.start_time}`);
@@ -108,6 +119,8 @@
 				message: 'Something went wrong updating the event',
 				priority: 'ERROR'
 			});
+		} finally {
+			saving = false;
 		}
 	}
 
@@ -274,7 +287,11 @@
 
 {#snippet titleContentSnippet()}
 	<h1 class="text-4xl font-bold">Event: {event?.name}</h1>
-	<Button href={`/conversations/${conversation.id}/events/${event.id}/live`}>Event Link</Button>
+	{#if conversation && event}
+		<Button href={`/conversations/${conversation.id}/events/${event.id}/live`}>
+			Event Link
+		</Button>
+	{/if}
 	<!-- TODO: figure out these -->
 	<!-- <AdminPrevNextControls -->
 	<!-- 	next={{ name: 'design', url: `/admin/conversations/${conversation.id}/design` }} -->
@@ -380,8 +397,40 @@
 							<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">
 								Event date
 							</Form.Label>
-							<Input {...props} bind:value={$form.start_date} />
-							<Form.FieldErrors />
+							<div class="flex-1">
+								<Popover.Root>
+									<Popover.Trigger
+										{...props}
+										class={cn(
+											buttonVariants({ variant: 'outline' }),
+											'w-full max-w-xs justify-start pl-4 text-left font-normal',
+											!eventDate && 'text-muted-foreground'
+										)}
+									>
+										{eventDate
+											? df.format(eventDate.toDate(getLocalTimeZone()))
+											: 'Pick a date'}
+										<CalendarIcon class="ml-auto size-4 opacity-50" />
+									</Popover.Trigger>
+									<Popover.Content class="w-auto p-0" side="bottom" align="start">
+										<Calendar
+											type="single"
+											value={eventDate as DateValue}
+											minValue={today(getLocalTimeZone())}
+											calendarLabel="Event Date"
+											onValueChange={(v) => {
+												if (v) {
+													$form.start_date = v.toString();
+												} else {
+													$form.start_date = '';
+												}
+											}}
+										/>
+									</Popover.Content>
+								</Popover.Root>
+								<Form.FieldErrors />
+								<input hidden value={$form.start_date} name="start_date" />
+							</div>
 						{/snippet}
 					</Form.Control>
 				</Form.Field>
@@ -390,89 +439,21 @@
 			<div
 				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 			>
-				<Form.Field form={eventForm} name="start_time" class="contents">
-					<Form.Control>
-						{#snippet children({ props })}
-							<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">
-								Event date
-							</Form.Label>
-							<Popover.Root>
-								<Popover.Trigger
-									{...props}
-									class={cn(
-										buttonVariants({ variant: 'outline' }),
-										'w-70 justify-start pl-4 text-left font-normal',
-										!startDate && 'text-muted-foreground'
-									)}
-								>
-									{eventDate
-										? df.format(eventDate.toDate(getLocalTimeZone()))
-										: 'Pick a date'}
-									<CalendarIcon class="ml-auto size-4 opacity-50" />
-								</Popover.Trigger>
-								<Popover.Content class=" w-auto p-0" side="top">
-									<Calendar
-										type="single"
-										value={eventDate as DateValue}
-										minValue={today(getLocalTimeZone())}
-										calendarLabel="Event Date"
-										onValueChange={(v) => {
-											if (v) {
-												$form.start_date = v.toString();
-											} else {
-												$form.start_date = '';
-											}
-										}}
-									/>
-								</Popover.Content>
-							</Popover.Root>
-							<Form.FieldErrors />
-							<input hidden value={$form.start_date} name="start_date" />
-						{/snippet}
-					</Form.Control>
-				</Form.Field>
-			</div>
-
-			<div
-				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-			>
-				<Form.Field form={eventForm} name="start_time" class="contents">
-					<Form.Control>
-						{#snippet children({ props })}
-							<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">
-								Start time
-							</Form.Label>
-							<Input
-								bind:value={$form.start_time}
-								{...props}
-								type="time"
-								class="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
-							/>
-							<Form.FieldErrors />
-						{/snippet}
-					</Form.Control>
-				</Form.Field>
-			</div>
-
-			<div
-				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-			>
-				<Form.Field form={eventForm} name="end_time" class="contents">
-					<Form.Control>
-						{#snippet children({ props })}
-							<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">
-								End time
-							</Form.Label>
-							<Input
-								bind:value={$form.end_time}
-								{...props}
-								type="time"
-								class="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
-							/>
-							<Form.FieldErrors />
-						{/snippet}
-					</Form.Control>
-				</Form.Field>
+				<p class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Time</p>
+				<div class="flex flex-1 flex-col gap-2">
+					<TimeRangePicker
+						startName="start_time"
+						endName="end_time"
+						bind:startValue={$form.start_time}
+						bind:endValue={$form.end_time}
+					/>
+					<Form.Field form={eventForm} name="start_time" class="contents">
+						<Form.FieldErrors class="text-destructive text-sm" />
+					</Form.Field>
+					<Form.Field form={eventForm} name="end_time" class="contents">
+						<Form.FieldErrors class="text-destructive text-sm" />
+					</Form.Field>
+				</div>
 			</div>
 
 			<div
@@ -510,7 +491,7 @@
 					type="submit"
 					variant="default"
 					class="px-12"
-					disabled={$submitting || !$tainted}
+					disabled={saving || $submitting || !$tainted}
 				>
 					Save Changes
 				</Form.Button>

@@ -3,9 +3,11 @@
 	import { page } from '$app/stores';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { formatDateShort, formatTime } from '$lib/utils';
-	import { ArrowLeft, CalendarDays, Clock, Users, UserCheck } from 'lucide-svelte';
+	import { ArrowLeft, CalendarDays, Clock, Users, UserCheck, Info } from 'lucide-svelte';
+	import { onMount } from 'svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -13,12 +15,25 @@
 	let conversationId = $derived(data.conversationId);
 	let event = $derived(data.event);
 	let attendances = $derived(data.attendances);
+	let totalAttendances = $derived(data.totalAttendances);
 	let user = $derived(data.user);
 
 	let redirectError = $derived($page.url.searchParams.get('error'));
 
 	let joining = $state(false);
 	let error = $state<string | null>(null);
+
+	/**
+	 * Time + date formatting depends on the user's local timezone, which differs between server
+	 * (UTC) and client. Render placeholders during SSR/hydration to avoid the visible flash, then
+	 * swap to formatted local time after mount.
+	 */
+	let mounted = $state(false);
+	onMount(() => {
+		mounted = true;
+	});
+
+	let attendanceCount = $derived(event?.currentAttendance ?? totalAttendances ?? 0);
 
 	let status = $derived.by(() => {
 		if (!event) return 'unknown';
@@ -181,9 +196,15 @@
 								<CalendarDays class="text-muted-foreground h-4 w-4" />
 								<span class="text-muted-foreground text-sm font-medium">Date</span>
 							</div>
-							<p class="text-foreground line-clamp-1 text-base leading-6 font-medium">
-								{formatDateShort(event.startTime)}
-							</p>
+							{#if mounted}
+								<p
+									class="text-foreground line-clamp-1 text-base leading-6 font-medium"
+								>
+									{formatDateShort(event.startTime)}
+								</p>
+							{:else}
+								<Skeleton class="h-6 w-28" />
+							{/if}
 						</div>
 
 						<div class="flex flex-col gap-1">
@@ -191,9 +212,15 @@
 								<Clock class="text-muted-foreground h-4 w-4" />
 								<span class="text-muted-foreground text-sm font-medium">Time</span>
 							</div>
-							<p class="text-foreground line-clamp-1 text-base leading-6 font-medium">
-								{formatTime(event.startTime)} - {formatTime(event.endTime)}
-							</p>
+							{#if mounted}
+								<p
+									class="text-foreground line-clamp-1 text-base leading-6 font-medium"
+								>
+									{formatTime(event.startTime)} - {formatTime(event.endTime)}
+								</p>
+							{:else}
+								<Skeleton class="h-6 w-36" />
+							{/if}
 						</div>
 
 						<div class="flex flex-col gap-1">
@@ -218,7 +245,7 @@
 								>
 							</div>
 							<p class="text-foreground line-clamp-1 text-base leading-6 font-medium">
-								{event.currentAttendance} registered{event.capacity
+								{attendanceCount} registered{event.capacity
 									? ` / ${event.capacity} capacity`
 									: ''}
 							</p>
@@ -244,11 +271,18 @@
 
 		<!-- Actions -->
 		<div class="flex flex-col items-center gap-4 pt-4 pb-24">
-			{#if redirectError === 'not-registered'}
+			{#if redirectError === 'not-registered' && !userAttendance}
 				<div
-					class="bg-destructive/10 text-destructive mb-2 max-w-md rounded-xl px-4 py-3 text-center text-sm font-medium"
+					class="bg-primary/10 text-foreground mb-2 flex max-w-md items-start gap-2 rounded-xl px-4 py-3 text-sm"
 				>
-					You need to register for this event before joining the live session.
+					<Info class="text-primary mt-0.5 h-4 w-4 shrink-0" />
+					<span>
+						{#if user}
+							Register below to join this event when it goes live.
+						{:else}
+							Log in and register to join this event when it goes live.
+						{/if}
+					</span>
 				</div>
 			{/if}
 
