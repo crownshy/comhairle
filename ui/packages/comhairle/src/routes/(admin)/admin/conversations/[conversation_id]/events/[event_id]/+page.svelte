@@ -288,9 +288,7 @@
 {#snippet titleContentSnippet()}
 	<h1 class="text-4xl font-bold">Event: {event?.name}</h1>
 	{#if conversation && event}
-		<Button href={`/conversations/${conversation.id}/events/${event.id}/live`}>
-			Event Link
-		</Button>
+		<Button href={`/conversations/${conversation.id}/events/${event.id}`}>Event Link</Button>
 	{/if}
 	<!-- TODO: figure out these -->
 	<!-- <AdminPrevNextControls -->
