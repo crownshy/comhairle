@@ -59,14 +59,9 @@
 	let userAttendance = $derived(user ? attendances.find((a) => a.userId === user.id) : undefined);
 	let liveHref = $derived(`/conversations/${conversationId}/events/${event?.id}/live`);
 
-	let isAdmin = $derived(
+	let canStartMeeting = $derived(
 		userAttendance?.role === 'moderator' || userAttendance?.role === 'facilitator'
 	);
-
-	/** Grace window before the scheduled start during which an admin may open the meeting. */
-	const EARLY_START_WINDOW_MS = 60 * 60 * 1000;
-	/** Window before the scheduled start during which a participant may enter the lobby. */
-	const PARTICIPANT_JOIN_WINDOW_MS = 15 * 60 * 1000;
 
 	/** Reactive clock so the countdown updates without a refresh. Ticks once per minute. */
 	let now = $state(Date.now());
@@ -76,12 +71,6 @@
 	});
 
 	let msUntilStart = $derived(event ? new Date(event.startTime).getTime() - now : 0);
-	let canStartEarly = $derived(
-		status === 'upcoming' && msUntilStart > 0 && msUntilStart <= EARLY_START_WINDOW_MS
-	);
-	let canJoinLobbySoon = $derived(
-		status === 'upcoming' && msUntilStart > 0 && msUntilStart <= PARTICIPANT_JOIN_WINDOW_MS
-	);
 
 	let countdownText = $derived.by(() => {
 		if (msUntilStart <= 0) return '';
@@ -290,30 +279,20 @@
 				<Button variant="primaryDark" size="lg" class="h-12 px-8 text-base" href={liveHref}>
 					Join meeting
 				</Button>
-			{:else if isAdmin && canStartEarly}
+			{:else if canStartMeeting && status === 'upcoming'}
 				<Button variant="primaryDark" size="lg" class="h-12 px-8 text-base" href={liveHref}>
-					Start meeting (in {countdownText})
-				</Button>
-			{:else if isAdmin && status === 'upcoming'}
-				<Button variant="primaryDark" size="lg" class="h-12 px-8 text-base" disabled>
-					Starts in {countdownText}
+					Start meeting{msUntilStart > 0 ? ` (in ${countdownText})` : ''}
 				</Button>
 				<p class="text-muted-foreground text-xs">
-					You'll be able to start the meeting up to an hour before it begins.
-				</p>
-			{:else if userAttendance && canJoinLobbySoon}
-				<Button variant="primaryDark" size="lg" class="h-12 px-8 text-base" href={liveHref}>
-					Go to lobby (in {countdownText})
-				</Button>
-				<p class="text-muted-foreground text-xs">
-					The lobby will open when the facilitator starts the meeting.
+					As a facilitator, you can start the meeting at any time.
 				</p>
 			{:else if userAttendance && status === 'upcoming'}
-				<Button variant="primaryDark" size="lg" class="h-12 px-8 text-base" disabled>
-					Starts in {countdownText}
+				<Button variant="primaryDark" size="lg" class="h-12 px-8 text-base" href={liveHref}>
+					Go to lobby{msUntilStart > 0 ? ` (starts in ${countdownText})` : ''}
 				</Button>
 				<p class="text-muted-foreground text-xs">
-					You'll be able to join the lobby 15 minutes before the meeting starts.
+					You can wait in the lobby. The meeting will begin when the facilitator starts
+					it.
 				</p>
 			{:else if !userAttendance && user && status !== 'past'}
 				<Button

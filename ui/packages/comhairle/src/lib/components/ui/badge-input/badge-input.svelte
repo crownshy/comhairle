@@ -25,6 +25,7 @@
 			class="grow"
 			onkeydown={(e) => {
 				if (e.key === 'Enter') {
+					e.preventDefault();
 					onAddBadge(value);
 					value = '';
 				}

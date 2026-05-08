@@ -155,14 +155,16 @@
 	let agendaItems = $derived(mapApiAgenda(event?.agenda ?? []));
 
 	let meetingPhase = $derived.by(() => {
-		const phase =
-			callStatus === null
-				? ('loading' as const)
-				: callStatus === 'Ended'
-					? ('ended' as const)
-					: hasJoinedCall
-						? ('incall' as const)
-						: ('lobby' as const);
+		let phase: 'loading' | 'ended' | 'incall' | 'lobby';
+		if (callStatus === null) {
+			phase = 'loading';
+		} else if (hasJoinedCall && callStatus === 'Ended') {
+			phase = 'ended';
+		} else if (hasJoinedCall) {
+			phase = 'incall';
+		} else {
+			phase = 'lobby';
+		}
 		console.log(
 			'[BREAKOUT] meetingPhase:',
 			phase,
@@ -174,6 +176,13 @@
 		);
 		return phase;
 	});
+
+	/** True if any moderator/facilitator (other than current user) is in the lobby. */
+	let hostPresent = $derived(
+		allParticipants.some(
+			(p) => p.user_id !== user?.id && (p.role === 'moderator' || p.role === 'facilitator')
+		)
+	);
 
 	let isBreakoutActive = $derived(breakoutSession !== null);
 	let inBreakoutRoom = $derived(typeof roomContext !== 'string');
@@ -462,15 +471,36 @@
 		}, 4000);
 	}
 
+	/** clears all call and UI state */
+	function resetCall() {
+		videoCallService.changeCallState(eventId, 'Waiting');
+		videoCallService.setAgendaItem(eventId, 0);
+		videoCallService.endBreakoutSession(eventId);
+		hasJoinedCall = false;
+		roomContext = 'plenary';
+		showCreateBreakout = false;
+		breakoutDialogItem = null;
+		showBroadcast = false;
+		showEndMeeting = false;
+		activePanel = 'agenda';
+		noticeQueue = [];
+		showBreakoutEnding = false;
+		breakoutEndingDismissed = false;
+		breakoutAutoEnded = false;
+		trackedRoomIndex = null;
+		jitsiBreakoutRooms = {};
+		breakoutRoomsReady = false;
+		mockBreakoutRooms = [];
+		mobileRoomIndex = 0;
+		mobileAgendaViewIndex = 0;
+		mobileSheetCollapsed = false;
+		seenAssistanceRequests = new Set();
+	}
+
 	/** DEV ONLY: reset call state to Waiting */
 	function devResetCall() {
 		if (dev) {
-			videoCallService.changeCallState(eventId, 'Waiting');
-			videoCallService.setAgendaItem(eventId, 0);
-			videoCallService.endBreakoutSession(eventId);
-			hasJoinedCall = false;
-			roomContext = 'plenary';
-			showCreateBreakout = false;
+			resetCall();
 			console.log('DEV: Call state reset to Waiting');
 		}
 	}
@@ -821,23 +851,20 @@
 		title={event?.name ?? 'Meeting'}
 		conversationUrl={`/conversations/${conversationId}`}
 		{isModerator}
-		onResetCall={() => {
-			videoCallService.changeCallState(eventId, 'Waiting');
-			videoCallService.setAgendaItem(eventId, 0);
-			videoCallService.endBreakoutSession(eventId);
-			hasJoinedCall = false;
-			roomContext = 'plenary';
-		}}
+		onResetCall={resetCall}
 	/>
 {:else if meetingPhase === 'lobby'}
 	<MeetingLobby
 		title={event?.name ?? 'Meeting'}
 		scheduledTime={scheduledTimeText}
 		endedTime={event ? `${formatDateShort(event.endTime)} ${formatTime(event.endTime)}` : ''}
+		endTimeIso={event?.endTime}
 		participants={otherParticipants}
 		{callStatus}
 		{isModerator}
+		{hostPresent}
 		onStartMeeting={handleStartMeeting}
+		onResetCall={resetCall}
 	/>
 {:else}
 	<!-- In-call: full-width black background, stays in document flow -->
