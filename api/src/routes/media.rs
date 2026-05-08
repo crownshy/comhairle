@@ -42,7 +42,7 @@ async fn get(
     RequiredAdminUser(user): RequiredAdminUser,
     Path(media_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<MediaDto>), ComhairleError> {
-    let media = media::get_by_id(&state.db, &media_id).await?;
+    let media = media::get_by_id(&state.db, &media_id.into()).await?;
 
     Ok((StatusCode::OK, Json(media.into())))
 }
@@ -126,7 +126,7 @@ async fn delete(
 ) -> Result<(StatusCode, Json<MediaDto>), ComhairleError> {
     let bulk_storage_service = state.required_bulk_storage_service()?;
 
-    let media = media::get_by_id(&state.db, &media_id).await?;
+    let media = media::get_by_id(&state.db, &media_id.into()).await?;
 
     bulk_storage_service.delete_file(&media.storage_key).await?;
 

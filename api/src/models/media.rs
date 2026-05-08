@@ -205,7 +205,7 @@ pub async fn create(
 /// a `ComhairleError::ResourceNotFound` if not found, or a
 /// `ComhairleError` if the query fails for any other reason.
 #[instrument(err(Debug))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> {
+pub async fn get_by_id(db: &PgPool, id: &MediaId) -> Result<Media, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(MediaIden::Table)

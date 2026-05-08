@@ -487,7 +487,7 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
                 Ok(Self {
                     #(
                         #media_fields: {
-                            match media::get_by_id(db, &original.#media_fields.to_owned().into()).await {
+                            match media::get_by_id(db, &original.#media_fields).await {
                                 Ok(media) => Some(media.url),
                                 Err(_) => None,
                             }
@@ -496,8 +496,7 @@ pub fn derive_translatable(input: TokenStream) -> TokenStream {
                     #(
                         #optional_media_fields: {
                             if let Some(media_field) = &original.#optional_media_fields {
-                                // TODO: change model method to take MediaId instead of converting here
-                                match media::get_by_id(db, &media_field.to_owned().into()).await {
+                                match media::get_by_id(db, &media_field).await {
                                     Ok(media) => Some(media.url),
                                     Err(_) => None,
                                 }
