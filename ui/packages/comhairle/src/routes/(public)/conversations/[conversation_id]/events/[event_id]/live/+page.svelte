@@ -673,6 +673,11 @@
 	}
 
 	function handleEndBreakoutSessionCountdown() {
+		const currentEnd = videoCallService.getBreakoutSessionEndTime();
+		if (!currentEnd || !isBreakoutActive) {
+			showToast('No active breakout session to end');
+			return;
+		}
 		const newEnd = new Date(Date.now() + 60 * 1000).toISOString();
 		const message = 'Breakout rooms will finish in 1 min';
 		videoCallService.extendBreakoutSession(eventId, newEnd);
