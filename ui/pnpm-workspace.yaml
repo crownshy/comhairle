@@ -1,2 +1,8 @@
 packages:
-  - "packages/*"
+    - 'packages/*'
+allowBuilds:
+    esbuild: true
+    '@carbon/charts-svelte': true
+    '@carbon/charts': true
+    '@carbon/colors': true
+    '@carbon/utils-position': true
