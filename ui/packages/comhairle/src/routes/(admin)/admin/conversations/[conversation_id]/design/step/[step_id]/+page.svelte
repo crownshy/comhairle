@@ -8,7 +8,13 @@
 	import { useAdminLayoutSlots } from '../../../useAdminLayoutSlots.svelte.js';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
+	import { Button } from '$lib/components/ui/button';
+	import { Pencil } from 'lucide-svelte';
+	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
+	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
 	let { data } = $props();
+
+	let editMetadataOpen = $state(false);
 
 	let conversation = $derived(data.conversation);
 	let step_id = $derived(data.step_id);
@@ -38,7 +44,34 @@
 </svelte:head>
 
 {#snippet titleSnippet()}
-	<h1 class="text-4xl font-bold">Design: {step?.name}</h1>
+	<div class="flex min-w-0 flex-1 flex-col gap-2">
+		<div class="flex flex-wrap items-center gap-3">
+			<h1 class="text-3xl font-semibold sm:text-4xl">
+				{getTextInLocale(
+					step?.translations?.name,
+					conversation.primaryLocale ?? 'en',
+					step?.name ?? ''
+				) || 'Unnamed step'}
+			</h1>
+			<Button
+				onclick={() => (editMetadataOpen = true)}
+				class="bg-sidebar text-sidebar-foreground hover:bg-sidebar/90 h-8 rounded-full px-3 text-xs"
+			>
+				<Pencil class="size-3.5" />
+				Edit
+			</Button>
+		</div>
+		{#if step?.description || step?.translations?.description}
+			<ContentRenderer
+				content={getTextInLocale(
+					step?.translations?.description,
+					conversation.primaryLocale ?? 'en',
+					step?.description ?? ''
+				)}
+				class="text-muted-foreground text-base"
+			/>
+		{/if}
+	</div>
 	<AdminPrevNextControls
 		next={nextStep
 			? {
@@ -69,7 +102,13 @@
 {/snippet}
 
 {#if step}
-	<CommonStepConfig conversation_id={conversation.id} {conversation} {step} />
+	<CommonStepConfig
+		conversation_id={conversation.id}
+		{conversation}
+		{step}
+		headerless
+		bind:open={editMetadataOpen}
+	/>
 {/if}
 
 {#if step && toolConfig?.type === 'learn'}
