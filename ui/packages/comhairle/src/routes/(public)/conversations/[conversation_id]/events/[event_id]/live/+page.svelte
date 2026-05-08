@@ -435,7 +435,7 @@
 	$effect(() => {
 		if (lastBroadcast) {
 			if (!isModerator) {
-				pushNotice({ message: lastBroadcast });
+				showToast(lastBroadcast);
 			}
 			videoCallService.clearLastMessage();
 		}
@@ -640,6 +640,13 @@
 			videoCallService.broadcastMessage(eventId, msg);
 			showToast(`${abs} minute(s) ${verb}`);
 		}
+	}
+
+	function handleEndBreakoutSessionCountdown() {
+		const newEnd = new Date(Date.now() + 60 * 1000).toISOString();
+		videoCallService.extendBreakoutSession(eventId, newEnd);
+		videoCallService.broadcastMessage(eventId, 'Breakout rooms will finish in 1 min');
+		showToast('Breakout rooms will finish in 1 min');
 	}
 
 	async function handleEndBreakoutSession() {
@@ -970,7 +977,7 @@
 							{isModerator}
 							onEnterRoom={handleEnterBreakoutRoom}
 							onUpdateTime={handleUpdateTime}
-							onEndSession={handleEndBreakoutSession}
+							onEndSession={handleEndBreakoutSessionCountdown}
 							onBroadcastMessage={() => (showBroadcast = true)}
 						/>
 					{:else}
@@ -1434,7 +1441,7 @@
 			<Button
 				variant="outline"
 				class="border-input text-destructive hover:bg-destructive/5 hover:text-destructive h-11 w-full text-sm font-medium"
-				onclick={handleEndBreakoutSession}
+				onclick={handleEndBreakoutSessionCountdown}
 			>
 				<CircleStop class="mr-1.5 h-4 w-4" />
 				End breakout session
