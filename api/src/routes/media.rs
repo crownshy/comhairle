@@ -9,13 +9,14 @@ use aide::axum::{
 use axum::extract::{Json, Multipart, Path, Query, State};
 use hyper::StatusCode;
 use tracing::instrument;
-use uuid::Uuid;
 
 use crate::{
     bulk_storage_service::FileMetadata,
     error::ComhairleError,
     models::{
-        media::{self, CreateMedia, MediaContentType, MediaFilterOptions, MediaOrderOptions},
+        media::{
+            self, CreateMedia, MediaContentType, MediaFilterOptions, MediaId, MediaOrderOptions,
+        },
         pagination::{PageOptions, PaginatedResults},
     },
     routes::{auth::RequiredAdminUser, media::dto::MediaDto},
@@ -40,7 +41,7 @@ async fn list(
 async fn get(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
-    Path(media_id): Path<Uuid>,
+    Path(media_id): Path<MediaId>,
 ) -> Result<(StatusCode, Json<MediaDto>), ComhairleError> {
     let media = media::get_by_id(&state.db, &media_id.into()).await?;
 
@@ -122,11 +123,11 @@ async fn upload(
 async fn delete(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
-    Path(media_id): Path<Uuid>,
+    Path(media_id): Path<MediaId>,
 ) -> Result<(StatusCode, Json<MediaDto>), ComhairleError> {
     let bulk_storage_service = state.required_bulk_storage_service()?;
 
-    let media = media::get_by_id(&state.db, &media_id.into()).await?;
+    let media = media::get_by_id(&state.db, &media_id).await?;
 
     bulk_storage_service.delete_file(&media.storage_key).await?;
 
@@ -203,6 +204,8 @@ mod tests {
     use super::*;
 
     use std::error::Error;
+
+    use uuid::Uuid;
 
     use crate::{
         bulk_storage_service::{MockBulkStorageService, UploadResult},

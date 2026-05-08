@@ -21,7 +21,7 @@ use crate::{
 #[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "media")]
 pub struct Media {
-    pub id: Uuid,
+    pub id: MediaId,
     /// Store name in bulk_storage_service
     pub store_name: String,
     /// Identifier in bulk_storage_service
@@ -314,7 +314,7 @@ pub async fn list(
 /// Returns a `Result` containing the deleted `Media` record, or `ComhairleError`
 /// if the query fails.
 #[instrument(err(Debug))]
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> {
+pub async fn delete(db: &PgPool, id: &MediaId) -> Result<Media, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(MediaIden::Table)
         .and_where(Expr::col(MediaIden::Id).eq(id.to_owned()))

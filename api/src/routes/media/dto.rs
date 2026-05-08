@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::models::{
-    media::{Media, MediaContentType},
+    media::{Media, MediaContentType, MediaId},
     pagination::PaginatedResults,
 };
 
@@ -19,7 +19,7 @@ use crate::models::{
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct MediaDto {
-    pub id: Uuid,
+    pub id: MediaId,
     pub store_name: String,
     pub storage_key: String,
     pub url: String,
