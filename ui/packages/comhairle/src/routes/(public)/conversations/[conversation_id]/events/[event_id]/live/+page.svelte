@@ -155,14 +155,16 @@
 	let agendaItems = $derived(mapApiAgenda(event?.agenda ?? []));
 
 	let meetingPhase = $derived.by(() => {
-		const phase =
-			callStatus === null
-				? ('loading' as const)
-				: hasJoinedCall && callStatus === 'Ended'
-					? ('ended' as const)
-					: hasJoinedCall
-						? ('incall' as const)
-						: ('lobby' as const);
+		let phase: 'loading' | 'ended' | 'incall' | 'lobby';
+		if (callStatus === null) {
+			phase = 'loading';
+		} else if (hasJoinedCall && callStatus === 'Ended') {
+			phase = 'ended';
+		} else if (hasJoinedCall) {
+			phase = 'incall';
+		} else {
+			phase = 'lobby';
+		}
 		console.log(
 			'[BREAKOUT] meetingPhase:',
 			phase,
