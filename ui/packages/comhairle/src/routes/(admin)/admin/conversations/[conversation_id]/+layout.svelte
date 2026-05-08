@@ -1,11 +1,19 @@
 <script lang="ts">
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import { Button } from '$lib/components/ui/button';
-	import { MessageSquareText, ArrowUpRight, Check } from 'lucide-svelte';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import {
+		MessageSquareText,
+		ArrowUpRight,
+		MoreHorizontal,
+		Eye,
+		ExternalLink,
+		Check,
+		CircleX
+	} from 'lucide-svelte';
 	import { setContext, type Snippet } from 'svelte';
 	import type { AdminPageSlots } from './slotTypes';
 	import LaunchConversationModal from '$lib/components/LaunchConversationModal.svelte';
-	import { Badge } from '$lib/components/ui/badge';
 	import EndConversationModal from '$lib/components/EndConversationModal.svelte';
 
 	let breadcrumbContent = $state<Snippet | null>(null);
@@ -21,81 +29,160 @@
 	let { data, children } = $props();
 
 	let conversation = $derived(data.conversation);
+	let endModalOpen = $state(false);
 </script>
 
-<div class="flex w-full flex-col justify-between gap-11 border-b-black px-16 py-8">
-	<Breadcrumb.Root>
-		<Breadcrumb.List>
-			<Breadcrumb.Item>
-				<Breadcrumb.Link href="/admin">Workspace</Breadcrumb.Link>
-			</Breadcrumb.Item>
-			<Breadcrumb.Separator />
-			<Breadcrumb.Item>Conversations</Breadcrumb.Item>
-			<Breadcrumb.Separator />
-			<Breadcrumb.Item>
-				<Breadcrumb.Link href={`/admin/conversations/${conversation.id}/configure`}
-					>{conversation.title}</Breadcrumb.Link
+<!-- Top bar: breadcrumb + conversation name + launch controls -->
+<div
+	class="border-base-border bg-background flex w-full flex-col items-center border-b px-4 pt-10 pb-6 sm:px-8 lg:px-16"
+>
+	<!--
+		- xl+: breadcrumb, conversation name, and actions all share one row.
+		- below xl: breadcrumb on its own row
+	-->
+	<div class="flex w-full max-w-[1200px] flex-wrap items-center gap-x-4 gap-y-3">
+		<Breadcrumb.Root class="min-w-0 xl:max-w-[50%]">
+			<Breadcrumb.List class="flex-nowrap">
+				<Breadcrumb.Item class="shrink-0">
+					<Breadcrumb.Link href="/admin">Workspace</Breadcrumb.Link>
+				</Breadcrumb.Item>
+				<Breadcrumb.Separator class="shrink-0" />
+				<Breadcrumb.Item class="shrink-0">Conversations</Breadcrumb.Item>
+				<Breadcrumb.Separator class="shrink-0" />
+				<Breadcrumb.Item class="min-w-0">
+					<Breadcrumb.Link
+						href={`/admin/conversations/${conversation.id}/configure`}
+						class="block max-w-[12ch] truncate sm:max-w-[20ch]"
+						title={conversation.title}
+					>
+						{conversation.title}
+					</Breadcrumb.Link>
+				</Breadcrumb.Item>
+				{#if breadcrumbContent}
+					<Breadcrumb.Separator class="shrink-0" />
+					{@render breadcrumbContent()}
+				{/if}
+			</Breadcrumb.List>
+		</Breadcrumb.Root>
+		<div class="flex w-full min-w-0 items-center gap-3 xl:ml-auto xl:w-auto">
+			<!-- Identity -->
+			<div class="flex min-w-0 shrink items-center gap-2">
+				<MessageSquareText class="text-primary size-5 shrink-0" />
+				<span
+					class="text-primary truncate text-base font-semibold sm:text-lg"
+					title={conversation.title}
 				>
-			</Breadcrumb.Item>
-			{#if breadcrumbContent}
-				<Breadcrumb.Separator />
-				{@render breadcrumbContent()}
-			{/if}
-		</Breadcrumb.List>
-	</Breadcrumb.Root>
-	<div class="flex w-full flex-row items-start justify-between">
-		<div class="flex flex-row gap-4">
-			<div class="flex flex-col gap-4">
-				<h2 class="text-primary flex flex-row items-center gap-2 text-2xl font-bold">
-					<MessageSquareText />
 					{conversation.title}
-				</h2>
-				{#if conversation.isComplete}
-					<p class="text-sm text-red-400">This conversation has closed</p>
+				</span>
+			</div>
+
+			<!-- Actions -->
+			<div class="ml-auto flex shrink-0 items-center gap-2">
+				{#if conversation.isLive}
+					<!--
+						Live state: compact "Launched" pill + 3-dot menu containing
+						Preview, Live Link, and End Conversation (obscured/destructive).
+					-->
+					{#if !conversation.isComplete}
+						<span
+							class="bg-primary text-primary-foreground inline-flex h-10 items-center gap-2 rounded-full py-1 pr-1 pl-5 text-sm font-medium"
+						>
+							Launched
+							<span
+								class="bg-primary-foreground text-primary inline-flex size-8 items-center justify-center rounded-full"
+							>
+								<Check class="size-4" strokeWidth={3} />
+							</span>
+						</span>
+					{/if}
+
+					<DropdownMenu.Root>
+						<DropdownMenu.Trigger
+							class="bg-primary/20 hover:bg-primary/30 inline-flex size-10 items-center justify-center rounded-full"
+							aria-label="More actions"
+						>
+							<MoreHorizontal class="size-4" />
+						</DropdownMenu.Trigger>
+						<DropdownMenu.Content align="end" class="w-56">
+							<DropdownMenu.Item>
+								<a
+									href={`/conversations/${conversation.id}/preview`}
+									target="_blank"
+									class="flex w-full items-center gap-2"
+								>
+									<Eye class="size-4" />
+									Preview
+								</a>
+							</DropdownMenu.Item>
+							<DropdownMenu.Item>
+								<a
+									href={`/conversations/${conversation.id}`}
+									class="flex w-full items-center gap-2"
+								>
+									<ExternalLink class="size-4" />
+									Live Conversation Link
+								</a>
+							</DropdownMenu.Item>
+							<DropdownMenu.Separator />
+							{#if !conversation.isComplete}
+								<DropdownMenu.Item
+									class="text-destructive focus:text-destructive focus:bg-destructive/10 hover:text-destructive! hover:bg-destructive/20!"
+									onclick={() => (endModalOpen = true)}
+								>
+									<CircleX class="text-destructive size-4" />
+									End Conversation
+								</DropdownMenu.Item>
+							{:else}
+								<DropdownMenu.Item onclick={() => (endModalOpen = true)}>
+									<Check class="size-4" />
+									Re-open Conversation
+								</DropdownMenu.Item>
+							{/if}
+						</DropdownMenu.Content>
+					</DropdownMenu.Root>
+
+					<EndConversationModal {conversation} bind:open={endModalOpen} hideTrigger />
+				{:else}
+					<!--
+						Pre-launch state
+					-->
+					<Button
+						href={`/conversations/${conversation.id}/preview`}
+						target="_blank"
+						variant="secondary"
+						class="bg-primary/20 text-foreground hover:bg-primary/30 inline-flex h-10 rounded-full px-4 text-sm"
+					>
+						Preview
+						<ArrowUpRight class="size-4" />
+					</Button>
+
+					<LaunchConversationModal conversation_id={conversation.id} />
 				{/if}
 			</div>
-			<Button
-				href={`/conversations/${conversation.id}/preview`}
-				target="_blank"
-				class="bg-blue-200 px-8 py-3 text-sm text-black"
-			>
-				Preview
-				<ArrowUpRight />
-			</Button>
-			{#if conversation.isLive}
-				<Button
-					href={`/conversations/${conversation.id}`}
-					class="bg-blue-200 px-8 py-3 text-sm text-black"
-				>
-					Live Conversation Link
-					<ArrowUpRight />
-				</Button>
-			{/if}
 		</div>
-
-		<div class="flex flex-col gap-4 md:flex-row">
-			{#if conversation.isLive}
-				{#if !conversation.isComplete}
-					<Badge
-						variant="default"
-						class="flex flex-row items-center justify-between gap-2 px-8 py-2 text-sm"
-						>Launched! <Check
-							class="text-primary size-4 rounded-full bg-white"
-						/></Badge
-					>
-				{/if}
-				<EndConversationModal {conversation} />
-			{:else}
-				<LaunchConversationModal conversation_id={conversation.id} />
-			{/if}
-		</div>
-	</div>
-	<div class="flex w-full flex-row items-center justify-between">
-		{#if titleContent}
-			{@render titleContent()}
-		{/if}
 	</div>
 </div>
-<div class="bg-muted flex-grow px-16 py-18">
-	{@render children()}
+
+<!-- Secondary bar: page title + prev/next navigation -->
+{#if titleContent}
+	<div
+		class="border-base-border bg-background flex w-full flex-col items-center border-b px-4 py-6 sm:px-8 lg:px-16"
+	>
+		<div
+			class="flex w-full max-w-[1200px] flex-col items-start justify-between gap-4 lg:flex-row lg:items-center"
+		>
+			{@render titleContent()}
+		</div>
+		{#if conversation.isComplete}
+			<div class="mt-2 w-full max-w-[1200px]">
+				<p class="text-sm text-red-500">This conversation has closed</p>
+			</div>
+		{/if}
+	</div>
+{/if}
+
+<div class="bg-muted grow px-4 py-8 sm:px-8 sm:pt-10 sm:pb-12 lg:px-16 lg:pb-18">
+	<div class="mx-auto w-full max-w-[1200px]">
+		{@render children()}
+	</div>
 </div>

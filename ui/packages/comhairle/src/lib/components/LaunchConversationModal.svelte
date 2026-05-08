@@ -42,7 +42,7 @@
 
 <Dialog {open}>
 	<DialogTrigger>
-		<Button variant="default">Launch Conversation</Button>
+		<Button variant="default" class="h-[40px]">Launch Conversation</Button>
 	</DialogTrigger>
 
 	<DialogContent>

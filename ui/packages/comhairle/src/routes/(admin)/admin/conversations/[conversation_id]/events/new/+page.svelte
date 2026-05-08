@@ -9,6 +9,7 @@
 	} from '@internationalized/date';
 	import * as Form from '$lib/components/ui/form';
 	import { Input } from '$lib/components/ui/input';
+	import { TimeRangePicker } from '$lib/components/ui/time-picker';
 	import * as RadioGroup from '$lib/components/ui/radio-group';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import { superForm } from 'sveltekit-superforms';
@@ -30,19 +31,30 @@
 	let { form: formDefaults, conversation } = data;
 
 	const form = superForm(formDefaults, {
-		validators: zodClient(NewEventSchema)
+		validators: zodClient(NewEventSchema),
+		onSubmit: handleSubmit
 	});
 
 	const { form: formData, enhance, message: errorMessage, validateForm, submitting } = form;
+
+	let saving = $state(false);
 
 	const df = new DateFormatter('en-UK', {
 		dateStyle: 'long'
 	});
 
-	async function handleSubmit(e: Event) {
+	async function handleSubmit({ cancel }: { cancel: () => void }) {
+		// Submission is fully client-side (apiClient + goto). Cancel the SvelteKit POST so it
+		// doesn't hit the page route, which has no server action (would 405).
+		cancel();
+
+		if (saving) return;
+
 		const result = await validateForm();
 
 		if (!result.valid) return;
+
+		saving = true;
 
 		const dateOption = result.data.start_date;
 		let startTime = parseDateTime(`${dateOption}T${result.data.start_time}`);
@@ -121,6 +133,8 @@
 				message: 'Something went wrong creating the event',
 				priority: 'ERROR'
 			});
+		} finally {
+			saving = false;
 		}
 	}
 
@@ -158,7 +172,7 @@
 	<p class="text-destructive mt-2 text-sm">{$errorMessage}</p>
 {/if}
 
-<form method="POST" onsubmit={handleSubmit} class="mt-8 flex flex-col" use:enhance>
+<form method="POST" class="mt-8 flex flex-col" use:enhance>
 	<!-- Title -->
 	<div
 		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
@@ -269,40 +283,23 @@
 		</Form.Field>
 	</div>
 
-	<!-- Time (Start & End side by side) -->
+	<!-- Time (Start to End range) -->
 	<div
 		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 	>
 		<p class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Time</p>
-		<div class="flex flex-1 gap-6">
-			<Form.Field {form} name="start_time" class="flex-1">
-				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label class="text-sm font-semibold">Start</Form.Label>
-						<Input
-							type="time"
-							{...props}
-							bind:value={$formData.start_time}
-							class="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
-						/>
-					{/snippet}
-				</Form.Control>
-				<Form.FieldErrors />
+		<div class="flex flex-1 flex-col gap-2">
+			<TimeRangePicker
+				startName="start_time"
+				endName="end_time"
+				bind:startValue={$formData.start_time}
+				bind:endValue={$formData.end_time}
+			/>
+			<Form.Field {form} name="start_time" class="contents">
+				<Form.FieldErrors class="text-destructive text-sm" />
 			</Form.Field>
-
-			<Form.Field {form} name="end_time" class="flex-1">
-				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label class="text-sm font-semibold">End</Form.Label>
-						<Input
-							type="time"
-							{...props}
-							bind:value={$formData.end_time}
-							class="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
-						/>
-					{/snippet}
-				</Form.Control>
-				<Form.FieldErrors />
+			<Form.Field {form} name="end_time" class="contents">
+				<Form.FieldErrors class="text-destructive text-sm" />
 			</Form.Field>
 		</div>
 	</div>
@@ -383,7 +380,7 @@
 
 	<!-- Save Button -->
 	<div class="border-border flex justify-center border-t py-6">
-		<Form.Button variant="default" class="px-12" disabled={$submitting}>
+		<Form.Button variant="default" class="px-12" disabled={saving || $submitting}>
 			Save changes
 		</Form.Button>
 	</div>
