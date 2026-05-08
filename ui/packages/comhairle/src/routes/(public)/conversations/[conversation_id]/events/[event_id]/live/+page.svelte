@@ -674,9 +674,10 @@
 
 	function handleEndBreakoutSessionCountdown() {
 		const newEnd = new Date(Date.now() + 60 * 1000).toISOString();
+		const message = 'Breakout rooms will finish in 1 min';
 		videoCallService.extendBreakoutSession(eventId, newEnd);
-		videoCallService.broadcastMessage(eventId, 'Breakout rooms will finish in 1 min');
-		showToast('Breakout rooms will finish in 1 min');
+		videoCallService.broadcastMessage(eventId, message);
+		showToast(message);
 	}
 
 	async function handleEndBreakoutSession() {
