@@ -50,7 +50,7 @@
 
 		if (saving) return;
 
-		const result = await validateForm();
+		const result = await validateForm({ update: true });
 
 		if (!result.valid) return;
 
@@ -84,6 +84,13 @@
 				.map((r, i) => ({ r, email: facilitators[i] }))
 				.filter(({ r }) => r.status === 'rejected')
 				.map(({ email }) => email);
+			if (failedFacilitators.length === facilitators.length) {
+				notifications.send({
+					priority: 'ERROR',
+					message: `Could not add any facilitators (${failedFacilitators.join(', ')}). Event was not fully created.`
+				});
+				return;
+			}
 			if (failedFacilitators.length > 0) {
 				notifications.send({
 					priority: 'WARNING',
@@ -226,7 +233,16 @@
 						>Capacity</Form.Label
 					>
 					<div class="flex-1">
-						<Input type="number" {...props} bind:value={$formData.capacity} />
+						<Input
+							type="number"
+							{...props}
+							placeholder="Capacity"
+							value={$formData.capacity ? $formData.capacity : ''}
+							oninput={(e) => {
+								const n = (e.currentTarget as HTMLInputElement).valueAsNumber;
+								$formData.capacity = Number.isNaN(n) ? 0 : n;
+							}}
+						/>
 						<Form.FieldErrors />
 					</div>
 				{/snippet}
@@ -249,8 +265,8 @@
 							<Popover.Trigger
 								{...props}
 								class={cn(
-									buttonVariants({ variant: 'outline' }),
-									'w-full max-w-xs justify-start pl-4 text-left font-normal',
+									'bg-background border-input selection:bg-primary dark:bg-input/30 selection:text-primary-background ring-offset-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex h-9 w-full min-w-0 items-center rounded-lg border px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
+									'max-w-xs justify-start pl-4 text-left font-normal',
 									!startDate && 'text-muted-foreground'
 								)}
 							>
@@ -292,6 +308,10 @@
 			<TimeRangePicker
 				startName="start_time"
 				endName="end_time"
+				class={cn(
+					'dark:bg-input/30',
+					!$formData.start_time && !$formData.end_time && 'text-muted-foreground'
+				)}
 				bind:startValue={$formData.start_time}
 				bind:endValue={$formData.end_time}
 			/>

@@ -6,7 +6,10 @@ const NewEventSchema = z
 		description: z
 			.string()
 			.min(20, { message: 'Description must have at least 20 characters.' }),
-		capacity: z.number(),
+		capacity: z
+			.number({ invalid_type_error: 'Capacity is required.' })
+			.int({ message: 'Capacity must be a whole number.' })
+			.min(2, { message: 'Capacity must be at least 2.' }),
 		start_date: z
 			.string()
 			.date()
@@ -22,7 +25,8 @@ const NewEventSchema = z
 		}),
 		facilitators: z
 			.array(z.string().email({ message: 'Each facilitator must be a valid email address.' }))
-			.min(1, { message: 'Add at least one facilitator.' })
+			.default([])
+			.refine((arr) => arr.length >= 1, { message: 'Add at least one facilitator.' })
 	})
 	.superRefine((data, ctx) => {
 		if (data.start_time && data.end_time && data.end_time <= data.start_time) {
