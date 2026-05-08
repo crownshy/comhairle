@@ -7,6 +7,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { formatDateShort, formatTime } from '$lib/utils';
 	import { ArrowLeft, CalendarDays, Clock, Users, UserCheck, Info } from 'lucide-svelte';
+	import { onMount } from 'svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -28,7 +29,7 @@
 	 * swap to formatted local time after mount.
 	 */
 	let mounted = $state(false);
-	$effect(() => {
+	onMount(() => {
 		mounted = true;
 	});
 
