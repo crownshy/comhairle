@@ -72,6 +72,19 @@ pub async fn create(db: &PgPool, user_id: &Uuid) -> Result<Otp, ComhairleError> 
         return Err(ComhairleError::WrongUserType);
     }
 
+    // Set any existing, pending otps to `error` so that only one pending otp
+    // exists for a user
+    let (sql, values) = Query::update()
+        .table(OtpIden::Table)
+        .values([(OtpIden::Status, OtpStatus::Error.into())])
+        .and_where(Expr::col(OtpIden::UserId).eq(user_id.to_owned()))
+        .and_where(Expr::col(OtpIden::Status).eq(OtpStatus::Pending))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let _ = sqlx::query_as_with::<_, Otp, _>(&sql, values)
+        .fetch_all(db)
+        .await?;
+
     let random_code = gen_id();
     let expires_at = Utc::now() + Duration::minutes(10);
 
@@ -109,16 +122,20 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Otp, ComhairleError> {
 }
 
 #[instrument(err(Debug))]
-pub async fn get_by_user_code(
+pub async fn accept(
     db: &PgPool,
     user_id: &Uuid,
     code: &str,
+    now: DateTime<Utc>,
 ) -> Result<Otp, ComhairleError> {
-    let (sql, values) = Query::select()
-        .columns(DEFAULT_COLUMNS)
-        .from(OtpIden::Table)
+    let (sql, values) = Query::update()
+        .table(OtpIden::Table)
+        .values([(OtpIden::Status, OtpStatus::Accepted.into())])
         .and_where(Expr::col(OtpIden::UserId).eq(user_id.to_owned()))
         .and_where(Expr::col(OtpIden::Code).eq(code.to_owned()))
+        .and_where(Expr::col(OtpIden::Status).eq(OtpStatus::Pending))
+        .and_where(Expr::col(OtpIden::ExpiresAt).gt(now))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
     let otp = sqlx::query_as_with(&sql, values)
@@ -130,35 +147,6 @@ pub async fn get_by_user_code(
             }
             other => ComhairleError::DatabaseError(other),
         })?;
-
-    Ok(otp)
-}
-
-#[derive(Deserialize, Debug, JsonSchema)]
-pub struct UpdateOtp {
-    status: Option<OtpStatus>,
-}
-
-#[instrument(err(Debug))]
-pub async fn update(db: &PgPool, id: &Uuid, update: &UpdateOtp) -> Result<Otp, ComhairleError> {
-    let mut values = vec![];
-
-    if let Some(value) = update.status {
-        values.push((OtpIden::Status, value.into()));
-    }
-
-    if values.is_empty() {
-        return Err(ComhairleError::NoValidUpdates);
-    }
-
-    let (sql, values) = Query::update()
-        .table(OtpIden::Table)
-        .values(values)
-        .and_where(Expr::col(OtpIden::Id).eq(id.to_owned()))
-        .returning(Query::returning().columns(DEFAULT_COLUMNS))
-        .build_sqlx(PostgresQueryBuilder);
-
-    let otp = sqlx::query_as_with(&sql, values).fetch_one(db).await?;
 
     Ok(otp)
 }
@@ -193,6 +181,32 @@ mod tests {
         assert_eq!(otp.status, OtpStatus::Pending, "incorrect default status");
         assert!(otp.expires_at >= lower);
         assert!(otp.expires_at <= upper);
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_mark_existing_otps_as_error_when_new_otp_created(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let user = users::create_otp_user(
+            &OtpSignupRequest {
+                email: "test@user.com".to_string(),
+            },
+            &pool,
+        )
+        .await?;
+
+        let first = create(&pool, &user.id).await?;
+        let second = create(&pool, &user.id).await?;
+        let third = create(&pool, &user.id).await?;
+
+        let first = get_by_id(&pool, &first.id).await?;
+        let second = get_by_id(&pool, &second.id).await?;
+
+        assert_eq!(first.status, OtpStatus::Error, "incorrect first status");
+        assert_eq!(second.status, OtpStatus::Error, "incorrect second status");
+        assert_eq!(third.status, OtpStatus::Pending, "incorrect third status");
 
         Ok(())
     }
@@ -240,10 +254,43 @@ mod tests {
 
         let new_otp = create(&pool, &user.id).await?;
 
-        let otp = get_by_user_code(&pool, &user.id, &new_otp.code).await?;
+        let now = Utc::now();
+        let otp = accept(&pool, &user.id, &new_otp.code, now).await?;
 
         assert_eq!(otp.user_id, user.id, "incorrect user_id");
         assert_eq!(otp.code, new_otp.code, "incorrect code");
+        assert_eq!(otp.status, OtpStatus::Accepted, "incorrect status");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_return_error_for_expired_otps(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let user = users::create_otp_user(
+            &OtpSignupRequest {
+                email: "test@user.com".to_string(),
+            },
+            &pool,
+        )
+        .await?;
+
+        let new_otp = create(&pool, &user.id).await?;
+
+        let now = Utc::now() + Duration::minutes(11);
+        let error = accept(&pool, &user.id, &new_otp.code, now)
+            .await
+            .unwrap_err();
+
+        match error {
+            ComhairleError::ResourceNotFound(e) => {
+                assert_eq!(
+                    e,
+                    "One time passcode".to_string(),
+                    "incorrect error message"
+                );
+            }
+            _ => panic!("Wrong error type"),
+        }
 
         Ok(())
     }
@@ -262,10 +309,11 @@ mod tests {
 
         let new_otp = create(&pool, &user.id).await?;
 
-        let first_error = get_by_user_code(&pool, &Uuid::new_v4(), &new_otp.code)
+        let now = Utc::now();
+        let first_error = accept(&pool, &Uuid::new_v4(), &new_otp.code, now)
             .await
             .unwrap_err();
-        let second_error = get_by_user_code(&pool, &user.id, "wrong code")
+        let second_error = accept(&pool, &user.id, "wrong code", now)
             .await
             .unwrap_err();
 
@@ -277,32 +325,6 @@ mod tests {
             }
             _ => panic!("Wrong error type"),
         }
-
-        Ok(())
-    }
-
-    #[sqlx::test]
-    async fn should_update_otp_status(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let user = users::create_otp_user(
-            &OtpSignupRequest {
-                email: "test@user.com".to_string(),
-            },
-            &pool,
-        )
-        .await?;
-
-        let new_otp = create(&pool, &user.id).await?;
-
-        let otp = update(
-            &pool,
-            &new_otp.id,
-            &UpdateOtp {
-                status: Some(OtpStatus::Accepted),
-            },
-        )
-        .await?;
-
-        assert_eq!(otp.status, OtpStatus::Accepted, "incorrect status");
 
         Ok(())
     }
