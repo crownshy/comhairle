@@ -11,6 +11,7 @@ pub mod media;
 pub mod notification;
 pub mod notification_delivery;
 pub mod organization;
+pub mod otp;
 pub mod pagination;
 pub mod region;
 pub mod report;
