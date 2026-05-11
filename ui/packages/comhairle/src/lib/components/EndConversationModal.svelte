@@ -19,10 +19,11 @@
 
 	type Props = {
 		conversation: ConversationDto;
+		open?: boolean;
+		hideTrigger?: boolean;
 	};
 
-	let { conversation }: Props = $props();
-	let open = $state(false);
+	let { conversation, open = $bindable(false), hideTrigger = false }: Props = $props();
 	const loader = useLoading();
 
 	async function toggleComplete() {
@@ -57,14 +58,42 @@
 </script>
 
 {#if conversation.isComplete}
-	<Button variant="outline" onclick={toggleComplete}>Re-open Conversation</Button>
+	{#if !hideTrigger}
+		<Button variant="outline" onclick={toggleComplete}>Re-open Conversation</Button>
+	{/if}
+
+	<Dialog bind:open>
+		<DialogContent>
+			<DialogHeader>
+				<DialogTitle>Re-open this conversation?</DialogTitle>
+			</DialogHeader>
+
+			<Alert>
+				<AlertTitle>Re-open</AlertTitle>
+				<AlertDescription>
+					This will re-open the conversation so participants can take part again.
+				</AlertDescription>
+			</Alert>
+
+			<DialogFooter>
+				<LoadingButton variant="default" onclick={toggleComplete} loading={loader.loading}>
+					Re-open
+				</LoadingButton>
+				<Button onclick={cancel} variant="outline">cancel</Button>
+			</DialogFooter>
+		</DialogContent>
+	</Dialog>
 {:else}
-	<Dialog {open}>
-		<DialogTrigger>
-			<Button variant="outline" class="text-red-400"
-				><LucideCircleX /> End Conversation</Button
-			>
-		</DialogTrigger>
+	<Dialog bind:open>
+		{#if !hideTrigger}
+			<DialogTrigger>
+				<Button
+					variant="outline"
+					class="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive!"
+					><LucideCircleX /> End Conversation</Button
+				>
+			</DialogTrigger>
+		{/if}
 
 		<DialogContent>
 			<DialogHeader>

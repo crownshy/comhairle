@@ -22,11 +22,16 @@ export const load: PageLoad = async ({ params, parent }) => {
 			queries: { role: 'moderator' }
 		});
 
+		const invites = await api.ListInvitesForEvent({
+			params: { conversation_id: conversation.id, event_id }
+		});
+
 		return {
 			event,
 			conversation,
 			facilitators: facilitators.records,
-			moderators: moderators.records
+			moderators: moderators.records,
+			invites
 		};
 	} catch (e) {
 		console.error(e);

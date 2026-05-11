@@ -50,7 +50,13 @@
 
 	let callStatus = $derived(videoCallService.callStatus);
 	let allParticipants = $derived(videoCallService.participants);
-	let otherParticipants = $derived(allParticipants.filter((p) => p.user_id !== user?.id));
+	let otherParticipants = $derived(
+		allParticipants.filter((p) => {
+			if (p.user_id === user?.id) return false;
+			if (!isModerator && (p.role === 'moderator' || p.role === 'facilitator')) return false;
+			return true;
+		})
+	);
 
 	/** Participants actually in Jitsi call (excludes current user + lobby-only users) */
 	let inCallParticipants = $derived(
@@ -149,14 +155,16 @@
 	let agendaItems = $derived(mapApiAgenda(event?.agenda ?? []));
 
 	let meetingPhase = $derived.by(() => {
-		const phase =
-			callStatus === null
-				? ('loading' as const)
-				: callStatus === 'Ended'
-					? ('ended' as const)
-					: hasJoinedCall
-						? ('incall' as const)
-						: ('lobby' as const);
+		let phase: 'loading' | 'ended' | 'incall' | 'lobby';
+		if (callStatus === null) {
+			phase = 'loading';
+		} else if (hasJoinedCall && callStatus === 'Ended') {
+			phase = 'ended';
+		} else if (hasJoinedCall) {
+			phase = 'incall';
+		} else {
+			phase = 'lobby';
+		}
 		console.log(
 			'[BREAKOUT] meetingPhase:',
 			phase,
@@ -168,6 +176,13 @@
 		);
 		return phase;
 	});
+
+	/** True if any moderator/facilitator (other than current user) is in the lobby. */
+	let hostPresent = $derived(
+		allParticipants.some(
+			(p) => p.user_id !== user?.id && (p.role === 'moderator' || p.role === 'facilitator')
+		)
+	);
 
 	let isBreakoutActive = $derived(breakoutSession !== null);
 	let inBreakoutRoom = $derived(typeof roomContext !== 'string');
@@ -429,7 +444,7 @@
 	$effect(() => {
 		if (lastBroadcast) {
 			if (!isModerator) {
-				pushNotice({ message: lastBroadcast });
+				showToast(lastBroadcast);
 			}
 			videoCallService.clearLastMessage();
 		}
@@ -456,15 +471,36 @@
 		}, 4000);
 	}
 
+	/** clears all call and UI state */
+	function resetCall() {
+		videoCallService.changeCallState(eventId, 'Waiting');
+		videoCallService.setAgendaItem(eventId, 0);
+		videoCallService.endBreakoutSession(eventId);
+		hasJoinedCall = false;
+		roomContext = 'plenary';
+		showCreateBreakout = false;
+		breakoutDialogItem = null;
+		showBroadcast = false;
+		showEndMeeting = false;
+		activePanel = 'agenda';
+		noticeQueue = [];
+		showBreakoutEnding = false;
+		breakoutEndingDismissed = false;
+		breakoutAutoEnded = false;
+		trackedRoomIndex = null;
+		jitsiBreakoutRooms = {};
+		breakoutRoomsReady = false;
+		mockBreakoutRooms = [];
+		mobileRoomIndex = 0;
+		mobileAgendaViewIndex = 0;
+		mobileSheetCollapsed = false;
+		seenAssistanceRequests = new Set();
+	}
+
 	/** DEV ONLY: reset call state to Waiting */
 	function devResetCall() {
 		if (dev) {
-			videoCallService.changeCallState(eventId, 'Waiting');
-			videoCallService.setAgendaItem(eventId, 0);
-			videoCallService.endBreakoutSession(eventId);
-			hasJoinedCall = false;
-			roomContext = 'plenary';
-			showCreateBreakout = false;
+			resetCall();
 			console.log('DEV: Call state reset to Waiting');
 		}
 	}
@@ -634,6 +670,19 @@
 			videoCallService.broadcastMessage(eventId, msg);
 			showToast(`${abs} minute(s) ${verb}`);
 		}
+	}
+
+	function handleEndBreakoutSessionCountdown() {
+		const currentEnd = videoCallService.getBreakoutSessionEndTime();
+		if (!currentEnd || !isBreakoutActive) {
+			showToast('No active breakout session to end');
+			return;
+		}
+		const newEnd = new Date(Date.now() + 60 * 1000).toISOString();
+		const message = 'Breakout rooms will finish in 1 min';
+		videoCallService.extendBreakoutSession(eventId, newEnd);
+		videoCallService.broadcastMessage(eventId, message);
+		showToast(message);
 	}
 
 	async function handleEndBreakoutSession() {
@@ -808,23 +857,20 @@
 		title={event?.name ?? 'Meeting'}
 		conversationUrl={`/conversations/${conversationId}`}
 		{isModerator}
-		onResetCall={() => {
-			videoCallService.changeCallState(eventId, 'Waiting');
-			videoCallService.setAgendaItem(eventId, 0);
-			videoCallService.endBreakoutSession(eventId);
-			hasJoinedCall = false;
-			roomContext = 'plenary';
-		}}
+		onResetCall={resetCall}
 	/>
 {:else if meetingPhase === 'lobby'}
 	<MeetingLobby
 		title={event?.name ?? 'Meeting'}
 		scheduledTime={scheduledTimeText}
 		endedTime={event ? `${formatDateShort(event.endTime)} ${formatTime(event.endTime)}` : ''}
+		endTimeIso={event?.endTime}
 		participants={otherParticipants}
 		{callStatus}
 		{isModerator}
+		{hostPresent}
 		onStartMeeting={handleStartMeeting}
+		onResetCall={resetCall}
 	/>
 {:else}
 	<!-- In-call: full-width black background, stays in document flow -->
@@ -964,7 +1010,7 @@
 							{isModerator}
 							onEnterRoom={handleEnterBreakoutRoom}
 							onUpdateTime={handleUpdateTime}
-							onEndSession={handleEndBreakoutSession}
+							onEndSession={handleEndBreakoutSessionCountdown}
 							onBroadcastMessage={() => (showBroadcast = true)}
 						/>
 					{:else}
@@ -1428,7 +1474,7 @@
 			<Button
 				variant="outline"
 				class="border-input text-destructive hover:bg-destructive/5 hover:text-destructive h-11 w-full text-sm font-medium"
-				onclick={handleEndBreakoutSession}
+				onclick={handleEndBreakoutSessionCountdown}
 			>
 				<CircleStop class="mr-1.5 h-4 w-4" />
 				End breakout session

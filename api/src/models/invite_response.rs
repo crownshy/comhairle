@@ -64,5 +64,5 @@ pub async fn create(
     sqlx::query_as_with::<_, InviteResponse, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(ComhairleError::FailedToCreateInvite)
+        .map_err(ComhairleError::FailedToCreateInviteResponse)
 }

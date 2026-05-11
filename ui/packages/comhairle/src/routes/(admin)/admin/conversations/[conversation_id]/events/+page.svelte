@@ -29,6 +29,12 @@
 			name: 'Knowledge base',
 			url: `/admin/conversations/${conversation.id}/knowledge-base`
 		}}
+		next={conversation.isLive
+			? {
+					name: 'Recruit',
+					url: `/admin/conversations/${conversation.id}/invites`
+				}
+			: undefined}
 	/>
 {/snippet}
 

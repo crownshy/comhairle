@@ -16,6 +16,7 @@ use axum::{
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use bon::builder;
 use chrono::TimeDelta;
+use cookie::CookieBuilder;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
 use rand_core::OsRng;
 use regex::Regex;
@@ -47,9 +48,9 @@ use uuid::Uuid;
 use crate::{
     error::ComhairleError,
     models::users::{
-        create_annon_user, create_user, get_user_by_email, get_user_by_id, get_user_by_username,
-        get_user_resource_roles, update_user, Resource, Role, UpdateUserRequest, User,
-        UserAuthType, UserResourceRole,
+        create_annon_user, create_otp_user, create_user, get_user_by_email, get_user_by_id,
+        get_user_by_username, get_user_resource_roles, update_user, Resource, Role,
+        UpdateUserRequest, User, UserAuthType, UserResourceRole,
     },
     routes::user::dto::UserDto,
     ComhairleState,
@@ -285,39 +286,10 @@ async fn signup(
     validate_password_strength(&payload.password)?;
 
     let user = create_user(&payload, &state.db).await?;
-    let claims = EmailLinkClaims {
-        email: user.email.clone(),
-    };
-    let verification_token = generate_jwt()
-        .user(&user)
-        .secret(&state.config.jwt_secret)
-        .custom_claims(claims)
-        .duration(chrono::Duration::minutes(15))
-        .call();
-    let verify_link = format!(
-        "{}/auth/verify-user?token={}",
-        state.config.domain, verification_token
-    );
 
-    state.mailer.send_welcome_email(&user, verify_link)?;
+    send_verification_email(&user, &state)?;
 
-    let claims = SessionClaims {
-        username: user.username.clone(),
-        sudo_user: None,
-        email_verified: user.email_verified,
-        roles: Vec::new(),
-    };
-    let session_token = generate_jwt()
-        .user(&user)
-        .secret(&state.config.jwt_secret)
-        .custom_claims(claims)
-        .call();
-    let cookie = Cookie::build((AUTH_KEY, session_token))
-        .path("/")
-        .secure(true)
-        .http_only(true)
-        .same_site(SameSite::None)
-        .max_age(Duration::days(7));
+    let cookie = create_session_cookie(&user, &state);
 
     let user: UserDto = user.into();
     Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
@@ -330,24 +302,30 @@ async fn signup_annon(
     jar: CookieJar,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
     let user = create_annon_user(&state.db).await?;
-    let claims = SessionClaims {
-        username: user.username.clone(),
-        sudo_user: None,
-        email_verified: user.email_verified,
-        roles: Vec::new(),
-    };
-    let token = generate_jwt()
-        .user(&user)
-        .secret(&state.config.jwt_secret)
-        .custom_claims(claims)
-        .call();
 
-    let cookie = Cookie::build((AUTH_KEY, token))
-        .path("/")
-        .secure(true)
-        .http_only(true)
-        .same_site(SameSite::None)
-        .max_age(Duration::days(7));
+    let cookie = create_session_cookie(&user, &state);
+
+    let user: UserDto = user.into();
+    Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
+}
+
+#[derive(Deserialize, Debug, JsonSchema)]
+#[cfg_attr(test, derive(Dummy))]
+pub struct OtpSignupRequest {
+    pub email: String,
+}
+
+#[instrument(err(Debug), skip(state, payload))]
+async fn signup_otp(
+    State(state): State<Arc<ComhairleState>>,
+    jar: CookieJar,
+    Json(payload): Json<OtpSignupRequest>,
+) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
+    let user = create_otp_user(&payload, &state.db).await?;
+
+    send_verification_email(&user, &state)?;
+
+    let cookie = create_session_cookie(&user, &state);
 
     let user: UserDto = user.into();
     Ok((jar.add(cookie), (StatusCode::CREATED, Json(user))))
@@ -834,6 +812,48 @@ pub async fn test_requires_roles(
     Ok((StatusCode::OK, Json(user)))
 }
 
+fn send_verification_email(user: &User, state: &Arc<ComhairleState>) -> Result<(), ComhairleError> {
+    let claims = EmailLinkClaims {
+        email: user.email.clone(),
+    };
+    let verification_token = generate_jwt()
+        .user(user)
+        .secret(&state.config.jwt_secret)
+        .custom_claims(claims)
+        .duration(chrono::Duration::minutes(15))
+        .call();
+    let verify_link = format!(
+        "{}/auth/verify-user?token={}",
+        state.config.domain, verification_token
+    );
+
+    state.mailer.send_welcome_email(user, verify_link)?;
+
+    Ok(())
+}
+
+pub fn create_session_cookie<'a>(user: &User, state: &Arc<ComhairleState>) -> CookieBuilder<'a> {
+    let claims = SessionClaims {
+        username: user.username.clone(),
+        sudo_user: None,
+        email_verified: user.email_verified,
+        roles: Vec::new(),
+    };
+
+    let session_token = generate_jwt()
+        .user(user)
+        .secret(&state.config.jwt_secret)
+        .custom_claims(claims)
+        .call();
+
+    Cookie::build((AUTH_KEY, session_token))
+        .path("/")
+        .secure(true)
+        .http_only(true)
+        .same_site(SameSite::None)
+        .max_age(Duration::days(7))
+}
+
 /// Function to set up the auth routes
 pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
@@ -870,6 +890,15 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("SignupAnnonUser")
                     .tag("Auth")
                     .summary("Signup and annon user")
+                    .response::<201, Json<UserDto>>()
+            }),
+        )
+        .api_route(
+            "/signup_otp",
+            post_with(signup_otp, |op| {
+                op.id("SignupOtp")
+                    .tag("Auth")
+                    .summary("Signup a one-time-password user with an email")
                     .response::<201, Json<UserDto>>()
             }),
         )
@@ -960,6 +989,7 @@ mod tests {
     use argon2::{Argon2, PasswordHash, PasswordVerifier};
     use axum::http::StatusCode;
     use mockall::predicate::{always, eq};
+    use serde_json::json;
     use sqlx::PgPool;
     use std::{error::Error, sync::Arc};
     use uuid::Uuid;
@@ -1046,6 +1076,39 @@ mod tests {
         );
 
         assert_ne!(user.id, Uuid::nil(), "current user should contain an id");
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_signup_otp_user(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let email = "test_email";
+
+        let mut mailer = MockComhairleMailer::new();
+        mailer
+            .expect_send_welcome_email()
+            .once()
+            .returning(|_, _| Ok(()));
+
+        mailer.expect_send_verification_email().times(0);
+        mailer.expect_send_password_reset_email().times(0);
+
+        let state = test_state().db(pool).mailer(Arc::new(mailer)).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new_admin();
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/auth/signup_otp",
+                json!({ "email": email }).to_string().into(),
+            )
+            .await?;
+        let user: UserDto = serde_json::from_value(value)?;
+
+        assert_eq!(user.email, Some(email.to_string()), "incorrect email");
+        assert_eq!(user.auth_type, UserAuthType::Otp, "incorrect auth type");
+
         Ok(())
     }
 

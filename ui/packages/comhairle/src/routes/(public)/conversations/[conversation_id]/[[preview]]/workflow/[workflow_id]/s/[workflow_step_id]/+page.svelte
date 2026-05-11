@@ -19,7 +19,7 @@
 	const queryString = $derived(url.search);
 
 	let { data }: PageProps = $props();
-	let { user } = data;
+	let { user, preview: isPreview } = data;
 	let workflow_id = $derived(data.workflow_id);
 	let workflowStep = $derived(data.workflowStep);
 	let conversation = $derived(data.conversation);
@@ -62,7 +62,6 @@
 				status = 'upcoming';
 			}
 
-			const isPreview = !conversation.isLive;
 			const href =
 				status === 'completed'
 					? workflow_step_url(conversation.id, workflow_id, ws.id, isPreview) +

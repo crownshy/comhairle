@@ -9,12 +9,13 @@
 	} from '@internationalized/date';
 	import * as Form from '$lib/components/ui/form';
 	import { Input } from '$lib/components/ui/input';
+	import { TimeRangePicker } from '$lib/components/ui/time-picker';
 	import * as RadioGroup from '$lib/components/ui/radio-group';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import NewEventSchema from './NewEventSchema';
-	import { CalendarIcon } from 'lucide-svelte';
+	import { CalendarIcon, AlertCircle } from 'lucide-svelte';
 	import Calendar from '$lib/components/ui/calendar/calendar.svelte';
 	import { cn } from '$lib/utils';
 	import { buttonVariants } from '$lib/components/ui/button';
@@ -23,25 +24,43 @@
 	import { goto } from '$app/navigation';
 	import { basic_learn_config } from '$lib/workflow_templates';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
+	import BadgeInput from '$lib/components/ui/badge-input/badge-input.svelte';
+	import * as Alert from '$lib/components/ui/alert';
 	import { useAdminLayoutSlots } from '../../useAdminLayoutSlots.svelte';
 
 	let { data } = $props();
 	let { form: formDefaults, conversation } = data;
 
 	const form = superForm(formDefaults, {
-		validators: zodClient(NewEventSchema)
+		validators: zodClient(NewEventSchema),
+		onSubmit: handleSubmit
 	});
 
 	const { form: formData, enhance, message: errorMessage, validateForm, submitting } = form;
+
+	let saving = $state(false);
+	let submitError = $state<string | null>(null);
 
 	const df = new DateFormatter('en-UK', {
 		dateStyle: 'long'
 	});
 
-	async function handleSubmit(e: Event) {
-		const result = await validateForm();
+	async function handleSubmit({ cancel }: { cancel: () => void }) {
+		// Submission is fully client-side (apiClient + goto). Cancel the SvelteKit POST so it
+		// doesn't hit the page route, which has no server action (would 405).
+		cancel();
 
-		if (!result.valid) return;
+		if (saving) return;
+
+		const result = await validateForm({ update: true });
+
+		if (!result.valid) {
+			submitError = 'Please fix the errors below before saving.';
+			return;
+		}
+
+		submitError = null;
+		saving = true;
 
 		const dateOption = result.data.start_date;
 		let startTime = parseDateTime(`${dateOption}T${result.data.start_time}`);
@@ -49,14 +68,40 @@
 		let endTime = parseDateTime(`${dateOption}T${result.data.end_time}`);
 
 		try {
+			const { facilitators, ...eventData } = result.data;
 			const eventParams = {
-				...result.data,
+				...eventData,
 				start_time: startTime.toDate(getLocalTimeZone()).toISOString(),
 				end_time: endTime.toDate(getLocalTimeZone()).toISOString()
 			};
 			let event = await apiClient.CreateEvent(eventParams, {
 				params: { conversation_id: conversation.id }
 			});
+
+			const facilitatorResults = await Promise.allSettled(
+				facilitators.map((email) =>
+					apiClient.CreateFacilitatorEventAttendance(
+						{ email },
+						{ params: { conversation_id: conversation.id, event_id: event.id } }
+					)
+				)
+			);
+			const failedFacilitators = facilitatorResults
+				.map((r, i) => ({ r, email: facilitators[i] }))
+				.filter(({ r }) => r.status === 'rejected')
+				.map(({ email }) => email);
+			if (failedFacilitators.length === facilitators.length) {
+				const msg = `Could not add facilatators (${failedFacilitators.join(', ')}). They may not be registered users. Event was not created.`;
+				submitError = msg;
+				notifications.send({ priority: 'ERROR', message: msg });
+				return;
+			}
+			if (failedFacilitators.length > 0) {
+				notifications.send({
+					priority: 'WARNING',
+					message: `Could not add facilitator(s): ${failedFacilitators.join(', ')}`
+				});
+			}
 
 			let workflow = await apiClient.CreateEventWorkflow(
 				{
@@ -96,10 +141,13 @@
 			goto(`/admin/conversations/${conversation.id}/events`);
 		} catch (e) {
 			console.error(e);
+			submitError = 'Something went wrong creating the event.';
 			notifications.send({
 				message: 'Something went wrong creating the event',
 				priority: 'ERROR'
 			});
+		} finally {
+			saving = false;
 		}
 	}
 
@@ -133,11 +181,15 @@
 	<h2 class="text-card-foreground text-base font-semibold">Edit information</h2>
 </div>
 
-{#if $errorMessage}
-	<p class="text-destructive mt-2 text-sm">{$errorMessage}</p>
+{#if submitError || $errorMessage}
+	<Alert.Root variant="destructive" class="mt-4">
+		<AlertCircle class="size-4" />
+		<Alert.Title>Could not create event</Alert.Title>
+		<Alert.Description>{submitError ?? $errorMessage}</Alert.Description>
+	</Alert.Root>
 {/if}
 
-<form method="POST" onsubmit={handleSubmit} class="mt-8 flex flex-col" use:enhance>
+<form method="POST" class="mt-8 flex flex-col" use:enhance>
 	<!-- Title -->
 	<div
 		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
@@ -191,7 +243,16 @@
 						>Capacity</Form.Label
 					>
 					<div class="flex-1">
-						<Input type="number" {...props} bind:value={$formData.capacity} />
+						<Input
+							type="number"
+							{...props}
+							placeholder="Capacity"
+							value={$formData.capacity ? $formData.capacity : ''}
+							oninput={(e) => {
+								const n = (e.currentTarget as HTMLInputElement).valueAsNumber;
+								$formData.capacity = Number.isNaN(n) ? 0 : n;
+							}}
+						/>
 						<Form.FieldErrors />
 					</div>
 				{/snippet}
@@ -214,8 +275,8 @@
 							<Popover.Trigger
 								{...props}
 								class={cn(
-									buttonVariants({ variant: 'outline' }),
-									'w-full max-w-xs justify-start pl-4 text-left font-normal',
+									'bg-background border-input selection:bg-primary dark:bg-input/30 selection:text-primary-background ring-offset-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex h-9 w-full min-w-0 items-center rounded-lg border px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
+									'max-w-xs justify-start pl-4 text-left font-normal',
 									!startDate && 'text-muted-foreground'
 								)}
 							>
@@ -248,40 +309,27 @@
 		</Form.Field>
 	</div>
 
-	<!-- Time (Start & End side by side) -->
+	<!-- Time (Start to End range) -->
 	<div
 		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 	>
 		<p class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Time</p>
-		<div class="flex flex-1 gap-6">
-			<Form.Field {form} name="start_time" class="flex-1">
-				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label class="text-sm font-semibold">Start</Form.Label>
-						<Input
-							type="time"
-							{...props}
-							bind:value={$formData.start_time}
-							class="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
-						/>
-					{/snippet}
-				</Form.Control>
-				<Form.FieldErrors />
+		<div class="flex flex-1 flex-col gap-2">
+			<TimeRangePicker
+				startName="start_time"
+				endName="end_time"
+				class={cn(
+					'dark:bg-input/30',
+					!$formData.start_time && !$formData.end_time && 'text-muted-foreground'
+				)}
+				bind:startValue={$formData.start_time}
+				bind:endValue={$formData.end_time}
+			/>
+			<Form.Field {form} name="start_time" class="contents">
+				<Form.FieldErrors class="text-destructive text-sm" />
 			</Form.Field>
-
-			<Form.Field {form} name="end_time" class="flex-1">
-				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label class="text-sm font-semibold">End</Form.Label>
-						<Input
-							type="time"
-							{...props}
-							bind:value={$formData.end_time}
-							class="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
-						/>
-					{/snippet}
-				</Form.Control>
-				<Form.FieldErrors />
+			<Form.Field {form} name="end_time" class="contents">
+				<Form.FieldErrors class="text-destructive text-sm" />
 			</Form.Field>
 		</div>
 	</div>
@@ -321,9 +369,51 @@
 		</Form.Fieldset>
 	</div>
 
+	<!-- Facilitators -->
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
+		<Form.Field {form} name="facilitators" class="contents">
+			<Form.Control>
+				{#snippet children({ props })}
+					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+						>Facilitators</Form.Label
+					>
+					<div class="flex-1">
+						<BadgeInput
+							{...props}
+							type="email"
+							placeholder="facilitator@example.com"
+							class="gap-3!"
+							badges={($formData.facilitators ?? []).map((email, i) => ({
+								id: String(i),
+								value: email
+							}))}
+							onAddBadge={(value) => {
+								const v = value.trim();
+								if (!v) return;
+								const list = $formData.facilitators ?? [];
+								if (list.includes(v)) return;
+								$formData.facilitators = [...list, v];
+							}}
+							onDeleteBadge={(id) => {
+								const list = $formData.facilitators ?? [];
+								$formData.facilitators = list.filter((_, i) => String(i) !== id);
+							}}
+						/>
+						<Form.FieldErrors />
+					</div>
+				{/snippet}
+			</Form.Control>
+		</Form.Field>
+	</div>
+
 	<!-- Save Button -->
-	<div class="border-border flex justify-center border-t py-6">
-		<Form.Button variant="default" class="px-12" disabled={$submitting}>
+	<div class="border-border flex flex-col items-center gap-3 border-t py-6">
+		{#if submitError}
+			<p class="text-destructive text-sm" role="alert">{submitError}</p>
+		{/if}
+		<Form.Button variant="default" class="px-12" disabled={saving || $submitting}>
 			Save changes
 		</Form.Button>
 	</div>

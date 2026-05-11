@@ -10,6 +10,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { env } from '$env/dynamic/public';
+	import { onMount } from 'svelte';
 
 	let loginType = $state<'automatic' | 'login'>('login');
 
@@ -17,7 +18,7 @@
 
 	const url = $derived(page.url);
 	let { data } = $props();
-	let { user, invite, conversation, error, workflows } = data;
+	let { user, invite, conversation, error, workflows, eventId } = data;
 
 	let pageTitle = $derived(
 		conversation?.title ? `Invitation - ${conversation.title}` : 'Conversation Invite'
@@ -78,6 +79,12 @@
 		});
 		goto('/');
 	}
+
+	onMount(() => {
+		if (!user && eventId) {
+			invalidateAll();
+		}
+	});
 </script>
 
 <svelte:head>
@@ -85,7 +92,18 @@
 </svelte:head>
 
 {#if invite}
-	{#if conversation}
+	{#if eventId}
+		<div class="mt-10 mb-20 flex flex-col items-center md:mb-0">
+			<h1 class="mb-5 text-2xl font-bold">
+				You have successfully been registered to this event
+			</h1>
+			<Button href={`/conversations/${conversation.id}/events/${eventId}`}
+				>Click here to view the event</Button
+			>
+		</div>
+	{/if}
+
+	{#if conversation && !eventId}
 		<div class="mt-10 mb-20 md:mb-0">
 			{#if conversation.isComplete}
 				<div class="flex flex-col gap-4">

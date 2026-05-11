@@ -22,10 +22,11 @@
 
 	type Props = {
 		onDone: () => void;
-		conversation_id: string;
+		conversationId: string;
+		eventId?: string;
 	};
 
-	let { onDone, conversation_id }: Props = $props();
+	let { onDone, conversationId, eventId }: Props = $props();
 
 	async function sendEmailInvite() {
 		const result = await validateForm({ update: true });
@@ -54,9 +55,10 @@
 					return await apiClient.CreateInvite(
 						{
 							invite_type: { email },
-							expires_at: expireDate?.toDate(getLocalTimeZone()).toISOString()
+							expires_at: expireDate?.toDate(getLocalTimeZone()).toISOString(),
+							...(eventId && { event_id: eventId })
 						},
-						{ params: { conversation_id: conversation_id } }
+						{ params: { conversation_id: conversationId } }
 					);
 				})
 			);
@@ -183,7 +185,9 @@
 		</Form.Field>
 	{/if}
 
-	<Form.Button class="my-5" disabled={$submitting}>Submit</Form.Button>
+	<div class="flex justify-start">
+		<Form.Button class="my-5" disabled={$submitting}>Submit</Form.Button>
+	</div>
 	{#if message}
 		<p>{$message}</p>
 	{/if}

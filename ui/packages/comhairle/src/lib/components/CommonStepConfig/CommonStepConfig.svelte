@@ -21,10 +21,17 @@
 		conversation_id: string;
 		conversation: ConversationWithTranslations;
 		step: WorkflowStepWithTranslations;
+		headerless?: boolean;
+		open?: boolean;
 	};
 
-	let open = $state(false);
-	let { step, conversation_id, conversation }: Props = $props();
+	let {
+		step,
+		conversation_id,
+		conversation,
+		headerless = false,
+		open = $bindable(false)
+	}: Props = $props();
 
 	let primaryLocale = $derived(conversation?.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(conversation?.supportedLanguages ?? ['en']);
@@ -81,103 +88,101 @@
 	}
 </script>
 
-<div class="mb-10 flex flex-row items-start justify-between">
-	<div class="flex flex-col gap-2">
-		<div class="flex flex-row items-end gap-2">
-			<h2 class="text-2xl">{name || sourceName || 'Unnamed Step'}</h2>
-			{#if step?.required}
-				<p class="text-red-900">(Required)</p>
-			{:else}
-				<p class="text-green-900">(Skippable)</p>
-			{/if}
+{#if !headerless}
+	<div class="mb-10 flex flex-row items-start justify-between">
+		<div class="flex flex-col gap-2">
+			<div class="flex flex-row items-end gap-2">
+				<h2 class="text-2xl">{name || sourceName || 'Unnamed Step'}</h2>
+				{#if step?.required}
+					<p class="text-red-900">(Required)</p>
+				{:else}
+					<p class="text-green-900">(Skippable)</p>
+				{/if}
+			</div>
+			<ContentRenderer
+				content={description || sourceDescription}
+				class="text-muted-foreground text-sm"
+			/>
 		</div>
-		<ContentRenderer
-			content={description || sourceDescription}
-			class="text-muted-foreground text-sm"
-		/>
+		<Button variant="default" onclick={() => (open = true)}>Edit Metadata</Button>
 	</div>
-	<Dialog.Root
-		bind:open
-		onOpenChange={(isOpen) => {
-			if (!isOpen) invalidateAll();
-		}}
-	>
-		<Dialog.Trigger>
-			<Button variant="default">Edit Metadata</Button>
-		</Dialog.Trigger>
+{/if}
 
-		<Dialog.Content class="flex max-h-[90vh] min-w-[70vw] flex-col rounded-xl p-0">
-			<Dialog.Header class="shrink-0 border-b p-6 pb-4">
-				<Dialog.Title class="text-2xl">Edit Step Metadata</Dialog.Title>
-				<Dialog.Description>
-					Configure the name and description shown to participants.
-				</Dialog.Description>
-			</Dialog.Header>
+<Dialog.Root
+	bind:open
+	onOpenChange={(isOpen) => {
+		if (!isOpen) invalidateAll();
+	}}
+>
+	<Dialog.Content class="flex max-h-[90vh] min-w-[70vw] flex-col rounded-xl p-0">
+		<Dialog.Header class="shrink-0 border-b p-6 pb-4">
+			<Dialog.Title class="text-2xl">Edit Step Metadata</Dialog.Title>
+			<Dialog.Description>
+				Configure the name and description shown to participants.
+			</Dialog.Description>
+		</Dialog.Header>
 
-			<ScrollArea.Root class="min-h-0 flex-1">
-				<div class="px-6 pb-6">
-					<!-- Name field -->
+		<ScrollArea.Root class="min-h-0 flex-1">
+			<div class="px-6 pb-6">
+				<!-- Name field -->
+				<div class="flex flex-col gap-1">
+					<span class="text-lg font-semibold">Name</span>
+					<p class="text-muted-foreground mb-2 text-sm">
+						The name of the step that will be shown to participants.
+					</p>
+					<TranslatableField
+						value={name}
+						onValueChange={(v) => (name = v)}
+						translation={step.translations?.name}
+						{primaryLocale}
+						{supportedLanguages}
+					/>
+				</div>
+
+				<!-- Description field -->
+				<div class="pt-4">
 					<div class="flex flex-col gap-1">
-						<span class="text-lg font-semibold">Name</span>
-						<p class="text-muted-foreground mb-2 text-sm">
-							The name of the step that will be shown to participants.
+						<span class="text-lg font-semibold">Description</span>
+						<p class="text-muted-foreground text-sm">
+							A description of this step that will inform users of its intent.
 						</p>
+					</div>
+					<div class="pt-4">
 						<TranslatableField
-							value={name}
-							onValueChange={(v) => (name = v)}
-							translation={step.translations?.name}
+							value={description}
+							onValueChange={(v) => (description = v)}
+							translation={step.translations?.description}
 							{primaryLocale}
 							{supportedLanguages}
+							editorType="rich"
+							minHeight="100px"
+							maxHeight="150px"
 						/>
 					</div>
-
-					<!-- Description field -->
-					<div class="pt-4">
-						<div class="flex flex-col gap-1">
-							<span class="text-lg font-semibold">Description</span>
-							<p class="text-muted-foreground text-sm">
-								A description of this step that will inform users of its intent.
-							</p>
-						</div>
-						<div class="pt-4">
-							<TranslatableField
-								value={description}
-								onValueChange={(v) => (description = v)}
-								translation={step.translations?.description}
-								{primaryLocale}
-								{supportedLanguages}
-								editorType="rich"
-								minHeight="100px"
-								maxHeight="150px"
-							/>
-						</div>
-					</div>
-				</div>
-			</ScrollArea.Root>
-
-			<!-- Fixed footer with required toggle -->
-			<div class="bg-muted/30 flex shrink-0 flex-col gap-4 border-t p-6">
-				<div class="flex items-center gap-2">
-					<Switch
-						checked={revisitable}
-						onCheckedChange={(value) => handleSwitchChange(value, 'canRevisit')}
-					/>
-					<Label class="text-base">Revisitable step</Label>
-					<span class="text-muted-foreground ml-2 text-sm"
-						>(Can users revisit this step?)</span
-					>
-				</div>
-				<div class="flex items-center gap-2">
-					<Switch
-						checked={required}
-						onCheckedChange={(value) => handleSwitchChange(value, 'required')}
-					/>
-					<Label class="text-base">Required step</Label>
-					<span class="text-muted-foreground ml-2 text-sm"
-						>(Can users skip this step?)</span
-					>
 				</div>
 			</div>
-		</Dialog.Content>
-	</Dialog.Root>
-</div>
+		</ScrollArea.Root>
+
+		<!-- Fixed footer with required toggle -->
+		<div class="bg-muted/30 flex shrink-0 flex-col gap-4 border-t p-6">
+			<div class="flex items-center gap-2">
+				<Switch
+					checked={revisitable}
+					onCheckedChange={(value) => handleSwitchChange(value, 'canRevisit')}
+				/>
+				<Label class="text-base">Revisitable step</Label>
+				<span class="text-muted-foreground ml-2 text-sm"
+					>(Can users revisit this step?)</span
+				>
+			</div>
+			<div class="flex items-center gap-2">
+				<Switch
+					checked={required}
+					onCheckedChange={(value) => handleSwitchChange(value, 'required')}
+				/>
+				<Label class="text-base">Required step</Label>
+				<span class="text-muted-foreground ml-2 text-sm">(Can users skip this step?)</span>
+			</div>
+		</div>
+	</Dialog.Content>
+</Dialog.Root>
