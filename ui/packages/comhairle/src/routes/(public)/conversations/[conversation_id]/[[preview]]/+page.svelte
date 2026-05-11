@@ -12,7 +12,7 @@
 	import PrivacyPolicyDialog from '$lib/components/PrivacyPolicyDialog.svelte';
 
 	let { data }: PageProps = $props();
-	let { conversation, workflows, participation } = data;
+	let { conversation, workflows, participation, preview } = data;
 	let user = $derived(data.user);
 	let pageTitle = $derived(conversation?.title ?? 'Conversation');
 
@@ -43,7 +43,7 @@
 	let url = $derived(page.url);
 
 	let firstWorkflowPath = $derived(
-		`/conversations/${conversation.slug}/workflow/${firstWorkflow.id}/next`
+		`/conversations/${conversation.slug}${preview ? '/preview' : ''}/workflow/${firstWorkflow.id}/next`
 	);
 
 	async function redirectToLogin() {

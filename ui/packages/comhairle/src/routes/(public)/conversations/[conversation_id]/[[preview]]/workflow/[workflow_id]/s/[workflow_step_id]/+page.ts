@@ -43,7 +43,7 @@ export const load: PageLoad = async (event) => {
 
 		// If we are in preview mode then let the user see this step regardless of if it
 		// is next. Also dont capture progress
-		if (conversation.isLive) {
+		if (!preview && conversation.isLive) {
 			if (isStepAlreadyDone && !isRevisitable) {
 				return redirect(
 					302,
@@ -72,7 +72,7 @@ export const load: PageLoad = async (event) => {
 
 		const workflowStep = thisStep!;
 
-		return { conversation, workflowStep, api, workflowSteps, workflow_id };
+		return { conversation, workflowStep, api, workflowSteps, workflow_id, preview };
 	} catch (e: any) {
 		// TODO: figure out how to type this from the generated api
 		/// Throw if error is a redirect
