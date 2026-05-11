@@ -14,6 +14,7 @@
 		reference: ChatReference | null;
 		streaming: boolean;
 		error: string | null;
+		timestamp: Date | null;
 	};
 
 	type Props = {
@@ -35,15 +36,31 @@
 	/** Manual overrides for collapsed state, keyed by QA id. Unset → use default. */
 	let expandedOverrides = $state<Record<string, boolean>>({});
 
-	function isExpanded(qa: QA, isLast: boolean): boolean {
+	function isExpanded(qa: QA, isNewest: boolean): boolean {
 		const override = expandedOverrides[qa.id];
 		if (typeof override === 'boolean') return override;
-		return isLast || qa.streaming;
+		return isNewest || qa.streaming;
 	}
 
-	function toggleQa(qa: QA, isLast: boolean) {
-		const current = isExpanded(qa, isLast);
+	function toggleQa(qa: QA, isNewest: boolean) {
+		const current = isExpanded(qa, isNewest);
 		expandedOverrides = { ...expandedOverrides, [qa.id]: !current };
+	}
+
+	/** Format a question's timestamp as a short relative label, e.g. "just now", "5m ago". */
+	function formatTimestamp(date: Date | null): string {
+		if (!date) return '';
+		const diffMs = Date.now() - date.getTime();
+		const sec = Math.round(diffMs / 1000);
+		if (sec < 10) return 'just now';
+		if (sec < 60) return `${sec}s ago`;
+		const min = Math.round(sec / 60);
+		if (min < 60) return `${min}m ago`;
+		const hr = Math.round(min / 60);
+		if (hr < 24) return `${hr}h ago`;
+		const day = Math.round(hr / 24);
+		if (day < 7) return `${day}d ago`;
+		return date.toLocaleDateString();
 	}
 
 	const session = $derived(enabled && conversationId ? getChatSession(conversationId) : null);
@@ -70,11 +87,13 @@
 					answer: hasAnswer ? next.content : '',
 					reference: hasAnswer ? next.reference : null,
 					streaming: hasAnswer ? !!next.streaming : isStreaming,
-					error: hasAnswer ? (next.error ?? null) : null
+					error: hasAnswer ? (next.error ?? null) : null,
+					timestamp: m.timestamp ?? null
 				});
 				if (hasAnswer) i++;
 			}
-			return out;
+			// Newest first.
+			return out.reverse();
 		})()
 	);
 
@@ -169,25 +188,114 @@
 				<LearnTutorSkeleton />
 			{/if}
 
-			<!-- Inline answers -->
+			<!-- Inline prompt -->
+			{#if !initializing && !(chatError && pageQAs.length === 0)}
+				<div class="mb-6">
+					<div
+						class="border-b transition-colors {focused
+							? 'border-primary'
+							: 'border-border'} pb-1.5"
+					>
+						{#if showPlaceholder}
+							{@const errBlocked = !!chatError && pageQAs.length === 0}
+							{@const blocked = loading || initializing || errBlocked}
+							<button
+								type="button"
+								class="text-muted-foreground flex w-full items-center bg-transparent p-0 text-left text-base disabled:cursor-not-allowed disabled:opacity-50"
+								onclick={activate}
+								disabled={blocked}
+							>
+								{loading
+									? 'Loading page...'
+									: initializing
+										? 'Loading tutor session...'
+										: errBlocked
+											? 'Tutor unavailable'
+											: 'Anything unclear? Type a question here'}
+								<span
+									class="bg-primary caret-blink ml-0.5 inline-block h-5 w-0.5 align-middle"
+								></span>
+							</button>
+						{:else}
+							<div class="flex items-center gap-2">
+								<input
+									bind:this={inputRef}
+									bind:value={inputVal}
+									onfocus={() => (focused = true)}
+									onblur={() => {
+										if (!inputVal) setTimeout(() => (focused = false), 150);
+									}}
+									onkeydown={(e) => {
+										if (e.key === 'Enter') {
+											e.preventDefault();
+											handleAsk();
+										}
+									}}
+									placeholder="Type your question..."
+									disabled={inputDisabled}
+									class="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 border-none bg-transparent p-0 text-base outline-none disabled:cursor-not-allowed"
+								/>
+								{#if inputVal.trim()}
+									<button
+										type="button"
+										class="text-primary shrink-0 bg-transparent p-0 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+										disabled={inputDisabled}
+										onclick={handleAsk}
+									>
+										{isStreaming ? '...' : 'Ask ↵'}
+									</button>
+								{/if}
+							</div>
+						{/if}
+					</div>
+
+					<div class="mt-3 flex flex-col gap-1.5">
+						<p class="text-muted-foreground text-xs">
+							Just for you. Questions and answers aren't submitted or shared. Try:
+						</p>
+						<div class="flex flex-wrap gap-1.5">
+							{#each quickPrompts as p (p)}
+								<button
+									type="button"
+									class="bg-accent/90 text-accent-foreground hover:bg-primary hover:text-primary-foreground disabled:hover:bg-accent/30 disabled:hover:text-accent-foreground rounded-full px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+									onclick={() => pickPrompt(p)}
+									disabled={inputDisabled}
+								>
+									{p}
+								</button>
+							{/each}
+						</div>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Inline answers (newest first) -->
 			{#if pageQAs.length > 0}
 				<div class="space-y-3">
 					{#each pageQAs as qa, i (qa.id)}
-						{@const isLast = i === pageQAs.length - 1}
-						{@const open = isExpanded(qa, isLast)}
+						{@const isNewest = i === 0}
+						{@const open = isExpanded(qa, isNewest)}
+						{@const ts = formatTimestamp(qa.timestamp)}
 						<div class="border-border/60 rounded-xl border">
 							<button
 								type="button"
 								class="hover:bg-muted/30 flex w-full items-start gap-3 rounded-xl bg-transparent p-4 text-left transition-colors"
 								aria-expanded={open}
-								onclick={() => toggleQa(qa, isLast)}
+								onclick={() => toggleQa(qa, isNewest)}
 							>
 								<div class="min-w-0 flex-1">
-									<p
-										class="text-primary mb-1 text-[11px] font-semibold tracking-wide uppercase"
-									>
-										You asked
-									</p>
+									<div class="mb-1 flex items-center gap-2">
+										<p
+											class="text-primary text-[11px] font-semibold tracking-wide uppercase"
+										>
+											You asked
+										</p>
+										{#if ts}
+											<span class="text-muted-foreground text-[11px]"
+												>· {ts}</span
+											>
+										{/if}
+									</div>
 									<p
 										class="text-foreground text-base font-semibold italic {open
 											? ''
@@ -218,7 +326,7 @@
 														Couldn't get an answer
 													</p>
 													<p class="text-red-700">{qa.error}</p>
-													{#if isLast}
+													{#if isNewest}
 														<button
 															type="button"
 															class="mt-2 inline-flex items-center gap-1.5 rounded-md border border-red-300 bg-white px-2.5 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
@@ -291,87 +399,6 @@
 							{/if}
 						</div>
 					{/each}
-				</div>
-			{/if}
-
-			<!-- Inline prompt -->
-			{#if !initializing && !(chatError && pageQAs.length === 0)}
-				<div class="mt-4">
-					<div
-						class="border-b transition-colors {focused
-							? 'border-primary'
-							: 'border-border'} pb-1.5"
-					>
-						{#if showPlaceholder}
-							{@const errBlocked = !!chatError && pageQAs.length === 0}
-							{@const blocked = loading || initializing || errBlocked}
-							<button
-								type="button"
-								class="text-muted-foreground flex w-full items-center bg-transparent p-0 text-left text-base disabled:cursor-not-allowed disabled:opacity-50"
-								onclick={activate}
-								disabled={blocked}
-							>
-								{loading
-									? 'Loading page...'
-									: initializing
-										? 'Loading tutor session...'
-										: errBlocked
-											? 'Tutor unavailable'
-											: 'Anything unclear? Type a question here'}
-								<span
-									class="bg-primary caret-blink ml-0.5 inline-block h-5 w-0.5 align-middle"
-								></span>
-							</button>
-						{:else}
-							<div class="flex items-center gap-2">
-								<input
-									bind:this={inputRef}
-									bind:value={inputVal}
-									onfocus={() => (focused = true)}
-									onblur={() => {
-										if (!inputVal) setTimeout(() => (focused = false), 150);
-									}}
-									onkeydown={(e) => {
-										if (e.key === 'Enter') {
-											e.preventDefault();
-											handleAsk();
-										}
-									}}
-									placeholder="Type your question..."
-									disabled={inputDisabled}
-									class="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 border-none bg-transparent p-0 text-base outline-none disabled:cursor-not-allowed"
-								/>
-								{#if inputVal.trim()}
-									<button
-										type="button"
-										class="text-primary shrink-0 bg-transparent p-0 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-										disabled={inputDisabled}
-										onclick={handleAsk}
-									>
-										{isStreaming ? '...' : 'Ask ↵'}
-									</button>
-								{/if}
-							</div>
-						{/if}
-					</div>
-
-					<div class="mt-3 flex flex-col gap-1.5">
-						<p class="text-muted-foreground text-xs">
-							Just for you — questions and answers aren't submitted or shared. Try:
-						</p>
-						<div class="flex flex-wrap gap-1.5">
-							{#each quickPrompts as p (p)}
-								<button
-									type="button"
-									class="bg-accent/30 text-accent-foreground hover:bg-primary hover:text-primary-foreground disabled:hover:bg-accent/30 disabled:hover:text-accent-foreground rounded-full px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-									onclick={() => pickPrompt(p)}
-									disabled={inputDisabled}
-								>
-									{p}
-								</button>
-							{/each}
-						</div>
-					</div>
 				</div>
 			{/if}
 		{:else}
