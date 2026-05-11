@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::{
     error::ComhairleError,
-    routes::auth::{hash_pw, validate_password_strength, SignupRequest},
+    routes::auth::{hash_pw, validate_password_strength, OtpSignupRequest, SignupRequest},
     tools::id::gen_id,
 };
 use schemars::JsonSchema;
@@ -22,6 +22,8 @@ pub enum UserAuthType {
     Annon,
     #[sqlx(rename = "email_password")]
     EmailPassword,
+    #[sqlx(rename = "one_time_passcode")]
+    Otp,
     #[sqlx(rename = "scot_account")]
     ScotAccount,
 }
@@ -37,6 +39,7 @@ impl fmt::Display for UserAuthType {
         let value = match self {
             UserAuthType::Annon => "annon",
             UserAuthType::EmailPassword => "email_password",
+            UserAuthType::Otp => "one_time_passcode",
             UserAuthType::ScotAccount => "scot_account",
         };
         write!(f, "{}", value)
@@ -218,6 +221,54 @@ pub async fn create_annon_user(db: &PgPool) -> Result<User, ComhairleError> {
                     // handle unique constraint violation on random username collision.
                     retries -= 1;
                     continue;
+                }
+                return Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)));
+            }
+            Err(e) => return Err(ComhairleError::DatabaseError(e)),
+        }
+    }
+    Err(ComhairleError::DuplicateUsername(
+        "too many retires".to_string(),
+    ))
+}
+
+/// Create a user from a signup request
+pub async fn create_otp_user(user: &OtpSignupRequest, db: &PgPool) -> Result<User, ComhairleError> {
+    let mut retries = 5; // Retry up to 5 times to generate a unique username
+    while retries > 0 {
+        let sudo_random_name = gen_id();
+
+        let (sql, values) = Query::insert()
+            .into_table(UserIden::Table)
+            .columns([UserIden::AuthType, UserIden::Email, UserIden::Username])
+            .values([
+                UserAuthType::Otp.into(),
+                user.email.clone().into(),
+                sudo_random_name.into(),
+            ])
+            .unwrap()
+            .returning(Query::returning().columns(DEFAULT_COLUMNS))
+            .build_sqlx(PostgresQueryBuilder);
+
+        let user_result = sqlx::query_as_with::<_, User, _>(&sql, values)
+            .fetch_one(db)
+            .await;
+
+        // Check to see if the either a unique username or email has been
+        // duplicated
+        match user_result {
+            Ok(user) => return Ok(user),
+            Err(sqlx::Error::Database(db_err)) => {
+                let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
+                if pg_err.code() == "23505" {
+                    if let Some(constraint) = pg_err.constraint() {
+                        if constraint.contains("username") {
+                            retries -= 1;
+                            continue;
+                        } else if constraint.contains("email") {
+                            return Err(ComhairleError::DuplicateEmail(user.email.clone()));
+                        }
+                    }
                 }
                 return Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)));
             }
@@ -505,6 +556,26 @@ mod tests {
     use uuid::Uuid;
 
     #[sqlx::test]
+    fn should_create_otp_user(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let user = create_otp_user(
+            &OtpSignupRequest {
+                email: "test_otp@test.com".to_string(),
+            },
+            &pool,
+        )
+        .await?;
+
+        assert_eq!(user.auth_type, UserAuthType::Otp, "incorrect auth_type");
+        assert_eq!(
+            user.email,
+            Some("test_otp@test.com".to_string()),
+            "incorrect email"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
     fn user_has_resource_role_tests(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool.clone()).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -533,7 +604,11 @@ mod tests {
         assert_eq!(status, 201, "should be able to create a conversation");
         let conversation_id = Uuid::parse_str(conversation["id"].as_str().unwrap())?;
 
-        let mut session = UserSession::new("test_user", crate::test_helpers::TEST_PASSWORD, "test.user@gmail.com");
+        let mut session = UserSession::new(
+            "test_user",
+            crate::test_helpers::TEST_PASSWORD,
+            "test.user@gmail.com",
+        );
         session.signup(&app).await?;
 
         add_user_resource_role(

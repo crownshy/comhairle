@@ -9,7 +9,7 @@ export function camelToSentenceCase(str: string) {
 export function snakeCaseKeys(obj: { [key: string]: any }) {
 	const temp: { [key: string]: any } = {};
 	for (const [key, value] of Object.entries(obj)) {
-		if (typeof value === 'object' && !Array.isArray(value)) {
+		if (value && typeof value === 'object' && !Array.isArray(value)) {
 			// If value is an object recursively call function on value
 			temp[camelToSnakeCase(key)] = snakeCaseKeys(value);
 		} else if (typeof value === 'object' && Array.isArray(value)) {

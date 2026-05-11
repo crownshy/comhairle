@@ -144,5 +144,8 @@
 	"polis_seed_statement": "Tòiseachadh còmhraidh",
 	"password_updated_successfully": "Chaidh am facal-faire ùrachadh gu soirbheachail",
 	"password_updated_successfully_body": "Chaidh am facal-faire agad atharrachadh. Faodaidh tu leantainn air adhart a' cleachdadh na h-aplacaid.",
+	"conversation_closed_title": "Tha an còmhradh seo dùinte",
+	"conversation_closed_description": "Tha com-pàirteachadh sa chòmhradh a-nis seachad.",
+	"conversation_closed_link": "Till gu còmhraidhean eile",
 	"continue_to_home": "Lean air adhart chun dachaigh"
 }

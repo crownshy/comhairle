@@ -23,6 +23,8 @@ pub struct Invite {
     pub status: InviteStatus,
     pub expires_at: Option<DateTime<Utc>>,
     pub conversation_id: Uuid,
+    #[partially(transparent)]
+    pub event_id: Option<Uuid>,
     pub workflow_id: Option<Uuid>,
     pub workflow_step_id: Option<Uuid>,
     pub login_behaviour: LoginBehaviour,
@@ -66,6 +68,8 @@ impl Invite {
             InviteStatus::Accepted
         };
 
+        invite_response::create(db, &user.id, &self.id, invite_response::Response::Accept).await?;
+
         let (sql, values) = Query::update()
             .table(InviteIden::Table)
             .values([
@@ -80,8 +84,6 @@ impl Invite {
             .fetch_one(db)
             .await?;
 
-        invite_response::create(db, &user.id, &invite.id, invite_response::Response::Accept)
-            .await?;
         Ok(invite)
     }
 
@@ -137,7 +139,7 @@ impl Invite {
 }
 
 /// Determines the type of invite that is being sent
-#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, DbJsonBEnum)]
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, DbJsonBEnum, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum InviteType {
     /// Send an invite by email to a specific person
@@ -169,20 +171,22 @@ pub enum InviteStatus {
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 pub struct CreateInviteDTO {
-    invite_type: InviteType,
+    pub invite_type: InviteType,
     #[serde(default)]
-    login_behaviour: LoginBehaviour,
-    expires_at: Option<DateTime<Utc>>,
-    label: Option<String>,
+    pub login_behaviour: LoginBehaviour,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub label: Option<String>,
+    pub event_id: Option<Uuid>,
 }
 
-const DEFAULT_COLUMNS: [InviteIden; 14] = [
+const DEFAULT_COLUMNS: [InviteIden; 15] = [
     InviteIden::Id,
     InviteIden::InviteType,
     InviteIden::CreatedBy,
     InviteIden::Status,
     InviteIden::ExpiresAt,
     InviteIden::ConversationId,
+    InviteIden::EventId,
     InviteIden::WorkflowId,
     InviteIden::WorkflowStepId,
     InviteIden::LoginBehaviour,
@@ -226,7 +230,24 @@ pub async fn list_for_conversation(
 }
 
 #[instrument(err(Debug))]
-pub async fn get(db: &PgPool, invite_id: &Uuid) -> Result<Invite, ComhairleError> {
+pub async fn list_for_event(db: &PgPool, event_id: &Uuid) -> Result<Vec<Invite>, ComhairleError> {
+    let query = Query::select()
+        .from(InviteIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .and_where(Expr::col(InviteIden::EventId).eq(*event_id))
+        .order_by(InviteIden::CreatedAt, Order::Desc)
+        .to_owned();
+
+    let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
+    let invites = sqlx::query_as_with::<_, Invite, _>(&sql, values)
+        .fetch_all(db)
+        .await?;
+
+    Ok(invites)
+}
+
+#[instrument(err(Debug))]
+pub async fn get_by_id(db: &PgPool, invite_id: &Uuid) -> Result<Invite, ComhairleError> {
     let (sql, values) = Query::select()
         .from(InviteIden::Table)
         .columns(DEFAULT_COLUMNS)
@@ -308,6 +329,7 @@ pub async fn create(
             InviteIden::Status,
             InviteIden::ExpiresAt,
             InviteIden::Label,
+            InviteIden::EventId,
         ])
         .values(vec![
             user_id.to_owned().into(),
@@ -317,6 +339,7 @@ pub async fn create(
             starting_status.into(),
             create_invite.expires_at.into(),
             create_invite.label.into(),
+            create_invite.event_id.into(),
         ])
         .unwrap()
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
@@ -364,9 +387,11 @@ mod tests {
         bot_service::{ComhairleBotService, MockComhairleBotService},
         models::{
             conversation::{self, CreateConversation, PartialConversation},
+            model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
             users,
             workflow::{self, CreateWorkflow},
         },
+        routes::events::dto::EventDto,
         test_helpers::test_config,
     };
 
@@ -395,6 +420,7 @@ mod tests {
             status: InviteStatus::Pending,
             expires_at: None,
             conversation_id: Uuid::new_v4(),
+            event_id: None,
             workflow_id: None,
             workflow_step_id: None,
             login_behaviour: LoginBehaviour::Manual,
@@ -465,6 +491,7 @@ mod tests {
                 login_behaviour: LoginBehaviour::Manual,
                 expires_at: None,
                 label: None,
+                event_id: None,
             },
             &conversation.id,
             &user1.id,
@@ -495,7 +522,9 @@ mod tests {
     }
 
     #[sqlx::test]
-    async fn open_invite_should_remain_open_when_rejected(db: PgPool) -> Result<(), Box<dyn Error>> {
+    async fn open_invite_should_remain_open_when_rejected(
+        db: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
         let user1 = users::create_user(&Faker.fake(), &db).await?;
         let user2 = users::create_user(&Faker.fake(), &db).await?;
 
@@ -546,6 +575,7 @@ mod tests {
                 login_behaviour: LoginBehaviour::Manual,
                 expires_at: None,
                 label: None,
+                event_id: None,
             },
             &conversation.id,
             &user1.id,
@@ -623,6 +653,7 @@ mod tests {
                 login_behaviour: LoginBehaviour::Manual,
                 expires_at: None,
                 label: None,
+                event_id: None,
             },
             &conversation.id,
             &user1.id,
@@ -641,6 +672,81 @@ mod tests {
             rejected_invite.status,
             InviteStatus::Rejected,
             "Pending invite should be marked as Rejected after rejection"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_list_invites_for_an_event(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let user1 = users::create_user(&Faker.fake(), &pool).await?;
+        let user2 = users::create_user(&Faker.fake(), &pool).await?;
+        let user3 = users::create_user(&Faker.fake(), &pool).await?;
+        let user4 = users::create_user(&Faker.fake(), &pool).await?;
+
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, value, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(value)?;
+
+        create(
+            &pool,
+            CreateInviteDTO {
+                invite_type: InviteType::Email(user2.email.clone().unwrap()),
+                login_behaviour: LoginBehaviour::Manual,
+                expires_at: None,
+                label: None,
+                event_id: Some(event.id),
+            },
+            &conversation_id,
+            &user1.id,
+        )
+        .await?;
+        create(
+            &pool,
+            CreateInviteDTO {
+                invite_type: InviteType::Email(user3.email.clone().unwrap()),
+                login_behaviour: LoginBehaviour::Manual,
+                expires_at: None,
+                label: None,
+                event_id: Some(event.id),
+            },
+            &conversation_id,
+            &user1.id,
+        )
+        .await?;
+        create(
+            &pool,
+            CreateInviteDTO {
+                invite_type: InviteType::Email(user4.email.clone().unwrap()),
+                login_behaviour: LoginBehaviour::Manual,
+                expires_at: None,
+                label: None,
+                event_id: Some(event.id),
+            },
+            &conversation_id,
+            &user1.id,
+        )
+        .await?;
+
+        let invites = list_for_event(&pool, &event.id).await?;
+
+        assert!(
+            invites.iter().any(|invite| invite.invite_type
+                == InviteType::Email(user2.email.as_ref().unwrap().clone())),
+            "missing user2"
+        );
+        assert!(
+            invites.iter().any(|invite| invite.invite_type
+                == InviteType::Email(user3.email.as_ref().unwrap().clone())),
+            "missing user3"
+        );
+        assert!(
+            invites.iter().any(|invite| invite.invite_type
+                == InviteType::Email(user4.email.as_ref().unwrap().clone())),
+            "missing user4"
         );
 
         Ok(())

@@ -11,7 +11,12 @@ export const AnnonLoginRequest = z
   .object({ username: z.string() })
   .passthrough();
 export type AnnonLoginRequest = z.infer<typeof AnnonLoginRequest>;
-export const UserAuthType = z.enum(["annon", "email_password", "scot_account"]);
+export const UserAuthType = z.enum([
+  "annon",
+  "email_password",
+  "otp",
+  "scot_account",
+]);
 export type UserAuthType = z.infer<typeof UserAuthType>;
 export const UserDto = z
   .object({
@@ -38,6 +43,8 @@ export const SignupRequest = z
   })
   .passthrough();
 export type SignupRequest = z.infer<typeof SignupRequest>;
+export const OtpSignupRequest = z.object({ email: z.string() }).passthrough();
+export type OtpSignupRequest = z.infer<typeof OtpSignupRequest>;
 export const VerifyEmailTokenRequest = z
   .object({ token: z.string() })
   .passthrough();
@@ -599,6 +606,7 @@ export const ToolConfig = z.union([
       poll_id: z.string(),
       required_votes: z.union([z.number(), z.null()]).optional(),
       server_url: z.string(),
+      show_remaining_statements: z.boolean().optional().default(true),
       type: z.literal("polis"),
     })
     .passthrough(),
@@ -780,6 +788,7 @@ export const ToolSetup = z.union([
   z
     .object({
       required_votes: z.union([z.number(), z.null()]).optional(),
+      show_remaining_statements: z.boolean().optional().default(true),
       topic: z.string(),
       type: z.literal("polis"),
     })
@@ -883,6 +892,7 @@ export const InviteDto = z
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
     createdBy: z.string().uuid(),
+    eventId: z.union([z.string(), z.null()]).optional(),
     expiresAt: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     inviteType: InviteType,
@@ -897,6 +907,7 @@ export const InviteDto = z
 export type InviteDto = z.infer<typeof InviteDto>;
 export const CreateInviteDTO = z
   .object({
+    event_id: z.union([z.string(), z.null()]).optional(),
     expires_at: z.union([z.string(), z.null()]).optional(),
     invite_type: InviteType,
     label: z.union([z.string(), z.null()]).optional(),
@@ -909,6 +920,7 @@ export const PartialInvite = z
     accept_count: z.union([z.number(), z.null()]),
     conversation_id: z.union([z.string(), z.null()]),
     created_by: z.union([z.string(), z.null()]),
+    event_id: z.union([z.string(), z.null()]),
     expires_at: z.union([z.string(), z.null()]),
     invite_type: z.union([InviteType, z.null()]),
     label: z.union([z.string(), z.null()]),
@@ -1097,6 +1109,7 @@ export const BreakoutRoomAgendaItem = z
     instructions: z.string(),
     prompt: z.string(),
     time_limit: z.union([z.number(), z.null()]).optional(),
+    max_per_room: z.union([z.number().int().gte(0), z.null()]).optional(),
   })
   .passthrough();
 export type BreakoutRoomAgendaItem = z.infer<typeof BreakoutRoomAgendaItem>;
@@ -1429,6 +1442,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UserDto,
   LoginRequest,
   SignupRequest,
+  OtpSignupRequest,
   VerifyEmailTokenRequest,
   ResendVerificationEmailRequest,
   CreatePasswordResetRequest,
@@ -1691,6 +1705,20 @@ const endpoints = makeApi([
     path: "/auth/signup_annon",
     alias: "SignupAnnonUser",
     requestFormat: "json",
+    response: UserDto,
+  },
+  {
+    method: "post",
+    path: "/auth/signup_otp",
+    alias: "SignupOtp",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ email: z.string() }).passthrough(),
+      },
+    ],
     response: UserDto,
   },
   {
@@ -2428,6 +2456,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
   },
   {
     method: "post",
+    path: "/conversation/:conversation_id/invite/:invite_id/events",
+    alias: "AutoRegisterEventAttendance",
+    requestFormat: "json",
+    response: InviteDto,
+  },
+  {
+    method: "post",
     path: "/conversation/:conversation_id/invite/:invite_id/reject",
     alias: "RejectInvite",
     requestFormat: "json",
@@ -2439,6 +2474,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "GetInviteStats",
     requestFormat: "json",
     response: z.array(DailyResponseStats),
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/invite/events/:event_id",
+    alias: "ListInvitesForEvent",
+    requestFormat: "json",
+    response: z.array(InviteDto),
   },
   {
     method: "put",

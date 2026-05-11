@@ -233,6 +233,9 @@ pub async fn list(
             Expr::col((UserIden::Table, UserIden::Id))
                 .equals((EventAttendanceIden::Table, EventAttendanceIden::UserId)),
         )
+        .and_where(
+            Expr::col((EventAttendanceIden::Table, EventAttendanceIden::EventId)).eq(event_id),
+        )
         .to_owned();
 
     let query = filter_options.apply(query);

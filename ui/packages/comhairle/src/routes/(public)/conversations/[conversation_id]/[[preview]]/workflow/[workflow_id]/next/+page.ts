@@ -15,7 +15,9 @@ export const load: PageLoad = async ({ parent, params, url }) => {
 
 	let redirect_url = '/';
 	try {
-		if (conversation.isLive) {
+		if (conversation.isComplete) {
+			redirect_url = `/conversations/${conversation.id}`;
+		} else if (!preview && conversation.isLive) {
 			const next_step = await api.NextConversationWorkflowStepForUser({
 				params: { conversation_id: conversation.id, workflow_id: workflow_id }
 			});

@@ -1,6 +1,5 @@
 import { ws } from '$lib/api/websockets.svelte';
 
-// Types matching backend structures
 export type VideoCallStatus = 'Waiting' | 'InProgress' | 'Ended';
 
 export interface VideoCallParticipant {
@@ -86,7 +85,6 @@ export class VideoCallService {
 		if (this.isListening) return;
 		this.isListening = true;
 
-		// Listen for video call events from server
 		ws.on('custom', (payload) => {
 			if (payload.event === 'video_call:state_update') {
 				this.handleStateUpdate(payload.data as VideoCallState);
@@ -98,6 +96,14 @@ export class VideoCallService {
 
 	private handleStateUpdate(state: VideoCallState) {
 		console.log('Video call state updated:', state);
+		console.log(
+			'[BREAKOUT-SVC] breakout_rooms:',
+			state.breakout_rooms?.length,
+			'breakout_session:',
+			state.breakout_session,
+			'participants:',
+			Object.keys(state.participants ?? {})
+		);
 		this._currentCallState = state;
 	}
 
@@ -106,23 +112,20 @@ export class VideoCallService {
 		this._lastBroadcastMessage = data.message;
 	}
 
-	// User joins a video call
 	joinCall(eventId: string) {
 		ws.sendCustom('video_call:user_joined', {
 			event_id: eventId
 		});
 	}
 
-	// User leaves a video call
 	leaveCall(eventId: string) {
 		ws.sendCustom('video_call:user_left', {
 			event_id: eventId
 		});
-		// Clear local state when leaving
 		this._currentCallState = null;
 	}
 
-	// Change the call state (moderator/facilitator only)
+	/** Moderator/facilitator only */
 	changeCallState(eventId: string, status: VideoCallStatus) {
 		ws.sendCustom('video_call:change_state', {
 			event_id: eventId,
@@ -130,15 +133,17 @@ export class VideoCallService {
 		});
 	}
 
-	// Assign participants to breakout rooms (moderator/facilitator only)
-	assignBreakoutRooms(eventId: string, maxUsersPerRoom: number) {
+	/** Moderator/facilitator only. When roomAssignments is provided, uses explicit
+	 *  room assignments instead of random server-side chunking. */
+	assignBreakoutRooms(eventId: string, maxUsersPerRoom: number, roomAssignments?: string[][]) {
 		ws.sendCustom('video_call:assign_breakout_rooms', {
 			event_id: eventId,
-			max_users_per_room: maxUsersPerRoom
+			max_users_per_room: maxUsersPerRoom,
+			...(roomAssignments ? { room_assignments: roomAssignments } : {})
 		});
 	}
 
-	// Set the current agenda item (moderator/facilitator only)
+	/** Moderator/facilitator only */
 	setAgendaItem(eventId: string, agendaItem: number) {
 		ws.sendCustom('video_call:set_agenda_item', {
 			event_id: eventId,
@@ -146,7 +151,7 @@ export class VideoCallService {
 		});
 	}
 
-	// Broadcast a message to all participants (moderator/facilitator only)
+	/** Broadcast a message to all participants. Moderator/facilitator only. */
 	broadcastMessage(eventId: string, message: string) {
 		ws.sendCustom('video_call:send_message', {
 			event_id: eventId,
@@ -154,7 +159,6 @@ export class VideoCallService {
 		});
 	}
 
-	// Request assistance in a breakout room
 	requestBreakoutRoomAssistance(eventId: string, roomName: string) {
 		ws.sendCustom('video_call:breakout_room_assistance_request', {
 			event_id: eventId,
@@ -162,7 +166,7 @@ export class VideoCallService {
 		});
 	}
 
-	// Resolve (clear) an assistance request from a breakout room (moderator/facilitator only)
+	/** Resolve (clear) an assistance request. Moderator/facilitator only. */
 	resolveBreakoutRoomAssistanceRequest(eventId: string, roomName: string) {
 		ws.sendCustom('video_call:resolve_breakout_room_assistance_request', {
 			event_id: eventId,
@@ -170,7 +174,7 @@ export class VideoCallService {
 		});
 	}
 
-	// Start a breakout session with a specified end time (moderator/facilitator only)
+	/** Moderator/facilitator only */
 	startBreakoutSession(eventId: string, ends: string) {
 		ws.sendCustom('video_call:start_breakout_session', {
 			event_id: eventId,
@@ -178,7 +182,7 @@ export class VideoCallService {
 		});
 	}
 
-	// Extend an active breakout session with a new end time (moderator/facilitator only)
+	/** Moderator/facilitator only */
 	extendBreakoutSession(eventId: string, ends: string) {
 		ws.sendCustom('video_call:extend_breakout_session', {
 			event_id: eventId,
@@ -186,14 +190,14 @@ export class VideoCallService {
 		});
 	}
 
-	// End the current breakout session (moderator/facilitator only)
+	/** Moderator/facilitator only */
 	endBreakoutSession(eventId: string) {
 		ws.sendCustom('video_call:end_breakout_session', {
 			event_id: eventId
 		});
 	}
 
-	// Helper to check if current user is in a specific breakout room
+	/** Returns the breakout room index for a user, or null if not assigned */
 	getUserBreakoutRoom(userId: string): number | null {
 		if (!this._currentCallState) return null;
 
@@ -205,7 +209,6 @@ export class VideoCallService {
 		return null;
 	}
 
-	// Helper to get participants in a specific breakout room
 	getBreakoutRoomParticipants(roomIndex: number): VideoCallParticipant[] {
 		if (!this._currentCallState || roomIndex >= this._currentCallState.breakout_rooms.length) {
 			return [];
@@ -217,7 +220,6 @@ export class VideoCallService {
 			.filter(Boolean);
 	}
 
-	// Helper to check if user has moderator/facilitator role
 	isAuthorized(userId: string): boolean {
 		if (!this._currentCallState) return false;
 
@@ -227,19 +229,16 @@ export class VideoCallService {
 		return participant.role === 'moderator' || participant.role === 'facilitator';
 	}
 
-	// Check if a specific room has an active assistance request
 	hasAssistanceRequest(roomName: string): boolean {
 		if (!this._currentCallState) return false;
 		return roomName in this._currentCallState.breakout_room_assistance_requests;
 	}
 
-	// Get all room names with active assistance requests
 	getRoomsWithAssistanceRequests(): string[] {
 		if (!this._currentCallState) return [];
 		return Object.keys(this._currentCallState.breakout_room_assistance_requests);
 	}
 
-	// Get the user who made the assistance request for a specific room
 	getAssistanceRequestUser(roomName: string): string | null {
 		if (!this._currentCallState) return null;
 		return (
@@ -247,23 +246,21 @@ export class VideoCallService {
 		);
 	}
 
-	// Clear last broadcast message
 	clearLastMessage() {
 		this._lastBroadcastMessage = null;
 	}
 
-	// Check if a breakout session is currently active
+	/** Check if a breakout session is currently active. Uses loose equality (!=) to catch both null and undefined. */
 	isBreakoutSessionActive(): boolean {
-		return this._currentCallState?.breakout_session !== null;
+		return this._currentCallState?.breakout_session != null;
 	}
 
-	// Get the end time of the current breakout session as a Date object
 	getBreakoutSessionEndTime(): Date | null {
 		if (!this._currentCallState?.breakout_session) return null;
 		return new Date(this._currentCallState.breakout_session.ends);
 	}
 
-	// Get time remaining in breakout session in milliseconds
+	/** Returns time remaining in milliseconds */
 	getBreakoutSessionTimeRemaining(): number | null {
 		const endTime = this.getBreakoutSessionEndTime();
 		if (!endTime) return null;
@@ -271,5 +268,4 @@ export class VideoCallService {
 	}
 }
 
-// Singleton instance
 export const videoCallService = new VideoCallService();

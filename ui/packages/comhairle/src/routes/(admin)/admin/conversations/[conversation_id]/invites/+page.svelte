@@ -6,7 +6,7 @@
 	import * as Tabs from '$lib/components/ui/tabs';
 	import * as Card from '$lib/components/ui/card';
 
-	import EmailInviteForm from '$lib/components/ui/EmailInviteForm/EmailInviteForm.svelte';
+	import EmailInviteForm from '$lib/components/ui/email-invites/EmailInviteForm.svelte';
 	import InviteLabelDialog from '$lib/components/InviteLabelDialog.svelte';
 
 	import { formatDistanceToNow } from 'date-fns';
@@ -18,6 +18,8 @@
 	import OpenInviteStatsBarChart from '$lib/components/OpenInviteStatsBarChart.svelte';
 	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte.js';
+	import EmailInvitesList from '$lib/components/ui/email-invites/EmailInvitesList.svelte';
+	import { inviteUrl } from '$lib/utils/invites.js';
 
 	let sendEmailDiaglogOpen = $state(false);
 	let labelDialogOpen = $state(false);
@@ -53,10 +55,6 @@
 		)
 	);
 
-	function inviteUrl(invite: InviteDto) {
-		return `${url.origin}/conversations/${conversation.slug ?? conversation.id}/invite/${invite.id}`;
-	}
-
 	function emailInvitesSubmitted() {
 		sendEmailDiaglogOpen = false;
 		invalidateAll();
@@ -73,7 +71,7 @@
 
 {#snippet InviteLink(invite: InviteDto, label: string)}
 	<div class="flex flex-row gap-x-2">
-		<CopyButton copyText={inviteUrl(invite)}>{label}</CopyButton>
+		<CopyButton copyText={inviteUrl(url, invite, conversation)}>{label}</CopyButton>
 	</div>
 {/snippet}
 
@@ -93,51 +91,8 @@
 	</Tabs.List>
 
 	<Tabs.Content value="Email">
-		<EmailInviteForm conversation_id={conversation.id} onDone={emailInvitesSubmitted} />
-		<Card.Root>
-			<Card.Header>
-				<h1 class="text-xl font-bold">Email Invite List</h1>
-			</Card.Header>
-			<Card.Content>
-				<Table.Root>
-					<Table.Header>
-						<Table.Row>
-							<Table.Head class="w-[100px]">Sent to</Table.Head>
-							<Table.Head class="w-[100px]">Link</Table.Head>
-							<Table.Head class="w-[100px]">At</Table.Head>
-							<Table.Head class="w-[100px]">Expires</Table.Head>
-							<Table.Head class="w-[100px]">Status</Table.Head>
-						</Table.Row>
-					</Table.Header>
-					<Table.Body>
-						{#each emailInvites as invite (invite.id)}
-							<Table.Row>
-								<Table.Cell class="font-medium">
-									{typeof invite.inviteType !== 'string' &&
-										'email' in invite.inviteType &&
-										invite.inviteType.email}
-								</Table.Cell>
-								<Table.Cell>
-									{@render InviteLink(invite, 'Link')}
-								</Table.Cell>
-
-								<Table.Cell>
-									{formatDistanceToNow(invite.createdAt, { addSuffix: true })}
-								</Table.Cell>
-								<Table.Cell>
-									{invite.expiresAt
-										? formatDistanceToNow(invite.expiresAt, {
-												addSuffix: true
-											})
-										: 'Never'}
-								</Table.Cell>
-								<Table.Cell>{invite.status}</Table.Cell>
-							</Table.Row>
-						{/each}
-					</Table.Body>
-				</Table.Root>
-			</Card.Content>
-		</Card.Root>
+		<EmailInviteForm conversationId={conversation.id} onDone={emailInvitesSubmitted} />
+		<EmailInvitesList {emailInvites} inviteLink={InviteLink} />
 	</Tabs.Content>
 
 	<Tabs.Content value="OpenLinks">
@@ -195,7 +150,7 @@
 						</Table.Cell>
 
 						<Table.Cell>
-							<QrCode value={inviteUrl(invite)} />
+							<QrCode value={inviteUrl(url, invite, conversation)} />
 						</Table.Cell>
 					</Table.Row>
 				{/each}

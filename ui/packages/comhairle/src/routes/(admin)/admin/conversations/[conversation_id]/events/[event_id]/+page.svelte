@@ -1,10 +1,12 @@
 <script lang="ts">
+	import { page } from '$app/stores';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import * as Form from '$lib/components/ui/form/';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as RadioGroup from '$lib/components/ui/radio-group';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
+	import { TimeRangePicker } from '$lib/components/ui/time-picker';
 	import { CalendarIcon } from 'lucide-svelte';
 	import Calendar from '$lib/components/ui/calendar/calendar.svelte';
 	import { superForm } from 'sveltekit-superforms';
@@ -15,6 +17,7 @@
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import { cn } from '$lib/utils';
 	import { buttonVariants } from '$lib/components/ui/button';
+	import Button from '$lib/components/ui/button/button.svelte';
 	import {
 		DateFormatter,
 		getLocalTimeZone,
@@ -29,12 +32,34 @@
 	import BadgeInput from '$lib/components/ui/badge-input/badge-input.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import { utcTimeToLocal } from '$lib/utils/date-time';
+	import AgendaEditor from './AgendaEditor.svelte';
+	import type { EventAgendaItem } from '@crownshy/api-client/api';
+	import type { AgendaItemData } from './agenda-types';
+	import { InviteDto } from '@crownshy/api-client/api';
+	import CopyButton from '$lib/components/CopyButton.svelte';
+	import EmailInvitesList from '$lib/components/ui/email-invites/EmailInvitesList.svelte';
+	import EmailInviteForm from '$lib/components/ui/email-invites/EmailInviteForm.svelte';
+	import { inviteUrl } from '$lib/utils/invites.js';
 
+	let url = $page.url;
 	let { data } = $props();
 
 	const event = $derived(data.event);
 	const conversation = $derived(data.conversation);
 	const facilitators = $derived(data.facilitators);
+	const moderators = $derived(data.moderators);
+
+	$inspect('Facilitators ', facilitators);
+	$inspect('Moderators ', moderators);
+
+	let emailInvites = $derived(
+		data.invites.filter(
+			(invite) =>
+				typeof invite.inviteType !== 'string' &&
+				'email' in invite.inviteType &&
+				invite.inviteType.email
+		)
+	);
 	let primaryLanguage = $derived(data.conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(data.conversation.supportedLanguages ?? ['en']);
 
@@ -62,10 +87,20 @@
 
 	let { form, enhance, validateForm, submitting, tainted } = $derived(eventForm);
 
-	async function handleUpdateEvent() {
+	let saving = $state(false);
+
+	async function handleUpdateEvent({ cancel }: { cancel: () => void }) {
+		// We submit via the API client below — prevent SvelteKit from POSTing the form to the
+		// page route (which has no server actions and would return 405 Method Not Allowed).
+		cancel();
+
+		if (saving) return;
+
 		const result = await validateForm({ update: true });
 
 		if (!result.valid) return;
+
+		saving = true;
 
 		const dateOption = result.data.start_date;
 		let startTime = parseDateTime(`${dateOption}T${result.data.start_time}`);
@@ -99,6 +134,8 @@
 				message: 'Something went wrong updating the event',
 				priority: 'ERROR'
 			});
+		} finally {
+			saving = false;
 		}
 	}
 
@@ -113,6 +150,93 @@
 
 	let eventDate = $derived($form.start_date ? parseDate($form.start_date) : undefined);
 	let pageTitle = $derived(`Edit Event: ${event.name}`);
+
+	/** Map API agenda items to editor format */
+	function apiAgendaToEditor(items: EventAgendaItem[]): AgendaItemData[] {
+		return items.map((item) => {
+			if ('Basic' in item) {
+				return {
+					id: crypto.randomUUID(),
+					type: 'standard',
+					title: item.Basic.title
+				};
+			} else {
+				return {
+					id: crypto.randomUUID(),
+					type: 'breakout',
+					title: '',
+					duration: item.BreakoutRoom.estimated_time,
+					groupSize: item.BreakoutRoom.max_per_room ?? 4,
+					prompts: [
+						{
+							title: item.BreakoutRoom.prompt,
+							instructions: item.BreakoutRoom.instructions
+						}
+					],
+					assignmentMode: 'random',
+					balanceBy: []
+				};
+			}
+		});
+	}
+
+	/** Map editor format back to API agenda items */
+	function editorAgendaToApi(items: AgendaItemData[]): EventAgendaItem[] {
+		return items.map((item) => {
+			if (item.type === 'standard') {
+				return {
+					Basic: {
+						title: item.title || '',
+						description: '',
+						estimated_time: 0
+					}
+				};
+			} else {
+				const firstPrompt = item.prompts?.[0];
+				return {
+					BreakoutRoom: {
+						prompt: firstPrompt?.title || '',
+						instructions: firstPrompt?.instructions || '',
+						estimated_time: item.duration ?? 10,
+						time_limit: item.duration ? item.duration * 60 : null,
+						max_per_room: item.groupSize ?? null
+					}
+				};
+			}
+		});
+	}
+
+	let agendaItems = $state<AgendaItemData[]>(apiAgendaToEditor(event.agenda ?? []));
+	let agendaDirty = $state(false);
+	let agendaSaving = $state(false);
+
+	function handleAgendaUpdate(items: AgendaItemData[]) {
+		agendaItems = items;
+		agendaDirty = true;
+	}
+
+	async function handleSaveAgenda() {
+		agendaSaving = true;
+		try {
+			await apiClient.UpdateEvent(
+				{ agenda: editorAgendaToApi(agendaItems) },
+				{
+					params: {
+						conversation_id: conversation.id,
+						event_id: event.id
+					}
+				}
+			);
+			await invalidateAll();
+			agendaDirty = false;
+			notifications.send({ message: 'Agenda saved', priority: 'INFO' });
+		} catch (e) {
+			console.error(e);
+			notifications.send({ message: 'Failed to save agenda', priority: 'ERROR' });
+		} finally {
+			agendaSaving = false;
+		}
+	}
 
 	async function handleAddFacilitator(value: string) {
 		try {
@@ -166,6 +290,10 @@
 			});
 		}
 	}
+
+	async function emailInvitesSubmitted() {
+		await invalidateAll();
+	}
 </script>
 
 <svelte:head>
@@ -178,10 +306,18 @@
 
 {#snippet titleContentSnippet()}
 	<h1 class="text-4xl font-bold">Event: {event?.name}</h1>
-	<!-- TODO: figure out these -->
-	<!-- <AdminPrevNextControls -->
-	<!-- 	next={{ name: 'design', url: `/admin/conversations/${conversation.id}/design` }} -->
-	<!-- /> -->
+	{#if conversation && event}
+		<Button href={`/conversations/${conversation.id}/events/${event.id}`}>Event Link</Button>
+	{/if}
+	<AdminPrevNextControls
+		prev={{
+			name: 'Knowledge base',
+			url: `/admin/conversations/${conversation.id}/knowledge-base`
+		}}
+		next={conversation.isLive
+			? { name: 'Recruit', url: `/admin/conversations/${conversation.id}/invites` }
+			: undefined}
+	/>
 {/snippet}
 
 <Tabs.Root value="eventDetails" class="flex min-h-0 flex-1 flex-col">
@@ -193,10 +329,22 @@
 			Details
 		</Tabs.Trigger>
 		<Tabs.Trigger
+			value="eventStructure"
+			class="text-sidebar-foreground data-[state=active]:text-foreground border-none"
+		>
+			Event Structure
+		</Tabs.Trigger>
+		<Tabs.Trigger
 			value="facilitators"
 			class="text-sidebar-foreground data-[state=active]:text-foreground border-none"
 		>
 			Facilitators
+		</Tabs.Trigger>
+		<Tabs.Trigger
+			value="invites"
+			class="text-sidebar-foreground data-[state=active]:text-foreground border-none"
+		>
+			Invites
 		</Tabs.Trigger>
 	</div>
 	<Tabs.Content value="eventDetails">
@@ -277,8 +425,40 @@
 							<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">
 								Event date
 							</Form.Label>
-							<Input {...props} bind:value={$form.start_date} />
-							<Form.FieldErrors />
+							<div class="flex-1">
+								<Popover.Root>
+									<Popover.Trigger
+										{...props}
+										class={cn(
+											buttonVariants({ variant: 'outline' }),
+											'w-full max-w-xs justify-start pl-4 text-left font-normal',
+											!eventDate && 'text-muted-foreground'
+										)}
+									>
+										{eventDate
+											? df.format(eventDate.toDate(getLocalTimeZone()))
+											: 'Pick a date'}
+										<CalendarIcon class="ml-auto size-4 opacity-50" />
+									</Popover.Trigger>
+									<Popover.Content class="w-auto p-0" side="bottom" align="start">
+										<Calendar
+											type="single"
+											value={eventDate as DateValue}
+											minValue={today(getLocalTimeZone())}
+											calendarLabel="Event Date"
+											onValueChange={(v) => {
+												if (v) {
+													$form.start_date = v.toString();
+												} else {
+													$form.start_date = '';
+												}
+											}}
+										/>
+									</Popover.Content>
+								</Popover.Root>
+								<Form.FieldErrors />
+								<input hidden value={$form.start_date} name="start_date" />
+							</div>
 						{/snippet}
 					</Form.Control>
 				</Form.Field>
@@ -287,89 +467,21 @@
 			<div
 				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 			>
-				<Form.Field form={eventForm} name="start_time" class="contents">
-					<Form.Control>
-						{#snippet children({ props })}
-							<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">
-								Event date
-							</Form.Label>
-							<Popover.Root>
-								<Popover.Trigger
-									{...props}
-									class={cn(
-										buttonVariants({ variant: 'outline' }),
-										'w-70 justify-start pl-4 text-left font-normal',
-										!startDate && 'text-muted-foreground'
-									)}
-								>
-									{eventDate
-										? df.format(eventDate.toDate(getLocalTimeZone()))
-										: 'Pick a date'}
-									<CalendarIcon class="ml-auto size-4 opacity-50" />
-								</Popover.Trigger>
-								<Popover.Content class=" w-auto p-0" side="top">
-									<Calendar
-										type="single"
-										value={eventDate as DateValue}
-										minValue={today(getLocalTimeZone())}
-										calendarLabel="Event Date"
-										onValueChange={(v) => {
-											if (v) {
-												$form.start_date = v.toString();
-											} else {
-												$form.start_date = '';
-											}
-										}}
-									/>
-								</Popover.Content>
-							</Popover.Root>
-							<Form.FieldErrors />
-							<input hidden value={$form.start_date} name="start_date" />
-						{/snippet}
-					</Form.Control>
-				</Form.Field>
-			</div>
-
-			<div
-				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-			>
-				<Form.Field form={eventForm} name="start_time" class="contents">
-					<Form.Control>
-						{#snippet children({ props })}
-							<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">
-								Start time
-							</Form.Label>
-							<Input
-								bind:value={$form.start_time}
-								{...props}
-								type="time"
-								class="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
-							/>
-							<Form.FieldErrors />
-						{/snippet}
-					</Form.Control>
-				</Form.Field>
-			</div>
-
-			<div
-				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-			>
-				<Form.Field form={eventForm} name="end_time" class="contents">
-					<Form.Control>
-						{#snippet children({ props })}
-							<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">
-								End time
-							</Form.Label>
-							<Input
-								bind:value={$form.end_time}
-								{...props}
-								type="time"
-								class="appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
-							/>
-							<Form.FieldErrors />
-						{/snippet}
-					</Form.Control>
-				</Form.Field>
+				<p class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Time</p>
+				<div class="flex flex-1 flex-col gap-2">
+					<TimeRangePicker
+						startName="start_time"
+						endName="end_time"
+						bind:startValue={$form.start_time}
+						bind:endValue={$form.end_time}
+					/>
+					<Form.Field form={eventForm} name="start_time" class="contents">
+						<Form.FieldErrors class="text-destructive text-sm" />
+					</Form.Field>
+					<Form.Field form={eventForm} name="end_time" class="contents">
+						<Form.FieldErrors class="text-destructive text-sm" />
+					</Form.Field>
+				</div>
 			</div>
 
 			<div
@@ -407,12 +519,35 @@
 					type="submit"
 					variant="default"
 					class="px-12"
-					disabled={$submitting || !$tainted}
+					disabled={saving || $submitting || !$tainted}
 				>
 					Save Changes
 				</Form.Button>
 			</div>
 		</form>
+	</Tabs.Content>
+	<Tabs.Content value="eventStructure">
+		<div class="flex flex-col gap-10 py-6">
+			<div class="flex flex-col gap-2">
+				<h2 class="text-3xl font-bold">
+					Event structure <span class="font-bold">(for facilitator)</span>
+				</h2>
+				<p class="text-muted-foreground text-base">Plan how your meeting will run</p>
+			</div>
+
+			<AgendaEditor bind:items={agendaItems} onUpdate={handleAgendaUpdate} />
+
+			<div class="border-border flex justify-center border-t py-6">
+				<Button
+					variant="default"
+					class="px-12"
+					disabled={!agendaDirty || agendaSaving}
+					onclick={handleSaveAgenda}
+				>
+					{agendaSaving ? 'Saving...' : 'Save Agenda'}
+				</Button>
+			</div>
+		</div>
 	</Tabs.Content>
 	<Tabs.Content value="facilitators">
 		<div
@@ -424,10 +559,30 @@
 				<BadgeInput
 					onAddBadge={handleAddFacilitator}
 					onDeleteBadge={handleDeleteFacilitator}
-					badges={facilitators.map((f) => ({ id: f.id, value: f.email }))}
+					badges={[...facilitators, ...moderators].map((f) => ({
+						id: f.id,
+						value: f.email
+					}))}
 					placeholder="Enter an email address"
 				/>
 			</div>
 		</div>
 	</Tabs.Content>
+	<Tabs.Content value="invites">
+		<div class="border-border flex flex-col gap-4 border-t py-6 lg:gap-6">
+			<Label class="text-sm font-semibold lg:shrink-0 lg:pt-2">Email invites</Label>
+			<EmailInviteForm
+				conversationId={conversation.id}
+				eventId={event.id}
+				onDone={emailInvitesSubmitted}
+			/>
+			<EmailInvitesList {emailInvites} inviteLink={InviteLink} />
+		</div>
+	</Tabs.Content>
 </Tabs.Root>
+
+{#snippet InviteLink(invite: InviteDto, label: string)}
+	<div class="flex flex-row gap-x-2">
+		<CopyButton copyText={inviteUrl(url, invite, conversation)}>{label}</CopyButton>
+	</div>
+{/snippet}

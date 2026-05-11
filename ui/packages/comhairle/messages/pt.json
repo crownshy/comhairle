@@ -144,5 +144,8 @@
 	"polis_seed_statement": "Iniciador de conversa",
 	"password_updated_successfully": "Senha atualizada com sucesso",
 	"password_updated_successfully_body": "Sua senha foi alterada. Você pode continuar usando o aplicativo.",
+	"conversation_closed_title": "Esta conversa está encerrada",
+	"conversation_closed_description": "A participação na conversa chegou ao fim.",
+	"conversation_closed_link": "Voltar para outras conversas",
 	"continue_to_home": "Continuar para a página inicial"
 }
