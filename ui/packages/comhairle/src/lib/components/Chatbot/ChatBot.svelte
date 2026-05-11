@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { SendHorizontal, Mic, Sparkles } from 'lucide-svelte';
-	import { ChatClient } from '$lib/api/chatClient.svelte';
+	import { getChatSession } from '$lib/api/chatSession.svelte';
 	import MessageWithReferences from '$lib/components/Chatbot/MessageWithReferences.svelte';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
 	import type { ChatMessage, InitialQuestion, ChatBotProps } from './types';
@@ -45,64 +45,35 @@
 	let chatContainer: HTMLDivElement;
 	let scrollAreaRef: HTMLElement | null = $state(null);
 	let textareaRef: HTMLTextAreaElement | null = $state(null);
-	let chatMessages = $state([...initialMessages]);
-	let hasStartedConversation = $state(false);
 	let selectedQuestionId = $state<string | null>(null);
-	let chatError = $state<string | null>(null);
-	let isInitializing = $state(true);
 	let needsScroll = $state(false);
 
-	let client = $state<ChatClient | null>(null);
-	let initialized = false;
+	const session = $derived(conversationId ? getChatSession(conversationId) : null);
+	let initStartedFor = $state<string | null>(null);
 
 	$effect(() => {
-		if (initialized) return;
-		initialized = true;
-
-		async function init() {
-			try {
-				isInitializing = true;
-				client = new ChatClient(conversationId);
-
-				const session = await client.getSession();
-				if (!session) {
-					chatError = client.error || 'Failed to load session';
-					return;
-				}
-
-				if (session.messages?.length) {
-					const historicalMessages: ChatMessage[] = session.messages.map((msg, idx) => ({
-						id: msg.id ? `${msg.id}-${msg.role}` : `msg-${idx}`,
-						content: msg.content,
-						isBot: msg.role === 'assistant',
-						timestamp: null,
-						reference: msg.reference?.length
-							? {
-									total: msg.reference.length,
-									chunks: msg.reference.map((ref) => ({
-										id: ref.id,
-										content: ref.content,
-										document_id: ref.document_id,
-										document_name: ref.document_name,
-										dataset_id: ref.dataset_id
-									}))
-								}
-							: null
-					}));
-					chatMessages = [...initialMessages, ...historicalMessages];
-					hasStartedConversation = true;
-				}
-			} catch (e) {
-				chatError = e instanceof Error ? e.message : 'Failed to initialize chat';
-				console.error('Chat init error:', e);
-			} finally {
-				isInitializing = false;
-				needsScroll = true;
-			}
-		}
-
-		init();
+		if (!session) return;
+		if (initStartedFor === session.conversationId) return;
+		initStartedFor = session.conversationId;
+		session.init().then(() => {
+			needsScroll = true;
+		});
 	});
+
+	let isInitializing = $derived(!session || session.initializing || !session.initialized);
+	let chatError = $derived(session?.error ?? null);
+	let sessionMessages = $derived(session?.messages ?? []);
+	let hasStartedConversation = $derived(sessionMessages.length > 0);
+	let chatMessages = $derived<ChatMessage[]>([
+		...initialMessages,
+		...sessionMessages.map((m) => ({
+			id: m.id,
+			content: m.content,
+			isBot: m.role === 'assistant',
+			timestamp: m.timestamp,
+			reference: m.reference
+		}))
+	]);
 
 	$effect(() => {
 		if (needsScroll && scrollAreaRef) {
@@ -132,18 +103,16 @@
 		}
 	}
 
-	// Auto-scroll when streaming starts or content updates
+	// Auto-scroll on stream activity / content updates from the shared session.
 	$effect(() => {
-		if (client?.isStreaming) {
-			scrollToBottom();
-		}
-	});
-
-	// Auto-scroll on each chunk update
-	$effect(() => {
-		if (client?.currentAnswer) {
-			scrollToBottom();
-		}
+		if (!session) return;
+		// Track streaming state and the tail message content so this re-runs on chunks.
+		const _streaming = session.isStreaming;
+		const tail = session.messages[session.messages.length - 1];
+		const _content = tail?.content;
+		void _streaming;
+		void _content;
+		scrollToBottom();
 	});
 
 	// Auto-resize textarea
@@ -161,75 +130,28 @@
 		resizeTextarea();
 	});
 
-	async function addBotResponse(userMessage: string) {
-		if (!client) return;
-
+	async function ask(question: string) {
+		if (!session || isInitializing) return;
 		await tick();
 		scrollToBottom();
-
-		await client.send(userMessage);
-
-		if (client.error) {
-			chatError = client.error;
-			console.error('Chat error:', client.error);
-		} else if (client.currentAnswer) {
-			const botResponse: ChatMessage = {
-				id: `bot-${Date.now()}`,
-				content: client.currentAnswer,
-				isBot: true,
-				timestamp: new Date(),
-				reference: client.currentReference
-			};
-			chatMessages = [...chatMessages, botResponse];
-		}
-
+		await session.send(question);
 		await tick();
 		scrollToBottom();
 	}
 
 	function handleQuestionClick(question: InitialQuestion) {
-		if (!client || isInitializing) return;
-
+		if (!session || isInitializing) return;
 		selectedQuestionId = question.id;
-		hasStartedConversation = true;
-
-		const userMessage: ChatMessage = {
-			id: `user-${Date.now()}`,
-			content: question.text,
-			isBot: false,
-			timestamp: new Date()
-		};
-
-		chatMessages = [...chatMessages, userMessage];
-
 		onQuestionClick(question.text);
-
-		scrollToBottom();
-		addBotResponse(question.text);
+		void ask(question.text);
 	}
 
 	async function sendMessage() {
-		if (!client || isInitializing || !inputValue.trim()) return;
-
-		hasStartedConversation = true;
-
-		const userMessage: ChatMessage = {
-			id: `user-${Date.now()}`,
-			content: inputValue.trim(),
-			isBot: false,
-			timestamp: new Date()
-		};
-
-		chatMessages = [...chatMessages, userMessage];
-
-		onSendMessage(inputValue.trim());
-
+		if (!session || isInitializing || !inputValue.trim()) return;
 		const messageToRespond = inputValue.trim();
 		inputValue = '';
-
-		await tick();
-		scrollToBottom();
-		addBotResponse(messageToRespond);
+		onSendMessage(messageToRespond);
+		await ask(messageToRespond);
 	}
 
 	function handleKeyPress(event: KeyboardEvent) {
@@ -340,41 +262,25 @@
 						</div>
 					{/each}
 
-					<!-- Streaming Response -->
-					{#if client?.isStreaming}
+					<!-- Streaming placeholder bubble (empty assistant message while waiting for first chunk) -->
+					{#if session?.isStreaming && (!chatMessages.length || chatMessages[chatMessages.length - 1]?.isBot === false)}
 						<div>
 							<div
 								class="max-w-xxl bg-chat-bubble w-fit rounded-tl-2xl rounded-tr-2xl rounded-br-2xl px-3 py-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)]"
 							>
-								<div class="flex items-start gap-2">
-									<span class="text-chat-text text-sm">
-										{#if client.currentAnswer}
-											<MessageWithReferences
-												content={client.currentAnswer}
-												reference={client.currentReference}
-											/>
-										{:else}
-											<span class="flex items-center gap-1">
-												<span
-													class="bg-chat-primary-light h-2 w-2 animate-bounce rounded-full"
-												></span>
-												<span
-													class="bg-chat-primary-light h-2 w-2 animate-bounce rounded-full"
-													style="animation-delay: 0.1s"
-												></span>
-												<span
-													class="bg-chat-primary-light h-2 w-2 animate-bounce rounded-full"
-													style="animation-delay: 0.2s"
-												></span>
-											</span>
-										{/if}
-									</span>
-									{#if client.currentAnswer}
-										<span
-											class="bg-chat-primary ml-0.5 inline-block h-4 w-1.5 animate-pulse"
-										></span>
-									{/if}
-								</div>
+								<span class="flex items-center gap-1">
+									<span
+										class="bg-chat-primary-light h-2 w-2 animate-bounce rounded-full"
+									></span>
+									<span
+										class="bg-chat-primary-light h-2 w-2 animate-bounce rounded-full"
+										style="animation-delay: 0.1s"
+									></span>
+									<span
+										class="bg-chat-primary-light h-2 w-2 animate-bounce rounded-full"
+										style="animation-delay: 0.2s"
+									></span>
+								</span>
 							</div>
 						</div>
 					{/if}
@@ -415,7 +321,7 @@
 			<button
 				onclick={sendMessage}
 				class="bg-chat-primary-dark hover:bg-chat-primary rounded-full p-3 text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-				disabled={!inputValue.trim() || isInitializing || client?.isStreaming}
+				disabled={!inputValue.trim() || isInitializing || session?.isStreaming}
 				aria-label="Send message"
 			>
 				<SendHorizontal class="h-5 w-5" />
