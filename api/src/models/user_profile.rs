@@ -253,6 +253,47 @@ pub struct DemographicReport {
 }
 
 /// Generate a demographic report for users participating in a workflow
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct UserProfileExport {
+    pub user_id: Uuid,
+    pub ethnicity: Option<String>,
+    pub age: Option<i32>,
+    pub gender: Option<String>,
+    pub zipcode: Option<String>,
+    pub political_party: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+pub async fn get_demographics_for_export(
+    db: &PgPool,
+    conversation_id: &Uuid,
+) -> Result<Vec<UserProfileExport>, ComhairleError> {
+    let query = r#"
+        SELECT DISTINCT
+            up.user_id,
+            up.ethnicity,
+            up.age,
+            up.gender,
+            up.zipcode,
+            up.political_party,
+            up.created_at
+        FROM user_profile up
+        INNER JOIN comhairle_user u ON u.id = up.user_id
+        INNER JOIN user_participation upart ON upart.user_id = u.id
+        INNER JOIN workflow w ON w.id = upart.workflow_id
+        WHERE w.conversation_id = $1
+          AND up.consented = true
+        ORDER BY up.created_at DESC
+    "#;
+
+    let profiles = sqlx::query_as::<_, UserProfileExport>(query)
+        .bind(conversation_id)
+        .fetch_all(db)
+        .await?;
+
+    Ok(profiles)
+}
+
 pub async fn get_demographic_report(
     db: &PgPool,
     workflow_id: &Uuid,
