@@ -177,11 +177,20 @@ pub enum ComhairleError {
     #[error("Failed to create invite")]
     FailedToCreateInvite(sqlx::Error),
 
+    #[error("Failed to create invite response")]
+    FailedToCreateInviteResponse(sqlx::Error),
+
     #[error("Invite does not match logged in user")]
     InviteDoesNotMatchUser,
 
     #[error("This invite has expired")]
     InviteExpired,
+
+    #[error("This invite is has an invalid type")]
+    InvalidInviteType,
+
+    #[error("This invite has an invalid resource: {0}")]
+    InvalidInviteResource(String),
 
     #[error("Failed to update feedback")]
     FailedToUpdateFeedback,

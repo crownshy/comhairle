@@ -3,7 +3,7 @@ use crate::models::users::User;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, SmtpTransport, Transport};
 use minijinja::{context, Environment, Value};
-use tracing::instrument;
+use tracing::{instrument, warn};
 
 #[cfg(test)]
 use mockall::{automock, predicate::*};
@@ -105,7 +105,10 @@ impl ComhairleMailer for Mailer {
             .credentials(self.creds.clone())
             .build();
 
-        mailer.send(&email)?;
+        if let Err(e) = mailer.send(&email) {
+            warn!("Mailer error: {e}");
+        }
+
         Ok(())
     }
 

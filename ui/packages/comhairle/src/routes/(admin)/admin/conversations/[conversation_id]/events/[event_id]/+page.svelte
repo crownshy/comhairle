@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/stores';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import * as Form from '$lib/components/ui/form/';
 	import * as Popover from '$lib/components/ui/popover/index.js';
@@ -34,7 +35,13 @@
 	import AgendaEditor from './AgendaEditor.svelte';
 	import type { EventAgendaItem } from '@crownshy/api-client/api';
 	import type { AgendaItemData } from './agenda-types';
+	import { InviteDto } from '@crownshy/api-client/api';
+	import CopyButton from '$lib/components/CopyButton.svelte';
+	import EmailInvitesList from '$lib/components/ui/email-invites/EmailInvitesList.svelte';
+	import EmailInviteForm from '$lib/components/ui/email-invites/EmailInviteForm.svelte';
+	import { inviteUrl } from '$lib/utils/invites.js';
 
+	let url = $page.url;
 	let { data } = $props();
 
 	const event = $derived(data.event);
@@ -45,6 +52,14 @@
 	$inspect('Facilitators ', facilitators);
 	$inspect('Moderators ', moderators);
 
+	let emailInvites = $derived(
+		data.invites.filter(
+			(invite) =>
+				typeof invite.inviteType !== 'string' &&
+				'email' in invite.inviteType &&
+				invite.inviteType.email
+		)
+	);
 	let primaryLanguage = $derived(data.conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(data.conversation.supportedLanguages ?? ['en']);
 
@@ -275,6 +290,10 @@
 			});
 		}
 	}
+
+	async function emailInvitesSubmitted() {
+		await invalidateAll();
+	}
 </script>
 
 <svelte:head>
@@ -290,10 +309,15 @@
 	{#if conversation && event}
 		<Button href={`/conversations/${conversation.id}/events/${event.id}`}>Event Link</Button>
 	{/if}
-	<!-- TODO: figure out these -->
-	<!-- <AdminPrevNextControls -->
-	<!-- 	next={{ name: 'design', url: `/admin/conversations/${conversation.id}/design` }} -->
-	<!-- /> -->
+	<AdminPrevNextControls
+		prev={{
+			name: 'Knowledge base',
+			url: `/admin/conversations/${conversation.id}/knowledge-base`
+		}}
+		next={conversation.isLive
+			? { name: 'Recruit', url: `/admin/conversations/${conversation.id}/invites` }
+			: undefined}
+	/>
 {/snippet}
 
 <Tabs.Root value="eventDetails" class="flex min-h-0 flex-1 flex-col">
@@ -315,6 +339,12 @@
 			class="text-sidebar-foreground data-[state=active]:text-foreground border-none"
 		>
 			Facilitators
+		</Tabs.Trigger>
+		<Tabs.Trigger
+			value="invites"
+			class="text-sidebar-foreground data-[state=active]:text-foreground border-none"
+		>
+			Invites
 		</Tabs.Trigger>
 	</div>
 	<Tabs.Content value="eventDetails">
@@ -538,4 +568,21 @@
 			</div>
 		</div>
 	</Tabs.Content>
+	<Tabs.Content value="invites">
+		<div class="border-border flex flex-col gap-4 border-t py-6 lg:gap-6">
+			<Label class="text-sm font-semibold lg:shrink-0 lg:pt-2">Email invites</Label>
+			<EmailInviteForm
+				conversationId={conversation.id}
+				eventId={event.id}
+				onDone={emailInvitesSubmitted}
+			/>
+			<EmailInvitesList {emailInvites} inviteLink={InviteLink} />
+		</div>
+	</Tabs.Content>
 </Tabs.Root>
+
+{#snippet InviteLink(invite: InviteDto, label: string)}
+	<div class="flex flex-row gap-x-2">
+		<CopyButton copyText={inviteUrl(url, invite, conversation)}>{label}</CopyButton>
+	</div>
+{/snippet}
