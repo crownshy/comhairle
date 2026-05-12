@@ -159,7 +159,7 @@ impl ComhairleMailer for Mailer {
         if let Some(email) = email {
             self.send_email(
                 email,
-                "Reset your Comhairle password",
+                "Your Comhairle one-time-passcode",
                 "one_time_passcode.html",
                 context! { username, passcode },
             )

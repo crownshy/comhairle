@@ -2156,4 +2156,50 @@ mod tests {
 
         Ok(())
     }
+
+    #[sqlx::test]
+    async fn otp_should_be_invalid_after_single_use(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let email = "test_email@test.com";
+        let username = "test_user";
+        let password = "qwe321QWE^%$qwe321";
+
+        let state = test_state().db(pool.clone()).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new(username, password, email);
+        session.signup(&app).await?;
+        session.login(&app, email, password).await?;
+
+        let (_, current_user, _) = session.current_user(&app).await?;
+
+        session.logout(&app).await?;
+
+        let otp = otp::create(&pool, &current_user.id).await?;
+
+        let (status, _, _) = session
+            .post(
+                &app,
+                "/auth/login_otp",
+                json!({ "email": email, "code": otp.code })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+
+        assert!(status.is_success(), "error status code");
+
+        let (status, _, _) = session
+            .post(
+                &app,
+                "/auth/login_otp",
+                json!({ "email": email, "code": otp.code })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+
+        assert!(!status.is_success(), "incorrect status code");
+
+        Ok(())
+    }
 }
