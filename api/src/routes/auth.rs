@@ -15,9 +15,9 @@ use axum::{
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use bon::builder;
-use chrono::TimeDelta;
-use hyper::HeaderMap;
+use chrono::{TimeDelta, Utc};
 use cookie::CookieBuilder;
+use hyper::HeaderMap;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
 use rand_core::OsRng;
 use regex::Regex;
@@ -48,10 +48,13 @@ use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
-    models::users::{
-        create_annon_user, create_otp_user, create_user, get_user_by_email, get_user_by_id,
-        get_user_by_username, get_user_resource_roles, update_user, Resource, Role,
-        UpdateUserRequest, User, UserAuthType, UserResourceRole,
+    models::{
+        otp,
+        users::{
+            create_annon_user, create_otp_user, create_user, get_user_by_email, get_user_by_id,
+            get_user_by_username, get_user_resource_roles, update_user, Resource, Role,
+            UpdateUserRequest, User, UserAuthType, UserResourceRole,
+        },
     },
     routes::user::dto::UserDto,
     ComhairleState,
@@ -410,6 +413,57 @@ async fn login_annon(
 
     let user: UserDto = user.into();
     Ok((cookies.add(cookie), (StatusCode::OK, Json(user))))
+}
+
+#[derive(Deserialize, JsonSchema, Debug)]
+pub struct OtpLoginRequest {
+    email: String,
+    code: String,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn login_otp(
+    State(state): State<Arc<ComhairleState>>,
+    cookies: CookieJar,
+    Json(payload): Json<OtpLoginRequest>,
+) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
+    let user = get_user_by_email(&payload.email, &state.db).await?;
+    let now = Utc::now();
+
+    if user.auth_type != UserAuthType::EmailPassword && user.auth_type != UserAuthType::Otp {
+        return Err(ComhairleError::WrongUserType);
+    }
+
+    let _otp = otp::accept(&state.db, &user.id, &payload.code, now).await?;
+
+    let cookie = create_session_cookie(&user, &state);
+
+    Ok((cookies.add(cookie), (StatusCode::OK, Json(user.into()))))
+}
+
+#[derive(Deserialize, JsonSchema, Debug)]
+struct CreateOtpRequest {
+    email: String,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn create_otp(
+    State(state): State<Arc<ComhairleState>>,
+    Json(payload): Json<CreateOtpRequest>,
+) -> Result<StatusCode, ComhairleError> {
+    let user = get_user_by_email(&payload.email, &state.db).await?;
+
+    if user.auth_type != UserAuthType::EmailPassword && user.auth_type != UserAuthType::Otp {
+        return Err(ComhairleError::WrongUserType);
+    }
+
+    let otp = otp::create(&state.db, &user.id).await?;
+
+    state
+        .mailer
+        .send_otp_email(&user.username, &user.email, otp.code)?;
+
+    Ok(StatusCode::CREATED)
 }
 
 #[instrument(err(Debug), skip(state, payload))]
@@ -919,6 +973,16 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .api_route(
+            "/login_otp",
+            post_with(login_otp, |op| {
+                op.id("LoginOtpUser")
+                    .tag("Auth")
+                    .summary("Login an otp user")
+                    .description("Login a user with a one time passcode")
+                    .response::<200, Json<UserDto>>()
+            }),
+        )
+        .api_route(
             "/signup",
             post_with(signup, |op| {
                 op.id("SignUp")
@@ -943,6 +1007,15 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Auth")
                     .summary("Signup a one-time-password user with an email")
                     .response::<201, Json<UserDto>>()
+            }),
+        )
+        .api_route(
+            "/create_otp",
+            post_with(create_otp, |op| {
+                op.id("CreateOtp")
+                    .tag("Auth")
+                    .summary("Create and send a new one time passcode")
+                    .response::<201, ()>()
             }),
         )
         .api_route(
@@ -1017,9 +1090,12 @@ mod tests {
 
     use crate::{
         mailer::MockComhairleMailer,
-        models::users::{
-            add_user_resource_role, get_user_by_email, Resource, Role, UpdateUserRequest, User,
-            UserAuthType,
+        models::{
+            otp,
+            users::{
+                add_user_resource_role, get_user_by_email, Resource, Role, UpdateUserRequest, User,
+                UserAuthType,
+            },
         },
         routes::{
             auth::{generate_jwt, EmailLinkClaims, SessionClaims},
@@ -2006,6 +2082,77 @@ mod tests {
             StatusCode::BAD_REQUEST,
             "should reject weak password on update"
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_send_email_with_otp(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let email = "test_email@test.com";
+        let username = "test_user";
+        let password = "qwe321QWE^%$qwe321";
+
+        let mut mailer = MockComhairleMailer::new();
+        mailer
+            .expect_send_welcome_email()
+            .once()
+            .returning(|_, _| Ok(()));
+        mailer
+            .expect_send_otp_email()
+            .once()
+            .returning(|_, _, _| Ok(()));
+
+        let state = test_state().db(pool).mailer(Arc::new(mailer)).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new(username, password, email);
+        session.signup(&app).await?;
+
+        let (status, _, _) = session
+            .post(
+                &app,
+                "/auth/create_otp",
+                json!({ "email": email }).to_string().into(),
+            )
+            .await?;
+
+        assert!(status.is_success(), "error status code");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_sign_user_in_with_otp(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let email = "test_email@test.com";
+        let username = "test_user";
+        let password = "qwe321QWE^%$qwe321";
+
+        let state = test_state().db(pool.clone()).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new(username, password, email);
+        session.signup(&app).await?;
+        session.login(&app, email, password).await?;
+
+        let (_, current_user, _) = session.current_user(&app).await?;
+
+        session.logout(&app).await?;
+
+        let otp = otp::create(&pool, &current_user.id).await?;
+
+        let (status, value, _) = session
+            .post(
+                &app,
+                "/auth/login_otp",
+                json!({ "email": email, "code": otp.code })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+        let user: UserDto = serde_json::from_value(value)?;
+
+        assert!(status.is_success(), "error status code");
+        assert_eq!(user.email, Some(email.to_string()), "incorrect user email");
 
         Ok(())
     }

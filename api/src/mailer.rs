@@ -33,6 +33,13 @@ pub trait ComhairleMailer: Send + Sync {
         email: &Option<String>,
         verify_link: String,
     ) -> Result<(), ComhairleError>;
+
+    fn send_otp_email(
+        &self,
+        username: &Option<String>,
+        email: &Option<String>,
+        otp: String,
+    ) -> Result<(), ComhairleError>;
 }
 
 #[derive(Debug)]
@@ -137,6 +144,24 @@ impl ComhairleMailer for Mailer {
                 "Confirm your email address",
                 "verify_email.html",
                 context! { username, verify_link },
+            )
+        } else {
+            Err(ComhairleError::WrongUserType)
+        }
+    }
+
+    fn send_otp_email(
+        &self,
+        username: &Option<String>,
+        email: &Option<String>,
+        passcode: String,
+    ) -> Result<(), ComhairleError> {
+        if let Some(email) = email {
+            self.send_email(
+                email,
+                "Reset your Comhairle password",
+                "one_time_passcode.html",
+                context! { username, passcode },
             )
         } else {
             Err(ComhairleError::WrongUserType)
