@@ -210,17 +210,53 @@ export class ChatSession {
 }
 
 const sessionCache = new Map<string, ChatSession>();
+const MAX_CACHED_SESSIONS = 20;
+
+/**
+ * Evict the least-recently-used session, aborting any in-flight stream.
+ * Map iteration order is insertion order, and `getChatSession` re-inserts on
+ * access, so the first entry is the oldest unused one.
+ */
+function evictOldestChatSession(): void {
+	const oldest = sessionCache.keys().next();
+	if (oldest.done) return;
+	const id = oldest.value;
+	sessionCache.get(id)?.abort();
+	sessionCache.delete(id);
+}
+
+/**
+ * Drop a cached ChatSession and abort any in-flight work. Returns true if a
+ * session was present and removed.
+ */
+export function clearChatSession(conversationId: string): boolean {
+	const session = sessionCache.get(conversationId);
+	if (!session) return false;
+	session.abort();
+	return sessionCache.delete(conversationId);
+}
 
 /**
  * Get (or lazily create) the shared ChatSession for a conversation id. Multiple
  * components passing the same id receive the exact same instance, so they share
  * messages, streaming state, and errors.
+ *
+ * The cache is capped at MAX_CACHED_SESSIONS with LRU eviction so a long-lived
+ * SPA session that visits many conversations doesn't retain ChatClients and
+ * message history indefinitely.
  */
 export function getChatSession(conversationId: string): ChatSession {
-	let session = sessionCache.get(conversationId);
-	if (!session) {
-		session = new ChatSession(conversationId);
-		sessionCache.set(conversationId, session);
+	const existing = sessionCache.get(conversationId);
+	if (existing) {
+		// Re-insert to mark as most-recently-used.
+		sessionCache.delete(conversationId);
+		sessionCache.set(conversationId, existing);
+		return existing;
 	}
+	if (sessionCache.size >= MAX_CACHED_SESSIONS) {
+		evictOldestChatSession();
+	}
+	const session = new ChatSession(conversationId);
+	sessionCache.set(conversationId, session);
 	return session;
 }
