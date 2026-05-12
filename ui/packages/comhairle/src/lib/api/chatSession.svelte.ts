@@ -110,6 +110,11 @@ export class ChatSession {
 	async send(question: string, llmQuestion?: string): Promise<void> {
 		if (!this.initialized || this.isStreaming) return;
 
+		// Per-send failures live on the assistant ChatMessage; clear any stale
+		// session-level error so a previous transient failure doesn't keep
+		// blocking the transcript UI.
+		this.error = null;
+
 		const now = Date.now();
 		const userMsg: ChatMessage = {
 			id: `user-${now}`,
@@ -170,8 +175,6 @@ export class ChatSession {
 			};
 			this.messages = next;
 		}
-
-		if (sendError) this.error = sendError;
 	}
 
 	/**
