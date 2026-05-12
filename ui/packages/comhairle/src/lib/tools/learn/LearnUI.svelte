@@ -71,7 +71,6 @@
 		<div class="mx-auto w-full max-w-[65ch]">
 			<LearnTutor
 				conversationId={conversation.id}
-				pageKey={currentPageNo}
 				pageTitle={pageHeading}
 				loading={showSkeleton}
 			/>

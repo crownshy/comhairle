@@ -19,13 +19,12 @@
 
 	type Props = {
 		conversationId: string;
-		pageKey: number;
 		pageTitle?: string;
 		/** True while the surrounding page is loading (e.g. route transition). Disables input. */
 		loading?: boolean;
 	};
 
-	let { conversationId, pageKey, pageTitle = '', loading = false }: Props = $props();
+	let { conversationId, pageTitle = '', loading = false }: Props = $props();
 
 	let enabled = $state(true);
 	let inputVal = $state('');
