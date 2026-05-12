@@ -60,8 +60,12 @@
 		});
 	});
 
-	let isInitializing = $derived(!session || session.initializing || !session.initialized);
-	let chatError = $derived(session?.error ?? null);
+	let isInitializing = $derived(
+		!!conversationId && (session?.initializing || !session?.initialized)
+	);
+	let chatError = $derived(
+		conversationId ? (session?.error ?? null) : 'Unable to start chat: missing conversation ID.'
+	);
 	let sessionMessages = $derived(session?.messages ?? []);
 	let hasStartedConversation = $derived(sessionMessages.length > 0);
 	let chatMessages = $derived<ChatMessage[]>([
