@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { Sparkles, X, FileText, ChevronDown, AlertTriangle, RefreshCw } from 'lucide-svelte';
+	import { FileText, ChevronDown, AlertTriangle, RefreshCw } from 'lucide-svelte';
 	import { getChatSession, type ChatMessage } from '$lib/api/chatSession.svelte';
 	import type { ChatReference, ReferenceChunk } from '$lib/api/chatClient.svelte';
 	import MessageWithReferences from '$lib/components/Chatbot/MessageWithReferences.svelte';
