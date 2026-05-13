@@ -1519,6 +1519,7 @@ dependencies = [
  "tracing-subscriber",
  "tracing-test",
  "unic-langid",
+ "urlencoding",
  "uuid",
  "zxcvbn",
 ]

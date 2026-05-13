@@ -49,7 +49,12 @@ export const SignupRequest = z
 export type SignupRequest = z.infer<typeof SignupRequest>;
 export const OtpSignupRequest = z.object({ email: z.string() }).passthrough();
 export type OtpSignupRequest = z.infer<typeof OtpSignupRequest>;
-export const CreateOtpRequest = z.object({ email: z.string() }).passthrough();
+export const CreateOtpRequest = z
+  .object({
+    email: z.string(),
+    redirect_url: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
 export type CreateOtpRequest = z.infer<typeof CreateOtpRequest>;
 export const VerifyEmailTokenRequest = z
   .object({ token: z.string() })
@@ -1650,7 +1655,7 @@ const endpoints = makeApi([
       {
         name: "body",
         type: "Body",
-        schema: z.object({ email: z.string() }).passthrough(),
+        schema: CreateOtpRequest,
       },
     ],
     response: z.void(),

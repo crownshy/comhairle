@@ -38,7 +38,8 @@ pub trait ComhairleMailer: Send + Sync {
         &self,
         username: &Option<String>,
         email: &Option<String>,
-        otp: String,
+        passcode: String,
+        passcode_link: Option<String>,
     ) -> Result<(), ComhairleError>;
 }
 
@@ -155,13 +156,14 @@ impl ComhairleMailer for Mailer {
         username: &Option<String>,
         email: &Option<String>,
         passcode: String,
+        passcode_link: Option<String>,
     ) -> Result<(), ComhairleError> {
         if let Some(email) = email {
             self.send_email(
                 email,
                 "Your Comhairle one-time-passcode",
                 "one_time_passcode.html",
-                context! { username, passcode },
+                context! { username, passcode, passcode_link },
             )
         } else {
             Err(ComhairleError::WrongUserType)

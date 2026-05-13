@@ -20,6 +20,7 @@ pub struct Otp {
     pub user_id: Uuid,
     pub code: String,
     pub status: OtpStatus,
+    pub redirect_url: String,
     pub expires_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
@@ -54,18 +55,23 @@ impl std::fmt::Display for OtpStatus {
     }
 }
 
-const DEFAULT_COLUMNS: [OtpIden; 7] = [
+const DEFAULT_COLUMNS: [OtpIden; 8] = [
     OtpIden::Id,
     OtpIden::UserId,
     OtpIden::Code,
     OtpIden::Status,
+    OtpIden::RedirectUrl,
     OtpIden::ExpiresAt,
     OtpIden::CreatedAt,
     OtpIden::UpdatedAt,
 ];
 
 #[instrument(err(Debug))]
-pub async fn create(db: &PgPool, user_id: &Uuid) -> Result<Otp, ComhairleError> {
+pub async fn create(
+    db: &PgPool,
+    user_id: &Uuid,
+    redirect_url: Option<String>,
+) -> Result<Otp, ComhairleError> {
     let user = users::get_user_by_id(user_id, db).await?;
 
     if user.auth_type == UserAuthType::Annon {
@@ -88,10 +94,18 @@ pub async fn create(db: &PgPool, user_id: &Uuid) -> Result<Otp, ComhairleError> 
     let random_code = gen_id();
     let expires_at = Utc::now() + Duration::minutes(10);
 
+    let mut columns = vec![OtpIden::UserId, OtpIden::Code, OtpIden::ExpiresAt];
+    let mut values = vec![(*user_id).into(), random_code.into(), expires_at.into()];
+
+    if let Some(value) = redirect_url {
+        columns.push(OtpIden::RedirectUrl);
+        values.push(value.into());
+    }
+
     let (sql, values) = Query::insert()
         .into_table(OtpIden::Table)
-        .columns([OtpIden::UserId, OtpIden::Code, OtpIden::ExpiresAt])
-        .values([(*user_id).into(), random_code.into(), expires_at.into()])?
+        .columns(columns)
+        .values(values)?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -170,7 +184,7 @@ mod tests {
         .await?;
 
         let before = Utc::now();
-        let otp = create(&pool, &user.id).await?;
+        let otp = create(&pool, &user.id, None).await?;
         let after = Utc::now();
 
         let expiry_duration = Duration::minutes(10);
@@ -197,9 +211,9 @@ mod tests {
         )
         .await?;
 
-        let first = create(&pool, &user.id).await?;
-        let second = create(&pool, &user.id).await?;
-        let third = create(&pool, &user.id).await?;
+        let first = create(&pool, &user.id, None).await?;
+        let second = create(&pool, &user.id, None).await?;
+        let third = create(&pool, &user.id, None).await?;
 
         let first = get_by_id(&pool, &first.id).await?;
         let second = get_by_id(&pool, &second.id).await?;
@@ -215,7 +229,7 @@ mod tests {
     async fn should_fail_otp_create_for_annon_users(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = users::create_annon_user(&pool).await?;
 
-        let error = create(&pool, &user.id).await.unwrap_err();
+        let error = create(&pool, &user.id, None).await.unwrap_err();
 
         match error {
             ComhairleError::WrongUserType => return Ok(()),
@@ -233,7 +247,7 @@ mod tests {
         )
         .await?;
 
-        let new_otp = create(&pool, &user.id).await?;
+        let new_otp = create(&pool, &user.id, None).await?;
 
         let otp = get_by_id(&pool, &new_otp.id).await?;
 
@@ -252,7 +266,7 @@ mod tests {
         )
         .await?;
 
-        let new_otp = create(&pool, &user.id).await?;
+        let new_otp = create(&pool, &user.id, None).await?;
 
         let now = Utc::now();
         let otp = accept(&pool, &user.id, &new_otp.code, now).await?;
@@ -274,7 +288,7 @@ mod tests {
         )
         .await?;
 
-        let new_otp = create(&pool, &user.id).await?;
+        let new_otp = create(&pool, &user.id, None).await?;
 
         let now = Utc::now() + Duration::minutes(11);
         let error = accept(&pool, &user.id, &new_otp.code, now)
@@ -307,7 +321,7 @@ mod tests {
         )
         .await?;
 
-        let new_otp = create(&pool, &user.id).await?;
+        let new_otp = create(&pool, &user.id, None).await?;
 
         let now = Utc::now();
         let first_error = accept(&pool, &Uuid::new_v4(), &new_otp.code, now)

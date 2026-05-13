@@ -444,6 +444,7 @@ async fn login_otp(
 #[derive(Deserialize, JsonSchema, Debug)]
 struct CreateOtpRequest {
     email: String,
+    redirect_url: Option<String>,
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -457,11 +458,18 @@ async fn create_otp(
         return Err(ComhairleError::WrongUserType);
     }
 
-    let otp = otp::create(&state.db, &user.id).await?;
+    let email = user.email.ok_or_else(|| ComhairleError::WrongUserType)?;
 
+    let otp = otp::create(&state.db, &user.id, payload.redirect_url).await?;
+
+    let encoded_redirect_url = urlencoding::encode(&otp.redirect_url);
+    let otp_link = format!(
+        "{}/auth/login-otp/{}?backTo={}&email={}",
+        state.config.domain, otp.code, encoded_redirect_url, email
+    );
     state
         .mailer
-        .send_otp_email(&user.username, &user.email, otp.code)?;
+        .send_otp_email(&user.username, &Some(email), otp.code, Some(otp_link))?;
 
     Ok(StatusCode::CREATED)
 }
@@ -2138,7 +2146,7 @@ mod tests {
 
         session.logout(&app).await?;
 
-        let otp = otp::create(&pool, &current_user.id).await?;
+        let otp = otp::create(&pool, &current_user.id, None).await?;
 
         let (status, value, _) = session
             .post(
@@ -2174,7 +2182,7 @@ mod tests {
 
         session.logout(&app).await?;
 
-        let otp = otp::create(&pool, &current_user.id).await?;
+        let otp = otp::create(&pool, &current_user.id, None).await?;
 
         let (status, _, _) = session
             .post(
