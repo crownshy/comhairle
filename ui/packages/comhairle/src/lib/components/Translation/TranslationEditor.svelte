@@ -9,6 +9,7 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { useDebounce } from 'runed';
 	import { type TranslationStatus, statusToBadgeVariant } from './translationUtils';
+	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
 	interface Props {
 		initialContents: Record<string, string>;
@@ -20,9 +21,14 @@
 		maxHeight?: string;
 		initialTargetLang?: string;
 		isLoading?: boolean;
+		availableDocuments?: ComhairleDocument[];
+		conversationId?: string;
 		onSaveSource?: (content: string) => void | Promise<void>;
 		onSaveTarget?: (lang: string, content: string) => void | Promise<void>;
-		onAiTranslate?: (targetLang: string, sourceContent: string) => Promise<{ content: string; requiresValidation: boolean }>;
+		onAiTranslate?: (
+			targetLang: string,
+			sourceContent: string
+		) => Promise<{ content: string; requiresValidation: boolean }>;
 		onApprove?: (lang: string) => void | Promise<void>;
 		onMarkAsDraft?: (lang: string) => void | Promise<void>;
 		onRegisterFlush?: (flush: () => Promise<void>) => void;
@@ -38,6 +44,8 @@
 		maxHeight,
 		initialTargetLang,
 		isLoading = false,
+		availableDocuments = [],
+		conversationId,
 		onSaveSource,
 		onSaveTarget,
 		onAiTranslate,
@@ -82,7 +90,9 @@
 	let isViewingPrimary = $derived(activeTab === primaryLocale);
 	let currentTargetLang = $derived(!isViewingPrimary && activeTab ? activeTab : null);
 	let sourceContent = $derived(contents[primaryLocale] ?? '');
-	let currentTargetContent = $derived(currentTargetLang ? (contents[currentTargetLang] ?? '') : '');
+	let currentTargetContent = $derived(
+		currentTargetLang ? (contents[currentTargetLang] ?? '') : ''
+	);
 	let currentTargetStatus = $derived(
 		currentTargetLang ? (statuses[currentTargetLang] ?? 'draft') : 'draft'
 	);
@@ -167,7 +177,6 @@
 			notifications.send({ message: 'Failed to update status', priority: 'ERROR' });
 		}
 	}
-
 </script>
 
 {#if isLoading}
@@ -178,12 +187,12 @@
 			<Skeleton class="h-10 w-28" />
 			<Skeleton class="h-10 w-28" />
 		</div>
-		<div class="flex flex-col lg:flex-row gap-6 pt-4">
-			<div class="flex-1 flex flex-col gap-2">
+		<div class="flex flex-col gap-6 pt-4 lg:flex-row">
+			<div class="flex flex-1 flex-col gap-2">
 				<Skeleton class="h-6 w-32" />
 				<Skeleton class="w-full rounded-lg" style="min-height: {minHeight};" />
 			</div>
-			<div class="flex-1 flex flex-col gap-2">
+			<div class="flex flex-1 flex-col gap-2">
 				<Skeleton class="h-6 w-32" />
 				<Skeleton class="w-full rounded-lg" style="min-height: {minHeight};" />
 			</div>
@@ -191,26 +200,33 @@
 	</div>
 {:else if otherLanguages.length > 0 && activeTab}
 	<!-- Language tabs -->
-	<div class="border-b border-base-border flex items-center overflow-x-auto">
+	<div class="border-base-border flex items-center overflow-x-auto border-b">
 		{#each allLanguages as lang (lang)}
 			{@const isPrimary = lang === primaryLocale}
 			{@const status = isPrimary ? 'primary' : (statuses[lang] ?? 'draft')}
 			{@const isActive = lang === activeTab}
 			<button
 				type="button"
-				class="py-1.5 shrink-0 transition-colors border-b-[3px] cursor-pointer {isActive ? 'border-primary' : 'border-transparent'}"
+				class="shrink-0 cursor-pointer border-b-[3px] py-1.5 transition-colors {isActive
+					? 'border-primary'
+					: 'border-transparent'}"
 				onclick={async () => {
 					await debouncedSaveSource.runScheduledNow();
 					await debouncedSaveTarget.runScheduledNow();
 					activeTab = lang;
 				}}
 			>
-				<div class="px-3 py-2 rounded-lg flex items-center gap-2">
-					<span class="text-lg font-semibold text-base-foreground">{getLanguageName(lang)}</span>
+				<div class="flex items-center gap-2 rounded-lg px-3 py-2">
+					<span class="text-base-foreground text-lg font-semibold"
+						>{getLanguageName(lang)}</span
+					>
 					{#if isPrimary}
 						<Badge variant="outline" class="rounded-full shadow-sm">Primary</Badge>
 					{:else}
-						<Badge variant={statusToBadgeVariant[status]} class="capitalize rounded-full shadow-sm">{status}</Badge>
+						<Badge
+							variant={statusToBadgeVariant[status]}
+							class="rounded-full capitalize shadow-sm">{status}</Badge
+						>
 					{/if}
 				</div>
 			</button>
@@ -221,11 +237,18 @@
 		<!-- Primary editor only (full width) -->
 		<div class="pt-6">
 			{#if editorType === 'rich'}
-				<RichTextEditor value={sourceContent} onChange={handleSourceChange} {minHeight} {maxHeight} />
+				<RichTextEditor
+					value={sourceContent}
+					onChange={handleSourceChange}
+					{minHeight}
+					{maxHeight}
+					{availableDocuments}
+					{conversationId}
+				/>
 			{:else}
-				<div class="rounded-lg border bg-white dark:bg-input/30 overflow-hidden">
+				<div class="dark:bg-input/30 overflow-hidden rounded-lg border bg-white">
 					<textarea
-						class="w-full resize-none border-none outline-none p-4 text-sm leading-5 bg-transparent"
+						class="w-full resize-none border-none bg-transparent p-4 text-sm leading-5 outline-none"
 						style="min-height: {minHeight};"
 						value={sourceContent}
 						oninput={handleSourceInput}
@@ -241,10 +264,10 @@
 		</div>
 
 		<!-- Side-by-side editors -->
-		<div class="flex flex-col xl:flex-row gap-12">
+		<div class="flex flex-col gap-12 xl:flex-row">
 			<!-- Source (primary) column -->
-			<div class="xl:w-1/2 min-w-0 flex flex-col gap-4">
-				<div class="flex items-center gap-2 h-8">
+			<div class="flex min-w-0 flex-col gap-4 xl:w-1/2">
+				<div class="flex h-8 items-center gap-2">
 					<span class="text-base font-semibold">{getLanguageName(primaryLocale)}</span>
 					<Badge variant="outline" class="rounded-full shadow-sm">Primary</Badge>
 				</div>
@@ -254,11 +277,13 @@
 						onChange={handleSourceChange}
 						{minHeight}
 						{maxHeight}
+						{availableDocuments}
+						{conversationId}
 					/>
 				{:else}
-					<div class="rounded-xl border bg-white dark:bg-input/30 overflow-hidden">
+					<div class="dark:bg-input/30 overflow-hidden rounded-xl border bg-white">
 						<textarea
-							class="w-full resize-none border-none outline-none p-4 text-sm leading-5 bg-transparent"
+							class="w-full resize-none border-none bg-transparent p-4 text-sm leading-5 outline-none"
 							style="min-height: {minHeight};"
 							value={sourceContent}
 							oninput={handleSourceInput}
@@ -269,13 +294,15 @@
 			</div>
 
 			<!-- Target column -->
-			<div class="xl:w-1/2 min-w-0 flex flex-col gap-4">
+			<div class="flex min-w-0 flex-col gap-4 xl:w-1/2">
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-2">
-						<span class="text-base font-semibold">{getLanguageName(currentTargetLang)}</span>
+						<span class="text-base font-semibold"
+							>{getLanguageName(currentTargetLang)}</span
+						>
 						<Badge
 							variant={statusToBadgeVariant[currentTargetStatus]}
-							class="capitalize rounded-full shadow-sm"
+							class="rounded-full capitalize shadow-sm"
 						>
 							{currentTargetStatus}
 						</Badge>
@@ -283,7 +310,7 @@
 					<Button
 						type="button"
 						size="sm"
-						class="rounded-full gap-1.5"
+						class="gap-1.5 rounded-full"
 						onclick={handleAiTranslate}
 						disabled={isTranslating}
 					>
@@ -301,11 +328,13 @@
 						onChange={handleTargetChange}
 						{minHeight}
 						{maxHeight}
+						{availableDocuments}
+						{conversationId}
 					/>
 				{:else}
-					<div class="rounded-xl border bg-white dark:bg-input/30 overflow-hidden">
+					<div class="dark:bg-input/30 overflow-hidden rounded-xl border bg-white">
 						<textarea
-							class="w-full resize-none border-none outline-none p-4 text-sm leading-5 bg-transparent"
+							class="w-full resize-none border-none bg-transparent p-4 text-sm leading-5 outline-none"
 							style="min-height: {minHeight};"
 							value={currentTargetContent}
 							oninput={handleTargetInput}
@@ -317,18 +346,29 @@
 				<!-- Approve / Mark as draft -->
 				<div class="flex items-center justify-center gap-3">
 					{#if currentTargetStatus === 'approved'}
-						<Button disabled variant="outline" size="default" class="rounded-full gap-2">
+						<Button
+							disabled
+							variant="outline"
+							size="default"
+							class="gap-2 rounded-full"
+						>
 							<Check class="size-4" />
 							Approved
 						</Button>
 						<DropdownMenu.Root>
 							<DropdownMenu.Trigger>
-								<Button variant="outline" size="icon" class="rounded-full h-10 w-10">
+								<Button
+									variant="outline"
+									size="icon"
+									class="h-10 w-10 rounded-full"
+								>
 									<MoreHorizontal class="size-4" />
 								</Button>
 							</DropdownMenu.Trigger>
 							<DropdownMenu.Content>
-								<DropdownMenu.Item onclick={() => handleMarkAsDraftClick(currentTargetLang)}>
+								<DropdownMenu.Item
+									onclick={() => handleMarkAsDraftClick(currentTargetLang)}
+								>
 									Mark as draft
 								</DropdownMenu.Item>
 							</DropdownMenu.Content>
@@ -337,7 +377,7 @@
 						<Button
 							type="button"
 							size="default"
-							class="rounded-full gap-2"
+							class="gap-2 rounded-full"
 							onclick={() => handleApproveClick(currentTargetLang)}
 							disabled={!currentTargetContent}
 						>
@@ -352,7 +392,12 @@
 {:else}
 	<!-- Single editor when no translations needed -->
 	{#if editorType === 'rich'}
-		<RichTextEditor value={sourceContent} onChange={handleSourceChange} {minHeight} {maxHeight} />
+		<RichTextEditor
+			value={sourceContent}
+			onChange={handleSourceChange}
+			{minHeight}
+			{maxHeight}
+		/>
 	{:else}
 		<textarea
 			class="w-full resize-none rounded-lg border p-3 text-sm"

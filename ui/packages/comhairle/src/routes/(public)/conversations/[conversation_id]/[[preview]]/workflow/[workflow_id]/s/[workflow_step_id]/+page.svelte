@@ -17,6 +17,7 @@
 	import { page, navigating } from '$app/state';
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
 	import LearnTutorSkeleton from '$lib/tools/learn/LearnTutorSkeleton.svelte';
+	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
 	const url = $derived(page.url);
 	const queryString = $derived(url.search);
@@ -43,6 +44,20 @@
 	);
 
 	let isRevisiting = $derived(workflowStep.progressStatus === 'done');
+
+	let availableDocuments = $state<ComhairleDocument[]>([]);
+
+	$effect(() => {
+		if (!conversation?.id) return;
+		apiClient
+			.ListDocuments({ params: { conversation_id: conversation.id } })
+			.then((docs) => {
+				availableDocuments = docs.filter((d) => d.parse_status === 'DONE');
+			})
+			.catch(() => {
+				availableDocuments = [];
+			});
+	});
 
 	let stepItems = $derived<StepItem[]>(
 		sortedSteps.map((ws) => {
@@ -192,6 +207,8 @@
 					onNext={currentNextAction ?? stepComplete}
 					nextDisabled={!canProceed}
 					boldDescription={toolConfig.type === Polis.TOOL_NAME}
+					{availableDocuments}
+					conversationId={conversation.id}
 				/>
 			{/if}
 		</div>
@@ -218,7 +235,6 @@
 							user_id={user.id}
 							onNextAction={handleNextAction}
 							{conversation}
-							documentIds={toolConfig.documents ?? []}
 						/>
 					{/if}
 					{#if toolConfig?.type === Polis.TOOL_NAME}

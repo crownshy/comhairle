@@ -12,9 +12,25 @@
 	import { Pencil } from 'lucide-svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
+	import { apiClient } from '@crownshy/api-client/client';
+	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	let { data } = $props();
 
 	let editMetadataOpen = $state(false);
+	let availableDocuments = $state<ComhairleDocument[]>([]);
+
+	$effect(() => {
+		const cid = data.conversation?.id;
+		if (!cid) return;
+		apiClient
+			.ListDocuments({ params: { conversation_id: cid } })
+			.then((docs) => {
+				availableDocuments = docs.filter((d) => d.parse_status === 'DONE');
+			})
+			.catch(() => {
+				availableDocuments = [];
+			});
+	});
 
 	let conversation = $derived(data.conversation);
 	let step_id = $derived(data.step_id);
@@ -69,6 +85,8 @@
 					step?.description ?? ''
 				)}
 				class="text-muted-foreground text-base"
+				{availableDocuments}
+				conversationId={conversation.id}
 			/>
 		{/if}
 	</div>

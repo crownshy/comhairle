@@ -102,6 +102,7 @@
 		"@tiptap/extension-text-style": "^3.11.0",
 		"@tiptap/extension-underline": "^3.11.0",
 		"@tiptap/markdown": "^3.11.0",
+		"@tiptap/pm": "^3.11.0",
 		"@tiptap/starter-kit": "^3.11.0",
 		"@zodios/core": "^10.9.6",
 		"carta-md": "^4.9.0",

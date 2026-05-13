@@ -5,6 +5,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte';
 	import type {
+		ComhairleDocument,
 		ConversationWithTranslations,
 		WorkflowStepWithTranslations
 	} from '@crownshy/api-client/api';
@@ -50,6 +51,19 @@
 
 	let name = $state(step?.name ?? '');
 	let description = $state('');
+	let availableDocuments = $state<ComhairleDocument[]>([]);
+
+	$effect(() => {
+		if (!conversation_id) return;
+		apiClient
+			.ListDocuments({ params: { conversation_id } })
+			.then((docs) => {
+				availableDocuments = docs.filter((d) => d.parse_status === 'DONE');
+			})
+			.catch(() => {
+				availableDocuments = [];
+			});
+	});
 	let required = $derived(step?.required ?? false);
 	let revisitable = $derived(step?.canRevisit ?? false);
 
@@ -102,6 +116,8 @@
 			<ContentRenderer
 				content={description || sourceDescription}
 				class="text-muted-foreground text-sm"
+				{availableDocuments}
+				conversationId={conversation_id}
 			/>
 		</div>
 		<Button variant="default" onclick={() => (open = true)}>Edit Metadata</Button>
@@ -154,6 +170,8 @@
 							translation={step.translations?.description}
 							{primaryLocale}
 							{supportedLanguages}
+							{availableDocuments}
+							conversationId={conversation_id}
 							editorType="rich"
 							minHeight="100px"
 							maxHeight="150px"
