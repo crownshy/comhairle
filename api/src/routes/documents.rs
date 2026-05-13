@@ -22,19 +22,60 @@ use crate::{
     models::{
         conversation,
         job::{self, CreateJob},
+        user_participation,
     },
-    routes::auth::RequiredAdminUser,
+    routes::auth::{is_user_admin, OptionalUser, RequiredAdminUser},
     workers::process_documents::DocumentJob,
     ComhairleState,
 };
+
+/// Not sure if this is the desired behaviour. I made a few assumptions: 
+/// - The user owns the conversation
+/// - The user is a participant in any workflow of the conversation
+/// - No user is logged in but the conversation is public and live
+#[instrument(err(Debug), skip(state))]
+async fn require_conversation_document_access(
+    state: &Arc<ComhairleState>,
+    user: &OptionalUser,
+    conversation_id: &Uuid,
+) -> Result<(), ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, conversation_id).await?;
+
+    if conversation.is_public && conversation.is_live {
+        return Ok(());
+    }
+
+    let Some(ref user) = user.0 else {
+        return Err(ComhairleError::UserNotAuthorized);
+    };
+
+    if is_user_admin(user, &state.config) {
+        return Ok(());
+    }
+
+    if conversation.owner_id == user.id {
+        return Ok(());
+    }
+
+    let participant_ids =
+        user_participation::get_participant_user_ids_for_conversation(&state.db, conversation_id)
+            .await?;
+
+    if participant_ids.contains(&user.id) {
+        return Ok(());
+    }
+
+    Err(ComhairleError::UserNotAuthorized)
+}
 
 #[instrument(err(Debug), skip(state))]
 async fn list(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     Query(params): Query<GetQueryParams>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    user: OptionalUser,
 ) -> Result<(StatusCode, Json<Vec<ComhairleDocument>>), ComhairleError> {
+    require_conversation_document_access(&state, &user, &conversation_id).await?;
     let bot_service = state.required_bot_service()?;
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
@@ -118,8 +159,9 @@ async fn stop_parsing_document(
 async fn download_document(
     State(state): State<Arc<ComhairleState>>,
     Path((conversation_id, document_id)): Path<(Uuid, String)>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    user: OptionalUser,
 ) -> Result<Response<Body>, ComhairleError> {
+    require_conversation_document_access(&state, &user, &conversation_id).await?;
     let bot_service = state.required_bot_service()?;
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;

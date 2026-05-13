@@ -46,6 +46,8 @@ pub enum LearnPageEntry {
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
 pub struct LearnToolConfig {
     pub pages: Vec<LearnPageEntry>,
+    #[serde(default)]
+    pub documents: Vec<String>,
 }
 
 impl ToolConfigSanitize for LearnToolConfig {
@@ -60,11 +62,14 @@ pub struct LearnReport;
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
 pub struct LearnToolSetup {
     pub pages: Vec<LearnPageEntry>,
+    #[serde(default)]
+    pub documents: Vec<String>,
 }
 
 async fn learn_setup(setup_config: &LearnToolSetup) -> Result<LearnToolConfig, ComhairleError> {
     Ok(LearnToolConfig {
         pages: setup_config.pages.clone(),
+        documents: setup_config.documents.clone(),
     })
 }
 

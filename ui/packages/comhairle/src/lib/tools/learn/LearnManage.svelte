@@ -2,7 +2,8 @@
 	import type {
 		LocalizedPage,
 		WorkflowStepWithTranslations,
-		ConversationWithTranslations
+		ConversationWithTranslations,
+		ComhairleDocument
 	} from '@crownshy/api-client/api';
 
 	interface ExtendedLocalizedPage extends LocalizedPage {
@@ -19,7 +20,9 @@
 
 	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidateAll } from '$app/navigation';
+	import { Checkbox } from '$lib/components/ui/checkbox';
 	import { notifications } from '$lib/notifications.svelte';
+	import { FileText } from 'lucide-svelte';
 	import * as Select from '$lib/components/ui/select';
 	import { Button } from '$lib/components/ui/button';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
@@ -36,20 +39,25 @@
 	let primaryLocale = $derived(conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(conversation.supportedLanguages ?? ['en']);
 
-	type LearnToolConfig = { type: 'learn'; pages: ExtendedLocalizedPage[][] };
+	type LearnToolConfig = { type: 'learn'; pages: ExtendedLocalizedPage[][]; documents: string[] };
 
 	let sourceConfig = $derived(
 		(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig) as LearnToolConfig
 	);
 
 	let pages = $state<ExtendedLocalizedPage[][]>([]);
+	let documentIds = $state<string[]>([]);
 	let hasLocalChanges = $state(false);
 
 	let lastPropsConfig = $state<string>('');
 	$effect(() => {
-		const propsConfig = JSON.stringify(sourceConfig?.pages);
+		const propsConfig = JSON.stringify({
+			pages: sourceConfig?.pages,
+			documents: sourceConfig?.documents
+		});
 		if (propsConfig !== lastPropsConfig && !hasLocalChanges) {
 			pages = structuredClone(sourceConfig?.pages ?? []);
+			documentIds = structuredClone(sourceConfig?.documents ?? []);
 			lastPropsConfig = propsConfig;
 			if (isInitialLoad && pages.length > 0) {
 				isInitialLoad = false;
@@ -58,7 +66,7 @@
 	});
 
 	function getToolConfigForSave(): LearnToolConfig {
-		return { type: 'learn', pages };
+		return { type: 'learn', pages, documents: documentIds };
 	}
 
 	function markLocalChanges() {
@@ -67,7 +75,10 @@
 
 	function clearLocalChanges() {
 		hasLocalChanges = false;
-		lastPropsConfig = JSON.stringify(sourceConfig?.pages);
+		lastPropsConfig = JSON.stringify({
+			pages: sourceConfig?.pages,
+			documents: sourceConfig?.documents
+		});
 	}
 
 	let currentPageIndex = $state(0);
@@ -226,6 +237,35 @@
 		pages = [...pages];
 		await saveToServer({ invalidate: false });
 	}
+
+	// --- Document picker ---
+	let availableDocuments = $state<ComhairleDocument[]>([]);
+	let docsLoading = $state(true);
+
+	$effect(() => {
+		if (!conversationId) return;
+		apiClient
+			.ListDocuments({ params: { conversation_id: conversationId } })
+			.then((docs) => {
+				availableDocuments = docs.filter((d) => d.parse_status === 'DONE');
+			})
+			.catch(() => {
+				availableDocuments = [];
+			})
+			.finally(() => {
+				docsLoading = false;
+			});
+	});
+
+	function toggleDocument(docId: string) {
+		markLocalChanges();
+		if (documentIds.includes(docId)) {
+			documentIds = documentIds.filter((id) => id !== docId);
+		} else {
+			documentIds = [...documentIds, docId];
+		}
+		saveToServer({ invalidate: false });
+	}
 </script>
 
 <!-- Controls -->
@@ -303,5 +343,32 @@
 			onApprove={handleApprove}
 			onMarkAsDraft={handleMarkAsDraft}
 		/>
+	{/if}
+
+	{#if !isInitialLoad}
+		<div class="rounded-xl border p-4">
+			<h3 class="mb-3 text-sm font-semibold">Source materials</h3>
+			{#if docsLoading}
+				<Skeleton class="mb-2 h-5 w-full" />
+				<Skeleton class="h-5 w-2/3" />
+			{:else if availableDocuments.length === 0}
+				<p class="text-muted-foreground text-sm">
+					No parsed documents in the knowledge base.
+				</p>
+			{:else}
+				<ul class="flex flex-col gap-2">
+					{#each availableDocuments as doc (doc.id)}
+						<li class="flex items-center gap-2">
+							<Checkbox
+								checked={documentIds.includes(doc.id)}
+								onCheckedChange={() => toggleDocument(doc.id)}
+							/>
+							<FileText class="text-muted-foreground h-4 w-4" />
+							<span class="text-sm">{doc.name}</span>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</div>
 	{/if}
 </div>

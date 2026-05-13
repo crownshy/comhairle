@@ -3,27 +3,52 @@
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime.js';
-	import type { Page, LocalizedConversationDto } from '@crownshy/api-client/api';
+	import type {
+		Page,
+		LocalizedConversationDto,
+		ComhairleDocument
+	} from '@crownshy/api-client/api';
 	import { tick } from 'svelte';
 	import { navigating } from '$app/state';
 	import LearnTutor from './LearnTutor.svelte';
 	import LearnArticleSkeleton from './LearnArticleSkeleton.svelte';
+	import { FileText } from 'lucide-svelte';
+	import { apiClient } from '@crownshy/api-client/client';
 
 	let {
 		pages,
 		onDone,
 		onNextAction,
-		conversation
+		conversation,
+		documentIds = []
 	}: {
 		pages: Array<Page>;
 		onDone: () => void;
 		onNextAction?: (fn: () => void) => void;
 		conversation?: LocalizedConversationDto;
+		documentIds?: string[];
 	} = $props();
 
 	let tutorAvailable = $derived(
 		!!conversation?.id && !!conversation?.chatBotId && !!conversation?.enableQaChatBot
 	);
+
+	let attachedDocuments = $state<ComhairleDocument[]>([]);
+
+	$effect(() => {
+		if (!conversation?.id || documentIds.length === 0) {
+			attachedDocuments = [];
+			return;
+		}
+		apiClient
+			.ListDocuments({ params: { conversation_id: conversation.id } })
+			.then((docs) => {
+				attachedDocuments = docs.filter((d) => documentIds.includes(d.id));
+			})
+			.catch(() => {
+				attachedDocuments = [];
+			});
+	});
 
 	let currentPageNo = $state(0);
 	let currentPage = $derived(pages[currentPageNo]);
@@ -65,6 +90,28 @@
 		</article>
 	{:else}
 		<h1>Sorry this page is currently not avaliable in this language</h1>
+	{/if}
+
+	{#if attachedDocuments.length > 0}
+		<div class="mx-auto w-full max-w-[65ch]">
+			<div class="rounded-xl border p-4">
+				<h3 class="mb-2 text-sm font-semibold">Source materials</h3>
+				<ul class="flex flex-col gap-2">
+					{#each attachedDocuments as doc (doc.id)}
+						<li>
+							<a
+								href={`/api/conversation/${conversation?.id}/documents/${doc.id}/download`}
+								download
+								class="flex items-center gap-2 text-sm hover:underline"
+							>
+								<FileText class="text-muted-foreground h-4 w-4" />
+								<span>{doc.name}</span>
+							</a>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		</div>
 	{/if}
 
 	{#if tutorAvailable && conversation}

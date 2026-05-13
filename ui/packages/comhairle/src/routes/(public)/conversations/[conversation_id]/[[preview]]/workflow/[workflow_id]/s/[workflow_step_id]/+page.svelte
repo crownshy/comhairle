@@ -218,6 +218,7 @@
 							user_id={user.id}
 							onNextAction={handleNextAction}
 							{conversation}
+							documentIds={toolConfig.documents ?? []}
 						/>
 					{/if}
 					{#if toolConfig?.type === Polis.TOOL_NAME}
