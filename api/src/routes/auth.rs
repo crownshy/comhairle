@@ -2108,7 +2108,7 @@ mod tests {
         mailer
             .expect_send_otp_email()
             .once()
-            .returning(|_, _, _| Ok(()));
+            .returning(|_, _, _, _| Ok(()));
 
         let state = test_state().db(pool).mailer(Arc::new(mailer)).call()?;
         let app = setup_server(Arc::new(state)).await?;

@@ -163,6 +163,9 @@ pub enum ComhairleError {
     #[error("User's email address is already verified")]
     EmailAlreadyVerified,
 
+    #[error("An invite response has already been created for this invite by this user")]
+    InviteResponseAlreadyCreated,
+
     #[error("No user logged in")]
     NoLogedInUser,
 
@@ -280,6 +283,9 @@ pub enum ComhairleError {
     #[error("Event at max capacity")]
     EventAtCapacity,
 
+    #[error("User is already registered for event: {0}")]
+    UserAlreadyRegisteredForEvent(String),
+
     #[error("Conversation already live")]
     ConversationAlreadyLive,
 
@@ -308,7 +314,12 @@ impl IntoResponse for ComhairleError {
         let status_code = match self {
             ComhairleError::DuplicateUsername(_)
             | ComhairleError::DuplicateEmail(_)
+            | ComhairleError::ConversationAlreadyLive
+            | ComhairleError::EmailAlreadyVerified
+            | ComhairleError::EventAtCapacity
+            | ComhairleError::InviteResponseAlreadyCreated
             | ComhairleError::DuplicateSlug(_)
+            | ComhairleError::UserAlreadyRegisteredForEvent(_)
             | ComhairleError::UserAlreadyParticipatingInWorkflow(_) => StatusCode::CONFLICT,
             ComhairleError::ResourceNotFound(_)
             | ComhairleError::NoUserFound
@@ -322,8 +333,6 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::NoLogedInUser => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates => StatusCode::UNPROCESSABLE_ENTITY,
             ComhairleError::UserNotAuthorized => StatusCode::FORBIDDEN,
-            ComhairleError::ConversationAlreadyLive => StatusCode::CONFLICT,
-            ComhairleError::EmailAlreadyVerified => StatusCode::CONFLICT,
             ComhairleError::PasswordConfirmationMismatch
             | ComhairleError::WeakPassword(_)
             | ComhairleError::UnsupportedContentType(_)

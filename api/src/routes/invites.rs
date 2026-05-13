@@ -46,15 +46,17 @@ async fn accept_invite(
     invite.is_still_valid()?;
     invite.is_for_user(&user)?;
 
-    // Get the workflow to sign up to either explicitly from the invite
-    // or from the default conversation workflow
-    let workflow_id = match (invite.workflow_id, conversation.default_workflow_id) {
-        (Some(invite_workflow), _) => Ok(invite_workflow),
-        (None, Some(conversation_workflow)) => Ok(conversation_workflow),
-        (None, None) => Err(ComhairleError::NoWorkflowFoundForInvite),
-    }?;
+    if invite.event_id.is_none() {
+        // Get the workflow to sign up to either explicitly from the invite
+        // or from the default conversation workflow
+        let workflow_id = match (invite.workflow_id, conversation.default_workflow_id) {
+            (Some(invite_workflow), _) => Ok(invite_workflow),
+            (None, Some(conversation_workflow)) => Ok(conversation_workflow),
+            (None, None) => Err(ComhairleError::NoWorkflowFoundForInvite),
+        }?;
 
-    workflow::register_user(&state.db, &workflow_id, &user).await?;
+        workflow::register_user(&state.db, &workflow_id, &user).await?;
+    }
 
     invite
         .accept(&state.db, &user)
@@ -272,13 +274,7 @@ async fn auto_register_event_attendance(
         warn!("Error registering user for event: {error}");
     }
 
-    invite = match invite.accept(&state.db, &user).await {
-        Ok(new_invite) => new_invite,
-        Err(error) => {
-            warn!("Error accepting invite: {error}");
-            invite
-        }
-    };
+    invite = invite.accept(&state.db, &user).await?;
 
     let cookie = create_session_cookie(&user, &state);
 

@@ -61,6 +61,9 @@ impl MockComhairleMailer {
             .returning(|_, _, _| Ok(()));
         mailer.expect_send_email().returning(|_, _, _, _| Ok(()));
         mailer
+            .expect_send_otp_email()
+            .returning(|_, _, _, _| Ok(()));
+        mailer
             .expect_send_password_reset_email()
             .returning(|_, _, _| Ok(()));
 
