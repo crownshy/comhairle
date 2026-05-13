@@ -3,7 +3,7 @@
 	import PolisManage from '$lib/tools/polis/PolisManage.svelte';
 	import CommonStepConfig from '$lib/components/CommonStepConfig/CommonStepConfig.svelte';
 	import HeyFormManage from '$lib/tools/heyform/HeyFormManage.svelte';
-	import EliciationBotManage from '$lib/tools/elicitation_bot/ElicitationBotManage.svelte';
+	import ThinkingSpaceManage from '$lib/tools/thinking_space/ThinkingSpaceManage.svelte';
 	import LivedExperienceManage from '$lib/tools/lived_experince/LivedExperinceManage.svelte';
 	import { useAdminLayoutSlots } from '../../../useAdminLayoutSlots.svelte.js';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
@@ -147,8 +147,8 @@
 	<LivedExperienceManage />
 {/if}
 
-{#if toolConfig?.type === 'elicitationbot'}
-	<EliciationBotManage
+{#if step && toolConfig?.type === 'elicitationbot'}
+	<ThinkingSpaceManage
 		conversationId={conversation.id}
 		workflowId={step.workflowId}
 		workflowStep={step}
