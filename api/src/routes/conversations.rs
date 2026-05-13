@@ -32,6 +32,7 @@ use crate::{
         pagination::{OrderParams, PageOptions, PaginatedResults},
         user_participation::{self},
         user_conversation_preferences,
+        user_profile,
     },
     routes::{
         conversations::dto::{ConversationDto, LocalizedConversationDto},
@@ -417,6 +418,69 @@ async fn export_conversation_contacts(
     ))
 }
 
+async fn export_conversation_demographics(
+    State(state): State<Arc<ComhairleState>>,
+    Path(conversation_id): Path<Uuid>,
+    RequiredAdminUser(user): RequiredAdminUser,
+) -> Result<(StatusCode, [(String, String); 2], String), ComhairleError> {
+    // Verify conversation exists and user is owner
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+
+    if conversation.owner_id != user.id {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
+
+    // Get demographic data for export
+    let demographics = user_profile::get_demographics_for_export(&state.db, &conversation_id).await?;
+
+    // Generate CSV
+    let mut csv_output = Vec::new();
+    {
+        let mut writer = csv::Writer::from_writer(&mut csv_output);
+
+        // Write headers
+        writer.write_record(&[
+            "User ID",
+            "Ethnicity",
+            "Age",
+            "Gender",
+            "Zipcode",
+            "Political Party",
+            "Profile Created At",
+        ])?;
+
+        // Write data rows
+        for profile in demographics {
+            writer.write_record(&[
+                profile.user_id.to_string(),
+                profile.ethnicity.unwrap_or_default(),
+                profile.age.map(|a| a.to_string()).unwrap_or_default(),
+                profile.gender.unwrap_or_default(),
+                profile.zipcode.unwrap_or_default(),
+                profile.political_party.unwrap_or_default(),
+                profile.created_at.to_rfc3339(),
+            ])?;
+        }
+
+        writer.flush()?;
+    }
+
+    let csv_string = String::from_utf8(csv_output)?;
+    let filename = format!(
+        "conversation-demographics-{}.csv",
+        chrono::Utc::now().format("%Y-%m-%d")
+    );
+
+    Ok((
+        StatusCode::OK,
+        [
+            ("Content-Type".to_string(), "text/csv; charset=utf-8".to_string()),
+            ("Content-Disposition".to_string(), format!("attachment; filename=\"{}\"", filename)),
+        ],
+        csv_string,
+    ))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -506,6 +570,15 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("ExportConversationContacts")
                     .summary("Export contact list for conversation")
                     .description("Exports a CSV file containing all users who have opted in to receive email updates for this conversation")
+                    .tag("Conversation")
+            }),
+        )
+        .api_route(
+            "/{conversation_id}/demographics/export",
+            get_with(export_conversation_demographics, |op| {
+                op.id("ExportConversationDemographics")
+                    .summary("Export demographics for conversation participants")
+                    .description("Exports a CSV file containing demographic data for users participating in the conversation's workflow. Only includes consented users. Requires conversation ownership.")
                     .tag("Conversation")
             }),
         )
@@ -1312,6 +1385,179 @@ mod tests {
             .await?;
 
         assert_eq!(status, StatusCode::CONFLICT, "Slugs should be unique");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_export_conversation_demographics(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        use crate::models::{user_participation, user_profile};
+        use crate::routes::auth::SignupRequest;
+
+        let state = Arc::new(test_state().db(pool.clone()).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut admin_session = UserSession::new_admin();
+        admin_session.signup(&app).await?;
+
+        // Create conversation and workflow
+        let (_, conversation, _) = admin_session
+            .create_conversation(
+                &app,
+                json! ({
+                    "title" : "Test conversation",
+                    "short_description" : "A test conversation",
+                    "description" : "A longer description",
+                    "image_url" : "http://someimage.png",
+                    "tags" : ["one", "two", "three"],
+                    "is_public" : true,
+                    "is_live" : true,
+                    "is_invite_only" : false,
+                    "slug" : "test_demo_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
+                }),
+            )
+            .await?;
+        let conversation: ConversationDto = serde_json::from_value(conversation)?;
+
+        let (_, workflow, _) = admin_session
+            .create_random_workflow(&app, &conversation.id.to_string())
+            .await?;
+        let workflow: crate::routes::workflows::dto::WorkflowDto =
+            serde_json::from_value(workflow)?;
+
+        // Create test users with profiles
+        let user1 = crate::models::users::create_user(
+            &SignupRequest {
+                username: "demo_user1".to_string(),
+                password: "password".to_string(),
+                email: "user1@test.com".to_string(),
+                avatar_url: None,
+            },
+            &pool,
+        )
+        .await?;
+
+        user_profile::create(
+            &pool,
+            &user_profile::CreateUserProfile {
+                user_id: user1.id,
+                consented: true,
+                ethnicity: Some("Asian".to_string()),
+                age: Some(25),
+                gender: Some("Female".to_string()),
+                zipcode: Some("12345".to_string()),
+                political_party: Some("Independent".to_string()),
+            },
+        )
+        .await?;
+
+        let user2 = crate::models::users::create_user(
+            &SignupRequest {
+                username: "demo_user2".to_string(),
+                password: "password".to_string(),
+                email: "user2@test.com".to_string(),
+                avatar_url: None,
+            },
+            &pool,
+        )
+        .await?;
+
+        user_profile::create(
+            &pool,
+            &user_profile::CreateUserProfile {
+                user_id: user2.id,
+                consented: false, // This user should not appear in export
+                ethnicity: Some("Hispanic".to_string()),
+                age: Some(30),
+                gender: Some("Male".to_string()),
+                zipcode: Some("67890".to_string()),
+                political_party: Some("Democrat".to_string()),
+            },
+        )
+        .await?;
+
+        // Register users to workflow
+        user_participation::create(&pool, &user1.id, &workflow.id).await?;
+        user_participation::create(&pool, &user2.id, &workflow.id).await?;
+
+        // Export demographics as conversation owner
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt;
+        use http_body_util::BodyExt;
+
+        let url = format!("/conversation/{}/demographics/export", conversation.id);
+        let mut request = Request::builder().uri(&url).method("GET");
+
+        if let Some(cookie) = &admin_session.cookie {
+            request = request.header("Cookie", cookie);
+        }
+
+        let request = request.body(Body::empty()).unwrap();
+        let response = app.clone().oneshot(request).await?;
+        let status = response.status();
+
+        assert_eq!(status, StatusCode::OK, "Should export successfully");
+
+        let body = response.into_body().collect().await?.to_bytes();
+        let csv_string = String::from_utf8(body.to_vec())?;
+
+        // Verify CSV contains expected headers
+        assert!(csv_string.contains("User ID"), "CSV should have User ID header");
+        assert!(csv_string.contains("Ethnicity"), "CSV should have Ethnicity header");
+        assert!(csv_string.contains("Age"), "CSV should have Age header");
+        assert!(csv_string.contains("Gender"), "CSV should have Gender header");
+
+        // Verify only consented user appears
+        assert!(csv_string.contains(&user1.id.to_string()), "Should include consented user");
+        assert!(csv_string.contains("Asian"), "Should include user1's ethnicity");
+        assert!(!csv_string.contains(&user2.id.to_string()), "Should not include non-consented user");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    fn should_deny_demographics_export_to_non_owner(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut owner_session = UserSession::new_admin();
+        owner_session.signup(&app).await?;
+
+        let mut non_owner_session = UserSession::new_admin();
+        non_owner_session.signup(&app).await?;
+
+        // Create conversation as owner
+        let (_, conversation, _) = owner_session
+            .create_conversation(
+                &app,
+                json! ({
+                    "title" : "Test conversation",
+                    "short_description" : "A test conversation",
+                    "description" : "A longer description",
+                    "image_url" : "http://someimage.png",
+                    "tags" : ["one", "two", "three"],
+                    "is_public" : true,
+                    "is_live" : true,
+                    "is_invite_only" : false,
+                    "slug" : "auth_test_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
+                }),
+            )
+            .await?;
+        let conversation: ConversationDto = serde_json::from_value(conversation)?;
+
+        // Try to export as non-owner
+        let url = format!("/conversation/{}/demographics/export", conversation.id);
+        let (status, _, _) = non_owner_session.get(&app, &url).await?;
+
+        assert_eq!(
+            status, StatusCode::UNAUTHORIZED,
+            "Non-owner should not be able to export demographics"
+        );
 
         Ok(())
     }
