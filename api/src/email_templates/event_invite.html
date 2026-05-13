@@ -1,0 +1,20 @@
+{% extends "email_layout.html" %}
+{% block content %}
+	<h1>You're invited</h1>
+	<p>You have been invited to register for {{event_name}}</p>
+	<p>Please click on the button below to register for the event</p>
+
+	<div class="card">
+		<h2>{{event_name}}</h2>
+		<p>{{event_time}}</p>
+		<a class="button" href="{{invite_link}}">Register</a>
+	</div>
+
+	<p>Thank you very much for your time and contribution to this important process.</p>
+
+	<p>
+		Warm regards, 
+		<br />
+		<strong>The CrownShy Team.</strong>
+	</p>
+{% endblock %}

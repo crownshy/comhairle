@@ -94,6 +94,9 @@ pub enum ComhairleError {
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
 
+    #[error("CSS inliner error: {0}")]
+    CssInlinerError(#[from] css_inline::error::InlineError),
+
     #[error("Username {0} already taken")]
     DuplicateUsername(String),
 

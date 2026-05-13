@@ -101,6 +101,7 @@ impl ComhairleMailer for Mailer {
         let content = template
             .render(context)
             .expect("Template to render properly");
+        let content_inlined_styles = css_inline::inline(&content)?;
 
         let email = Message::builder()
             .from("noreply@comhairle.scot".parse().unwrap())
@@ -108,7 +109,7 @@ impl ComhairleMailer for Mailer {
             .to(to.parse().unwrap())
             .header(lettre::message::header::ContentType::TEXT_HTML)
             .subject(subject)
-            .body(content)
+            .body(content_inlined_styles)
             .unwrap();
 
         let mailer = SmtpTransport::relay(&self.host)
