@@ -9,11 +9,14 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import StepSelector, { type StepItem } from '$lib/components/StepSelector.svelte';
 	import StepHeader from '$lib/components/StepHeader.svelte';
+	import StepHeaderSkeleton from '$lib/components/StepHeaderSkeleton.svelte';
 
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
-	import { page } from '$app/state';
+	import { page, navigating } from '$app/state';
+	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
+	import LearnTutorSkeleton from '$lib/tools/learn/LearnTutorSkeleton.svelte';
 
 	const url = $derived(page.url);
 	const queryString = $derived(url.search);
@@ -177,16 +180,20 @@
 		</div>
 
 		<div class="mt-2 w-full md:mt-6 md:px-0">
-			<StepHeader
-				{currentStepNumber}
-				totalSteps={stepItems.length}
-				title={workflowStep.name}
-				description={workflowStep.description}
-				prevHref={prevStepHref}
-				onNext={currentNextAction ?? stepComplete}
-				nextDisabled={!canProceed}
-				boldDescription={toolConfig.type === Polis.TOOL_NAME}
-			/>
+			{#if navigating.to}
+				<StepHeaderSkeleton />
+			{:else}
+				<StepHeader
+					{currentStepNumber}
+					totalSteps={stepItems.length}
+					title={workflowStep.name}
+					description={workflowStep.description}
+					prevHref={prevStepHref}
+					onNext={currentNextAction ?? stepComplete}
+					nextDisabled={!canProceed}
+					boldDescription={toolConfig.type === Polis.TOOL_NAME}
+				/>
+			{/if}
 		</div>
 
 		<div class="flex w-full grow flex-col gap-y-2 md:order-3">
@@ -197,12 +204,20 @@
 					>
 				{/if}
 				<div class="mb-10 w-full grow">
-					{#if toolConfig.type === Learn.TOOL_NAME}
+					{#if navigating.to}
+						<LearnArticleSkeleton />
+						{#if conversation?.chatBotId && conversation.enableQaChatBot}
+							<div class="mx-auto mt-6 w-full max-w-[65ch]">
+								<LearnTutorSkeleton />
+							</div>
+						{/if}
+					{:else if toolConfig.type === Learn.TOOL_NAME}
 						<Learn.UserUI
 							onDone={stepComplete}
 							pages={toolConfig.pages}
 							user_id={user.id}
 							onNextAction={handleNextAction}
+							{conversation}
 						/>
 					{/if}
 					{#if toolConfig?.type === Polis.TOOL_NAME}
