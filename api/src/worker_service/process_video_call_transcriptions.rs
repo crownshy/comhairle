@@ -173,7 +173,7 @@ mod tests {
     use sqlx::PgPool;
 
     use crate::{
-        bulk_storage::{s3_storage::S3StorageService, BulkStorageService},
+        bulk_storage_service::{s3_storage::S3StorageService, BulkStorageService},
         categorization_service::{tttc_categorizer::TttcCategorizer, CategorizationService},
         config::TranscriptionServiceConfig,
         test_helpers::{test_config, test_state},

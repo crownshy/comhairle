@@ -22,6 +22,7 @@ use tower::ServiceExt;
 
 use crate::{
     bot_service::{ComhairleBotService, MockComhairleBotService},
+    bulk_storage_service::{BulkStorageService, MockBulkStorageService},
     categorization_service::{CategorizationService, MockCategorizationService},
     config::ComhairleConfig,
     mailer::MockComhairleMailer,

@@ -741,7 +741,7 @@ mod tests {
     use aws_config::BehaviorVersion;
     use sqlx::PgPool;
 
-    use crate::{bulk_storage::s3_storage::S3StorageService, test_helpers::test_state};
+    use crate::{bulk_storage_service::s3_storage::S3StorageService, test_helpers::test_state};
 
     use super::*;
 
