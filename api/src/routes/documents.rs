@@ -4,7 +4,6 @@ use aide::axum::{
     routing::{delete_with, get_with, post_with},
     ApiRouter,
 };
-use apalis::prelude::MessageQueue;
 use axum::{
     body::Body,
     extract::{Json, Multipart, Path, Query, State},
@@ -24,7 +23,7 @@ use crate::{
         job::{self, CreateJob},
     },
     routes::auth::RequiredAdminUser,
-    workers::process_documents::DocumentJob,
+    worker_service::process_documents::DocumentJob,
     ComhairleState,
 };
 
@@ -159,6 +158,7 @@ pub async fn upload(
     mut form_data: Multipart,
 ) -> Result<(StatusCode, Json<UploadFileResponse>), ComhairleError> {
     let bot_service = state.required_bot_service()?;
+    let worker_service = state.required_worker_service()?;
 
     let knowledge_base_id = get_knowledge_base_id(&state, &conversation_id).await?;
 
@@ -192,10 +192,7 @@ pub async fn upload(
         conversation_id,
         document_id: document.id.clone(),
     };
-    let mut lock = state.jobs.process_documents.lock().await;
-    lock.enqueue(worker_job)
-        .await
-        .map_err(|_| ComhairleError::BackgroundJobFailedToQueue)?;
+    worker_service.push_document_job(worker_job).await?;
 
     let json = UploadFileResponse {
         message: "Document parsing moved to background job".to_string(),

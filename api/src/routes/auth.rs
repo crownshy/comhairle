@@ -16,6 +16,7 @@ use axum::{
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use bon::builder;
 use chrono::TimeDelta;
+use hyper::HeaderMap;
 use cookie::CookieBuilder;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
 use rand_core::OsRng;
@@ -751,6 +752,48 @@ impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
             Ok(OptionalUser(poss_user))
         } else {
             Ok(OptionalUser(None))
+        }
+    }
+}
+
+#[derive(OperationIo, Debug)]
+pub struct RequiredWebhookSignature;
+
+impl FromRequestParts<Arc<ComhairleState>> for RequiredWebhookSignature {
+    type Rejection = ComhairleError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &Arc<ComhairleState>,
+    ) -> Result<Self, Self::Rejection> {
+        let config_signature = &state
+            .config
+            .categorization_service
+            .as_ref()
+            .ok_or(ComhairleError::NoCategorizationServiceConfigured)?
+            .webhook_signature;
+
+        let headers = parts
+            .extract::<HeaderMap>()
+            .await
+            .map_err(|e| ComhairleError::AuthWebhookSignatureError(e.to_string()))?;
+
+        let provided_signature = headers
+            .get("X-Webhook-Signature")
+            .ok_or_else(|| {
+                ComhairleError::AuthWebhookSignatureError(
+                    "Missing X-Webhook-Signature header".to_string(),
+                )
+            })?
+            .to_str()
+            .map_err(|e| ComhairleError::AuthWebhookSignatureError(e.to_string()))?;
+
+        if provided_signature == config_signature {
+            Ok(RequiredWebhookSignature)
+        } else {
+            Err(ComhairleError::AuthWebhookSignatureError(
+                "Invalid X-Webhook-Signature header".to_string(),
+            ))
         }
     }
 }

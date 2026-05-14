@@ -154,4 +154,33 @@ impl BulkStorageService for S3StorageService {
 
         Ok(url.uri().into())
     }
+
+    /// Returns a list of objects within an S3 bucket with an optional path prefix.
+    async fn list_keys(
+        &self,
+        store: &str,
+        prefix: Option<&str>,
+    ) -> Result<Vec<String>, BulkStorageError> {
+        let prefix = prefix.unwrap_or("");
+
+        let result = self
+            .s3_client
+            .list_objects_v2()
+            .bucket(store)
+            .prefix(prefix)
+            .send()
+            .await
+            .map_err(|e| BulkStorageError::FailedList(e.to_string()))?;
+
+        // Normalise entries by removing prefix to allow consistent room_id extraction
+        // across providers
+        let entries = result
+            .contents()
+            .iter()
+            .filter_map(|entry| entry.key())
+            .map(|key| key.strip_prefix(prefix).unwrap_or(key).to_string())
+            .collect();
+
+        Ok(entries)
+    }
 }

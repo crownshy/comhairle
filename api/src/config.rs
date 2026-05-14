@@ -1,12 +1,11 @@
 use config::{Config, Environment, File};
 use serde::Deserialize;
 
-use crate::error::ComhairleError;
-
+use crate::categorization_service::config::CategorizationConfig;
 pub use crate::{
-    bulk_storage_service::config::BulkStorageServiceConfig,
+    bulk_storage_service::config::BulkStorageServiceConfig, error::ComhairleError,
     transcription_service::config::TranscriptionServiceConfig,
-    translation_service::config::TranslatorConfig,
+    translation_service::config::TranslatorConfig, worker_service::config::WorkerConfig,
 };
 
 pub fn load() -> Result<ComhairleConfig, ComhairleError> {
@@ -74,5 +73,7 @@ pub struct ComhairleConfig {
     pub polis_url: String,
     pub video_call_service: Option<VideoCallConfig>,
     pub transcription_service: Option<TranscriptionServiceConfig>,
+    pub worker_service: Option<WorkerConfig>,
+    pub categorization_service: Option<CategorizationConfig>,
     pub bulk_storage_service: Option<BulkStorageServiceConfig>,
 }

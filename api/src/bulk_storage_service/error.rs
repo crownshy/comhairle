@@ -16,4 +16,7 @@ pub enum BulkStorageError {
 
     #[error("Failed to get file: {0}")]
     FailedToGetFile(String),
+
+    #[error("Failed list: {0}")]
+    FailedList(String),
 }

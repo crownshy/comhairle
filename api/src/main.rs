@@ -1,8 +1,8 @@
-use apalis::prelude::{MemoryStorage, Monitor, WorkerBuilder, WorkerFactoryFn};
 use aws_config::BehaviorVersion;
 use comhairle::{
     bot_service::{ComhairleBotService, ComhairleRagBotService},
     bulk_storage_service::{s3_storage::S3StorageService, BulkStorageService},
+    categorization_service::{tttc_categorizer::TttcCategorizer, CategorizationService},
     config::{TranscriptionServiceConfig, TranslatorConfig},
     db::setup_db,
     mailer::Mailer,
@@ -11,11 +11,10 @@ use comhairle::{
     translation_service::GoogleTranslateService,
     websockets::ComhairleWebSocketService,
     wiki_poll_service::polis_service::PolisClient,
-    workers::{process_documents::process_document_handler, JobQueues},
+    worker_service::{init_monitor, init_worker_service},
     ComhairleState,
 };
 use std::{error::Error, sync::Arc};
-use tokio::sync::Mutex;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -108,9 +107,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let wiki_poll_service = Arc::new(PolisClient::new(&config.polis_url));
 
-    let process_documents_storage = MemoryStorage::new();
-    let jobs = Arc::new(JobQueues {
-        process_documents: Arc::new(Mutex::new(process_documents_storage.clone())),
+    let (worker_service, storage) = match init_worker_service(&config.worker_service).await {
+        Some((worker_service, storage)) => (Some(worker_service), Some(storage)),
+        _ => (None, None),
+    };
+
+    let categorization_service = config.categorization_service.as_ref().map(|config| {
+        Arc::new(TttcCategorizer::new(&config.server_url, &config.api_key))
+            as Arc<dyn CategorizationService>
     });
 
     let state = Arc::new(ComhairleState {
@@ -122,8 +126,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         transcription_service,
         bot_service,
         wiki_poll_service,
-        jobs,
+        worker_service,
         bulk_storage_service,
+        categorization_service,
     });
 
     // Register WebSocket message handlers
@@ -143,14 +148,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .unwrap();
     };
 
-    let process_document_worker = WorkerBuilder::new("process_document_job")
-        .data(state.clone())
-        .backend(process_documents_storage.clone())
-        .build_fn(process_document_handler);
+    let worker_future = init_monitor(storage, &state);
 
-    let worker_future = { Monitor::new().register(process_document_worker).run() };
-
-    let _ = tokio::join!(server_future, worker_future);
+    if let Some(worker_future) = worker_future {
+        let _ = tokio::join!(server_future, worker_future);
+    } else {
+        server_future.await;
+    }
 
     Ok(())
 }

@@ -168,11 +168,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3948d2051795c769e6a44a46549879af39d5e8e4fb113e0011cf99f7cd21b657"
 dependencies = [
  "futures",
+ "futures-timer",
  "pin-project-lite",
  "serde",
+ "serde_json",
  "thiserror 2.0.17",
  "tower",
  "ulid",
+]
+
+[[package]]
+name = "apalis-redis"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "871367e3dfff2accda824ccc6e4f46f8f155c865065a450c466a7f2835541d55"
+dependencies = [
+ "apalis-core",
+ "chrono",
+ "futures",
+ "log",
+ "redis",
+ "serde",
+ "thiserror 2.0.17",
+ "tokio",
 ]
 
 [[package]]
@@ -182,6 +200,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0c269894b6fe5e9d7ada0cf69b5bf847ff35bc25fc271f08e1d080fce80339a"
 dependencies = [
  "object",
+]
+
+[[package]]
+name = "arc-swap"
+version = "1.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a07d1f37ff60921c83bdfc7407723bdefe89b44b98a9b772f225c8f9d67141a6"
+dependencies = [
+ "rustversion",
 ]
 
 [[package]]
@@ -1033,6 +1060,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "backon"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cffb0e931875b666fc4fcb20fee52e9bbd1ef836fd9e9e04ec21555f9f85f7ef"
+dependencies = [
+ "fastrand 2.3.0",
+]
+
+[[package]]
 name = "base16ct"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1393,7 +1429,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba5a308b75df32fe02788e748662718f03fde005016435c444eea572398219fd"
 dependencies = [
  "bytes",
+ "futures-core",
  "memchr",
+ "pin-project-lite",
+ "tokio",
+ "tokio-util",
 ]
 
 [[package]]
@@ -1411,6 +1451,7 @@ version = "0.1.0"
 dependencies = [
  "aide",
  "apalis",
+ "apalis-redis",
  "argon2",
  "async-stream",
  "async-trait",
@@ -4690,6 +4731,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "498cd0dc59d73224351ee52a95fee0f1a617a2eae0e7d9d720cc622c73a54186"
 dependencies = [
  "bitflags 2.10.0",
+]
+
+[[package]]
+name = "redis"
+version = "0.32.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "014cc767fefab6a3e798ca45112bccad9c6e0e218fbd49720042716c73cfef44"
+dependencies = [
+ "arc-swap",
+ "backon",
+ "bytes",
+ "cfg-if",
+ "combine",
+ "futures-channel",
+ "futures-util",
+ "itoa",
+ "num-bigint",
+ "percent-encoding",
+ "pin-project-lite",
+ "ryu",
+ "sha1_smol",
+ "socket2 0.6.1",
+ "tokio",
+ "tokio-util",
+ "url",
 ]
 
 [[package]]

@@ -113,6 +113,34 @@ pub trait BulkStorageService: Send + Sync {
     ///
     /// Returns a presigned URL that can be used to download the file via HTTP GET.
     async fn get_read_file_url(&self, path: &str) -> Result<String, BulkStorageError>;
+
+    /// Lists object keys found under the given prefix.
+    ///
+    /// Analogous to listing a directory: when called with a delimiter of `/`.
+    ///
+    /// # Arguments
+    ///
+    /// * `store` - Store name to list under, e.g. `"media"`
+    /// * `prefix` - Optional key prefix within the store to list under, e.g. `"events/abc123/"`
+    ///
+    /// # Returns
+    ///
+    /// A vector of Strings representing the entries found under the prefix.
+    ///
+    /// ## Example
+    /// ```bash
+    /// [
+    ///   "recording.wav",
+    ///   "rooms/abc123/recording.wav",
+    ///   "rooms/abc234/recording.wav",
+    ///   "rooms/abc345/recording.wav"
+    /// ]
+    /// ```
+    async fn list_keys(
+        &self,
+        store: &str,
+        prefix: Option<&str>,
+    ) -> Result<Vec<String>, BulkStorageError>;
 }
 
 #[cfg(test)]
@@ -144,6 +172,31 @@ impl MockBulkStorageService {
             Box::pin(async move { Ok("https://storage.com/signed_dowload_path".to_owned()) })
         });
 
+        storage.expect_list_keys().returning(|_, _| {
+            Box::pin(async move { Ok(vec!["recording.wav".to_string()]) })
+        });
+
         storage
+    }
+}
+
+pub fn extract_room_id_from_key(key: &str) -> Option<&str> {
+    match key.split("/").collect::<Vec<_>>().as_slice() {
+        ["rooms", room_id, ..] => Some(room_id),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_extract_room_id_from_key() {
+        let key = "rooms/abc123/recording.wav";
+
+        let result = extract_room_id_from_key(key).unwrap();
+
+        assert_eq!(result, "abc123", "incorrect room_id");
     }
 }

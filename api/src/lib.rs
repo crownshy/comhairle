@@ -1,5 +1,6 @@
 pub mod bot_service;
 pub mod bulk_storage_service;
+pub mod categorization_service;
 pub mod config;
 pub mod db;
 mod docs;
@@ -14,7 +15,7 @@ pub mod transcription_service;
 pub mod translation_service;
 pub mod websockets;
 pub mod wiki_poll_service;
-pub mod workers;
+pub mod worker_service;
 
 use bot_service::ComhairleBotService;
 use clap::Parser;
@@ -46,8 +47,9 @@ use sqlx_postgres::PgPool;
 use tower_http::cors::CorsLayer;
 
 use crate::{
-    bulk_storage_service::BulkStorageService, routes::workflows::WorkflowRouterContext,
-    transcription_service::Transcriber, wiki_poll_service::WikiPollService, workers::JobQueues,
+    bulk_storage_service::BulkStorageService, categorization_service::CategorizationService,
+    routes::workflows::WorkflowRouterContext, transcription_service::Transcriber,
+    wiki_poll_service::WikiPollService, worker_service::WorkerService,
 };
 
 #[derive(Clone)]
@@ -61,7 +63,8 @@ pub struct ComhairleState {
     pub wiki_poll_service: Arc<dyn WikiPollService>,
     pub bulk_storage_service: Option<Arc<dyn BulkStorageService>>,
     pub transcription_service: Option<Arc<dyn Transcriber>>,
-    pub jobs: Arc<JobQueues>,
+    pub worker_service: Option<Arc<dyn WorkerService>>,
+    pub categorization_service: Option<Arc<dyn CategorizationService>>,
 }
 
 impl ComhairleState {
@@ -69,6 +72,26 @@ impl ComhairleState {
         self.bot_service
             .as_ref()
             .ok_or(ComhairleError::NoBotServiceConfigured)
+    }
+
+    fn required_transcription_service(&self) -> Result<&Arc<dyn Transcriber>, ComhairleError> {
+        self.transcription_service
+            .as_ref()
+            .ok_or(ComhairleError::NoTranscriptionServiceConfigured)
+    }
+
+    fn required_worker_service(&self) -> Result<&Arc<dyn WorkerService>, ComhairleError> {
+        self.worker_service
+            .as_ref()
+            .ok_or(ComhairleError::NoWorkerServiceConfigured)
+    }
+
+    fn required_categorization_service(
+        &self,
+    ) -> Result<&Arc<dyn CategorizationService>, ComhairleError> {
+        self.categorization_service
+            .as_ref()
+            .ok_or(ComhairleError::NoCategorizationServiceConfigured)
     }
 
     fn required_bulk_storage_service(

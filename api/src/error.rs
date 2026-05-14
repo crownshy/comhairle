@@ -2,7 +2,7 @@ use crate::{
     bulk_storage_service::error::BulkStorageError, tools::polis::PolisError,
     transcription_service::error::TranscriptionServiceError,
     translation_service::error::TranslationError, websockets::error::WebsocketError,
-    wiki_poll_service::error::WikiPollServiceError,
+    wiki_poll_service::error::WikiPollServiceError, worker_service::error::WorkerServiceError,
 };
 use aide::OperationIo;
 use axum::{
@@ -49,6 +49,9 @@ pub enum ComhairleError {
     #[error("Transcription error: {0}")]
     TranscriptionError(#[from] TranscriptionServiceError),
 
+    #[error("Worker error: {0}")]
+    WorkerError(#[from] WorkerServiceError),
+
     #[error("No translation service configured")]
     NoTranslationServiceConfigured,
 
@@ -60,6 +63,15 @@ pub enum ComhairleError {
 
     #[error("No video service configured")]
     NoVideoServiceConfigured,
+
+    #[error("No transcription service configured")]
+    NoTranscriptionServiceConfigured,
+
+    #[error("No worker service configured")]
+    NoWorkerServiceConfigured,
+
+    #[error("No categorization service configured")]
+    NoCategorizationServiceConfigured,
 
     #[error("HeyForm error: {0}")]
     HeyFormError(#[from] HeyFormError),
@@ -108,6 +120,9 @@ pub enum ComhairleError {
 
     #[error("Auth Error {0}")]
     AuthJWTError(String),
+
+    #[error("Auth Error {0}")]
+    AuthWebhookSignatureError(String),
 
     #[error("Locale Error {0}")]
     LocaleError(String),

@@ -1220,6 +1220,20 @@ export const JwtResponse = z
   .object({ isModerator: z.boolean(), jwt: z.string() })
   .passthrough();
 export type JwtResponse = z.infer<typeof JwtResponse>;
+export const ProcessTranscriptionResponse = z
+  .object({ job_ids: z.array(z.string().uuid()), message: z.string() })
+  .passthrough();
+export type ProcessTranscriptionResponse = z.infer<
+  typeof ProcessTranscriptionResponse
+>;
+export const SubmitReportRequest = z
+  .object({ result: z.unknown() })
+  .passthrough();
+export type SubmitReportRequest = z.infer<typeof SubmitReportRequest>;
+export const SubmitReportResponse = z
+  .object({ success: z.boolean(), url: z.string() })
+  .passthrough();
+export type SubmitReportResponse = z.infer<typeof SubmitReportResponse>;
 export const EventAttendanceEtx = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
@@ -1583,6 +1597,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EventResponse,
   PartialEvent,
   JwtResponse,
+  ProcessTranscriptionResponse,
+  SubmitReportRequest,
+  SubmitReportResponse,
   EventAttendanceEtx,
   PaginatedResults_for_EventAttendanceEtx,
   CreateEventAttendanceRequest,
@@ -1913,6 +1930,14 @@ Use a raw HTTP request and process the response body incrementally.`,
   },
   {
     method: "get",
+    path: "/conversation/:conversation_id/demographics/export",
+    alias: "ExportConversationDemographics",
+    description: `Exports a CSV file containing demographic data for users participating in the conversation&#x27;s workflow. Only includes consented users. Requires conversation ownership.`,
+    requestFormat: "json",
+    response: z.void(),
+  },
+  {
+    method: "get",
     path: "/conversation/:conversation_id/documents",
     alias: "ListDocuments",
     requestFormat: "json",
@@ -2221,6 +2246,34 @@ curl -X POST \
     description: `Get a auth JWT for an event`,
     requestFormat: "json",
     response: JwtResponse,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/report",
+    alias: "SubmitEventReport",
+    description: `Submit categorization report to bulk storage`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ result: z.unknown() }).passthrough(),
+      },
+      {
+        name: "room_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: SubmitReportResponse,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/transcriptions",
+    alias: "ProcessVideoCallTranscriptions",
+    description: `Triggers transcription processing in a background worker`,
+    requestFormat: "json",
+    response: ProcessTranscriptionResponse,
   },
   {
     method: "get",

@@ -61,7 +61,7 @@ pub trait Transcriber: Sync + Send {
     fn supports_streaming(&self) -> bool;
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TranscribeFromBulkResponse {
     success: bool,
     completed_at: DateTime<Utc>,
