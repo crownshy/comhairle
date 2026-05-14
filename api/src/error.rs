@@ -1,5 +1,6 @@
 use crate::{
-    tools::polis::PolisError, transcription_service::error::TranscriptionServiceError,
+    bulk_storage_service::error::BulkStorageError, tools::polis::PolisError,
+    transcription_service::error::TranscriptionServiceError,
     translation_service::error::TranslationError, websockets::error::WebsocketError,
     wiki_poll_service::error::WikiPollServiceError,
 };
@@ -42,6 +43,9 @@ pub enum ComhairleError {
     #[error("Translation error: {0}")]
     TranslationError(#[from] TranslationError),
 
+    #[error("Bulk storage error: {0}")]
+    BulkStorageError(#[from] BulkStorageError),
+
     #[error("Transcription error: {0}")]
     TranscriptionError(#[from] TranscriptionServiceError),
 
@@ -50,6 +54,9 @@ pub enum ComhairleError {
 
     #[error("No bot service configured")]
     NoBotServiceConfigured,
+
+    #[error("No bulk storage service configured")]
+    NoBulkStorageServiceConfigured,
 
     #[error("No video service configured")]
     NoVideoServiceConfigured,
@@ -269,6 +276,9 @@ pub enum ComhairleError {
 
     #[error("UTF-8 conversion error: {0}")]
     Utf8Error(#[from] std::string::FromUtf8Error),
+
+    #[error("Unsupported Content-Type: {0}")]
+    UnsupportedContentType(String),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -301,6 +311,7 @@ impl IntoResponse for ComhairleError {
             ComhairleError::EmailAlreadyVerified => StatusCode::CONFLICT,
             ComhairleError::PasswordConfirmationMismatch
             | ComhairleError::WeakPassword(_)
+            | ComhairleError::UnsupportedContentType(_)
             | ComhairleError::BadRequest(_) => StatusCode::BAD_REQUEST,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };

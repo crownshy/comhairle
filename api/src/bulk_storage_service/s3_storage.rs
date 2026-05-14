@@ -1,9 +1,11 @@
 use async_trait::async_trait;
 use aws_config::SdkConfig;
-use aws_sdk_s3::{presigning::PresigningConfig, primitives::ByteStream, types::ObjectCannedAcl, Client};
+use aws_sdk_s3::{
+    presigning::PresigningConfig, primitives::ByteStream, types::ObjectCannedAcl, Client,
+};
 use std::time::Duration;
 
-use crate::bulk_storage::{BulkStorageError, BulkStorageService, FileMetadata};
+use crate::bulk_storage_service::{error::BulkStorageError, BulkStorageService, FileMetadata};
 /// Presigned URL expiration time for PUT operations (in seconds)
 const PUT_EXPIRES: u64 = 600;
 /// Presigned URL expiration time for GET operations (in seconds)
@@ -66,6 +68,9 @@ impl BulkStorageService for S3StorageService {
         put_object
             .send()
             .await
+            .inspect_err(|e| {
+                eprintln!("S3 upload error: {e:#?}");
+            })
             .map_err(|e| BulkStorageError::FailedToUpload(e.to_string()))?;
 
         let url = if metadata.is_public {

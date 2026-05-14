@@ -4,6 +4,7 @@ use serde::Deserialize;
 use crate::error::ComhairleError;
 
 pub use crate::{
+    bulk_storage_service::config::BulkStorageServiceConfig,
     transcription_service::config::TranscriptionServiceConfig,
     translation_service::config::TranslatorConfig,
 };
@@ -73,4 +74,5 @@ pub struct ComhairleConfig {
     pub polis_url: String,
     pub video_call_service: Option<VideoCallConfig>,
     pub transcription_service: Option<TranscriptionServiceConfig>,
+    pub bulk_storage_service: Option<BulkStorageServiceConfig>,
 }

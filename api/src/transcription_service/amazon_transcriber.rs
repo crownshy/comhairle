@@ -1,4 +1,4 @@
-use crate::bulk_storage::BulkStorageService;
+use crate::bulk_storage_service::BulkStorageService;
 use crate::transcription_service::TranscribeFromBulkResponse;
 
 use super::error::{Result, TranscriptionServiceError};
@@ -972,12 +972,13 @@ mod tests {
         pool: PgPool,
     ) -> std::result::Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
+        let bulk_storage_service = state.required_bulk_storage_service()?;
         let transcriber = AmazonTranscriber::new().await;
         let _result = transcriber
             .transcribe_from_bulk_store(
                 "comhairle-media",
                 "events/3c22d53d-07df-4d46-802e-486b79dd1a80",
-                &state.bulk_storage_service,
+                bulk_storage_service,
             )
             .await?;
 
