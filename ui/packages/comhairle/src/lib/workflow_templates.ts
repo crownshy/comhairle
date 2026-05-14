@@ -61,6 +61,11 @@ export const basic_lived_experience_config = {
 	max_time: 10,
 	to_see: 3
 };
+
+export const basic_prioritisation_config = {
+	type: 'prioritisation',
+	data: {}
+};
 export const workflow_templates = {
 	learn_polis: [
 		{

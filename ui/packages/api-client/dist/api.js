@@ -3,7 +3,12 @@ import { z } from "zod";
 export const AnnonLoginRequest = z
     .object({ username: z.string() })
     .passthrough();
-export const UserAuthType = z.enum(["annon", "email_password", "scot_account"]);
+export const UserAuthType = z.enum([
+    "annon",
+    "email_password",
+    "otp",
+    "scot_account",
+]);
 export const UserDto = z
     .object({
     authType: UserAuthType,
@@ -26,6 +31,7 @@ export const SignupRequest = z
     username: z.string(),
 })
     .passthrough();
+export const OtpSignupRequest = z.object({ email: z.string() }).passthrough();
 export const VerifyEmailTokenRequest = z
     .object({ token: z.string() })
     .passthrough();
@@ -70,6 +76,7 @@ export const ConversationDto = z
     privacyPolicy: z.union([z.string(), z.null()]).optional(),
     shortDescription: z.string().uuid(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
+    showThankYouPageAnnonInstructions: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
     tags: z.array(z.string()),
@@ -101,6 +108,7 @@ export const LocalizedConversationDto = z
     privacyPolicy: z.union([z.string(), z.null()]).optional(),
     shortDescription: z.string(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
+    showThankYouPageAnnonInstructions: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
     tags: z.array(z.string()),
@@ -378,6 +386,7 @@ export const ConversationWithTranslations = z
     privacyPolicy: z.union([z.string(), z.null()]).optional(),
     shortDescription: z.string(),
     shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
+    showThankYouPageAnnonInstructions: z.boolean(),
     slug: z.union([z.string(), z.null()]).optional(),
     supportedLanguages: z.array(z.string()),
     tags: z.array(z.string()),
@@ -411,6 +420,7 @@ export const PartialConversation = z
     privacy_policy: z.union([z.string(), z.null()]),
     short_description: z.union([z.string(), z.null()]),
     short_privacy_policy: z.union([z.string(), z.null()]),
+    show_thank_you_page_annon_instructions: z.union([z.boolean(), z.null()]),
     slug: z.union([z.string(), z.null()]),
     supported_languages: z.union([z.array(z.string()), z.null()]),
     tags: z.union([z.array(z.string()), z.null()]),
@@ -502,6 +512,7 @@ export const ToolConfig = z.union([
         poll_id: z.string(),
         required_votes: z.union([z.number(), z.null()]).optional(),
         server_url: z.string(),
+        show_remaining_statements: z.boolean().optional().default(true),
         type: z.literal("polis"),
     })
         .passthrough(),
@@ -529,6 +540,12 @@ export const ToolConfig = z.union([
         .passthrough(),
     z
         .object({ topic: z.string(), type: z.literal("elicitationbot") })
+        .passthrough(),
+    z
+        .object({
+        data: z.unknown().optional().default(null),
+        type: z.literal("prioritisation"),
+    })
         .passthrough(),
 ]);
 export const WorkflowStep = z
@@ -662,6 +679,7 @@ export const ToolSetup = z.union([
     z
         .object({
         required_votes: z.union([z.number(), z.null()]).optional(),
+        show_remaining_statements: z.boolean().optional().default(true),
         topic: z.string(),
         type: z.literal("polis"),
     })
@@ -684,6 +702,12 @@ export const ToolSetup = z.union([
         .passthrough(),
     z
         .object({ topic: z.string(), type: z.literal("elicitationbot") })
+        .passthrough(),
+    z
+        .object({
+        data: z.unknown().optional().default(null),
+        type: z.literal("prioritisation"),
+    })
         .passthrough(),
 ]);
 export const CreateWorkflowStep = z
@@ -757,6 +781,7 @@ export const InviteDto = z
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
     createdBy: z.string().uuid(),
+    eventId: z.union([z.string(), z.null()]).optional(),
     expiresAt: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
     inviteType: InviteType,
@@ -770,6 +795,7 @@ export const InviteDto = z
     .passthrough();
 export const CreateInviteDTO = z
     .object({
+    event_id: z.union([z.string(), z.null()]).optional(),
     expires_at: z.union([z.string(), z.null()]).optional(),
     invite_type: InviteType,
     label: z.union([z.string(), z.null()]).optional(),
@@ -781,6 +807,7 @@ export const PartialInvite = z
     accept_count: z.union([z.number(), z.null()]),
     conversation_id: z.union([z.string(), z.null()]),
     created_by: z.union([z.string(), z.null()]),
+    event_id: z.union([z.string(), z.null()]),
     expires_at: z.union([z.string(), z.null()]),
     invite_type: z.union([InviteType, z.null()]),
     label: z.union([z.string(), z.null()]),
@@ -822,12 +849,14 @@ export const HeyFormReport = z.null();
 export const LearnReport = z.null();
 export const StoriesReport = z.null();
 export const ElicitationBotReport = z.null();
+export const PrioritisationReport = z.null();
 export const ReportConfig = z.union([
     z.object({ Polis: PolisReport }),
     z.object({ HeyForm: HeyFormReport }),
     z.object({ Learn: LearnReport }),
     z.object({ Stories: StoriesReport }),
     z.object({ ElicitationBot: ElicitationBotReport }),
+    z.object({ Prioritisation: PrioritisationReport }),
 ]);
 export const ReportSectionConfig = z
     .object({
@@ -926,8 +955,29 @@ export const CapacityStatus = z.enum(["full", "available"]);
 export const capacity_status = z.union([CapacityStatus, z.null()]).optional();
 export const TimeStatus = z.enum(["past", "future"]);
 export const time_status = z.union([TimeStatus, z.null()]).optional();
+export const BasicEventAgendaItem = z
+    .object({
+    description: z.string(),
+    estimated_time: z.number().int().gte(0),
+    title: z.string(),
+})
+    .passthrough();
+export const BreakoutRoomAgendaItem = z
+    .object({
+    estimated_time: z.number().int().gte(0),
+    instructions: z.string(),
+    max_per_room: z.union([z.number(), z.null()]).optional(),
+    prompt: z.string(),
+    time_limit: z.union([z.number(), z.null()]).optional(),
+})
+    .passthrough();
+export const EventAgendaItem = z.union([
+    z.object({ Basic: BasicEventAgendaItem }),
+    z.object({ BreakoutRoom: BreakoutRoomAgendaItem }),
+]);
 export const LocalizedEventDto = z
     .object({
+    agenda: z.array(EventAgendaItem),
     capacity: z.union([z.number(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
@@ -946,6 +996,7 @@ export const PaginatedResults_for_LocalizedEventDto = z
     .passthrough();
 export const CreateEventRequest = z
     .object({
+    agenda: z.union([z.array(EventAgendaItem), z.null()]).optional(),
     capacity: z.union([z.number(), z.null()]).optional(),
     description: z.string(),
     end_time: z.string().datetime({ offset: true }),
@@ -956,6 +1007,7 @@ export const CreateEventRequest = z
     .passthrough();
 export const EventDto = z
     .object({
+    agenda: z.array(EventAgendaItem),
     capacity: z.union([z.number(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
@@ -979,6 +1031,7 @@ export const EventTranslations = z
     .passthrough();
 export const EventWithTranslations = z
     .object({
+    agenda: z.array(EventAgendaItem),
     capacity: z.union([z.number(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
@@ -999,6 +1052,7 @@ export const EventResponse = z.union([
 ]);
 export const PartialEvent = z
     .object({
+    agenda: z.union([z.array(EventAgendaItem), z.null()]).default(null),
     capacity: z.union([z.number(), z.null()]),
     description: z.union([z.string(), z.null()]),
     end_time: z.union([z.string(), z.null()]),
@@ -1008,7 +1062,26 @@ export const PartialEvent = z
 })
     .partial()
     .passthrough();
-export const JwtResponse = z.object({ jwt: z.string() }).passthrough();
+export const JwtResponse = z
+    .object({ isModerator: z.boolean(), jwt: z.string() })
+    .passthrough();
+export const EventAttendanceEtx = z
+    .object({
+    createdAt: z.string().datetime({ offset: true }),
+    email: z.union([z.string(), z.null()]).optional(),
+    eventId: z.string().uuid(),
+    id: z.string().uuid(),
+    role: z.string(),
+    updatedAt: z.string().datetime({ offset: true }),
+    userId: z.string().uuid(),
+})
+    .passthrough();
+export const PaginatedResults_for_EventAttendanceEtx = z
+    .object({ records: z.array(EventAttendanceEtx), total: z.number().int() })
+    .passthrough();
+export const CreateEventAttendanceRequest = z
+    .object({ role: z.string() })
+    .passthrough();
 export const EventAttendanceDto = z
     .object({
     createdAt: z.string().datetime({ offset: true }),
@@ -1018,15 +1091,12 @@ export const EventAttendanceDto = z
     userId: z.string().uuid(),
 })
     .passthrough();
-export const PaginatedResults_for_EventAttendanceDto = z
-    .object({ records: z.array(EventAttendanceDto), total: z.number().int() })
-    .passthrough();
-export const CreateEventAttendanceRequest = z
-    .object({ role: z.string() })
-    .passthrough();
 export const UpdateEventAttendanceRequest = z
     .object({ role: z.union([z.string(), z.null()]) })
     .partial()
+    .passthrough();
+export const CreateFacilitatorRequest = z
+    .object({ email: z.string() })
     .passthrough();
 export const WebSocketStats = z
     .object({
@@ -1166,6 +1236,7 @@ export const schemas = {
     UserDto,
     LoginRequest,
     SignupRequest,
+    OtpSignupRequest,
     VerifyEmailTokenRequest,
     ResendVerificationEmailRequest,
     CreatePasswordResetRequest,
@@ -1257,6 +1328,7 @@ export const schemas = {
     LearnReport,
     StoriesReport,
     ElicitationBotReport,
+    PrioritisationReport,
     ReportConfig,
     ReportSectionConfig,
     ReportSectionConfigs,
@@ -1277,6 +1349,9 @@ export const schemas = {
     capacity_status,
     TimeStatus,
     time_status,
+    BasicEventAgendaItem,
+    BreakoutRoomAgendaItem,
+    EventAgendaItem,
     LocalizedEventDto,
     PaginatedResults_for_LocalizedEventDto,
     CreateEventRequest,
@@ -1287,10 +1362,12 @@ export const schemas = {
     EventResponse,
     PartialEvent,
     JwtResponse,
-    EventAttendanceDto,
-    PaginatedResults_for_EventAttendanceDto,
+    EventAttendanceEtx,
+    PaginatedResults_for_EventAttendanceEtx,
     CreateEventAttendanceRequest,
+    EventAttendanceDto,
     UpdateEventAttendanceRequest,
+    CreateFacilitatorRequest,
     WebSocketStats,
     BroadcastMessage,
     BroadcastResponse,
@@ -1419,6 +1496,20 @@ const endpoints = makeApi([
         path: "/auth/signup_annon",
         alias: "SignupAnnonUser",
         requestFormat: "json",
+        response: UserDto,
+    },
+    {
+        method: "post",
+        path: "/auth/signup_otp",
+        alias: "SignupOtp",
+        requestFormat: "json",
+        parameters: [
+            {
+                name: "body",
+                type: "Body",
+                schema: z.object({ email: z.string() }).passthrough(),
+            },
+        ],
         response: UserDto,
     },
     {
@@ -1584,6 +1675,22 @@ Use a raw HTTP request and process the response body incrementally.`,
                 schema: z.object({ question: z.string() }).passthrough(),
             },
         ],
+        response: z.void(),
+    },
+    {
+        method: "get",
+        path: "/conversation/:conversation_id/contacts/export",
+        alias: "ExportConversationContacts",
+        description: `Exports a CSV file containing all users who have opted in to receive email updates for this conversation`,
+        requestFormat: "json",
+        response: z.void(),
+    },
+    {
+        method: "get",
+        path: "/conversation/:conversation_id/demographics/export",
+        alias: "ExportConversationDemographics",
+        description: `Exports a CSV file containing demographic data for users participating in the conversation&#x27;s workflow. Only includes consented users. Requires conversation ownership.`,
+        requestFormat: "json",
         response: z.void(),
     },
     {
@@ -1811,7 +1918,7 @@ curl -X POST \
                 schema: created_at,
             },
             {
-                name: "event_id",
+                name: "role",
                 type: "Query",
                 schema: created_after,
             },
@@ -1826,7 +1933,7 @@ curl -X POST \
                 schema: limit,
             },
         ],
-        response: PaginatedResults_for_EventAttendanceDto,
+        response: PaginatedResults_for_EventAttendanceEtx,
     },
     {
         method: "post",
@@ -1875,12 +1982,27 @@ curl -X POST \
         response: EventAttendanceDto,
     },
     {
+        method: "post",
+        path: "/conversation/:conversation_id/events/:event_id/attendances/facilitator",
+        alias: "CreateFacilitatorEventAttendance",
+        description: `Create a new attendance for a conversation event with facilitator role`,
+        requestFormat: "json",
+        parameters: [
+            {
+                name: "body",
+                type: "Body",
+                schema: z.object({ email: z.string() }).passthrough(),
+            },
+        ],
+        response: EventAttendanceDto,
+    },
+    {
         method: "get",
         path: "/conversation/:conversation_id/events/:event_id/auth",
         alias: "GetEventJWT",
         description: `Get a auth JWT for an event`,
         requestFormat: "json",
-        response: z.object({ jwt: z.string() }).passthrough(),
+        response: JwtResponse,
     },
     {
         method: "get",
@@ -2105,6 +2227,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     },
     {
         method: "post",
+        path: "/conversation/:conversation_id/invite/:invite_id/events",
+        alias: "AutoRegisterEventAttendance",
+        requestFormat: "json",
+        response: InviteDto,
+    },
+    {
+        method: "post",
         path: "/conversation/:conversation_id/invite/:invite_id/reject",
         alias: "RejectInvite",
         requestFormat: "json",
@@ -2116,6 +2245,13 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
         alias: "GetInviteStats",
         requestFormat: "json",
         response: z.array(DailyResponseStats),
+    },
+    {
+        method: "get",
+        path: "/conversation/:conversation_id/invite/events/:event_id",
+        alias: "ListInvitesForEvent",
+        requestFormat: "json",
+        response: z.array(InviteDto),
     },
     {
         method: "put",

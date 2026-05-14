@@ -3,6 +3,7 @@ import {
 	Headset,
 	Video,
 	ListChecks,
+	ListOrdered,
 	BookOpen,
 	Bot,
 	Building,
@@ -46,6 +47,14 @@ export const AvailableTools: Array<ToolDescription> = [
 			'Help participants refine and capture their views through and AI bot mediated interaction',
 		icon: Bot,
 		infoLink: 'elicitation_bot',
+		available: true
+	},
+	{
+		name: 'Prioritisation',
+		description:
+			'Let participants rank and rate a set of proposals by importance and agreement.',
+		icon: ListOrdered,
+		infoLink: 'prioritisation',
 		available: true
 	},
 	{

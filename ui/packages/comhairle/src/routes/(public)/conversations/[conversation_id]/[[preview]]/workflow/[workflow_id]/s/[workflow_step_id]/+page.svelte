@@ -4,6 +4,7 @@
 	import * as Learn from '$lib/tools/learn/index.js';
 	import * as LivedExperience from '$lib/tools/lived_experince/index.js';
 	import * as ElicitationBot from '$lib/tools/elicitation_bot/index.js';
+	import * as Prioritisation from '$lib/tools/prioritisation/index.js';
 	import type { PageProps } from './$types';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -245,6 +246,9 @@
 					{/if}
 					{#if toolConfig.type === LivedExperience.TOOL_NAME}
 						<LivedExperience.UserUI onDone={stepComplete} />
+					{/if}
+					{#if toolConfig.type === Prioritisation.TOOL_NAME}
+						<Prioritisation.UserUI onDone={stepComplete} {workflowStep} />
 					{/if}
 					{#if toolConfig.type === ElicitationBot.TOOL_NAME}
 						{#key workflowStep.id}

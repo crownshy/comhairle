@@ -635,6 +635,12 @@ export const ToolConfig = z.union([
   z
     .object({ topic: z.string(), type: z.literal("elicitationbot") })
     .passthrough(),
+  z
+    .object({
+      data: z.unknown().optional().default(null),
+      type: z.literal("prioritisation"),
+    })
+    .passthrough(),
 ]);
 export type ToolConfig = z.infer<typeof ToolConfig>;
 export const WorkflowStep = z
@@ -812,6 +818,12 @@ export const ToolSetup = z.union([
   z
     .object({ topic: z.string(), type: z.literal("elicitationbot") })
     .passthrough(),
+  z
+    .object({
+      data: z.unknown().optional().default(null),
+      type: z.literal("prioritisation"),
+    })
+    .passthrough(),
 ]);
 export type ToolSetup = z.infer<typeof ToolSetup>;
 export const CreateWorkflowStep = z
@@ -971,12 +983,15 @@ export const StoriesReport = z.null();
 export type StoriesReport = z.infer<typeof StoriesReport>;
 export const ElicitationBotReport = z.null();
 export type ElicitationBotReport = z.infer<typeof ElicitationBotReport>;
+export const PrioritisationReport = z.null();
+export type PrioritisationReport = z.infer<typeof PrioritisationReport>;
 export const ReportConfig = z.union([
   z.object({ Polis: PolisReport }),
   z.object({ HeyForm: HeyFormReport }),
   z.object({ Learn: LearnReport }),
   z.object({ Stories: StoriesReport }),
   z.object({ ElicitationBot: ElicitationBotReport }),
+  z.object({ Prioritisation: PrioritisationReport }),
 ]);
 export type ReportConfig = z.infer<typeof ReportConfig>;
 export const ReportSectionConfig = z
@@ -1107,9 +1122,9 @@ export const BreakoutRoomAgendaItem = z
   .object({
     estimated_time: z.number().int().gte(0),
     instructions: z.string(),
+    max_per_room: z.union([z.number(), z.null()]).optional(),
     prompt: z.string(),
     time_limit: z.union([z.number(), z.null()]).optional(),
-    max_per_room: z.union([z.number().int().gte(0), z.null()]).optional(),
   })
   .passthrough();
 export type BreakoutRoomAgendaItem = z.infer<typeof BreakoutRoomAgendaItem>;
@@ -1520,6 +1535,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   LearnReport,
   StoriesReport,
   ElicitationBotReport,
+  PrioritisationReport,
   ReportConfig,
   ReportSectionConfig,
   ReportSectionConfigs,
@@ -1874,6 +1890,14 @@ Use a raw HTTP request and process the response body incrementally.`,
     path: "/conversation/:conversation_id/contacts/export",
     alias: "ExportConversationContacts",
     description: `Exports a CSV file containing all users who have opted in to receive email updates for this conversation`,
+    requestFormat: "json",
+    response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/demographics/export",
+    alias: "ExportConversationDemographics",
+    description: `Exports a CSV file containing demographic data for users participating in the conversation&#x27;s workflow. Only includes consented users. Requires conversation ownership.`,
     requestFormat: "json",
     response: z.void(),
   },
