@@ -63,11 +63,11 @@ async fn accept_invite(
         );
 
         state.mailer.send_event_confirmation_email(
-            email,
-            &event.name,
-            &formatted_date,
-            &event_link,
-            "Bloom", // TODO: make dynamic
+            email.to_string(),
+            event.name.clone(),
+            formatted_date,
+            event_link,
+            "Bloom".to_string(), // TODO: make dynamic
             None,
         )?;
     } else {
@@ -141,11 +141,11 @@ async fn create_invite(
                 );
 
                 state.mailer.send_event_registration_email(
-                    email,
-                    &event.name,
-                    &formatted_date,
-                    &invite_link,
-                    "Bloom", // TODO: make this dynamic from event
+                    email.to_string(),
+                    event.name.clone(),
+                    formatted_date,
+                    invite_link,
+                    "Bloom".to_string(), // TODO: make this dynamic from event
                     None,
                 )?;
             } else {
@@ -331,11 +331,11 @@ async fn auto_register_event_attendance(
         state.config.domain, conversation.id, event.id
     );
     state.mailer.send_event_confirmation_email(
-        email,
-        &event.name,
-        &formatted_date,
-        &event_link,
-        "Bloom", // TODO: make dynamic
+        email.to_string(),
+        event.name.clone(),
+        formatted_date,
+        event_link,
+        "Bloom".to_string(), // TODO: make dynamic
         None,
     )?;
 

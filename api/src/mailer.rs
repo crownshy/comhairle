@@ -44,22 +44,22 @@ pub trait ComhairleMailer: Send + Sync {
 
     fn send_event_registration_email(
         &self,
-        email: &str,
-        event_name: &str,
-        event_time: &str,
-        invite_link: &str,
-        organization_name: &str,
-        organization_email: Option<&str>,
+        email: String,
+        event_name: String,
+        event_time: String,
+        invite_link: String,
+        organization_name: String,
+        organization_email: Option<String>,
     ) -> Result<(), ComhairleError>;
 
     fn send_event_confirmation_email(
         &self,
-        email: &str,
-        event_name: &str,
-        event_time: &str,
-        event_link: &str,
-        organization_name: &str,
-        organization_email: Option<&str>,
+        email: String,
+        event_name: String,
+        event_time: String,
+        event_link: String,
+        organization_name: String,
+        organization_email: Option<String>,
     ) -> Result<(), ComhairleError>;
 }
 
@@ -220,15 +220,15 @@ impl ComhairleMailer for Mailer {
 
     fn send_event_registration_email(
         &self,
-        email: &str,
-        event_name: &str,
-        event_time: &str,
-        invite_link: &str,
-        organization_name: &str,
-        organization_email: Option<&str>,
+        email: String,
+        event_name: String,
+        event_time: String,
+        invite_link: String,
+        organization_name: String,
+        organization_email: Option<String>,
     ) -> Result<(), ComhairleError> {
         self.send_email(
-            email,
+            &email,
             "Invitation to take part in an event",
             "event_registration_invite.html",
             context! {
@@ -243,15 +243,15 @@ impl ComhairleMailer for Mailer {
 
     fn send_event_confirmation_email(
         &self,
-        email: &str,
-        event_name: &str,
-        event_time: &str,
-        event_link: &str,
-        organization_name: &str,
-        organization_email: Option<&str>,
+        email: String,
+        event_name: String,
+        event_time: String,
+        event_link: String,
+        organization_name: String,
+        organization_email: Option<String>,
     ) -> Result<(), ComhairleError> {
         self.send_email(
-            email,
+            &email,
             "Event registration confirmation",
             "event_confirmation.html",
             context! {
@@ -262,7 +262,6 @@ impl ComhairleMailer for Mailer {
                 event_link => event_link,
             },
         )
-
     }
 }
 
