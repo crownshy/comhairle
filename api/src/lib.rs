@@ -1,5 +1,5 @@
 pub mod bot_service;
-pub mod bulk_storage;
+pub mod bulk_storage_service;
 pub mod categorization_service;
 pub mod config;
 pub mod db;
@@ -47,7 +47,7 @@ use sqlx_postgres::PgPool;
 use tower_http::cors::CorsLayer;
 
 use crate::{
-    bulk_storage::BulkStorageService, categorization_service::CategorizationService,
+    bulk_storage_service::BulkStorageService, categorization_service::CategorizationService,
     routes::workflows::WorkflowRouterContext, transcription_service::Transcriber,
     wiki_poll_service::WikiPollService, worker_service::WorkerService,
 };
@@ -61,7 +61,7 @@ pub struct ComhairleState {
     pub translation_service: Option<Arc<dyn TranslationService>>,
     pub bot_service: Option<Arc<dyn ComhairleBotService>>,
     pub wiki_poll_service: Arc<dyn WikiPollService>,
-    pub bulk_storage_service: Arc<dyn BulkStorageService>,
+    pub bulk_storage_service: Option<Arc<dyn BulkStorageService>>,
     pub transcription_service: Option<Arc<dyn Transcriber>>,
     pub worker_service: Option<Arc<dyn WorkerService>>,
     pub categorization_service: Option<Arc<dyn CategorizationService>>,
@@ -92,6 +92,14 @@ impl ComhairleState {
         self.categorization_service
             .as_ref()
             .ok_or(ComhairleError::NoCategorizationServiceConfigured)
+    }
+
+    fn required_bulk_storage_service(
+        &self,
+    ) -> Result<&Arc<dyn BulkStorageService>, ComhairleError> {
+        self.bulk_storage_service
+            .as_ref()
+            .ok_or(ComhairleError::NoBulkStorageServiceConfigured)
     }
 }
 
@@ -271,6 +279,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
             routes::organizations::router(state.clone()),
         )
         .nest_api_service("/regions", routes::regions::router(state.clone()))
+        .nest_api_service("/media", routes::media::router(state.clone()))
         .nest_api_service("/jobs", routes::jobs::router(state.clone()))
         .nest_api_service("/services", routes::services::router(state.clone()))
         .nest_api_service("/docs", docs_routes(state.clone()))

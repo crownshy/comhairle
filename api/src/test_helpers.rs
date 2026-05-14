@@ -22,7 +22,6 @@ use tower::ServiceExt;
 
 use crate::{
     bot_service::{ComhairleBotService, MockComhairleBotService},
-    bulk_storage::{BulkStorageService, MockBulkStorageService},
     categorization_service::{CategorizationService, MockCategorizationService},
     config::ComhairleConfig,
     mailer::MockComhairleMailer,
@@ -72,9 +71,9 @@ pub fn mock_wiki_poll_service() -> Arc<dyn WikiPollService> {
     Arc::new(wiki_poll_service)
 }
 
-pub fn mock_bulk_storage() -> Arc<dyn BulkStorageService> {
+pub fn mock_bulk_storage() -> Option<Arc<dyn BulkStorageService>> {
     let bulk_storage_service = MockBulkStorageService::base();
-    Arc::new(bulk_storage_service)
+    Some(Arc::new(bulk_storage_service))
 }
 
 pub fn mock_worker_service() -> Arc<dyn WorkerService> {
@@ -114,11 +113,13 @@ pub fn test_state(
             .unwrap_or_else(|| mock_transcription_service()),
         bot_service: Some(bot_service.unwrap_or_else(|| mock_bot_service())),
         wiki_poll_service: wiki_poll_service.unwrap_or_else(|| mock_wiki_poll_service()),
-        bulk_storage_service: bulk_storage_service.unwrap_or_else(mock_bulk_storage),
         worker_service: Some(worker_service.unwrap_or_else(|| mock_worker_service())),
         categorization_service: Some(
             categorization_service.unwrap_or_else(|| mock_categorization_service()),
         ),
+        bulk_storage_service: bulk_storage_service
+            .map(Some)
+            .unwrap_or_else(mock_bulk_storage),
     };
     Ok(state)
 }
@@ -181,6 +182,27 @@ pub async fn response_to_json(response: Response) -> Value {
     })
 }
 
+#[builder]
+pub fn multipart_body_builder(
+    content: &str,
+    boundary: Option<&str>,
+    filename: Option<&str>,
+    content_type: Option<&str>,
+) -> String {
+    let boundary = boundary.unwrap_or("test-boundary");
+    let filename = filename.unwrap_or("test-file.txt");
+    let content_type = content_type.unwrap_or("text/plain");
+    format!(
+        "--{boundary}\r\n\
+            Content-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\n\
+            Content-Type: {content_type}\r\n\
+            \r\n\
+            {content}\r\n\
+            --{boundary}--\r\n"
+    )
+}
+
+#[derive(Debug)]
 pub struct UserSession {
     pub id: Option<Uuid>,
     pub username: Option<String>,

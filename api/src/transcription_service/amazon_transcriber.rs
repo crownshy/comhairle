@@ -1,4 +1,4 @@
-use crate::bulk_storage::{BulkStorageService, FileMetadata};
+use crate::bulk_storage_service::{BulkStorageService, FileMetadata};
 use crate::transcription_service::TranscribeFromBulkResponse;
 
 use super::error::{Result, TranscriptionServiceError};
@@ -1070,21 +1070,14 @@ mod tests {
     async fn test_transcription_of_bulk_storage_audio_file(
         pool: PgPool,
     ) -> std::result::Result<(), Box<dyn Error>> {
-        let s3_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
-        let bulk_storage_service = Arc::new(S3StorageService::new(
-            &s3_config,
-            "comhairle-media-test".to_owned(),
-        )) as Arc<dyn BulkStorageService>;
-        let state = test_state()
-            .db(pool)
-            .bulk_storage_service(bulk_storage_service)
-            .call()?;
+        let state = test_state().db(pool).call()?;
+        let bulk_storage_service = state.required_bulk_storage_service()?;
         let transcriber = AmazonTranscriber::new().await;
         let _result = transcriber
             .transcribe_from_bulk_store(
                 "comhairle-media-test",
                 "events/3c22d53d-07df-4d46-802e-486b79dd1a80",
-                &state.bulk_storage_service,
+                bulk_storage_service,
             )
             .await?;
 

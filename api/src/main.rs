@@ -1,7 +1,7 @@
 use aws_config::BehaviorVersion;
 use comhairle::{
     bot_service::{ComhairleBotService, ComhairleRagBotService},
-    bulk_storage::{s3_storage::S3StorageService, BulkStorageService},
+    bulk_storage_service::{s3_storage::S3StorageService, BulkStorageService},
     categorization_service::{tttc_categorizer::TttcCategorizer, CategorizationService},
     config::{TranscriptionServiceConfig, TranslatorConfig},
     db::setup_db,
@@ -68,12 +68,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
             });
 
     // Setup Bulk Storage Service
-    //
-    let s3_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
-    let bulk_storage_service = Arc::new(S3StorageService::new(
-        &s3_config,
-        "comhairle-media".to_owned(),
-    )) as Arc<dyn BulkStorageService>;
+    let bulk_storage_service = if let Some(bulk_storage_config) = &config.bulk_storage_service {
+        let s3_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+        Some(Arc::new(S3StorageService::new(
+            &s3_config,
+            bulk_storage_config.store_name.to_owned(),
+        )) as Arc<dyn BulkStorageService>)
+    } else {
+        None
+    };
 
     // Setup Websocket service
     let websockets = Arc::new(ComhairleWebSocketService::new());

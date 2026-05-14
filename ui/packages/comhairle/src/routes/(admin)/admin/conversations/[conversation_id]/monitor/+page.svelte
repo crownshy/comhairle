@@ -125,14 +125,27 @@
 
 <h2 class="my-10 text-2xl">Follow up</h2>
 
-<div class="grid w-full grid-cols-1 gap-10 md:grid-cols-1">
-	<p>Download a list of users who have opted in to being contacted on this engagment</p>
-	<Button
-		href={`/api/conversation/${data.conversation.id}/contacts/export`}
-		download
-		variant="outline"
-	>
-		<Download class="mr-2 h-4 w-4" />
-		Download Contacts
-	</Button>
+<div class="grid w-full grid-cols-1 gap-10 md:grid-cols-2">
+	<div class="flex flex-col gap-4">
+		<p>Download a list of users who have opted in to being contacted on this engagment</p>
+		<Button
+			href={`/api/conversation/${data.conversation.id}/contacts/export`}
+			download
+			variant="outline"
+		>
+			<Download class="mr-2 h-4 w-4" />
+			Download Contacts
+		</Button>
+	</div>
+	<div class="flex flex-col gap-4">
+		<p>Download demographic data from user profiles for participants in this conversation</p>
+		<Button
+			href={`/api/conversation/${data.conversation.id}/demographics/export`}
+			download
+			variant="outline"
+		>
+			<Download class="mr-2 h-4 w-4" />
+			Download Demographics
+		</Button>
+	</div>
 </div>

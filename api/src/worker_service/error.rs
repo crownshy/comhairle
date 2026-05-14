@@ -10,6 +10,9 @@ pub enum WorkerServiceError {
     #[error("No transcription service configured")]
     NoTranscriptionServiceConfigured,
 
+    #[error("No bulk storage service configured")]
+    NoBulkStorageServiceConfigured,
+
     #[error("No bot service configured")]
     NoBotServiceConfigured,
 

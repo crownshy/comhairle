@@ -1,6 +1,10 @@
-use async_trait::async_trait;
-use thiserror::Error;
+pub mod config;
+pub mod error;
 pub mod s3_storage;
+
+use async_trait::async_trait;
+
+use error::BulkStorageError;
 
 #[cfg(test)]
 use mockall::automock;
@@ -34,27 +38,6 @@ impl FileMetadata {
             is_public,
         }
     }
-}
-
-#[derive(Error, Debug)]
-pub enum BulkStorageError {
-    #[error("Failed to Upload file: {0}")]
-    FailedToUpload(String),
-
-    #[error("Failed to get presigned upload url: {0}")]
-    FailedToGetUploadPresign(String),
-
-    #[error("Failed to get presigned download url: {0}")]
-    FailedToGetDownloadPresign(String),
-
-    #[error("Failed to delete file: {0}")]
-    FailedToDelete(String),
-
-    #[error("Failed to get file: {0}")]
-    FailedToGetFile(String),
-
-    #[error("Failed list: {0}")]
-    FailedList(String),
 }
 
 /// Service for managing file storage operations.

@@ -15,7 +15,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
-    bulk_storage::{extract_room_id_from_key, FileMetadata},
+    bulk_storage_service::{extract_room_id_from_key, FileMetadata},
     error::ComhairleError,
     models::{
         event::{
@@ -248,9 +248,9 @@ async fn process_transcriptions(
 ) -> Result<(StatusCode, Json<ProcessTranscriptionResponse>), ComhairleError> {
     let _event = event::get_by_id(&state.db, &event_id).await?;
     let worker_service = state.required_worker_service()?;
+    let bulk_storage_service = state.required_bulk_storage_service()?;
 
-    let entries = state
-        .bulk_storage_service
+    let entries = bulk_storage_service
         .list_keys("comhairle-media", Some(&format!("events/{event_id}/")))
         .await?;
 
@@ -344,6 +344,7 @@ async fn submit_report(
     Json(payload): Json<SubmitReportRequest>,
 ) -> Result<(StatusCode, Json<SubmitReportResponse>), ComhairleError> {
     let event = get_by_id(&state.db, &event_id).await?;
+    let bulk_storage_service = state.required_bulk_storage_service()?;
 
     if event.conversation_id != conversation_id {
         return Err(ComhairleError::ResourceNotFound(format!(
@@ -363,8 +364,7 @@ async fn submit_report(
         content_type: "application/json".to_string(),
     };
 
-    let result = state
-        .bulk_storage_service
+    let result = bulk_storage_service
         .upload_file(&path, bytes, metadata)
         .await?;
 
@@ -470,7 +470,7 @@ mod tests {
     use std::{error::Error, str::FromStr};
 
     use crate::{
-        bulk_storage::{MockBulkStorageService, UploadResult},
+        bulk_storage_service::{MockBulkStorageService, UploadResult},
         models::model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
         routes::conversations::dto::ConversationDto,
         setup_server,

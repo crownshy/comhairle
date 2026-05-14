@@ -46,6 +46,11 @@ pub async fn transcribe_recording(
         .map_err(|_| WorkerServiceError::NoTranscriptionServiceConfigured)
         .ok_or_record_failure(&req.job_id, &state.db)
         .await?;
+    let bulk_storage_service = state
+        .required_bulk_storage_service()
+        .map_err(|_| WorkerServiceError::NoBulkStorageServiceConfigured)
+        .ok_or_record_failure(&req.job_id, &state.db)
+        .await?;
 
     info!(
         event_id = %req.event_id,
@@ -65,7 +70,7 @@ pub async fn transcribe_recording(
         .transcribe_from_bulk_store(
             "comhairle-media",
             &recording_location,
-            &state.bulk_storage_service,
+            &bulk_storage_service,
         )
         .await
         .map_err(|e| WorkerServiceError::TranscriptionServiceError(e.to_string()))
@@ -97,6 +102,11 @@ pub async fn generate_sensemaking_report(
         .ok_or_record_failure(&req.job_id, &state.db)
         .await?
         .webhook_signature;
+    let bulk_storage_service = state
+        .required_bulk_storage_service()
+        .map_err(|_| WorkerServiceError::NoBulkStorageServiceConfigured)
+        .ok_or_record_failure(&req.job_id, &state.db)
+        .await?;
 
     info!(
         transcription_id = %req.transcription_key,
@@ -104,8 +114,7 @@ pub async fn generate_sensemaking_report(
         "Run audio transcription through sense making service and generate report"
     );
 
-    let bytes = state
-        .bulk_storage_service
+    let bytes = bulk_storage_service
         .get_file(&req.transcription_key)
         .await
         .map_err(|e| WorkerServiceError::BulkStorageServiceError(e.to_string()))

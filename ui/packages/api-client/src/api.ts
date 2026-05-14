@@ -1107,9 +1107,9 @@ export const BreakoutRoomAgendaItem = z
   .object({
     estimated_time: z.number().int().gte(0),
     instructions: z.string(),
+    max_per_room: z.union([z.number(), z.null()]).optional(),
     prompt: z.string(),
     time_limit: z.union([z.number(), z.null()]).optional(),
-    max_per_room: z.union([z.number().int().gte(0), z.null()]).optional(),
   })
   .passthrough();
 export type BreakoutRoomAgendaItem = z.infer<typeof BreakoutRoomAgendaItem>;
@@ -1406,6 +1406,36 @@ export const PartialRegion = z
   .partial()
   .passthrough();
 export type PartialRegion = z.infer<typeof PartialRegion>;
+export const MediaContentType = z.enum([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "video/mp4",
+  "video/mpeg",
+  "video/webm",
+]);
+export type MediaContentType = z.infer<typeof MediaContentType>;
+export const content_type = z.union([MediaContentType, z.null()]).optional();
+export type content_type = z.infer<typeof content_type>;
+export const MediaDto = z
+  .object({
+    contentType: MediaContentType,
+    createdAt: z.string().datetime({ offset: true }),
+    filename: z.string(),
+    id: z.string().uuid(),
+    ownerId: z.string().uuid(),
+    storageKey: z.string(),
+    storeName: z.string(),
+  })
+  .passthrough();
+export type MediaDto = z.infer<typeof MediaDto>;
+export const PaginatedResults_for_MediaDto = z
+  .object({ records: z.array(MediaDto), total: z.number().int() })
+  .passthrough();
+export type PaginatedResults_for_MediaDto = z.infer<
+  typeof PaginatedResults_for_MediaDto
+>;
 export const Job = z
   .object({
     completion_message: z.union([z.string(), z.null()]).optional(),
@@ -1592,6 +1622,10 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateRegion,
   RegionDto,
   PartialRegion,
+  MediaContentType,
+  content_type,
+  MediaDto,
+  PaginatedResults_for_MediaDto,
   Job,
   PaginatedResults_for_Job,
   CreateJob,
@@ -1891,6 +1925,14 @@ Use a raw HTTP request and process the response body incrementally.`,
     path: "/conversation/:conversation_id/contacts/export",
     alias: "ExportConversationContacts",
     description: `Exports a CSV file containing all users who have opted in to receive email updates for this conversation`,
+    requestFormat: "json",
+    response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/demographics/export",
+    alias: "ExportConversationDemographics",
+    description: `Exports a CSV file containing demographic data for users participating in the conversation&#x27;s workflow. Only includes consented users. Requires conversation ownership.`,
     requestFormat: "json",
     response: z.void(),
   },
@@ -2852,6 +2894,96 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "DeleteJob",
     requestFormat: "json",
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/media",
+    alias: "ListMedia",
+    description: `List media records`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "created_at",
+        type: "Query",
+        schema: created_at,
+      },
+      {
+        name: "filename",
+        type: "Query",
+        schema: created_at,
+      },
+      {
+        name: "content_type",
+        type: "Query",
+        schema: content_type,
+      },
+      {
+        name: "owner_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+    ],
+    response: PaginatedResults_for_MediaDto,
+  },
+  {
+    method: "post",
+    path: "/media",
+    alias: "postMedia",
+    description: `
+Upload a media resource to the bulk_storage_service 
+and create a new record in the database.
+
+
+This endpoint requires multipart/form-data.
+
+Generated API clients may not support file uploads.
+
+Use FormData and a raw HTTP request.
+
+**Example (curl):**
+&#x60;&#x60;&#x60;bash
+curl -X POST \
+-H &#x27;Cookie: auth-token&#x3D;...;&#x27; \
+&#x27;localhost:3000/media&#x27; \
+--form &#x27;file&#x3D;@/path-to-document.pdf&#x27;
+&#x60;&#x60;&#x60;
+                            `,
+    requestFormat: "form-data",
+    parameters: [
+      {
+        name: "body",
+        description: `multipart form data`,
+        type: "Body",
+        schema: z.array(z.any()),
+      },
+    ],
+    response: MediaDto,
+  },
+  {
+    method: "get",
+    path: "/media/:media_id",
+    alias: "GetMedia",
+    description: `Get media record by id`,
+    requestFormat: "json",
+    response: MediaDto,
+  },
+  {
+    method: "delete",
+    path: "/media/:media_id",
+    alias: "DeleteMedia",
+    description: `Delete media record by id`,
+    requestFormat: "json",
+    response: MediaDto,
   },
   {
     method: "get",
