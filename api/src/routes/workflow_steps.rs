@@ -170,6 +170,32 @@ async fn update_elicitation_bot_workflow_step(
     Ok((StatusCode::OK, Json(workflow)))
 }
 
+async fn update_thinking_space_workflow_step(
+    State(state): State<Arc<ComhairleState>>,
+    WorkflowStepPathCtx {
+        workflow_id,
+        workflow_step_id,
+    }: WorkflowStepPathCtx,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Json(workflow): Json<PartialWorkflowStep>,
+) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
+    let _tool_config = match (&workflow.tool_config, &workflow.preview_tool_config) {
+        (Some(ToolConfig::ThinkingSpace(config)), _) => config,
+        (None, Some(ToolConfig::ThinkingSpace(config))) => config,
+        _ => {
+            return Err(ComhairleError::ToolConfigError(
+                "Incorrect config type".to_string(),
+            ))
+        }
+    };
+
+    let workflow = workflow_step::update(&state.db, &workflow_step_id, &workflow_id, &workflow)
+        .await?
+        .into();
+
+    Ok((StatusCode::OK, Json(workflow)))
+}
+
 /// List workflows handler
 async fn list_workflows_step(
     State(state): State<Arc<ComhairleState>>,
@@ -328,6 +354,16 @@ Use query param withUserProgress=true to get the active user's progress status f
                 op.id(&format!("Update{ctx}ElicitationBotWorkflowStep"))
                     .tag("Workflow step")
                     .summary("Update a workflow step of type elicitation bot")
+                    .security_requirement("JWT")
+                    .response::<200, Json<WorkflowStepDto>>()
+            }),
+        )
+        .api_route(
+            "/{workflow_step_id}/thinking_space",
+            put_with(update_thinking_space_workflow_step, |op| {
+                op.id(&format!("Update{ctx}ThinkingSpaceWorkflowStep"))
+                    .tag("Workflow step")
+                    .summary("Update a workflow step of type thinking space")
                     .security_requirement("JWT")
                     .response::<200, Json<WorkflowStepDto>>()
             }),

@@ -598,6 +598,10 @@ export const LocalizedPage = z
 export type LocalizedPage = z.infer<typeof LocalizedPage>;
 export const LearnPageEntry = z.union([LearnPage, z.array(LocalizedPage)]);
 export type LearnPageEntry = z.infer<typeof LearnPageEntry>;
+export const ThinkingSpaceQuestion = z
+  .object({ id: z.string(), text: z.string() })
+  .passthrough();
+export type ThinkingSpaceQuestion = z.infer<typeof ThinkingSpaceQuestion>;
 export const ToolConfig = z.union([
   z
     .object({
@@ -634,6 +638,14 @@ export const ToolConfig = z.union([
     .passthrough(),
   z
     .object({ topic: z.string(), type: z.literal("elicitationbot") })
+    .passthrough(),
+  z
+    .object({
+      follow_up_count: z.number().int().optional().default(2),
+      questions: z.array(ThinkingSpaceQuestion).optional().default([]),
+      topic: z.string(),
+      type: z.literal("thinkingspace"),
+    })
     .passthrough(),
 ]);
 export type ToolConfig = z.infer<typeof ToolConfig>;
@@ -812,6 +824,14 @@ export const ToolSetup = z.union([
   z
     .object({ topic: z.string(), type: z.literal("elicitationbot") })
     .passthrough(),
+  z
+    .object({
+      follow_up_count: z.number().int().optional().default(2),
+      questions: z.array(ThinkingSpaceQuestion).optional().default([]),
+      topic: z.string(),
+      type: z.literal("thinkingspace"),
+    })
+    .passthrough(),
 ]);
 export type ToolSetup = z.infer<typeof ToolSetup>;
 export const CreateWorkflowStep = z
@@ -971,12 +991,15 @@ export const StoriesReport = z.null();
 export type StoriesReport = z.infer<typeof StoriesReport>;
 export const ElicitationBotReport = z.null();
 export type ElicitationBotReport = z.infer<typeof ElicitationBotReport>;
+export const ThinkingSpaceReport = z.null();
+export type ThinkingSpaceReport = z.infer<typeof ThinkingSpaceReport>;
 export const ReportConfig = z.union([
   z.object({ Polis: PolisReport }),
   z.object({ HeyForm: HeyFormReport }),
   z.object({ Learn: LearnReport }),
   z.object({ Stories: StoriesReport }),
   z.object({ ElicitationBot: ElicitationBotReport }),
+  z.object({ ThinkingSpace: ThinkingSpaceReport }),
 ]);
 export type ReportConfig = z.infer<typeof ReportConfig>;
 export const ReportSectionConfig = z
@@ -1520,6 +1543,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   LearnReport,
   StoriesReport,
   ElicitationBotReport,
+  ThinkingSpaceQuestion,
+  ThinkingSpaceReport,
   ReportConfig,
   ReportSectionConfig,
   ReportSectionConfigs,
@@ -2707,6 +2732,20 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     method: "put",
     path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/elicitation_bot",
     alias: "UpdateConversationElicitationBotWorkflowStep",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: PartialWorkflowStep,
+      },
+    ],
+    response: WorkflowStepDto,
+  },
+  {
+    method: "put",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/thinking_space",
+    alias: "UpdateConversationThinkingSpaceWorkflowStep",
     requestFormat: "json",
     parameters: [
       {

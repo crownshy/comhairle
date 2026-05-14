@@ -32,7 +32,7 @@
 		onComplete
 	}: Props = $props();
 
-	type Phase = 'main' | 'picking' | 'answering' | 'done';
+	type Phase = 'main' | 'picking' | 'answering';
 
 	type LocalQuestionState = {
 		mainAnswer: string;
@@ -58,40 +58,38 @@
 			};
 		}
 		const followUpsDone = stored.followUps.length;
-		const needMore = followUpsDone < followUpCount;
 		return {
 			mainAnswer: stored.mainAnswer,
 			mainSubmitted: true,
 			followUps: stored.followUps,
-			picker: needMore
-				? generateFollowUpOptions(
-						questions[qIdx]?.text ?? '',
-						stored.followUps[followUpsDone - 1]?.answer ?? stored.mainAnswer
-					)
-				: [],
+			// Always offer fresh picker options — follow-up count is a minimum,
+			// not a ceiling, so the participant can keep going if they want.
+			picker:
+				followUpCount > 0
+					? generateFollowUpOptions(
+							questions[qIdx]?.text ?? '',
+							stored.followUps[followUpsDone - 1]?.answer ?? stored.mainAnswer
+						)
+					: [],
 			currentPick: '',
 			currentPickAnswer: '',
-			phase: needMore ? 'picking' : 'done'
+			phase: 'picking'
 		};
 	}
 
+	// Resume on the first question that hasn't yet reached the follow-up minimum.
+	// If all stored questions are at-or-above the minimum, resume on the last one
+	// (the user can still click Continue from there).
 	let currentQIdx = $state(
-		Math.min(
-			Math.max(
-				initialAnswers.findIndex((a) => a.followUps.length < followUpCount),
-				0
-			),
-			questions.length - 1
-		)
+		(() => {
+			const firstUnfinished = initialAnswers.findIndex(
+				(a) => a.followUps.length < followUpCount
+			);
+			if (firstUnfinished >= 0) return firstUnfinished;
+			if (initialAnswers.length === questions.length) return questions.length - 1;
+			return Math.max(0, Math.min(initialAnswers.length, questions.length - 1));
+		})()
 	);
-
-	// If all stored questions are fully answered, start at the last one in done state
-	if (
-		initialAnswers.length === questions.length &&
-		initialAnswers.every((a) => a.followUps.length >= followUpCount)
-	) {
-		currentQIdx = questions.length - 1;
-	}
 
 	let states = $state<LocalQuestionState[]>(questions.map((_, i) => initialStateFor(i)));
 	let claims = $state<ParticipantClaim[]>([...initialClaims]);
@@ -106,14 +104,16 @@
 	let followUpsDone = $derived(currentState.followUps.length);
 	let followUpsRemaining = $derived(Math.max(0, followUpCount - followUpsDone));
 	let isLastQuestion = $derived(currentQIdx === questions.length - 1);
-	let allDone = $derived(isLastQuestion && currentState.phase === 'done');
+	// Minimum follow-ups reached for the current question — Continue button
+	// is revealed but the user may keep answering more follow-ups.
+	let minReached = $derived(currentState.mainSubmitted && followUpsDone >= followUpCount);
 
 	let totalSteps = $derived(questions.length * (1 + followUpCount));
 	let completedSteps = $derived.by(() => {
 		let n = 0;
 		for (let i = 0; i < currentQIdx; i++) n += 1 + followUpCount;
-		if (currentState.phase !== 'main') n += 1;
-		n += followUpsDone;
+		if (currentState.mainSubmitted) n += 1;
+		n += Math.min(followUpsDone, followUpCount);
 		return Math.min(n, totalSteps);
 	});
 	let progress = $derived(totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0);
@@ -165,9 +165,9 @@
 		};
 	}
 
-	function advanceToNextQuestion() {
+	function continueNow() {
 		if (isLastQuestion) {
-			emitProgress();
+			onComplete(snapshot());
 			return;
 		}
 		transitioning = true;
@@ -185,17 +185,11 @@
 		states[currentQIdx] = {
 			...currentState,
 			mainAnswer: value,
-			mainSubmitted: true
+			mainSubmitted: true,
+			picker: followUpCount > 0 ? generateFollowUpOptions(currentQuestion.text, value) : [],
+			phase: 'picking'
 		};
-		if (followUpCount === 0) {
-			states[currentQIdx].phase = 'done';
-			emitProgress();
-			advanceToNextQuestion();
-		} else {
-			states[currentQIdx].picker = generateFollowUpOptions(currentQuestion.text, value);
-			states[currentQIdx].phase = 'picking';
-			emitProgress();
-		}
+		emitProgress();
 	}
 
 	function pickFollowUp(q: string) {
@@ -226,17 +220,18 @@
 				text: currentState.currentPick
 			})
 		];
-		const stillNeed = updatedFollowUps.length < followUpCount;
+		// Always regenerate the picker and stay in 'picking'. The participant
+		// chooses when to move on via the Continue button (revealed once
+		// followUpsDone >= followUpCount). We never force-quit them.
 		states[currentQIdx] = {
 			...currentState,
 			followUps: updatedFollowUps,
 			currentPick: '',
 			currentPickAnswer: '',
-			picker: stillNeed ? generateFollowUpOptions(currentQuestion.text, value) : [],
-			phase: stillNeed ? 'picking' : 'done'
+			picker: generateFollowUpOptions(currentQuestion.text, value),
+			phase: 'picking'
 		};
 		emitProgress();
-		if (!stillNeed) advanceToNextQuestion();
 	}
 
 	function handleMainKeydown(e: KeyboardEvent) {
@@ -251,10 +246,6 @@
 			e.preventDefault();
 			submitFollowUp();
 		}
-	}
-
-	function reviewNow() {
-		onComplete(snapshot());
 	}
 </script>
 
@@ -341,18 +332,27 @@
 			{/each}
 
 			<!-- Picker -->
-			{#if currentState.phase === 'picking'}
+			{#if currentState.phase === 'picking' && currentState.picker.length > 0}
 				<section class="border-border space-y-3 border-t pt-6">
 					<div class="flex items-baseline justify-between gap-3">
 						<div>
 							<p class="text-foreground text-sm font-semibold">
-								Pick a follow-up to continue
+								{minReached
+									? 'Want to explore another follow-up?'
+									: 'Pick a follow-up to continue'}
 							</p>
-							<p class="text-muted-foreground text-xs">
-								{followUpsRemaining} more follow-up{followUpsRemaining === 1
-									? ''
-									: 's'} to go
-							</p>
+							{#if !minReached}
+								<p class="text-muted-foreground text-xs">
+									{followUpsRemaining} more follow-up{followUpsRemaining === 1
+										? ''
+										: 's'} to go
+								</p>
+							{:else}
+								<p class="text-muted-foreground text-xs">
+									Optional — you can keep going for as long as you like, or
+									continue below.
+								</p>
+							{/if}
 						</div>
 					</div>
 					<div class="space-y-2">
@@ -404,15 +404,15 @@
 				</section>
 			{/if}
 
-			{#if allDone}
+			{#if minReached && currentState.phase !== 'answering'}
 				<section class="border-border space-y-4 border-t pt-8 text-center">
-					<p class="text-foreground text-base">
-						You've answered all the questions. Ready to review your views?
-					</p>
-					<Button size="lg" onclick={reviewNow}>
+					<Button size="lg" onclick={continueNow}>
 						<Check class="size-4" />
-						Review my views
+						{isLastQuestion ? 'Review my views' : 'Continue'}
 					</Button>
+					<p class="text-muted-foreground text-xs">
+						You can also keep picking follow-ups above.
+					</p>
 				</section>
 			{/if}
 

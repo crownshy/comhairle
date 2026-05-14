@@ -49,6 +49,14 @@ export const AvailableTools: Array<ToolDescription> = [
 		available: true
 	},
 	{
+		name: 'Thinking Space',
+		description:
+			'A guided reflection space where participants answer prompts, are nudged with follow-ups, and submit claims that capture their views.',
+		icon: Bot,
+		infoLink: 'thinking_space',
+		available: true
+	},
+	{
 		name: 'Lived Experience',
 		description: 'Let users record short videos of their lived experience.',
 		icon: Video,

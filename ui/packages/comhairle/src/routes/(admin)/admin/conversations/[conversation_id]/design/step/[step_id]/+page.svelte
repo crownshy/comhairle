@@ -4,6 +4,7 @@
 	import CommonStepConfig from '$lib/components/CommonStepConfig/CommonStepConfig.svelte';
 	import HeyFormManage from '$lib/tools/heyform/HeyFormManage.svelte';
 	import ThinkingSpaceManage from '$lib/tools/thinking_space/ThinkingSpaceManage.svelte';
+	import ElicitationBotManage from '$lib/tools/elicitation_bot/ElicitationBotManage.svelte';
 	import LivedExperienceManage from '$lib/tools/lived_experince/LivedExperinceManage.svelte';
 	import { useAdminLayoutSlots } from '../../../useAdminLayoutSlots.svelte.js';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
@@ -147,8 +148,17 @@
 	<LivedExperienceManage />
 {/if}
 
-{#if step && toolConfig?.type === 'elicitationbot'}
+{#if step && toolConfig?.type === 'thinkingspace'}
 	<ThinkingSpaceManage
+		conversationId={conversation.id}
+		workflowId={step.workflowId}
+		workflowStep={step}
+		isLive={conversation.isLive}
+	/>
+{/if}
+
+{#if step && toolConfig?.type === 'elicitationbot'}
+	<ElicitationBotManage
 		conversationId={conversation.id}
 		workflowId={step.workflowId}
 		workflowStep={step}

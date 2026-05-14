@@ -12,6 +12,12 @@ export interface QuestionConfig {
 
 export interface ThinkingSpaceConfig {
 	questions: QuestionConfig[];
+	/**
+	 * Minimum number of AI-generated follow-ups a participant must answer
+	 * for the current main question before the "move on" affordance
+	 * appears. They can keep answering more follow-ups if they want.
+	 * 0 = no follow-ups required.
+	 */
 	followUpCount: number;
 }
 

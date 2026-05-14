@@ -29,7 +29,10 @@
 	let toolConfig = $derived(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig);
 
 	let topic = $state('');
-	let config = $state<ThinkingSpaceConfig>({ questions: [], followUpCount: 2 });
+	let config = $state<ThinkingSpaceConfig>({
+		questions: [],
+		followUpCount: 2
+	});
 	let saving = $state(false);
 
 	onMount(() => {
@@ -86,18 +89,22 @@
 				? {
 						tool_config: {
 							...workflowStep.toolConfig,
-							type: 'elicitationbot' as const,
-							topic
+							type: 'thinkingspace' as const,
+							topic,
+							questions: config.questions,
+							follow_up_count: config.followUpCount
 						}
 					}
 				: {
 						preview_tool_config: {
 							...workflowStep.previewToolConfig,
-							type: 'elicitationbot' as const,
-							topic
+							type: 'thinkingspace' as const,
+							topic,
+							questions: config.questions,
+							follow_up_count: config.followUpCount
 						}
 					};
-			await apiClient.UpdateConversationElicitationBotWorkflowStep(update, {
+			await apiClient.UpdateConversationThinkingSpaceWorkflowStep(update, {
 				params: {
 					conversation_id: conversationId,
 					workflow_id: workflowId,
@@ -145,10 +152,11 @@
 	<Card>
 		<CardHeader class="flex flex-row items-start justify-between gap-4 space-y-0">
 			<div>
-				<CardTitle>Follow-up questions per main question</CardTitle>
+				<CardTitle>Minimum follow-ups per main question</CardTitle>
 				<CardDescription>
-					How many AI-generated follow-ups participants answer before moving on. Set to 0
-					for no follow-ups.
+					Participants must answer at least this many AI-generated follow-ups before the
+					option to move on appears. They can still answer more if they want. Set to 0 for
+					no follow-ups.
 				</CardDescription>
 			</div>
 			<div class="flex shrink-0 items-center gap-2">

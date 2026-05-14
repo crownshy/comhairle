@@ -5,6 +5,11 @@ export const defaultStepCreationParams: { [key: string]: { name: string; descrip
 		name: 'What do you think?',
 		description:
 			"Explore your opinions with the elicitation bot. The elicitation bot is designed to ask questions that help you explore and shape your views and opinions on a given topic.\nAs you answer the bot's questions it will extract claims from your opinions, which you can either choose to approve, edit or remove."
+	},
+	'Thinking Space': {
+		name: 'Thinking Space',
+		description:
+			'A guided reflection space. Respond to prompts at your own pace, follow nudges that deepen your thinking, and decide which claims best represent your views.'
 	}
 };
 
@@ -54,6 +59,13 @@ export const basic_elicitation_bot_config = (conversation: LocalizedConversation
 	type: 'elicitationbot',
 	topic: 'comhairle platform',
 	conversation_id: conversation.id
+});
+
+export const basic_thinking_space_config = () => ({
+	type: 'thinkingspace',
+	topic: 'What do you think?',
+	questions: [],
+	follow_up_count: 2
 });
 
 export const basic_lived_experience_config = {

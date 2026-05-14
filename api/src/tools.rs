@@ -15,12 +15,14 @@ pub mod id;
 pub mod learn;
 pub mod polis;
 pub mod stories;
+pub mod thinking_space;
 
 use elicitation_bot::{ElicitationBotReport, ElicitationBotToolConfig, ElicitationBotToolSetup};
 use heyform::{HeyFormReport, HeyFormToolConfig, HeyFormToolSetup};
 use learn::{LearnReport, LearnToolConfig, LearnToolSetup};
 use polis::{PolisReport, PolisToolConfig, PolisToolSetup};
 use stories::{StoriesReport, StoriesToolConfig, StoriesToolSetup};
+use thinking_space::{ThinkingSpaceReport, ThinkingSpaceToolConfig, ThinkingSpaceToolSetup};
 
 /// Core trait that all tools must implement.
 ///
@@ -105,6 +107,7 @@ pub enum ToolConfig {
     HeyForm(HeyFormToolConfig),
     Stories(StoriesToolConfig),
     ElicitationBot(ElicitationBotToolConfig),
+    ThinkingSpace(ThinkingSpaceToolConfig),
 }
 
 impl ToolConfig {
@@ -117,6 +120,9 @@ impl ToolConfig {
             ToolConfig::Stories(config) => stories::StoriesTool::sync_data(config, state).await,
             ToolConfig::ElicitationBot(config) => {
                 elicitation_bot::ElicitationBotTool::sync_data(config, state).await
+            }
+            ToolConfig::ThinkingSpace(config) => {
+                thinking_space::ThinkingSpaceTool::sync_data(config, state).await
             }
         }
     }
@@ -139,6 +145,9 @@ impl ToolConfig {
             ToolConfig::ElicitationBot(config) => Ok(ToolConfig::ElicitationBot(
                 elicitation_bot::ElicitationBotTool::clone_tool(config, state).await?,
             )),
+            ToolConfig::ThinkingSpace(config) => Ok(ToolConfig::ThinkingSpace(
+                thinking_space::ThinkingSpaceTool::clone_tool(config, state).await?,
+            )),
         }
     }
 
@@ -151,6 +160,9 @@ impl ToolConfig {
             ToolConfig::Stories(config) => stories::StoriesTool::delete(config, state).await,
             ToolConfig::ElicitationBot(config) => {
                 elicitation_bot::ElicitationBotTool::delete(config, state).await
+            }
+            ToolConfig::ThinkingSpace(config) => {
+                thinking_space::ThinkingSpaceTool::delete(config, state).await
             }
         }
     }
@@ -172,6 +184,9 @@ impl ToolConfig {
             ToolConfig::ElicitationBot(config) => {
                 elicitation_bot::ElicitationBotTool::register_workers(config, state).await
             }
+            ToolConfig::ThinkingSpace(config) => {
+                thinking_space::ThinkingSpaceTool::register_workers(config, state).await
+            }
         }
     }
 }
@@ -184,6 +199,7 @@ pub enum ToolSetup {
     HeyForm(HeyFormToolSetup),
     Stories(StoriesToolSetup),
     ElicitationBot(ElicitationBotToolSetup),
+    ThinkingSpace(ThinkingSpaceToolSetup),
 }
 
 impl ToolSetup {
@@ -205,6 +221,9 @@ impl ToolSetup {
             ToolSetup::ElicitationBot(setup) => Ok(ToolConfig::ElicitationBot(
                 elicitation_bot::ElicitationBotTool::setup(setup, state).await?,
             )),
+            ToolSetup::ThinkingSpace(setup) => Ok(ToolConfig::ThinkingSpace(
+                thinking_space::ThinkingSpaceTool::setup(setup, state).await?,
+            )),
         }
     }
 }
@@ -217,6 +236,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .merge(heyform::HeyFormTool::routes(&state))
         .merge(stories::StoriesTool::routes(&state))
         .merge(elicitation_bot::ElicitationBotTool::routes(&state))
+        .merge(thinking_space::ThinkingSpaceTool::routes(&state))
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
@@ -226,4 +246,5 @@ pub enum ReportConfig {
     Learn(LearnReport),
     Stories(StoriesReport),
     ElicitationBot(ElicitationBotReport),
+    ThinkingSpace(ThinkingSpaceReport),
 }

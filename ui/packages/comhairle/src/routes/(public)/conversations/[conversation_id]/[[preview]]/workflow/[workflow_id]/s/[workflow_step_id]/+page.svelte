@@ -4,6 +4,7 @@
 	import * as Learn from '$lib/tools/learn/index.js';
 	import * as LivedExperience from '$lib/tools/lived_experince/index.js';
 	import * as ThinkingSpace from '$lib/tools/thinking_space/index.js';
+	import * as ElicitationBot from '$lib/tools/elicitation_bot/index.js';
 	import type { PageProps } from './$types';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -255,6 +256,19 @@
 								userId={user.id}
 								topic={toolConfig.topic}
 								description={workflowStep.description}
+								onDone={stepComplete}
+								onCanContinueChange={handleCanContinueChange}
+							/>
+						{/key}
+					{/if}
+					{#if toolConfig.type === ElicitationBot.TOOL_NAME}
+						{#key workflowStep.id}
+							<ElicitationBot.UserUI
+								conversationId={conversation.id}
+								workflowId={workflowStep.workflowId}
+								workflowStepId={workflowStep.id}
+								userId={user.id}
+								topic={toolConfig.topic}
 								onDone={stepComplete}
 								onCanContinueChange={handleCanContinueChange}
 							/>

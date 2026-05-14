@@ -159,6 +159,15 @@ pub fn elicitation_bot_tool_config() -> serde_json::Value {
     })
 }
 
+pub fn thinking_space_tool_config() -> serde_json::Value {
+    json!({
+        "type": "thinkingspace",
+        "topic": "test_topic",
+        "questions": [],
+        "follow_up_count": 2
+    })
+}
+
 pub async fn response_to_json(response: Response) -> Value {
     let body = response.into_body().collect().await.unwrap().to_bytes();
 
