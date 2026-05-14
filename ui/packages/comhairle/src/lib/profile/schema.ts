@@ -53,3 +53,14 @@ export const passwordResetUpdateFormSchema = z
 		}
 	});
 export type PasswordResetUpdateForm = z.infer<typeof passwordResetUpdateFormSchema>;
+
+export const sendOtpSchema = z.object({
+	email: z.string().email(m.please_enter_a_valid_email())
+});
+export type SendOtpForm = z.infer<typeof sendOtpSchema>;
+
+export const loginOtpSchema = z.object({
+	email: z.string().email(m.please_enter_a_valid_email()),
+	code: z.string().min(6, { message: m.please_enter_a_password() })
+});
+export type LoginOtpForm = z.infer<typeof loginOtpSchema>;

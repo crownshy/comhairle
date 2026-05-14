@@ -17,7 +17,7 @@ use uuid::Uuid;
 use crate::{
     error::ComhairleError,
     models::{
-        self, event,
+        self, conversation, event,
         event_attendance::{self, CreateEventAttendance},
         invites::{CreateInviteDTO, DailyResponseStats, InviteType, PartialInvite},
         users, workflow,
@@ -46,15 +46,41 @@ async fn accept_invite(
     invite.is_still_valid()?;
     invite.is_for_user(&user)?;
 
-    // Get the workflow to sign up to either explicitly from the invite
-    // or from the default conversation workflow
-    let workflow_id = match (invite.workflow_id, conversation.default_workflow_id) {
-        (Some(invite_workflow), _) => Ok(invite_workflow),
-        (None, Some(conversation_workflow)) => Ok(conversation_workflow),
-        (None, None) => Err(ComhairleError::NoWorkflowFoundForInvite),
-    }?;
+    if let Some(event_id) = &invite.event_id {
+        // Send confirmation email for event invites
+        let email = match &invite.invite_type {
+            InviteType::Email(ref email) => email,
+            _ => return Err(ComhairleError::InvalidInviteType),
+        };
 
-    workflow::register_user(&state.db, &workflow_id, &user).await?;
+        let event =
+            event::get_localized_by_id(&state.db, event_id, &conversation.primary_locale).await?;
+
+        let formatted_date = event.start_time.format("%B %d, %Y at %H:%M %Z").to_string();
+        let event_link = format!(
+            "{}/conversations/{}/events/{}",
+            state.config.domain, conversation.id, event.id
+        );
+
+        state.mailer.send_event_confirmation_email(
+            email.to_string(),
+            event.name.clone(),
+            formatted_date,
+            event_link,
+            "Bloom".to_string(), // TODO: make dynamic
+            None,
+        )?;
+    } else {
+        // Get the workflow to sign up to either explicitly from the invite
+        // or from the default conversation workflow
+        let workflow_id = match (invite.workflow_id, conversation.default_workflow_id) {
+            (Some(invite_workflow), _) => Ok(invite_workflow),
+            (None, Some(conversation_workflow)) => Ok(conversation_workflow),
+            (None, None) => Err(ComhairleError::NoWorkflowFoundForInvite),
+        }?;
+
+        workflow::register_user(&state.db, &workflow_id, &user).await?;
+    }
 
     invite
         .accept(&state.db, &user)
@@ -103,16 +129,37 @@ async fn create_invite(
     // Send out an email notification if we can
     match &invite.invite_type {
         models::invites::InviteType::Email(email) => {
-            state.mailer.send_email(
-            email,
-            "Invitation to take part in the National Performance Framework consultation",
-            "conversation_invite.html",
-            context! {
-                conversation_hero => conversation.image_url,
-                conversation_title=> conversation.title,
-                invite_link => format!("{}/conversations/{}/invite/{}",state.config.domain, conversation.slug.unwrap_or_else(|| conversation.id.to_string()), invite.id )
-            },
-        )?;
+            if let Some(event_id) = invite.event_id {
+                let event =
+                    event::get_localized_by_id(&state.db, &event_id, &conversation.primary_locale)
+                        .await?;
+
+                let formatted_date = event.start_time.format("%B %d, %Y at %H:%M %Z").to_string();
+                let invite_link = format!(
+                    "{}/conversations/{}/events/{}/invite/{}",
+                    state.config.domain, conversation.id, event.id, invite.id
+                );
+
+                state.mailer.send_event_registration_email(
+                    email.to_string(),
+                    event.name.clone(),
+                    formatted_date,
+                    invite_link,
+                    "Bloom".to_string(), // TODO: make this dynamic from event
+                    None,
+                )?;
+            } else {
+                state.mailer.send_email(
+                    email,
+                    "Invitation to take part in a public consultation",
+                    "conversation_invite.html",
+                    context! {
+                        conversation_hero => conversation.image_url,
+                        conversation_title=> conversation.title,
+                        invite_link => format!("{}/conversations/{}/invite/{}",state.config.domain, conversation.slug.unwrap_or_else(|| conversation.id.to_string()), invite.id )
+                    },
+                )?;
+            }
         }
         models::invites::InviteType::User(user_id) => {
             let user = models::users::get_user_by_id(user_id, &state.db).await?;
@@ -228,18 +275,20 @@ async fn list_invites_for_event(
 #[instrument(err(Debug), skip(state))]
 async fn auto_register_event_attendance(
     State(state): State<Arc<ComhairleState>>,
-    Path((_conversation_id, invite_id)): Path<(Uuid, Uuid)>,
+    Path((conversation_id, invite_id)): Path<(Uuid, Uuid)>,
     jar: CookieJar,
 ) -> Result<(CookieJar, (StatusCode, Json<InviteDto>)), ComhairleError> {
-    let mut invite = models::invites::get_by_id(&state.db, &invite_id).await?;
+    let invite = models::invites::get_by_id(&state.db, &invite_id).await?;
     invite.is_still_valid()?;
 
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     let event_id = invite
         .event_id
         .ok_or_else(|| ComhairleError::InvalidInviteResource("Missing event_id".to_string()))?;
-    let _event = event::get_by_id(&state.db, &event_id).await?;
+    let event =
+        event::get_localized_by_id(&state.db, &event_id, &conversation.primary_locale).await?;
 
-    let email = match invite.invite_type {
+    let email = match &invite.invite_type {
         InviteType::Email(ref email) => email,
         _ => return Err(ComhairleError::InvalidInviteType),
     };
@@ -272,15 +321,23 @@ async fn auto_register_event_attendance(
         warn!("Error registering user for event: {error}");
     }
 
-    invite = match invite.accept(&state.db, &user).await {
-        Ok(new_invite) => new_invite,
-        Err(error) => {
-            warn!("Error accepting invite: {error}");
-            invite
-        }
-    };
+    let invite = invite.accept(&state.db, &user).await?;
 
     let cookie = create_session_cookie(&user, &state);
+
+    let formatted_date = event.start_time.format("%B %d, %Y at %H:%M %Z").to_string();
+    let event_link = format!(
+        "{}/conversations/{}/events/{}",
+        state.config.domain, conversation.id, event.id
+    );
+    state.mailer.send_event_confirmation_email(
+        email.to_string(),
+        event.name.clone(),
+        formatted_date,
+        event_link,
+        "Bloom".to_string(), // TODO: make dynamic
+        None,
+    )?;
 
     Ok((jar.add(cookie), (StatusCode::OK, Json(invite.into()))))
 }
@@ -417,7 +474,7 @@ mod tests {
             .expect_send_email()
             .with(
                 eq("stuart.lynn@gmail.com"),
-                eq("Invitation to take part in the National Performance Framework consultation"),
+                eq("Invitation to take part in a public consultation"),
                 eq("conversation_invite.html"),
                 always(),
             )

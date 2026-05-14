@@ -34,6 +34,10 @@ export const LoginRequest = z
   .object({ email: z.string(), password: z.string() })
   .passthrough();
 export type LoginRequest = z.infer<typeof LoginRequest>;
+export const OtpLoginRequest = z
+  .object({ code: z.string(), email: z.string() })
+  .passthrough();
+export type OtpLoginRequest = z.infer<typeof OtpLoginRequest>;
 export const SignupRequest = z
   .object({
     avatar_url: z.union([z.string(), z.null()]).optional(),
@@ -45,6 +49,17 @@ export const SignupRequest = z
 export type SignupRequest = z.infer<typeof SignupRequest>;
 export const OtpSignupRequest = z.object({ email: z.string() }).passthrough();
 export type OtpSignupRequest = z.infer<typeof OtpSignupRequest>;
+export const CreateOtpRequest = z
+  .object({
+    email: z.string(),
+    redirect_url: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type CreateOtpRequest = z.infer<typeof CreateOtpRequest>;
+export const VerifyOtpTokenRequest = z
+  .object({ token: z.string() })
+  .passthrough();
+export type VerifyOtpTokenRequest = z.infer<typeof VerifyOtpTokenRequest>;
 export const VerifyEmailTokenRequest = z
   .object({ token: z.string() })
   .passthrough();
@@ -1471,8 +1486,11 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UserAuthType,
   UserDto,
   LoginRequest,
+  OtpLoginRequest,
   SignupRequest,
   OtpSignupRequest,
+  CreateOtpRequest,
+  VerifyOtpTokenRequest,
   VerifyEmailTokenRequest,
   ResendVerificationEmailRequest,
   CreatePasswordResetRequest,
@@ -1634,6 +1652,20 @@ export const schemas: Record<string, z.ZodType<any>> = {
 
 const endpoints = makeApi([
   {
+    method: "post",
+    path: "/auth/create_otp",
+    alias: "CreateOtp",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateOtpRequest,
+      },
+    ],
+    response: z.void(),
+  },
+  {
     method: "get",
     path: "/auth/current_user",
     alias: "CurrentUser",
@@ -1666,6 +1698,35 @@ const endpoints = makeApi([
         description: `Expected payload for an annon login request`,
         type: "Body",
         schema: z.object({ username: z.string() }).passthrough(),
+      },
+    ],
+    response: UserDto,
+  },
+  {
+    method: "post",
+    path: "/auth/login_otp",
+    alias: "LoginOtpUser",
+    description: `Login a user with a one time passcode`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: OtpLoginRequest,
+      },
+    ],
+    response: UserDto,
+  },
+  {
+    method: "post",
+    path: "/auth/login_otp_token",
+    alias: "LoginOtpToken",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ token: z.string() }).passthrough(),
       },
     ],
     response: UserDto,

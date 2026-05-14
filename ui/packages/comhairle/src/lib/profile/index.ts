@@ -9,5 +9,9 @@ export {
 	signupFormSchema,
 	type SignupForm,
 	annonLoginFormSchema,
-	type AnnonLoginFrom
+	type AnnonLoginFrom,
+	sendOtpSchema,
+	type SendOtpForm,
+	loginOtpSchema,
+	type LoginOtpForm
 } from './schema';

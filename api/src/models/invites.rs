@@ -68,7 +68,9 @@ impl Invite {
             InviteStatus::Accepted
         };
 
-        invite_response::create(db, &user.id, &self.id, invite_response::Response::Accept).await?;
+        invite_response::create(db, &user.id, &self.id, invite_response::Response::Accept)
+            .await
+            .map_err(|e| ComhairleError::InviteResponseAlreadyCreated)?;
 
         let (sql, values) = Query::update()
             .table(InviteIden::Table)
