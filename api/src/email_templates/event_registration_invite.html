@@ -1,0 +1,28 @@
+{% extends "email_layout.html" %}
+{% block content %}
+	<h1>Hello!</h1>
+	<p>You are invited to take part in {{event_name}} with {{organization_name}} to collaborate with them.</p>
+	<p>Click the button below to register.</p>
+
+	<div class="card">
+		<h2>{{event_name}}</h2>
+		<p>{{event_time}}</p>
+		<a class="button" href="{{invite_link}}">Register to attend</a>
+	</div>
+
+	<p>If you are having trouble with the button above, copy and paste the URL below into your web browser.</p>
+
+	<p class="link">{{invite_link}}</p>
+
+	{% if organization_email %}
+		<p>
+			For any questions, please contact us at
+			<br />
+			<a href="mailto:{{orgnazation_email}}">{{organization_email}}</a>
+		</p>
+	{% endif %}
+
+	<p>We look forward to your participation!</p>
+
+	<p><strong>{{organization_name}}</strong></p>
+{% endblock %}

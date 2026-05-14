@@ -14,6 +14,8 @@
 
 	let error = $state<string | null>(serverError ? serverError : null);
 
+	const redirectUrl = `/conversations/${conversationId}/events/${eventId}`;
+
 	async function acceptInviteAndRegisterForEvent() {
 		try {
 			try {
@@ -41,7 +43,7 @@
 			});
 
 			await invalidateAll();
-			await goto(resolve(`/conversations/${conversationId}/events/${eventId}/live`));
+			await goto(resolve(redirectUrl));
 		} catch (e) {
 			console.error(e);
 			error = e.message;
@@ -60,7 +62,7 @@
 			});
 
 			await invalidateAll();
-			await goto(resolve(`/conversations/${conversationId}/events/${eventId}/live`));
+			await goto(resolve(redirectUrl));
 		} catch (e) {
 			console.error(e);
 			if (

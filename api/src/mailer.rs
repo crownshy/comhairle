@@ -41,6 +41,26 @@ pub trait ComhairleMailer: Send + Sync {
         passcode: String,
         passcode_link: Option<String>,
     ) -> Result<(), ComhairleError>;
+
+    fn send_event_registration_email(
+        &self,
+        email: &str,
+        event_name: &str,
+        event_time: &str,
+        invite_link: &str,
+        organization_name: &str,
+        organization_email: Option<&str>,
+    ) -> Result<(), ComhairleError>;
+
+    fn send_event_confirmation_email(
+        &self,
+        email: &str,
+        event_name: &str,
+        event_time: &str,
+        event_link: &str,
+        organization_name: &str,
+        organization_email: Option<&str>,
+    ) -> Result<(), ComhairleError>;
 }
 
 #[derive(Debug)]
@@ -66,6 +86,12 @@ impl MockComhairleMailer {
         mailer
             .expect_send_password_reset_email()
             .returning(|_, _, _| Ok(()));
+        mailer
+            .expect_send_event_registration_email()
+            .returning(|_, _, _, _, _, _| Ok(()));
+        mailer
+            .expect_send_event_confirmation_email()
+            .returning(|_, _, _, _, _, _| Ok(()));
 
         mailer
     }
@@ -190,6 +216,53 @@ impl ComhairleMailer for Mailer {
         } else {
             Err(ComhairleError::WrongUserType)
         }
+    }
+
+    fn send_event_registration_email(
+        &self,
+        email: &str,
+        event_name: &str,
+        event_time: &str,
+        invite_link: &str,
+        organization_name: &str,
+        organization_email: Option<&str>,
+    ) -> Result<(), ComhairleError> {
+        self.send_email(
+            email,
+            "Invitation to take part in an event",
+            "event_registration_invite.html",
+            context! {
+                event_name => event_name,
+                event_time => event_time,
+                organization_name => organization_name,
+                organization_email => organization_email,
+                invite_link => invite_link,
+            },
+        )
+    }
+
+    fn send_event_confirmation_email(
+        &self,
+        email: &str,
+        event_name: &str,
+        event_time: &str,
+        event_link: &str,
+        organization_name: &str,
+        organization_email: Option<&str>,
+    ) -> Result<(), ComhairleError> {
+        self.send_email(
+            email,
+            "Event registration confirmation",
+            "event_confirmation.html",
+            context! {
+                event_name => event_name,
+                event_time => event_time,
+                organization_name => organization_name,
+                organization_email => organization_email,
+                event_link => event_link,
+            },
+        )
+
     }
 }
 
