@@ -11,8 +11,16 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { Spinner } from '$lib/components/ui/spinner';
+	import { onMount } from 'svelte';
 
-	let { backTo, email }: { backTo?: string; email?: string } = $props();
+	let { backTo }: { backTo?: string } = $props();
+
+	let email = $state<string | null>(null);
+
+	onMount(() => {
+		email = sessionStorage?.getItem('pendingOtpEmail');
+		sessionStorage?.clear();
+	});
 
 	const form = superForm(email ? { email, code: '' } : defaults(zod(loginOtpSchema)), {
 		validators: zodClient(loginOtpSchema),

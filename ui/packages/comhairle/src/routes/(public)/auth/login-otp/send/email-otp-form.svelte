@@ -39,7 +39,9 @@
 					});
 					await invalidateAll();
 
-					let redirectTo = `/auth/login-otp?backTo=${encodeURIComponent(backTo)}&email=${email}`;
+					sessionStorage.setItem('pendingOtpEmail', email);
+
+					let redirectTo = `/auth/login-otp?backTo=${encodeURIComponent(backTo)}`;
 
 					await goto(resolve(redirectTo));
 				} catch (e) {

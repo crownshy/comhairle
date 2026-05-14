@@ -56,6 +56,10 @@ export const CreateOtpRequest = z
   })
   .passthrough();
 export type CreateOtpRequest = z.infer<typeof CreateOtpRequest>;
+export const VerifyOtpTokenRequest = z
+  .object({ token: z.string() })
+  .passthrough();
+export type VerifyOtpTokenRequest = z.infer<typeof VerifyOtpTokenRequest>;
 export const VerifyEmailTokenRequest = z
   .object({ token: z.string() })
   .passthrough();
@@ -1486,6 +1490,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   SignupRequest,
   OtpSignupRequest,
   CreateOtpRequest,
+  VerifyOtpTokenRequest,
   VerifyEmailTokenRequest,
   ResendVerificationEmailRequest,
   CreatePasswordResetRequest,
@@ -1708,6 +1713,20 @@ const endpoints = makeApi([
         name: "body",
         type: "Body",
         schema: OtpLoginRequest,
+      },
+    ],
+    response: UserDto,
+  },
+  {
+    method: "post",
+    path: "/auth/login_otp_token",
+    alias: "LoginOtpToken",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ token: z.string() }).passthrough(),
       },
     ],
     response: UserDto,

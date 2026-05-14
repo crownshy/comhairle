@@ -9,15 +9,13 @@
 	import { resolve } from '$app/paths';
 
 	let { data }: { data: PageData } = $props();
-	const { email, backTo, otpCode } = data;
+	const { backTo, jwt } = data;
 
-	let error = $state<string | null>(email ? null : 'Missing required user data.');
+	let error = $state<string | null>(null);
 
 	async function attemptOtpLogin() {
-		if (!email) return (error = 'Missing required user data');
-
 		try {
-			await apiClient.LoginOtpUser({ email, code: otpCode });
+			await apiClient.LoginOtpToken({ token: jwt });
 
 			await invalidateAll();
 			await goto(resolve(backTo));

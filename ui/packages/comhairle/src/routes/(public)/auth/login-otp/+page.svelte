@@ -11,5 +11,5 @@
 </svelte:head>
 
 <AuthLayout>
-	<LoginOtpForm backTo={data.backTo} email={data.email} />
+	<LoginOtpForm backTo={data.backTo} />
 </AuthLayout>

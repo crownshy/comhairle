@@ -447,6 +447,12 @@ struct CreateOtpRequest {
     redirect_url: Option<String>,
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+pub struct OtpClaims {
+    email: String,
+    otp: String,
+}
+
 #[instrument(err(Debug), skip(state))]
 async fn create_otp(
     State(state): State<Arc<ComhairleState>>,
@@ -458,20 +464,61 @@ async fn create_otp(
         return Err(ComhairleError::WrongUserType);
     }
 
-    let email = user.email.ok_or_else(|| ComhairleError::WrongUserType)?;
+    let email = user
+        .email
+        .clone()
+        .ok_or_else(|| ComhairleError::WrongUserType)?;
 
     let otp = otp::create(&state.db, &user.id, payload.redirect_url).await?;
 
+    let claims = OtpClaims {
+        email: email.clone(),
+        otp: otp.code.clone(),
+    };
+    let otp_token = generate_jwt()
+        .user(&user)
+        .secret(&state.config.jwt_secret)
+        .custom_claims(claims)
+        .duration(chrono::Duration::minutes(10))
+        .call();
+
     let encoded_redirect_url = urlencoding::encode(&otp.redirect_url);
+
     let otp_link = format!(
-        "{}/auth/login-otp/{}?backTo={}&email={}",
-        state.config.domain, otp.code, encoded_redirect_url, email
+        "{}/auth/login-otp/{}?backTo={}",
+        state.config.domain, otp_token, encoded_redirect_url
     );
+
     state
         .mailer
         .send_otp_email(&user.username, &Some(email), otp.code, Some(otp_link))?;
 
     Ok(StatusCode::CREATED)
+}
+
+#[derive(Deserialize, JsonSchema, Debug)]
+struct VerifyOtpTokenRequest {
+    token: String,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn login_otp_token(
+    State(state): State<Arc<ComhairleState>>,
+    cookies: CookieJar,
+    Json(payload): Json<VerifyOtpTokenRequest>,
+) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
+    let current_user = validate_jwt::<OtpClaims>(&state, &payload.token).await?;
+
+    if current_user.auth_type == UserAuthType::Annon {
+        return Err(ComhairleError::WrongUserType);
+    }
+
+    let cookie = create_session_cookie(&current_user, &state);
+
+    Ok((
+        cookies.add(cookie),
+        (StatusCode::OK, Json(current_user.into())),
+    ))
 }
 
 #[instrument(err(Debug), skip(state, payload))]
@@ -1027,6 +1074,15 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .api_route(
+            "/login_otp_token",
+            post_with(login_otp_token, |op| {
+                op.id("LoginOtpToken")
+                    .tag("Auth")
+                    .summary("Verify one-time-passcode from a JWT")
+                    .response::<200, Json<UserDto>>()
+            }),
+        )
+        .api_route(
             "/logout",
             post_with(logout, |op| {
                 op.id("LogoutUser")
@@ -1095,14 +1151,15 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
 
     use crate::{
         mailer::MockComhairleMailer,
         models::{
             otp,
             users::{
-                add_user_resource_role, get_user_by_email, Resource, Role, UpdateUserRequest, User,
-                UserAuthType,
+                self, add_user_resource_role, get_user_by_email, Resource, Role, UpdateUserRequest,
+                User, UserAuthType,
             },
         },
         routes::{
@@ -2207,6 +2264,55 @@ mod tests {
             .await?;
 
         assert!(!status.is_success(), "incorrect status code");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_login_user_from_otp_jwt(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let email = "test_email@test.com";
+        let username = "test_user";
+        let password = "qwe321QWE^%$qwe321";
+
+        let state = test_state().db(pool.clone()).call()?;
+        let app = setup_server(Arc::new(state.clone())).await?;
+
+        let mut session = UserSession::new(username, password, email);
+        session.signup(&app).await?;
+        session.login(&app, email, password).await?;
+
+        let (_, current_user, _) = session.current_user(&app).await?;
+
+        let otp = otp::create(&pool, &current_user.id, None).await?;
+        let user = users::get_user_by_id(&current_user.id, &pool).await?;
+
+        let claims = OtpClaims {
+            email: email.to_string(),
+            otp: otp.code,
+        };
+        let token = generate_jwt()
+            .user(&user)
+            .secret(&state.config.jwt_secret)
+            .custom_claims(claims)
+            .duration(chrono::Duration::minutes(10))
+            .call();
+
+        session.logout(&app).await?;
+
+        let (_, value, cookies) = session
+            .post(
+                &app,
+                "/auth/login_otp_token",
+                json!({ "token": token }).to_string().into(),
+            )
+            .await?;
+        let user: UserDto = serde_json::from_value(value)?;
+
+        assert_eq!(user.id, current_user.id, "ids don't match");
+        assert!(
+            cookies.unwrap().to_str()?.contains("auth-token"),
+            "missing auth-token cookie"
+        );
 
         Ok(())
     }
