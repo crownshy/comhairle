@@ -41,7 +41,7 @@
 </script>
 
 <Dialog.Root bind:open onOpenChange={handleClose}>
-	<Dialog.Content class="max-h-[90vh] max-w-xl overflow-y-auto">
+	<Dialog.Content class="max-h-[90vh] max-w-xl min-w-[80vw] overflow-y-auto">
 		<Dialog.Header>
 			<Dialog.Title>Edit question {q?.order}</Dialog.Title>
 			<Dialog.Description>

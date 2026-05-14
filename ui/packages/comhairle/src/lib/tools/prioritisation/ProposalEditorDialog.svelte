@@ -48,7 +48,7 @@
 </script>
 
 <Dialog.Root bind:open onOpenChange={handleClose}>
-	<Dialog.Content class="max-h-[90vh] max-w-3xl overflow-y-auto">
+	<Dialog.Content class="max-h-[90vh] w-full min-w-[80vw]  overflow-y-auto">
 		<Dialog.Header>
 			<Dialog.Title>Edit proposal {proposal?.order}</Dialog.Title>
 			<Dialog.Description>
