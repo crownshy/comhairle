@@ -397,6 +397,8 @@
 			onChange={handleSourceChange}
 			{minHeight}
 			{maxHeight}
+			{availableDocuments}
+			{conversationId}
 		/>
 	{:else}
 		<textarea
