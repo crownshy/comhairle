@@ -92,31 +92,33 @@
 	{@const isBreakout = item.type === 'breakout'}
 	{@const wrapperClass =
 		status === 'done'
-			? `bg-muted-foreground/10 flex items-start overflow-hidden border ${interactive ? 'hover:bg-muted-foreground/20 cursor-pointer hover:border-primary/70' : ''}`
+			? `bg-muted-foreground/10 overflow-hidden border ${interactive ? 'hover:bg-muted-foreground/20 cursor-pointer hover:border-primary/70' : ''}`
 			: status === 'current'
-				? `bg-primary/40 flex items-start shadow-sm ${interactive ? 'cursor-pointer' : ''}`
-				: `bg-background flex items-start overflow-hidden border ${interactive ? 'hover:bg-accent cursor-pointer hover:border-primary/70' : ''}`}
+				? `bg-primary/40 shadow-sm ${interactive ? 'cursor-pointer' : ''}`
+				: `bg-background overflow-hidden border ${interactive ? 'hover:bg-accent cursor-pointer hover:border-primary/70' : ''}`}
 	<svelte:element
 		this={interactive ? 'button' : 'div'}
-		class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left {wrapperClass}"
+		class="flex min-h-14 w-full {isBreakout
+			? 'items-start'
+			: 'items-center'} gap-3 rounded-xl px-3 py-4 text-left {wrapperClass}"
 		onclick={() => handleItemClick(index)}
 	>
 		<!-- Number / Status icon -->
 		{#if status === 'done'}
 			<div
-				class="bg-muted-foreground/20 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+				class="bg-muted-foreground/20 flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
 			>
 				<Check class="text-muted-foreground h-3 w-3" />
 			</div>
 		{:else if status === 'current'}
 			<span
-				class="text-primary bg-background mt-0.5 flex h-6 shrink-0 items-center rounded-full border px-2 text-xs font-medium"
+				class="text-primary bg-background flex h-6 shrink-0 items-center rounded-full border px-2 text-xs font-medium"
 			>
 				Current
 			</span>
 		{:else}
 			<div
-				class="bg-primary/10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+				class="bg-primary/10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
 			>
 				<span class="text-primary text-xs leading-6 font-medium">
 					{index + 1}
@@ -125,12 +127,12 @@
 		{/if}
 
 		<!-- Text content -->
-		<div class="flex min-w-0 flex-col gap-1 self-center">
+		<div class="flex min-w-0 flex-col gap-1">
 			{#if isBreakout}
 				<span
-					class="text-[0.7rem] {status === 'upcoming' && 'text-primary'} {status ===
-						'done' && 'text-muted-foreground'} {status === 'current' &&
-						'text-sidebar-background'}"
+					class="flex h-6 items-center text-[0.7rem] {status === 'upcoming' &&
+						'text-primary'} {status === 'done' && 'text-muted-foreground'} {status ===
+						'current' && 'text-sidebar-background'}"
 				>
 					Breakout session
 				</span>
