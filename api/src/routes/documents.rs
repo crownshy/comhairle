@@ -57,19 +57,11 @@ async fn require_conversation_document_access(
         return Ok(());
     }
 
-    let is_participant = sqlx::query_scalar::<_, i64>(
-        "SELECT 1
-         FROM user_participation
-         WHERE conversation_id = $1 AND user_id = $2
-         LIMIT 1",
-    )
-    .bind(conversation_id)
-    .bind(user.id)
-    .fetch_optional(&state.db)
-    .await?
-    .is_some();
+    let participant_ids =
+        user_participation::get_participant_user_ids_for_conversation(&state.db, conversation_id)
+            .await?;
 
-    if is_participant {
+    if participant_ids.contains(&user.id) {
         return Ok(());
     }
 
@@ -622,6 +614,132 @@ mod tests {
         assert_eq!(id, "kb-123".to_string(), "incorrect json response");
         assert_eq!(name, "test_doc".to_string(), "incorrect json response");
 
+        Ok(())
+    }
+
+    fn document_list_returning(bot_service: &mut MockComhairleBotService, kb_id: String) {
+        bot_service
+            .expect_list_documents()
+            .with(eq(kb_id), eq(Some(GetQueryParams::default())))
+            .returning(|_, _| {
+                Box::pin(async move {
+                    Ok((
+                        StatusCode::OK,
+                        vec![ComhairleDocument {
+                            id: "doc-1".to_string(),
+                            name: "doc".to_string(),
+                            ..Default::default()
+                        }],
+                    ))
+                })
+            });
+    }
+
+    #[sqlx::test]
+    async fn anon_can_list_documents_when_public_and_live(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let kb_id = "kb-123".to_string();
+        let (app, mut admin, conversation_id) =
+            setup_test_app_with_conversation(pool, kb_id.clone(), |bs| {
+                document_list_returning(bs, kb_id.clone());
+            })
+            .await?;
+
+        // Flip conversation to public (default seeded as private + live).
+        admin
+            .update_conversation(&app, &conversation_id, json!({ "is_public": true }))
+            .await?;
+
+        let mut anon = UserSession::new_anon();
+        let (status, _, _) = anon
+            .get(&app, &format!("/conversation/{conversation_id}/documents"))
+            .await?;
+
+        assert!(status.is_success(), "anon should access public+live docs: {status}");
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn anon_forbidden_when_conversation_private(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let kb_id = "kb-123".to_string();
+        let (app, _admin, conversation_id) =
+            setup_test_app_with_conversation(pool, kb_id, |_bs| {
+                // list_documents must NOT be invoked when access is denied.
+            })
+            .await?;
+
+        let mut anon = UserSession::new_anon();
+        let (status, _, _) = anon
+            .get(&app, &format!("/conversation/{conversation_id}/documents"))
+            .await?;
+
+        assert_eq!(status, StatusCode::FORBIDDEN, "anon must be denied on private conv");
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn non_participant_user_forbidden(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let kb_id = "kb-123".to_string();
+        let (app, _admin, conversation_id) =
+            setup_test_app_with_conversation(pool, kb_id, |_bs| {
+                // list_documents must NOT be invoked when access is denied.
+            })
+            .await?;
+
+        let mut outsider = UserSession::new(
+            "outsider",
+            crate::test_helpers::TEST_PASSWORD,
+            "outsider@example.com",
+        );
+        outsider.signup(&app).await?;
+
+        let (status, _, _) = outsider
+            .get(&app, &format!("/conversation/{conversation_id}/documents"))
+            .await?;
+
+        assert_eq!(
+            status,
+            StatusCode::FORBIDDEN,
+            "non-admin non-participant must be denied"
+        );
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn participant_can_list_documents(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let kb_id = "kb-123".to_string();
+        let (app, mut admin, conversation_id) =
+            setup_test_app_with_conversation(pool, kb_id.clone(), |bs| {
+                document_list_returning(bs, kb_id.clone());
+            })
+            .await?;
+
+        // Admin sets up a workflow the participant can register on.
+        let (_, workflow, _) = admin.create_random_workflow(&app, &conversation_id).await?;
+        let workflow_id = workflow["id"].as_str().unwrap().to_string();
+
+        let mut participant = UserSession::new(
+            "participant",
+            crate::test_helpers::TEST_PASSWORD,
+            "participant@example.com",
+        );
+        participant.signup(&app).await?;
+        participant
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/workflow/{workflow_id}/register"),
+                Body::empty(),
+            )
+            .await?;
+
+        let (status, _, _) = participant
+            .get(&app, &format!("/conversation/{conversation_id}/documents"))
+            .await?;
+
+        assert!(status.is_success(), "participant should list docs: {status}");
         Ok(())
     }
 }
