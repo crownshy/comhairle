@@ -100,7 +100,7 @@
 		this={interactive ? 'button' : 'div'}
 		class="flex min-h-14 w-full {isBreakout
 			? 'items-start'
-			: 'items-center'} gap-3 rounded-xl px-3 py-4 text-left {wrapperClass}"
+			: 'items-center'} gap-2 rounded-xl px-3 py-4 text-left {wrapperClass}"
 		onclick={() => handleItemClick(index)}
 	>
 		<!-- Number / Status icon -->
@@ -112,7 +112,7 @@
 			</div>
 		{:else if status === 'current'}
 			<span
-				class="text-primary bg-background flex h-6 shrink-0 items-center rounded-full border px-2 text-xs font-medium"
+				class="text-primary bg-background flex h-6 shrink-0 items-center rounded-full border px-2 text-[0.7rem] font-medium"
 			>
 				Current
 			</span>
