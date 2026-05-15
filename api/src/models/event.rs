@@ -2,18 +2,20 @@ use chrono::{DateTime, Utc};
 use comhairle_macros::{DbJsonBEnum, Translatable};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, Alias, Expr, PostgresQueryBuilder, Query};
+use sea_query::{enum_def, Alias, Expr, JoinType, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::FromRow, PgPool};
+use sqlx::{prelude::FromRow, query_as_with, PgPool};
 use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
     models::{
+        event_attendance::EventAttendanceIden,
         pagination::{Order, PageOptions, PaginatedResults},
         translations::{new_translation, TextContentId, TextFormat},
+        users::UserIden,
     },
 };
 
@@ -68,13 +70,15 @@ pub struct Event {
     pub video_meeting_id: Option<Uuid>,
     #[serde(default)]
     pub agenda: EventAgenda,
+    #[partially(transparent)]
+    pub reminder_sent_at: Option<DateTime<Utc>>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [EventIden; 12] = [
+const DEFAULT_COLUMNS: [EventIden; 13] = [
     EventIden::Id,
     EventIden::Name,
     EventIden::Description,
@@ -85,6 +89,7 @@ const DEFAULT_COLUMNS: [EventIden; 12] = [
     EventIden::SignupMode,
     EventIden::VideoMeetingId,
     EventIden::Agenda,
+    EventIden::ReminderSentAt,
     EventIden::CreatedAt,
     EventIden::UpdatedAt,
 ];
@@ -460,6 +465,82 @@ fn add_current_attendance(mut query: sea_query::SelectStatement) -> sea_query::S
             Alias::new("current_attendance"),
         )
         .to_owned()
+}
+
+#[derive(Deserialize, Serialize, Debug, FromRow, Clone, JsonSchema)]
+pub struct UpcomingEventParticipant {
+    pub event_id: Uuid,
+    pub event_start_time: DateTime<Utc>,
+    pub user_id: Uuid,
+    pub user_email: Option<String>,
+    pub username: Option<String>,
+    pub user_auth_type: String,
+    pub role: String,
+}
+
+#[instrument(err(Debug))]
+pub async fn list_upcoming_event_participants(
+    db: &PgPool,
+) -> Result<Vec<UpcomingEventParticipant>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .expr_as(
+            Expr::col((EventIden::Table, EventIden::Id)),
+            Alias::new("event_id"),
+        )
+        .expr_as(
+            Expr::col((EventIden::Table, EventIden::StartTime)),
+            Alias::new("event_start_time"),
+        )
+        .expr_as(
+            Expr::col((UserIden::Table, UserIden::Id)),
+            Alias::new("user_id"),
+        )
+        .expr_as(
+            Expr::col((UserIden::Table, UserIden::Email)),
+            Alias::new("user_email"),
+        )
+        .expr_as(
+            Expr::col((UserIden::Table, UserIden::Username)),
+            Alias::new("username"),
+        )
+        .expr_as(
+            Expr::col((UserIden::Table, UserIden::AuthType)),
+            Alias::new("user_auth_type"),
+        )
+        .expr_as(
+            Expr::col((EventAttendanceIden::Table, EventAttendanceIden::Role)),
+            Alias::new("role"),
+        )
+        .from(EventIden::Table)
+        .join(
+            JoinType::InnerJoin,
+            EventAttendanceIden::Table,
+            Expr::col((EventIden::Table, EventIden::Id))
+                .equals((EventAttendanceIden::Table, EventAttendanceIden::EventId)),
+        )
+        .join(
+            JoinType::InnerJoin,
+            UserIden::Table,
+            Expr::col((UserIden::Table, UserIden::Id))
+                .equals((EventAttendanceIden::Table, EventAttendanceIden::UserId)),
+        )
+        .and_where(
+            Expr::col((EventAttendanceIden::Table, EventAttendanceIden::Role))
+                .eq("participant".to_owned()),
+        )
+        .and_where(Expr::col((UserIden::Table, UserIden::Email)).is_not_null())
+        .and_where(Expr::col((EventIden::Table, EventIden::StartTime)).gt(Utc::now()))
+        .and_where(
+            Expr::col((EventIden::Table, EventIden::StartTime))
+                .lte(Utc::now() + chrono::Duration::hours(12)),
+        )
+        .and_where(Expr::col((EventIden::Table, EventIden::ReminderSentAt)).is_null())
+        .to_owned()
+        .build_sqlx(PostgresQueryBuilder);
+
+    let results = query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(results)
 }
 
 #[cfg(test)]
