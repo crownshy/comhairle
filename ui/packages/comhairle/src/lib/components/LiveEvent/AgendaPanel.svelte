@@ -92,26 +92,28 @@
 	{@const isBreakout = item.type === 'breakout'}
 	{@const wrapperClass =
 		status === 'done'
-			? `bg-muted-foreground/10 inline-flex items-center overflow-hidden border ${interactive ? 'hover:bg-muted-foreground/20 cursor-pointer' : ''}`
+			? `bg-muted-foreground/10 inline-flex items-center overflow-hidden border ${interactive ? 'hover:bg-muted-foreground/20 cursor-pointer hover:border-primary/70' : ''}`
 			: status === 'current'
 				? `bg-primary/40 flex flex-col items-start justify-center shadow-sm ${interactive ? 'cursor-pointer' : ''}`
-				: `bg-background inline-flex items-center overflow-hidden border ${interactive ? 'hover:bg-accent cursor-pointer' : ''}`}
+				: `bg-background inline-flex items-center overflow-hidden border ${interactive ? 'hover:bg-accent cursor-pointer hover:border-primary/70' : ''}`}
 	<svelte:element
 		this={interactive ? 'button' : 'div'}
-		class="flex w-full flex-col items-start gap-2 rounded-xl px-3 py-4 text-left {isBreakout && status !== 'done'
-			? 'border-primary/50 border'
-			: ''} {wrapperClass}"
+		class="flex w-full flex-col items-start gap-2 rounded-xl px-3 py-4 text-left {wrapperClass}"
 		onclick={() => handleItemClick(index)}
 	>
 		{#if isBreakout}
-			<span class="flex items-center gap-2 text-[0.7rem] {status === 'upcoming' && 'text-primary'} {status === 'done' && 'text-muted-foreground'} {status === 'current' && 'text-sidebar-background'}">
+			<span
+				class="flex items-center gap-2 text-[0.7rem] {status === 'upcoming' &&
+					'text-primary'} {status === 'done' && 'text-muted-foreground'} {status ===
+					'current' && 'text-sidebar-background'}"
+			>
 				Breakout session
 			</span>
 		{/if}
 		<div class="{status === 'current' ? 'inline-flex' : 'flex'} items-center gap-2">
 			{#if status === 'done'}
 				<div
-					class="bg-muted-foreground/20 flex h-6 w-6 shrink-0 items-center  justify-center rounded-full"
+					class="bg-muted-foreground/20 flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
 				>
 					<Check class="text-muted-foreground h-3 w-3" />
 				</div>
