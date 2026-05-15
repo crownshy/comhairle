@@ -100,7 +100,7 @@
 		isInitializing = true;
 		const detected = detectContentType(value);
 		const docMap = buildDocMap(availableDocuments);
-		lastDocMapKey = JSON.stringify(docMap);
+		lastDocMapKey = JSON.stringify({ docMap, conversationId });
 
 		editor = new Editor({
 			element: editorElement,
@@ -147,7 +147,7 @@
 
 	$effect(() => {
 		const docMap = buildDocMap(availableDocuments);
-		const newKey = JSON.stringify(docMap);
+		const newKey = JSON.stringify({ docMap, conversationId });
 		if (newKey !== lastDocMapKey && editorElement) {
 			createEditor();
 		}

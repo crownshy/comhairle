@@ -48,7 +48,10 @@
 			const currentContent = untrack(() => content);
 			const detected = detectContentType(currentContent);
 			const docMap = untrack(() => buildDocMap(availableDocuments));
-			lastDocMapKey = JSON.stringify(docMap);
+			lastDocMapKey = JSON.stringify({
+				docMap,
+				conversationId: untrack(() => conversationId)
+			});
 
 			editor = new Editor({
 				element: editorElement,
@@ -93,16 +96,8 @@
 	// docs won't redraw atom nodeViews.)
 	$effect(() => {
 		const docMap = buildDocMap(availableDocuments);
-		const newKey = JSON.stringify(docMap);
-		// Also track conversationId so it triggers
-		const _ = conversationId;
+		const newKey = JSON.stringify({ docMap, conversationId });
 		if (newKey !== lastDocMapKey && editorElement) {
-			createRenderer();
-		}
-	});
-
-	$effect(() => {
-		if (editorElement) {
 			createRenderer();
 		}
 	});
