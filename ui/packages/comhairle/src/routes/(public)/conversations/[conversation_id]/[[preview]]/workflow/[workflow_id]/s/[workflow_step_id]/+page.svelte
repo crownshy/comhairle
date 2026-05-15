@@ -46,15 +46,27 @@
 	let isRevisiting = $derived(workflowStep.progressStatus === 'done');
 
 	let availableDocuments = $state<ComhairleDocument[]>([]);
+	let loadedDocumentsConversationId = $state<string | null>(null);
 
 	$effect(() => {
-		if (!conversation?.id) return;
+		const conversationId = conversation?.id ?? null;
+		if (!conversationId) {
+			availableDocuments = [];
+			loadedDocumentsConversationId = null;
+			return;
+		}
+
+		if (loadedDocumentsConversationId === conversationId) return;
+
+		loadedDocumentsConversationId = conversationId;
 		apiClient
-			.ListDocuments({ params: { conversation_id: conversation.id } })
+			.ListDocuments({ params: { conversation_id: conversationId } })
 			.then((docs) => {
+				if (loadedDocumentsConversationId !== conversationId) return;
 				availableDocuments = docs.filter((d) => d.parse_status === 'DONE');
 			})
 			.catch(() => {
+				if (loadedDocumentsConversationId !== conversationId) return;
 				availableDocuments = [];
 			});
 	});
