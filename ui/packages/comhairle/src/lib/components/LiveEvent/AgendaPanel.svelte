@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { Check } from 'lucide-svelte';
+	import Badge from '$lib/components/ui/badge/badge.svelte';
+	import { Check, Columns2 } from 'lucide-svelte';
 	import type { AgendaItem } from './types';
 
 	interface Props {
@@ -88,21 +89,29 @@
 
 {#snippet agendaItem(item: AgendaItem, index: number)}
 	{@const status = getStatus(index)}
+	{@const isBreakout = item.type === 'breakout'}
 	{@const wrapperClass =
 		status === 'done'
 			? `bg-muted-foreground/10 inline-flex items-center overflow-hidden border ${interactive ? 'hover:bg-muted-foreground/20 cursor-pointer' : ''}`
 			: status === 'current'
-				? `bg-primary/30 flex flex-col items-start justify-center shadow-sm ${interactive ? 'cursor-pointer' : ''}`
+				? `bg-primary/40 flex flex-col items-start justify-center shadow-sm ${interactive ? 'cursor-pointer' : ''}`
 				: `bg-background inline-flex items-center overflow-hidden border ${interactive ? 'hover:bg-accent cursor-pointer' : ''}`}
 	<svelte:element
 		this={interactive ? 'button' : 'div'}
-		class="w-full rounded-xl px-3 py-4 text-left {wrapperClass}"
+		class="flex w-full flex-col items-start gap-2 rounded-xl px-3 py-4 text-left {isBreakout && status !== 'done'
+			? 'border-primary/50 border'
+			: ''} {wrapperClass}"
 		onclick={() => handleItemClick(index)}
 	>
+		{#if isBreakout}
+			<span class="flex items-center gap-2 text-[0.7rem] {status === 'upcoming' && 'text-primary'} {status === 'done' && 'text-muted-foreground'} {status === 'current' && 'text-sidebar-background'}">
+				Breakout session
+			</span>
+		{/if}
 		<div class="{status === 'current' ? 'inline-flex' : 'flex'} items-center gap-2">
 			{#if status === 'done'}
 				<div
-					class="bg-muted-foreground/20 flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+					class="bg-muted-foreground/20 flex h-6 w-6 shrink-0 items-center  justify-center rounded-full"
 				>
 					<Check class="text-muted-foreground h-3 w-3" />
 				</div>
