@@ -57,11 +57,19 @@ async fn require_conversation_document_access(
         return Ok(());
     }
 
-    let participant_ids =
-        user_participation::get_participant_user_ids_for_conversation(&state.db, conversation_id)
-            .await?;
+    let is_participant = sqlx::query_scalar::<_, i64>(
+        "SELECT 1
+         FROM user_participation
+         WHERE conversation_id = $1 AND user_id = $2
+         LIMIT 1",
+    )
+    .bind(conversation_id)
+    .bind(user.id)
+    .fetch_optional(&state.db)
+    .await?
+    .is_some();
 
-    if participant_ids.contains(&user.id) {
+    if is_participant {
         return Ok(());
     }
 
