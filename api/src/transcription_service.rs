@@ -63,8 +63,8 @@ pub trait Transcriber: Sync + Send {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TranscribeFromBulkResponse {
-    success: bool,
-    completed_at: DateTime<Utc>,
+    pub success: bool,
+    pub completed_at: DateTime<Utc>,
 }
 
 #[cfg(test)]

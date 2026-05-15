@@ -51,6 +51,13 @@ pub async fn transcribe_recording(
         .map_err(|_| WorkerServiceError::NoBulkStorageServiceConfigured)
         .ok_or_record_failure(&req.job_id, &state.db)
         .await?;
+    let bulk_storage_config = state
+        .config
+        .bulk_storage_service
+        .as_ref()
+        .ok_or(WorkerServiceError::NoBulkStorageServiceConfigured)
+        .ok_or_record_failure(&req.job_id, &state.db)
+        .await?;
 
     info!(
         event_id = %req.event_id,
@@ -66,16 +73,23 @@ pub async fn transcribe_recording(
             .map_or(String::new(), |id| format!("/rooms/{id}"))
     );
 
-    let _result = transcription_service
+    let result = transcription_service
         .transcribe_from_bulk_store(
-            "comhairle-media",
+            &bulk_storage_config.store_name,
             &recording_location,
-            &bulk_storage_service,
+            bulk_storage_service,
         )
         .await
         .map_err(|e| WorkerServiceError::TranscriptionServiceError(e.to_string()))
         .ok_or_record_failure(&req.job_id, &state.db)
         .await?;
+
+    info!(
+        event_id = %req.event_id,
+        job_id = %req.job_id,
+        completed_at = result.completed_at.to_string(),
+        "Transcription from bulk storage completed successfully"
+    );
 
     Ok::<_, _>(GoTo::Next(GenerateReport {
         transcription_key: format!("{recording_location}/transcript.json"),
@@ -109,9 +123,9 @@ pub async fn generate_sensemaking_report(
         .await?;
 
     info!(
-        transcription_id = %req.transcription_key,
+        transcription_key = %req.transcription_key,
         job_id = %req.job_id,
-        "Run audio transcription through sense making service and generate report"
+        "Sending audio transcription to categorization service"
     );
 
     let bytes = bulk_storage_service
@@ -135,7 +149,7 @@ pub async fn generate_sensemaking_report(
         })
         .collect();
 
-    let _analysis_job = categorization_service
+    let analysis_job = categorization_service
         .create_analysis_job(
             comments,
             format!(
@@ -148,6 +162,12 @@ pub async fn generate_sensemaking_report(
         .map_err(|e| WorkerServiceError::CategorizationServiceError(e.to_string()))
         .ok_or_record_failure(&req.job_id, &state.db)
         .await?;
+
+    info!(
+        job_id = %req.job_id,
+        categorization_job_id = %analysis_job.id,
+        "Report job created in categorization service"
+    );
 
     let update_job = UpdateJob {
         status: Some("completed".to_string()),

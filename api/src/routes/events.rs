@@ -249,9 +249,17 @@ async fn process_transcriptions(
     let _event = event::get_by_id(&state.db, &event_id).await?;
     let worker_service = state.required_worker_service()?;
     let bulk_storage_service = state.required_bulk_storage_service()?;
+    let bulk_storage_config = state
+        .config
+        .bulk_storage_service
+        .as_ref()
+        .ok_or(ComhairleError::NoBulkStorageServiceConfigured)?;
 
     let entries = bulk_storage_service
-        .list_keys("comhairle-media", Some(&format!("events/{event_id}/")))
+        .list_keys(
+            &bulk_storage_config.store_name,
+            Some(&format!("events/{event_id}/")),
+        )
         .await?;
 
     let is_missing_main_recording = !entries
