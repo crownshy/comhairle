@@ -12,9 +12,12 @@ use uuid::Uuid;
 use crate::{
     error::ComhairleError,
     models::{
+        conversation::ConversationIden,
         event_attendance::EventAttendanceIden,
         pagination::{Order, PageOptions, PaginatedResults},
-        translations::{new_translation, TextContentId, TextFormat},
+        translations::{
+            new_translation, TextContentId, TextContentIden, TextFormat, TextTranslationIden,
+        },
         users::UserIden,
     },
 };
@@ -200,6 +203,9 @@ impl PartialEvent {
         }
         if let Some(value) = &self.agenda {
             values.push((EventIden::Agenda, value.into()));
+        }
+        if let Some(value) = &self.reminder_sent_at {
+            values.push((EventIden::ReminderSentAt, (*value).into()));
         }
 
         values
@@ -467,15 +473,17 @@ fn add_current_attendance(mut query: sea_query::SelectStatement) -> sea_query::S
         .to_owned()
 }
 
-#[derive(Deserialize, Serialize, Debug, FromRow, Clone, JsonSchema)]
+#[derive(Deserialize, Serialize, Debug, FromRow, Clone, JsonSchema, Default)]
 pub struct UpcomingEventParticipant {
     pub event_id: Uuid,
     pub event_start_time: DateTime<Utc>,
+    pub event_name: String,
     pub user_id: Uuid,
     pub user_email: Option<String>,
     pub username: Option<String>,
     pub user_auth_type: String,
     pub role: String,
+    pub conversation_id: Uuid,
 }
 
 #[instrument(err(Debug))]
@@ -486,6 +494,10 @@ pub async fn list_upcoming_event_participants(
         .expr_as(
             Expr::col((EventIden::Table, EventIden::Id)),
             Alias::new("event_id"),
+        )
+        .expr_as(
+            Expr::col((TextTranslationIden::Table, TextTranslationIden::Content)),
+            Alias::new("event_name"),
         )
         .expr_as(
             Expr::col((EventIden::Table, EventIden::StartTime)),
@@ -511,7 +523,27 @@ pub async fn list_upcoming_event_participants(
             Expr::col((EventAttendanceIden::Table, EventAttendanceIden::Role)),
             Alias::new("role"),
         )
+        .expr_as(
+            Expr::col((ConversationIden::Table, ConversationIden::Id)),
+            Alias::new("conversation_id"),
+        )
         .from(EventIden::Table)
+        .join(
+            JoinType::InnerJoin,
+            TextContentIden::Table,
+            Expr::col((TextContentIden::Table, TextContentIden::Id))
+                .equals((EventIden::Table, EventIden::Name)),
+        )
+        .join(
+            JoinType::InnerJoin,
+            TextTranslationIden::Table,
+            Expr::col((TextTranslationIden::Table, TextTranslationIden::ContentId))
+                .equals((TextContentIden::Table, TextContentIden::Id))
+                .and(
+                    Expr::col((TextTranslationIden::Table, TextTranslationIden::Locale))
+                        .equals((TextContentIden::Table, TextContentIden::PrimaryLocale)),
+                ),
+        )
         .join(
             JoinType::InnerJoin,
             EventAttendanceIden::Table,
@@ -523,6 +555,12 @@ pub async fn list_upcoming_event_participants(
             UserIden::Table,
             Expr::col((UserIden::Table, UserIden::Id))
                 .equals((EventAttendanceIden::Table, EventAttendanceIden::UserId)),
+        )
+        .join(
+            JoinType::InnerJoin,
+            ConversationIden::Table,
+            Expr::col((ConversationIden::Table, ConversationIden::Id))
+                .equals((EventIden::Table, EventIden::ConversationId)),
         )
         .and_where(
             Expr::col((EventAttendanceIden::Table, EventAttendanceIden::Role))

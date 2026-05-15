@@ -21,7 +21,9 @@ use crate::{
         process_video_call_transcriptions::{
             generate_sensemaking_report, transcribe_recording, TranscribeRecording,
         },
-        schedule_event_emails::{schedule_event_emails, EventEmailRequest},
+        schedule_event_emails::{
+            schedule_event_emails, send_event_reminder, EventEmailRequest, SendEventReminderJob,
+        },
     },
     ComhairleState,
 };
@@ -35,13 +37,19 @@ pub trait WorkerService: Send + Sync {
     async fn push_document_job(&self, job: DocumentJob) -> Result<(), ComhairleError>;
 
     async fn push_transcription_job(&self, job: TranscribeRecording) -> Result<(), ComhairleError>;
+
+    async fn push_event_reminder_job(
+        &self,
+        job: SendEventReminderJob,
+    ) -> Result<(), ComhairleError>;
 }
 
 #[derive(Clone, Debug)]
 pub struct ComhairleWorkerService {
     pub process_documents: Arc<Mutex<RedisStorage<DocumentJob>>>,
     pub process_transcriptions: Arc<Mutex<RedisStorage<StepRequest<Vec<u8>>>>>,
-    pub schedule_event_emails: Arc<Mutex<RedisStorage<EventEmailRequest>>>,
+    pub schedule_event_reminders: Arc<Mutex<RedisStorage<EventEmailRequest>>>,
+    pub send_event_reminder: Arc<Mutex<RedisStorage<SendEventReminderJob>>>,
 }
 
 #[async_trait]
@@ -65,12 +73,25 @@ impl WorkerService for ComhairleWorkerService {
 
         Ok(())
     }
+
+    async fn push_event_reminder_job(
+        &self,
+        job: SendEventReminderJob,
+    ) -> Result<(), ComhairleError> {
+        let mut lock = self.send_event_reminder.lock().await;
+        lock.push(job)
+            .await
+            .map_err(|_| ComhairleError::BackgroundJobFailedToQueue)?;
+
+        Ok(())
+    }
 }
 
 pub struct WorkerStorage {
     pub documents: RedisStorage<DocumentJob>,
     pub transcriptions: RedisStorage<StepRequest<Vec<u8>>>,
-    pub event_emails: RedisStorage<EventEmailRequest>,
+    pub schedule_event_reminders: RedisStorage<EventEmailRequest>,
+    pub send_event_reminder: RedisStorage<SendEventReminderJob>,
 }
 
 pub async fn init_worker_service(
@@ -96,20 +117,25 @@ pub async fn init_worker_service(
         apalis_redis::Config::default().set_namespace("worker_service_documents");
     let transcriptions_config =
         apalis_redis::Config::default().set_namespace("worker_service_transcriptions");
-    let event_email_scheduler_config =
-        apalis_redis::Config::default().set_namespace("worker_service_event_email_scheduler");
+    let event_reminder_scheduler_config =
+        apalis_redis::Config::default().set_namespace("worker_service_event_reminder_scheduler");
+    let event_reminder_send_config =
+        apalis_redis::Config::default().set_namespace("worker_service_event_reminder_send");
 
     let documents_storage =
         RedisStorage::new_with_config(redis_connection.clone(), documents_config);
     let transcriptions_storage =
         RedisStorage::new_with_config(redis_connection.clone(), transcriptions_config);
-    let event_email_scheduler_storage =
-        RedisStorage::new_with_config(redis_connection.clone(), event_email_scheduler_config);
+    let event_reminder_scheduler_storage =
+        RedisStorage::new_with_config(redis_connection.clone(), event_reminder_scheduler_config);
+    let event_reminder_send_storage =
+        RedisStorage::new_with_config(redis_connection.clone(), event_reminder_send_config);
 
     let worker_service = Arc::new(ComhairleWorkerService {
         process_documents: Arc::new(Mutex::new(documents_storage.clone())),
         process_transcriptions: Arc::new(Mutex::new(transcriptions_storage.clone())),
-        schedule_event_emails: Arc::new(Mutex::new(event_email_scheduler_storage.clone())),
+        schedule_event_reminders: Arc::new(Mutex::new(event_reminder_scheduler_storage.clone())),
+        send_event_reminder: Arc::new(Mutex::new(event_reminder_send_storage.clone())),
     });
 
     Some((
@@ -117,7 +143,8 @@ pub async fn init_worker_service(
         WorkerStorage {
             documents: documents_storage,
             transcriptions: transcriptions_storage,
-            event_emails: event_email_scheduler_storage,
+            schedule_event_reminders: event_reminder_scheduler_storage,
+            send_event_reminder: event_reminder_send_storage,
         },
     ))
 }
@@ -147,24 +174,31 @@ pub fn init_monitor(
             .backend(storage.transcriptions.clone())
             .build_stepped(transcription_worker_steps);
 
-        // TODO: update for testing
-        // let event_emails_schedule = Schedule::from_str("0 */15 * * * *").unwrap(); // TODO:
-        let event_emails_schedule = Schedule::from_str("*/10 * * * * *").unwrap(); // TODO:
+        let event_emails_schedule = Schedule::from_str("0 */15 * * * *")
+            .expect("Unable to create cron schedule for background worker");
         let event_emails_cron_stream = CronStream::new(event_emails_schedule);
         let event_emails_backend =
-            event_emails_cron_stream.pipe_to_storage(storage.event_emails.clone());
+            event_emails_cron_stream.pipe_to_storage(storage.schedule_event_reminders.clone());
 
-        let schedule_event_emails_worker = WorkerBuilder::new("schedule_event_emails")
+        let schedule_event_reminders_worker = WorkerBuilder::new("schedule_event_reminders")
             .data(state.clone())
             .data(())
             .enable_tracing()
             .backend(event_emails_backend)
             .build_fn(schedule_event_emails);
 
+        let send_event_reminder_worker = WorkerBuilder::new("send_event_reminder")
+            .data(state.clone())
+            .data(())
+            .enable_tracing()
+            .backend(storage.send_event_reminder.clone())
+            .build_fn(send_event_reminder);
+
         monitor = monitor
             .register(process_documents_worker)
             .register(process_transcriptions_worker)
-            .register(schedule_event_emails_worker);
+            .register(schedule_event_reminders_worker)
+            .register(send_event_reminder_worker);
 
         Some(monitor.run())
     } else {
@@ -183,6 +217,10 @@ impl MockWorkerService {
 
         worker_service
             .expect_push_transcription_job()
+            .returning(|_| Box::pin(async move { Ok(()) }));
+
+        worker_service
+            .expect_push_event_reminder_job()
             .returning(|_| Box::pin(async move { Ok(()) }));
 
         worker_service

@@ -14,7 +14,7 @@ const NewEventSchema = z
 			.string()
 			.date()
 			.refine((val) => new Date(val) >= new Date(new Date().toISOString().split('T')[0]), {
-				message: 'Start date must be in the future.'
+				message: 'Start date must be today or in the future.'
 			}),
 		start_time: z.string().time(),
 		end_time: z.string().time(),
