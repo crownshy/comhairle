@@ -2,10 +2,12 @@ pub mod config;
 pub mod error;
 pub mod process_documents;
 pub mod process_video_call_transcriptions;
+pub mod schedule_event_emails;
 
-use std::{future::Future, sync::Arc, time::Duration};
+use std::{future::Future, str::FromStr, sync::Arc, time::Duration};
 
 use apalis::prelude::*;
+use apalis_cron::{CronStream, Schedule};
 use apalis_redis::RedisStorage;
 use async_trait::async_trait;
 use tokio::{sync::Mutex, time::timeout};
@@ -19,6 +21,7 @@ use crate::{
         process_video_call_transcriptions::{
             generate_sensemaking_report, transcribe_recording, TranscribeRecording,
         },
+        schedule_event_emails::{schedule_event_emails, EventEmailRequest},
     },
     ComhairleState,
 };
@@ -38,6 +41,7 @@ pub trait WorkerService: Send + Sync {
 pub struct ComhairleWorkerService {
     pub process_documents: Arc<Mutex<RedisStorage<DocumentJob>>>,
     pub process_transcriptions: Arc<Mutex<RedisStorage<StepRequest<Vec<u8>>>>>,
+    pub schedule_event_emails: Arc<Mutex<RedisStorage<EventEmailRequest>>>,
 }
 
 #[async_trait]
@@ -66,6 +70,7 @@ impl WorkerService for ComhairleWorkerService {
 pub struct WorkerStorage {
     pub documents: RedisStorage<DocumentJob>,
     pub transcriptions: RedisStorage<StepRequest<Vec<u8>>>,
+    pub event_emails: RedisStorage<EventEmailRequest>,
 }
 
 pub async fn init_worker_service(
@@ -91,15 +96,20 @@ pub async fn init_worker_service(
         apalis_redis::Config::default().set_namespace("worker_service_documents");
     let transcriptions_config =
         apalis_redis::Config::default().set_namespace("worker_service_transcriptions");
+    let event_email_scheduler_config =
+        apalis_redis::Config::default().set_namespace("worker_service_event_email_scheduler");
 
     let documents_storage =
         RedisStorage::new_with_config(redis_connection.clone(), documents_config);
     let transcriptions_storage =
         RedisStorage::new_with_config(redis_connection.clone(), transcriptions_config);
+    let event_email_scheduler_storage =
+        RedisStorage::new_with_config(redis_connection.clone(), event_email_scheduler_config);
 
     let worker_service = Arc::new(ComhairleWorkerService {
         process_documents: Arc::new(Mutex::new(documents_storage.clone())),
         process_transcriptions: Arc::new(Mutex::new(transcriptions_storage.clone())),
+        schedule_event_emails: Arc::new(Mutex::new(event_email_scheduler_storage.clone())),
     });
 
     Some((
@@ -107,6 +117,7 @@ pub async fn init_worker_service(
         WorkerStorage {
             documents: documents_storage,
             transcriptions: transcriptions_storage,
+            event_emails: event_email_scheduler_storage,
         },
     ))
 }
@@ -136,9 +147,24 @@ pub fn init_monitor(
             .backend(storage.transcriptions.clone())
             .build_stepped(transcription_worker_steps);
 
+        // TODO: update for testing
+        // let event_emails_schedule = Schedule::from_str("0 */15 * * * *").unwrap(); // TODO:
+        let event_emails_schedule = Schedule::from_str("*/10 * * * * *").unwrap(); // TODO:
+        let event_emails_cron_stream = CronStream::new(event_emails_schedule);
+        let event_emails_backend =
+            event_emails_cron_stream.pipe_to_storage(storage.event_emails.clone());
+
+        let schedule_event_emails_worker = WorkerBuilder::new("schedule_event_emails")
+            .data(state.clone())
+            .data(())
+            .enable_tracing()
+            .backend(event_emails_backend)
+            .build_fn(schedule_event_emails);
+
         monitor = monitor
             .register(process_documents_worker)
-            .register(process_transcriptions_worker);
+            .register(process_transcriptions_worker)
+            .register(schedule_event_emails_worker);
 
         Some(monitor.run())
     } else {
