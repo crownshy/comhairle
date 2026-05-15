@@ -267,11 +267,7 @@
 					{/each}
 
 					<!-- Streaming placeholder bubble (empty assistant message while waiting for first chunk) -->
-					{#if session?.isStreaming &&
-						(!chatMessages.length ||
-							chatMessages[chatMessages.length - 1]?.isBot === false ||
-							(chatMessages[chatMessages.length - 1]?.isBot === true &&
-								!chatMessages[chatMessages.length - 1]?.content?.trim()))}
+					{#if session?.isStreaming && (!chatMessages.length || chatMessages[chatMessages.length - 1]?.isBot === false || (chatMessages[chatMessages.length - 1]?.isBot === true && !chatMessages[chatMessages.length - 1]?.content?.trim()))}
 						<div>
 							<div
 								class="max-w-xxl bg-chat-bubble w-fit rounded-tl-2xl rounded-tr-2xl rounded-br-2xl px-3 py-2.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.15)]"

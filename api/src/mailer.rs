@@ -33,6 +33,34 @@ pub trait ComhairleMailer: Send + Sync {
         email: &Option<String>,
         verify_link: String,
     ) -> Result<(), ComhairleError>;
+
+    fn send_otp_email(
+        &self,
+        username: &Option<String>,
+        email: &Option<String>,
+        passcode: String,
+        passcode_link: Option<String>,
+    ) -> Result<(), ComhairleError>;
+
+    fn send_event_registration_email(
+        &self,
+        email: String,
+        event_name: String,
+        event_time: String,
+        invite_link: String,
+        organization_name: String,
+        organization_email: Option<String>,
+    ) -> Result<(), ComhairleError>;
+
+    fn send_event_confirmation_email(
+        &self,
+        email: String,
+        event_name: String,
+        event_time: String,
+        event_link: String,
+        organization_name: String,
+        organization_email: Option<String>,
+    ) -> Result<(), ComhairleError>;
 }
 
 #[derive(Debug)]
@@ -53,8 +81,17 @@ impl MockComhairleMailer {
             .returning(|_, _, _| Ok(()));
         mailer.expect_send_email().returning(|_, _, _, _| Ok(()));
         mailer
+            .expect_send_otp_email()
+            .returning(|_, _, _, _| Ok(()));
+        mailer
             .expect_send_password_reset_email()
             .returning(|_, _, _| Ok(()));
+        mailer
+            .expect_send_event_registration_email()
+            .returning(|_, _, _, _, _, _| Ok(()));
+        mailer
+            .expect_send_event_confirmation_email()
+            .returning(|_, _, _, _, _, _| Ok(()));
 
         mailer
     }
@@ -90,6 +127,7 @@ impl ComhairleMailer for Mailer {
         let content = template
             .render(context)
             .expect("Template to render properly");
+        let content_inlined_styles = css_inline::inline(&content)?;
 
         let email = Message::builder()
             .from("noreply@comhairle.scot".parse().unwrap())
@@ -97,7 +135,7 @@ impl ComhairleMailer for Mailer {
             .to(to.parse().unwrap())
             .header(lettre::message::header::ContentType::TEXT_HTML)
             .subject(subject)
-            .body(content)
+            .body(content_inlined_styles)
             .unwrap();
 
         let mailer = SmtpTransport::relay(&self.host)
@@ -143,6 +181,25 @@ impl ComhairleMailer for Mailer {
         }
     }
 
+    fn send_otp_email(
+        &self,
+        username: &Option<String>,
+        email: &Option<String>,
+        passcode: String,
+        passcode_link: Option<String>,
+    ) -> Result<(), ComhairleError> {
+        if let Some(email) = email {
+            self.send_email(
+                email,
+                "Your Comhairle one-time-passcode",
+                "one_time_passcode.html",
+                context! { username, passcode, passcode_link },
+            )
+        } else {
+            Err(ComhairleError::WrongUserType)
+        }
+    }
+
     fn send_password_reset_email(
         &self,
         to: &Option<String>,
@@ -159,6 +216,52 @@ impl ComhairleMailer for Mailer {
         } else {
             Err(ComhairleError::WrongUserType)
         }
+    }
+
+    fn send_event_registration_email(
+        &self,
+        email: String,
+        event_name: String,
+        event_time: String,
+        invite_link: String,
+        organization_name: String,
+        organization_email: Option<String>,
+    ) -> Result<(), ComhairleError> {
+        self.send_email(
+            &email,
+            "Invitation to take part in an event",
+            "event_registration_invite.html",
+            context! {
+                event_name => event_name,
+                event_time => event_time,
+                organization_name => organization_name,
+                organization_email => organization_email,
+                invite_link => invite_link,
+            },
+        )
+    }
+
+    fn send_event_confirmation_email(
+        &self,
+        email: String,
+        event_name: String,
+        event_time: String,
+        event_link: String,
+        organization_name: String,
+        organization_email: Option<String>,
+    ) -> Result<(), ComhairleError> {
+        self.send_email(
+            &email,
+            "Event registration confirmation",
+            "event_confirmation.html",
+            context! {
+                event_name => event_name,
+                event_time => event_time,
+                organization_name => organization_name,
+                organization_email => organization_email,
+                event_link => event_link,
+            },
+        )
     }
 }
 

@@ -1,0 +1,115 @@
+{
+        "event": "job.completed",
+        "jobId": "cf792fd6-22bf-4830-b87e-bd83bbaa0749",
+        "clientJobId": "optional-idempotency-key",
+        "timestamp": "2026-04-27T12:38:28.979Z",
+        "status": "completed",
+        "result": {
+                "data": [
+                        {
+                                "id": "1",
+                                "comment": "I think dogs are amazing",
+                                "interview": "participant1"
+                        },
+                        {
+                                "id": "2",
+                                "comment": "I dont think anyone should have pets",
+                                "interview": "participant2"
+                        }
+                ],
+                "title": "My Analysis",
+                "question": "What are the main themes?",
+                "description": "Analysis description",
+                "systemInstructions": "You are a professional research assistant. You have helped run many public consultations, surveys and citizen assemblies. You have good instincts when it comes to extracting interesting insights. You are familiar with public consultation tools like Pol.is and you understand the benefits for working with very clear, concise claims that other people would be able to vote on.",
+                "clusteringInstructions": "I will give you a list of comments. I want you to propose a way to break down the information contained in these comments into topics and subtopics of interest.\n\nDESCRIPTION LENGTH REQUIREMENTS:\n- Topic names: Keep very concise (2-5 words)\n- Topic descriptions: MUST be 25-35 words. Provide a clear overview of what this topic covers.\n- Subtopic names: Keep concise (2-6 words)\n- Subtopic descriptions: MUST be 70-90 words. Provide detailed context about what perspectives and issues fall under this subtopic.\n\nIMPORTANT: The descriptions should be substantive and informative, not just brief summaries. Use the full word count to provide meaningful context that helps readers understand the scope and nuances of each topic and subtopic.\n\nReturn a JSON object of the form {\n  \"taxonomy\": [\n    {\n      \"topicName\": string,\n      \"topicShortDescription\": string, // 25-35 words\n      \"subtopics\": [\n        {\n          \"subtopicName\": string,\n          \"subtopicShortDescription\": string, // 70-90 words\n        },\n        ...\n      ]\n    },\n    ...\n  ]\n}\n\nNow here is the list of comments:\n${comments}\n",
+                "extractionInstructions": "I'm going to give you a comment made by a participant and a list of topics and subtopics which have already been extracted. I want you to extract the most important concise claims that the participant may support. We are only interested in claims that can be mapped to one of the given topic and subtopic. The claim must be fairly general but not a platitude. It must be something that other people may potentially disagree with. Each claim must also be atomic.\n\nCRITICAL EXTRACTION RULES - STRICT ENFORCEMENT:\n1. Extract ZERO claims for comments that are vague, meandering, or lack a clear point\n2. Extract ZERO claims for anecdotes without a broader principle\n3. Extract multiple claims if the comment contains distinct, substantial debatable positions, but treat similar points as variations of one claim rather than separate claims\n4. ONLY extract claims that represent genuinely debatable positions\n5. DO NOT extract claims that are:\n   - Platitudes or truisms (\"communication is important\")\n   - Mere descriptions of experiences without advocating a position\n   - Minor variations of the same underlying idea\n   - Questions or musings without clear stances\n\nQUALITY THRESHOLD: If you're unsure whether a comment contains a substantial claim worth extracting, err on the side of extracting NOTHING. It's better to miss marginal claims than to create noise.\n\nFor each claim, please also provide a relevant quote from the transcript. The quote must be as concise as possible while still supporting the argument. The quote doesn't need to be a logical argument. It could also be a personal story or anecdote illustrating why the interviewee would make this claim. You may use \"[...]\" in the quote to skip the less interesting bits of the quote.\n\nReturn a JSON object of the form {\n  \"claims\": [\n    {\n      \"claim\": string, // a very concise extracted claim\n      \"quote\": string // the exact quote,\n      \"topicName\": string // from the given list of topics\n      \"subtopicName\": string // from the list of subtopics\n    }\n  ]\n}\n\nNow here is the list of topics/subtopics:\n${taxonomy}\n\nAnd then here is the comment:\n${comment}",
+                "dedupInstructions": "You are grouping claims to help users understand which themes matter most in this consultation. Your goal is to consolidate similar claims into well-supported groups while preserving genuinely unique perspectives.\n\nYou will receive a list of claims with IDs, claim text, and quote text for each.\n\nGROUPING DECISION FRAMEWORK:\n\nStep 1 - Identify Core Themes:\nAsk yourself: \"What are the 3-5 main ideas or concerns being expressed across ALL these claims?\"\nThese themes become your candidate groups.\n\nStep 2 - Apply Grouping Criteria:\nGroup claims together if they share ANY of these:\n✓ Same underlying concern or problem (even if different solutions proposed)\n✓ Same recommendation or solution (even if different reasoning)\n✓ Same value or principle being expressed\n✓ Different aspects of the same topic (e.g., \"cost too high\" + \"pricing unclear\" = pricing concerns)\n✓ Specific examples of a general pattern\n\nKeep claims separate ONLY if:\n✗ They address completely different topics within this subtopic\n✗ They represent opposing positions (agree vs disagree on something)\n✗ One is about process/how, the other is about outcome/what\n\nStep 3 - Write Strong Group Claims:\nFor each group, write a claim that:\n- Captures the shared essence at a higher level of abstraction\n- Uses language and concepts that appear in the original claims (avoid introducing new terminology)\n- Is specific enough to be meaningful (avoid vague platitudes like \"improve X\")\n- Could plausibly be supported by all quotes in the group\n- Uses clear, simple language\n- Stays faithful to what participants actually said\n\nStep 4 - Validate Your Groups:\n- Prioritize natural thematic coherence over hitting specific group counts\n- Each group should represent a distinct, meaningful theme\n- Single-claim groups should be relatively uncommon - if you have many, consider whether you're missing higher-level themes that connect claims\n- Avoid over-consolidation: don't force claims together just to reduce group count\n- The right number of groups depends on the natural diversity of perspectives in the input\n\nEXAMPLES OF GOOD GROUPING:\n\nInput claims:\n- \"Parking fees are too expensive\"\n- \"The parking pass system is confusing\"\n- \"We need more parking spaces\"\n\nGood grouped claim: \"Parking access and affordability need improvement\"\nWhy: All three address parking as a barrier, even though they emphasize different aspects.\n\nInput claims:\n- \"We should prioritize renewable energy\"\n- \"The city should ban plastic bags\"\n\nBad grouping: \"Environmental initiatives needed\"\nWhy: These are different environmental policies that shouldn't be lumped together just because they're both environmental.\n\nReturn a JSON object of the form {\n  \"groupedClaims\": [\n    {\n      \"claimText\": \"A higher-level claim that represents all quotes in this group\",\n      \"originalClaimIds\": [\"claimId1\", \"claimId3\", \"claimId5\"]\n    }\n  ]\n}\n\nNow here are the claims to group:\n${claims}",
+                "summariesInstructions": "I'm going to give you a single topic with its description, subtopics, and claims.\n\nGenerate a detailed summary (100-140 words) that:\n- Synthesizes the key themes and patterns across all subtopics\n- Highlights the main claims and perspectives expressed\n- Captures the breadth of discussion on this topic\n- Is comprehensive yet concise\n\nReturn a JSON object in the form {\n  \"topicName\": string, // The name of the topic being summarized\n  \"summary\": string // 100-140 words\n}\n\nNow here is the topic to summarize:\n${topic}\n",
+                "cruxInstructions": "I'm going to give you a topic with a description and a list of high-level claims about this topic made by different participants, identified by numeric IDs (like 0, 1, 2, etc.). Please synthesize these claims into one new, specific, maximally controversial statement called a \"cruxClaim\". This cruxClaim should divide the participants into \"agree\" and \"disagree\" groups or sides, based on all their statements on this topic: one group which would agree with the statement, and one which would disagree.\n\nFor each participant who made claims in this subtopic, categorize them as:\n- \"agree\": Would agree with the cruxClaim based on their statements\n- \"disagree\": Would disagree with the cruxClaim based on their statements\n- \"no_clear_position\": Mentioned the topic but didn't take a clear stance on this specific crux\n\nPlease explain your reasoning and assign participants into the three groups. Make the cruxClaim as precise and unique as possible to the given topic and comments, and pick a cruxClaim that best balances the \"agree\" and \"disagree\" sides, with close to the same number of participants on each side.\n\nIMPORTANT: Format requirements for your response:\n1. In the agree/disagree/no_clear_position lists, use ONLY the exact numeric IDs from the input (like 0, 1, 2)\n2. Do NOT add prefixes like \"Person\" or \"Participant\" to these numeric IDs\n3. In the explanation field, write in natural, reader-friendly language:\n   - Use natural phrases like \"several participants\" or \"some speakers\" instead of listing IDs\n   - Use \"this claim\" or \"the statement\" instead of technical terms like \"cruxClaim\"\n   - Avoid programming conventions like \"no_clear_position\" - use \"didn't take a clear stance\"\n   - Write as if explaining to a general audience, not developers\n\nExample of GOOD explanation:\n\"Several participants believe that universal healthcare should be implemented immediately, while others argue that a gradual transition is more practical. One participant didn't take a clear stance on the timeline.\"\n\nExample of BAD explanation:\n\"The cruxClaim divides participants into agree/disagree groups. Participants 0, 1 agree with the cruxClaim. Participants 2, 3 are in the disagree group. Participant 4 has no_clear_position.\"\n\nreturn a JSON object of the form\n{\n  \"crux\" : {\n    \"cruxClaim\" : string // the new extracted claim\n    \"agree\" : list of strings // list of the given participants who would agree with the cruxClaim\n    \"disagree\" : list strings // list of the given participants who would disagree with the cruxClaim\n    \"no_clear_position\" : list of strings // list of the given participants who mentioned the topic but took no clear stance\n    \"explanation\" : string // natural language explanation of why this is a point of controversy, written for general readers (avoid listing IDs, use phrases like \"several participants\")\n  }\n}\n\nNow here is the topic and participant claims:\n${topic}",
+                "outputLanguage": "en",
+                "batchSize": 50,
+                "tree": [
+                        {
+                                "topicName": "Pet Ownership",
+                                "topicSummary": "The topic of 'Pet Ownership' encompasses contrasting viewpoints, with discussions divided into 'Pro-Pet Sentiments' and 'Anti-Pet Views.' Proponents highlight the companionship that pets, particularly dogs, offer, as expressed by one participant who finds dogs to be amazing companions. Conversely, some argue against pet ownership, labeling it as unnecessary and unethical. This bifurcation in perspectives underscores a broader debate, revealing both emotional connections to pets and ethical considerations surrounding their ownership. Despite limited claims, these views illustrate significant discourse on the value and morality of keeping pets, reflecting broader societal attitudes and ethical concerns regarding animal welfare.",
+                                "topicShortDescription": "Pet Ownership",
+                                "claimsCount": 2,
+                                "subtopics": [
+                                        {
+                                                "subtopicName": "Pro-Pet Sentiments",
+                                                "subtopicShortDescription": "Pro-Pet Sentiments",
+                                                "claimsCount": 1,
+                                                "claims": [
+                                                        {
+                                                                "claim": "Dogs are amazing companions.",
+                                                                "quote": "I think dogs are amazing",
+                                                                "claimId": "2267bd48-68c6-4eaa-9c8a-e92306ffd008",
+                                                                "topicName": "Pet Ownership",
+                                                                "subtopicName": "Pro-Pet Sentiments",
+                                                                "commentId": "1",
+                                                                "duplicated": false
+                                                        }
+                                                ]
+                                        },
+                                        {
+                                                "subtopicName": "Anti-Pet Views",
+                                                "subtopicShortDescription": "Anti-Pet Views",
+                                                "claimsCount": 1,
+                                                "claims": [
+                                                        {
+                                                                "claim": "Owning pets is unnecessary and unethical.",
+                                                                "quote": "I dont think anyone should have pets",
+                                                                "claimId": "b50de00f-962d-4eee-8fbb-098c459f358f",
+                                                                "topicName": "Pet Ownership",
+                                                                "subtopicName": "Anti-Pet Views",
+                                                                "commentId": "2",
+                                                                "duplicated": false
+                                                        }
+                                                ]
+                                        }
+                                ]
+                        }
+                ],
+                "start": 1777293497651,
+                "costs": 0.0119925,
+                "end": 1777293508974,
+                "duration": "11323ms"
+        },
+        "analytics": {
+                "totalDurationMs": 11323,
+                "totalTokens": 3081,
+                "totalCost": 0.0119925,
+                "steps": [
+                        {
+                                "name": "clustering",
+                                "durationMs": 5896,
+                                "tokens": 648,
+                                "cost": 0.003975
+                        },
+                        {
+                                "name": "claims",
+                                "durationMs": 2310,
+                                "tokens": 1768,
+                                "cost": 0.005305
+                        },
+                        {
+                                "name": "sort_and_deduplicate",
+                                "durationMs": 1,
+                                "tokens": 0,
+                                "cost": 0
+                        },
+                        {
+                                "name": "summaries",
+                                "durationMs": 3116,
+                                "tokens": 665,
+                                "cost": 0.0027125000000000005
+                        },
+                        {
+                                "name": "cruxes",
+                                "durationMs": 0,
+                                "tokens": 0,
+                                "cost": 0
+                        }
+                ]
+        }
+}

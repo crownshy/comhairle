@@ -583,6 +583,6 @@
 
 {#snippet InviteLink(invite: InviteDto, label: string)}
 	<div class="flex flex-row gap-x-2">
-		<CopyButton copyText={inviteUrl(url, invite, conversation)}>{label}</CopyButton>
+		<CopyButton copyText={inviteUrl(url, invite, conversation, event)}>{label}</CopyButton>
 	</div>
 {/snippet}

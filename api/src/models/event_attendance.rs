@@ -117,7 +117,19 @@ pub async fn create(
 
     let event_attendance = sqlx::query_as_with::<_, EventAttendance, _>(&sql, values)
         .fetch_one(&mut *tx)
-        .await?;
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::Database(db_err) => {
+                let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
+                if pg_err.code() == "23505" {
+                    return ComhairleError::UserAlreadyRegisteredForEvent(
+                        new_event_attendance.event_id.to_string(),
+                    );
+                }
+                ComhairleError::DatabaseError(sqlx::Error::Database(db_err))
+            }
+            other => ComhairleError::DatabaseError(other),
+        })?;
 
     tx.commit().await?;
     Ok(event_attendance)
@@ -491,18 +503,13 @@ mod tests {
         let err = create(&pool, &create_attendance).await.unwrap_err();
 
         match err {
-            ComhairleError::DatabaseError(ref db_error) => {
-                if let Some(pg_error) = db_error.as_database_error() {
-                    assert_eq!(
-                        pg_error.constraint(),
-                        Some("user_event_unique_index"),
-                        "incorrect constraint"
-                    );
-                } else {
-                    panic!("Expected Postgres database error");
-                }
+            ComhairleError::UserAlreadyRegisteredForEvent(message) => {
+                assert!(
+                    message.contains(&new_event.id.to_string()),
+                    "missing event_id"
+                );
             }
-            _ => panic!("Expected DatabaseError"),
+            _ => panic!("Expected UserAlreadyRegisteredForEvent"),
         };
 
         Ok(())

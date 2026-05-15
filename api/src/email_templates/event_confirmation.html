@@ -1,0 +1,27 @@
+{% extends "email_layout.html" %}
+{% block content %}
+	<h1>You're in!</h1>
+	<p>Thank you for registering for {{event_name}}. You will be sent a reminder email before the event with instructions on how to join the online meeting.</p>
+
+	<div class="card">
+		<h2>{{event_name}}</h2>
+		<p>{{event_time}}</p>
+		<a class="button" href="{{event_link}}">Event info</a>
+	</div>
+
+	<p>If you are having trouble with the button above, copy and paste the URL below into your web browser.</p>
+
+	<p class="link">{{event_link}}</p>
+
+	{% if organization_email %}
+		<p>
+			For any questions, please contact us at
+			<br />
+			<a href="mailto:{{orgnazation_email}}">{{organization_email}}</a>
+		</p>
+	{% endif %}
+
+	<p>We look forward to seeing you there!</p>
+
+	<p><strong>{{organization_name}}</strong></p>
+{% endblock %}
