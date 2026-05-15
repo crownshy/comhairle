@@ -1,7 +1,6 @@
 <script lang="ts">
 	import * as Popover from '$lib/components/ui/popover';
-	import { Button } from '$lib/components/ui/button';
-	import { FileText, LoaderCircle } from 'lucide-svelte';
+	import { FileText } from 'lucide-svelte';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
 	type Props = {
