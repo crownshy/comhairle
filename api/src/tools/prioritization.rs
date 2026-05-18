@@ -66,14 +66,14 @@ impl ToolImpl for PrioritizationTool {
         setup: &Self::Setup,
         state: &Arc<ComhairleState>,
     ) -> Result<Self::Config, ComhairleError> {
-        todo!();
+        prioritization_setup(setup)
     }
 
     async fn clone_tool(
         config: &Self::Config,
         state: &Arc<ComhairleState>,
     ) -> Result<Self::Config, ComhairleError> {
-        todo!();
+        Ok(config.clone())
     }
 
     fn sanitize(config: Self::Config) -> Self::Config {
@@ -83,4 +83,13 @@ impl ToolImpl for PrioritizationTool {
     fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
         ApiRouter::new().with_state(state.clone())
     }
+}
+
+fn prioritization_setup(
+    setup_config: &PrioritizationToolSetup,
+) -> Result<PrioritizationToolConfig, ComhairleError> {
+    Ok(PrioritizationToolConfig {
+        questions: setup_config.questions.clone(),
+        randomize_order: setup_config.randomize_order,
+    })
 }

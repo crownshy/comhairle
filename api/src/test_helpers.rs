@@ -172,6 +172,14 @@ pub fn elicitation_bot_tool_config() -> serde_json::Value {
     })
 }
 
+pub fn prioritization_tool_config() -> serde_json::Value {
+    json!({
+        "type": "prioritization",
+        "questions": [],
+        "randomize_order": false,
+    })
+}
+
 pub async fn response_to_json(response: Response) -> Value {
     let body = response.into_body().collect().await.unwrap().to_bytes();
 
