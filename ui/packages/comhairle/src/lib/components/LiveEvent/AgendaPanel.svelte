@@ -130,9 +130,10 @@
 		<div class="flex min-w-0 flex-col gap-1">
 			{#if isBreakout}
 				<span
-					class="flex h-6 items-center text-[0.7rem] {status === 'upcoming' &&
-						'text-primary'} {status === 'done' && 'text-muted-foreground'} {status ===
-						'current' && 'text-sidebar-background'}"
+					class="flex h-6 items-center text-[0.7rem]"
+					class:text-primary={status === 'upcoming'}
+					class:text-muted-foreground={status === 'done'}
+					class:text-sidebar-background={status === 'current'}
 				>
 					Breakout session
 				</span>
