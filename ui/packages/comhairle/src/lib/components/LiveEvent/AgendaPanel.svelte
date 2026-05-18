@@ -1,7 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
-	import Badge from '$lib/components/ui/badge/badge.svelte';
-	import { Check, Columns2 } from 'lucide-svelte';
+	import { Check } from 'lucide-svelte';
 	import type { AgendaItem } from './types';
 
 	interface Props {
