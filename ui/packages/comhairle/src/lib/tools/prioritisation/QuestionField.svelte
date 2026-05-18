@@ -1,11 +1,8 @@
 <script lang="ts">
 	import * as RadioGroup from '$lib/components/ui/radio-group';
 	import { Slider } from '$lib/components/ui/slider';
-	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { Label } from '$lib/components/ui/label';
-	import { Star } from 'lucide-svelte';
-	import { letterFor, type AnswerValue, type Question } from './types';
+	import type { AnswerValue, Question } from './types';
 
 	let {
 		question,
@@ -18,6 +15,10 @@
 		onChange: (v: AnswerValue) => void;
 		readonly?: boolean;
 	} = $props();
+
+	function continuousMidpoint(min: number, max: number): number {
+		return min + (max - min) / 2;
+	}
 </script>
 
 <div class="flex flex-col gap-2">
@@ -31,17 +32,7 @@
 		{/if}
 	</div>
 
-	{#if question.type === 'single_line'}
-		<Input
-			disabled={readonly}
-			placeholder="Your answer"
-			value={value?.kind === 'text' ? value.value : ''}
-			oninput={(e) => {
-				const target = e.target as HTMLInputElement;
-				onChange({ kind: 'text', value: target.value });
-			}}
-		/>
-	{:else if question.type === 'long_text'}
+	{#if question.type === 'text'}
 		<Textarea
 			disabled={readonly}
 			placeholder="Enter your answer"
@@ -51,61 +42,44 @@
 				onChange({ kind: 'text', value: target.value });
 			}}
 		/>
-	{:else if question.type === 'multiple_choice'}
+	{:else if question.type === 'likert_scale'}
 		<RadioGroup.Root
-			value={value?.kind === 'choice' ? value.choiceId : ''}
-			onValueChange={(v: string) => onChange({ kind: 'choice', choiceId: v })}
+			value={value?.kind === 'numeric' ? String(value.value) : ''}
+			onValueChange={(v: string) => onChange({ kind: 'numeric', value: Number(v) })}
 			disabled={readonly}
-			class="flex flex-col gap-2"
+			class="grid auto-cols-fr grid-flow-col gap-2"
 		>
-			{#each question.choices as c, i (c.id)}
+			{#each question.categories as c (c.value)}
+				{@const selected = value?.kind === 'numeric' && value.value === c.value}
 				<label
-					class="hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-md border p-3"
+					class="hover:bg-muted/50 flex cursor-pointer flex-col items-center justify-center gap-1 rounded-md border p-3 text-center text-sm {selected
+						? 'border-primary bg-primary/5'
+						: ''}"
 				>
-					<RadioGroup.Item value={c.id} />
-					<span
-						class="bg-muted flex size-6 items-center justify-center rounded text-xs font-semibold"
-						>{letterFor(i)}</span
-					>
-					<span>{c.label || `Choice ${i + 1}`}</span>
+					<RadioGroup.Item value={String(c.value)} class="sr-only" />
+					<span>{c.label || `Option ${c.value}`}</span>
 				</label>
 			{/each}
 		</RadioGroup.Root>
-	{:else if question.type === 'rating_scale'}
+	{:else if question.type === 'continuous'}
 		<div class="flex flex-col gap-2">
 			<Slider
 				type="single"
-				value={value?.kind === 'numeric' ? value.value : (question.min + question.max) / 2}
-				min={question.min}
-				max={question.max}
+				value={value?.kind === 'numeric'
+					? value.value
+					: continuousMidpoint(question.minValue, question.maxValue)}
+				min={question.minValue}
+				max={question.maxValue}
 				step={1}
 				disabled={readonly}
 				onValueChange={(v: number) => onChange({ kind: 'numeric', value: v })}
 			/>
-			<div class="text-muted-foreground flex justify-between text-xs">
-				<span>{question.minLabel || question.min}</span>
-				<span>{question.maxLabel || question.max}</span>
-			</div>
-		</div>
-	{:else if question.type === 'five_star'}
-		<div class="flex gap-1" role="radiogroup" aria-label={question.prompt}>
-			{#each [1, 2, 3, 4, 5] as n (n)}
-				<button
-					type="button"
-					role="radio"
-					aria-checked={value?.kind === 'numeric' && value.value === n}
-					aria-label={`${n} out of 5`}
-					disabled={readonly}
-					onclick={() => onChange({ kind: 'numeric', value: n })}
-					class="text-muted-foreground hover:text-amber-500"
-				>
-					<Star
-						class="size-7 {value?.kind === 'numeric' && value.value >= n
-							? 'fill-amber-400 text-amber-400'
-							: ''}"
-					/>
-				</button>
-			{/each}
+			{#if question.minLabel || question.maxLabel}
+				<div class="text-muted-foreground flex justify-between text-xs">
+					<span>{question.minLabel}</span>
+					<span>{question.maxLabel}</span>
+				</div>
+			{/if}
 		</div>
 	{/if}
 </div>

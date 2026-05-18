@@ -6,30 +6,27 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Checkbox } from '$lib/components/ui/checkbox';
 	import * as Select from '$lib/components/ui/select';
+	import { Slider } from '$lib/components/ui/slider';
 	import { Plus, Trash2 } from 'lucide-svelte';
 	import type { PrioritisationStore } from './store.svelte';
 	import {
 		QUESTION_TYPE_LABELS,
-		letterFor,
-		type QuestionType,
-		type MultipleChoiceQuestion,
-		type RatingScaleQuestion
+		type ContinuousQuestion,
+		type LikertScaleQuestion,
+		type QuestionType
 	} from './types';
 
 	let {
 		store,
-		proposalId,
 		questionId,
 		onClose
 	}: {
 		store: PrioritisationStore;
-		proposalId: string;
 		questionId: string;
 		onClose: () => void;
 	} = $props();
 
-	let proposal = $derived(store.poll.proposals.find((p) => p.id === proposalId));
-	let q = $derived(proposal?.questions.find((x) => x.id === questionId));
+	let q = $derived(store.poll.toolConfig.questions.find((x) => x.id === questionId));
 	let open = $state(true);
 
 	function handleClose(o: boolean) {
@@ -45,32 +42,12 @@
 		<Dialog.Header>
 			<Dialog.Title>Edit question {q?.order}</Dialog.Title>
 			<Dialog.Description>
-				Question for proposal: {proposal?.title || `#${proposal?.order}`}
+				This question is asked of every proposal in the poll.
 			</Dialog.Description>
 		</Dialog.Header>
 
 		{#if q}
 			<div class="flex flex-col gap-4">
-				<div class="flex flex-col gap-1">
-					<Label>Type</Label>
-					<Select.Root
-						type="single"
-						value={q.type}
-						onValueChange={(v: string) => {
-							store.updateQuestion(proposalId, q.id, { type: v as QuestionType });
-						}}
-					>
-						<Select.Trigger class="w-[260px]"
-							>{QUESTION_TYPE_LABELS[q.type]}</Select.Trigger
-						>
-						<Select.Content>
-							{#each Object.entries(QUESTION_TYPE_LABELS) as [t, label] (t)}
-								<Select.Item value={t}>{label}</Select.Item>
-							{/each}
-						</Select.Content>
-					</Select.Root>
-				</div>
-
 				<div class="flex flex-col gap-1">
 					<Label for="q-prompt">Prompt</Label>
 					<Input
@@ -78,7 +55,7 @@
 						placeholder="Type a question"
 						value={q.prompt}
 						oninput={(e) =>
-							store.updateQuestion(proposalId, q.id, {
+							store.updateQuestion(q.id, {
 								prompt: (e.target as HTMLInputElement).value
 							})}
 					/>
@@ -91,7 +68,7 @@
 						placeholder="Add a description"
 						value={q.description ?? ''}
 						oninput={(e) =>
-							store.updateQuestion(proposalId, q.id, {
+							store.updateQuestion(q.id, {
 								description: (e.target as HTMLTextAreaElement).value
 							})}
 					/>
@@ -102,37 +79,44 @@
 						id="q-optional"
 						checked={q.optional}
 						onCheckedChange={(v) =>
-							store.updateQuestion(proposalId, q.id, { optional: v === true })}
+							store.updateQuestion(q.id, { optional: v === true })}
 					/>
 					<Label for="q-optional">Optional</Label>
 				</div>
 
-				{#if q.type === 'multiple_choice'}
-					{@const mc = q as MultipleChoiceQuestion}
+				{#if q.type === 'likert_scale'}
+					{@const lk = q as LikertScaleQuestion}
 					<div class="flex flex-col gap-2">
-						<Label>Choices</Label>
-						{#each mc.choices as c, i (c.id)}
+						<Label>Categories</Label>
+						<p class="text-muted-foreground text-xs">
+							Each option has a numeric value (used for analysis) and a label (shown
+							to participants).
+						</p>
+						{#each lk.categories as c, i (i)}
 							<div class="flex items-center gap-2">
-								<span
-									class="bg-muted flex size-7 items-center justify-center rounded text-xs font-semibold"
-									>{letterFor(i)}</span
-								>
 								<Input
-									placeholder={`Choice ${i + 1}`}
+									type="number"
+									class="w-20"
+									value={c.value}
+									oninput={(e) =>
+										store.updateLikertCategory(q.id, i, {
+											value: Number((e.target as HTMLInputElement).value)
+										})}
+								/>
+								<Input
+									placeholder={`Option ${i + 1}`}
 									value={c.label}
 									oninput={(e) =>
-										store.updateChoice(
-											proposalId,
-											q.id,
-											c.id,
-											(e.target as HTMLInputElement).value
-										)}
+										store.updateLikertCategory(q.id, i, {
+											label: (e.target as HTMLInputElement).value
+										})}
 								/>
 								<Button
 									variant="ghost"
 									size="icon"
-									onclick={() => store.removeChoice(proposalId, q.id, c.id)}
-									disabled={mc.choices.length <= 2}
+									onclick={() => store.removeLikertCategory(q.id, i)}
+									disabled={lk.categories.length <= 2}
+									aria-label="Remove option"
 								>
 									<Trash2 class="size-4" />
 								</Button>
@@ -141,57 +125,76 @@
 						<Button
 							variant="outline"
 							size="sm"
-							onclick={() => store.addChoice(proposalId, q.id)}
+							onclick={() => store.addLikertCategory(q.id)}
 						>
-							<Plus class="mr-1 size-3.5" /> Add choice
+							<Plus class="mr-1 size-3.5" /> Add option
 						</Button>
 					</div>
 				{/if}
 
-				{#if q.type === 'rating_scale'}
-					{@const rs = q as RatingScaleQuestion}
-					<div class="grid grid-cols-2 gap-3">
-						<div class="flex flex-col gap-1">
-							<Label>Min</Label>
+				{#if q.type === 'continuous'}
+					{@const ct = q as ContinuousQuestion}
+					<div class="flex flex-col gap-3">
+						<div class="flex items-center gap-2">
+							<Label class="w-24">Range</Label>
 							<Input
 								type="number"
-								value={rs.min}
+								class="w-24"
+								value={ct.minValue}
 								oninput={(e) =>
-									store.updateQuestion(proposalId, q.id, {
-										min: Number((e.target as HTMLInputElement).value)
+									store.updateQuestion(q.id, {
+										minValue: Number((e.target as HTMLInputElement).value) || 0
+									})}
+							/>
+							<span class="text-muted-foreground text-sm">to</span>
+							<Input
+								type="number"
+								class="w-24"
+								value={ct.maxValue}
+								oninput={(e) =>
+									store.updateQuestion(q.id, {
+										maxValue: Number((e.target as HTMLInputElement).value) || 0
 									})}
 							/>
 						</div>
-						<div class="flex flex-col gap-1">
-							<Label>Max</Label>
+						<div class="flex items-center gap-2">
+							<Label class="w-24">End labels</Label>
 							<Input
-								type="number"
-								value={rs.max}
+								placeholder="e.g. No support"
+								value={ct.minLabel}
 								oninput={(e) =>
-									store.updateQuestion(proposalId, q.id, {
-										max: Number((e.target as HTMLInputElement).value)
-									})}
-							/>
-						</div>
-						<div class="flex flex-col gap-1">
-							<Label>Min label</Label>
-							<Input
-								value={rs.minLabel}
-								oninput={(e) =>
-									store.updateQuestion(proposalId, q.id, {
+									store.updateQuestion(q.id, {
 										minLabel: (e.target as HTMLInputElement).value
 									})}
 							/>
-						</div>
-						<div class="flex flex-col gap-1">
-							<Label>Max label</Label>
+							<span class="text-muted-foreground text-sm">·</span>
 							<Input
-								value={rs.maxLabel}
+								placeholder="e.g. Full support"
+								value={ct.maxLabel}
 								oninput={(e) =>
-									store.updateQuestion(proposalId, q.id, {
+									store.updateQuestion(q.id, {
 										maxLabel: (e.target as HTMLInputElement).value
 									})}
 							/>
+						</div>
+						<div class="flex items-center gap-2">
+							<Label class="w-24">Preview</Label>
+							<span class="text-muted-foreground text-xs">
+								{ct.minLabel || ct.minValue}
+							</span>
+							<div class="flex-1">
+								<Slider
+									type="single"
+									value={ct.minValue + (ct.maxValue - ct.minValue) / 2}
+									min={Math.min(ct.minValue, ct.maxValue)}
+									max={Math.max(ct.minValue, ct.maxValue)}
+									step={1}
+									disabled
+								/>
+							</div>
+							<span class="text-muted-foreground text-xs">
+								{ct.maxLabel || ct.maxValue}
+							</span>
 						</div>
 					</div>
 				{/if}
@@ -199,10 +202,7 @@
 		{/if}
 
 		<Dialog.Footer>
-			<Button
-				variant="outline"
-				onclick={() => store.duplicateQuestion(proposalId, questionId)}
-			>
+			<Button variant="outline" onclick={() => store.duplicateQuestion(questionId)}>
 				Duplicate
 			</Button>
 			<Button onclick={() => handleClose(false)}>Done</Button>

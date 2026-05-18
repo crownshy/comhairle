@@ -1,33 +1,24 @@
 /**
  * Aggregation utilities for the Prioritisation Tool.
  *
- * In the prototype every proposal owns its own question list, so there is
- * no shared importance/agreement axis to combine across proposals. We
- * therefore only compute per-question aggregates per proposal here.
+ * In the prototype the same set of questions applies to every proposal
+ * (poll-wide questions defined in `tool_config`). We compute per-question
+ * aggregates per proposal here.
  *
- * The combined importance × agreement metrics described in
- * `documentation/prioritisation-aggregation.md` are deferred until the
- * “shared core + per-proposal extras” model lands (see
- * `documentation/prioritisation-tool-deferred.md` §9).
+ * The cross-proposal `combination_metric` described in the backend tool
+ * config is reserved for a future iteration; the enum is empty in the MVP.
  */
 
-import type { Poll, Question, Submission, AnswerValue } from './types';
+import type { AnswerValue, Poll, Question, Submission } from './types';
 
 /** Map an answer to a numeric value if possible. */
 export function numericValue(question: Question, answer: AnswerValue | undefined): number | null {
 	if (!answer) return null;
 	switch (question.type) {
-		case 'multiple_choice': {
-			if (answer.kind !== 'choice') return null;
-			const idx = question.choices.findIndex((c) => c.id === answer.choiceId);
-			return idx < 0 ? null : idx + 1; // 1..N ordinal
-		}
-		case 'five_star':
+		case 'likert_scale':
+		case 'continuous':
 			return answer.kind === 'numeric' ? answer.value : null;
-		case 'rating_scale':
-			return answer.kind === 'numeric' ? answer.value : null;
-		case 'single_line':
-		case 'long_text':
+		case 'text':
 			return null;
 	}
 }
@@ -35,17 +26,18 @@ export function numericValue(question: Question, answer: AnswerValue | undefined
 /** Map a numeric value into the question's [0,1] range. */
 export function normalise(question: Question, value: number): number {
 	switch (question.type) {
-		case 'multiple_choice': {
-			const n = question.choices.length;
-			if (n <= 1) return 0.5;
-			return (value - 1) / (n - 1);
+		case 'likert_scale': {
+			const values = question.categories.map((c) => c.value);
+			if (values.length === 0) return 0.5;
+			const lo = Math.min(...values);
+			const hi = Math.max(...values);
+			const span = hi - lo;
+			return span === 0 ? 0.5 : (value - lo) / span;
 		}
-		case 'five_star':
-			return (value - 1) / 4;
-		case 'rating_scale': {
-			const span = question.max - question.min;
+		case 'continuous': {
+			const span = question.maxValue - question.minValue;
 			if (span === 0) return 0.5;
-			return (value - question.min) / span;
+			return (value - question.minValue) / span;
 		}
 		default:
 			return 0.5;
@@ -53,12 +45,6 @@ export function normalise(question: Question, value: number): number {
 }
 
 export type QuestionAggregate =
-	| {
-			kind: 'choice';
-			counts: Record<string, number>;
-			percentages: Record<string, number>;
-			total: number;
-	  }
 	| {
 			kind: 'numeric';
 			mean: number;
@@ -79,23 +65,7 @@ function aggregateQuestion(
 	question: Question,
 	answers: (AnswerValue | undefined)[]
 ): QuestionAggregate {
-	if (question.type === 'multiple_choice') {
-		const counts: Record<string, number> = {};
-		question.choices.forEach((c) => (counts[c.id] = 0));
-		let total = 0;
-		for (const a of answers) {
-			if (a && a.kind === 'choice' && counts[a.choiceId] !== undefined) {
-				counts[a.choiceId]++;
-				total++;
-			}
-		}
-		const percentages: Record<string, number> = {};
-		for (const id of Object.keys(counts)) {
-			percentages[id] = total ? counts[id] / total : 0;
-		}
-		return { kind: 'choice', counts, percentages, total };
-	}
-	if (question.type === 'single_line' || question.type === 'long_text') {
+	if (question.type === 'text') {
 		const samples = answers
 			.filter((a): a is Extract<AnswerValue, { kind: 'text' }> => !!a && a.kind === 'text')
 			.map((a) => a.value)
@@ -112,7 +82,6 @@ function aggregateQuestion(
 	const variance = numeric.reduce((acc, v) => acc + (v - mean) ** 2, 0) / numeric.length;
 	const min = Math.min(...numeric);
 	const max = Math.max(...numeric);
-	// 10-bucket histogram across the question's natural range
 	const histogram = histogramFor(question, numeric);
 	return { kind: 'numeric', mean, min, max, variance, n: numeric.length, histogram };
 }
@@ -121,18 +90,16 @@ function histogramFor(question: Question, values: number[]): number[] {
 	let lo = 0;
 	let hi = 1;
 	let buckets = 5;
-	if (question.type === 'multiple_choice') {
-		buckets = question.choices.length;
-		lo = 1;
-		hi = buckets;
-	} else if (question.type === 'five_star') {
-		buckets = 5;
-		lo = 1;
-		hi = 5;
-	} else if (question.type === 'rating_scale') {
-		lo = question.min;
-		hi = question.max;
-		buckets = Math.min(10, Math.max(2, Math.round(hi - lo)));
+	if (question.type === 'likert_scale') {
+		const cvalues = question.categories.map((c) => c.value);
+		buckets = Math.max(1, cvalues.length);
+		lo = cvalues.length ? Math.min(...cvalues) : 0;
+		hi = cvalues.length ? Math.max(...cvalues) : 1;
+	} else if (question.type === 'continuous') {
+		const range = Math.abs(question.maxValue - question.minValue);
+		buckets = Math.max(2, Math.min(10, Math.round(range) + 1));
+		lo = question.minValue;
+		hi = question.maxValue;
 	}
 	const out = new Array(buckets).fill(0);
 	const span = hi - lo;
@@ -142,17 +109,18 @@ function histogramFor(question: Question, values: number[]): number[] {
 			continue;
 		}
 		const t = (v - lo) / span;
-		let idx = Math.min(buckets - 1, Math.max(0, Math.floor(t * buckets)));
+		const idx = Math.min(buckets - 1, Math.max(0, Math.floor(t * buckets)));
 		out[idx]++;
 	}
 	return out;
 }
 
-/** Aggregate every proposal in the poll. */
+/** Aggregate every proposal in the poll. Questions are poll-wide. */
 export function aggregatePoll(poll: Poll, submissions: Submission[]): ProposalAggregate[] {
+	const questions = poll.toolConfig.questions;
 	return poll.proposals.map((proposal) => {
 		const perQuestion: Record<string, QuestionAggregate> = {};
-		for (const q of proposal.questions) {
+		for (const q of questions) {
 			const answers = submissions.map((s) => s.byProposal[proposal.id]?.[q.id]);
 			perQuestion[q.id] = aggregateQuestion(q, answers);
 		}

@@ -1,52 +1,45 @@
 <script lang="ts">
+	import * as Card from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import { Switch } from '$lib/components/ui/switch';
+	import { Label } from '$lib/components/ui/label';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { Button } from '$lib/components/ui/button';
-	import { Label } from '$lib/components/ui/label';
-	import * as Select from '$lib/components/ui/select';
-	import * as Card from '$lib/components/ui/card';
-	import { Plus, ArrowUp, ArrowDown, Trash2 } from 'lucide-svelte';
+	import { Plus, GripVertical, Trash2, Copy } from 'lucide-svelte';
+	import { Sortable } from '$lib/components/Sortable';
 	import type { PrioritisationStore } from './store.svelte';
 	import ProposalEditorDialog from './ProposalEditorDialog.svelte';
+	import QuestionEditorDialog from './QuestionEditorDialog.svelte';
+	import { QUESTION_TYPE_LABELS, type QuestionType } from './types';
 
 	let { store }: { store: PrioritisationStore } = $props();
 
 	let editingProposalId = $state<string | null>(null);
+	let editingQuestionId = $state<string | null>(null);
 
-	const TIMER_OPTIONS: { value: string; label: string }[] = [
-		{ value: 'null', label: 'Forever' },
-		{ value: '300', label: '5 minutes' },
-		{ value: '600', label: '10 minutes' },
-		{ value: '900', label: '15 minutes' },
-		{ value: '1800', label: '30 minutes' },
-		{ value: '3600', label: '60 minutes' }
-	];
+	let proposals = $derived(store.poll.proposals);
+	let questions = $derived(store.poll.toolConfig.questions);
+	let randomize = $derived(store.poll.toolConfig.randomizeOrder);
 
-	let timerValue = $derived(
-		store.poll.settings.timerSeconds === null
-			? 'null'
-			: String(store.poll.settings.timerSeconds)
-	);
-
-	function setTimer(v: string) {
-		store.setTimer(v === 'null' ? null : parseInt(v, 10));
+	function addQuestion(type: QuestionType) {
+		const q = store.addQuestion(type);
+		editingQuestionId = q.id;
 	}
 </script>
 
 <div class="flex flex-col gap-6">
-	<!-- Title / instruction -->
+	<!-- Title / description -->
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>Create a poll</Card.Title>
+			<Card.Title>Poll details</Card.Title>
 			<Card.Description>
-				Each proposal has its own questions. Add proposals below and click into one to edit
-				its details and questions.
+				What is this poll about? Participants see the title and description before
+				answering.
 			</Card.Description>
 		</Card.Header>
 		<Card.Content class="flex flex-col gap-4">
 			<div class="flex flex-col gap-1">
 				<Label for="poll-title">Title</Label>
-				<p class="text-muted-foreground text-xs">What is this poll called?</p>
 				<Input
 					id="poll-title"
 					placeholder="Enter poll title"
@@ -56,16 +49,90 @@
 			</div>
 
 			<div class="flex flex-col gap-1">
-				<Label for="poll-instruction">Instruction</Label>
-				<p class="text-muted-foreground text-xs">
-					How should participants answer this poll? Give them some instructions here.
-				</p>
+				<Label for="poll-description">Description</Label>
 				<Textarea
-					id="poll-instruction"
-					placeholder="Enter instruction"
-					value={store.poll.instruction}
-					oninput={(e) => store.setInstruction((e.target as HTMLTextAreaElement).value)}
+					id="poll-description"
+					placeholder="Add a short description for participants"
+					value={store.poll.description}
+					oninput={(e) => store.setDescription((e.target as HTMLTextAreaElement).value)}
 				/>
+			</div>
+		</Card.Content>
+	</Card.Root>
+
+	<!-- Questions -->
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>Questions</Card.Title>
+			<Card.Description>
+				These questions are asked once per proposal. Define them here, then add the
+				proposals below.
+			</Card.Description>
+		</Card.Header>
+		<Card.Content class="flex flex-col gap-3">
+			{#if questions.length === 0}
+				<p class="text-muted-foreground text-sm">
+					No questions yet. Pick a type below to add one.
+				</p>
+			{/if}
+
+			<Sortable
+				items={questions}
+				onReorder={(ids) => store.reorderQuestions(ids)}
+				class="flex flex-col gap-2"
+			>
+				{#snippet item({ item: q })}
+					<div
+						class="bg-card hover:bg-muted/50 flex items-center gap-2 rounded-md border p-3"
+					>
+						<span
+							class="text-muted-foreground cursor-grab"
+							aria-label="Drag to reorder"
+						>
+							<GripVertical class="size-4" />
+						</span>
+						<span class="text-muted-foreground w-12 text-xs">
+							Q{q.order}{q.optional ? '*' : ''}
+						</span>
+						<button
+							class="flex-1 truncate text-left text-sm hover:underline"
+							onclick={() => (editingQuestionId = q.id)}
+						>
+							{q.prompt || 'Untitled question'}
+						</button>
+						<span class="text-muted-foreground text-xs">
+							{QUESTION_TYPE_LABELS[q.type]}
+						</span>
+						<Button
+							variant="ghost"
+							size="icon"
+							onclick={() => store.duplicateQuestion(q.id)}
+							aria-label="Duplicate question"
+						>
+							<Copy class="size-4" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="icon"
+							onclick={() => store.removeQuestion(q.id)}
+							aria-label="Remove question"
+						>
+							<Trash2 class="size-4" />
+						</Button>
+					</div>
+				{/snippet}
+			</Sortable>
+
+			<div class="flex flex-wrap gap-2 pt-2">
+				{#each Object.entries(QUESTION_TYPE_LABELS) as [type, label] (type)}
+					<Button
+						variant="outline"
+						size="sm"
+						onclick={() => addQuestion(type as QuestionType)}
+					>
+						+ {label}
+					</Button>
+				{/each}
 			</div>
 		</Card.Content>
 	</Card.Root>
@@ -75,54 +142,71 @@
 		<Card.Header>
 			<Card.Title>Proposals</Card.Title>
 			<Card.Description>
-				Add the ideas or proposals participants will rank. Click a proposal to edit its
-				content and questions.
+				Add the ideas participants will rate. Each proposal will be shown with the questions
+				defined above.
 			</Card.Description>
 		</Card.Header>
 		<Card.Content class="flex flex-col gap-3">
-			{#each store.poll.proposals as p (p.id)}
-				<div class="flex items-center gap-2 rounded-md border p-3">
-					<span class="text-muted-foreground w-16 text-xs">Proposal {p.order}</span>
-					<button
-						class="flex-1 truncate text-left text-sm hover:underline"
-						onclick={() => (editingProposalId = p.id)}
-					>
-						{p.title || 'Untitled proposal'}
-					</button>
-					<span class="text-muted-foreground text-xs">
-						{p.questions.length} question{p.questions.length === 1 ? '' : 's'}
-					</span>
-					<Button
-						variant="ghost"
-						size="icon"
-						onclick={() => store.reorderProposal(p.id, 'up')}
-						disabled={p.order === 1}
-						aria-label="Move up"
-					>
-						<ArrowUp class="size-4" />
-					</Button>
-					<Button
-						variant="ghost"
-						size="icon"
-						onclick={() => store.reorderProposal(p.id, 'down')}
-						disabled={p.order === store.poll.proposals.length}
-						aria-label="Move down"
-					>
-						<ArrowDown class="size-4" />
-					</Button>
-					<Button
-						variant="ghost"
-						size="icon"
-						onclick={() => store.removeProposal(p.id)}
-						aria-label="Remove"
-					>
-						<Trash2 class="size-4" />
-					</Button>
+			<div class="flex items-center justify-between rounded-md border p-3">
+				<div>
+					<Label for="randomize" class="font-medium">Random order</Label>
+					<p class="text-muted-foreground text-xs">
+						Show proposals to each participant in a different random order.
+					</p>
 				</div>
-			{/each}
-			{#if store.poll.proposals.length < 2}
-				<p class="text-muted-foreground text-xs">Add at least two proposals.</p>
+				<Switch
+					id="randomize"
+					checked={randomize}
+					onCheckedChange={(v) => store.setRandomizeOrder(v === true)}
+				/>
+			</div>
+
+			{#if proposals.length === 0}
+				<p class="text-muted-foreground text-sm">
+					No proposals yet. Add at least two proposals.
+				</p>
 			{/if}
+
+			<Sortable
+				items={proposals}
+				onReorder={(ids) => store.reorderProposals(ids)}
+				class="flex flex-col gap-2"
+			>
+				{#snippet item({ item: p })}
+					<div class="bg-card flex items-center gap-2 rounded-md border p-3">
+						<span
+							class="text-muted-foreground cursor-grab"
+							aria-label="Drag to reorder"
+						>
+							<GripVertical class="size-4" />
+						</span>
+						<span class="text-muted-foreground w-20 text-xs">Proposal {p.order}</span>
+						<button
+							class="flex-1 truncate text-left text-sm hover:underline"
+							onclick={() => (editingProposalId = p.id)}
+						>
+							{p.title || 'Untitled proposal'}
+						</button>
+						<Button
+							variant="ghost"
+							size="icon"
+							onclick={() => store.duplicateProposal(p.id)}
+							aria-label="Duplicate proposal"
+						>
+							<Copy class="size-4" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="icon"
+							onclick={() => store.removeProposal(p.id)}
+							aria-label="Remove proposal"
+						>
+							<Trash2 class="size-4" />
+						</Button>
+					</div>
+				{/snippet}
+			</Sortable>
+
 			<Button
 				variant="outline"
 				onclick={() => {
@@ -134,35 +218,6 @@
 			</Button>
 		</Card.Content>
 	</Card.Root>
-
-	<!-- Settings -->
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>Settings</Card.Title>
-		</Card.Header>
-		<Card.Content class="flex flex-col gap-4">
-			<div class="flex flex-col gap-1">
-				<Label>Set timer</Label>
-				<p class="text-muted-foreground text-xs">
-					How long will participants have to answer the poll?
-				</p>
-				<Select.Root
-					type="single"
-					value={timerValue}
-					onValueChange={(v: string) => setTimer(v)}
-				>
-					<Select.Trigger class="w-[220px]"
-						>{TIMER_OPTIONS.find((o) => o.value === timerValue)?.label ?? 'Forever'}
-					</Select.Trigger>
-					<Select.Content>
-						{#each TIMER_OPTIONS as o (o.value)}
-							<Select.Item value={o.value}>{o.label}</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
-			</div>
-		</Card.Content>
-	</Card.Root>
 </div>
 
 {#if editingProposalId}
@@ -170,5 +225,13 @@
 		{store}
 		proposalId={editingProposalId}
 		onClose={() => (editingProposalId = null)}
+	/>
+{/if}
+
+{#if editingQuestionId}
+	<QuestionEditorDialog
+		{store}
+		questionId={editingQuestionId}
+		onClose={() => (editingQuestionId = null)}
 	/>
 {/if}

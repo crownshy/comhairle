@@ -1,82 +1,91 @@
 /**
  * Prioritisation Tool — prototype data shapes.
  *
- * All state lives in `localStorage` keyed by workflow step id for the prototype.
- * No backend persistence yet; the backend stores only an opaque blob.
+ * State lives in `localStorage` keyed by workflow step id for the prototype.
+ * Mirrors the backend tool_config / poll / proposal / proposal_question
+ * schema as closely as makes sense for a frontend mock.
  */
 
-export type PollState = 'draft' | 'published' | 'paused' | 'ended';
+/** Default min/max for a continuous question slider. */
+export const DEFAULT_CONTINUOUS_MIN = 0;
+export const DEFAULT_CONTINUOUS_MAX = 10;
 
-export type ProposalSortMode = 'by_proposal_id' | 'by_question';
+/**
+ * Reserved enum for combining per-question scores into a single ranking.
+ * Empty for now (MVP) — backend will populate when defined.
+ */
+export type CombinationMetric = never;
 
 export type Proposal = {
 	id: string;
 	order: number;
+	/** Translatable in backend; plain string in this prototype. */
 	title: string;
-	/** Markdown body. */
-	content: string;
+	/** Translatable in backend; rich-text JSON in this prototype. */
+	body: string;
 	/** Data URL of an optional header image. */
 	imageDataUrl?: string;
-	/**
-	 * Questions asked about this specific proposal. Each proposal owns its own
-	 * question list — there is no poll-wide shared question set in the
-	 * prototype. See `documentation/prioritisation-aggregation.md` for the
-	 * implications (no cross-proposal ranking, no combined metrics).
-	 */
-	questions: Question[];
 };
 
 export type QuestionBase = {
 	id: string;
 	order: number;
+	/** Question prompt (a.k.a. "text" / "title" in the backend). */
 	prompt: string;
 	description?: string;
 	optional: boolean;
 };
 
-export type SingleLineQuestion = QuestionBase & { type: 'single_line' };
-export type LongTextQuestion = QuestionBase & { type: 'long_text' };
-export type Choice = { id: string; label: string };
-export type MultipleChoiceQuestion = QuestionBase & {
-	type: 'multiple_choice';
-	choices: Choice[];
+export type LikertCategory = { value: number; label: string };
+
+export type LikertScaleQuestion = QuestionBase & {
+	type: 'likert_scale';
+	categories: LikertCategory[];
 };
-export type FiveStarQuestion = QuestionBase & { type: 'five_star' };
-export type RatingScaleQuestion = QuestionBase & {
-	type: 'rating_scale';
-	min: number;
-	max: number;
+
+export type ContinuousQuestion = QuestionBase & {
+	type: 'continuous';
+	/** Numeric value at the left end of the slider. */
+	minValue: number;
+	/** Numeric value at the right end of the slider. */
+	maxValue: number;
+	/** Label shown at the left end (e.g. "No support"). */
 	minLabel: string;
+	/** Label shown at the right end (e.g. "Full support"). */
 	maxLabel: string;
 };
 
-export type Question =
-	| SingleLineQuestion
-	| LongTextQuestion
-	| MultipleChoiceQuestion
-	| FiveStarQuestion
-	| RatingScaleQuestion;
+export type TextQuestion = QuestionBase & { type: 'text' };
+
+export type Question = LikertScaleQuestion | ContinuousQuestion | TextQuestion;
 
 export type QuestionType = Question['type'];
 
 export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
-	single_line: 'Single line text',
-	long_text: 'Long text',
-	multiple_choice: 'Multiple choice',
-	five_star: '5 star rating',
-	rating_scale: 'Rating scale'
+	likert_scale: 'Likert scale',
+	continuous: 'Continuous',
+	text: 'Text'
 };
 
-export type PollSettings = {
-	/** null = no timer (Forever). */
-	timerSeconds: number | null;
-	proposalSortMode: ProposalSortMode;
+export const QUESTION_TYPES: { type: QuestionType; label: string }[] = (
+	Object.keys(QUESTION_TYPE_LABELS) as QuestionType[]
+).map((t) => ({ type: t, label: QUESTION_TYPE_LABELS[t] }));
+
+/**
+ * Tool config (`tool_config` JSONB on the backend). The questions array is
+ * shared across all proposals in the poll.
+ */
+export type ToolConfig = {
+	randomizeOrder: boolean;
+	/** Reserved; not used in the MVP. */
+	combinationMetric?: CombinationMetric;
+	questions: Question[];
 };
 
 export type ReportPage = {
 	id: string;
 	order: number;
-	/** Markdown body. */
+	/** Rich-text JSON body. */
 	content: string;
 };
 
@@ -87,26 +96,20 @@ export type Report = {
 
 export type Poll = {
 	id: string;
+	/** Translatable in backend; plain string in this prototype. */
 	title: string;
-	instruction: string;
+	/** Translatable in backend; plain string in this prototype. */
+	description: string;
+	toolConfig: ToolConfig;
 	proposals: Proposal[];
-	settings: PollSettings;
-	state: PollState;
-	joinCode: string;
-	publishedAt?: string;
-	pausedAt?: string;
-	pausedAccumulatedSeconds: number;
-	endedAt?: string;
 	report: Report;
 };
 
-/** Per-participant draft answers for a single proposal. */
-export type AnswerValue =
-	| { kind: 'text'; value: string }
-	| { kind: 'choice'; choiceId: string }
-	| { kind: 'numeric'; value: number };
+/** Single answer to a single question. */
+export type AnswerValue = { kind: 'text'; value: string } | { kind: 'numeric'; value: number };
 
-export type ProposalAnswers = Record<string /* questionId */, AnswerValue>;
+/** Map of questionId -> AnswerValue for a single proposal. */
+export type ProposalAnswers = Record<string, AnswerValue>;
 
 export type ParticipantDraft = {
 	participantId: string;
@@ -118,11 +121,18 @@ export type ParticipantDraft = {
 
 export type Submission = ParticipantDraft & { submittedAt: string };
 
-export const QUESTION_TYPES: { type: QuestionType; label: string }[] = (
-	Object.keys(QUESTION_TYPE_LABELS) as QuestionType[]
-).map((t) => ({ type: t, label: QUESTION_TYPE_LABELS[t] }));
-
-/** Letter prefix used for multiple-choice options in the UI (A, B, C, …). */
+/** Letter prefix used for ordered options in the UI (A, B, C, …). */
 export function letterFor(index: number): string {
 	return String.fromCharCode(65 + (index % 26));
+}
+
+/** Default categories for a fresh likert_scale question (5-point agree/disagree). */
+export function defaultLikertCategories(): LikertCategory[] {
+	return [
+		{ value: 1, label: 'Strongly disagree' },
+		{ value: 2, label: 'Disagree' },
+		{ value: 3, label: 'Neutral' },
+		{ value: 4, label: 'Agree' },
+		{ value: 5, label: 'Strongly agree' }
+	];
 }

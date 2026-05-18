@@ -1,14 +1,21 @@
+import {
+	DEFAULT_CONTINUOUS_MAX,
+	DEFAULT_CONTINUOUS_MIN,
+	defaultLikertCategories,
+	letterFor
+} from './types';
 import type {
+	AnswerValue,
+	ParticipantDraft,
 	Poll,
 	Proposal,
+	ProposalAnswers,
 	Question,
 	QuestionType,
+	Report,
 	Submission,
-	ParticipantDraft,
-	ProposalAnswers,
-	AnswerValue
+	ToolConfig
 } from './types';
-import { letterFor } from './types';
 
 /** localStorage namespace. */
 const NS = 'comhairle:prioritisation';
@@ -19,19 +26,13 @@ const draftKey = (stepId: string, participantId: string) =>
 	`${NS}:${stepId}:drafts:${participantId}`;
 const participantKey = `${NS}:participant_id`;
 
-/** Generate a 5-digit zero-padded join code. */
-function generateJoinCode(): string {
-	return Math.floor(Math.random() * 100000)
-		.toString()
-		.padStart(5, '0');
-}
-
 /** Stable random id helper (uses crypto when available). */
 function uid(): string {
 	if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
 	return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+/** Build a default question of the given type. */
 function defaultQuestionConfig(type: QuestionType, order: number): Question {
 	const base = {
 		id: uid(),
@@ -41,48 +42,83 @@ function defaultQuestionConfig(type: QuestionType, order: number): Question {
 		optional: false
 	};
 	switch (type) {
-		case 'single_line':
-			return { ...base, type };
-		case 'long_text':
-			return { ...base, type };
-		case 'multiple_choice':
+		case 'likert_scale':
+			return { ...base, type, categories: defaultLikertCategories() };
+		case 'continuous':
 			return {
 				...base,
 				type,
-				choices: [
-					{ id: uid(), label: '' },
-					{ id: uid(), label: '' }
-				]
-			};
-		case 'five_star':
-			return { ...base, type };
-		case 'rating_scale':
-			return {
-				...base,
-				type,
-				min: 0,
-				max: 10,
+				minValue: DEFAULT_CONTINUOUS_MIN,
+				maxValue: DEFAULT_CONTINUOUS_MAX,
 				minLabel: '',
 				maxLabel: ''
 			};
+		case 'text':
+			return { ...base, type };
 	}
+}
+
+function emptyToolConfig(): ToolConfig {
+	return { randomizeOrder: false, questions: [] };
 }
 
 function emptyPoll(stepId: string): Poll {
 	return {
 		id: stepId,
 		title: '',
-		instruction: '',
+		description: '',
+		toolConfig: emptyToolConfig(),
 		proposals: [],
-		settings: {
-			timerSeconds: null,
-			proposalSortMode: 'by_proposal_id'
-		},
-		state: 'draft',
-		joinCode: generateJoinCode(),
-		pausedAccumulatedSeconds: 0,
 		report: { pages: [] }
 	};
+}
+
+/**
+ * Tolerate older localStorage payloads (instruction → description, missing
+ * toolConfig, per-proposal questions, etc.) by mapping them into the current
+ * shape. Anything unrecognised is dropped — this is best-effort, since the
+ * tool is still pre-release.
+ */
+function migratePoll(stepId: string, stored: Partial<Poll> | null): Poll {
+	if (!stored) return emptyPoll(stepId);
+	const anyStored = stored as Record<string, unknown>;
+	const description =
+		(typeof stored.description === 'string' && stored.description) ||
+		(typeof anyStored.instruction === 'string' && (anyStored.instruction as string)) ||
+		'';
+	const proposals = Array.isArray(stored.proposals)
+		? (stored.proposals as unknown as Array<Record<string, unknown>>).map((p, i) => ({
+				id: typeof p.id === 'string' ? p.id : `proposal_${i}`,
+				order: typeof p.order === 'number' ? p.order : i + 1,
+				title: typeof p.title === 'string' ? p.title : '',
+				body:
+					(typeof p.body === 'string' && p.body) ||
+					(typeof p.content === 'string' && p.content) ||
+					'',
+				imageDataUrl:
+					typeof p.imageDataUrl === 'string' ? (p.imageDataUrl as string) : undefined
+			}))
+		: [];
+	const toolConfigRaw = (stored.toolConfig as ToolConfig | undefined) ?? emptyToolConfig();
+	const toolConfig: ToolConfig = {
+		randomizeOrder: Boolean(toolConfigRaw.randomizeOrder),
+		questions: Array.isArray(toolConfigRaw.questions) ? toolConfigRaw.questions : []
+	};
+	return {
+		id: typeof stored.id === 'string' ? stored.id : stepId,
+		title: typeof stored.title === 'string' ? stored.title : '',
+		description,
+		toolConfig,
+		proposals,
+		report: migrateReport(stored.report)
+	};
+}
+
+function migrateReport(report: unknown): Report {
+	if (!report || typeof report !== 'object') return { pages: [] };
+	const r = report as Partial<Report>;
+	if (!Array.isArray(r.pages)) return { pages: [] };
+	return { pages: r.pages, publishedAt: r.publishedAt };
 }
 
 function loadJSON<T>(key: string): T | null {
@@ -113,27 +149,22 @@ export function getOrCreateParticipantId(): string {
 }
 
 /**
- * Reactive store for one prioritisation poll, keyed by workflow step id.
+ * Reactive store backing the prioritisation tool's prototype state.
  *
- * Hydrates from localStorage on construction; persists on every mutation.
+ * Persists to `localStorage` keyed by workflow step id. The backend will
+ * eventually own this state via `tool_config` JSONB plus `proposal` /
+ * `proposal_question` / `question_response` rows; for now the entire blob
+ * lives in the browser.
  */
 export class PrioritisationStore {
 	stepId: string;
-	poll = $state<Poll>(emptyPoll('placeholder'));
+	poll = $state<Poll>(emptyPoll('unknown'));
 	submissions = $state<Submission[]>([]);
 
 	constructor(stepId: string) {
 		this.stepId = stepId;
-		const existing = loadJSON<Poll>(pollKey(stepId));
-		this.poll = existing ?? emptyPoll(stepId);
-		// Migrate older blobs missing fields:
-		if (!this.poll.report) this.poll.report = { pages: [] };
-		if (!this.poll.settings) {
-			this.poll.settings = { timerSeconds: null, proposalSortMode: 'by_proposal_id' };
-		}
-		for (const p of this.poll.proposals) {
-			if (!p.questions) p.questions = [];
-		}
+		const stored = loadJSON<Partial<Poll>>(pollKey(stepId));
+		this.poll = migratePoll(stepId, stored);
 		this.submissions = loadJSON<Submission[]>(subsKey(stepId)) ?? [];
 	}
 
@@ -145,226 +176,164 @@ export class PrioritisationStore {
 		saveJSON(subsKey(this.stepId), this.submissions);
 	}
 
-	// ---- Poll metadata --------------------------------------------------
+	// ---- Top-level poll fields -----------------------------------------
 
 	setTitle(title: string): void {
 		this.poll.title = title;
 		this.persist();
 	}
 
-	setInstruction(instruction: string): void {
-		this.poll.instruction = instruction;
+	setDescription(description: string): void {
+		this.poll.description = description;
 		this.persist();
 	}
 
-	setTimer(seconds: number | null): void {
-		this.poll.settings.timerSeconds = seconds;
+	// ---- Tool config ----------------------------------------------------
+
+	setRandomizeOrder(randomize: boolean): void {
+		this.poll.toolConfig.randomizeOrder = randomize;
 		this.persist();
 	}
 
-	setProposalSortMode(mode: 'by_proposal_id'): void {
-		this.poll.settings.proposalSortMode = mode;
+	// ---- Questions (poll-wide) -----------------------------------------
+
+	addQuestion(type: QuestionType): Question {
+		const order = this.poll.toolConfig.questions.length + 1;
+		const q = defaultQuestionConfig(type, order);
+		this.poll.toolConfig.questions = [...this.poll.toolConfig.questions, q];
+		this.persist();
+		return q;
+	}
+
+	removeQuestion(questionId: string): void {
+		this.poll.toolConfig.questions = this.poll.toolConfig.questions
+			.filter((q) => q.id !== questionId)
+			.map((q, i) => ({ ...q, order: i + 1 }));
 		this.persist();
 	}
 
-	// ---- Proposals ------------------------------------------------------
+	updateQuestion(questionId: string, patch: Partial<Question>): void {
+		this.poll.toolConfig.questions = this.poll.toolConfig.questions.map((q) => {
+			if (q.id !== questionId) return q;
+			// `type` changes are handled by replacing with a new default.
+			if (patch.type && patch.type !== q.type) {
+				return defaultQuestionConfig(patch.type, q.order);
+			}
+			return { ...q, ...patch } as Question;
+		});
+		this.persist();
+	}
+
+	duplicateQuestion(questionId: string): Question | null {
+		const original = this.poll.toolConfig.questions.find((q) => q.id === questionId);
+		if (!original) return null;
+		const copy: Question = {
+			...original,
+			id: uid(),
+			order: this.poll.toolConfig.questions.length + 1
+		};
+		this.poll.toolConfig.questions = [...this.poll.toolConfig.questions, copy];
+		this.persist();
+		return copy;
+	}
+
+	/** Reorder questions to match the given list of ids. Missing ids dropped. */
+	reorderQuestions(orderedIds: string[]): void {
+		const map = new Map(this.poll.toolConfig.questions.map((q) => [q.id, q]));
+		const next: Question[] = [];
+		orderedIds.forEach((id, i) => {
+			const q = map.get(id);
+			if (q) next.push({ ...q, order: i + 1 });
+		});
+		// Preserve any questions that weren't in orderedIds (defensive).
+		for (const q of this.poll.toolConfig.questions) {
+			if (!orderedIds.includes(q.id)) next.push({ ...q, order: next.length + 1 });
+		}
+		this.poll.toolConfig.questions = next;
+		this.persist();
+	}
+
+	// ---- Likert scale category editing ---------------------------------
+
+	addLikertCategory(questionId: string): void {
+		this.updateLikert(questionId, (cats) => [...cats, { value: cats.length + 1, label: '' }]);
+	}
+
+	updateLikertCategory(
+		questionId: string,
+		index: number,
+		patch: Partial<{ value: number; label: string }>
+	): void {
+		this.updateLikert(questionId, (cats) =>
+			cats.map((c, i) => (i === index ? { ...c, ...patch } : c))
+		);
+	}
+
+	removeLikertCategory(questionId: string, index: number): void {
+		this.updateLikert(questionId, (cats) => cats.filter((_, i) => i !== index));
+	}
+
+	private updateLikert(
+		questionId: string,
+		fn: (cats: { value: number; label: string }[]) => { value: number; label: string }[]
+	): void {
+		this.poll.toolConfig.questions = this.poll.toolConfig.questions.map((q) => {
+			if (q.id !== questionId || q.type !== 'likert_scale') return q;
+			return { ...q, categories: fn(q.categories) };
+		});
+		this.persist();
+	}
+
+	// ---- PollEditor ------------------------------------------------------
 
 	addProposal(): Proposal {
 		const order = this.poll.proposals.length + 1;
-		const p: Proposal = { id: uid(), order, title: '', content: '', questions: [] };
+		const p: Proposal = { id: uid(), order, title: '', body: '' };
 		this.poll.proposals = [...this.poll.proposals, p];
 		this.persist();
 		return p;
 	}
 
-	updateProposal(id: string, patch: Partial<Proposal>): void {
+	updateProposal(proposalId: string, patch: Partial<Proposal>): void {
 		this.poll.proposals = this.poll.proposals.map((p) =>
-			p.id === id ? { ...p, ...patch } : p
+			p.id === proposalId ? { ...p, ...patch } : p
 		);
 		this.persist();
 	}
 
-	removeProposal(id: string): void {
-		this.poll.proposals = this.poll.proposals
-			.filter((p) => p.id !== id)
-			.map((p, i) => ({ ...p, order: i + 1 }));
-		this.persist();
-	}
-
-	reorderProposal(id: string, direction: 'up' | 'down'): void {
-		const arr = [...this.poll.proposals];
-		const i = arr.findIndex((p) => p.id === id);
-		if (i < 0) return;
-		const j = direction === 'up' ? i - 1 : i + 1;
-		if (j < 0 || j >= arr.length) return;
-		[arr[i], arr[j]] = [arr[j], arr[i]];
-		this.poll.proposals = arr.map((p, idx) => ({ ...p, order: idx + 1 }));
-		this.persist();
-	}
-
-	// ---- Questions (per-proposal) --------------------------------------
-
-	private mapProposal(proposalId: string, fn: (p: Proposal) => Proposal): void {
-		this.poll.proposals = this.poll.proposals.map((p) => (p.id === proposalId ? fn(p) : p));
-	}
-
-	addQuestion(proposalId: string, type: QuestionType): Question | null {
-		const proposal = this.poll.proposals.find((p) => p.id === proposalId);
-		if (!proposal) return null;
-		const q = defaultQuestionConfig(type, proposal.questions.length + 1);
-		this.mapProposal(proposalId, (p) => ({ ...p, questions: [...p.questions, q] }));
-		this.persist();
-		return q;
-	}
-
-	updateQuestion(proposalId: string, questionId: string, patch: Partial<Question>): void {
-		this.mapProposal(proposalId, (p) => ({
-			...p,
-			questions: p.questions.map((q) =>
-				q.id === questionId ? ({ ...q, ...patch } as Question) : q
-			)
-		}));
-		this.persist();
-	}
-
-	duplicateQuestion(proposalId: string, questionId: string): Question | null {
-		const proposal = this.poll.proposals.find((p) => p.id === proposalId);
-		const orig = proposal?.questions.find((q) => q.id === questionId);
-		if (!orig || !proposal) return null;
-		const copy: Question = JSON.parse(JSON.stringify(orig));
-		copy.id = uid();
-		copy.order = proposal.questions.length + 1;
-		if (copy.type === 'multiple_choice') {
-			copy.choices = copy.choices.map((c) => ({ ...c, id: uid() }));
-		}
-		this.mapProposal(proposalId, (p) => ({ ...p, questions: [...p.questions, copy] }));
+	duplicateProposal(proposalId: string): Proposal | null {
+		const original = this.poll.proposals.find((p) => p.id === proposalId);
+		if (!original) return null;
+		const copy: Proposal = {
+			...original,
+			id: uid(),
+			order: this.poll.proposals.length + 1
+		};
+		this.poll.proposals = [...this.poll.proposals, copy];
 		this.persist();
 		return copy;
 	}
 
-	removeQuestion(proposalId: string, questionId: string): void {
-		this.mapProposal(proposalId, (p) => ({
-			...p,
-			questions: p.questions
-				.filter((q) => q.id !== questionId)
-				.map((q, i) => ({ ...q, order: i + 1 }))
-		}));
+	removeProposal(proposalId: string): void {
+		this.poll.proposals = this.poll.proposals
+			.filter((p) => p.id !== proposalId)
+			.map((p, i) => ({ ...p, order: i + 1 }));
 		this.persist();
 	}
 
-	addChoice(proposalId: string, questionId: string): void {
-		this.mapProposal(proposalId, (p) => ({
-			...p,
-			questions: p.questions.map((q) => {
-				if (q.id !== questionId || q.type !== 'multiple_choice') return q;
-				return { ...q, choices: [...q.choices, { id: uid(), label: '' }] };
-			})
-		}));
-		this.persist();
-	}
-
-	updateChoice(proposalId: string, questionId: string, choiceId: string, label: string): void {
-		this.mapProposal(proposalId, (p) => ({
-			...p,
-			questions: p.questions.map((q) => {
-				if (q.id !== questionId || q.type !== 'multiple_choice') return q;
-				return {
-					...q,
-					choices: q.choices.map((c) => (c.id === choiceId ? { ...c, label } : c))
-				};
-			})
-		}));
-		this.persist();
-	}
-
-	removeChoice(proposalId: string, questionId: string, choiceId: string): void {
-		this.mapProposal(proposalId, (p) => ({
-			...p,
-			questions: p.questions.map((q) => {
-				if (q.id !== questionId || q.type !== 'multiple_choice') return q;
-				return { ...q, choices: q.choices.filter((c) => c.id !== choiceId) };
-			})
-		}));
-		this.persist();
-	}
-
-	// ---- Lifecycle ------------------------------------------------------
-
-	publish(): { ok: true } | { ok: false; reason: string } {
-		const issues = this.validatePublish();
-		if (issues.length) return { ok: false, reason: issues.join('; ') };
-		this.poll.state = 'published';
-		this.poll.publishedAt = new Date().toISOString();
-		this.poll.pausedAt = undefined;
-		this.poll.pausedAccumulatedSeconds = 0;
-		this.persist();
-		return { ok: true };
-	}
-
-	unpublish(): void {
-		this.poll.state = 'draft';
-		this.poll.publishedAt = undefined;
-		this.persist();
-	}
-
-	pause(): void {
-		if (this.poll.state !== 'published') return;
-		this.poll.state = 'paused';
-		this.poll.pausedAt = new Date().toISOString();
-		this.persist();
-	}
-
-	resume(): void {
-		if (this.poll.state !== 'paused' || !this.poll.pausedAt) return;
-		const elapsed = (Date.now() - new Date(this.poll.pausedAt).getTime()) / 1000;
-		this.poll.pausedAccumulatedSeconds += elapsed;
-		this.poll.pausedAt = undefined;
-		this.poll.state = 'published';
-		this.persist();
-	}
-
-	end(): void {
-		this.poll.state = 'ended';
-		this.poll.endedAt = new Date().toISOString();
-		this.persist();
-	}
-
-	validatePublish(): string[] {
-		const issues: string[] = [];
-		if (!this.poll.title.trim()) issues.push('Title is required');
-		if (this.poll.proposals.length < 2) issues.push('Add at least two proposals');
+	/** Reorder proposals to match the given list of ids. Missing ids dropped. */
+	reorderProposals(orderedIds: string[]): void {
+		const map = new Map(this.poll.proposals.map((p) => [p.id, p]));
+		const next: Proposal[] = [];
+		orderedIds.forEach((id, i) => {
+			const p = map.get(id);
+			if (p) next.push({ ...p, order: i + 1 });
+		});
 		for (const p of this.poll.proposals) {
-			const label = p.title.trim() || `#${p.order}`;
-			if (!p.title.trim()) issues.push(`Proposal ${p.order} needs a title`);
-			if (p.questions.length < 1) {
-				issues.push(`Proposal "${label}" needs at least one question`);
-			}
-			for (const q of p.questions) {
-				if (!q.prompt.trim()) issues.push(`Proposal "${label}" Q${q.order} needs a prompt`);
-				if (q.type === 'multiple_choice') {
-					if (q.choices.length < 2)
-						issues.push(`Proposal "${label}" Q${q.order} needs at least two choices`);
-					if (q.choices.some((c) => !c.label.trim()))
-						issues.push(`Proposal "${label}" Q${q.order} has an empty choice`);
-				}
-			}
+			if (!orderedIds.includes(p.id)) next.push({ ...p, order: next.length + 1 });
 		}
-		return issues;
-	}
-
-	// ---- Timer ----------------------------------------------------------
-
-	timeLeftSeconds(nowMs: number = Date.now()): number | null {
-		const { timerSeconds } = this.poll.settings;
-		if (timerSeconds === null) return null;
-		if (!this.poll.publishedAt) return timerSeconds;
-		const started = new Date(this.poll.publishedAt).getTime();
-		let elapsed = (nowMs - started) / 1000 - this.poll.pausedAccumulatedSeconds;
-		if (this.poll.state === 'paused' && this.poll.pausedAt) {
-			const pausedFor = (nowMs - new Date(this.poll.pausedAt).getTime()) / 1000;
-			elapsed -= pausedFor;
-		}
-		return Math.max(0, timerSeconds - elapsed);
+		this.poll.proposals = next;
+		this.persist();
 	}
 
 	// ---- Participant drafts --------------------------------------------
@@ -402,7 +371,6 @@ export class PrioritisationStore {
 		const draft = this.loadDraft(participantId);
 		if (!this.draftIsComplete(draft)) return null;
 		const submission: Submission = { ...draft, submittedAt: new Date().toISOString() };
-		// Replace any previous submission from same participant.
 		this.submissions = [
 			...this.submissions.filter((s) => s.participantId !== participantId),
 			submission
@@ -412,9 +380,10 @@ export class PrioritisationStore {
 	}
 
 	draftIsComplete(draft: ParticipantDraft): boolean {
+		const questions = this.poll.toolConfig.questions;
 		for (const p of this.poll.proposals) {
 			const ans: ProposalAnswers = draft.byProposal[p.id] ?? {};
-			for (const q of p.questions) {
+			for (const q of questions) {
 				if (q.optional) continue;
 				const a = ans[q.id];
 				if (!a) return false;
@@ -426,9 +395,10 @@ export class PrioritisationStore {
 
 	missingAnswers(draft: ParticipantDraft): Array<{ proposalId: string; questionId: string }> {
 		const out: Array<{ proposalId: string; questionId: string }> = [];
+		const questions = this.poll.toolConfig.questions;
 		for (const p of this.poll.proposals) {
 			const ans: ProposalAnswers = draft.byProposal[p.id] ?? {};
-			for (const q of p.questions) {
+			for (const q of questions) {
 				if (q.optional) continue;
 				const a = ans[q.id];
 				const missing = !a || (a.kind === 'text' && !a.value.trim());

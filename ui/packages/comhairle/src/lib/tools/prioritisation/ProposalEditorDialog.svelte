@@ -3,11 +3,9 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Button } from '$lib/components/ui/button';
-	import { Plus, Trash2 } from 'lucide-svelte';
 	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
+	import { ImagePlus, Trash2 } from 'lucide-svelte';
 	import type { PrioritisationStore } from './store.svelte';
-	import { QUESTION_TYPE_LABELS, type QuestionType } from './types';
-	import QuestionEditorDialog from './QuestionEditorDialog.svelte';
 
 	let {
 		store,
@@ -21,7 +19,7 @@
 
 	let proposal = $derived(store.poll.proposals.find((p) => p.id === proposalId));
 	let open = $state(true);
-	let editingQuestionId = $state<string | null>(null);
+	let fileInput = $state<HTMLInputElement | null>(null);
 
 	function handleClose(o: boolean) {
 		if (!o) {
@@ -30,7 +28,7 @@
 		}
 	}
 
-	function onImage(e: Event) {
+	function onPickImage(e: Event) {
 		const input = e.target as HTMLInputElement;
 		const file = input.files?.[0];
 		if (!file) return;
@@ -40,121 +38,81 @@
 		};
 		reader.readAsDataURL(file);
 	}
-
-	function addQuestion(type: QuestionType) {
-		const q = store.addQuestion(proposalId, type);
-		if (q) editingQuestionId = q.id;
-	}
 </script>
 
 <Dialog.Root bind:open onOpenChange={handleClose}>
-	<Dialog.Content class="max-h-[90vh] w-full min-w-[80vw]  overflow-y-auto">
+	<Dialog.Content class="max-h-[90vh] max-w-2xl min-w-[80vw] overflow-y-auto">
 		<Dialog.Header>
-			<Dialog.Title>Edit proposal {proposal?.order}</Dialog.Title>
+			<Dialog.Title>
+				Edit proposal {proposal?.order}
+			</Dialog.Title>
 			<Dialog.Description>
-				Set the proposal's content and the questions participants will be asked about it.
+				All proposals share the same questions, defined in the Questions tab.
 			</Dialog.Description>
 		</Dialog.Header>
 
 		{#if proposal}
 			<div class="flex flex-col gap-4">
 				<div class="flex flex-col gap-1">
-					<Label for="prop-title">Proposal title</Label>
+					<Label for="p-title">Title</Label>
 					<Input
-						id="prop-title"
-						placeholder="Enter proposal title or headline"
+						id="p-title"
+						placeholder="Proposal title"
 						value={proposal.title}
-						oninput={(e) => {
-							const target = e.target as HTMLInputElement;
-							store.updateProposal(proposalId, { title: target.value });
-						}}
+						oninput={(e) =>
+							store.updateProposal(proposal.id, {
+								title: (e.target as HTMLInputElement).value
+							})}
 					/>
 				</div>
 
 				<div class="flex flex-col gap-1">
-					<Label for="prop-image">Header image (optional)</Label>
-					<input
-						id="prop-image"
-						type="file"
-						accept="image/*"
-						onchange={onImage}
-						class="text-sm"
-					/>
+					<Label>Image (optional)</Label>
 					{#if proposal.imageDataUrl}
-						<img
-							src={proposal.imageDataUrl}
-							alt="Proposal header"
-							class="mt-2 max-h-40 rounded-md object-cover"
-						/>
-						<Button
-							variant="ghost"
-							size="sm"
-							onclick={() =>
-								store.updateProposal(proposalId, { imageDataUrl: undefined })}
-						>
-							Remove image
-						</Button>
-					{/if}
-				</div>
-
-				<div class="flex flex-col gap-1">
-					<Label>Proposal content</Label>
-					<RichTextEditor
-						value={proposal.content || null}
-						placeholder="Enter proposal content"
-						minHeight="200px"
-						onChange={(json) => store.updateProposal(proposalId, { content: json })}
-					/>
-				</div>
-
-				<!-- Per-proposal questions -->
-				<div class="flex flex-col gap-2 border-t pt-4">
-					<Label>Questions for this proposal</Label>
-					<p class="text-muted-foreground text-xs">
-						Each proposal has its own questions. Cross-proposal ranking is intentionally
-						not supported in the prototype.
-					</p>
-					{#each proposal.questions as q (q.id)}
-						<div class="flex items-center gap-2 rounded-md border p-2">
-							<span class="text-muted-foreground w-12 text-xs"
-								>Q{q.order}{q.optional ? '*' : ''}</span
-							>
-							<button
-								class="flex-1 truncate text-left text-sm hover:underline"
-								onclick={() => (editingQuestionId = q.id)}
-							>
-								{q.prompt || 'Untitled question'}
-							</button>
-							<span class="text-muted-foreground text-xs"
-								>{QUESTION_TYPE_LABELS[q.type]}</span
-							>
+						<div class="relative w-fit">
+							<img
+								src={proposal.imageDataUrl}
+								alt={proposal.title}
+								class="max-h-48 rounded-md object-cover"
+							/>
 							<Button
-								variant="ghost"
+								variant="destructive"
 								size="icon"
-								onclick={() => store.removeQuestion(proposalId, q.id)}
-								aria-label="Remove question"
+								class="absolute top-1 right-1"
+								onclick={() =>
+									store.updateProposal(proposal.id, { imageDataUrl: undefined })}
+								aria-label="Remove image"
 							>
 								<Trash2 class="size-4" />
 							</Button>
 						</div>
-					{/each}
-					{#if proposal.questions.length === 0}
-						<p class="text-muted-foreground text-xs">
-							Add at least one question. Pick a type to get started.
-						</p>
+					{:else}
+						<Button
+							variant="outline"
+							size="sm"
+							onclick={() => fileInput?.click()}
+							class="w-fit"
+						>
+							<ImagePlus class="mr-1 size-4" /> Add image
+						</Button>
 					{/if}
-					<div class="flex flex-wrap gap-2">
-						{#each Object.entries(QUESTION_TYPE_LABELS) as [type, label] (type)}
-							<Button
-								variant="outline"
-								size="sm"
-								onclick={() => addQuestion(type as QuestionType)}
-							>
-								<Plus class="mr-1 size-3.5" />
-								{label}
-							</Button>
-						{/each}
-					</div>
+					<input
+						type="file"
+						accept="image/*"
+						bind:this={fileInput}
+						onchange={onPickImage}
+						class="hidden"
+					/>
+				</div>
+
+				<div class="flex flex-col gap-1">
+					<Label>Body</Label>
+					<RichTextEditor
+						value={proposal.body || null}
+						placeholder="Describe this proposal…"
+						minHeight="160px"
+						onChange={(json) => store.updateProposal(proposal.id, { body: json })}
+					/>
 				</div>
 			</div>
 		{/if}
@@ -164,12 +122,3 @@
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
-
-{#if editingQuestionId}
-	<QuestionEditorDialog
-		{store}
-		{proposalId}
-		questionId={editingQuestionId}
-		onClose={() => (editingQuestionId = null)}
-	/>
-{/if}
