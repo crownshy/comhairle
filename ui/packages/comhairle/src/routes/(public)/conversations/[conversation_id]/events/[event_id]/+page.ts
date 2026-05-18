@@ -1,9 +1,14 @@
+import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import type { LocalizedEventDto, EventAttendanceDto } from '@crownshy/api-client/api';
 
-export const load: PageLoad = async ({ parent, params }) => {
+export const load: PageLoad = async ({ parent, params, url }) => {
 	const { api, user } = await parent();
 	const { conversation_id, event_id } = params;
+
+	if (!user) {
+		redirect(302, `/auth/login-otp/send?backTo=${encodeURIComponent(url.pathname)}`);
+	}
 
 	try {
 		const [event, attendancesResult] = await Promise.all([

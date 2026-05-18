@@ -11,7 +11,7 @@ use crate::{
     models::pagination::{Order, PageOptions, PaginatedResults},
 };
 
-#[derive(Serialize, Deserialize, FromRow, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, FromRow, Clone, JsonSchema, Debug)]
 #[enum_def(table_name = "job")]
 pub struct Job {
     pub id: Uuid,

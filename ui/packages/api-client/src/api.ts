@@ -34,6 +34,10 @@ export const LoginRequest = z
   .object({ email: z.string(), password: z.string() })
   .passthrough();
 export type LoginRequest = z.infer<typeof LoginRequest>;
+export const OtpLoginRequest = z
+  .object({ code: z.string(), email: z.string() })
+  .passthrough();
+export type OtpLoginRequest = z.infer<typeof OtpLoginRequest>;
 export const SignupRequest = z
   .object({
     avatar_url: z.union([z.string(), z.null()]).optional(),
@@ -45,6 +49,17 @@ export const SignupRequest = z
 export type SignupRequest = z.infer<typeof SignupRequest>;
 export const OtpSignupRequest = z.object({ email: z.string() }).passthrough();
 export type OtpSignupRequest = z.infer<typeof OtpSignupRequest>;
+export const CreateOtpRequest = z
+  .object({
+    email: z.string(),
+    redirect_url: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type CreateOtpRequest = z.infer<typeof CreateOtpRequest>;
+export const VerifyOtpTokenRequest = z
+  .object({ token: z.string() })
+  .passthrough();
+export type VerifyOtpTokenRequest = z.infer<typeof VerifyOtpTokenRequest>;
 export const VerifyEmailTokenRequest = z
   .object({ token: z.string() })
   .passthrough();
@@ -1235,6 +1250,20 @@ export const JwtResponse = z
   .object({ isModerator: z.boolean(), jwt: z.string() })
   .passthrough();
 export type JwtResponse = z.infer<typeof JwtResponse>;
+export const ProcessTranscriptionResponse = z
+  .object({ job_ids: z.array(z.string().uuid()), message: z.string() })
+  .passthrough();
+export type ProcessTranscriptionResponse = z.infer<
+  typeof ProcessTranscriptionResponse
+>;
+export const SubmitReportRequest = z
+  .object({ result: z.unknown() })
+  .passthrough();
+export type SubmitReportRequest = z.infer<typeof SubmitReportRequest>;
+export const SubmitReportResponse = z
+  .object({ success: z.boolean(), url: z.string() })
+  .passthrough();
+export type SubmitReportResponse = z.infer<typeof SubmitReportResponse>;
 export const EventAttendanceEtx = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
@@ -1407,6 +1436,36 @@ export const PartialRegion = z
   .partial()
   .passthrough();
 export type PartialRegion = z.infer<typeof PartialRegion>;
+export const MediaContentType = z.enum([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "video/mp4",
+  "video/mpeg",
+  "video/webm",
+]);
+export type MediaContentType = z.infer<typeof MediaContentType>;
+export const content_type = z.union([MediaContentType, z.null()]).optional();
+export type content_type = z.infer<typeof content_type>;
+export const MediaDto = z
+  .object({
+    contentType: MediaContentType,
+    createdAt: z.string().datetime({ offset: true }),
+    filename: z.string(),
+    id: z.string().uuid(),
+    ownerId: z.string().uuid(),
+    storageKey: z.string(),
+    storeName: z.string(),
+  })
+  .passthrough();
+export type MediaDto = z.infer<typeof MediaDto>;
+export const PaginatedResults_for_MediaDto = z
+  .object({ records: z.array(MediaDto), total: z.number().int() })
+  .passthrough();
+export type PaginatedResults_for_MediaDto = z.infer<
+  typeof PaginatedResults_for_MediaDto
+>;
 export const Job = z
   .object({
     completion_message: z.union([z.string(), z.null()]).optional(),
@@ -1442,8 +1501,11 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UserAuthType,
   UserDto,
   LoginRequest,
+  OtpLoginRequest,
   SignupRequest,
   OtpSignupRequest,
+  CreateOtpRequest,
+  VerifyOtpTokenRequest,
   VerifyEmailTokenRequest,
   ResendVerificationEmailRequest,
   CreatePasswordResetRequest,
@@ -1569,6 +1631,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EventResponse,
   PartialEvent,
   JwtResponse,
+  ProcessTranscriptionResponse,
+  SubmitReportRequest,
+  SubmitReportResponse,
   EventAttendanceEtx,
   PaginatedResults_for_EventAttendanceEtx,
   CreateEventAttendanceRequest,
@@ -1591,6 +1656,10 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateRegion,
   RegionDto,
   PartialRegion,
+  MediaContentType,
+  content_type,
+  MediaDto,
+  PaginatedResults_for_MediaDto,
   Job,
   PaginatedResults_for_Job,
   CreateJob,
@@ -1598,6 +1667,20 @@ export const schemas: Record<string, z.ZodType<any>> = {
 };
 
 const endpoints = makeApi([
+  {
+    method: "post",
+    path: "/auth/create_otp",
+    alias: "CreateOtp",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateOtpRequest,
+      },
+    ],
+    response: z.void(),
+  },
   {
     method: "get",
     path: "/auth/current_user",
@@ -1631,6 +1714,35 @@ const endpoints = makeApi([
         description: `Expected payload for an annon login request`,
         type: "Body",
         schema: z.object({ username: z.string() }).passthrough(),
+      },
+    ],
+    response: UserDto,
+  },
+  {
+    method: "post",
+    path: "/auth/login_otp",
+    alias: "LoginOtpUser",
+    description: `Login a user with a one time passcode`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: OtpLoginRequest,
+      },
+    ],
+    response: UserDto,
+  },
+  {
+    method: "post",
+    path: "/auth/login_otp_token",
+    alias: "LoginOtpToken",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ token: z.string() }).passthrough(),
       },
     ],
     response: UserDto,
@@ -2211,6 +2323,34 @@ curl -X POST \
     description: `Get a auth JWT for an event`,
     requestFormat: "json",
     response: JwtResponse,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/report",
+    alias: "SubmitEventReport",
+    description: `Submit categorization report to bulk storage`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ result: z.unknown() }).passthrough(),
+      },
+      {
+        name: "room_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: SubmitReportResponse,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/transcriptions",
+    alias: "ProcessVideoCallTranscriptions",
+    description: `Triggers transcription processing in a background worker`,
+    requestFormat: "json",
+    response: ProcessTranscriptionResponse,
   },
   {
     method: "get",
@@ -2831,6 +2971,96 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "DeleteJob",
     requestFormat: "json",
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/media",
+    alias: "ListMedia",
+    description: `List media records`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "created_at",
+        type: "Query",
+        schema: created_at,
+      },
+      {
+        name: "filename",
+        type: "Query",
+        schema: created_at,
+      },
+      {
+        name: "content_type",
+        type: "Query",
+        schema: content_type,
+      },
+      {
+        name: "owner_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+    ],
+    response: PaginatedResults_for_MediaDto,
+  },
+  {
+    method: "post",
+    path: "/media",
+    alias: "postMedia",
+    description: `
+Upload a media resource to the bulk_storage_service 
+and create a new record in the database.
+
+
+This endpoint requires multipart/form-data.
+
+Generated API clients may not support file uploads.
+
+Use FormData and a raw HTTP request.
+
+**Example (curl):**
+&#x60;&#x60;&#x60;bash
+curl -X POST \
+-H &#x27;Cookie: auth-token&#x3D;...;&#x27; \
+&#x27;localhost:3000/media&#x27; \
+--form &#x27;file&#x3D;@/path-to-document.pdf&#x27;
+&#x60;&#x60;&#x60;
+                            `,
+    requestFormat: "form-data",
+    parameters: [
+      {
+        name: "body",
+        description: `multipart form data`,
+        type: "Body",
+        schema: z.array(z.any()),
+      },
+    ],
+    response: MediaDto,
+  },
+  {
+    method: "get",
+    path: "/media/:media_id",
+    alias: "GetMedia",
+    description: `Get media record by id`,
+    requestFormat: "json",
+    response: MediaDto,
+  },
+  {
+    method: "delete",
+    path: "/media/:media_id",
+    alias: "DeleteMedia",
+    description: `Delete media record by id`,
+    requestFormat: "json",
+    response: MediaDto,
   },
   {
     method: "get",

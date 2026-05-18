@@ -124,6 +124,15 @@
 		</LoadingButton>
 
 		<Button
+			href={resolve(`/auth/login-otp/send?backTo=${encodeURIComponent(backTo ?? '/')}`)}
+			variant="outline"
+			size="lg"
+			class="h-12 w-full px-7 lg:w-auto"
+		>
+			{m.login_with_otp()}
+		</Button>
+
+		<Button
 			href={resolve(`/auth/anonymous-login?backTo=${encodeURIComponent(backTo ?? '/')}`)}
 			variant="outline"
 			size="lg"
