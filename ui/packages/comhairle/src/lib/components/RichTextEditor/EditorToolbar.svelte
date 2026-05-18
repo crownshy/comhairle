@@ -345,7 +345,7 @@
 </div>
 
 <style>
-	@import 'tailwindcss';
+	@reference '../../../app.css';
 
 	.btn {
 		@apply text-muted-foreground hover:bg-accent hover:text-accent-foreground flex h-7 min-w-[1.75rem] flex-shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent px-1.5 py-1 text-sm leading-none transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-40;
