@@ -415,6 +415,14 @@ export const ConversationRequest = z
   .object({ question: z.string() })
   .passthrough();
 export type ConversationRequest = z.infer<typeof ConversationRequest>;
+export const CreateProposalRequest = z
+  .object({
+    body: z.string(),
+    title: z.string(),
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type CreateProposalRequest = z.infer<typeof CreateProposalRequest>;
 export const CreateConversation = z
   .object({
     default_workflow_id: z.union([z.string(), z.null()]).optional(),
@@ -1568,6 +1576,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ComhairleSessionMessage,
   ComhairleAgentSession,
   ConversationRequest,
+  CreateProposalRequest,
   CreateConversation,
   Translation,
   ConversationTranslations,
@@ -3375,6 +3384,38 @@ Use a raw HTTP request and process the response body incrementally.
         name: "workflow_step_id",
         type: "Query",
         schema: z.string().uuid(),
+      },
+    ],
+    response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/tools/prioritization/proposals",
+    alias: "ListProposals",
+    description: `List proposals for a given prioritization tool workflow_step`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.void(),
+  },
+  {
+    method: "post",
+    path: "/tools/prioritization/proposals",
+    alias: "CreateProposal",
+    description: `
+Create a new prioritization tool proposal for a given prioritization tool workflow_step
+`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateProposalRequest,
       },
     ],
     response: z.void(),
