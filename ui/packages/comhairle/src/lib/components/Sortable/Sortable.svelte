@@ -1,7 +1,7 @@
 <script lang="ts" generics="T extends { id: string }">
 	import type { Snippet } from 'svelte';
-
-	//this is a generic sortable component that can be used to sort any list of items. Will extend it a little bit to later support the draggable workflow steps
+	import { flip } from 'svelte/animate';
+	import { cubicOut } from 'svelte/easing';
 
 	type Props = {
 		items: T[];
@@ -76,8 +76,13 @@
 			ondragleave={() => handleDragLeave(i)}
 			ondrop={(e) => handleDrop(e, i)}
 			ondragend={reset}
-			class="relative transition-opacity"
+			animate:flip={{ duration: 300, easing: cubicOut }}
+			class="relative transition-all duration-200"
 			class:opacity-40={draggedIndex === i}
+			class:scale-95={draggedIndex === i}
+			class:rotate-1={draggedIndex === i}
+			class:shadow-2xl={draggedIndex === i}
+			class:z-10={draggedIndex === i}
 		>
 			{#if showIndicatorBefore}
 				<div
