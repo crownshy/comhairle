@@ -14,14 +14,14 @@ pub mod heyform;
 pub mod id;
 pub mod learn;
 pub mod polis;
-pub mod prioritisation;
+pub mod prioritization;
 pub mod stories;
 
 use elicitation_bot::{ElicitationBotReport, ElicitationBotToolConfig, ElicitationBotToolSetup};
 use heyform::{HeyFormReport, HeyFormToolConfig, HeyFormToolSetup};
 use learn::{LearnReport, LearnToolConfig, LearnToolSetup};
 use polis::{PolisReport, PolisToolConfig, PolisToolSetup};
-use prioritisation::{PrioritisationReport, PrioritisationToolConfig, PrioritisationToolSetup};
+use prioritization::{PrioritizationReport, PrioritizationToolConfig, PrioritizationToolSetup};
 use stories::{StoriesReport, StoriesToolConfig, StoriesToolSetup};
 
 /// Core trait that all tools must implement.
@@ -107,7 +107,7 @@ pub enum ToolConfig {
     HeyForm(HeyFormToolConfig),
     Stories(StoriesToolConfig),
     ElicitationBot(ElicitationBotToolConfig),
-    Prioritisation(PrioritisationToolConfig),
+    Prioritization(PrioritizationToolConfig),
 }
 
 impl ToolConfig {
@@ -121,8 +121,8 @@ impl ToolConfig {
             ToolConfig::ElicitationBot(config) => {
                 elicitation_bot::ElicitationBotTool::sync_data(config, state).await
             }
-            ToolConfig::Prioritisation(config) => {
-                prioritisation::PrioritisationTool::sync_data(config, state).await
+            ToolConfig::Prioritization(config) => {
+                prioritization::PrioritizationTool::sync_data(config, state).await
             }
         }
     }
@@ -145,8 +145,8 @@ impl ToolConfig {
             ToolConfig::ElicitationBot(config) => Ok(ToolConfig::ElicitationBot(
                 elicitation_bot::ElicitationBotTool::clone_tool(config, state).await?,
             )),
-            ToolConfig::Prioritisation(config) => Ok(ToolConfig::Prioritisation(
-                prioritisation::PrioritisationTool::clone_tool(config, state).await?,
+            ToolConfig::Prioritization(config) => Ok(ToolConfig::Prioritization(
+                prioritization::PrioritizationTool::clone_tool(config, state).await?,
             )),
         }
     }
@@ -161,8 +161,8 @@ impl ToolConfig {
             ToolConfig::ElicitationBot(config) => {
                 elicitation_bot::ElicitationBotTool::delete(config, state).await
             }
-            ToolConfig::Prioritisation(config) => {
-                prioritisation::PrioritisationTool::delete(config, state).await
+            ToolConfig::Prioritization(config) => {
+                prioritization::PrioritizationTool::delete(config, state).await
             }
         }
     }
@@ -184,8 +184,8 @@ impl ToolConfig {
             ToolConfig::ElicitationBot(config) => {
                 elicitation_bot::ElicitationBotTool::register_workers(config, state).await
             }
-            ToolConfig::Prioritisation(config) => {
-                prioritisation::PrioritisationTool::register_workers(config, state).await
+            ToolConfig::Prioritization(config) => {
+                prioritization::PrioritizationTool::register_workers(config, state).await
             }
         }
     }
@@ -199,7 +199,7 @@ pub enum ToolSetup {
     HeyForm(HeyFormToolSetup),
     Stories(StoriesToolSetup),
     ElicitationBot(ElicitationBotToolSetup),
-    Prioritisation(PrioritisationToolSetup),
+    Prioritization(PrioritizationToolSetup),
 }
 
 impl ToolSetup {
@@ -221,8 +221,8 @@ impl ToolSetup {
             ToolSetup::ElicitationBot(setup) => Ok(ToolConfig::ElicitationBot(
                 elicitation_bot::ElicitationBotTool::setup(setup, state).await?,
             )),
-            ToolSetup::Prioritisation(setup) => Ok(ToolConfig::Prioritisation(
-                prioritisation::PrioritisationTool::setup(setup, state).await?,
+            ToolSetup::Prioritization(setup) => Ok(ToolConfig::Prioritization(
+                prioritization::PrioritizationTool::setup(setup, state).await?,
             )),
         }
     }
@@ -236,7 +236,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .merge(heyform::HeyFormTool::routes(&state))
         .merge(stories::StoriesTool::routes(&state))
         .merge(elicitation_bot::ElicitationBotTool::routes(&state))
-        .merge(prioritisation::PrioritisationTool::routes(&state))
+        .merge(prioritization::PrioritizationTool::routes(&state))
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
@@ -246,5 +246,5 @@ pub enum ReportConfig {
     Learn(LearnReport),
     Stories(StoriesReport),
     ElicitationBot(ElicitationBotReport),
-    Prioritisation(PrioritisationReport),
+    Prioritization(PrioritizationReport),
 }

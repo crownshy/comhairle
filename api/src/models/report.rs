@@ -20,7 +20,7 @@ use crate::{
     },
     tools::{
         elicitation_bot::ElicitationBotReport, heyform::HeyFormReport, learn::LearnReport,
-        polis::PolisReport, prioritisation::PrioritisationReport, stories::StoriesReport,
+        polis::PolisReport, prioritization::PrioritizationReport, stories::StoriesReport,
         ReportConfig, ToolConfig,
     },
 };
@@ -208,8 +208,8 @@ pub async fn create_for_conversation(
                     ToolConfig::ElicitationBot(_) => {
                         ReportConfig::ElicitationBot(ElicitationBotReport)
                     }
-                    ToolConfig::Prioritisation(_) => {
-                        ReportConfig::Prioritisation(PrioritisationReport)
+                    ToolConfig::Prioritization(_) => {
+                        ReportConfig::Prioritization(PrioritizationReport)
                     }
                 };
 
