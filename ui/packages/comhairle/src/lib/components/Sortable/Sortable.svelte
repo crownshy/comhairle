@@ -80,7 +80,6 @@
 			class="relative transition-all duration-200"
 			class:opacity-40={draggedIndex === i}
 			class:scale-95={draggedIndex === i}
-			class:rotate-1={draggedIndex === i}
 			class:shadow-2xl={draggedIndex === i}
 			class:z-10={draggedIndex === i}
 		>
