@@ -1,8 +1,9 @@
 <script lang="ts">
 	import type { WorkflowStepWithTranslations } from '@crownshy/api-client/api';
 	import { infoURLForTool } from '$lib/utils';
-	import { flip } from 'svelte/animate';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
+	import { Sortable } from '$lib/components/Sortable';
+	import { GripVertical } from 'lucide-svelte';
 	import {
 		basic_learn_config,
 		basic_polis_config,
@@ -113,6 +114,45 @@
 		await invalidateAll();
 	}
 
+	async function reorderSteps(orderedIds: string[]) {
+		const oldIds = workflowSteps.map((s) => s.id);
+		let movedId: string | null = null;
+		let oldIdx = -1;
+		let newIdx = -1;
+		let maxDelta = 0;
+		for (let i = 0; i < orderedIds.length; i++) {
+			const prev = oldIds.indexOf(orderedIds[i]);
+			const delta = Math.abs(prev - i);
+			if (delta > maxDelta) {
+				maxDelta = delta;
+				movedId = orderedIds[i];
+				oldIdx = prev;
+				newIdx = i;
+			}
+		}
+		if (!movedId || oldIdx === newIdx) return;
+		// Backend shifts steps with order <= target down by 1, then renumbers.
+		// Down move (newIdx > oldIdx): target = newIdx + 1 (1-indexed new position).
+		// Up move (newIdx < oldIdx): target = newIdx (one less than 1-indexed new position).
+		const target = newIdx > oldIdx ? newIdx + 1 : newIdx;
+		try {
+			await apiClient.UpdateConversationWorkflowStep(
+				{ step_order: target },
+				{
+					params: {
+						conversation_id: conversation.id,
+						workflow_id: workflow.id,
+						workflow_step_id: movedId
+					}
+				}
+			);
+			await invalidateAll();
+		} catch (e) {
+			console.error(e);
+			notifications.send({ priority: 'ERROR', message: 'Failed to reorder steps' });
+		}
+	}
+
 	function activeToolConfig(step: WorkflowStepWithTranslations) {
 		return conversation.isLive ? step.toolConfig : step.previewToolConfig;
 	}
@@ -151,59 +191,61 @@
 	>
 </p>
 
-<div class="mb-5 flex flex-col gap-y-5">
-	{#each workflowSteps as step, index (step.id)}
-		<div animate:flip={{ duration: 200 }}>
-			<Card.Root class="transition-all">
-				<Card.Header>
-					<div class="flex flex-row items-center justify-between">
-						<div class="flex flex-row items-center gap-x-5">
-							{#if activeToolConfig(step).type === 'polis'}
-								<MessagesSquare />
-							{/if}
-							{#if activeToolConfig(step).type === 'stories'}
-								<Video />
-							{/if}
-							{#if activeToolConfig(step).type === 'heyform'}
-								<ListChecks />
-							{/if}
-							{#if activeToolConfig(step).type === 'learn'}
-								<BookOpen />
-							{/if}
-							{#if activeToolConfig(step).type === 'elicitationbot'}
-								<Bot />
-							{/if}
-							<h1 class="text-xl">{step.name}</h1>
-						</div>
-						<div class="flex flex-row items-center gap-2">
-							{#if index > 0}
-								<Button variant="ghost" onclick={() => decrementStep(step.id)}>
-									<ChevronUp />
-								</Button>
-							{/if}
-							{#if index < workflowSteps.length - 1}
-								<Button variant="ghost" onclick={() => incrementStep(step.id)}>
-									<ChevronDown />
-								</Button>
-							{/if}
-						</div>
+<Sortable items={workflowSteps} onReorder={reorderSteps} class="mb-5 flex flex-col gap-y-5">
+	{#snippet item({ item: step, index })}
+		<Card.Root class="transition-all">
+			<Card.Header>
+				<div class="flex flex-row items-center justify-between">
+					<div class="flex flex-row items-center gap-x-5">
+						<GripVertical
+							class="text-muted-foreground size-5 cursor-grab active:cursor-grabbing"
+							aria-label="Drag to reorder"
+						/>
+						{#if activeToolConfig(step).type === 'polis'}
+							<MessagesSquare />
+						{/if}
+						{#if activeToolConfig(step).type === 'stories'}
+							<Video />
+						{/if}
+						{#if activeToolConfig(step).type === 'heyform'}
+							<ListChecks />
+						{/if}
+						{#if activeToolConfig(step).type === 'learn'}
+							<BookOpen />
+						{/if}
+						{#if activeToolConfig(step).type === 'elicitationbot'}
+							<Bot />
+						{/if}
+						<h1 class="text-xl">{step.name}</h1>
 					</div>
-				</Card.Header>
-				<Card.Footer>
-					<div class="flex w-full flex-row items-end justify-between capitalize">
-						<a href={infoURLForTool(activeToolConfig(step).type)}
-							>{activeToolConfig(step).type}</a
-						>
-						<Button
-							href={`/admin/conversations/${conversation.id}/design/step/${step.id}`}
-							class="secondary">Configure step</Button
-						>
+					<div class="flex flex-row items-center gap-2">
+						{#if index > 0}
+							<Button variant="ghost" onclick={() => decrementStep(step.id)}>
+								<ChevronUp />
+							</Button>
+						{/if}
+						{#if index < workflowSteps.length - 1}
+							<Button variant="ghost" onclick={() => incrementStep(step.id)}>
+								<ChevronDown />
+							</Button>
+						{/if}
 					</div>
-				</Card.Footer>
-			</Card.Root>
-		</div>
-	{/each}
-</div>
+				</div>
+			</Card.Header>
+			<Card.Footer>
+				<div class="flex w-full flex-row items-end justify-between capitalize">
+					<a href={infoURLForTool(activeToolConfig(step).type)}
+						>{activeToolConfig(step).type}</a
+					>
+					<Button
+						href={`/admin/conversations/${conversation.id}/design/step/${step.id}`}
+						class="secondary">Configure step</Button
+					>
+				</div>
+			</Card.Footer>
+		</Card.Root>
+	{/snippet}
+</Sortable>
 
 <ToolSelectionModal
 	prompt="Select a step to add"

@@ -64,6 +64,10 @@
 
 <div class={className} role="list">
 	{#each items as it, i (it.id)}
+		{@const showIndicatorBefore =
+			dragOverIndex === i && draggedIndex !== null && draggedIndex > i}
+		{@const showIndicatorAfter =
+			dragOverIndex === i && draggedIndex !== null && draggedIndex < i}
 		<div
 			role="listitem"
 			draggable={!disabled}
@@ -72,13 +76,20 @@
 			ondragleave={() => handleDragLeave(i)}
 			ondrop={(e) => handleDrop(e, i)}
 			ondragend={reset}
-			class="transition-opacity"
+			class="relative transition-opacity"
 			class:opacity-40={draggedIndex === i}
-			class:ring-2={dragOverIndex === i && draggedIndex !== i}
-			class:ring-primary={dragOverIndex === i && draggedIndex !== i}
-			class:rounded-md={dragOverIndex === i && draggedIndex !== i}
 		>
+			{#if showIndicatorBefore}
+				<div
+					class="bg-primary pointer-events-none absolute -top-2 right-0 left-0 h-1 rounded-full"
+				></div>
+			{/if}
 			{@render itemSnippet({ item: it, index: i, isDragging: draggedIndex === i })}
+			{#if showIndicatorAfter}
+				<div
+					class="bg-primary pointer-events-none absolute right-0 -bottom-2 left-0 h-1 rounded-full"
+				></div>
+			{/if}
 		</div>
 	{/each}
 </div>
