@@ -119,9 +119,7 @@
 		{ movedId, fromIndex, toIndex }: { movedId: string; fromIndex: number; toIndex: number }
 	) {
 		if (fromIndex === toIndex) return;
-		// Backend shifts steps with order <= target down by 1, then renumbers.
-		// Down move (toIndex > fromIndex): target = toIndex + 1 (1-indexed new position).
-		// Up move (toIndex < fromIndex): target = toIndex (one less than 1-indexed new position).
+
 		const target = toIndex > fromIndex ? toIndex + 1 : toIndex;
 		try {
 			await apiClient.UpdateConversationWorkflowStep(
