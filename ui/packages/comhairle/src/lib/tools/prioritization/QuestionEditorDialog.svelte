@@ -8,7 +8,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import { Slider } from '$lib/components/ui/slider';
 	import { Plus, Trash2 } from 'lucide-svelte';
-	import type { PrioritisationStore } from './store.svelte';
+	import type { PrioritizationStore } from './store.svelte';
 	import {
 		QUESTION_TYPE_LABELS,
 		type ContinuousQuestion,
@@ -21,7 +21,7 @@
 		questionId,
 		onClose
 	}: {
-		store: PrioritisationStore;
+		store: PrioritizationStore;
 		questionId: string;
 		onClose: () => void;
 	} = $props();

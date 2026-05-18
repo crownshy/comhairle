@@ -1,5 +1,5 @@
 /**
- * Aggregation utilities for the Prioritisation Tool.
+ * Aggregation utilities for the Prioritization Tool.
  *
  * In the prototype the same set of questions applies to every proposal
  * (poll-wide questions defined in `tool_config`). We compute per-question

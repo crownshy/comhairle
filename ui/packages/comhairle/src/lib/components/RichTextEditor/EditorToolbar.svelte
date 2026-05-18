@@ -63,7 +63,7 @@
 		<div class="flex items-center gap-0.5">
 			<div class="relative inline-block xl:flex-1">
 				<select
-					class="text-muted-foreground hover:bg-accent hover:text-accent-foreground min-w-[6rem] flex-shrink-0 cursor-pointer appearance-none rounded border-0 bg-transparent px-1.5 py-1 pr-6 text-sm xl:w-full"
+					class="text-muted-foreground hover:bg-accent hover:text-accent-foreground min-w-24 shrink-0 cursor-pointer appearance-none rounded border-0 bg-transparent px-1.5 py-1 pr-6 text-sm xl:w-full"
 					value={activeStates.heading}
 					aria-label="Text style"
 					onchange={(e) => {

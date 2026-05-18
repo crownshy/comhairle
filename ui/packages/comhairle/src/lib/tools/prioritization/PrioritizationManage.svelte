@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as Tabs from '$lib/components/ui/tabs';
-	import { PrioritisationStore } from './store.svelte';
+	import { PrioritizationStore } from './store.svelte';
 	import PollEditor from './PollEditor.svelte';
 	import LiveResults from './LiveResults.svelte';
 	import ReportEditor from './ReportEditor.svelte';
@@ -14,7 +14,7 @@
 
 	let { workflowStep }: Props = $props();
 
-	let store = $derived(new PrioritisationStore(workflowStep.id));
+	let store = $derived(new PrioritizationStore(workflowStep.id));
 	let active = $state<'poll' | 'results' | 'report'>('poll');
 </script>
 

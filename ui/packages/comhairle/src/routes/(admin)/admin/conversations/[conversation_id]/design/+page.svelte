@@ -10,7 +10,7 @@
 		basic_survey_config,
 		basic_lived_experience_config,
 		basic_elicitation_bot_config,
-		basic_prioritisation_config,
+		basic_prioritization_config,
 		defaultStepCreationParams
 	} from '$lib/workflow_templates.js';
 	import ToolSelectionModal from '$lib/components/ToolSelectionModal.svelte';
@@ -56,7 +56,7 @@
 			Survey: basic_survey_config,
 			'Lived Experience': basic_lived_experience_config,
 			'Elicitation Bot': basic_elicitation_bot_config(conversation),
-			Prioritisation: basic_prioritisation_config
+			Prioritization: basic_prioritization_config
 		}[step];
 
 		let new_step_order =

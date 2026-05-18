@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
-	import { PrioritisationStore, getOrCreateParticipantId } from './store.svelte';
+	import { PrioritizationStore, getOrCreateParticipantId } from './store.svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import QuestionField from './QuestionField.svelte';
 	import type { AnswerValue, ParticipantDraft, Proposal } from './types';
@@ -11,12 +11,12 @@
 		workflowStep?: { id: string };
 		participantId?: string;
 		readonly?: boolean;
-		storeOverride?: PrioritisationStore;
+		storeOverride?: PrioritizationStore;
 	};
 
 	let { onDone, workflowStep, participantId, readonly = false, storeOverride }: Props = $props();
 
-	let store = $derived(storeOverride ?? new PrioritisationStore(workflowStep?.id ?? 'unknown'));
+	let store = $derived(storeOverride ?? new PrioritizationStore(workflowStep?.id ?? 'unknown'));
 	let myId = $derived(participantId ?? getOrCreateParticipantId());
 
 	type Phase = 'intro' | 'proposal' | 'review' | 'submitted';

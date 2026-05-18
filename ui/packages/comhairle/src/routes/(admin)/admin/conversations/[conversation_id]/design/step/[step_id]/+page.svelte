@@ -5,7 +5,7 @@
 	import HeyFormManage from '$lib/tools/heyform/HeyFormManage.svelte';
 	import EliciationBotManage from '$lib/tools/elicitation_bot/ElicitationBotManage.svelte';
 	import LivedExperienceManage from '$lib/tools/lived_experince/LivedExperinceManage.svelte';
-	import PrioritisationManage from '$lib/tools/prioritisation/PrioritisationManage.svelte';
+	import PrioritizationManage from '$lib/tools/prioritization/PrioritizationManage.svelte';
 	import { useAdminLayoutSlots } from '../../../useAdminLayoutSlots.svelte.js';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
@@ -148,8 +148,8 @@
 	<LivedExperienceManage />
 {/if}
 
-{#if toolConfig?.type === 'prioritisation'}
-	<PrioritisationManage
+{#if toolConfig?.type === 'prioritization'}
+	<PrioritizationManage
 		conversationId={conversation.id}
 		{conversation}
 		isLive={conversation.isLive}

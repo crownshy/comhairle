@@ -1,9 +1,9 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card';
 	import { aggregatePoll } from './aggregation';
-	import type { PrioritisationStore } from './store.svelte';
+	import type { PrioritizationStore } from './store.svelte';
 
-	let { store }: { store: PrioritisationStore } = $props();
+	let { store }: { store: PrioritizationStore } = $props();
 
 	let aggregates = $derived(aggregatePoll(store.poll, store.submissions));
 	let questions = $derived(store.poll.toolConfig.questions);

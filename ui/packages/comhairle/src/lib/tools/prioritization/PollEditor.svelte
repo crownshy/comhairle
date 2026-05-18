@@ -7,12 +7,12 @@
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Plus, GripVertical, Trash2, Copy } from 'lucide-svelte';
 	import { Sortable } from '$lib/components/Sortable';
-	import type { PrioritisationStore } from './store.svelte';
+	import type { PrioritizationStore } from './store.svelte';
 	import ProposalEditorDialog from './ProposalEditorDialog.svelte';
 	import QuestionEditorDialog from './QuestionEditorDialog.svelte';
 	import { QUESTION_TYPE_LABELS, type QuestionType } from './types';
 
-	let { store }: { store: PrioritisationStore } = $props();
+	let { store }: { store: PrioritizationStore } = $props();
 
 	let editingProposalId = $state<string | null>(null);
 	let editingQuestionId = $state<string | null>(null);

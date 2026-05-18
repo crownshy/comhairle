@@ -1,5 +1,5 @@
 /**
- * Prioritisation Tool — prototype data shapes.
+ * Prioritization Tool — prototype data shapes.
  *
  * State lives in `localStorage` keyed by workflow step id for the prototype.
  * Mirrors the backend tool_config / poll / proposal / proposal_question

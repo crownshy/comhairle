@@ -50,11 +50,11 @@ export const AvailableTools: Array<ToolDescription> = [
 		available: true
 	},
 	{
-		name: 'Prioritisation',
+		name: 'Prioritization',
 		description:
 			'Let participants rank and rate a set of proposals by importance and agreement.',
 		icon: ListOrdered,
-		infoLink: 'prioritisation',
+		infoLink: 'prioritization',
 		available: true
 	},
 	{

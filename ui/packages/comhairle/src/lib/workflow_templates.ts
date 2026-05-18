@@ -62,9 +62,10 @@ export const basic_lived_experience_config = {
 	to_see: 3
 };
 
-export const basic_prioritisation_config = {
-	type: 'prioritisation',
-	data: {}
+export const basic_prioritization_config = {
+	type: 'prioritization',
+	questions: [],
+	randomize_order: false
 };
 export const workflow_templates = {
 	learn_polis: [

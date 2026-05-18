@@ -2,9 +2,9 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import type { PrioritisationStore } from './store.svelte';
+	import type { PrioritizationStore } from './store.svelte';
 
-	let { store }: { store: PrioritisationStore } = $props();
+	let { store }: { store: PrioritizationStore } = $props();
 
 	let idx = $state(0);
 	let pages = $derived(store.poll.report.pages);

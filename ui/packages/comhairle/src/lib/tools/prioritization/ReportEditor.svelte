@@ -5,9 +5,9 @@
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import { Plus, Trash2 } from 'lucide-svelte';
 	import Shareback from './Shareback.svelte';
-	import type { PrioritisationStore } from './store.svelte';
+	import type { PrioritizationStore } from './store.svelte';
 
-	let { store }: { store: PrioritisationStore } = $props();
+	let { store }: { store: PrioritizationStore } = $props();
 
 	let mode = $state<'edit' | 'preview'>('edit');
 </script>

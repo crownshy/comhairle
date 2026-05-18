@@ -18,7 +18,7 @@ import type {
 } from './types';
 
 /** localStorage namespace. */
-const NS = 'comhairle:prioritisation';
+const NS = 'comhairle:prioritization';
 
 const pollKey = (stepId: string) => `${NS}:${stepId}`;
 const subsKey = (stepId: string) => `${NS}:${stepId}:submissions`;
@@ -149,14 +149,14 @@ export function getOrCreateParticipantId(): string {
 }
 
 /**
- * Reactive store backing the prioritisation tool's prototype state.
+ * Reactive store backing the prioritization tool's prototype state.
  *
  * Persists to `localStorage` keyed by workflow step id. The backend will
  * eventually own this state via `tool_config` JSONB plus `proposal` /
  * `proposal_question` / `question_response` rows; for now the entire blob
  * lives in the browser.
  */
-export class PrioritisationStore {
+export class PrioritizationStore {
 	stepId: string;
 	poll = $state<Poll>(emptyPoll('unknown'));
 	submissions = $state<Submission[]>([]);

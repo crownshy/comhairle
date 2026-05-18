@@ -5,14 +5,14 @@
 	import { Button } from '$lib/components/ui/button';
 	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
 	import { ImagePlus, Trash2 } from 'lucide-svelte';
-	import type { PrioritisationStore } from './store.svelte';
+	import type { PrioritizationStore } from './store.svelte';
 
 	let {
 		store,
 		proposalId,
 		onClose
 	}: {
-		store: PrioritisationStore;
+		store: PrioritizationStore;
 		proposalId: string;
 		onClose: () => void;
 	} = $props();
