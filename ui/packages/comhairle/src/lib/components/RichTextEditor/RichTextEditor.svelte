@@ -203,7 +203,7 @@
 	{/if}
 
 	<div
-		class="dark:bg-input/30 rounded-b-xl border border-gray-300 bg-white md:rounded-b-xl md:border-t {className}"
+		class="dark:bg-input/30 border-border bg-background text-foreground rounded-b-xl border md:rounded-b-xl md:border-t {className}"
 	>
 		{#if maxHeight}
 			<div class="editor-scroll-container" style="max-height: {maxHeight}; overflow-y: auto;">
