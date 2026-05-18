@@ -10,7 +10,6 @@
 	import { Plus, Trash2 } from 'lucide-svelte';
 	import type { PrioritisationStore } from './store.svelte';
 	import {
-		QUESTION_TYPE_LABELS,
 		type ContinuousQuestion,
 		type LikertScaleQuestion,
 		type QuestionType
