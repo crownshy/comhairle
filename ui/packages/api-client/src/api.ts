@@ -613,6 +613,26 @@ export const LocalizedPage = z
 export type LocalizedPage = z.infer<typeof LocalizedPage>;
 export const LearnPageEntry = z.union([LearnPage, z.array(LocalizedPage)]);
 export type LearnPageEntry = z.infer<typeof LearnPageEntry>;
+export const Category = z
+  .object({ label: z.string(), value: z.number() })
+  .passthrough();
+export type Category = z.infer<typeof Category>;
+export const QuestionType = z.union([
+  z.object({ Text: z.string() }),
+  z.object({
+    LikertScale: z.object({ categories: z.array(Category) }).passthrough(),
+  }),
+  z.object({
+    Continuous: z
+      .object({ label: z.string(), sub_steps: z.number().int() })
+      .passthrough(),
+  }),
+]);
+export type QuestionType = z.infer<typeof QuestionType>;
+export const Question = z
+  .object({ text: z.string(), type: QuestionType })
+  .passthrough();
+export type Question = z.infer<typeof Question>;
 export const ToolConfig = z.union([
   z
     .object({
@@ -649,6 +669,13 @@ export const ToolConfig = z.union([
     .passthrough(),
   z
     .object({ topic: z.string(), type: z.literal("elicitationbot") })
+    .passthrough(),
+  z
+    .object({
+      questions: z.array(Question),
+      randomize_order: z.boolean(),
+      type: z.literal("prioritization"),
+    })
     .passthrough(),
 ]);
 export type ToolConfig = z.infer<typeof ToolConfig>;
@@ -827,6 +854,13 @@ export const ToolSetup = z.union([
   z
     .object({ topic: z.string(), type: z.literal("elicitationbot") })
     .passthrough(),
+  z
+    .object({
+      questions: z.array(Question),
+      randomize_order: z.boolean(),
+      type: z.literal("prioritization"),
+    })
+    .passthrough(),
 ]);
 export type ToolSetup = z.infer<typeof ToolSetup>;
 export const CreateWorkflowStep = z
@@ -986,12 +1020,15 @@ export const StoriesReport = z.null();
 export type StoriesReport = z.infer<typeof StoriesReport>;
 export const ElicitationBotReport = z.null();
 export type ElicitationBotReport = z.infer<typeof ElicitationBotReport>;
+export const PrioritizationReport = z.null();
+export type PrioritizationReport = z.infer<typeof PrioritizationReport>;
 export const ReportConfig = z.union([
   z.object({ Polis: PolisReport }),
   z.object({ HeyForm: HeyFormReport }),
   z.object({ Learn: LearnReport }),
   z.object({ Stories: StoriesReport }),
   z.object({ ElicitationBot: ElicitationBotReport }),
+  z.object({ Prioritization: PrioritizationReport }),
 ]);
 export type ReportConfig = z.infer<typeof ReportConfig>;
 export const ReportSectionConfig = z
@@ -1548,6 +1585,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   LearnPage,
   LocalizedPage,
   LearnPageEntry,
+  Category,
+  QuestionType,
+  Question,
   ToolConfig,
   WorkflowStep,
   DailySignupStats,
@@ -1582,6 +1622,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   LearnReport,
   StoriesReport,
   ElicitationBotReport,
+  PrioritizationReport,
   ReportConfig,
   ReportSectionConfig,
   ReportSectionConfigs,

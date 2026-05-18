@@ -13,6 +13,7 @@ pub mod notification_delivery;
 pub mod organization;
 pub mod otp;
 pub mod pagination;
+pub mod proposal;
 pub mod region;
 pub mod report;
 pub mod report_impact;
