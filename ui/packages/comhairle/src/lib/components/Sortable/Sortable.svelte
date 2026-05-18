@@ -5,7 +5,10 @@
 
 	type Props = {
 		items: T[];
-		onReorder: (orderedIds: string[]) => void;
+		onReorder: (
+			orderedIds: string[],
+			move: { movedId: string; fromIndex: number; toIndex: number }
+		) => void;
 		item: Snippet<[{ item: T; index: number; isDragging: boolean }]>;
 		class?: string;
 		disabled?: boolean;
@@ -52,7 +55,7 @@
 		const ids = items.map((i) => i.id);
 		const [moved] = ids.splice(draggedIndex, 1);
 		ids.splice(targetIndex, 0, moved);
-		onReorder(ids);
+		onReorder(ids, { movedId: moved, fromIndex: draggedIndex, toIndex: targetIndex });
 		reset();
 	}
 

@@ -114,27 +114,15 @@
 		await invalidateAll();
 	}
 
-	async function reorderSteps(orderedIds: string[]) {
-		const oldIds = workflowSteps.map((s) => s.id);
-		let movedId: string | null = null;
-		let oldIdx = -1;
-		let newIdx = -1;
-		let maxDelta = 0;
-		for (let i = 0; i < orderedIds.length; i++) {
-			const prev = oldIds.indexOf(orderedIds[i]);
-			const delta = Math.abs(prev - i);
-			if (delta > maxDelta) {
-				maxDelta = delta;
-				movedId = orderedIds[i];
-				oldIdx = prev;
-				newIdx = i;
-			}
-		}
-		if (!movedId || oldIdx === newIdx) return;
+	async function reorderSteps(
+		_orderedIds: string[],
+		{ movedId, fromIndex, toIndex }: { movedId: string; fromIndex: number; toIndex: number }
+	) {
+		if (fromIndex === toIndex) return;
 		// Backend shifts steps with order <= target down by 1, then renumbers.
-		// Down move (newIdx > oldIdx): target = newIdx + 1 (1-indexed new position).
-		// Up move (newIdx < oldIdx): target = newIdx (one less than 1-indexed new position).
-		const target = newIdx > oldIdx ? newIdx + 1 : newIdx;
+		// Down move (toIndex > fromIndex): target = toIndex + 1 (1-indexed new position).
+		// Up move (toIndex < fromIndex): target = toIndex (one less than 1-indexed new position).
+		const target = toIndex > fromIndex ? toIndex + 1 : toIndex;
 		try {
 			await apiClient.UpdateConversationWorkflowStep(
 				{ step_order: target },
