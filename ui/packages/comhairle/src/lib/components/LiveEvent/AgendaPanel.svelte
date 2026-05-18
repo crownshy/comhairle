@@ -133,7 +133,7 @@
 					class="flex h-6 items-center text-[0.7rem]"
 					class:text-primary={status === 'upcoming'}
 					class:text-muted-foreground={status === 'done'}
-					class:text-sidebar-background={status === 'current'}
+					class:text-foreground={status === 'current'}
 				>
 					Breakout session
 				</span>
