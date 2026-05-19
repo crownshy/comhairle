@@ -1,6 +1,5 @@
 use apalis::prelude::*;
 use chrono::{Duration, Utc};
-use chrono_tz::US::Pacific;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, sync::Arc};
 use tracing::info;
@@ -74,12 +73,6 @@ pub async fn send_event_reminder(
         .custom_claims(claims)
         .duration(chrono::Duration::minutes(10))
         .call();
-    let formatted_date = req
-        .participant
-        .event_start_time
-        .with_timezone(&Pacific) // TODO: find a way to make this configurable or dynamic
-        .format("%B %d, %Y at %H:%M %Z")
-        .to_string();
 
     let encoded_redirect_url = urlencoding::encode(&otp.redirect_url);
     let otp_link = format!(
@@ -92,7 +85,8 @@ pub async fn send_event_reminder(
         .send_event_reminder(
             email,
             req.participant.event_name,
-            formatted_date,
+            req.participant.event_start_time,
+            req.participant.event_start_time, // TODO:
             otp_link,
             "Bloom".to_string(), // TODO: make dynamic
             None,

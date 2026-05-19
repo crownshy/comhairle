@@ -167,6 +167,7 @@ async fn create_invite(
                         conversation_title=> conversation.title,
                         invite_link => format!("{}/conversations/{}/invite/{}",state.config.domain, conversation.slug.unwrap_or_else(|| conversation.id.to_string()), invite.id )
                     },
+                    None,
                 )?;
             }
         }
@@ -178,6 +179,7 @@ async fn create_invite(
                 "You have been invited to the conversation",
                 "conversation_invite.html",
                 context! {user=>user, conversation_hero => conversation.image_url , conversation_title=>conversation.title},
+                    None,
             )?;
             }
         }
