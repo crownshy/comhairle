@@ -6,7 +6,7 @@ use aide::axum::{
 };
 use async_trait::async_trait;
 use axum::{
-    extract::{Json, Query, State},
+    extract::{Json, Path, Query, State},
     http::StatusCode,
 };
 use schemars::JsonSchema;
@@ -18,9 +18,16 @@ use crate::{
     error::ComhairleError,
     models::{
         proposal::{self, CreateProposal, LocalizedProposal, Proposal},
+        proposal_response::{
+            self, CreateResponse, ProposalResponse, ProposalResponseFilterOptions,
+            ProposalResponseOrderOptions, QuestionResponses,
+        },
         translations::TextContentId,
     },
-    routes::{auth::RequiredAdminUser, translations::LocaleExtractor},
+    routes::{
+        auth::{RequiredAdminUser, RequiredUser},
+        translations::LocaleExtractor,
+    },
     schema_helpers::{example_localized_text, example_uuid},
     tools::{ToolConfigSanitize, ToolImpl},
     ComhairleState,
@@ -120,13 +127,14 @@ impl ToolImpl for PrioritizationTool {
                 post_with(create_proposal, |op| {
                     op.id("CreateProposal")
                         .tag("Tools")
-                        .summary("Create proposal")
                         .security_requirement("JWT")
+                        .summary("Create proposal")
                         .description(
                             "
 Create a new prioritization tool proposal for a given prioritization tool workflow_step
 ",
                         )
+                        .response::<201, Json<ProposalDto>>()
                 }),
             )
             .api_route(
@@ -134,8 +142,36 @@ Create a new prioritization tool proposal for a given prioritization tool workfl
                 get_with(list_proposals, |op| {
                     op.id("ListProposals")
                         .tag("Tools")
+                        .security_requirement("JWT")
                         .summary("List proposals")
                         .description("List proposals for a given prioritization tool workflow_step")
+                        .response::<200, Json<Vec<ProposalDto>>>()
+                }),
+            )
+            .api_route(
+                "/prioritization/proposals/{proposal_id}/responses",
+                post_with(create_proposal_response, |op| {
+                    op.id("CreateProposalResponse")
+                        .tag("Tools")
+                        .security_requirement("JWT")
+                        .summary("Create proposal response")
+                        .description(
+                            "
+Create a response for prioritization tool proposal
+",
+                        )
+                        .response::<201, Json<ProposalResponseDto>>()
+                }),
+            )
+            .api_route(
+                "/prioritization/proposals/{proposal_id}/responses",
+                get_with(list_proposal_responses, |op| {
+                    op.id("ListProposalResponses")
+                        .tag("Tools")
+                        .security_requirement("JWT")
+                        .summary("List proposal responses")
+                        .description("List responses for a prioritization tool proposal")
+                        .response::<200, Json<Vec<ProposalResponseDto>>>()
                 }),
             )
             .with_state(state.clone())
@@ -182,6 +218,14 @@ pub struct LocalizedProposalDto {
     pub body: String,
 }
 
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ProposalResponseDto {
+    pub id: Uuid,
+    pub proposal_id: Uuid,
+    pub response: QuestionResponses,
+}
+
 impl From<Proposal> for ProposalDto {
     fn from(p: Proposal) -> Self {
         Self {
@@ -200,6 +244,16 @@ impl From<LocalizedProposal> for LocalizedProposalDto {
             workflow_step_id: p.workflow_step_id,
             title: p.title,
             body: p.body,
+        }
+    }
+}
+
+impl From<ProposalResponse> for ProposalResponseDto {
+    fn from(r: ProposalResponse) -> Self {
+        Self {
+            id: r.id,
+            proposal_id: r.proposal_id,
+            response: r.response,
         }
     }
 }
@@ -235,6 +289,7 @@ struct ListProposalsQuery {
 #[instrument(err(Debug), skip(state))]
 async fn list_proposals(
     State(state): State<Arc<ComhairleState>>,
+    RequiredUser(_user): RequiredUser,
     LocaleExtractor(locale): LocaleExtractor,
     Query(ListProposalsQuery { workflow_step_id }): Query<ListProposalsQuery>,
 ) -> Result<(StatusCode, Json<Vec<LocalizedProposalDto>>), ComhairleError> {
@@ -247,17 +302,53 @@ async fn list_proposals(
     Ok((StatusCode::OK, Json(proposals)))
 }
 
+#[instrument(err(Debug), skip(state))]
+async fn create_proposal_response(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path(proposal_id): Path<Uuid>,
+    Json(payload): Json<CreateResponse>,
+) -> Result<(StatusCode, Json<ProposalResponseDto>), ComhairleError> {
+    let response = proposal_response::create(&state.db, &proposal_id, &user.id, &payload).await?;
+
+    Ok((StatusCode::CREATED, Json(response.into())))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn list_proposal_responses(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(_user): RequiredUser,
+    Path(proposal_id): Path<Uuid>,
+) -> Result<(StatusCode, Json<Vec<ProposalResponseDto>>), ComhairleError> {
+    let responses = proposal_response::list(
+        &state.db,
+        &proposal_id,
+        ProposalResponseFilterOptions,
+        ProposalResponseOrderOptions,
+    )
+    .await?
+    .into_iter()
+    .map(Into::into)
+    .collect();
+
+    Ok((StatusCode::OK, Json(responses)))
+}
+
 #[cfg(test)]
 mod tests {
     use serde_json::json;
     use sqlx::PgPool;
 
     use crate::{
-        models::model_test_helpers::{
-            get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
+        models::{
+            model_test_helpers::{
+                get_random_conversation_id, get_random_workflow_id, setup_default_app_and_session,
+            },
+            proposal_response::Response,
         },
         routes::workflow_steps::dto::WorkflowStepDto,
         test_helpers::prioritization_tool_config,
+        tools::ToolConfig,
     };
 
     use super::*;
@@ -391,6 +482,219 @@ mod tests {
             results.iter().any(|p| p.title == "New proposal B"),
             "missing proposal title"
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_create_new_proposal_response_via_api(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let workflow_step = session
+            .create_prioritization_workflow_step(&app, &conversation_id, &workflow_id)
+            .await?;
+
+        let proposal = proposal::create(
+            &pool,
+            &workflow_step.id,
+            &CreateProposal {
+                title: "A new proposal".to_string(),
+                body: "Test proposal".to_string(),
+            },
+            "en",
+        )
+        .await?;
+
+        let tool_config = match workflow_step.preview_tool_config {
+            ToolConfig::Prioritization(config) => config,
+            _ => panic!("Incorrect tool_config type"),
+        };
+
+        let create_response = CreateResponse {
+            question_responses: vec![
+                Response {
+                    question_id: tool_config.questions.first().unwrap().id,
+                    value: -1.0,
+                },
+                Response {
+                    question_id: tool_config.questions[1].id,
+                    value: 0.5,
+                },
+            ],
+        };
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                &format!("/tools/prioritization/proposals/{}/responses", proposal.id),
+                json!(create_response).to_string().into(),
+            )
+            .await?;
+
+        let proposal_response: ProposalResponseDto = serde_json::from_value(value)?;
+
+        assert_eq!(
+            proposal_response.proposal_id, proposal.id,
+            "incorrect proposal_id"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_list_proposal_responses_via_api(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let workflow_step = session
+            .create_prioritization_workflow_step(&app, &conversation_id, &workflow_id)
+            .await?;
+
+        let proposal_a = proposal::create(
+            &pool,
+            &workflow_step.id,
+            &CreateProposal {
+                title: "Proposal A".to_string(),
+                body: "Proposal A".to_string(),
+            },
+            "en",
+        )
+        .await?;
+        let proposal_b = proposal::create(
+            &pool,
+            &workflow_step.id,
+            &CreateProposal {
+                title: "Proposal B".to_string(),
+                body: "Proposal B".to_string(),
+            },
+            "en",
+        )
+        .await?;
+
+        let tool_config = match workflow_step.preview_tool_config {
+            ToolConfig::Prioritization(config) => config,
+            _ => panic!("Incorrect tool_config type"),
+        };
+
+        session.signup_annon(&app).await?;
+        let create_response_a_a = CreateResponse {
+            question_responses: vec![
+                Response {
+                    question_id: tool_config.questions.first().unwrap().id,
+                    value: -1.0,
+                },
+                Response {
+                    question_id: tool_config.questions[1].id,
+                    value: 0.5,
+                },
+            ],
+        };
+        let create_response_a_b = CreateResponse {
+            question_responses: vec![
+                Response {
+                    question_id: tool_config.questions.first().unwrap().id,
+                    value: 0.5,
+                },
+                Response {
+                    question_id: tool_config.questions[1].id,
+                    value: 0.2,
+                },
+            ],
+        };
+        session
+            .post(
+                &app,
+                &format!(
+                    "/tools/prioritization/proposals/{}/responses",
+                    proposal_a.id
+                ),
+                json!(create_response_a_a).to_string().into(),
+            )
+            .await?;
+        session
+            .post(
+                &app,
+                &format!(
+                    "/tools/prioritization/proposals/{}/responses",
+                    proposal_a.id
+                ),
+                json!(create_response_a_b).to_string().into(),
+            )
+            .await?;
+
+        session.signup_annon(&app).await?;
+        let create_response_b_a = CreateResponse {
+            question_responses: vec![
+                Response {
+                    question_id: tool_config.questions.first().unwrap().id,
+                    value: -1.0,
+                },
+                Response {
+                    question_id: tool_config.questions[1].id,
+                    value: 0.5,
+                },
+            ],
+        };
+        let create_response_b_b = CreateResponse {
+            question_responses: vec![
+                Response {
+                    question_id: tool_config.questions.first().unwrap().id,
+                    value: 0.5,
+                },
+                Response {
+                    question_id: tool_config.questions[1].id,
+                    value: 0.2,
+                },
+            ],
+        };
+        session
+            .post(
+                &app,
+                &format!(
+                    "/tools/prioritization/proposals/{}/responses",
+                    proposal_b.id
+                ),
+                json!(create_response_b_a).to_string().into(),
+            )
+            .await?;
+        session
+            .post(
+                &app,
+                &format!(
+                    "/tools/prioritization/proposals/{}/responses",
+                    proposal_b.id
+                ),
+                json!(create_response_b_b).to_string().into(),
+            )
+            .await?;
+
+        let (_, value, _) = session
+            .get(
+                &app,
+                &format!(
+                    "/tools/prioritization/proposals/{}/responses",
+                    proposal_a.id
+                ),
+            )
+            .await?;
+        let proposal_a_responses: Vec<ProposalResponseDto> = serde_json::from_value(value)?;
+
+        let (_, value, _) = session
+            .get(
+                &app,
+                &format!(
+                    "/tools/prioritization/proposals/{}/responses",
+                    proposal_b.id
+                ),
+            )
+            .await?;
+        let proposal_b_responses: Vec<ProposalResponseDto> = serde_json::from_value(value)?;
+
+        assert_eq!(proposal_a_responses.len(), 2, "incorrect a total");
+        assert_eq!(proposal_b_responses.len(), 2, "incorrect b total");
 
         Ok(())
     }

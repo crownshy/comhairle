@@ -27,7 +27,7 @@ use crate::{
     config::ComhairleConfig,
     mailer::MockComhairleMailer,
     models::users::UpdateUserRequest,
-    routes::user::dto::UserDto,
+    routes::{user::dto::UserDto, workflow_steps::dto::WorkflowStepDto},
     transcription_service::{MockTranscriber, Transcriber},
     translation_service::{MockTranslationService, TranslationService},
     websockets::{MockWebSocketService, WebSocketService},
@@ -965,5 +965,60 @@ impl UserSession {
         let (status, value, cookie) = self.post(app, "/jobs", new_job.to_string().into()).await?;
 
         Ok((status, value, cookie))
+    }
+
+    pub async fn create_prioritization_workflow_step(
+        &mut self,
+        app: &Router,
+        conversation_id: &Uuid,
+        workflow_id: &Uuid,
+    ) -> Result<WorkflowStepDto, Box<dyn Error>> {
+        let (_, value, _) = self
+            .create_workflow_step(
+                app,
+                &conversation_id.to_string(),
+                &workflow_id.to_string(),
+                json!({
+                    "name": "test_workflow_step",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "A test workflow_step with prioritization",
+                    "is_offline": false,
+                    "required": false,
+                    "tool_setup": {
+                        "type": "prioritization",
+                        "randomize_order": false,
+                        "questions": [
+                            {
+                                "text": "How much do you agree?",
+                                "type": {
+                                    "likert_scale": {
+                                        "categories": [
+                                            { "value": -1.0, "label": "Strongly disagree" },
+                                            { "value": -0.5, "label": "Disagree" },
+                                            { "value": 0.0, "label": "Neutral" },
+                                            { "value": 0.5, "label": "Agree" },
+                                            { "value": 1.0, "label": "Strongly agree" },
+                                        ]
+                                    }
+                                }
+                            },
+                            {
+                                "text": "How much do you care?",
+                                "type": {
+                                    "continuous": {
+                                        "label": "Care?",
+                                        "sub_steps": 10
+                                    }
+                                }
+                            },
+                        ]
+                    }
+                }),
+            )
+            .await?;
+        let workflow_step: WorkflowStepDto = serde_json::from_value(value)?;
+
+        Ok(workflow_step)
     }
 }

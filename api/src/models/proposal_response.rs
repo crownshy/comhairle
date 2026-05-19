@@ -12,10 +12,7 @@ use sqlx_postgres::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{
-    error::ComhairleError,
-    models::pagination::{PageOptions, PaginatedResults},
-};
+use crate::error::ComhairleError;
 
 #[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "proposal_evalution_proposal_response")]
@@ -53,8 +50,9 @@ impl<'q> Encode<'q, Postgres> for QuestionResponses {
     }
 
     fn size_hint(&self) -> usize {
-        let json = serde_json::to_value(self).unwrap(); // TODO:
-        <serde_json::Value as Encode<Postgres>>::size_hint(&json)
+        serde_json::to_value(self)
+            .map(|json| <serde_json::Value as Encode<Postgres>>::size_hint(&json))
+            .unwrap_or(0)
     }
 }
 
@@ -82,9 +80,9 @@ const DEFAULT_COLUMNS: [ProposalResponseIden; 6] = [
     ProposalResponseIden::UpdatedAt,
 ];
 
-#[derive(Deserialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct CreateResponse {
-    pub questions: Vec<Response>,
+    pub question_responses: Vec<Response>,
 }
 
 #[instrument(err(Debug))]
@@ -100,8 +98,9 @@ pub async fn create(
         ProposalResponseIden::Response,
     ];
 
-    let question_responses =
-        serde_json::to_value(QuestionResponses(create_response.questions.clone()))?;
+    let question_responses = serde_json::to_value(QuestionResponses(
+        create_response.question_responses.clone(),
+    ))?;
 
     let values = vec![
         (*proposal_id).into(),
@@ -121,20 +120,19 @@ pub async fn create(
     Ok(response)
 }
 
-#[derive(Deserialize, JsonSchema, Debug, Clone)]
+#[derive(Deserialize, JsonSchema, Debug, Clone, Default)]
 pub struct ProposalResponseFilterOptions;
 
-#[derive(Deserialize, JsonSchema, Debug, Clone)]
+#[derive(Deserialize, JsonSchema, Debug, Clone, Default)]
 pub struct ProposalResponseOrderOptions;
 
 #[instrument(err(Debug))]
 pub async fn list(
     db: &PgPool,
     proposal_id: &Uuid,
-    page_options: PageOptions,
     filter_options: ProposalResponseFilterOptions,
     order_options: ProposalResponseOrderOptions,
-) -> Result<PaginatedResults<ProposalResponse>, ComhairleError> {
+) -> Result<Vec<ProposalResponse>, ComhairleError> {
     let query = Query::select()
         .from(ProposalResponseIden::Table)
         .columns(DEFAULT_COLUMNS)
@@ -143,16 +141,15 @@ pub async fn list(
 
     // TODO: filtering and ordering
 
-    let responses = page_options.fetch_paginated_results(db, query).await?;
+    let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
+
+    let responses = query_as_with(&sql, values).fetch_all(db).await?;
 
     Ok(responses)
 }
 
 #[cfg(test)]
 mod tests {
-    use axum::Router;
-    use serde_json::json;
-
     use crate::{
         models::{
             model_test_helpers::{
@@ -161,8 +158,8 @@ mod tests {
             proposal::{self, CreateProposal},
             users,
         },
-        routes::{user::dto::UserDto, workflow_steps::dto::WorkflowStepDto},
-        test_helpers::{UserSession, TEST_PASSWORD},
+        routes::user::dto::UserDto,
+        test_helpers::TEST_PASSWORD,
         tools::ToolConfig,
     };
 
@@ -170,69 +167,14 @@ mod tests {
 
     use std::error::Error;
 
-    async fn create_prioritization_workflow_step(
-        app: &Router,
-        session: &mut UserSession,
-        conversation_id: &Uuid,
-        workflow_id: &Uuid,
-    ) -> Result<WorkflowStepDto, Box<dyn Error>> {
-        let (_, value, _) = session
-            .create_workflow_step(
-                app,
-                &conversation_id.to_string(),
-                &workflow_id.to_string(),
-                json!({
-                    "name": "test_workflow_step",
-                    "step_order": 1,
-                    "activation_rule": "manual",
-                    "description": "A test workflow_step with prioritization",
-                    "is_offline": false,
-                    "required": false,
-                    "tool_setup": {
-                        "type": "prioritization",
-                        "randomize_order": false,
-                        "questions": [
-                            {
-                                "text": "How much do you agree?",
-                                "type": {
-                                    "likert_scale": {
-                                        "categories": [
-                                            { "value": -1.0, "label": "Strongly disagree" },
-                                            { "value": -0.5, "label": "Disagree" },
-                                            { "value": 0.0, "label": "Neutral" },
-                                            { "value": 0.5, "label": "Agree" },
-                                            { "value": 1.0, "label": "Strongly agree" },
-                                        ]
-                                    }
-                                }
-                            },
-                            {
-                                "text": "How much do you care?",
-                                "type": {
-                                    "continuous": {
-                                        "label": "Care?",
-                                        "sub_steps": 10
-                                    }
-                                }
-                            },
-                        ]
-                    }
-                }),
-            )
-            .await?;
-        let workflow_step: WorkflowStepDto = serde_json::from_value(value)?;
-
-        Ok(workflow_step)
-    }
-
     #[sqlx::test]
     async fn should_create_new_proposal_response(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let workflow_id = get_random_workflow_id(&app, &mut session).await?;
-        let workflow_step =
-            create_prioritization_workflow_step(&app, &mut session, &conversation_id, &workflow_id)
-                .await?;
+        let workflow_step = session
+            .create_prioritization_workflow_step(&app, &conversation_id, &workflow_id)
+            .await?;
 
         let proposal = proposal::create(
             &pool,
@@ -256,7 +198,7 @@ mod tests {
         };
 
         let create_response = CreateResponse {
-            questions: vec![
+            question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
                     value: -1.0,
@@ -283,9 +225,9 @@ mod tests {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let workflow_id = get_random_workflow_id(&app, &mut session).await?;
-        let workflow_step =
-            create_prioritization_workflow_step(&app, &mut session, &conversation_id, &workflow_id)
-                .await?;
+        let workflow_step = session
+            .create_prioritization_workflow_step(&app, &conversation_id, &workflow_id)
+            .await?;
 
         let proposal_a = proposal::create(
             &pool,
@@ -315,7 +257,7 @@ mod tests {
 
         let user_a = users::create_annon_user(&pool).await?;
         let create_response_a_a = CreateResponse {
-            questions: vec![
+            question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
                     value: -1.0,
@@ -327,7 +269,7 @@ mod tests {
             ],
         };
         let create_response_a_b = CreateResponse {
-            questions: vec![
+            question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
                     value: 0.5,
@@ -343,7 +285,7 @@ mod tests {
 
         let user_b = users::create_annon_user(&pool).await?;
         let create_response_b_a = CreateResponse {
-            questions: vec![
+            question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
                     value: -1.0,
@@ -355,7 +297,7 @@ mod tests {
             ],
         };
         let create_response_b_b = CreateResponse {
-            questions: vec![
+            question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
                     value: 0.5,
@@ -371,7 +313,7 @@ mod tests {
 
         let user_c = users::create_annon_user(&pool).await?;
         let create_response_c_a = CreateResponse {
-            questions: vec![
+            question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
                     value: -1.0,
@@ -383,7 +325,7 @@ mod tests {
             ],
         };
         let create_response_c_b = CreateResponse {
-            questions: vec![
+            question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
                     value: 0.5,
@@ -397,16 +339,11 @@ mod tests {
         create(&pool, &proposal_a.id, &user_c.id, &create_response_c_a).await?;
         create(&pool, &proposal_b.id, &user_c.id, &create_response_c_b).await?;
 
-        let page_options = PageOptions {
-            offset: None,
-            limit: None,
-        };
         let filter_options = ProposalResponseFilterOptions;
         let order_options = ProposalResponseOrderOptions;
         let proposal_a_responses = list(
             &pool,
             &proposal_a.id,
-            page_options.clone(),
             filter_options.clone(),
             order_options.clone(),
         )
@@ -415,14 +352,13 @@ mod tests {
         let proposal_b_responses = list(
             &pool,
             &proposal_b.id,
-            page_options.clone(),
             filter_options.clone(),
             order_options.clone(),
         )
         .await?;
 
-        assert_eq!(proposal_a_responses.total, 3, "incorrect a total");
-        assert_eq!(proposal_b_responses.total, 3, "incorrect b total");
+        assert_eq!(proposal_a_responses.len(), 3, "incorrect a total");
+        assert_eq!(proposal_b_responses.len(), 3, "incorrect b total");
 
         Ok(())
     }
