@@ -28,17 +28,19 @@ use crate::{
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
 pub struct PrioritizationToolConfig {
-    questions: Vec<Question>,
-    randomize_order: bool,
+    pub questions: Vec<Question>,
+    pub randomize_order: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
 pub struct Question {
+    pub id: Uuid,
     pub text: String,
     pub r#type: QuestionType,
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum QuestionType {
     Text(String),
     LikertScale { categories: Vec<Category> },
@@ -60,9 +62,25 @@ impl ToolConfigSanitize for PrioritizationToolConfig {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
+pub struct SetupQuestion {
+    pub text: String,
+    pub r#type: QuestionType,
+}
+
+impl From<SetupQuestion> for Question {
+    fn from(q: SetupQuestion) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            text: q.text,
+            r#type: q.r#type,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone)]
 pub struct PrioritizationToolSetup {
-    pub questions: Vec<Question>,
+    pub questions: Vec<SetupQuestion>,
     pub randomize_order: bool,
 }
 
@@ -128,7 +146,12 @@ fn prioritization_setup(
     setup_config: &PrioritizationToolSetup,
 ) -> Result<PrioritizationToolConfig, ComhairleError> {
     Ok(PrioritizationToolConfig {
-        questions: setup_config.questions.clone(),
+        questions: setup_config
+            .questions
+            .clone()
+            .into_iter()
+            .map(Into::into)
+            .collect(),
         randomize_order: setup_config.randomize_order,
     })
 }

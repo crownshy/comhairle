@@ -14,6 +14,7 @@ pub mod organization;
 pub mod otp;
 pub mod pagination;
 pub mod proposal;
+pub mod proposal_response;
 pub mod region;
 pub mod report;
 pub mod report_impact;

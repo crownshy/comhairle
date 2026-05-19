@@ -626,19 +626,19 @@ export const Category = z
   .passthrough();
 export type Category = z.infer<typeof Category>;
 export const QuestionType = z.union([
-  z.object({ Text: z.string() }),
+  z.object({ text: z.string() }),
   z.object({
-    LikertScale: z.object({ categories: z.array(Category) }).passthrough(),
+    likert_scale: z.object({ categories: z.array(Category) }).passthrough(),
   }),
   z.object({
-    Continuous: z
+    continuous: z
       .object({ label: z.string(), sub_steps: z.number().int() })
       .passthrough(),
   }),
 ]);
 export type QuestionType = z.infer<typeof QuestionType>;
 export const Question = z
-  .object({ text: z.string(), type: QuestionType })
+  .object({ id: z.string().uuid(), text: z.string(), type: QuestionType })
   .passthrough();
 export type Question = z.infer<typeof Question>;
 export const ToolConfig = z.union([
@@ -834,6 +834,10 @@ export const WorkflowStepsListResponse = z.union([
 export type WorkflowStepsListResponse = z.infer<
   typeof WorkflowStepsListResponse
 >;
+export const SetupQuestion = z
+  .object({ text: z.string(), type: QuestionType })
+  .passthrough();
+export type SetupQuestion = z.infer<typeof SetupQuestion>;
 export const ToolSetup = z.union([
   z
     .object({
@@ -864,7 +868,7 @@ export const ToolSetup = z.union([
     .passthrough(),
   z
     .object({
-      questions: z.array(Question),
+      questions: z.array(SetupQuestion),
       randomize_order: z.boolean(),
       type: z.literal("prioritization"),
     })
@@ -1612,6 +1616,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   LocalizedWorkflowStepWithProgressDto,
   LocalizedWorkflowStepDto,
   WorkflowStepsListResponse,
+  SetupQuestion,
   ToolSetup,
   CreateWorkflowStep,
   WorkflowStepDto,
