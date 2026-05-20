@@ -3,6 +3,7 @@ import {
 	Headset,
 	Video,
 	ListChecks,
+	ListOrdered,
 	BookOpen,
 	Bot,
 	Building,
@@ -53,6 +54,14 @@ export const AvailableTools: Array<ToolDescription> = [
 		description: 'Let users record short videos of their lived experience.',
 		icon: Video,
 		infoLink: 'lived_experience',
+		available: true
+	},
+	{
+		name: 'Prioritization',
+		description:
+			'Collect a set of proposals and have participants score each one against a shared set of questions.',
+		icon: ListOrdered,
+		infoLink: 'prioritization',
 		available: true
 	},
 	{

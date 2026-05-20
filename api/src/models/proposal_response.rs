@@ -148,6 +148,24 @@ pub async fn list(
     Ok(responses)
 }
 
+/// Added for testing in preview mode: delete every response the given user has submitted for a proposal.
+/// will remove when finished testing
+#[instrument(err(Debug))]
+pub async fn delete_by_user(
+    db: &PgPool,
+    proposal_id: &Uuid,
+    user_id: &Uuid,
+) -> Result<u64, ComhairleError> {
+    let (sql, values) = Query::delete()
+        .from_table(ProposalResponseIden::Table)
+        .and_where(Expr::col(ProposalResponseIden::ProposalId).eq(proposal_id.to_owned()))
+        .and_where(Expr::col(ProposalResponseIden::UserId).eq(user_id.to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let result = sqlx::query_with(&sql, values).execute(db).await?;
+    Ok(result.rows_affected())
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
