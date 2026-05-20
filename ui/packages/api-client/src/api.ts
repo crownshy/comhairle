@@ -415,6 +415,41 @@ export const ConversationRequest = z
   .object({ question: z.string() })
   .passthrough();
 export type ConversationRequest = z.infer<typeof ConversationRequest>;
+export const ProposalDto = z
+  .object({
+    body: z.string().uuid(),
+    id: z.string().uuid(),
+    title: z.string().uuid(),
+    workflowStepId: z.string().uuid(),
+  })
+  .passthrough();
+export type ProposalDto = z.infer<typeof ProposalDto>;
+export const CreateProposalRequest = z
+  .object({
+    body: z.string(),
+    title: z.string(),
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type CreateProposalRequest = z.infer<typeof CreateProposalRequest>;
+export const Response = z
+  .object({ question_id: z.string().uuid(), value: z.number() })
+  .passthrough();
+export type Response = z.infer<typeof Response>;
+export const QuestionResponses = z.array(Response);
+export type QuestionResponses = z.infer<typeof QuestionResponses>;
+export const ProposalResponseDto = z
+  .object({
+    id: z.string().uuid(),
+    proposalId: z.string().uuid(),
+    response: QuestionResponses,
+  })
+  .passthrough();
+export type ProposalResponseDto = z.infer<typeof ProposalResponseDto>;
+export const CreateResponse = z
+  .object({ question_responses: z.array(Response) })
+  .passthrough();
+export type CreateResponse = z.infer<typeof CreateResponse>;
 export const CreateConversation = z
   .object({
     default_workflow_id: z.union([z.string(), z.null()]).optional(),
@@ -618,19 +653,19 @@ export const Category = z
   .passthrough();
 export type Category = z.infer<typeof Category>;
 export const QuestionType = z.union([
-  z.object({ Text: z.string() }),
+  z.object({ text: z.string() }),
   z.object({
-    LikertScale: z.object({ categories: z.array(Category) }).passthrough(),
+    likert_scale: z.object({ categories: z.array(Category) }).passthrough(),
   }),
   z.object({
-    Continuous: z
+    continuous: z
       .object({ label: z.string(), sub_steps: z.number().int() })
       .passthrough(),
   }),
 ]);
 export type QuestionType = z.infer<typeof QuestionType>;
 export const Question = z
-  .object({ text: z.string(), type: QuestionType })
+  .object({ id: z.string().uuid(), text: z.string(), type: QuestionType })
   .passthrough();
 export type Question = z.infer<typeof Question>;
 export const ToolConfig = z.union([
@@ -826,6 +861,10 @@ export const WorkflowStepsListResponse = z.union([
 export type WorkflowStepsListResponse = z.infer<
   typeof WorkflowStepsListResponse
 >;
+export const SetupQuestion = z
+  .object({ text: z.string(), type: QuestionType })
+  .passthrough();
+export type SetupQuestion = z.infer<typeof SetupQuestion>;
 export const ToolSetup = z.union([
   z
     .object({
@@ -856,7 +895,7 @@ export const ToolSetup = z.union([
     .passthrough(),
   z
     .object({
-      questions: z.array(Question),
+      questions: z.array(SetupQuestion),
       randomize_order: z.boolean(),
       type: z.literal("prioritization"),
     })
@@ -1568,6 +1607,12 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ComhairleSessionMessage,
   ComhairleAgentSession,
   ConversationRequest,
+  ProposalDto,
+  CreateProposalRequest,
+  Response,
+  QuestionResponses,
+  ProposalResponseDto,
+  CreateResponse,
   CreateConversation,
   Translation,
   ConversationTranslations,
@@ -1603,6 +1648,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   LocalizedWorkflowStepWithProgressDto,
   LocalizedWorkflowStepDto,
   WorkflowStepsListResponse,
+  SetupQuestion,
   ToolSetup,
   CreateWorkflowStep,
   WorkflowStepDto,
@@ -3378,6 +3424,63 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/tools/prioritization/proposals",
+    alias: "ListProposals",
+    description: `List proposals for a given prioritization tool workflow_step`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.array(ProposalDto),
+  },
+  {
+    method: "post",
+    path: "/tools/prioritization/proposals",
+    alias: "CreateProposal",
+    description: `
+Create a new prioritization tool proposal for a given prioritization tool workflow_step
+`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateProposalRequest,
+      },
+    ],
+    response: ProposalDto,
+  },
+  {
+    method: "get",
+    path: "/tools/prioritization/proposals/:proposal_id/responses",
+    alias: "ListProposalResponses",
+    description: `List responses for a prioritization tool proposal`,
+    requestFormat: "json",
+    response: z.array(ProposalResponseDto),
+  },
+  {
+    method: "post",
+    path: "/tools/prioritization/proposals/:proposal_id/responses",
+    alias: "CreateProposalResponse",
+    description: `
+Create a response for prioritization tool proposal
+`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateResponse,
+      },
+    ],
+    response: ProposalResponseDto,
   },
   {
     method: "get",
