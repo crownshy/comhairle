@@ -441,13 +441,6 @@ export const CreateProposalRequest = z
   })
   .passthrough();
 export type CreateProposalRequest = z.infer<typeof CreateProposalRequest>;
-export const UpdateProposalRequest = z
-  .object({
-    body: z.union([z.string(), z.null()]).optional(),
-    title: z.union([z.string(), z.null()]).optional(),
-  })
-  .passthrough();
-export type UpdateProposalRequest = z.infer<typeof UpdateProposalRequest>;
 export const Response = z
   .object({ question_id: z.string().uuid(), value: z.number() })
   .passthrough();
@@ -492,6 +485,23 @@ export const Translation = z
   })
   .passthrough();
 export type Translation = z.infer<typeof Translation>;
+export const ProposalTranslations = z
+  .object({
+    title: Translation,
+    body: Translation,
+  })
+  .passthrough();
+export type ProposalTranslations = z.infer<typeof ProposalTranslations>;
+export const ProposalWithTranslations = z
+  .object({
+    id: z.string().uuid(),
+    workflowStepId: z.string().uuid(),
+    title: z.string(),
+    body: z.string(),
+    translations: ProposalTranslations,
+  })
+  .passthrough();
+export type ProposalWithTranslations = z.infer<typeof ProposalWithTranslations>;
 export const ConversationTranslations = z
   .object({
     callToAction: z.union([Translation, z.null()]).optional(),
@@ -1626,13 +1636,14 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ProposalDto,
   LocalizedProposalDto,
   CreateProposalRequest,
-  UpdateProposalRequest,
   Response,
   QuestionResponses,
   ProposalResponseDto,
   CreateResponse,
   CreateConversation,
   Translation,
+  ProposalTranslations,
+  ProposalWithTranslations,
   ConversationTranslations,
   ConversationWithTranslations,
   ConversationResponse,
@@ -3447,7 +3458,7 @@ Use a raw HTTP request and process the response body incrementally.
     method: "get",
     path: "/tools/prioritization/proposals",
     alias: "ListProposals",
-    description: `List proposals for a given prioritization tool workflow_step`,
+    description: `List proposals for a given prioritization tool workflow_step. Admin callers may pass withTranslations=true to receive raw TextContentId references plus full translation data so the admin UI can drive the standard TranslatableField component.`,
     requestFormat: "json",
     parameters: [
       {
@@ -3455,8 +3466,16 @@ Use a raw HTTP request and process the response body incrementally.
         type: "Query",
         schema: z.string().uuid(),
       },
+      {
+        name: "withTranslations",
+        type: "Query",
+        schema: z.boolean().optional(),
+      },
     ],
-    response: z.array(LocalizedProposalDto),
+    response: z.union([
+      z.array(ProposalWithTranslations),
+      z.array(LocalizedProposalDto),
+    ]),
   },
   {
     method: "post",
@@ -3474,24 +3493,6 @@ Create a new prioritization tool proposal for a given prioritization tool workfl
       },
     ],
     response: ProposalDto,
-  },
-  {
-    method: "put",
-    path: "/tools/prioritization/proposals/:proposal_id",
-    alias: "UpdateProposal",
-    description: `
-Update title and/or body of a prioritization tool proposal. Strings are
-written to the primary-locale translation of the proposal's TextContent.
-`,
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "body",
-        type: "Body",
-        schema: UpdateProposalRequest,
-      },
-    ],
-    response: LocalizedProposalDto,
   },
   {
     method: "delete",

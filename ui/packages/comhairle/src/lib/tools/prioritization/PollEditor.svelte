@@ -12,7 +12,15 @@
 	import QuestionEditorDialog from './QuestionEditorDialog.svelte';
 	import { QUESTION_TYPE_LABELS, type QuestionType } from './types';
 
-	let { store }: { store: PrioritizationStore } = $props();
+	let {
+		store,
+		primaryLocale,
+		supportedLanguages
+	}: {
+		store: PrioritizationStore;
+		primaryLocale: string;
+		supportedLanguages: string[];
+	} = $props();
 
 	let editingProposalId = $state<string | null>(null);
 	let editingQuestionId = $state<string | null>(null);
@@ -224,6 +232,8 @@
 	<ProposalEditorDialog
 		{store}
 		proposalId={editingProposalId}
+		{primaryLocale}
+		{supportedLanguages}
 		onClose={() => (editingProposalId = null)}
 	/>
 {/if}

@@ -6,6 +6,8 @@
  * schema as closely as makes sense for a frontend mock.
  */
 
+import type { Translation } from '@crownshy/api-client/api';
+
 /** Default min/max for a continuous question slider. */
 export const DEFAULT_CONTINUOUS_MIN = 0;
 export const DEFAULT_CONTINUOUS_MAX = 10;
@@ -19,10 +21,18 @@ export type CombinationMetric = never;
 export type Proposal = {
 	id: string;
 	order: number;
-	/** Translatable in backend; plain string in this prototype. */
+	/** Localized title string (primary-locale fallback applied server-side). */
 	title: string;
-	/** Translatable in backend; rich-text JSON in this prototype. */
+	/** Localized body string (primary-locale fallback applied server-side). */
 	body: string;
+	/**
+	 * Full translation data (TextContent + every TextTranslation) for the
+	 * `title` field. Populated only in admin contexts where the proposals
+	 * were loaded with `withTranslations=true`; absent in participant view.
+	 */
+	titleTranslation?: Translation;
+	/** Full translation data for the `body` field. See `titleTranslation`. */
+	bodyTranslation?: Translation;
 };
 
 export type QuestionBase = {

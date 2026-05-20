@@ -11,20 +11,8 @@ use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
-    models::translations::{
-        get_text_content_by_id, get_text_translation_by_content_and_locale, new_translation,
-        update_text_translation, TextContentId, TextFormat, UpdateTextTranslation,
-    },
+    models::translations::{new_translation, TextContentId, TextFormat},
 };
-
-/// Update payload for a proposal. Only provided fields are touched.
-/// Title and body strings are written to the primary-locale translation
-/// of the existing `TextContentId`, so external translation ids stay stable.
-#[derive(Deserialize, JsonSchema, Debug)]
-pub struct UpdateProposal {
-    pub title: Option<String>,
-    pub body: Option<String>,
-}
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "proposal_evaluation_proposal")]
@@ -119,6 +107,44 @@ pub async fn list(
     Ok(proposals)
 }
 
+/// Fetch all proposals for a workflow step as raw `Proposal` rows (with
+/// `TextContentId` references rather than localized strings). Used by
+/// `list_with_translations` to build the admin-facing payload.
+#[instrument(err(Debug))]
+pub async fn list_raw(
+    db: &PgPool,
+    workflow_step_id: &Uuid,
+) -> Result<Vec<Proposal>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .from(ProposalIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .and_where(Expr::col(ProposalIden::WorkflowStepId).eq(workflow_step_id.to_owned()))
+        .order_by(ProposalIden::CreatedAt, sea_query::Order::Asc)
+        .build_sqlx(PostgresQueryBuilder);
+
+    let proposals = query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(proposals)
+}
+
+/// Fetch all proposals for a workflow step alongside their full translation
+/// data (TextContent + every TextTranslation). Mirrors the
+/// `workflow_step::list_with_translations` pattern and feeds the admin
+/// `TranslatableField` UI.
+#[instrument(err(Debug))]
+pub async fn list_with_translations(
+    db: &PgPool,
+    workflow_step_id: &Uuid,
+    locale: &str,
+) -> Result<Vec<ProposalWithTranslations>, ComhairleError> {
+    let proposals = list_raw(db, workflow_step_id).await?;
+    let mut out = Vec::with_capacity(proposals.len());
+    for proposal in proposals {
+        out.push(ProposalWithTranslations::from_original(db, proposal, locale).await?);
+    }
+    Ok(out)
+}
+
 #[instrument(err(Debug))]
 pub async fn get_localized_by_id(
     db: &PgPool,
@@ -144,68 +170,6 @@ pub async fn get_localized_by_id(
         })?;
 
     Ok(proposal)
-}
-
-#[instrument(err(Debug))]
-pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Proposal, ComhairleError> {
-    let (sql, values) = Query::select()
-        .columns(DEFAULT_COLUMNS)
-        .from(ProposalIden::Table)
-        .and_where(Expr::col(ProposalIden::Id).eq(id.to_owned()))
-        .build_sqlx(PostgresQueryBuilder);
-
-    let proposal = query_as_with(&sql, values)
-        .fetch_one(db)
-        .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Proposal".into()),
-            other => ComhairleError::DatabaseError(other),
-        })?;
-
-    Ok(proposal)
-}
-
-/// Update a proposal's title and/or body. The supplied strings replace the
-/// content of the primary-locale translation row for the corresponding
-/// `TextContentId`. Other locales are left untouched.
-#[instrument(err(Debug))]
-pub async fn update(
-    db: &PgPool,
-    id: &Uuid,
-    update: &UpdateProposal,
-    locale: &str,
-) -> Result<LocalizedProposal, ComhairleError> {
-    let proposal = get_by_id(db, id).await?;
-
-    if let Some(title) = &update.title {
-        update_primary_translation(db, &proposal.title, title).await?;
-    }
-    if let Some(body) = &update.body {
-        update_primary_translation(db, &proposal.body, body).await?;
-    }
-
-    get_localized_by_id(db, id, locale).await
-}
-
-async fn update_primary_translation(
-    db: &PgPool,
-    content_id: &TextContentId,
-    new_content: &str,
-) -> Result<(), ComhairleError> {
-    let text_content = get_text_content_by_id(db, content_id).await?;
-    let translation =
-        get_text_translation_by_content_and_locale(db, content_id, &text_content.primary_locale)
-            .await?;
-    update_text_translation(
-        db,
-        &translation.id,
-        &UpdateTextTranslation {
-            content: Some(new_content.to_owned()),
-            ..Default::default()
-        },
-    )
-    .await?;
-    Ok(())
 }
 
 #[instrument(err(Debug))]

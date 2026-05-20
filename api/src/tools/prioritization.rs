@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{delete_with, get_with, post_with, put_with},
+    routing::{delete_with, get_with, post_with},
     ApiRouter,
 };
 use async_trait::async_trait;
@@ -17,7 +17,7 @@ use uuid::Uuid;
 use crate::{
     error::ComhairleError,
     models::{
-        proposal::{self, CreateProposal, LocalizedProposal, Proposal, UpdateProposal},
+        proposal::{self, CreateProposal, LocalizedProposal, Proposal, ProposalWithTranslations},
         proposal_response::{
             self, CreateResponse, ProposalResponse, ProposalResponseFilterOptions,
             ProposalResponseOrderOptions, QuestionResponses,
@@ -25,7 +25,7 @@ use crate::{
         translations::TextContentId,
     },
     routes::{
-        auth::{RequiredAdminUser, RequiredUser},
+        auth::{is_user_admin, RequiredAdminUser, RequiredUser},
         translations::LocaleExtractor,
     },
     schema_helpers::{example_localized_text, example_uuid},
@@ -144,24 +144,13 @@ Create a new prioritization tool proposal for a given prioritization tool workfl
                         .tag("Tools")
                         .security_requirement("JWT")
                         .summary("List proposals")
-                        .description("List proposals for a given prioritization tool workflow_step")
-                        .response::<200, Json<Vec<LocalizedProposalDto>>>()
-                }),
-            )
-            .api_route(
-                "/prioritization/proposals/{proposal_id}",
-                put_with(update_proposal, |op| {
-                    op.id("UpdateProposal")
-                        .tag("Tools")
-                        .security_requirement("JWT")
-                        .summary("Update proposal")
                         .description(
-                            "
-Update title and/or body of a prioritization tool proposal. Strings are
-written to the primary-locale translation of the proposal's TextContent.
-",
+                            "List proposals for a given prioritization tool workflow_step. \
+                             Admin callers may pass `withTranslations=true` to receive raw \
+                             TextContentId references plus full translation data so the \
+                             admin UI can drive the standard TranslatableField component.",
                         )
-                        .response::<200, Json<LocalizedProposalDto>>()
+                        .response::<200, Json<ProposalsListResponse>>()
                 }),
             )
             .api_route(
@@ -230,6 +219,16 @@ pub struct ProposalDto {
     pub title: TextContentId,
     #[schemars(example = "example_uuid")]
     pub body: TextContentId,
+}
+
+/// Response variants for `ListProposals`. Admins may opt-in to the
+/// `WithTranslations` variant via `?withTranslations=true` to drive the
+/// `TranslatableField` editor; everyone else receives the localized variant.
+#[derive(Serialize, JsonSchema, Debug)]
+#[serde(untagged)]
+pub enum ProposalsListResponse {
+    WithTranslations(Vec<ProposalWithTranslations>),
+    Localized(Vec<LocalizedProposalDto>),
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -309,37 +308,42 @@ async fn create_proposal(
 }
 
 #[derive(Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
 struct ListProposalsQuery {
     workflow_step_id: Uuid,
+    #[serde(default)]
+    with_translations: bool,
 }
 
 #[instrument(err(Debug), skip(state))]
 async fn list_proposals(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(_user): RequiredUser,
+    RequiredUser(user): RequiredUser,
     LocaleExtractor(locale): LocaleExtractor,
-    Query(ListProposalsQuery { workflow_step_id }): Query<ListProposalsQuery>,
-) -> Result<(StatusCode, Json<Vec<LocalizedProposalDto>>), ComhairleError> {
+    Query(ListProposalsQuery {
+        workflow_step_id,
+        with_translations,
+    }): Query<ListProposalsQuery>,
+) -> Result<(StatusCode, Json<ProposalsListResponse>), ComhairleError> {
+    if with_translations && is_user_admin(&user, &state.config) {
+        let proposals =
+            proposal::list_with_translations(&state.db, &workflow_step_id, &locale).await?;
+        return Ok((
+            StatusCode::OK,
+            Json(ProposalsListResponse::WithTranslations(proposals)),
+        ));
+    }
+
     let proposals = proposal::list(&state.db, &workflow_step_id, &locale)
         .await?
         .into_iter()
         .map(Into::into)
         .collect();
 
-    Ok((StatusCode::OK, Json(proposals)))
-}
-
-#[instrument(err(Debug), skip(state))]
-async fn update_proposal(
-    State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(_user): RequiredAdminUser,
-    LocaleExtractor(locale): LocaleExtractor,
-    Path(proposal_id): Path<Uuid>,
-    Json(payload): Json<UpdateProposal>,
-) -> Result<(StatusCode, Json<LocalizedProposalDto>), ComhairleError> {
-    let proposal = proposal::update(&state.db, &proposal_id, &payload, &locale).await?;
-
-    Ok((StatusCode::OK, Json(proposal.into())))
+    Ok((
+        StatusCode::OK,
+        Json(ProposalsListResponse::Localized(proposals)),
+    ))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -746,59 +750,6 @@ mod tests {
 
         assert_eq!(proposal_a_responses.len(), 2, "incorrect a total");
         assert_eq!(proposal_b_responses.len(), 2, "incorrect b total");
-
-        Ok(())
-    }
-
-    #[sqlx::test]
-    async fn should_update_proposal(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
-        let workflow_step = session
-            .create_prioritization_workflow_step(&app, &conversation_id, &workflow_id)
-            .await?;
-
-        let proposal = proposal::create(
-            &pool,
-            &workflow_step.id,
-            &CreateProposal {
-                title: "Old title".to_string(),
-                body: "Old body".to_string(),
-            },
-            "en",
-        )
-        .await?;
-
-        let (status, value, _) = session
-            .put(
-                &app,
-                &format!("/tools/prioritization/proposals/{}", proposal.id),
-                json!({
-                    "title": "New title",
-                    "body": "New body",
-                })
-                .to_string()
-                .into(),
-            )
-            .await?;
-        assert_eq!(status, StatusCode::OK, "update should succeed");
-        let updated: LocalizedProposalDto = serde_json::from_value(value)?;
-        assert_eq!(updated.title, "New title", "title not updated");
-        assert_eq!(updated.body, "New body", "body not updated");
-        assert_eq!(updated.id, proposal.id, "proposal id changed");
-
-        // Partial update: title only.
-        let (_, value, _) = session
-            .put(
-                &app,
-                &format!("/tools/prioritization/proposals/{}", proposal.id),
-                json!({ "title": "Newer title" }).to_string().into(),
-            )
-            .await?;
-        let updated: LocalizedProposalDto = serde_json::from_value(value)?;
-        assert_eq!(updated.title, "Newer title", "title not updated");
-        assert_eq!(updated.body, "New body", "body should be unchanged");
 
         Ok(())
     }

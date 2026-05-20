@@ -1,5 +1,9 @@
 import { apiClient } from '@crownshy/api-client/client';
-import type { LocalizedProposalDto, ProposalResponseDto } from '@crownshy/api-client/api';
+import type {
+	LocalizedProposalDto,
+	ProposalResponseDto,
+	ProposalWithTranslations
+} from '@crownshy/api-client/api';
 
 import {
 	DEFAULT_CONTINUOUS_MAX,
@@ -36,9 +40,6 @@ const pollKey = (stepId: string) => `${NS}:${stepId}`;
 const draftKey = (stepId: string, participantId: string) =>
 	`${NS}:${stepId}:drafts:${participantId}`;
 const participantKey = `${NS}:participant_id`;
-
-/** Debounce window for syncing proposal title/body edits to the backend. */
-const SAVE_DEBOUNCE_MS = 500;
 
 /** Stable random id helper (uses crypto when available). */
 function uid(): string {
@@ -187,16 +188,18 @@ export function getOrCreateParticipantId(): string {
  */
 export class PrioritizationStore {
 	stepId: string;
+	/** When true, proposals are loaded with full translation data so the admin
+	 * UI can drive `TranslatableField`. Participants always get the localized
+	 * variant. */
+	isAdmin: boolean;
 	poll = $state<Poll>(emptyPoll('unknown'));
 	submissions = $state<Submission[]>([]);
 	proposalsLoading = $state(false);
 	submissionsLoading = $state(false);
 
-	private saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
-	private pendingPatches = new Map<string, { title?: string; body?: string }>();
-
-	constructor(stepId: string) {
+	constructor(stepId: string, options: { isAdmin?: boolean } = {}) {
 		this.stepId = stepId;
+		this.isAdmin = options.isAdmin ?? false;
 		const stored = loadJSON<Partial<Poll>>(pollKey(stepId));
 		this.poll = migratePoll(stepId, stored);
 		void this.loadProposals();
@@ -209,12 +212,18 @@ export class PrioritizationStore {
 
 	// ---- Server I/O ----------------------------------------------------
 
-	private proposalFromDto(dto: LocalizedProposalDto, order: number): Proposal {
+	private proposalFromDto(
+		dto: LocalizedProposalDto | ProposalWithTranslations,
+		order: number
+	): Proposal {
+		const withTranslations = (dto as ProposalWithTranslations).translations;
 		return {
 			id: dto.id,
 			order,
 			title: dto.title,
-			body: dto.body
+			body: dto.body,
+			titleTranslation: withTranslations?.title,
+			bodyTranslation: withTranslations?.body
 		};
 	}
 
@@ -222,7 +231,10 @@ export class PrioritizationStore {
 		this.proposalsLoading = true;
 		try {
 			const list = await apiClient.ListProposals({
-				queries: { workflow_step_id: this.stepId }
+				queries: {
+					workflow_step_id: this.stepId,
+					withTranslations: this.isAdmin
+				}
 			});
 			this.poll.proposals = list.map((p, i) => this.proposalFromDto(p, i + 1));
 		} catch (err) {
@@ -374,14 +386,11 @@ export class PrioritizationStore {
 				title: '',
 				body: ''
 			});
-			const p: Proposal = {
-				id: created.id,
-				order: this.poll.proposals.length + 1,
-				title: '',
-				body: ''
-			};
-			this.poll.proposals = [...this.poll.proposals, p];
-			return p;
+			// Refresh so admin callers pick up titleTranslation/bodyTranslation
+			// for the freshly created proposal (the create endpoint returns a
+			// ProposalDto without translation data).
+			await this.loadProposals();
+			return this.poll.proposals.find((p) => p.id === created.id) ?? null;
 		} catch (err) {
 			console.error('Failed to create proposal', err);
 			return null;
@@ -389,42 +398,16 @@ export class PrioritizationStore {
 	}
 
 	/**
-	 * Patch a proposal locally, then debounce a PUT to the server. Multiple
-	 * patches inside the debounce window are coalesced into a single request.
-	 * `order` is local-only (not yet supported by the backend) and is skipped
-	 * when syncing.
+	 * Patch a proposal locally. Title/body persistence is handled by
+	 * `TranslatableField`, which writes through the translations API
+	 * directly to the proposal's `TextContentId` — there is no proposal-level
+	 * update endpoint to call. `order` is local-only (the backend doesn't
+	 * persist proposal order yet).
 	 */
 	updateProposal(proposalId: string, patch: Partial<Proposal>): void {
 		this.poll.proposals = this.poll.proposals.map((p) =>
 			p.id === proposalId ? { ...p, ...patch } : p
 		);
-
-		const sync: { title?: string; body?: string } = {};
-		if (typeof patch.title === 'string') sync.title = patch.title;
-		if (typeof patch.body === 'string') sync.body = patch.body;
-		if (Object.keys(sync).length === 0) return;
-
-		const merged = { ...(this.pendingPatches.get(proposalId) ?? {}), ...sync };
-		this.pendingPatches.set(proposalId, merged);
-
-		const existing = this.saveTimers.get(proposalId);
-		if (existing) clearTimeout(existing);
-		const timer = setTimeout(() => {
-			void this.flushPendingPatch(proposalId);
-		}, SAVE_DEBOUNCE_MS);
-		this.saveTimers.set(proposalId, timer);
-	}
-
-	private async flushPendingPatch(proposalId: string): Promise<void> {
-		const patch = this.pendingPatches.get(proposalId);
-		this.pendingPatches.delete(proposalId);
-		this.saveTimers.delete(proposalId);
-		if (!patch) return;
-		try {
-			await apiClient.UpdateProposal(patch, { params: { proposal_id: proposalId } });
-		} catch (err) {
-			console.error('Failed to update proposal', err);
-		}
 	}
 
 	async duplicateProposal(proposalId: string): Promise<Proposal | null> {
@@ -436,14 +419,8 @@ export class PrioritizationStore {
 				title: original.title,
 				body: original.body
 			});
-			const copy: Proposal = {
-				id: created.id,
-				order: this.poll.proposals.length + 1,
-				title: original.title,
-				body: original.body
-			};
-			this.poll.proposals = [...this.poll.proposals, copy];
-			return copy;
+			await this.loadProposals();
+			return this.poll.proposals.find((p) => p.id === created.id) ?? null;
 		} catch (err) {
 			console.error('Failed to duplicate proposal', err);
 			return null;

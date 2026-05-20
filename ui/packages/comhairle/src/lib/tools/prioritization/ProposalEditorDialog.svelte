@@ -1,18 +1,21 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
-	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Button } from '$lib/components/ui/button';
-	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
+	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import type { PrioritizationStore } from './store.svelte';
 
 	let {
 		store,
 		proposalId,
+		primaryLocale,
+		supportedLanguages,
 		onClose
 	}: {
 		store: PrioritizationStore;
 		proposalId: string;
+		primaryLocale: string;
+		supportedLanguages: string[];
 		onClose: () => void;
 	} = $props();
 
@@ -42,24 +45,29 @@
 			<div class="flex flex-col gap-4">
 				<div class="flex flex-col gap-1">
 					<Label for="p-title">Title</Label>
-					<Input
-						id="p-title"
-						placeholder="Proposal title"
+					<TranslatableField
 						value={proposal.title}
-						oninput={(e) =>
-							store.updateProposal(proposal.id, {
-								title: (e.target as HTMLInputElement).value
-							})}
+						onValueChange={(v) => store.updateProposal(proposal.id, { title: v })}
+						translation={proposal.titleTranslation}
+						{primaryLocale}
+						{supportedLanguages}
+						placeholder="Proposal title"
+						dialogTitle="Proposal title translations"
 					/>
 				</div>
 
 				<div class="flex flex-col gap-1">
 					<Label>Body</Label>
-					<RichTextEditor
+					<TranslatableField
 						value={proposal.body || null}
+						onValueChange={(v) => store.updateProposal(proposal.id, { body: v })}
+						translation={proposal.bodyTranslation}
+						{primaryLocale}
+						{supportedLanguages}
+						editorType="rich"
 						placeholder="Describe this proposal…"
 						minHeight="160px"
-						onChange={(json) => store.updateProposal(proposal.id, { body: json })}
+						dialogTitle="Proposal body translations"
 					/>
 				</div>
 			</div>

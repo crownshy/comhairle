@@ -5,16 +5,26 @@
 	import LiveResults from './LiveResults.svelte';
 	import ReportEditor from './ReportEditor.svelte';
 
+	type ConversationLike = {
+		primaryLocale?: string | null;
+		supportedLanguages?: string[] | null;
+	};
+
 	type Props = {
 		conversationId?: string;
-		conversation?: unknown;
+		conversation?: ConversationLike;
 		isLive?: boolean;
 		workflowStep: { id: string };
 	};
 
-	let { workflowStep }: Props = $props();
+	let { conversation, workflowStep }: Props = $props();
 
-	let store = $derived(new PrioritizationStore(workflowStep.id));
+	let primaryLocale = $derived(conversation?.primaryLocale ?? 'en');
+	let supportedLanguages = $derived(conversation?.supportedLanguages ?? ['en']);
+
+	// Admin context: load proposals with full translation data so the editor
+	// can drive `TranslatableField` against each proposal's TextContentId.
+	let store = $derived(new PrioritizationStore(workflowStep.id, { isAdmin: true }));
 	let active = $state<'poll' | 'results' | 'report'>('poll');
 </script>
 
@@ -27,7 +37,7 @@
 		</Tabs.List>
 
 		<Tabs.Content value="poll">
-			<PollEditor {store} />
+			<PollEditor {store} {primaryLocale} {supportedLanguages} />
 		</Tabs.Content>
 		<Tabs.Content value="results">
 			<LiveResults {store} />
