@@ -10,7 +10,7 @@
 		children,
 		flipDurationMs = 200,
 		dragDisabled = false,
-		dropTargetStyle,
+		dropTargetStyle = {},
 		class: className = ''
 	}: {
 		items: T[];
@@ -35,7 +35,7 @@
 
 <ul
 	class={className}
-	use:dndzone={{ items, flipDurationMs, dragDisabled, dropTargetStyle: dropTargetStyle ?? {} }}
+	use:dndzone={{ items, flipDurationMs, dragDisabled, dropTargetStyle }}
 	onconsider={consider}
 	onfinalize={finalize}
 >
