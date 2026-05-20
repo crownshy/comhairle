@@ -7,7 +7,10 @@ use uuid::Uuid;
 
 use crate::{
     models::{
-        event::{self, list_upcoming_event_participants, PartialEvent, UpcomingEventParticipant},
+        event::{
+            self, list_upcoming_event_participants, PartialEvent, ResolveTimeZone,
+            UpcomingEventParticipant,
+        },
         job::{self, CreateJob, UpdateJob},
         otp, users,
     },
@@ -34,6 +37,12 @@ pub async fn send_event_reminder(
     );
 
     let user = users::get_user_by_id(&req.participant.user_id, &state.db)
+        .await
+        .map_err(|e| WorkerServiceError::DbError(e.to_string()))
+        .ok_or_record_failure(&req.job_id, &state.db)
+        .await?;
+
+    let event = event::get_localized_by_id(&state.db, &req.participant.event_id, "en") // TODO:
         .await
         .map_err(|e| WorkerServiceError::DbError(e.to_string()))
         .ok_or_record_failure(&req.job_id, &state.db)
@@ -73,6 +82,12 @@ pub async fn send_event_reminder(
         .custom_claims(claims)
         .duration(chrono::Duration::minutes(10))
         .call();
+    let formatted_date = req
+        .participant
+        .event_start_time
+        .with_timezone(&event.resolve_time_zone())
+        .format("%B %d, %Y at %H:%M %Z")
+        .to_string();
 
     let encoded_redirect_url = urlencoding::encode(&otp.redirect_url);
     let otp_link = format!(

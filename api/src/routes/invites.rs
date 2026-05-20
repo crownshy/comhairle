@@ -9,7 +9,6 @@ use axum::{
     Json,
 };
 use axum_extra::extract::CookieJar;
-use chrono_tz::US::Pacific;
 use hyper::StatusCode;
 use minijinja::context;
 use tracing::{instrument, warn};
@@ -18,7 +17,8 @@ use uuid::Uuid;
 use crate::{
     error::ComhairleError,
     models::{
-        self, conversation, event,
+        self, conversation,
+        event::{self, ResolveTimeZone},
         event_attendance::{self, CreateEventAttendance},
         invites::{CreateInviteDTO, DailyResponseStats, InviteType, PartialInvite},
         users, workflow,
@@ -59,7 +59,7 @@ async fn accept_invite(
 
         let formatted_date = event
             .start_time
-            .with_timezone(&Pacific) // TODO: make configurable or dynamic
+            .with_timezone(&event.resolve_time_zone()) // TODO: make configurable or dynamic
             .format("%B %d, %Y at %H:%M %Z")
             .to_string();
         let event_link = format!(
@@ -141,7 +141,7 @@ async fn create_invite(
 
                 let formatted_date = event
                     .start_time
-                    .with_timezone(&Pacific) // TODO: make configurable or dynamic
+                    .with_timezone(&event.resolve_time_zone())
                     .format("%B %d, %Y at %H:%M %Z")
                     .to_string();
                 let invite_link = format!(
@@ -338,7 +338,7 @@ async fn auto_register_event_attendance(
 
     let formatted_date = event
         .start_time
-        .with_timezone(&Pacific) // TODO: make configurable or dynamic
+        .with_timezone(&event.resolve_time_zone()) // TODO: make configurable or dynamic
         .format("%B %d, %Y at %H:%M %Z")
         .to_string();
     let event_link = format!(

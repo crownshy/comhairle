@@ -1297,10 +1297,11 @@ export const PaginatedResults_for_LocalizedEventDto = z
 export type PaginatedResults_for_LocalizedEventDto = z.infer<
   typeof PaginatedResults_for_LocalizedEventDto
 >;
-export const CreateEventRequest = z
+export const CreateEvent = z
   .object({
     agenda: z.union([z.array(EventAgendaItem), z.null()]).optional(),
     capacity: z.union([z.number(), z.null()]).optional(),
+    default_time_zone: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     end_time: z.string().datetime({ offset: true }),
     name: z.string(),
@@ -1308,7 +1309,7 @@ export const CreateEventRequest = z
     start_time: z.string().datetime({ offset: true }),
   })
   .passthrough();
-export type CreateEventRequest = z.infer<typeof CreateEventRequest>;
+export type CreateEvent = z.infer<typeof CreateEvent>;
 export const EventDto = z
   .object({
     agenda: z.array(EventAgendaItem),
@@ -1342,6 +1343,7 @@ export const EventWithTranslations = z
     capacity: z.union([z.number(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
+    defaultTimeZone: z.string(),
     description: z.string(),
     endTime: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
@@ -1364,6 +1366,7 @@ export const PartialEvent = z
   .object({
     agenda: z.union([z.array(EventAgendaItem), z.null()]).default(null),
     capacity: z.union([z.number(), z.null()]),
+    default_time_zone: z.union([z.string(), z.null()]),
     description: z.union([z.string(), z.null()]),
     end_time: z.union([z.string(), z.null()]),
     name: z.union([z.string(), z.null()]),
@@ -1769,7 +1772,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EventAgendaItem,
   LocalizedEventDto,
   PaginatedResults_for_LocalizedEventDto,
-  CreateEventRequest,
+  CreateEvent,
   EventDto,
   Translation3,
   EventTranslations,
@@ -2327,7 +2330,7 @@ curl -X POST \
       {
         name: "body",
         type: "Body",
-        schema: CreateEventRequest,
+        schema: CreateEvent,
       },
     ],
     response: EventDto,
