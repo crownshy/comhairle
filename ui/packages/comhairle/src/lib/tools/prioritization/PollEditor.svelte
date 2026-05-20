@@ -209,9 +209,9 @@
 
 			<Button
 				variant="outline"
-				onclick={() => {
-					const p = store.addProposal();
-					editingProposalId = p.id;
+				onclick={async () => {
+					const p = await store.addProposal();
+					if (p) editingProposalId = p.id;
 				}}
 			>
 				<Plus class="mr-1 size-4" /> Add proposal

@@ -424,6 +424,15 @@ export const ProposalDto = z
   })
   .passthrough();
 export type ProposalDto = z.infer<typeof ProposalDto>;
+export const LocalizedProposalDto = z
+  .object({
+    body: z.string(),
+    id: z.string().uuid(),
+    title: z.string(),
+    workflowStepId: z.string().uuid(),
+  })
+  .passthrough();
+export type LocalizedProposalDto = z.infer<typeof LocalizedProposalDto>;
 export const CreateProposalRequest = z
   .object({
     body: z.string(),
@@ -432,6 +441,13 @@ export const CreateProposalRequest = z
   })
   .passthrough();
 export type CreateProposalRequest = z.infer<typeof CreateProposalRequest>;
+export const UpdateProposalRequest = z
+  .object({
+    body: z.union([z.string(), z.null()]).optional(),
+    title: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type UpdateProposalRequest = z.infer<typeof UpdateProposalRequest>;
 export const Response = z
   .object({ question_id: z.string().uuid(), value: z.number() })
   .passthrough();
@@ -1608,7 +1624,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ComhairleAgentSession,
   ConversationRequest,
   ProposalDto,
+  LocalizedProposalDto,
   CreateProposalRequest,
+  UpdateProposalRequest,
   Response,
   QuestionResponses,
   ProposalResponseDto,
@@ -3438,7 +3456,7 @@ Use a raw HTTP request and process the response body incrementally.
         schema: z.string().uuid(),
       },
     ],
-    response: z.array(ProposalDto),
+    response: z.array(LocalizedProposalDto),
   },
   {
     method: "post",
@@ -3455,6 +3473,32 @@ Create a new prioritization tool proposal for a given prioritization tool workfl
         schema: CreateProposalRequest,
       },
     ],
+    response: ProposalDto,
+  },
+  {
+    method: "put",
+    path: "/tools/prioritization/proposals/:proposal_id",
+    alias: "UpdateProposal",
+    description: `
+Update title and/or body of a prioritization tool proposal. Strings are
+written to the primary-locale translation of the proposal's TextContent.
+`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpdateProposalRequest,
+      },
+    ],
+    response: LocalizedProposalDto,
+  },
+  {
+    method: "delete",
+    path: "/tools/prioritization/proposals/:proposal_id",
+    alias: "DeleteProposal",
+    description: `Delete a prioritization tool proposal`,
+    requestFormat: "json",
     response: ProposalDto,
   },
   {

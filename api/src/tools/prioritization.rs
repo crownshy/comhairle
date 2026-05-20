@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{get_with, post_with},
+    routing::{delete_with, get_with, post_with, put_with},
     ApiRouter,
 };
 use async_trait::async_trait;
@@ -17,7 +17,7 @@ use uuid::Uuid;
 use crate::{
     error::ComhairleError,
     models::{
-        proposal::{self, CreateProposal, LocalizedProposal, Proposal},
+        proposal::{self, CreateProposal, LocalizedProposal, Proposal, UpdateProposal},
         proposal_response::{
             self, CreateResponse, ProposalResponse, ProposalResponseFilterOptions,
             ProposalResponseOrderOptions, QuestionResponses,
@@ -145,7 +145,34 @@ Create a new prioritization tool proposal for a given prioritization tool workfl
                         .security_requirement("JWT")
                         .summary("List proposals")
                         .description("List proposals for a given prioritization tool workflow_step")
-                        .response::<200, Json<Vec<ProposalDto>>>()
+                        .response::<200, Json<Vec<LocalizedProposalDto>>>()
+                }),
+            )
+            .api_route(
+                "/prioritization/proposals/{proposal_id}",
+                put_with(update_proposal, |op| {
+                    op.id("UpdateProposal")
+                        .tag("Tools")
+                        .security_requirement("JWT")
+                        .summary("Update proposal")
+                        .description(
+                            "
+Update title and/or body of a prioritization tool proposal. Strings are
+written to the primary-locale translation of the proposal's TextContent.
+",
+                        )
+                        .response::<200, Json<LocalizedProposalDto>>()
+                }),
+            )
+            .api_route(
+                "/prioritization/proposals/{proposal_id}",
+                delete_with(delete_proposal, |op| {
+                    op.id("DeleteProposal")
+                        .tag("Tools")
+                        .security_requirement("JWT")
+                        .summary("Delete proposal")
+                        .description("Delete a prioritization tool proposal")
+                        .response::<200, Json<ProposalDto>>()
                 }),
             )
             .api_route(
@@ -300,6 +327,30 @@ async fn list_proposals(
         .collect();
 
     Ok((StatusCode::OK, Json(proposals)))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn update_proposal(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    LocaleExtractor(locale): LocaleExtractor,
+    Path(proposal_id): Path<Uuid>,
+    Json(payload): Json<UpdateProposal>,
+) -> Result<(StatusCode, Json<LocalizedProposalDto>), ComhairleError> {
+    let proposal = proposal::update(&state.db, &proposal_id, &payload, &locale).await?;
+
+    Ok((StatusCode::OK, Json(proposal.into())))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn delete_proposal(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Path(proposal_id): Path<Uuid>,
+) -> Result<(StatusCode, Json<ProposalDto>), ComhairleError> {
+    let proposal = proposal::delete(&state.db, &proposal_id).await?;
+
+    Ok((StatusCode::OK, Json(proposal.into())))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -695,6 +746,102 @@ mod tests {
 
         assert_eq!(proposal_a_responses.len(), 2, "incorrect a total");
         assert_eq!(proposal_b_responses.len(), 2, "incorrect b total");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_update_proposal(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let workflow_step = session
+            .create_prioritization_workflow_step(&app, &conversation_id, &workflow_id)
+            .await?;
+
+        let proposal = proposal::create(
+            &pool,
+            &workflow_step.id,
+            &CreateProposal {
+                title: "Old title".to_string(),
+                body: "Old body".to_string(),
+            },
+            "en",
+        )
+        .await?;
+
+        let (status, value, _) = session
+            .put(
+                &app,
+                &format!("/tools/prioritization/proposals/{}", proposal.id),
+                json!({
+                    "title": "New title",
+                    "body": "New body",
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK, "update should succeed");
+        let updated: LocalizedProposalDto = serde_json::from_value(value)?;
+        assert_eq!(updated.title, "New title", "title not updated");
+        assert_eq!(updated.body, "New body", "body not updated");
+        assert_eq!(updated.id, proposal.id, "proposal id changed");
+
+        // Partial update: title only.
+        let (_, value, _) = session
+            .put(
+                &app,
+                &format!("/tools/prioritization/proposals/{}", proposal.id),
+                json!({ "title": "Newer title" }).to_string().into(),
+            )
+            .await?;
+        let updated: LocalizedProposalDto = serde_json::from_value(value)?;
+        assert_eq!(updated.title, "Newer title", "title not updated");
+        assert_eq!(updated.body, "New body", "body should be unchanged");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_delete_proposal(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+        let workflow_step = session
+            .create_prioritization_workflow_step(&app, &conversation_id, &workflow_id)
+            .await?;
+
+        let proposal = proposal::create(
+            &pool,
+            &workflow_step.id,
+            &CreateProposal {
+                title: "Doomed".to_string(),
+                body: "Doomed body".to_string(),
+            },
+            "en",
+        )
+        .await?;
+
+        let (status, _, _) = session
+            .delete(
+                &app,
+                &format!("/tools/prioritization/proposals/{}", proposal.id),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK, "delete should succeed");
+
+        let (_, value, _) = session
+            .get(
+                &app,
+                &format!(
+                    "/tools/prioritization/proposals?workflow_step_id={}",
+                    workflow_step.id
+                ),
+            )
+            .await?;
+        let remaining: Vec<LocalizedProposalDto> = serde_json::from_value(value)?;
+        assert!(remaining.is_empty(), "proposal should be gone");
 
         Ok(())
     }

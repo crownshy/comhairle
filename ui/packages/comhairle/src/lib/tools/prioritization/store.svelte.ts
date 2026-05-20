@@ -1,3 +1,6 @@
+import { apiClient } from '@crownshy/api-client/client';
+import type { LocalizedProposalDto, ProposalResponseDto } from '@crownshy/api-client/api';
+
 import {
 	DEFAULT_CONTINUOUS_MAX,
 	DEFAULT_CONTINUOUS_MIN,
@@ -17,14 +20,25 @@ import type {
 	ToolConfig
 } from './types';
 
-/** localStorage namespace. */
+/**
+ * Local-only state still lives in `localStorage` keyed by workflow step id:
+ *   - poll-wide questions + randomize flag (`tool_config` will move server-side
+ *     when the backend gains an update endpoint)
+ *   - report pages
+ *   - per-participant in-progress drafts
+ *
+ * Proposals and submitted responses are owned by the backend
+ * (`/tools/prioritization/proposals` and `.../responses`).
+ */
 const NS = 'comhairle:prioritization';
 
 const pollKey = (stepId: string) => `${NS}:${stepId}`;
-const subsKey = (stepId: string) => `${NS}:${stepId}:submissions`;
 const draftKey = (stepId: string, participantId: string) =>
 	`${NS}:${stepId}:drafts:${participantId}`;
 const participantKey = `${NS}:participant_id`;
+
+/** Debounce window for syncing proposal title/body edits to the backend. */
+const SAVE_DEBOUNCE_MS = 500;
 
 /** Stable random id helper (uses crypto when available). */
 function uid(): string {
@@ -86,19 +100,6 @@ function migratePoll(stepId: string, stored: Partial<Poll> | null): Poll {
 		(typeof stored.description === 'string' && stored.description) ||
 		(typeof anyStored.instruction === 'string' && (anyStored.instruction as string)) ||
 		'';
-	const proposals = Array.isArray(stored.proposals)
-		? (stored.proposals as unknown as Array<Record<string, unknown>>).map((p, i) => ({
-				id: typeof p.id === 'string' ? p.id : `proposal_${i}`,
-				order: typeof p.order === 'number' ? p.order : i + 1,
-				title: typeof p.title === 'string' ? p.title : '',
-				body:
-					(typeof p.body === 'string' && p.body) ||
-					(typeof p.content === 'string' && p.content) ||
-					'',
-				imageDataUrl:
-					typeof p.imageDataUrl === 'string' ? (p.imageDataUrl as string) : undefined
-			}))
-		: [];
 	const toolConfigRaw = (stored.toolConfig as ToolConfig | undefined) ?? emptyToolConfig();
 	const toolConfig: ToolConfig = {
 		randomizeOrder: Boolean(toolConfigRaw.randomizeOrder),
@@ -109,7 +110,8 @@ function migratePoll(stepId: string, stored: Partial<Poll> | null): Poll {
 		title: typeof stored.title === 'string' ? stored.title : '',
 		description,
 		toolConfig,
-		proposals,
+		// Proposals are owned by the backend now; ignore any cached copy.
+		proposals: [],
 		report: migrateReport(stored.report)
 	};
 }
@@ -137,6 +139,27 @@ function saveJSON(key: string, value: unknown): void {
 	localStorage.setItem(key, JSON.stringify(value));
 }
 
+/**
+ * Map a server-side proposal response into the shape the aggregation code
+ * expects. Each response becomes a single-proposal pseudo-submission keyed by
+ * the response id, so identity grouping by participant is not preserved — the
+ * aggregation only cares about the bag of answers per (proposal, question),
+ * which this representation preserves.
+ */
+function responseToSubmission(r: ProposalResponseDto): Submission {
+	const answers: ProposalAnswers = {};
+	for (const a of r.response) {
+		answers[a.question_id] = { kind: 'numeric', value: a.value };
+	}
+	const now = new Date().toISOString();
+	return {
+		participantId: r.id,
+		byProposal: { [r.proposalId]: answers },
+		startedAt: now,
+		submittedAt: now
+	};
+}
+
 /** Stable participant id for this browser, used for the prototype's "current user". */
 export function getOrCreateParticipantId(): string {
 	if (typeof localStorage === 'undefined') return 'anon';
@@ -149,31 +172,84 @@ export function getOrCreateParticipantId(): string {
 }
 
 /**
- * Reactive store backing the prioritization tool's prototype state.
+ * Reactive store backing the prioritization tool.
  *
- * Persists to `localStorage` keyed by workflow step id. The backend will
- * eventually own this state via `tool_config` JSONB plus `proposal` /
- * `proposal_question` / `question_response` rows; for now the entire blob
- * lives in the browser.
+ * Backend-owned (server):
+ *   - proposals (`/tools/prioritization/proposals`)
+ *   - submitted answers (`/tools/prioritization/proposals/{id}/responses`)
+ *
+ * Client-owned (localStorage, scoped by step id):
+ *   - poll title/description (stub — backend doesn't yet have a slot)
+ *   - tool config: questions, randomize_order (stub — `tool_config` is in DB
+ *     but there is no update endpoint yet)
+ *   - report pages
+ *   - per-participant in-progress drafts
  */
 export class PrioritizationStore {
 	stepId: string;
 	poll = $state<Poll>(emptyPoll('unknown'));
 	submissions = $state<Submission[]>([]);
+	proposalsLoading = $state(false);
+	submissionsLoading = $state(false);
+
+	private saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+	private pendingPatches = new Map<string, { title?: string; body?: string }>();
 
 	constructor(stepId: string) {
 		this.stepId = stepId;
 		const stored = loadJSON<Partial<Poll>>(pollKey(stepId));
 		this.poll = migratePoll(stepId, stored);
-		this.submissions = loadJSON<Submission[]>(subsKey(stepId)) ?? [];
+		void this.loadProposals();
+		void this.loadAllResponses();
 	}
 
 	private persist(): void {
 		saveJSON(pollKey(this.stepId), this.poll);
 	}
 
-	private persistSubmissions(): void {
-		saveJSON(subsKey(this.stepId), this.submissions);
+	// ---- Server I/O ----------------------------------------------------
+
+	private proposalFromDto(dto: LocalizedProposalDto, order: number): Proposal {
+		return {
+			id: dto.id,
+			order,
+			title: dto.title,
+			body: dto.body
+		};
+	}
+
+	async loadProposals(): Promise<void> {
+		this.proposalsLoading = true;
+		try {
+			const list = await apiClient.ListProposals({
+				queries: { workflow_step_id: this.stepId }
+			});
+			this.poll.proposals = list.map((p, i) => this.proposalFromDto(p, i + 1));
+		} catch (err) {
+			console.error('Failed to load prioritization proposals', err);
+		} finally {
+			this.proposalsLoading = false;
+		}
+	}
+
+	async loadAllResponses(): Promise<void> {
+		this.submissionsLoading = true;
+		try {
+			if (this.poll.proposals.length === 0) {
+				// Wait briefly for proposals to load if they haven't yet.
+				await this.loadProposals();
+			}
+			const all = await Promise.all(
+				this.poll.proposals.map((p) =>
+					apiClient.ListProposalResponses({ params: { proposal_id: p.id } })
+				)
+			);
+			this.submissions = all.flat().map((r) => responseToSubmission(r));
+		} catch (err) {
+			console.error('Failed to load prioritization responses', err);
+		} finally {
+			this.submissionsLoading = false;
+		}
 	}
 
 	// ---- Top-level poll fields -----------------------------------------
@@ -284,44 +360,113 @@ export class PrioritizationStore {
 		this.persist();
 	}
 
-	// ---- PollEditor ------------------------------------------------------
+	// ---- Proposals (server-backed) -------------------------------------
 
-	addProposal(): Proposal {
-		const order = this.poll.proposals.length + 1;
-		const p: Proposal = { id: uid(), order, title: '', body: '' };
-		this.poll.proposals = [...this.poll.proposals, p];
-		this.persist();
-		return p;
+	/**
+	 * Create a new proposal on the server and append it locally. The returned
+	 * proposal contains the server-assigned id; callers can synchronously open
+	 * an editor on the result. On failure the local state is left unchanged.
+	 */
+	async addProposal(): Promise<Proposal | null> {
+		try {
+			const created = await apiClient.CreateProposal({
+				workflow_step_id: this.stepId,
+				title: '',
+				body: ''
+			});
+			const p: Proposal = {
+				id: created.id,
+				order: this.poll.proposals.length + 1,
+				title: '',
+				body: ''
+			};
+			this.poll.proposals = [...this.poll.proposals, p];
+			return p;
+		} catch (err) {
+			console.error('Failed to create proposal', err);
+			return null;
+		}
 	}
 
+	/**
+	 * Patch a proposal locally, then debounce a PUT to the server. Multiple
+	 * patches inside the debounce window are coalesced into a single request.
+	 * `imageDataUrl` and `order` are local-only fields (not yet supported by the
+	 * backend) and are skipped when syncing.
+	 */
 	updateProposal(proposalId: string, patch: Partial<Proposal>): void {
 		this.poll.proposals = this.poll.proposals.map((p) =>
 			p.id === proposalId ? { ...p, ...patch } : p
 		);
-		this.persist();
+
+		const sync: { title?: string; body?: string } = {};
+		if (typeof patch.title === 'string') sync.title = patch.title;
+		if (typeof patch.body === 'string') sync.body = patch.body;
+		if (Object.keys(sync).length === 0) return;
+
+		const merged = { ...(this.pendingPatches.get(proposalId) ?? {}), ...sync };
+		this.pendingPatches.set(proposalId, merged);
+
+		const existing = this.saveTimers.get(proposalId);
+		if (existing) clearTimeout(existing);
+		const timer = setTimeout(() => {
+			void this.flushPendingPatch(proposalId);
+		}, SAVE_DEBOUNCE_MS);
+		this.saveTimers.set(proposalId, timer);
 	}
 
-	duplicateProposal(proposalId: string): Proposal | null {
+	private async flushPendingPatch(proposalId: string): Promise<void> {
+		const patch = this.pendingPatches.get(proposalId);
+		this.pendingPatches.delete(proposalId);
+		this.saveTimers.delete(proposalId);
+		if (!patch) return;
+		try {
+			await apiClient.UpdateProposal(patch, { params: { proposal_id: proposalId } });
+		} catch (err) {
+			console.error('Failed to update proposal', err);
+		}
+	}
+
+	async duplicateProposal(proposalId: string): Promise<Proposal | null> {
 		const original = this.poll.proposals.find((p) => p.id === proposalId);
 		if (!original) return null;
-		const copy: Proposal = {
-			...original,
-			id: uid(),
-			order: this.poll.proposals.length + 1
-		};
-		this.poll.proposals = [...this.poll.proposals, copy];
-		this.persist();
-		return copy;
+		try {
+			const created = await apiClient.CreateProposal({
+				workflow_step_id: this.stepId,
+				title: original.title,
+				body: original.body
+			});
+			const copy: Proposal = {
+				id: created.id,
+				order: this.poll.proposals.length + 1,
+				title: original.title,
+				body: original.body
+			};
+			this.poll.proposals = [...this.poll.proposals, copy];
+			return copy;
+		} catch (err) {
+			console.error('Failed to duplicate proposal', err);
+			return null;
+		}
 	}
 
-	removeProposal(proposalId: string): void {
-		this.poll.proposals = this.poll.proposals
+	async removeProposal(proposalId: string): Promise<void> {
+		const before = this.poll.proposals;
+		this.poll.proposals = before
 			.filter((p) => p.id !== proposalId)
 			.map((p, i) => ({ ...p, order: i + 1 }));
-		this.persist();
+		try {
+			await apiClient.DeleteProposal(undefined, { params: { proposal_id: proposalId } });
+		} catch (err) {
+			console.error('Failed to delete proposal', err);
+			this.poll.proposals = before; // rollback on failure
+		}
 	}
 
-	/** Reorder proposals to match the given list of ids. Missing ids dropped. */
+	/**
+	 * Reorder proposals visually. The backend doesn't yet persist proposal
+	 * order, so this only affects in-memory state and won't survive a reload.
+	 */
 	reorderProposals(orderedIds: string[]): void {
 		const map = new Map(this.poll.proposals.map((p) => [p.id, p]));
 		const next: Proposal[] = [];
@@ -333,7 +478,6 @@ export class PrioritizationStore {
 			if (!orderedIds.includes(p.id)) next.push({ ...p, order: next.length + 1 });
 		}
 		this.poll.proposals = next;
-		this.persist();
 	}
 
 	// ---- Participant drafts --------------------------------------------
@@ -367,15 +511,40 @@ export class PrioritizationStore {
 		return draft;
 	}
 
-	submitDraft(participantId: string): Submission | null {
+	/**
+	 * Submit the participant's draft answers to the backend, one POST per
+	 * proposal. Text answers are dropped silently — backend `Response` only
+	 * carries a numeric `value`, so text questions are not yet round-tripped.
+	 */
+	async submitDraft(participantId: string): Promise<Submission | null> {
 		const draft = this.loadDraft(participantId);
 		if (!this.draftIsComplete(draft)) return null;
+
+		try {
+			for (const proposal of this.poll.proposals) {
+				const answers = draft.byProposal[proposal.id] ?? {};
+				const question_responses = Object.entries(answers)
+					.filter(([, v]) => v.kind === 'numeric')
+					.map(([question_id, v]) => ({
+						question_id,
+						value: (v as Extract<AnswerValue, { kind: 'numeric' }>).value
+					}));
+				if (question_responses.length === 0) continue;
+				await apiClient.CreateProposalResponse(
+					{ question_responses },
+					{ params: { proposal_id: proposal.id } }
+				);
+			}
+		} catch (err) {
+			console.error('Failed to submit proposal responses', err);
+			return null;
+		}
+
 		const submission: Submission = { ...draft, submittedAt: new Date().toISOString() };
 		this.submissions = [
 			...this.submissions.filter((s) => s.participantId !== participantId),
 			submission
 		];
-		this.persistSubmissions();
 		return submission;
 	}
 

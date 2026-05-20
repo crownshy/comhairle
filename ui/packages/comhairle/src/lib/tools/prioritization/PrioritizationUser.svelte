@@ -75,16 +75,16 @@
 		if (proposalIdx > 0) proposalIdx -= 1;
 	}
 
-	function submit() {
+	async function submit() {
 		if (readonly) {
 			phase = 'submitted';
 			return;
 		}
-		const sub = store.submitDraft(myId);
+		const sub = await store.submitDraft(myId);
 		if (sub) {
 			phase = 'submitted';
 		} else {
-			alert('Some required questions are not answered yet.');
+			alert('Some required questions are not answered yet, or submission failed.');
 		}
 	}
 
