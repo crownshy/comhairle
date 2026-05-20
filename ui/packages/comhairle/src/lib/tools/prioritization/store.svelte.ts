@@ -391,8 +391,8 @@ export class PrioritizationStore {
 	/**
 	 * Patch a proposal locally, then debounce a PUT to the server. Multiple
 	 * patches inside the debounce window are coalesced into a single request.
-	 * `imageDataUrl` and `order` are local-only fields (not yet supported by the
-	 * backend) and are skipped when syncing.
+	 * `order` is local-only (not yet supported by the backend) and is skipped
+	 * when syncing.
 	 */
 	updateProposal(proposalId: string, patch: Partial<Proposal>): void {
 		this.poll.proposals = this.poll.proposals.map((p) =>

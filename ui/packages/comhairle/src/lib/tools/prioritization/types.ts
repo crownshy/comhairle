@@ -23,8 +23,6 @@ export type Proposal = {
 	title: string;
 	/** Translatable in backend; rich-text JSON in this prototype. */
 	body: string;
-	/** Data URL of an optional header image. */
-	imageDataUrl?: string;
 };
 
 export type QuestionBase = {

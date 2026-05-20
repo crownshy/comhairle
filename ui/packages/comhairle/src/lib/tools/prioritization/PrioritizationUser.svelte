@@ -125,13 +125,6 @@
 		<h2 class="text-2xl font-semibold">
 			{currentProposal.title || `Proposal ${proposalIdx + 1}`}
 		</h2>
-		{#if currentProposal.imageDataUrl}
-			<img
-				src={currentProposal.imageDataUrl}
-				alt={currentProposal.title}
-				class="max-h-64 w-full rounded-md object-cover"
-			/>
-		{/if}
 		{#if currentProposal.body}
 			<ContentRenderer content={currentProposal.body} />
 		{/if}
