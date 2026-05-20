@@ -4,13 +4,7 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-importers:
-
-  .:
-    dependencies:
-      svelte-dnd-action:
-        specifier: ^0.9.69
-        version: 0.9.69(svelte@5.55.8)
+importers: {}
 
 packages:
 
