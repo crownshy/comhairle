@@ -20,7 +20,6 @@
 		ListChecks,
 		Video,
 		MessagesSquare,
-		ChevronDown,
 		Bot,
 		GripVertical
 	} from 'lucide-svelte';
