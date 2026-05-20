@@ -61,6 +61,16 @@ pub trait ComhairleMailer: Send + Sync {
         organization_name: String,
         organization_email: Option<String>,
     ) -> Result<(), ComhairleError>;
+
+    fn send_event_reminder(
+        &self,
+        email: String,
+        event_name: String,
+        event_time: String,
+        event_link: String,
+        organization_name: String,
+        organization_email: Option<String>,
+    ) -> Result<(), ComhairleError>;
 }
 
 #[derive(Debug)]
@@ -91,6 +101,9 @@ impl MockComhairleMailer {
             .returning(|_, _, _, _, _, _| Ok(()));
         mailer
             .expect_send_event_confirmation_email()
+            .returning(|_, _, _, _, _, _| Ok(()));
+        mailer
+            .expect_send_event_reminder()
             .returning(|_, _, _, _, _, _| Ok(()));
 
         mailer
@@ -254,6 +267,29 @@ impl ComhairleMailer for Mailer {
             &email,
             "Event registration confirmation",
             "event_confirmation.html",
+            context! {
+                event_name => event_name,
+                event_time => event_time,
+                organization_name => organization_name,
+                organization_email => organization_email,
+                event_link => event_link,
+            },
+        )
+    }
+
+    fn send_event_reminder(
+        &self,
+        email: String,
+        event_name: String,
+        event_time: String,
+        event_link: String,
+        organization_name: String,
+        organization_email: Option<String>,
+    ) -> Result<(), ComhairleError> {
+        self.send_email(
+            &email,
+            "Upcoming event reminder",
+            "event_reminder.html",
             context! {
                 event_name => event_name,
                 event_time => event_time,

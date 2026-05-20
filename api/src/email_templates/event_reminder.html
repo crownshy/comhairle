@@ -1,12 +1,13 @@
 {% extends "email_layout.html" %}
 {% block content %}
-	<h1>You're in!</h1>
-	<p>Thank you for registering for {{event_name}}. You will be sent a reminder email before the event with instructions on how to join the online meeting.</p>
+	<h1>Reminder!</h1>
+	<p>An event you recently registered for is starting soon.</p>
+	<p>{{event_name}} will begin at {{event_time}}. Click the button below to join the event.</p>
 
 	<div class="card">
 		<h2>{{event_name}}</h2>
 		<p>{{event_time}}</p>
-		<a class="button" href="{{event_link}}">Event info</a>
+		<a class="button" href="{{event_link}}">Join event</a>
 	</div>
 
 	<p>If you are having trouble with the button above, copy and paste the URL below into your web browser.</p>

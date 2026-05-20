@@ -71,6 +71,7 @@ pub async fn create(
     db: &PgPool,
     user_id: &Uuid,
     redirect_url: Option<String>,
+    custom_expiry: Option<DateTime<Utc>>,
 ) -> Result<Otp, ComhairleError> {
     let user = users::get_user_by_id(user_id, db).await?;
 
@@ -92,7 +93,7 @@ pub async fn create(
         .await?;
 
     let random_code = gen_id();
-    let expires_at = Utc::now() + Duration::minutes(10);
+    let expires_at = custom_expiry.unwrap_or(Utc::now() + Duration::minutes(10));
 
     let mut columns = vec![OtpIden::UserId, OtpIden::Code, OtpIden::ExpiresAt];
     let mut values = vec![(*user_id).into(), random_code.into(), expires_at.into()];
@@ -184,7 +185,7 @@ mod tests {
         .await?;
 
         let before = Utc::now();
-        let otp = create(&pool, &user.id, None).await?;
+        let otp = create(&pool, &user.id, None, None).await?;
         let after = Utc::now();
 
         let expiry_duration = Duration::minutes(10);
@@ -211,9 +212,9 @@ mod tests {
         )
         .await?;
 
-        let first = create(&pool, &user.id, None).await?;
-        let second = create(&pool, &user.id, None).await?;
-        let third = create(&pool, &user.id, None).await?;
+        let first = create(&pool, &user.id, None, None).await?;
+        let second = create(&pool, &user.id, None, None).await?;
+        let third = create(&pool, &user.id, None, None).await?;
 
         let first = get_by_id(&pool, &first.id).await?;
         let second = get_by_id(&pool, &second.id).await?;
@@ -229,7 +230,7 @@ mod tests {
     async fn should_fail_otp_create_for_annon_users(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = users::create_annon_user(&pool).await?;
 
-        let error = create(&pool, &user.id, None).await.unwrap_err();
+        let error = create(&pool, &user.id, None, None).await.unwrap_err();
 
         match error {
             ComhairleError::WrongUserType => return Ok(()),
@@ -247,7 +248,7 @@ mod tests {
         )
         .await?;
 
-        let new_otp = create(&pool, &user.id, None).await?;
+        let new_otp = create(&pool, &user.id, None, None).await?;
 
         let otp = get_by_id(&pool, &new_otp.id).await?;
 
@@ -266,7 +267,7 @@ mod tests {
         )
         .await?;
 
-        let new_otp = create(&pool, &user.id, None).await?;
+        let new_otp = create(&pool, &user.id, None, None).await?;
 
         let now = Utc::now();
         let otp = accept(&pool, &user.id, &new_otp.code, now).await?;
@@ -288,7 +289,7 @@ mod tests {
         )
         .await?;
 
-        let new_otp = create(&pool, &user.id, None).await?;
+        let new_otp = create(&pool, &user.id, None, None).await?;
 
         let now = Utc::now() + Duration::minutes(11);
         let error = accept(&pool, &user.id, &new_otp.code, now)
@@ -321,7 +322,7 @@ mod tests {
         )
         .await?;
 
-        let new_otp = create(&pool, &user.id, None).await?;
+        let new_otp = create(&pool, &user.id, None, None).await?;
 
         let now = Utc::now();
         let first_error = accept(&pool, &Uuid::new_v4(), &new_otp.code, now)
