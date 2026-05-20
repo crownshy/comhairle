@@ -9,7 +9,6 @@
 		basic_survey_config,
 		basic_lived_experience_config,
 		basic_elicitation_bot_config,
-		basic_prioritization_config,
 		defaultStepCreationParams
 	} from '$lib/workflow_templates.js';
 	import ToolSelectionModal from '$lib/components/ToolSelectionModal.svelte';
@@ -19,7 +18,6 @@
 		Plus,
 		BookOpen,
 		ListChecks,
-		ListOrdered,
 		Video,
 		MessagesSquare,
 		ChevronDown,
@@ -55,8 +53,7 @@
 			Learn: basic_learn_config,
 			Survey: basic_survey_config,
 			'Lived Experience': basic_lived_experience_config,
-			'Elicitation Bot': basic_elicitation_bot_config(conversation),
-			Prioritization: basic_prioritization_config
+			'Elicitation Bot': basic_elicitation_bot_config(conversation)
 		}[step];
 
 		let new_step_order =
@@ -173,9 +170,6 @@
 							{/if}
 							{#if activeToolConfig(step).type === 'elicitationbot'}
 								<Bot />
-							{/if}
-							{#if activeToolConfig(step).type === 'prioritization'}
-								<ListOrdered />
 							{/if}
 							<h1 class="text-xl">{step.name}</h1>
 						</div>

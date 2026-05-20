@@ -92,10 +92,6 @@ pub async fn list(
             Expr::col((ProposalIden::Table, ProposalIden::WorkflowStepId))
                 .eq(workflow_step_id.to_owned()),
         )
-        .order_by(
-            (ProposalIden::Table, ProposalIden::CreatedAt),
-            sea_query::Order::Asc,
-        )
         .to_owned();
 
     let query = LocalizedProposal::query_to_localisation(query, locale);
@@ -105,43 +101,6 @@ pub async fn list(
     let proposals = query_as_with(&sql, values).fetch_all(db).await?;
 
     Ok(proposals)
-}
-
-/// NOTE: I couldn't figure out how to pull localized data directly in a single
-/// query like `list()` does with `query_to_localisation`.
-/// Felt a bit stuck, so asked AI what do to and it gave me this as a workaround.
-/// Fetches raw rows first, then manually builds the translation payload.
-/// I think I probably don't understand the translation pattern.
-/// Might be worth spending some time talking through it :/
-#[instrument(err(Debug))]
-pub async fn list_raw(
-    db: &PgPool,
-    workflow_step_id: &Uuid,
-) -> Result<Vec<Proposal>, ComhairleError> {
-    let (sql, values) = Query::select()
-        .from(ProposalIden::Table)
-        .columns(DEFAULT_COLUMNS)
-        .and_where(Expr::col(ProposalIden::WorkflowStepId).eq(workflow_step_id.to_owned()))
-        .order_by(ProposalIden::CreatedAt, sea_query::Order::Asc)
-        .build_sqlx(PostgresQueryBuilder);
-
-    let proposals = query_as_with(&sql, values).fetch_all(db).await?;
-
-    Ok(proposals)
-}
-
-#[instrument(err(Debug))]
-pub async fn list_with_translations(
-    db: &PgPool,
-    workflow_step_id: &Uuid,
-    locale: &str,
-) -> Result<Vec<ProposalWithTranslations>, ComhairleError> {
-    let proposals = list_raw(db, workflow_step_id).await?;
-    let mut out = Vec::with_capacity(proposals.len());
-    for proposal in proposals {
-        out.push(ProposalWithTranslations::from_original(db, proposal, locale).await?);
-    }
-    Ok(out)
 }
 
 #[instrument(err(Debug))]
