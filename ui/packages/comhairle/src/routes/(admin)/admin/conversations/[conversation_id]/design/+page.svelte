@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { WorkflowStepWithTranslations } from '@crownshy/api-client/api';
 	import { infoURLForTool } from '$lib/utils';
-	import { flip } from 'svelte/animate';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import {
 		basic_learn_config,
