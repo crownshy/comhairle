@@ -19,6 +19,7 @@
 		aiTranslate,
 		markOtherTranslationsAsDraft
 	} from './translationUtils';
+	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
 	type TranslationData = Translation | Translation2;
 
@@ -38,6 +39,8 @@
 		translation?: TranslationData;
 		initialContents?: Record<string, string>;
 		initialStatuses?: Record<string, TranslationStatus>;
+		availableDocuments?: ComhairleDocument[];
+		conversationId?: string;
 		onSaveSource?: (content: string) => void | Promise<void>;
 		onSaveTarget?: (lang: string, content: string) => void | Promise<void>;
 		onAiTranslate?: (
@@ -64,6 +67,8 @@
 		translation,
 		initialContents,
 		initialStatuses,
+		availableDocuments = [],
+		conversationId,
 		onSaveSource,
 		onSaveTarget,
 		onAiTranslate: onAiTranslateProp,
@@ -272,6 +277,8 @@
 				{placeholder}
 				{minHeight}
 				{maxHeight}
+				{availableDocuments}
+				{conversationId}
 			/>
 			{#if hasTranslations}
 				<Button
@@ -376,6 +383,8 @@
 						{editorType}
 						minHeight={dialogMinHeight}
 						initialTargetLang={clickedLang}
+						{availableDocuments}
+						{conversationId}
 						onSaveSource={handleEditorSaveSource}
 						onSaveTarget={handleEditorSaveTarget}
 						onAiTranslate={handleEditorAiTranslate}

@@ -10,6 +10,8 @@
 	import { type ActiveStates } from '$lib/components/RichTextEditor/types';
 	import { detectContentType } from '$lib/utils/contentDetection';
 	import { getBaseExtensions, getEditorProps } from './editorConfig';
+	import { SourceDocument } from './extensions/sourceDocument';
+	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import './editor-content.css';
 
 	type Props = {
@@ -21,6 +23,8 @@
 		maxHeight?: string;
 		width?: string;
 		onChange?: (json: string) => void;
+		availableDocuments?: ComhairleDocument[];
+		conversationId?: string;
 	};
 
 	let {
@@ -31,7 +35,9 @@
 		minHeight = '200px',
 		maxHeight,
 		width,
-		onChange
+		onChange,
+		availableDocuments = [],
+		conversationId
 	}: Props = $props();
 
 	let editorElement = $state<HTMLElement>();
@@ -46,6 +52,7 @@
 	let showLinkPopover = $state(false);
 	let showImagePopover = $state(false);
 	let showVideoPopover = $state(false);
+	let showDocumentPopover = $state(false);
 
 	let isCompact = $derived(containerWidth < 600);
 
@@ -73,21 +80,36 @@
 		}
 	);
 
-	onMount(() => {
+	function buildDocMap(docs: ComhairleDocument[]) {
+		const map: Record<string, { name: string; size: number }> = {};
+		for (const doc of docs) {
+			map[doc.id] = { name: doc.name, size: doc.size };
+		}
+		return map;
+	}
+
+	let lastDocMapKey = $state('');
+
+	function createEditor() {
+		if (editor) {
+			editor.destroy();
+			editor = undefined;
+		}
 		if (!editorElement) return;
 
+		isInitializing = true;
 		const detected = detectContentType(value);
+		const docMap = buildDocMap(availableDocuments);
+		lastDocMapKey = JSON.stringify({ docMap, conversationId });
 
 		editor = new Editor({
 			element: editorElement,
 			extensions: [
-				// Editor-specific extensions
-				Color.configure({ types: ['textStyle', 'listItem'] }),
-				TextStyle,
-				ListItem,
-				Underline,
-				// Shared base extensions
-				...getBaseExtensions({ mode: 'editor' })
+				// Shared base extensions (filter out default SourceDocument, add configured one)
+				...getBaseExtensions({ mode: 'editor' }).filter(
+					(ext) => ext.name !== 'sourceDocument'
+				),
+				SourceDocument.configure({ documents: docMap, conversationId, editable: true })
 			],
 			content: detected.content,
 			contentType: detected.type,
@@ -117,6 +139,18 @@
 				}, 0);
 			}
 		});
+	}
+
+	onMount(() => {
+		createEditor();
+	});
+
+	$effect(() => {
+		const docMap = buildDocMap(availableDocuments);
+		const newKey = JSON.stringify({ docMap, conversationId });
+		if (newKey !== lastDocMapKey && editorElement) {
+			createEditor();
+		}
 	});
 
 	function updateActiveStates() {
@@ -193,12 +227,15 @@
 			bind:showLinkPopover
 			bind:showImagePopover
 			bind:showVideoPopover
+			bind:showDocumentPopover
+			documents={availableDocuments}
 			{menuExpanded}
 			compact={isCompact}
 			onToggleMenu={() => (menuExpanded = !menuExpanded)}
 			onLinkPopoverChange={(open) => (showLinkPopover = open)}
 			onImagePopoverChange={(open) => (showImagePopover = open)}
 			onVideoPopoverChange={(open) => (showVideoPopover = open)}
+			onDocumentPopoverChange={(open) => (showDocumentPopover = open)}
 		/>
 	{/if}
 

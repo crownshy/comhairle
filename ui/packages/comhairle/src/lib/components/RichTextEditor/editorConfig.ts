@@ -8,6 +8,7 @@ import { Iframe } from '$lib/components/RichTextEditor/extensions/iframe';
 import { ListItem } from '@tiptap/extension-list-item';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Underline } from '@tiptap/extension-underline';
+import { SourceDocument } from './extensions/sourceDocument';
 import type { Extensions } from '@tiptap/core';
 
 export const EDITOR_HTML_ATTRIBUTES = {
@@ -51,13 +52,17 @@ export function getBaseExtensions(options: EditorConfigOptions): Extensions {
 			HTMLAttributes: EDITOR_HTML_ATTRIBUTES.image
 		}),
 		Iframe,
+		SourceDocument,
 		TextAlign.configure({
 			types: ['heading', 'paragraph']
 		}),
 		StarterKit.configure({
 			heading: {
 				levels: [1, 2, 3, 4, 5, 6]
-			}
+			},
+			link: false,
+			listItem: false,
+			underline: false
 		}),
 		Markdown
 	];
