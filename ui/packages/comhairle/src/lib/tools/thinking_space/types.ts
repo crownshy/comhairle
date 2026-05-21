@@ -32,14 +32,11 @@ export interface QuestionAnswers {
 	followUps: FollowUpAnswer[];
 }
 
-export type ClaimStatus = 'pending' | 'approved' | 'removed';
-
 export interface ParticipantClaim {
 	id: string;
 	content: string;
 	sourceQuestionId: string;
 	sourceQuestionText: string;
-	status: ClaimStatus;
 }
 
 export type ThinkingSpacePhase = 'welcome' | 'questions' | 'review' | 'submitted';

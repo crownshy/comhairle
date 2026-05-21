@@ -6,7 +6,6 @@
 	import QuestionFlow from './QuestionFlow.svelte';
 	import ReviewPage from './ReviewPage.svelte';
 	import Submitted from './Submitted.svelte';
-	import { loadConfig } from './config';
 	import {
 		emptyState,
 		loadParticipantState,
@@ -14,7 +13,7 @@
 		clearParticipantState,
 		type ParticipantState
 	} from './participantStorage';
-	import type { ThinkingSpaceConfig, ParticipantClaim } from './types';
+	import type { QuestionConfig, ParticipantClaim } from './types';
 
 	type Props = {
 		conversationId: string;
@@ -23,6 +22,8 @@
 		userId: string;
 		topic?: string;
 		description?: string;
+		rootQuestions?: QuestionConfig[];
+		followUpRoundsCount?: number;
 		onDone?: () => void;
 		onCanContinueChange?: (canContinue: boolean) => void;
 	};
@@ -33,27 +34,22 @@
 		userId,
 		topic = '',
 		description,
+		rootQuestions = [],
+		followUpRoundsCount = 2,
 		onDone,
 		onCanContinueChange
 	}: Props = $props();
 
 	let loaded = $state(false);
-	let config = $state<ThinkingSpaceConfig>({ questions: [], followUpCount: 2 });
 	let progress = $state<ParticipantState>(emptyState());
 
-	let allClaimsResolved = $derived.by(() => {
-		const active = progress.claims.filter((c: ParticipantClaim) => c.status !== 'removed');
-		return active.length > 0 && active.every((c) => c.status === 'approved');
-	});
-
-	let canContinue = $derived(progress.phase === 'submitted' || allClaimsResolved);
+	let canContinue = $derived(progress.phase === 'submitted');
 
 	$effect(() => {
 		onCanContinueChange?.(canContinue);
 	});
 
 	onMount(() => {
-		config = loadConfig(workflowStepId);
 		progress = loadParticipantState(workflowStepId, conversationId, userId);
 		loaded = true;
 	});
@@ -92,19 +88,15 @@
 	}
 
 	function handleSubmit() {
-		// Mark all non-removed claims as approved (defensive) then mark submitted
-		progress.claims = progress.claims.map((c) =>
-			c.status === 'removed' ? c : { ...c, status: 'approved' as const }
-		);
 		progress.phase = 'submitted';
 		persist();
 	}
 
 	let configIncomplete = $derived(
-		config.questions.length === 0 || config.questions.every((q) => q.text.trim().length === 0)
+		rootQuestions.length === 0 || rootQuestions.every((q) => q.text.trim().length === 0)
 	);
 
-	let approvedCount = $derived(progress.claims.filter((c) => c.status === 'approved').length);
+	let claimCount = $derived(progress.claims.length);
 
 	const isDev = import.meta.env.DEV;
 
@@ -145,15 +137,16 @@
 			<Welcome
 				{topic}
 				{description}
-				questionCount={config.questions.length}
-				followUpCount={config.followUpCount}
+				questionCount={rootQuestions.length}
+				followUpCount={followUpRoundsCount}
 				onStart={start}
 			/>
 		{:else if progress.phase === 'questions'}
 			<QuestionFlow
 				{topic}
-				questions={config.questions}
-				followUpCount={config.followUpCount}
+				{workflowStepId}
+				questions={rootQuestions}
+				followUpCount={followUpRoundsCount}
 				initialAnswers={progress.answers}
 				initialClaims={progress.claims}
 				onProgress={handleProgress}
@@ -166,7 +159,7 @@
 				onSubmit={handleSubmit}
 			/>
 		{:else if progress.phase === 'submitted'}
-			<Submitted {approvedCount} {onDone} />
+			<Submitted {claimCount} {onDone} />
 		{/if}
 	</div>
 {/if}

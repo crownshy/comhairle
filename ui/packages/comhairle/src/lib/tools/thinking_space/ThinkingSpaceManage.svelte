@@ -10,9 +10,10 @@
 		CardTitle,
 		CardDescription
 	} from '$lib/components/ui/card';
-	import { Plus, Trash2, ArrowUp, ArrowDown, Minus } from 'lucide-svelte';
+	import { Plus, Trash2, GripVertical, Pencil, Minus } from 'lucide-svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
+	import DraggableList from '$lib/components/DraggableList.svelte';
 	import type { WorkflowStepWithTranslations } from '@crownshy/api-client/api';
 	import type { QuestionConfig } from './types';
 
@@ -33,6 +34,7 @@
 		followUpRoundsCount: 2
 	});
 	let saving = $state(false);
+	let editingId = $state<string | null>(null);
 
 	onMount(() => {
 		const cfg = toolConfig as
@@ -51,24 +53,22 @@
 					? Math.max(0, Math.min(5, cfg.follow_up_rounds_count))
 					: 2
 		};
+		// Open the first question for editing if it's still blank
+		if (questions.length === 1 && !questions[0].text.trim()) {
+			editingId = questions[0].id;
+		}
 	});
 
 	function addQuestion() {
-		config.questions = [...config.questions, { id: crypto.randomUUID(), text: '' }];
+		const q = { id: crypto.randomUUID(), text: '' };
+		config.questions = [...config.questions, q];
+		editingId = q.id;
 	}
 
 	function removeQuestion(id: string) {
 		if (config.questions.length <= 1) return;
 		config.questions = config.questions.filter((q) => q.id !== id);
-	}
-
-	function move(id: string, delta: -1 | 1) {
-		const idx = config.questions.findIndex((q) => q.id === id);
-		const target = idx + delta;
-		if (idx < 0 || target < 0 || target >= config.questions.length) return;
-		const next = [...config.questions];
-		[next[idx], next[target]] = [next[target], next[idx]];
-		config.questions = next;
+		if (editingId === id) editingId = null;
 	}
 
 	function bumpFollowUps(delta: -1 | 1) {
@@ -180,52 +180,69 @@
 			</CardDescription>
 		</CardHeader>
 		<CardContent class="space-y-3">
-			{#each config.questions as q, i (q.id)}
-				<div class="border-border bg-card flex items-start gap-3 rounded-lg border p-3">
-					<div
-						class="bg-primary/10 text-primary mt-1 flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
-					>
-						{i + 1}
-					</div>
-					<div class="flex-1">
-						<Textarea
-							bind:value={config.questions[i].text}
-							placeholder="Write your question…"
-							rows={2}
-							class="resize-none"
-						/>
-					</div>
-					<div class="flex flex-col gap-1">
-						<Button
-							variant="ghost"
-							size="icon"
-							onclick={() => move(q.id, -1)}
-							disabled={i === 0}
-							aria-label="Move up"
-						>
-							<ArrowUp class="size-4" />
-						</Button>
-						<Button
-							variant="ghost"
-							size="icon"
-							onclick={() => move(q.id, 1)}
-							disabled={i === config.questions.length - 1}
-							aria-label="Move down"
-						>
-							<ArrowDown class="size-4" />
-						</Button>
-						<Button
-							variant="ghost"
-							size="icon"
-							onclick={() => removeQuestion(q.id)}
-							disabled={config.questions.length <= 1}
-							aria-label="Remove question"
-						>
-							<Trash2 class="text-destructive size-4" />
-						</Button>
-					</div>
-				</div>
-			{/each}
+			<DraggableList
+				items={config.questions}
+				onReorder={(next) => (config.questions = next)}
+				dragDisabled={editingId !== null || saving}
+				class="space-y-3"
+			>
+				{#snippet children(q: QuestionConfig, i: number)}
+					<Card class="bg-card">
+						<CardContent class="flex items-start gap-3 p-4">
+							<button
+								type="button"
+								aria-label="Drag to reorder"
+								class="text-muted-foreground hover:text-foreground mt-1 shrink-0 cursor-grab active:cursor-grabbing"
+							>
+								<GripVertical class="size-4" />
+							</button>
+							<div class="min-w-0 flex-1">
+								{#if editingId === q.id}
+									<Textarea
+										bind:value={config.questions[i].text}
+										placeholder="Write your question…"
+										rows={2}
+										class="resize-none"
+									/>
+									<div class="mt-2 flex justify-end">
+										<Button size="sm" onclick={() => (editingId = null)}>
+											Done
+										</Button>
+									</div>
+								{:else}
+									<p
+										class="text-base leading-relaxed"
+										class:text-foreground={q.text.trim()}
+										class:text-muted-foreground={!q.text.trim()}
+									>
+										{q.text.trim() || 'Untitled question'}
+									</p>
+								{/if}
+							</div>
+							{#if editingId !== q.id}
+								<div class="flex shrink-0 gap-2">
+									<Button
+										variant="outline"
+										size="sm"
+										onclick={() => (editingId = q.id)}
+									>
+										<Pencil class="mr-1 size-3.5" /> Edit
+									</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										class="text-destructive hover:text-destructive"
+										onclick={() => removeQuestion(q.id)}
+										disabled={config.questions.length <= 1}
+									>
+										<Trash2 class="mr-1 size-3.5" /> Delete
+									</Button>
+								</div>
+							{/if}
+						</CardContent>
+					</Card>
+				{/snippet}
+			</DraggableList>
 
 			<Button variant="outline" class="w-full" onclick={addQuestion}>
 				<Plus class="size-4" />

@@ -4,6 +4,8 @@
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Progress } from '$lib/components/ui/progress';
 	import { CornerDownRight, Shuffle, Check } from 'lucide-svelte';
+	import { apiClient } from '@crownshy/api-client/client';
+	import { notifications } from '$lib/notifications.svelte';
 	import { generateFollowUpOptions, extractMockClaim } from './mockFollowups';
 	import type {
 		QuestionConfig,
@@ -14,6 +16,7 @@
 
 	type Props = {
 		topic: string;
+		workflowStepId: string;
 		questions: QuestionConfig[];
 		followUpCount: number;
 		initialAnswers?: QuestionAnswers[];
@@ -24,6 +27,7 @@
 
 	let {
 		topic,
+		workflowStepId,
 		questions,
 		followUpCount,
 		initialAnswers = [],
@@ -37,6 +41,7 @@
 	type LocalQuestionState = {
 		mainAnswer: string;
 		mainSubmitted: boolean;
+		mainAnswerId: string | null;
 		followUps: FollowUpAnswer[];
 		picker: string[];
 		currentPick: string;
@@ -50,6 +55,7 @@
 			return {
 				mainAnswer: '',
 				mainSubmitted: false,
+				mainAnswerId: null,
 				followUps: [],
 				picker: [],
 				currentPick: '',
@@ -61,6 +67,7 @@
 		return {
 			mainAnswer: stored.mainAnswer,
 			mainSubmitted: true,
+			mainAnswerId: null,
 			followUps: stored.followUps,
 			// Always offer fresh picker options — follow-up count is a minimum,
 			// not a ceiling, so the participant can keep going if they want.
@@ -94,6 +101,7 @@
 	let states = $state<LocalQuestionState[]>(questions.map((_, i) => initialStateFor(i)));
 	let claims = $state<ParticipantClaim[]>([...initialClaims]);
 	let transitioning = $state(false);
+	let submitting = $state(false);
 
 	let bottomEl = $state<HTMLDivElement | null>(null);
 	let mainTextareaEl = $state<HTMLTextAreaElement | null>(null);
@@ -160,8 +168,7 @@
 			id: `claim-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
 			content,
 			sourceQuestionId: source.id,
-			sourceQuestionText: source.text,
-			status: 'pending'
+			sourceQuestionText: source.text
 		};
 	}
 
@@ -178,18 +185,36 @@
 		}, 500);
 	}
 
-	function submitMainAnswer() {
+	async function submitMainAnswer() {
 		const value = currentState.mainAnswer.trim();
-		if (!value) return;
-		claims = [...claims, makeClaim(extractMockClaim(value), currentQuestion)];
-		states[currentQIdx] = {
-			...currentState,
-			mainAnswer: value,
-			mainSubmitted: true,
-			picker: followUpCount > 0 ? generateFollowUpOptions(currentQuestion.text, value) : [],
-			phase: 'picking'
-		};
-		emitProgress();
+		if (!value || submitting) return;
+		submitting = true;
+		try {
+			const saved = await apiClient.CreateThinkingSpaceAnswer({
+				workflow_step_id: workflowStepId,
+				question: currentQuestion.text,
+				answer: value
+			});
+			claims = [...claims, makeClaim(extractMockClaim(value), currentQuestion)];
+			states[currentQIdx] = {
+				...currentState,
+				mainAnswer: value,
+				mainSubmitted: true,
+				mainAnswerId: saved.id,
+				picker:
+					followUpCount > 0 ? generateFollowUpOptions(currentQuestion.text, value) : [],
+				phase: 'picking'
+			};
+			emitProgress();
+		} catch (e) {
+			console.error(e);
+			notifications.send({
+				message: 'Could not save your answer. Please try again.',
+				priority: 'ERROR'
+			});
+		} finally {
+			submitting = false;
+		}
 	}
 
 	function pickFollowUp(q: string) {
@@ -208,30 +233,49 @@
 		pickFollowUp(pool[Math.floor(Math.random() * pool.length)]);
 	}
 
-	function submitFollowUp() {
+	async function submitFollowUp() {
 		const value = currentState.currentPickAnswer.trim();
-		if (!value) return;
-		const fu: FollowUpAnswer = { question: currentState.currentPick, answer: value };
-		const updatedFollowUps = [...currentState.followUps, fu];
-		claims = [
-			...claims,
-			makeClaim(extractMockClaim(value), {
-				id: currentQuestion.id,
-				text: currentState.currentPick
-			})
-		];
-		// Always regenerate the picker and stay in 'picking'. The participant
-		// chooses when to move on via the Continue button (revealed once
-		// followUpsDone >= followUpCount). We never force-quit them.
-		states[currentQIdx] = {
-			...currentState,
-			followUps: updatedFollowUps,
-			currentPick: '',
-			currentPickAnswer: '',
-			picker: generateFollowUpOptions(currentQuestion.text, value),
-			phase: 'picking'
-		};
-		emitProgress();
+		if (!value || submitting) return;
+		submitting = true;
+		try {
+			await apiClient.CreateThinkingSpaceAnswer({
+				workflow_step_id: workflowStepId,
+				question: currentState.currentPick,
+				answer: value,
+				is_follow_up: true,
+				root_question_id: currentState.mainAnswerId,
+				other_questions: currentState.picker
+			});
+			const fu: FollowUpAnswer = { question: currentState.currentPick, answer: value };
+			const updatedFollowUps = [...currentState.followUps, fu];
+			claims = [
+				...claims,
+				makeClaim(extractMockClaim(value), {
+					id: currentQuestion.id,
+					text: currentState.currentPick
+				})
+			];
+			// Always regenerate the picker and stay in 'picking'. The participant
+			// chooses when to move on via the Continue button (revealed once
+			// followUpsDone >= followUpCount). We never force-quit them.
+			states[currentQIdx] = {
+				...currentState,
+				followUps: updatedFollowUps,
+				currentPick: '',
+				currentPickAnswer: '',
+				picker: generateFollowUpOptions(currentQuestion.text, value),
+				phase: 'picking'
+			};
+			emitProgress();
+		} catch (e) {
+			console.error(e);
+			notifications.send({
+				message: 'Could not save your answer. Please try again.',
+				priority: 'ERROR'
+			});
+		} finally {
+			submitting = false;
+		}
 	}
 
 	function handleMainKeydown(e: KeyboardEvent) {
@@ -294,9 +338,9 @@
 					<div class="flex justify-end">
 						<Button
 							onclick={submitMainAnswer}
-							disabled={!currentState.mainAnswer.trim()}
+							disabled={!currentState.mainAnswer.trim() || submitting}
 						>
-							Continue
+							{submitting ? 'Saving…' : 'Continue'}
 						</Button>
 					</div>
 				</section>
@@ -396,9 +440,9 @@
 					<div class="flex justify-end">
 						<Button
 							onclick={submitFollowUp}
-							disabled={!currentState.currentPickAnswer.trim()}
+							disabled={!currentState.currentPickAnswer.trim() || submitting}
 						>
-							Continue
+							{submitting ? 'Saving…' : 'Continue'}
 						</Button>
 					</div>
 				</section>

@@ -139,6 +139,9 @@ importers:
       svelte-copy:
         specifier: ^2.0.0
         version: 2.0.0(svelte@5.53.3)
+      svelte-dnd-action:
+        specifier: ^0.9.69
+        version: 0.9.69(svelte@5.53.3)
       svelte-exmarkdown:
         specifier: ^5.0.0
         version: 5.0.2(svelte@5.53.3)
@@ -4135,6 +4138,11 @@ packages:
     resolution: {integrity: sha512-wJ784qrc9CF7EtrlT2kwJfHnqae/pp4fkgzYeUxex4iFBm6HosT2904t5cZZ1GAZzg/z9V+lCZVP5rpiYsN6Tw==}
     peerDependencies:
       svelte: ^5.0.0
+
+  svelte-dnd-action@0.9.69:
+    resolution: {integrity: sha512-NAmSOH7htJoYraTQvr+q5whlIuVoq88vEuHr4NcFgscDRUxfWPPxgie2OoxepBCQCikrXZV4pqV86aun60wVyw==}
+    peerDependencies:
+      svelte: '>=3.23.0 || ^5.0.0-next.0'
 
   svelte-eslint-parser@1.5.1:
     resolution: {integrity: sha512-UbY7DYoDg+x4AKLUcX5xWuEWylgmm8ZD2Z89YT/AK6Wm/ckeMTnOMwr6AVC99znXbRC26xzWEPhSgmB62E07Gg==}
@@ -8778,6 +8786,10 @@ snapshots:
       - picomatch
 
   svelte-copy@2.0.0(svelte@5.53.3):
+    dependencies:
+      svelte: 5.53.3
+
+  svelte-dnd-action@0.9.69(svelte@5.53.3):
     dependencies:
       svelte: 5.53.3
 

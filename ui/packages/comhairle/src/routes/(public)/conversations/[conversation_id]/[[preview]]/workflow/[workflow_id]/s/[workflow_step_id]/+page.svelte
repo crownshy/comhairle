@@ -285,6 +285,8 @@
 								userId={user.id}
 								topic={toolConfig.topic}
 								description={workflowStep.description}
+								rootQuestions={toolConfig.root_questions}
+								followUpRoundsCount={toolConfig.follow_up_rounds_count}
 								onDone={stepComplete}
 								onCanContinueChange={handleCanContinueChange}
 							/>

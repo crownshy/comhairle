@@ -2,7 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Card, CardContent } from '$lib/components/ui/card';
-	import { Check, Pencil, X, Undo2 } from 'lucide-svelte';
+	import { Pencil } from 'lucide-svelte';
 	import type { ParticipantClaim } from './types';
 
 	type Props = {
@@ -16,31 +16,8 @@
 	let editingId = $state<string | null>(null);
 	let editDraft = $state('');
 
-	let activeClaims = $derived(claims.filter((c) => c.status !== 'removed'));
-	let allResolved = $derived(
-		activeClaims.length > 0 && activeClaims.every((c) => c.status === 'approved')
-	);
-	let approvedCount = $derived(activeClaims.filter((c) => c.status === 'approved').length);
-
 	function update(next: ParticipantClaim[]) {
 		onChange(next);
-	}
-
-	function toggleApprove(id: string) {
-		update(
-			claims.map((c) =>
-				c.id === id ? { ...c, status: c.status === 'approved' ? 'pending' : 'approved' } : c
-			)
-		);
-	}
-
-	function toggleRemove(id: string) {
-		update(
-			claims.map((c) =>
-				c.id === id ? { ...c, status: c.status === 'removed' ? 'pending' : 'removed' } : c
-			)
-		);
-		if (editingId === id) editingId = null;
 	}
 
 	function startEdit(claim: ParticipantClaim) {
@@ -50,11 +27,7 @@
 
 	function saveEdit() {
 		if (!editingId) return;
-		update(
-			claims.map((c) =>
-				c.id === editingId ? { ...c, content: editDraft, status: 'pending' } : c
-			)
-		);
+		update(claims.map((c) => (c.id === editingId ? { ...c, content: editDraft } : c)));
 		editingId = null;
 		editDraft = '';
 	}
@@ -74,27 +47,33 @@
 	<header class="mb-8 text-center">
 		<h2 class="text-foreground text-3xl font-semibold tracking-tight">Review your views</h2>
 		<p class="text-muted-foreground mx-auto mt-2 max-w-md text-sm leading-relaxed">
-			These were captured from your reflections. Approve, edit, or remove each one before
+			These were captured from your reflections. Edit any that don't sound right before
 			submitting.
-		</p>
-		<p class="text-muted-foreground mt-3 text-xs">
-			{approvedCount} of {activeClaims.length} approved
 		</p>
 	</header>
 
 	<div class="w-full space-y-3">
 		{#each claims as claim (claim.id)}
-			<Card
-				class="transition-colors {claim.status === 'approved'
-					? 'border-primary/60'
-					: claim.status === 'removed'
-						? 'border-destructive/30 bg-destructive/5 opacity-60'
-						: ''}"
-			>
-				<CardContent class="space-y-3 p-4">
-					<p class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-						{truncate(claim.sourceQuestionText, 80)}
-					</p>
+			<Card>
+				<CardContent class="space-y-3 px-4">
+					<div class="flex items-start justify-between gap-3">
+						<p
+							class="text-muted-foreground text-xs font-medium tracking-wide uppercase"
+						>
+							{truncate(claim.sourceQuestionText, 80)}
+						</p>
+						{#if editingId !== claim.id}
+							<Button
+								size="sm"
+								variant="outline"
+								class="shrink-0"
+								onclick={() => startEdit(claim)}
+							>
+								<Pencil class="size-3.5" />
+								Edit
+							</Button>
+						{/if}
+					</div>
 
 					{#if editingId === claim.id}
 						<Textarea bind:value={editDraft} rows={3} class="text-sm" />
@@ -103,48 +82,9 @@
 							<Button size="sm" variant="ghost" onclick={cancelEdit}>Cancel</Button>
 						</div>
 					{:else}
-						<p
-							class="text-foreground text-base leading-relaxed"
-							class:line-through={claim.status === 'removed'}
-						>
+						<p class="text-foreground text-base leading-relaxed">
 							{claim.content}
 						</p>
-						<div class="flex flex-wrap gap-2">
-							<Button
-								size="sm"
-								variant={claim.status === 'approved' ? 'default' : 'outline'}
-								onclick={() => toggleApprove(claim.id)}
-								disabled={claim.status === 'removed'}
-							>
-								<Check class="size-3.5" />
-								{claim.status === 'approved' ? 'Approved' : 'Approve'}
-							</Button>
-							<Button
-								size="sm"
-								variant="ghost"
-								onclick={() => startEdit(claim)}
-								disabled={claim.status === 'removed'}
-							>
-								<Pencil class="size-3.5" />
-								Edit
-							</Button>
-							<Button
-								size="sm"
-								variant={claim.status === 'removed' ? 'secondary' : 'ghost'}
-								onclick={() => toggleRemove(claim.id)}
-								class={claim.status === 'removed'
-									? ''
-									: 'text-destructive hover:text-destructive'}
-							>
-								{#if claim.status === 'removed'}
-									<Undo2 class="size-3.5" />
-									Undo
-								{:else}
-									<X class="size-3.5" />
-									Remove
-								{/if}
-							</Button>
-						</div>
 					{/if}
 				</CardContent>
 			</Card>
@@ -158,8 +98,8 @@
 	{/if}
 
 	<div class="mt-8">
-		<Button size="lg" class="w-full" disabled={!allResolved} onclick={onSubmit}>
-			{allResolved ? 'Submit my views' : 'Approve or remove each view to continue'}
+		<Button size="lg" class="w-full" disabled={claims.length === 0} onclick={onSubmit}>
+			Submit my views
 		</Button>
 	</div>
 </div>
