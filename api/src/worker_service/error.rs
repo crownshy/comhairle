@@ -7,6 +7,9 @@ use crate::models::job::{self, UpdateJob};
 
 #[derive(Error, Debug)]
 pub enum WorkerServiceError {
+    #[error("No worker service configured")]
+    NoWorkerServiceConfigured,
+
     #[error("No transcription service configured")]
     NoTranscriptionServiceConfigured,
 
@@ -24,6 +27,15 @@ pub enum WorkerServiceError {
 
     #[error("DbError: {0}")]
     DbError(String),
+
+    #[error("Mailer error: {0}")]
+    MailerError(String),
+
+    #[error("Wrong user type")]
+    WrongUserType,
+
+    #[error("Background job failed to queue")]
+    BackgroundJobFailedToQueue,
 
     #[error("Transcription service error: {0}")]
     TranscriptionServiceError(String),

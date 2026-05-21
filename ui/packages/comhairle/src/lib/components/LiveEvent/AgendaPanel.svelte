@@ -88,38 +88,54 @@
 
 {#snippet agendaItem(item: AgendaItem, index: number)}
 	{@const status = getStatus(index)}
+	{@const isBreakout = item.type === 'breakout'}
 	{@const wrapperClass =
 		status === 'done'
-			? `bg-muted-foreground/10 inline-flex items-center overflow-hidden border ${interactive ? 'hover:bg-muted-foreground/20 cursor-pointer' : ''}`
+			? `bg-muted-foreground/10 overflow-hidden border ${interactive ? 'hover:bg-muted-foreground/20 cursor-pointer hover:border-primary/70' : ''}`
 			: status === 'current'
-				? `bg-primary/30 flex flex-col items-start justify-center shadow-sm ${interactive ? 'cursor-pointer' : ''}`
-				: `bg-background inline-flex items-center overflow-hidden border ${interactive ? 'hover:bg-accent cursor-pointer' : ''}`}
+				? `bg-primary/40 shadow-sm ${interactive ? 'cursor-pointer' : ''}`
+				: `bg-background overflow-hidden border ${interactive ? 'hover:bg-accent cursor-pointer hover:border-primary/70' : ''}`}
 	<svelte:element
 		this={interactive ? 'button' : 'div'}
-		class="w-full rounded-xl px-3 py-4 text-left {wrapperClass}"
+		class="flex min-h-14 w-full {isBreakout
+			? 'items-start'
+			: 'items-center'} gap-2 rounded-xl px-3 py-4 text-left {wrapperClass}"
 		onclick={() => handleItemClick(index)}
 	>
-		<div class="{status === 'current' ? 'inline-flex' : 'flex'} items-center gap-2">
-			{#if status === 'done'}
-				<div
-					class="bg-muted-foreground/20 flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
-				>
-					<Check class="text-muted-foreground h-3 w-3" />
-				</div>
-			{:else if status === 'current'}
-				<span
-					class="text-primary bg-background flex h-6 shrink-0 items-center rounded-full border px-2 text-xs font-medium"
-				>
-					Current
+		<!-- Number / Status icon -->
+		{#if status === 'done'}
+			<div
+				class="bg-muted-foreground/20 flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+			>
+				<Check class="text-muted-foreground h-3 w-3" />
+			</div>
+		{:else if status === 'current'}
+			<span
+				class="text-primary bg-background flex h-6 shrink-0 items-center rounded-full border px-2 text-[0.7rem] font-medium"
+			>
+				Current
+			</span>
+		{:else}
+			<div
+				class="bg-primary/10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+			>
+				<span class="text-primary text-xs leading-6 font-medium">
+					{index + 1}
 				</span>
-			{:else}
-				<div
-					class="bg-primary/10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+			</div>
+		{/if}
+
+		<!-- Text content -->
+		<div class="flex min-w-0 flex-col gap-1">
+			{#if isBreakout}
+				<span
+					class="flex h-6 items-center text-[0.7rem]"
+					class:text-primary={status === 'upcoming'}
+					class:text-muted-foreground={status === 'done'}
+					class:text-foreground={status === 'current'}
 				>
-					<span class="text-primary text-xs leading-6 font-medium">
-						{index + 1}
-					</span>
-				</div>
+					Breakout session
+				</span>
 			{/if}
 			<span
 				class="text-xs {status === 'done'

@@ -182,7 +182,7 @@
 {/if}
 
 <div class="bg-muted grow px-4 py-8 sm:px-8 sm:pt-10 sm:pb-12 lg:px-16 lg:pb-18">
-	<div class="mx-auto w-full max-w-[1200px]">
+	<div class="mx-auto h-full w-full max-w-[1200px]">
 		{@render children()}
 	</div>
 </div>
