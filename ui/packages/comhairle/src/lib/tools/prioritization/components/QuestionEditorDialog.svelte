@@ -170,6 +170,15 @@
 
 		<div class="space-y-4 py-2">
 			<div class="space-y-2">
+				<Label for="q-text">Question</Label>
+				<Input
+					id="q-text"
+					bind:value={draft.text}
+					placeholder="e.g. How strongly do you support this proposal?"
+				/>
+			</div>
+
+			<div class="space-y-2">
 				<Label>Question type</Label>
 				<Select.Root
 					type="single"
@@ -183,15 +192,6 @@
 						{/each}
 					</Select.Content>
 				</Select.Root>
-			</div>
-
-			<div class="space-y-2">
-				<Label for="q-text">Question</Label>
-				<Input
-					id="q-text"
-					bind:value={draft.text}
-					placeholder="e.g. How strongly do you support this proposal?"
-				/>
 			</div>
 
 			{#if draft.type.kind === 'likert'}
