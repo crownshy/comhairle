@@ -449,8 +449,8 @@ struct CreateOtpRequest {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct OtpClaims {
-    email: String,
-    otp: String,
+    pub email: String,
+    pub otp: String,
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -469,7 +469,7 @@ async fn create_otp(
         .clone()
         .ok_or_else(|| ComhairleError::WrongUserType)?;
 
-    let otp = otp::create(&state.db, &user.id, payload.redirect_url).await?;
+    let otp = otp::create(&state.db, &user.id, payload.redirect_url, None).await?;
 
     let claims = OtpClaims {
         email: email.clone(),
@@ -2203,7 +2203,7 @@ mod tests {
 
         session.logout(&app).await?;
 
-        let otp = otp::create(&pool, &current_user.id, None).await?;
+        let otp = otp::create(&pool, &current_user.id, None, None).await?;
 
         let (status, value, _) = session
             .post(
@@ -2239,7 +2239,7 @@ mod tests {
 
         session.logout(&app).await?;
 
-        let otp = otp::create(&pool, &current_user.id, None).await?;
+        let otp = otp::create(&pool, &current_user.id, None, None).await?;
 
         let (status, _, _) = session
             .post(
@@ -2283,7 +2283,7 @@ mod tests {
 
         let (_, current_user, _) = session.current_user(&app).await?;
 
-        let otp = otp::create(&pool, &current_user.id, None).await?;
+        let otp = otp::create(&pool, &current_user.id, None, None).await?;
         let user = users::get_user_by_id(&current_user.id, &pool).await?;
 
         let claims = OtpClaims {

@@ -9,6 +9,7 @@ use axum::{
     Json,
 };
 use axum_extra::extract::CookieJar;
+use chrono_tz::US::Pacific;
 use hyper::StatusCode;
 use minijinja::context;
 use tracing::{instrument, warn};
@@ -56,7 +57,11 @@ async fn accept_invite(
         let event =
             event::get_localized_by_id(&state.db, event_id, &conversation.primary_locale).await?;
 
-        let formatted_date = event.start_time.format("%B %d, %Y at %H:%M %Z").to_string();
+        let formatted_date = event
+            .start_time
+            .with_timezone(&Pacific) // TODO: make configurable or dynamic
+            .format("%B %d, %Y at %H:%M %Z")
+            .to_string();
         let event_link = format!(
             "{}/conversations/{}/events/{}",
             state.config.domain, conversation.id, event.id
@@ -134,7 +139,11 @@ async fn create_invite(
                     event::get_localized_by_id(&state.db, &event_id, &conversation.primary_locale)
                         .await?;
 
-                let formatted_date = event.start_time.format("%B %d, %Y at %H:%M %Z").to_string();
+                let formatted_date = event
+                    .start_time
+                    .with_timezone(&Pacific) // TODO: make configurable or dynamic
+                    .format("%B %d, %Y at %H:%M %Z")
+                    .to_string();
                 let invite_link = format!(
                     "{}/conversations/{}/events/{}/invite/{}",
                     state.config.domain, conversation.id, event.id, invite.id
@@ -325,7 +334,11 @@ async fn auto_register_event_attendance(
 
     let cookie = create_session_cookie(&user, &state);
 
-    let formatted_date = event.start_time.format("%B %d, %Y at %H:%M %Z").to_string();
+    let formatted_date = event
+        .start_time
+        .with_timezone(&Pacific) // TODO: make configurable or dynamic
+        .format("%B %d, %Y at %H:%M %Z")
+        .to_string();
     let event_link = format!(
         "{}/conversations/{}/events/{}",
         state.config.domain, conversation.id, event.id

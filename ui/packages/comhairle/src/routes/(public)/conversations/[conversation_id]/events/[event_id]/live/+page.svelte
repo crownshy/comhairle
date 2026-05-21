@@ -514,7 +514,7 @@
 		videoCallService.setAgendaItem(eventId, index);
 		if (isModerator && agendaItems[index]?.type === 'breakout' && !isBreakoutActive) {
 			if (inCallParticipants.length === 0) {
-				showToast('Cannot create breakout rooms — no participants in the call');
+				showToast('Cannot create breakout rooms. No participants in the call');
 				return;
 			}
 			breakoutDialogItem = agendaItems[index];

@@ -467,6 +467,7 @@ impl Transcriber for AmazonTranscriber {
             .language_code(LanguageCode::EnUs)
             .send()
             .await
+            .inspect_err(|e| error!("Failed to start transcription job: {e:#?}"))
             .map_err(|e| {
                 use aws_sdk_transcribe::error::ProvideErrorMetadata;
                 let detail = format!("code={:?} message={:?}", e.code(), e.message());
@@ -528,6 +529,7 @@ impl Transcriber for AmazonTranscriber {
                     let _upload_result = bulk_storage_service
                         .upload_file(&path, bytes, metadata)
                         .await
+                        .inspect_err(|e| error!("Failed to upload to bulk storage: {e:#?}"))
                         .map_err(|_| {
                             TranscriptionServiceError::TranscriptionFailure(
                                 "Failed to upload formatted transcript to bulk storage".to_string(),
