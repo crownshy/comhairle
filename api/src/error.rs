@@ -1,7 +1,8 @@
 use crate::{
-    tools::polis::PolisError, transcription_service::error::TranscriptionServiceError,
+    bulk_storage_service::error::BulkStorageError, tools::polis::PolisError,
+    transcription_service::error::TranscriptionServiceError,
     translation_service::error::TranslationError, websockets::error::WebsocketError,
-    wiki_poll_service::error::WikiPollServiceError,
+    wiki_poll_service::error::WikiPollServiceError, worker_service::error::WorkerServiceError,
 };
 use aide::OperationIo;
 use axum::{
@@ -42,8 +43,14 @@ pub enum ComhairleError {
     #[error("Translation error: {0}")]
     TranslationError(#[from] TranslationError),
 
+    #[error("Bulk storage error: {0}")]
+    BulkStorageError(#[from] BulkStorageError),
+
     #[error("Transcription error: {0}")]
     TranscriptionError(#[from] TranscriptionServiceError),
+
+    #[error("Worker error: {0}")]
+    WorkerError(#[from] WorkerServiceError),
 
     #[error("No translation service configured")]
     NoTranslationServiceConfigured,
@@ -51,8 +58,20 @@ pub enum ComhairleError {
     #[error("No bot service configured")]
     NoBotServiceConfigured,
 
+    #[error("No bulk storage service configured")]
+    NoBulkStorageServiceConfigured,
+
     #[error("No video service configured")]
     NoVideoServiceConfigured,
+
+    #[error("No transcription service configured")]
+    NoTranscriptionServiceConfigured,
+
+    #[error("No worker service configured")]
+    NoWorkerServiceConfigured,
+
+    #[error("No categorization service configured")]
+    NoCategorizationServiceConfigured,
 
     #[error("HeyForm error: {0}")]
     HeyFormError(#[from] HeyFormError),
@@ -74,6 +93,9 @@ pub enum ComhairleError {
 
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
+
+    #[error("CSS inliner error: {0}")]
+    CssInlinerError(#[from] css_inline::error::InlineError),
 
     #[error("Username {0} already taken")]
     DuplicateUsername(String),
@@ -101,6 +123,9 @@ pub enum ComhairleError {
 
     #[error("Auth Error {0}")]
     AuthJWTError(String),
+
+    #[error("Auth Error {0}")]
+    AuthWebhookSignatureError(String),
 
     #[error("Locale Error {0}")]
     LocaleError(String),
@@ -140,6 +165,9 @@ pub enum ComhairleError {
 
     #[error("User's email address is already verified")]
     EmailAlreadyVerified,
+
+    #[error("An invite response has already been created for this invite by this user")]
+    InviteResponseAlreadyCreated,
 
     #[error("No user logged in")]
     NoLogedInUser,
@@ -258,6 +286,9 @@ pub enum ComhairleError {
     #[error("Event at max capacity")]
     EventAtCapacity,
 
+    #[error("User is already registered for event: {0}")]
+    UserAlreadyRegisteredForEvent(String),
+
     #[error("Conversation already live")]
     ConversationAlreadyLive,
 
@@ -269,6 +300,9 @@ pub enum ComhairleError {
 
     #[error("UTF-8 conversion error: {0}")]
     Utf8Error(#[from] std::string::FromUtf8Error),
+
+    #[error("Unsupported Content-Type: {0}")]
+    UnsupportedContentType(String),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -283,7 +317,12 @@ impl IntoResponse for ComhairleError {
         let status_code = match self {
             ComhairleError::DuplicateUsername(_)
             | ComhairleError::DuplicateEmail(_)
+            | ComhairleError::ConversationAlreadyLive
+            | ComhairleError::EmailAlreadyVerified
+            | ComhairleError::EventAtCapacity
+            | ComhairleError::InviteResponseAlreadyCreated
             | ComhairleError::DuplicateSlug(_)
+            | ComhairleError::UserAlreadyRegisteredForEvent(_)
             | ComhairleError::UserAlreadyParticipatingInWorkflow(_) => StatusCode::CONFLICT,
             ComhairleError::ResourceNotFound(_)
             | ComhairleError::NoUserFound
@@ -297,10 +336,9 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::NoLogedInUser => StatusCode::UNAUTHORIZED,
             ComhairleError::NoValidUpdates => StatusCode::UNPROCESSABLE_ENTITY,
             ComhairleError::UserNotAuthorized => StatusCode::FORBIDDEN,
-            ComhairleError::ConversationAlreadyLive => StatusCode::CONFLICT,
-            ComhairleError::EmailAlreadyVerified => StatusCode::CONFLICT,
             ComhairleError::PasswordConfirmationMismatch
             | ComhairleError::WeakPassword(_)
+            | ComhairleError::UnsupportedContentType(_)
             | ComhairleError::BadRequest(_) => StatusCode::BAD_REQUEST,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };

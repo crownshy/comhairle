@@ -34,6 +34,10 @@ export const LoginRequest = z
   .object({ email: z.string(), password: z.string() })
   .passthrough();
 export type LoginRequest = z.infer<typeof LoginRequest>;
+export const OtpLoginRequest = z
+  .object({ code: z.string(), email: z.string() })
+  .passthrough();
+export type OtpLoginRequest = z.infer<typeof OtpLoginRequest>;
 export const SignupRequest = z
   .object({
     avatar_url: z.union([z.string(), z.null()]).optional(),
@@ -45,6 +49,17 @@ export const SignupRequest = z
 export type SignupRequest = z.infer<typeof SignupRequest>;
 export const OtpSignupRequest = z.object({ email: z.string() }).passthrough();
 export type OtpSignupRequest = z.infer<typeof OtpSignupRequest>;
+export const CreateOtpRequest = z
+  .object({
+    email: z.string(),
+    redirect_url: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type CreateOtpRequest = z.infer<typeof CreateOtpRequest>;
+export const VerifyOtpTokenRequest = z
+  .object({ token: z.string() })
+  .passthrough();
+export type VerifyOtpTokenRequest = z.infer<typeof VerifyOtpTokenRequest>;
 export const VerifyEmailTokenRequest = z
   .object({ token: z.string() })
   .passthrough();
@@ -400,6 +415,77 @@ export const ConversationRequest = z
   .object({ question: z.string() })
   .passthrough();
 export type ConversationRequest = z.infer<typeof ConversationRequest>;
+export const ProposalDto = z
+  .object({
+    body: z.string().uuid(),
+    id: z.string().uuid(),
+    title: z.string().uuid(),
+    workflowStepId: z.string().uuid(),
+  })
+  .passthrough();
+export type ProposalDto = z.infer<typeof ProposalDto>;
+export const CreateProposalRequest = z
+  .object({
+    body: z.string(),
+    title: z.string(),
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type CreateProposalRequest = z.infer<typeof CreateProposalRequest>;
+export const Response = z
+  .object({ question_id: z.string().uuid(), value: z.number() })
+  .passthrough();
+export type Response = z.infer<typeof Response>;
+export const QuestionResponses = z.array(Response);
+export type QuestionResponses = z.infer<typeof QuestionResponses>;
+export const ProposalResponseDto = z
+  .object({
+    id: z.string().uuid(),
+    proposalId: z.string().uuid(),
+    response: QuestionResponses,
+  })
+  .passthrough();
+export type ProposalResponseDto = z.infer<typeof ProposalResponseDto>;
+export const CreateResponse = z
+  .object({ question_responses: z.array(Response) })
+  .passthrough();
+export type CreateResponse = z.infer<typeof CreateResponse>;
+export const AnswerStatus = z.enum(["pending", "approved", "declined"]);
+export type AnswerStatus = z.infer<typeof AnswerStatus>;
+export const status = z.union([AnswerStatus, z.null()]).optional();
+export type status = z.infer<typeof status>;
+export const ThinkingSpaceAnswerDto = z
+  .object({
+    answer: z.string(),
+    id: z.string().uuid(),
+    isFollowUp: z.boolean(),
+    otherQuestions: z.array(z.string()),
+    question: z.string(),
+    rootQuestionId: z.union([z.string(), z.null()]).optional(),
+    status: AnswerStatus,
+    workflowStepId: z.string().uuid(),
+  })
+  .passthrough();
+export type ThinkingSpaceAnswerDto = z.infer<typeof ThinkingSpaceAnswerDto>;
+export const CreateAnswerRequest = z
+  .object({
+    answer: z.string(),
+    is_follow_up: z.union([z.boolean(), z.null()]).optional(),
+    other_questions: z.union([z.array(z.string()), z.null()]).optional(),
+    question: z.string(),
+    root_question_id: z.union([z.string(), z.null()]).optional(),
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type CreateAnswerRequest = z.infer<typeof CreateAnswerRequest>;
+export const UpdateAnswer = z
+  .object({
+    answer: z.union([z.string(), z.null()]),
+    status: z.union([AnswerStatus, z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type UpdateAnswer = z.infer<typeof UpdateAnswer>;
 export const CreateConversation = z
   .object({
     default_workflow_id: z.union([z.string(), z.null()]).optional(),
@@ -598,8 +684,28 @@ export const LocalizedPage = z
 export type LocalizedPage = z.infer<typeof LocalizedPage>;
 export const LearnPageEntry = z.union([LearnPage, z.array(LocalizedPage)]);
 export type LearnPageEntry = z.infer<typeof LearnPageEntry>;
+export const Category = z
+  .object({ label: z.string(), value: z.number() })
+  .passthrough();
+export type Category = z.infer<typeof Category>;
+export const QuestionType = z.union([
+  z.object({ text: z.string() }),
+  z.object({
+    likert_scale: z.object({ categories: z.array(Category) }).passthrough(),
+  }),
+  z.object({
+    continuous: z
+      .object({ label: z.string(), sub_steps: z.number().int() })
+      .passthrough(),
+  }),
+]);
+export type QuestionType = z.infer<typeof QuestionType>;
+export const Question = z
+  .object({ id: z.string().uuid(), text: z.string(), type: QuestionType })
+  .passthrough();
+export type Question = z.infer<typeof Question>;
 export const ThinkingSpaceQuestion = z
-  .object({ id: z.string(), text: z.string() })
+  .object({ id: z.string().uuid(), text: z.string() })
   .passthrough();
 export type ThinkingSpaceQuestion = z.infer<typeof ThinkingSpaceQuestion>;
 export const ToolConfig = z.union([
@@ -641,8 +747,15 @@ export const ToolConfig = z.union([
     .passthrough(),
   z
     .object({
-      follow_up_count: z.number().int().optional().default(2),
-      questions: z.array(ThinkingSpaceQuestion).optional().default([]),
+      questions: z.array(Question),
+      randomize_order: z.boolean(),
+      type: z.literal("prioritization"),
+    })
+    .passthrough(),
+  z
+    .object({
+      follow_up_rounds_count: z.number().int().gte(0),
+      root_questions: z.array(ThinkingSpaceQuestion),
       topic: z.string(),
       type: z.literal("thinkingspace"),
     })
@@ -796,6 +909,16 @@ export const WorkflowStepsListResponse = z.union([
 export type WorkflowStepsListResponse = z.infer<
   typeof WorkflowStepsListResponse
 >;
+export const SetupQuestion = z
+  .object({ text: z.string(), type: QuestionType })
+  .passthrough();
+export type SetupQuestion = z.infer<typeof SetupQuestion>;
+export const ThinkingSpaceSetupQuestion = z
+  .object({ text: z.string() })
+  .passthrough();
+export type ThinkingSpaceSetupQuestion = z.infer<
+  typeof ThinkingSpaceSetupQuestion
+>;
 export const ToolSetup = z.union([
   z
     .object({
@@ -826,8 +949,15 @@ export const ToolSetup = z.union([
     .passthrough(),
   z
     .object({
-      follow_up_count: z.number().int().optional().default(2),
-      questions: z.array(ThinkingSpaceQuestion).optional().default([]),
+      questions: z.array(SetupQuestion),
+      randomize_order: z.boolean(),
+      type: z.literal("prioritization"),
+    })
+    .passthrough(),
+  z
+    .object({
+      follow_up_rounds_count: z.number().int().gte(0),
+      root_questions: z.array(ThinkingSpaceSetupQuestion),
       topic: z.string(),
       type: z.literal("thinkingspace"),
     })
@@ -991,6 +1121,8 @@ export const StoriesReport = z.null();
 export type StoriesReport = z.infer<typeof StoriesReport>;
 export const ElicitationBotReport = z.null();
 export type ElicitationBotReport = z.infer<typeof ElicitationBotReport>;
+export const PrioritizationReport = z.null();
+export type PrioritizationReport = z.infer<typeof PrioritizationReport>;
 export const ThinkingSpaceReport = z.null();
 export type ThinkingSpaceReport = z.infer<typeof ThinkingSpaceReport>;
 export const ReportConfig = z.union([
@@ -999,6 +1131,7 @@ export const ReportConfig = z.union([
   z.object({ Learn: LearnReport }),
   z.object({ Stories: StoriesReport }),
   z.object({ ElicitationBot: ElicitationBotReport }),
+  z.object({ Prioritization: PrioritizationReport }),
   z.object({ ThinkingSpace: ThinkingSpaceReport }),
 ]);
 export type ReportConfig = z.infer<typeof ReportConfig>;
@@ -1130,9 +1263,9 @@ export const BreakoutRoomAgendaItem = z
   .object({
     estimated_time: z.number().int().gte(0),
     instructions: z.string(),
+    max_per_room: z.union([z.number(), z.null()]).optional(),
     prompt: z.string(),
     time_limit: z.union([z.number(), z.null()]).optional(),
-    max_per_room: z.union([z.number().int().gte(0), z.null()]).optional(),
   })
   .passthrough();
 export type BreakoutRoomAgendaItem = z.infer<typeof BreakoutRoomAgendaItem>;
@@ -1213,6 +1346,7 @@ export const EventWithTranslations = z
     endTime: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
     name: z.string(),
+    reminderSentAt: z.union([z.string(), z.null()]).optional(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
     translations: EventTranslations,
@@ -1233,6 +1367,7 @@ export const PartialEvent = z
     description: z.union([z.string(), z.null()]),
     end_time: z.union([z.string(), z.null()]),
     name: z.union([z.string(), z.null()]),
+    reminder_sent_at: z.union([z.string(), z.null()]),
     signup_mode: z.union([z.string(), z.null()]),
     start_time: z.union([z.string(), z.null()]),
   })
@@ -1243,6 +1378,20 @@ export const JwtResponse = z
   .object({ isModerator: z.boolean(), jwt: z.string() })
   .passthrough();
 export type JwtResponse = z.infer<typeof JwtResponse>;
+export const ProcessTranscriptionResponse = z
+  .object({ job_ids: z.array(z.string().uuid()), message: z.string() })
+  .passthrough();
+export type ProcessTranscriptionResponse = z.infer<
+  typeof ProcessTranscriptionResponse
+>;
+export const SubmitReportRequest = z
+  .object({ result: z.unknown() })
+  .passthrough();
+export type SubmitReportRequest = z.infer<typeof SubmitReportRequest>;
+export const SubmitReportResponse = z
+  .object({ success: z.boolean(), url: z.string() })
+  .passthrough();
+export type SubmitReportResponse = z.infer<typeof SubmitReportResponse>;
 export const EventAttendanceEtx = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
@@ -1415,6 +1564,36 @@ export const PartialRegion = z
   .partial()
   .passthrough();
 export type PartialRegion = z.infer<typeof PartialRegion>;
+export const MediaContentType = z.enum([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "video/mp4",
+  "video/mpeg",
+  "video/webm",
+]);
+export type MediaContentType = z.infer<typeof MediaContentType>;
+export const content_type = z.union([MediaContentType, z.null()]).optional();
+export type content_type = z.infer<typeof content_type>;
+export const MediaDto = z
+  .object({
+    contentType: MediaContentType,
+    createdAt: z.string().datetime({ offset: true }),
+    filename: z.string(),
+    id: z.string().uuid(),
+    ownerId: z.string().uuid(),
+    storageKey: z.string(),
+    storeName: z.string(),
+  })
+  .passthrough();
+export type MediaDto = z.infer<typeof MediaDto>;
+export const PaginatedResults_for_MediaDto = z
+  .object({ records: z.array(MediaDto), total: z.number().int() })
+  .passthrough();
+export type PaginatedResults_for_MediaDto = z.infer<
+  typeof PaginatedResults_for_MediaDto
+>;
 export const Job = z
   .object({
     completion_message: z.union([z.string(), z.null()]).optional(),
@@ -1450,8 +1629,11 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UserAuthType,
   UserDto,
   LoginRequest,
+  OtpLoginRequest,
   SignupRequest,
   OtpSignupRequest,
+  CreateOtpRequest,
+  VerifyOtpTokenRequest,
   VerifyEmailTokenRequest,
   ResendVerificationEmailRequest,
   CreatePasswordResetRequest,
@@ -1492,6 +1674,17 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ComhairleSessionMessage,
   ComhairleAgentSession,
   ConversationRequest,
+  ProposalDto,
+  CreateProposalRequest,
+  Response,
+  QuestionResponses,
+  ProposalResponseDto,
+  CreateResponse,
+  AnswerStatus,
+  status,
+  ThinkingSpaceAnswerDto,
+  CreateAnswerRequest,
+  UpdateAnswer,
   CreateConversation,
   Translation,
   ConversationTranslations,
@@ -1509,6 +1702,10 @@ export const schemas: Record<string, z.ZodType<any>> = {
   LearnPage,
   LocalizedPage,
   LearnPageEntry,
+  Category,
+  QuestionType,
+  Question,
+  ThinkingSpaceQuestion,
   ToolConfig,
   WorkflowStep,
   DailySignupStats,
@@ -1524,6 +1721,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   LocalizedWorkflowStepWithProgressDto,
   LocalizedWorkflowStepDto,
   WorkflowStepsListResponse,
+  SetupQuestion,
+  ThinkingSpaceSetupQuestion,
   ToolSetup,
   CreateWorkflowStep,
   WorkflowStepDto,
@@ -1543,7 +1742,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   LearnReport,
   StoriesReport,
   ElicitationBotReport,
-  ThinkingSpaceQuestion,
+  PrioritizationReport,
   ThinkingSpaceReport,
   ReportConfig,
   ReportSectionConfig,
@@ -1578,6 +1777,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EventResponse,
   PartialEvent,
   JwtResponse,
+  ProcessTranscriptionResponse,
+  SubmitReportRequest,
+  SubmitReportResponse,
   EventAttendanceEtx,
   PaginatedResults_for_EventAttendanceEtx,
   CreateEventAttendanceRequest,
@@ -1600,6 +1802,10 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateRegion,
   RegionDto,
   PartialRegion,
+  MediaContentType,
+  content_type,
+  MediaDto,
+  PaginatedResults_for_MediaDto,
   Job,
   PaginatedResults_for_Job,
   CreateJob,
@@ -1607,6 +1813,20 @@ export const schemas: Record<string, z.ZodType<any>> = {
 };
 
 const endpoints = makeApi([
+  {
+    method: "post",
+    path: "/auth/create_otp",
+    alias: "CreateOtp",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateOtpRequest,
+      },
+    ],
+    response: z.void(),
+  },
   {
     method: "get",
     path: "/auth/current_user",
@@ -1640,6 +1860,35 @@ const endpoints = makeApi([
         description: `Expected payload for an annon login request`,
         type: "Body",
         schema: z.object({ username: z.string() }).passthrough(),
+      },
+    ],
+    response: UserDto,
+  },
+  {
+    method: "post",
+    path: "/auth/login_otp",
+    alias: "LoginOtpUser",
+    description: `Login a user with a one time passcode`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: OtpLoginRequest,
+      },
+    ],
+    response: UserDto,
+  },
+  {
+    method: "post",
+    path: "/auth/login_otp_token",
+    alias: "LoginOtpToken",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ token: z.string() }).passthrough(),
       },
     ],
     response: UserDto,
@@ -1899,6 +2148,14 @@ Use a raw HTTP request and process the response body incrementally.`,
     path: "/conversation/:conversation_id/contacts/export",
     alias: "ExportConversationContacts",
     description: `Exports a CSV file containing all users who have opted in to receive email updates for this conversation`,
+    requestFormat: "json",
+    response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/demographics/export",
+    alias: "ExportConversationDemographics",
+    description: `Exports a CSV file containing demographic data for users participating in the conversation&#x27;s workflow. Only includes consented users. Requires conversation ownership.`,
     requestFormat: "json",
     response: z.void(),
   },
@@ -2214,6 +2471,34 @@ curl -X POST \
     response: JwtResponse,
   },
   {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/report",
+    alias: "SubmitEventReport",
+    description: `Submit categorization report to bulk storage`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ result: z.unknown() }).passthrough(),
+      },
+      {
+        name: "room_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: SubmitReportResponse,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/transcriptions",
+    alias: "ProcessVideoCallTranscriptions",
+    description: `Triggers transcription processing in a background worker`,
+    requestFormat: "json",
+    response: ProcessTranscriptionResponse,
+  },
+  {
     method: "get",
     path: "/conversation/:conversation_id/events/:event_id/workflows",
     alias: "ListEventWorkflows",
@@ -2327,20 +2612,6 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps/:workflow_step_id",
     alias: "DeleteEventWorkflowStep",
     requestFormat: "json",
-    response: WorkflowStepDto,
-  },
-  {
-    method: "put",
-    path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps/:workflow_step_id/elicitation_bot",
-    alias: "UpdateEventElicitationBotWorkflowStep",
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "body",
-        type: "Body",
-        schema: PartialWorkflowStep,
-      },
-    ],
     response: WorkflowStepDto,
   },
   {
@@ -2729,34 +3000,6 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     response: WorkflowStepDto,
   },
   {
-    method: "put",
-    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/elicitation_bot",
-    alias: "UpdateConversationElicitationBotWorkflowStep",
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "body",
-        type: "Body",
-        schema: PartialWorkflowStep,
-      },
-    ],
-    response: WorkflowStepDto,
-  },
-  {
-    method: "put",
-    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/thinking_space",
-    alias: "UpdateConversationThinkingSpaceWorkflowStep",
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "body",
-        type: "Body",
-        schema: PartialWorkflowStep,
-      },
-    ],
-    response: WorkflowStepDto,
-  },
-  {
     method: "get",
     path: "/docs",
     alias: "getDocs",
@@ -2846,6 +3089,96 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "DeleteJob",
     requestFormat: "json",
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/media",
+    alias: "ListMedia",
+    description: `List media records`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "created_at",
+        type: "Query",
+        schema: created_at,
+      },
+      {
+        name: "filename",
+        type: "Query",
+        schema: created_at,
+      },
+      {
+        name: "content_type",
+        type: "Query",
+        schema: content_type,
+      },
+      {
+        name: "owner_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+    ],
+    response: PaginatedResults_for_MediaDto,
+  },
+  {
+    method: "post",
+    path: "/media",
+    alias: "postMedia",
+    description: `
+Upload a media resource to the bulk_storage_service 
+and create a new record in the database.
+
+
+This endpoint requires multipart/form-data.
+
+Generated API clients may not support file uploads.
+
+Use FormData and a raw HTTP request.
+
+**Example (curl):**
+&#x60;&#x60;&#x60;bash
+curl -X POST \
+-H &#x27;Cookie: auth-token&#x3D;...;&#x27; \
+&#x27;localhost:3000/media&#x27; \
+--form &#x27;file&#x3D;@/path-to-document.pdf&#x27;
+&#x60;&#x60;&#x60;
+                            `,
+    requestFormat: "form-data",
+    parameters: [
+      {
+        name: "body",
+        description: `multipart form data`,
+        type: "Body",
+        schema: z.array(z.any()),
+      },
+    ],
+    response: MediaDto,
+  },
+  {
+    method: "get",
+    path: "/media/:media_id",
+    alias: "GetMedia",
+    description: `Get media record by id`,
+    requestFormat: "json",
+    response: MediaDto,
+  },
+  {
+    method: "delete",
+    path: "/media/:media_id",
+    alias: "DeleteMedia",
+    description: `Delete media record by id`,
+    requestFormat: "json",
+    response: MediaDto,
   },
   {
     method: "get",
@@ -3141,6 +3474,63 @@ Use a raw HTTP request and process the response body incrementally.
   },
   {
     method: "get",
+    path: "/tools/prioritization/proposals",
+    alias: "ListProposals",
+    description: `List proposals for a given prioritization tool workflow_step`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.array(ProposalDto),
+  },
+  {
+    method: "post",
+    path: "/tools/prioritization/proposals",
+    alias: "CreateProposal",
+    description: `
+Create a new prioritization tool proposal for a given prioritization tool workflow_step
+`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateProposalRequest,
+      },
+    ],
+    response: ProposalDto,
+  },
+  {
+    method: "get",
+    path: "/tools/prioritization/proposals/:proposal_id/responses",
+    alias: "ListProposalResponses",
+    description: `List responses for a prioritization tool proposal`,
+    requestFormat: "json",
+    response: z.array(ProposalResponseDto),
+  },
+  {
+    method: "post",
+    path: "/tools/prioritization/proposals/:proposal_id/responses",
+    alias: "CreateProposalResponse",
+    description: `
+Create a response for prioritization tool proposal
+`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateResponse,
+      },
+    ],
+    response: ProposalResponseDto,
+  },
+  {
+    method: "get",
     path: "/tools/stories/:story_id",
     alias: "GetStory",
     description: `Returns a story by id`,
@@ -3162,6 +3552,61 @@ Use a raw HTTP request and process the response body incrementally.
     description: `Record a user story for the current user and workflow step`,
     requestFormat: "json",
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/tools/thinking_space/answers",
+    alias: "ListThinkingSpaceAnswers",
+    description: `List answer for thinking space workflow step`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "status",
+        type: "Query",
+        schema: status,
+      },
+      {
+        name: "user_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.array(ThinkingSpaceAnswerDto),
+  },
+  {
+    method: "post",
+    path: "/tools/thinking_space/answers",
+    alias: "CreateThinkingSpaceAnswer",
+    description: `Create an answer for thinking space workflow step question`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateAnswerRequest,
+      },
+    ],
+    response: ThinkingSpaceAnswerDto,
+  },
+  {
+    method: "put",
+    path: "/tools/thinking_space/answers/:answer_id",
+    alias: "UpdateThinkingSpaceAnswer",
+    description: `Update an answer for thinking space workflow step question`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpdateAnswer,
+      },
+    ],
+    response: ThinkingSpaceAnswerDto,
   },
   {
     method: "post",

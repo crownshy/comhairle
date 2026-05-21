@@ -52,7 +52,7 @@
 				<Breadcrumb.Item class="min-w-0">
 					<Breadcrumb.Link
 						href={`/admin/conversations/${conversation.id}/configure`}
-						class="block max-w-[12ch] truncate sm:max-w-[20ch]"
+						class="block max-w-[12ch] truncate sm:max-w-[20ch] lg:max-w-[24ch]"
 						title={conversation.title}
 					>
 						{conversation.title}
@@ -65,11 +65,11 @@
 			</Breadcrumb.List>
 		</Breadcrumb.Root>
 		<div class="flex w-full min-w-0 items-center gap-3 xl:ml-auto xl:w-auto">
-			<!-- Identity -->
+			<!-- Conversation Title -->
 			<div class="flex min-w-0 shrink items-center gap-2">
 				<MessageSquareText class="text-primary size-5 shrink-0" />
 				<span
-					class="text-primary truncate text-base font-semibold sm:text-lg"
+					class="text-primary max-w-[30ch] truncate text-base font-semibold sm:max-w-[40ch] sm:text-lg lg:max-w-[60ch] xl:max-w-[24ch]"
 					title={conversation.title}
 				>
 					{conversation.title}
@@ -182,7 +182,7 @@
 {/if}
 
 <div class="bg-muted grow px-4 py-8 sm:px-8 sm:pt-10 sm:pb-12 lg:px-16 lg:pb-18">
-	<div class="mx-auto w-full max-w-[1200px]">
+	<div class="mx-auto h-full w-full max-w-[1200px]">
 		{@render children()}
 	</div>
 </div>

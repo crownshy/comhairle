@@ -10,8 +10,8 @@ const EventSchema = z
 		start_date: z
 			.string()
 			.date()
-			.refine((val) => new Date(val) > new Date(), {
-				message: 'Start date must be in the future.'
+			.refine((val) => new Date(val) >= new Date(new Date().toISOString().split('T')[0]), {
+				message: 'Start date must be today or in the future.'
 			}),
 		start_time: z.string().time(),
 		end_time: z.string().time(),

@@ -2,7 +2,8 @@
 	import type {
 		LocalizedPage,
 		WorkflowStepWithTranslations,
-		ConversationWithTranslations
+		ConversationWithTranslations,
+		ComhairleDocument
 	} from '@crownshy/api-client/api';
 
 	interface ExtendedLocalizedPage extends LocalizedPage {
@@ -47,7 +48,9 @@
 
 	let lastPropsConfig = $state<string>('');
 	$effect(() => {
-		const propsConfig = JSON.stringify(sourceConfig?.pages);
+		const propsConfig = JSON.stringify({
+			pages: sourceConfig?.pages
+		});
 		if (propsConfig !== lastPropsConfig && !hasLocalChanges) {
 			pages = structuredClone(sourceConfig?.pages ?? []);
 			lastPropsConfig = propsConfig;
@@ -67,7 +70,9 @@
 
 	function clearLocalChanges() {
 		hasLocalChanges = false;
-		lastPropsConfig = JSON.stringify(sourceConfig?.pages);
+		lastPropsConfig = JSON.stringify({
+			pages: sourceConfig?.pages
+		});
 	}
 
 	let currentPageIndex = $state(0);
@@ -226,6 +231,21 @@
 		pages = [...pages];
 		await saveToServer({ invalidate: false });
 	}
+
+	// --- Document list for inline source document picker ---
+	let availableDocuments = $state<ComhairleDocument[]>([]);
+
+	$effect(() => {
+		if (!conversationId) return;
+		apiClient
+			.ListDocuments({ params: { conversation_id: conversationId } })
+			.then((docs) => {
+				availableDocuments = docs.filter((d) => d.parse_status === 'DONE');
+			})
+			.catch(() => {
+				availableDocuments = [];
+			});
+	});
 </script>
 
 <!-- Controls -->
@@ -297,6 +317,8 @@
 			dialogTitle="Translate: Page {currentPageIndex + 1}"
 			initialContents={pageContents}
 			initialStatuses={pageStatuses}
+			{availableDocuments}
+			{conversationId}
 			onSaveSource={handleSaveSource}
 			onSaveTarget={handleSaveTarget}
 			onAiTranslate={handleAiTranslate}

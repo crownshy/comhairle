@@ -9,7 +9,7 @@ use tokio::sync::mpsc::Receiver;
 #[cfg(test)]
 use mockall::{automock, predicate::*};
 
-use crate::bulk_storage::BulkStorageService;
+use crate::bulk_storage_service::BulkStorageService;
 
 pub mod amazon_transcriber;
 pub mod config;
@@ -61,10 +61,10 @@ pub trait Transcriber: Sync + Send {
     fn supports_streaming(&self) -> bool;
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TranscribeFromBulkResponse {
-    success: bool,
-    completed_at: DateTime<Utc>,
+    pub success: bool,
+    pub completed_at: DateTime<Utc>,
 }
 
 #[cfg(test)]

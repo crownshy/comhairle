@@ -1,11 +1,10 @@
-use apalis::prelude::MemoryStorage;
 use chrono::Utc;
 use std::{collections::HashMap, error::Error, sync::Arc};
 use uuid::Uuid;
 
 use axum::{
     body::Body,
-    http::{header::COOKIE, HeaderValue, Request, StatusCode},
+    http::{header::COOKIE, HeaderName, HeaderValue, Request, StatusCode},
     response::Response,
     Router,
 };
@@ -17,23 +16,23 @@ use fake::{
 use http_body_util::BodyExt;
 use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
-use tokio::sync::Mutex;
 
 use sqlx::PgPool;
 use tower::ServiceExt;
 
 use crate::{
     bot_service::{ComhairleBotService, MockComhairleBotService},
-    bulk_storage::{BulkStorageService, MockBulkStorageService},
+    bulk_storage_service::{BulkStorageService, MockBulkStorageService},
+    categorization_service::{CategorizationService, MockCategorizationService},
     config::ComhairleConfig,
     mailer::MockComhairleMailer,
     models::users::UpdateUserRequest,
-    routes::user::dto::UserDto,
+    routes::{user::dto::UserDto, workflow_steps::dto::WorkflowStepDto},
     transcription_service::{MockTranscriber, Transcriber},
     translation_service::{MockTranslationService, TranslationService},
     websockets::{MockWebSocketService, WebSocketService},
     wiki_poll_service::{MockWikiPollService, WikiPollService},
-    workers::JobQueues,
+    worker_service::{MockWorkerService, WorkerService},
     ComhairleState,
 };
 
@@ -73,9 +72,19 @@ pub fn mock_wiki_poll_service() -> Arc<dyn WikiPollService> {
     Arc::new(wiki_poll_service)
 }
 
-pub fn mock_bulk_storage() -> Arc<dyn BulkStorageService> {
+pub fn mock_bulk_storage() -> Option<Arc<dyn BulkStorageService>> {
     let bulk_storage_service = MockBulkStorageService::base();
-    Arc::new(bulk_storage_service)
+    Some(Arc::new(bulk_storage_service))
+}
+
+pub fn mock_worker_service() -> Arc<dyn WorkerService> {
+    let worker_service = MockWorkerService::base();
+    Arc::new(worker_service)
+}
+
+pub fn mock_categorization_service() -> Arc<dyn CategorizationService> {
+    let categorization_service = MockCategorizationService::base();
+    Arc::new(categorization_service)
 }
 
 #[builder]
@@ -89,6 +98,8 @@ pub fn test_state(
     bot_service: Option<Arc<dyn ComhairleBotService>>,
     wiki_poll_service: Option<Arc<dyn WikiPollService>>,
     bulk_storage_service: Option<Arc<dyn BulkStorageService>>,
+    worker_service: Option<Arc<dyn WorkerService>>,
+    categorization_service: Option<Arc<dyn CategorizationService>>,
 ) -> Result<ComhairleState, Box<dyn Error>> {
     let state = ComhairleState {
         db,
@@ -103,11 +114,13 @@ pub fn test_state(
             .unwrap_or_else(|| mock_transcription_service()),
         bot_service: Some(bot_service.unwrap_or_else(|| mock_bot_service())),
         wiki_poll_service: wiki_poll_service.unwrap_or_else(|| mock_wiki_poll_service()),
-        // TODO: can this be mocked?
-        jobs: Arc::new(JobQueues {
-            process_documents: Arc::new(Mutex::new(MemoryStorage::new())),
-        }),
-        bulk_storage_service: bulk_storage_service.unwrap_or_else(mock_bulk_storage),
+        worker_service: Some(worker_service.unwrap_or_else(|| mock_worker_service())),
+        categorization_service: Some(
+            categorization_service.unwrap_or_else(|| mock_categorization_service()),
+        ),
+        bulk_storage_service: bulk_storage_service
+            .map(Some)
+            .unwrap_or_else(mock_bulk_storage),
     };
     Ok(state)
 }
@@ -159,12 +172,20 @@ pub fn elicitation_bot_tool_config() -> serde_json::Value {
     })
 }
 
+pub fn prioritization_tool_config() -> serde_json::Value {
+    json!({
+        "type": "prioritization",
+        "questions": [],
+        "randomize_order": false,
+    })
+}
+
 pub fn thinking_space_tool_config() -> serde_json::Value {
     json!({
         "type": "thinkingspace",
-        "topic": "test_topic",
-        "questions": [],
-        "follow_up_count": 2
+        "topic": "test topic",
+        "root_questions": [],
+        "follow_up_rounds_count": 2
     })
 }
 
@@ -179,6 +200,27 @@ pub async fn response_to_json(response: Response) -> Value {
     })
 }
 
+#[builder]
+pub fn multipart_body_builder(
+    content: &str,
+    boundary: Option<&str>,
+    filename: Option<&str>,
+    content_type: Option<&str>,
+) -> String {
+    let boundary = boundary.unwrap_or("test-boundary");
+    let filename = filename.unwrap_or("test-file.txt");
+    let content_type = content_type.unwrap_or("text/plain");
+    format!(
+        "--{boundary}\r\n\
+            Content-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\n\
+            Content-Type: {content_type}\r\n\
+            \r\n\
+            {content}\r\n\
+            --{boundary}--\r\n"
+    )
+}
+
+#[derive(Debug)]
 pub struct UserSession {
     pub id: Option<Uuid>,
     pub username: Option<String>,
@@ -353,6 +395,43 @@ impl UserSession {
 
         if let Some(cookie) = &self.cookie {
             request = request.header(COOKIE, cookie)
+        }
+
+        let request = request.body(body).unwrap();
+        let response = app.clone().oneshot(request).await?;
+        let status = response.status();
+
+        let cookie = response
+            .headers()
+            .get(axum::http::header::SET_COOKIE)
+            .map(|cookie| cookie.to_owned());
+
+        if let Some(cookie) = &cookie {
+            self.cookie = Some(cookie.clone());
+        }
+
+        let value = response_to_json(response).await;
+        Ok((status, value, cookie))
+    }
+
+    pub async fn post_with_headers(
+        &mut self,
+        app: &Router,
+        url: &str,
+        body: Body,
+        headers: &[(HeaderName, HeaderValue)],
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        let mut request = Request::builder()
+            .uri(url)
+            .method("POST")
+            .header("content-type", "application/json");
+
+        if let Some(cookie) = &self.cookie {
+            request = request.header(COOKIE, cookie)
+        }
+
+        for (name, value) in headers {
+            request = request.header(name, value);
         }
 
         let request = request.body(body).unwrap();
@@ -895,5 +974,60 @@ impl UserSession {
         let (status, value, cookie) = self.post(app, "/jobs", new_job.to_string().into()).await?;
 
         Ok((status, value, cookie))
+    }
+
+    pub async fn create_prioritization_workflow_step(
+        &mut self,
+        app: &Router,
+        conversation_id: &Uuid,
+        workflow_id: &Uuid,
+    ) -> Result<WorkflowStepDto, Box<dyn Error>> {
+        let (_, value, _) = self
+            .create_workflow_step(
+                app,
+                &conversation_id.to_string(),
+                &workflow_id.to_string(),
+                json!({
+                    "name": "test_workflow_step",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "A test workflow_step with prioritization",
+                    "is_offline": false,
+                    "required": false,
+                    "tool_setup": {
+                        "type": "prioritization",
+                        "randomize_order": false,
+                        "questions": [
+                            {
+                                "text": "How much do you agree?",
+                                "type": {
+                                    "likert_scale": {
+                                        "categories": [
+                                            { "value": -1.0, "label": "Strongly disagree" },
+                                            { "value": -0.5, "label": "Disagree" },
+                                            { "value": 0.0, "label": "Neutral" },
+                                            { "value": 0.5, "label": "Agree" },
+                                            { "value": 1.0, "label": "Strongly agree" },
+                                        ]
+                                    }
+                                }
+                            },
+                            {
+                                "text": "How much do you care?",
+                                "type": {
+                                    "continuous": {
+                                        "label": "Care?",
+                                        "sub_steps": 10
+                                    }
+                                }
+                            },
+                        ]
+                    }
+                }),
+            )
+            .await?;
+        let workflow_step: WorkflowStepDto = serde_json::from_value(value)?;
+
+        Ok(workflow_step)
     }
 }

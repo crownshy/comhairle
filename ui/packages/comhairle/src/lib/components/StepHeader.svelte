@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import { ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
 	interface StepHeaderProps {
 		currentStepNumber: number;
@@ -12,6 +13,8 @@
 		onNext?: () => void;
 		nextDisabled?: boolean;
 		boldDescription?: boolean;
+		availableDocuments?: ComhairleDocument[];
+		conversationId?: string;
 	}
 
 	let {
@@ -23,7 +26,9 @@
 		prevHref,
 		onNext,
 		nextDisabled = false,
-		boldDescription = true
+		boldDescription = true,
+		availableDocuments = [],
+		conversationId
 	}: StepHeaderProps = $props();
 </script>
 
@@ -83,7 +88,7 @@
 				class={`prose-sm prose-p:text-sm   prose-li:text-sm text-muted-foreground mx-auto max-w-3xl text-center ${boldDescription ? '' : 'prose-p:text-muted-foreground prose-li:text-muted-foreground'}`}
 			>
 				{#key description}
-					<ContentRenderer content={description} />
+					<ContentRenderer content={description} {availableDocuments} {conversationId} />
 				{/key}
 			</div>
 		{/if}

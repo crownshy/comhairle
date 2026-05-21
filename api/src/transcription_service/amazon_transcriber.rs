@@ -1,4 +1,4 @@
-use crate::bulk_storage::BulkStorageService;
+use crate::bulk_storage_service::{BulkStorageService, FileMetadata};
 use crate::transcription_service::TranscribeFromBulkResponse;
 
 use super::error::{Result, TranscriptionServiceError};
@@ -15,6 +15,7 @@ use aws_sdk_transcribestreaming::types::{AudioEvent, AudioStream, MediaEncoding}
 use aws_smithy_http::event_stream::EventStreamSender;
 use bytes::Bytes;
 use chrono::Utc;
+use serde::Deserialize;
 use std::process::Stdio;
 use std::sync::Arc;
 use tokio::fs::File;
@@ -395,6 +396,42 @@ fn consolidated_transcription(raw_transcription: &Transcription) -> Transcriptio
     }
 }
 
+/// Fetch transcription from bulk storage and convert to [`Transcription`] type.
+///
+/// Allows transcriptions to be re-uploaded to bulk storage in JSON format which
+/// is consistent across service providers. Also allows AWS specific types to
+/// be kept out of other Comhairle application code.
+async fn get_and_convert_transcription(
+    key: &str,
+    bulk_storage_service: &Arc<dyn BulkStorageService>,
+) -> Result<Transcription> {
+    let bytes = bulk_storage_service
+        .get_file(key)
+        .await
+        .map_err(|e| TranscriptionServiceError::TranscriptionFailure(e.to_string()))?;
+    let raw_transcription: AwsTranscription = serde_json::from_slice(&bytes).map_err(|e| {
+        TranscriptionServiceError::TranscriptionFailure(format!("Deserialization failure: {e}"))
+    })?;
+
+    let has_speaker_ids = !raw_transcription.results.audio_segments.is_empty()
+        && raw_transcription.results.audio_segments[0]
+            .speaker_label
+            .is_some();
+
+    let formatted_transcription = Transcription {
+        events: raw_transcription
+            .results
+            .audio_segments
+            .into_iter()
+            .map(Into::into)
+            .collect(),
+        start_time: Utc::now(),
+        has_speaker_ids,
+    };
+
+    Ok(formatted_transcription)
+}
+
 #[async_trait]
 impl Transcriber for AmazonTranscriber {
     async fn transcribe(&self, _audio: &Vec<u8>) -> Result<String> {
@@ -405,7 +442,7 @@ impl Transcriber for AmazonTranscriber {
         &self,
         store_name: &str,
         location: &str,
-        _bulk_storage_service: &Arc<dyn BulkStorageService>,
+        bulk_storage_service: &Arc<dyn BulkStorageService>,
     ) -> Result<TranscribeFromBulkResponse> {
         let uri = format!("s3://{store_name}/{location}/recording.wav");
 
@@ -417,17 +454,20 @@ impl Transcriber for AmazonTranscriber {
             .max_speaker_labels(10) // Capped at 30
             .build();
 
+        let transcription_key = format!("{location}/raw-transcript.json");
+
         self.transcribe_client
             .start_transcription_job()
             .transcription_job_name(&job_name)
             .settings(settings)
             .output_bucket_name(store_name)
-            .output_key(format!("{location}/transcript.json"))
+            .output_key(&transcription_key)
             .media(audio_file)
             .media_format(MediaFormat::Wav)
             .language_code(LanguageCode::EnUs)
             .send()
             .await
+            .inspect_err(|e| error!("Failed to start transcription job: {e:#?}"))
             .map_err(|e| {
                 use aws_sdk_transcribe::error::ProvideErrorMetadata;
                 let detail = format!("code={:?} message={:?}", e.code(), e.message());
@@ -467,7 +507,35 @@ impl Transcriber for AmazonTranscriber {
             {
                 info!("Waited {} milliseconds for job to finish", snooze_total);
 
-                if status == TranscriptionJobStatus::Failed {
+                if status == TranscriptionJobStatus::Completed {
+                    // Fetch, convert to Comhairle `Transcription` type and re-upload
+                    // to keep consistent format across providers and keep AWS
+                    // types out of other Comhairle service code
+                    let transcription =
+                        get_and_convert_transcription(&transcription_key, bulk_storage_service)
+                            .await?;
+
+                    let path = format!("{location}/transcript.json");
+                    let metadata = FileMetadata {
+                        content_type: "application/json".to_string(),
+                        is_public: false,
+                    };
+                    let bytes = serde_json::to_vec(&transcription).map_err(|e| {
+                        TranscriptionServiceError::TranscriptionFailure(format!(
+                            "Serialization error: {e}"
+                        ))
+                    })?;
+
+                    let _upload_result = bulk_storage_service
+                        .upload_file(&path, bytes, metadata)
+                        .await
+                        .inspect_err(|e| error!("Failed to upload to bulk storage: {e:#?}"))
+                        .map_err(|_| {
+                            TranscriptionServiceError::TranscriptionFailure(
+                                "Failed to upload formatted transcript to bulk storage".to_string(),
+                            )
+                        })?;
+                } else {
                     let failure_reason = job.failure_reason.ok_or_else(|| {
                         TranscriptionServiceError::TranscriptionFailure(format!(
                             "Transcription job {job_name} failed for unknown reason",
@@ -638,11 +706,44 @@ impl AmazonTranscriber {
     }
 }
 
+#[derive(Deserialize, Debug)]
+pub struct AwsTranscription {
+    pub results: AwsTranscriptionResults,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AwsTranscriptionResults {
+    pub audio_segments: Vec<AwsTranscriptionAudioSegment>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AwsTranscriptionAudioSegment {
+    pub id: i32,
+    // TODO: should ideally be f64 but deserialization breaks
+    pub transcript: String,
+    pub start_time: String,
+    pub end_time: String,
+    pub speaker_label: Option<String>,
+}
+
+impl From<AwsTranscriptionAudioSegment> for TranscriptEvent {
+    fn from(e: AwsTranscriptionAudioSegment) -> Self {
+        Self {
+            text: e.transcript,
+            start_time: e.start_time.parse::<f64>().unwrap_or(0.0),
+            end_time: e.end_time.parse::<f64>().unwrap_or(0.0),
+            speaker_id: e.speaker_label,
+            is_pending: false,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use aws_config::BehaviorVersion;
     use sqlx::PgPool;
 
-    use crate::test_helpers::test_state;
+    use crate::{bulk_storage_service::s3_storage::S3StorageService, test_helpers::test_state};
 
     use super::*;
 
@@ -972,14 +1073,37 @@ mod tests {
         pool: PgPool,
     ) -> std::result::Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
+        let bulk_storage_service = state.required_bulk_storage_service()?;
         let transcriber = AmazonTranscriber::new().await;
         let _result = transcriber
             .transcribe_from_bulk_store(
-                "comhairle-media",
+                "comhairle-media-test",
                 "events/3c22d53d-07df-4d46-802e-486b79dd1a80",
-                &state.bulk_storage_service,
+                bulk_storage_service,
             )
             .await?;
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn should_fetch_transcript_file_and_reformat() -> std::result::Result<(), Box<dyn Error>>
+    {
+        let s3_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+        let bulk_storage_service = Arc::new(S3StorageService::new(
+            &s3_config,
+            "comhairle-media-test".to_owned(),
+        )) as Arc<dyn BulkStorageService>;
+
+        let key = "events/3c22d53d-07df-4d46-802e-486b79dd1a80/raw-transcript.json";
+
+        let transcription = get_and_convert_transcription(key, &bulk_storage_service).await?;
+
+        assert!(
+            !transcription.events.is_empty(),
+            "missing transcription events"
+        );
 
         Ok(())
     }

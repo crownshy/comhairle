@@ -3,11 +3,16 @@
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime.js';
-	import type { Page, LocalizedConversationDto } from '@crownshy/api-client/api';
+	import type {
+		Page,
+		LocalizedConversationDto,
+		ComhairleDocument
+	} from '@crownshy/api-client/api';
 	import { tick } from 'svelte';
 	import { navigating } from '$app/state';
 	import LearnTutor from './LearnTutor.svelte';
 	import LearnArticleSkeleton from './LearnArticleSkeleton.svelte';
+	import { apiClient } from '@crownshy/api-client/client';
 
 	let {
 		pages,
@@ -24,6 +29,23 @@
 	let tutorAvailable = $derived(
 		!!conversation?.id && !!conversation?.chatBotId && !!conversation?.enableQaChatBot
 	);
+
+	let availableDocuments = $state<ComhairleDocument[]>([]);
+
+	$effect(() => {
+		if (!conversation?.id) {
+			availableDocuments = [];
+			return;
+		}
+		apiClient
+			.ListDocuments({ params: { conversation_id: conversation.id } })
+			.then((docs) => {
+				availableDocuments = docs.filter((d) => d.parse_status === 'DONE');
+			})
+			.catch(() => {
+				availableDocuments = [];
+			});
+	});
 
 	let currentPageNo = $state(0);
 	let currentPage = $derived(pages[currentPageNo]);
@@ -60,7 +82,7 @@
 	{:else if content}
 		<article class="prose mx-auto w-full grow overflow-y-auto">
 			{#key content}
-				<ContentRenderer {content} />
+				<ContentRenderer {content} {availableDocuments} conversationId={conversation?.id} />
 			{/key}
 		</article>
 	{:else}
