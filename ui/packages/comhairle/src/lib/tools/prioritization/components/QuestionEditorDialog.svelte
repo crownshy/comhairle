@@ -20,11 +20,11 @@
 	let { open, question = null, store, toolConfig, onOpenChange }: Props = $props();
 
 	const defaultLikertCategories: LikertCategory[] = [
-		{ label: 'Strongly disagree', value: 1 },
-		{ label: 'Disagree', value: 2 },
-		{ label: 'Neutral', value: 3 },
-		{ label: 'Agree', value: 4 },
-		{ label: 'Strongly agree', value: 5 }
+		{ label: 'Strongly disagree', value: -2 },
+		{ label: 'Disagree', value: -1 },
+		{ label: 'Neutral', value: 0 },
+		{ label: 'Agree', value: 1 },
+		{ label: 'Strongly agree', value: 2 }
 	];
 
 	function newQuestion(): Question {
