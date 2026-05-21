@@ -450,6 +450,42 @@ export const CreateResponse = z
   .object({ question_responses: z.array(Response) })
   .passthrough();
 export type CreateResponse = z.infer<typeof CreateResponse>;
+export const AnswerStatus = z.enum(["pending", "approved", "declined"]);
+export type AnswerStatus = z.infer<typeof AnswerStatus>;
+export const status = z.union([AnswerStatus, z.null()]).optional();
+export type status = z.infer<typeof status>;
+export const ThinkingSpaceAnswerDto = z
+  .object({
+    answer: z.string(),
+    id: z.string().uuid(),
+    isFollowUp: z.boolean(),
+    otherQuestions: z.array(z.string()),
+    question: z.string(),
+    rootQuestionId: z.union([z.string(), z.null()]).optional(),
+    status: AnswerStatus,
+    workflowStepId: z.string().uuid(),
+  })
+  .passthrough();
+export type ThinkingSpaceAnswerDto = z.infer<typeof ThinkingSpaceAnswerDto>;
+export const CreateAnswerRequest = z
+  .object({
+    answer: z.string(),
+    is_follow_up: z.union([z.boolean(), z.null()]).optional(),
+    other_questions: z.union([z.array(z.string()), z.null()]).optional(),
+    question: z.string(),
+    root_question_id: z.union([z.string(), z.null()]).optional(),
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type CreateAnswerRequest = z.infer<typeof CreateAnswerRequest>;
+export const UpdateAnswer = z
+  .object({
+    answer: z.union([z.string(), z.null()]),
+    status: z.union([AnswerStatus, z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type UpdateAnswer = z.infer<typeof UpdateAnswer>;
 export const CreateConversation = z
   .object({
     default_workflow_id: z.union([z.string(), z.null()]).optional(),
@@ -1638,6 +1674,11 @@ export const schemas: Record<string, z.ZodType<any>> = {
   QuestionResponses,
   ProposalResponseDto,
   CreateResponse,
+  AnswerStatus,
+  status,
+  ThinkingSpaceAnswerDto,
+  CreateAnswerRequest,
+  UpdateAnswer,
   CreateConversation,
   Translation,
   ConversationTranslations,
@@ -3532,6 +3573,61 @@ Create a response for prioritization tool proposal
     description: `Record a user story for the current user and workflow step`,
     requestFormat: "json",
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/tools/thinking_space/answers",
+    alias: "ListThinkingSpaceAnswers",
+    description: `List answer for thinking space workflow step`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "status",
+        type: "Query",
+        schema: status,
+      },
+      {
+        name: "user_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.array(ThinkingSpaceAnswerDto),
+  },
+  {
+    method: "post",
+    path: "/tools/thinking_space/answers",
+    alias: "CreateThinkingSpaceAnswer",
+    description: `Create an answer for thinking space workflow step question`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateAnswerRequest,
+      },
+    ],
+    response: ThinkingSpaceAnswerDto,
+  },
+  {
+    method: "put",
+    path: "/tools/thinking_space/answers/:answer_id",
+    alias: "UpdateThinkingSpaceAnswer",
+    description: `Update an answer for thinking space workflow step question`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpdateAnswer,
+      },
+    ],
+    response: ThinkingSpaceAnswerDto,
   },
   {
     method: "post",

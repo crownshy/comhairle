@@ -74,11 +74,11 @@ const DEFAULT_COLUMNS: [ThinkingSpaceAnswerIden; 11] = [
 
 #[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct CreateAnswer {
-    question: String,
-    answer: String,
-    other_questions: Option<Vec<String>>,
-    root_question_id: Option<Uuid>,
-    is_follow_up: Option<bool>,
+    pub question: String,
+    pub answer: String,
+    pub other_questions: Option<Vec<String>>,
+    pub root_question_id: Option<Uuid>,
+    pub is_follow_up: Option<bool>,
 }
 
 impl CreateAnswer {
