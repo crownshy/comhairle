@@ -5,6 +5,7 @@
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as RadioGroup from '$lib/components/ui/radio-group';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
+	import Combobox from '$lib/components/ui/combobox/combobox.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { TimeRangePicker } from '$lib/components/ui/time-picker';
 	import { CalendarIcon } from 'lucide-svelte';
@@ -66,12 +67,17 @@
 	const timeZone = getLocalTimeZone();
 	const [startDate, _startTimeWithZone] = $derived(event.startTime.split('T'));
 	const [, _endTimeWithZone] = $derived(event.endTime.split('T'));
+	const availableTimeZones = [
+		{ value: 'UTC', label: 'UTC' },
+		...Intl.supportedValuesOf('timeZone').map((tz) => ({ value: tz, label: tz }))
+	];
 
 	const eventForm = superForm(
 		{
 			name: event.name,
 			description: event.description,
 			capacity: event.capacity,
+			default_time_zone: event.defaultTimeZone,
 			start_date: startDate,
 			start_time: utcTimeToLocal(event.startTime, timeZone),
 			end_time: utcTimeToLocal(event.endTime, timeZone),
@@ -411,6 +417,34 @@
 							</Form.Label>
 							<Input {...props} bind:value={$form.capacity} type="number" />
 							<Form.FieldErrors />
+						{/snippet}
+					</Form.Control>
+				</Form.Field>
+			</div>
+
+			<!-- Default time zone -->
+			<div
+				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+			>
+				<Form.Field form={eventForm} name="default_time_zone" class="contents">
+					<Form.Control>
+						{#snippet children({ props })}
+							<Form.Label
+								class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+							>
+								<span>Default time zone</span>
+								<span class="font-normal">Time zone event is taking place in</span>
+							</Form.Label>
+							<div class="flex-1">
+								<Combobox
+									selectedItem={availableTimeZones.find(
+										(tz) => tz.value === $form.default_time_zone
+									)}
+									items={availableTimeZones}
+									placeholder="Select a default timezone"
+									onSelect={(item) => ($form.default_time_zone = item.value)}
+								/>
+							</div>
 						{/snippet}
 					</Form.Control>
 				</Form.Field>

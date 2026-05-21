@@ -8,6 +8,7 @@
 		type DateValue
 	} from '@internationalized/date';
 	import * as Form from '$lib/components/ui/form';
+	import Combobox from '$lib/components/ui/combobox/combobox.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { TimeRangePicker } from '$lib/components/ui/time-picker';
 	import * as RadioGroup from '$lib/components/ui/radio-group';
@@ -18,7 +19,6 @@
 	import { CalendarIcon, AlertCircle } from 'lucide-svelte';
 	import Calendar from '$lib/components/ui/calendar/calendar.svelte';
 	import { cn } from '$lib/utils';
-	import { buttonVariants } from '$lib/components/ui/button';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { goto } from '$app/navigation';
@@ -37,6 +37,11 @@
 	});
 
 	const { form: formData, enhance, message: errorMessage, validateForm, submitting } = form;
+
+	const availableTimeZones = [
+		{ value: 'UTC', label: 'UTC' },
+		...Intl.supportedValuesOf('timeZone').map((tz) => ({ value: tz, label: tz }))
+	];
 
 	let saving = $state(false);
 	let submitError = $state<string | null>(null);
@@ -254,6 +259,31 @@
 							}}
 						/>
 						<Form.FieldErrors />
+					</div>
+				{/snippet}
+			</Form.Control>
+		</Form.Field>
+	</div>
+
+	<!-- Default time zone -->
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
+		<Form.Field {form} name="default_time_zone" class="contents">
+			<Form.Control>
+				{#snippet children({ props })}
+					<Form.Label
+						class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+					>
+						<span>Default time zone</span>
+						<span class="font-normal">Time zone event is taking place in</span>
+					</Form.Label>
+					<div class="flex-1">
+						<Combobox
+							items={availableTimeZones}
+							placeholder="Select a default timezone"
+							onSelect={(item) => ($formData.default_time_zone = item.value)}
+						/>
 					</div>
 				{/snippet}
 			</Form.Control>
