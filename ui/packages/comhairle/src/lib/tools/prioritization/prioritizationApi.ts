@@ -196,6 +196,7 @@ export async function updateToolConfig(opts: {
 	workflowId: string;
 	workflowStepId: string;
 	toolConfig: ToolConfig;
+	isLive: boolean;
 }): Promise<void> {
 	const payload = {
 		type: 'prioritization' as const,
@@ -203,7 +204,9 @@ export async function updateToolConfig(opts: {
 		randomize_order: opts.toolConfig.randomizeOrder
 	};
 	await apiClient.UpdateConversationWorkflowStep(
-		{ preview_tool_config: payload } as unknown as Parameters<
+		(opts.isLive
+			? { tool_config: payload }
+			: { preview_tool_config: payload }) as unknown as Parameters<
 			typeof apiClient.UpdateConversationWorkflowStep
 		>[0],
 		{

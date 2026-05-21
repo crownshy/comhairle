@@ -34,7 +34,12 @@
 	/** The host page keys this component by step id, so the ids are stable for
 	 * the component's lifetime — capturing them once is intentional. */
 	// svelte-ignore state_referenced_locally
-	const store = createStore({ workflowStepId: workflowStep.id, conversationId, workflowId });
+	const store = createStore({
+		workflowStepId: workflowStep.id,
+		conversationId,
+		workflowId,
+		isLive: conversation.isLive ?? false
+	});
 
 	let toolConfig = $derived(resolveToolConfig(workflowStep, conversation.isLive ?? false));
 	let primaryLocale = $derived(conversation.primaryLocale ?? 'en');

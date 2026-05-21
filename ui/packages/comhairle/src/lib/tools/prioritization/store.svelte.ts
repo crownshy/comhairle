@@ -14,6 +14,7 @@ export function createStore(opts: {
 	workflowStepId: string;
 	conversationId: string;
 	workflowId: string;
+	isLive: boolean;
 }) {
 	let state = $state<LoadState>('idle');
 	let proposals = $state<Proposal[]>([]);
@@ -53,7 +54,8 @@ export function createStore(opts: {
 				conversationId: opts.conversationId,
 				workflowId: opts.workflowId,
 				workflowStepId: opts.workflowStepId,
-				toolConfig
+				toolConfig,
+				isLive: opts.isLive
 			});
 		} catch (e) {
 			notifications.send({ priority: 'ERROR', message: 'Failed to update tool config' });
