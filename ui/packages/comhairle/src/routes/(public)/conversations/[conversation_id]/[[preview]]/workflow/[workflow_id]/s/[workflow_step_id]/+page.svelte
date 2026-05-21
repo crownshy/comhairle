@@ -4,6 +4,7 @@
 	import * as Learn from '$lib/tools/learn/index.js';
 	import * as LivedExperience from '$lib/tools/lived_experince/index.js';
 	import * as ElicitationBot from '$lib/tools/elicitation_bot/index.js';
+	import * as Prioritization from '$lib/tools/prioritization/index.js';
 	import type { PageProps } from './$types';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -17,7 +18,6 @@
 	import { page, navigating } from '$app/state';
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
 	import LearnTutorSkeleton from '$lib/tools/learn/LearnTutorSkeleton.svelte';
-	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
 	const url = $derived(page.url);
 	const queryString = $derived(url.search);
@@ -44,32 +44,6 @@
 	);
 
 	let isRevisiting = $derived(workflowStep.progressStatus === 'done');
-
-	let availableDocuments = $state<ComhairleDocument[]>([]);
-	let loadedDocumentsConversationId = $state<string | null>(null);
-
-	$effect(() => {
-		const conversationId = conversation?.id ?? null;
-		if (!conversationId) {
-			availableDocuments = [];
-			loadedDocumentsConversationId = null;
-			return;
-		}
-
-		if (loadedDocumentsConversationId === conversationId) return;
-
-		loadedDocumentsConversationId = conversationId;
-		apiClient
-			.ListDocuments({ params: { conversation_id: conversationId } })
-			.then((docs) => {
-				if (loadedDocumentsConversationId !== conversationId) return;
-				availableDocuments = docs.filter((d) => d.parse_status === 'DONE');
-			})
-			.catch(() => {
-				if (loadedDocumentsConversationId !== conversationId) return;
-				availableDocuments = [];
-			});
-	});
 
 	let stepItems = $derived<StepItem[]>(
 		sortedSteps.map((ws) => {
@@ -219,8 +193,6 @@
 					onNext={currentNextAction ?? stepComplete}
 					nextDisabled={!canProceed}
 					boldDescription={toolConfig.type === Polis.TOOL_NAME}
-					{availableDocuments}
-					conversationId={conversation.id}
 				/>
 			{/if}
 		</div>
@@ -285,6 +257,24 @@
 								topic={toolConfig.topic}
 								onDone={stepComplete}
 								onCanContinueChange={handleCanContinueChange}
+							/>
+						{/key}
+					{/if}
+					{#if toolConfig.type === Prioritization.TOOL_NAME}
+						{#key workflowStep.id}
+							<Prioritization.UserUI
+								mode="user"
+								conversationId={conversation.id}
+								workflowId={workflowStep.workflowId}
+								{workflowStep}
+								conversation={{
+									primaryLocale: conversation.primaryLocale,
+									isLive: conversation.isLive,
+									supportedLanguages: conversation.supportedLanguages
+								}}
+								currentLocale={conversation.primaryLocale ?? 'en'}
+								participantId={user.id}
+								onDone={stepComplete}
 							/>
 						{/key}
 					{/if}
