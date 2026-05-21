@@ -14,8 +14,7 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { WorkflowStepWithTranslations } from '@crownshy/api-client/api';
-	import { loadConfig, saveConfig, newQuestionId } from './config';
-	import type { QuestionConfig, ThinkingSpaceConfig } from './types';
+	import type { QuestionConfig } from './types';
 
 	type Props = {
 		conversationId: string;
@@ -29,35 +28,38 @@
 	let toolConfig = $derived(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig);
 
 	let topic = $state('');
-	let config = $state<ThinkingSpaceConfig>({
+	let config = $state<{ questions: QuestionConfig[]; followUpRoundsCount: number }>({
 		questions: [],
-		followUpCount: 2
+		followUpRoundsCount: 2
 	});
 	let saving = $state(false);
 
 	onMount(() => {
-		topic = (toolConfig as { topic?: string })?.topic ?? '';
-		const loaded = loadConfig(workflowStep.id);
+		const cfg = toolConfig as
+			| { topic?: string; root_questions?: QuestionConfig[]; follow_up_rounds_count?: number }
+			| undefined;
+		topic = cfg?.topic ?? '';
 		// Ensure at least one question slot so the UI never shows an empty list
-		if (loaded.questions.length === 0) {
-			loaded.questions = [{ id: newQuestionId(), text: '' }];
-		}
-		config = loaded;
+		const questions =
+			cfg?.root_questions && cfg.root_questions.length > 0
+				? cfg.root_questions.map((q) => ({ id: q.id, text: q.text }))
+				: [{ id: crypto.randomUUID(), text: '' }];
+		config = {
+			questions,
+			followUpRoundsCount:
+				typeof cfg?.follow_up_rounds_count === 'number'
+					? Math.max(0, Math.min(5, cfg.follow_up_rounds_count))
+					: 2
+		};
 	});
 
-	function persistLocal() {
-		saveConfig(workflowStep.id, $state.snapshot(config));
-	}
-
 	function addQuestion() {
-		config.questions = [...config.questions, { id: newQuestionId(), text: '' }];
-		persistLocal();
+		config.questions = [...config.questions, { id: crypto.randomUUID(), text: '' }];
 	}
 
 	function removeQuestion(id: string) {
 		if (config.questions.length <= 1) return;
 		config.questions = config.questions.filter((q) => q.id !== id);
-		persistLocal();
 	}
 
 	function move(id: string, delta: -1 | 1) {
@@ -67,12 +69,10 @@
 		const next = [...config.questions];
 		[next[idx], next[target]] = [next[target], next[idx]];
 		config.questions = next;
-		persistLocal();
 	}
 
 	function bumpFollowUps(delta: -1 | 1) {
-		config.followUpCount = Math.max(0, Math.min(5, config.followUpCount + delta));
-		persistLocal();
+		config.followUpRoundsCount = Math.max(0, Math.min(5, config.followUpRoundsCount + delta));
 	}
 
 	async function saveAll() {
@@ -85,33 +85,20 @@
 		}
 		saving = true;
 		try {
-			const update = isLive
-				? {
-						tool_config: {
-							...workflowStep.toolConfig,
-							type: 'thinkingspace' as const,
-							topic,
-							questions: config.questions,
-							follow_up_count: config.followUpCount
-						}
-					}
-				: {
-						preview_tool_config: {
-							...workflowStep.previewToolConfig,
-							type: 'thinkingspace' as const,
-							topic,
-							questions: config.questions,
-							follow_up_count: config.followUpCount
-						}
-					};
-			await apiClient.UpdateConversationThinkingSpaceWorkflowStep(update, {
+			const payload = {
+				type: 'thinkingspace' as const,
+				topic,
+				root_questions: config.questions,
+				follow_up_rounds_count: config.followUpRoundsCount
+			};
+			const update = isLive ? { tool_config: payload } : { preview_tool_config: payload };
+			await apiClient.UpdateConversationWorkflowStep(update, {
 				params: {
 					conversation_id: conversationId,
 					workflow_id: workflowId,
 					workflow_step_id: workflowStep.id
 				}
 			});
-			persistLocal();
 			notifications.send({
 				message: 'Thinking Space configuration saved.',
 				priority: 'INFO'
@@ -164,19 +151,19 @@
 					variant="outline"
 					size="icon"
 					onclick={() => bumpFollowUps(-1)}
-					disabled={config.followUpCount <= 0}
+					disabled={config.followUpRoundsCount <= 0}
 					aria-label="Decrease follow-up count"
 				>
 					<Minus class="size-4" />
 				</Button>
 				<span class="text-primary w-8 text-center text-xl font-semibold tabular-nums">
-					{config.followUpCount}
+					{config.followUpRoundsCount}
 				</span>
 				<Button
 					variant="outline"
 					size="icon"
 					onclick={() => bumpFollowUps(1)}
-					disabled={config.followUpCount >= 5}
+					disabled={config.followUpRoundsCount >= 5}
 					aria-label="Increase follow-up count"
 				>
 					<Plus class="size-4" />
@@ -203,7 +190,6 @@
 					<div class="flex-1">
 						<Textarea
 							bind:value={config.questions[i].text}
-							onblur={persistLocal}
 							placeholder="Write your question…"
 							rows={2}
 							class="resize-none"
@@ -253,11 +239,4 @@
 			{saving ? 'Saving…' : 'Save configuration'}
 		</Button>
 	</div>
-
-	<p class="text-muted-foreground text-xs">
-		Questions and follow-up count are stored locally in your browser for this prototype. Only
-		the topic is persisted server-side today. See
-		<code class="bg-muted rounded px-1 py-0.5">THINKING_SPACE_TODO.md</code> for the planned backend
-		wiring.
-	</p>
 </div>

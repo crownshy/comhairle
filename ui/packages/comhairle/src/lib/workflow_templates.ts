@@ -64,8 +64,8 @@ export const basic_elicitation_bot_config = (conversation: LocalizedConversation
 export const basic_thinking_space_config = () => ({
 	type: 'thinkingspace',
 	topic: 'What do you think?',
-	questions: [],
-	follow_up_count: 2
+	root_questions: [],
+	follow_up_rounds_count: 2
 });
 
 export const basic_lived_experience_config = {
