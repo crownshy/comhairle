@@ -28,19 +28,14 @@ use super::{ToolConfigSanitize, ToolImpl};
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
 pub struct ThinkingSpaceQuestion {
-    pub id: String,
+    pub id: Uuid,
     pub text: String,
-}
-
-fn default_follow_up_rounds_count() -> u8 {
-    2
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
 pub struct ThinkingSpaceToolConfig {
     pub topic: String,
     pub root_questions: Vec<ThinkingSpaceQuestion>,
-    #[serde(default = "default_follow_up_rounds_count")]
     pub follow_up_rounds_count: u8,
 }
 
@@ -50,11 +45,24 @@ impl ToolConfigSanitize for ThinkingSpaceToolConfig {
     }
 }
 
+#[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
+pub struct ThinkingSpaceSetupQuestion {
+    pub text: String,
+}
+
+impl From<ThinkingSpaceSetupQuestion> for ThinkingSpaceQuestion {
+    fn from(q: ThinkingSpaceSetupQuestion) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            text: q.text,
+        }
+    }
+}
+
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema)]
 pub struct ThinkingSpaceToolSetup {
     pub topic: String,
-    pub root_questions: Vec<ThinkingSpaceQuestion>,
-    #[serde(default = "default_follow_up_rounds_count")]
+    pub root_questions: Vec<ThinkingSpaceSetupQuestion>,
     pub follow_up_rounds_count: u8,
 }
 
@@ -129,7 +137,12 @@ async fn thinking_space_setup(
 ) -> Result<ThinkingSpaceToolConfig, ComhairleError> {
     Ok(ThinkingSpaceToolConfig {
         topic: config.topic.clone(),
-        root_questions: config.root_questions.clone(),
+        root_questions: config
+            .root_questions
+            .clone()
+            .into_iter()
+            .map(Into::into)
+            .collect(),
         follow_up_rounds_count: config.follow_up_rounds_count,
     })
 }

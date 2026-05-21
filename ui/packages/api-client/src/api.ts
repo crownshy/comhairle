@@ -705,7 +705,7 @@ export const Question = z
   .passthrough();
 export type Question = z.infer<typeof Question>;
 export const ThinkingSpaceQuestion = z
-  .object({ id: z.string(), text: z.string() })
+  .object({ id: z.string().uuid(), text: z.string() })
   .passthrough();
 export type ThinkingSpaceQuestion = z.infer<typeof ThinkingSpaceQuestion>;
 export const ToolConfig = z.union([
@@ -754,7 +754,7 @@ export const ToolConfig = z.union([
     .passthrough(),
   z
     .object({
-      follow_up_rounds_count: z.number().int().gte(0).optional().default(2),
+      follow_up_rounds_count: z.number().int().gte(0),
       root_questions: z.array(ThinkingSpaceQuestion),
       topic: z.string(),
       type: z.literal("thinkingspace"),
@@ -913,6 +913,12 @@ export const SetupQuestion = z
   .object({ text: z.string(), type: QuestionType })
   .passthrough();
 export type SetupQuestion = z.infer<typeof SetupQuestion>;
+export const ThinkingSpaceSetupQuestion = z
+  .object({ text: z.string() })
+  .passthrough();
+export type ThinkingSpaceSetupQuestion = z.infer<
+  typeof ThinkingSpaceSetupQuestion
+>;
 export const ToolSetup = z.union([
   z
     .object({
@@ -950,8 +956,8 @@ export const ToolSetup = z.union([
     .passthrough(),
   z
     .object({
-      follow_up_rounds_count: z.number().int().gte(0).optional().default(2),
-      root_questions: z.array(ThinkingSpaceQuestion),
+      follow_up_rounds_count: z.number().int().gte(0),
+      root_questions: z.array(ThinkingSpaceSetupQuestion),
       topic: z.string(),
       type: z.literal("thinkingspace"),
     })
@@ -1716,6 +1722,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   LocalizedWorkflowStepDto,
   WorkflowStepsListResponse,
   SetupQuestion,
+  ThinkingSpaceSetupQuestion,
   ToolSetup,
   CreateWorkflowStep,
   WorkflowStepDto,
@@ -2608,20 +2615,6 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     response: WorkflowStepDto,
   },
   {
-    method: "put",
-    path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps/:workflow_step_id/elicitation_bot",
-    alias: "UpdateEventElicitationBotWorkflowStep",
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "body",
-        type: "Body",
-        schema: PartialWorkflowStep,
-      },
-    ],
-    response: WorkflowStepDto,
-  },
-  {
     method: "get",
     path: "/conversation/:conversation_id/feedback",
     alias: "ListFeedbackForConversation",
@@ -3004,20 +2997,6 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id",
     alias: "DeleteConversationWorkflowStep",
     requestFormat: "json",
-    response: WorkflowStepDto,
-  },
-  {
-    method: "put",
-    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/elicitation_bot",
-    alias: "UpdateConversationElicitationBotWorkflowStep",
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "body",
-        type: "Body",
-        schema: PartialWorkflowStep,
-      },
-    ],
     response: WorkflowStepDto,
   },
   {
