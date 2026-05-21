@@ -17,8 +17,7 @@ import type {
 	WorkflowStepInput
 } from './types';
 
-/** API + DTO mapping for the prioritization tool. Plain functions over
- * `apiClient`, mirroring the PolisApi.ts pattern. */
+/** API + DTO mapping */
 
 /* ---------- Question type mapping ---------- */
 
@@ -198,8 +197,6 @@ export async function updateToolConfig(opts: {
 	workflowStepId: string;
 	toolConfig: ToolConfig;
 }): Promise<void> {
-	/** Following the Polis pattern: writes go to preview_tool_config. Live
-	 * tool_config picks the latest preview when the conversation is launched. */
 	const payload = {
 		type: 'prioritization' as const,
 		questions: opts.toolConfig.questions.map(denormaliseQuestion),
@@ -217,8 +214,7 @@ export async function updateToolConfig(opts: {
 			}
 		}
 	);
-	/** Reload page data so the updated config flows back through the
-	 * workflow_step prop. */
+
 	await invalidateAll();
 }
 
@@ -247,11 +243,6 @@ export async function listResponses(proposalId: string): Promise<ProposalRespons
 		userId: d.userId,
 		responses: d.response.map((r) => ({ questionId: r.question_id, value: r.value }))
 	}));
-}
-
-/** Dev-mode reset — deletes every response the calling user submitted for the proposal. */
-export async function clearMyResponses(proposalId: string): Promise<void> {
-	await apiClient.DeleteMyProposalResponses(undefined, { params: { proposal_id: proposalId } });
 }
 
 /* ---------- Drafts (localStorage) ---------- */

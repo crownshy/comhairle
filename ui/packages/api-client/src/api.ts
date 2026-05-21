@@ -488,10 +488,6 @@ export const CreateResponse = z
   .object({ question_responses: z.array(Response) })
   .passthrough();
 export type CreateResponse = z.infer<typeof CreateResponse>;
-export const DeletedResponsesDto = z
-  .object({ deleted: z.number().int().gte(0) })
-  .passthrough();
-export type DeletedResponsesDto = z.infer<typeof DeletedResponsesDto>;
 export const CreateConversation = z
   .object({
     default_workflow_id: z.union([z.string(), z.null()]).optional(),
@@ -1666,7 +1662,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   QuestionResponses,
   ProposalResponseDto,
   CreateResponse,
-  DeletedResponsesDto,
   CreateConversation,
   Translation2,
   ConversationTranslations,
@@ -3548,14 +3543,6 @@ Create a response for prioritization tool proposal
       },
     ],
     response: ProposalResponseDto,
-  },
-  {
-    method: "delete",
-    path: "/tools/prioritization/proposals/:proposal_id/responses/mine",
-    alias: "DeleteMyProposalResponses",
-    description: `Deletes every response the calling user has submitted for this proposal. Intended for dev/testing flows where a participant needs to retake a step.`,
-    requestFormat: "json",
-    response: z.object({ deleted: z.number().int().gte(0) }).passthrough(),
   },
   {
     method: "get",

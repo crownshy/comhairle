@@ -214,21 +214,6 @@ Create a response for prioritization tool proposal
                         .response::<200, Json<Vec<ProposalResponseDto>>>()
                 }),
             )
-            .api_route(
-                "/prioritization/proposals/{proposal_id}/responses/mine",
-                aide::axum::routing::delete_with(delete_my_proposal_responses, |op| {
-                    op.id("DeleteMyProposalResponses")
-                        .tag("Tools")
-                        .security_requirement("JWT")
-                        .summary("Delete my responses for a proposal")
-                        .description(
-                            "Deletes every response the calling user has submitted for this \
-                             proposal. Intended for dev/testing flows where a participant \
-                             needs to retake a step.",
-                        )
-                        .response::<200, Json<DeletedResponsesDto>>()
-                }),
-            )
             .with_state(state.clone())
     }
 }
@@ -290,12 +275,6 @@ pub struct ProposalResponseDto {
     pub proposal_id: Uuid,
     pub user_id: Uuid,
     pub response: QuestionResponses,
-}
-
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct DeletedResponsesDto {
-    pub deleted: u64,
 }
 
 impl From<Proposal> for ProposalDto {
@@ -413,16 +392,6 @@ async fn create_proposal_response(
     let response = proposal_response::create(&state.db, &proposal_id, &user.id, &payload).await?;
 
     Ok((StatusCode::CREATED, Json(response.into())))
-}
-
-#[instrument(err(Debug), skip(state))]
-async fn delete_my_proposal_responses(
-    State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
-    Path(proposal_id): Path<Uuid>,
-) -> Result<(StatusCode, Json<DeletedResponsesDto>), ComhairleError> {
-    let deleted = proposal_response::delete_by_user(&state.db, &proposal_id, &user.id).await?;
-    Ok((StatusCode::OK, Json(DeletedResponsesDto { deleted })))
 }
 
 #[instrument(err(Debug), skip(state))]

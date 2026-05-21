@@ -3,7 +3,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Progress } from '$lib/components/ui/progress';
 	import { Badge } from '$lib/components/ui/badge';
-	import { ArrowLeft, ArrowRight, CheckCircle2, LoaderCircle, RotateCcw } from 'lucide-svelte';
+	import { ArrowLeft, ArrowRight, CheckCircle2, LoaderCircle } from 'lucide-svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import QuestionField from './components/QuestionField.svelte';
 	import * as api from './prioritizationApi';
@@ -37,10 +37,6 @@
 	let loadError = $state<string | null>(null);
 	let currentIndex = $state(0);
 	let submitting = $state(false);
-	let resetting = $state(false);
-
-	/** Only expose the dev reset affordance when Vite is in dev. Production builds tree-shake the `import.meta.env.DEV` check. */
-	const showDevReset = import.meta.env.DEV;
 
 	/** Filter out text questions from required-completeness checks because the backend payload doesn't accept them yet. */
 	const ratableQuestions = $derived<Question[]>(
@@ -171,24 +167,6 @@
 		onDone?.();
 	}
 
-	async function devReset() {
-		if (!showDevReset) return;
-
-		resetting = true;
-		try {
-			await Promise.all(proposals.map((p) => api.clearMyResponses(p.id)));
-			api.clearDraft(stepId, participantId);
-			submittedIds = new Set();
-			answers = {};
-			currentIndex = 0;
-			await bootstrap();
-		} catch (e) {
-			loadError = e instanceof Error ? e.message : 'Reset failed.';
-		} finally {
-			resetting = false;
-		}
-	}
-
 	let progressPercent = $derived(
 		proposals.length === 0 ? 0 : Math.round((submittedIds.size / proposals.length) * 100)
 	);
@@ -220,21 +198,9 @@
 				Your ratings for all {proposals.length} proposals have been recorded.
 			</p>
 
-			<div class="flex items-center justify-center gap-2">
-				{#if onDone}
-					<Button onclick={finish}>Continue</Button>
-				{/if}
-				{#if showDevReset}
-					<Button variant="ghost" onclick={devReset} disabled={resetting}>
-						{#if resetting}
-							<LoaderCircle class="mr-2 h-3 w-3 animate-spin" />
-						{:else}
-							<RotateCcw class="mr-2 h-3 w-3" />
-						{/if}
-						Dev reset
-					</Button>
-				{/if}
-			</div>
+			{#if onDone}
+				<Button onclick={finish}>Continue</Button>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 {:else if current}
@@ -244,28 +210,9 @@
 				<span class="text-muted-foreground">
 					Proposal {currentIndex + 1} of {proposals.length}
 				</span>
-				<div class="flex items-center gap-3">
-					{#if showDevReset}
-						<Button
-							variant="ghost"
-							size="sm"
-							class="text-muted-foreground hover:text-foreground gap-1 text-xs"
-							onclick={devReset}
-							disabled={resetting || submitting}
-							title="Dev only — deletes all of your submitted responses for this step"
-						>
-							{#if resetting}
-								<LoaderCircle class="h-3 w-3 animate-spin" />
-							{:else}
-								<RotateCcw class="h-3 w-3" />
-							{/if}
-							Dev reset
-						</Button>
-					{/if}
-					<span class="text-muted-foreground">
-						{submittedIds.size} of {proposals.length} done
-					</span>
-				</div>
+				<span class="text-muted-foreground">
+					{submittedIds.size} of {proposals.length} done
+				</span>
 			</div>
 			<Progress value={progressPercent} />
 		</div>
