@@ -20,7 +20,9 @@
 		Video,
 		MessagesSquare,
 		Bot,
-		GripVertical
+		GripVertical,
+		ChevronUp,
+		ChevronDown
 	} from 'lucide-svelte';
 	import * as Card from '$lib/components/ui/card';
 	import Button from '$lib/components/ui/button/button.svelte';
@@ -118,6 +120,15 @@
 		notifications.send({ priority: 'INFO', message: 'Steps reordered' });
 	}
 
+	async function moveStep(index: number, direction: -1 | 1) {
+		const target = index + direction;
+		if (target < 0 || target >= reorderedSteps.length) return;
+		const next = [...reorderedSteps];
+		[next[index], next[target]] = [next[target], next[index]];
+		reorderedSteps = next;
+		await handleCommit(next);
+	}
+
 	function activeToolConfig(step: WorkflowStepWithTranslations) {
 		return conversation.isLive ? step.toolConfig : step.previewToolConfig;
 	}
@@ -186,7 +197,29 @@
 							{/if}
 							<h1 class="text-xl">{step.name}</h1>
 						</div>
-						<GripVertical class="text-muted-foreground cursor-grab" />
+						<div class="flex flex-row items-center gap-2">
+							{#if index > 0}
+								<Button
+									variant="ghost"
+									size="icon"
+									aria-label="Move step up"
+									onclick={() => moveStep(index, -1)}
+								>
+									<ChevronUp />
+								</Button>
+							{/if}
+							{#if index < reorderedSteps.length - 1}
+								<Button
+									variant="ghost"
+									size="icon"
+									aria-label="Move step down"
+									onclick={() => moveStep(index, 1)}
+								>
+									<ChevronDown />
+								</Button>
+							{/if}
+							<GripVertical class="text-muted-foreground cursor-grab" />
+						</div>
 					</div>
 				</Card.Header>
 				<Card.Footer>
