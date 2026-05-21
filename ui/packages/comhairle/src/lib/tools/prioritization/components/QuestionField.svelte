@@ -77,15 +77,8 @@
 						<span class="font-medium">{question.type.maxLabel}</span>{/if}
 				</span>
 			</div>
-			{#if value !== null}
-				<p class="text-sm">Selected: {value}</p>
-			{/if}
 		</div>
 	{:else}
-		<Textarea
-			placeholder="Your answer (text answers are not yet recorded by the backend)"
-			rows={3}
-			{disabled}
-		/>
+		<Textarea placeholder="Your answer" rows={3} {disabled} />
 	{/if}
 </div>
