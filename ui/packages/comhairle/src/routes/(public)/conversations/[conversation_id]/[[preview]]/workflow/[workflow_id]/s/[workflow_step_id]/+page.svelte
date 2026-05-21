@@ -263,16 +263,12 @@
 					{#if toolConfig.type === Prioritization.TOOL_NAME}
 						{#key workflowStep.id}
 							<Prioritization.UserUI
-								mode="user"
-								conversationId={conversation.id}
-								workflowId={workflowStep.workflowId}
 								{workflowStep}
 								conversation={{
 									primaryLocale: conversation.primaryLocale,
 									isLive: conversation.isLive,
 									supportedLanguages: conversation.supportedLanguages
 								}}
-								currentLocale={conversation.primaryLocale ?? 'en'}
 								participantId={user.id}
 								onDone={stepComplete}
 							/>

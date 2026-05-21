@@ -1,4 +1,5 @@
-/** Portable types for the prioritization tool. No knowledge of comhairle or @crownshy/api-client lives here. The adapter is responsible for mapping backend DTOs into these shapes. */
+/** Types for the prioritization tool. The api module (prioritizationApi.ts)
+ * maps backend DTOs into these shapes. */
 
 export type Locale = string;
 
@@ -19,7 +20,8 @@ export type TextTranslation = {
 	requiresValidation: boolean;
 };
 
-/** One translatable field, in the exact shape the comhairle TranslatableField component expects under the hood. Keeping our internal shape aligned with it means components can pass `proposal.titleTranslations` straight in. */
+/** One translatable field, in the shape the comhairle TranslatableField
+ * component expects, so components can pass `proposal.titleTranslations` straight in. */
 export type TextContentWithTranslations = {
 	textContent: TextContent;
 	textTranslations: TextTranslation[];
@@ -34,7 +36,7 @@ export type Proposal = {
 	bodyTranslations: TextContentWithTranslations;
 };
 
-/** Lightweight variant used by participants — no translation envelopes, just the locale-resolved strings. Mirrors the backend's LocalizedProposalDto. */
+/** Locale-resolved variant shown to participants. Mirrors the backend's LocalizedProposalDto. */
 export type LocalizedProposal = {
 	id: string;
 	workflowStepId: string;
@@ -42,7 +44,7 @@ export type LocalizedProposal = {
 	body: string;
 };
 
-/** Question definitions (from workflow_step.tool_config) */
+/** Question definitions (from the workflow step's tool config) */
 
 export type LikertCategory = { label: string; value: number };
 
@@ -71,7 +73,8 @@ export type ToolConfig = {
 
 /** Responses */
 
-/** Backend payload only carries numeric values today; text-type questions are dropped at submit time. See README "Deferred / not built". */
+/** Backend payload only carries numeric values today; text-type questions are
+ * dropped at submit time. See README "Deferred". */
 export type QuestionResponse = { questionId: string; value: number };
 
 export type ProposalResponse = {
@@ -90,4 +93,16 @@ export type Draft = {
 	updatedAt: number;
 };
 
-export type Mode = 'manage' | 'user' | 'report';
+/** Props the host page passes into the tool UIs. */
+
+export type WorkflowStepInput = {
+	id: string;
+	toolConfig?: unknown;
+	previewToolConfig?: unknown;
+};
+
+export type ConversationInput = {
+	primaryLocale?: string;
+	isLive?: boolean;
+	supportedLanguages?: string[];
+};

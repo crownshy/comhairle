@@ -5,22 +5,19 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { LoaderCircle, Plus, Trash2 } from 'lucide-svelte';
-	import { getStepContext } from '../context';
-	import { createStore } from '../store.svelte';
 	import QuestionField from './QuestionField.svelte';
-	import type { LikertCategory, Question, QuestionType } from '../types';
+	import type { PrioritizationStore } from '../store.svelte';
+	import type { LikertCategory, Question, QuestionType, ToolConfig } from '../types';
 
 	type Props = {
 		open: boolean;
 		question?: Question | null;
+		store: PrioritizationStore;
+		toolConfig: ToolConfig;
 		onOpenChange: (open: boolean) => void;
-		onSaved?: () => void;
 	};
 
-	let { open, question = null, onOpenChange, onSaved }: Props = $props();
-
-	const ctx = getStepContext();
-	const store = createStore();
+	let { open, question = null, store, toolConfig, onOpenChange }: Props = $props();
 
 	const defaultLikertCategories: LikertCategory[] = [
 		{ label: 'Strongly disagree', value: 1 },
@@ -127,16 +124,15 @@
 		saving = true;
 		errorMessage = null;
 		try {
-			const existing = ctx.toolConfig.questions ?? [];
+			const existing = toolConfig.questions ?? [];
 			const cleaned = cloneQuestion(draft);
 			const next = isEditing
 				? existing.map((q) => (q.id === cleaned.id ? cleaned : q))
 				: [...existing, cleaned];
 			await store.saveToolConfig({
 				questions: next,
-				randomizeOrder: ctx.toolConfig.randomizeOrder
+				randomizeOrder: toolConfig.randomizeOrder
 			});
-			onSaved?.();
 			onOpenChange(false);
 		} catch (e) {
 			errorMessage = e instanceof Error ? e.message : 'Failed to save question.';

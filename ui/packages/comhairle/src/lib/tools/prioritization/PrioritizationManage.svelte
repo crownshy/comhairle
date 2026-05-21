@@ -6,15 +6,43 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Plus, Pencil, Trash2, LoaderCircle, GripVertical } from 'lucide-svelte';
 	import DraggableList from '$lib/components/DraggableList.svelte';
-	import { createStore } from '../store.svelte';
-	import { getStepContext } from '../context';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import ProposalEditorDialog from '../components/ProposalEditorDialog.svelte';
-	import QuestionEditorDialog from '../components/QuestionEditorDialog.svelte';
-	import type { Proposal, Question, QuestionType } from '../types';
+	import { createStore } from './store.svelte';
+	import { resolveToolConfig } from './prioritizationApi';
+	import ProposalEditorDialog from './components/ProposalEditorDialog.svelte';
+	import QuestionEditorDialog from './components/QuestionEditorDialog.svelte';
+	import type {
+		ConversationInput,
+		Proposal,
+		Question,
+		QuestionType,
+		WorkflowStepInput
+	} from './types';
 
-	const store = createStore();
-	const ctx = getStepContext();
+	let {
+		conversationId,
+		workflowId,
+		workflowStep,
+		conversation
+	}: {
+		conversationId: string;
+		workflowId: string;
+		workflowStep: WorkflowStepInput;
+		conversation: ConversationInput;
+	} = $props();
+
+	/** The host page keys this component by step id, so the ids are stable for
+	 * the component's lifetime — capturing them once is intentional. */
+	// svelte-ignore state_referenced_locally
+	const store = createStore({ workflowStepId: workflowStep.id, conversationId, workflowId });
+
+	let toolConfig = $derived(resolveToolConfig(workflowStep, conversation.isLive ?? false));
+	let primaryLocale = $derived(conversation.primaryLocale ?? 'en');
+	let supportedLocales = $derived(
+		conversation.supportedLanguages && conversation.supportedLanguages.length > 0
+			? conversation.supportedLanguages
+			: [primaryLocale]
+	);
 
 	let editorOpen = $state(false);
 	let editingProposal = $state<Proposal | null>(null);
@@ -27,7 +55,7 @@
 	let deletingQuestionInFlight = $state(false);
 	let randomizeSaving = $state(false);
 
-	const questions = $derived<Question[]>(ctx.toolConfig.questions ?? []);
+	const questions = $derived<Question[]>(toolConfig.questions ?? []);
 
 	/** Local mirror of `questions` so svelte-dnd-action can mutate during drag. As a writable $derived it tracks upstream by default but stays at any value we assign until the source changes again — exactly the in-flight-then-snap-back behaviour the dnd lib needs. */
 	let localQuestions = $derived(questions);
@@ -38,10 +66,10 @@
 		try {
 			await store.saveToolConfig({
 				questions: next,
-				randomizeOrder: ctx.toolConfig.randomizeOrder
+				randomizeOrder: toolConfig.randomizeOrder
 			});
 		} catch {
-			/** Adapter surfaces error toast. Revert local view to the upstream order. */
+			/** saveToolConfig surfaces an error toast. Revert local view to the upstream order. */
 			localQuestions = questions;
 		} finally {
 			savingOrder = false;
@@ -73,7 +101,7 @@
 			await store.remove(deletingProposal.id);
 			deletingProposal = null;
 		} catch {
-			/** Adapter already surfaces a toast in v1. Keep the dialog open so the admin understands the action did not take effect. */
+			/** store.remove surfaces an error toast. Keep the dialog open so the admin understands the action did not take effect. */
 		} finally {
 			deleting = false;
 		}
@@ -100,11 +128,11 @@
 			const next = questions.filter((q) => q.id !== deletingQuestion!.id);
 			await store.saveToolConfig({
 				questions: next,
-				randomizeOrder: ctx.toolConfig.randomizeOrder
+				randomizeOrder: toolConfig.randomizeOrder
 			});
 			deletingQuestion = null;
 		} catch {
-			/** Adapter surfaces error toast. */
+			/** store.saveToolConfig surfaces an error toast. */
 		} finally {
 			deletingQuestionInFlight = false;
 		}
@@ -118,7 +146,7 @@
 				randomizeOrder: checked
 			});
 		} catch {
-			/** Adapter surfaces error toast. */
+			/** store.saveToolConfig surfaces an error toast. */
 		} finally {
 			randomizeSaving = false;
 		}
@@ -252,7 +280,7 @@
 				</p>
 			</div>
 			<Switch
-				checked={ctx.toolConfig.randomizeOrder}
+				checked={toolConfig.randomizeOrder}
 				disabled={randomizeSaving}
 				onCheckedChange={toggleRandomize}
 			/>
@@ -315,6 +343,9 @@
 <ProposalEditorDialog
 	open={editorOpen}
 	proposal={editingProposal}
+	{store}
+	{primaryLocale}
+	{supportedLocales}
 	onOpenChange={(o) => {
 		editorOpen = o;
 		if (!o) {
@@ -322,14 +353,13 @@
 			void store.refresh();
 		}
 	}}
-	onCreated={() => {
-		void store.refresh();
-	}}
 />
 
 <QuestionEditorDialog
 	open={questionEditorOpen}
 	question={editingQuestion}
+	{store}
+	{toolConfig}
 	onOpenChange={(o) => {
 		questionEditorOpen = o;
 		if (!o) editingQuestion = null;

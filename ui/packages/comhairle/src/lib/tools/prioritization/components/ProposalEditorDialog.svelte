@@ -5,24 +5,32 @@
 	import { Label } from '$lib/components/ui/label';
 	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
+	import { getLanguageName } from '$lib/config/languages';
 	import { LoaderCircle } from 'lucide-svelte';
-	import { getAdapter, getStepContext } from '../context';
+	import type { PrioritizationStore } from '../store.svelte';
 	import type { Proposal, TextContentWithTranslations } from '../types';
 
 	type Props = {
 		open: boolean;
 		proposal?: Proposal | null;
+		store: PrioritizationStore;
+		primaryLocale: string;
+		supportedLocales: string[];
 		onOpenChange: (open: boolean) => void;
-		onCreated?: (created: Proposal) => void;
 	};
 
-	let { open, proposal = null, onOpenChange, onCreated }: Props = $props();
+	let {
+		open,
+		proposal = null,
+		store,
+		primaryLocale,
+		supportedLocales,
+		onOpenChange
+	}: Props = $props();
 
-	const adapter = getAdapter();
-	const ctx = getStepContext();
 	const isEditing = $derived(!!proposal);
 
-	/** CREATE-mode local state — primary locale only. Once created, the caller refreshes the list and the new proposal can be reopened in EDIT mode to author non-primary languages via TranslatableField. */
+	/** CREATE-mode local state — primary locale only. Once created, the list refreshes and the new proposal can be reopened in EDIT mode to author non-primary languages via TranslatableField. */
 	let draftTitle = $state('');
 	let draftBody = $state('');
 	let creating = $state(false);
@@ -44,11 +52,7 @@
 		creating = true;
 		errorMessage = null;
 		try {
-			const created = await adapter.createProposal({
-				title: draftTitle.trim(),
-				body: draftBody.trim()
-			});
-			onCreated?.(created);
+			await store.create({ title: draftTitle.trim(), body: draftBody.trim() });
 			onOpenChange(false);
 		} catch (e) {
 			errorMessage = e instanceof Error ? e.message : 'Failed to create proposal.';
@@ -87,7 +91,7 @@
 			<Dialog.Description>
 				{isEditing
 					? 'Edit the title and body. Use the language badges to translate into other supported languages.'
-					: `Write the proposal in ${ctx.formatLocale(ctx.primaryLocale)}. You can add translations after creating it.`}
+					: `Write the proposal in ${getLanguageName(primaryLocale)}. You can add translations after creating it.`}
 			</Dialog.Description>
 		</Dialog.Header>
 
@@ -98,8 +102,8 @@
 					<TranslatableField
 						value={titleValue}
 						onValueChange={(v) => (titleValue = v)}
-						primaryLocale={ctx.primaryLocale}
-						supportedLanguages={ctx.supportedLocales}
+						{primaryLocale}
+						supportedLanguages={supportedLocales}
 						editorType="plain"
 						placeholder="Proposal title"
 						dialogTitle="Translate title"
@@ -112,8 +116,8 @@
 					<TranslatableField
 						value={bodyValue}
 						onValueChange={(v) => (bodyValue = v)}
-						primaryLocale={ctx.primaryLocale}
-						supportedLanguages={ctx.supportedLocales}
+						{primaryLocale}
+						supportedLanguages={supportedLocales}
 						editorType="rich"
 						placeholder="Describe the proposal"
 						minHeight="160px"

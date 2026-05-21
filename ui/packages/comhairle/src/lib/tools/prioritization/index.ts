@@ -1,17 +1,17 @@
-/** Public entry point following the convention used by other tools (polis, learn, heyform, …). Step pages import `Prioritization.UserUI` or `Prioritization.ManageUI` and pass workflow_step + conversation in. */
+/** Public entry point, following the convention used by other tools (polis,
+ * learn, heyform, …). Step pages import `Prioritization.UserUI` / `.ManageUI`
+ * and pass the workflow step + conversation in as props. */
 
-import PrioritizationToolWrapper from './PrioritizationToolWrapper.svelte';
+import PrioritizationManage from './PrioritizationManage.svelte';
+import PrioritizationReport from './PrioritizationReport.svelte';
+import PrioritizationUser from './PrioritizationUser.svelte';
 
 export const TOOL_NAME = 'prioritization';
 
 export {
-	PrioritizationToolWrapper as Wrapper,
-	PrioritizationToolWrapper as UserUI,
-	PrioritizationToolWrapper as ManageUI,
-	PrioritizationToolWrapper as ReportUI
+	PrioritizationManage as ManageUI,
+	PrioritizationUser as UserUI,
+	PrioritizationReport as ReportUI
 };
 
-export { createComhairleAdapter } from './adapters/comhairleAdapter';
-export { createMemoryAdapter } from './adapters/memoryAdapter';
-export type { PrioritizationAdapter } from './adapter';
 export type * from './types';

@@ -1,15 +1,20 @@
-import { getAdapter } from './context';
-import type { Proposal, ProposalResponse, ToolConfig } from './types';
+import { notifications } from '$lib/notifications.svelte';
+import * as api from './prioritizationApi';
+import type { Proposal, ToolConfig } from './types';
 
-/** Reactive store. Reads/writes go through the adapter exclusively — the store knows nothing about the network. */
+/** Reactive store for the admin (Manage) view. Holds the proposal list and
+ * wraps the api module — failed writes surface a toast and re-throw so callers
+ * can revert their optimistic UI. */
 
 export type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 export type PrioritizationStore = ReturnType<typeof createStore>;
 
-export function createStore() {
-	const adapter = getAdapter();
-
+export function createStore(opts: {
+	workflowStepId: string;
+	conversationId: string;
+	workflowId: string;
+}) {
 	let state = $state<LoadState>('idle');
 	let proposals = $state<Proposal[]>([]);
 	let error = $state<string | null>(null);
@@ -18,7 +23,7 @@ export function createStore() {
 		state = 'loading';
 		error = null;
 		try {
-			proposals = await adapter.listProposals();
+			proposals = await api.listProposals(opts.workflowStepId);
 			state = 'ready';
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load proposals';
@@ -27,25 +32,33 @@ export function createStore() {
 	}
 
 	async function create(input: { title: string; body: string }) {
-		const created = await adapter.createProposal(input);
+		const created = await api.createProposal(opts.workflowStepId, input);
 		proposals = [...proposals, created];
 		return created;
 	}
 
 	async function remove(id: string) {
-		await adapter.deleteProposal(id);
-		proposals = proposals.filter((p) => p.id !== id);
-	}
-
-	/** Translation edits flow through TranslatableField directly (it writes to the translations endpoints itself), so the store no longer needs an editTranslation method. Callers should refresh() if they want the list to reflect the latest server state. */
-
-	async function loadResponses(proposalId: string): Promise<ProposalResponse[]> {
-		return adapter.listResponses(proposalId);
+		try {
+			await api.deleteProposal(id);
+			proposals = proposals.filter((p) => p.id !== id);
+		} catch (e) {
+			notifications.send({ priority: 'ERROR', message: 'Failed to delete proposal' });
+			throw e;
+		}
 	}
 
 	async function saveToolConfig(toolConfig: ToolConfig) {
-		await adapter.updateToolConfig(toolConfig);
-		/** The wrapper rebuilds StepContext from props after the page invalidates, so no local state to update here. */
+		try {
+			await api.updateToolConfig({
+				conversationId: opts.conversationId,
+				workflowId: opts.workflowId,
+				workflowStepId: opts.workflowStepId,
+				toolConfig
+			});
+		} catch (e) {
+			notifications.send({ priority: 'ERROR', message: 'Failed to update tool config' });
+			throw e;
+		}
 	}
 
 	return {
@@ -61,7 +74,6 @@ export function createStore() {
 		refresh,
 		create,
 		remove,
-		loadResponses,
 		saveToolConfig
 	};
 }

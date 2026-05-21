@@ -107,12 +107,11 @@ pub async fn list(
     Ok(proposals)
 }
 
-/// NOTE: I couldn't figure out how to pull localized data directly in a single
-/// query like `list()` does with `query_to_localisation`.
-/// Felt a bit stuck, so asked AI what do to and it gave me this as a workaround.
-/// Fetches raw rows first, then manually builds the translation payload.
-/// I think I probably don't understand the translation pattern.
-/// Might be worth spending some time talking through it :/
+/// Lists proposals with raw `TextContentId` references and no locale resolution.
+/// `list()` resolves a single locale via `query_to_localisation`; the admin
+/// editor instead needs every translation, so `list_with_translations()` builds
+/// on these raw rows plus `from_original` — the same pattern as
+/// `workflow_step::list_with_translations`.
 #[instrument(err(Debug))]
 pub async fn list_raw(
     db: &PgPool,
