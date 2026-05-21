@@ -668,6 +668,10 @@ export const Question = z
   .object({ id: z.string().uuid(), text: z.string(), type: QuestionType })
   .passthrough();
 export type Question = z.infer<typeof Question>;
+export const ThinkingSpaceQuestion = z
+  .object({ id: z.string(), text: z.string() })
+  .passthrough();
+export type ThinkingSpaceQuestion = z.infer<typeof ThinkingSpaceQuestion>;
 export const ToolConfig = z.union([
   z
     .object({
@@ -710,6 +714,14 @@ export const ToolConfig = z.union([
       questions: z.array(Question),
       randomize_order: z.boolean(),
       type: z.literal("prioritization"),
+    })
+    .passthrough(),
+  z
+    .object({
+      follow_up_rounds_count: z.number().int().gte(0).optional().default(2),
+      root_questions: z.array(ThinkingSpaceQuestion),
+      topic: z.string(),
+      type: z.literal("thinkingspace"),
     })
     .passthrough(),
 ]);
@@ -900,6 +912,14 @@ export const ToolSetup = z.union([
       type: z.literal("prioritization"),
     })
     .passthrough(),
+  z
+    .object({
+      follow_up_rounds_count: z.number().int().gte(0).optional().default(2),
+      root_questions: z.array(ThinkingSpaceQuestion),
+      topic: z.string(),
+      type: z.literal("thinkingspace"),
+    })
+    .passthrough(),
 ]);
 export type ToolSetup = z.infer<typeof ToolSetup>;
 export const CreateWorkflowStep = z
@@ -1061,6 +1081,8 @@ export const ElicitationBotReport = z.null();
 export type ElicitationBotReport = z.infer<typeof ElicitationBotReport>;
 export const PrioritizationReport = z.null();
 export type PrioritizationReport = z.infer<typeof PrioritizationReport>;
+export const ThinkingSpaceReport = z.null();
+export type ThinkingSpaceReport = z.infer<typeof ThinkingSpaceReport>;
 export const ReportConfig = z.union([
   z.object({ Polis: PolisReport }),
   z.object({ HeyForm: HeyFormReport }),
@@ -1068,6 +1090,7 @@ export const ReportConfig = z.union([
   z.object({ Stories: StoriesReport }),
   z.object({ ElicitationBot: ElicitationBotReport }),
   z.object({ Prioritization: PrioritizationReport }),
+  z.object({ ThinkingSpace: ThinkingSpaceReport }),
 ]);
 export type ReportConfig = z.infer<typeof ReportConfig>;
 export const ReportSectionConfig = z
@@ -1635,6 +1658,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   Category,
   QuestionType,
   Question,
+  ThinkingSpaceQuestion,
   ToolConfig,
   WorkflowStep,
   DailySignupStats,
@@ -1671,6 +1695,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   StoriesReport,
   ElicitationBotReport,
   PrioritizationReport,
+  ThinkingSpaceReport,
   ReportConfig,
   ReportSectionConfig,
   ReportSectionConfigs,

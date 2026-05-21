@@ -182,9 +182,10 @@ pub fn prioritization_tool_config() -> serde_json::Value {
 
 pub fn thinking_space_tool_config() -> serde_json::Value {
     json!({
-        "type": "thinking_space",
+        "type": "thinkingspace",
         "topic": "test topic",
-        "history": ""
+        "root_questions": [],
+        "follow_up_rounds_count": 2
     })
 }
 

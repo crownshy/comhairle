@@ -7,7 +7,11 @@ use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use crate::{error::ComhairleError, ComhairleState};
+use crate::{
+    error::ComhairleError,
+    tools::thinking_space::{ThinkingSpaceReport, ThinkingSpaceToolConfig, ThinkingSpaceToolSetup},
+    ComhairleState,
+};
 
 pub mod elicitation_bot;
 pub mod heyform;
@@ -16,6 +20,7 @@ pub mod learn;
 pub mod polis;
 pub mod prioritization;
 pub mod stories;
+pub mod thinking_space;
 
 use elicitation_bot::{ElicitationBotReport, ElicitationBotToolConfig, ElicitationBotToolSetup};
 use heyform::{HeyFormReport, HeyFormToolConfig, HeyFormToolSetup};
@@ -108,6 +113,7 @@ pub enum ToolConfig {
     Stories(StoriesToolConfig),
     ElicitationBot(ElicitationBotToolConfig),
     Prioritization(PrioritizationToolConfig),
+    ThinkingSpace(ThinkingSpaceToolConfig),
 }
 
 impl ToolConfig {
@@ -123,6 +129,9 @@ impl ToolConfig {
             }
             ToolConfig::Prioritization(config) => {
                 prioritization::PrioritizationTool::sync_data(config, state).await
+            }
+            ToolConfig::ThinkingSpace(config) => {
+                thinking_space::ThinkingSpaceTool::sync_data(config, state).await
             }
         }
     }
@@ -148,6 +157,9 @@ impl ToolConfig {
             ToolConfig::Prioritization(config) => Ok(ToolConfig::Prioritization(
                 prioritization::PrioritizationTool::clone_tool(config, state).await?,
             )),
+            ToolConfig::ThinkingSpace(config) => Ok(ToolConfig::ThinkingSpace(
+                thinking_space::ThinkingSpaceTool::clone_tool(config, state).await?,
+            )),
         }
     }
 
@@ -163,6 +175,9 @@ impl ToolConfig {
             }
             ToolConfig::Prioritization(config) => {
                 prioritization::PrioritizationTool::delete(config, state).await
+            }
+            ToolConfig::ThinkingSpace(config) => {
+                thinking_space::ThinkingSpaceTool::delete(config, state).await
             }
         }
     }
@@ -187,6 +202,9 @@ impl ToolConfig {
             ToolConfig::Prioritization(config) => {
                 prioritization::PrioritizationTool::register_workers(config, state).await
             }
+            ToolConfig::ThinkingSpace(config) => {
+                thinking_space::ThinkingSpaceTool::register_workers(config, state).await
+            }
         }
     }
 }
@@ -200,6 +218,7 @@ pub enum ToolSetup {
     Stories(StoriesToolSetup),
     ElicitationBot(ElicitationBotToolSetup),
     Prioritization(PrioritizationToolSetup),
+    ThinkingSpace(ThinkingSpaceToolSetup),
 }
 
 impl ToolSetup {
@@ -224,6 +243,9 @@ impl ToolSetup {
             ToolSetup::Prioritization(setup) => Ok(ToolConfig::Prioritization(
                 prioritization::PrioritizationTool::setup(setup, state).await?,
             )),
+            ToolSetup::ThinkingSpace(setup) => Ok(ToolConfig::ThinkingSpace(
+                thinking_space::ThinkingSpaceTool::setup(setup, state).await?,
+            )),
         }
     }
 }
@@ -237,6 +259,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
         .merge(stories::StoriesTool::routes(&state))
         .merge(elicitation_bot::ElicitationBotTool::routes(&state))
         .merge(prioritization::PrioritizationTool::routes(&state))
+        .merge(thinking_space::ThinkingSpaceTool::routes(&state))
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
@@ -247,4 +270,5 @@ pub enum ReportConfig {
     Stories(StoriesReport),
     ElicitationBot(ElicitationBotReport),
     Prioritization(PrioritizationReport),
+    ThinkingSpace(ThinkingSpaceReport),
 }
