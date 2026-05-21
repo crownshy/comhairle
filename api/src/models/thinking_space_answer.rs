@@ -134,6 +134,16 @@ pub async fn create(
     columns.push(ThinkingSpaceAnswerIden::UserId);
     values.push((*user_id).into());
 
+    if (columns.contains(&ThinkingSpaceAnswerIden::IsFollowUp)
+        && !columns.contains(&ThinkingSpaceAnswerIden::RootQuestionId))
+        || (!columns.contains(&ThinkingSpaceAnswerIden::IsFollowUp)
+            && columns.contains(&ThinkingSpaceAnswerIden::RootQuestionId))
+    {
+        return Err(ComhairleError::BadRequest(
+            "Follow up question must contain root_question_id and is_follow_up".to_string(),
+        ));
+    }
+
     let (sql, values) = Query::insert()
         .into_table(ThinkingSpaceAnswerIden::Table)
         .columns(columns)
@@ -147,7 +157,7 @@ pub async fn create(
 }
 
 #[instrument(err(Debug))]
-pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<ThinkingSpaceAnswer, ComhairleError> {
+pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<ThinkingSpaceAnswer, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(ThinkingSpaceAnswerIden::Table)
@@ -167,7 +177,7 @@ pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<ThinkingSpaceAnswer, Com
     Ok(answer)
 }
 
-#[derive(Deserialize, Debug, JsonSchema)]
+#[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct ThinkingSpaceAnswerFilterOptions {
     user_id: Option<Uuid>,
     status: Option<AnswerStatus>,
@@ -229,7 +239,7 @@ pub async fn list(
     Ok(answers)
 }
 
-#[derive(Deserialize, Debug, JsonSchema)]
+#[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct UpdateAnswer {
     pub answer: Option<String>,
     pub status: Option<AnswerStatus>,
@@ -253,7 +263,7 @@ impl UpdateAnswer {
 #[instrument(err(Debug))]
 pub async fn update(
     db: &PgPool,
-    id: Uuid,
+    id: &Uuid,
     update_answer: &UpdateAnswer,
 ) -> Result<ThinkingSpaceAnswer, ComhairleError> {
     let values = update_answer.to_values();
@@ -275,7 +285,7 @@ pub async fn update(
 }
 
 #[instrument(err(Debug))]
-pub async fn delete(db: &PgPool, id: Uuid) -> Result<ThinkingSpaceAnswer, ComhairleError> {
+pub async fn delete(db: &PgPool, id: &Uuid) -> Result<ThinkingSpaceAnswer, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(ThinkingSpaceAnswerIden::Table)
         .and_where(Expr::col(ThinkingSpaceAnswerIden::Id).eq(id.to_owned()))
@@ -306,8 +316,6 @@ mod tests {
 
     use std::error::Error;
 
-    // TODO: requires tool_config for thinking space
-    #[ignore]
     #[sqlx::test]
     async fn should_create_new_thinking_space_answer(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
@@ -345,6 +353,324 @@ mod tests {
             answer.workflow_step_id, workflow_step.id,
             "incorrect workflow_step_id"
         );
+        assert_eq!(answer.status, AnswerStatus::Pending, "incorrect status");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_fail_thinking_space_answer_creation_if_missing_follow_up_params(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+
+        let (_, value, _) = session
+            .create_workflow_step(
+                &app,
+                &conversation_id.to_string(),
+                &workflow_id.to_string(),
+                json!({
+                    "name": "test_workflow_step",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "A test workflow_step with prioritization",
+                    "is_offline": false,
+                    "required": false,
+                    "tool_setup": thinking_space_tool_config(),
+                }),
+            )
+            .await?;
+        let workflow_step: WorkflowStepDto = serde_json::from_value(value)?;
+
+        let user = users::create_annon_user(&pool).await?;
+
+        let root_create = CreateAnswer {
+            question: "A root question".to_string(),
+            answer: "A root answer".to_string(),
+            ..Default::default()
+        };
+        let root_answer = create(&pool, &workflow_step.id, &user.id, &root_create).await?;
+
+        let follow_up_create = CreateAnswer {
+            question: "A follow up question".to_string(),
+            answer: "A follow up answer".to_string(),
+            is_follow_up: Some(true),
+            ..Default::default()
+        };
+        let err = create(&pool, &workflow_step.id, &user.id, &follow_up_create)
+            .await
+            .unwrap_err();
+
+        let bad_request_message =
+            "Follow up question must contain root_question_id and is_follow_up".to_string();
+        match err {
+            ComhairleError::BadRequest(message) => {
+                assert_eq!(message, bad_request_message, "incorrect error message")
+            }
+            _ => panic!("Expected bad request message"),
+        }
+
+        let follow_up_create = CreateAnswer {
+            question: "A follow up question".to_string(),
+            answer: "A follow up answer".to_string(),
+            root_question_id: Some(root_answer.id),
+            ..Default::default()
+        };
+        let err = create(&pool, &workflow_step.id, &user.id, &follow_up_create)
+            .await
+            .unwrap_err();
+
+        let bad_request_message =
+            "Follow up question must contain root_question_id and is_follow_up".to_string();
+        match err {
+            ComhairleError::BadRequest(message) => {
+                assert_eq!(message, bad_request_message, "incorrect error message")
+            }
+            _ => panic!("Expected bad request message"),
+        }
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_get_thinking_space_answer_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+
+        let (_, value, _) = session
+            .create_workflow_step(
+                &app,
+                &conversation_id.to_string(),
+                &workflow_id.to_string(),
+                json!({
+                    "name": "test_workflow_step",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "A test workflow_step with prioritization",
+                    "is_offline": false,
+                    "required": false,
+                    "tool_setup": thinking_space_tool_config(),
+                }),
+            )
+            .await?;
+        let workflow_step: WorkflowStepDto = serde_json::from_value(value)?;
+
+        let user = users::create_annon_user(&pool).await?;
+
+        let create_answer = CreateAnswer {
+            question: "A test question".to_string(),
+            answer: "A test answer".to_string(),
+            ..Default::default()
+        };
+        let new_answer = create(&pool, &workflow_step.id, &user.id, &create_answer).await?;
+
+        let answer = get_by_id(&pool, &new_answer.id).await?;
+
+        assert_eq!(new_answer.id, answer.id, "ids don't match");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_list_thinking_space_answers(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+
+        let (_, value, _) = session
+            .create_workflow_step(
+                &app,
+                &conversation_id.to_string(),
+                &workflow_id.to_string(),
+                json!({
+                    "name": "test_workflow_step",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "A test workflow_step with prioritization",
+                    "is_offline": false,
+                    "required": false,
+                    "tool_setup": thinking_space_tool_config(),
+                }),
+            )
+            .await?;
+        let workflow_step: WorkflowStepDto = serde_json::from_value(value)?;
+
+        // User a
+        let user_a = users::create_annon_user(&pool).await?;
+        let create_a_a = CreateAnswer {
+            question: "A root question".to_string(),
+            answer: "A root answer".to_string(),
+            ..Default::default()
+        };
+        let answer_a_a = create(&pool, &workflow_step.id, &user_a.id, &create_a_a).await?;
+
+        let create_a_b = CreateAnswer {
+            question: "A follow up question".to_string(),
+            answer: "A follow up answer".to_string(),
+            is_follow_up: Some(true),
+            root_question_id: Some(answer_a_a.id),
+            other_questions: Some(vec!["An unanswered question".to_string()]),
+            ..Default::default()
+        };
+        let answer_a_b = create(&pool, &workflow_step.id, &user_a.id, &create_a_b).await?;
+
+        let create_a_c = CreateAnswer {
+            question: "A root question".to_string(),
+            answer: "A root answer".to_string(),
+            ..Default::default()
+        };
+        let answer_a_c = create(&pool, &workflow_step.id, &user_a.id, &create_a_c).await?;
+
+        // User b
+        let user_b = users::create_annon_user(&pool).await?;
+        let create_b_a = CreateAnswer {
+            question: "A root question".to_string(),
+            answer: "A root answer".to_string(),
+            ..Default::default()
+        };
+        let answer_b_a = create(&pool, &workflow_step.id, &user_b.id, &create_b_a).await?;
+
+        let create_b_b = CreateAnswer {
+            question: "A follow up question".to_string(),
+            answer: "A follow up answer".to_string(),
+            is_follow_up: Some(true),
+            root_question_id: Some(answer_b_a.id),
+            other_questions: Some(vec!["An unanswered question".to_string()]),
+            ..Default::default()
+        };
+        let answer_b_b = create(&pool, &workflow_step.id, &user_b.id, &create_b_b).await?;
+
+        let filter_options = ThinkingSpaceAnswerFilterOptions {
+            user_id: Some(user_a.id),
+            ..Default::default()
+        };
+        let user_a_answers = list(&pool, &workflow_step.id, filter_options).await?;
+
+        let filter_options = ThinkingSpaceAnswerFilterOptions {
+            user_id: Some(user_b.id),
+            status: None,
+        };
+        let user_b_answers = list(&pool, &workflow_step.id, filter_options).await?;
+
+        assert_eq!(user_a_answers.len(), 3, "incorrect total user a");
+        assert_eq!(user_b_answers.len(), 2, "incorrect total user b");
+
+        let update_answer = UpdateAnswer {
+            status: Some(AnswerStatus::Approved),
+            ..Default::default()
+        };
+        update(&pool, &answer_a_c.id, &update_answer).await?;
+        update(&pool, &answer_b_b.id, &update_answer).await?;
+
+        let filter_options = ThinkingSpaceAnswerFilterOptions {
+            status: Some(AnswerStatus::Approved),
+            ..Default::default()
+        };
+        let approved_answers = list(&pool, &workflow_step.id, filter_options).await?;
+
+        assert_eq!(approved_answers.len(), 2, "incorrect total approved");
+        assert!(approved_answers.iter().any(|a| a.id == answer_a_c.id));
+        assert!(approved_answers.iter().any(|a| a.id == answer_b_b.id));
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_update_thinking_space_answer(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+
+        let (_, value, _) = session
+            .create_workflow_step(
+                &app,
+                &conversation_id.to_string(),
+                &workflow_id.to_string(),
+                json!({
+                    "name": "test_workflow_step",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "A test workflow_step with prioritization",
+                    "is_offline": false,
+                    "required": false,
+                    "tool_setup": thinking_space_tool_config(),
+                }),
+            )
+            .await?;
+        let workflow_step: WorkflowStepDto = serde_json::from_value(value)?;
+
+        let user = users::create_annon_user(&pool).await?;
+
+        let create_answer = CreateAnswer {
+            question: "A test question".to_string(),
+            answer: "A test answer".to_string(),
+            ..Default::default()
+        };
+        let new_answer = create(&pool, &workflow_step.id, &user.id, &create_answer).await?;
+
+        let update_answer = UpdateAnswer {
+            status: Some(AnswerStatus::Approved),
+            answer: Some("Something different".to_string()),
+        };
+
+        let answer = update(&pool, &new_answer.id, &update_answer).await?;
+
+        assert_eq!(answer.status, AnswerStatus::Approved, "incorrect status");
+        assert_eq!(
+            answer.answer,
+            "Something different".to_string(),
+            "incorrect answer"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_delete_thinking_space_answer_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let workflow_id = get_random_workflow_id(&app, &mut session).await?;
+
+        let (_, value, _) = session
+            .create_workflow_step(
+                &app,
+                &conversation_id.to_string(),
+                &workflow_id.to_string(),
+                json!({
+                    "name": "test_workflow_step",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "A test workflow_step with prioritization",
+                    "is_offline": false,
+                    "required": false,
+                    "tool_setup": thinking_space_tool_config(),
+                }),
+            )
+            .await?;
+        let workflow_step: WorkflowStepDto = serde_json::from_value(value)?;
+
+        let user = users::create_annon_user(&pool).await?;
+
+        let create_answer = CreateAnswer {
+            question: "A test question".to_string(),
+            answer: "A test answer".to_string(),
+            ..Default::default()
+        };
+        let new_answer = create(&pool, &workflow_step.id, &user.id, &create_answer).await?;
+
+        delete(&pool, &new_answer.id).await?;
+
+        let err = get_by_id(&pool, &new_answer.id).await.unwrap_err();
+
+        match err {
+            ComhairleError::ResourceNotFound(message) => {
+                assert!(message.contains("Thinking space answer"))
+            }
+            _ => panic!("Expected ResourceNotFound error"),
+        }
 
         Ok(())
     }
