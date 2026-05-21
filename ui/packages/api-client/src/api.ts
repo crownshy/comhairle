@@ -450,6 +450,42 @@ export const CreateResponse = z
   .object({ question_responses: z.array(Response) })
   .passthrough();
 export type CreateResponse = z.infer<typeof CreateResponse>;
+export const AnswerStatus = z.enum(["pending", "approved", "declined"]);
+export type AnswerStatus = z.infer<typeof AnswerStatus>;
+export const status = z.union([AnswerStatus, z.null()]).optional();
+export type status = z.infer<typeof status>;
+export const ThinkingSpaceAnswerDto = z
+  .object({
+    answer: z.string(),
+    id: z.string().uuid(),
+    isFollowUp: z.boolean(),
+    otherQuestions: z.array(z.string()),
+    question: z.string(),
+    rootQuestionId: z.union([z.string(), z.null()]).optional(),
+    status: AnswerStatus,
+    workflowStepId: z.string().uuid(),
+  })
+  .passthrough();
+export type ThinkingSpaceAnswerDto = z.infer<typeof ThinkingSpaceAnswerDto>;
+export const CreateAnswerRequest = z
+  .object({
+    answer: z.string(),
+    is_follow_up: z.union([z.boolean(), z.null()]).optional(),
+    other_questions: z.union([z.array(z.string()), z.null()]).optional(),
+    question: z.string(),
+    root_question_id: z.union([z.string(), z.null()]).optional(),
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type CreateAnswerRequest = z.infer<typeof CreateAnswerRequest>;
+export const UpdateAnswer = z
+  .object({
+    answer: z.union([z.string(), z.null()]),
+    status: z.union([AnswerStatus, z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type UpdateAnswer = z.infer<typeof UpdateAnswer>;
 export const CreateConversation = z
   .object({
     default_workflow_id: z.union([z.string(), z.null()]).optional(),
@@ -668,6 +704,10 @@ export const Question = z
   .object({ id: z.string().uuid(), text: z.string(), type: QuestionType })
   .passthrough();
 export type Question = z.infer<typeof Question>;
+export const ThinkingSpaceQuestion = z
+  .object({ id: z.string().uuid(), text: z.string() })
+  .passthrough();
+export type ThinkingSpaceQuestion = z.infer<typeof ThinkingSpaceQuestion>;
 export const ToolConfig = z.union([
   z
     .object({
@@ -681,10 +721,7 @@ export const ToolConfig = z.union([
     })
     .passthrough(),
   z
-    .object({
-      pages: z.array(LearnPageEntry),
-      type: z.literal("learn"),
-    })
+    .object({ pages: z.array(LearnPageEntry), type: z.literal("learn") })
     .passthrough(),
   z
     .object({
@@ -713,6 +750,14 @@ export const ToolConfig = z.union([
       questions: z.array(Question),
       randomize_order: z.boolean(),
       type: z.literal("prioritization"),
+    })
+    .passthrough(),
+  z
+    .object({
+      follow_up_rounds_count: z.number().int().gte(0),
+      root_questions: z.array(ThinkingSpaceQuestion),
+      topic: z.string(),
+      type: z.literal("thinkingspace"),
     })
     .passthrough(),
 ]);
@@ -868,6 +913,12 @@ export const SetupQuestion = z
   .object({ text: z.string(), type: QuestionType })
   .passthrough();
 export type SetupQuestion = z.infer<typeof SetupQuestion>;
+export const ThinkingSpaceSetupQuestion = z
+  .object({ text: z.string() })
+  .passthrough();
+export type ThinkingSpaceSetupQuestion = z.infer<
+  typeof ThinkingSpaceSetupQuestion
+>;
 export const ToolSetup = z.union([
   z
     .object({
@@ -878,10 +929,7 @@ export const ToolSetup = z.union([
     })
     .passthrough(),
   z
-    .object({
-      pages: z.array(LearnPageEntry),
-      type: z.literal("learn"),
-    })
+    .object({ pages: z.array(LearnPageEntry), type: z.literal("learn") })
     .passthrough(),
   z
     .object({
@@ -904,6 +952,14 @@ export const ToolSetup = z.union([
       questions: z.array(SetupQuestion),
       randomize_order: z.boolean(),
       type: z.literal("prioritization"),
+    })
+    .passthrough(),
+  z
+    .object({
+      follow_up_rounds_count: z.number().int().gte(0),
+      root_questions: z.array(ThinkingSpaceSetupQuestion),
+      topic: z.string(),
+      type: z.literal("thinkingspace"),
     })
     .passthrough(),
 ]);
@@ -1067,6 +1123,8 @@ export const ElicitationBotReport = z.null();
 export type ElicitationBotReport = z.infer<typeof ElicitationBotReport>;
 export const PrioritizationReport = z.null();
 export type PrioritizationReport = z.infer<typeof PrioritizationReport>;
+export const ThinkingSpaceReport = z.null();
+export type ThinkingSpaceReport = z.infer<typeof ThinkingSpaceReport>;
 export const ReportConfig = z.union([
   z.object({ Polis: PolisReport }),
   z.object({ HeyForm: HeyFormReport }),
@@ -1074,6 +1132,7 @@ export const ReportConfig = z.union([
   z.object({ Stories: StoriesReport }),
   z.object({ ElicitationBot: ElicitationBotReport }),
   z.object({ Prioritization: PrioritizationReport }),
+  z.object({ ThinkingSpace: ThinkingSpaceReport }),
 ]);
 export type ReportConfig = z.infer<typeof ReportConfig>;
 export const ReportSectionConfig = z
@@ -1621,6 +1680,11 @@ export const schemas: Record<string, z.ZodType<any>> = {
   QuestionResponses,
   ProposalResponseDto,
   CreateResponse,
+  AnswerStatus,
+  status,
+  ThinkingSpaceAnswerDto,
+  CreateAnswerRequest,
+  UpdateAnswer,
   CreateConversation,
   Translation,
   ConversationTranslations,
@@ -1641,6 +1705,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   Category,
   QuestionType,
   Question,
+  ThinkingSpaceQuestion,
   ToolConfig,
   WorkflowStep,
   DailySignupStats,
@@ -1657,6 +1722,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   LocalizedWorkflowStepDto,
   WorkflowStepsListResponse,
   SetupQuestion,
+  ThinkingSpaceSetupQuestion,
   ToolSetup,
   CreateWorkflowStep,
   WorkflowStepDto,
@@ -1677,6 +1743,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   StoriesReport,
   ElicitationBotReport,
   PrioritizationReport,
+  ThinkingSpaceReport,
   ReportConfig,
   ReportSectionConfig,
   ReportSectionConfigs,
@@ -2548,20 +2615,6 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     response: WorkflowStepDto,
   },
   {
-    method: "put",
-    path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps/:workflow_step_id/elicitation_bot",
-    alias: "UpdateEventElicitationBotWorkflowStep",
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "body",
-        type: "Body",
-        schema: PartialWorkflowStep,
-      },
-    ],
-    response: WorkflowStepDto,
-  },
-  {
     method: "get",
     path: "/conversation/:conversation_id/feedback",
     alias: "ListFeedbackForConversation",
@@ -2944,20 +2997,6 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id",
     alias: "DeleteConversationWorkflowStep",
     requestFormat: "json",
-    response: WorkflowStepDto,
-  },
-  {
-    method: "put",
-    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/elicitation_bot",
-    alias: "UpdateConversationElicitationBotWorkflowStep",
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "body",
-        type: "Body",
-        schema: PartialWorkflowStep,
-      },
-    ],
     response: WorkflowStepDto,
   },
   {
@@ -3513,6 +3552,61 @@ Create a response for prioritization tool proposal
     description: `Record a user story for the current user and workflow step`,
     requestFormat: "json",
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/tools/thinking_space/answers",
+    alias: "ListThinkingSpaceAnswers",
+    description: `List answer for thinking space workflow step`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "status",
+        type: "Query",
+        schema: status,
+      },
+      {
+        name: "user_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.array(ThinkingSpaceAnswerDto),
+  },
+  {
+    method: "post",
+    path: "/tools/thinking_space/answers",
+    alias: "CreateThinkingSpaceAnswer",
+    description: `Create an answer for thinking space workflow step question`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateAnswerRequest,
+      },
+    ],
+    response: ThinkingSpaceAnswerDto,
+  },
+  {
+    method: "put",
+    path: "/tools/thinking_space/answers/:answer_id",
+    alias: "UpdateThinkingSpaceAnswer",
+    description: `Update an answer for thinking space workflow step question`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpdateAnswer,
+      },
+    ],
+    response: ThinkingSpaceAnswerDto,
   },
   {
     method: "post",

@@ -46,7 +46,7 @@
 
 		if (result.valid) {
 			try {
-				await apiClient.UpdateConversationElicitationBotWorkflowStep(update, {
+				await apiClient.UpdateConversationWorkflowStep(update, {
 					params: {
 						conversation_id: conversationId,
 						workflow_id: workflowId,
