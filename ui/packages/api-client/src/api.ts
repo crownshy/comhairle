@@ -681,10 +681,7 @@ export const ToolConfig = z.union([
     })
     .passthrough(),
   z
-    .object({
-      pages: z.array(LearnPageEntry),
-      type: z.literal("learn"),
-    })
+    .object({ pages: z.array(LearnPageEntry), type: z.literal("learn") })
     .passthrough(),
   z
     .object({
@@ -878,10 +875,7 @@ export const ToolSetup = z.union([
     })
     .passthrough(),
   z
-    .object({
-      pages: z.array(LearnPageEntry),
-      type: z.literal("learn"),
-    })
+    .object({ pages: z.array(LearnPageEntry), type: z.literal("learn") })
     .passthrough(),
   z
     .object({

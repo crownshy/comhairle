@@ -19,6 +19,7 @@ pub mod region;
 pub mod report;
 pub mod report_impact;
 pub mod resource;
+pub mod thinking_space_answer;
 pub mod translations;
 pub mod user_conversation_preferences;
 pub mod user_participation;
