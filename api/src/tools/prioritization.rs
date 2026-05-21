@@ -550,7 +550,7 @@ mod tests {
             .get(
                 &app,
                 &format!(
-                    "/tools/prioritization/proposals?workflow_step_id={}",
+                    "/tools/prioritization/proposals?workflowStepId={}",
                     workflow_step.id
                 ),
             )
