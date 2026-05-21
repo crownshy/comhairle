@@ -5,6 +5,7 @@
 	import { getBaseExtensions, getEditorProps } from '../editorConfig';
 	import { SourceDocument } from '../extensions/sourceDocument';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
+	import PdfDocumentDialog from '$lib/components/PdfViewer/PdfDocumentDialog.svelte';
 	import '../editor-content.css';
 
 	function buildDocMap(docs: ComhairleDocument[]) {
@@ -34,6 +35,39 @@
 	let editorElement = $state<HTMLElement>();
 	let editor = $state<Editor>();
 	let lastDocMapKey = $state('');
+
+	let pdfDialog = $state<{
+		open: boolean;
+		src: string | null;
+		name: string;
+		downloadHref: string | null;
+	}>({ open: false, src: null, name: '', downloadHref: null });
+
+	function isPdf(fileName: string): boolean {
+		return fileName.toLowerCase().endsWith('.pdf');
+	}
+
+	// Intercept source-document badge clicks: open PDFs in an in-page viewer
+	// instead of downloading. Non-PDF files keep the default download behaviour.
+	function handleContentClick(event: MouseEvent) {
+		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return;
+
+		const target = event.target as HTMLElement | null;
+		const badge = target?.closest<HTMLAnchorElement>('a.source-document-badge');
+		if (!badge) return;
+
+		const documentId = badge.getAttribute('data-document-id');
+		if (!documentId) return;
+
+		const doc = availableDocuments.find((d) => d.id === documentId);
+		if (!doc || !isPdf(doc.name)) return;
+
+		const href = badge.getAttribute('href');
+		if (!href || href === '#') return;
+
+		event.preventDefault();
+		pdfDialog = { open: true, src: href, name: doc.name, downloadHref: href };
+	}
 
 	function createRenderer() {
 		untrack(() => {
@@ -102,6 +136,14 @@
 		}
 	});
 
+	// Delegated click handling for source-document badges rendered by Tiptap.
+	$effect(() => {
+		const el = editorElement;
+		if (!el) return;
+		el.addEventListener('click', handleContentClick);
+		return () => el.removeEventListener('click', handleContentClick);
+	});
+
 	onDestroy(() => {
 		if (editor) {
 			editor.destroy();
@@ -116,6 +158,13 @@
 >
 	<!-- Tiptap editor renders here -->
 </div>
+
+<PdfDocumentDialog
+	bind:open={pdfDialog.open}
+	src={pdfDialog.src}
+	name={pdfDialog.name}
+	downloadHref={pdfDialog.downloadHref}
+/>
 
 <style>
 	.content-renderer {
