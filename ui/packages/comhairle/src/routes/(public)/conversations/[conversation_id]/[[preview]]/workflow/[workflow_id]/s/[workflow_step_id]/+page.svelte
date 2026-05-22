@@ -147,15 +147,14 @@
 
 	async function stepComplete() {
 		if (isRevisiting) {
-			if (actualCurrentStep) {
-				const isPreview = !conversation.isLive;
+			const isPreview = !conversation.isLive;
+			const currentIdx = sortedSteps.findIndex((ws) => ws.id === workflowStep.id);
+			const nextRevisitable = sortedSteps.slice(currentIdx + 1).find((ws) => ws.canRevisit);
+			const target = nextRevisitable ?? actualCurrentStep;
+			if (target) {
 				goto(
-					workflow_step_url(
-						conversation.id,
-						workflow_id,
-						actualCurrentStep.id,
-						isPreview
-					) + queryString
+					workflow_step_url(conversation.id, workflow_id, target.id, isPreview) +
+						queryString
 				);
 			} else {
 				goToThankYouPage();
