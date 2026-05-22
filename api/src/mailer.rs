@@ -1,9 +1,9 @@
 use crate::error::ComhairleError;
-use crate::models::event::LocalizedEvent;
+use crate::models::event::{LocalizedEvent, ResolveTimeZone};
+use crate::models::organization::Organization;
 use crate::models::users::User;
 
 use chrono::{DateTime, Utc};
-use chrono_tz::US::Pacific;
 use icalendar::{self as ical, Component, EventLike};
 use lettre::message::Mailbox;
 use lettre::transport::smtp::authentication::Credentials;
@@ -56,32 +56,25 @@ pub trait ComhairleMailer: Send + Sync {
     fn send_event_registration_email(
         &self,
         email: String,
-        event_name: String,
-        event_time: String,
+        event: &LocalizedEvent,
+        organization: &Option<Organization>,
         invite_link: String,
-        organization_name: String,
-        organization_email: Option<String>,
     ) -> Result<(), ComhairleError>;
 
     fn send_event_confirmation_email(
         &self,
         email: String,
-        event_name: String,
-        event_time: String,
-        event_link: String,
-        organization_name: String,
-        organization_email: Option<String>,
+        event: &LocalizedEvent,
+        organization: &Option<Organization>,
+        link_href: String,
     ) -> Result<(), ComhairleError>;
 
     fn send_event_reminder(
         &self,
         email: String,
-        event_name: String,
-        start_time: DateTime<Utc>,
-        end_time: DateTime<Utc>,
+        event: &LocalizedEvent,
+        organization: &Option<Organization>,
         link_href: String,
-        organization_name: String,
-        organization_email: Option<String>,
     ) -> Result<(), ComhairleError>;
 }
 
@@ -110,13 +103,13 @@ impl MockComhairleMailer {
             .returning(|_, _, _| Ok(()));
         mailer
             .expect_send_event_registration_email()
-            .returning(|_, _, _, _, _, _| Ok(()));
+            .returning(|_, _, _, _| Ok(()));
         mailer
             .expect_send_event_confirmation_email()
-            .returning(|_, _, _, _, _, _| Ok(()));
+            .returning(|_, _, _, _| Ok(()));
         mailer
             .expect_send_event_reminder()
-            .returning(|_, _, _, _, _, _| Ok(()));
+            .returning(|_, _, _, _| Ok(()));
 
         mailer
     }
@@ -260,21 +253,19 @@ impl ComhairleMailer for Mailer {
     fn send_event_registration_email(
         &self,
         email: String,
-        event_name: String,
-        event_time: String,
+        event: &LocalizedEvent,
+        _organization: &Option<Organization>,
         invite_link: String,
-        organization_name: String,
-        organization_email: Option<String>,
     ) -> Result<(), ComhairleError> {
         self.send_email(
             &email,
             "Invitation to take part in an event",
             "event_registration_invite.html",
             context! {
-                event_name => event_name,
-                event_time => event_time,
-                organization_name => organization_name,
-                organization_email => organization_email,
+                event_name => event.name,
+                event_time => event.format_date_with_time_zone(event.start_time, None),
+                organization_name => "Bloom", //
+                // organization_email => organization_email,
                 invite_link => invite_link,
             },
             None,
@@ -284,54 +275,47 @@ impl ComhairleMailer for Mailer {
     fn send_event_confirmation_email(
         &self,
         email: String,
-        event_name: String,
-        event_time: String,
-        event_link: String,
-        organization_name: String,
-        organization_email: Option<String>,
+        event: &LocalizedEvent,
+        _organization: &Option<Organization>,
+        link_href: String,
     ) -> Result<(), ComhairleError> {
+        let calendar_invite =
+            create_calendar_invite(&event.name, &event.name, event.start_time, event.end_time)?;
+
         self.send_email(
             &email,
             "Event registration confirmation",
             "event_confirmation.html",
             context! {
-                event_name => event_name,
-                event_time => event_time,
-                organization_name => organization_name,
-                organization_email => organization_email,
-                event_link => event_link,
+                event_name => event.name,
+                event_time => event.format_date_with_time_zone(event.start_time, None),
+                organization_name => "Bloom", // TODO:
+                // organization_email => organization_email,
+                event_link => link_href,
             },
-            None,
+            Some(calendar_invite),
         )
     }
 
     fn send_event_reminder(
         &self,
         email: String,
-        event_name: String,
-        start_time: DateTime<Utc>,
-        end_time: DateTime<Utc>,
+        event: &LocalizedEvent,
+        _organization: &Option<Organization>,
         link_href: String,
-        organization_name: String,
-        organization_email: Option<String>,
     ) -> Result<(), ComhairleError> {
         let calendar_invite =
-            create_calendar_invite(&event_name, &event_name, start_time, end_time)?;
-
-        let formatted_date = start_time
-            .with_timezone(&Pacific) // TODO: find a way to make this configurable or dynamic
-            .format("%B %d, %Y at %H:%M %Z")
-            .to_string();
+            create_calendar_invite(&event.name, &event.name, event.start_time, event.end_time)?;
 
         self.send_email(
             &email,
             "Upcoming event reminder",
             "event_reminder.html",
             context! {
-                event_name => event_name,
-                event_time => formatted_date,
-                organization_name => organization_name,
-                organization_email => organization_email,
+                event_name => event.name,
+                event_time => event.format_date_with_time_zone(event.start_time, None),
+                organization_name => "Bloom", // TODO:
+                // organization_email => None,
                 event_link => link_href,
             },
             Some(calendar_invite),

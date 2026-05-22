@@ -88,7 +88,13 @@ pub trait ResolveTimeZone {
     fn default_time_zone(&self) -> &str;
 
     fn resolve_time_zone(&self) -> Tz {
-        Tz::from_str(&self.default_time_zone()).unwrap_or(chrono_tz::UTC)
+        Tz::from_str(self.default_time_zone()).unwrap_or(chrono_tz::UTC)
+    }
+
+    fn format_date_with_time_zone(&self, date: DateTime<Utc>, fmt: Option<&str>) -> String {
+        date.with_timezone(&self.resolve_time_zone())
+            .format(fmt.unwrap_or("%B %d, %Y at %H:%M %Z"))
+            .to_string()
     }
 }
 
@@ -523,6 +529,7 @@ pub struct UpcomingEventParticipant {
     pub user_auth_type: String,
     pub role: String,
     pub conversation_id: Uuid,
+    pub primary_locale: String,
 }
 
 #[instrument(err(Debug))]
@@ -565,6 +572,10 @@ pub async fn list_upcoming_event_participants(
         .expr_as(
             Expr::col((ConversationIden::Table, ConversationIden::Id)),
             Alias::new("conversation_id"),
+        )
+        .expr_as(
+            Expr::col((ConversationIden::Table, ConversationIden::PrimaryLocale)),
+            Alias::new("primary_locale"),
         )
         .from(EventIden::Table)
         .join(
