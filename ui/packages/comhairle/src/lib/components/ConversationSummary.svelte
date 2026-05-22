@@ -22,7 +22,7 @@
 
 	<div class="flex flex-col gap-5">
 		<img
-			class="h-[468px] self-stretch object-cover"
+			class="max-h-[468px] w-full object-contain"
 			src={conversation.imageUrl}
 			alt={conversation.title}
 		/>
