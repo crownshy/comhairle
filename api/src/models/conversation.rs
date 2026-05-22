@@ -673,16 +673,14 @@ pub async fn create(
     let mut columns = conversation.columns();
     let mut values = conversation.values();
 
-    if let (Some(bot_service), Some(default_knowledge_base_id)) =
-        (bot_service, &config.default_knowledge_base_id)
-    {
+    if let (Some(bot_service), Some(bot_service_config)) = (bot_service, &config.bot_service) {
         let (_, knowledge_base) = bot_service
             .create_knowledge_base(conversation_id.to_string(), None)
             .await?;
 
         let create_chat = CreateChatRequest {
             name: conversation_id.to_string(),
-            knowledge_base_ids: Some(vec![default_knowledge_base_id.clone()]),
+            knowledge_base_ids: Some(vec![bot_service_config.default_knowledge_base_id.clone()]),
             prompt: Some(ComhairlePrompt {
                 llm_prompt: Some(DEFAULT_CHAT_PROMPT.to_string()),
                 opener: Some(DEFAULT_CHAT_OPENER.to_string()),

@@ -92,18 +92,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Setup bot service
 
-    let bot_service = match (
-        &config.bot_service_host,
-        &config.bot_service_api_key,
-        &config.default_knowledge_base_id,
-        &config.elicitation_bot_agent_id,
-    ) {
-        (Some(host), Some(api_key), Some(_), Some(_)) => {
-            Some(Arc::new(ComhairleRagBotService::new(host, api_key))
-                as Arc<dyn ComhairleBotService>)
-        }
-        _ => None,
-    };
+    let bot_service = config.bot_service.as_ref().map(|config| {
+        Arc::new(ComhairleRagBotService::new(&config.host, &config.api_key))
+            as Arc<dyn ComhairleBotService>
+    });
 
     let wiki_poll_service = Arc::new(PolisClient::new(&config.polis_url));
 

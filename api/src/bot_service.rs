@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::ComhairleError;
 
+pub mod config;
 pub mod ragflow_bot;
 
 pub use ragflow_bot::ComhairleRagBotService;
@@ -397,10 +398,13 @@ pub struct UpdateChatRequest {
     pub prompt: Option<ComhairlePrompt>,
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq, Default)]
 pub struct AgentConversationRequest {
     pub question: String,
-    pub topic: String,
+    pub topic: Option<String>,
+    pub history: Option<String>,
+    pub starting_question: Option<String>,
+    pub question_intent: Option<String>,
 }
 
 #[cfg(test)]
