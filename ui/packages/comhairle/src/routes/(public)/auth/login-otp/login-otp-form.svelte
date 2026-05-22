@@ -11,7 +11,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { Spinner } from '$lib/components/ui/spinner';
-	import { onDestroy, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 
 	let { backTo }: { backTo?: string } = $props();
 
@@ -86,7 +86,7 @@
 
 	async function sendOtp() {
 		let result = await resendValidateForm({ update: true });
-		if (result.valid) {
+		if (result.valid && email) {
 			let { email } = result.data;
 			await resendLoader.run(async () => {
 				try {

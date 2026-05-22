@@ -66,10 +66,9 @@
 	const timeZone = getLocalTimeZone();
 	const [startDate, _startTimeWithZone] = $derived(event.startTime.split('T'));
 	const [, _endTimeWithZone] = $derived(event.endTime.split('T'));
-	const availableTimeZones = [
-		{ value: 'UTC', label: 'UTC' },
-		...Intl.supportedValuesOf('timeZone').map((tz) => ({ value: tz, label: tz }))
-	];
+	const availableTimeZones = Array.from(
+		new Set(['UTC', ...Intl.supportedValuesOf('timeZone')])
+	).map((tz) => ({ value: tz, label: tz }));
 
 	const eventForm = superForm(
 		{

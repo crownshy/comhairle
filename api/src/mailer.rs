@@ -279,8 +279,12 @@ impl ComhairleMailer for Mailer {
         _organization: &Option<Organization>,
         link_href: String,
     ) -> Result<(), ComhairleError> {
-        let calendar_invite =
-            create_calendar_invite(&event.name, &event.name, event.start_time, event.end_time)?;
+        let calendar_invite = create_calendar_invite(
+            &event.name,
+            &event.description,
+            event.start_time,
+            event.end_time,
+        )?;
 
         self.send_email(
             &email,
@@ -304,8 +308,12 @@ impl ComhairleMailer for Mailer {
         _organization: &Option<Organization>,
         link_href: String,
     ) -> Result<(), ComhairleError> {
-        let calendar_invite =
-            create_calendar_invite(&event.name, &event.name, event.start_time, event.end_time)?;
+        let calendar_invite = create_calendar_invite(
+            &event.name,
+            &event.description,
+            event.start_time,
+            event.end_time,
+        )?;
 
         self.send_email(
             &email,
@@ -341,10 +349,10 @@ fn create_calendar_invite(
         .done();
 
     let invite_body = Body::new(calendar_invite.to_string());
-    let content_type = ContentType::from_str("text/calendar")?;
+    let content_type = ContentType::from_str("text/calendar; charset=utf-8; method=REQUEST; name=\"invite.ics\"")?;
 
     let attachment =
-        Attachment::new_inline("Calendar invite".to_string()).body(invite_body, content_type);
+        Attachment::new_inline("calendar-invite".to_string()).body(invite_body, content_type);
 
     Ok(attachment)
 }
