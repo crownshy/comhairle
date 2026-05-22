@@ -104,6 +104,7 @@
 	let submitting = $state(false);
 
 	let bottomEl = $state<HTMLDivElement | null>(null);
+	let continueEl = $state<HTMLElement | null>(null);
 	let mainTextareaEl = $state<HTMLTextAreaElement | null>(null);
 	let followUpTextareaEl = $state<HTMLTextAreaElement | null>(null);
 
@@ -139,16 +140,20 @@
 		onProgress?.(snapshot());
 	}
 
-	async function scrollToBottom() {
+	async function scrollToFocus() {
 		await tick();
-		bottomEl?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+		if (minReached && currentState.phase !== 'answering') {
+			continueEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		} else {
+			bottomEl?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+		}
 	}
 
 	$effect(() => {
 		// Re-scroll when current phase or follow-up count changes
 		const _ = currentState.phase + ':' + currentState.followUps.length + ':' + currentQIdx;
 		untrack(() => {
-			scrollToBottom();
+			scrollToFocus();
 		});
 		// Focus textareas
 		untrack(async () => {
@@ -375,6 +380,16 @@
 				</section>
 			{/each}
 
+			<!-- Continue — primary action once the follow-up minimum is met -->
+			{#if minReached && currentState.phase !== 'answering'}
+				<section bind:this={continueEl} class="border-border border-t pt-8">
+					<Button size="lg" class="h-12 w-full text-base" onclick={continueNow}>
+						<Check class="size-4" />
+						{isLastQuestion ? 'Review my views' : 'Continue to the next question'}
+					</Button>
+				</section>
+			{/if}
+
 			<!-- Picker -->
 			{#if currentState.phase === 'picking' && currentState.picker.length > 0}
 				<section class="border-border space-y-3 border-t pt-6">
@@ -382,7 +397,7 @@
 						<div>
 							<p class="text-foreground text-sm font-semibold">
 								{minReached
-									? 'Want to explore another follow-up?'
+									? 'Or keep deepening your views'
 									: 'Pick a follow-up to continue'}
 							</p>
 							{#if !minReached}
@@ -393,8 +408,8 @@
 								</p>
 							{:else}
 								<p class="text-muted-foreground text-xs">
-									Optional — you can keep going for as long as you like, or
-									continue below.
+									Optional. Pick another follow-up to go deeper, or continue
+									above.
 								</p>
 							{/if}
 						</div>
@@ -445,18 +460,6 @@
 							{submitting ? 'Saving…' : 'Continue'}
 						</Button>
 					</div>
-				</section>
-			{/if}
-
-			{#if minReached && currentState.phase !== 'answering'}
-				<section class="border-border space-y-4 border-t pt-8 text-center">
-					<Button size="lg" onclick={continueNow}>
-						<Check class="size-4" />
-						{isLastQuestion ? 'Review my views' : 'Continue'}
-					</Button>
-					<p class="text-muted-foreground text-xs">
-						You can also keep picking follow-ups above.
-					</p>
 				</section>
 			{/if}
 
