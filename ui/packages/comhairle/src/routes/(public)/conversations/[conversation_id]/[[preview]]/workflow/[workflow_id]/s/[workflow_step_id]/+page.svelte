@@ -291,8 +291,6 @@
 					{#if toolConfig.type === ThinkingSpace.TOOL_NAME}
 						{#key workflowStep.id}
 							<ThinkingSpace.UserUI
-								conversationId={conversation.id}
-								workflowId={workflowStep.workflowId}
 								workflowStepId={workflowStep.id}
 								userId={user.id}
 								topic={toolConfig.topic}

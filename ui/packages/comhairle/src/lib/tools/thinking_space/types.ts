@@ -1,8 +1,9 @@
 /**
- * Backend currently only persists `topic` on the workflow step `toolConfig`.
- * Everything below (questions list, follow-up count, captured answers and
- * claims) is currently held client-side in localStorage. See
- * THINKING_SPACE_TODO.md for the planned backend integration.
+ * The backend is the source of truth for Thinking Space: the tool config
+ * (topic, root questions, follow-up count) lives on the workflow step, and
+ * every answer is persisted via the `thinking_space/answers` endpoints.
+ * Participant progress is rebuilt from those saved answers on load — nothing
+ * is stored client-side.
  */
 
 export interface QuestionConfig {
@@ -10,18 +11,9 @@ export interface QuestionConfig {
 	text: string;
 }
 
-export interface ThinkingSpaceConfig {
-	questions: QuestionConfig[];
-	/**
-	 * Minimum number of AI-generated follow-ups a participant must answer
-	 * for the current main question before the "move on" affordance
-	 * appears. They can keep answering more follow-ups if they want.
-	 * 0 = no follow-ups required.
-	 */
-	followUpCount: number;
-}
-
 export interface FollowUpAnswer {
+	/** Backend id of the saved follow-up answer — needed to edit it later. */
+	id: string | null;
 	question: string;
 	answer: string;
 }
@@ -29,14 +21,9 @@ export interface FollowUpAnswer {
 export interface QuestionAnswers {
 	questionId: string;
 	mainAnswer: string;
+	/** Backend id of the saved main answer — the root_question_id for follow-ups. */
+	mainAnswerId: string | null;
 	followUps: FollowUpAnswer[];
 }
 
-export interface ParticipantClaim {
-	id: string;
-	content: string;
-	sourceQuestionId: string;
-	sourceQuestionText: string;
-}
-
-export type ThinkingSpacePhase = 'questions' | 'review' | 'submitted';
+export type ThinkingSpacePhase = 'questions' | 'overview';

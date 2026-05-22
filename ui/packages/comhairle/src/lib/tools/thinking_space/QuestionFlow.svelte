@@ -1,18 +1,13 @@
 <script lang="ts">
-	import { tick, untrack } from 'svelte';
+	import { tick, untrack, onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Progress } from '$lib/components/ui/progress';
-	import { CornerDownRight, Shuffle, Check } from 'lucide-svelte';
+	import { CornerDownRight, Shuffle, Check, Loader2, RotateCcw } from 'lucide-svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
-	import { generateFollowUpOptions, extractMockClaim } from './mockFollowups';
-	import type {
-		QuestionConfig,
-		QuestionAnswers,
-		ParticipantClaim,
-		FollowUpAnswer
-	} from './types';
+	import { fetchFollowUps } from './converse';
+	import type { QuestionConfig, QuestionAnswers, FollowUpAnswer } from './types';
 
 	type Props = {
 		topic: string;
@@ -20,9 +15,7 @@
 		questions: QuestionConfig[];
 		followUpCount: number;
 		initialAnswers?: QuestionAnswers[];
-		initialClaims?: ParticipantClaim[];
-		onProgress?: (snapshot: { answers: QuestionAnswers[]; claims: ParticipantClaim[] }) => void;
-		onComplete: (result: { answers: QuestionAnswers[]; claims: ParticipantClaim[] }) => void;
+		onComplete: (answers: QuestionAnswers[]) => void;
 	};
 
 	let {
@@ -31,8 +24,6 @@
 		questions,
 		followUpCount,
 		initialAnswers = [],
-		initialClaims = [],
-		onProgress,
 		onComplete
 	}: Props = $props();
 
@@ -44,13 +35,15 @@
 		mainAnswerId: string | null;
 		followUps: FollowUpAnswer[];
 		picker: string[];
+		pickerLoading: boolean;
+		pickerError: boolean;
 		currentPick: string;
 		currentPickAnswer: string;
 		phase: Phase;
 	};
 
 	function initialStateFor(qIdx: number): LocalQuestionState {
-		const stored = initialAnswers[qIdx];
+		const stored = initialAnswers.find((a) => a.questionId === questions[qIdx].id);
 		if (!stored) {
 			return {
 				mainAnswer: '',
@@ -58,48 +51,42 @@
 				mainAnswerId: null,
 				followUps: [],
 				picker: [],
+				pickerLoading: false,
+				pickerError: false,
 				currentPick: '',
 				currentPickAnswer: '',
 				phase: 'main'
 			};
 		}
-		const followUpsDone = stored.followUps.length;
 		return {
 			mainAnswer: stored.mainAnswer,
 			mainSubmitted: true,
-			mainAnswerId: null,
+			mainAnswerId: stored.mainAnswerId ?? null,
 			followUps: stored.followUps,
-			// Always offer fresh picker options — follow-up count is a minimum,
-			// not a ceiling, so the participant can keep going if they want.
-			picker:
-				followUpCount > 0
-					? generateFollowUpOptions(
-							questions[qIdx]?.text ?? '',
-							stored.followUps[followUpsDone - 1]?.answer ?? stored.mainAnswer
-						)
-					: [],
+			// Picker is fetched from the agent on mount / after each answer.
+			picker: [],
+			pickerLoading: false,
+			pickerError: false,
 			currentPick: '',
 			currentPickAnswer: '',
 			phase: 'picking'
 		};
 	}
 
-	// Resume on the first question that hasn't yet reached the follow-up minimum.
-	// If all stored questions are at-or-above the minimum, resume on the last one
-	// (the user can still click Continue from there).
+	// Resume on the first question not yet answered, or whose follow-up minimum
+	// hasn't been reached. If everything is complete, land on the last question.
 	let currentQIdx = $state(
 		(() => {
-			const firstUnfinished = initialAnswers.findIndex(
-				(a) => a.followUps.length < followUpCount
-			);
-			if (firstUnfinished >= 0) return firstUnfinished;
-			if (initialAnswers.length === questions.length) return questions.length - 1;
-			return Math.max(0, Math.min(initialAnswers.length, questions.length - 1));
+			for (let i = 0; i < questions.length; i++) {
+				const stored = initialAnswers.find((a) => a.questionId === questions[i].id);
+				if (!stored) return i;
+				if (stored.followUps.length < followUpCount) return i;
+			}
+			return Math.max(0, questions.length - 1);
 		})()
 	);
 
 	let states = $state<LocalQuestionState[]>(questions.map((_, i) => initialStateFor(i)));
-	let claims = $state<ParticipantClaim[]>([...initialClaims]);
 	let transitioning = $state(false);
 	let submitting = $state(false);
 
@@ -127,19 +114,6 @@
 	});
 	let progress = $derived(totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0);
 
-	function snapshot() {
-		const answers: QuestionAnswers[] = states.map((s, i) => ({
-			questionId: questions[i].id,
-			mainAnswer: s.mainAnswer,
-			followUps: s.followUps
-		}));
-		return { answers, claims };
-	}
-
-	function emitProgress() {
-		onProgress?.(snapshot());
-	}
-
 	async function scrollToFocus() {
 		await tick();
 		if (minReached && currentState.phase !== 'answering') {
@@ -165,30 +139,84 @@
 		void _;
 	});
 
-	function makeClaim(
-		content: string,
-		source: QuestionConfig | { id: string; text: string }
-	): ParticipantClaim {
-		return {
-			id: `claim-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-			content,
-			sourceQuestionId: source.id,
-			sourceQuestionText: source.text
-		};
+	function buildAnswers(): QuestionAnswers[] {
+		return states.map((s, i) => ({
+			questionId: questions[i].id,
+			mainAnswer: s.mainAnswer,
+			mainAnswerId: s.mainAnswerId,
+			followUps: s.followUps
+		}));
 	}
 
 	function continueNow() {
 		if (isLastQuestion) {
-			onComplete(snapshot());
+			onComplete(buildAnswers());
 			return;
 		}
 		transitioning = true;
 		setTimeout(() => {
 			currentQIdx = currentQIdx + 1;
 			transitioning = false;
-			emitProgress();
 		}, 500);
 	}
+
+	// Build the running Q/A history the agent uses to generate follow-ups.
+	function buildHistory(qIdx: number): string {
+		const s = states[qIdx];
+		const lines: string[] = [];
+		let n = 1;
+		lines.push(`Q${n}: ${questions[qIdx].text}`);
+		lines.push(`A${n}: ${s.mainAnswer}`);
+		for (const fu of s.followUps) {
+			n++;
+			lines.push(`Q${n}: ${fu.question}`);
+			lines.push(`A${n}: ${fu.answer}`);
+		}
+		return lines.join('\n');
+	}
+
+	async function loadPicker(qIdx: number) {
+		states[qIdx] = { ...states[qIdx], pickerLoading: true, pickerError: false };
+		try {
+			const followUps = await fetchFollowUps({
+				workflowStepId,
+				startingQuestion: questions[qIdx].text,
+				// No dedicated intent field yet — the question text is the
+				// best proxy until the config schema gains one.
+				questionIntent: questions[qIdx].text,
+				history: buildHistory(qIdx)
+			});
+			const picker = followUps.map((f) => f.question);
+			states[qIdx] = {
+				...states[qIdx],
+				picker,
+				pickerLoading: false,
+				pickerError: picker.length === 0
+			};
+		} catch (e) {
+			console.error(e);
+			states[qIdx] = {
+				...states[qIdx],
+				picker: [],
+				pickerLoading: false,
+				pickerError: true
+			};
+			notifications.send({
+				message: 'Could not load follow-up questions. Please try again.',
+				priority: 'ERROR'
+			});
+		}
+	}
+
+	function retryPicker() {
+		loadPicker(currentQIdx);
+	}
+
+	onMount(() => {
+		if (currentState.phase === 'picking' && followUpCount > 0) {
+			loadPicker(currentQIdx);
+		}
+	});
 
 	async function submitMainAnswer() {
 		const value = currentState.mainAnswer.trim();
@@ -200,17 +228,15 @@
 				question: currentQuestion.text,
 				answer: value
 			});
-			claims = [...claims, makeClaim(extractMockClaim(value), currentQuestion)];
 			states[currentQIdx] = {
 				...currentState,
 				mainAnswer: value,
 				mainSubmitted: true,
 				mainAnswerId: saved.id,
-				picker:
-					followUpCount > 0 ? generateFollowUpOptions(currentQuestion.text, value) : [],
+				picker: [],
 				phase: 'picking'
 			};
-			emitProgress();
+			if (followUpCount > 0) loadPicker(currentQIdx);
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -243,7 +269,7 @@
 		if (!value || submitting) return;
 		submitting = true;
 		try {
-			await apiClient.CreateThinkingSpaceAnswer({
+			const saved = await apiClient.CreateThinkingSpaceAnswer({
 				workflow_step_id: workflowStepId,
 				question: currentState.currentPick,
 				answer: value,
@@ -251,16 +277,13 @@
 				root_question_id: currentState.mainAnswerId,
 				other_questions: currentState.picker
 			});
-			const fu: FollowUpAnswer = { question: currentState.currentPick, answer: value };
+			const fu: FollowUpAnswer = {
+				id: saved.id,
+				question: currentState.currentPick,
+				answer: value
+			};
 			const updatedFollowUps = [...currentState.followUps, fu];
-			claims = [
-				...claims,
-				makeClaim(extractMockClaim(value), {
-					id: currentQuestion.id,
-					text: currentState.currentPick
-				})
-			];
-			// Always regenerate the picker and stay in 'picking'. The participant
+			// Always refetch the picker and stay in 'picking'. The participant
 			// chooses when to move on via the Continue button (revealed once
 			// followUpsDone >= followUpCount). We never force-quit them.
 			states[currentQIdx] = {
@@ -268,10 +291,10 @@
 				followUps: updatedFollowUps,
 				currentPick: '',
 				currentPickAnswer: '',
-				picker: generateFollowUpOptions(currentQuestion.text, value),
+				picker: [],
 				phase: 'picking'
 			};
-			emitProgress();
+			if (followUpCount > 0) loadPicker(currentQIdx);
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -385,13 +408,32 @@
 				<section bind:this={continueEl} class="border-border border-t pt-8">
 					<Button size="lg" class="h-12 w-full text-base" onclick={continueNow}>
 						<Check class="size-4" />
-						{isLastQuestion ? 'Review my views' : 'Continue to the next question'}
+						{isLastQuestion ? 'Finish' : 'Continue to the next question'}
+					</Button>
+				</section>
+			{/if}
+
+			<!-- Picker: loading -->
+			{#if currentState.phase === 'picking' && currentState.pickerLoading}
+				<section class="border-border flex items-center gap-2 border-t pt-6">
+					<Loader2 class="text-primary size-4 animate-spin" />
+					<p class="text-muted-foreground text-sm">Generating follow-up questions…</p>
+				</section>
+			{/if}
+
+			<!-- Picker: failed to load -->
+			{#if currentState.phase === 'picking' && currentState.pickerError && !currentState.pickerLoading}
+				<section class="border-border space-y-3 border-t pt-6">
+					<p class="text-muted-foreground text-sm">Couldn't load follow-up questions.</p>
+					<Button variant="outline" size="sm" onclick={retryPicker}>
+						<RotateCcw class="size-3.5" />
+						Try again
 					</Button>
 				</section>
 			{/if}
 
 			<!-- Picker -->
-			{#if currentState.phase === 'picking' && currentState.picker.length > 0}
+			{#if currentState.phase === 'picking' && currentState.picker.length > 0 && !currentState.pickerLoading}
 				<section class="border-border space-y-3 border-t pt-6">
 					<div class="flex items-baseline justify-between gap-3">
 						<div>

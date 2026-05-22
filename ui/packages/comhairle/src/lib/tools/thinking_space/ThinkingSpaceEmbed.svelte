@@ -1,22 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Loader2, RotateCcw } from 'lucide-svelte';
-	import { Button } from '$lib/components/ui/button';
+	import { Loader2 } from 'lucide-svelte';
+	import { apiClient } from '@crownshy/api-client/client';
 	import QuestionFlow from './QuestionFlow.svelte';
-	import ReviewPage from './ReviewPage.svelte';
-	import Submitted from './Submitted.svelte';
-	import {
-		emptyState,
-		loadParticipantState,
-		saveParticipantState,
-		clearParticipantState,
-		type ParticipantState
-	} from './participantStorage';
-	import type { QuestionConfig, ParticipantClaim } from './types';
+	import Overview from './Overview.svelte';
+	import type { QuestionConfig, QuestionAnswers, ThinkingSpacePhase } from './types';
 
 	type Props = {
-		conversationId: string;
-		workflowId: string;
 		workflowStepId: string;
 		userId: string;
 		topic?: string;
@@ -27,7 +17,6 @@
 	};
 
 	let {
-		conversationId,
 		workflowStepId,
 		userId,
 		topic = '',
@@ -38,63 +27,64 @@
 	}: Props = $props();
 
 	let loaded = $state(false);
-	let progress = $state<ParticipantState>(emptyState());
+	let loadError = $state(false);
+	let phase = $state<ThinkingSpacePhase>('questions');
+	let answers = $state<QuestionAnswers[]>([]);
 
-	let canContinue = $derived(progress.phase === 'submitted');
+	let canContinue = $derived(phase === 'overview');
 
 	$effect(() => {
 		onCanContinueChange?.(canContinue);
 	});
 
-	onMount(() => {
-		progress = loadParticipantState(workflowStepId, conversationId, userId);
-		loaded = true;
-	});
-
-	function persist() {
-		saveParticipantState(workflowStepId, conversationId, userId, $state.snapshot(progress));
-	}
-
-	function handleProgress(snapshot: {
-		answers: ParticipantState['answers'];
-		claims: ParticipantClaim[];
-	}) {
-		progress.answers = snapshot.answers;
-		progress.claims = snapshot.claims;
-		persist();
-	}
-
-	function handleQuestionsComplete(result: {
-		answers: ParticipantState['answers'];
-		claims: ParticipantClaim[];
-	}) {
-		progress.answers = result.answers;
-		progress.claims = result.claims;
-		progress.phase = 'review';
-		persist();
-	}
-
-	function handleClaimsChange(next: ParticipantClaim[]) {
-		progress.claims = next;
-		persist();
-	}
-
-	function handleSubmit() {
-		progress.phase = 'submitted';
-		persist();
-	}
-
 	let configIncomplete = $derived(
 		rootQuestions.length === 0 || rootQuestions.every((q) => q.text.trim().length === 0)
 	);
 
-	let claimCount = $derived(progress.claims.length);
+	onMount(async () => {
+		try {
+			answers = await hydrateAnswers();
+			// A returning participant who already finished lands on the overview.
+			if (allComplete(answers)) phase = 'overview';
+		} catch (e) {
+			console.error('thinking_space: failed to load saved answers', e);
+			loadError = true;
+		} finally {
+			loaded = true;
+		}
+	});
 
-	const isDev = import.meta.env.DEV;
+	// Rebuild the participant's progress from answers already saved on the backend.
+	async function hydrateAnswers(): Promise<QuestionAnswers[]> {
+		const saved = await apiClient.ListThinkingSpaceAnswers({
+			queries: { workflow_step_id: workflowStepId, user_id: userId }
+		});
+		const mains = saved.filter((a) => !a.isFollowUp);
+		const followUps = saved.filter((a) => a.isFollowUp);
 
-	function devReset() {
-		clearParticipantState(workflowStepId, conversationId, userId);
-		progress = emptyState();
+		const result: QuestionAnswers[] = [];
+		for (const q of rootQuestions) {
+			// Answers store the question text, not the config id, so match on text.
+			const main = mains.find((m) => m.question === q.text);
+			if (!main) continue;
+			result.push({
+				questionId: q.id,
+				mainAnswer: main.answer,
+				mainAnswerId: main.id,
+				followUps: followUps
+					.filter((f) => f.rootQuestionId === main.id)
+					.map((f) => ({ id: f.id, question: f.question, answer: f.answer }))
+			});
+		}
+		return result;
+	}
+
+	function allComplete(list: QuestionAnswers[]): boolean {
+		if (rootQuestions.length === 0) return false;
+		return rootQuestions.every((q) => {
+			const a = list.find((x) => x.questionId === q.id);
+			return !!a && a.followUps.length >= followUpRoundsCount;
+		});
 	}
 </script>
 
@@ -111,39 +101,29 @@
 			can take part.
 		</p>
 	</div>
+{:else if loadError}
+	<div class="mx-auto max-w-md px-6 py-12 text-center">
+		<h2 class="text-foreground text-xl font-semibold">Couldn't load your progress</h2>
+		<p class="text-muted-foreground mt-2 text-sm">
+			Something went wrong loading this Thinking Space. Please refresh and try again.
+		</p>
+	</div>
 {:else}
 	<div class="relative flex min-h-[600px] flex-col">
-		{#if isDev}
-			<Button
-				variant="outline"
-				size="sm"
-				onclick={devReset}
-				class="absolute top-2 right-2 z-50 gap-1.5 opacity-60 hover:opacity-100"
-				title="Dev only: clear local participant state"
-			>
-				<RotateCcw class="size-3.5" />
-				Reset (dev)
-			</Button>
-		{/if}
-		{#if progress.phase === 'questions'}
+		{#if phase === 'questions'}
 			<QuestionFlow
 				{topic}
 				{workflowStepId}
 				questions={rootQuestions}
 				followUpCount={followUpRoundsCount}
-				initialAnswers={progress.answers}
-				initialClaims={progress.claims}
-				onProgress={handleProgress}
-				onComplete={handleQuestionsComplete}
+				initialAnswers={answers}
+				onComplete={(final) => {
+					answers = final;
+					phase = 'overview';
+				}}
 			/>
-		{:else if progress.phase === 'review'}
-			<ReviewPage
-				claims={progress.claims}
-				onChange={handleClaimsChange}
-				onSubmit={handleSubmit}
-			/>
-		{:else if progress.phase === 'submitted'}
-			<Submitted {claimCount} {onDone} />
+		{:else if phase === 'overview'}
+			<Overview {topic} questions={rootQuestions} {answers} {onDone} />
 		{/if}
 	</div>
 {/if}

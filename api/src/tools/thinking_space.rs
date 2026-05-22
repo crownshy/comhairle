@@ -238,8 +238,8 @@ async fn converse(
 
     // TODO: think more creafully how we handle this in preview mode
     let tool_config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
-        (Some(ToolConfig::ElicitationBot(config)), _) => config,
-        (None, ToolConfig::ElicitationBot(config)) => config,
+        (Some(ToolConfig::ThinkingSpace(config)), _) => config,
+        (None, ToolConfig::ThinkingSpace(config)) => config,
 
         _ => {
             return Err(ComhairleError::ToolConfigError(
@@ -258,7 +258,7 @@ async fn converse(
     .await?;
 
     let params = AgentConversationRequest {
-        question: "FOO BAR".to_string(),
+        question: payload.history.clone(),
         topic: Some(tool_config.topic.clone()),
         history: Some(payload.history),
         starting_question: Some(payload.starting_question),
