@@ -4,7 +4,6 @@
 	import DownloadIcon from '@lucide/svelte/icons/download';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
-	import type { PDFViewerProps } from './vendor/types';
 
 	type Props = {
 		open: boolean;
@@ -17,12 +16,12 @@
 
 	// pdfjs-dist is heavy (~1MB) and not SSR-safe, so the viewer is loaded
 	// lazily in the browser the first time a document is opened.
-	let PdfViewer = $state<Component<PDFViewerProps> | null>(null);
+	let PdfViewer = $state<Component<{ src: string }> | null>(null);
 
 	$effect(() => {
 		if (browser && open && !PdfViewer) {
-			import('./vendor/PDFViewer.svelte').then((m) => {
-				PdfViewer = m.default as unknown as Component<PDFViewerProps>;
+			import('./PdfViewer.svelte').then((m) => {
+				PdfViewer = m.default as unknown as Component<{ src: string }>;
 			});
 		}
 	});
@@ -55,13 +54,7 @@
 		<div class="bg-muted min-h-0 flex-1 overflow-hidden">
 			{#if browser && open && src}
 				{#if PdfViewer}
-					<PdfViewer
-						{src}
-						displayMode="continuous"
-						fitMode="width"
-						showNavigation={true}
-						enableTextSelection={true}
-					/>
+					<PdfViewer {src} />
 				{:else}
 					<div
 						class="text-muted-foreground flex h-full items-center justify-center text-sm"

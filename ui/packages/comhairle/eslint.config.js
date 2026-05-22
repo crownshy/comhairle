@@ -12,10 +12,6 @@ const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url));
 
 export default ts.config(
 	includeIgnoreFile(gitignorePath),
-	{
-		// Vendored third-party code — see PdfViewer/vendor/VENDORED.md
-		ignores: ['src/lib/components/PdfViewer/vendor/**']
-	},
 	js.configs.recommended,
 	...ts.configs.recommended,
 	...svelte.configs['flat/recommended'],
