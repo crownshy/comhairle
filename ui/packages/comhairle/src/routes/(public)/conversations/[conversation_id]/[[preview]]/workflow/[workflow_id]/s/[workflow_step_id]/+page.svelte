@@ -114,6 +114,7 @@
 	});
 
 	let currentNextAction = $state<(() => void) | undefined>(undefined);
+	let currentPrevAction = $state<(() => void) | undefined>(undefined);
 	let canProceed = $state(false);
 
 	$effect(() => {
@@ -123,10 +124,18 @@
 		} else {
 			canProceed = false;
 		}
+		if (type !== Learn.TOOL_NAME) {
+			currentNextAction = undefined;
+			currentPrevAction = undefined;
+		}
 	});
 
 	function handleNextAction(fn: () => void) {
 		currentNextAction = fn;
+	}
+
+	function handlePrevAction(fn: (() => void) | undefined) {
+		currentPrevAction = fn;
 	}
 
 	function handleCanContinueChange(value: boolean) {
@@ -139,15 +148,14 @@
 
 	async function stepComplete() {
 		if (isRevisiting) {
-			if (actualCurrentStep) {
-				const isPreview = !conversation.isLive;
+			const isPreview = !conversation.isLive;
+			const currentIdx = sortedSteps.findIndex((ws) => ws.id === workflowStep.id);
+			const nextRevisitable = sortedSteps.slice(currentIdx + 1).find((ws) => ws.canRevisit);
+			const target = nextRevisitable ?? actualCurrentStep;
+			if (target) {
 				goto(
-					workflow_step_url(
-						conversation.id,
-						workflow_id,
-						actualCurrentStep.id,
-						isPreview
-					) + queryString
+					workflow_step_url(conversation.id, workflow_id, target.id, isPreview) +
+						queryString
 				);
 			} else {
 				goToThankYouPage();
@@ -217,6 +225,7 @@
 					title={workflowStep.name}
 					description={workflowStep.description}
 					prevHref={prevStepHref}
+					onPrev={currentPrevAction}
 					onNext={currentNextAction ?? stepComplete}
 					nextDisabled={!canProceed}
 					boldDescription={toolConfig.type === Polis.TOOL_NAME}
@@ -242,13 +251,16 @@
 							</div>
 						{/if}
 					{:else if toolConfig.type === Learn.TOOL_NAME}
-						<Learn.UserUI
-							onDone={stepComplete}
-							pages={toolConfig.pages}
-							user_id={user.id}
-							onNextAction={handleNextAction}
-							{conversation}
-						/>
+						{#key workflowStep.id}
+							<Learn.UserUI
+								onDone={stepComplete}
+								pages={toolConfig.pages}
+								user_id={user.id}
+								onNextAction={handleNextAction}
+								onPrevAction={handlePrevAction}
+								{conversation}
+							/>
+						{/key}
 					{/if}
 					{#if toolConfig?.type === Polis.TOOL_NAME}
 						<Polis.UserUI

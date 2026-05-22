@@ -83,5 +83,16 @@
 				isAnnon={user.authType === 'annon'}
 			/>
 		{/if}
+	{:else}
+		<h2>Next steps</h2>
+		<div class="mx-auto mt-10 flex flex-col justify-center gap-2 text-center md:flex-row">
+			<Button
+				class="no-underline"
+				variant="secondary"
+				href={workflow_step_url(conversation.id, workflow.id, 'revisit')}
+				>Contribute some more</Button
+			>
+			<FeedbackModal conversationId={conversation.id} />
+		</div>
 	{/if}
 </div>

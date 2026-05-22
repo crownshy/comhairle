@@ -22,7 +22,7 @@
 	];
 </script>
 
-<footer class="bg-sidebar text-sidebar-foreground w-full">
+<footer class="bg-sidebar text-sidebar-foreground mt-6 w-full md:mt-12">
 	<div class="mx-auto flex w-full max-w-[1440px] flex-col items-center py-24">
 		<div class="flex w-full max-w-[1280px] flex-col gap-12 px-6">
 			<!-- Top row: Logo + Nav + Subscribe -->

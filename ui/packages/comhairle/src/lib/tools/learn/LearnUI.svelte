@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
+	import { Progress } from '$lib/components/ui/progress';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime.js';
@@ -18,11 +19,13 @@
 		pages,
 		onDone,
 		onNextAction,
+		onPrevAction,
 		conversation
 	}: {
 		pages: Array<Page>;
 		onDone: () => void;
 		onNextAction?: (fn: () => void) => void;
+		onPrevAction?: (fn: (() => void) | undefined) => void;
 		conversation?: LocalizedConversationDto;
 	} = $props();
 
@@ -65,6 +68,13 @@
 		});
 	}
 
+	function prevPage() {
+		currentPageNo -= 1;
+		tick().then(() => {
+			window.scrollTo(0, 0);
+		});
+	}
+
 	/** True while SvelteKit is routing to another step / page. */
 	let showSkeleton = $derived(!!navigating.to);
 
@@ -73,9 +83,22 @@
 			onNextAction(isLastPage ? onDone : nextPage);
 		}
 	});
+
+	$effect(() => {
+		onPrevAction?.(currentPageNo > 0 ? prevPage : undefined);
+	});
 </script>
 
 <div class="mx-auto flex grow flex-col">
+	{#if pages.length > 1}
+		<div class="mx-auto mb-6 w-full max-w-[65ch]">
+			<p class="text-muted-foreground mb-1.5 text-sm font-medium">
+				Page {currentPageNo + 1} of {pages.length}
+			</p>
+			<Progress value={currentPageNo + 1} max={pages.length} aria-label="Learning progress" />
+		</div>
+	{/if}
+
 	<!-- Article content: own loading state (route navigation / content not ready) -->
 	{#if showSkeleton}
 		<LearnArticleSkeleton />
