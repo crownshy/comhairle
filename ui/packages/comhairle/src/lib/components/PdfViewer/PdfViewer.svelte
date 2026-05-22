@@ -79,6 +79,10 @@
 
 		const layer = new TextLayer({ textContentSource: textContent, container: div, viewport });
 		await layer.render();
+		if (gen !== renderGen) {
+			div.innerHTML = '';
+			return;
+		}
 	}
 
 	async function renderAll() {
@@ -191,6 +195,7 @@
 			cancelled = true;
 			renderGen++;
 			cancelRenderTasks();
+			task.destroy();
 			doc?.destroy();
 			doc = null;
 		};
