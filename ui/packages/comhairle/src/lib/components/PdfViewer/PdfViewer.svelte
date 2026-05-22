@@ -373,8 +373,6 @@
 	.pdf-page {
 		position: relative;
 		flex-shrink: 0;
-		/* Auto margins center the page when it fits and collapse to 0 when it
-		   overflows, so a zoomed-in document stays scrollable to both edges. */
 		margin-inline: auto;
 		background-color: white;
 		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);

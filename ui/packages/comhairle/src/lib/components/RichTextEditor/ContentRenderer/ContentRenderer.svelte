@@ -47,8 +47,8 @@
 		return fileName.toLowerCase().endsWith('.pdf');
 	}
 
-	// Intercept source-document badge clicks: open PDFs in an in-page viewer
-	// instead of downloading. Non-PDF files keep the default download behaviour.
+	/* Intercept source-document badge clicks: open PDFs in an in-page viewer
+	 * instead of downloading. Non-PDF files keep the default download behaviour. */
 	function handleContentClick(event: MouseEvent) {
 		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return;
 
