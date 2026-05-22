@@ -450,6 +450,15 @@ export const CreateResponse = z
   .object({ question_responses: z.array(Response) })
   .passthrough();
 export type CreateResponse = z.infer<typeof CreateResponse>;
+export const ConversationRequest2 = z
+  .object({
+    history: z.string(),
+    question_intent: z.string(),
+    starting_question: z.string(),
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type ConversationRequest2 = z.infer<typeof ConversationRequest2>;
 export const AnswerStatus = z.enum(["pending", "approved", "declined"]);
 export type AnswerStatus = z.infer<typeof AnswerStatus>;
 export const status = z.union([AnswerStatus, z.null()]).optional();
@@ -1680,6 +1689,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   QuestionResponses,
   ProposalResponseDto,
   CreateResponse,
+  ConversationRequest2,
   AnswerStatus,
   status,
   ThinkingSpaceAnswerDto,
@@ -3551,6 +3561,26 @@ Create a response for prioritization tool proposal
     alias: "SaveStory",
     description: `Record a user story for the current user and workflow step`,
     requestFormat: "json",
+    response: z.void(),
+  },
+  {
+    method: "post",
+    path: "/tools/thinking_space",
+    alias: "postToolsthinking_space",
+    description: `
+Streamed LLM response.
+⚠️ This endpoint returns a streaming response on success.
+Generated API clients are NOT suitable for consuming this endpoint.
+Use a raw HTTP request and process the response body incrementally.
+`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: ConversationRequest2,
+      },
+    ],
     response: z.void(),
   },
   {

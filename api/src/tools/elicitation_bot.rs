@@ -215,7 +215,8 @@ async fn converse(
 
     let payload = AgentConversationRequest {
         question: payload.question,
-        topic: tool_config.topic.clone(),
+        topic: Some(tool_config.topic.clone()),
+        ..Default::default()
     };
     let stream = bot_service
         .converse_with_agent(
