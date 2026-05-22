@@ -25,7 +25,9 @@
 		type DateValue,
 		today,
 		parseDate,
-		parseDateTime
+		parseDateTime,
+		toTimeZone,
+		toZoned
 	} from '@internationalized/date';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -49,9 +51,6 @@
 	const conversation = $derived(data.conversation);
 	const facilitators = $derived(data.facilitators);
 	const moderators = $derived(data.moderators);
-
-	$inspect('Facilitators ', facilitators);
-	$inspect('Moderators ', moderators);
 
 	let emailInvites = $derived(
 		data.invites.filter(
@@ -92,6 +91,22 @@
 	);
 
 	let { form, enhance, validateForm, submitting, tainted } = $derived(eventForm);
+
+	function convertTimeToSelectedZone(date: string, time: string, timeZone: string) {
+		const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+		const dateString = parseDateTime(`${date}T${time}`);
+		const toLocalZoned = toZoned(dateString, localTimeZone);
+
+		const zonedDateTime = toTimeZone(toLocalZoned, timeZone);
+		const zonedTime = new Intl.DateTimeFormat('en', {
+			hour: 'numeric',
+			minute: '2-digit',
+			hour12: true,
+			timeZone: zonedDateTime.timeZone
+		}).format(zonedDateTime.toDate());
+
+		return zonedTime;
+	}
 
 	let saving = $state(false);
 
@@ -502,7 +517,7 @@
 				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 			>
 				<p class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Time</p>
-				<div class="flex flex-1 flex-col gap-2">
+				<div class="flex flex-1 flex-col gap-2 2xl:flex-row 2xl:items-center">
 					<TimeRangePicker
 						startName="start_time"
 						endName="end_time"
@@ -515,6 +530,27 @@
 					<Form.Field form={eventForm} name="end_time" class="contents">
 						<Form.FieldErrors class="text-destructive text-sm" />
 					</Form.Field>
+					{#if $form.default_time_zone !== 'UTC'}
+						<div class="text-muted-foreground flex gap-2">
+							<span>{$form.default_time_zone}</span>
+							<span>-</span>
+							<span
+								>{convertTimeToSelectedZone(
+									$form.start_date,
+									$form.start_time,
+									$form.default_time_zone
+								)}</span
+							>
+							<span>-</span>
+							<span
+								>{convertTimeToSelectedZone(
+									$form.start_date,
+									$form.end_time,
+									$form.default_time_zone
+								)}</span
+							>
+						</div>
+					{/if}
 				</div>
 			</div>
 

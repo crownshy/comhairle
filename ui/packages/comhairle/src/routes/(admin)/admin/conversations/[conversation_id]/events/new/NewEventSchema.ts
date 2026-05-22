@@ -10,7 +10,6 @@ const NewEventSchema = z
 			.number({ invalid_type_error: 'Capacity is required.' })
 			.int({ message: 'Capacity must be a whole number.' })
 			.min(2, { message: 'Capacity must be at least 2.' }),
-		default_time_zone: z.string(),
 		start_date: z
 			.string()
 			.date()
