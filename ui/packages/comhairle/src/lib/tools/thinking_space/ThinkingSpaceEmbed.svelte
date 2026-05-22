@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 	import { Loader2, RotateCcw } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
-	import Welcome from './Welcome.svelte';
 	import QuestionFlow from './QuestionFlow.svelte';
 	import ReviewPage from './ReviewPage.svelte';
 	import Submitted from './Submitted.svelte';
@@ -21,7 +20,6 @@
 		workflowStepId: string;
 		userId: string;
 		topic?: string;
-		description?: string;
 		rootQuestions?: QuestionConfig[];
 		followUpRoundsCount?: number;
 		onDone?: () => void;
@@ -33,7 +31,6 @@
 		workflowStepId,
 		userId,
 		topic = '',
-		description,
 		rootQuestions = [],
 		followUpRoundsCount = 2,
 		onDone,
@@ -56,11 +53,6 @@
 
 	function persist() {
 		saveParticipantState(workflowStepId, conversationId, userId, $state.snapshot(progress));
-	}
-
-	function start() {
-		progress.phase = 'questions';
-		persist();
 	}
 
 	function handleProgress(snapshot: {
@@ -133,15 +125,7 @@
 				Reset (dev)
 			</Button>
 		{/if}
-		{#if progress.phase === 'welcome'}
-			<Welcome
-				{topic}
-				{description}
-				questionCount={rootQuestions.length}
-				followUpCount={followUpRoundsCount}
-				onStart={start}
-			/>
-		{:else if progress.phase === 'questions'}
+		{#if progress.phase === 'questions'}
 			<QuestionFlow
 				{topic}
 				{workflowStepId}

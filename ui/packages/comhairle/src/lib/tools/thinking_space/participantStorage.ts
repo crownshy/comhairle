@@ -23,7 +23,7 @@ function key(workflowStepId: string, conversationId: string, userId: string): st
 }
 
 export function emptyState(): ParticipantState {
-	return { phase: 'welcome', answers: [], claims: [] };
+	return { phase: 'questions', answers: [], claims: [] };
 }
 
 export function loadParticipantState(
@@ -37,7 +37,7 @@ export function loadParticipantState(
 		if (!raw) return emptyState();
 		const parsed = JSON.parse(raw) as Partial<ParticipantState>;
 		return {
-			phase: parsed.phase ?? 'welcome',
+			phase: parsed.phase ?? 'questions',
 			answers: parsed.answers ?? [],
 			claims: parsed.claims ?? []
 		};

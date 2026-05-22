@@ -39,4 +39,4 @@ export interface ParticipantClaim {
 	sourceQuestionText: string;
 }
 
-export type ThinkingSpacePhase = 'welcome' | 'questions' | 'review' | 'submitted';
+export type ThinkingSpacePhase = 'questions' | 'review' | 'submitted';

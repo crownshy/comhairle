@@ -9,7 +9,7 @@ export const defaultStepCreationParams: { [key: string]: { name: string; descrip
 	'Thinking Space': {
 		name: 'Thinking Space',
 		description:
-			'A guided reflection space. Respond to prompts at your own pace, follow nudges that deepen your thinking, and decide which claims best represent your views.'
+			"You'll be asked a few questions, and after each one you can pick follow-up questions to dig into. It's a chance to go deeper on what you really think. At the end you'll be able to review and edit your responses before submitting."
 	}
 };
 

@@ -181,7 +181,7 @@
 					Participants answer these one at a time. Drag to reorder.
 				</p>
 			</div>
-			<Button class="shrink-0" onclick={openCreateQuestion}>
+			<Button class="shrink-0" variant="outline" onclick={openCreateQuestion}>
 				<Plus class="mr-2 size-4" /> Add question
 			</Button>
 		</header>
@@ -190,7 +190,15 @@
 			<Card>
 				<CardContent class="py-10 text-center">
 					<p class="text-muted-foreground text-sm">
-						No questions yet. Add the first one to get started.
+						No questions yet.
+						<button
+							type="button"
+							class="text-primary font-medium underline-offset-4 hover:underline"
+							onclick={openCreateQuestion}
+						>
+							Add the first one
+						</button>
+						to get started.
 					</p>
 				</CardContent>
 			</Card>
