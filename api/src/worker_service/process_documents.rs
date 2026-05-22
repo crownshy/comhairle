@@ -59,10 +59,9 @@ pub async fn process_document_handler(
         .map_err(|_| WorkerServiceError::NoBotServiceConfigured)
         .ok_or_record_failure(&job.job_id, &state.db)
         .await?;
-
-    let default_knowledge_base_id = state
+    let bot_service_config = state
         .config
-        .default_knowledge_base_id
+        .bot_service
         .as_ref()
         .ok_or(WorkerServiceError::NoBotServiceConfigured)
         .ok_or_record_failure(&job.job_id, &state.db)
@@ -176,7 +175,7 @@ pub async fn process_document_handler(
 
         let update_params = UpdateChatRequest {
             knowledge_base_ids: Some(vec![
-                default_knowledge_base_id.clone(),
+                bot_service_config.default_knowledge_base_id.clone(),
                 knowledge_base_id.to_string(),
             ]),
             ..Default::default()

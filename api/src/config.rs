@@ -3,8 +3,8 @@ use serde::Deserialize;
 
 use crate::categorization_service::config::CategorizationConfig;
 pub use crate::{
-    bulk_storage_service::config::BulkStorageServiceConfig, error::ComhairleError,
-    transcription_service::config::TranscriptionServiceConfig,
+    bot_service::config::BotServiceConfig, bulk_storage_service::config::BulkStorageServiceConfig,
+    error::ComhairleError, transcription_service::config::TranscriptionServiceConfig,
     translation_service::config::TranslatorConfig, worker_service::config::WorkerConfig,
 };
 
@@ -63,10 +63,7 @@ pub struct ComhairleConfig {
     pub mailer: MailerConfig,
     pub domain: String,
     pub translator: Option<TranslatorConfig>,
-    pub bot_service_host: Option<String>,
-    pub bot_service_api_key: Option<String>,
-    pub default_knowledge_base_id: Option<String>,
-    pub elicitation_bot_agent_id: Option<String>,
+    pub bot_service: Option<BotServiceConfig>,
     pub whitelisted_domains: Option<Vec<String>>,
     pub enable_rate_limiting: bool,
     pub heyform_url: String,

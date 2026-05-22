@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::ComhairleError;
 
+pub mod config;
 pub mod ragflow_bot;
 
 pub use ragflow_bot::ComhairleRagBotService;

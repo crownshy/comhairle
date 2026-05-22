@@ -159,8 +159,8 @@ pub async fn create(
     config: &ComhairleConfig,
     session: &CreateBotServiceUserSession,
 ) -> Result<BotServiceUserSession, ComhairleError> {
-    let elicitation_bot_agent_id = config
-        .elicitation_bot_agent_id
+    let bot_service_config = config
+        .bot_service
         .as_ref()
         .ok_or(ComhairleError::NoBotServiceConfigured)?;
 
@@ -217,7 +217,7 @@ pub async fn create(
             };
 
             let (_, bot_service_session) = bot_service
-                .create_agent_session(elicitation_bot_agent_id)
+                .create_agent_session(&bot_service_config.elicitation_bot_agent_id)
                 .await?;
 
             bot_service_session.id
