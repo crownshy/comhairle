@@ -98,7 +98,9 @@
 		</div>
 	{:else}
 		<div class="flex flex-col items-center gap-4 whitespace-pre-wrap">
-			<h1 class="text-4xl font-semibold">Something went wrong</h1>
+			{#if error !== 'Invite expired'}
+				<h1 class="text-4xl font-semibold">Something went wrong</h1>
+			{/if}
 			<p class="text-lg">{error}</p>
 			{#if !user && error === 'Invite expired'}
 				<Button
