@@ -414,7 +414,8 @@ mod tests {
 
         let converse_request = AgentConversationRequest {
             question: "Test question?".to_string(),
-            topic: "renewable energy".to_string(),
+            topic: Some("renewable energy".to_string()),
+            ..Default::default()
         };
         let body = serde_json::to_vec(&converse_request)?;
         let (status, body, _) = session
