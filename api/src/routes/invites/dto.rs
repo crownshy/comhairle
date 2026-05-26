@@ -18,7 +18,7 @@ use crate::models::invites::{Invite, InviteStatus, InviteType, LoginBehaviour};
 pub struct InviteDto {
     pub id: Uuid,
     pub invite_type: InviteType,
-    pub created_by: Uuid,
+    pub created_by: Option<Uuid>,
     pub status: InviteStatus,
     pub expires_at: Option<DateTime<Utc>>,
     pub conversation_id: Uuid,

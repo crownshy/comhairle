@@ -118,7 +118,7 @@ async fn create_conversation_invite(
 
     // Create the invite
     let invite =
-        models::invites::create(&state.db, create_invite, &conversation_id, &user.id).await?;
+        models::invites::create(&state.db, create_invite, &conversation_id, Some(user.id)).await?;
 
     // Send out an email notification if we can
     match &invite.invite_type {
@@ -158,7 +158,7 @@ async fn create_conversation_invite(
 async fn create_event_invite(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-    RequiredUser(user): RequiredUser,
+    OptionalUser(user): OptionalUser,
     Json(create_invite): Json<CreateInviteDTO>,
 ) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
     if create_invite.event_id.is_none() {
@@ -168,8 +168,13 @@ async fn create_event_invite(
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
     // Create the invite
-    let invite =
-        models::invites::create(&state.db, create_invite, &conversation_id, &user.id).await?;
+    let invite = models::invites::create(
+        &state.db,
+        create_invite,
+        &conversation_id,
+        user.map(|u| u.id),
+    )
+    .await?;
 
     let InviteType::Email(email) = &invite.invite_type else {
         return Err(ComhairleError::InvalidInviteType);
