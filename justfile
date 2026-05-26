@@ -28,3 +28,7 @@ watch-api-spec:
 
 api-watch:
     just api-dev & just watch-api-spec
+
+# Seed admin user + dev conversation (requires API running)
+seed:
+    ./scripts/seed-minimal.sh
