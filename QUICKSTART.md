@@ -10,17 +10,26 @@ You only need two things on the host. Everything else comes from Nix.
 
 ## Setup
 
+Clone the repository:
 ```bash
 git clone <repo> comhairle
 cd comhairle
-nix develop          # first run downloads the toolchain (a few minutes)
+```
+
+Set up environment variables:
+```bash
 cp .env.example .env
+```
+
+Enter the Nix development shell. First run downloads the toolchain (a few minutes)
+```bash
+nix develop 
 ```
 Once inside the shell you have: `cargo`, `rustc`, `clippy`, `rust-analyzer`, `rustfmt`, `sqlx`, `bacon`, `cargo-watch`, `just`, `watchexec`, `node`, `pnpm`, `psql`, `redis-cli`, `atac`, plus OpenSSL / pkg-config / cmake / clang wired up via env vars.
 
 ## Run DB
-
 ```bash
+nix develop
 just pg
 ```
 
@@ -31,6 +40,7 @@ This runs `postgres:16` on `localhost:5434` with user/password/db all set to `co
 In a second shell, start the API (migrations run automatically on boot):
 
 ```bash
+nix develop
 just api-dev
 ```
 
@@ -45,6 +55,7 @@ Run `just seed` to populate the database with initial data including:
 In a third shell:
 
 ```bash
+nix develop
 cd ui/packages && pnpm comhairle
 ```
 
