@@ -106,16 +106,16 @@ async fn create_conversation_invite(
     match &invite.invite_type {
         InviteType::Email(email) => {
             state.mailer.send_email(
-            email,
-            "Invitation to take part in a public consultation",
-            "conversation_invite.html",
-            context! {
-                conversation_hero => conversation.image_url,
-                conversation_title=> conversation.title,
-                invite_link => format!("{}/conversations/{}/invite/{}",state.config.domain, conversation.slug.unwrap_or_else(|| conversation.id.to_string()), invite.id )
-            },
-                None
-        )?;
+                    email,
+                    "Invitation to join the Delegates Hub",
+                    "conversation_invite.html",
+                    context! {
+                        conversation_hero => conversation.image_url,
+                        conversation_title=> conversation.title,
+                        invite_link => format!("{}/conversations/{}/invite/{}",state.config.domain, conversation.slug.unwrap_or_else(|| conversation.id.to_string()), invite.id )
+                    },
+                    None,
+                )?;
         }
         InviteType::User(user_id) => {
             let user = models::users::get_user_by_id(user_id, &state.db).await?;
