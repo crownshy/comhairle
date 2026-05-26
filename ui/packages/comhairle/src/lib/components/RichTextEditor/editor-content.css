@@ -5,6 +5,14 @@
 .tiptap {
 	outline: none;
 	min-height: var(--editor-min-height, 200px);
+	color: var(--color-foreground);
+}
+
+/* Override any inline `color: ...` from pasted content so text remains
+   readable in both light and dark mode. Links untouched here keep their
+   own color via the class applied by the Link extension. */
+.tiptap [style*='color'] {
+	color: var(--color-foreground) !important;
 }
 
 .tiptap h1 {
@@ -50,15 +58,16 @@
 }
 
 .tiptap blockquote {
-	border-left: 4px solid #e5e7eb;
+	border-left: 4px solid var(--color-border);
 	padding-left: 1rem;
 	margin: 1rem 0;
 	font-style: italic;
-	color: #6b7280;
+	color: var(--color-muted-foreground);
 }
 
 .tiptap code {
-	background: #f3f4f6;
+	background: var(--color-muted);
+	color: var(--color-foreground);
 	padding: 0.125rem 0.25rem;
 	border-radius: 0.25rem;
 	font-family: 'Courier New', monospace;
@@ -66,8 +75,8 @@
 }
 
 .tiptap pre {
-	background: #1f2937;
-	color: white;
+	background: var(--color-secondary);
+	color: var(--color-secondary-foreground);
 	padding: 1rem;
 	border-radius: 0.5rem;
 	margin: 1rem 0;
@@ -143,8 +152,8 @@
 	justify-content: center;
 	padding: 0;
 	border: none;
-	background: rgba(0, 0, 0, 0.04);
-	color: #6b7280;
+	background: var(--color-muted);
+	color: var(--color-muted-foreground);
 	border-radius: 9999px;
 	font-size: 1rem;
 	line-height: 1;
@@ -179,7 +188,7 @@
 }
 
 .source-document-badge:hover {
-	background: #f3f4f6;
+	background: var(--color-accent);
 	text-decoration: none;
 }
 
@@ -217,7 +226,7 @@
 }
 
 .source-document-link:hover {
-	background-color: #f3f4f6;
+	background-color: var(--color-accent);
 }
 
 .source-document-icon {
@@ -227,7 +236,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: #e5e7eb;
+	background: var(--color-muted);
 	border-radius: 0.5rem;
 	font-size: 1.25rem;
 	line-height: 1;
@@ -247,7 +256,7 @@
 .source-document-name {
 	font-weight: 600;
 	font-size: 0.9375rem;
-	color: #1f2937;
+	color: var(--color-foreground);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -255,7 +264,7 @@
 
 .source-document-size {
 	font-size: 0.8125rem;
-	color: #6b7280;
+	color: var(--color-muted-foreground);
 }
 
 .source-document-hint {
@@ -272,7 +281,7 @@
 /* Custom scrollbar styles */
 .editor-scroll-container {
 	scrollbar-width: thin;
-	scrollbar-color: #d1d5db transparent;
+	scrollbar-color: var(--color-border) transparent;
 }
 
 .editor-scroll-container::-webkit-scrollbar {
@@ -284,10 +293,10 @@
 }
 
 .editor-scroll-container::-webkit-scrollbar-thumb {
-	background-color: #d1d5db;
+	background-color: var(--color-border);
 	border-radius: 4px;
 }
 
 .editor-scroll-container::-webkit-scrollbar-thumb:hover {
-	background-color: #9ca3af;
+	background-color: var(--color-muted-foreground);
 }
