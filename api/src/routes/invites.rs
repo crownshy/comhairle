@@ -101,7 +101,7 @@ async fn reject_invite(
 }
 
 #[instrument(err(Debug), skip(state))]
-async fn create_invite(
+async fn create_conversation_invite(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     RequiredAdminUser(user): RequiredAdminUser,
@@ -122,38 +122,20 @@ async fn create_invite(
 
     // Send out an email notification if we can
     match &invite.invite_type {
-        models::invites::InviteType::Email(email) => {
-            if let Some(event_id) = invite.event_id {
-                let event =
-                    event::get_localized_by_id(&state.db, &event_id, &conversation.primary_locale)
-                        .await?;
-
-                let invite_link = format!(
-                    "{}/conversations/{}/events/{}/invite/{}",
-                    state.config.domain, conversation.id, event.id, invite.id
-                );
-
-                state.mailer.send_event_registration_email(
-                    email.to_string(),
-                    &event,
-                    &None,
-                    invite_link,
-                )?;
-            } else {
-                state.mailer.send_email(
-                    email,
-                    "Invitation to take part in a public consultation",
-                    "conversation_invite.html",
-                    context! {
-                        conversation_hero => conversation.image_url,
-                        conversation_title=> conversation.title,
-                        invite_link => format!("{}/conversations/{}/invite/{}",state.config.domain, conversation.slug.unwrap_or_else(|| conversation.id.to_string()), invite.id )
-                    },
-                    None,
-                )?;
-            }
+        InviteType::Email(email) => {
+            state.mailer.send_email(
+            email,
+            "Invitation to take part in a public consultation",
+            "conversation_invite.html",
+            context! {
+                conversation_hero => conversation.image_url,
+                conversation_title=> conversation.title,
+                invite_link => format!("{}/conversations/{}/invite/{}",state.config.domain, conversation.slug.unwrap_or_else(|| conversation.id.to_string()), invite.id )
+            },
+                None
+        )?;
         }
-        models::invites::InviteType::User(user_id) => {
+        InviteType::User(user_id) => {
             let user = models::users::get_user_by_id(user_id, &state.db).await?;
             if let Some(email) = &user.email {
                 state.mailer.send_email(
@@ -161,7 +143,7 @@ async fn create_invite(
                 "You have been invited to the conversation",
                 "conversation_invite.html",
                 context! {user=>user, conversation_hero => conversation.image_url , conversation_title=>conversation.title},
-                    None,
+                None
             )?;
             }
         }
@@ -170,6 +152,44 @@ async fn create_invite(
 
     let invite = invite.into();
     Ok((StatusCode::CREATED, Json(invite)))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn create_event_invite(
+    State(state): State<Arc<ComhairleState>>,
+    Path(conversation_id): Path<Uuid>,
+    RequiredUser(user): RequiredUser,
+    Json(create_invite): Json<CreateInviteDTO>,
+) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
+    if create_invite.event_id.is_none() {
+        return Err(ComhairleError::BadRequest("Missing event_id".to_string()));
+    }
+
+    let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
+
+    // Create the invite
+    let invite =
+        models::invites::create(&state.db, create_invite, &conversation_id, &user.id).await?;
+
+    let InviteType::Email(email) = &invite.invite_type else {
+        return Err(ComhairleError::InvalidInviteType);
+    };
+
+    let event_id = &invite.event_id.ok_or(ComhairleError::InvalidInviteType)?;
+
+    let event =
+        event::get_localized_by_id(&state.db, event_id, &conversation.primary_locale).await?;
+
+    let invite_link = format!(
+        "{}/conversations/{}/events/{}/invite/{}",
+        state.config.domain, conversation.id, event.id, invite.id
+    );
+
+    state
+        .mailer
+        .send_event_registration_email(email.to_string(), &event, &None, invite_link)?;
+
+    Ok((StatusCode::CREATED, Json(invite.into())))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -333,7 +353,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
             "/",
-            post_with(create_invite, |op| {
+            post_with(create_conversation_invite, |op| {
                 op.id("CreateInvite")
                     .summary("Create an invite")
                     .tag("Invites")
@@ -404,6 +424,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .tag("Invites")
                     .security_requirement("JWT")
                     .response::<200, Json<Vec<InviteDto>>>()
+            }),
+        )
+        .api_route(
+            "/events",
+            post_with(create_event_invite, |op| {
+                op.id("CreateEventInvite")
+                    .summary("Create an event invite")
+                    .description("Create an invite for a given event")
+                    .tag("Invites")
+                    .security_requirement("JWT")
+                    .response::<201, Json<InviteDto>>()
             }),
         )
         .api_route(

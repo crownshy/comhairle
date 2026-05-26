@@ -2730,6 +2730,21 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     response: z.array(DailyResponseStats),
   },
   {
+    method: "post",
+    path: "/conversation/:conversation_id/invite/events",
+    alias: "CreateEventInvite",
+    description: `Create an invite for a given event`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateInviteDTO,
+      },
+    ],
+    response: InviteDto,
+  },
+  {
     method: "get",
     path: "/conversation/:conversation_id/invite/events/:event_id",
     alias: "ListInvitesForEvent",
