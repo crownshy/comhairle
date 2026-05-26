@@ -61,6 +61,7 @@
 
             # ---- Task runner / misc ----
             just
+            tmux
             watchexec
             atac
             jq

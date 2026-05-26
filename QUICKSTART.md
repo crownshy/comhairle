@@ -27,7 +27,17 @@ nix develop
 ```
 Once inside the shell you have: `cargo`, `rustc`, `clippy`, `rust-analyzer`, `rustfmt`, `sqlx`, `bacon`, `cargo-watch`, `just`, `watchexec`, `node`, `pnpm`, `psql`, `redis-cli`, `atac`, plus OpenSSL / pkg-config / cmake / clang wired up via env vars.
 
-## Run DB
+## Fast path (tmux)
+
+If you just want everything running in one go:
+
+```bash
+nix develop -c just all
+```
+
+This spins up a `comhairle` tmux session with four windows: `postgres`, `api`, `ui`, and a `seed` shell. Once the API is up, switch to the `seed` window (`Ctrl-b 3`) and run `just seed`.
+
+## 1. Run DB
 ```bash
 nix develop
 just pg
@@ -35,7 +45,7 @@ just pg
 
 This runs `postgres:16` on `localhost:5434` with user/password/db all set to `comhairle`. Data is persisted to `./pg_data` in the repo (already gitignored).
 
-## Run API
+## 2. Run API
 
 In a second shell, start the API (migrations run automatically on boot):
 
@@ -44,13 +54,13 @@ nix develop
 just api-dev
 ```
 
-### Seed DB
+### 3. Seed DB
 
 Run `just seed` to populate the database with initial data including:
 - **Default admin login:** `admin@crown-shy.com` / `adminPassword123!`
 
 
-## Run UI
+## 4. Run UI
 
 In a third shell:
 
