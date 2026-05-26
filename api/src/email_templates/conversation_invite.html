@@ -1,30 +1,27 @@
 {% extends "email_layout.html" %}
 {% block content %}
-<p>Dear Invited Participant,</p>
-<p>You have been selected to take part in a public engagement hosted on the
-	<strong>Comhairle</strong> platform by <strong>CrownShy</strong>.
-<p />
-<p>We’re inviting you to complete the online engagement.</p>
-<p>We’re keen to hear your real views and reflections. If you choose to take part, we ask that you:</p>
+	<h1>Dear Delegates,</h1>
+	<p>I have good news! It is time for you to onboard to Comhairle, where the Maine Citizens' Assembly Delegates Hub is located. Tonight we will make sure everyone is able to get in and look around, so take a moment to give it a try right before the meeting starts, if you can. </p>
+	<p>The Delegates Hub is where we will share materials with you about education and schooling in Maine so that you have a solid footing as you begin deliberations. You find a link to the Maine School Stories Portal, briefs written by us at MEPRI and CEPARE, and infographics and fact sheets from stakeholder organizations. It is designed to be worked though at your own pace and in your own way—and no quizzes will be given! It is designed as a resource to help you feel confident and to support all delegates in making informed decisions.</p>
+	<p>The Delegates Hub is also where the priority proposals will be drafted and where delegates will vote on those proposals.</p>
+	<p>If you have any technical questions about logging into Comhairle, please reach out to Andy Paice at CrownShy at <a href="mailto:andy@crown-shy.com">andy@crown-shy.com</a> </p>
 
-<ul>
-	<li>Read and consider each question carefully.</li>
-	<li>Provide your own honest opinions, not blank or repetitive answers.</li>
-	<li>Complete <strong>all sections</strong> of the engagement.</li>
-</ul>
+	<div class="card">
+		<h2>Delegates Hub</h2>
+		<a class='button' href="{{invite_link}}">Join the Delegates Hub</a>
+		<p>Note when you do, signup for an account with the email account that you recived this message on.</p>
+	</div>
 
-<p>If you have any difficulties with completing the engagement or with the website please email us at <a
-		href='mailto:team@crown-shy.com'>team@crown-shy.com</a></p>
-<p>On the website <strong>please make sure you sign up using the email address this invitation was sent to</strong>. We
-	can only confirm your participation if you register with this address.</p>
 
-<p>Here is your link to access the engagement: <a href="{{invite_link}}">{{invite_link}}</a>.
+	<p>If you are having trouble with the button above, copy and paste the URL below into your web browser.</p>
 
-<p>The information you provide will be stored securely, kept confidential, and only used for the purposes explained in
-	our privacy notice, which you can read here: <a href="{% if domain %}{{domain}}{% else %}https://comhairle.scot/rights/privacy{% endif %}">privacy notice</a>.
-<p>Thank you very much for your time and contribution to this important process.</p>
+	<p class="link">{{invite_link}}</p>
 
-<p>Warm regards, <br />
-	<strong>The CrownShy Team.</strong>
-</p>
+	<p>The information you provide will be stored securely, kept confidential, and only used for the purposes explained in
+		our privacy notice, which you can read here: <a href="{% if domain %}{{domain}}{% else %}https://comhairle.scot/rights/privacy{% endif %}">privacy notice</a>.
+	<p>Thank you very much for your time and contribution to this important process.</p>
+
+	<p>Warm regards, <br />
+		<strong>The CrownShy Team.</strong>
+	</p>
 {% endblock %}
