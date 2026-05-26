@@ -547,8 +547,9 @@ pub async fn update(
 pub async fn list_for_user_participation(
     db: &PgPool,
     user_id: &Uuid,
-) -> Result<Vec<Conversation>, ComhairleError> {
-    let (sql, values) = Query::select()
+    locale: &str,
+) -> Result<Vec<LocalizedConversation>, ComhairleError> {
+    let query = Query::select()
         .from(ConversationIden::Table)
         .columns(DEFAULT_COLUMNS.map(|col| (ConversationIden::Table, col)))
         .join(
@@ -578,9 +579,12 @@ pub async fn list_for_user_participation(
         //     sea_query::Order::Desc,
         // )
         .distinct()
+        .to_owned();
+
+    let (sql, values) = LocalizedConversation::query_to_localisation(query, locale)
         .build_sqlx(PostgresQueryBuilder);
 
-    let conversations = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
+    let conversations = sqlx::query_as_with::<_, LocalizedConversation, _>(&sql, values)
         .fetch_all(db)
         .await?;
     Ok(conversations)
