@@ -48,16 +48,12 @@
 
 		{#if isCommunity}
 			{#each [m.community_server_description_1(), m.community_server_description_2()] as description}
-				<p
-					class="text-subtle-foreground w-full text-left text-xl font-semibold sm:text-2xl"
-				>
+				<p class="text-foreground w-full text-left text-xl sm:text-2xl">
 					{description}
 				</p>
 			{/each}
 		{:else}
-			<p
-				class="text-subtle-foreground max-w-xl text-center text-xl font-semibold sm:text-2xl"
-			>
+			<p class="text-foreground max-w-xl text-center text-xl sm:text-2xl">
 				{m.landing_page_subtitle()}
 			</p>
 		{/if}

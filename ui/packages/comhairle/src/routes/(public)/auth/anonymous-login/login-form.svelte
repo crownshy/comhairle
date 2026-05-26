@@ -51,11 +51,11 @@
 		>
 			{m.login_with_anonymous_id()}
 		</h1>
-		<p
+		<h2
 			class="text-muted-foreground text-center text-lg leading-6 font-semibold lg:text-2xl lg:leading-7"
 		>
 			{m.good_to_see_you_back()}
-		</p>
+		</h2>
 	</div>
 
 	{#if $errMessage}

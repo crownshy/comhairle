@@ -8,7 +8,6 @@
 	let emailValue = $state('');
 
 	const navLinks = [
-		{ href: '/', label: () => m.home() },
 		{ href: '/about', label: () => m.about_us() },
 		{ href: '/contact', label: () => m.contact() },
 		{ href: '/support', label: () => m.support() },
