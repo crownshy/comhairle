@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Make admin + empty conversation. No workflow, no steps, no invite.
+# Add admin user 
 #
 # Usage: ./scripts/seed-minimal.sh
 #
@@ -43,19 +43,4 @@ if [ -z "$AUTH_COOKIE" ]; then
 fi
 
 [ -n "$AUTH_COOKIE" ] || { echo "login failed"; exit 1; }
-echo "✅ logged in"
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FIXTURE="${CONVERSATION_FIXTURE:-$SCRIPT_DIR/../fixtures/conversation.json}"
-[ -f "$FIXTURE" ] || { echo "❌ fixture not found: $FIXTURE"; exit 1; }
-
-echo "→ create conversation from $FIXTURE"
-CONV=$(curl -s -X POST "$BACKEND_URL/conversation" \
-  -H "Content-Type: application/json" \
-  -H "Cookie: auth-token=$AUTH_COOKIE" \
-  --data-binary "@$FIXTURE")
-
-CONVERSATION_ID=$(echo "$CONV" | jq -r '.id // empty')
-[ -n "$CONVERSATION_ID" ] || { echo "❌ conversation failed: $CONV"; exit 1; }
-
-echo "✅ conversation: $CONVERSATION_ID"
+echo "✅ admin ready: $ADMIN_EMAIL"
