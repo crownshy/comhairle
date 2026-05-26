@@ -110,11 +110,11 @@
 			>
 				{m.login_with_otp()}
 			</h1>
-			<p
+			<h2
 				class="text-muted-foreground text-center text-lg leading-6 font-semibold lg:text-2xl lg:leading-7"
 			>
 				{m.login_with_otp_descripton()}
-			</p>
+			</h2>
 		</div>
 
 		{#if responseMessage}
