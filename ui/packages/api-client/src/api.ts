@@ -1041,7 +1041,7 @@ export const InviteDto = z
     acceptCount: z.number().int(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
-    createdBy: z.string().uuid(),
+    createdBy: z.union([z.string(), z.null()]).optional(),
     eventId: z.union([z.string(), z.null()]).optional(),
     expiresAt: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
@@ -1069,7 +1069,6 @@ export const PartialInvite = z
   .object({
     accept_count: z.union([z.number(), z.null()]),
     conversation_id: z.union([z.string(), z.null()]),
-    created_by: z.union([z.string(), z.null()]),
     event_id: z.union([z.string(), z.null()]),
     expires_at: z.union([z.string(), z.null()]),
     invite_type: z.union([InviteType, z.null()]),
@@ -2728,6 +2727,21 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "GetInviteStats",
     requestFormat: "json",
     response: z.array(DailyResponseStats),
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/invite/events",
+    alias: "CreateEventInvite",
+    description: `Create an invite for a given event`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateInviteDTO,
+      },
+    ],
+    response: InviteDto,
   },
   {
     method: "get",
