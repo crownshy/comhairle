@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use chrono_tz::Tz;
 use comhairle_macros::{DbJsonBEnum, Translatable};
 use partially::Partial;
 use schemars::JsonSchema;
@@ -6,6 +7,7 @@ use sea_query::{enum_def, Alias, Expr, JoinType, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, query_as_with, PgPool};
+use std::str::FromStr;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -75,13 +77,39 @@ pub struct Event {
     pub agenda: EventAgenda,
     #[partially(transparent)]
     pub reminder_sent_at: Option<DateTime<Utc>>,
+    pub default_time_zone: String,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [EventIden; 13] = [
+pub trait ResolveTimeZone {
+    fn default_time_zone(&self) -> &str;
+
+    fn resolve_time_zone(&self) -> Tz {
+        Tz::from_str(self.default_time_zone()).unwrap_or(chrono_tz::UTC)
+    }
+
+    fn format_date_with_time_zone(&self, date: DateTime<Utc>, fmt: Option<&str>) -> String {
+        date.with_timezone(&self.resolve_time_zone())
+            .format(fmt.unwrap_or("%B %d, %Y at %H:%M %Z"))
+            .to_string()
+    }
+}
+
+impl ResolveTimeZone for Event {
+    fn default_time_zone(&self) -> &str {
+        &self.default_time_zone
+    }
+}
+impl ResolveTimeZone for LocalizedEvent {
+    fn default_time_zone(&self) -> &str {
+        &self.default_time_zone
+    }
+}
+
+const DEFAULT_COLUMNS: [EventIden; 14] = [
     EventIden::Id,
     EventIden::Name,
     EventIden::Description,
@@ -93,26 +121,26 @@ const DEFAULT_COLUMNS: [EventIden; 13] = [
     EventIden::VideoMeetingId,
     EventIden::Agenda,
     EventIden::ReminderSentAt,
+    EventIden::DefaultTimeZone,
     EventIden::CreatedAt,
     EventIden::UpdatedAt,
 ];
 
-#[derive(JsonSchema, Debug, Default)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Default)]
 pub struct CreateEvent {
     pub name: String,
     pub description: String,
     pub capacity: Option<i32>,
-    pub conversation_id: Uuid,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
     pub signup_mode: String,
     pub agenda: Option<EventAgenda>,
+    pub default_time_zone: Option<String>,
 }
 
 impl CreateEvent {
     pub fn columns(&self) -> Vec<EventIden> {
         let mut columns = vec![
-            EventIden::ConversationId,
             EventIden::StartTime,
             EventIden::EndTime,
             EventIden::SignupMode,
@@ -126,12 +154,15 @@ impl CreateEvent {
             columns.push(EventIden::Agenda)
         }
 
+        if self.default_time_zone.is_some() {
+            columns.push(EventIden::DefaultTimeZone)
+        }
+
         columns
     }
 
     pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
         let mut values = vec![
-            self.conversation_id.into(),
             self.start_time.into(),
             self.end_time.into(),
             self.signup_mode.to_owned().into(),
@@ -145,14 +176,25 @@ impl CreateEvent {
             values.push(value.into());
         }
 
+        if let Some(ref value) = self.default_time_zone {
+            values.push(value.into());
+        }
+
         values
     }
 }
 
 #[instrument(err(Debug))]
-pub async fn create(db: &PgPool, new_event: &CreateEvent) -> Result<Event, ComhairleError> {
+pub async fn create(
+    db: &PgPool,
+    conversation_id: &Uuid,
+    new_event: &CreateEvent,
+) -> Result<Event, ComhairleError> {
     let mut columns = new_event.columns();
     let mut values = new_event.values();
+
+    columns.push(EventIden::ConversationId);
+    values.push((*conversation_id).into());
 
     let name = new_translation(db, "en", &new_event.name, TextFormat::Plain).await?;
     let description = new_translation(db, "en", &new_event.description, TextFormat::Plain).await?;
@@ -206,6 +248,9 @@ impl PartialEvent {
         }
         if let Some(value) = &self.reminder_sent_at {
             values.push((EventIden::ReminderSentAt, (*value).into()));
+        }
+        if let Some(value) = &self.default_time_zone {
+            values.push((EventIden::DefaultTimeZone, value.into()));
         }
 
         values
@@ -484,6 +529,7 @@ pub struct UpcomingEventParticipant {
     pub user_auth_type: String,
     pub role: String,
     pub conversation_id: Uuid,
+    pub primary_locale: String,
 }
 
 #[instrument(err(Debug))]
@@ -526,6 +572,10 @@ pub async fn list_upcoming_event_participants(
         .expr_as(
             Expr::col((ConversationIden::Table, ConversationIden::Id)),
             Alias::new("conversation_id"),
+        )
+        .expr_as(
+            Expr::col((ConversationIden::Table, ConversationIden::PrimaryLocale)),
+            Alias::new("primary_locale"),
         )
         .from(EventIden::Table)
         .join(
@@ -604,14 +654,14 @@ mod tests {
             name: "test_event".to_string(),
             description: "test_desc".to_string(),
             capacity: Some(10),
-            conversation_id,
             start_time: Utc::now(),
             end_time: Utc::now(),
             signup_mode: "invite".to_string(),
             agenda: None,
+            ..Default::default()
         };
 
-        let event = create(&pool, &new_event).await?;
+        let event = create(&pool, &conversation_id, &new_event).await?;
 
         assert_eq!(event.capacity, Some(10), "incorrect capacity");
         assert_eq!(event.conversation_id, conversation_id, "incorrect capacity");
@@ -634,13 +684,13 @@ mod tests {
             name: "test_event".to_string(),
             description: "test_desc".to_string(),
             capacity: Some(10),
-            conversation_id,
             start_time: Utc::now(),
             end_time: Utc::now(),
             signup_mode: "invite".to_string(),
             agenda: None,
+            ..Default::default()
         };
-        let event = create(&pool, &new_event).await?;
+        let event = create(&pool, &conversation_id, &new_event).await?;
 
         assert_eq!(
             event.capacity,
@@ -680,24 +730,24 @@ mod tests {
             name: "test_event_1".to_string(),
             description: "test_desc".to_string(),
             capacity: Some(10),
-            conversation_id: conversation_id_1,
             start_time: Utc::now(),
             end_time: Utc::now(),
             signup_mode: "invite".to_string(),
             agenda: None,
+            ..Default::default()
         };
         let new_event_2 = CreateEvent {
             name: "test_event_2".to_string(),
             description: "test_desc".to_string(),
             capacity: Some(10),
-            conversation_id: conversation_id_2,
             start_time: Utc::now(),
             end_time: Utc::now(),
             signup_mode: "invite".to_string(),
             agenda: None,
+            ..Default::default()
         };
-        let event_1 = create(&pool, &new_event_1).await?;
-        let event_2 = create(&pool, &new_event_2).await?;
+        let event_1 = create(&pool, &conversation_id_1, &new_event_1).await?;
+        let event_2 = create(&pool, &conversation_id_2, &new_event_2).await?;
 
         let get_event_1 = get_localized_by_id(&pool, &event_1.id, "en").await?;
         let get_event_2 = get_localized_by_id(&pool, &event_2.id, "en").await?;
@@ -730,13 +780,13 @@ mod tests {
             name: "test_event".to_string(),
             description: "test_desc".to_string(),
             capacity: Some(10),
-            conversation_id,
             start_time: Utc::now(),
             end_time: Utc::now(),
             signup_mode: "invite".to_string(),
             agenda: None,
+            ..Default::default()
         };
-        let event = create(&pool, &new_event).await?;
+        let event = create(&pool, &conversation_id, &new_event).await?;
 
         let create_attendance_1 = CreateEventAttendance {
             event_id: event.id,
@@ -775,32 +825,28 @@ mod tests {
 
         let new_event_1 = CreateEvent {
             name: "test_event_1".to_string(),
-            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
         let new_event_2 = CreateEvent {
             name: "test_event_2".to_string(),
-            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
         let new_event_3 = CreateEvent {
             name: "test_event_3".to_string(),
-            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
         let new_event_4 = CreateEvent {
             name: "test_event_4".to_string(),
-            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
-        let _ = create(&pool, &new_event_1).await?;
-        let _ = create(&pool, &new_event_2).await?;
-        let _ = create(&pool, &new_event_3).await?;
-        let _ = create(&pool, &new_event_4).await?;
+        let _ = create(&pool, &conversation_id, &new_event_1).await?;
+        let _ = create(&pool, &conversation_id, &new_event_2).await?;
+        let _ = create(&pool, &conversation_id, &new_event_3).await?;
+        let _ = create(&pool, &conversation_id, &new_event_4).await?;
 
         let page_options = PageOptions {
             offset: None,
@@ -839,36 +885,32 @@ mod tests {
 
         let new_event_1 = CreateEvent {
             name: "test_event_1".to_string(),
-            conversation_id,
             signup_mode: "invite".to_string(),
             start_time: Utc::now() + Duration::days(1),
             ..Default::default()
         };
         let new_event_2 = CreateEvent {
             name: "test_event_2".to_string(),
-            conversation_id,
             signup_mode: "invite".to_string(),
             start_time: Utc::now() + Duration::days(2),
             ..Default::default()
         };
         let new_event_3 = CreateEvent {
             name: "test_event_3".to_string(),
-            conversation_id,
             signup_mode: "invite".to_string(),
             start_time: Utc::now() + Duration::days(3),
             ..Default::default()
         };
         let new_event_4 = CreateEvent {
             name: "test_event_4".to_string(),
-            conversation_id,
             signup_mode: "invite".to_string(),
             start_time: Utc::now() - Duration::days(3),
             ..Default::default()
         };
-        let _ = create(&pool, &new_event_1).await?;
-        let _ = create(&pool, &new_event_2).await?;
-        let _ = create(&pool, &new_event_3).await?;
-        let _ = create(&pool, &new_event_4).await?;
+        let _ = create(&pool, &conversation_id, &new_event_1).await?;
+        let _ = create(&pool, &conversation_id, &new_event_2).await?;
+        let _ = create(&pool, &conversation_id, &new_event_3).await?;
+        let _ = create(&pool, &conversation_id, &new_event_4).await?;
 
         let page_options = PageOptions {
             offset: None,
@@ -931,7 +973,6 @@ mod tests {
         let new_event_1 = CreateEvent {
             name: "test_event_1".to_string(),
             capacity: Some(1),
-            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
@@ -939,7 +980,6 @@ mod tests {
         let new_event_2 = CreateEvent {
             name: "test_event_2".to_string(),
             capacity: Some(3),
-            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
@@ -947,14 +987,12 @@ mod tests {
         let new_event_3 = CreateEvent {
             name: "test_event_3".to_string(),
             capacity: Some(1),
-            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
         // Available: capacity null so always has availability
         let new_event_4 = CreateEvent {
             name: "test_event_4".to_string(),
-            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
@@ -962,15 +1000,14 @@ mod tests {
         let new_event_5 = CreateEvent {
             name: "test_event_5".to_string(),
             capacity: Some(2),
-            conversation_id,
             signup_mode: "invite".to_string(),
             ..Default::default()
         };
-        let event_1 = create(&pool, &new_event_1).await?;
-        let event_2 = create(&pool, &new_event_2).await?;
-        let _ = create(&pool, &new_event_3).await?;
-        let _ = create(&pool, &new_event_4).await?;
-        let event_5 = create(&pool, &new_event_5).await?;
+        let event_1 = create(&pool, &conversation_id, &new_event_1).await?;
+        let event_2 = create(&pool, &conversation_id, &new_event_2).await?;
+        let _ = create(&pool, &conversation_id, &new_event_3).await?;
+        let _ = create(&pool, &conversation_id, &new_event_4).await?;
+        let event_5 = create(&pool, &conversation_id, &new_event_5).await?;
 
         let attendance_1_a = CreateEventAttendance {
             event_id: event_1.id,
@@ -1111,14 +1148,14 @@ mod tests {
             name: "test_event".to_string(),
             description: "test_desc".to_string(),
             capacity: Some(10),
-            conversation_id,
             start_time: Utc::now(),
             end_time: Utc::now(),
             signup_mode: "invite".to_string(),
             agenda: None,
+            ..Default::default()
         };
 
-        let event = create(&pool, &new_event).await?;
+        let event = create(&pool, &conversation_id, &new_event).await?;
 
         let _ = delete(&pool, &event.id).await?;
 

@@ -9,7 +9,6 @@ use axum::{
     Json,
 };
 use axum_extra::extract::CookieJar;
-use chrono_tz::US::Pacific;
 use hyper::StatusCode;
 use minijinja::context;
 use tracing::{instrument, warn};
@@ -57,24 +56,14 @@ async fn accept_invite(
         let event =
             event::get_localized_by_id(&state.db, event_id, &conversation.primary_locale).await?;
 
-        let formatted_date = event
-            .start_time
-            .with_timezone(&Pacific) // TODO: make configurable or dynamic
-            .format("%B %d, %Y at %H:%M %Z")
-            .to_string();
         let event_link = format!(
             "{}/conversations/{}/events/{}",
             state.config.domain, conversation.id, event.id
         );
 
-        state.mailer.send_event_confirmation_email(
-            email.to_string(),
-            event.name.clone(),
-            formatted_date,
-            event_link,
-            "Bloom".to_string(), // TODO: make dynamic
-            None,
-        )?;
+        state
+            .mailer
+            .send_event_confirmation_email(email.to_string(), &event, &None, event_link)?;
     } else {
         // Get the workflow to sign up to either explicitly from the invite
         // or from the default conversation workflow
@@ -139,11 +128,6 @@ async fn create_invite(
                     event::get_localized_by_id(&state.db, &event_id, &conversation.primary_locale)
                         .await?;
 
-                let formatted_date = event
-                    .start_time
-                    .with_timezone(&Pacific) // TODO: make configurable or dynamic
-                    .format("%B %d, %Y at %H:%M %Z")
-                    .to_string();
                 let invite_link = format!(
                     "{}/conversations/{}/events/{}/invite/{}",
                     state.config.domain, conversation.id, event.id, invite.id
@@ -151,11 +135,9 @@ async fn create_invite(
 
                 state.mailer.send_event_registration_email(
                     email.to_string(),
-                    event.name.clone(),
-                    formatted_date,
+                    &event,
+                    &None,
                     invite_link,
-                    "Bloom".to_string(), // TODO: make this dynamic from event
-                    None,
                 )?;
             } else {
                 state.mailer.send_email(
@@ -167,6 +149,7 @@ async fn create_invite(
                         conversation_title=> conversation.title,
                         invite_link => format!("{}/conversations/{}/invite/{}",state.config.domain, conversation.slug.unwrap_or_else(|| conversation.id.to_string()), invite.id )
                     },
+                    None,
                 )?;
             }
         }
@@ -178,6 +161,7 @@ async fn create_invite(
                 "You have been invited to the conversation",
                 "conversation_invite.html",
                 context! {user=>user, conversation_hero => conversation.image_url , conversation_title=>conversation.title},
+                    None,
             )?;
             }
         }
@@ -334,23 +318,13 @@ async fn auto_register_event_attendance(
 
     let cookie = create_session_cookie(&user, &state);
 
-    let formatted_date = event
-        .start_time
-        .with_timezone(&Pacific) // TODO: make configurable or dynamic
-        .format("%B %d, %Y at %H:%M %Z")
-        .to_string();
     let event_link = format!(
         "{}/conversations/{}/events/{}",
         state.config.domain, conversation.id, event.id
     );
-    state.mailer.send_event_confirmation_email(
-        email.to_string(),
-        event.name.clone(),
-        formatted_date,
-        event_link,
-        "Bloom".to_string(), // TODO: make dynamic
-        None,
-    )?;
+    state
+        .mailer
+        .send_event_confirmation_email(email.to_string(), &event, &None, event_link)?;
 
     Ok((jar.add(cookie), (StatusCode::OK, Json(invite.into()))))
 }
@@ -490,9 +464,10 @@ mod tests {
                 eq("Invitation to take part in a public consultation"),
                 eq("conversation_invite.html"),
                 always(),
+                always(),
             )
             .once()
-            .returning(|_, _, _, _| Ok(()));
+            .returning(|_, _, _, _, _| Ok(()));
 
         mailer
             .expect_send_welcome_email()

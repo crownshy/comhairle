@@ -22,7 +22,7 @@ use crate::{
         users::{UpdateUserRequest, UpgradeAccountRequest},
     },
     routes::{
-        conversations::dto::{ConversationDto, LocalizedConversationDto},
+        conversations::dto::LocalizedConversationDto,
         user::dto::UserDto,
     },
     ComhairleState,
@@ -31,6 +31,7 @@ use crate::{
 pub mod dto;
 
 use super::auth::{is_user_admin, RequiredAdminUser, RequiredUser};
+use super::translations::LocaleExtractor;
 
 pub async fn get_user_owned_conversations(
     State(state): State<Arc<ComhairleState>>,
@@ -73,12 +74,14 @@ pub struct UserRoles {
 pub async fn get_conversations_user_participating_in(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-) -> Result<(StatusCode, Json<Vec<ConversationDto>>), ComhairleError> {
-    let conversations = models::conversation::list_for_user_participation(&state.db, &user.id)
-        .await?
-        .into_iter()
-        .map(Into::into)
-        .collect();
+    LocaleExtractor(locale): LocaleExtractor,
+) -> Result<(StatusCode, Json<Vec<LocalizedConversationDto>>), ComhairleError> {
+    let conversations =
+        models::conversation::list_for_user_participation(&state.db, &user.id, &locale)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect();
     Ok((StatusCode::OK, Json(conversations)))
 }
 
@@ -140,7 +143,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                         "Returns a list of all the conversations the user has taken part in",
                     )
                     .security_requirement("JWT")
-                    .response::<201, Json<Vec<ConversationDto>>>()
+                    .response::<201, Json<Vec<LocalizedConversationDto>>>()
             }),
         )
         .api_route(

@@ -60,7 +60,6 @@ export const sendOtpSchema = z.object({
 export type SendOtpForm = z.infer<typeof sendOtpSchema>;
 
 export const loginOtpSchema = z.object({
-	email: z.string().email(m.please_enter_a_valid_email()),
 	code: z.string().min(6, { message: m.please_enter_a_password() })
 });
 export type LoginOtpForm = z.infer<typeof loginOtpSchema>;

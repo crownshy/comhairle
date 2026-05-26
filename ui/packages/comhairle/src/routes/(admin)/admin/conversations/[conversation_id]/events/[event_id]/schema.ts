@@ -7,6 +7,7 @@ const EventSchema = z
 			.string()
 			.min(20, { message: 'Description must have at least 20 characters.' }),
 		capacity: z.number(),
+		default_time_zone: z.string(),
 		start_date: z
 			.string()
 			.date()
