@@ -1,8 +1,18 @@
 use crate::error::ComhairleError;
+use crate::models::event::{LocalizedEvent, ResolveTimeZone};
+use crate::models::organization::Organization;
 use crate::models::users::User;
+
+use chrono::{DateTime, Utc};
+use icalendar::{self as ical, Component, EventLike};
+use lettre::message::Mailbox;
 use lettre::transport::smtp::authentication::Credentials;
-use lettre::{Message, SmtpTransport, Transport};
+use lettre::{
+    message::{header::ContentType, Attachment, Body, MultiPart, SinglePart},
+    Message, SmtpTransport, Transport,
+};
 use minijinja::{context, Environment, Value};
+use std::str::FromStr;
 use tracing::{instrument, warn};
 
 #[cfg(test)]
@@ -16,6 +26,7 @@ pub trait ComhairleMailer: Send + Sync {
         subject: &str,
         template: &str,
         context: Value,
+        attachment: Option<SinglePart>,
     ) -> Result<(), ComhairleError>;
 
     fn send_welcome_email(&self, user: &User, verify_link: String) -> Result<(), ComhairleError>;
@@ -45,31 +56,25 @@ pub trait ComhairleMailer: Send + Sync {
     fn send_event_registration_email(
         &self,
         email: String,
-        event_name: String,
-        event_time: String,
+        event: &LocalizedEvent,
+        organization: &Option<Organization>,
         invite_link: String,
-        organization_name: String,
-        organization_email: Option<String>,
     ) -> Result<(), ComhairleError>;
 
     fn send_event_confirmation_email(
         &self,
         email: String,
-        event_name: String,
-        event_time: String,
-        event_link: String,
-        organization_name: String,
-        organization_email: Option<String>,
+        event: &LocalizedEvent,
+        organization: &Option<Organization>,
+        link_href: String,
     ) -> Result<(), ComhairleError>;
 
     fn send_event_reminder(
         &self,
         email: String,
-        event_name: String,
-        event_time: String,
-        event_link: String,
-        organization_name: String,
-        organization_email: Option<String>,
+        event: &LocalizedEvent,
+        organization: &Option<Organization>,
+        link_href: String,
     ) -> Result<(), ComhairleError>;
 }
 
@@ -89,7 +94,7 @@ impl MockComhairleMailer {
         mailer
             .expect_send_verification_email()
             .returning(|_, _, _| Ok(()));
-        mailer.expect_send_email().returning(|_, _, _, _| Ok(()));
+        mailer.expect_send_email().returning(|_, _, _, _, _| Ok(()));
         mailer
             .expect_send_otp_email()
             .returning(|_, _, _, _| Ok(()));
@@ -98,13 +103,13 @@ impl MockComhairleMailer {
             .returning(|_, _, _| Ok(()));
         mailer
             .expect_send_event_registration_email()
-            .returning(|_, _, _, _, _, _| Ok(()));
+            .returning(|_, _, _, _| Ok(()));
         mailer
             .expect_send_event_confirmation_email()
-            .returning(|_, _, _, _, _, _| Ok(()));
+            .returning(|_, _, _, _| Ok(()));
         mailer
             .expect_send_event_reminder()
-            .returning(|_, _, _, _, _, _| Ok(()));
+            .returning(|_, _, _, _| Ok(()));
 
         mailer
     }
@@ -124,35 +129,45 @@ impl Mailer {
 }
 
 impl ComhairleMailer for Mailer {
-    #[instrument(err(Debug))]
+    #[instrument(err(Debug), skip(attachment))]
     fn send_email(
         &self,
         to: &str,
         subject: &str,
         template: &str,
         context: Value,
+        attachment: Option<SinglePart>,
     ) -> Result<(), ComhairleError> {
         let template = self
             .template_engine
             .get_template(template)
             .expect("template to exist");
 
-        let content = template
+        let html = template
             .render(context)
             .expect("Template to render properly");
-        let content_inlined_styles = css_inline::inline(&content)?;
+        let html_inline_styles = css_inline::inline(&html)?;
 
-        let email = Message::builder()
+        let to = Mailbox::from_str(to)?;
+        let message_builder = Message::builder()
             .from("noreply@comhairle.scot".parse().unwrap())
             .reply_to("invites@comhairle.scot".parse().unwrap())
-            .to(to.parse().unwrap())
-            .header(lettre::message::header::ContentType::TEXT_HTML)
-            .subject(subject)
-            .body(content_inlined_styles)
-            .unwrap();
+            .to(to)
+            .subject(subject);
 
-        let mailer = SmtpTransport::relay(&self.host)
-            .unwrap()
+        let mut content = MultiPart::mixed().singlepart(
+            SinglePart::builder()
+                .header(ContentType::TEXT_HTML)
+                .body(html_inline_styles),
+        );
+
+        if let Some(attachment) = attachment {
+            content = content.singlepart(attachment);
+        }
+
+        let email = message_builder.multipart(content)?;
+
+        let mailer = SmtpTransport::relay(&self.host)?
             .credentials(self.creds.clone())
             .build();
 
@@ -170,6 +185,7 @@ impl ComhairleMailer for Mailer {
                 "Welcome to Comhairle",
                 "welcome.html",
                 context! {user => user, subject=>"Welcome to Comhairle", verify_link},
+                None,
             )
         } else {
             Err(ComhairleError::WrongUserType)
@@ -188,6 +204,7 @@ impl ComhairleMailer for Mailer {
                 "Confirm your email address",
                 "verify_email.html",
                 context! { username, verify_link },
+                None,
             )
         } else {
             Err(ComhairleError::WrongUserType)
@@ -207,6 +224,7 @@ impl ComhairleMailer for Mailer {
                 "Your Comhairle one-time-passcode",
                 "one_time_passcode.html",
                 context! { username, passcode, passcode_link },
+                None,
             )
         } else {
             Err(ComhairleError::WrongUserType)
@@ -225,6 +243,7 @@ impl ComhairleMailer for Mailer {
                 "Reset your Comhairle password",
                 "password_reset.html",
                 context! { username, reset_link },
+                None,
             )
         } else {
             Err(ComhairleError::WrongUserType)
@@ -234,71 +253,108 @@ impl ComhairleMailer for Mailer {
     fn send_event_registration_email(
         &self,
         email: String,
-        event_name: String,
-        event_time: String,
+        event: &LocalizedEvent,
+        _organization: &Option<Organization>,
         invite_link: String,
-        organization_name: String,
-        organization_email: Option<String>,
     ) -> Result<(), ComhairleError> {
         self.send_email(
             &email,
             "Invitation to take part in an event",
             "event_registration_invite.html",
             context! {
-                event_name => event_name,
-                event_time => event_time,
-                organization_name => organization_name,
-                organization_email => organization_email,
+                event_name => event.name,
+                event_time => event.format_date_with_time_zone(event.start_time, None),
+                organization_name => "Bloom", //
+                // organization_email => organization_email,
                 invite_link => invite_link,
             },
+            None,
         )
     }
 
     fn send_event_confirmation_email(
         &self,
         email: String,
-        event_name: String,
-        event_time: String,
-        event_link: String,
-        organization_name: String,
-        organization_email: Option<String>,
+        event: &LocalizedEvent,
+        _organization: &Option<Organization>,
+        link_href: String,
     ) -> Result<(), ComhairleError> {
+        let calendar_invite = create_calendar_invite(
+            &event.name,
+            &event.description,
+            event.start_time,
+            event.end_time,
+        )?;
+
         self.send_email(
             &email,
             "Event registration confirmation",
             "event_confirmation.html",
             context! {
-                event_name => event_name,
-                event_time => event_time,
-                organization_name => organization_name,
-                organization_email => organization_email,
-                event_link => event_link,
+                event_name => event.name,
+                event_time => event.format_date_with_time_zone(event.start_time, None),
+                organization_name => "Bloom", // TODO:
+                // organization_email => organization_email,
+                event_link => link_href,
             },
+            Some(calendar_invite),
         )
     }
 
     fn send_event_reminder(
         &self,
         email: String,
-        event_name: String,
-        event_time: String,
-        event_link: String,
-        organization_name: String,
-        organization_email: Option<String>,
+        event: &LocalizedEvent,
+        _organization: &Option<Organization>,
+        link_href: String,
     ) -> Result<(), ComhairleError> {
+        let calendar_invite = create_calendar_invite(
+            &event.name,
+            &event.description,
+            event.start_time,
+            event.end_time,
+        )?;
+
         self.send_email(
             &email,
             "Upcoming event reminder",
             "event_reminder.html",
             context! {
-                event_name => event_name,
-                event_time => event_time,
-                organization_name => organization_name,
-                organization_email => organization_email,
-                event_link => event_link,
+                event_name => event.name,
+                event_time => event.format_date_with_time_zone(event.start_time, None),
+                organization_name => "Bloom", // TODO:
+                // organization_email => None,
+                event_link => link_href,
             },
+            Some(calendar_invite),
         )
     }
+}
+
+fn create_calendar_invite(
+    name: &str,
+    description: &str,
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+) -> Result<SinglePart, ComhairleError> {
+    let calendar_invite = ical::Calendar::new()
+        .name(name)
+        .push(
+            ical::Event::new()
+                .summary(name)
+                .description(description)
+                .starts(start)
+                .ends(end),
+        )
+        .done();
+
+    let invite_body = Body::new(calendar_invite.to_string());
+    let content_type = ContentType::from_str("text/calendar; charset=utf-8; method=REQUEST; name=\"invite.ics\"")?;
+
+    let attachment =
+        Attachment::new_inline("calendar-invite".to_string()).body(invite_body, content_type);
+
+    Ok(attachment)
 }
 
 #[cfg(test)]

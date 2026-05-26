@@ -1,6 +1,5 @@
 use apalis::prelude::*;
 use chrono::{Duration, Utc};
-use chrono_tz::US::Pacific;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, sync::Arc};
 use tracing::info;
@@ -40,6 +39,16 @@ pub async fn send_event_reminder(
         .ok_or_record_failure(&req.job_id, &state.db)
         .await?;
 
+    let event = event::get_localized_by_id(
+        &state.db,
+        &req.participant.event_id,
+        &req.participant.primary_locale,
+    )
+    .await
+    .map_err(|e| WorkerServiceError::DbError(e.to_string()))
+    .ok_or_record_failure(&req.job_id, &state.db)
+    .await?;
+
     let event_link = format!(
         "/conversations/{}/events/{}/live",
         req.participant.conversation_id, req.participant.event_id
@@ -74,12 +83,6 @@ pub async fn send_event_reminder(
         .custom_claims(claims)
         .duration(chrono::Duration::minutes(10))
         .call();
-    let formatted_date = req
-        .participant
-        .event_start_time
-        .with_timezone(&Pacific) // TODO: find a way to make this configurable or dynamic
-        .format("%B %d, %Y at %H:%M %Z")
-        .to_string();
 
     let encoded_redirect_url = urlencoding::encode(&otp.redirect_url);
     let otp_link = format!(
@@ -89,14 +92,7 @@ pub async fn send_event_reminder(
 
     state
         .mailer
-        .send_event_reminder(
-            email,
-            req.participant.event_name,
-            formatted_date,
-            otp_link,
-            "Bloom".to_string(), // TODO: make dynamic
-            None,
-        )
+        .send_event_reminder(email, &event, &None, otp_link)
         .map_err(|e| WorkerServiceError::MailerError(e.to_string()))
         .ok_or_record_failure(&req.job_id, &state.db)
         .await?;
