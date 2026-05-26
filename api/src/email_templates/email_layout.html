@@ -1,20 +1,25 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-    <meta charset="UTF-8">
-    <title>{{ subject }}</title>
+	<meta charset="UTF-8">
+	<title>{{ subject }}</title>
 	<style>
-	    h1 {
-		font-weight: bold;
-	    }
+		h1 {
+			font-weight: bold;
+		}
 
-	    h2, h3, h4, h5, h6 {
-		margin: 0;
-	    }
+		h2,
+		h3,
+		h4,
+		h5,
+		h6 {
+			margin: 0;
+		}
 
-	    p {
-		margin: 8px 0;
-	    }
+		p {
+			margin: 10px 0;
+		}
 
 	    .main {
 		background-color: #F0F9FF;
@@ -32,52 +37,53 @@
 		margin: 24px auto;
 	    }
 
-	    .button {
-		display: inline-block;
-		border-radius: 1000px;
-		padding: 12px 16px;
-		color: white;
-		background-color: #2978D0;
-		text-decoration: none;
-		font-size: 14px;
-	    }
-		
-	    .page {
-		max-width: 700px;
-		margin: 0 auto;
-		background: white;
-		text-align: center;
-		padding: 12px 24px;
-		font-weight: 500;
-	    }
+		.button {
+			display: inline-block;
+			border-radius: 1000px;
+			padding: 12px 16px;
+			color: white;
+			background-color: #2978D0;
+			text-decoration: none;
+			font-size: 14px;
+		}
 
-	    .card {
-		padding: 24px;
-		margin: 16px auto;
-		gap: 24px;
-		text-align: center;
-		border-radius: 24px;
-		border: solid 1px #E5E7EB;
-		width: 50%;
-		box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-	    }
+		.page {
+			max-width: 700px;
+			margin: 0 auto;
+			background: white;
+			text-align: center;
+			padding: 12px 24px;
+			font-weight: 500;
+		}
 
-	    .link {
-		text-decoration: underline;
-		color: #0066BD;
-		font-weight: 600;
-	    }
+		.card {
+			padding: 24px;
+			margin: 16px auto;
+			gap: 24px;
+			text-align: center;
+			border-radius: 24px;
+			border: solid 1px #E5E7EB;
+			width: 50%;
+			box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+		}
 
-	    .footer {
-		margin: 50px auto;
-		color: #6B7280;
-	    }
+		.link {
+			text-decoration: underline;
+			color: #0066BD;
+			font-weight: 600;
+		}
+
+		.footer {
+			margin: 50px auto;
+			color: #6B7280;
+		}
 	</style>
 </head>
+
 <body>
-    <header>
-	  <h1>{{subject}}</h1>
-    </header>
+	<header>
+		<h1>{{subject}}</h1>
+	</header>
 
     <div class="main">
 	<img class="logo" src="https://comhairle-media.s3.amazonaws.com/images/comhairle_logo_lg.png" />
@@ -85,11 +91,12 @@
 	    {% block content %}{% endblock %}
 	</div>
 
-	<div class="footer">
-	    <p>This email is sent by</p>
-	    <img src="https://comhairle-media.s3.amazonaws.com/images/comhairle_logo.png" style="margin: 20px 0;" />
-	    <p>Copyright 2026 &copy; Crown Shy</p>
+		<div class="footer">
+			<p>This email is sent by</p>
+			<img src="https://comhairle-media.s3.amazonaws.com/images/comhairle_logo.png" style="margin: 20px 0;" />
+			<p>Copyright 2026 &copy; Crown Shy</p>
+		</div>
 	</div>
-    </div>
 </body>
+
 </html>
