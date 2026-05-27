@@ -52,8 +52,7 @@
 			<Button
 				class="no-underline"
 				variant="secondary"
-				href={workflow_step_url(conversation.id, workflow.id, 'revisit')}
-				>Contribute some more</Button
+				href={workflow_step_url(conversation.id, workflow.id, 'revisit')}>Learn more</Button
 			>
 			<FeedbackModal conversationId={conversation.id} />
 		</div>
@@ -89,8 +88,7 @@
 			<Button
 				class="no-underline"
 				variant="secondary"
-				href={workflow_step_url(conversation.id, workflow.id, 'revisit')}
-				>Contribute some more</Button
+				href={workflow_step_url(conversation.id, workflow.id, 'revisit')}>Learn more</Button
 			>
 			<FeedbackModal conversationId={conversation.id} />
 		</div>

@@ -38,13 +38,7 @@
 						email
 					});
 					await invalidateAll();
-					if (user.auth_type === 'annon') {
-						await goto(backTo ?? '/');
-					} else {
-						await goto(
-							`/auth/verification-message?backTo=${encodeURIComponent(backTo ?? '/')}`
-						);
-					}
+					await goto(backTo ?? '/');
 				} catch (e) {
 					responseMessage = e.response.data.err;
 				}
