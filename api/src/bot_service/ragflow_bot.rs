@@ -1046,13 +1046,42 @@ impl From<&AgentSession> for ComhairleAgentSession {
 impl From<AgentConversationRequest> for ConvoQuestion {
     fn from(a: AgentConversationRequest) -> Self {
         let mut inputs = HashMap::new();
-        inputs.insert(
-            "Topic".to_string(),
-            Input {
-                r#type: "line".to_string(),
-                value: a.topic,
-            },
-        );
+        if let Some(topic) = a.topic {
+            inputs.insert(
+                "topic".to_string(),
+                Input {
+                    r#type: "line".to_string(),
+                    value: topic,
+                },
+            );
+        }
+        if let Some(history) = a.history {
+            inputs.insert(
+                "history".to_string(),
+                Input {
+                    r#type: "line".to_string(),
+                    value: history,
+                },
+            );
+        }
+        if let Some(starting_question) = a.starting_question {
+            inputs.insert(
+                "starting_question".to_string(),
+                Input {
+                    r#type: "line".to_string(),
+                    value: starting_question,
+                },
+            );
+        }
+        if let Some(question_intent) = a.question_intent {
+            inputs.insert(
+                "question_intent".to_string(),
+                Input {
+                    r#type: "line".to_string(),
+                    value: question_intent,
+                },
+            );
+        }
         Self {
             question: a.question,
             session_id: None,

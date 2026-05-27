@@ -1,0 +1,268 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import {
+		Card,
+		CardContent,
+		CardHeader,
+		CardTitle,
+		CardDescription
+	} from '$lib/components/ui/card';
+	import { Plus, Trash2, GripVertical, Pencil, Minus } from 'lucide-svelte';
+	import { notifications } from '$lib/notifications.svelte';
+	import { apiClient } from '@crownshy/api-client/client';
+	import DraggableList from '$lib/components/DraggableList.svelte';
+	import QuestionEditorDialog from './QuestionEditorDialog.svelte';
+	import type { WorkflowStepWithTranslations } from '@crownshy/api-client/api';
+	import type { QuestionConfig } from './types';
+
+	type Props = {
+		conversationId: string;
+		workflowId: string;
+		workflowStep: WorkflowStepWithTranslations;
+		isLive: boolean;
+	};
+
+	let { conversationId, workflowId, workflowStep, isLive }: Props = $props();
+
+	let toolConfig = $derived(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig);
+
+	let topic = $state('');
+	let config = $state<{ questions: QuestionConfig[]; followUpRoundsCount: number }>({
+		questions: [],
+		followUpRoundsCount: 2
+	});
+	let saving = $state(false);
+	let questionEditorOpen = $state(false);
+	let editingQuestion = $state<QuestionConfig | null>(null);
+
+	onMount(() => {
+		const cfg = toolConfig as
+			| { topic?: string; root_questions?: QuestionConfig[]; follow_up_rounds_count?: number }
+			| undefined;
+		topic = cfg?.topic ?? '';
+		config = {
+			questions: cfg?.root_questions?.map((q) => ({ id: q.id, text: q.text })) ?? [],
+			followUpRoundsCount:
+				typeof cfg?.follow_up_rounds_count === 'number'
+					? Math.max(0, Math.min(5, cfg.follow_up_rounds_count))
+					: 2
+		};
+	});
+
+	function openCreateQuestion() {
+		editingQuestion = null;
+		questionEditorOpen = true;
+	}
+
+	function openEditQuestion(q: QuestionConfig) {
+		editingQuestion = q;
+		questionEditorOpen = true;
+	}
+
+	function handleSaveQuestion(q: QuestionConfig) {
+		const exists = config.questions.some((x) => x.id === q.id);
+		config.questions = exists
+			? config.questions.map((x) => (x.id === q.id ? q : x))
+			: [...config.questions, q];
+	}
+
+	function removeQuestion(id: string) {
+		config.questions = config.questions.filter((q) => q.id !== id);
+	}
+
+	function bumpFollowUps(delta: -1 | 1) {
+		config.followUpRoundsCount = Math.max(0, Math.min(5, config.followUpRoundsCount + delta));
+	}
+
+	async function saveAll() {
+		if (topic.trim().length < 3) {
+			notifications.send({
+				message: 'Topic must be at least 3 characters.',
+				priority: 'ERROR'
+			});
+			return;
+		}
+		saving = true;
+		try {
+			const payload = {
+				type: 'thinkingspace' as const,
+				topic,
+				root_questions: config.questions,
+				follow_up_rounds_count: config.followUpRoundsCount
+			};
+			const update = isLive ? { tool_config: payload } : { preview_tool_config: payload };
+			await apiClient.UpdateConversationWorkflowStep(update, {
+				params: {
+					conversation_id: conversationId,
+					workflow_id: workflowId,
+					workflow_step_id: workflowStep.id
+				}
+			});
+			notifications.send({
+				message: 'Thinking Space configuration saved.',
+				priority: 'INFO'
+			});
+		} catch (e) {
+			console.error(e);
+			notifications.send({
+				message: 'Failed to save configuration.',
+				priority: 'ERROR'
+			});
+		} finally {
+			saving = false;
+		}
+	}
+</script>
+
+<div class="space-y-6">
+	<header class="space-y-2">
+		<h1 class="text-2xl font-bold">Thinking Space</h1>
+		<p class="text-muted-foreground text-sm">
+			Set the topic, the questions participants will answer, and how many AI follow-ups
+			they'll be asked per question.
+		</p>
+	</header>
+
+	<Card>
+		<CardHeader>
+			<CardTitle>Topic</CardTitle>
+			<CardDescription>
+				The overall subject participants are reflecting on. Saved to the workflow step.
+			</CardDescription>
+		</CardHeader>
+		<CardContent>
+			<Input bind:value={topic} placeholder="e.g. Farmers & Agriculture in Scotland" />
+		</CardContent>
+	</Card>
+
+	<Card>
+		<CardHeader class="flex flex-row items-start justify-between gap-4 space-y-0">
+			<div>
+				<CardTitle>Minimum follow-ups per main question</CardTitle>
+				<CardDescription>
+					Participants must answer at least this many AI-generated follow-ups before the
+					option to move on appears. They can still answer more if they want. Set to 0 for
+					no follow-ups.
+				</CardDescription>
+			</div>
+			<div class="flex shrink-0 items-center gap-2">
+				<Button
+					variant="outline"
+					size="icon"
+					onclick={() => bumpFollowUps(-1)}
+					disabled={config.followUpRoundsCount <= 0}
+					aria-label="Decrease follow-up count"
+				>
+					<Minus class="size-4" />
+				</Button>
+				<span class="text-primary w-8 text-center text-xl font-semibold tabular-nums">
+					{config.followUpRoundsCount}
+				</span>
+				<Button
+					variant="outline"
+					size="icon"
+					onclick={() => bumpFollowUps(1)}
+					disabled={config.followUpRoundsCount >= 5}
+					aria-label="Increase follow-up count"
+				>
+					<Plus class="size-4" />
+				</Button>
+			</div>
+		</CardHeader>
+	</Card>
+
+	<section class="space-y-4">
+		<header class="flex items-start justify-between gap-4">
+			<div>
+				<h2 class="text-xl font-semibold">Main questions</h2>
+				<p class="text-muted-foreground text-sm">
+					Participants answer these one at a time. Drag to reorder.
+				</p>
+			</div>
+			<Button class="shrink-0" variant="outline" onclick={openCreateQuestion}>
+				<Plus class="mr-2 size-4" /> Add question
+			</Button>
+		</header>
+
+		{#if config.questions.length === 0}
+			<Card>
+				<CardContent class="py-10 text-center">
+					<p class="text-muted-foreground text-sm">
+						No questions yet.
+						<button
+							type="button"
+							class="text-primary font-medium underline-offset-4 hover:underline"
+							onclick={openCreateQuestion}
+						>
+							Add the first one
+						</button>
+						to get started.
+					</p>
+				</CardContent>
+			</Card>
+		{:else}
+			<DraggableList
+				items={config.questions}
+				onReorder={(next) => (config.questions = next)}
+				dragDisabled={saving}
+				class="space-y-3"
+			>
+				{#snippet children(q: QuestionConfig)}
+					<Card class="bg-card">
+						<CardContent class="flex items-start gap-3 p-4">
+							<button
+								type="button"
+								aria-label="Drag to reorder"
+								class="text-muted-foreground hover:text-foreground mt-1 shrink-0 cursor-grab active:cursor-grabbing"
+							>
+								<GripVertical class="size-4" />
+							</button>
+							<p
+								class="min-w-0 flex-1 text-base leading-relaxed"
+								class:text-foreground={q.text.trim()}
+								class:text-muted-foreground={!q.text.trim()}
+							>
+								{q.text.trim() || 'Untitled question'}
+							</p>
+							<div class="flex shrink-0 gap-2">
+								<Button
+									variant="outline"
+									size="sm"
+									onclick={() => openEditQuestion(q)}
+								>
+									<Pencil class="mr-1 size-3.5" /> Edit
+								</Button>
+								<Button
+									variant="ghost"
+									size="sm"
+									class="text-destructive hover:text-destructive"
+									onclick={() => removeQuestion(q.id)}
+								>
+									<Trash2 class="mr-1 size-3.5" /> Delete
+								</Button>
+							</div>
+						</CardContent>
+					</Card>
+				{/snippet}
+			</DraggableList>
+		{/if}
+	</section>
+
+	<div class="flex justify-end">
+		<Button onclick={saveAll} disabled={saving}>
+			{saving ? 'Saving…' : 'Save configuration'}
+		</Button>
+	</div>
+</div>
+
+<QuestionEditorDialog
+	open={questionEditorOpen}
+	question={editingQuestion}
+	onOpenChange={(o) => {
+		questionEditorOpen = o;
+		if (!o) editingQuestion = null;
+	}}
+	onSave={handleSaveQuestion}
+/>

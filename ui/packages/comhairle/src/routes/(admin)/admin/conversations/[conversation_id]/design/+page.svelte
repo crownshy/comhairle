@@ -9,6 +9,7 @@
 		basic_survey_config,
 		basic_lived_experience_config,
 		basic_elicitation_bot_config,
+		basic_thinking_space_config,
 		defaultStepCreationParams
 	} from '$lib/workflow_templates.js';
 	import ToolSelectionModal from '$lib/components/ToolSelectionModal.svelte';
@@ -53,7 +54,8 @@
 			Learn: basic_learn_config,
 			Survey: basic_survey_config,
 			'Lived Experience': basic_lived_experience_config,
-			'Elicitation Bot': basic_elicitation_bot_config(conversation)
+			'Elicitation Bot': basic_elicitation_bot_config(conversation),
+			'Thinking Space': basic_thinking_space_config()
 		}[step];
 
 		let new_step_order =
@@ -167,6 +169,9 @@
 							{/if}
 							{#if activeToolConfig(step).type === 'learn'}
 								<BookOpen />
+							{/if}
+							{#if activeToolConfig(step).type === 'thinkingspace'}
+								<Bot />
 							{/if}
 							{#if activeToolConfig(step).type === 'elicitationbot'}
 								<Bot />

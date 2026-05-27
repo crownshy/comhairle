@@ -3,6 +3,7 @@
 	import * as HeyForm from '$lib/tools/heyform/index.js';
 	import * as Learn from '$lib/tools/learn/index.js';
 	import * as LivedExperience from '$lib/tools/lived_experince/index.js';
+	import * as ThinkingSpace from '$lib/tools/thinking_space/index.js';
 	import * as ElicitationBot from '$lib/tools/elicitation_bot/index.js';
 	import type { PageProps } from './$types';
 	import { notifications } from '$lib/notifications.svelte';
@@ -286,6 +287,19 @@
 					{/if}
 					{#if toolConfig.type === LivedExperience.TOOL_NAME}
 						<LivedExperience.UserUI onDone={stepComplete} />
+					{/if}
+					{#if toolConfig.type === ThinkingSpace.TOOL_NAME}
+						{#key workflowStep.id}
+							<ThinkingSpace.UserUI
+								workflowStepId={workflowStep.id}
+								userId={user.id}
+								topic={toolConfig.topic}
+								rootQuestions={toolConfig.root_questions}
+								followUpRoundsCount={toolConfig.follow_up_rounds_count}
+								onDone={stepComplete}
+								onCanContinueChange={handleCanContinueChange}
+							/>
+						{/key}
 					{/if}
 					{#if toolConfig.type === ElicitationBot.TOOL_NAME}
 						{#key workflowStep.id}

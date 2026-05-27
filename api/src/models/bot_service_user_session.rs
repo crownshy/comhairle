@@ -51,6 +51,8 @@ pub enum BotServiceSessionContext {
     QaBot,
     #[sqlx(rename = "elicitation_bot")]
     ElicitationBot,
+    #[sqlx(rename = "thinking_space")]
+    ThinkingSpace,
 }
 
 impl From<BotServiceSessionContext> for sea_query::Value {
@@ -64,6 +66,7 @@ impl std::fmt::Display for BotServiceSessionContext {
         let value = match self {
             BotServiceSessionContext::QaBot => "qa_bot",
             BotServiceSessionContext::ElicitationBot => "elicitation_bot",
+            BotServiceSessionContext::ThinkingSpace => "thinking_space",
         };
         write!(f, "{}", value)
     }
@@ -159,8 +162,8 @@ pub async fn create(
     config: &ComhairleConfig,
     session: &CreateBotServiceUserSession,
 ) -> Result<BotServiceUserSession, ComhairleError> {
-    let elicitation_bot_agent_id = config
-        .elicitation_bot_agent_id
+    let bot_service_config = config
+        .bot_service
         .as_ref()
         .ok_or(ComhairleError::NoBotServiceConfigured)?;
 
@@ -217,7 +220,37 @@ pub async fn create(
             };
 
             let (_, bot_service_session) = bot_service
-                .create_agent_session(elicitation_bot_agent_id)
+                .create_agent_session(&bot_service_config.elicitation_bot_agent_id)
+                .await?;
+
+            bot_service_session.id
+        }
+        BotServiceSessionContext::ThinkingSpace => {
+            let workflow_step_id = match session.workflow_step_id {
+                Some(id) => id,
+                None => {
+                    return Err(ComhairleError::CorruptedData(
+                        "Missing workflow_step_id for thinking_space session".to_string(),
+                    ))
+                }
+            };
+
+            let workflow_step = workflow_step::get_by_id(db, &workflow_step_id).await?;
+
+            // TODO: think a bit harder here about if this is in preview mode or not
+            let _tool_config = match (workflow_step.tool_config, workflow_step.preview_tool_config)
+            {
+                (Some(ToolConfig::ThinkingSpace(config)), _) => config,
+                (None, ToolConfig::ThinkingSpace(config)) => config,
+                _ => {
+                    return Err(ComhairleError::ToolConfigError(
+                        "Incorrect config type".to_string(),
+                    ))
+                }
+            };
+
+            let (_, bot_service_session) = bot_service
+                .create_agent_session(&bot_service_config.thinking_space_agent_id)
                 .await?;
 
             bot_service_session.id

@@ -1,13 +1,18 @@
 use std::sync::Arc;
 
-use aide::axum::{
-    routing::{get_with, post_with, put_with},
-    ApiRouter,
+use aide::{
+    axum::{
+        routing::{get_with, post_with, put_with},
+        ApiRouter,
+    },
+    OperationIo,
 };
 use async_trait::async_trait;
 use axum::{
+    body::Body,
     extract::{Json, Path, Query, State},
     http::StatusCode,
+    response::{IntoResponse, Response},
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -15,12 +20,18 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
+    bot_service::AgentConversationRequest,
     error::ComhairleError,
-    models::thinking_space_answer::{
-        self, AnswerStatus, CreateAnswer, ThinkingSpaceAnswer, ThinkingSpaceAnswerFilterOptions,
-        UpdateAnswer,
+    models::{
+        bot_service_user_session::{self, BotServiceSessionContext},
+        thinking_space_answer::{
+            self, AnswerStatus, CreateAnswer, ThinkingSpaceAnswer,
+            ThinkingSpaceAnswerFilterOptions, UpdateAnswer,
+        },
+        workflow_step,
     },
     routes::auth::RequiredUser,
+    tools::ToolConfig,
     ComhairleState,
 };
 
@@ -99,6 +110,22 @@ impl ToolImpl for ThinkingSpaceTool {
     fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
         ApiRouter::new()
             .api_route(
+                "/thinking_space",
+                post_with(converse, |op| {
+                    op.tag("Tools")
+                        .summary("Converse with thinking space")
+                        .security_requirement("JWT")
+                        .description(
+                            "
+Streamed LLM response.
+⚠️ This endpoint returns a streaming response on success.
+Generated API clients are NOT suitable for consuming this endpoint.
+Use a raw HTTP request and process the response body incrementally.
+",
+                        )
+                }),
+            )
+            .api_route(
                 "/thinking_space/answers",
                 post_with(create_thinking_space_answer, |op| {
                     op.id("CreateThinkingSpaceAnswer")
@@ -173,6 +200,80 @@ impl From<ThinkingSpaceAnswer> for ThinkingSpaceAnswerDto {
             status: a.status,
         }
     }
+}
+
+#[derive(Deserialize, Debug, JsonSchema, Clone, PartialEq)]
+pub struct ConversationRequest {
+    pub workflow_step_id: Uuid,
+    pub history: String,
+    pub starting_question: String,
+    pub question_intent: String,
+}
+
+// Wrapper struct required as a workaround to generate documentation for handlers
+// that return `axum::body::Body` for streamed responses.
+#[derive(OperationIo)]
+pub struct StreamBody(Body);
+
+impl IntoResponse for StreamBody {
+    fn into_response(self) -> Response {
+        self.0.into_response()
+    }
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn converse(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Json(payload): Json<ConversationRequest>,
+) -> Result<StreamBody, ComhairleError> {
+    let bot_service = state.required_bot_service()?;
+    let bot_service_config = state
+        .config
+        .bot_service
+        .as_ref()
+        .ok_or(ComhairleError::NoBotServiceConfigured)?;
+
+    let workflow_step = workflow_step::get_by_id(&state.db, &payload.workflow_step_id).await?;
+
+    // TODO: think more creafully how we handle this in preview mode
+    let tool_config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
+        (Some(ToolConfig::ThinkingSpace(config)), _) => config,
+        (None, ToolConfig::ThinkingSpace(config)) => config,
+
+        _ => {
+            return Err(ComhairleError::ToolConfigError(
+                "incorrect config type".to_string(),
+            ))
+        }
+    };
+
+    let session = bot_service_user_session::get_or_create(
+        &state,
+        BotServiceSessionContext::ThinkingSpace,
+        &user.id,
+        None,
+        Some(&payload.workflow_step_id),
+    )
+    .await?;
+
+    let params = AgentConversationRequest {
+        question: payload.history.clone(),
+        topic: Some(tool_config.topic.clone()),
+        history: Some(payload.history),
+        starting_question: Some(payload.starting_question),
+        question_intent: Some(payload.question_intent),
+    };
+    let stream = bot_service
+        .converse_with_agent(
+            &session.bot_service_session_id,
+            &bot_service_config.thinking_space_agent_id,
+            params,
+        )
+        .await?;
+
+    let body = Body::from_stream(stream);
+    Ok(StreamBody(body))
 }
 
 #[derive(Deserialize, Debug, JsonSchema, Default)]
