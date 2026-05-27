@@ -42,8 +42,10 @@
 		phase: Phase;
 	};
 
-	function initialStateFor(qIdx: number): LocalQuestionState {
-		const stored = initialAnswers.find((a) => a.questionId === questions[qIdx].id);
+	function initialStateFor(questionIndex: number): LocalQuestionState {
+		const stored = initialAnswers.find(
+			(answer) => answer.questionId === questions[questionIndex].id
+		);
 		if (!stored) {
 			return {
 				rootAnswer: '',
@@ -75,10 +77,12 @@
 
 	// Resume on the first question not yet answered, or whose follow-up minimum
 	// hasn't been reached. If everything is complete, land on the last question.
-	let currentQIdx = $state(
+	let currentQuestionIndex = $state(
 		(() => {
 			for (let i = 0; i < questions.length; i++) {
-				const stored = initialAnswers.find((a) => a.questionId === questions[i].id);
+				const stored = initialAnswers.find(
+					(answer) => answer.questionId === questions[i].id
+				);
 				if (!stored) return i;
 				if (stored.followUps.length < followUpCount) return i;
 			}
@@ -95,22 +99,22 @@
 	let rootTextareaEl = $state<HTMLTextAreaElement | null>(null);
 	let followUpTextareaEl = $state<HTMLTextAreaElement | null>(null);
 
-	let currentState = $derived(states[currentQIdx]);
-	let currentQuestion = $derived(questions[currentQIdx]);
+	let currentState = $derived(states[currentQuestionIndex]);
+	let currentQuestion = $derived(questions[currentQuestionIndex]);
 	let followUpsDone = $derived(currentState.followUps.length);
 	let followUpsRemaining = $derived(Math.max(0, followUpCount - followUpsDone));
-	let isLastQuestion = $derived(currentQIdx === questions.length - 1);
+	let isLastQuestion = $derived(currentQuestionIndex === questions.length - 1);
 	// Minimum follow-ups reached for the current question — Continue button
 	// is revealed but the user may keep answering more follow-ups.
 	let minReached = $derived(currentState.rootSubmitted && followUpsDone >= followUpCount);
 
 	let totalSteps = $derived(questions.length * (1 + followUpCount));
 	let completedSteps = $derived.by(() => {
-		let n = 0;
-		for (let i = 0; i < currentQIdx; i++) n += 1 + followUpCount;
-		if (currentState.rootSubmitted) n += 1;
-		n += Math.min(followUpsDone, followUpCount);
-		return Math.min(n, totalSteps);
+		let steps = 0;
+		for (let i = 0; i < currentQuestionIndex; i++) steps += 1 + followUpCount;
+		if (currentState.rootSubmitted) steps += 1;
+		steps += Math.min(followUpsDone, followUpCount);
+		return Math.min(steps, totalSteps);
 	});
 	let progress = $derived(totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0);
 
@@ -125,7 +129,8 @@
 
 	$effect(() => {
 		// Re-scroll when current phase or follow-up count changes
-		const _ = currentState.phase + ':' + currentState.followUps.length + ':' + currentQIdx;
+		const _ =
+			currentState.phase + ':' + currentState.followUps.length + ':' + currentQuestionIndex;
 		untrack(() => {
 			scrollToFocus();
 		});
@@ -140,11 +145,11 @@
 	});
 
 	function buildAnswers(): QuestionAnswers[] {
-		return states.map((s, i) => ({
-			questionId: questions[i].id,
-			rootAnswer: s.rootAnswer,
-			rootAnswerId: s.rootAnswerId,
-			followUps: s.followUps
+		return states.map((state, index) => ({
+			questionId: questions[index].id,
+			rootAnswer: state.rootAnswer,
+			rootAnswerId: state.rootAnswerId,
+			followUps: state.followUps
 		}));
 	}
 
@@ -155,48 +160,52 @@
 		}
 		transitioning = true;
 		setTimeout(() => {
-			currentQIdx = currentQIdx + 1;
+			currentQuestionIndex = currentQuestionIndex + 1;
 			transitioning = false;
 		}, 500);
 	}
 
 	// Build the running Q/A history the agent uses to generate follow-ups.
-	function buildHistory(qIdx: number): string {
-		const s = states[qIdx];
+	function buildHistory(questionIndex: number): string {
+		const state = states[questionIndex];
 		const lines: string[] = [];
-		let n = 1;
-		lines.push(`Q${n}: ${questions[qIdx].text}`);
-		lines.push(`A${n}: ${s.rootAnswer}`);
-		for (const fu of s.followUps) {
-			n++;
-			lines.push(`Q${n}: ${fu.question}`);
-			lines.push(`A${n}: ${fu.answer}`);
+		let turn = 1;
+		lines.push(`Q${turn}: ${questions[questionIndex].text}`);
+		lines.push(`A${turn}: ${state.rootAnswer}`);
+		for (const followUp of state.followUps) {
+			turn++;
+			lines.push(`Q${turn}: ${followUp.question}`);
+			lines.push(`A${turn}: ${followUp.answer}`);
 		}
 		return lines.join('\n');
 	}
 
-	async function loadPicker(qIdx: number) {
-		states[qIdx] = { ...states[qIdx], pickerLoading: true, pickerError: false };
+	async function loadPicker(questionIndex: number) {
+		states[questionIndex] = {
+			...states[questionIndex],
+			pickerLoading: true,
+			pickerError: false
+		};
 		try {
 			const followUps = await fetchFollowUps({
 				workflowStepId,
-				startingQuestion: questions[qIdx].text,
+				startingQuestion: questions[questionIndex].text,
 				// No dedicated intent field yet — the question text is the
 				// best proxy until the config schema gains one.
-				questionIntent: questions[qIdx].text,
-				history: buildHistory(qIdx)
+				questionIntent: questions[questionIndex].text,
+				history: buildHistory(questionIndex)
 			});
 			const picker = followUps.map((f) => f.question);
-			states[qIdx] = {
-				...states[qIdx],
+			states[questionIndex] = {
+				...states[questionIndex],
 				picker,
 				pickerLoading: false,
 				pickerError: picker.length === 0
 			};
 		} catch (e) {
 			console.error(e);
-			states[qIdx] = {
-				...states[qIdx],
+			states[questionIndex] = {
+				...states[questionIndex],
 				picker: [],
 				pickerLoading: false,
 				pickerError: true
@@ -209,12 +218,12 @@
 	}
 
 	function retryPicker() {
-		loadPicker(currentQIdx);
+		loadPicker(currentQuestionIndex);
 	}
 
 	onMount(() => {
 		if (currentState.phase === 'picking' && followUpCount > 0) {
-			loadPicker(currentQIdx);
+			loadPicker(currentQuestionIndex);
 		}
 	});
 
@@ -228,7 +237,7 @@
 				question: currentQuestion.text,
 				answer: value
 			});
-			states[currentQIdx] = {
+			states[currentQuestionIndex] = {
 				...currentState,
 				rootAnswer: value,
 				rootSubmitted: true,
@@ -236,7 +245,7 @@
 				picker: [],
 				phase: 'picking'
 			};
-			if (followUpCount > 0) loadPicker(currentQIdx);
+			if (followUpCount > 0) loadPicker(currentQuestionIndex);
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -248,12 +257,12 @@
 		}
 	}
 
-	function pickFollowUp(q: string) {
-		states[currentQIdx] = {
+	function pickFollowUp(question: string) {
+		states[currentQuestionIndex] = {
 			...currentState,
-			currentPick: q,
+			currentPick: question,
 			currentPickAnswer: '',
-			picker: currentState.picker.filter((x) => x !== q),
+			picker: currentState.picker.filter((other) => other !== question),
 			phase: 'answering'
 		};
 	}
@@ -277,16 +286,16 @@
 				root_question_id: currentState.rootAnswerId,
 				other_questions: currentState.picker
 			});
-			const fu: FollowUpAnswer = {
+			const followUp: FollowUpAnswer = {
 				id: saved.id,
 				question: currentState.currentPick,
 				answer: value
 			};
-			const updatedFollowUps = [...currentState.followUps, fu];
+			const updatedFollowUps = [...currentState.followUps, followUp];
 			// Always refetch the picker and stay in 'picking'. The participant
 			// chooses when to move on via the Continue button (revealed once
 			// followUpsDone >= followUpCount). We never force-quit them.
-			states[currentQIdx] = {
+			states[currentQuestionIndex] = {
 				...currentState,
 				followUps: updatedFollowUps,
 				currentPick: '',
@@ -294,7 +303,7 @@
 				picker: [],
 				phase: 'picking'
 			};
-			if (followUpCount > 0) loadPicker(currentQIdx);
+			if (followUpCount > 0) loadPicker(currentQuestionIndex);
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -330,7 +339,9 @@
 					Thinking space · {topic}
 				</span>
 				<span>
-					Question {currentQIdx + 1} of {questions.length} · {Math.round(progress)}%
+					Question {currentQuestionIndex + 1} of {questions.length} · {Math.round(
+						progress
+					)}%
 				</span>
 			</div>
 			<Progress value={progress} class="h-1.5" />
@@ -346,7 +357,7 @@
 			<!-- Root question -->
 			<section>
 				<p class="text-primary mb-2 text-xs font-semibold tracking-wide uppercase">
-					Question {currentQIdx + 1}
+					Question {currentQuestionIndex + 1}
 				</p>
 				<h2 class="text-foreground text-2xl leading-snug font-semibold">
 					{currentQuestion.text || '(unnamed question)'}
@@ -357,7 +368,7 @@
 				<section class="space-y-3">
 					<Textarea
 						bind:ref={rootTextareaEl}
-						bind:value={states[currentQIdx].rootAnswer}
+						bind:value={states[currentQuestionIndex].rootAnswer}
 						onkeydown={handleRootKeydown}
 						placeholder="Write your thoughts here…"
 						rows={4}
@@ -384,20 +395,20 @@
 			{/if}
 
 			<!-- Completed follow-ups -->
-			{#each currentState.followUps as fu, fi (fi)}
+			{#each currentState.followUps as followUp, followUpIndex (followUpIndex)}
 				<section class="border-border space-y-2 border-t pt-6">
 					<p
 						class="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wide uppercase"
 					>
 						<CornerDownRight class="size-3.5" />
-						Follow-up {fi + 1}
+						Follow-up {followUpIndex + 1}
 					</p>
 					<p class="text-foreground/80 text-base leading-snug italic">
-						{fu.question}
+						{followUp.question}
 					</p>
 					<div class="border-primary/20 bg-primary/5 rounded-lg border p-3">
 						<p class="text-foreground text-sm leading-relaxed whitespace-pre-wrap">
-							{fu.answer}
+							{followUp.answer}
 						</p>
 					</div>
 				</section>
@@ -457,13 +468,13 @@
 						</div>
 					</div>
 					<div class="space-y-2">
-						{#each currentState.picker.slice(0, 5) as fq, i (fq + i)}
+						{#each currentState.picker.slice(0, 5) as followUpQuestion, i (followUpQuestion + i)}
 							<button
 								type="button"
-								onclick={() => pickFollowUp(fq)}
+								onclick={() => pickFollowUp(followUpQuestion)}
 								class="border-border bg-card hover:border-primary hover:bg-primary/5 w-full rounded-lg border px-4 py-3 text-left text-sm leading-relaxed transition-colors"
 							>
-								{fq}
+								{followUpQuestion}
 							</button>
 						{/each}
 					</div>
@@ -488,7 +499,7 @@
 					</p>
 					<Textarea
 						bind:ref={followUpTextareaEl}
-						bind:value={states[currentQIdx].currentPickAnswer}
+						bind:value={states[currentQuestionIndex].currentPickAnswer}
 						onkeydown={handleFollowUpKeydown}
 						placeholder="Write your thoughts…"
 						rows={4}

@@ -18,7 +18,10 @@
 
 	// Editable local copy — edits are persisted to the backend on save.
 	let items = $state<QuestionAnswers[]>(
-		answers.map((qa) => ({ ...qa, followUps: qa.followUps.map((f) => ({ ...f })) }))
+		answers.map((questionAnswer) => ({
+			...questionAnswer,
+			followUps: questionAnswer.followUps.map((followUp) => ({ ...followUp }))
+		}))
 	);
 
 	let editingId = $state<string | null>(null);
@@ -44,10 +47,12 @@
 				{ answer: value },
 				{ params: { answer_id: id } }
 			);
-			items = items.map((qa) => ({
-				...qa,
-				rootAnswer: qa.rootAnswerId === id ? value : qa.rootAnswer,
-				followUps: qa.followUps.map((f) => (f.id === id ? { ...f, answer: value } : f))
+			items = items.map((questionAnswer) => ({
+				...questionAnswer,
+				rootAnswer: questionAnswer.rootAnswerId === id ? value : questionAnswer.rootAnswer,
+				followUps: questionAnswer.followUps.map((followUp) =>
+					followUp.id === id ? { ...followUp, answer: value } : followUp
+				)
 			}));
 			editingId = null;
 			draft = '';
@@ -83,15 +88,15 @@
 				<section class="space-y-3">
 					<h3 class="text-foreground text-lg font-semibold">{q.text}</h3>
 					{@render answerBlock(item.rootAnswerId, item.rootAnswer)}
-					{#each item.followUps as fu (fu.id)}
+					{#each item.followUps as followUp (followUp.id)}
 						<div class="space-y-2 pl-4">
 							<p
 								class="text-muted-foreground flex items-center gap-1.5 text-sm leading-snug italic"
 							>
 								<CornerDownRight class="size-3.5 shrink-0" />
-								{fu.question}
+								{followUp.question}
 							</p>
-							{@render answerBlock(fu.id, fu.answer)}
+							{@render answerBlock(followUp.id, followUp.answer)}
 						</div>
 					{/each}
 				</section>

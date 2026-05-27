@@ -38,7 +38,8 @@
 	});
 
 	let configIncomplete = $derived(
-		rootQuestions.length === 0 || rootQuestions.every((q) => q.text.trim().length === 0)
+		rootQuestions.length === 0 ||
+			rootQuestions.every((question) => question.text.trim().length === 0)
 	);
 
 	onMount(async () => {
@@ -59,21 +60,25 @@
 		const saved = await apiClient.ListThinkingSpaceAnswers({
 			queries: { workflow_step_id: workflowStepId, user_id: userId }
 		});
-		const savedRoots = saved.filter((a) => !a.isFollowUp);
-		const savedFollowUps = saved.filter((a) => a.isFollowUp);
+		const savedRoots = saved.filter((answer) => !answer.isFollowUp);
+		const savedFollowUps = saved.filter((answer) => answer.isFollowUp);
 
 		const result: QuestionAnswers[] = [];
-		for (const q of rootQuestions) {
+		for (const question of rootQuestions) {
 			// Answers store the question text, not the config id, so match on text.
-			const savedRoot = savedRoots.find((r) => r.question === q.text);
+			const savedRoot = savedRoots.find((answer) => answer.question === question.text);
 			if (!savedRoot) continue;
 			result.push({
-				questionId: q.id,
+				questionId: question.id,
 				rootAnswer: savedRoot.answer,
 				rootAnswerId: savedRoot.id,
 				followUps: savedFollowUps
-					.filter((f) => f.rootQuestionId === savedRoot.id)
-					.map((f) => ({ id: f.id, question: f.question, answer: f.answer }))
+					.filter((followUp) => followUp.rootQuestionId === savedRoot.id)
+					.map((followUp) => ({
+						id: followUp.id,
+						question: followUp.question,
+						answer: followUp.answer
+					}))
 			});
 		}
 		return result;
@@ -81,9 +86,9 @@
 
 	function allComplete(list: QuestionAnswers[]): boolean {
 		if (rootQuestions.length === 0) return false;
-		return rootQuestions.every((q) => {
-			const a = list.find((x) => x.questionId === q.id);
-			return !!a && a.followUps.length >= followUpRoundsCount;
+		return rootQuestions.every((question) => {
+			const answer = list.find((questionAnswer) => questionAnswer.questionId === question.id);
+			return !!answer && answer.followUps.length >= followUpRoundsCount;
 		});
 	}
 </script>
