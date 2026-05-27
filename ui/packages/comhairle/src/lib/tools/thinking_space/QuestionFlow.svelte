@@ -27,12 +27,12 @@
 		onComplete
 	}: Props = $props();
 
-	type Phase = 'main' | 'picking' | 'answering';
+	type Phase = 'root' | 'picking' | 'answering';
 
 	type LocalQuestionState = {
-		mainAnswer: string;
-		mainSubmitted: boolean;
-		mainAnswerId: string | null;
+		rootAnswer: string;
+		rootSubmitted: boolean;
+		rootAnswerId: string | null;
 		followUps: FollowUpAnswer[];
 		picker: string[];
 		pickerLoading: boolean;
@@ -46,22 +46,22 @@
 		const stored = initialAnswers.find((a) => a.questionId === questions[qIdx].id);
 		if (!stored) {
 			return {
-				mainAnswer: '',
-				mainSubmitted: false,
-				mainAnswerId: null,
+				rootAnswer: '',
+				rootSubmitted: false,
+				rootAnswerId: null,
 				followUps: [],
 				picker: [],
 				pickerLoading: false,
 				pickerError: false,
 				currentPick: '',
 				currentPickAnswer: '',
-				phase: 'main'
+				phase: 'root'
 			};
 		}
 		return {
-			mainAnswer: stored.mainAnswer,
-			mainSubmitted: true,
-			mainAnswerId: stored.mainAnswerId ?? null,
+			rootAnswer: stored.rootAnswer,
+			rootSubmitted: true,
+			rootAnswerId: stored.rootAnswerId ?? null,
 			followUps: stored.followUps,
 			// Picker is fetched from the agent on mount / after each answer.
 			picker: [],
@@ -92,7 +92,7 @@
 
 	let bottomEl = $state<HTMLDivElement | null>(null);
 	let continueEl = $state<HTMLElement | null>(null);
-	let mainTextareaEl = $state<HTMLTextAreaElement | null>(null);
+	let rootTextareaEl = $state<HTMLTextAreaElement | null>(null);
 	let followUpTextareaEl = $state<HTMLTextAreaElement | null>(null);
 
 	let currentState = $derived(states[currentQIdx]);
@@ -102,13 +102,13 @@
 	let isLastQuestion = $derived(currentQIdx === questions.length - 1);
 	// Minimum follow-ups reached for the current question — Continue button
 	// is revealed but the user may keep answering more follow-ups.
-	let minReached = $derived(currentState.mainSubmitted && followUpsDone >= followUpCount);
+	let minReached = $derived(currentState.rootSubmitted && followUpsDone >= followUpCount);
 
 	let totalSteps = $derived(questions.length * (1 + followUpCount));
 	let completedSteps = $derived.by(() => {
 		let n = 0;
 		for (let i = 0; i < currentQIdx; i++) n += 1 + followUpCount;
-		if (currentState.mainSubmitted) n += 1;
+		if (currentState.rootSubmitted) n += 1;
 		n += Math.min(followUpsDone, followUpCount);
 		return Math.min(n, totalSteps);
 	});
@@ -132,7 +132,7 @@
 		// Focus textareas
 		untrack(async () => {
 			await tick();
-			if (currentState.phase === 'main') mainTextareaEl?.focus();
+			if (currentState.phase === 'root') rootTextareaEl?.focus();
 			if (currentState.phase === 'answering') followUpTextareaEl?.focus();
 		});
 		// reference _ to satisfy linter
@@ -142,8 +142,8 @@
 	function buildAnswers(): QuestionAnswers[] {
 		return states.map((s, i) => ({
 			questionId: questions[i].id,
-			mainAnswer: s.mainAnswer,
-			mainAnswerId: s.mainAnswerId,
+			rootAnswer: s.rootAnswer,
+			rootAnswerId: s.rootAnswerId,
 			followUps: s.followUps
 		}));
 	}
@@ -166,7 +166,7 @@
 		const lines: string[] = [];
 		let n = 1;
 		lines.push(`Q${n}: ${questions[qIdx].text}`);
-		lines.push(`A${n}: ${s.mainAnswer}`);
+		lines.push(`A${n}: ${s.rootAnswer}`);
 		for (const fu of s.followUps) {
 			n++;
 			lines.push(`Q${n}: ${fu.question}`);
@@ -218,8 +218,8 @@
 		}
 	});
 
-	async function submitMainAnswer() {
-		const value = currentState.mainAnswer.trim();
+	async function submitRootAnswer() {
+		const value = currentState.rootAnswer.trim();
 		if (!value || submitting) return;
 		submitting = true;
 		try {
@@ -230,9 +230,9 @@
 			});
 			states[currentQIdx] = {
 				...currentState,
-				mainAnswer: value,
-				mainSubmitted: true,
-				mainAnswerId: saved.id,
+				rootAnswer: value,
+				rootSubmitted: true,
+				rootAnswerId: saved.id,
 				picker: [],
 				phase: 'picking'
 			};
@@ -274,7 +274,7 @@
 				question: currentState.currentPick,
 				answer: value,
 				is_follow_up: true,
-				root_question_id: currentState.mainAnswerId,
+				root_question_id: currentState.rootAnswerId,
 				other_questions: currentState.picker
 			});
 			const fu: FollowUpAnswer = {
@@ -306,10 +306,10 @@
 		}
 	}
 
-	function handleMainKeydown(e: KeyboardEvent) {
+	function handleRootKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
-			submitMainAnswer();
+			submitRootAnswer();
 		}
 	}
 
@@ -343,7 +343,7 @@
 		class:opacity-30={transitioning}
 	>
 		<div class="mx-auto max-w-2xl space-y-6">
-			<!-- Main question -->
+			<!-- Root question -->
 			<section>
 				<p class="text-primary mb-2 text-xs font-semibold tracking-wide uppercase">
 					Question {currentQIdx + 1}
@@ -353,20 +353,20 @@
 				</h2>
 			</section>
 
-			{#if !currentState.mainSubmitted}
+			{#if !currentState.rootSubmitted}
 				<section class="space-y-3">
 					<Textarea
-						bind:ref={mainTextareaEl}
-						bind:value={states[currentQIdx].mainAnswer}
-						onkeydown={handleMainKeydown}
+						bind:ref={rootTextareaEl}
+						bind:value={states[currentQIdx].rootAnswer}
+						onkeydown={handleRootKeydown}
 						placeholder="Write your thoughts here…"
 						rows={4}
 						class="text-base"
 					/>
 					<div class="flex justify-end">
 						<Button
-							onclick={submitMainAnswer}
-							disabled={!currentState.mainAnswer.trim() || submitting}
+							onclick={submitRootAnswer}
+							disabled={!currentState.rootAnswer.trim() || submitting}
 						>
 							{submitting ? 'Saving…' : 'Continue'}
 						</Button>
@@ -378,7 +378,7 @@
 						You answered
 					</p>
 					<p class="text-foreground text-sm leading-relaxed whitespace-pre-wrap">
-						{currentState.mainAnswer}
+						{currentState.rootAnswer}
 					</p>
 				</section>
 			{/if}

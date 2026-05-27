@@ -46,7 +46,7 @@
 			);
 			items = items.map((qa) => ({
 				...qa,
-				mainAnswer: qa.mainAnswerId === id ? value : qa.mainAnswer,
+				rootAnswer: qa.rootAnswerId === id ? value : qa.rootAnswer,
 				followUps: qa.followUps.map((f) => (f.id === id ? { ...f, answer: value } : f))
 			}));
 			editingId = null;
@@ -82,7 +82,7 @@
 			{#if item}
 				<section class="space-y-3">
 					<h3 class="text-foreground text-lg font-semibold">{q.text}</h3>
-					{@render answerBlock(item.mainAnswerId, item.mainAnswer)}
+					{@render answerBlock(item.rootAnswerId, item.rootAnswer)}
 					{#each item.followUps as fu (fu.id)}
 						<div class="space-y-2 pl-4">
 							<p

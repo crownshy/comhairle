@@ -20,9 +20,9 @@ export interface FollowUpAnswer {
 
 export interface QuestionAnswers {
 	questionId: string;
-	mainAnswer: string;
-	/** Backend id of the saved main answer — the root_question_id for follow-ups. */
-	mainAnswerId: string | null;
+	rootAnswer: string;
+	/** Backend id of the saved root answer — the root_question_id for follow-ups. */
+	rootAnswerId: string | null;
 	followUps: FollowUpAnswer[];
 }
 

@@ -59,20 +59,20 @@
 		const saved = await apiClient.ListThinkingSpaceAnswers({
 			queries: { workflow_step_id: workflowStepId, user_id: userId }
 		});
-		const mains = saved.filter((a) => !a.isFollowUp);
-		const followUps = saved.filter((a) => a.isFollowUp);
+		const savedRoots = saved.filter((a) => !a.isFollowUp);
+		const savedFollowUps = saved.filter((a) => a.isFollowUp);
 
 		const result: QuestionAnswers[] = [];
 		for (const q of rootQuestions) {
 			// Answers store the question text, not the config id, so match on text.
-			const main = mains.find((m) => m.question === q.text);
-			if (!main) continue;
+			const savedRoot = savedRoots.find((r) => r.question === q.text);
+			if (!savedRoot) continue;
 			result.push({
 				questionId: q.id,
-				mainAnswer: main.answer,
-				mainAnswerId: main.id,
-				followUps: followUps
-					.filter((f) => f.rootQuestionId === main.id)
+				rootAnswer: savedRoot.answer,
+				rootAnswerId: savedRoot.id,
+				followUps: savedFollowUps
+					.filter((f) => f.rootQuestionId === savedRoot.id)
 					.map((f) => ({ id: f.id, question: f.question, answer: f.answer }))
 			});
 		}
