@@ -52,6 +52,15 @@ pub enum ComhairleError {
     #[error("Worker error: {0}")]
     WorkerError(#[from] WorkerServiceError),
 
+    #[error("Email builder error: {0}")]
+    EmailBuilderError(#[from] lettre::error::Error),
+
+    #[error("Email address error: {0}")]
+    EmailAddressError(#[from] lettre::address::AddressError),
+
+    #[error("Email content type error: {0}")]
+    EmailContentTypeError(#[from] lettre::message::header::ContentTypeErr),
+
     #[error("No translation service configured")]
     NoTranslationServiceConfigured,
 

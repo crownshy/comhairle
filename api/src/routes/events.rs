@@ -8,7 +8,6 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
-use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -106,35 +105,16 @@ async fn get(
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
-pub struct CreateEventRequest {
-    name: String,
-    description: String,
-    capacity: Option<i32>,
-    start_time: DateTime<Utc>,
-    end_time: DateTime<Utc>,
-    signup_mode: String,
-    agenda: Option<crate::models::event::EventAgenda>,
-}
-
 #[instrument(err(Debug), skip(state))]
 async fn create(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
     RequiredAdminUser(_user): RequiredAdminUser,
-    Json(payload): Json<CreateEventRequest>,
+    Json(payload): Json<CreateEvent>,
 ) -> Result<(StatusCode, Json<EventDto>), ComhairleError> {
-    let event = CreateEvent {
-        name: payload.name,
-        description: payload.description,
-        capacity: payload.capacity,
-        start_time: payload.start_time,
-        end_time: payload.end_time,
-        signup_mode: payload.signup_mode,
-        conversation_id,
-        agenda: payload.agenda,
-    };
-    let event = event::create(&state.db, &event).await?.into();
+    let event = event::create(&state.db, &conversation_id, &payload)
+        .await?
+        .into();
 
     Ok((StatusCode::CREATED, Json(event)))
 }
@@ -473,6 +453,7 @@ mod tests {
         body::Body,
         http::{HeaderName, HeaderValue},
     };
+    use chrono::Utc;
     use serde_json::json;
     use sqlx::PgPool;
     use std::{error::Error, str::FromStr};
@@ -493,7 +474,7 @@ mod tests {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
 
-        let new_event = CreateEventRequest {
+        let new_event = CreateEvent {
             name: "test_event".to_string(),
             description: "test_desc".to_string(),
             capacity: Some(10),
@@ -501,6 +482,7 @@ mod tests {
             end_time: Utc::now(),
             signup_mode: "invite".to_string(),
             agenda: None,
+            ..Default::default()
         };
 
         let body = serde_json::to_vec(&new_event)?;

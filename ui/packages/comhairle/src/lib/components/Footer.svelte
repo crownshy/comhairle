@@ -8,7 +8,6 @@
 	let emailValue = $state('');
 
 	const navLinks = [
-		{ href: '/', label: () => m.home() },
 		{ href: '/about', label: () => m.about_us() },
 		{ href: '/contact', label: () => m.contact() },
 		{ href: '/support', label: () => m.support() },
@@ -53,7 +52,7 @@
 			<!-- Bottom row: Copyright + Legal links -->
 			<div class="flex flex-col items-center gap-4 md:flex-row md:justify-between">
 				<p class="text-sidebar-foreground/50 order-2 text-base font-normal md:order-1">
-					Copyright {new Date().getFullYear()} &copy; Crown Shy
+					Copyright {new Date().getFullYear()} &copy; CrownShy
 				</p>
 				<div class="order-1 flex flex-wrap items-center justify-center gap-8 md:order-2">
 					{#each legalLinks as link (link.href)}

@@ -123,8 +123,10 @@
 	{/if}
 
 	{#if currentPageNo == pages.length - 1}
-		<Button class="mt-10" onclick={onDone} disabled={showSkeleton}>{m.continue_()}</Button>
+		<Button class="mx-auto mt-10" onclick={onDone} disabled={showSkeleton}
+			>{m.continue_()}</Button
+		>
 	{:else}
-		<Button class="mt-10" onclick={nextPage} disabled={showSkeleton}>{m.next()}</Button>
+		<Button class="mx-auto mt-10" onclick={nextPage} disabled={showSkeleton}>{m.next()}</Button>
 	{/if}
 </div>

@@ -52,11 +52,20 @@
 		try {
 			await Promise.all(
 				splitEmails(result.data.emails).map(async (email) => {
+					if (eventId) {
+						return await apiClient.CreateEventInvite(
+							{
+								invite_type: { email },
+								expires_at: expireDate?.toDate(getLocalTimeZone()).toISOString(),
+								event_id: eventId
+							},
+							{ params: { conversation_id: conversationId } }
+						);
+					}
 					return await apiClient.CreateInvite(
 						{
 							invite_type: { email },
-							expires_at: expireDate?.toDate(getLocalTimeZone()).toISOString(),
-							...(eventId && { event_id: eventId })
+							expires_at: expireDate?.toDate(getLocalTimeZone()).toISOString()
 						},
 						{ params: { conversation_id: conversationId } }
 					);

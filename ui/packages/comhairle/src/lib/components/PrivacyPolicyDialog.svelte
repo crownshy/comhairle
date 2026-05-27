@@ -22,8 +22,6 @@
 <Dialog.Root bind:open>
 	<Dialog.Content
 		showCloseButton={false}
-		escapeKeydownBehavior="ignore"
-		interactOutsideBehavior="ignore"
 		class="flex max-h-[85vh] flex-col gap-0 p-0 sm:max-w-lg"
 	>
 		<Dialog.Header class="border-b px-6 pt-6 pb-4">
