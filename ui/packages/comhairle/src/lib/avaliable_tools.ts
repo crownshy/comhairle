@@ -51,7 +51,7 @@ export const AvailableTools: Array<ToolDescription> = [
 	{
 		name: 'Thinking Space',
 		description:
-			'A guided reflection space where participants answer prompts, are nudged with follow-ups, and submit claims that capture their views.',
+			'A guided reflection space where participants answer prompts and are nudged with follow-up questions to help them refine their views.',
 		icon: Bot,
 		infoLink: 'thinking_space',
 		available: true
