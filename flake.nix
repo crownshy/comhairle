@@ -31,9 +31,7 @@
           env = {
             # Build-time toolchain env only.
             # Runtime/app config (DATABASE_URL, MAILER__*, secrets, etc.)
-            # lives in `.env` (gitignored) — see `.env.example` for the full
-            # list. `.envrc` loads `.env` via direnv, and the API binary
-            # itself loads it via `dotenvy::dotenv()`.
+            # lives in `.env` (gitignored) see `.env.example` for the full list
             PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
             OPENSSL_DIR = "${pkgs.openssl.dev}";
             OPENSSL_LIB_DIR = "${pkgs.openssl.out}/lib";
@@ -90,9 +88,12 @@
             echo "  pnpm:    $(pnpm --version 2>/dev/null)"
             echo ""
             echo "Quickstart:"
-            echo "  just pg            # start Postgres in Docker (needs Docker Desktop/Colima)"
-            echo "  just api-dev       # run API"
-            echo "  cd ui/packages && pnpm comhairle   # run frontend"
+            echo "  just all           # start all services in tmux (postgres, api, ui, seed)"
+            echo ""
+            echo "  or if you prefer separate terminals:"
+            echo "    just pg          # start Postgres in Docker (needs Docker Desktop/Colima)"
+            echo "    just api-dev     # run API"
+            echo "    cd ui/packages && pnpm comhairle   # run frontend"
             echo ""
           '';
         };
