@@ -16,6 +16,11 @@ export type LocalQuestionState = {
 	currentPick: string;
 	currentPickAnswer: string;
 	phase: Phase;
+	// Once the follow-up minimum is met, the participant is asked whether to
+	// keep going deeper or move on. The picker is only revealed after they
+	// opt in via `chooseMore()`. Reset to false after each follow-up answer
+	// so we re-ask before each additional one.
+	wantsMore: boolean;
 };
 
 type Init = {
@@ -71,7 +76,8 @@ export class QuestionFlowState {
 				pickerError: false,
 				currentPick: '',
 				currentPickAnswer: '',
-				phase: 'root'
+				phase: 'root',
+				wantsMore: false
 			};
 		}
 		return {
@@ -85,7 +91,8 @@ export class QuestionFlowState {
 			pickerError: false,
 			currentPick: '',
 			currentPickAnswer: '',
-			phase: 'picking'
+			phase: 'picking',
+			wantsMore: false
 		};
 	}
 
@@ -168,6 +175,20 @@ export class QuestionFlowState {
 		return lines.join('\n');
 	}
 
+	// Participant has opted to keep going deeper after meeting the minimum.
+	// Reveals the picker; loads it if it isn't already in flight or cached.
+	chooseMore() {
+		this.states[this.currentQuestionIndex] = {
+			...this.currentState,
+			wantsMore: true
+		};
+		const state = this.currentState;
+		if (state.pickerLoading) return;
+		if (state.pickerError || state.picker.length === 0) {
+			this.loadPicker(this.currentQuestionIndex);
+		}
+	}
+
 	continueNow() {
 		if (this.isLastQuestion) {
 			this.onComplete(this.buildAnswers());
@@ -236,7 +257,8 @@ export class QuestionFlowState {
 				rootSubmitted: true,
 				rootAnswerId: saved.id,
 				picker: [],
-				phase: 'picking'
+				phase: 'picking',
+				wantsMore: false
 			};
 			if (this.followUpCount > 0) this.loadPicker(this.currentQuestionIndex);
 		} catch (e) {
@@ -248,6 +270,22 @@ export class QuestionFlowState {
 		} finally {
 			this.submitting = false;
 		}
+	}
+
+	// Participant changed their mind about the question they picked — return
+	// to the picker. Puts the abandoned pick back at the top of the list so
+	// it's easy to find if they meant to choose it after all. Any draft text
+	// is dropped (they're abandoning that pick by definition).
+	backToPicker() {
+		const pick = this.currentState.currentPick;
+		if (!pick) return;
+		this.states[this.currentQuestionIndex] = {
+			...this.currentState,
+			currentPick: '',
+			currentPickAnswer: '',
+			picker: [pick, ...this.currentState.picker.filter((other) => other !== pick)],
+			phase: 'picking'
+		};
 	}
 
 	pickFollowUp(question: string) {
@@ -293,7 +331,8 @@ export class QuestionFlowState {
 				currentPick: '',
 				currentPickAnswer: '',
 				picker: [],
-				phase: 'picking'
+				phase: 'picking',
+				wantsMore: false
 			};
 			if (this.followUpCount > 0) this.loadPicker(this.currentQuestionIndex);
 		} catch (e) {
