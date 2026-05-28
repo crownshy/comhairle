@@ -44,7 +44,7 @@
 </script>
 
 <Dialog.Root {open} onOpenChange={(o) => onOpenChange(o)}>
-	<Dialog.Content class="w-[70vw] max-w-[70vw] sm:max-w-[70vw]">
+	<Dialog.Content class="min-w-[70vw]">
 		<Dialog.Header>
 			<Dialog.Title>{isEditing ? 'Edit question' : 'New question'}</Dialog.Title>
 			<Dialog.Description>
