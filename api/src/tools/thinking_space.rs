@@ -41,6 +41,10 @@ use super::{ToolConfigSanitize, ToolImpl};
 pub struct ThinkingSpaceQuestion {
     pub id: Uuid,
     pub text: String,
+    /// Admin-authored description of *why* this question is being asked — fed to
+    /// the AI as `question_intent` so it can generate sharper follow-ups. Never
+    /// shown to participants.
+    pub intent: String,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
@@ -59,6 +63,7 @@ impl ToolConfigSanitize for ThinkingSpaceToolConfig {
 #[derive(Clone, Deserialize, Serialize, Debug, JsonSchema, PartialEq)]
 pub struct ThinkingSpaceSetupQuestion {
     pub text: String,
+    pub intent: String,
 }
 
 impl From<ThinkingSpaceSetupQuestion> for ThinkingSpaceQuestion {
@@ -66,6 +71,7 @@ impl From<ThinkingSpaceSetupQuestion> for ThinkingSpaceQuestion {
         Self {
             id: Uuid::new_v4(),
             text: q.text,
+            intent: q.intent,
         }
     }
 }
