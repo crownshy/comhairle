@@ -19,7 +19,8 @@ pub struct Invite {
     #[partially(omit)]
     pub id: Uuid,
     pub invite_type: InviteType,
-    pub created_by: Uuid,
+    #[partially(omit)]
+    pub created_by: Option<Uuid>,
     pub status: InviteStatus,
     pub expires_at: Option<DateTime<Utc>>,
     pub conversation_id: Uuid,
@@ -314,35 +315,41 @@ pub async fn create(
     db: &PgPool,
     create_invite: CreateInviteDTO,
     conversation_id: &Uuid,
-    user_id: &Uuid,
+    user_id: Option<Uuid>,
 ) -> Result<Invite, ComhairleError> {
     let starting_status = match create_invite.invite_type {
         InviteType::Email(_) | InviteType::User(_) | InviteType::SingleUse => InviteStatus::Pending,
         InviteType::Open => InviteStatus::Open,
     };
 
+    let mut columns = vec![
+        InviteIden::ConversationId,
+        InviteIden::InviteType,
+        InviteIden::LoginBehaviour,
+        InviteIden::Status,
+        InviteIden::ExpiresAt,
+        InviteIden::Label,
+        InviteIden::EventId,
+    ];
+    let mut values = vec![
+        conversation_id.to_owned().into(),
+        create_invite.invite_type.into(),
+        create_invite.login_behaviour.into(),
+        starting_status.into(),
+        create_invite.expires_at.into(),
+        create_invite.label.into(),
+        create_invite.event_id.into(),
+    ];
+
+    if let Some(user_id) = user_id {
+        columns.push(InviteIden::CreatedBy);
+        values.push(user_id.into());
+    }
+
     let (sql, values) = Query::insert()
         .into_table(InviteIden::Table)
-        .columns(vec![
-            InviteIden::CreatedBy,
-            InviteIden::ConversationId,
-            InviteIden::InviteType,
-            InviteIden::LoginBehaviour,
-            InviteIden::Status,
-            InviteIden::ExpiresAt,
-            InviteIden::Label,
-            InviteIden::EventId,
-        ])
-        .values(vec![
-            user_id.to_owned().into(),
-            conversation_id.to_owned().into(),
-            create_invite.invite_type.into(),
-            create_invite.login_behaviour.into(),
-            starting_status.into(),
-            create_invite.expires_at.into(),
-            create_invite.label.into(),
-            create_invite.event_id.into(),
-        ])
+        .columns(columns)
+        .values(values)
         .unwrap()
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
@@ -418,7 +425,7 @@ mod tests {
         let invite = Invite {
             id: Uuid::new_v4(),
             invite_type: InviteType::Email("testemail@gmail.com".into()),
-            created_by: Uuid::new_v4(),
+            created_by: Some(Uuid::new_v4()),
             status: InviteStatus::Pending,
             expires_at: None,
             conversation_id: Uuid::new_v4(),
@@ -496,7 +503,7 @@ mod tests {
                 event_id: None,
             },
             &conversation.id,
-            &user1.id,
+            Some(user1.id),
         )
         .await?;
 
@@ -580,7 +587,7 @@ mod tests {
                 event_id: None,
             },
             &conversation.id,
-            &user1.id,
+            Some(user1.id),
         )
         .await?;
 
@@ -658,7 +665,7 @@ mod tests {
                 event_id: None,
             },
             &conversation.id,
-            &user1.id,
+            Some(user1.id),
         )
         .await?;
 
@@ -703,7 +710,7 @@ mod tests {
                 event_id: Some(event.id),
             },
             &conversation_id,
-            &user1.id,
+            Some(user1.id),
         )
         .await?;
         create(
@@ -716,7 +723,7 @@ mod tests {
                 event_id: Some(event.id),
             },
             &conversation_id,
-            &user1.id,
+            Some(user1.id),
         )
         .await?;
         create(
@@ -729,7 +736,7 @@ mod tests {
                 event_id: Some(event.id),
             },
             &conversation_id,
-            &user1.id,
+            Some(user1.id),
         )
         .await?;
 

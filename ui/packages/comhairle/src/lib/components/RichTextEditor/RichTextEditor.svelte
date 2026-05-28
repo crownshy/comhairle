@@ -33,7 +33,7 @@
 		editable = true,
 		class: className = '',
 		minHeight = '200px',
-		maxHeight,
+		maxHeight = 'clamp(200px, calc(100dvh - 420px), 1200px)',
 		width,
 		onChange,
 		availableDocuments = [],
@@ -240,7 +240,7 @@
 	{/if}
 
 	<div
-		class="dark:bg-input/30 rounded-b-xl border border-gray-300 bg-white md:rounded-b-xl md:border-t {className}"
+		class="bg-background border-border rounded-b-xl border md:rounded-b-xl md:border-t {className}"
 	>
 		{#if maxHeight}
 			<div class="editor-scroll-container" style="max-height: {maxHeight}; overflow-y: auto;">

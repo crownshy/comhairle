@@ -21,7 +21,7 @@ use crate::{
     tools::{
         elicitation_bot::ElicitationBotReport, heyform::HeyFormReport, learn::LearnReport,
         polis::PolisReport, prioritization::PrioritizationReport, stories::StoriesReport,
-        ReportConfig, ToolConfig,
+        thinking_space::ThinkingSpaceReport, ReportConfig, ToolConfig,
     },
 };
 
@@ -210,6 +210,9 @@ pub async fn create_for_conversation(
                     }
                     ToolConfig::Prioritization(_) => {
                         ReportConfig::Prioritization(PrioritizationReport)
+                    }
+                    ToolConfig::ThinkingSpace(_) => {
+                        ReportConfig::ThinkingSpace(ThinkingSpaceReport)
                     }
                 };
 

@@ -109,9 +109,11 @@
 		<div class="min-[900px]:hidden">
 			<Drawer.Root bind:open={isOpen} direction="bottom">
 				<Drawer.Trigger>
-					<Button variant="nav" size="icon">
-						<Menu class="size-7" />
-					</Button>
+					<svelte:fragment slot="child">
+						<Button variant="nav" size="icon">
+							<Menu class="size-7" />
+						</Button>
+					</svelte:fragment>
 				</Drawer.Trigger>
 				<Drawer.Content>
 					<div class="mx-auto flex w-full max-w-md flex-col gap-1 p-4 pb-8">

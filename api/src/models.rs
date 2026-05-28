@@ -1,3 +1,4 @@
+pub mod api_key;
 pub mod bot_service_user_session;
 pub mod conversation;
 pub mod conversation_email_notification_recipients;
@@ -19,6 +20,7 @@ pub mod region;
 pub mod report;
 pub mod report_impact;
 pub mod resource;
+pub mod thinking_space_answer;
 pub mod translations;
 pub mod user_conversation_preferences;
 pub mod user_participation;

@@ -180,6 +180,15 @@ pub fn prioritization_tool_config() -> serde_json::Value {
     })
 }
 
+pub fn thinking_space_tool_config() -> serde_json::Value {
+    json!({
+        "type": "thinkingspace",
+        "topic": "test topic",
+        "root_questions": [],
+        "follow_up_rounds_count": 2
+    })
+}
+
 pub async fn response_to_json(response: Response) -> Value {
     let body = response.into_body().collect().await.unwrap().to_bytes();
 

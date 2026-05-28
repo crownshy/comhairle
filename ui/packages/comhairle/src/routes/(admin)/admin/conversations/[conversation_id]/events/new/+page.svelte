@@ -18,7 +18,6 @@
 	import { CalendarIcon, AlertCircle } from 'lucide-svelte';
 	import Calendar from '$lib/components/ui/calendar/calendar.svelte';
 	import { cn } from '$lib/utils';
-	import { buttonVariants } from '$lib/components/ui/button';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { goto } from '$app/navigation';

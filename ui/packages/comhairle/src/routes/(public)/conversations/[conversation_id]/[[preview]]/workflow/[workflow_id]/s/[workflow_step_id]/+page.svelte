@@ -3,6 +3,7 @@
 	import * as HeyForm from '$lib/tools/heyform/index.js';
 	import * as Learn from '$lib/tools/learn/index.js';
 	import * as LivedExperience from '$lib/tools/lived_experince/index.js';
+	import * as ThinkingSpace from '$lib/tools/thinking_space/index.js';
 	import * as ElicitationBot from '$lib/tools/elicitation_bot/index.js';
 	import * as Prioritization from '$lib/tools/prioritization/index.js';
 	import type { PageProps } from './$types';
@@ -13,6 +14,7 @@
 	import StepHeaderSkeleton from '$lib/components/StepHeaderSkeleton.svelte';
 
 	import { Button } from '$lib/components/ui/button';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import { goto } from '$app/navigation';
 	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
 	import { page, navigating } from '$app/state';
@@ -114,7 +116,14 @@
 	});
 
 	let currentNextAction = $state<(() => void) | undefined>(undefined);
+	let currentPrevAction = $state<(() => void) | undefined>(undefined);
 	let canProceed = $state(false);
+	let isSubmitting = $state(false);
+
+	$effect(() => {
+		workflowStep.id;
+		isSubmitting = false;
+	});
 
 	$effect(() => {
 		const type = toolConfig.type;
@@ -123,10 +132,18 @@
 		} else {
 			canProceed = false;
 		}
+		if (type !== Learn.TOOL_NAME) {
+			currentNextAction = undefined;
+			currentPrevAction = undefined;
+		}
 	});
 
 	function handleNextAction(fn: () => void) {
 		currentNextAction = fn;
+	}
+
+	function handlePrevAction(fn: (() => void) | undefined) {
+		currentPrevAction = fn;
 	}
 
 	function handleCanContinueChange(value: boolean) {
@@ -138,16 +155,18 @@
 	}
 
 	async function stepComplete() {
+		if (isSubmitting) return;
+		isSubmitting = true;
+
 		if (isRevisiting) {
-			if (actualCurrentStep) {
-				const isPreview = !conversation.isLive;
+			const isPreview = !conversation.isLive;
+			const currentIdx = sortedSteps.findIndex((ws) => ws.id === workflowStep.id);
+			const nextRevisitable = sortedSteps.slice(currentIdx + 1).find((ws) => ws.canRevisit);
+			const target = nextRevisitable ?? actualCurrentStep;
+			if (target) {
 				goto(
-					workflow_step_url(
-						conversation.id,
-						workflow_id,
-						actualCurrentStep.id,
-						isPreview
-					) + queryString
+					workflow_step_url(conversation.id, workflow_id, target.id, isPreview) +
+						queryString
 				);
 			} else {
 				goToThankYouPage();
@@ -191,6 +210,7 @@
 				message: 'Something unexpected happened. Try again shortly',
 				priority: 'ERROR'
 			});
+			isSubmitting = false;
 		}
 	}
 </script>
@@ -217,8 +237,10 @@
 					title={workflowStep.name}
 					description={workflowStep.description}
 					prevHref={prevStepHref}
+					onPrev={currentPrevAction}
 					onNext={currentNextAction ?? stepComplete}
 					nextDisabled={!canProceed}
+					nextLoading={isSubmitting}
 					boldDescription={toolConfig.type === Polis.TOOL_NAME}
 					{availableDocuments}
 					conversationId={conversation.id}
@@ -229,9 +251,17 @@
 		<div class="flex w-full grow flex-col gap-y-2 md:order-3">
 			<div class="flex grow flex-col">
 				{#if !workflowStep.required}
-					<Button onclick={stepComplete} class="mx-auto" variant="secondary"
-						>Skip this step</Button
+					<Button
+						onclick={stepComplete}
+						disabled={isSubmitting}
+						class="mx-auto"
+						variant="secondary"
 					>
+						{#if isSubmitting}
+							<Spinner class="mr-2 size-4" />
+						{/if}
+						Skip this step
+					</Button>
 				{/if}
 				<div class="mb-10 w-full grow">
 					{#if navigating.to}
@@ -242,13 +272,17 @@
 							</div>
 						{/if}
 					{:else if toolConfig.type === Learn.TOOL_NAME}
-						<Learn.UserUI
-							onDone={stepComplete}
-							pages={toolConfig.pages}
-							user_id={user.id}
-							onNextAction={handleNextAction}
-							{conversation}
-						/>
+						{#key workflowStep.id}
+							<Learn.UserUI
+								onDone={stepComplete}
+								pages={toolConfig.pages}
+								user_id={user.id}
+								onNextAction={handleNextAction}
+								onPrevAction={handlePrevAction}
+								{conversation}
+								{isSubmitting}
+							/>
+						{/key}
 					{/if}
 					{#if toolConfig?.type === Polis.TOOL_NAME}
 						<Polis.UserUI
@@ -275,6 +309,19 @@
 					{/if}
 					{#if toolConfig.type === LivedExperience.TOOL_NAME}
 						<LivedExperience.UserUI onDone={stepComplete} />
+					{/if}
+					{#if toolConfig.type === ThinkingSpace.TOOL_NAME}
+						{#key workflowStep.id}
+							<ThinkingSpace.UserUI
+								workflowStepId={workflowStep.id}
+								userId={user.id}
+								topic={toolConfig.topic}
+								rootQuestions={toolConfig.root_questions}
+								followUpRoundsCount={toolConfig.follow_up_rounds_count}
+								onDone={stepComplete}
+								onCanContinueChange={handleCanContinueChange}
+							/>
+						{/key}
 					{/if}
 					{#if toolConfig.type === ElicitationBot.TOOL_NAME}
 						{#key workflowStep.id}

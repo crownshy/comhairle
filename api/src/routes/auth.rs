@@ -507,18 +507,28 @@ async fn login_otp_token(
     cookies: CookieJar,
     Json(payload): Json<VerifyOtpTokenRequest>,
 ) -> Result<(CookieJar, (StatusCode, Json<UserDto>)), ComhairleError> {
-    let current_user = validate_jwt::<OtpClaims>(&state, &payload.token).await?;
+    let token_data = match decode_jwt::<OtpClaims>(&payload.token, &state.config.jwt_secret) {
+        Ok(data) => data,
+        Err(e) => {
+            warn!("unable to decode {e}");
+            return Err(ComhairleError::AuthJWTError(
+                "Unable to decode token".to_string(),
+            ));
+        }
+    };
 
-    if current_user.auth_type == UserAuthType::Annon {
+    let user = get_user_by_email(&token_data.claims.details.email, &state.db).await?;
+    let now = Utc::now();
+
+    if user.auth_type == UserAuthType::Annon {
         return Err(ComhairleError::WrongUserType);
     }
 
-    let cookie = create_session_cookie(&current_user, &state);
+    let _otp = otp::accept(&state.db, &user.id, &token_data.claims.details.otp, now).await?;
 
-    Ok((
-        cookies.add(cookie),
-        (StatusCode::OK, Json(current_user.into())),
-    ))
+    let cookie = create_session_cookie(&user, &state);
+
+    Ok((cookies.add(cookie), (StatusCode::OK, Json(user.into()))))
 }
 
 #[instrument(err(Debug), skip(state, payload))]

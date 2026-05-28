@@ -135,9 +135,9 @@ async fn get_session_history(
     RequiredUser(user): RequiredUser,
 ) -> Result<(StatusCode, Json<ComhairleAgentSession>), ComhairleError> {
     let bot_service = state.required_bot_service()?;
-    let elicitation_bot_agent_id = state
+    let bot_service_config = state
         .config
-        .elicitation_bot_agent_id
+        .bot_service
         .as_ref()
         .ok_or(ComhairleError::NoBotServiceConfigured)?;
 
@@ -153,7 +153,7 @@ async fn get_session_history(
     let (_, session) = bot_service
         .get_agent_session(
             &user_session.bot_service_session_id,
-            elicitation_bot_agent_id,
+            &bot_service_config.elicitation_bot_agent_id,
         )
         .await?;
 
@@ -184,9 +184,9 @@ async fn converse(
     Json(payload): Json<ConversationRequest>,
 ) -> Result<StreamBody, ComhairleError> {
     let bot_service = state.required_bot_service()?;
-    let elicitation_bot_agent_id = state
+    let bot_service_config = state
         .config
-        .elicitation_bot_agent_id
+        .bot_service
         .as_ref()
         .ok_or(ComhairleError::NoBotServiceConfigured)?;
 
@@ -215,12 +215,13 @@ async fn converse(
 
     let payload = AgentConversationRequest {
         question: payload.question,
-        topic: tool_config.topic.clone(),
+        topic: Some(tool_config.topic.clone()),
+        ..Default::default()
     };
     let stream = bot_service
         .converse_with_agent(
             &session.bot_service_session_id,
-            elicitation_bot_agent_id,
+            &bot_service_config.elicitation_bot_agent_id,
             payload,
         )
         .await?;
@@ -413,7 +414,8 @@ mod tests {
 
         let converse_request = AgentConversationRequest {
             question: "Test question?".to_string(),
-            topic: "renewable energy".to_string(),
+            topic: Some("renewable energy".to_string()),
+            ..Default::default()
         };
         let body = serde_json::to_vec(&converse_request)?;
         let (status, body, _) = session

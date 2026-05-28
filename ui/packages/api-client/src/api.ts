@@ -97,42 +97,6 @@ export const UserRoles = z
   .object({ resource: ResourceType, roles: z.array(ResourceRole) })
   .passthrough();
 export type UserRoles = z.infer<typeof UserRoles>;
-export const ConversationDto = z
-  .object({
-    callToAction: z.union([z.string(), z.null()]).optional(),
-    chatBotId: z.union([z.string(), z.null()]).optional(),
-    description: z.string().uuid(),
-    enableQaChatBot: z.boolean(),
-    enableSignupPrompts: z.boolean(),
-    faqs: z.union([z.string(), z.null()]).optional(),
-    id: z.string().uuid(),
-    imageUrl: z.string(),
-    isComplete: z.boolean(),
-    isInviteOnly: z.boolean(),
-    isLive: z.boolean(),
-    isPublic: z.boolean(),
-    knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
-    organizationId: z.union([z.string(), z.null()]).optional(),
-    primaryLocale: z.string(),
-    privacyPolicy: z.union([z.string(), z.null()]).optional(),
-    shortDescription: z.string().uuid(),
-    shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
-    showThankYouPageAnnonInstructions: z.boolean(),
-    slug: z.union([z.string(), z.null()]).optional(),
-    supportedLanguages: z.array(z.string()),
-    tags: z.array(z.string()),
-    thankYouMessage: z.union([z.string(), z.null()]).optional(),
-    title: z.string().uuid(),
-    videoUrl: z.union([z.string(), z.null()]).optional(),
-  })
-  .passthrough();
-export type ConversationDto = z.infer<typeof ConversationDto>;
-export const created_after = z.union([z.string(), z.null()]).optional();
-export type created_after = z.infer<typeof created_after>;
-export const is_complete = z.union([z.boolean(), z.null()]).optional();
-export type is_complete = z.infer<typeof is_complete>;
-export const limit = z.union([z.number(), z.null()]).optional();
-export type limit = z.infer<typeof limit>;
 export const LocalizedConversationDto = z
   .object({
     callToAction: z.union([z.string(), z.null()]).optional(),
@@ -163,6 +127,12 @@ export const LocalizedConversationDto = z
   })
   .passthrough();
 export type LocalizedConversationDto = z.infer<typeof LocalizedConversationDto>;
+export const created_after = z.union([z.string(), z.null()]).optional();
+export type created_after = z.infer<typeof created_after>;
+export const is_complete = z.union([z.boolean(), z.null()]).optional();
+export type is_complete = z.infer<typeof is_complete>;
+export const limit = z.union([z.number(), z.null()]).optional();
+export type limit = z.infer<typeof limit>;
 export const PaginatedResults_for_LocalizedConversationDto = z
   .object({
     records: z.array(LocalizedConversationDto),
@@ -415,51 +385,6 @@ export const ConversationRequest = z
   .object({ question: z.string() })
   .passthrough();
 export type ConversationRequest = z.infer<typeof ConversationRequest>;
-export const Translation = z
-  .object({
-    textContent: TextContentDto,
-    textTranslations: z.array(TextTranslationDto),
-  })
-  .passthrough();
-export type Translation = z.infer<typeof Translation>;
-export const ProposalTranslations = z
-  .object({ body: Translation, title: Translation })
-  .passthrough();
-export type ProposalTranslations = z.infer<typeof ProposalTranslations>;
-export const ProposalWithTranslations = z
-  .object({
-    body: z.string(),
-    createdAt: z.string().datetime({ offset: true }),
-    id: z.string().uuid(),
-    title: z.string(),
-    translations: ProposalTranslations,
-    updatedAt: z.string().datetime({ offset: true }),
-    workflowStepId: z.string().uuid(),
-  })
-  .passthrough();
-export type ProposalWithTranslations = z.infer<typeof ProposalWithTranslations>;
-export const LocalizedProposalDto = z
-  .object({
-    body: z.string(),
-    id: z.string().uuid(),
-    title: z.string(),
-    workflowStepId: z.string().uuid(),
-  })
-  .passthrough();
-export type LocalizedProposalDto = z.infer<typeof LocalizedProposalDto>;
-export const ProposalsListResponse = z.union([
-  z.array(ProposalWithTranslations),
-  z.array(LocalizedProposalDto),
-]);
-export type ProposalsListResponse = z.infer<typeof ProposalsListResponse>;
-export const CreateProposalRequest = z
-  .object({
-    body: z.string(),
-    title: z.string(),
-    workflow_step_id: z.string().uuid(),
-  })
-  .passthrough();
-export type CreateProposalRequest = z.infer<typeof CreateProposalRequest>;
 export const ProposalDto = z
   .object({
     body: z.string().uuid(),
@@ -469,6 +394,14 @@ export const ProposalDto = z
   })
   .passthrough();
 export type ProposalDto = z.infer<typeof ProposalDto>;
+export const CreateProposalRequest = z
+  .object({
+    body: z.string(),
+    title: z.string(),
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type CreateProposalRequest = z.infer<typeof CreateProposalRequest>;
 export const Response = z
   .object({ question_id: z.string().uuid(), value: z.number() })
   .passthrough();
@@ -480,7 +413,6 @@ export const ProposalResponseDto = z
     id: z.string().uuid(),
     proposalId: z.string().uuid(),
     response: QuestionResponses,
-    userId: z.string().uuid(),
   })
   .passthrough();
 export type ProposalResponseDto = z.infer<typeof ProposalResponseDto>;
@@ -488,6 +420,42 @@ export const CreateResponse = z
   .object({ question_responses: z.array(Response) })
   .passthrough();
 export type CreateResponse = z.infer<typeof CreateResponse>;
+export const AnswerStatus = z.enum(["pending", "approved", "declined"]);
+export type AnswerStatus = z.infer<typeof AnswerStatus>;
+export const status = z.union([AnswerStatus, z.null()]).optional();
+export type status = z.infer<typeof status>;
+export const ThinkingSpaceAnswerDto = z
+  .object({
+    answer: z.string(),
+    id: z.string().uuid(),
+    isFollowUp: z.boolean(),
+    otherQuestions: z.array(z.string()),
+    question: z.string(),
+    rootQuestionId: z.union([z.string(), z.null()]).optional(),
+    status: AnswerStatus,
+    workflowStepId: z.string().uuid(),
+  })
+  .passthrough();
+export type ThinkingSpaceAnswerDto = z.infer<typeof ThinkingSpaceAnswerDto>;
+export const CreateAnswerRequest = z
+  .object({
+    answer: z.string(),
+    is_follow_up: z.union([z.boolean(), z.null()]).optional(),
+    other_questions: z.union([z.array(z.string()), z.null()]).optional(),
+    question: z.string(),
+    root_question_id: z.union([z.string(), z.null()]).optional(),
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type CreateAnswerRequest = z.infer<typeof CreateAnswerRequest>;
+export const UpdateAnswer = z
+  .object({
+    answer: z.union([z.string(), z.null()]),
+    status: z.union([AnswerStatus, z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type UpdateAnswer = z.infer<typeof UpdateAnswer>;
 export const CreateConversation = z
   .object({
     default_workflow_id: z.union([z.string(), z.null()]).optional(),
@@ -507,23 +475,53 @@ export const CreateConversation = z
   })
   .passthrough();
 export type CreateConversation = z.infer<typeof CreateConversation>;
-export const Translation2 = z
+export const ConversationDto = z
+  .object({
+    callToAction: z.union([z.string(), z.null()]).optional(),
+    chatBotId: z.union([z.string(), z.null()]).optional(),
+    description: z.string().uuid(),
+    enableQaChatBot: z.boolean(),
+    enableSignupPrompts: z.boolean(),
+    faqs: z.union([z.string(), z.null()]).optional(),
+    id: z.string().uuid(),
+    imageUrl: z.string(),
+    isComplete: z.boolean(),
+    isInviteOnly: z.boolean(),
+    isLive: z.boolean(),
+    isPublic: z.boolean(),
+    knowledgeBaseId: z.union([z.string(), z.null()]).optional(),
+    organizationId: z.union([z.string(), z.null()]).optional(),
+    primaryLocale: z.string(),
+    privacyPolicy: z.union([z.string(), z.null()]).optional(),
+    shortDescription: z.string().uuid(),
+    shortPrivacyPolicy: z.union([z.string(), z.null()]).optional(),
+    showThankYouPageAnnonInstructions: z.boolean(),
+    slug: z.union([z.string(), z.null()]).optional(),
+    supportedLanguages: z.array(z.string()),
+    tags: z.array(z.string()),
+    thankYouMessage: z.union([z.string(), z.null()]).optional(),
+    title: z.string().uuid(),
+    videoUrl: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type ConversationDto = z.infer<typeof ConversationDto>;
+export const Translation = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation2 = z.infer<typeof Translation2>;
+export type Translation = z.infer<typeof Translation>;
 export const ConversationTranslations = z
   .object({
-    callToAction: z.union([Translation2, z.null()]).optional(),
-    description: Translation2,
-    faqs: z.union([Translation2, z.null()]).optional(),
-    privacyPolicy: z.union([Translation2, z.null()]).optional(),
-    shortDescription: Translation2,
-    shortPrivacyPolicy: z.union([Translation2, z.null()]).optional(),
-    thankYouMessage: z.union([Translation2, z.null()]).optional(),
-    title: Translation2,
+    callToAction: z.union([Translation, z.null()]).optional(),
+    description: Translation,
+    faqs: z.union([Translation, z.null()]).optional(),
+    privacyPolicy: z.union([Translation, z.null()]).optional(),
+    shortDescription: Translation,
+    shortPrivacyPolicy: z.union([Translation, z.null()]).optional(),
+    thankYouMessage: z.union([Translation, z.null()]).optional(),
+    title: Translation,
   })
   .passthrough();
 export type ConversationTranslations = z.infer<typeof ConversationTranslations>;
@@ -697,13 +695,7 @@ export const QuestionType = z.union([
   }),
   z.object({
     continuous: z
-      .object({
-        sub_steps: z.number().int().optional().default(10),
-        min_value: z.number().optional().default(0),
-        max_value: z.number().optional().default(10),
-        min_label: z.string().optional().default(""),
-        max_label: z.string().optional().default(""),
-      })
+      .object({ label: z.string(), sub_steps: z.number().int() })
       .passthrough(),
   }),
 ]);
@@ -712,6 +704,10 @@ export const Question = z
   .object({ id: z.string().uuid(), text: z.string(), type: QuestionType })
   .passthrough();
 export type Question = z.infer<typeof Question>;
+export const ThinkingSpaceQuestion = z
+  .object({ id: z.string().uuid(), text: z.string() })
+  .passthrough();
+export type ThinkingSpaceQuestion = z.infer<typeof ThinkingSpaceQuestion>;
 export const ToolConfig = z.union([
   z
     .object({
@@ -754,6 +750,14 @@ export const ToolConfig = z.union([
       questions: z.array(Question),
       randomize_order: z.boolean(),
       type: z.literal("prioritization"),
+    })
+    .passthrough(),
+  z
+    .object({
+      follow_up_rounds_count: z.number().int().gte(0),
+      root_questions: z.array(ThinkingSpaceQuestion),
+      topic: z.string(),
+      type: z.literal("thinkingspace"),
     })
     .passthrough(),
 ]);
@@ -828,15 +832,15 @@ export const UserParticipation = z
   })
   .passthrough();
 export type UserParticipation = z.infer<typeof UserParticipation>;
-export const Translation3 = z
+export const Translation2 = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation3 = z.infer<typeof Translation3>;
+export type Translation2 = z.infer<typeof Translation2>;
 export const WorkflowStepTranslations = z
-  .object({ description: Translation3, name: Translation3 })
+  .object({ description: Translation2, name: Translation2 })
   .passthrough();
 export type WorkflowStepTranslations = z.infer<typeof WorkflowStepTranslations>;
 export const WorkflowStepWithTranslations = z
@@ -909,6 +913,12 @@ export const SetupQuestion = z
   .object({ text: z.string(), type: QuestionType })
   .passthrough();
 export type SetupQuestion = z.infer<typeof SetupQuestion>;
+export const ThinkingSpaceSetupQuestion = z
+  .object({ text: z.string() })
+  .passthrough();
+export type ThinkingSpaceSetupQuestion = z.infer<
+  typeof ThinkingSpaceSetupQuestion
+>;
 export const ToolSetup = z.union([
   z
     .object({
@@ -942,6 +952,14 @@ export const ToolSetup = z.union([
       questions: z.array(SetupQuestion),
       randomize_order: z.boolean(),
       type: z.literal("prioritization"),
+    })
+    .passthrough(),
+  z
+    .object({
+      follow_up_rounds_count: z.number().int().gte(0),
+      root_questions: z.array(ThinkingSpaceSetupQuestion),
+      topic: z.string(),
+      type: z.literal("thinkingspace"),
     })
     .passthrough(),
 ]);
@@ -1023,7 +1041,7 @@ export const InviteDto = z
     acceptCount: z.number().int(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
-    createdBy: z.string().uuid(),
+    createdBy: z.union([z.string(), z.null()]).optional(),
     eventId: z.union([z.string(), z.null()]).optional(),
     expiresAt: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
@@ -1051,7 +1069,6 @@ export const PartialInvite = z
   .object({
     accept_count: z.union([z.number(), z.null()]),
     conversation_id: z.union([z.string(), z.null()]),
-    created_by: z.union([z.string(), z.null()]),
     event_id: z.union([z.string(), z.null()]),
     expires_at: z.union([z.string(), z.null()]),
     invite_type: z.union([InviteType, z.null()]),
@@ -1105,6 +1122,8 @@ export const ElicitationBotReport = z.null();
 export type ElicitationBotReport = z.infer<typeof ElicitationBotReport>;
 export const PrioritizationReport = z.null();
 export type PrioritizationReport = z.infer<typeof PrioritizationReport>;
+export const ThinkingSpaceReport = z.null();
+export type ThinkingSpaceReport = z.infer<typeof ThinkingSpaceReport>;
 export const ReportConfig = z.union([
   z.object({ Polis: PolisReport }),
   z.object({ HeyForm: HeyFormReport }),
@@ -1112,6 +1131,7 @@ export const ReportConfig = z.union([
   z.object({ Stories: StoriesReport }),
   z.object({ ElicitationBot: ElicitationBotReport }),
   z.object({ Prioritization: PrioritizationReport }),
+  z.object({ ThinkingSpace: ThinkingSpaceReport }),
 ]);
 export type ReportConfig = z.infer<typeof ReportConfig>;
 export const ReportSectionConfig = z
@@ -1276,10 +1296,11 @@ export const PaginatedResults_for_LocalizedEventDto = z
 export type PaginatedResults_for_LocalizedEventDto = z.infer<
   typeof PaginatedResults_for_LocalizedEventDto
 >;
-export const CreateEventRequest = z
+export const CreateEvent = z
   .object({
     agenda: z.union([z.array(EventAgendaItem), z.null()]).optional(),
     capacity: z.union([z.number(), z.null()]).optional(),
+    default_time_zone: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     end_time: z.string().datetime({ offset: true }),
     name: z.string(),
@@ -1287,7 +1308,7 @@ export const CreateEventRequest = z
     start_time: z.string().datetime({ offset: true }),
   })
   .passthrough();
-export type CreateEventRequest = z.infer<typeof CreateEventRequest>;
+export type CreateEvent = z.infer<typeof CreateEvent>;
 export const EventDto = z
   .object({
     agenda: z.array(EventAgendaItem),
@@ -1304,15 +1325,15 @@ export const EventDto = z
   })
   .passthrough();
 export type EventDto = z.infer<typeof EventDto>;
-export const Translation4 = z
+export const Translation3 = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation4 = z.infer<typeof Translation4>;
+export type Translation3 = z.infer<typeof Translation3>;
 export const EventTranslations = z
-  .object({ description: Translation4, name: Translation4 })
+  .object({ description: Translation3, name: Translation3 })
   .passthrough();
 export type EventTranslations = z.infer<typeof EventTranslations>;
 export const EventWithTranslations = z
@@ -1321,10 +1342,12 @@ export const EventWithTranslations = z
     capacity: z.union([z.number(), z.null()]).optional(),
     conversationId: z.string().uuid(),
     createdAt: z.string().datetime({ offset: true }),
+    defaultTimeZone: z.string(),
     description: z.string(),
     endTime: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
     name: z.string(),
+    reminderSentAt: z.union([z.string(), z.null()]).optional(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
     translations: EventTranslations,
@@ -1342,9 +1365,11 @@ export const PartialEvent = z
   .object({
     agenda: z.union([z.array(EventAgendaItem), z.null()]).default(null),
     capacity: z.union([z.number(), z.null()]),
+    default_time_zone: z.union([z.string(), z.null()]),
     description: z.union([z.string(), z.null()]),
     end_time: z.union([z.string(), z.null()]),
     name: z.union([z.string(), z.null()]),
+    reminder_sent_at: z.union([z.string(), z.null()]),
     signup_mode: z.union([z.string(), z.null()]),
     start_time: z.union([z.string(), z.null()]),
   })
@@ -1618,11 +1643,10 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ResourceType,
   ResourceRole,
   UserRoles,
-  ConversationDto,
+  LocalizedConversationDto,
   created_after,
   is_complete,
   limit,
-  LocalizedConversationDto,
   PaginatedResults_for_LocalizedConversationDto,
   UpdateUserRequest,
   UpgradeAccountRequest,
@@ -1651,19 +1675,20 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ComhairleSessionMessage,
   ComhairleAgentSession,
   ConversationRequest,
-  Translation,
-  ProposalTranslations,
-  ProposalWithTranslations,
-  LocalizedProposalDto,
-  ProposalsListResponse,
-  CreateProposalRequest,
   ProposalDto,
+  CreateProposalRequest,
   Response,
   QuestionResponses,
   ProposalResponseDto,
   CreateResponse,
+  AnswerStatus,
+  status,
+  ThinkingSpaceAnswerDto,
+  CreateAnswerRequest,
+  UpdateAnswer,
   CreateConversation,
-  Translation2,
+  ConversationDto,
+  Translation,
   ConversationTranslations,
   ConversationWithTranslations,
   ConversationResponse,
@@ -1682,6 +1707,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   Category,
   QuestionType,
   Question,
+  ThinkingSpaceQuestion,
   ToolConfig,
   WorkflowStep,
   DailySignupStats,
@@ -1690,7 +1716,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   DemographicCategory,
   DemographicReport,
   UserParticipation,
-  Translation3,
+  Translation2,
   WorkflowStepTranslations,
   WorkflowStepWithTranslations,
   ProgressStatus,
@@ -1698,6 +1724,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   LocalizedWorkflowStepDto,
   WorkflowStepsListResponse,
   SetupQuestion,
+  ThinkingSpaceSetupQuestion,
   ToolSetup,
   CreateWorkflowStep,
   WorkflowStepDto,
@@ -1718,6 +1745,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   StoriesReport,
   ElicitationBotReport,
   PrioritizationReport,
+  ThinkingSpaceReport,
   ReportConfig,
   ReportSectionConfig,
   ReportSectionConfigs,
@@ -1743,9 +1771,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EventAgendaItem,
   LocalizedEventDto,
   PaginatedResults_for_LocalizedEventDto,
-  CreateEventRequest,
+  CreateEvent,
   EventDto,
-  Translation4,
+  Translation3,
   EventTranslations,
   EventWithTranslations,
   EventResponse,
@@ -2301,7 +2329,7 @@ curl -X POST \
       {
         name: "body",
         type: "Body",
-        schema: CreateEventRequest,
+        schema: CreateEvent,
       },
     ],
     response: EventDto,
@@ -2589,20 +2617,6 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     response: WorkflowStepDto,
   },
   {
-    method: "put",
-    path: "/conversation/:conversation_id/events/:event_id/workflows/:workflow_id/workflow_steps/:workflow_step_id/elicitation_bot",
-    alias: "UpdateEventElicitationBotWorkflowStep",
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "body",
-        type: "Body",
-        schema: PartialWorkflowStep,
-      },
-    ],
-    response: WorkflowStepDto,
-  },
-  {
     method: "get",
     path: "/conversation/:conversation_id/feedback",
     alias: "ListFeedbackForConversation",
@@ -2713,6 +2727,21 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     alias: "GetInviteStats",
     requestFormat: "json",
     response: z.array(DailyResponseStats),
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/invite/events",
+    alias: "CreateEventInvite",
+    description: `Create an invite for a given event`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateInviteDTO,
+      },
+    ],
+    response: InviteDto,
   },
   {
     method: "get",
@@ -2985,20 +3014,6 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id",
     alias: "DeleteConversationWorkflowStep",
     requestFormat: "json",
-    response: WorkflowStepDto,
-  },
-  {
-    method: "put",
-    path: "/conversation/:conversation_id/workflow/:workflow_id/workflow_step/:workflow_step_id/elicitation_bot",
-    alias: "UpdateConversationElicitationBotWorkflowStep",
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "body",
-        type: "Body",
-        schema: PartialWorkflowStep,
-      },
-    ],
     response: WorkflowStepDto,
   },
   {
@@ -3478,21 +3493,16 @@ Use a raw HTTP request and process the response body incrementally.
     method: "get",
     path: "/tools/prioritization/proposals",
     alias: "ListProposals",
-    description: `List proposals for a given prioritization tool workflow_step. Admin callers may pass &#x60;withTranslations&#x3D;true&#x60; to receive raw TextContentId references plus full translation data so the admin UI can drive the standard TranslatableField component.`,
+    description: `List proposals for a given prioritization tool workflow_step`,
     requestFormat: "json",
     parameters: [
       {
-        name: "withTranslations",
-        type: "Query",
-        schema: z.boolean().optional().default(false),
-      },
-      {
-        name: "workflowStepId",
+        name: "workflow_step_id",
         type: "Query",
         schema: z.string().uuid(),
       },
     ],
-    response: ProposalsListResponse,
+    response: z.array(ProposalDto),
   },
   {
     method: "post",
@@ -3509,14 +3519,6 @@ Create a new prioritization tool proposal for a given prioritization tool workfl
         schema: CreateProposalRequest,
       },
     ],
-    response: ProposalDto,
-  },
-  {
-    method: "delete",
-    path: "/tools/prioritization/proposals/:proposal_id",
-    alias: "DeleteProposal",
-    description: `Delete a prioritization tool proposal`,
-    requestFormat: "json",
     response: ProposalDto,
   },
   {
@@ -3567,6 +3569,61 @@ Create a response for prioritization tool proposal
     description: `Record a user story for the current user and workflow step`,
     requestFormat: "json",
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/tools/thinking_space/answers",
+    alias: "ListThinkingSpaceAnswers",
+    description: `List answer for thinking space workflow step`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "status",
+        type: "Query",
+        schema: status,
+      },
+      {
+        name: "user_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.array(ThinkingSpaceAnswerDto),
+  },
+  {
+    method: "post",
+    path: "/tools/thinking_space/answers",
+    alias: "CreateThinkingSpaceAnswer",
+    description: `Create an answer for thinking space workflow step question`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateAnswerRequest,
+      },
+    ],
+    response: ThinkingSpaceAnswerDto,
+  },
+  {
+    method: "put",
+    path: "/tools/thinking_space/answers/:answer_id",
+    alias: "UpdateThinkingSpaceAnswer",
+    description: `Update an answer for thinking space workflow step question`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpdateAnswer,
+      },
+    ],
+    response: ThinkingSpaceAnswerDto,
   },
   {
     method: "post",
@@ -3688,7 +3745,7 @@ This struct contains optional fields that can be updated on a TextTranslation re
     alias: "GetConversationsUserIsParticipatingIn",
     description: `Returns a list of all the conversations the user has taken part in`,
     requestFormat: "json",
-    response: z.array(ConversationDto),
+    response: z.array(LocalizedConversationDto),
   },
   {
     method: "put",

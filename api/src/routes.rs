@@ -1,3 +1,4 @@
+pub mod api_keys;
 pub mod auth;
 pub mod chat_sessions;
 pub mod conversations;

@@ -22,7 +22,6 @@ use crate::routes::workflow_steps::dto::{
     LocalizedWorkflowStepDto, LocalizedWorkflowStepWithProgressDto, WorkflowStepDto,
 };
 use crate::routes::workflows::{SourcePathCtx, WorkflowPathCtx, WorkflowRouterContext};
-use crate::tools::ToolConfig;
 use crate::{
     error::ComhairleError,
     models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep},
@@ -141,32 +140,6 @@ async fn update_workflow_step(
     let workflow = workflow_step::update(&state.db, &workflow_step_id, &workflow_id, &workflow)
         .await?
         .into();
-    Ok((StatusCode::OK, Json(workflow)))
-}
-
-async fn update_elicitation_bot_workflow_step(
-    State(state): State<Arc<ComhairleState>>,
-    WorkflowStepPathCtx {
-        workflow_id,
-        workflow_step_id,
-    }: WorkflowStepPathCtx,
-    RequiredAdminUser(_user): RequiredAdminUser,
-    Json(workflow): Json<PartialWorkflowStep>,
-) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
-    let _tool_config = match (&workflow.tool_config, &workflow.preview_tool_config) {
-        (Some(ToolConfig::ElicitationBot(config)), _) => config,
-        (None, Some(ToolConfig::ElicitationBot(config))) => config,
-        _ => {
-            return Err(ComhairleError::ToolConfigError(
-                "Incorrect config type".to_string(),
-            ))
-        }
-    };
-
-    let workflow = workflow_step::update(&state.db, &workflow_step_id, &workflow_id, &workflow)
-        .await?
-        .into();
-
     Ok((StatusCode::OK, Json(workflow)))
 }
 
@@ -318,16 +291,6 @@ Use query param withUserProgress=true to get the active user's progress status f
                 op.id(&format!("Update{ctx}WorkflowStep"))
                     .tag("Workflow step")
                     .summary("Update the specified workflow step")
-                    .security_requirement("JWT")
-                    .response::<200, Json<WorkflowStepDto>>()
-            }),
-        )
-        .api_route(
-            "/{workflow_step_id}/elicitation_bot",
-            put_with(update_elicitation_bot_workflow_step, |op| {
-                op.id(&format!("Update{ctx}ElicitationBotWorkflowStep"))
-                    .tag("Workflow step")
-                    .summary("Update a workflow step of type elicitation bot")
                     .security_requirement("JWT")
                     .response::<200, Json<WorkflowStepDto>>()
             }),

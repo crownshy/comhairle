@@ -547,8 +547,9 @@ pub async fn update(
 pub async fn list_for_user_participation(
     db: &PgPool,
     user_id: &Uuid,
-) -> Result<Vec<Conversation>, ComhairleError> {
-    let (sql, values) = Query::select()
+    locale: &str,
+) -> Result<Vec<LocalizedConversation>, ComhairleError> {
+    let query = Query::select()
         .from(ConversationIden::Table)
         .columns(DEFAULT_COLUMNS.map(|col| (ConversationIden::Table, col)))
         .join(
@@ -578,9 +579,12 @@ pub async fn list_for_user_participation(
         //     sea_query::Order::Desc,
         // )
         .distinct()
+        .to_owned();
+
+    let (sql, values) = LocalizedConversation::query_to_localisation(query, locale)
         .build_sqlx(PostgresQueryBuilder);
 
-    let conversations = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
+    let conversations = sqlx::query_as_with::<_, LocalizedConversation, _>(&sql, values)
         .fetch_all(db)
         .await?;
     Ok(conversations)
@@ -673,16 +677,14 @@ pub async fn create(
     let mut columns = conversation.columns();
     let mut values = conversation.values();
 
-    if let (Some(bot_service), Some(default_knowledge_base_id)) =
-        (bot_service, &config.default_knowledge_base_id)
-    {
+    if let (Some(bot_service), Some(bot_service_config)) = (bot_service, &config.bot_service) {
         let (_, knowledge_base) = bot_service
             .create_knowledge_base(conversation_id.to_string(), None)
             .await?;
 
         let create_chat = CreateChatRequest {
             name: conversation_id.to_string(),
-            knowledge_base_ids: Some(vec![default_knowledge_base_id.clone()]),
+            knowledge_base_ids: Some(vec![bot_service_config.default_knowledge_base_id.clone()]),
             prompt: Some(ComhairlePrompt {
                 llm_prompt: Some(DEFAULT_CHAT_PROMPT.to_string()),
                 opener: Some(DEFAULT_CHAT_OPENER.to_string()),

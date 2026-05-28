@@ -9,6 +9,11 @@ export const defaultStepCreationParams: { [key: string]: { name: string; descrip
 	Prioritization: {
 		name: 'Rate the proposals',
 		description: 'Read each proposal and rate it against the questions provided.'
+	},
+	'Thinking Space': {
+		name: 'Thinking Space',
+		description:
+			"You'll be asked a few questions, and after each one you can pick follow-up questions to dig into. It's a chance to go deeper on what you really think. At the end you'll be able to review and edit your responses before submitting."
 	}
 };
 
@@ -58,6 +63,13 @@ export const basic_elicitation_bot_config = (conversation: LocalizedConversation
 	type: 'elicitationbot',
 	topic: 'comhairle platform',
 	conversation_id: conversation.id
+});
+
+export const basic_thinking_space_config = () => ({
+	type: 'thinkingspace',
+	topic: 'What do you think?',
+	root_questions: [],
+	follow_up_rounds_count: 2
 });
 
 export const basic_lived_experience_config = {

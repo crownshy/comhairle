@@ -30,8 +30,8 @@ use crate::{
             self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
         },
         pagination::{OrderParams, PageOptions, PaginatedResults},
-        user_participation::{self},
         user_conversation_preferences,
+        user_participation::{self},
         user_profile,
     },
     routes::{
@@ -372,7 +372,8 @@ async fn export_conversation_contacts(
     conversation::get_by_id(&state.db, &conversation_id).await?;
 
     // Get all contacts who opted in
-    let contacts = user_conversation_preferences::get_contacts_for_export(&state.db, &conversation_id).await?;
+    let contacts =
+        user_conversation_preferences::get_contacts_for_export(&state.db, &conversation_id).await?;
 
     // Generate CSV
     let mut csv_output = Vec::new();
@@ -393,8 +394,18 @@ async fn export_conversation_contacts(
             writer.write_record(&[
                 contact.email,
                 contact.user_type,
-                if contact.conversation_updates { "Yes" } else { "No" }.to_string(),
-                if contact.similar_conversations_updates { "Yes" } else { "No" }.to_string(),
+                if contact.conversation_updates {
+                    "Yes"
+                } else {
+                    "No"
+                }
+                .to_string(),
+                if contact.similar_conversations_updates {
+                    "Yes"
+                } else {
+                    "No"
+                }
+                .to_string(),
                 contact.signup_date.to_rfc3339(),
             ])?;
         }
@@ -411,8 +422,14 @@ async fn export_conversation_contacts(
     Ok((
         StatusCode::OK,
         [
-            ("Content-Type".to_string(), "text/csv; charset=utf-8".to_string()),
-            ("Content-Disposition".to_string(), format!("attachment; filename=\"{}\"", filename)),
+            (
+                "Content-Type".to_string(),
+                "text/csv; charset=utf-8".to_string(),
+            ),
+            (
+                "Content-Disposition".to_string(),
+                format!("attachment; filename=\"{}\"", filename),
+            ),
         ],
         csv_string,
     ))
@@ -431,7 +448,8 @@ async fn export_conversation_demographics(
     }
 
     // Get demographic data for export
-    let demographics = user_profile::get_demographics_for_export(&state.db, &conversation_id).await?;
+    let demographics =
+        user_profile::get_demographics_for_export(&state.db, &conversation_id).await?;
 
     // Generate CSV
     let mut csv_output = Vec::new();
@@ -474,8 +492,14 @@ async fn export_conversation_demographics(
     Ok((
         StatusCode::OK,
         [
-            ("Content-Type".to_string(), "text/csv; charset=utf-8".to_string()),
-            ("Content-Disposition".to_string(), format!("attachment; filename=\"{}\"", filename)),
+            (
+                "Content-Type".to_string(),
+                "text/csv; charset=utf-8".to_string(),
+            ),
+            (
+                "Content-Disposition".to_string(),
+                format!("attachment; filename=\"{}\"", filename),
+            ),
         ],
         csv_string,
     ))
@@ -588,6 +612,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 #[cfg(test)]
 mod tests {
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
+    use crate::config::BotServiceConfig;
     use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
     use crate::routes::conversations::ConversationResponse;
     use crate::routes::translations::dto::TextContentDto;
@@ -605,10 +630,7 @@ mod tests {
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let mut config = test_config()?;
-        config.bot_service_host = None;
-        config.bot_service_api_key = None;
-        config.default_knowledge_base_id = None;
-        config.elicitation_bot_agent_id = None;
+        config.bot_service = None;
         let state = test_state().db(pool).config(config).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
@@ -656,10 +678,13 @@ mod tests {
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let mut config = test_config()?;
-        config.bot_service_host = Some("test_host".to_string());
-        config.bot_service_api_key = Some("test_api_key".to_string());
-        config.default_knowledge_base_id = Some("test_kb_id".to_string());
-        config.elicitation_bot_agent_id = Some("test_ea_id".to_string());
+        config.bot_service = Some(BotServiceConfig {
+            host: "test_host".to_string(),
+            api_key: "test_api_key".to_string(),
+            default_knowledge_base_id: "test_kb_id".to_string(),
+            thinking_space_agent_id: "test_ta_id".to_string(),
+            elicitation_bot_agent_id: "test_ea_id".to_string(),
+        });
         let state = test_state().db(pool).config(config).call()?;
         let app = setup_server(Arc::new(state)).await?;
 
@@ -1485,8 +1510,8 @@ mod tests {
         // Export demographics as conversation owner
         use axum::body::Body;
         use axum::http::Request;
-        use tower::ServiceExt;
         use http_body_util::BodyExt;
+        use tower::ServiceExt;
 
         let url = format!("/conversation/{}/demographics/export", conversation.id);
         let mut request = Request::builder().uri(&url).method("GET");
@@ -1505,15 +1530,33 @@ mod tests {
         let csv_string = String::from_utf8(body.to_vec())?;
 
         // Verify CSV contains expected headers
-        assert!(csv_string.contains("User ID"), "CSV should have User ID header");
-        assert!(csv_string.contains("Ethnicity"), "CSV should have Ethnicity header");
+        assert!(
+            csv_string.contains("User ID"),
+            "CSV should have User ID header"
+        );
+        assert!(
+            csv_string.contains("Ethnicity"),
+            "CSV should have Ethnicity header"
+        );
         assert!(csv_string.contains("Age"), "CSV should have Age header");
-        assert!(csv_string.contains("Gender"), "CSV should have Gender header");
+        assert!(
+            csv_string.contains("Gender"),
+            "CSV should have Gender header"
+        );
 
         // Verify only consented user appears
-        assert!(csv_string.contains(&user1.id.to_string()), "Should include consented user");
-        assert!(csv_string.contains("Asian"), "Should include user1's ethnicity");
-        assert!(!csv_string.contains(&user2.id.to_string()), "Should not include non-consented user");
+        assert!(
+            csv_string.contains(&user1.id.to_string()),
+            "Should include consented user"
+        );
+        assert!(
+            csv_string.contains("Asian"),
+            "Should include user1's ethnicity"
+        );
+        assert!(
+            !csv_string.contains(&user2.id.to_string()),
+            "Should not include non-consented user"
+        );
 
         Ok(())
     }
@@ -1555,7 +1598,8 @@ mod tests {
         let (status, _, _) = non_owner_session.get(&app, &url).await?;
 
         assert_eq!(
-            status, StatusCode::UNAUTHORIZED,
+            status,
+            StatusCode::UNAUTHORIZED,
             "Non-owner should not be able to export demographics"
         );
 

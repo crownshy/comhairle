@@ -10,8 +10,10 @@
 		description?: string;
 		estimatedMinutes?: number;
 		prevHref?: string;
+		onPrev?: () => void;
 		onNext?: () => void;
 		nextDisabled?: boolean;
+		nextLoading?: boolean;
 		boldDescription?: boolean;
 		availableDocuments?: ComhairleDocument[];
 		conversationId?: string;
@@ -24,8 +26,10 @@
 		description,
 		estimatedMinutes,
 		prevHref,
+		onPrev,
 		onNext,
 		nextDisabled = false,
+		nextLoading = false,
 		boldDescription = true,
 		availableDocuments = [],
 		conversationId
@@ -35,7 +39,15 @@
 <div class="bg-background w-full md:mx-auto md:max-w-4xl md:rounded-2xl md:px-6 md:pt-4">
 	<div class="flex flex-col items-center">
 		<div class="flex w-full items-center justify-between md:gap-12">
-			{#if prevHref}
+			{#if onPrev}
+				<button
+					onclick={onPrev}
+					class="text-muted-foreground shrink-0 p-2"
+					aria-label="Previous page"
+				>
+					<ChevronLeft class="h-6 w-6 md:h-8 md:w-8" />
+				</button>
+			{:else if prevHref}
 				<a
 					href={prevHref}
 					class="text-muted-foreground shrink-0 p-2"
@@ -68,11 +80,13 @@
 				</p>
 			</div>
 
-			{#if onNext && !nextDisabled}
+			{#if onNext}
 				<button
 					onclick={onNext}
-					class="text-muted-foreground shrink-0 p-2"
+					disabled={nextDisabled || nextLoading}
+					class="text-muted-foreground shrink-0 p-2 disabled:cursor-not-allowed disabled:opacity-40"
 					aria-label="Next step"
+					aria-busy={nextLoading}
 				>
 					<ChevronRight class="h-6 w-6 md:h-8 md:w-8" />
 				</button>
