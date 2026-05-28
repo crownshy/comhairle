@@ -9,6 +9,10 @@
 export interface QuestionConfig {
 	id: string;
 	text: string;
+	intent: string;
+	// Matches the api-client's `passthrough()` shape so this type is assignable
+	// when sent back as part of an UpdateConversationWorkflowStep payload.
+	[key: string]: unknown;
 }
 
 export interface FollowUpAnswer {

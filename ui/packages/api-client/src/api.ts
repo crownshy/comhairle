@@ -714,7 +714,7 @@ export const Question = z
   .passthrough();
 export type Question = z.infer<typeof Question>;
 export const ThinkingSpaceQuestion = z
-  .object({ id: z.string().uuid(), text: z.string() })
+  .object({ id: z.string().uuid(), intent: z.string(), text: z.string() })
   .passthrough();
 export type ThinkingSpaceQuestion = z.infer<typeof ThinkingSpaceQuestion>;
 export const ToolConfig = z.union([
@@ -923,7 +923,7 @@ export const SetupQuestion = z
   .passthrough();
 export type SetupQuestion = z.infer<typeof SetupQuestion>;
 export const ThinkingSpaceSetupQuestion = z
-  .object({ text: z.string() })
+  .object({ intent: z.string(), text: z.string() })
   .passthrough();
 export type ThinkingSpaceSetupQuestion = z.infer<
   typeof ThinkingSpaceSetupQuestion

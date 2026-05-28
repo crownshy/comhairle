@@ -3,9 +3,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Progress } from '$lib/components/ui/progress';
-	import { CornerDownRight, Shuffle, Check, Loader2, RotateCcw } from 'lucide-svelte';
+	import { CornerDownRight, Shuffle, Check, RotateCcw } from 'lucide-svelte';
 	import type { QuestionConfig, QuestionAnswers } from './types';
 	import { QuestionFlowState } from './questionFlowState.svelte';
+	import FollowUpLoading from './FollowUpLoading.svelte';
 
 	type Props = {
 		topic: string;
@@ -94,9 +95,6 @@
 	<div class="border-border bg-card/60 border-b px-6 py-4 backdrop-blur">
 		<div class="mx-auto max-w-2xl">
 			<div class="text-muted-foreground mb-2 flex items-center justify-between text-xs">
-				<span class="font-medium tracking-wide uppercase">
-					Thinking space · {topic}
-				</span>
 				<span>
 					Question {flow.currentQuestionIndex + 1} of {questions.length} · {Math.round(
 						flow.progress
@@ -190,10 +188,7 @@
 
 			<!-- Picker: loading -->
 			{#if flow.currentState.phase === 'picking' && flow.currentState.pickerLoading}
-				<section class="border-border flex items-center gap-2 border-t pt-6">
-					<Loader2 class="text-primary size-4 animate-spin" />
-					<p class="text-muted-foreground text-sm">Generating follow-up questions…</p>
-				</section>
+				<FollowUpLoading />
 			{/if}
 
 			<!-- Picker: failed to load -->
@@ -210,8 +205,8 @@
 			<!-- Picker -->
 			{#if flow.currentState.phase === 'picking' && flow.currentState.picker.length > 0 && !flow.currentState.pickerLoading}
 				<section class="border-border space-y-3 border-t pt-6">
-					<div class="flex items-baseline justify-between gap-3">
-						<div>
+					<div class="flex items-start justify-between gap-3">
+						<div class="min-w-0">
 							<p class="text-foreground text-sm font-semibold">
 								{flow.minReached
 									? 'Or keep deepening your views'
@@ -231,6 +226,15 @@
 								</p>
 							{/if}
 						</div>
+						<Button
+							variant="secondary"
+							size="sm"
+							class="shrink-0"
+							onclick={() => flow.pickRandom()}
+						>
+							<Shuffle class="size-3.5" />
+							Pick one for me
+						</Button>
 					</div>
 					<div class="space-y-2">
 						{#each flow.currentState.picker.slice(0, 5) as followUpQuestion, i (followUpQuestion + i)}
@@ -243,10 +247,6 @@
 							</button>
 						{/each}
 					</div>
-					<Button variant="secondary" size="sm" onclick={() => flow.pickRandom()}>
-						<Shuffle class="size-3.5" />
-						Pick one for me
-					</Button>
 				</section>
 			{/if}
 

@@ -43,7 +43,12 @@
 			| undefined;
 		topic = cfg?.topic ?? '';
 		config = {
-			questions: cfg?.root_questions?.map((q) => ({ id: q.id, text: q.text })) ?? [],
+			questions:
+				cfg?.root_questions?.map((q) => ({
+					id: q.id,
+					text: q.text,
+					intent: q.intent
+				})) ?? [],
 			followUpRoundsCount:
 				typeof cfg?.follow_up_rounds_count === 'number'
 					? Math.max(0, Math.min(5, cfg.follow_up_rounds_count))
@@ -80,6 +85,14 @@
 		if (topic.trim().length < 3) {
 			notifications.send({
 				message: 'Topic must be at least 3 characters.',
+				priority: 'ERROR'
+			});
+			return;
+		}
+		const missingIntent = config.questions.find((q) => !q.intent.trim());
+		if (missingIntent) {
+			notifications.send({
+				message: `Every question needs an intent. Add one to "${missingIntent.text.trim() || 'Untitled question'}".`,
 				priority: 'ERROR'
 			});
 			return;
@@ -219,13 +232,25 @@
 							>
 								<GripVertical class="size-4" />
 							</button>
-							<p
-								class="min-w-0 flex-1 text-base leading-relaxed"
-								class:text-foreground={q.text.trim()}
-								class:text-muted-foreground={!q.text.trim()}
-							>
-								{q.text.trim() || 'Untitled question'}
-							</p>
+							<div class="min-w-0 flex-1 space-y-1">
+								<p
+									class="text-base leading-relaxed"
+									class:text-foreground={q.text.trim()}
+									class:text-muted-foreground={!q.text.trim()}
+								>
+									{q.text.trim() || 'Untitled question'}
+								</p>
+								{#if q.intent.trim()}
+									<p class="text-muted-foreground line-clamp-2 text-xs">
+										<span class="font-medium">Intent:</span>
+										{q.intent.trim()}
+									</p>
+								{:else}
+									<p class="text-destructive text-xs">
+										Intent missing — add one before saving.
+									</p>
+								{/if}
+							</div>
 							<div class="flex shrink-0 gap-2">
 								<Button
 									variant="outline"

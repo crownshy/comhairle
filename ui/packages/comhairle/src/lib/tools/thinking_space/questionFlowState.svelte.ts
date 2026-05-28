@@ -187,13 +187,11 @@ export class QuestionFlowState {
 			pickerError: false
 		};
 		try {
+			const question = this.questions[questionIndex];
 			const followUps = await fetchFollowUps({
 				workflowStepId: this.workflowStepId,
-				startingQuestion: this.questions[questionIndex].text,
-				// The root question config has no separate `intent` field yet,
-				// so we send the question text here as a proxy. If the config
-				// schema grows an explicit intent, use that instead.
-				questionIntent: this.questions[questionIndex].text,
+				startingQuestion: question.text,
+				questionIntent: question.intent,
 				history: this.buildHistory(questionIndex)
 			});
 			const picker = followUps.map((followUp) => followUp.question);
