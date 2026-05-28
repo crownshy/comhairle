@@ -141,7 +141,7 @@ export const workflow_templates = {
 
 		{
 			name: 'Tell us what you think',
-			description: 'Tell us what you think bellow and vote on what others thing',
+			description: 'Tell us what you think bellow and vote on what others think',
 			is_offline: false,
 			activation_rule: 'manual',
 			step_order: 3,
