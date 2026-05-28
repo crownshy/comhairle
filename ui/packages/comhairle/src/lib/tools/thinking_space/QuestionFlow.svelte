@@ -179,34 +179,35 @@
 			     participant opts in. -->
 			{#if flow.minReached && flow.currentState.phase !== 'answering' && flow.followUpCount > 0 && !flow.currentState.wantsMore}
 				<section bind:this={continueEl} class="border-border border-t pt-8">
-					<div class="flex flex-col gap-3 sm:flex-row sm:items-stretch">
-						<button
-							type="button"
-							onclick={() => flow.chooseMore()}
-							class="border-border bg-card hover:border-primary hover:bg-primary/5 focus-visible:ring-ring focus-visible:ring-offset-background w-full rounded-lg border px-5 py-4 text-left transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:flex-1"
-						>
-							<div class="text-foreground text-base font-semibold">
+					<div class="flex flex-col gap-4 sm:flex-row sm:items-start">
+						<div class="flex flex-1 flex-col items-stretch gap-2">
+							<Button
+								variant="outline"
+								size="lg"
+								class="h-12 w-full text-base"
+								onclick={() => flow.chooseMore()}
+							>
 								Continue exploring
-							</div>
-							<p class="text-muted-foreground mt-1 text-xs leading-relaxed">
+							</Button>
+							<p class="text-muted-foreground text-center text-xs leading-relaxed">
 								Keep going deeper with more follow-up questions.
 							</p>
-						</button>
-						<button
-							type="button"
-							onclick={() => flow.continueNow()}
-							class="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring focus-visible:ring-offset-background w-full rounded-lg px-5 py-4 text-left transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:flex-1"
-						>
-							<div class="flex items-center gap-2 text-base font-semibold">
+						</div>
+						<div class="flex flex-1 flex-col items-stretch gap-2">
+							<Button
+								size="lg"
+								class="h-12 w-full text-base"
+								onclick={() => flow.continueNow()}
+							>
 								<Check class="size-4" />
 								{flow.isLastQuestion ? 'Finish' : 'Move on'}
-							</div>
-							<p class="text-primary-foreground/80 mt-1 text-xs leading-relaxed">
+							</Button>
+							<p class="text-muted-foreground text-center text-xs leading-relaxed">
 								{flow.isLastQuestion
-									? "I'm done with these questions and ready to finish."
-									: "I'm done with this question and happy to move on to the next one."}
+									? "I'm happy with my response and ready to finish."
+									: "I'm happy with my response and ready to move on to the next question."}
 							</p>
-						</button>
+						</div>
 					</div>
 				</section>
 			{/if}
