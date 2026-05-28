@@ -1634,6 +1634,12 @@ export const ComhairleServices = z
   .object({ botService: z.boolean(), translationService: z.boolean() })
   .passthrough();
 export type ComhairleServices = z.infer<typeof ComhairleServices>;
+export const CreateRequest = z
+  .object({ name: z.string(), prefix: z.string(), user_id: z.string().uuid() })
+  .passthrough();
+export type CreateRequest = z.infer<typeof CreateRequest>;
+export const CreateResponse2 = z.object({ key: z.string() }).passthrough();
+export type CreateResponse2 = z.infer<typeof CreateResponse2>;
 
 export const schemas: Record<string, z.ZodType<any>> = {
   AnnonLoginRequest,
@@ -1822,9 +1828,25 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PaginatedResults_for_Job,
   CreateJob,
   ComhairleServices,
+  CreateRequest,
+  CreateResponse2,
 };
 
 const endpoints = makeApi([
+  {
+    method: "post",
+    path: "/api_keys",
+    alias: "postApi_keys",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateRequest,
+      },
+    ],
+    response: z.object({ key: z.string() }).passthrough(),
+  },
   {
     method: "post",
     path: "/auth/create_otp",
