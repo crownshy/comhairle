@@ -69,16 +69,8 @@
 				onValueChange={(v) => typeof v === 'number' && handleSlider([v])}
 			/>
 			<div class="text-muted-foreground flex justify-between text-xs">
-				<span>
-					{#if question.type.minLabel}<span class="font-medium"
-							>{question.type.minLabel}</span
-						>
-					{/if}{sliderRange.min}
-				</span>
-				<span>
-					{sliderRange.max}{#if question.type.maxLabel}
-						<span class="font-medium">{question.type.maxLabel}</span>{/if}
-				</span>
+				<span class="font-medium">{question.type.minLabel ?? ''}</span>
+				<span class="font-medium">{question.type.maxLabel ?? ''}</span>
 			</div>
 		</div>
 	{:else}
