@@ -3,7 +3,8 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Progress } from '$lib/components/ui/progress';
 	import { Badge } from '$lib/components/ui/badge';
-	import { ArrowLeft, ArrowRight, CheckCircle2, LoaderCircle } from 'lucide-svelte';
+	import * as Tooltip from '$lib/components/ui/tooltip';
+	import { ArrowLeft, ArrowRight, CheckCircle2, Info, LoaderCircle } from 'lucide-svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import QuestionField from './components/QuestionField.svelte';
 	import * as api from './prioritizationApi';
@@ -114,6 +115,17 @@
 
 	let allDone = $derived(proposals.length > 0 && proposals.every((p) => submittedIds.has(p.id)));
 
+	let reviewing = $state(false);
+
+	function startReview() {
+		reviewing = true;
+		currentIndex = 0;
+	}
+
+	function endReview() {
+		reviewing = false;
+	}
+
 	/** Persist drafts (debounced via microtask batching — the value only settles after Svelte's reactive update, so any quick succession of changes collapses into one write). */
 	let saveTimer: ReturnType<typeof setTimeout> | undefined;
 	function saveDraftSoon() {
@@ -189,7 +201,7 @@
 			<p class="text-muted-foreground">There are no proposals to rate yet.</p>
 		</Card.Content>
 	</Card.Root>
-{:else if allDone}
+{:else if allDone && !reviewing}
 	<Card.Root>
 		<Card.Content class="space-y-4 py-12 text-center">
 			<CheckCircle2 class="text-primary mx-auto h-12 w-12" />
@@ -198,9 +210,12 @@
 				Your ratings for all {proposals.length} proposals have been recorded.
 			</p>
 
-			{#if onDone}
-				<Button onclick={finish}>Continue</Button>
-			{/if}
+			<div class="flex flex-wrap items-center justify-center gap-2 pt-2">
+				<Button variant="outline" onclick={startReview}>Review your answers</Button>
+				{#if onDone}
+					<Button onclick={finish}>Continue</Button>
+				{/if}
+			</div>
 		</Card.Content>
 	</Card.Root>
 {:else if current}
@@ -222,9 +237,25 @@
 				<div class="flex items-start justify-between gap-3">
 					<Card.Title class="text-xl">{current.title || 'Untitled proposal'}</Card.Title>
 					{#if currentSubmitted}
-						<Badge variant="secondary" class="shrink-0">
-							<CheckCircle2 class="mr-1 h-3 w-3" /> Submitted
-						</Badge>
+						<div class="flex shrink-0 items-center gap-1.5">
+							<Badge variant="secondary">
+								<CheckCircle2 class="mr-1 h-3 w-3" /> Submitted
+							</Badge>
+							<Tooltip.Provider delayDuration={150}>
+								<Tooltip.Root>
+									<Tooltip.Trigger
+										class="text-muted-foreground hover:text-foreground"
+										aria-label="What does Submitted mean?"
+									>
+										<Info class="size-4" />
+									</Tooltip.Trigger>
+									<Tooltip.Content class="max-w-xs text-sm">
+										You've already submitted your answers for this proposal.
+										They can't be changed, but you can review them here.
+									</Tooltip.Content>
+								</Tooltip.Root>
+							</Tooltip.Provider>
+						</div>
 					{/if}
 				</div>
 				{#if current.body}
@@ -260,6 +291,8 @@
 					<Button onclick={() => (currentIndex += 1)}>
 						Next <ArrowRight class="ml-2 h-4 w-4" />
 					</Button>
+				{:else if reviewing}
+					<Button onclick={endReview}>Back to summary</Button>
 				{:else}
 					<Button onclick={finish}>Finish</Button>
 				{/if}
