@@ -42,15 +42,18 @@
 			value={value !== null ? String(value) : undefined}
 			onValueChange={handleLikert}
 			{disabled}
-			class="flex flex-wrap gap-3"
+			class="grid grid-cols-1 gap-2 sm:grid-cols-[repeat(var(--likert-cols),minmax(0,1fr))] sm:gap-3"
+			style="--likert-cols: {question.type.categories.length};"
 		>
 			{#each question.type.categories as cat (cat.value)}
 				<Label
-					class="hover:border-primary data-[state=checked]:border-primary flex min-w-[120px] flex-1 cursor-pointer flex-col items-center gap-2 rounded-md border p-3"
+					class="group hover:border-primary/60 hover:bg-muted/50 data-[state=checked]:border-primary data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary bg-background flex min-h-[44px] w-full cursor-pointer flex-row items-center gap-3 rounded-lg border p-3 transition-colors sm:min-h-[64px] sm:flex-col sm:justify-center sm:gap-1 sm:p-4 sm:text-center"
 					data-state={value === cat.value ? 'checked' : 'unchecked'}
 				>
-					<RadioGroup.Item value={String(cat.value)} />
-					<span class="text-sm">{cat.label}</span>
+					<RadioGroup.Item value={String(cat.value)} class="sm:sr-only" />
+					<span class="text-sm leading-tight group-data-[state=checked]:font-medium">
+						{cat.label}
+					</span>
 				</Label>
 			{/each}
 		</RadioGroup.Root>
