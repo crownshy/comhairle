@@ -385,6 +385,51 @@ export const ConversationRequest = z
   .object({ question: z.string() })
   .passthrough();
 export type ConversationRequest = z.infer<typeof ConversationRequest>;
+export const Translation = z
+  .object({
+    textContent: TextContentDto,
+    textTranslations: z.array(TextTranslationDto),
+  })
+  .passthrough();
+export type Translation = z.infer<typeof Translation>;
+export const ProposalTranslations = z
+  .object({ body: Translation, title: Translation })
+  .passthrough();
+export type ProposalTranslations = z.infer<typeof ProposalTranslations>;
+export const ProposalWithTranslations = z
+  .object({
+    body: z.string(),
+    createdAt: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    title: z.string(),
+    translations: ProposalTranslations,
+    updatedAt: z.string().datetime({ offset: true }),
+    workflowStepId: z.string().uuid(),
+  })
+  .passthrough();
+export type ProposalWithTranslations = z.infer<typeof ProposalWithTranslations>;
+export const LocalizedProposalDto = z
+  .object({
+    body: z.string(),
+    id: z.string().uuid(),
+    title: z.string(),
+    workflowStepId: z.string().uuid(),
+  })
+  .passthrough();
+export type LocalizedProposalDto = z.infer<typeof LocalizedProposalDto>;
+export const ProposalsListResponse = z.union([
+  z.array(ProposalWithTranslations),
+  z.array(LocalizedProposalDto),
+]);
+export type ProposalsListResponse = z.infer<typeof ProposalsListResponse>;
+export const CreateProposalRequest = z
+  .object({
+    body: z.string(),
+    title: z.string(),
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type CreateProposalRequest = z.infer<typeof CreateProposalRequest>;
 export const ProposalDto = z
   .object({
     body: z.string().uuid(),
@@ -394,14 +439,6 @@ export const ProposalDto = z
   })
   .passthrough();
 export type ProposalDto = z.infer<typeof ProposalDto>;
-export const CreateProposalRequest = z
-  .object({
-    body: z.string(),
-    title: z.string(),
-    workflow_step_id: z.string().uuid(),
-  })
-  .passthrough();
-export type CreateProposalRequest = z.infer<typeof CreateProposalRequest>;
 export const Response = z
   .object({ question_id: z.string().uuid(), value: z.number() })
   .passthrough();
@@ -413,6 +450,7 @@ export const ProposalResponseDto = z
     id: z.string().uuid(),
     proposalId: z.string().uuid(),
     response: QuestionResponses,
+    userId: z.string().uuid(),
   })
   .passthrough();
 export type ProposalResponseDto = z.infer<typeof ProposalResponseDto>;
@@ -420,6 +458,15 @@ export const CreateResponse = z
   .object({ question_responses: z.array(Response) })
   .passthrough();
 export type CreateResponse = z.infer<typeof CreateResponse>;
+export const ConversationRequest2 = z
+  .object({
+    history: z.string(),
+    question_intent: z.string(),
+    starting_question: z.string(),
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type ConversationRequest2 = z.infer<typeof ConversationRequest2>;
 export const AnswerStatus = z.enum(["pending", "approved", "declined"]);
 export type AnswerStatus = z.infer<typeof AnswerStatus>;
 export const status = z.union([AnswerStatus, z.null()]).optional();
@@ -505,23 +552,23 @@ export const ConversationDto = z
   })
   .passthrough();
 export type ConversationDto = z.infer<typeof ConversationDto>;
-export const Translation = z
+export const Translation2 = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation = z.infer<typeof Translation>;
+export type Translation2 = z.infer<typeof Translation2>;
 export const ConversationTranslations = z
   .object({
-    callToAction: z.union([Translation, z.null()]).optional(),
-    description: Translation,
-    faqs: z.union([Translation, z.null()]).optional(),
-    privacyPolicy: z.union([Translation, z.null()]).optional(),
-    shortDescription: Translation,
-    shortPrivacyPolicy: z.union([Translation, z.null()]).optional(),
-    thankYouMessage: z.union([Translation, z.null()]).optional(),
-    title: Translation,
+    callToAction: z.union([Translation2, z.null()]).optional(),
+    description: Translation2,
+    faqs: z.union([Translation2, z.null()]).optional(),
+    privacyPolicy: z.union([Translation2, z.null()]).optional(),
+    shortDescription: Translation2,
+    shortPrivacyPolicy: z.union([Translation2, z.null()]).optional(),
+    thankYouMessage: z.union([Translation2, z.null()]).optional(),
+    title: Translation2,
   })
   .passthrough();
 export type ConversationTranslations = z.infer<typeof ConversationTranslations>;
@@ -695,7 +742,14 @@ export const QuestionType = z.union([
   }),
   z.object({
     continuous: z
-      .object({ label: z.string(), sub_steps: z.number().int() })
+      .object({
+        max_label: z.string().default(""),
+        max_value: z.number().default(10),
+        min_label: z.string().default(""),
+        min_value: z.number().default(0),
+        sub_steps: z.number().int().default(10),
+      })
+      .partial()
       .passthrough(),
   }),
 ]);
@@ -705,7 +759,7 @@ export const Question = z
   .passthrough();
 export type Question = z.infer<typeof Question>;
 export const ThinkingSpaceQuestion = z
-  .object({ id: z.string().uuid(), text: z.string() })
+  .object({ id: z.string().uuid(), intent: z.string(), text: z.string() })
   .passthrough();
 export type ThinkingSpaceQuestion = z.infer<typeof ThinkingSpaceQuestion>;
 export const ToolConfig = z.union([
@@ -832,15 +886,15 @@ export const UserParticipation = z
   })
   .passthrough();
 export type UserParticipation = z.infer<typeof UserParticipation>;
-export const Translation2 = z
+export const Translation3 = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation2 = z.infer<typeof Translation2>;
+export type Translation3 = z.infer<typeof Translation3>;
 export const WorkflowStepTranslations = z
-  .object({ description: Translation2, name: Translation2 })
+  .object({ description: Translation3, name: Translation3 })
   .passthrough();
 export type WorkflowStepTranslations = z.infer<typeof WorkflowStepTranslations>;
 export const WorkflowStepWithTranslations = z
@@ -914,7 +968,7 @@ export const SetupQuestion = z
   .passthrough();
 export type SetupQuestion = z.infer<typeof SetupQuestion>;
 export const ThinkingSpaceSetupQuestion = z
-  .object({ text: z.string() })
+  .object({ intent: z.string(), text: z.string() })
   .passthrough();
 export type ThinkingSpaceSetupQuestion = z.infer<
   typeof ThinkingSpaceSetupQuestion
@@ -1325,15 +1379,15 @@ export const EventDto = z
   })
   .passthrough();
 export type EventDto = z.infer<typeof EventDto>;
-export const Translation3 = z
+export const Translation4 = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation3 = z.infer<typeof Translation3>;
+export type Translation4 = z.infer<typeof Translation4>;
 export const EventTranslations = z
-  .object({ description: Translation3, name: Translation3 })
+  .object({ description: Translation4, name: Translation4 })
   .passthrough();
 export type EventTranslations = z.infer<typeof EventTranslations>;
 export const EventWithTranslations = z
@@ -1625,6 +1679,12 @@ export const ComhairleServices = z
   .object({ botService: z.boolean(), translationService: z.boolean() })
   .passthrough();
 export type ComhairleServices = z.infer<typeof ComhairleServices>;
+export const CreateRequest = z
+  .object({ name: z.string(), prefix: z.string(), user_id: z.string().uuid() })
+  .passthrough();
+export type CreateRequest = z.infer<typeof CreateRequest>;
+export const CreateResponse2 = z.object({ key: z.string() }).passthrough();
+export type CreateResponse2 = z.infer<typeof CreateResponse2>;
 
 export const schemas: Record<string, z.ZodType<any>> = {
   AnnonLoginRequest,
@@ -1675,12 +1735,18 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ComhairleSessionMessage,
   ComhairleAgentSession,
   ConversationRequest,
-  ProposalDto,
+  Translation,
+  ProposalTranslations,
+  ProposalWithTranslations,
+  LocalizedProposalDto,
+  ProposalsListResponse,
   CreateProposalRequest,
+  ProposalDto,
   Response,
   QuestionResponses,
   ProposalResponseDto,
   CreateResponse,
+  ConversationRequest2,
   AnswerStatus,
   status,
   ThinkingSpaceAnswerDto,
@@ -1688,7 +1754,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UpdateAnswer,
   CreateConversation,
   ConversationDto,
-  Translation,
+  Translation2,
   ConversationTranslations,
   ConversationWithTranslations,
   ConversationResponse,
@@ -1716,7 +1782,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   DemographicCategory,
   DemographicReport,
   UserParticipation,
-  Translation2,
+  Translation3,
   WorkflowStepTranslations,
   WorkflowStepWithTranslations,
   ProgressStatus,
@@ -1773,7 +1839,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PaginatedResults_for_LocalizedEventDto,
   CreateEvent,
   EventDto,
-  Translation3,
+  Translation4,
   EventTranslations,
   EventWithTranslations,
   EventResponse,
@@ -1812,9 +1878,25 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PaginatedResults_for_Job,
   CreateJob,
   ComhairleServices,
+  CreateRequest,
+  CreateResponse2,
 };
 
 const endpoints = makeApi([
+  {
+    method: "post",
+    path: "/api_keys",
+    alias: "postApi_keys",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateRequest,
+      },
+    ],
+    response: z.object({ key: z.string() }).passthrough(),
+  },
   {
     method: "post",
     path: "/auth/create_otp",
@@ -3493,16 +3575,21 @@ Use a raw HTTP request and process the response body incrementally.
     method: "get",
     path: "/tools/prioritization/proposals",
     alias: "ListProposals",
-    description: `List proposals for a given prioritization tool workflow_step`,
+    description: `List proposals for a given prioritization tool workflow_step. Admin callers may pass &#x60;withTranslations&#x3D;true&#x60; to receive raw TextContentId references plus full translation data so the admin UI can drive the standard TranslatableField component.`,
     requestFormat: "json",
     parameters: [
       {
-        name: "workflow_step_id",
+        name: "withTranslations",
+        type: "Query",
+        schema: z.boolean().optional().default(false),
+      },
+      {
+        name: "workflowStepId",
         type: "Query",
         schema: z.string().uuid(),
       },
     ],
-    response: z.array(ProposalDto),
+    response: ProposalsListResponse,
   },
   {
     method: "post",
@@ -3519,6 +3606,14 @@ Create a new prioritization tool proposal for a given prioritization tool workfl
         schema: CreateProposalRequest,
       },
     ],
+    response: ProposalDto,
+  },
+  {
+    method: "delete",
+    path: "/tools/prioritization/proposals/:proposal_id",
+    alias: "DeleteProposal",
+    description: `Delete a prioritization tool proposal`,
+    requestFormat: "json",
     response: ProposalDto,
   },
   {
@@ -3568,6 +3663,26 @@ Create a response for prioritization tool proposal
     alias: "SaveStory",
     description: `Record a user story for the current user and workflow step`,
     requestFormat: "json",
+    response: z.void(),
+  },
+  {
+    method: "post",
+    path: "/tools/thinking_space",
+    alias: "postToolsthinking_space",
+    description: `
+Streamed LLM response.
+⚠️ This endpoint returns a streaming response on success.
+Generated API clients are NOT suitable for consuming this endpoint.
+Use a raw HTTP request and process the response body incrementally.
+`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: ConversationRequest2,
+      },
+    ],
     response: z.void(),
   },
   {
