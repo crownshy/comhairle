@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { WorkflowStepWithTranslations } from '@crownshy/api-client/api';
 	import { infoURLForTool } from '$lib/utils';
-	import { flip } from 'svelte/animate';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import {
 		basic_learn_config,
@@ -21,20 +20,23 @@
 		ListChecks,
 		Video,
 		MessagesSquare,
-		ChevronDown,
-		Bot
+		Bot,
+		GripVertical,
+		ChevronUp,
+		ChevronDown
 	} from 'lucide-svelte';
 	import * as Card from '$lib/components/ui/card';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidateAll } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte.js';
-	import { ChevronUp } from 'svelte-radix';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte.js';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
+	import DraggableList from '$lib/components/DraggableList.svelte';
 
 	let { data } = $props();
 	let addStepModalOpen = $state(false);
+	let reorderedSteps = $state<WorkflowStepWithTranslations[]>([]);
 
 	$effect(() => {
 		if (page.url.searchParams.get('addStep') === 'true') {
@@ -47,6 +49,10 @@
 	let workflowSteps = $derived(data.workflowSteps);
 	let workflow = $derived(data.workflows[0]);
 	let firstStep = $derived(workflowSteps.find((s) => s.stepOrder === 1));
+
+	$effect(() => {
+		reorderedSteps = [...workflowSteps];
+	});
 
 	async function addStep(step: string) {
 		let tool_setup = {
@@ -83,34 +89,46 @@
 		}
 	}
 
-	async function decrementStep(step_id: string) {
-		let step = workflowSteps.find((ws) => ws.id === step_id);
-		await apiClient.UpdateConversationWorkflowStep(
-			{ step_order: step!.stepOrder - 2 },
-			{
-				params: {
-					conversation_id: conversation.id,
-					workflow_id: workflow.id,
-					workflow_step_id: step.id
-				}
-			}
-		);
-		await invalidateAll();
+	function handleReorder(next: WorkflowStepWithTranslations[]) {
+		reorderedSteps = next;
 	}
 
-	async function incrementStep(step_id: string) {
-		let step = workflowSteps.find((ws) => ws.id === step_id);
-		await apiClient.UpdateConversationWorkflowStep(
-			{ step_order: step!.stepOrder + 1 },
-			{
-				params: {
-					conversation_id: conversation.id,
-					workflow_id: workflow.id,
-					workflow_step_id: step.id
+	async function handleCommit(next: WorkflowStepWithTranslations[]) {
+		for (let i = 0; i < next.length; i++) {
+			const step = next[i];
+			const newOrder = i + 1;
+
+			if (step.stepOrder !== newOrder) {
+				try {
+					await apiClient.UpdateConversationWorkflowStep(
+						{ step_order: newOrder },
+						{
+							params: {
+								conversation_id: conversation.id,
+								workflow_id: workflow.id,
+								workflow_step_id: step.id
+							}
+						}
+					);
+				} catch (e) {
+					console.error(e);
+					notifications.send({ priority: 'ERROR', message: 'Failed to reorder steps' });
+					await invalidateAll();
+					return;
 				}
 			}
-		);
+		}
 		await invalidateAll();
+		notifications.send({ priority: 'INFO', message: 'Steps reordered' });
+	}
+
+	async function moveStep(index: number, direction: -1 | 1) {
+		const target = index + direction;
+		if (target < 0 || target >= reorderedSteps.length) return;
+		const next = [...reorderedSteps];
+		[next[index], next[target]] = [next[target], next[index]];
+		reorderedSteps = next;
+		await handleCommit(next);
 	}
 
 	function activeToolConfig(step: WorkflowStepWithTranslations) {
@@ -152,8 +170,14 @@
 </p>
 
 <div class="mb-5 flex flex-col gap-y-5">
-	{#each workflowSteps as step, index (step.id)}
-		<div animate:flip={{ duration: 200 }}>
+	<DraggableList
+		items={reorderedSteps}
+		onReorder={handleReorder}
+		onCommit={handleCommit}
+		class="flex flex-col gap-y-5"
+		flipDurationMs={200}
+	>
+		{#snippet children(step, index)}
 			<Card.Root class="transition-all">
 				<Card.Header>
 					<div class="flex flex-row items-center justify-between">
@@ -180,15 +204,26 @@
 						</div>
 						<div class="flex flex-row items-center gap-2">
 							{#if index > 0}
-								<Button variant="ghost" onclick={() => decrementStep(step.id)}>
+								<Button
+									variant="ghost"
+									size="icon"
+									aria-label="Move step up"
+									onclick={() => moveStep(index, -1)}
+								>
 									<ChevronUp />
 								</Button>
 							{/if}
-							{#if index < workflowSteps.length - 1}
-								<Button variant="ghost" onclick={() => incrementStep(step.id)}>
+							{#if index < reorderedSteps.length - 1}
+								<Button
+									variant="ghost"
+									size="icon"
+									aria-label="Move step down"
+									onclick={() => moveStep(index, 1)}
+								>
 									<ChevronDown />
 								</Button>
 							{/if}
+							<GripVertical class="text-muted-foreground cursor-grab" />
 						</div>
 					</div>
 				</Card.Header>
@@ -204,8 +239,8 @@
 					</div>
 				</Card.Footer>
 			</Card.Root>
-		</div>
-	{/each}
+		{/snippet}
+	</DraggableList>
 </div>
 
 <ToolSelectionModal
@@ -213,5 +248,5 @@
 	onSelection={addStep}
 	bind:open={addStepModalOpen}
 >
-	<Button variant="secondary"><Plus /> Add Step</Button>
+	<Button variant="outline"><Plus /> Add Step</Button>
 </ToolSelectionModal>
