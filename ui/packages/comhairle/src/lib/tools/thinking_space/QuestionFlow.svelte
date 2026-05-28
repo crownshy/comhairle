@@ -94,7 +94,7 @@
 	<!-- Header / progress -->
 	<div class="border-border bg-card/60 border-b px-6 py-4 backdrop-blur">
 		<div class="mx-auto max-w-2xl">
-			<div class="text-muted-foreground mb-2 flex items-center justify-between text-xs">
+			<div class="text-muted-foreground mb-2 flex items-center justify-end text-xs">
 				<span>
 					Question {flow.currentQuestionIndex + 1} of {questions.length} · {Math.round(
 						flow.progress
