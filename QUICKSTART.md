@@ -35,7 +35,7 @@ If you just want everything running in one go:
 nix develop -c just all
 ```
 
-This spins up a `comhairle` tmux session with four windows: `postgres`, `api`, `ui`, and a `seed` shell. Once the API is up, switch to the `seed` window (`Ctrl-b 3`) and run `just seed`.
+This starts the apalis Redis container (`apalis-redis` on port 63793) and spins up a `comhairle` tmux session with four windows: `postgres`, `api`, `ui`, and a `seed` shell. Once the API is up, switch to the `seed` window (`Ctrl-b 3`) and run `just seed`.
 
 ## 1. Run DB
 ```bash
