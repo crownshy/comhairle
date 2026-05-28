@@ -2,6 +2,7 @@
 	import type { PageProps } from '../$types.js';
 	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import * as m from '$lib/paraglide/messages';
 	import { notifications } from '$lib/notifications.svelte.js';
 	import { goto, invalidateAll } from '$app/navigation';
@@ -17,9 +18,14 @@
 	let pageTitle = $derived(conversation?.title ?? 'Conversation');
 
 	let privacyPolicyOpen = $state(false);
+	let isSubmitting = $state(false);
+	let privacyAccepted = $state(false);
 
 	function handleJoin() {
+		if (isSubmitting) return;
+		isSubmitting = true;
 		if (conversation.shortPrivacyPolicy) {
+			privacyAccepted = false;
 			privacyPolicyOpen = true;
 		} else {
 			doJoin();
@@ -35,8 +41,15 @@
 	}
 
 	function handlePrivacyPolicyAccept() {
+		privacyAccepted = true;
 		doJoin();
 	}
+
+	$effect(() => {
+		if (!privacyPolicyOpen && !privacyAccepted && isSubmitting) {
+			isSubmitting = false;
+		}
+	});
 
 	let firstWorkflow = $derived(workflows[0]);
 
@@ -47,6 +60,8 @@
 	);
 
 	async function redirectToLogin() {
+		if (isSubmitting) return;
+		isSubmitting = true;
 		loginRedirect(url.pathname, 'Login to join the conversation');
 	}
 
@@ -64,6 +79,8 @@
 	}
 
 	async function redirectToSignIn() {
+		if (isSubmitting) return;
+		isSubmitting = true;
 		signupRedirect(url.pathname, 'Signup to join the conversation');
 	}
 
@@ -90,6 +107,7 @@
 				message: 'Failed to sign you up for the conversation, try again later',
 				priority: 'ERROR'
 			});
+			isSubmitting = false;
 		}
 	}
 </script>
@@ -119,21 +137,49 @@
 							href={firstWorkflowPath}>{m.jump_back_in()}</Button
 						>
 					{:else}
-						<Button class="mt-5 w-full md:w-fit" onclick={handleJoin}
-							>{conversation.callToAction || m.join_the_conversation()}</Button
+						<Button
+							class="mt-5 w-full md:w-fit"
+							onclick={handleJoin}
+							disabled={isSubmitting}
 						>
+							{#if isSubmitting}
+								<Spinner class="mr-2 size-4" />
+							{/if}
+							{conversation.callToAction || m.join_the_conversation()}
+						</Button>
 					{/if}
 				{:else if firstWorkflow.autoLogin}
-					<Button class="mt-5 w-full md:w-fit" onclick={handleJoin}
-						>{conversation.callToAction || m.join_the_conversation()}</Button
+					<Button
+						class="mt-5 w-full md:w-fit"
+						onclick={handleJoin}
+						disabled={isSubmitting}
 					>
+						{#if isSubmitting}
+							<Spinner class="mr-2 size-4" />
+						{/if}
+						{conversation.callToAction || m.join_the_conversation()}
+					</Button>
 				{:else}
-					<Button class="mt-5 w-full md:w-fit" onclick={redirectToLogin}
-						>{m.login_to_take_part()}</Button
+					<Button
+						class="mt-5 w-full md:w-fit"
+						onclick={redirectToLogin}
+						disabled={isSubmitting}
 					>
-					<Button class="mt-5 w-full md:w-fit" onclick={redirectToSignIn}
-						>{m.signup_to_take_part()}</Button
+						{#if isSubmitting}
+							<Spinner class="mr-2 size-4" />
+						{/if}
+						{m.login_to_take_part()}
+					</Button>
+					<Button
+						class="mt-5 w-full md:w-fit"
+						onclick={redirectToSignIn}
+						disabled={isSubmitting}
 					>
+						{#if isSubmitting}
+							<Spinner class="mr-2 size-4" />
+						{/if}
+						{m.signup_to_take_part()}
+					</Button>
 				{/if}
 			</ConversationSummary>
 

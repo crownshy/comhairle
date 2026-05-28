@@ -13,6 +13,7 @@
 	import StepHeaderSkeleton from '$lib/components/StepHeaderSkeleton.svelte';
 
 	import { Button } from '$lib/components/ui/button';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import { goto } from '$app/navigation';
 	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
 	import { page, navigating } from '$app/state';
@@ -116,6 +117,12 @@
 	let currentNextAction = $state<(() => void) | undefined>(undefined);
 	let currentPrevAction = $state<(() => void) | undefined>(undefined);
 	let canProceed = $state(false);
+	let isSubmitting = $state(false);
+
+	$effect(() => {
+		workflowStep.id;
+		isSubmitting = false;
+	});
 
 	$effect(() => {
 		const type = toolConfig.type;
@@ -147,6 +154,9 @@
 	}
 
 	async function stepComplete() {
+		if (isSubmitting) return;
+		isSubmitting = true;
+
 		if (isRevisiting) {
 			const isPreview = !conversation.isLive;
 			const currentIdx = sortedSteps.findIndex((ws) => ws.id === workflowStep.id);
@@ -199,6 +209,7 @@
 				message: 'Something unexpected happened. Try again shortly',
 				priority: 'ERROR'
 			});
+			isSubmitting = false;
 		}
 	}
 </script>
@@ -228,6 +239,7 @@
 					onPrev={currentPrevAction}
 					onNext={currentNextAction ?? stepComplete}
 					nextDisabled={!canProceed}
+					nextLoading={isSubmitting}
 					boldDescription={toolConfig.type === Polis.TOOL_NAME}
 					{availableDocuments}
 					conversationId={conversation.id}
@@ -238,9 +250,17 @@
 		<div class="flex w-full grow flex-col gap-y-2 md:order-3">
 			<div class="flex grow flex-col">
 				{#if !workflowStep.required}
-					<Button onclick={stepComplete} class="mx-auto" variant="secondary"
-						>Skip this step</Button
+					<Button
+						onclick={stepComplete}
+						disabled={isSubmitting}
+						class="mx-auto"
+						variant="secondary"
 					>
+						{#if isSubmitting}
+							<Spinner class="mr-2 size-4" />
+						{/if}
+						Skip this step
+					</Button>
 				{/if}
 				<div class="mb-10 w-full grow">
 					{#if navigating.to}
@@ -259,6 +279,7 @@
 								onNextAction={handleNextAction}
 								onPrevAction={handlePrevAction}
 								{conversation}
+								{isSubmitting}
 							/>
 						{/key}
 					{/if}

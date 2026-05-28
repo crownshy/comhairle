@@ -13,6 +13,7 @@
 		onPrev?: () => void;
 		onNext?: () => void;
 		nextDisabled?: boolean;
+		nextLoading?: boolean;
 		boldDescription?: boolean;
 		availableDocuments?: ComhairleDocument[];
 		conversationId?: string;
@@ -28,6 +29,7 @@
 		onPrev,
 		onNext,
 		nextDisabled = false,
+		nextLoading = false,
 		boldDescription = true,
 		availableDocuments = [],
 		conversationId
@@ -78,11 +80,13 @@
 				</p>
 			</div>
 
-			{#if onNext && !nextDisabled}
+			{#if onNext}
 				<button
 					onclick={onNext}
-					class="text-muted-foreground shrink-0 p-2"
+					disabled={nextDisabled || nextLoading}
+					class="text-muted-foreground shrink-0 p-2 disabled:cursor-not-allowed disabled:opacity-40"
 					aria-label="Next step"
+					aria-busy={nextLoading}
 				>
 					<ChevronRight class="h-6 w-6 md:h-8 md:w-8" />
 				</button>
