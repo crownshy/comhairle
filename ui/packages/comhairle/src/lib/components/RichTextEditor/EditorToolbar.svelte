@@ -64,7 +64,7 @@
 </script>
 
 <div
-	class="relative flex min-h-[3rem] items-center gap-1 overflow-x-auto rounded-t-[12px] border border-b-0 border-gray-300 bg-gray-50 px-3 xl:p-2"
+	class="border-border bg-muted relative flex min-h-12 items-center gap-1 overflow-x-auto rounded-t-[12px] border border-b-0 px-3 xl:p-2"
 >
 	<!-- Always visible on mobile: Heading + BISU -->
 	<div class="flex flex-1 items-center gap-1 xl:flex-none">
@@ -72,7 +72,7 @@
 		<div class="flex items-center gap-0.5">
 			<div class="relative inline-block xl:flex-1">
 				<select
-					class="min-w-[6rem] flex-shrink-0 cursor-pointer appearance-none rounded border-0 bg-transparent px-1.5 py-1 pr-6 text-sm text-gray-600 hover:bg-gray-200 xl:w-full"
+					class="text-muted-foreground hover:bg-accent hover:text-accent-foreground min-w-24 shrink-0 cursor-pointer appearance-none rounded border-0 bg-transparent px-1.5 py-1 pr-6 text-sm xl:w-full"
 					value={activeStates.heading}
 					aria-label="Text style"
 					onchange={(e) => {
@@ -98,12 +98,12 @@
 				</select>
 				<ChevronDown
 					size={12}
-					class="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 text-gray-500"
+					class="text-muted-foreground pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2"
 				/>
 			</div>
 		</div>
 
-		<div class="mx-1 h-5 w-px flex-shrink-0 bg-gray-300"></div>
+		<div class="bg-border mx-1 h-5 w-px shrink-0"></div>
 
 		<!-- BISU (always visible) -->
 		<div class="flex items-center gap-0.5">
@@ -113,8 +113,8 @@
 				title="Bold"
 				aria-label="Bold"
 				class="btn font-bold"
-				class:!bg-blue-600={activeStates.bold}
-				class:!text-white={activeStates.bold}
+				class:!bg-primary={activeStates.bold}
+				class:!text-primary-foreground={activeStates.bold}
 				class:!font-semibold={activeStates.bold}
 			>
 				B
@@ -125,8 +125,8 @@
 				title="Italic"
 				aria-label="Italic"
 				class="btn italic"
-				class:!bg-blue-600={activeStates.italic}
-				class:!text-white={activeStates.italic}
+				class:!bg-primary={activeStates.italic}
+				class:!text-primary-foreground={activeStates.italic}
 				class:!font-semibold={activeStates.italic}
 			>
 				I
@@ -137,8 +137,8 @@
 				title="Strikethrough"
 				aria-label="Strikethrough"
 				class="btn line-through"
-				class:!bg-blue-600={activeStates.strike}
-				class:!text-white={activeStates.strike}
+				class:!bg-primary={activeStates.strike}
+				class:!text-primary-foreground={activeStates.strike}
 				class:!font-semibold={activeStates.strike}
 			>
 				S
@@ -149,8 +149,8 @@
 				title="Underline"
 				aria-label="Underline"
 				class="btn underline"
-				class:!bg-blue-600={activeStates.underline}
-				class:!text-white={activeStates.underline}
+				class:!bg-primary={activeStates.underline}
+				class:!text-primary-foreground={activeStates.underline}
 				class:!font-semibold={activeStates.underline}
 			>
 				U
@@ -161,7 +161,7 @@
 		{#if !compact}
 			<button
 				type="button"
-				class="ml-auto flex flex-shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent p-1.5 text-gray-600 hover:bg-gray-200 xl:hidden"
+				class="text-muted-foreground hover:bg-accent hover:text-accent-foreground ml-auto flex shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent p-1.5 xl:hidden"
 				onclick={onToggleMenu}
 				aria-label="More options"
 			>
@@ -173,11 +173,11 @@
 	<!-- Desktop toolbar content / Mobile expandable content (hidden in compact mode) -->
 	{#if !compact}
 		<div
-			class="absolute top-full right-0 left-0 z-10 hidden flex-col gap-2 border border-t-0 border-gray-300 bg-white p-3 shadow-lg xl:static xl:flex xl:w-auto xl:flex-row xl:items-center xl:gap-1 xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none"
+			class="border-border bg-background absolute top-full right-0 left-0 z-10 hidden flex-col gap-2 border border-t-0 p-3 shadow-lg xl:static xl:flex xl:w-auto xl:flex-row xl:items-center xl:gap-1 xl:border-0 xl:bg-transparent xl:p-0 xl:shadow-none"
 			class:flex={menuExpanded}
 			class:hidden={!menuExpanded}
 		>
-			<div class="mx-1 hidden h-5 w-px flex-shrink-0 bg-gray-300 xl:block"></div>
+			<div class="bg-border mx-1 hidden h-5 w-px shrink-0 xl:block"></div>
 
 			<!-- Lists -->
 			<div class="flex items-center gap-0.5">
@@ -187,8 +187,8 @@
 					title="Bullet List"
 					aria-label="Bullet List"
 					class="btn"
-					class:!bg-blue-600={activeStates.bulletList}
-					class:!text-white={activeStates.bulletList}
+					class:!bg-primary={activeStates.bulletList}
+					class:!text-primary-foreground={activeStates.bulletList}
 					class:!font-semibold={activeStates.bulletList}
 				>
 					<List size={16} />
@@ -199,15 +199,15 @@
 					title="Numbered List"
 					aria-label="Numbered List"
 					class="btn"
-					class:!bg-blue-600={activeStates.orderedList}
-					class:!text-white={activeStates.orderedList}
+					class:!bg-primary={activeStates.orderedList}
+					class:!text-primary-foreground={activeStates.orderedList}
 					class:!font-semibold={activeStates.orderedList}
 				>
 					<ListOrdered size={16} />
 				</button>
 			</div>
 
-			<div class="mx-1 hidden h-5 w-px flex-shrink-0 bg-gray-300 xl:block"></div>
+			<div class="bg-border mx-1 hidden h-5 w-px shrink-0 xl:block"></div>
 
 			<!-- Text Alignment -->
 			<div class="flex items-center gap-0.5">
@@ -217,8 +217,8 @@
 					title="Align Left"
 					aria-label="Align Left"
 					class="btn"
-					class:!bg-blue-600={activeStates.textAlign === 'left'}
-					class:!text-white={activeStates.textAlign === 'left'}
+					class:!bg-primary={activeStates.textAlign === 'left'}
+					class:!text-primary-foreground={activeStates.textAlign === 'left'}
 					class:!font-semibold={activeStates.textAlign === 'left'}
 				>
 					<AlignLeft size={16} />
@@ -229,8 +229,8 @@
 					title="Align Center"
 					aria-label="Align Center"
 					class="btn"
-					class:!bg-blue-600={activeStates.textAlign === 'center'}
-					class:!text-white={activeStates.textAlign === 'center'}
+					class:!bg-primary={activeStates.textAlign === 'center'}
+					class:!text-primary-foreground={activeStates.textAlign === 'center'}
 					class:!font-semibold={activeStates.textAlign === 'center'}
 				>
 					<AlignCenter size={16} />
@@ -241,8 +241,8 @@
 					title="Align Right"
 					aria-label="Align Right"
 					class="btn"
-					class:!bg-blue-600={activeStates.textAlign === 'right'}
-					class:!text-white={activeStates.textAlign === 'right'}
+					class:!bg-primary={activeStates.textAlign === 'right'}
+					class:!text-primary-foreground={activeStates.textAlign === 'right'}
 					class:!font-semibold={activeStates.textAlign === 'right'}
 				>
 					<AlignRight size={16} />
@@ -253,15 +253,15 @@
 					title="Justify"
 					aria-label="Justify"
 					class="btn"
-					class:!bg-blue-600={activeStates.textAlign === 'justify'}
-					class:!text-white={activeStates.textAlign === 'justify'}
+					class:!bg-primary={activeStates.textAlign === 'justify'}
+					class:!text-primary-foreground={activeStates.textAlign === 'justify'}
 					class:!font-semibold={activeStates.textAlign === 'justify'}
 				>
 					<AlignJustify size={16} />
 				</button>
 			</div>
 
-			<div class="mx-1 hidden h-5 w-px flex-shrink-0 bg-gray-300 xl:block"></div>
+			<div class="bg-border mx-1 hidden h-5 w-px shrink-0 xl:block"></div>
 
 			<!-- Blockquote -->
 			<div class="flex items-center gap-0.5">
@@ -271,15 +271,15 @@
 					title="Blockquote"
 					aria-label="Blockquote"
 					class="btn"
-					class:!bg-blue-600={activeStates.blockquote}
-					class:!text-white={activeStates.blockquote}
+					class:!bg-primary={activeStates.blockquote}
+					class:!text-primary-foreground={activeStates.blockquote}
 					class:!font-semibold={activeStates.blockquote}
 				>
 					<Quote size={16} />
 				</button>
 			</div>
 
-			<div class="mx-1 hidden h-5 w-px flex-shrink-0 bg-gray-300 xl:block"></div>
+			<div class="bg-border mx-1 hidden h-5 w-px shrink-0 xl:block"></div>
 
 			<!-- Link, Image & Video -->
 			<div class="flex items-center gap-0.5">
@@ -303,8 +303,8 @@
 						title="Add Link"
 						aria-label="Add Link"
 						class="btn"
-						class:!bg-blue-600={activeStates.link}
-						class:!text-white={activeStates.link}
+						class:!bg-primary={activeStates.link}
+						class:!text-primary-foreground={activeStates.link}
 						class:!font-semibold={activeStates.link}
 					>
 						<LinkIcon size={16} />
@@ -374,6 +374,11 @@
 	@import 'tailwindcss';
 
 	.btn {
-		@apply flex h-7 min-w-[1.75rem] flex-shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent px-1.5 py-1 text-sm leading-none text-gray-600 transition-all duration-150 hover:bg-gray-200 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40;
+		@apply flex h-7 min-w-7 shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent px-1.5 py-1 text-sm leading-none transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-40;
+		color: var(--color-muted-foreground);
+	}
+	.btn:hover {
+		background-color: var(--color-accent);
+		color: var(--color-accent-foreground);
 	}
 </style>
