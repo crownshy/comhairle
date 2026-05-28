@@ -485,7 +485,7 @@ mod tests {
             .expect_send_email()
             .with(
                 eq("stuart.lynn@gmail.com"),
-                eq("Invitation to take part in a public consultation"),
+                eq("Invitation to join the Delegates Hub"),
                 eq("conversation_invite.html"),
                 always(),
                 always(),
