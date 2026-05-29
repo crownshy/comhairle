@@ -1,31 +1,29 @@
-/** Types for the prioritization tool. The api module (prioritizationApi.ts)
- * maps backend DTOs into these shapes. */
+/** Types for the prioritization tool. Re-exports generated DTOs from the
+ * api-client where shapes match the UI's needs, and defines local shapes
+ * (Proposal, QuestionType, ToolConfig, responses) where the UI deliberately
+ * differs from the backend (kind-tagged unions, camelCase, etc.). The api
+ * module (prioritizationApi.ts) maps between them. */
+
+import type {
+	Category,
+	LocalizedProposalDto,
+	TextContentDto,
+	TextFormat as ApiTextFormat,
+	TextTranslationDto,
+	Translation
+} from '@crownshy/api-client/api';
 
 export type Locale = string;
 
-export type TextFormat = 'plain' | 'rich' | 'markdown';
+export type TextFormat = ApiTextFormat;
 
-export type TextContent = {
-	id: string;
-	primaryLocale: Locale;
-	format: TextFormat;
-};
+export type TextContent = TextContentDto;
 
-export type TextTranslation = {
-	id: string;
-	contentId: string;
-	locale: Locale;
-	content: string;
-	aiGenerated: boolean;
-	requiresValidation: boolean;
-};
+export type TextTranslation = TextTranslationDto;
 
 /** One translatable field, in the shape the comhairle TranslatableField
- * component expects, so components can pass `proposal.titleTranslations` straight in. */
-export type TextContentWithTranslations = {
-	textContent: TextContent;
-	textTranslations: TextTranslation[];
-};
+ * component expects. Same shape as the backend `Translation` DTO. */
+export type TextContentWithTranslations = Translation;
 
 export type Proposal = {
 	id: string;
@@ -36,17 +34,12 @@ export type Proposal = {
 	bodyTranslations: TextContentWithTranslations;
 };
 
-/** Locale-resolved variant shown to participants. Mirrors the backend's LocalizedProposalDto. */
-export type LocalizedProposal = {
-	id: string;
-	workflowStepId: string;
-	title: string;
-	body: string;
-};
+/** Locale-resolved variant shown to participants. */
+export type LocalizedProposal = LocalizedProposalDto;
 
 /** Question definitions (from the workflow step's tool config) */
 
-export type LikertCategory = { label: string; value: number };
+export type LikertCategory = Category;
 
 export type QuestionType =
 	| { kind: 'text' }

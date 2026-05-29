@@ -11,7 +11,6 @@ import type {
 	Question,
 	QuestionResponse,
 	QuestionType,
-	TextContentWithTranslations,
 	ToolConfig,
 	WorkflowStepInput
 } from './types';
@@ -98,34 +97,14 @@ export function resolveToolConfig(workflowStep: WorkflowStepInput, isLive: boole
 
 /* ---------- Proposal mapping ---------- */
 
-function toTranslationEnvelope(
-	t: ApiProposalWithTranslations['translations']['title']
-): TextContentWithTranslations {
-	return {
-		textContent: {
-			id: t.textContent.id,
-			primaryLocale: t.textContent.primaryLocale,
-			format: t.textContent.format as TextContentWithTranslations['textContent']['format']
-		},
-		textTranslations: t.textTranslations.map((tt) => ({
-			id: tt.id,
-			contentId: tt.contentId,
-			locale: tt.locale,
-			content: tt.content,
-			aiGenerated: tt.aiGenerated,
-			requiresValidation: tt.requiresValidation
-		}))
-	};
-}
-
 function mapWithTranslations(p: ApiProposalWithTranslations): Proposal {
 	return {
 		id: p.id,
 		workflowStepId: p.workflowStepId,
 		title: p.title,
 		body: p.body,
-		titleTranslations: toTranslationEnvelope(p.translations.title),
-		bodyTranslations: toTranslationEnvelope(p.translations.body)
+		titleTranslations: p.translations.title,
+		bodyTranslations: p.translations.body
 	};
 }
 
