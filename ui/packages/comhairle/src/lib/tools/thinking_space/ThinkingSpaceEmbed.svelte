@@ -4,6 +4,8 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import QuestionFlow from './QuestionFlow.svelte';
 	import Overview from './Overview.svelte';
+	import Summary from './Summary.svelte';
+	import { hydrateSummary } from './summary';
 	import type { QuestionConfig, QuestionAnswers, ThinkingSpacePhase } from './types';
 
 	type Props = {
@@ -30,8 +32,9 @@
 	let loadError = $state(false);
 	let phase = $state<ThinkingSpacePhase>('questions');
 	let answers = $state<QuestionAnswers[]>([]);
+	let savedSummary = $state<string | null>(null);
 
-	let canContinue = $derived(phase === 'overview');
+	let canContinue = $derived(phase === 'overview' || phase === 'summary');
 
 	$effect(() => {
 		onCanContinueChange?.(canContinue);
@@ -45,8 +48,13 @@
 	onMount(async () => {
 		try {
 			answers = await hydrateAnswers();
-			// A returning participant who already finished lands on the overview.
-			if (allComplete(answers)) phase = 'overview';
+			// A returning participant who already finished lands on the summary
+			// step — the agreed final screen for revisits. If they had also
+			// submitted a summary, we render it directly with no AI re-call.
+			if (allComplete(answers)) {
+				phase = 'summary';
+				savedSummary = await hydrateSummary({ workflowStepId });
+			}
 		} catch (e) {
 			console.error('thinking_space: failed to load saved answers', e);
 			loadError = true;
@@ -128,7 +136,21 @@
 				}}
 			/>
 		{:else if phase === 'overview'}
-			<Overview {topic} questions={rootQuestions} {answers} {onDone} />
+			<Overview
+				{topic}
+				questions={rootQuestions}
+				{answers}
+				onDone={() => (phase = 'summary')}
+			/>
+		{:else if phase === 'summary'}
+			<Summary
+				{topic}
+				{workflowStepId}
+				questions={rootQuestions}
+				{answers}
+				initialSummary={savedSummary}
+				{onDone}
+			/>
 		{/if}
 	</div>
 {/if}
