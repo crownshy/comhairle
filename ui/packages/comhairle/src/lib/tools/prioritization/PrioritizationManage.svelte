@@ -50,13 +50,13 @@
 	);
 
 	let editorOpen = $state(false);
-	let editingProposal = $state<Proposal | null>(null);
-	let deletingProposal = $state<Proposal | null>(null);
+	let deleteOpen = $state(false);
+	let selectedProposal = $state<Proposal | null>(null);
 	let deleting = $state(false);
 
 	let questionEditorOpen = $state(false);
-	let editingQuestion = $state<Question | null>(null);
-	let deletingQuestion = $state<Question | null>(null);
+	let questionDeleteOpen = $state(false);
+	let selectedQuestion = $state<Question | null>(null);
 	let deletingQuestionInFlight = $state(false);
 	let randomizeSaving = $state(false);
 
@@ -86,25 +86,27 @@
 	});
 
 	function openCreate() {
-		editingProposal = null;
+		selectedProposal = null;
 		editorOpen = true;
 	}
 
 	function openEdit(p: Proposal) {
-		editingProposal = p;
+		selectedProposal = p;
 		editorOpen = true;
 	}
 
 	function confirmDelete(p: Proposal) {
-		deletingProposal = p;
+		selectedProposal = p;
+		deleteOpen = true;
 	}
 
 	async function runDelete() {
-		if (!deletingProposal) return;
+		if (!selectedProposal) return;
 		deleting = true;
 		try {
-			await store.remove(deletingProposal.id);
-			deletingProposal = null;
+			await store.remove(selectedProposal.id);
+			deleteOpen = false;
+			selectedProposal = null;
 		} catch {
 			/** store.remove surfaces an error toast. Keep the dialog open so the admin understands the action did not take effect. */
 		} finally {
@@ -113,29 +115,31 @@
 	}
 
 	function openCreateQuestion() {
-		editingQuestion = null;
+		selectedQuestion = null;
 		questionEditorOpen = true;
 	}
 
 	function openEditQuestion(q: Question) {
-		editingQuestion = q;
+		selectedQuestion = q;
 		questionEditorOpen = true;
 	}
 
 	function confirmDeleteQuestion(q: Question) {
-		deletingQuestion = q;
+		selectedQuestion = q;
+		questionDeleteOpen = true;
 	}
 
 	async function runDeleteQuestion() {
-		if (!deletingQuestion) return;
+		if (!selectedQuestion) return;
 		deletingQuestionInFlight = true;
 		try {
-			const next = questions.filter((q) => q.id !== deletingQuestion!.id);
+			const next = questions.filter((q) => q.id !== selectedQuestion!.id);
 			await store.saveToolConfig({
 				questions: next,
 				randomizeOrder: toolConfig.randomizeOrder
 			});
-			deletingQuestion = null;
+			questionDeleteOpen = false;
+			selectedQuestion = null;
 		} catch {
 			/** store.saveToolConfig surfaces an error toast. */
 		} finally {
@@ -347,14 +351,14 @@
 
 <ProposalEditorDialog
 	open={editorOpen}
-	proposal={editingProposal}
+	proposal={selectedProposal}
 	{store}
 	{primaryLocale}
 	{supportedLocales}
 	onOpenChange={(o) => {
 		editorOpen = o;
 		if (!o) {
-			editingProposal = null;
+			selectedProposal = null;
 			void store.refresh();
 		}
 	}}
@@ -362,19 +366,20 @@
 
 <QuestionEditorDialog
 	open={questionEditorOpen}
-	question={editingQuestion}
+	question={selectedQuestion}
 	{store}
 	{toolConfig}
 	onOpenChange={(o) => {
 		questionEditorOpen = o;
-		if (!o) editingQuestion = null;
+		if (!o) selectedQuestion = null;
 	}}
 />
 
 <AlertDialog.Root
-	open={deletingProposal !== null}
+	open={deleteOpen}
 	onOpenChange={(o) => {
-		if (!o) deletingProposal = null;
+		deleteOpen = o;
+		if (!o) selectedProposal = null;
 	}}
 >
 	<AlertDialog.Content>
@@ -397,9 +402,10 @@
 </AlertDialog.Root>
 
 <AlertDialog.Root
-	open={deletingQuestion !== null}
+	open={questionDeleteOpen}
 	onOpenChange={(o) => {
-		if (!o) deletingQuestion = null;
+		questionDeleteOpen = o;
+		if (!o) selectedQuestion = null;
 	}}
 >
 	<AlertDialog.Content>
