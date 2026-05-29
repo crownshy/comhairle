@@ -182,7 +182,7 @@
 </script>
 
 <div
-	class="bg-primary/5 relative left-1/2 flex w-screen -translate-x-1/2 flex-col items-center gap-8 overflow-visible py-4 md:py-0"
+	class="bg-primary/5 relative left-1/2 flex w-screen -translate-x-1/2 flex-col items-center gap-8 overflow-visible py-4 md:py-0 lg:left-0 lg:-mx-10 lg:-my-8 lg:w-auto lg:translate-x-0 lg:py-12"
 >
 	{#if screen === 'voting'}
 		<!-- Voting Screen -->

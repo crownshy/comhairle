@@ -139,8 +139,8 @@
 	</div>
 {/snippet}
 
-<!-- Desktop: horizontal stepper -->
-<nav aria-label="Workflow steps" class="hidden w-full max-w-5xl md:flex">
+<!-- Desktop (md only — lg+ uses WorkflowSidebar): horizontal stepper -->
+<nav aria-label="Workflow steps" class="hidden w-full max-w-5xl md:flex lg:hidden">
 	<ol class="flex w-full items-start">
 		{#each steps as step, index (step.id)}
 			{@const isFirst = index === 0}

@@ -11,6 +11,7 @@
 	import StepSelector, { type StepItem } from '$lib/components/StepSelector.svelte';
 	import StepHeader from '$lib/components/StepHeader.svelte';
 	import StepHeaderSkeleton from '$lib/components/StepHeaderSkeleton.svelte';
+	import WorkflowSidebar from '$lib/components/WorkflowSidebar.svelte';
 
 	import { Button } from '$lib/components/ui/button';
 	import { Spinner } from '$lib/components/ui/spinner';
@@ -126,7 +127,7 @@
 
 	$effect(() => {
 		const type = toolConfig.type;
-		if (type === Learn.TOOL_NAME || type === LivedExperience.TOOL_NAME) {
+		if (type === LivedExperience.TOOL_NAME) {
 			canProceed = true;
 		} else {
 			canProceed = false;
@@ -218,123 +219,142 @@
 	<title>{pageTitle} - Comhairle</title>
 </svelte:head>
 
-<div class="flex flex-col items-center sm:py-2 md:py-10">
+<div class="flex flex-col lg:min-h-0 lg:flex-1 lg:flex-row lg:items-stretch">
 	{#if conversation && workflowStep}
-		<div
-			class="mx-auto flex w-full items-center justify-center px-6 pt-5 pb-2 md:px-0 md:pt-0 md:pb-0"
-		>
-			<StepSelector steps={stepItems} />
-		</div>
-
-		<div class="mt-2 w-full md:mt-6 md:px-0">
-			{#if navigating.to}
-				<StepHeaderSkeleton />
-			{:else}
-				<StepHeader
+		<div class="lg:bg-muted/50 lg:border-border lg:border-r">
+			<div class="lg:h-full">
+				<WorkflowSidebar
+					steps={stepItems}
 					{currentStepNumber}
 					totalSteps={stepItems.length}
-					title={workflowStep.name}
-					description={workflowStep.description}
-					prevHref={prevStepHref}
-					onPrev={currentPrevAction}
-					onNext={currentNextAction ?? stepComplete}
-					nextDisabled={!canProceed}
-					nextLoading={isSubmitting}
-					boldDescription={toolConfig.type === Polis.TOOL_NAME}
+					currentTitle={workflowStep.name}
+					currentDescription={workflowStep.description}
 					{availableDocuments}
 					conversationId={conversation.id}
 				/>
-			{/if}
+			</div>
 		</div>
 
-		<div class="flex w-full grow flex-col gap-y-2 md:order-3">
-			<div class="flex grow flex-col">
-				{#if !workflowStep.required}
-					<Button
-						onclick={stepComplete}
-						disabled={isSubmitting}
-						class="mx-auto"
-						variant="secondary"
-					>
-						{#if isSubmitting}
-							<Spinner class="mr-2 size-4" />
-						{/if}
-						Skip this step
-					</Button>
+		<div
+			class="flex grow flex-col items-center sm:py-2 md:py-10 lg:min-h-0 lg:items-stretch lg:overflow-hidden lg:px-3 lg:py-8"
+		>
+			<div
+				class="mx-auto flex w-full items-center justify-center px-6 pt-5 pb-2 md:px-0 md:pt-0 md:pb-0 lg:hidden"
+			>
+				<StepSelector steps={stepItems} />
+			</div>
+
+			<div class="mt-2 w-full md:mt-6 md:px-0 lg:hidden">
+				{#if navigating.to}
+					<StepHeaderSkeleton />
+				{:else}
+					<StepHeader
+						{currentStepNumber}
+						totalSteps={stepItems.length}
+						title={workflowStep.name}
+						description={workflowStep.description}
+						prevHref={prevStepHref}
+						onPrev={currentPrevAction}
+						onNext={currentNextAction ?? stepComplete}
+						nextDisabled={!canProceed}
+						nextLoading={isSubmitting}
+						boldDescription={toolConfig.type === Polis.TOOL_NAME}
+						{availableDocuments}
+						conversationId={conversation.id}
+					/>
 				{/if}
-				<div class="mb-10 w-full grow">
-					{#if navigating.to}
-						<LearnArticleSkeleton />
-						{#if conversation?.chatBotId && conversation.enableQaChatBot}
-							<div class="mx-auto mt-6 w-full max-w-[65ch]">
-								<LearnTutorSkeleton />
-							</div>
+			</div>
+
+			<div class="flex w-full grow flex-col gap-y-2 md:order-3 lg:min-h-0">
+				<div class="flex grow flex-col lg:min-h-0">
+					{#if !workflowStep.required}
+						<Button
+							onclick={stepComplete}
+							disabled={isSubmitting}
+							class="mx-auto"
+							variant="secondary"
+						>
+							{#if isSubmitting}
+								<Spinner class="mr-2 size-4" />
+							{/if}
+							Skip this step
+						</Button>
+					{/if}
+					<div class="mb-10 flex w-full grow flex-col lg:mb-0 lg:min-h-0">
+						{#if navigating.to}
+							<LearnArticleSkeleton />
+							{#if conversation?.chatBotId && conversation.enableQaChatBot}
+								<div class="mx-auto mt-6 w-full max-w-[65ch]">
+									<LearnTutorSkeleton />
+								</div>
+							{/if}
+						{:else if toolConfig.type === Learn.TOOL_NAME}
+							{#key workflowStep.id}
+								<Learn.UserUI
+									onDone={stepComplete}
+									pages={toolConfig.pages}
+									user_id={user.id}
+									onNextAction={handleNextAction}
+									onPrevAction={handlePrevAction}
+									onCanContinueChange={handleCanContinueChange}
+									{conversation}
+									{isSubmitting}
+								/>
+							{/key}
 						{/if}
-					{:else if toolConfig.type === Learn.TOOL_NAME}
-						{#key workflowStep.id}
-							<Learn.UserUI
-								onDone={stepComplete}
-								pages={toolConfig.pages}
+						{#if toolConfig?.type === Polis.TOOL_NAME}
+							<Polis.UserUI
 								user_id={user.id}
-								onNextAction={handleNextAction}
-								onPrevAction={handlePrevAction}
-								{conversation}
-								{isSubmitting}
-							/>
-						{/key}
-					{/if}
-					{#if toolConfig?.type === Polis.TOOL_NAME}
-						<Polis.UserUI
-							user_id={user.id}
-							polis_id={toolConfig.poll_id}
-							polis_url={toolConfig.server_url}
-							requiredVotes={toolConfig.required_votes}
-							workflowStepId={workflowStep.id}
-							onDone={stepComplete}
-							onCanContinueChange={handleCanContinueChange}
-							showRemainingStatementCount={toolConfig.show_remaining_statements}
-						/>
-					{/if}
-					{#if toolConfig.type === HeyForm.TOOL_NAME}
-						{#key workflowStep.id}
-							<HeyForm.UserUI
-								userId={user.id}
-								surveyId={toolConfig.survey_id}
-								surveyURL={toolConfig.survey_url}
-								serverURL={toolConfig.server_url}
-								onDone={stepComplete}
-							/>
-						{/key}
-					{/if}
-					{#if toolConfig.type === LivedExperience.TOOL_NAME}
-						<LivedExperience.UserUI onDone={stepComplete} />
-					{/if}
-					{#if toolConfig.type === ThinkingSpace.TOOL_NAME}
-						{#key workflowStep.id}
-							<ThinkingSpace.UserUI
+								polis_id={toolConfig.poll_id}
+								polis_url={toolConfig.server_url}
+								requiredVotes={toolConfig.required_votes}
 								workflowStepId={workflowStep.id}
-								userId={user.id}
-								topic={toolConfig.topic}
-								rootQuestions={toolConfig.root_questions}
-								followUpRoundsCount={toolConfig.follow_up_rounds_count}
 								onDone={stepComplete}
 								onCanContinueChange={handleCanContinueChange}
+								showRemainingStatementCount={toolConfig.show_remaining_statements}
 							/>
-						{/key}
-					{/if}
-					{#if toolConfig.type === ElicitationBot.TOOL_NAME}
-						{#key workflowStep.id}
-							<ElicitationBot.UserUI
-								conversationId={conversation.id}
-								workflowId={workflowStep.workflowId}
-								workflowStepId={workflowStep.id}
-								userId={user.id}
-								topic={toolConfig.topic}
-								onDone={stepComplete}
-								onCanContinueChange={handleCanContinueChange}
-							/>
-						{/key}
-					{/if}
+						{/if}
+						{#if toolConfig.type === HeyForm.TOOL_NAME}
+							{#key workflowStep.id}
+								<HeyForm.UserUI
+									userId={user.id}
+									surveyId={toolConfig.survey_id}
+									surveyURL={toolConfig.survey_url}
+									serverURL={toolConfig.server_url}
+									onDone={stepComplete}
+								/>
+							{/key}
+						{/if}
+						{#if toolConfig.type === LivedExperience.TOOL_NAME}
+							<LivedExperience.UserUI onDone={stepComplete} />
+						{/if}
+						{#if toolConfig.type === ThinkingSpace.TOOL_NAME}
+							{#key workflowStep.id}
+								<ThinkingSpace.UserUI
+									workflowStepId={workflowStep.id}
+									userId={user.id}
+									topic={toolConfig.topic}
+									rootQuestions={toolConfig.root_questions}
+									followUpRoundsCount={toolConfig.follow_up_rounds_count}
+									onDone={stepComplete}
+									onCanContinueChange={handleCanContinueChange}
+								/>
+							{/key}
+						{/if}
+						{#if toolConfig.type === ElicitationBot.TOOL_NAME}
+							{#key workflowStep.id}
+								<ElicitationBot.UserUI
+									conversationId={conversation.id}
+									workflowId={workflowStep.workflowId}
+									workflowStepId={workflowStep.id}
+									userId={user.id}
+									topic={toolConfig.topic}
+									onDone={stepComplete}
+									onCanContinueChange={handleCanContinueChange}
+								/>
+							{/key}
+						{/if}
+					</div>
 				</div>
 			</div>
 		</div>

@@ -23,7 +23,9 @@
 </script>
 
 {#if preview}
-	<div class="bg-sidebar mt-3 w-full py-3 text-center text-white">
+	<div
+		class="bg-sidebar lg:bg-sidebar/85 mt-3 w-full py-3 text-center text-white lg:fixed lg:top-6 lg:left-1/2 lg:z-50 lg:mt-0 lg:w-auto lg:-translate-x-1/2 lg:rounded-full lg:px-6 lg:py-2 lg:text-base lg:font-medium lg:shadow-lg lg:backdrop-blur"
+	>
 		This is a preview of the conversation
 	</div>
 {/if}

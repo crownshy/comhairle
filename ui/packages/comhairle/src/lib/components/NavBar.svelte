@@ -91,6 +91,7 @@
 			<LocaleSwitcher
 				class="data-[placeholder]:text-primary-foreground rounded-full border border-none bg-transparent py-5 text-base shadow-xs hover:bg-white/10"
 			/>
+			<ModeToggle iconOnly />
 			{#if isAdmin}
 				<Button
 					variant="nav"
