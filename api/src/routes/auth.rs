@@ -13,7 +13,11 @@ use axum::{
     response::{IntoResponse, Response},
     RequestPartsExt,
 };
-use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
+use axum_extra::{
+    extract::cookie::{Cookie, CookieJar, SameSite},
+    headers::{authorization::Bearer, Authorization},
+    TypedHeader,
+};
 use bon::builder;
 use chrono::{TimeDelta, Utc};
 use cookie::CookieBuilder;
@@ -49,11 +53,11 @@ use uuid::Uuid;
 use crate::{
     error::ComhairleError,
     models::{
-        otp,
+        api_key, otp,
         users::{
-            create_annon_user, create_otp_user, create_user, get_user_by_email, get_user_by_id,
-            get_user_by_username, get_user_resource_roles, update_user, Resource, Role,
-            UpdateUserRequest, User, UserAuthType, UserResourceRole,
+            self, create_annon_user, create_otp_user, create_user, get_user_by_email,
+            get_user_by_id, get_user_by_username, get_user_resource_roles, update_user, Resource,
+            Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
         },
     },
     routes::user::dto::UserDto,
@@ -801,6 +805,43 @@ impl RequiredRoleResource for Conversation {
     }
 }
 
+/// Resolves a [`User`] from an incoming request by checking two authentication
+/// methods in order:
+///
+/// 1. **API key** - if an `Authorization: Bearer <token>` header is present,
+///    the token is treated as an API key. It is hashed and looked up in the
+///    database. If a matching, valid key is found the associated user is
+///    returned.
+///
+/// 2. **Session cookie** - if no bearer token is present, the request falls
+///    back to the [`OptionalUser`] extractor, which checks for a valid session
+///    cookie. If a session is found the associated user is returned.
+///
+/// # Errors
+///
+/// Returns [`ComhairleError::InvalidApiKey`] if a bearer token is present but
+/// does not match any active API key in the database.
+///
+/// Returns [`ComhairleError::UserRequired`] if no bearer token is present and
+/// no valid session cookie is found.
+async fn resolve_user_from_request(
+    parts: &mut Parts,
+    state: &Arc<ComhairleState>,
+) -> Result<User, ComhairleError> {
+    if let Ok(TypedHeader(Authorization(bearer))) =
+        TypedHeader::<Authorization<Bearer>>::from_request_parts(parts, state).await
+    {
+        let user_id = api_key::get_matching_user_id(&state.db, bearer.token()).await?;
+        users::get_user_by_id(&user_id, &state.db).await
+    } else {
+        parts
+            .extract_with_state::<OptionalUser, _>(state)
+            .await?
+            .0
+            .ok_or(ComhairleError::UserRequired)
+    }
+}
+
 /// An extractor to get a required current user.
 /// If no user is logged in then this will fail and
 /// Return a Not Found response
@@ -814,10 +855,10 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
         parts: &mut Parts,
         state: &Arc<ComhairleState>,
     ) -> Result<Self, Self::Rejection> {
-        let user = parts.extract_with_state::<RequiredUser, _>(state).await?;
+        let user = resolve_user_from_request(parts, state).await?;
 
-        if is_user_admin(&user.0, &state.config) {
-            Ok(RequiredAdminUser(user.0.clone()))
+        if is_user_admin(&user, &state.config) {
+            Ok(RequiredAdminUser(user.clone()))
         } else {
             Err(ComhairleError::RequiresAuthUser)
         }
@@ -843,13 +884,9 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredUser {
         parts: &mut Parts,
         state: &Arc<ComhairleState>,
     ) -> Result<Self, Self::Rejection> {
-        let poss_user = parts.extract_with_state::<OptionalUser, _>(state).await?;
-
-        if let Some(user) = poss_user.0 {
-            Ok(RequiredUser(user))
-        } else {
-            Err(ComhairleError::UserRequired)
-        }
+        resolve_user_from_request(parts, state)
+            .await
+            .map(RequiredUser)
     }
 }
 
@@ -969,6 +1006,14 @@ pub async fn current_user(
 pub async fn test_requires_roles(
     RequiredRole(_, _, _): RequiredRole<Conversation, (Owner, (Contributor,))>,
     RequiredUser(user): RequiredUser,
+) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
+    let user: UserDto = user.into();
+    Ok((StatusCode::OK, Json(user)))
+}
+
+/// Handler for testing RequiredApiKeyUser
+pub async fn test_api_key(
+    RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<UserDto>), ComhairleError> {
     let user: UserDto = user.into();
     Ok((StatusCode::OK, Json(user)))
@@ -1156,6 +1201,15 @@ pub async fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<UserDto>>()
             }),
         )
+        // TODO: this route is used for testing only. Once we have authorisation logic locekd down
+        // in other endpoints, this can be removed and those auth requirements tested.
+        .api_route(
+            "/test_api_key_extraction",
+            get_with(test_api_key, |op| {
+                op.summary("Test the api key extraction")
+                    .response::<200, Json<UserDto>>()
+            }),
+        )
         .with_state(state)
 }
 
@@ -1166,6 +1220,8 @@ mod tests {
     use crate::{
         mailer::MockComhairleMailer,
         models::{
+            api_key::CreateApiKeyRequest,
+            model_test_helpers::setup_default_app_and_session,
             otp,
             users::{
                 self, add_user_resource_role, get_user_by_email, Resource, Role, UpdateUserRequest,
@@ -1177,7 +1233,7 @@ mod tests {
             user::dto::UserDto,
         },
         setup_server,
-        test_helpers::{test_state, UserSession},
+        test_helpers::{test_state, UserSession, TEST_PASSWORD},
     };
 
     use argon2::{Argon2, PasswordHash, PasswordVerifier};
@@ -1961,6 +2017,44 @@ mod tests {
         .await?;
         let (status, _, _) = session.get(&app, &url).await?;
         assert_eq!(status, StatusCode::OK, "User with role should have access");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_return_user_from_api_key(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        session
+            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
+            .await?;
+
+        let (_, admin_user, _) = session.current_user(&app).await?;
+        session.logout(&app).await?;
+
+        let api_key = api_key::create(
+            &pool,
+            admin_user.id,
+            CreateApiKeyRequest {
+                prefix: "sk_test".to_string(),
+                name: "test_key".to_string(),
+            },
+        )
+        .await?;
+
+        let (_, value, _) = session.get(&app, "/auth/current_user").await?;
+
+        assert_eq!(
+            value.get("err").and_then(|v| v.as_str()).unwrap(),
+            "No user logged in",
+            "incorrect error message"
+        );
+
+        let (_, value) = session
+            .get_with_api_key(&app, "/auth/test_api_key_extraction", &api_key)
+            .await?;
+        let extracted_user: UserDto = serde_json::from_value(value)?;
+
+        assert_eq!(extracted_user.id, admin_user.id, "ids don't match");
 
         Ok(())
     }

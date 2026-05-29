@@ -199,6 +199,9 @@ pub enum ComhairleError {
     #[error("Requires Auth User")]
     RequiresAuthUser,
 
+    #[error("Invalid api key")]
+    InvalidApiKey,
+
     #[error("Only the owner of the conversation can perform this action")]
     UserIsNotConversationOwner,
 
@@ -339,6 +342,7 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::NoUserFoundForId(_) => StatusCode::NOT_FOUND,
             ComhairleError::UserRequired
             | ComhairleError::WrongPassword
+            | ComhairleError::InvalidApiKey
             | ComhairleError::RequiresAuthUser
             | ComhairleError::InviteDoesNotMatchUser
             | ComhairleError::UserIsNotConversationOwner
