@@ -34,10 +34,11 @@
 	let proposals = $state<LocalizedProposal[]>([]);
 	let answers = $state<Record<string, Record<string, number | string>>>({}); // proposalId → questionId → value
 	let submittedIds = $state<Set<string>>(new Set());
-	let loadState = $state<'loading' | 'ready' | 'error'>('loading');
-	let loadError = $state<string | null>(null);
+	type LoadState = { kind: 'loading' } | { kind: 'ready' } | { kind: 'error'; message: string };
+	let loadState = $state<LoadState>({ kind: 'loading' });
 	let currentIndex = $state(0);
 	let submitting = $state(false);
+	let submitError = $state<string | null>(null);
 
 	/** Text answers are optional — completeness only requires likert / continuous. */
 	const requiredQuestions = $derived<Question[]>(
@@ -54,7 +55,7 @@
 	}
 
 	async function loadProposalsAndProgress() {
-		loadState = 'loading';
+		loadState = { kind: 'loading' };
 		try {
 			const raw = await api.listLocalizedProposals(stepId);
 			const ordered = toolConfig.randomizeOrder ? shuffle(raw) : raw;
@@ -82,10 +83,12 @@
 			const firstUnsubmitted = ordered.findIndex((p) => !submitted.has(p.id));
 			currentIndex = firstUnsubmitted === -1 ? ordered.length - 1 : firstUnsubmitted;
 
-			loadState = 'ready';
+			loadState = { kind: 'ready' };
 		} catch (e) {
-			loadError = e instanceof Error ? e.message : 'Failed to load proposals.';
-			loadState = 'error';
+			loadState = {
+				kind: 'error',
+				message: e instanceof Error ? e.message : 'Failed to load proposals.'
+			};
 		}
 	}
 
@@ -126,6 +129,7 @@
 	async function submitCurrent() {
 		if (!current || !isComplete || currentSubmitted) return;
 		submitting = true;
+		submitError = null;
 		try {
 			/** Include all answered questions. Required (likert/continuous) are blocked
 			 * by isComplete; text is optional, so we just skip blanks. */
@@ -139,7 +143,7 @@
 			await api.submitResponse(current.id, responses);
 			submittedIds = new Set([...submittedIds, current.id]);
 		} catch (e) {
-			loadError = e instanceof Error ? e.message : 'Failed to submit response.';
+			submitError = e instanceof Error ? e.message : 'Failed to submit response.';
 		} finally {
 			submitting = false;
 		}
@@ -162,14 +166,14 @@
 	);
 </script>
 
-{#if loadState === 'loading'}
+{#if loadState.kind === 'loading'}
 	<div class="text-muted-foreground flex items-center justify-center gap-2 py-12">
 		<LoaderCircle class="h-5 w-5 animate-spin" /> Loading proposals…
 	</div>
-{:else if loadState === 'error'}
+{:else if loadState.kind === 'error'}
 	<Card.Root>
 		<Card.Content class="space-y-3 py-8 text-center">
-			<p class="text-destructive">{loadError}</p>
+			<p class="text-destructive">{loadState.message}</p>
 			<Button variant="outline" onclick={() => void bootstrap()}>Try again</Button>
 		</Card.Content>
 	</Card.Root>
@@ -282,5 +286,8 @@
 				</Button>
 			{/if}
 		</div>
+		{#if submitError}
+			<p class="text-destructive text-right text-sm">{submitError}</p>
+		{/if}
 	</div>
 {/if}
