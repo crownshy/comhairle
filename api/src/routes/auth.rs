@@ -321,6 +321,7 @@ async fn signup_annon(
 #[cfg_attr(test, derive(Dummy))]
 pub struct OtpSignupRequest {
     pub email: String,
+    pub username: Option<String>,
 }
 
 #[instrument(err(Debug), skip(state, payload))]

@@ -317,6 +317,7 @@ async fn auto_register_event_attendance(
             users::create_otp_user(
                 &OtpSignupRequest {
                     email: email.to_string(),
+                    username: None,
                 },
                 &state.db,
             )
