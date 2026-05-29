@@ -7,9 +7,9 @@
 
 	type Props = {
 		question: Question;
-		value: number | null;
+		value: number | string | null;
 		disabled?: boolean;
-		onChange: (value: number) => void;
+		onChange: (value: number | string) => void;
 	};
 
 	let { question, value, disabled = false, onChange }: Props = $props();
@@ -17,6 +17,11 @@
 	function handleLikert(raw: string) {
 		const n = Number(raw);
 		if (!Number.isNaN(n)) onChange(n);
+	}
+
+	function handleText(e: Event) {
+		const target = e.currentTarget as HTMLTextAreaElement | null;
+		if (target) onChange(target.value);
 	}
 
 	function handleSlider(values: number[]) {
@@ -74,6 +79,12 @@
 			</div>
 		</div>
 	{:else}
-		<Textarea placeholder="Your answer" rows={3} {disabled} />
+		<Textarea
+			placeholder="Your answer"
+			rows={3}
+			{disabled}
+			value={typeof value === 'string' ? value : ''}
+			oninput={handleText}
+		/>
 	{/if}
 </div>

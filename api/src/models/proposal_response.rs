@@ -68,7 +68,28 @@ impl<'r> Decode<'r, Postgres> for QuestionResponses {
 #[derive(PartialEq, Deserialize, Serialize, JsonSchema, Debug, Clone)]
 pub struct Response {
     pub question_id: Uuid,
-    pub value: f64,
+    pub value: ResponseValue,
+}
+
+/// A response value — either a numeric rating (likert / continuous) or
+/// free-text. JSON wire format is untagged: `"value": 4.5` or `"value": "hi"`.
+#[derive(PartialEq, Deserialize, Serialize, JsonSchema, Debug, Clone)]
+#[serde(untagged)]
+pub enum ResponseValue {
+    Number(f64),
+    Text(String),
+}
+
+impl From<f64> for ResponseValue {
+    fn from(v: f64) -> Self {
+        ResponseValue::Number(v)
+    }
+}
+
+impl From<String> for ResponseValue {
+    fn from(v: String) -> Self {
+        ResponseValue::Text(v)
+    }
 }
 
 const DEFAULT_COLUMNS: [ProposalResponseIden; 6] = [
@@ -201,11 +222,11 @@ mod tests {
             question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
-                    value: -1.0,
+                    value: (-1.0_f64).into(),
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
-                    value: 0.5,
+                    value: 0.5_f64.into(),
                 },
             ],
         };
@@ -260,11 +281,11 @@ mod tests {
             question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
-                    value: -1.0,
+                    value: (-1.0_f64).into(),
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
-                    value: 0.5,
+                    value: 0.5_f64.into(),
                 },
             ],
         };
@@ -272,11 +293,11 @@ mod tests {
             question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
-                    value: 0.5,
+                    value: 0.5_f64.into(),
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
-                    value: 0.2,
+                    value: 0.2_f64.into(),
                 },
             ],
         };
@@ -288,11 +309,11 @@ mod tests {
             question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
-                    value: -1.0,
+                    value: (-1.0_f64).into(),
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
-                    value: 0.5,
+                    value: 0.5_f64.into(),
                 },
             ],
         };
@@ -300,11 +321,11 @@ mod tests {
             question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
-                    value: 0.5,
+                    value: 0.5_f64.into(),
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
-                    value: 0.2,
+                    value: 0.2_f64.into(),
                 },
             ],
         };
@@ -316,11 +337,11 @@ mod tests {
             question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
-                    value: -1.0,
+                    value: (-1.0_f64).into(),
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
-                    value: 0.5,
+                    value: 0.5_f64.into(),
                 },
             ],
         };
@@ -328,11 +349,11 @@ mod tests {
             question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
-                    value: 0.5,
+                    value: 0.5_f64.into(),
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
-                    value: 0.2,
+                    value: 0.2_f64.into(),
                 },
             ],
         };

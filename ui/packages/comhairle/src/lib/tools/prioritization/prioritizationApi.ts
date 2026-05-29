@@ -19,9 +19,11 @@ import type {
 
 /* ---------- Question type mapping ---------- */
 
-/** Backend stores QuestionType as a key-tagged union ({ likert_scale: {...} });
- * the tool uses a `kind`-discriminated union. */
+/** Backend stores QuestionType as a key-tagged union ({ likert_scale: {...} }),
+ * except the unit `Text` variant which serialises as the bare string "text".
+ * The tool uses a `kind`-discriminated union. */
 function normaliseQuestionType(raw: unknown): QuestionType {
+	if (raw === 'text') return { kind: 'text' };
 	if (raw && typeof raw === 'object') {
 		const r = raw as Record<string, unknown>;
 		if ('likert_scale' in r) {
@@ -58,10 +60,10 @@ function normaliseQuestion(raw: unknown): Question {
 	};
 }
 
-function denormaliseQuestionType(type: QuestionType): Record<string, unknown> {
+function denormaliseQuestionType(type: QuestionType): string | Record<string, unknown> {
 	switch (type.kind) {
 		case 'text':
-			return { text: '' };
+			return 'text';
 		case 'likert':
 			return { likert_scale: { categories: type.categories } };
 		case 'continuous':
@@ -78,7 +80,7 @@ function denormaliseQuestionType(type: QuestionType): Record<string, unknown> {
 }
 
 function denormaliseQuestion(q: Question): Record<string, unknown> {
-	return { id: q.id, text: q.text, type: denormaliseQuestionType(q.type) };
+	return { id: q.id, text: q.text, type: denormaliseQuestionType(q.type) as unknown };
 }
 
 /** Resolve a workflow step's tool config into the tool's ToolConfig shape. Live
@@ -205,11 +207,14 @@ export async function submitResponse(
 	proposalId: string,
 	responses: QuestionResponse[]
 ): Promise<void> {
+	/** Backend `value` is an untagged enum accepting number | string, but the
+	 * generated zod schema still types it as number. Cast until the api-client
+	 * is regenerated. */
 	await apiClient.CreateProposalResponse(
 		{
 			question_responses: responses.map((r) => ({
 				question_id: r.questionId,
-				value: r.value
+				value: r.value as number
 			}))
 		},
 		{ params: { proposal_id: proposalId } }
@@ -222,6 +227,11 @@ export async function listResponses(proposalId: string): Promise<ProposalRespons
 		id: d.id,
 		proposalId: d.proposalId,
 		userId: d.userId,
-		responses: d.response.map((r) => ({ questionId: r.question_id, value: r.value }))
+		/** Backend `value` is number | string at runtime; the generated zod schema
+		 * narrows to number. Widen here until the api-client is regenerated. */
+		responses: d.response.map((r) => ({
+			questionId: r.question_id,
+			value: r.value as number | string
+		}))
 	}));
 }

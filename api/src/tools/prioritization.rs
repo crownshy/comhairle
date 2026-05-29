@@ -49,7 +49,7 @@ pub struct Question {
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum QuestionType {
-    Text(String),
+    Text,
     LikertScale {
         categories: Vec<Category>,
     },
@@ -594,11 +594,11 @@ mod tests {
             question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
-                    value: -1.0,
+                    value: (-1.0_f64).into(),
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
-                    value: 0.5,
+                    value: 0.5_f64.into(),
                 },
             ],
         };
@@ -661,11 +661,11 @@ mod tests {
             question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
-                    value: -1.0,
+                    value: (-1.0_f64).into(),
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
-                    value: 0.5,
+                    value: 0.5_f64.into(),
                 },
             ],
         };
@@ -673,11 +673,11 @@ mod tests {
             question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
-                    value: 0.5,
+                    value: 0.5_f64.into(),
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
-                    value: 0.2,
+                    value: 0.2_f64.into(),
                 },
             ],
         };
@@ -707,11 +707,11 @@ mod tests {
             question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
-                    value: -1.0,
+                    value: (-1.0_f64).into(),
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
-                    value: 0.5,
+                    value: 0.5_f64.into(),
                 },
             ],
         };
@@ -719,11 +719,11 @@ mod tests {
             question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
-                    value: 0.5,
+                    value: 0.5_f64.into(),
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
-                    value: 0.2,
+                    value: 0.2_f64.into(),
                 },
             ],
         };

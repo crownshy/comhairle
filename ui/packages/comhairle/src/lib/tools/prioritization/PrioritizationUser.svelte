@@ -32,15 +32,15 @@
 	const toolConfig = $derived(api.resolveToolConfig(workflowStep, conversation.isLive ?? false));
 
 	let proposals = $state<LocalizedProposal[]>([]);
-	let answers = $state<Record<string, Record<string, number>>>({}); // proposalId → questionId → value
+	let answers = $state<Record<string, Record<string, number | string>>>({}); // proposalId → questionId → value
 	let submittedIds = $state<Set<string>>(new Set());
 	let loadState = $state<'loading' | 'ready' | 'error'>('loading');
 	let loadError = $state<string | null>(null);
 	let currentIndex = $state(0);
 	let submitting = $state(false);
 
-	/** Filter out text questions from required-completeness checks because the backend payload doesn't accept them yet. */
-	const ratableQuestions = $derived<Question[]>(
+	/** Text answers are optional — completeness only requires likert / continuous. */
+	const requiredQuestions = $derived<Question[]>(
 		toolConfig.questions.filter((q) => q.type.kind !== 'text')
 	);
 
@@ -65,7 +65,7 @@
 				ordered.map((p) => api.listResponses(p.id).catch(() => []))
 			);
 			const submitted = new Set<string>();
-			const restoredAnswers: Record<string, Record<string, number>> = {};
+			const restoredAnswers: Record<string, Record<string, number | string>> = {};
 			ordered.forEach((proposal, i) => {
 				const mine = responseLists[i].find((r) => r.userId === participantId);
 				if (mine) {
@@ -99,7 +99,7 @@
 
 	let isComplete = $derived(
 		current
-			? ratableQuestions.every(
+			? requiredQuestions.every(
 					(q) => typeof currentAnswers[q.id] === 'number' && currentAnswers[q.id] !== null
 				)
 			: false
@@ -118,7 +118,7 @@
 		reviewing = false;
 	}
 
-	function setAnswer(proposalId: string, questionId: string, value: number) {
+	function setAnswer(proposalId: string, questionId: string, value: number | string) {
 		const next = { ...(answers[proposalId] ?? {}), [questionId]: value };
 		answers = { ...answers, [proposalId]: next };
 	}
@@ -127,9 +127,15 @@
 		if (!current || !isComplete || currentSubmitted) return;
 		submitting = true;
 		try {
-			const responses: QuestionResponse[] = ratableQuestions
+			/** Include all answered questions. Required (likert/continuous) are blocked
+			 * by isComplete; text is optional, so we just skip blanks. */
+			const responses: QuestionResponse[] = toolConfig.questions
 				.map((q) => ({ questionId: q.id, value: currentAnswers[q.id] }))
-				.filter((r): r is QuestionResponse => typeof r.value === 'number');
+				.filter((r): r is QuestionResponse => {
+					if (typeof r.value === 'number') return true;
+					if (typeof r.value === 'string') return r.value.trim().length > 0;
+					return false;
+				});
 			await api.submitResponse(current.id, responses);
 			submittedIds = new Set([...submittedIds, current.id]);
 		} catch (e) {

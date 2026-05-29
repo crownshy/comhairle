@@ -439,8 +439,10 @@ export const ProposalDto = z
   })
   .passthrough();
 export type ProposalDto = z.infer<typeof ProposalDto>;
+export const ResponseValue = z.union([z.number(), z.string()]);
+export type ResponseValue = z.infer<typeof ResponseValue>;
 export const Response = z
-  .object({ question_id: z.string().uuid(), value: z.number() })
+  .object({ question_id: z.string().uuid(), value: ResponseValue })
   .passthrough();
 export type Response = z.infer<typeof Response>;
 export const QuestionResponses = z.array(Response);
@@ -736,7 +738,7 @@ export const Category = z
   .passthrough();
 export type Category = z.infer<typeof Category>;
 export const QuestionType = z.union([
-  z.object({ text: z.string() }),
+  z.literal("text"),
   z.object({
     likert_scale: z.object({ categories: z.array(Category) }).passthrough(),
   }),
@@ -1742,6 +1744,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ProposalsListResponse,
   CreateProposalRequest,
   ProposalDto,
+  ResponseValue,
   Response,
   QuestionResponses,
   ProposalResponseDto,

@@ -66,9 +66,9 @@ export type ToolConfig = {
 
 /** Responses */
 
-/** Backend payload only carries numeric values today; text-type questions are
- * dropped at submit time. See README "Deferred". */
-export type QuestionResponse = { questionId: string; value: number };
+/** Numeric for likert/continuous; string for free-text. The backend
+ * `value` field is an untagged enum so JSON is `value: 4.5` or `value: "..."`. */
+export type QuestionResponse = { questionId: string; value: number | string };
 
 export type ProposalResponse = {
 	id: string;
