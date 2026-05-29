@@ -14,7 +14,6 @@
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import EventSchema from './schema.js';
 	import { useAdminLayoutSlots } from '../../useAdminLayoutSlots.svelte.js';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import { cn } from '$lib/utils';
 	import { buttonVariants } from '$lib/components/ui/button';
@@ -165,7 +164,10 @@
 
 	useAdminLayoutSlots({
 		title: titleContentSnippet,
-		breadcrumbs: breadcrumbSnippet
+		breadcrumbs: () => [
+			{ label: 'Events', href: `/admin/conversations/${conversation.id}/events` },
+			{ label: event?.name ?? 'Event' }
+		]
 	});
 
 	let eventDate = $derived($form.start_date ? parseDate($form.start_date) : undefined);
@@ -319,10 +321,6 @@
 <svelte:head>
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
-
-{#snippet breadcrumbSnippet()}
-	<Breadcrumb.Item>{event?.name}</Breadcrumb.Item>
-{/snippet}
 
 {#snippet titleContentSnippet()}
 	<h1 class="text-4xl font-bold">Event: {event?.name}</h1>

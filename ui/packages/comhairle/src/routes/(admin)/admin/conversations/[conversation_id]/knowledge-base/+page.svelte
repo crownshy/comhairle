@@ -4,7 +4,6 @@
 	import FileUpload from '$lib/components/KnowledgeBase/FileUpload.svelte';
 	import ParsedFileList from '$lib/components/KnowledgeBase/ParsedFileList.svelte';
 	import ParsingFileList from '$lib/components/KnowledgeBase/ParsingFileList.svelte';
-	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 
 	type Props = {
@@ -31,7 +30,7 @@
 
 	useAdminLayoutSlots({
 		title: titleSnippet,
-		breadcrumbs: breadcrumbSnippet
+		breadcrumbs: [{ label: 'Knowledge Base' }]
 	});
 </script>
 
@@ -46,10 +45,6 @@
 		prev={{ name: 'Design', url: `/admin/conversations/${conversation.id}/design` }}
 		next={{ name: 'Events', url: `/admin/conversations/${conversation.id}/events` }}
 	/>
-{/snippet}
-
-{#snippet breadcrumbSnippet()}
-	<BreadcrumbItem>Knowledge Base</BreadcrumbItem>
 {/snippet}
 
 <p class="mb-10">Use this space to manage your conversation's knowledge base</p>

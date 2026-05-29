@@ -23,7 +23,6 @@
 	import '@cartamd/plugin-slash/default.css';
 	import 'carta-plugin-video/default.css';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte.js';
-	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb/index.js';
 
 	let { data } = $props();
 	let report = $derived(data.report);
@@ -70,7 +69,7 @@
 	}
 	useAdminLayoutSlots({
 		title: titleSnippet,
-		breadcrumbs: breadcrumbSnippet
+		breadcrumbs: [{ label: 'Report' }]
 	});
 </script>
 
@@ -80,10 +79,6 @@
 
 {#snippet titleSnippet()}
 	<h1 class="text-4xl font-bold">Report</h1>
-{/snippet}
-
-{#snippet breadcrumbSnippet()}
-	<BreadcrumbItem>Report</BreadcrumbItem>
 {/snippet}
 
 <p class="mb-10">Use this space to edit the report for this conversation</p>

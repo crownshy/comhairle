@@ -7,7 +7,6 @@
 	import { Button } from '$lib/components/ui/button';
 
 	import type { PageProps } from './$types';
-	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 
 	let { data }: PageProps = $props();
@@ -40,7 +39,7 @@
 
 	useAdminLayoutSlots({
 		title: titleSnippet,
-		breadcrumbs: breadcrumbSnippet
+		breadcrumbs: [{ label: 'Monitor' }]
 	});
 </script>
 
@@ -52,10 +51,6 @@
 	<div class="flex items-center justify-between">
 		<h1 class="text-4xl font-bold">Monitor</h1>
 	</div>
-{/snippet}
-
-{#snippet breadcrumbSnippet()}
-	<BreadcrumbItem>Monitor</BreadcrumbItem>
 {/snippet}
 
 <p class="mb-10">

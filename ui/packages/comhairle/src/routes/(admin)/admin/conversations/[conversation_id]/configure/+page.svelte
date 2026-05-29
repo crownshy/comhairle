@@ -12,7 +12,6 @@
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { autoTranslateNewLanguage } from '$lib/components/Translation/translationUtils';
 	import { LanguageSelector } from '$lib/components/ui/language-selector';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import type { ConversationWithTranslations, WorkflowDto } from '@crownshy/api-client/api';
@@ -238,17 +237,13 @@
 
 	useAdminLayoutSlots({
 		title: titleContentSnippet,
-		breadcrumbs: breadcrumbSnippet
+		breadcrumbs: [{ label: 'Configure' }]
 	});
 </script>
 
 <svelte:head>
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
-
-{#snippet breadcrumbSnippet()}
-	<Breadcrumb.Item>Configure</Breadcrumb.Item>
-{/snippet}
 
 {#snippet titleContentSnippet()}
 	<h1 class="text-4xl font-bold">Configure</h1>

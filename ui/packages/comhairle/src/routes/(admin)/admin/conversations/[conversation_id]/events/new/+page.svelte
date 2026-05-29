@@ -22,7 +22,6 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { goto } from '$app/navigation';
 	import { basic_learn_config } from '$lib/workflow_templates';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import BadgeInput from '$lib/components/ui/badge-input/badge-input.svelte';
 	import * as Alert from '$lib/components/ui/alert';
 	import { useAdminLayoutSlots } from '../../useAdminLayoutSlots.svelte';
@@ -154,23 +153,16 @@
 
 	useAdminLayoutSlots({
 		title: titleContentSnippet,
-		breadcrumbs: breadcrumbSnippet
+		breadcrumbs: [
+			{ label: 'Events', href: `/admin/conversations/${conversation.id}/events` },
+			{ label: 'New' }
+		]
 	});
 </script>
 
 <svelte:head>
 	<title>Create New Event - Comhairle Admin</title>
 </svelte:head>
-
-{#snippet breadcrumbSnippet()}
-	<Breadcrumb.Item>
-		<Breadcrumb.Link href="/admin/conversations/{conversation.id}/events"
-			>Events</Breadcrumb.Link
-		>
-	</Breadcrumb.Item>
-	<Breadcrumb.Separator />
-	<Breadcrumb.Item>New</Breadcrumb.Item>
-{/snippet}
 
 {#snippet titleContentSnippet()}
 	<h1 class="text-4xl font-bold">New Event</h1>

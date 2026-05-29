@@ -2,7 +2,6 @@
 	import { BookOpen, ListChecks, MessagesSquare, Video } from 'lucide-svelte';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
-	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb/index.js';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte.js';
 	import type { ToolConfig, WorkflowStepWithTranslations } from '@crownshy/api-client/api';
 
@@ -15,7 +14,7 @@
 
 	useAdminLayoutSlots({
 		title: titleSnippet,
-		breadcrumbs: breadcrumbSnippet
+		breadcrumbs: [{ label: 'Moderate' }]
 	});
 </script>
 
@@ -25,10 +24,6 @@
 
 {#snippet titleSnippet()}
 	<h1 class="text-4xl font-bold">Moderate</h1>
-{/snippet}
-
-{#snippet breadcrumbSnippet()}
-	<BreadcrumbItem>Moderate</BreadcrumbItem>
 {/snippet}
 
 <p class="mb-10">Use this space to moderate the conversation</p>
