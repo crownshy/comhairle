@@ -169,7 +169,7 @@ export async function createProposal(
 	workflowStepId: string,
 	input: { title: string; body: string }
 ): Promise<Proposal> {
-	await apiClient.CreateProposal({
+	const { id: createdId } = await apiClient.CreateProposal({
 		title: input.title,
 		body: input.body,
 		workflow_step_id: workflowStepId
@@ -177,9 +177,9 @@ export async function createProposal(
 	/** CreateProposal returns the raw ProposalDto (TextContent IDs only).
 	 * Re-fetch with translations so the shape matches the rest of the list. */
 	const list = await fetchWithTranslations(workflowStepId);
-	const created = list[list.length - 1];
+	const created = list.find((p) => p.id === createdId);
 	if (!created) {
-		throw new Error('Proposal created but missing from list response.');
+		throw new Error(`Proposal ${createdId} created but missing from list response.`);
 	}
 	return created;
 }
