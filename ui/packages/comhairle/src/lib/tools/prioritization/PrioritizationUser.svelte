@@ -53,7 +53,7 @@
 		return out;
 	}
 
-	async function bootstrap() {
+	async function loadProposalsAndProgress() {
 		loadState = 'loading';
 		try {
 			const raw = await api.listLocalizedProposals(stepId);
@@ -90,7 +90,7 @@
 	}
 
 	$effect(() => {
-		void bootstrap();
+		void loadProposalsAndProgress();
 	});
 
 	let current = $derived(proposals[currentIndex] ?? null);
