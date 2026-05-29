@@ -46,7 +46,7 @@
 			</Button>
 			<div class="flex min-w-0 flex-col items-start">
 				<h3 class="text-primary text-xs">Next</h3>
-				<h3 class="max-w-[36ch] truncate" title={next.name}>{next.name}</h3>
+				<h3 class="max-w-[60ch] truncate" title={next.name}>{next.name}</h3>
 			</div>
 		</div>
 	{/if}
