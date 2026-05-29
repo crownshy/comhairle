@@ -64,9 +64,6 @@ pub enum QuestionType {
         min_label: String,
         #[serde(default)]
         max_label: String,
-        // NOTE: I added min_label and max_label because I think we need starting
-        // and ending labels for the continuous scale UI. If this is wrong or I
-        // misunderstood the requirements, let me know.
     },
 }
 
