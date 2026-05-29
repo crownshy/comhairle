@@ -80,7 +80,7 @@ pub async fn create(
 }
 
 #[instrument(err(Debug))]
-pub async fn list(
+pub async fn list_localized(
     db: &PgPool,
     workflow_step_id: &Uuid,
     locale: &str,
@@ -107,14 +107,8 @@ pub async fn list(
     Ok(proposals)
 }
 
-/// HELP: I couldn't figure out how to pull localized data directly in a single query like list()
-// does with query_to_localisation. I asked AI for help and it suggested to fetch raw rows first, 
-// then manually build the translation payload in list_raw(). I think I probably don't 
-// understand the translation pattern fully? This might be worth talking through.
-// Definitely feels like it's the wrong approach, but I wanted to
-// have something that works before asking for help.
 #[instrument(err(Debug))]
-pub async fn list_raw(
+pub async fn list(
     db: &PgPool,
     workflow_step_id: &Uuid,
 ) -> Result<Vec<Proposal>, ComhairleError> {
@@ -136,7 +130,7 @@ pub async fn list_with_translations(
     workflow_step_id: &Uuid,
     locale: &str,
 ) -> Result<Vec<ProposalWithTranslations>, ComhairleError> {
-    let proposals = list_raw(db, workflow_step_id).await?;
+    let proposals = list(db, workflow_step_id).await?;
     let mut out = Vec::with_capacity(proposals.len());
     for proposal in proposals {
         out.push(ProposalWithTranslations::from_original(db, proposal, locale).await?);
@@ -324,7 +318,7 @@ mod tests {
         create(&pool, &workflow_step.id, &create_proposal_2, "en").await?;
         create(&pool, &workflow_step.id, &create_proposal_3, "en").await?;
 
-        let proposals = list(&pool, &workflow_step.id, "en").await?;
+        let proposals = list_localized(&pool, &workflow_step.id, "en").await?;
 
         assert_eq!(proposals.len(), 3, "incorrect number of proposals");
 
