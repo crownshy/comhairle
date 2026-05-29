@@ -10,8 +10,8 @@ use serde::Serialize;
 
 use crate::{
     error::ComhairleError,
-    models::api_key::{self, CreateRequest},
-    routes::auth::RequiredAdminUser,
+    models::api_key::{self, CreateApiKeyRequest},
+    routes::auth::{is_user_admin, RequiredAdminUser},
     ComhairleState,
 };
 
@@ -23,10 +23,14 @@ pub struct CreateResponse {
 // No tracing to avoid keys being exposed in logs
 async fn create(
     State(state): State<Arc<ComhairleState>>,
-    RequiredAdminUser(_user): RequiredAdminUser,
-    Json(payload): Json<CreateRequest>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    Json(payload): Json<CreateApiKeyRequest>,
 ) -> Result<(StatusCode, Json<CreateResponse>), ComhairleError> {
-    let key = api_key::create(&state.db, payload).await?;
+    if !is_user_admin(&user, &state.config) {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
+
+    let key = api_key::create(&state.db, user.id, payload).await?;
 
     Ok((StatusCode::CREATED, Json(CreateResponse { key })))
 }

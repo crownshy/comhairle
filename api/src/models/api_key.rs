@@ -2,11 +2,11 @@ use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use chrono::{DateTime, Utc};
 use rand::RngCore;
 use schemars::JsonSchema;
-use sea_query::{enum_def, PostgresQueryBuilder, Query};
+use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sqlx::{prelude::FromRow, query_with, PgPool};
+use sqlx::{prelude::FromRow, query_scalar_with, query_with, PgPool};
 use uuid::Uuid;
 
 use crate::error::ComhairleError;
@@ -42,14 +42,17 @@ fn generate_api_key(prefix: &str) -> (String, String) {
 }
 
 #[derive(Deserialize, Debug, JsonSchema)]
-pub struct CreateRequest {
-    user_id: Uuid,
-    name: String,
-    prefix: String,
+pub struct CreateApiKeyRequest {
+    pub name: String,
+    pub prefix: String,
 }
 
 // No tracing to avoid keys being exposed in logs
-pub async fn create(db: &PgPool, create_key: CreateRequest) -> Result<String, ComhairleError> {
+pub async fn create(
+    db: &PgPool,
+    user_id: Uuid,
+    create_key: CreateApiKeyRequest,
+) -> Result<String, ComhairleError> {
     let (raw, hash) = generate_api_key(&create_key.prefix);
 
     let columns = vec![
@@ -61,7 +64,7 @@ pub async fn create(db: &PgPool, create_key: CreateRequest) -> Result<String, Co
     let key_prefix = raw[..16].to_string();
     let values = vec![
         hash.into(),
-        create_key.user_id.into(),
+        user_id.into(),
         key_prefix.into(),
         create_key.name.into(),
     ];
@@ -78,9 +81,36 @@ pub async fn create(db: &PgPool, create_key: CreateRequest) -> Result<String, Co
     Ok(raw)
 }
 
+pub async fn get_matching_user_id(db: &PgPool, key: &str) -> Result<Uuid, ComhairleError> {
+    let hash = hash_api_key(key);
+
+    let (sql, values) = Query::select()
+        .column(ApiKeyIden::UserId)
+        .from(ApiKeyIden::Table)
+        .and_where(Expr::col(ApiKeyIden::Hash).eq(hash))
+        .and_where(Expr::col(ApiKeyIden::RevokedAt).is_null())
+        .and_where(
+            Expr::col(ApiKeyIden::ExpiredAt)
+                .is_null()
+                .or(Expr::col(ApiKeyIden::ExpiredAt).gt(Expr::current_timestamp())),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    let user_id = query_scalar_with::<_, Uuid, _>(&sql, values)
+        .fetch_optional(db)
+        .await?
+        .ok_or(ComhairleError::InvalidApiKey)?;
+
+    Ok(user_id)
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::models::users;
+
     use super::*;
+
+    use std::error::Error;
 
     #[test]
     fn same_keys_produce_same_hashes() {
@@ -119,5 +149,26 @@ mod tests {
     fn hash_matches_generated_key() {
         let (raw, hash) = generate_api_key("sk_test");
         assert_eq!(hash, hash_api_key(&raw));
+    }
+
+    #[sqlx::test]
+    async fn should_return_matching_user_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let user = users::create_annon_user(&pool).await?;
+
+        let key = create(
+            &pool,
+            user.id,
+            CreateApiKeyRequest {
+                name: "test_api_key".to_string(),
+                prefix: "sk_test".to_string(),
+            },
+        )
+        .await?;
+
+        let user_id = get_matching_user_id(&pool, &key).await?;
+
+        assert_eq!(user_id, user.id, "ids don't match");
+
+        Ok(())
     }
 }

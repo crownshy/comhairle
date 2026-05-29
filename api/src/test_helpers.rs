@@ -1,4 +1,5 @@
 use chrono::Utc;
+use hyper::header::AUTHORIZATION;
 use std::{collections::HashMap, error::Error, sync::Arc};
 use uuid::Uuid;
 
@@ -286,6 +287,24 @@ impl UserSession {
 
         let value = response_to_json(response).await;
         Ok((status, value, cookie))
+    }
+
+    pub async fn get_with_api_key(
+        &mut self,
+        app: &Router,
+        url: &str,
+        api_key: &str,
+    ) -> Result<(StatusCode, Value), Box<dyn Error>> {
+        let mut request = Request::builder().uri(url).method("GET");
+
+        request = request.header(AUTHORIZATION, format!("Bearer {api_key}"));
+
+        let request = request.body(Body::empty()).unwrap();
+        let response = app.clone().oneshot(request).await?;
+        let status = response.status();
+
+        let value = response_to_json(response).await;
+        Ok((status, value))
     }
 
     pub async fn delete(

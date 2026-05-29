@@ -1634,10 +1634,10 @@ export const ComhairleServices = z
   .object({ botService: z.boolean(), translationService: z.boolean() })
   .passthrough();
 export type ComhairleServices = z.infer<typeof ComhairleServices>;
-export const CreateRequest = z
-  .object({ name: z.string(), prefix: z.string(), user_id: z.string().uuid() })
+export const CreateApiKeyRequest = z
+  .object({ name: z.string(), prefix: z.string() })
   .passthrough();
-export type CreateRequest = z.infer<typeof CreateRequest>;
+export type CreateApiKeyRequest = z.infer<typeof CreateApiKeyRequest>;
 export const CreateResponse2 = z.object({ key: z.string() }).passthrough();
 export type CreateResponse2 = z.infer<typeof CreateResponse2>;
 
@@ -1828,7 +1828,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PaginatedResults_for_Job,
   CreateJob,
   ComhairleServices,
-  CreateRequest,
+  CreateApiKeyRequest,
   CreateResponse2,
 };
 
@@ -1842,7 +1842,7 @@ const endpoints = makeApi([
       {
         name: "body",
         type: "Body",
-        schema: CreateRequest,
+        schema: CreateApiKeyRequest,
       },
     ],
     response: z.object({ key: z.string() }).passthrough(),
@@ -2010,6 +2010,13 @@ const endpoints = makeApi([
         schema: z.object({ email: z.string() }).passthrough(),
       },
     ],
+    response: UserDto,
+  },
+  {
+    method: "get",
+    path: "/auth/test_api_key_extraction",
+    alias: "getAuthtest_api_key_extraction",
+    requestFormat: "json",
     response: UserDto,
   },
   {
