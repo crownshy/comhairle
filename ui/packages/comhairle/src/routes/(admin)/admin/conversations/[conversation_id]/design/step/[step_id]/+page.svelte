@@ -6,6 +6,7 @@
 	import ThinkingSpaceManage from '$lib/tools/thinking_space/ThinkingSpaceManage.svelte';
 	import ElicitationBotManage from '$lib/tools/elicitation_bot/ElicitationBotManage.svelte';
 	import LivedExperienceManage from '$lib/tools/lived_experince/LivedExperinceManage.svelte';
+	import * as Prioritization from '$lib/tools/prioritization';
 	import { useAdminLayoutSlots } from '../../../useAdminLayoutSlots.svelte.js';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -185,4 +186,19 @@
 		workflowStep={step}
 		isLive={conversation.isLive}
 	/>
+{/if}
+
+{#if step && toolConfig?.type === Prioritization.TOOL_NAME}
+	{#key step.id}
+		<Prioritization.ManageUI
+			conversationId={conversation.id}
+			workflowId={step.workflowId}
+			workflowStep={step}
+			conversation={{
+				primaryLocale: conversation.primaryLocale,
+				isLive: conversation.isLive,
+				supportedLanguages: conversation.supportedLanguages
+			}}
+		/>
+	{/key}
 {/if}

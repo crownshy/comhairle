@@ -6,6 +6,10 @@ export const defaultStepCreationParams: { [key: string]: { name: string; descrip
 		description:
 			"Explore your opinions with the elicitation bot. The elicitation bot is designed to ask questions that help you explore and shape your views and opinions on a given topic.\nAs you answer the bot's questions it will extract claims from your opinions, which you can either choose to approve, edit or remove."
 	},
+	Prioritization: {
+		name: 'Rate the proposals',
+		description: 'Read each proposal and rate it against the questions provided.'
+	},
 	'Thinking Space': {
 		name: 'Thinking Space',
 		description:
@@ -72,6 +76,28 @@ export const basic_lived_experience_config = {
 	type: 'stories',
 	max_time: 10,
 	to_see: 3
+};
+
+export const basic_prioritization_config = {
+	type: 'prioritization',
+	randomize_order: false,
+	questions: [
+		{
+			id: crypto.randomUUID(),
+			text: 'How strongly do you support this proposal?',
+			type: {
+				likert_scale: {
+					categories: [
+						{ label: 'Strongly disagree', value: 1 },
+						{ label: 'Disagree', value: 2 },
+						{ label: 'Neutral', value: 3 },
+						{ label: 'Agree', value: 4 },
+						{ label: 'Strongly agree', value: 5 }
+					]
+				}
+			}
+		}
+	]
 };
 export const workflow_templates = {
 	learn_polis: [
