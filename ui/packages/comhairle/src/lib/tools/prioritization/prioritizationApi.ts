@@ -5,7 +5,6 @@ import type {
 	ProposalWithTranslations as ApiProposalWithTranslations
 } from '@crownshy/api-client/api';
 import type {
-	Draft,
 	LocalizedProposal,
 	Proposal,
 	ProposalResponse,
@@ -246,30 +245,4 @@ export async function listResponses(proposalId: string): Promise<ProposalRespons
 		userId: d.userId,
 		responses: d.response.map((r) => ({ questionId: r.question_id, value: r.value }))
 	}));
-}
-
-/* ---------- Drafts (localStorage) ---------- */
-
-const draftKey = (stepId: string, participantId: string) =>
-	`prioritization.draft.${stepId}.${participantId}`;
-
-export function loadDraft(stepId: string, participantId: string): Draft | null {
-	if (typeof window === 'undefined') return null;
-	const raw = window.localStorage.getItem(draftKey(stepId, participantId));
-	if (!raw) return null;
-	try {
-		return JSON.parse(raw) as Draft;
-	} catch {
-		return null;
-	}
-}
-
-export function saveDraft(draft: Draft): void {
-	if (typeof window === 'undefined') return;
-	window.localStorage.setItem(draftKey(draft.stepId, draft.participantId), JSON.stringify(draft));
-}
-
-export function clearDraft(stepId: string, participantId: string): void {
-	if (typeof window === 'undefined') return;
-	window.localStorage.removeItem(draftKey(stepId, participantId));
 }

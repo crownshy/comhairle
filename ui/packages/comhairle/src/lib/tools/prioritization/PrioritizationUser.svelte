@@ -76,14 +76,6 @@
 				}
 			});
 			submittedIds = submitted;
-
-			/** Layer drafts from localStorage on top, but never overwrite already-submitted answers. */
-			const draft = api.loadDraft(stepId, participantId);
-			const draftAnswers = draft?.answers ?? {};
-			for (const [proposalId, qs] of Object.entries(draftAnswers)) {
-				if (submitted.has(proposalId)) continue;
-				restoredAnswers[proposalId] = { ...qs };
-			}
 			answers = restoredAnswers;
 
 			/** Jump to the first un-submitted proposal so returning users don't have to navigate past completed ones manually. */
@@ -126,24 +118,9 @@
 		reviewing = false;
 	}
 
-	/** Persist drafts (debounced via microtask batching — the value only settles after Svelte's reactive update, so any quick succession of changes collapses into one write). */
-	let saveTimer: ReturnType<typeof setTimeout> | undefined;
-	function saveDraftSoon() {
-		clearTimeout(saveTimer);
-		saveTimer = setTimeout(() => {
-			api.saveDraft({
-				stepId,
-				participantId,
-				answers,
-				updatedAt: Date.now()
-			});
-		}, 400);
-	}
-
 	function setAnswer(proposalId: string, questionId: string, value: number) {
 		const next = { ...(answers[proposalId] ?? {}), [questionId]: value };
 		answers = { ...answers, [proposalId]: next };
-		saveDraftSoon();
 	}
 
 	async function submitCurrent() {
@@ -175,7 +152,6 @@
 	}
 
 	function finish() {
-		api.clearDraft(stepId, participantId);
 		onDone?.();
 	}
 

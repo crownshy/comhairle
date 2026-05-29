@@ -84,15 +84,6 @@ export type ProposalResponse = {
 	responses: QuestionResponse[];
 };
 
-/** Drafts (localStorage only) */
-export type Draft = {
-	stepId: string;
-	participantId: string;
-	/** Keyed by proposalId -> questionId -> value */
-	answers: Record<string, Record<string, number>>;
-	updatedAt: number;
-};
-
 /** Props the host page passes into the tool UIs. */
 
 export type WorkflowStepInput = {
