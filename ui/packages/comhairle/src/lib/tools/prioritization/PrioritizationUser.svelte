@@ -155,6 +155,7 @@
 		if (currentIndex < proposals.length - 1) {
 			currentIndex += 1;
 		}
+		window.scrollTo(0, 0);
 	}
 
 	function goBack() {
@@ -244,7 +245,10 @@
 					</div>
 				{/if}
 			</Card.Header>
-			<Card.Content class="space-y-6">
+		</Card.Root>
+
+		<Card.Root class="bg-primary/10">
+			<Card.Content class="space-y-6 pt-6">
 				{#each toolConfig.questions as question (question.id)}
 					<QuestionField
 						{question}
