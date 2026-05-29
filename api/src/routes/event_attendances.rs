@@ -16,6 +16,7 @@ use uuid::Uuid;
 use crate::{
     error::ComhairleError,
     models::{
+        conversation, event,
         event_attendance::{
             self, CreateEventAttendance, EventAttendanceEtx, EventAttendanceFilterOptions,
             EventAttendanceOrderOptions, UpdateEventAttendance,
@@ -81,13 +82,13 @@ pub async fn create(
 ) -> Result<(StatusCode, Json<EventAttendanceDto>), ComhairleError> {
     // Search for user by email if passed, otherwise create attendence from
     // logged in user (session cookie)
-    let user_id = match payload.user_email {
-        Some(email) => users::get_user_by_email(&email, &state.db).await?.id,
-        None => user.id,
+    let user = match payload.user_email {
+        Some(email) => users::get_user_by_email(&email, &state.db).await?,
+        None => user,
     };
 
     let create_event_attendance = CreateEventAttendance {
-        user_id,
+        user_id: user.id,
         event_id,
         role: payload.role,
     };
@@ -95,6 +96,21 @@ pub async fn create(
     let event_attendance = event_attendance::create(&state.db, &create_event_attendance)
         .await?
         .into();
+
+    if let Some(email) = user.email {
+        let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+        let event =
+            event::get_localized_by_id(&state.db, &event_id, &conversation.primary_locale).await?;
+
+        let event_link = format!(
+            "{}/conversations/{}/events/{}",
+            state.config.domain, conversation.id, event.id
+        );
+
+        state
+            .mailer
+            .send_event_confirmation_email(email.to_string(), &event, &None, event_link)?;
+    }
 
     Ok((StatusCode::CREATED, Json(event_attendance)))
 }
@@ -243,15 +259,31 @@ mod tests {
     use std::error::Error;
 
     use crate::{
+        mailer::MockComhairleMailer,
         models::model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
         routes::{auth::SignupRequest, events::dto::EventDto},
+        setup_server,
+        test_helpers::{test_state, UserSession},
     };
 
     use super::*;
 
     #[sqlx::test]
     async fn should_create_an_event_attendance(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let mut mailer = MockComhairleMailer::new();
+        mailer
+            .expect_send_welcome_email()
+            .once()
+            .returning(|_, _| Ok(()));
+        mailer
+            .expect_send_event_confirmation_email()
+            .once()
+            .returning(|_, _, _, _| Ok(()));
+        let state = test_state().db(pool).mailer(Arc::new(mailer)).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let (_, response, _) = session
             .create_random_event(&app, &conversation_id.to_string())
