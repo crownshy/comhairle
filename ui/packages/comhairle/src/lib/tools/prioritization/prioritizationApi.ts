@@ -53,8 +53,9 @@ function normaliseQuestionType(raw: unknown): QuestionType {
 
 function normaliseQuestion(raw: unknown): Question {
 	const r = (raw ?? {}) as { id?: string; text?: string; type?: unknown };
+	if (!r.id) throw new Error('Question loaded from backend is missing an id.');
 	return {
-		id: r.id ?? crypto.randomUUID(),
+		id: r.id,
 		text: r.text ?? '',
 		type: normaliseQuestionType(r.type)
 	};
@@ -80,7 +81,19 @@ function denormaliseQuestionType(type: QuestionType): string | Record<string, un
 }
 
 function denormaliseQuestion(q: Question): Record<string, unknown> {
-	return { id: q.id, text: q.text, type: denormaliseQuestionType(q.type) as unknown };
+	return {
+		id: q.id,
+		text: q.text,
+		type: denormaliseQuestionType(q.type) as unknown
+	};
+}
+
+/** Wire payload for a question being created — backend assigns the id. */
+function denormaliseNewQuestion(q: { text: string; type: QuestionType }): Record<string, unknown> {
+	return {
+		text: q.text,
+		type: denormaliseQuestionType(q.type) as unknown
+	};
 }
 
 /** Resolve a workflow step's tool config into the tool's ToolConfig shape. Live
@@ -178,10 +191,51 @@ export async function updateToolConfig(opts: {
 	toolConfig: ToolConfig;
 	isLive: boolean;
 }): Promise<void> {
+	await putToolConfig({
+		conversationId: opts.conversationId,
+		workflowId: opts.workflowId,
+		workflowStepId: opts.workflowStepId,
+		isLive: opts.isLive,
+		questions: opts.toolConfig.questions.map(denormaliseQuestion),
+		randomizeOrder: opts.toolConfig.randomizeOrder
+	});
+}
+
+/** Append a new question (id-less; backend mints it) and PUT the resulting tool config. */
+export async function addQuestionToToolConfig(opts: {
+	conversationId: string;
+	workflowId: string;
+	workflowStepId: string;
+	existingQuestions: Question[];
+	newQuestion: { text: string; type: QuestionType };
+	randomizeOrder: boolean;
+	isLive: boolean;
+}): Promise<void> {
+	await putToolConfig({
+		conversationId: opts.conversationId,
+		workflowId: opts.workflowId,
+		workflowStepId: opts.workflowStepId,
+		isLive: opts.isLive,
+		questions: [
+			...opts.existingQuestions.map(denormaliseQuestion),
+			denormaliseNewQuestion(opts.newQuestion)
+		],
+		randomizeOrder: opts.randomizeOrder
+	});
+}
+
+async function putToolConfig(opts: {
+	conversationId: string;
+	workflowId: string;
+	workflowStepId: string;
+	isLive: boolean;
+	questions: Record<string, unknown>[];
+	randomizeOrder: boolean;
+}): Promise<void> {
 	const payload = {
 		type: 'prioritization' as const,
-		questions: opts.toolConfig.questions.map(denormaliseQuestion),
-		randomize_order: opts.toolConfig.randomizeOrder
+		questions: opts.questions,
+		randomize_order: opts.randomizeOrder
 	};
 	await apiClient.UpdateConversationWorkflowStep(
 		(opts.isLive
@@ -207,14 +261,11 @@ export async function submitResponse(
 	proposalId: string,
 	responses: QuestionResponse[]
 ): Promise<void> {
-	/** Backend `value` is an untagged enum accepting number | string, but the
-	 * generated zod schema still types it as number. Cast until the api-client
-	 * is regenerated. */
 	await apiClient.CreateProposalResponse(
 		{
 			question_responses: responses.map((r) => ({
 				question_id: r.questionId,
-				value: r.value as number
+				value: r.value
 			}))
 		},
 		{ params: { proposal_id: proposalId } }
@@ -227,11 +278,9 @@ export async function listResponses(proposalId: string): Promise<ProposalRespons
 		id: d.id,
 		proposalId: d.proposalId,
 		userId: d.userId,
-		/** Backend `value` is number | string at runtime; the generated zod schema
-		 * narrows to number. Widen here until the api-client is regenerated. */
 		responses: d.response.map((r) => ({
 			questionId: r.question_id,
-			value: r.value as number | string
+			value: r.value
 		}))
 	}));
 }

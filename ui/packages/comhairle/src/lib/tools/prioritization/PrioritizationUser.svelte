@@ -25,7 +25,7 @@
 		workflowStep: WorkflowStepInput;
 		conversation: ConversationInput;
 		participantId?: string;
-		onDone?: () => void;
+		onDone: () => void;
 	} = $props();
 
 	const stepId = $derived(workflowStep.id);
@@ -157,10 +157,6 @@
 		if (currentIndex > 0) currentIndex -= 1;
 	}
 
-	function finish() {
-		onDone?.();
-	}
-
 	let progressPercent = $derived(
 		proposals.length === 0 ? 0 : Math.round((submittedIds.size / proposals.length) * 100)
 	);
@@ -194,9 +190,7 @@
 
 			<div class="flex flex-wrap items-center justify-center gap-2 pt-2">
 				<Button variant="outline" onclick={startReview}>Review your answers</Button>
-				{#if onDone}
-					<Button onclick={finish}>Continue</Button>
-				{/if}
+				<Button onclick={onDone}>Continue</Button>
 			</div>
 		</Card.Content>
 	</Card.Root>
@@ -276,7 +270,7 @@
 				{:else if reviewing}
 					<Button onclick={endReview}>Back to summary</Button>
 				{:else}
-					<Button onclick={finish}>Finish</Button>
+					<Button onclick={onDone}>Finish</Button>
 				{/if}
 			{:else}
 				<Button onclick={submitAndAdvance} disabled={!isComplete || submitting}>

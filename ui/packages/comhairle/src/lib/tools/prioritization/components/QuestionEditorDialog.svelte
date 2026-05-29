@@ -9,6 +9,9 @@
 	import type { PrioritizationStore } from '../store.svelte';
 	import type { LikertCategory, Question, QuestionType, ToolConfig } from '../types';
 
+	/** Form state for a question being created or edited.  */
+	type DraftFields = { text: string; type: QuestionType };
+
 	type Props = {
 		open: boolean;
 		question?: Question | null;
@@ -27,9 +30,8 @@
 		{ label: 'Strongly agree', value: 2 }
 	];
 
-	function newQuestion(): Question {
+	function emptyDraft(): DraftFields {
 		return {
-			id: crypto.randomUUID(),
 			text: '',
 			type: { kind: 'likert', categories: defaultLikertCategories.map((c) => ({ ...c })) }
 		};
@@ -50,19 +52,22 @@
 		return { kind: 'text' };
 	}
 
-	function cloneQuestion(q: Question): Question {
-		return { id: q.id, text: q.text, type: cloneType(q.type) };
-	}
-
-	let draft = $state<Question>(newQuestion());
+	let draft = $state<DraftFields>(emptyDraft());
+	let editingId = $state<string | undefined>(undefined);
 	let saving = $state(false);
 	let errorMessage = $state<string | null>(null);
 
-	const isEditing = $derived(!!question);
+	const isEditing = $derived(editingId !== undefined);
 
 	$effect(() => {
 		if (open) {
-			draft = question ? cloneQuestion(question) : newQuestion();
+			if (question) {
+				editingId = question.id;
+				draft = { text: question.text, type: cloneType(question.type) };
+			} else {
+				editingId = undefined;
+				draft = emptyDraft();
+			}
 			errorMessage = null;
 		}
 	});
@@ -125,14 +130,21 @@
 		errorMessage = null;
 		try {
 			const existing = toolConfig.questions ?? [];
-			const cleaned = cloneQuestion(draft);
-			const next = isEditing
-				? existing.map((q) => (q.id === cleaned.id ? cleaned : q))
-				: [...existing, cleaned];
-			await store.saveToolConfig({
-				questions: next,
-				randomizeOrder: toolConfig.randomizeOrder
-			});
+			if (editingId !== undefined) {
+				const id = editingId;
+				const updated: Question = { id, text: draft.text, type: cloneType(draft.type) };
+				const next = existing.map((q) => (q.id === id ? updated : q));
+				await store.saveToolConfig({
+					questions: next,
+					randomizeOrder: toolConfig.randomizeOrder
+				});
+			} else {
+				await store.addQuestion({
+					existingQuestions: existing,
+					newQuestion: { text: draft.text, type: cloneType(draft.type) },
+					randomizeOrder: toolConfig.randomizeOrder
+				});
+			}
 			onOpenChange(false);
 		} catch (e) {
 			errorMessage = e instanceof Error ? e.message : 'Failed to save question.';

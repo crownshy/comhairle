@@ -1,6 +1,6 @@
 import { notifications } from '$lib/notifications.svelte';
 import * as api from './prioritizationApi';
-import type { Proposal, ToolConfig } from './types';
+import type { Proposal, Question, QuestionType, ToolConfig } from './types';
 
 /** Reactive store for the admin (Manage) view. Holds the proposal list and
  * wraps the api module — failed writes surface a toast and re-throw so callers
@@ -63,6 +63,27 @@ export function createStore(opts: {
 		}
 	}
 
+	async function addQuestion(args: {
+		existingQuestions: Question[];
+		newQuestion: { text: string; type: QuestionType };
+		randomizeOrder: boolean;
+	}) {
+		try {
+			await api.addQuestionToToolConfig({
+				conversationId: opts.conversationId,
+				workflowId: opts.workflowId,
+				workflowStepId: opts.workflowStepId,
+				existingQuestions: args.existingQuestions,
+				newQuestion: args.newQuestion,
+				randomizeOrder: args.randomizeOrder,
+				isLive: opts.isLive
+			});
+		} catch (e) {
+			notifications.send({ priority: 'ERROR', message: 'Failed to add question' });
+			throw e;
+		}
+	}
+
 	return {
 		get state() {
 			return state;
@@ -76,6 +97,7 @@ export function createStore(opts: {
 		refresh,
 		create,
 		remove,
-		saveToolConfig
+		saveToolConfig,
+		addQuestion
 	};
 }
