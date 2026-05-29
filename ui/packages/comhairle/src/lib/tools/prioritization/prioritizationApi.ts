@@ -1,8 +1,10 @@
 import { invalidateAll } from '$app/navigation';
 import { apiClient } from '@crownshy/api-client/client';
 import type {
+	PartialWorkflowStep,
 	ProposalsListResponse,
-	ProposalWithTranslations as ApiProposalWithTranslations
+	ProposalWithTranslations as ApiProposalWithTranslations,
+	Question as ApiQuestion
 } from '@crownshy/api-client/api';
 import type {
 	LocalizedProposal,
@@ -80,19 +82,11 @@ function denormaliseQuestionType(type: QuestionType): string | Record<string, un
 	}
 }
 
-function denormaliseQuestion(q: Question): Record<string, unknown> {
+function denormaliseQuestion(q: Question): ApiQuestion {
 	return {
 		id: q.id,
 		text: q.text,
-		type: denormaliseQuestionType(q.type) as unknown
-	};
-}
-
-/** Wire payload for a question being created — backend assigns the id. */
-function denormaliseNewQuestion(q: { text: string; type: QuestionType }): Record<string, unknown> {
-	return {
-		text: q.text,
-		type: denormaliseQuestionType(q.type) as unknown
+		type: denormaliseQuestionType(q.type) as ApiQuestion['type']
 	};
 }
 
@@ -201,35 +195,12 @@ export async function updateToolConfig(opts: {
 	});
 }
 
-/** Append a new question (id-less; backend mints it) and PUT the resulting tool config. */
-export async function addQuestionToToolConfig(opts: {
-	conversationId: string;
-	workflowId: string;
-	workflowStepId: string;
-	existingQuestions: Question[];
-	newQuestion: { text: string; type: QuestionType };
-	randomizeOrder: boolean;
-	isLive: boolean;
-}): Promise<void> {
-	await putToolConfig({
-		conversationId: opts.conversationId,
-		workflowId: opts.workflowId,
-		workflowStepId: opts.workflowStepId,
-		isLive: opts.isLive,
-		questions: [
-			...opts.existingQuestions.map(denormaliseQuestion),
-			denormaliseNewQuestion(opts.newQuestion)
-		],
-		randomizeOrder: opts.randomizeOrder
-	});
-}
-
 async function putToolConfig(opts: {
 	conversationId: string;
 	workflowId: string;
 	workflowStepId: string;
 	isLive: boolean;
-	questions: Record<string, unknown>[];
+	questions: ApiQuestion[];
 	randomizeOrder: boolean;
 }): Promise<void> {
 	const payload = {
@@ -237,20 +208,16 @@ async function putToolConfig(opts: {
 		questions: opts.questions,
 		randomize_order: opts.randomizeOrder
 	};
-	await apiClient.UpdateConversationWorkflowStep(
-		(opts.isLive
-			? { tool_config: payload }
-			: { preview_tool_config: payload }) as unknown as Parameters<
-			typeof apiClient.UpdateConversationWorkflowStep
-		>[0],
-		{
-			params: {
-				conversation_id: opts.conversationId,
-				workflow_id: opts.workflowId,
-				workflow_step_id: opts.workflowStepId
-			}
+	const body: PartialWorkflowStep = opts.isLive
+		? { tool_config: payload }
+		: { preview_tool_config: payload };
+	await apiClient.UpdateConversationWorkflowStep(body, {
+		params: {
+			conversation_id: opts.conversationId,
+			workflow_id: opts.workflowId,
+			workflow_step_id: opts.workflowStepId
 		}
-	);
+	});
 
 	await invalidateAll();
 }

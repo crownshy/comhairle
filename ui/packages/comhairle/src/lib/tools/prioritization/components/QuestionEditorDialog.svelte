@@ -130,21 +130,16 @@
 		errorMessage = null;
 		try {
 			const existing = toolConfig.questions ?? [];
-			if (editingId !== undefined) {
-				const id = editingId;
-				const updated: Question = { id, text: draft.text, type: cloneType(draft.type) };
-				const next = existing.map((q) => (q.id === id ? updated : q));
-				await store.saveToolConfig({
-					questions: next,
-					randomizeOrder: toolConfig.randomizeOrder
-				});
-			} else {
-				await store.addQuestion({
-					existingQuestions: existing,
-					newQuestion: { text: draft.text, type: cloneType(draft.type) },
-					randomizeOrder: toolConfig.randomizeOrder
-				});
-			}
+			const id = editingId ?? crypto.randomUUID();
+			const next: Question = { id, text: draft.text, type: cloneType(draft.type) };
+			const questions =
+				editingId !== undefined
+					? existing.map((q) => (q.id === editingId ? next : q))
+					: [...existing, next];
+			await store.saveToolConfig({
+				questions,
+				randomizeOrder: toolConfig.randomizeOrder
+			});
 			onOpenChange(false);
 		} catch (e) {
 			errorMessage = e instanceof Error ? e.message : 'Failed to save question.';
@@ -300,10 +295,6 @@
 						</span>
 					</div>
 				</div>
-			{:else}
-				<p class="text-muted-foreground text-xs">
-					Note: text answers are not yet stored by the backend in v1.
-				</p>
 			{/if}
 		</div>
 
