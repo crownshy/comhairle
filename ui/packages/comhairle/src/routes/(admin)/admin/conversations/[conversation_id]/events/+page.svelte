@@ -1,6 +1,5 @@
 <script lang="ts">
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Plus } from 'lucide-svelte';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
@@ -13,7 +12,7 @@
 
 	useAdminLayoutSlots({
 		title: titleSnippet,
-		breadcrumbs: breadcrumbSnippet
+		breadcrumbs: [{ label: 'Events' }]
 	});
 	let pageTitle = $derived(`Manage Events - ${conversation.title}`);
 </script>
@@ -36,10 +35,6 @@
 				}
 			: undefined}
 	/>
-{/snippet}
-
-{#snippet breadcrumbSnippet()}
-	<Breadcrumb.Item>Events</Breadcrumb.Item>
 {/snippet}
 
 <p class="text-muted-foreground mb-10 text-base font-medium">

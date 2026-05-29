@@ -8,7 +8,6 @@
 	import LivedExperienceManage from '$lib/tools/lived_experince/LivedExperinceManage.svelte';
 	import { useAdminLayoutSlots } from '../../../useAdminLayoutSlots.svelte.js';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import { Button } from '$lib/components/ui/button';
 	import { Pencil } from 'lucide-svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
@@ -51,9 +50,19 @@
 
 	useAdminLayoutSlots({
 		title: titleSnippet,
-		breadcrumbs: breadcrumbSnippet
+		breadcrumbs: () => [
+			{ label: 'Design', href: `/admin/conversations/${conversation.id}/design` },
+			{ label: step?.name ?? 'Step' }
+		]
 	});
 	let pageTitle = $derived(`Edit Step: ${step?.name ?? 'Step'}`);
+	let stepName = $derived(
+		getTextInLocale(
+			step?.translations?.name,
+			conversation.primaryLocale ?? 'en',
+			step?.name ?? ''
+		) || 'Unnamed step'
+	);
 </script>
 
 <svelte:head>
@@ -61,63 +70,57 @@
 </svelte:head>
 
 {#snippet titleSnippet()}
-	<div class="flex min-w-0 flex-1 flex-col gap-2">
-		<div class="flex flex-wrap items-center gap-3">
-			<h1 class="text-3xl font-semibold sm:text-4xl">
-				{getTextInLocale(
-					step?.translations?.name,
-					conversation.primaryLocale ?? 'en',
-					step?.name ?? ''
-				) || 'Unnamed step'}
+	<div class="flex w-full min-w-0 flex-col">
+		<div class="flex w-full min-w-0 items-center gap-3">
+			<h1
+				class="min-w-0 flex-1 truncate text-3xl font-semibold sm:max-w-[40ch] sm:text-4xl"
+				title={stepName}
+			>
+				{stepName}
 			</h1>
 			<Button
 				onclick={() => (editMetadataOpen = true)}
-				class="bg-sidebar text-sidebar-foreground hover:bg-sidebar/90 h-8 rounded-full px-3 text-xs"
+				class="bg-sidebar text-sidebar-foreground hover:bg-sidebar/90 h-8 shrink-0 rounded-full px-3 text-xs"
 			>
 				<Pencil class="size-3.5" />
 				Edit
 			</Button>
 		</div>
 		{#if step?.description || step?.translations?.description}
-			<ContentRenderer
-				content={getTextInLocale(
-					step?.translations?.description,
-					conversation.primaryLocale ?? 'en',
-					step?.description ?? ''
-				)}
-				class="text-muted-foreground text-base"
-				{availableDocuments}
-				conversationId={conversation.id}
-			/>
+			<div class="mt-2">
+				<ContentRenderer
+					content={getTextInLocale(
+						step?.translations?.description,
+						conversation.primaryLocale ?? 'en',
+						step?.description ?? ''
+					)}
+					class="text-muted-foreground text-base"
+					{availableDocuments}
+					conversationId={conversation.id}
+				/>
+			</div>
 		{/if}
+		<div class="border-base-border mt-5 flex w-full border-t pt-4">
+			<AdminPrevNextControls
+				hidePrevLabel
+				next={nextStep
+					? {
+							name: nextStep.name,
+							url: `/admin/conversations/${conversation.id}/design/step/${nextStep.id}`
+						}
+					: {
+							name: 'Setup Knowledge base',
+							url: `/admin/conversations/${conversation.id}/knowledge-base`
+						}}
+				prev={prevStep
+					? {
+							name: prevStep.name,
+							url: `/admin/conversations/${conversation.id}/design/step/${prevStep.id}`
+						}
+					: { name: 'Design', url: `/admin/conversations/${conversation.id}/design` }}
+			/>
+		</div>
 	</div>
-	<AdminPrevNextControls
-		next={nextStep
-			? {
-					name: nextStep.name,
-					url: `/admin/conversations/${conversation.id}/design/step/${nextStep.id}`
-				}
-			: {
-					name: 'Setup Knowledge base',
-					url: `/admin/conversations/${conversation.id}/knowledge-base`
-				}}
-		prev={prevStep
-			? {
-					name: prevStep.name,
-					url: `/admin/conversations/${conversation.id}/design/step/${prevStep.id}`
-				}
-			: { name: 'Design', url: `/admin/conversations/${conversation.id}/design` }}
-	/>
-{/snippet}
-
-{#snippet breadcrumbSnippet()}
-	<Breadcrumb.Item>
-		<Breadcrumb.Link href={`/admin/conversations/${conversation.id}/design`}>
-			Design
-		</Breadcrumb.Link>
-	</Breadcrumb.Item>
-	<Breadcrumb.Separator />
-	<Breadcrumb.Item>{step?.name}</Breadcrumb.Item>
 {/snippet}
 
 {#if step}

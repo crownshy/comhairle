@@ -1,9 +1,9 @@
 import { getContext } from 'svelte';
 import type { Snippet } from 'svelte';
-import type { AdminPageSlots } from './slotTypes';
+import type { AdminPageSlots, BreadcrumbCrumb } from './slotTypes';
 
 interface UseAdminLayoutSlotsOptions {
-	breadcrumbs?: Snippet | null;
+	breadcrumbs?: BreadcrumbCrumb[] | (() => BreadcrumbCrumb[]) | null;
 	title?: Snippet | null;
 }
 
@@ -12,7 +12,11 @@ export function useAdminLayoutSlots(options: UseAdminLayoutSlotsOptions = {}): A
 
 	$effect(() => {
 		if (options.breadcrumbs) {
-			layoutSlots.breadcrumbContent(options.breadcrumbs);
+			const trail =
+				typeof options.breadcrumbs === 'function'
+					? options.breadcrumbs()
+					: options.breadcrumbs;
+			layoutSlots.breadcrumbTrail(trail);
 		}
 		if (options.title) {
 			layoutSlots.titleContent(options.title);
@@ -20,7 +24,7 @@ export function useAdminLayoutSlots(options: UseAdminLayoutSlotsOptions = {}): A
 
 		return () => {
 			if (options.breadcrumbs) {
-				layoutSlots.clearBreadcrumbContent();
+				layoutSlots.clearBreadcrumbTrail();
 			}
 			if (options.title) {
 				layoutSlots.clearTitleContent();

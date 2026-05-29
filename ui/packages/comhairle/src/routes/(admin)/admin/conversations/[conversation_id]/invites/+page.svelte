@@ -16,7 +16,6 @@
 	import * as Table from '$lib/components/ui/table/index.js';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import OpenInviteStatsBarChart from '$lib/components/OpenInviteStatsBarChart.svelte';
-	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte.js';
 	import EmailInvitesList from '$lib/components/ui/email-invites/EmailInvitesList.svelte';
 	import { inviteUrl } from '$lib/utils/invites.js';
@@ -61,7 +60,7 @@
 	}
 	useAdminLayoutSlots({
 		title: titleContentSnippet,
-		breadcrumbs: breadcrumbSnippet
+		breadcrumbs: [{ label: 'Recruit' }]
 	});
 </script>
 
@@ -73,10 +72,6 @@
 	<div class="flex flex-row gap-x-2">
 		<CopyButton copyText={inviteUrl(url, invite, conversation)}>{label}</CopyButton>
 	</div>
-{/snippet}
-
-{#snippet breadcrumbSnippet()}
-	<BreadcrumbItem>Recruit</BreadcrumbItem>
 {/snippet}
 
 {#snippet titleContentSnippet()}

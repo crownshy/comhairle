@@ -1,8 +1,13 @@
-import type { Snippet } from "svelte";
+import type { Snippet } from 'svelte';
+
+export type BreadcrumbCrumb = {
+	label: string;
+	href?: string;
+};
 
 export interface AdminPageSlots {
-	breadcrumbContent: (snippet: Snippet | null) => void;
+	breadcrumbTrail: (trail: BreadcrumbCrumb[] | null) => void;
 	titleContent: (snippet: Snippet | null) => void;
 	clearTitleContent: () => void;
-	clearBreadcrumbContent: () => void;
+	clearBreadcrumbTrail: () => void;
 }

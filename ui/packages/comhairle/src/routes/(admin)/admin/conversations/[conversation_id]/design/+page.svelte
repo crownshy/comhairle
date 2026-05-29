@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { WorkflowStepWithTranslations } from '@crownshy/api-client/api';
 	import { infoURLForTool } from '$lib/utils';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
 	import {
 		basic_learn_config,
 		basic_polis_config,
@@ -136,7 +135,7 @@
 	}
 	useAdminLayoutSlots({
 		title: titleSnippet,
-		breadcrumbs: breadcrumbSnippet
+		breadcrumbs: [{ label: 'Design' }]
 	});
 	let pageTitle = $derived(`Design ${conversation.title}`);
 </script>
@@ -154,10 +153,6 @@
 		}}
 		prev={{ name: 'Configure', url: `/admin/conversations/${conversation.id}/configure` }}
 	/>
-{/snippet}
-
-{#snippet breadcrumbSnippet()}
-	<Breadcrumb.Item>Design</Breadcrumb.Item>
 {/snippet}
 
 <h2 class="mb-5 text-2xl">Process steps</h2>

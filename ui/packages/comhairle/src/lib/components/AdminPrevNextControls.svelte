@@ -10,34 +10,43 @@
 	type Props = {
 		prev?: NamedLink;
 		next?: NamedLink;
+		hidePrevLabel?: boolean;
 	};
-	let { prev, next }: Props = $props();
+	let { prev, next, hidePrevLabel = false }: Props = $props();
 </script>
 
-<div class="flex flex-row gap-4">
+<div class="flex min-w-0 flex-row gap-4">
 	{#if prev}
-		<div class="flex flex-row items-center gap-2">
-			<div class="flex flex-col items-end">
-				<h3 class="text-primary text-xs">Previous</h3>
-				<h3>{prev.name}</h3>
-			</div>
+		<div class="flex min-w-0 flex-row items-center gap-2">
+			{#if !hidePrevLabel}
+				<div class="flex min-w-0 flex-col items-end">
+					<h3 class="text-primary text-xs">Previous</h3>
+					<h3 class="max-w-[36ch] truncate" title={prev.name}>{prev.name}</h3>
+				</div>
+			{/if}
 
-			<Button href={prev.url} class="rounded-full bg-white text-black ring-1 ring-[#E5E7EB] "
-				><ArrowLeft /></Button
+			<Button
+				href={prev.url}
+				class="shrink-0 rounded-full bg-white text-black ring-1 ring-[#E5E7EB]"
 			>
+				<ArrowLeft />
+			</Button>
 		</div>
 	{/if}
 	{#if prev && next}
 		<Separator class="text-black" decorative orientation="vertical" />
 	{/if}
 	{#if next}
-		<div class="flex flex-row items-center gap-2">
-			<Button href={next.url} class="rounded-full bg-white text-black ring-1 ring-[#E5E7EB] "
-				><ArrowRight /></Button
+		<div class="flex min-w-0 flex-row items-center gap-2">
+			<Button
+				href={next.url}
+				class="shrink-0 rounded-full bg-white text-black ring-1 ring-[#E5E7EB]"
 			>
-			<div class="flex flex-col items-start">
+				<ArrowRight />
+			</Button>
+			<div class="flex min-w-0 flex-col items-start">
 				<h3 class="text-primary text-xs">Next</h3>
-				<h3>{next.name}</h3>
+				<h3 class="max-w-[36ch] truncate" title={next.name}>{next.name}</h3>
 			</div>
 		</div>
 	{/if}

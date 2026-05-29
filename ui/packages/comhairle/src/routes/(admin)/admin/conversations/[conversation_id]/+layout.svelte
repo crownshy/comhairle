@@ -12,24 +12,36 @@
 		CircleX
 	} from 'lucide-svelte';
 	import { setContext, type Snippet } from 'svelte';
-	import type { AdminPageSlots } from './slotTypes';
+	import type { AdminPageSlots, BreadcrumbCrumb } from './slotTypes';
 	import LaunchConversationModal from '$lib/components/LaunchConversationModal.svelte';
 	import EndConversationModal from '$lib/components/EndConversationModal.svelte';
 
-	let breadcrumbContent = $state<Snippet | null>(null);
+	let breadcrumbTrail = $state<BreadcrumbCrumb[] | null>(null);
 	let titleContent = $state<Snippet | null>(null);
 
 	setContext<AdminPageSlots>('adminLayoutSlots', {
-		breadcrumbContent: (content: Snippet | null) => (breadcrumbContent = content),
+		breadcrumbTrail: (trail: BreadcrumbCrumb[] | null) => (breadcrumbTrail = trail),
 		titleContent: (content: Snippet | null) => (titleContent = content),
 		clearTitleContent: () => (titleContent = null),
-		clearBreadcrumbContent: () => (breadcrumbContent = null)
+		clearBreadcrumbTrail: () => (breadcrumbTrail = null)
 	});
 
 	let { data, children } = $props();
 
 	let conversation = $derived(data.conversation);
 	let endModalOpen = $state(false);
+
+	let allCrumbs = $derived<BreadcrumbCrumb[]>([
+		{ label: 'Workspace', href: '/admin' },
+		{ label: 'Conversations' },
+		{
+			label: conversation.title,
+			href: `/admin/conversations/${conversation.id}/configure`
+		},
+		...(breadcrumbTrail ?? [])
+	]);
+	let currentCrumb = $derived(allCrumbs[allCrumbs.length - 1]);
+	let parentCrumbs = $derived(allCrumbs.slice(0, -1));
 </script>
 
 <!-- Top bar: breadcrumb + conversation name + launch controls -->
@@ -44,24 +56,37 @@
 		<Breadcrumb.Root class="min-w-0 xl:max-w-[50%]">
 			<Breadcrumb.List class="flex-nowrap">
 				<Breadcrumb.Item class="shrink-0">
-					<Breadcrumb.Link href="/admin">Workspace</Breadcrumb.Link>
+					<DropdownMenu.Root>
+						<DropdownMenu.Trigger
+							class="hover:text-foreground focus-visible:ring-ring text-muted-foreground flex size-7 items-center justify-center rounded-md focus-visible:ring-1 focus-visible:outline-none"
+							aria-label="Show breadcrumb trail"
+						>
+							<Breadcrumb.Ellipsis class="size-4" />
+						</DropdownMenu.Trigger>
+						<DropdownMenu.Content align="start">
+							{#each parentCrumbs as crumb (crumb.label)}
+								{#if crumb.href}
+									<DropdownMenu.Item>
+										{#snippet child({ props })}
+											<a {...props} href={crumb.href}>{crumb.label}</a>
+										{/snippet}
+									</DropdownMenu.Item>
+								{:else}
+									<DropdownMenu.Item disabled>{crumb.label}</DropdownMenu.Item>
+								{/if}
+							{/each}
+						</DropdownMenu.Content>
+					</DropdownMenu.Root>
 				</Breadcrumb.Item>
-				<Breadcrumb.Separator class="shrink-0" />
-				<Breadcrumb.Item class="shrink-0">Conversations</Breadcrumb.Item>
 				<Breadcrumb.Separator class="shrink-0" />
 				<Breadcrumb.Item class="min-w-0">
-					<Breadcrumb.Link
-						href={`/admin/conversations/${conversation.id}/configure`}
-						class="block max-w-[12ch] truncate sm:max-w-[20ch] lg:max-w-[24ch]"
-						title={conversation.title}
+					<Breadcrumb.Page
+						class="block max-w-[20ch] truncate sm:max-w-[32ch] lg:max-w-[40ch]"
+						title={currentCrumb.label}
 					>
-						{conversation.title}
-					</Breadcrumb.Link>
+						{currentCrumb.label}
+					</Breadcrumb.Page>
 				</Breadcrumb.Item>
-				{#if breadcrumbContent}
-					<Breadcrumb.Separator class="shrink-0" />
-					{@render breadcrumbContent()}
-				{/if}
 			</Breadcrumb.List>
 		</Breadcrumb.Root>
 		<div class="flex w-full min-w-0 items-center gap-3 xl:ml-auto xl:w-auto">
@@ -169,7 +194,7 @@
 		class="border-base-border bg-background flex w-full flex-col items-center border-b px-4 py-6 sm:px-8 lg:px-16"
 	>
 		<div
-			class="flex w-full max-w-[1200px] flex-col items-start justify-between gap-4 lg:flex-row lg:items-center"
+			class="flex w-full max-w-[1200px] min-w-0 flex-col items-start justify-between gap-4 lg:flex-row lg:items-center"
 		>
 			{@render titleContent()}
 		</div>

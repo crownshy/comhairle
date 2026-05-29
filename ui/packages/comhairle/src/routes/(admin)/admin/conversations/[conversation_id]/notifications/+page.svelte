@@ -1,7 +1,6 @@
 <script lang="ts">
 	import NotificationForm from '$lib/components/NotificationForm.svelte';
 	import type { PageData } from './$types';
-	import { BreadcrumbItem } from '$lib/components/ui/breadcrumb';
 	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 
 	let { data } = $props() as { data: PageData };
@@ -9,7 +8,7 @@
 
 	useAdminLayoutSlots({
 		title: titleSnippet,
-		breadcrumbs: breadcrumbSnippet
+		breadcrumbs: [{ label: 'Notifications' }]
 	});
 </script>
 
@@ -19,10 +18,6 @@
 
 {#snippet titleSnippet()}
 	<h1 class="text-4xl font-bold">Notifications</h1>
-{/snippet}
-
-{#snippet breadcrumbSnippet()}
-	<BreadcrumbItem>Notifications</BreadcrumbItem>
 {/snippet}
 
 <p class="mb-10">
