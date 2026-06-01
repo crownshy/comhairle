@@ -47,7 +47,12 @@ export const SignupRequest = z
   })
   .passthrough();
 export type SignupRequest = z.infer<typeof SignupRequest>;
-export const OtpSignupRequest = z.object({ email: z.string() }).passthrough();
+export const OtpSignupRequest = z
+  .object({
+    email: z.string(),
+    username: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
 export type OtpSignupRequest = z.infer<typeof OtpSignupRequest>;
 export const CreateOtpRequest = z
   .object({
@@ -1469,7 +1474,10 @@ export type PaginatedResults_for_EventAttendanceEtx = z.infer<
   typeof PaginatedResults_for_EventAttendanceEtx
 >;
 export const CreateEventAttendanceRequest = z
-  .object({ role: z.string() })
+  .object({
+    role: z.string(),
+    user_email: z.union([z.string(), z.null()]).optional(),
+  })
   .passthrough();
 export type CreateEventAttendanceRequest = z.infer<
   typeof CreateEventAttendanceRequest
@@ -2060,7 +2068,7 @@ const endpoints = makeApi([
       {
         name: "body",
         type: "Body",
-        schema: z.object({ email: z.string() }).passthrough(),
+        schema: OtpSignupRequest,
       },
     ],
     response: UserDto,
@@ -2505,7 +2513,7 @@ curl -X POST \
       {
         name: "body",
         type: "Body",
-        schema: z.object({ role: z.string() }).passthrough(),
+        schema: CreateEventAttendanceRequest,
       },
     ],
     response: EventAttendanceDto,

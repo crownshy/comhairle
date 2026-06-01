@@ -16,6 +16,7 @@ use uuid::Uuid;
 use crate::{
     error::ComhairleError,
     models::{
+        conversation, event,
         event_attendance::{
             self, CreateEventAttendance, EventAttendanceEtx, EventAttendanceFilterOptions,
             EventAttendanceOrderOptions, UpdateEventAttendance,
@@ -66,9 +67,10 @@ pub async fn get(
     Ok((StatusCode::OK, Json(event_attendance)))
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Default)]
 pub struct CreateEventAttendanceRequest {
     role: String,
+    user_email: Option<String>,
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -78,17 +80,51 @@ pub async fn create(
     RequiredUser(user): RequiredUser,
     Json(payload): Json<CreateEventAttendanceRequest>,
 ) -> Result<(StatusCode, Json<EventAttendanceDto>), ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    // Search for user by email if provided, otherwise create attendence from
+    // logged in user (session cookie)
+    let user = match payload.user_email {
+        Some(email) => {
+            // Registering a different user can only be performed by the
+            // conversation owner
+            if conversation.owner_id == user.id {
+                users::get_user_by_email(&email, &state.db).await?
+            } else {
+                return Err(ComhairleError::UserIsNotConversationOwner);
+            }
+        }
+        None => user,
+    };
+
     let create_event_attendance = CreateEventAttendance {
         user_id: user.id,
         event_id,
         role: payload.role,
     };
 
-    let event_attendance = event_attendance::create(&state.db, &create_event_attendance)
-        .await?
-        .into();
+    let event_attendance = event_attendance::create(&state.db, &create_event_attendance).await?;
 
-    Ok((StatusCode::CREATED, Json(event_attendance)))
+    if let Some(email) = user.email {
+        if &event_attendance.role == "participant" {
+            let event =
+                event::get_localized_by_id(&state.db, &event_id, &conversation.primary_locale)
+                    .await?;
+
+            let event_link = format!(
+                "{}/conversations/{}/events/{}",
+                state.config.domain, conversation.id, event.id
+            );
+
+            state.mailer.send_event_confirmation_email(
+                email.to_string(),
+                &event,
+                &None,
+                event_link,
+            )?;
+        }
+    }
+
+    Ok((StatusCode::CREATED, Json(event_attendance.into())))
 }
 
 #[derive(Deserialize, JsonSchema, Debug)]
@@ -235,15 +271,31 @@ mod tests {
     use std::error::Error;
 
     use crate::{
+        mailer::MockComhairleMailer,
         models::model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
-        routes::events::dto::EventDto,
+        routes::{auth::SignupRequest, events::dto::EventDto},
+        setup_server,
+        test_helpers::{test_state, UserSession},
     };
 
     use super::*;
 
     #[sqlx::test]
     async fn should_create_an_event_attendance(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let mut mailer = MockComhairleMailer::new();
+        mailer
+            .expect_send_welcome_email()
+            .once()
+            .returning(|_, _| Ok(()));
+        mailer
+            .expect_send_event_confirmation_email()
+            .once()
+            .returning(|_, _, _, _| Ok(()));
+        let state = test_state().db(pool).mailer(Arc::new(mailer)).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
         let (_, response, _) = session
             .create_random_event(&app, &conversation_id.to_string())
@@ -251,7 +303,8 @@ mod tests {
         let event: EventDto = serde_json::from_value(response)?;
 
         let new_attendance = CreateEventAttendanceRequest {
-            role: "facilitator".to_string(),
+            role: "participant".to_string(),
+            ..Default::default()
         };
 
         let body = serde_json::to_vec(&new_attendance)?;
@@ -270,10 +323,63 @@ mod tests {
         assert!(status.is_success(), "error response status");
         assert_eq!(
             event_attendance.role,
-            "facilitator".to_string(),
+            "participant".to_string(),
             "incorrect role"
         );
         assert_eq!(event_attendance.event_id, event.id, "incorrect event_id");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_create_an_event_attendance_from_email_address(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, response, _) = session
+            .create_random_event(&app, &conversation_id.to_string())
+            .await?;
+        let event: EventDto = serde_json::from_value(response)?;
+        let (_, logged_in_user, _) = session.current_user(&app).await?;
+
+        let user = users::create_user(
+            &SignupRequest {
+                email: "test-user-abc@foo.com".to_string(),
+                username: "test_user".to_string(),
+                password: "asdQWE)(*UIOOPOI".to_string(),
+                avatar_url: None,
+            },
+            &pool,
+        )
+        .await?;
+
+        let new_attendance = CreateEventAttendanceRequest {
+            role: "participant".to_string(),
+            user_email: user.email,
+        };
+
+        let body = serde_json::to_vec(&new_attendance)?;
+        let (_, response, _) = session
+            .post(
+                &app,
+                &format!(
+                    "/conversation/{conversation_id}/events/{}/attendances",
+                    event.id
+                ),
+                body.into(),
+            )
+            .await?;
+        let event_attendance: EventAttendanceDto = serde_json::from_value(response)?;
+
+        assert_eq!(
+            event_attendance.user_id, user.id,
+            "user_id does not match email user"
+        );
+        assert_ne!(
+            event_attendance.user_id, logged_in_user.id,
+            "user_id matches logged in user"
+        );
 
         Ok(())
     }
