@@ -80,10 +80,19 @@ pub async fn create(
     RequiredUser(user): RequiredUser,
     Json(payload): Json<CreateEventAttendanceRequest>,
 ) -> Result<(StatusCode, Json<EventAttendanceDto>), ComhairleError> {
-    // Search for user by email if passed, otherwise create attendence from
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    // Search for user by email if provided, otherwise create attendence from
     // logged in user (session cookie)
     let user = match payload.user_email {
-        Some(email) => users::get_user_by_email(&email, &state.db).await?,
+        Some(email) => {
+            // Registering a different user can only be performed by the
+            // conversation owner
+            if conversation.owner_id == user.id {
+                users::get_user_by_email(&email, &state.db).await?
+            } else {
+                return Err(ComhairleError::UserIsNotConversationOwner);
+            }
+        }
         None => user,
     };
 
@@ -93,26 +102,29 @@ pub async fn create(
         role: payload.role,
     };
 
-    let event_attendance = event_attendance::create(&state.db, &create_event_attendance)
-        .await?
-        .into();
+    let event_attendance = event_attendance::create(&state.db, &create_event_attendance).await?;
 
     if let Some(email) = user.email {
-        let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
-        let event =
-            event::get_localized_by_id(&state.db, &event_id, &conversation.primary_locale).await?;
+        if &event_attendance.role == "participant" {
+            let event =
+                event::get_localized_by_id(&state.db, &event_id, &conversation.primary_locale)
+                    .await?;
 
-        let event_link = format!(
-            "{}/conversations/{}/events/{}",
-            state.config.domain, conversation.id, event.id
-        );
+            let event_link = format!(
+                "{}/conversations/{}/events/{}",
+                state.config.domain, conversation.id, event.id
+            );
 
-        state
-            .mailer
-            .send_event_confirmation_email(email.to_string(), &event, &None, event_link)?;
+            state.mailer.send_event_confirmation_email(
+                email.to_string(),
+                &event,
+                &None,
+                event_link,
+            )?;
+        }
     }
 
-    Ok((StatusCode::CREATED, Json(event_attendance)))
+    Ok((StatusCode::CREATED, Json(event_attendance.into())))
 }
 
 #[derive(Deserialize, JsonSchema, Debug)]
@@ -291,7 +303,7 @@ mod tests {
         let event: EventDto = serde_json::from_value(response)?;
 
         let new_attendance = CreateEventAttendanceRequest {
-            role: "facilitator".to_string(),
+            role: "participant".to_string(),
             ..Default::default()
         };
 
@@ -311,7 +323,7 @@ mod tests {
         assert!(status.is_success(), "error response status");
         assert_eq!(
             event_attendance.role,
-            "facilitator".to_string(),
+            "participant".to_string(),
             "incorrect role"
         );
         assert_eq!(event_attendance.event_id, event.id, "incorrect event_id");
