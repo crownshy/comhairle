@@ -274,6 +274,24 @@ pub async fn list(
 }
 
 #[instrument(err(Debug))]
+pub async fn list_upcoming_emails(
+    db: &PgPool,
+    upcoming_duration: chrono::Duration,
+) -> Result<Vec<ScheduledEmail>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .from(ScheduledEmailIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .and_where(Expr::col(ScheduledEmailIden::Status).eq(EmailStatus::Pending.to_string()))
+        .and_where(Expr::col(ScheduledEmailIden::SendAt).gt(Utc::now()))
+        .and_where(Expr::col(ScheduledEmailIden::SendAt).lte(Utc::now() + upcoming_duration))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let scheduled_emails = query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(scheduled_emails)
+}
+
+#[instrument(err(Debug))]
 pub async fn delete(db: &PgPool, id: Uuid) -> Result<ScheduledEmail, ComhairleError> {
     let (sql, values) = Query::delete()
         .from_table(ScheduledEmailIden::Table)
@@ -316,6 +334,44 @@ mod tests {
             "incorrect user_email"
         );
         assert!(email.send_at > Utc::now(), "send_at not in the future");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_update_scheduled_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let params = CreateScheduledEmail {
+            user_email: "test@test.com".to_string(),
+            send_at: Utc::now() + chrono::Duration::days(1),
+            email_config: ScheduledEmailConfig {
+                template: EmailTemplate::EventReminder {
+                    event_name: "test_event".to_string(),
+                    event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
+                    event_link: "https://test.com".to_string(),
+                    organization_name: "Test org".to_string(),
+                    organization_email: None,
+                },
+            },
+        };
+
+        let email = create(&pool, params).await?;
+
+        assert_eq!(
+            email.status,
+            EmailStatus::Pending,
+            "incorrect status before update"
+        );
+
+        let update_params = UpdateScheduledEmail {
+            status: Some(EmailStatus::Sent),
+        };
+        let email = update(&pool, email.id, update_params).await?;
+
+        assert_eq!(
+            email.status,
+            EmailStatus::Sent,
+            "incorrect status after update"
+        );
 
         Ok(())
     }
@@ -416,6 +472,98 @@ mod tests {
         assert!(
             results.records.iter().any(|e| e.id == email_3.id),
             "missing third email"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_list_scheduled_emails_upcoming_2_hours(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let params_23_hours = CreateScheduledEmail {
+            user_email: "user-1@test.com".to_string(),
+            send_at: Utc::now() + chrono::Duration::hours(23),
+            email_config: ScheduledEmailConfig {
+                template: EmailTemplate::EventReminder {
+                    event_name: "test_event".to_string(),
+                    event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
+                    event_link: "https://test.com".to_string(),
+                    organization_name: "Test org".to_string(),
+                    organization_email: None,
+                },
+            },
+        };
+        let params_2_days = CreateScheduledEmail {
+            user_email: "user-2@test.com".to_string(),
+            send_at: Utc::now() + chrono::Duration::days(2),
+            email_config: ScheduledEmailConfig {
+                template: EmailTemplate::EventReminder {
+                    event_name: "test_event".to_string(),
+                    event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
+                    event_link: "https://test.com".to_string(),
+                    organization_name: "Test org".to_string(),
+                    organization_email: None,
+                },
+            },
+        };
+        let params_past = CreateScheduledEmail {
+            user_email: "user-1@test.com".to_string(),
+            send_at: Utc::now() - chrono::Duration::days(1),
+            email_config: ScheduledEmailConfig {
+                template: EmailTemplate::EventReminder {
+                    event_name: "test_event".to_string(),
+                    event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
+                    event_link: "https://test.com".to_string(),
+                    organization_name: "Test org".to_string(),
+                    organization_email: None,
+                },
+            },
+        };
+        let params_sent = CreateScheduledEmail {
+            user_email: "user-1@test.com".to_string(),
+            send_at: Utc::now() + chrono::Duration::minutes(15),
+            email_config: ScheduledEmailConfig {
+                template: EmailTemplate::EventReminder {
+                    event_name: "test_event".to_string(),
+                    event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
+                    event_link: "https://test.com".to_string(),
+                    organization_name: "Test org".to_string(),
+                    organization_email: None,
+                },
+            },
+        };
+        let params_30_mins = CreateScheduledEmail {
+            user_email: "user-1@test.com".to_string(),
+            send_at: Utc::now() + chrono::Duration::minutes(30),
+            email_config: ScheduledEmailConfig {
+                template: EmailTemplate::EventReminder {
+                    event_name: "test_event".to_string(),
+                    event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
+                    event_link: "https://test.com".to_string(),
+                    organization_name: "Test org".to_string(),
+                    organization_email: None,
+                },
+            },
+        };
+
+        create(&pool, params_23_hours).await?;
+        create(&pool, params_2_days).await?;
+        create(&pool, params_past).await?;
+        let email_sent = create(&pool, params_sent).await?;
+        let update_params = UpdateScheduledEmail {
+            status: Some(EmailStatus::Sent),
+        };
+        update(&pool, email_sent.id, update_params).await?;
+
+        let email_30_mins = create(&pool, params_30_mins).await?;
+
+        let results_2_hours = list_upcoming_emails(&pool, chrono::Duration::hours(2)).await?;
+
+        assert_eq!(results_2_hours.len(), 1, "incorrect total for 2 hours");
+        assert!(
+            results_2_hours.iter().all(|e| e.id == email_30_mins.id),
+            "incorrect id"
         );
 
         Ok(())
