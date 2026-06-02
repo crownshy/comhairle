@@ -35,6 +35,7 @@ pub struct ScheduledEmail {
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct ScheduledEmailConfig {
     pub template: EmailTemplate,
+    pub subject: String,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
@@ -48,6 +49,38 @@ pub enum EmailTemplate {
         organization_name: String,
         organization_email: Option<String>,
     },
+}
+
+impl std::fmt::Display for EmailTemplate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = match self {
+            EmailTemplate::EventReminder { .. } => "event_reminder.html",
+        };
+        write!(f, "{}", value)
+    }
+}
+
+impl EmailTemplate {
+    pub fn to_mailer_context(&self) -> minijinja::Value {
+        match self {
+            EmailTemplate::EventReminder {
+                event_name,
+                event_time,
+                event_link,
+                organization_name,
+                organization_email,
+                ..
+            } => {
+                minijinja::context! {
+                    event_name => event_name,
+                    event_time => event_time,
+                    event_link => event_link,
+                    organization_name => organization_name,
+                    organization_email => organization_email,
+                }
+            }
+        }
+    }
 }
 
 impl Type<Postgres> for ScheduledEmailConfig {
@@ -306,7 +339,7 @@ pub async fn list(
 }
 
 #[instrument(err(Debug))]
-pub async fn list_upcoming_emails(
+pub async fn list_upcoming_scheduled_emails(
     db: &PgPool,
     upcoming_duration: chrono::Duration,
 ) -> Result<Vec<ScheduledEmail>, ComhairleError> {
@@ -348,6 +381,7 @@ mod tests {
             user_email: "test@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::days(1),
             email_config: ScheduledEmailConfig {
+                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
                     event_name: "test_event".to_string(),
                     event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
@@ -376,6 +410,7 @@ mod tests {
             user_email: "test@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::days(1),
             email_config: ScheduledEmailConfig {
+                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
                     event_name: "test_event".to_string(),
                     event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
@@ -414,6 +449,7 @@ mod tests {
             user_email: "test@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::days(1),
             email_config: ScheduledEmailConfig {
+                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
                     event_name: "test_event".to_string(),
                     event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
@@ -444,6 +480,7 @@ mod tests {
             user_email: "user-1@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::days(1),
             email_config: ScheduledEmailConfig {
+                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
                     event_name: "test_event".to_string(),
                     event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
@@ -457,6 +494,7 @@ mod tests {
             user_email: "user-2@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::days(2),
             email_config: ScheduledEmailConfig {
+                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
                     event_name: "test_event".to_string(),
                     event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
@@ -470,6 +508,7 @@ mod tests {
             user_email: "user-1@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::days(2),
             email_config: ScheduledEmailConfig {
+                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
                     event_name: "test_event".to_string(),
                     event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
@@ -517,6 +556,7 @@ mod tests {
             user_email: "user-1@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::hours(23),
             email_config: ScheduledEmailConfig {
+                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
                     event_name: "test_event".to_string(),
                     event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
@@ -530,6 +570,7 @@ mod tests {
             user_email: "user-2@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::days(2),
             email_config: ScheduledEmailConfig {
+                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
                     event_name: "test_event".to_string(),
                     event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
@@ -543,6 +584,7 @@ mod tests {
             user_email: "user-1@test.com".to_string(),
             send_at: Utc::now() - chrono::Duration::days(1),
             email_config: ScheduledEmailConfig {
+                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
                     event_name: "test_event".to_string(),
                     event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
@@ -556,6 +598,7 @@ mod tests {
             user_email: "user-1@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::minutes(15),
             email_config: ScheduledEmailConfig {
+                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
                     event_name: "test_event".to_string(),
                     event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
@@ -569,6 +612,7 @@ mod tests {
             user_email: "user-1@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::minutes(30),
             email_config: ScheduledEmailConfig {
+                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
                     event_name: "test_event".to_string(),
                     event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
@@ -587,7 +631,8 @@ mod tests {
 
         let email_30_mins = create(&pool, params_30_mins).await?;
 
-        let results_2_hours = list_upcoming_emails(&pool, chrono::Duration::hours(2)).await?;
+        let results_2_hours =
+            list_upcoming_scheduled_emails(&pool, chrono::Duration::hours(2)).await?;
 
         assert_eq!(results_2_hours.len(), 1, "incorrect total for 2 hours");
         assert!(
@@ -604,6 +649,7 @@ mod tests {
             user_email: "test@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::days(1),
             email_config: ScheduledEmailConfig {
+                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
                     event_name: "test_event".to_string(),
                     event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),

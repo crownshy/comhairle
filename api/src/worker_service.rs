@@ -2,7 +2,7 @@ pub mod config;
 pub mod error;
 pub mod process_documents;
 pub mod process_video_call_transcriptions;
-pub mod schedule_event_emails;
+pub mod scheduled_emails;
 
 use std::{future::Future, str::FromStr, sync::Arc, time::Duration};
 
@@ -21,8 +21,9 @@ use crate::{
         process_video_call_transcriptions::{
             generate_sensemaking_report, transcribe_recording, TranscribeRecording,
         },
-        schedule_event_emails::{
-            schedule_event_emails, send_event_reminder, EventEmailRequest, SendEventReminderJob,
+        scheduled_emails::{
+            retrieve_and_enqueue_scheduled_emails, send_scheduled_email, ScheduledEmailsRequest,
+            SendScheduledEmailJob,
         },
     },
     ComhairleState,
@@ -38,9 +39,9 @@ pub trait WorkerService: Send + Sync {
 
     async fn push_transcription_job(&self, job: TranscribeRecording) -> Result<(), ComhairleError>;
 
-    async fn push_event_reminder_job(
+    async fn push_send_scheduled_email_job(
         &self,
-        job: SendEventReminderJob,
+        job: SendScheduledEmailJob,
     ) -> Result<(), ComhairleError>;
 }
 
@@ -48,8 +49,8 @@ pub trait WorkerService: Send + Sync {
 pub struct ComhairleWorkerService {
     pub process_documents: Arc<Mutex<RedisStorage<DocumentJob>>>,
     pub process_transcriptions: Arc<Mutex<RedisStorage<StepRequest<Vec<u8>>>>>,
-    pub schedule_event_reminders: Arc<Mutex<RedisStorage<EventEmailRequest>>>,
-    pub send_event_reminder: Arc<Mutex<RedisStorage<SendEventReminderJob>>>,
+    pub scheduled_emails: Arc<Mutex<RedisStorage<ScheduledEmailsRequest>>>,
+    pub send_scheduled_email: Arc<Mutex<RedisStorage<SendScheduledEmailJob>>>,
 }
 
 #[async_trait]
@@ -74,11 +75,12 @@ impl WorkerService for ComhairleWorkerService {
         Ok(())
     }
 
-    async fn push_event_reminder_job(
+    #[instrument(err(Debug))]
+    async fn push_send_scheduled_email_job(
         &self,
-        job: SendEventReminderJob,
+        job: SendScheduledEmailJob,
     ) -> Result<(), ComhairleError> {
-        let mut lock = self.send_event_reminder.lock().await;
+        let mut lock = self.send_scheduled_email.lock().await;
         lock.push(job)
             .await
             .map_err(|_| ComhairleError::BackgroundJobFailedToQueue)?;
@@ -90,8 +92,8 @@ impl WorkerService for ComhairleWorkerService {
 pub struct WorkerStorage {
     pub documents: RedisStorage<DocumentJob>,
     pub transcriptions: RedisStorage<StepRequest<Vec<u8>>>,
-    pub schedule_event_reminders: RedisStorage<EventEmailRequest>,
-    pub send_event_reminder: RedisStorage<SendEventReminderJob>,
+    pub scheduled_emails: RedisStorage<ScheduledEmailsRequest>,
+    pub send_scheduled_email: RedisStorage<SendScheduledEmailJob>,
 }
 
 pub async fn init_worker_service(
@@ -117,25 +119,25 @@ pub async fn init_worker_service(
         apalis_redis::Config::default().set_namespace("worker_service_documents");
     let transcriptions_config =
         apalis_redis::Config::default().set_namespace("worker_service_transcriptions");
-    let event_reminder_scheduler_config =
-        apalis_redis::Config::default().set_namespace("worker_service_event_reminder_scheduler");
-    let event_reminder_send_config =
-        apalis_redis::Config::default().set_namespace("worker_service_event_reminder_send");
+    let scheduled_emails_config =
+        apalis_redis::Config::default().set_namespace("worker_service_scheduled_emails");
+    let send_scheduled_email_config =
+        apalis_redis::Config::default().set_namespace("worker_service_send_scheduled_email");
 
     let documents_storage =
         RedisStorage::new_with_config(redis_connection.clone(), documents_config);
     let transcriptions_storage =
         RedisStorage::new_with_config(redis_connection.clone(), transcriptions_config);
-    let event_reminder_scheduler_storage =
-        RedisStorage::new_with_config(redis_connection.clone(), event_reminder_scheduler_config);
-    let event_reminder_send_storage =
-        RedisStorage::new_with_config(redis_connection.clone(), event_reminder_send_config);
+    let scheduled_emails_storage =
+        RedisStorage::new_with_config(redis_connection.clone(), scheduled_emails_config);
+    let send_scheduled_email_storage =
+        RedisStorage::new_with_config(redis_connection.clone(), send_scheduled_email_config);
 
     let worker_service = Arc::new(ComhairleWorkerService {
         process_documents: Arc::new(Mutex::new(documents_storage.clone())),
         process_transcriptions: Arc::new(Mutex::new(transcriptions_storage.clone())),
-        schedule_event_reminders: Arc::new(Mutex::new(event_reminder_scheduler_storage.clone())),
-        send_event_reminder: Arc::new(Mutex::new(event_reminder_send_storage.clone())),
+        scheduled_emails: Arc::new(Mutex::new(scheduled_emails_storage.clone())),
+        send_scheduled_email: Arc::new(Mutex::new(send_scheduled_email_storage.clone())),
     });
 
     Some((
@@ -143,8 +145,8 @@ pub async fn init_worker_service(
         WorkerStorage {
             documents: documents_storage,
             transcriptions: transcriptions_storage,
-            schedule_event_reminders: event_reminder_scheduler_storage,
-            send_event_reminder: event_reminder_send_storage,
+            scheduled_emails: scheduled_emails_storage,
+            send_scheduled_email: send_scheduled_email_storage,
         },
     ))
 }
@@ -174,31 +176,31 @@ pub fn init_monitor(
             .backend(storage.transcriptions.clone())
             .build_stepped(transcription_worker_steps);
 
-        let event_emails_schedule = Schedule::from_str("0 */15 * * * *")
+        let scheduled_emails_schedule = Schedule::from_str("0 */15 * * * *")
             .expect("Unable to create cron schedule for background worker");
-        let event_emails_cron_stream = CronStream::new(event_emails_schedule);
-        let event_emails_backend =
-            event_emails_cron_stream.pipe_to_storage(storage.schedule_event_reminders.clone());
+        let scheduled_emails_cron_stream = CronStream::new(scheduled_emails_schedule);
+        let scheduled_emails_backend =
+            scheduled_emails_cron_stream.pipe_to_storage(storage.scheduled_emails.clone());
 
-        let schedule_event_reminders_worker = WorkerBuilder::new("schedule_event_reminders")
+        let scheduled_emails_worker = WorkerBuilder::new("scheduled_emails_worker")
             .data(state.clone())
             .data(())
             .enable_tracing()
-            .backend(event_emails_backend)
-            .build_fn(schedule_event_emails);
+            .backend(scheduled_emails_backend)
+            .build_fn(retrieve_and_enqueue_scheduled_emails);
 
-        let send_event_reminder_worker = WorkerBuilder::new("send_event_reminder")
+        let send_scheduled_email_worker = WorkerBuilder::new("send_scheduled_email_worker")
             .data(state.clone())
             .data(())
             .enable_tracing()
-            .backend(storage.send_event_reminder.clone())
-            .build_fn(send_event_reminder);
+            .backend(storage.send_scheduled_email.clone())
+            .build_fn(send_scheduled_email);
 
         monitor = monitor
             .register(process_documents_worker)
             .register(process_transcriptions_worker)
-            .register(schedule_event_reminders_worker)
-            .register(send_event_reminder_worker);
+            .register(scheduled_emails_worker)
+            .register(send_scheduled_email_worker);
 
         Some(monitor.run())
     } else {
@@ -220,7 +222,7 @@ impl MockWorkerService {
             .returning(|_| Box::pin(async move { Ok(()) }));
 
         worker_service
-            .expect_push_event_reminder_job()
+            .expect_push_send_scheduled_email_job()
             .returning(|_| Box::pin(async move { Ok(()) }));
 
         worker_service

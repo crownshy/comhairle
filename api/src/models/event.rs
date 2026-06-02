@@ -130,6 +130,7 @@ impl ScheduleEventReminders for LocalizedEvent {
         event_link: &str,
     ) -> Result<(), ComhairleError> {
         let email_config = ScheduledEmailConfig {
+            subject: "Upcoming event reminder".to_string(),
             template: EmailTemplate::EventReminder {
                 event_name: self.name.clone(),
                 event_time: self.format_date_with_time_zone(self.start_time, None),
