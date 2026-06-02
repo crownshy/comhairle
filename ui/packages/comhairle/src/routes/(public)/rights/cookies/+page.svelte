@@ -11,8 +11,8 @@
 	<h1>Cookies</h1>
 
 	<p>
-		For the Comhairle platform to function we will place small data files, known as cookies on your
-		computer. To learn more about cookies and how to manage them check out <a
+		For the Comhairle platform to function we will place small data files, known as cookies on
+		your computer. To learn more about cookies and how to manage them check out <a
 			href="https://allaboutcookies.org.">allaboutcookies.org</a
 		>
 	</p>
@@ -24,8 +24,10 @@
 	<p>Comhairle makes use of the following essential cookies</p>
 
 	<div class="relative overflow-x-auto">
-		<table class="w-full text-left text-sm text-gray-500 dark:text-gray-400 rtl:text-right">
-			<thead class="bg-gray-50 text-xs uppercase text-gray-700 dark:bg-gray-700 dark:text-gray-400">
+		<table class="w-full text-left text-sm text-gray-500 rtl:text-right dark:text-gray-400">
+			<thead
+				class="bg-gray-50 text-xs text-gray-700 uppercase dark:bg-gray-700 dark:text-gray-400"
+			>
 				<tr>
 					<th scope="col" class="px-6 py-3"> Cookie Name </th>
 					<th scope="col" class="px-6 py-3"> Purpose </th>
@@ -36,7 +38,7 @@
 				<tr class="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
 					<th
 						scope="row"
-						class="whitespace-nowrap px-6 py-4 font-medium text-gray-900 dark:text-white"
+						class="px-6 py-4 font-medium whitespace-nowrap text-gray-900 dark:text-white"
 					>
 						auth_token
 					</th>
@@ -48,7 +50,7 @@
 				<tr class="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
 					<th
 						scope="row"
-						class="whitespace-nowrap px-6 py-4 font-medium text-gray-900 dark:text-white"
+						class="px-6 py-4 font-medium whitespace-nowrap text-gray-900 dark:text-white"
 					>
 						paraglide_lang
 					</th>
@@ -68,7 +70,7 @@
 	div {
 		font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 		line-height: 1.7;
-		color: #2c2c2c;
+		color: var(--foreground);
 		margin: 2rem auto;
 		max-width: 800px;
 		padding: 1rem;
@@ -77,17 +79,17 @@
 	h1 {
 		font-size: 2.5rem;
 		text-align: center;
-		color: #1a1a1a;
+		color: var(--foreground);
 		margin-bottom: 2rem;
-		border-bottom: 2px solid #ddd;
+		border-bottom: 2px solid var(--border);
 		padding-bottom: 0.5rem;
 	}
 
 	h2 {
 		font-size: 1.5rem;
-		color: #2e4a7d;
+		color: var(--foreground);
 		margin-top: 2rem;
-		border-left: 4px solid #2e4a7d;
+		border-left: 4px solid var(--primary);
 		padding-left: 0.5rem;
 	}
 
