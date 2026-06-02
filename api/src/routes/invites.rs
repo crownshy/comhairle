@@ -17,7 +17,8 @@ use uuid::Uuid;
 use crate::{
     error::ComhairleError,
     models::{
-        self, conversation, event,
+        self, conversation,
+        event::{self, ScheduleEventReminders},
         event_attendance::{self, CreateEventAttendance},
         invites::{CreateInviteDTO, DailyResponseStats, InviteType, PartialInvite},
         users, workflow,
@@ -330,6 +331,11 @@ async fn auto_register_event_attendance(
         "{}/conversations/{}/events/{}",
         state.config.domain, conversation.id, event.id
     );
+
+    event
+        .schedule_event_reminders(&state.db, email, &event_link)
+        .await?;
+
     state
         .mailer
         .send_event_confirmation_email(email.to_string(), &event, &None, event_link)?;

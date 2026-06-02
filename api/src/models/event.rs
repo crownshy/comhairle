@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use chrono_tz::Tz;
 use comhairle_macros::{DbJsonBEnum, Translatable};
@@ -17,6 +18,7 @@ use crate::{
         conversation::ConversationIden,
         event_attendance::EventAttendanceIden,
         pagination::{Order, PageOptions, PaginatedResults},
+        scheduled_email::{self, CreateScheduledEmail, EmailTemplate, ScheduledEmailConfig},
         translations::{
             new_translation, TextContentId, TextContentIden, TextFormat, TextTranslationIden,
         },
@@ -106,6 +108,50 @@ impl ResolveTimeZone for Event {
 impl ResolveTimeZone for LocalizedEvent {
     fn default_time_zone(&self) -> &str {
         &self.default_time_zone
+    }
+}
+
+#[async_trait]
+pub trait ScheduleEventReminders {
+    async fn schedule_event_reminders(
+        &self,
+        db: &PgPool,
+        email: &str,
+        event_link: &str,
+    ) -> Result<(), ComhairleError>;
+}
+
+#[async_trait]
+impl ScheduleEventReminders for LocalizedEvent {
+    async fn schedule_event_reminders(
+        &self,
+        db: &PgPool,
+        email: &str,
+        event_link: &str,
+    ) -> Result<(), ComhairleError> {
+        let email_config = ScheduledEmailConfig {
+            template: EmailTemplate::EventReminder {
+                event_name: self.name.clone(),
+                event_time: self.format_date_with_time_zone(self.start_time, None),
+                event_link: event_link.to_string(),
+                organization_name: "Bloom".to_string(), // TODO:
+                organization_email: None,
+            },
+        };
+        let scheduled_24_hours_params = CreateScheduledEmail {
+            user_email: email.to_string(),
+            email_config: email_config.clone(),
+            send_at: self.start_time - chrono::Duration::days(1),
+        };
+        let scheduled_2_hours_params = CreateScheduledEmail {
+            user_email: email.to_string(),
+            email_config,
+            send_at: self.start_time - chrono::Duration::hours(2),
+        };
+        scheduled_email::create(db, scheduled_24_hours_params).await?;
+        scheduled_email::create(db, scheduled_2_hours_params).await?;
+
+        Ok(())
     }
 }
 

@@ -23,18 +23,18 @@ use crate::{
 #[derive(Serialize, Deserialize, Debug, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "scheduled_email")]
 pub struct ScheduledEmail {
-    id: Uuid,
-    user_email: String,
-    email_config: ScheduledEmailConfig,
-    status: EmailStatus,
-    send_at: DateTime<Utc>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    pub id: Uuid,
+    pub user_email: String,
+    pub email_config: ScheduledEmailConfig,
+    pub status: EmailStatus,
+    pub send_at: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct ScheduledEmailConfig {
-    template: EmailTemplate,
+    pub template: EmailTemplate,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
@@ -115,9 +115,9 @@ const DEFAULT_COLUMNS: [ScheduledEmailIden; 7] = [
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct CreateScheduledEmail {
-    user_email: String,
-    send_at: DateTime<Utc>,
-    email_config: ScheduledEmailConfig,
+    pub user_email: String,
+    pub send_at: DateTime<Utc>,
+    pub email_config: ScheduledEmailConfig,
 }
 
 #[instrument(err(Debug))]
