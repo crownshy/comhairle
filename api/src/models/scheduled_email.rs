@@ -113,6 +113,38 @@ const DEFAULT_COLUMNS: [ScheduledEmailIden; 7] = [
     ScheduledEmailIden::UpdatedAt,
 ];
 
+impl ScheduledEmail {
+    /// Convenience method for updating the status of a scheduled_email as sent
+    /// once email is sent.
+    pub async fn sent(&self, db: &PgPool) -> Result<Self, ComhairleError> {
+        let (sql, values) = Query::update()
+            .table(ScheduledEmailIden::Table)
+            .value(ScheduledEmailIden::Status, EmailStatus::Sent.to_string())
+            .and_where(Expr::col(ScheduledEmailIden::Id).eq(self.id))
+            .returning(Query::returning().columns(DEFAULT_COLUMNS))
+            .build_sqlx(PostgresQueryBuilder);
+
+        let scheduled_email = query_as_with(&sql, values).fetch_one(db).await?;
+
+        Ok(scheduled_email)
+    }
+
+    /// Convenience method for updating the status of a scheduled_email as failed
+    /// if an error occurs when sending.
+    pub async fn failed(&self, db: &PgPool) -> Result<Self, ComhairleError> {
+        let (sql, values) = Query::update()
+            .table(ScheduledEmailIden::Table)
+            .value(ScheduledEmailIden::Status, EmailStatus::Failed.to_string())
+            .and_where(Expr::col(ScheduledEmailIden::Id).eq(self.id))
+            .returning(Query::returning().columns(DEFAULT_COLUMNS))
+            .build_sqlx(PostgresQueryBuilder);
+
+        let scheduled_email = query_as_with(&sql, values).fetch_one(db).await?;
+
+        Ok(scheduled_email)
+    }
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct CreateScheduledEmail {
     pub user_email: String,
@@ -551,10 +583,7 @@ mod tests {
         create(&pool, params_2_days).await?;
         create(&pool, params_past).await?;
         let email_sent = create(&pool, params_sent).await?;
-        let update_params = UpdateScheduledEmail {
-            status: Some(EmailStatus::Sent),
-        };
-        update(&pool, email_sent.id, update_params).await?;
+        email_sent.sent(&pool).await?;
 
         let email_30_mins = create(&pool, params_30_mins).await?;
 
