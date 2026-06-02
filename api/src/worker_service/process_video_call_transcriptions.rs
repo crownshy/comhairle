@@ -6,9 +6,7 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::{
-    categorization_service::Comment,
-    models::job::{self, UpdateJob},
-    transcription_service::Transcription,
+    categorization_service::Comment, models::job, transcription_service::Transcription,
     ComhairleState,
 };
 
@@ -169,18 +167,13 @@ pub async fn generate_sensemaking_report(
         "Report job created in categorization service"
     );
 
-    let update_job = UpdateJob {
-        status: Some("completed".to_string()),
-        finished_at: Some(Utc::now()),
-        completion_message: Some(
-            "Transcription sensemaking pipeline completed successfully".to_string(),
-        ),
-        ..Default::default()
-    };
-
-    let _ = job::update(&state.db, &req.job_id, update_job)
-        .await
-        .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
+    job::complete(
+        &state.db,
+        req.job_id,
+        "Transcription sensemaking pipeline completed successfully",
+    )
+    .await
+    .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
 
     Ok::<_, _>(GoTo::Done(
         "Transcription sensemaking pipeline completed successfully",

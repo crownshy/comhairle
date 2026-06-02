@@ -1,5 +1,4 @@
 use apalis::prelude::*;
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::info;
@@ -7,7 +6,7 @@ use uuid::Uuid;
 
 use crate::{
     models::{
-        job::{self, CreateJob, UpdateJob},
+        job::{self, CreateJob},
         scheduled_email::{list_upcoming_scheduled_emails, ScheduledEmail},
     },
     ComhairleState,
@@ -54,16 +53,13 @@ pub async fn send_scheduled_email(
         .await
         .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
 
-    // TODO: create convenience method for this
-    let update_job = UpdateJob {
-        status: Some("completed".to_string()),
-        finished_at: Some(Utc::now()),
-        completion_message: Some("Send event reminder job completed successfully".to_string()),
-        ..Default::default()
-    };
-    let _ = job::update(&state.db, &req.job_id, update_job)
-        .await
-        .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
+    job::complete(
+        &state.db,
+        req.job_id,
+        "Send event reminder job completed successfully",
+    )
+    .await
+    .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
 
     info!(
         scheduled_email_id = %req.scheduled_email.id,

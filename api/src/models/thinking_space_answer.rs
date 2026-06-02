@@ -515,7 +515,7 @@ mod tests {
             other_questions: Some(vec!["An unanswered question".to_string()]),
             ..Default::default()
         };
-        let answer_a_b = create(&pool, &workflow_step.id, &user_a.id, &create_a_b).await?;
+        let _answer_a_b = create(&pool, &workflow_step.id, &user_a.id, &create_a_b).await?;
 
         let create_a_c = CreateAnswer {
             question: "A root question".to_string(),

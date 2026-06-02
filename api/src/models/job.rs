@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::FromRow, PgPool};
+use sqlx::{prelude::FromRow, query_as_with, PgPool};
 use uuid::Uuid;
 
 use crate::{
@@ -64,7 +64,7 @@ impl CreateJob {
     ///
     /// A vector of sea_query::SimpleExpr values correspoinding to the columns.
     pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
-        let mut values = vec!["running".to_string().into()];
+        let mut values = vec!["pending".to_string().into()];
         if let Some(value) = &self.step {
             values.push(value.into());
         }
@@ -151,6 +151,24 @@ pub async fn update(db: &PgPool, id: &Uuid, update_job: UpdateJob) -> Result<Job
     let job = sqlx::query_as_with::<_, Job, _>(&sql, values)
         .fetch_one(db)
         .await?;
+
+    Ok(job)
+}
+
+/// Convenience method to mark job as completed with custom completion_message
+pub async fn complete(db: &PgPool, id: Uuid, message: &str) -> Result<Job, ComhairleError> {
+    let (sql, values) = Query::update()
+        .table(JobIden::Table)
+        .values([
+            (JobIden::Status, "completed".into()),
+            (JobIden::FinishedAt, Utc::now().into()),
+            (JobIden::CompletionMessage, message.into()),
+        ])
+        .and_where(Expr::col(JobIden::Id).eq(id))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let job = query_as_with(&sql, values).fetch_one(db).await?;
 
     Ok(job)
 }
@@ -276,4 +294,74 @@ pub async fn list(
     let jobs = page_options.fetch_paginated_results(db, query).await?;
 
     Ok(jobs)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::error::Error;
+
+    #[sqlx::test]
+    async fn should_create_job(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let job = create(
+            &pool,
+            CreateJob {
+                ..Default::default()
+            },
+        )
+        .await?;
+
+        assert_eq!(
+            job.status,
+            Some("pending".to_string()),
+            "incorrect default status"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_mark_job_as_completed(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let job = create(
+            &pool,
+            CreateJob {
+                ..Default::default()
+            },
+        )
+        .await?;
+
+        assert_eq!(
+            job.status,
+            Some("pending".to_string()),
+            "incorrect status before update"
+        );
+        assert!(
+            job.finished_at.is_none(),
+            "incorrect finished_at before update"
+        );
+        assert!(
+            job.completion_message.is_none(),
+            "incorrect completion_message before update"
+        );
+
+        let job = complete(&pool, job.id, "Completed successfully in a test").await?;
+
+        assert_eq!(
+            job.status,
+            Some("completed".to_string()),
+            "incorrect status after update"
+        );
+        assert!(
+            job.finished_at.is_some(),
+            "incorrect finished_at after update"
+        );
+        assert_eq!(
+            job.completion_message,
+            Some("Completed successfully in a test".to_string()),
+            "incorrect completion_message after update"
+        );
+
+        Ok(())
+    }
 }
