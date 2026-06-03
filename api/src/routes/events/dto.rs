@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     models::{
-        event::{Event, EventAgenda, LocalizedEvent, LocalizedEventWithAttendance},
+        event::{Event, EventAgenda, EventLocation, LocalizedEvent, LocalizedEventWithAttendance},
         pagination::PaginatedResults,
         translations::TextContentId,
     },
@@ -37,6 +37,7 @@ pub struct EventDto {
     pub signup_mode: String,
     pub video_meeting_id: Option<Uuid>,
     pub agenda: EventAgenda,
+    pub location: Option<EventLocation>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -66,6 +67,7 @@ pub struct LocalizedEventDto {
     pub current_attendance: Option<i64>,
     pub video_meeting_id: Option<Uuid>,
     pub agenda: EventAgenda,
+    pub location: Option<EventLocation>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -82,6 +84,7 @@ impl From<Event> for EventDto {
             signup_mode: e.signup_mode,
             video_meeting_id: e.video_meeting_id,
             agenda: e.agenda,
+            location: e.location,
             created_at: e.created_at,
         }
     }
@@ -101,6 +104,7 @@ impl From<LocalizedEventWithAttendance> for LocalizedEventDto {
             created_at: e.event.created_at,
             video_meeting_id: e.event.video_meeting_id,
             agenda: e.event.agenda,
+            location: e.event.location,
             current_attendance: Some(e.current_attendance),
         }
     }
@@ -120,6 +124,7 @@ impl From<LocalizedEvent> for LocalizedEventDto {
             created_at: e.created_at,
             video_meeting_id: e.video_meeting_id,
             agenda: e.agenda,
+            location: e.location,
             current_attendance: None,
         }
     }
