@@ -16,8 +16,7 @@ use uuid::Uuid;
 use crate::{
     error::ComhairleError,
     models::{
-        conversation,
-        event::{self, ScheduleEventReminders},
+        conversation, event,
         event_attendance::{
             self, CreateEventAttendance, EventAttendanceEtx, EventAttendanceFilterOptions,
             EventAttendanceOrderOptions, UpdateEventAttendance,
@@ -105,21 +104,20 @@ pub async fn create(
 
     let event_attendance = event_attendance::create(&state.db, &create_event_attendance).await?;
 
-    if let Some(email) = user.email {
+    if let Some(ref email) = user.email {
         if &event_attendance.role == "participant" {
             let event =
                 event::get_localized_by_id(&state.db, &event_id, &conversation.primary_locale)
                     .await?;
 
+            event
+                .schedule_event_reminders(&state.db, &state.config, &user)
+                .await?;
+
             let event_link = format!(
                 "{}/conversations/{}/events/{}",
                 state.config.domain, conversation.id, event.id
             );
-
-            event
-                .schedule_event_reminders(&state.db, &email, &event_link)
-                .await?;
-
             state.mailer.send_event_confirmation_email(
                 email.to_string(),
                 &event,

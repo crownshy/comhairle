@@ -36,6 +36,7 @@ pub struct ScheduledEmail {
 pub struct ScheduledEmailConfig {
     pub template: EmailTemplate,
     pub subject: String,
+    pub attachment: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
@@ -347,7 +348,11 @@ pub async fn list_upcoming_scheduled_emails(
         .from(ScheduledEmailIden::Table)
         .columns(DEFAULT_COLUMNS)
         .and_where(Expr::col(ScheduledEmailIden::Status).eq(EmailStatus::Pending.to_string()))
-        .and_where(Expr::col(ScheduledEmailIden::SendAt).gt(Utc::now()))
+        .and_where(
+            // Cron task runs every 5 minutes so account for emails scheduled at exact
+            // time of cron schedule
+            Expr::col(ScheduledEmailIden::SendAt).gt(Utc::now() - chrono::Duration::minutes(1)),
+        )
         .and_where(Expr::col(ScheduledEmailIden::SendAt).lte(Utc::now() + upcoming_duration))
         .build_sqlx(PostgresQueryBuilder);
 
@@ -389,6 +394,7 @@ mod tests {
                     organization_name: "Test org".to_string(),
                     organization_email: None,
                 },
+                attachment: None,
             },
         };
 
@@ -418,6 +424,7 @@ mod tests {
                     organization_name: "Test org".to_string(),
                     organization_email: None,
                 },
+                attachment: None,
             },
         };
 
@@ -457,6 +464,7 @@ mod tests {
                     organization_name: "Test org".to_string(),
                     organization_email: None,
                 },
+                attachment: None,
             },
         };
 
@@ -488,6 +496,7 @@ mod tests {
                     organization_name: "Test org".to_string(),
                     organization_email: None,
                 },
+                attachment: None,
             },
         };
         let params_2 = CreateScheduledEmail {
@@ -502,6 +511,7 @@ mod tests {
                     organization_name: "Test org".to_string(),
                     organization_email: None,
                 },
+                attachment: None,
             },
         };
         let params_3 = CreateScheduledEmail {
@@ -516,6 +526,7 @@ mod tests {
                     organization_name: "Test org".to_string(),
                     organization_email: None,
                 },
+                attachment: None,
             },
         };
 
@@ -564,6 +575,7 @@ mod tests {
                     organization_name: "Test org".to_string(),
                     organization_email: None,
                 },
+                attachment: None,
             },
         };
         let params_2_days = CreateScheduledEmail {
@@ -578,6 +590,7 @@ mod tests {
                     organization_name: "Test org".to_string(),
                     organization_email: None,
                 },
+                attachment: None,
             },
         };
         let params_past = CreateScheduledEmail {
@@ -592,6 +605,7 @@ mod tests {
                     organization_name: "Test org".to_string(),
                     organization_email: None,
                 },
+                attachment: None,
             },
         };
         let params_sent = CreateScheduledEmail {
@@ -606,6 +620,7 @@ mod tests {
                     organization_name: "Test org".to_string(),
                     organization_email: None,
                 },
+                attachment: None,
             },
         };
         let params_30_mins = CreateScheduledEmail {
@@ -620,6 +635,7 @@ mod tests {
                     organization_name: "Test org".to_string(),
                     organization_email: None,
                 },
+                attachment: None,
             },
         };
 
@@ -657,6 +673,7 @@ mod tests {
                     organization_name: "Test org".to_string(),
                     organization_email: None,
                 },
+                attachment: None,
             },
         };
 

@@ -5,6 +5,7 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::{
+    mailer::build_invite_attachment,
     models::{
         job::{self, CreateJob},
         scheduled_email::{list_upcoming_scheduled_emails, ScheduledEmail},
@@ -30,6 +31,13 @@ pub async fn send_scheduled_email(
         "Sending scheduled email to recipient"
     );
 
+    let attachment = req
+        .scheduled_email
+        .email_config
+        .attachment
+        .as_deref()
+        .and_then(|body| build_invite_attachment(body.to_string()).ok());
+
     state
         .mailer
         .send_email(
@@ -41,7 +49,7 @@ pub async fn send_scheduled_email(
                 .email_config
                 .template
                 .to_mailer_context(),
-            None,
+            attachment,
         )
         .map_err(|e| WorkerServiceError::MailerError(e.to_string()))
         .ok_or_record_failure(&req.job_id, &state.db)

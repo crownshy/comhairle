@@ -279,7 +279,7 @@ impl ComhairleMailer for Mailer {
         _organization: &Option<Organization>,
         link_href: String,
     ) -> Result<(), ComhairleError> {
-        let calendar_invite = create_calendar_invite(
+        let calendar_invite = create_calendar_invite_attachment(
             &event.name,
             &event.description,
             event.start_time,
@@ -308,7 +308,7 @@ impl ComhairleMailer for Mailer {
         _organization: &Option<Organization>,
         link_href: String,
     ) -> Result<(), ComhairleError> {
-        let calendar_invite = create_calendar_invite(
+        let calendar_invite = create_calendar_invite_attachment(
             &event.name,
             &event.description,
             event.start_time,
@@ -331,13 +331,24 @@ impl ComhairleMailer for Mailer {
     }
 }
 
-fn create_calendar_invite(
+fn create_calendar_invite_attachment(
     name: &str,
     description: &str,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
 ) -> Result<SinglePart, ComhairleError> {
-    let calendar_invite = ical::Calendar::new()
+    let calendar_invite = build_calendar_invite(name, description, start, end);
+
+    build_invite_attachment(calendar_invite.to_string())
+}
+
+pub fn build_calendar_invite(
+    name: &str,
+    description: &str,
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+) -> ical::Calendar {
+    ical::Calendar::new()
         .name(name)
         .push(
             ical::Event::new()
@@ -346,10 +357,13 @@ fn create_calendar_invite(
                 .starts(start)
                 .ends(end),
         )
-        .done();
+        .done()
+}
 
-    let invite_body = Body::new(calendar_invite.to_string());
-    let content_type = ContentType::from_str("text/calendar; charset=utf-8; method=REQUEST; name=\"invite.ics\"")?;
+pub fn build_invite_attachment(ics_body: String) -> Result<SinglePart, ComhairleError> {
+    let invite_body = Body::new(ics_body);
+    let content_type =
+        ContentType::from_str("text/calendar; charset=utf-8; method=REQUEST; name=\"invite.ics\"")?;
 
     let attachment =
         Attachment::new_inline("calendar-invite".to_string()).body(invite_body, content_type);

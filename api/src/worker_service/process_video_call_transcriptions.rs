@@ -1,5 +1,4 @@
 use apalis::prelude::*;
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::info;

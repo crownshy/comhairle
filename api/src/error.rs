@@ -298,6 +298,9 @@ pub enum ComhairleError {
     #[error("Event at max capacity")]
     EventAtCapacity,
 
+    #[error("Event has past")]
+    EventHasPast,
+
     #[error("User is already registered for event: {0}")]
     UserAlreadyRegisteredForEvent(String),
 
@@ -347,7 +350,9 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::InviteDoesNotMatchUser
             | ComhairleError::UserIsNotConversationOwner
             | ComhairleError::NoLogedInUser => StatusCode::UNAUTHORIZED,
-            ComhairleError::NoValidUpdates => StatusCode::UNPROCESSABLE_ENTITY,
+            ComhairleError::NoValidUpdates | ComhairleError::EventHasPast => {
+                StatusCode::UNPROCESSABLE_ENTITY
+            }
             ComhairleError::UserNotAuthorized => StatusCode::FORBIDDEN,
             ComhairleError::PasswordConfirmationMismatch
             | ComhairleError::WeakPassword(_)

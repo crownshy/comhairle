@@ -176,7 +176,7 @@ pub fn init_monitor(
             .backend(storage.transcriptions.clone())
             .build_stepped(transcription_worker_steps);
 
-        let scheduled_emails_schedule = Schedule::from_str("0 */15 * * * *")
+        let scheduled_emails_schedule = Schedule::from_str("0 */5 * * * *")
             .expect("Unable to create cron schedule for background worker");
         let scheduled_emails_cron_stream = CronStream::new(scheduled_emails_schedule);
         let scheduled_emails_backend =
