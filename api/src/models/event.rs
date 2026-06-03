@@ -76,8 +76,6 @@ pub struct Event {
     pub video_meeting_id: Option<Uuid>,
     #[serde(default)]
     pub agenda: EventAgenda,
-    #[partially(transparent)]
-    pub reminder_sent_at: Option<DateTime<Utc>>,
     pub default_time_zone: String,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
@@ -249,7 +247,7 @@ impl LocalizedEvent {
     }
 }
 
-const DEFAULT_COLUMNS: [EventIden; 14] = [
+const DEFAULT_COLUMNS: [EventIden; 13] = [
     EventIden::Id,
     EventIden::Name,
     EventIden::Description,
@@ -260,7 +258,6 @@ const DEFAULT_COLUMNS: [EventIden; 14] = [
     EventIden::SignupMode,
     EventIden::VideoMeetingId,
     EventIden::Agenda,
-    EventIden::ReminderSentAt,
     EventIden::DefaultTimeZone,
     EventIden::CreatedAt,
     EventIden::UpdatedAt,
@@ -385,9 +382,6 @@ impl PartialEvent {
         }
         if let Some(value) = &self.agenda {
             values.push((EventIden::Agenda, value.into()));
-        }
-        if let Some(value) = &self.reminder_sent_at {
-            values.push((EventIden::ReminderSentAt, (*value).into()));
         }
         if let Some(value) = &self.default_time_zone {
             values.push((EventIden::DefaultTimeZone, value.into()));
