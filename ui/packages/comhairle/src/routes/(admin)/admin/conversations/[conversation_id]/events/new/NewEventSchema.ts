@@ -26,7 +26,9 @@ const NewEventSchema = z
 		facilitators: z
 			.array(z.string().email({ message: 'Each facilitator must be a valid email address.' }))
 			.default([])
-			.refine((arr) => arr.length >= 1, { message: 'Add at least one facilitator.' })
+			.refine((arr) => arr.length >= 1, { message: 'Add at least one facilitator.' }),
+		location_venue: z.string().optional(),
+		location_address: z.string().optional()
 	})
 	.superRefine((data, ctx) => {
 		if (data.start_time && data.end_time && data.end_time <= data.start_time) {
@@ -34,6 +36,16 @@ const NewEventSchema = z
 				code: z.ZodIssueCode.custom,
 				path: ['end_time'],
 				message: 'End time must be after start time.'
+			});
+		}
+
+		const hasVenue = !!data.location_venue?.trim();
+		const hasAddress = !!data.location_address?.trim();
+		if (hasVenue !== hasAddress) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: [!hasVenue ? 'location_venue' : 'location_address'],
+				message: 'Include both venue and address if adding a location to the event'
 			});
 		}
 	});

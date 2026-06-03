@@ -78,7 +78,9 @@
 			start_date: startDate,
 			start_time: utcTimeToLocal(event.startTime, timeZone),
 			end_time: utcTimeToLocal(event.endTime, timeZone),
-			signup_mode: event.signupMode
+			signup_mode: event.signupMode,
+			location_venue: event.location?.venue,
+			location_address: event.location?.address
 		},
 		{
 			validators: zodClient(EventSchema),
@@ -124,6 +126,15 @@
 		const dateOption = result.data.start_date;
 		let startTime = parseDateTime(`${dateOption}T${result.data.start_time}`);
 		let endTime = parseDateTime(`${dateOption}T${result.data.end_time}`);
+		const location =
+			result.data.location_venue && result.data.location_address
+				? {
+						location: {
+							venue: result.data.location_venue,
+							address: result.data.location_address
+						}
+					}
+				: null;
 
 		const {
 			name: _name /* eslint-disable-line @typescript-eslint/no-unused-vars */,
@@ -135,7 +146,8 @@
 			const eventParams = {
 				...eventData,
 				start_time: startTime.toDate(getLocalTimeZone()).toISOString(),
-				end_time: endTime.toDate(getLocalTimeZone()).toISOString()
+				end_time: endTime.toDate(getLocalTimeZone()).toISOString(),
+				...(location && location)
 			};
 
 			await apiClient.UpdateEvent(eventParams, {
@@ -549,6 +561,58 @@
 						</div>
 					{/if}
 				</div>
+			</div>
+
+			<!-- Location venue -->
+			<div
+				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+			>
+				<Form.Field form={eventForm} name="location_venue" class="contents">
+					<Form.Control>
+						{#snippet children({ props })}
+							<Form.Label
+								class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+							>
+								<span>Venue</span>
+								<span class="font-normal">In-person events only</span>
+							</Form.Label>
+							<div class="flex-1">
+								<Input
+									{...props}
+									bind:value={$form.location_venue}
+									placeholder="Venue"
+								/>
+								<Form.FieldErrors />
+							</div>
+						{/snippet}
+					</Form.Control>
+				</Form.Field>
+			</div>
+
+			<!-- Location address -->
+			<div
+				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+			>
+				<Form.Field form={eventForm} name="location_address" class="contents">
+					<Form.Control>
+						{#snippet children({ props })}
+							<Form.Label
+								class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+							>
+								<span>Address</span>
+								<span class="font-normal">In-person events only</span>
+							</Form.Label>
+							<div class="flex-1">
+								<Input
+									{...props}
+									bind:value={$form.location_address}
+									placeholder="Address"
+								/>
+								<Form.FieldErrors />
+							</div>
+						{/snippet}
+					</Form.Control>
+				</Form.Field>
 			</div>
 
 			<div
