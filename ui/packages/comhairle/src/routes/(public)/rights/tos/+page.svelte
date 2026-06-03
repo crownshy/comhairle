@@ -133,7 +133,7 @@
 	div {
 		font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 		line-height: 1.7;
-		color: #2c2c2c;
+		color: var(--foreground);
 		margin: 2rem auto;
 		max-width: 800px;
 		padding: 1rem;
@@ -142,17 +142,17 @@
 	h1 {
 		font-size: 2.5rem;
 		text-align: center;
-		color: #1a1a1a;
+		color: var(--foreground);
 		margin-bottom: 2rem;
-		border-bottom: 2px solid #ddd;
+		border-bottom: 2px solid var(--border);
 		padding-bottom: 0.5rem;
 	}
 
 	h2 {
 		font-size: 1.5rem;
-		color: #2e4a7d;
+		color: var(--foreground);
 		margin-top: 2rem;
-		border-left: 4px solid #2e4a7d;
+		border-left: 4px solid var(--primary);
 		padding-left: 0.5rem;
 	}
 

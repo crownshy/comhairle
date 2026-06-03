@@ -605,7 +605,11 @@
 		</div>
 		<div class="inline-flex w-full items-start justify-start gap-6 self-stretch">
 			<div class="inline-flex flex-1 flex-col items-start justify-start gap-4">
-				<img class="h-[200px] w-[473px] self-stretch rounded-[40px]" src={vtaiwan} />
+				<img
+					alt="Illustration of Taiwan’s vTaiwan process"
+					class="h-[200px] w-[473px] self-stretch rounded-[40px]"
+					src={vtaiwan}
+				/>
 				<div class="flex flex-col items-start justify-start gap-4 self-stretch px-4">
 					<div class="flex flex-col items-start justify-center gap-2 self-stretch">
 						<div
@@ -631,7 +635,11 @@
 				</div>
 			</div>
 			<div class="inline-flex flex-1 flex-col items-start justify-start gap-4">
-				<img class="h-[200px] w-[473px] self-stretch rounded-[40px]" src={climateuk} />
+				<img
+					alt="Illustration of Climate Assembly UK"
+					class="h-[200px] w-[473px] self-stretch rounded-[40px]"
+					src={climateuk}
+				/>
 				<div class="flex flex-col items-start justify-start gap-4 self-stretch px-4">
 					<div class="flex flex-col items-start justify-center gap-2 self-stretch">
 						<div
@@ -656,7 +664,11 @@
 				</div>
 			</div>
 			<div class="inline-flex flex-1 flex-col items-start justify-start gap-4">
-				<img class=" h-[200px] w-[473px] self-stretch rounded-[40px]" src={seattle} />
+				<img
+					alt="Illustration of Seattle police reform process"
+					class=" h-[200px] w-[473px] self-stretch rounded-[40px]"
+					src={seattle}
+				/>
 				<div class="flex flex-col items-start justify-start gap-4 self-stretch px-4">
 					<div class="flex flex-col items-start justify-center gap-2 self-stretch">
 						<div
