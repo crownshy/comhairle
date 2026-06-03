@@ -13,7 +13,7 @@
 		$props();
 
 	let activeTab = $state(
-		conversation?.chatBotId && conversation.enableQaChatBot ? 'tutorBot' : 'faqs'
+		conversation?.chatBotId && conversation.enableQaChatBot ? 'learningAssistant' : 'faqs'
 	);
 
 	let tabs = [
@@ -45,9 +45,9 @@
 			<div class="bg-sidebar mb-4 flex shrink-0 flex-row gap-0.5 rounded-xl p-1">
 				{#if conversation?.chatBotId && conversation.enableQaChatBot}
 					<Tabs.Trigger
-						value="tutorBot"
+						value="learningAssistant"
 						class="text-sidebar-foreground data-[state=active]:text-foreground border-none"
-						>Tutor bot</Tabs.Trigger
+						>Learning assistant</Tabs.Trigger
 					>
 				{/if}
 				{#each tabs as tab (tab.value)}
@@ -72,15 +72,15 @@
 					</Tabs.Content>
 				{/each}
 				{#if conversation?.chatBotId && conversation.enableQaChatBot}
-					<Tabs.Content value="tutorBot" class="flex min-h-0 flex-1 flex-col">
+					<Tabs.Content value="learningAssistant" class="flex min-h-0 flex-1 flex-col">
 						<div class="flex min-h-0 flex-1 flex-col">
 							<ChatBot
 								chatId={conversation.chatBotId}
 								conversationId={conversation.id}
 								userId={user?.id}
-								botName="Tutor bot"
+								botName="Learning assistant"
 								botSubtitle="Ask questions"
-								active={activeTab === 'tutorBot'}
+								active={activeTab === 'learningAssistant'}
 							/>
 						</div>
 					</Tabs.Content>

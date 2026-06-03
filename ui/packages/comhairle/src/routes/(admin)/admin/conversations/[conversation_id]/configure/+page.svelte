@@ -595,11 +595,13 @@
 					{#snippet children({ props })}
 						<div class="flex items-center justify-between gap-4">
 							<div class="flex flex-col gap-1">
-								<Form.Label class="text-sm font-medium">Show Tutor Bot</Form.Label>
+								<Form.Label class="text-sm font-medium"
+									>Show Learning Assistant</Form.Label
+								>
 								<p class="text-muted-foreground text-sm">
-									Display a Q&A Tutor Bot on the conversation.<br />
+									Display a Q&A Learning Assistant on the conversation.<br />
 									{#if !conversation.isLive}
-										(Configure Tutor Bot on the
+										(Configure Learning Assistant on the
 										<a
 											href={`/admin/conversations/${conversation.id}/knowledge-base`}
 											class="underline">Knowledge Base page</a

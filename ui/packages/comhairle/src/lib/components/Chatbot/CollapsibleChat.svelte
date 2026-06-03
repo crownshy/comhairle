@@ -14,7 +14,7 @@
 		chatId,
 		conversationId,
 		userId,
-		botName = 'Tutor bot',
+		botName = 'Learning assistant',
 		botSubtitle = 'Ask questions'
 	}: Props = $props();
 

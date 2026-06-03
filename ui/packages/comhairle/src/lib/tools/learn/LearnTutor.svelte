@@ -404,7 +404,7 @@
 			<p
 				class="text-muted-foreground border-border rounded-md border border-dashed p-3 text-center text-xs"
 			>
-				Enable the tutor bot above to ask questions about this page.
+				Enable the learning assistant above to ask questions about this page.
 			</p>
 		{/if}
 	</div>
