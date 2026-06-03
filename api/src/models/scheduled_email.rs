@@ -272,7 +272,7 @@ pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<ScheduledEmail, Comhairl
 
 #[derive(Deserialize, Debug, Default, JsonSchema)]
 pub struct ScheduledEmailFilterOptions {
-    user_email: Option<String>,
+    pub user_email: Option<String>,
 }
 
 impl ScheduledEmailFilterOptions {
@@ -292,8 +292,8 @@ impl ScheduledEmailFilterOptions {
 
 #[derive(Deserialize, Debug, Default, JsonSchema)]
 pub struct ScheduledEmailOrderOptions {
-    created_at: Option<Order>,
-    send_at: Option<Order>,
+    pub created_at: Option<Order>,
+    pub send_at: Option<Order>,
 }
 
 impl ScheduledEmailOrderOptions {

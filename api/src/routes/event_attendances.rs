@@ -270,12 +270,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 
 #[cfg(test)]
 mod tests {
+    use chrono::{DateTime, Utc};
+    use serde_json::json;
     use sqlx::PgPool;
     use std::error::Error;
 
     use crate::{
         mailer::MockComhairleMailer,
-        models::model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
+        models::{
+            model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
+            scheduled_email::{self, ScheduledEmailFilterOptions, ScheduledEmailOrderOptions},
+        },
         routes::{auth::SignupRequest, events::dto::EventDto},
         setup_server,
         test_helpers::{test_state, UserSession},
@@ -547,6 +552,85 @@ mod tests {
             response.get("err").and_then(|v| v.as_str()).unwrap(),
             "EventAttendance not found",
             "incorrect event_id"
+        );
+
+        Ok(())
+    }
+
+    fn within_seconds(actual: DateTime<Utc>, expected: DateTime<Utc>, seconds: i64) -> bool {
+        let delta = (actual - expected).num_seconds().abs();
+        delta <= seconds
+    }
+
+    #[sqlx::test]
+    async fn should_schedule_reminders_on_creation(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        let now = Utc::now();
+        let start_time = now + chrono::Duration::days(2);
+
+        let (_, response, _) = session
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/events"),
+                json!({
+                    "name": "test_event",
+                    "description": "test_event_description",
+                    "capacity": 10,
+                    "start_time": start_time,
+                    "end_time": start_time + chrono::Duration::hours(1),
+                    "signup_mode": "invite"
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        let event: EventDto = serde_json::from_value(response)?;
+
+        let mut session = UserSession::new("new_user", "passWORD123$%^qwedsa", "new_user@test.com");
+        session.signup(&app).await?;
+
+        session
+            .create_random_event_attendance(
+                &app,
+                &conversation_id.to_string(),
+                &event.id.to_string(),
+            )
+            .await?;
+
+        let page_options = PageOptions {
+            offset: None,
+            limit: None,
+        };
+        let filter_options = ScheduledEmailFilterOptions {
+            user_email: Some("new_user@test.com".to_string()),
+        };
+        let order_options = ScheduledEmailOrderOptions {
+            ..Default::default()
+        };
+        let scheduled_emails =
+            scheduled_email::list(&pool, page_options, filter_options, order_options).await?;
+
+        let expected_24h_reminder = start_time - chrono::Duration::hours(24);
+        let expected_2h_reminder = start_time - chrono::Duration::hours(2);
+
+        assert_eq!(scheduled_emails.total, 2, "incorrect total");
+        assert!(
+            scheduled_emails.records.iter().any(|e| within_seconds(
+                e.send_at,
+                expected_24h_reminder,
+                5
+            )),
+            "missing 24 hour reminder",
+        );
+        assert!(
+            scheduled_emails.records.iter().any(|e| within_seconds(
+                e.send_at,
+                expected_2h_reminder,
+                5
+            )),
+            "missing 2 hour reminder",
         );
 
         Ok(())
