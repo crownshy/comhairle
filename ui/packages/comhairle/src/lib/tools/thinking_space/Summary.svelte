@@ -3,7 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Sparkles, RotateCcw, Check } from 'lucide-svelte';
+	import { Sparkles, RotateCcw, Check, CornerDownRight, PlusCircle } from 'lucide-svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { fetchSummary, saveSummary } from './summary';
 	import type { QuestionConfig, QuestionAnswers } from './types';
@@ -15,7 +15,7 @@
 		answers: QuestionAnswers[];
 		/**
 		 * Previously submitted summary, if any. When provided, the screen
-		 * renders it directly — no AI re-call on revisit.
+		 * renders it directly, no AI re-call on revisit.
 		 */
 		initialSummary?: string | null;
 		onDone?: () => void;
@@ -91,10 +91,18 @@
 			submitting = false;
 		}
 	}
+
+	function answerMore() {
+		// TODO: wire up once the "answer more" pool / flow is finalised with the team.
+		notifications.send({
+			message: 'Answering more questions is coming soon.',
+			priority: 'INFO'
+		});
+	}
 </script>
 
 <div class="mx-auto w-full max-w-2xl px-6 py-10">
-	<header class="mb-8 text-center">
+	<!-- <header class="mb-8 text-center">
 		{#if topic}
 			<p class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
 				{topic}
@@ -102,65 +110,107 @@
 		{/if}
 		<h2 class="text-foreground mt-1 text-3xl font-semibold tracking-tight">Where you stand</h2>
 		<p class="text-muted-foreground mx-auto mt-2 max-w-md text-sm leading-relaxed">
-			Based on your responses, here's a short summary of where you stand on this topic. Edit
-			anything that doesn't sound right — this will be your submitted statement.
+			Here's everything you shared, and a short statement we've drafted from it. Edit the
+			statement so it sounds like you — that's what you'll submit.
 		</p>
-	</header>
+	</header> -->
 
-	{#if loading}
-		<section class="space-y-4">
-			<div class="flex items-start gap-2">
-				<Sparkles class="text-primary mt-0.5 size-4 shrink-0 animate-pulse" />
-				<p
-					class="text-muted-foreground text-sm leading-relaxed transition-opacity duration-300"
-					class:opacity-0={fading}
-					class:opacity-100={!fading}
-					aria-live="polite"
-				>
-					{loadingMessages[messageIndex]}
-				</p>
-			</div>
-			<div
-				class="border-border bg-card space-y-3 rounded-lg border px-4 py-4"
-				aria-hidden="true"
-			>
-				{#each skeletonLines as layout, i (i)}
-					<div>
-						<Skeleton class="h-4 {layout.first}" />
-						{#if layout.second}
-							<Skeleton class="mt-2 h-4 {layout.second}" />
-						{/if}
+	<!-- Answers recap first: the source material for the summary below. -->
+	<section>
+		<h3 class="text-foreground text-lg font-semibold">Your answers</h3>
+		<p class="text-muted-foreground mt-1 mb-6 text-sm">A recap of what you shared.</p>
+
+		<div class="space-y-6">
+			{#each questions as q (q.id)}
+				{@const item = answers.find((x) => x.questionId === q.id)}
+				{#if item}
+					<div class="space-y-2">
+						<h4 class="text-foreground text-base font-semibold">{q.text}</h4>
+						<p class="text-foreground text-sm leading-relaxed whitespace-pre-wrap">
+							{item.rootAnswer}
+						</p>
+						{#each item.followUps as followUp (followUp.id)}
+							<div class="space-y-1 pl-4">
+								<p
+									class="text-muted-foreground flex items-center gap-1.5 text-sm leading-snug italic"
+								>
+									<CornerDownRight class="size-3.5 shrink-0" />
+									{followUp.question}
+								</p>
+								<p
+									class="text-foreground text-sm leading-relaxed whitespace-pre-wrap"
+								>
+									{followUp.answer}
+								</p>
+							</div>
+						{/each}
 					</div>
-				{/each}
-			</div>
-		</section>
-	{:else if loadError}
-		<section class="space-y-3 text-center">
-			<p class="text-muted-foreground text-sm">
-				Couldn't generate your summary. Please try again.
+				{/if}
+			{/each}
+		</div>
+	</section>
+
+	<!-- Summary: the editable artifact submitted as the participant's position statement. -->
+	<section class="mt-12 space-y-4">
+		<div class="flex items-center gap-2">
+			<Sparkles class="text-primary size-4 shrink-0" />
+			<p class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+				Drafted from your answers — edit anything that doesn't sound right
 			</p>
-			<div class="flex justify-center">
-				<Button variant="outline" size="sm" onclick={load}>
-					<RotateCcw class="size-3.5" />
-					Try again
-				</Button>
+		</div>
+
+		{#if loading}
+			<div class="space-y-4">
+				<div class="flex items-start gap-2">
+					<Sparkles class="text-primary mt-0.5 size-4 shrink-0 animate-pulse" />
+					<p
+						class="text-muted-foreground text-sm leading-relaxed transition-opacity duration-300"
+						class:opacity-0={fading}
+						class:opacity-100={!fading}
+						aria-live="polite"
+					>
+						{loadingMessages[messageIndex]}
+					</p>
+				</div>
+				<div
+					class="border-border bg-card space-y-3 rounded-lg border px-4 py-4"
+					aria-hidden="true"
+				>
+					{#each skeletonLines as layout, i (i)}
+						<div>
+							<Skeleton class="h-4 {layout.first}" />
+							{#if layout.second}
+								<Skeleton class="mt-2 h-4 {layout.second}" />
+							{/if}
+						</div>
+					{/each}
+				</div>
 			</div>
-		</section>
-	{:else}
-		<section class="space-y-4">
-			<div class="flex items-center gap-2">
-				<Sparkles class="text-primary size-4 shrink-0" />
-				<p class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-					Drafted from your answers
+		{:else if loadError}
+			<div class="space-y-3 text-center">
+				<p class="text-muted-foreground text-sm">
+					Couldn't generate your summary. Please try again.
 				</p>
+				<div class="flex justify-center">
+					<Button variant="outline" size="sm" onclick={load}>
+						<RotateCcw class="size-3.5" />
+						Try again
+					</Button>
+				</div>
 			</div>
+		{:else}
 			<Textarea
 				bind:value={summary}
 				rows={12}
 				class="text-base leading-relaxed"
 				placeholder="Your statement…"
 			/>
-			<div class="flex justify-end">
+
+			<div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
+				<Button variant="outline" size="lg" class="w-full sm:w-auto" onclick={answerMore}>
+					<PlusCircle class="size-4" />
+					I want to answer more questions
+				</Button>
 				<Button
 					size="lg"
 					class="w-full sm:w-auto"
@@ -171,6 +221,6 @@
 					{submitting ? 'Submitting…' : 'Submit my statement'}
 				</Button>
 			</div>
-		</section>
-	{/if}
+		{/if}
+	</section>
 </div>

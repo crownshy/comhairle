@@ -30,4 +30,4 @@ export interface QuestionAnswers {
 	followUps: FollowUpAnswer[];
 }
 
-export type ThinkingSpacePhase = 'questions' | 'overview' | 'summary';
+export type ThinkingSpacePhase = 'questions' | 'summary';

@@ -3,7 +3,6 @@
 	import { Loader2 } from 'lucide-svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import QuestionFlow from './QuestionFlow.svelte';
-	import Overview from './Overview.svelte';
 	import Summary from './Summary.svelte';
 	import { hydrateSummary } from './summary';
 	import type { QuestionConfig, QuestionAnswers, ThinkingSpacePhase } from './types';
@@ -34,7 +33,7 @@
 	let answers = $state<QuestionAnswers[]>([]);
 	let savedSummary = $state<string | null>(null);
 
-	let canContinue = $derived(phase === 'overview' || phase === 'summary');
+	let canContinue = $derived(phase === 'summary');
 
 	$effect(() => {
 		onCanContinueChange?.(canContinue);
@@ -132,15 +131,8 @@
 				initialAnswers={answers}
 				onComplete={(final) => {
 					answers = final;
-					phase = 'overview';
+					phase = 'summary';
 				}}
-			/>
-		{:else if phase === 'overview'}
-			<Overview
-				{topic}
-				questions={rootQuestions}
-				{answers}
-				onDone={() => (phase = 'summary')}
 			/>
 		{:else if phase === 'summary'}
 			<Summary
