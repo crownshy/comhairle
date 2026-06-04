@@ -127,6 +127,7 @@
 								>
 								<Switch
 									{...props}
+									aria-label="Conversation updates: in-app notifications"
 									bind:checked={$formData.receiveUpdatesByNotification}
 									disabled={saving}
 								/>
@@ -145,6 +146,7 @@
 									>
 									<Switch
 										{...props}
+										aria-label="Conversation updates: email notifications"
 										bind:checked={$formData.receiveUpdatesByEmail}
 										disabled={saving}
 									/>
@@ -175,6 +177,7 @@
 								>
 								<Switch
 									{...props}
+									aria-label="Similar conversations: in-app notifications"
 									bind:checked={
 										$formData.receiveSimilarConversationUpdatesByNotification
 									}
@@ -200,6 +203,7 @@
 									>
 									<Switch
 										{...props}
+										aria-label="Similar conversations: email notifications"
 										bind:checked={
 											$formData.receiveSimilarConversationUpdatesByEmail
 										}

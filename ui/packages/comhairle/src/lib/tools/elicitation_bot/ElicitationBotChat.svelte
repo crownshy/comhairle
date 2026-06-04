@@ -334,6 +334,7 @@
 											}
 										}}
 										{placeholder}
+										aria-label="Share your views"
 										rows={1}
 										class="text-chat-text placeholder:text-chat-text-muted min-h-6 flex-1 resize-none self-center overflow-y-auto bg-transparent px-4 py-3 text-sm leading-5 outline-none"
 										style="max-height: 200px;"
@@ -473,6 +474,7 @@
 								<textarea
 									bind:this={textareaRef}
 									bind:value={inputValue}
+									aria-label="Share your views"
 									onkeydown={(e) => {
 										if (e.key === 'Enter' && !e.shiftKey) {
 											e.preventDefault();

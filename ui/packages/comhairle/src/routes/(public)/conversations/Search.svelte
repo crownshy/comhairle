@@ -28,5 +28,14 @@
 	<Search
 		class="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
 	/>
-	<Input placeholder="Search" {value} oninput={onInput} class="pl-9" />
+	<label for="conversations-search" class="sr-only">Search conversations</label>
+	<Input
+		id="conversations-search"
+		type="search"
+		placeholder="Search"
+		aria-label="Search conversations"
+		{value}
+		oninput={onInput}
+		class="pl-9"
+	/>
 </div>

@@ -46,25 +46,7 @@ async fn accept_invite(
     invite.is_still_valid()?;
     invite.is_for_user(&user)?;
 
-    if let Some(event_id) = &invite.event_id {
-        // Send confirmation email for event invites
-        let email = match &invite.invite_type {
-            InviteType::Email(ref email) => email,
-            _ => return Err(ComhairleError::InvalidInviteType),
-        };
-
-        let event =
-            event::get_localized_by_id(&state.db, event_id, &conversation.primary_locale).await?;
-
-        let event_link = format!(
-            "{}/conversations/{}/events/{}",
-            state.config.domain, conversation.id, event.id
-        );
-
-        state
-            .mailer
-            .send_event_confirmation_email(email.to_string(), &event, &None, event_link)?;
-    } else {
+    if invite.event_id.is_none() {
         // Get the workflow to sign up to either explicitly from the invite
         // or from the default conversation workflow
         let workflow_id = match (invite.workflow_id, conversation.default_workflow_id) {
@@ -317,6 +299,7 @@ async fn auto_register_event_attendance(
             users::create_otp_user(
                 &OtpSignupRequest {
                     email: email.to_string(),
+                    username: None,
                 },
                 &state.db,
             )

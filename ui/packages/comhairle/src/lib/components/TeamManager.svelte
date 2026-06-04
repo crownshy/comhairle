@@ -19,8 +19,7 @@
 		{
 			name: 'Shu',
 			role: 'Moderator',
-			image:
-				'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT0F0EMjK8191_J1thWTaSOFDePYEI869DCag&s'
+			image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT0F0EMjK8191_J1thWTaSOFDePYEI869DCag&s'
 		},
 
 		{
@@ -33,18 +32,20 @@
 
 <div class="flex flex-col gap-4">
 	<div class="flex items-center gap-2">
-		<Input placeholder="Enter a name" class="flex-1" />
+		<Input placeholder="Enter a name" aria-label="Collaborator name" class="flex-1" />
 		<Dialog.Root>
 			<Dialog.Trigger>
-				<Button variant="default" class="shrink-0"><Plus class="h-4 w-4 mr-1" />Invite collaborator</Button>
+				<Button variant="default" class="shrink-0"
+					><Plus class="mr-1 h-4 w-4" />Invite collaborator</Button
+				>
 			</Dialog.Trigger>
 			<Dialog.Content>
 				<Dialog.Header>
 					<Dialog.Title>Add a collaborator</Dialog.Title>
 				</Dialog.Header>
 
-				<Label>Name</Label>
-				<Input placeholder="search"></Input>
+				<Label for="collaborator-name">Name</Label>
+				<Input id="collaborator-name" placeholder="search"></Input>
 
 				<Label>Role</Label>
 				<Select.Root bind:value={role} type="single">
@@ -66,7 +67,9 @@
 					<Avatar.Image src={team_member.image} alt={team_member.name}></Avatar.Image>
 				</Avatar.Root>
 				<span class="text-sm font-medium">{team_member.name}</span>
-				<span class="rounded-full border px-2.5 py-0.5 text-xs font-medium">{team_member.role}</span>
+				<span class="rounded-full border px-2.5 py-0.5 text-xs font-medium"
+					>{team_member.role}</span
+				>
 			</div>
 		{/each}
 	</div>

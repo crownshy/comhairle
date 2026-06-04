@@ -1,69 +1,104 @@
 {
-  description = "Example Rust development environment for Zero to Nix";
+  description = "Comhairle development environment (Rust API + SvelteKit UI)";
 
   # Flake inputs
   inputs = {
-    nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.2405.*.tar.gz";
-    rust-overlay.url = "github:oxalica/rust-overlay/master"; # A helper for Rust + Nix
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    flake-utils.url = "github:numtide/flake-utils";
   };
 
   # Flake outputs
-  outputs = { self, nixpkgs, rust-overlay }:
-    let
-      # Overlays enable you to customize the Nixpkgs attribute set
-      overlays = [
-        # Makes a `rust-bin` attribute available in Nixpkgs
-        (import rust-overlay)
-        # Provides a `rustToolchain` attribute for Nixpkgs that we can use to
-        # create a Rust environment
-        (self: super: {
-          rustToolchain = super.rust-bin.stable.latest.default.override{
-            extensions=["rust-analyzer" "clippy" "rust-src"];
-          };
-        })
-      ];
+  outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }:
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        overlays = [
+          (import rust-overlay)
+          (final: prev: {
+            rustToolchain = prev.rust-bin.stable.latest.default.override {
+              extensions = [ "rust-analyzer" "clippy" "rust-src" "rustfmt" ];
+            };
+          })
+        ];
 
-      # Systems supported
-      allSystems = [
-        "x86_64-linux" # 64-bit Intel/AMD Linux
-        "aarch64-linux" # 64-bit ARM Linux
-        "x86_64-darwin" # 64-bit Intel macOS
-        "aarch64-darwin" # 64-bit ARM macOS
-      ];
-
-      # Helper to provide system-specific attributes
-      forAllSystems = f: nixpkgs.lib.genAttrs allSystems (system: f {
-        pkgs = import nixpkgs { inherit overlays system; };
-      });
-    in
-    {
-      # Development environment output
-      devShells = forAllSystems ({ pkgs }: {
-        default = pkgs.mkShell {
-          # The Nix packages provided in the environment
-          env ={
-            DATABASE_URL="postgres://comhairle:comhairle@localhost:5434/comhairle";
-            RUST_LOG="debug";
-            RESOURCE_BUCKET="comhairle_resources";
-            ADMIN_USERS="admin@crown-shy.com, stuart@crown-shy.com,team@crown-shy.com";
+        pkgs = import nixpkgs { inherit system overlays; };
+      in
+      {
+        devShells.default = pkgs.mkShell {
+          env = {
+            # Build-time toolchain env only.
+            # Runtime/app config (DATABASE_URL, MAILER__*, secrets, etc.)
+            # lives in `.env` (gitignored) see `.env.example` for the full list
+            PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
+            OPENSSL_DIR = "${pkgs.openssl.dev}";
+            OPENSSL_LIB_DIR = "${pkgs.openssl.out}/lib";
+            OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include";
           };
-          packages = (with pkgs; [
-            # The package provided by our custom overlay. Includes cargo, Clippy, cargo-fmt,
-            # rustdoc, rustfmt, and other tools.
-            minikube
+
+          packages = with pkgs; [
+            # ---- Rust toolchain ----
             rustToolchain
-            openssl
             sqlx-cli
-            postgresql
-            cmake 
-            clang
-            pkg-config
+            cargo-watch
+            cargo-nextest
             bacon
-            atac
-            just
-          ]) ++ pkgs.lib.optionals pkgs.stdenv.isDarwin (with pkgs; [ libiconv ]);
-        };
-      });
-    };
-}
 
+            # ---- Native build deps ----
+            openssl
+            pkg-config
+            cmake
+            clang
+            libiconv
+
+            # ---- Database / infra ----
+            postgresql_16   # provides psql client
+            redis           # provides redis-cli; runtime redis can also come from docker
+
+            # ---- Task runner / misc ----
+            just
+            tmux
+            watchexec
+            atac
+            jq
+            git
+
+            # ---- Frontend ----
+            nodejs_22
+            pnpm
+            corepack
+          ] ++ lib.optionals stdenv.isDarwin [
+            # macOS-specific: frameworks the aws-* and openssl crates can need
+            darwin.apple_sdk.frameworks.Security
+            darwin.apple_sdk.frameworks.SystemConfiguration
+            darwin.apple_sdk.frameworks.CoreFoundation
+          ] ++ lib.optionals stdenv.isLinux [
+            # Linux-only: minikube/kubectl for local k8s work
+            minikube
+            kubectl
+          ];
+
+          shellHook = ''
+            echo ""
+            echo "Comhairle dev shell ready"
+            echo "  rust:    $(rustc --version 2>/dev/null)"
+            echo "  node:    $(node --version 2>/dev/null)"
+            echo "  pnpm:    $(pnpm --version 2>/dev/null)"
+            echo ""
+            echo "Quickstart:"
+            echo "  just all           # start all services in tmux (postgres, api, ui, seed)"
+            echo ""
+            echo "  or if you prefer separate terminals:"
+            echo "    just pg          # start Postgres in Docker (needs Docker Desktop/Colima)"
+            echo "    just api-dev     # run API"
+            echo "    cd ui/packages && pnpm comhairle   # run frontend"
+            echo ""
+          '';
+        };
+
+        # `nix fmt`
+        formatter = pkgs.nixpkgs-fmt;
+      });
+}
