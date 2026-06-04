@@ -218,7 +218,7 @@
 					disabled={!summary.trim() || submitting}
 				>
 					<Check class="size-4" />
-					{submitting ? 'Submitting…' : 'Submit my statement'}
+					{submitting ? 'Saving...' : 'Confirm & Save'}
 				</Button>
 			</div>
 		{/if}
