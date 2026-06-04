@@ -103,6 +103,7 @@ pub async fn update(
     let (sql, values) = Query::update()
         .table(ThinkingSpaceSummaryIden::Table)
         .values(values)
+        .and_where(Expr::col(ThinkingSpaceSummaryIden::Id).eq(id))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 

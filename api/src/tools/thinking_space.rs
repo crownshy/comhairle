@@ -29,7 +29,7 @@ use crate::{
             self, AnswerStatus, CreateAnswer, ThinkingSpaceAnswer,
             ThinkingSpaceAnswerFilterOptions, UpdateAnswer,
         },
-        thinking_space_summary::{self, CreateSummary, ThinkingSpaceSummary},
+        thinking_space_summary::{self, CreateSummary, ThinkingSpaceSummary, UpdateSummary},
         workflow_step,
     },
     routes::auth::RequiredUser,
@@ -164,13 +164,34 @@ Use a raw HTTP request and process the response body incrementally.
                 }),
             )
             .api_route(
-                "/thinking_space/summaries",
+                "/thinking_space/summaries/generate",
                 post_with(generate_thinking_space_summary, |op| {
                     op.id("GenerateThinkingSpaceSummary")
                         .summary("Generate thinking space summary")
                         .description("Generates a thinking space summary via bot service agent")
                         .security_requirement("JWT")
                         .response::<201, Json<ThinkingSpaceSummaryDto>>()
+                }),
+            )
+            .api_route(
+                "/thinking_space/summaries",
+                post_with(update_or_create_thinking_space_summary, |op| {
+                    op.id("UpdateOrCreateThinkingSpaceSummary")
+                        .summary("Update or create thinking space summary")
+                        .description("Update a summary if already exists or create a new summary")
+                        .security_requirement("JWT")
+                        .response::<200, Json<ThinkingSpaceSummaryDto>>()
+                        .response::<201, Json<ThinkingSpaceSummaryDto>>()
+                }),
+            )
+            .api_route(
+                "/thinking_space/summaries/{summary_id}",
+                get_with(get_thinkin_space_summary, |op| {
+                    op.id("GetThinkingSpaceSummary")
+                        .summary("Get thinking space summary")
+                        .description("Get a thinking space summary by id")
+                        .security_requirement("JWT")
+                        .response::<200, Json<ThinkingSpaceSummaryDto>>()
                 }),
             )
             .with_state(state.clone())
@@ -490,6 +511,64 @@ async fn generate_thinking_space_summary(
     .await?;
 
     Ok((StatusCode::CREATED, Json(summary.into())))
+}
+
+#[derive(Deserialize, JsonSchema, Debug)]
+struct GetThinkingSpaceSummaryQuery {
+    workflow_step_id: Uuid,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get_thinkin_space_summary(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Query(GetThinkingSpaceSummaryQuery { workflow_step_id }): Query<GetThinkingSpaceSummaryQuery>,
+    Path(summary_id): Path<Uuid>,
+) -> Result<(StatusCode, Json<ThinkingSpaceSummaryDto>), ComhairleError> {
+    let summary = thinking_space_summary::get_by_id(&state.db, summary_id).await?;
+
+    Ok((StatusCode::OK, Json(summary.into())))
+}
+
+#[derive(Deserialize, JsonSchema, Debug)]
+struct UpdateCreateThinkingSpace {
+    workflow_step_id: Uuid,
+    summary_id: Option<Uuid>,
+    summary: String,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn update_or_create_thinking_space_summary(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Json(payload): Json<UpdateCreateThinkingSpace>,
+) -> Result<(StatusCode, Json<ThinkingSpaceSummaryDto>), ComhairleError> {
+    match payload.summary_id {
+        Some(summary_id) => {
+            let update_summary = UpdateSummary {
+                summary: payload.summary,
+            };
+            let summary =
+                thinking_space_summary::update(&state.db, summary_id, &update_summary).await?;
+
+            Ok((StatusCode::OK, Json(summary.into())))
+        }
+        None => {
+            let create_summary = CreateSummary {
+                summary: payload.summary,
+                is_ai_generated: Some(false),
+            };
+            let summary = thinking_space_summary::create(
+                &state.db,
+                user.id,
+                payload.workflow_step_id,
+                &create_summary,
+            )
+            .await?;
+
+            Ok((StatusCode::CREATED, Json(summary.into())))
+        }
+    }
 }
 
 #[cfg(test)]
