@@ -220,7 +220,7 @@ async fn converse(
     };
     let stream = bot_service
         .converse_with_agent(
-            &session.bot_service_session_id,
+            Some(&session.bot_service_session_id),
             &bot_service_config.elicitation_bot_agent_id,
             payload,
         )

@@ -510,6 +510,22 @@ export const UpdateAnswer = z
   .partial()
   .passthrough();
 export type UpdateAnswer = z.infer<typeof UpdateAnswer>;
+export const GenerateThinkingSpaceSummary = z
+  .object({ workflow_step_id: z.string().uuid() })
+  .passthrough();
+export type GenerateThinkingSpaceSummary = z.infer<
+  typeof GenerateThinkingSpaceSummary
+>;
+export const ThinkingSpaceSummaryDto = z
+  .object({
+    id: z.string().uuid(),
+    isAiGenerated: z.boolean(),
+    summary: z.string(),
+    userId: z.string().uuid(),
+    workflowStepId: z.string().uuid(),
+  })
+  .passthrough();
+export type ThinkingSpaceSummaryDto = z.infer<typeof ThinkingSpaceSummaryDto>;
 export const CreateConversation = z
   .object({
     default_workflow_id: z.union([z.string(), z.null()]).optional(),
@@ -1763,6 +1779,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ThinkingSpaceAnswerDto,
   CreateAnswerRequest,
   UpdateAnswer,
+  GenerateThinkingSpaceSummary,
+  ThinkingSpaceSummaryDto,
   CreateConversation,
   ConversationDto,
   Translation2,
@@ -3757,6 +3775,21 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: ThinkingSpaceAnswerDto,
+  },
+  {
+    method: "post",
+    path: "/tools/thinking_space/summaries",
+    alias: "GenerateThinkingSpaceSummary",
+    description: `Generates a thinking space summary via bot service agent`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ workflow_step_id: z.string().uuid() }).passthrough(),
+      },
+    ],
+    response: ThinkingSpaceSummaryDto,
   },
   {
     method: "post",

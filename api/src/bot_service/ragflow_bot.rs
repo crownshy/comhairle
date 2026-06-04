@@ -629,7 +629,7 @@ impl ComhairleBotService for ComhairleRagBotService {
 
     async fn converse_with_agent(
         &self,
-        session_id: &str,
+        session_id: Option<&str>,
         agent_id: &str,
         body: AgentConversationRequest,
     ) -> Result<
@@ -637,7 +637,7 @@ impl ComhairleBotService for ComhairleRagBotService {
         ComhairleError,
     > {
         let mut body: ConvoQuestion = body.into();
-        body.session_id = Some(session_id.to_string());
+        body.session_id = session_id.map(|id| id.to_string());
 
         let stream =
             ragflow::agent::session::stream_agent_conversation(&self.client, agent_id, body)
@@ -1079,6 +1079,15 @@ impl From<AgentConversationRequest> for ConvoQuestion {
                 Input {
                     r#type: "line".to_string(),
                     value: question_intent,
+                },
+            );
+        }
+        if let Some(survey_responses) = a.survey_responses {
+            inputs.insert(
+                "survey_responses".to_string(),
+                Input {
+                    r#type: "line".to_string(),
+                    value: survey_responses,
                 },
             );
         }

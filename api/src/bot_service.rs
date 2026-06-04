@@ -239,7 +239,7 @@ pub trait ComhairleBotService: Send + Sync {
 
     async fn converse_with_agent(
         &self,
-        session_id: &str,
+        session_id: Option<&str>,
         agent_id: &str,
         body: AgentConversationRequest,
     ) -> Result<
@@ -405,6 +405,7 @@ pub struct AgentConversationRequest {
     pub history: Option<String>,
     pub starting_question: Option<String>,
     pub question_intent: Option<String>,
+    pub survey_responses: Option<String>,
 }
 
 #[cfg(test)]

@@ -683,6 +683,7 @@ mod tests {
             api_key: "test_api_key".to_string(),
             default_knowledge_base_id: "test_kb_id".to_string(),
             thinking_space_agent_id: "test_ta_id".to_string(),
+            thinking_space_summary_agent_id: "test_ta_summary_id".to_string(),
             elicitation_bot_agent_id: "test_ea_id".to_string(),
         });
         let state = test_state().db(pool).config(config).call()?;
