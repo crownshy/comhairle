@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{get_with, post_with},
+    routing::{delete_with, get_with, post_with},
     ApiRouter,
 };
 use async_trait::async_trait;
@@ -17,7 +17,7 @@ use uuid::Uuid;
 use crate::{
     error::ComhairleError,
     models::{
-        proposal::{self, CreateProposal, LocalizedProposal, Proposal},
+        proposal::{self, CreateProposal, LocalizedProposal, Proposal, ProposalWithTranslations},
         proposal_response::{
             self, CreateResponse, ProposalResponse, ProposalResponseFilterOptions,
             ProposalResponseOrderOptions, QuestionResponses,
@@ -25,7 +25,7 @@ use crate::{
         translations::TextContentId,
     },
     routes::{
-        auth::{RequiredAdminUser, RequiredUser},
+        auth::{is_user_admin, RequiredAdminUser, RequiredUser},
         translations::LocaleExtractor,
     },
     schema_helpers::{example_localized_text, example_uuid},
@@ -49,9 +49,30 @@ pub struct Question {
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum QuestionType {
-    Text(String),
-    LikertScale { categories: Vec<Category> },
-    Continuous { label: String, sub_steps: i32 },
+    Text,
+    LikertScale {
+        categories: Vec<Category>,
+    },
+    Continuous {
+        #[serde(default = "default_sub_steps")]
+        sub_steps: i32,
+        #[serde(default)]
+        min_value: f64,
+        #[serde(default = "default_max_value")]
+        max_value: f64,
+        #[serde(default)]
+        min_label: String,
+        #[serde(default)]
+        max_label: String,
+    },
+}
+
+fn default_sub_steps() -> i32 {
+    10
+}
+
+fn default_max_value() -> f64 {
+    10.0
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
@@ -144,8 +165,24 @@ Create a new prioritization tool proposal for a given prioritization tool workfl
                         .tag("Tools")
                         .security_requirement("JWT")
                         .summary("List proposals")
-                        .description("List proposals for a given prioritization tool workflow_step")
-                        .response::<200, Json<Vec<ProposalDto>>>()
+                        .description(
+                            "List proposals for a given prioritization tool workflow_step. \
+                             Admin callers may pass `withTranslations=true` to receive raw \
+                             TextContentId references plus full translation data so the \
+                             admin UI can drive the standard TranslatableField component.",
+                        )
+                        .response::<200, Json<ProposalsListResponse>>()
+                }),
+            )
+            .api_route(
+                "/prioritization/proposals/{proposal_id}",
+                delete_with(delete_proposal, |op| {
+                    op.id("DeleteProposal")
+                        .tag("Tools")
+                        .security_requirement("JWT")
+                        .summary("Delete proposal")
+                        .description("Delete a prioritization tool proposal")
+                        .response::<200, Json<ProposalDto>>()
                 }),
             )
             .api_route(
@@ -205,6 +242,16 @@ pub struct ProposalDto {
     pub body: TextContentId,
 }
 
+/// Response variants for `ListProposals`. Admins may opt-in to the
+/// `WithTranslations` variant via `?withTranslations=true` to drive the
+/// `TranslatableField` editor; everyone else receives the localized variant.
+#[derive(Serialize, JsonSchema, Debug)]
+#[serde(untagged)]
+pub enum ProposalsListResponse {
+    WithTranslations(Vec<ProposalWithTranslations>),
+    Localized(Vec<LocalizedProposalDto>),
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalizedProposalDto {
@@ -223,6 +270,7 @@ pub struct LocalizedProposalDto {
 pub struct ProposalResponseDto {
     pub id: Uuid,
     pub proposal_id: Uuid,
+    pub user_id: Uuid,
     pub response: QuestionResponses,
 }
 
@@ -253,6 +301,7 @@ impl From<ProposalResponse> for ProposalResponseDto {
         Self {
             id: r.id,
             proposal_id: r.proposal_id,
+            user_id: r.user_id,
             response: r.response,
         }
     }
@@ -282,24 +331,52 @@ async fn create_proposal(
 }
 
 #[derive(Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
 struct ListProposalsQuery {
     workflow_step_id: Uuid,
+    #[serde(default)]
+    with_translations: bool,
 }
 
 #[instrument(err(Debug), skip(state))]
 async fn list_proposals(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(_user): RequiredUser,
+    RequiredUser(user): RequiredUser,
     LocaleExtractor(locale): LocaleExtractor,
-    Query(ListProposalsQuery { workflow_step_id }): Query<ListProposalsQuery>,
-) -> Result<(StatusCode, Json<Vec<LocalizedProposalDto>>), ComhairleError> {
-    let proposals = proposal::list(&state.db, &workflow_step_id, &locale)
+    Query(ListProposalsQuery {
+        workflow_step_id,
+        with_translations,
+    }): Query<ListProposalsQuery>,
+) -> Result<(StatusCode, Json<ProposalsListResponse>), ComhairleError> {
+    if with_translations && is_user_admin(&user, &state.config) {
+        let proposals =
+            proposal::list_with_translations(&state.db, &workflow_step_id, &locale).await?;
+        return Ok((
+            StatusCode::OK,
+            Json(ProposalsListResponse::WithTranslations(proposals)),
+        ));
+    }
+
+    let proposals: Vec<LocalizedProposalDto> = proposal::list_localized(&state.db, &workflow_step_id, &locale)
         .await?
         .into_iter()
         .map(Into::into)
         .collect();
 
-    Ok((StatusCode::OK, Json(proposals)))
+    Ok((
+        StatusCode::OK,
+        Json(ProposalsListResponse::Localized(proposals)),
+    ))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn delete_proposal(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Path(proposal_id): Path<Uuid>,
+) -> Result<(StatusCode, Json<ProposalDto>), ComhairleError> {
+    let proposal = proposal::delete(&state.db, &proposal_id).await?;
+    Ok((StatusCode::OK, Json(proposal.into())))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -470,7 +547,7 @@ mod tests {
             .get(
                 &app,
                 &format!(
-                    "/tools/prioritization/proposals?workflow_step_id={}",
+                    "/tools/prioritization/proposals?workflowStepId={}",
                     workflow_step.id
                 ),
             )
@@ -517,11 +594,11 @@ mod tests {
             question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
-                    value: -1.0,
+                    value: (-1.0_f64).into(),
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
-                    value: 0.5,
+                    value: 0.5_f64.into(),
                 },
             ],
         };
@@ -584,11 +661,11 @@ mod tests {
             question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
-                    value: -1.0,
+                    value: (-1.0_f64).into(),
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
-                    value: 0.5,
+                    value: 0.5_f64.into(),
                 },
             ],
         };
@@ -596,11 +673,11 @@ mod tests {
             question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
-                    value: 0.5,
+                    value: 0.5_f64.into(),
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
-                    value: 0.2,
+                    value: 0.2_f64.into(),
                 },
             ],
         };
@@ -630,11 +707,11 @@ mod tests {
             question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
-                    value: -1.0,
+                    value: (-1.0_f64).into(),
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
-                    value: 0.5,
+                    value: 0.5_f64.into(),
                 },
             ],
         };
@@ -642,11 +719,11 @@ mod tests {
             question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
-                    value: 0.5,
+                    value: 0.5_f64.into(),
                 },
                 Response {
                     question_id: tool_config.questions[1].id,
-                    value: 0.2,
+                    value: 0.2_f64.into(),
                 },
             ],
         };

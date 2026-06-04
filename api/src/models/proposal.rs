@@ -80,7 +80,7 @@ pub async fn create(
 }
 
 #[instrument(err(Debug))]
-pub async fn list(
+pub async fn list_localized(
     db: &PgPool,
     workflow_step_id: &Uuid,
     locale: &str,
@@ -92,6 +92,10 @@ pub async fn list(
             Expr::col((ProposalIden::Table, ProposalIden::WorkflowStepId))
                 .eq(workflow_step_id.to_owned()),
         )
+        .order_by(
+            (ProposalIden::Table, ProposalIden::CreatedAt),
+            sea_query::Order::Asc,
+        )
         .to_owned();
 
     let query = LocalizedProposal::query_to_localisation(query, locale);
@@ -101,6 +105,37 @@ pub async fn list(
     let proposals = query_as_with(&sql, values).fetch_all(db).await?;
 
     Ok(proposals)
+}
+
+#[instrument(err(Debug))]
+pub async fn list(
+    db: &PgPool,
+    workflow_step_id: &Uuid,
+) -> Result<Vec<Proposal>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .from(ProposalIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .and_where(Expr::col(ProposalIden::WorkflowStepId).eq(workflow_step_id.to_owned()))
+        .order_by(ProposalIden::CreatedAt, sea_query::Order::Asc)
+        .build_sqlx(PostgresQueryBuilder);
+
+    let proposals = query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(proposals)
+}
+
+#[instrument(err(Debug))]
+pub async fn list_with_translations(
+    db: &PgPool,
+    workflow_step_id: &Uuid,
+    locale: &str,
+) -> Result<Vec<ProposalWithTranslations>, ComhairleError> {
+    let proposals = list(db, workflow_step_id).await?;
+    let mut out = Vec::with_capacity(proposals.len());
+    for proposal in proposals {
+        out.push(ProposalWithTranslations::from_original(db, proposal, locale).await?);
+    }
+    Ok(out)
 }
 
 #[instrument(err(Debug))]
@@ -283,7 +318,7 @@ mod tests {
         create(&pool, &workflow_step.id, &create_proposal_2, "en").await?;
         create(&pool, &workflow_step.id, &create_proposal_3, "en").await?;
 
-        let proposals = list(&pool, &workflow_step.id, "en").await?;
+        let proposals = list_localized(&pool, &workflow_step.id, "en").await?;
 
         assert_eq!(proposals.len(), 3, "incorrect number of proposals");
 

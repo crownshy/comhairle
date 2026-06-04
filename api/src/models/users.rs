@@ -232,52 +232,71 @@ pub async fn create_annon_user(db: &PgPool) -> Result<User, ComhairleError> {
     ))
 }
 
-/// Create a user from a signup request
 pub async fn create_otp_user(user: &OtpSignupRequest, db: &PgPool) -> Result<User, ComhairleError> {
-    let mut retries = 5; // Retry up to 5 times to generate a unique username
-    while retries > 0 {
+    match &user.username {
+        Some(username) => create_otp_user_with_username(&user.email, username, db).await,
+        None => create_otp_user_random_username(&user.email, db).await,
+    }
+}
+
+async fn create_otp_user_with_username(
+    email: &str,
+    username: &str,
+    db: &PgPool,
+) -> Result<User, ComhairleError> {
+    insert_otp_user(email, username, db)
+        .await?
+        .ok_or_else(|| ComhairleError::DuplicateUsername(username.to_string()))
+}
+
+async fn create_otp_user_random_username(email: &str, db: &PgPool) -> Result<User, ComhairleError> {
+    for _ in 0..5 {
         let sudo_random_name = gen_id();
-
-        let (sql, values) = Query::insert()
-            .into_table(UserIden::Table)
-            .columns([UserIden::AuthType, UserIden::Email, UserIden::Username])
-            .values([
-                UserAuthType::Otp.into(),
-                user.email.clone().into(),
-                sudo_random_name.into(),
-            ])
-            .unwrap()
-            .returning(Query::returning().columns(DEFAULT_COLUMNS))
-            .build_sqlx(PostgresQueryBuilder);
-
-        let user_result = sqlx::query_as_with::<_, User, _>(&sql, values)
-            .fetch_one(db)
-            .await;
-
-        // Check to see if the either a unique username or email has been
-        // duplicated
-        match user_result {
-            Ok(user) => return Ok(user),
-            Err(sqlx::Error::Database(db_err)) => {
-                let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
-                if pg_err.code() == "23505" {
-                    if let Some(constraint) = pg_err.constraint() {
-                        if constraint.contains("username") {
-                            retries -= 1;
-                            continue;
-                        } else if constraint.contains("email") {
-                            return Err(ComhairleError::DuplicateEmail(user.email.clone()));
-                        }
-                    }
-                }
-                return Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)));
-            }
-            Err(e) => return Err(ComhairleError::DatabaseError(e)),
+        match insert_otp_user(email, &sudo_random_name, db).await? {
+            Some(user) => return Ok(user),
+            None => continue, // username collision so retry
         }
     }
     Err(ComhairleError::DuplicateUsername(
-        "too many retires".to_string(),
+        "too many retries".to_string(),
     ))
+}
+
+/// Returns Ok(Some(user)) on success, Ok(None) on duplicate username,
+/// Err on duplicate email or any other DB error.
+async fn insert_otp_user(
+    email: &str,
+    username: &str,
+    db: &PgPool,
+) -> Result<Option<User>, ComhairleError> {
+    let (sql, values) = Query::insert()
+        .into_table(UserIden::Table)
+        .columns([UserIden::AuthType, UserIden::Email, UserIden::Username])
+        .values([UserAuthType::Otp.into(), email.into(), username.into()])?
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let user_result = sqlx::query_as_with::<_, User, _>(&sql, values)
+        .fetch_one(db)
+        .await;
+
+    match user_result {
+        Ok(user) => Ok(Some(user)),
+        Err(sqlx::Error::Database(db_err)) => {
+            let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
+            if pg_err.code() == "23505" {
+                if let Some(constraint) = pg_err.constraint() {
+                    if constraint.contains("username") {
+                        return Ok(None);
+                    } else if constraint.contains("email") {
+                        return Err(ComhairleError::DuplicateEmail(email.to_string()));
+                    }
+                }
+            }
+            Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
+        }
+        Err(e) =>  Err(ComhairleError::DatabaseError(e))
+    }
 }
 
 /// Return a user by ID
@@ -560,6 +579,7 @@ mod tests {
         let user = create_otp_user(
             &OtpSignupRequest {
                 email: "test_otp@test.com".to_string(),
+                username: None,
             },
             &pool,
         )

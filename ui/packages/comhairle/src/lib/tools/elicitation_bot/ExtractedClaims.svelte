@@ -109,6 +109,7 @@
 												bind:value={editingClaims[claim.id]}
 												class="text-chat-text flex-1 justify-start bg-transparent text-sm leading-5 font-normal outline-none"
 												placeholder="Enter claim..."
+												aria-label="Edit claim"
 											/>
 										</div>
 									{:else}
@@ -208,6 +209,7 @@
 
 		<button
 			onclick={handleAdd}
+			aria-label="Add a new claim"
 			class="bg-chat-bubble mt-4 flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-full shadow-md transition-shadow hover:shadow-lg"
 		>
 			<Plus class="text-chat-neutral h-6 w-6" />

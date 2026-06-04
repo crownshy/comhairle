@@ -73,6 +73,7 @@
 			selected={selectedOtherLanguages}
 			onSelectedChange={handleOtherLanguagesChange}
 			placeholder="Select languages..."
+			ariaLabel="Supported languages"
 			emptyMessage="No languages found"
 			class="w-full"
 		/>

@@ -5,6 +5,7 @@
 	import * as LivedExperience from '$lib/tools/lived_experince/index.js';
 	import * as ThinkingSpace from '$lib/tools/thinking_space/index.js';
 	import * as ElicitationBot from '$lib/tools/elicitation_bot/index.js';
+	import * as Prioritization from '$lib/tools/prioritization/index.js';
 	import type { PageProps } from './$types';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -332,6 +333,20 @@
 								topic={toolConfig.topic}
 								onDone={stepComplete}
 								onCanContinueChange={handleCanContinueChange}
+							/>
+						{/key}
+					{/if}
+					{#if toolConfig.type === Prioritization.TOOL_NAME}
+						{#key workflowStep.id}
+							<Prioritization.UserUI
+								{workflowStep}
+								conversation={{
+									primaryLocale: conversation.primaryLocale,
+									isLive: conversation.isLive,
+									supportedLanguages: conversation.supportedLanguages
+								}}
+								participantId={user.id}
+								onDone={stepComplete}
 							/>
 						{/key}
 					{/if}

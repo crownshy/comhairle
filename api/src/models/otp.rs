@@ -179,6 +179,7 @@ mod tests {
         let user = users::create_otp_user(
             &OtpSignupRequest {
                 email: "test@user.com".to_string(),
+                username: None,
             },
             &pool,
         )
@@ -207,6 +208,7 @@ mod tests {
         let user = users::create_otp_user(
             &OtpSignupRequest {
                 email: "test@user.com".to_string(),
+                username: None,
             },
             &pool,
         )
@@ -243,6 +245,7 @@ mod tests {
         let user = users::create_otp_user(
             &OtpSignupRequest {
                 email: "test@user.com".to_string(),
+                username: None,
             },
             &pool,
         )
@@ -262,6 +265,7 @@ mod tests {
         let user = users::create_otp_user(
             &OtpSignupRequest {
                 email: "test@user.com".to_string(),
+                username: None,
             },
             &pool,
         )
@@ -284,6 +288,7 @@ mod tests {
         let user = users::create_otp_user(
             &OtpSignupRequest {
                 email: "test@user.com".to_string(),
+                username: None,
             },
             &pool,
         )
@@ -317,6 +322,7 @@ mod tests {
         let user = users::create_otp_user(
             &OtpSignupRequest {
                 email: "test@user.com".to_string(),
+                username: None,
             },
             &pool,
         )

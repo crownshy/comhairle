@@ -110,7 +110,7 @@
 			<Drawer.Root bind:open={isOpen} direction="bottom">
 				<Drawer.Trigger>
 					<svelte:fragment slot="child">
-						<Button variant="nav" size="icon">
+						<Button variant="nav" size="icon" aria-label="Open menu">
 							<Menu class="size-7" />
 						</Button>
 					</svelte:fragment>
