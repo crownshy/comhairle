@@ -80,7 +80,8 @@
 		return () => clearInterval(interval);
 	});
 
-	function editRound(id: string, value: string) {
+	// Only the newest round is editable. Prior rounds are frozen
+	function editLatest(id: string, value: string) {
 		dirtyById = { ...dirtyById, [id]: value };
 	}
 
@@ -92,10 +93,6 @@
 		savingById = { ...savingById, [id]: true };
 		try {
 			await saveRound({ workflowStepId, roundId: id, submittedText: trimmed });
-			// Note: we don't mutate `rounds` here — the parent is the source of
-			// truth. The dirty draft equals what we just persisted, so dropping
-			// the entry is enough to fall back to the parent's value on next
-			// render (which will be identical).
 			const { [id]: _, ...rest } = dirtyById;
 			dirtyById = rest;
 		} catch (e) {
@@ -138,10 +135,13 @@
 		}
 	}
 
-	function roundLabel(index: number, total: number): string {
-		if (total <= 1) return "Drafted from your answers — edit anything that doesn't sound right";
-		if (index === total - 1) return `Round ${index + 1} — your latest statement`;
-		return `Round ${index + 1}`;
+	function latestLabel(total: number): string {
+		if (total <= 1) return "Your latest thinking — edit anything that doesn't sound right";
+		return `Round ${total} — your latest thinking`;
+	}
+
+	function frozenLabel(index: number): string {
+		return `Round ${index + 1} thinking`;
 	}
 
 	let showFirstGenError = $derived(loadError && rounds.length === 0 && !pendingNextRound);
@@ -200,25 +200,39 @@
 	<!-- Summary stack: one editable textarea per round. -->
 	<section class="mt-12 space-y-8">
 		{#each rounds as round, i (round.id)}
-			<div class="space-y-3">
-				<div class="flex items-center gap-2">
-					<Sparkles class="text-primary size-4 shrink-0" />
-					<p class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-						{roundLabel(i, rounds.length)}
-					</p>
-					{#if savingById[round.id]}
-						<span class="text-muted-foreground text-xs">Saving…</span>
-					{/if}
+			{@const isLatest = i === rounds.length - 1}
+			{#if isLatest}
+				<div class="space-y-3">
+					<div class="flex items-center gap-2">
+						<Sparkles class="text-primary size-4 shrink-0" />
+						<p
+							class="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
+						>
+							{latestLabel(rounds.length)}
+						</p>
+						{#if savingById[round.id]}
+							<span class="text-muted-foreground text-xs">Saving…</span>
+						{/if}
+					</div>
+					<Textarea
+						value={valueFor(round)}
+						oninput={(e) => editLatest(round.id, e.currentTarget.value)}
+						onblur={() => persistEdit(round.id)}
+						rows={10}
+						class="text-base leading-relaxed"
+						placeholder="Your latest thinking…"
+					/>
 				</div>
-				<Textarea
-					value={valueFor(round)}
-					oninput={(e) => editRound(round.id, e.currentTarget.value)}
-					onblur={() => persistEdit(round.id)}
-					rows={10}
-					class="text-base leading-relaxed"
-					placeholder="Your statement…"
-				/>
-			</div>
+			{:else}
+				<div class="space-y-2">
+					<p class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+						{frozenLabel(i)}
+					</p>
+					<p class="text-foreground/80 text-sm leading-relaxed whitespace-pre-wrap">
+						{round.submittedText}
+					</p>
+				</div>
+			{/if}
 		{/each}
 
 		{#if pendingNextRound}

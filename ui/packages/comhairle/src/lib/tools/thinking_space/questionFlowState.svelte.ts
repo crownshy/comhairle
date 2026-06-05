@@ -5,6 +5,13 @@ import type { QuestionConfig, QuestionAnswers, FollowUpAnswer } from './types';
 
 export type Phase = 'root' | 'picking' | 'answering';
 
+/**
+ * Extension mode adds a top-level navigation hub: a picker over root questions.
+ * 'root-picker' = participant is choosing which root to extend, or finishing.
+ * 'in-chain'    = participant is inside a root's chain answering follow-ups.
+ */
+export type ExtensionPhase = 'root-picker' | 'in-chain';
+
 export type LocalQuestionState = {
 	rootAnswer: string;
 	rootSubmitted: boolean;
@@ -24,13 +31,13 @@ export type LocalQuestionState = {
 };
 
 /**
- * 'initial' — the participant's first pass through Thinking Space. Each root
- *   question must be answered, then `followUpCount` follow-ups picked. Picker
- *   is populated by a RAGFlow call.
- * 'extension' — the participant returned via "answer more questions". Every
- *   root question is already answered (followUps may extend), and the picker
- *   pool is seeded from the `otherQuestions` stored on existing follow-ups
- *   before falling back to RAGFlow.
+ * 'initial' — the participant's first pass. Each root question must be
+ *   answered, then `followUpCount` follow-ups picked.
+ * 'extension' — the participant returned via "answer more questions". They
+ *   choose which root to extend from a picker; inside a chain the agent
+ *   keeps generating follow-ups until they click "Done with this question"
+ *   and return to the picker. No `other_questions` pool reuse — every
+ *   follow-up is a fresh RAGFlow call.
  */
 export type FlowMode = 'initial' | 'extension';
 
@@ -60,6 +67,8 @@ export class QuestionFlowState {
 	currentQuestionIndex = $state(0);
 	transitioning = $state(false);
 	submitting = $state(false);
+	// Extension-mode navigation phase. Unused in initial mode.
+	extensionPhase = $state<ExtensionPhase>('root-picker');
 
 	constructor(init: Init) {
 		this.questions = init.questions;
@@ -111,9 +120,8 @@ export class QuestionFlowState {
 	}
 
 	// Resume on the first question not yet answered, or whose follow-up minimum
-	// hasn't been reached. If everything is complete, land on the last question
-	// (initial mode) or restart from question 1 (extension mode — every root is
-	// already answered and we want a full second pass).
+	// hasn't been reached. Extension mode doesn't use this — the root picker
+	// drives navigation; this default is harmless until a root is chosen.
 	private resumeIndex(initialAnswers: QuestionAnswers[]): number {
 		if (this.mode === 'extension') return 0;
 		for (let i = 0; i < this.questions.length; i++) {
@@ -124,27 +132,6 @@ export class QuestionFlowState {
 			if (stored.followUps.length < this.followUpCount) return i;
 		}
 		return Math.max(0, this.questions.length - 1);
-	}
-
-	/**
-	 * Build the picker pool from `otherQuestions` already saved on the
-	 * question's follow-ups. Latest follow-up's alternatives are surfaced
-	 * first; duplicates and already-asked questions are dropped. Returns []
-	 * when nothing usable is stored — caller should fall back to RAGFlow.
-	 */
-	private derivePickerPool(questionIndex: number): string[] {
-		const state = this.states[questionIndex];
-		const asked = new Set(state.followUps.map((followUp) => followUp.question));
-		const seen = new Set<string>();
-		const pool: string[] = [];
-		for (let i = state.followUps.length - 1; i >= 0; i--) {
-			for (const candidate of state.followUps[i].otherQuestions ?? []) {
-				if (asked.has(candidate) || seen.has(candidate)) continue;
-				seen.add(candidate);
-				pool.push(candidate);
-			}
-		}
-		return pool;
 	}
 
 	get currentState(): LocalQuestionState {
@@ -240,22 +227,6 @@ export class QuestionFlowState {
 	}
 
 	async loadPicker(questionIndex: number) {
-		// Extension mode: prefer the stored `otherQuestions` pool before
-		// spending a RAGFlow call. Only fall back to the agent when the pool
-		// is exhausted (no unused alternatives left).
-		if (this.mode === 'extension') {
-			const pool = this.derivePickerPool(questionIndex);
-			if (pool.length > 0) {
-				this.states[questionIndex] = {
-					...this.states[questionIndex],
-					picker: pool,
-					pickerLoading: false,
-					pickerError: false
-				};
-				return;
-			}
-		}
-
 		this.states[questionIndex] = {
 			...this.states[questionIndex],
 			pickerLoading: true,
@@ -402,6 +373,41 @@ export class QuestionFlowState {
 		} finally {
 			this.submitting = false;
 		}
+	}
+
+	// ── Extension-mode navigation ──────────────────────────────────────────
+	// In extension mode the participant chooses a root from the picker,
+	// extends it indefinitely, then clicks "Done with this question" to
+	// return to the picker. From the picker they finish via finishExtension.
+
+	enterRoot(questionIndex: number) {
+		this.currentQuestionIndex = questionIndex;
+		this.extensionPhase = 'in-chain';
+		// Reset picker so we always fetch fresh follow-ups using full chain.
+		this.states[questionIndex] = {
+			...this.states[questionIndex],
+			picker: [],
+			pickerLoading: false,
+			pickerError: false,
+			phase: 'picking',
+			wantsMore: false
+		};
+		if (this.followUpCount > 0) this.loadPicker(questionIndex);
+	}
+
+	doneWithRoot() {
+		this.extensionPhase = 'root-picker';
+	}
+
+	finishExtension() {
+		this.onComplete(this.buildAnswers());
+	}
+
+	// Total answers under a root (root + follow-ups). Used by picker counts.
+	answerCountFor(questionIndex: number): number {
+		const state = this.states[questionIndex];
+		if (!state) return 0;
+		return (state.rootSubmitted ? 1 : 0) + state.followUps.length;
 	}
 
 	updateRootAnswerDraft(value: string) {

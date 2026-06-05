@@ -22,9 +22,8 @@ export interface FollowUpAnswer {
 	answer: string;
 	/**
 	 * Alternatives the agent offered at the moment this follow-up was submitted,
-	 * minus the one the participant actually chose. Used as the picker pool when
-	 * the participant returns in extension mode ("answer more questions") so we
-	 * don't always have to call RAGFlow for fresh follow-ups.
+	 * minus the one the participant actually chose. Persisted for research /
+	 * audit only — not reused on extension
 	 */
 	otherQuestions: string[];
 }
