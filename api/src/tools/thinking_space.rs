@@ -14,7 +14,6 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use futures::StreamExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -480,7 +479,7 @@ async fn generate_thinking_space_summary(
         survey_responses: Some(answers_json),
         ..Default::default()
     };
-    let mut stream = bot_service
+    let stream = bot_service
         .converse_with_agent(
             // Should be a one-shot request so allowing bot service to generate a session
             // per request should suffice

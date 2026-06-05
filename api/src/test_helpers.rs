@@ -185,7 +185,18 @@ pub fn thinking_space_tool_config() -> serde_json::Value {
     json!({
         "type": "thinkingspace",
         "topic": "test topic",
-        "root_questions": [],
+        "root_questions": [
+            {
+                "id": Uuid::new_v4(),
+                "text": "First question",
+                "intent": "First intent"
+            },
+            {
+                "id": Uuid::new_v4(),
+                "text": "Second question",
+                "intent": "Second intent"
+            },
+        ],
         "follow_up_rounds_count": 2
     })
 }
