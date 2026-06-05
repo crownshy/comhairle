@@ -246,6 +246,11 @@ pub trait ComhairleBotService: Send + Sync {
         Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
         ComhairleError,
     >;
+
+    async fn parse_sse_stream_to_events(
+        &self,
+        stream: Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
+    ) -> Result<Vec<BotServiceSseEvent>, ComhairleError>;
 }
 
 #[derive(Deserialize, Debug, JsonSchema, Default, PartialEq)]
@@ -406,6 +411,13 @@ pub struct AgentConversationRequest {
     pub starting_question: Option<String>,
     pub question_intent: Option<String>,
     pub survey_responses: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq, Default)]
+pub struct BotServiceSseEvent {
+    pub event: String,
+    pub component_type: Option<String>,
+    pub content: Option<String>,
 }
 
 #[cfg(test)]
