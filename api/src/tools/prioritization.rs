@@ -656,8 +656,7 @@ mod tests {
             _ => panic!("Incorrect tool_config type"),
         };
 
-        session.signup_annon(&app).await?;
-        let create_response_a_a = CreateResponse {
+        let create_response_a = CreateResponse {
             question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
@@ -669,7 +668,7 @@ mod tests {
                 },
             ],
         };
-        let create_response_a_b = CreateResponse {
+        let create_response_b = CreateResponse {
             question_responses: vec![
                 Response {
                     question_id: tool_config.questions.first().unwrap().id,
@@ -681,6 +680,11 @@ mod tests {
                 },
             ],
         };
+
+        // Two distinct users each respond to both proposals, so each proposal
+        // ends up with two responses. Same-user re-posts now upsert (single row
+        // per (proposal, user)) so duplicate users would collapse.
+        session.signup_annon(&app).await?;
         session
             .post(
                 &app,
@@ -688,7 +692,7 @@ mod tests {
                     "/tools/prioritization/proposals/{}/responses",
                     proposal_a.id
                 ),
-                json!(create_response_a_a).to_string().into(),
+                json!(create_response_a).to_string().into(),
             )
             .await?;
         session
@@ -696,45 +700,21 @@ mod tests {
                 &app,
                 &format!(
                     "/tools/prioritization/proposals/{}/responses",
-                    proposal_a.id
+                    proposal_b.id
                 ),
-                json!(create_response_a_b).to_string().into(),
+                json!(create_response_b).to_string().into(),
             )
             .await?;
 
         session.signup_annon(&app).await?;
-        let create_response_b_a = CreateResponse {
-            question_responses: vec![
-                Response {
-                    question_id: tool_config.questions.first().unwrap().id,
-                    value: (-1.0_f64).into(),
-                },
-                Response {
-                    question_id: tool_config.questions[1].id,
-                    value: 0.5_f64.into(),
-                },
-            ],
-        };
-        let create_response_b_b = CreateResponse {
-            question_responses: vec![
-                Response {
-                    question_id: tool_config.questions.first().unwrap().id,
-                    value: 0.5_f64.into(),
-                },
-                Response {
-                    question_id: tool_config.questions[1].id,
-                    value: 0.2_f64.into(),
-                },
-            ],
-        };
         session
             .post(
                 &app,
                 &format!(
                     "/tools/prioritization/proposals/{}/responses",
-                    proposal_b.id
+                    proposal_a.id
                 ),
-                json!(create_response_b_a).to_string().into(),
+                json!(create_response_a).to_string().into(),
             )
             .await?;
         session
@@ -744,7 +724,7 @@ mod tests {
                     "/tools/prioritization/proposals/{}/responses",
                     proposal_b.id
                 ),
-                json!(create_response_b_b).to_string().into(),
+                json!(create_response_b).to_string().into(),
             )
             .await?;
 

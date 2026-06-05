@@ -4,6 +4,7 @@
 	import { Progress } from '$lib/components/ui/progress';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Tooltip from '$lib/components/ui/tooltip';
+	import * as Accordion from '$lib/components/ui/accordion';
 	import { ArrowLeft, ArrowRight, CheckCircle2, Info, LoaderCircle } from 'lucide-svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import QuestionField from './components/QuestionField.svelte';
@@ -15,6 +16,7 @@
 		QuestionResponse,
 		WorkflowStepInput
 	} from './types';
+	import Separator from '$lib/components/ui/separator/separator.svelte';
 
 	let {
 		workflowStep,
@@ -34,11 +36,15 @@
 	let proposals = $state<LocalizedProposal[]>([]);
 	let answers = $state<Record<string, Record<string, number | string>>>({}); // proposalId → questionId → value
 	let submittedIds = $state<Set<string>>(new Set());
+	/** Proposals whose review-stage answers diverged from the originally submitted values. Saved on Continue. */
+	let dirtyIds = $state<Set<string>>(new Set());
 	type LoadState = { kind: 'loading' } | { kind: 'ready' } | { kind: 'error'; message: string };
 	let loadState = $state<LoadState>({ kind: 'loading' });
 	let currentIndex = $state(0);
 	let submitting = $state(false);
 	let submitError = $state<string | null>(null);
+	let savingReview = $state(false);
+	let reviewError = $state<string | null>(null);
 
 	/** Text answers are optional — completeness only requires likert / continuous. */
 	const requiredQuestions = $derived<Question[]>(
@@ -110,20 +116,46 @@
 
 	let allDone = $derived(proposals.length > 0 && proposals.every((p) => submittedIds.has(p.id)));
 
-	let reviewing = $state(false);
-
-	function startReview() {
-		reviewing = true;
-		currentIndex = 0;
-	}
-
-	function endReview() {
-		reviewing = false;
-	}
-
 	function setAnswer(proposalId: string, questionId: string, value: number | string) {
 		const next = { ...(answers[proposalId] ?? {}), [questionId]: value };
 		answers = { ...answers, [proposalId]: next };
+	}
+
+	/** Same as setAnswer but also marks the proposal dirty so we know to upsert on Continue. */
+	function setReviewAnswer(proposalId: string, questionId: string, value: number | string) {
+		setAnswer(proposalId, questionId, value);
+		if (!dirtyIds.has(proposalId)) {
+			dirtyIds = new Set([...dirtyIds, proposalId]);
+		}
+	}
+
+	async function saveReviewEditsAndContinue() {
+		if (savingReview) return;
+		reviewError = null;
+		if (dirtyIds.size === 0) {
+			onDone();
+			return;
+		}
+		savingReview = true;
+		try {
+			for (const proposalId of dirtyIds) {
+				const proposalAnswers = answers[proposalId] ?? {};
+				const responses: QuestionResponse[] = toolConfig.questions
+					.map((q) => ({ questionId: q.id, value: proposalAnswers[q.id] }))
+					.filter((r): r is QuestionResponse => {
+						if (typeof r.value === 'number') return true;
+						if (typeof r.value === 'string') return r.value.trim().length > 0;
+						return false;
+					});
+				await api.submitResponse(proposalId, responses);
+			}
+			dirtyIds = new Set();
+			onDone();
+		} catch (e) {
+			reviewError = e instanceof Error ? e.message : 'Failed to save your changes.';
+		} finally {
+			savingReview = false;
+		}
 	}
 
 	async function submitCurrent() {
@@ -151,7 +183,7 @@
 
 	async function submitAndAdvance() {
 		await submitCurrent();
-		/** If anything is left, move on. Otherwise let allDone surface the thank-you screen. */
+		/** If anything is left, move on. Otherwise let allDone surface the summary view. */
 		if (currentIndex < proposals.length - 1) {
 			currentIndex += 1;
 		}
@@ -164,6 +196,18 @@
 	let progressPercent = $derived(
 		proposals.length === 0 ? 0 : Math.round((submittedIds.size / proposals.length) * 100)
 	);
+
+	function formatAnswer(question: Question, value: number | string | undefined): string {
+		if (value === undefined || value === null || value === '') return '—';
+		if (question.type.kind === 'likert' && typeof value === 'number') {
+			const cat = question.type.categories.find((c) => c.value === value);
+			return cat?.label ?? String(value);
+		}
+		if (question.type.kind === 'continuous' && typeof value === 'number') {
+			return value.toFixed(2).replace(/\.?0+$/, '');
+		}
+		return String(value);
+	}
 </script>
 
 {#if loadState.kind === 'loading'}
@@ -183,21 +227,68 @@
 			<p class="text-muted-foreground">There are no proposals to rate yet.</p>
 		</Card.Content>
 	</Card.Root>
-{:else if allDone && !reviewing}
-	<Card.Root>
-		<Card.Content class="space-y-4 py-12 text-center">
-			<CheckCircle2 class="text-primary mx-auto h-12 w-12" />
-			<h2 class="text-2xl font-semibold">Thank you!</h2>
-			<p class="text-muted-foreground">
-				Your ratings for all {proposals.length} proposals have been recorded.
+{:else if allDone}
+	<div class="space-y-6">
+		<div class="space-y-1 text-center">
+			<!-- <CheckCircle2 class="text-primary mx-auto h-10 w-10" /> -->
+			<h2 class="text-l mt-5 font-semibold">Your answers</h2>
+			<p class="text-muted-foreground text-sm">
+				Tap a proposal to review or adjust your answers. Changes are saved when you
+				continue.
 			</p>
+		</div>
 
-			<div class="flex flex-wrap items-center justify-center gap-2 pt-2">
-				<Button variant="outline" onclick={startReview}>Review your answers</Button>
-				<Button onclick={onDone}>Continue</Button>
-			</div>
-		</Card.Content>
-	</Card.Root>
+		<Accordion.Root type="multiple" class="space-y-3">
+			{#each proposals as proposal (proposal.id)}
+				{@const proposalAnswers = answers[proposal.id] ?? {}}
+				{@const firstRequired = requiredQuestions[0]}
+				{@const summary = firstRequired
+					? formatAnswer(firstRequired, proposalAnswers[firstRequired.id])
+					: ''}
+				<Card.Root class="gap-0 overflow-hidden py-0">
+					<Accordion.Item value={proposal.id} class="border-b-0">
+						<Accordion.Trigger class="px-4 py-3 hover:no-underline">
+							<div class="flex w-full items-center justify-between gap-3 text-left">
+								<span class="font-medium"
+									>{proposal.title || 'Untitled proposal'}</span
+								>
+								<div class="flex shrink-0 items-center gap-1.5">
+									{#if dirtyIds.has(proposal.id)}
+										<Badge variant="outline" class="shrink-0">Edited</Badge>
+									{/if}
+									{#if summary}
+										<Badge variant="secondary" class="shrink-0">{summary}</Badge
+										>
+									{/if}
+								</div>
+							</div>
+						</Accordion.Trigger>
+						<Accordion.Content class="bg-primary/10 space-y-6 px-4 py-4">
+							{#each toolConfig.questions as question (question.id)}
+								<QuestionField
+									{question}
+									value={proposalAnswers[question.id] ?? null}
+									onChange={(v) => setReviewAnswer(proposal.id, question.id, v)}
+								/>
+							{/each}
+						</Accordion.Content>
+					</Accordion.Item>
+				</Card.Root>
+			{/each}
+		</Accordion.Root>
+
+		{#if reviewError}
+			<p class="text-destructive text-right text-sm">{reviewError}</p>
+		{/if}
+		<div class="flex justify-end">
+			<Button onclick={() => void saveReviewEditsAndContinue()} disabled={savingReview}>
+				{#if savingReview}
+					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+				{/if}
+				{dirtyIds.size > 0 ? 'Save & continue' : 'Continue'}
+			</Button>
+		</div>
+	</div>
 {:else if current}
 	<div class="space-y-6">
 		<div class="space-y-2">
@@ -271,8 +362,6 @@
 					<Button onclick={() => (currentIndex += 1)}>
 						Next <ArrowRight class="ml-2 h-4 w-4" />
 					</Button>
-				{:else if reviewing}
-					<Button onclick={endReview}>Back to summary</Button>
 				{:else}
 					<Button onclick={onDone}>Finish</Button>
 				{/if}
