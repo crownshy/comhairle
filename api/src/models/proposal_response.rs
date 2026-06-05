@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{
     encode::IsNull,
     prelude::{FromRow, Type},
-    query_as_with, Decode, Encode, PgPool, Postgres,
+    query_as, query_as_with, Decode, Encode, PgPool, Postgres,
 };
 use sqlx_postgres::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef};
 use tracing::instrument;
@@ -101,11 +101,14 @@ const DEFAULT_COLUMNS: [ProposalResponseIden; 6] = [
     ProposalResponseIden::UpdatedAt,
 ];
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct CreateResponse {
     pub question_responses: Vec<Response>,
 }
 
+/// Upsert a participant's response for a proposal. There is at most one row
+/// per (proposal_id, user_id), so re-submitting overwrites the previous answer
+/// instead of stacking duplicate rows.
 #[instrument(err(Debug))]
 pub async fn create(
     db: &PgPool,
@@ -113,30 +116,25 @@ pub async fn create(
     user_id: &Uuid,
     create_response: &CreateResponse,
 ) -> Result<ProposalResponse, ComhairleError> {
-    let columns = vec![
-        ProposalResponseIden::ProposalId,
-        ProposalResponseIden::UserId,
-        ProposalResponseIden::Response,
-    ];
-
     let question_responses = serde_json::to_value(QuestionResponses(
         create_response.question_responses.clone(),
     ))?;
 
-    let values = vec![
-        (*proposal_id).into(),
-        (*user_id).into(),
-        question_responses.into(),
-    ];
+    let sql = r#"
+        INSERT INTO proposal_evalution_proposal_response (proposal_id, user_id, response)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (proposal_id, user_id) DO UPDATE
+            SET response = EXCLUDED.response,
+                updated_at = NOW()
+        RETURNING id, proposal_id, user_id, response, created_at, updated_at
+    "#;
 
-    let (sql, values) = Query::insert()
-        .into_table(ProposalResponseIden::Table)
-        .columns(columns)
-        .values(values)?
-        .returning(Query::returning().columns(DEFAULT_COLUMNS))
-        .build_sqlx(PostgresQueryBuilder);
-
-    let response = query_as_with(&sql, values).fetch_one(db).await?;
+    let response = query_as::<_, ProposalResponse>(sql)
+        .bind(proposal_id)
+        .bind(user_id)
+        .bind(question_responses)
+        .fetch_one(db)
+        .await?;
 
     Ok(response)
 }

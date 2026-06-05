@@ -36,11 +36,15 @@
 	let proposals = $state<LocalizedProposal[]>([]);
 	let answers = $state<Record<string, Record<string, number | string>>>({}); // proposalId → questionId → value
 	let submittedIds = $state<Set<string>>(new Set());
+	/** Proposals whose review-stage answers diverged from the originally submitted values. Saved on Continue. */
+	let dirtyIds = $state<Set<string>>(new Set());
 	type LoadState = { kind: 'loading' } | { kind: 'ready' } | { kind: 'error'; message: string };
 	let loadState = $state<LoadState>({ kind: 'loading' });
 	let currentIndex = $state(0);
 	let submitting = $state(false);
 	let submitError = $state<string | null>(null);
+	let savingReview = $state(false);
+	let reviewError = $state<string | null>(null);
 
 	/** Text answers are optional — completeness only requires likert / continuous. */
 	const requiredQuestions = $derived<Question[]>(
@@ -115,6 +119,43 @@
 	function setAnswer(proposalId: string, questionId: string, value: number | string) {
 		const next = { ...(answers[proposalId] ?? {}), [questionId]: value };
 		answers = { ...answers, [proposalId]: next };
+	}
+
+	/** Same as setAnswer but also marks the proposal dirty so we know to upsert on Continue. */
+	function setReviewAnswer(proposalId: string, questionId: string, value: number | string) {
+		setAnswer(proposalId, questionId, value);
+		if (!dirtyIds.has(proposalId)) {
+			dirtyIds = new Set([...dirtyIds, proposalId]);
+		}
+	}
+
+	async function saveReviewEditsAndContinue() {
+		if (savingReview) return;
+		reviewError = null;
+		if (dirtyIds.size === 0) {
+			onDone();
+			return;
+		}
+		savingReview = true;
+		try {
+			for (const proposalId of dirtyIds) {
+				const proposalAnswers = answers[proposalId] ?? {};
+				const responses: QuestionResponse[] = toolConfig.questions
+					.map((q) => ({ questionId: q.id, value: proposalAnswers[q.id] }))
+					.filter((r): r is QuestionResponse => {
+						if (typeof r.value === 'number') return true;
+						if (typeof r.value === 'string') return r.value.trim().length > 0;
+						return false;
+					});
+				await api.submitResponse(proposalId, responses);
+			}
+			dirtyIds = new Set();
+			onDone();
+		} catch (e) {
+			reviewError = e instanceof Error ? e.message : 'Failed to save your changes.';
+		} finally {
+			savingReview = false;
+		}
 	}
 
 	async function submitCurrent() {
@@ -192,7 +233,8 @@
 			<!-- <CheckCircle2 class="text-primary mx-auto h-10 w-10" /> -->
 			<h2 class="text-l mt-5 font-semibold">Your answers</h2>
 			<p class="text-muted-foreground text-sm">
-				Tap a proposal to review or adjust your answers. Changes won't be saved yet.
+				Tap a proposal to review or adjust your answers. Changes are saved when you
+				continue.
 			</p>
 		</div>
 
@@ -203,24 +245,30 @@
 				{@const summary = firstRequired
 					? formatAnswer(firstRequired, proposalAnswers[firstRequired.id])
 					: ''}
-				<Card.Root>
+				<Card.Root class="gap-0 overflow-hidden py-0">
 					<Accordion.Item value={proposal.id} class="border-b-0">
-						<Accordion.Trigger class="px-6 py-4 hover:no-underline">
-							<div class="flex w-full items-start justify-between gap-3 text-left">
+						<Accordion.Trigger class="px-4 py-3 hover:no-underline">
+							<div class="flex w-full items-center justify-between gap-3 text-left">
 								<span class="font-medium"
 									>{proposal.title || 'Untitled proposal'}</span
 								>
-								{#if summary}
-									<Badge variant="secondary" class="shrink-0">{summary}</Badge>
-								{/if}
+								<div class="flex shrink-0 items-center gap-1.5">
+									{#if dirtyIds.has(proposal.id)}
+										<Badge variant="outline" class="shrink-0">Edited</Badge>
+									{/if}
+									{#if summary}
+										<Badge variant="secondary" class="shrink-0">{summary}</Badge
+										>
+									{/if}
+								</div>
 							</div>
 						</Accordion.Trigger>
-						<Accordion.Content class="bg-primary/10 space-y-6 px-6 py-6">
+						<Accordion.Content class="bg-primary/10 space-y-6 px-4 py-4">
 							{#each toolConfig.questions as question (question.id)}
 								<QuestionField
 									{question}
 									value={proposalAnswers[question.id] ?? null}
-									onChange={(v) => setAnswer(proposal.id, question.id, v)}
+									onChange={(v) => setReviewAnswer(proposal.id, question.id, v)}
 								/>
 							{/each}
 						</Accordion.Content>
@@ -229,8 +277,16 @@
 			{/each}
 		</Accordion.Root>
 
+		{#if reviewError}
+			<p class="text-destructive text-right text-sm">{reviewError}</p>
+		{/if}
 		<div class="flex justify-end">
-			<Button onclick={onDone}>Continue</Button>
+			<Button onclick={() => void saveReviewEditsAndContinue()} disabled={savingReview}>
+				{#if savingReview}
+					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+				{/if}
+				{dirtyIds.size > 0 ? 'Save & continue' : 'Continue'}
+			</Button>
 		</div>
 	</div>
 {:else if current}
