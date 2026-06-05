@@ -1,0 +1,49 @@
+data:{"event": "node_finished", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"inputs": {"survey_responses": "[{\"answer\":\"Summer because the sunlight makes me happy\",\"question\":\"What is your favourite season and why?\"}]", "topic": "favourite seasons of the year"}, "outputs": {"_created_time": 996210.879922098, "survey_responses": "[{\"answer\":\"Summer because the sunlight makes me happy\",\"question\":\"What is your favourite season and why?\"}]", "topic": "favourite seasons of the year", "_elapsed_time": 0.00538085401058197}, "component_id": "begin", "component_name": "begin", "component_type": "Begin", "error": null, "elapsed_time": 0.005552988033741713, "created_at": 996210.879922098}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"content": "\"I"}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"content": " simply"}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"content": " adore"}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"content": " summer", "audio_binary": null}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"content": ","}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"content": " there"}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"content": "'s"}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"content": " something", "audio_binary": null}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"content": " about"}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"content": " the"}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"content": " sunlight", "audio_binary": null}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"content": " that"}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"content": " just"}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"content": " brings", "audio_binary": null}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"content": " me"}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"content": " so"}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"content": " much"}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"content": " joy"}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"content": ".\"", "audio_binary": null}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "message_end", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "node_finished", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"inputs": {"begin@survey_responses": "[{\"answer\":\"Summer because the sunlight makes me happy\",\"question\":\"What is your favourite season and why?\"}]", "begin@topic": "favourite seasons of the year", "begin@SurveyRepsonses": ""}, "outputs": {"content": "\"I simply adore summer, there's something about the sunlight that just brings me so much joy.\"", "_created_time": 996210.888856587, "_elapsed_time": 0.003936090972274542}, "component_id": "Agent:LightCasesJump", "component_name": "Agent_0", "component_type": "Agent", "error": null, "elapsed_time": 2.283345493953675, "created_at": 996210.888856587}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:{"event": "node_finished", "message_id": "0cea4eaa60b311f180265aa76f560b1c", "created_at": 1780645755, "task_id": "1428d7fc601f11f199aa5aa76f560b1c", "data": {"inputs": {"Agent:LightCasesJump@content": "\"I simply adore summer, there's something about the sunlight that just brings me so much joy.\""}, "outputs": {"content": "\"I simply adore summer, there's something about the sunlight that just brings me so much joy.\"", "_created_time": 996210.895767952, "_elapsed_time": 0.003006578073836863}, "component_id": "Message:WiseGhostsHang", "component_name": "Message_0", "component_type": "Message", "error": null, "elapsed_time": 2.276768437004648, "created_at": 996210.895767952}, "session_id": "0ce225b460b311f1a55a5aa76f560b1c"}
+
+data:[DONE]
+
+

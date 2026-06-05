@@ -20,6 +20,12 @@ export interface FollowUpAnswer {
 	id: string | null;
 	question: string;
 	answer: string;
+	/**
+	 * Alternatives the agent offered at the moment this follow-up was submitted,
+	 * minus the one the participant actually chose. Persisted for research /
+	 * audit only — not reused on extension
+	 */
+	otherQuestions: string[];
 }
 
 export interface QuestionAnswers {
@@ -30,4 +36,21 @@ export interface QuestionAnswers {
 	followUps: FollowUpAnswer[];
 }
 
-export type ThinkingSpacePhase = 'questions' | 'overview';
+export type ThinkingSpacePhase = 'questions' | 'summary';
+
+/**
+ * One round's summary for one participant.
+ *
+ * A participant may stack multiple summaries within a single Thinking Space
+ * step by choosing "answer more questions" — each round produces its own row.
+ */
+export interface SummaryRound {
+	/** Backend row id. Stable across edits; used for upsert. */
+	id: string;
+	/** The AI-generated text for this round. Immutable once written. */
+	aiDraft: string;
+	/** The participant's submitted text. Equals aiDraft until they edit. */
+	submittedText: string;
+	/** ISO timestamp; rounds are ordered by this on display. */
+	createdAt: string;
+}

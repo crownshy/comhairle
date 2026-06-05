@@ -179,8 +179,8 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<ThinkingSpaceAnswer, Co
 
 #[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct ThinkingSpaceAnswerFilterOptions {
-    user_id: Option<Uuid>,
-    status: Option<AnswerStatus>,
+    pub user_id: Option<Uuid>,
+    pub status: Option<AnswerStatus>,
 }
 
 impl ThinkingSpaceAnswerFilterOptions {

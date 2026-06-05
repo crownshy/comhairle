@@ -14,6 +14,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use futures::StreamExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -27,6 +28,10 @@ use crate::{
         thinking_space_answer::{
             self, AnswerStatus, CreateAnswer, ThinkingSpaceAnswer,
             ThinkingSpaceAnswerFilterOptions, UpdateAnswer,
+        },
+        thinking_space_summary::{
+            self, CreateSummary, ThinkingSpaceSummary, ThinkingSpaceSummaryFilterOptions,
+            UpdateSummary,
         },
         workflow_step,
     },
@@ -161,6 +166,47 @@ Use a raw HTTP request and process the response body incrementally.
                         .response::<200, Json<ThinkingSpaceAnswerDto>>()
                 }),
             )
+            .api_route(
+                "/thinking_space/summaries/generate",
+                post_with(generate_thinking_space_summary, |op| {
+                    op.id("GenerateThinkingSpaceSummary")
+                        .summary("Generate thinking space summary")
+                        .description("Generates a thinking space summary via bot service agent")
+                        .security_requirement("JWT")
+                        .response::<201, Json<ThinkingSpaceSummaryDto>>()
+                }),
+            )
+            .api_route(
+                "/thinking_space/summaries",
+                post_with(update_or_create_thinking_space_summary, |op| {
+                    op.id("UpdateOrCreateThinkingSpaceSummary")
+                        .summary("Update or create thinking space summary")
+                        .description("Update a summary if already exists or create a new summary")
+                        .security_requirement("JWT")
+                        .response::<200, Json<ThinkingSpaceSummaryDto>>()
+                        .response::<201, Json<ThinkingSpaceSummaryDto>>()
+                }),
+            )
+            .api_route(
+                "/thinking_space/summaries/{summary_id}",
+                get_with(get_thinkin_space_summary, |op| {
+                    op.id("GetThinkingSpaceSummary")
+                        .summary("Get thinking space summary")
+                        .description("Get a thinking space summary by id")
+                        .security_requirement("JWT")
+                        .response::<200, Json<ThinkingSpaceSummaryDto>>()
+                }),
+            )
+            .api_route(
+                "/thinking_space/summaries",
+                get_with(list_thinking_space_summaries, |op| {
+                    op.id("ListThinkingSpaceSummaries")
+                        .summary("List thinking space summaries")
+                        .description("List thinking space summaries")
+                        .security_requirement("JWT")
+                        .response::<200, Json<Vec<ThinkingSpaceSummaryDto>>>()
+                }),
+            )
             .with_state(state.clone())
     }
 }
@@ -204,6 +250,28 @@ impl From<ThinkingSpaceAnswer> for ThinkingSpaceAnswerDto {
             question: a.question,
             other_questions: a.other_questions,
             status: a.status,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ThinkingSpaceSummaryDto {
+    pub id: Uuid,
+    pub workflow_step_id: Uuid,
+    pub user_id: Uuid,
+    pub summary: String,
+    pub is_ai_generated: bool,
+}
+
+impl From<ThinkingSpaceSummary> for ThinkingSpaceSummaryDto {
+    fn from(s: ThinkingSpaceSummary) -> Self {
+        Self {
+            id: s.id,
+            workflow_step_id: s.workflow_step_id,
+            user_id: s.user_id,
+            summary: s.summary,
+            is_ai_generated: s.is_ai_generated,
         }
     }
 }
@@ -269,10 +337,11 @@ async fn converse(
         history: Some(payload.history),
         starting_question: Some(payload.starting_question),
         question_intent: Some(payload.question_intent),
+        ..Default::default()
     };
     let stream = bot_service
         .converse_with_agent(
-            &session.bot_service_session_id,
+            Some(&session.bot_service_session_id),
             &bot_service_config.thinking_space_agent_id,
             params,
         )
@@ -344,6 +413,188 @@ async fn update_thinking_space_answer(
     let answer = thinking_space_answer::update(&state.db, &answer_id, &payload).await?;
 
     Ok((StatusCode::OK, Json(answer.into())))
+}
+
+#[derive(Deserialize, JsonSchema, Debug)]
+struct GenerateThinkingSpaceSummary {
+    workflow_step_id: Uuid,
+}
+
+#[derive(Serialize, JsonSchema, Debug)]
+struct ThinkingSpaceSummaryQa {
+    question: String,
+    answer: String,
+}
+
+impl From<ThinkingSpaceAnswer> for ThinkingSpaceSummaryQa {
+    fn from(a: ThinkingSpaceAnswer) -> Self {
+        Self {
+            answer: a.answer,
+            question: a.question,
+        }
+    }
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn generate_thinking_space_summary(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Json(payload): Json<GenerateThinkingSpaceSummary>,
+) -> Result<(StatusCode, Json<ThinkingSpaceSummaryDto>), ComhairleError> {
+    let bot_service = state.required_bot_service()?;
+    let bot_service_config = state
+        .config
+        .bot_service
+        .as_ref()
+        .ok_or(ComhairleError::NoBotServiceConfigured)?;
+
+    let workflow_step = workflow_step::get_by_id(&state.db, &payload.workflow_step_id).await?;
+
+    // TODO: think more creafully how we handle this in preview mode
+    let tool_config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
+        (Some(ToolConfig::ThinkingSpace(config)), _) => config,
+        (None, ToolConfig::ThinkingSpace(config)) => config,
+
+        _ => {
+            return Err(ComhairleError::ToolConfigError(
+                "incorrect config type".to_string(),
+            ))
+        }
+    };
+
+    let filter_options = ThinkingSpaceAnswerFilterOptions {
+        user_id: Some(user.id),
+        ..Default::default()
+    };
+    let answers: Vec<ThinkingSpaceSummaryQa> =
+        thinking_space_answer::list(&state.db, &payload.workflow_step_id, filter_options)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect();
+    let answers_json = serde_json::json!(answers).to_string();
+
+    let params = AgentConversationRequest {
+        question: "".to_string(),
+        topic: Some(tool_config.topic.clone()),
+        survey_responses: Some(answers_json),
+        ..Default::default()
+    };
+    let mut stream = bot_service
+        .converse_with_agent(
+            // Should be a one-shot request so allowing bot service to generate a session
+            // per request should suffice
+            None,
+            &bot_service_config.thinking_space_summary_agent_id,
+            params,
+        )
+        .await?;
+
+    // // Parse SSE stream to get final event with complete summary
+    let sse_events = bot_service.parse_sse_stream_to_events(stream).await?;
+
+    let final_event = sse_events
+        .iter()
+        .filter(|e| e.event == "node_finished" && e.component_type == Some("Message".to_string()))
+        .last()
+        .ok_or_else(|| {
+            ComhairleError::CorruptedData("Missing summary from bot service agent".to_string())
+        })?;
+
+    let summary_content = final_event
+        .clone()
+        .content
+        .ok_or(ComhairleError::CorruptedData(
+            "Missing summary from bot service agent".to_string(),
+        ))?;
+
+    let create_summary = CreateSummary {
+        summary: summary_content,
+        is_ai_generated: Some(true),
+    };
+    let summary = thinking_space_summary::create(
+        &state.db,
+        user.id,
+        payload.workflow_step_id,
+        &create_summary,
+    )
+    .await?;
+
+    Ok((StatusCode::CREATED, Json(summary.into())))
+}
+
+#[derive(Deserialize, JsonSchema, Debug)]
+struct ThinkingSpaceSummaryQuery {
+    workflow_step_id: Uuid,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get_thinkin_space_summary(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Query(ThinkingSpaceSummaryQuery { workflow_step_id }): Query<ThinkingSpaceSummaryQuery>,
+    Path(summary_id): Path<Uuid>,
+) -> Result<(StatusCode, Json<ThinkingSpaceSummaryDto>), ComhairleError> {
+    let summary = thinking_space_summary::get_by_id(&state.db, summary_id).await?;
+
+    Ok((StatusCode::OK, Json(summary.into())))
+}
+
+#[derive(Deserialize, JsonSchema, Debug)]
+struct UpdateCreateThinkingSpace {
+    workflow_step_id: Uuid,
+    summary_id: Option<Uuid>,
+    summary: String,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn update_or_create_thinking_space_summary(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Json(payload): Json<UpdateCreateThinkingSpace>,
+) -> Result<(StatusCode, Json<ThinkingSpaceSummaryDto>), ComhairleError> {
+    match payload.summary_id {
+        Some(summary_id) => {
+            let update_summary = UpdateSummary {
+                summary: payload.summary,
+            };
+            let summary =
+                thinking_space_summary::update(&state.db, summary_id, &update_summary).await?;
+
+            Ok((StatusCode::OK, Json(summary.into())))
+        }
+        None => {
+            let create_summary = CreateSummary {
+                summary: payload.summary,
+                is_ai_generated: Some(false),
+            };
+            let summary = thinking_space_summary::create(
+                &state.db,
+                user.id,
+                payload.workflow_step_id,
+                &create_summary,
+            )
+            .await?;
+
+            Ok((StatusCode::CREATED, Json(summary.into())))
+        }
+    }
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn list_thinking_space_summaries(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Query(filter_options): Query<ThinkingSpaceSummaryFilterOptions>,
+    Query(ThinkingSpaceSummaryQuery { workflow_step_id }): Query<ThinkingSpaceSummaryQuery>,
+) -> Result<(StatusCode, Json<Vec<ThinkingSpaceSummaryDto>>), ComhairleError> {
+    let summaries = thinking_space_summary::list(&state.db, &workflow_step_id, filter_options)
+        .await?
+        .into_iter()
+        .map(Into::into)
+        .collect();
+
+    Ok((StatusCode::OK, Json(summaries)))
 }
 
 #[cfg(test)]
