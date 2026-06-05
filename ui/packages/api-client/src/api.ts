@@ -1408,7 +1408,6 @@ export const EventWithTranslations = z
     endTime: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
     name: z.string(),
-    reminderSentAt: z.union([z.string(), z.null()]).optional(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
     translations: EventTranslations,
@@ -1430,7 +1429,6 @@ export const PartialEvent = z
     description: z.union([z.string(), z.null()]),
     end_time: z.union([z.string(), z.null()]),
     name: z.union([z.string(), z.null()]),
-    reminder_sent_at: z.union([z.string(), z.null()]),
     signup_mode: z.union([z.string(), z.null()]),
     start_time: z.union([z.string(), z.null()]),
   })

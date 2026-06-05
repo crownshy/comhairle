@@ -3,25 +3,26 @@ use chrono_tz::Tz;
 use comhairle_macros::{DbJsonBEnum, Translatable};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, Alias, Expr, JoinType, PostgresQueryBuilder, Query};
+use sea_query::{enum_def, Alias, Expr, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::FromRow, query_as_with, PgPool};
+use sqlx::{prelude::FromRow, PgPool};
 use std::str::FromStr;
-use tracing::instrument;
+use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::{
+    config::ComhairleConfig,
     error::ComhairleError,
+    mailer::build_calendar_invite,
     models::{
-        conversation::ConversationIden,
-        event_attendance::EventAttendanceIden,
+        otp,
         pagination::{Order, PageOptions, PaginatedResults},
-        translations::{
-            new_translation, TextContentId, TextContentIden, TextFormat, TextTranslationIden,
-        },
-        users::UserIden,
+        scheduled_email::{self, CreateScheduledEmail, EmailTemplate, ScheduledEmailConfig},
+        translations::{new_translation, TextContentId, TextFormat},
+        users::User,
     },
+    routes::auth::{generate_jwt, OtpClaims},
 };
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
@@ -75,8 +76,6 @@ pub struct Event {
     pub video_meeting_id: Option<Uuid>,
     #[serde(default)]
     pub agenda: EventAgenda,
-    #[partially(transparent)]
-    pub reminder_sent_at: Option<DateTime<Utc>>,
     pub default_time_zone: String,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
@@ -109,7 +108,146 @@ impl ResolveTimeZone for LocalizedEvent {
     }
 }
 
-const DEFAULT_COLUMNS: [EventIden; 14] = [
+struct ScheduleEventEmail<'a> {
+    db: &'a PgPool,
+    config: &'a ComhairleConfig,
+    user: &'a User,
+    email: &'a str,
+    event_path: &'a str,
+    calendar_invite: &'a icalendar::Calendar,
+}
+
+impl LocalizedEvent {
+    pub async fn schedule_event_reminders(
+        &self,
+        db: &PgPool,
+        config: &ComhairleConfig,
+        user: &User,
+    ) -> Result<(), ComhairleError> {
+        if self.start_time <= Utc::now() {
+            warn!("Event has past");
+            return Ok(());
+        }
+
+        let calendar_invite = build_calendar_invite(
+            &self.name,
+            &self.description,
+            self.start_time,
+            self.end_time,
+        );
+
+        let email = user.email.as_ref().ok_or(ComhairleError::WrongUserType)?;
+        let event_path = format!("/conversations/{}/events/{}", self.conversation_id, self.id);
+
+        let params = ScheduleEventEmail {
+            db,
+            config,
+            user,
+            email,
+            event_path: &event_path,
+            calendar_invite: &calendar_invite,
+        };
+
+        self.schedule_first_reminder(&params).await?;
+        self.schedule_second_reminder(&params).await?;
+
+        Ok(())
+    }
+
+    async fn schedule_first_reminder(
+        &self,
+        params: &ScheduleEventEmail<'_>,
+    ) -> Result<(), ComhairleError> {
+        let ScheduleEventEmail {
+            db,
+            user: _user,
+            config,
+            email,
+            event_path,
+            calendar_invite,
+        } = params;
+
+        let email_config = ScheduledEmailConfig {
+            subject: "Upcoming event reminder".to_string(),
+            template: EmailTemplate::EventReminder {
+                event_name: self.name.clone(),
+                event_time: self.format_date_with_time_zone(self.start_time, None),
+                event_link: format!("{}{}", &config.domain, event_path),
+                organization_name: "Bloom".to_string(), // TODO:
+                organization_email: None,
+            },
+            attachment: Some(calendar_invite.to_string()),
+        };
+        let scheduled_email_params = CreateScheduledEmail {
+            user_email: email.to_string(),
+            email_config,
+            send_at: self.start_time - chrono::Duration::days(1),
+        };
+        scheduled_email::create(db, scheduled_email_params).await?;
+
+        Ok(())
+    }
+
+    async fn schedule_second_reminder(
+        &self,
+        params: &ScheduleEventEmail<'_>,
+    ) -> Result<(), ComhairleError> {
+        let ScheduleEventEmail {
+            db,
+            user,
+            config,
+            email,
+            event_path,
+            calendar_invite,
+        } = params;
+
+        let event_live_path = format!("{event_path}/live");
+
+        let otp = otp::create(db, &user.id, Some(event_live_path), Some(self.start_time)).await?;
+
+        let claims = OtpClaims {
+            email: email.to_string(),
+            otp: otp.code.clone(),
+        };
+        // Ensure JWT doesn't expire before event begins
+        let event_jwt_duration = self.start_time - Utc::now();
+        let otp_token = generate_jwt()
+            .user(user)
+            .secret(&config.jwt_secret)
+            .custom_claims(claims)
+            .duration(event_jwt_duration)
+            .call();
+
+        let encoded_redirect_url = urlencoding::encode(&otp.redirect_url);
+        let otp_link = format!(
+            "{}/auth/login-otp/{}?backTo={}",
+            config.domain, otp_token, encoded_redirect_url
+        );
+
+        let email_config = ScheduledEmailConfig {
+            subject: "Event beginning soon".to_string(),
+            template: EmailTemplate::EventReminder {
+                event_name: self.name.clone(),
+                event_time: self.format_date_with_time_zone(self.start_time, None),
+                event_link: otp_link,
+                organization_name: "Bloom".to_string(), // TODO:
+                organization_email: None,
+            },
+            attachment: Some(calendar_invite.to_string()),
+        };
+        let scheduled_email_params = CreateScheduledEmail {
+            user_email: email.to_string(),
+            email_config,
+            send_at: self.start_time - chrono::Duration::hours(2),
+        };
+
+        scheduled_email::create(db, scheduled_email_params).await?;
+
+        Ok(())
+    }
+}
+
+const DEFAULT_COLUMNS: [EventIden; 13] = [
     EventIden::Id,
     EventIden::Name,
     EventIden::Description,
@@ -120,7 +258,6 @@ const DEFAULT_COLUMNS: [EventIden; 14] = [
     EventIden::SignupMode,
     EventIden::VideoMeetingId,
     EventIden::Agenda,
-    EventIden::ReminderSentAt,
     EventIden::DefaultTimeZone,
     EventIden::CreatedAt,
     EventIden::UpdatedAt,
@@ -245,9 +382,6 @@ impl PartialEvent {
         }
         if let Some(value) = &self.agenda {
             values.push((EventIden::Agenda, value.into()));
-        }
-        if let Some(value) = &self.reminder_sent_at {
-            values.push((EventIden::ReminderSentAt, (*value).into()));
         }
         if let Some(value) = &self.default_time_zone {
             values.push((EventIden::DefaultTimeZone, value.into()));
@@ -516,119 +650,6 @@ fn add_current_attendance(mut query: sea_query::SelectStatement) -> sea_query::S
             Alias::new("current_attendance"),
         )
         .to_owned()
-}
-
-#[derive(Deserialize, Serialize, Debug, FromRow, Clone, JsonSchema, Default)]
-pub struct UpcomingEventParticipant {
-    pub event_id: Uuid,
-    pub event_start_time: DateTime<Utc>,
-    pub event_name: String,
-    pub user_id: Uuid,
-    pub user_email: Option<String>,
-    pub username: Option<String>,
-    pub user_auth_type: String,
-    pub role: String,
-    pub conversation_id: Uuid,
-    pub primary_locale: String,
-}
-
-#[instrument(err(Debug))]
-pub async fn list_upcoming_event_participants(
-    db: &PgPool,
-) -> Result<Vec<UpcomingEventParticipant>, ComhairleError> {
-    let (sql, values) = Query::select()
-        .expr_as(
-            Expr::col((EventIden::Table, EventIden::Id)),
-            Alias::new("event_id"),
-        )
-        .expr_as(
-            Expr::col((TextTranslationIden::Table, TextTranslationIden::Content)),
-            Alias::new("event_name"),
-        )
-        .expr_as(
-            Expr::col((EventIden::Table, EventIden::StartTime)),
-            Alias::new("event_start_time"),
-        )
-        .expr_as(
-            Expr::col((UserIden::Table, UserIden::Id)),
-            Alias::new("user_id"),
-        )
-        .expr_as(
-            Expr::col((UserIden::Table, UserIden::Email)),
-            Alias::new("user_email"),
-        )
-        .expr_as(
-            Expr::col((UserIden::Table, UserIden::Username)),
-            Alias::new("username"),
-        )
-        .expr_as(
-            Expr::col((UserIden::Table, UserIden::AuthType)),
-            Alias::new("user_auth_type"),
-        )
-        .expr_as(
-            Expr::col((EventAttendanceIden::Table, EventAttendanceIden::Role)),
-            Alias::new("role"),
-        )
-        .expr_as(
-            Expr::col((ConversationIden::Table, ConversationIden::Id)),
-            Alias::new("conversation_id"),
-        )
-        .expr_as(
-            Expr::col((ConversationIden::Table, ConversationIden::PrimaryLocale)),
-            Alias::new("primary_locale"),
-        )
-        .from(EventIden::Table)
-        .join(
-            JoinType::InnerJoin,
-            TextContentIden::Table,
-            Expr::col((TextContentIden::Table, TextContentIden::Id))
-                .equals((EventIden::Table, EventIden::Name)),
-        )
-        .join(
-            JoinType::InnerJoin,
-            TextTranslationIden::Table,
-            Expr::col((TextTranslationIden::Table, TextTranslationIden::ContentId))
-                .equals((TextContentIden::Table, TextContentIden::Id))
-                .and(
-                    Expr::col((TextTranslationIden::Table, TextTranslationIden::Locale))
-                        .equals((TextContentIden::Table, TextContentIden::PrimaryLocale)),
-                ),
-        )
-        .join(
-            JoinType::InnerJoin,
-            EventAttendanceIden::Table,
-            Expr::col((EventIden::Table, EventIden::Id))
-                .equals((EventAttendanceIden::Table, EventAttendanceIden::EventId)),
-        )
-        .join(
-            JoinType::InnerJoin,
-            UserIden::Table,
-            Expr::col((UserIden::Table, UserIden::Id))
-                .equals((EventAttendanceIden::Table, EventAttendanceIden::UserId)),
-        )
-        .join(
-            JoinType::InnerJoin,
-            ConversationIden::Table,
-            Expr::col((ConversationIden::Table, ConversationIden::Id))
-                .equals((EventIden::Table, EventIden::ConversationId)),
-        )
-        .and_where(
-            Expr::col((EventAttendanceIden::Table, EventAttendanceIden::Role))
-                .eq("participant".to_owned()),
-        )
-        .and_where(Expr::col((UserIden::Table, UserIden::Email)).is_not_null())
-        .and_where(Expr::col((EventIden::Table, EventIden::StartTime)).gt(Utc::now()))
-        .and_where(
-            Expr::col((EventIden::Table, EventIden::StartTime))
-                .lte(Utc::now() + chrono::Duration::hours(12)),
-        )
-        .and_where(Expr::col((EventIden::Table, EventIden::ReminderSentAt)).is_null())
-        .to_owned()
-        .build_sqlx(PostgresQueryBuilder);
-
-    let results = query_as_with(&sql, values).fetch_all(db).await?;
-
-    Ok(results)
 }
 
 #[cfg(test)]

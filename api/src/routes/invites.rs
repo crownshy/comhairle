@@ -330,6 +330,11 @@ async fn auto_register_event_attendance(
         "{}/conversations/{}/events/{}",
         state.config.domain, conversation.id, event.id
     );
+
+    event
+        .schedule_event_reminders(&state.db, &state.config, &user)
+        .await?;
+
     state
         .mailer
         .send_event_confirmation_email(email.to_string(), &event, &None, event_link)?;

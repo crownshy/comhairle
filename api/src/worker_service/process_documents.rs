@@ -1,7 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
 use apalis::prelude::Data;
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
 use tracing::{error, info};
@@ -9,7 +8,10 @@ use uuid::Uuid;
 
 use crate::{
     bot_service::UpdateChatRequest,
-    models::{self, job::UpdateJob},
+    models::{
+        self,
+        job::{self, UpdateJob},
+    },
     ComhairleState,
 };
 
@@ -124,7 +126,7 @@ pub async fn process_document_handler(
             progress: Some(document.parse_progress),
             ..Default::default()
         };
-        let _job = models::job::update(&state.db, &job.job_id, update_job)
+        let _job = job::update(&state.db, &job.job_id, update_job)
             .await
             .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
 
@@ -147,7 +149,7 @@ pub async fn process_document_handler(
                 error: Some(message.to_string()),
                 ..Default::default()
             };
-            let _ = models::job::update(&state.db, &job.job_id, update_job)
+            let _ = job::update(&state.db, &job.job_id, update_job)
                 .await
                 .map_err(|e| WorkerServiceError::DbError(e.to_string()))
                 .ok_or_record_failure(&job.job_id, &state.db)
@@ -200,14 +202,7 @@ pub async fn process_document_handler(
         "Job completed successfully"
     );
 
-    // update job as complete
-    let update_job = UpdateJob {
-        status: Some("completed".to_string()),
-        finished_at: Some(Utc::now()),
-        completion_message: Some("Document successfully parsed".to_string()),
-        ..Default::default()
-    };
-    let _ = models::job::update(&state.db, &job.job_id, update_job)
+    job::complete(&state.db, job.job_id, "Document successfully parsed")
         .await
         .map_err(|e| WorkerServiceError::DbError(e.to_string()))?;
 
