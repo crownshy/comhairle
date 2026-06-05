@@ -90,6 +90,32 @@ pub struct GetAgentSessionResponse {
     data: Vec<AgentSession>,
 }
 
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct SseEvent {
+    pub event: String,
+    pub message_id: String,
+    pub created_at: i64,
+    pub task_id: String,
+    pub session_id: String,
+    pub data: SseData,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct SseData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outputs: Option<SseOutputs>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub component_type: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct SseOutputs {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -420,6 +420,21 @@ struct GenerateThinkingSpaceSummary {
     workflow_step_id: Uuid,
 }
 
+#[derive(Serialize, JsonSchema, Debug)]
+struct ThinkingSpaceSummaryQa {
+    question: String,
+    answer: String,
+}
+
+impl From<ThinkingSpaceAnswer> for ThinkingSpaceSummaryQa {
+    fn from(a: ThinkingSpaceAnswer) -> Self {
+        Self {
+            answer: a.answer,
+            question: a.question,
+        }
+    }
+}
+
 #[instrument(err(Debug), skip(state))]
 async fn generate_thinking_space_summary(
     State(state): State<Arc<ComhairleState>>,
@@ -451,8 +466,12 @@ async fn generate_thinking_space_summary(
         user_id: Some(user.id),
         ..Default::default()
     };
-    let answers =
-        thinking_space_answer::list(&state.db, &payload.workflow_step_id, filter_options).await?;
+    let answers: Vec<ThinkingSpaceSummaryQa> =
+        thinking_space_answer::list(&state.db, &payload.workflow_step_id, filter_options)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect();
     let answers_json = serde_json::json!(answers).to_string();
 
     let params = AgentConversationRequest {
@@ -471,45 +490,23 @@ async fn generate_thinking_space_summary(
         )
         .await?;
 
-    // Parse SSE stream to get final event with complete summary
-    let mut raw_bytes = vec![];
-    while let Some(chunk) = stream.next().await {
-        let bytes = chunk?;
-        raw_bytes.extend_from_slice(&bytes);
-    }
-    let raw_str = String::from_utf8(raw_bytes).map_err(|_| {
-        ComhairleError::CorruptedData("Invalid UTF-8 in bot service response".to_string())
-    })?;
+    // // Parse SSE stream to get final event with complete summary
+    let sse_events = bot_service.parse_sse_stream_to_events(stream).await?;
 
-    #[allow(clippy::double_ended_iterator_last)]
-    let final_event: serde_json::Value = raw_str
-        .lines()
-        .filter(|line| line.starts_with("data:"))
-        .map(|line| line.trim_start_matches("data:").trim())
-        .filter(|line| *line != "[DONE]")
-        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
-        .filter(|event| {
-            event.get("event").and_then(|e| e.as_str()) == Some("node_finished")
-                && event
-                    .get("data")
-                    .and_then(|d| d.get("component_type"))
-                    .and_then(|c| c.as_str())
-                    == Some("Message")
-        })
+    let final_event = sse_events
+        .iter()
+        .filter(|e| e.event == "node_finished" && e.component_type == Some("Message".to_string()))
         .last()
         .ok_or_else(|| {
-            ComhairleError::CorruptedData("Empty response from bot service agent".to_string())
+            ComhairleError::CorruptedData("Missing summary from bot service agent".to_string())
         })?;
 
     let summary_content = final_event
-        .get("data")
-        .and_then(|d| d.get("outputs"))
-        .and_then(|o| o.get("content"))
-        .and_then(|c| c.as_str())
-        .ok_or_else(|| {
-            ComhairleError::CorruptedData("Agent response missing outputs.content".to_string())
-        })?
-        .to_string();
+        .clone()
+        .content
+        .ok_or(ComhairleError::CorruptedData(
+            "Missing summary from bot service agent".to_string(),
+        ))?;
 
     let create_summary = CreateSummary {
         summary: summary_content,

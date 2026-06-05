@@ -18,13 +18,13 @@ use tracing::instrument;
 
 use crate::{
     bot_service::{
-        AgentConversationRequest, ChatConversationRequest, ComhairleAgent, ComhairleAgentSession,
-        ComhairleBotService, ComhairleChat, ComhairleChatSession, ComhairleDocument,
-        ComhairleKnowledgeBase, ComhairleLlm, ComhairleMessageReference, ComhairlePrompt,
-        ComhairleSessionMessage, CreateAgentRequest, CreateChatRequest, CreateChatSessionRequest,
-        GetQueryParams as ApiGetQueryParams, UpdateAgentRequest, UpdateChatRequest,
-        UpdateChatSessionRequest, UpdateDocumentRequest, UpdateKnowledgeBaseRequest,
-        UploadFileRequest,
+        AgentConversationRequest, BotServiceSseEvent, ChatConversationRequest, ComhairleAgent,
+        ComhairleAgentSession, ComhairleBotService, ComhairleChat, ComhairleChatSession,
+        ComhairleDocument, ComhairleKnowledgeBase, ComhairleLlm, ComhairleMessageReference,
+        ComhairlePrompt, ComhairleSessionMessage, CreateAgentRequest, CreateChatRequest,
+        CreateChatSessionRequest, GetQueryParams as ApiGetQueryParams, UpdateAgentRequest,
+        UpdateChatRequest, UpdateChatSessionRequest, UpdateDocumentRequest,
+        UpdateKnowledgeBaseRequest, UploadFileRequest,
     },
     error::ComhairleError,
 };
@@ -647,6 +647,19 @@ impl ComhairleBotService for ComhairleRagBotService {
 
         Ok(Box::pin(mapped_stream))
     }
+
+    async fn parse_sse_stream_to_events(
+        &self,
+        stream: Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
+    ) -> Result<Vec<BotServiceSseEvent>, ComhairleError> {
+        let events = parse_sse_stream(stream)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect();
+
+        Ok(events)
+    }
 }
 
 fn build_agent_dsl() -> Result<serde_json::Value, ComhairleError> {
@@ -663,6 +676,32 @@ fn build_agent_dsl() -> Result<serde_json::Value, ComhairleError> {
         .insert("graph".to_string(), graph_json.clone());
 
     Ok(dsl)
+}
+
+pub async fn parse_sse_stream(
+    mut stream: Pin<Box<dyn Stream<Item = Result<Bytes, ComhairleError>> + Send + 'static>>,
+) -> Result<Vec<SseEvent>, ComhairleError> {
+    let mut raw_bytes = vec![];
+    while let Some(chunk) = stream.next().await {
+        let bytes = chunk?;
+        raw_bytes.extend_from_slice(&bytes);
+    }
+
+    let raw_str = String::from_utf8(raw_bytes).map_err(|_| {
+        ComhairleError::CorruptedData("Invalid UTF-8 in bot service response".to_string())
+    })?;
+
+    Ok(parse_sse_str(&raw_str))
+}
+
+pub fn parse_sse_str(sse_str: &str) -> Vec<SseEvent> {
+    sse_str
+        .lines()
+        .filter(|line| line.starts_with("data:") && !line.ends_with("[DONE]"))
+        .map(|line| line.trim_start_matches("data:").trim())
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .filter_map(|value| serde_json::from_value::<SseEvent>(value).ok())
+        .collect()
 }
 
 //
@@ -1098,5 +1137,44 @@ impl From<AgentConversationRequest> for ConvoQuestion {
             stream: Some(true),
             inputs: Some(inputs),
         }
+    }
+}
+
+impl From<SseEvent> for BotServiceSseEvent {
+    fn from(e: SseEvent) -> Self {
+        Self {
+            event: e.event,
+            component_type: e.data.component_type,
+            content: e
+                .data
+                .content
+                .or_else(|| e.data.outputs.and_then(|o| o.content)),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::error::Error;
+
+    #[tokio::test]
+    async fn should_parse_sse_event_str_to_json() -> Result<(), Box<dyn Error>> {
+        let test_sse_str = include_str!("../../../fixtures/bot-service-sse-events.txt");
+
+        let _results = parse_sse_str(test_sse_str);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn should_parse_sse_event_str_to_comhairle_type() -> Result<(), Box<dyn Error>> {
+        let test_sse_str = include_str!("../../../fixtures/bot-service-sse-events.txt");
+        let results = parse_sse_str(test_sse_str);
+
+        let _results: Vec<BotServiceSseEvent> = results.into_iter().map(Into::into).collect();
+
+        Ok(())
     }
 }
