@@ -202,7 +202,7 @@
 		{#each rounds as round, i (round.id)}
 			{@const isLatest = i === rounds.length - 1}
 			{#if isLatest}
-				<div class="space-y-3">
+				<div class="bg-primary/10 space-y-3 rounded-lg p-4">
 					<div class="flex items-center gap-2">
 						<Sparkles class="text-primary size-4 shrink-0" />
 						<p
@@ -214,12 +214,17 @@
 							<span class="text-muted-foreground text-xs">Saving…</span>
 						{/if}
 					</div>
+					<p class="text-foreground text-sm leading-relaxed">
+						Please read the summary of your responses below. Does anything not quite
+						reflect your views? Is there anything important that feels missing? Feel
+						free to edit or add, and when you're happy with it click Confirm & Save.
+					</p>
 					<Textarea
 						value={valueFor(round)}
 						oninput={(e) => editLatest(round.id, e.currentTarget.value)}
 						onblur={() => persistEdit(round.id)}
 						rows={10}
-						class="text-base leading-relaxed"
+						class="bg-background text-base leading-relaxed"
 						placeholder="Your latest thinking…"
 					/>
 				</div>
