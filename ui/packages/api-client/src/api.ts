@@ -3788,6 +3788,31 @@ Use a raw HTTP request and process the response body incrementally.
     response: ThinkingSpaceAnswerDto,
   },
   {
+    method: "get",
+    path: "/tools/thinking_space/summaries",
+    alias: "ListThinkingSpaceSummaries",
+    description: `List thinking space summaries`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "is_ai_generated",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "user_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+    ],
+    response: z.array(ThinkingSpaceSummaryDto),
+  },
+  {
     method: "post",
     path: "/tools/thinking_space/summaries",
     alias: "UpdateOrCreateThinkingSpaceSummary",

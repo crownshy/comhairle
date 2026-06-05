@@ -29,7 +29,10 @@ use crate::{
             self, AnswerStatus, CreateAnswer, ThinkingSpaceAnswer,
             ThinkingSpaceAnswerFilterOptions, UpdateAnswer,
         },
-        thinking_space_summary::{self, CreateSummary, ThinkingSpaceSummary, UpdateSummary},
+        thinking_space_summary::{
+            self, CreateSummary, ThinkingSpaceSummary, ThinkingSpaceSummaryFilterOptions,
+            UpdateSummary,
+        },
         workflow_step,
     },
     routes::auth::RequiredUser,
@@ -192,6 +195,16 @@ Use a raw HTTP request and process the response body incrementally.
                         .description("Get a thinking space summary by id")
                         .security_requirement("JWT")
                         .response::<200, Json<ThinkingSpaceSummaryDto>>()
+                }),
+            )
+            .api_route(
+                "/thinking_space/summaries",
+                get_with(list_thinking_space_summaries, |op| {
+                    op.id("ListThinkingSpaceSummaries")
+                        .summary("List thinking space summaries")
+                        .description("List thinking space summaries")
+                        .security_requirement("JWT")
+                        .response::<200, Json<Vec<ThinkingSpaceSummaryDto>>>()
                 }),
             )
             .with_state(state.clone())
@@ -514,7 +527,7 @@ async fn generate_thinking_space_summary(
 }
 
 #[derive(Deserialize, JsonSchema, Debug)]
-struct GetThinkingSpaceSummaryQuery {
+struct ThinkingSpaceSummaryQuery {
     workflow_step_id: Uuid,
 }
 
@@ -522,7 +535,7 @@ struct GetThinkingSpaceSummaryQuery {
 async fn get_thinkin_space_summary(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Query(GetThinkingSpaceSummaryQuery { workflow_step_id }): Query<GetThinkingSpaceSummaryQuery>,
+    Query(ThinkingSpaceSummaryQuery { workflow_step_id }): Query<ThinkingSpaceSummaryQuery>,
     Path(summary_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<ThinkingSpaceSummaryDto>), ComhairleError> {
     let summary = thinking_space_summary::get_by_id(&state.db, summary_id).await?;
@@ -569,6 +582,22 @@ async fn update_or_create_thinking_space_summary(
             Ok((StatusCode::CREATED, Json(summary.into())))
         }
     }
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn list_thinking_space_summaries(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Query(filter_options): Query<ThinkingSpaceSummaryFilterOptions>,
+    Query(ThinkingSpaceSummaryQuery { workflow_step_id }): Query<ThinkingSpaceSummaryQuery>,
+) -> Result<(StatusCode, Json<Vec<ThinkingSpaceSummaryDto>>), ComhairleError> {
+    let summaries = thinking_space_summary::list(&state.db, &workflow_step_id, filter_options)
+        .await?
+        .into_iter()
+        .map(Into::into)
+        .collect();
+
+    Ok((StatusCode::OK, Json(summaries)))
 }
 
 #[cfg(test)]
