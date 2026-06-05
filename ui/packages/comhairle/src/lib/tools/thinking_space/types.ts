@@ -43,7 +43,6 @@ export type ThinkingSpacePhase = 'questions' | 'summary';
  *
  * A participant may stack multiple summaries within a single Thinking Space
  * step by choosing "answer more questions" — each round produces its own row.
- * See documentation/adr/0002-thinking-space-summary-storage.md.
  */
 export interface SummaryRound {
 	/** Backend row id. Stable across edits; used for upsert. */

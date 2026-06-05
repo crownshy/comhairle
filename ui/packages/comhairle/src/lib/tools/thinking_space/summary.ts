@@ -8,8 +8,6 @@
  *   - POST /tools/thinking_space/summaries           (upsert: edit if summary_id, else create)
  *   - GET  /tools/thinking_space/summaries           (list by workflow_step_id)
  *
- * See documentation/adr/0002-thinking-space-summary-storage.md.
- *
  * Known gaps in the current DTO that this file works around:
  *   - `createdAt` is not exposed, so `SummaryRound.createdAt` is best-effort
  *     (real time on freshly generated rounds; epoch placeholder on hydration).
