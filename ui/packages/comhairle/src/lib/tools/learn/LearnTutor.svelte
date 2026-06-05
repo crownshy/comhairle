@@ -247,24 +247,6 @@
 							</div>
 						{/if}
 					</div>
-
-					<div class="mt-3 flex flex-col gap-1.5">
-						<p class="text-muted-foreground text-xs">
-							Just for you. Questions and answers aren't submitted or shared. Try:
-						</p>
-						<div class="flex flex-wrap gap-1.5">
-							{#each quickPrompts as p (p)}
-								<button
-									type="button"
-									class="bg-accent/90 text-accent-foreground hover:bg-primary hover:text-primary-foreground disabled:hover:bg-accent/30 disabled:hover:text-accent-foreground rounded-full px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-									onclick={() => pickPrompt(p)}
-									disabled={inputDisabled}
-								>
-									{p}
-								</button>
-							{/each}
-						</div>
-					</div>
 				</div>
 			{/if}
 
