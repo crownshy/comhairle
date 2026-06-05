@@ -159,229 +159,237 @@
 </script>
 
 {#if !loading}
-	<div class="border-border my-6 pt-6">
+	<div class="my-6">
 		{#if enabled}
-			<!-- Init error: shown when there's no usable session yet -->
-			{#if chatError && pageQAs.length === 0 && !initializing}
-				<div
-					class="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm"
-				>
-					<AlertTriangle class="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
-					<div class="min-w-0 flex-1">
-						<p class="font-semibold text-red-800">Couldn't load tutor</p>
-						<p class="text-red-700">{chatError}</p>
-						<button
-							type="button"
-							class="mt-2 inline-flex items-center gap-1.5 rounded-md border border-red-300 bg-white px-2.5 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100"
-							onclick={retryInit}
-						>
-							<RefreshCw class="h-3 w-3" />
-							Try again
-						</button>
-					</div>
-				</div>
-			{/if}
-
-			<!-- Loading skeleton: first-time history load -->
-			{#if initializing && pageQAs.length === 0}
-				<LearnTutorSkeleton />
-			{/if}
-
-			<!-- Inline prompt -->
-			{#if !initializing && !(chatError && pageQAs.length === 0)}
-				<div class="mb-6">
+			<p class="text-primary mb-2 text-xs font-semibold tracking-wide uppercase">
+				Learning assistant
+			</p>
+			<div class="bg-primary/10 rounded-lg p-4">
+				<!-- Init error: shown when there's no usable session yet -->
+				{#if chatError && pageQAs.length === 0 && !initializing}
 					<div
-						class="border-b transition-colors {focused
-							? 'border-primary'
-							: 'border-border'} pb-1.5"
+						class="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm"
 					>
-						{#if showPlaceholder}
-							{@const errBlocked = !!chatError && pageQAs.length === 0}
-							{@const blocked = loading || initializing || errBlocked}
+						<AlertTriangle class="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+						<div class="min-w-0 flex-1">
+							<p class="font-semibold text-red-800">Couldn't load tutor</p>
+							<p class="text-red-700">{chatError}</p>
 							<button
 								type="button"
-								class="text-muted-foreground flex w-full items-center bg-transparent p-0 text-left text-base disabled:cursor-not-allowed disabled:opacity-50"
-								onclick={activate}
-								disabled={blocked}
+								class="mt-2 inline-flex items-center gap-1.5 rounded-md border border-red-300 bg-white px-2.5 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100"
+								onclick={retryInit}
 							>
-								{loading
-									? 'Loading page...'
-									: initializing
-										? 'Loading tutor session...'
-										: errBlocked
-											? 'Tutor unavailable'
-											: 'Anything unclear? Type a question here'}
-								<span
-									class="bg-primary caret-blink ml-0.5 inline-block h-5 w-0.5 align-middle"
-								></span>
+								<RefreshCw class="h-3 w-3" />
+								Try again
 							</button>
-						{:else}
-							<div class="flex items-center gap-2">
-								<input
-									bind:this={inputRef}
-									bind:value={inputVal}
-									onfocus={() => (focused = true)}
-									onblur={() => {
-										if (!inputVal) setTimeout(() => (focused = false), 150);
-									}}
-									onkeydown={(e) => {
-										if (e.key === 'Enter') {
-											e.preventDefault();
-											handleAsk();
-										}
-									}}
-									placeholder="Type your question..."
-									disabled={inputDisabled}
-									class="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 border-none bg-transparent p-0 text-base outline-none disabled:cursor-not-allowed"
-								/>
-								{#if inputVal.trim()}
-									<button
-										type="button"
-										class="text-primary shrink-0 bg-transparent p-0 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-										disabled={inputDisabled}
-										onclick={handleAsk}
-									>
-										{isStreaming ? '...' : 'Ask ↵'}
-									</button>
-								{/if}
-							</div>
-						{/if}
+						</div>
 					</div>
-				</div>
-			{/if}
+				{/if}
 
-			<!-- Inline answers (newest first) -->
-			{#if pageQAs.length > 0}
-				<div class="space-y-3">
-					{#each pageQAs as qa, i (qa.id)}
-						{@const isNewest = i === 0}
-						{@const open = isExpanded(qa, isNewest)}
-						{@const ts = formatTimestamp(qa.timestamp)}
-						<div class="border-border/60 rounded-xl border">
-							<button
-								type="button"
-								class="hover:bg-muted/30 flex w-full items-start gap-3 rounded-xl bg-transparent p-4 text-left transition-colors"
-								aria-expanded={open}
-								onclick={() => toggleQa(qa, isNewest)}
-							>
-								<div class="min-w-0 flex-1">
-									<div class="mb-1 flex items-center gap-2">
-										<p
-											class="text-primary text-[11px] font-semibold tracking-wide uppercase"
+				<!-- Loading skeleton: first-time history load -->
+				{#if initializing && pageQAs.length === 0}
+					<LearnTutorSkeleton />
+				{/if}
+
+				<!-- Inline prompt -->
+				{#if !initializing && !(chatError && pageQAs.length === 0)}
+					<div class="mb-6">
+						<div
+							class="border-b transition-colors {focused
+								? 'border-primary'
+								: 'border-border'} pb-1.5"
+						>
+							{#if showPlaceholder}
+								{@const errBlocked = !!chatError && pageQAs.length === 0}
+								{@const blocked = loading || initializing || errBlocked}
+								<button
+									type="button"
+									class="text-muted-foreground flex w-full items-center bg-transparent p-0 text-left text-base disabled:cursor-not-allowed disabled:opacity-50"
+									onclick={activate}
+									disabled={blocked}
+								>
+									{loading
+										? 'Loading page...'
+										: initializing
+											? 'Loading tutor session...'
+											: errBlocked
+												? 'Tutor unavailable'
+												: 'Anything unclear? Type a question here'}
+									<span
+										class="bg-primary caret-blink ml-0.5 inline-block h-5 w-0.5 align-middle"
+									></span>
+								</button>
+							{:else}
+								<div class="flex items-center gap-2">
+									<input
+										bind:this={inputRef}
+										bind:value={inputVal}
+										onfocus={() => (focused = true)}
+										onblur={() => {
+											if (!inputVal) setTimeout(() => (focused = false), 150);
+										}}
+										onkeydown={(e) => {
+											if (e.key === 'Enter') {
+												e.preventDefault();
+												handleAsk();
+											}
+										}}
+										placeholder="Type your question..."
+										disabled={inputDisabled}
+										class="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 border-none bg-transparent p-0 text-base outline-none disabled:cursor-not-allowed"
+									/>
+									{#if inputVal.trim()}
+										<button
+											type="button"
+											class="text-primary shrink-0 bg-transparent p-0 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+											disabled={inputDisabled}
+											onclick={handleAsk}
 										>
-											You asked
-										</p>
-										{#if ts}
-											<span class="text-muted-foreground text-[11px]"
-												>· {ts}</span
-											>
-										{/if}
-									</div>
-									<p
-										class="text-foreground text-base font-semibold italic {open
-											? ''
-											: 'truncate'}"
-									>
-										"{qa.question}"
-									</p>
-								</div>
-								<ChevronDown
-									class="text-muted-foreground mt-1 h-4 w-4 shrink-0 transition-transform {open
-										? 'rotate-180'
-										: ''}"
-								/>
-							</button>
-
-							{#if open}
-								<div class="border-border/60 border-t px-4 pt-3 pb-4">
-									<div class="text-foreground/90 text-[15px] leading-relaxed">
-										{#if qa.error && !qa.answer}
-											<div
-												class="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm"
-											>
-												<AlertTriangle
-													class="mt-0.5 h-4 w-4 shrink-0 text-red-600"
-												/>
-												<div class="min-w-0 flex-1">
-													<p class="font-semibold text-red-800">
-														Couldn't get an answer
-													</p>
-													<p class="text-red-700">{qa.error}</p>
-													{#if isNewest}
-														<button
-															type="button"
-															class="mt-2 inline-flex items-center gap-1.5 rounded-md border border-red-300 bg-white px-2.5 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
-															onclick={retryLast}
-															disabled={isStreaming}
-														>
-															<RefreshCw class="h-3 w-3" />
-															Try again
-														</button>
-													{/if}
-												</div>
-											</div>
-										{:else if qa.answer}
-											<MessageWithReferences
-												content={qa.answer}
-												reference={qa.reference}
-											/>
-											{#if qa.streaming}
-												<span
-													class="bg-primary ml-0.5 inline-block h-4 w-1.5 animate-pulse align-middle"
-												></span>
-											{/if}
-										{:else}
-											<span class="inline-flex items-center gap-1">
-												<span
-													class="bg-primary/60 h-1.5 w-1.5 animate-bounce rounded-full"
-												></span>
-												<span
-													class="bg-primary/60 h-1.5 w-1.5 animate-bounce rounded-full"
-													style="animation-delay: 0.15s"
-												></span>
-												<span
-													class="bg-primary/60 h-1.5 w-1.5 animate-bounce rounded-full"
-													style="animation-delay: 0.3s"
-												></span>
-												<span class="text-muted-foreground ml-2 text-xs"
-													>Finding an answer...</span
-												>
-											</span>
-										{/if}
-									</div>
-
-									{#if qa.reference}
-										{@const docs = uniqueDocsFromReference(qa.reference)}
-										{#if docs.length > 0}
-											<div class="mt-3">
-												<p
-													class="text-muted-foreground mb-1.5 text-[11px] font-semibold tracking-wide uppercase"
-												>
-													Sources
-												</p>
-												<div class="flex flex-wrap gap-1.5">
-													{#each docs as chunk (chunk.id)}
-														<button
-															type="button"
-															class="border-border bg-muted/40 hover:bg-primary hover:text-primary-foreground hover:border-primary text-foreground inline-flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium transition-colors"
-															onclick={() => (activeChunk = chunk)}
-														>
-															<FileText class="h-3 w-3 shrink-0" />
-															<span class="truncate"
-																>{chunk.document_name}</span
-															>
-														</button>
-													{/each}
-												</div>
-											</div>
-										{/if}
+											{isStreaming ? '...' : 'Ask ↵'}
+										</button>
 									{/if}
 								</div>
 							{/if}
 						</div>
-					{/each}
-				</div>
-			{/if}
+					</div>
+				{/if}
+
+				<!-- Inline answers (newest first) -->
+				{#if pageQAs.length > 0}
+					<div class="space-y-3">
+						{#each pageQAs as qa, i (qa.id)}
+							{@const isNewest = i === 0}
+							{@const open = isExpanded(qa, isNewest)}
+							{@const ts = formatTimestamp(qa.timestamp)}
+							<div class="border-border/60 rounded-xl border">
+								<button
+									type="button"
+									class="hover:bg-muted/30 flex w-full items-start gap-3 rounded-xl bg-transparent p-4 text-left transition-colors"
+									aria-expanded={open}
+									onclick={() => toggleQa(qa, isNewest)}
+								>
+									<div class="min-w-0 flex-1">
+										<div class="mb-1 flex items-center gap-2">
+											<p
+												class="text-primary text-[11px] font-semibold tracking-wide uppercase"
+											>
+												You asked
+											</p>
+											{#if ts}
+												<span class="text-muted-foreground text-[11px]"
+													>· {ts}</span
+												>
+											{/if}
+										</div>
+										<p
+											class="text-foreground text-base font-semibold italic {open
+												? ''
+												: 'truncate'}"
+										>
+											"{qa.question}"
+										</p>
+									</div>
+									<ChevronDown
+										class="text-muted-foreground mt-1 h-4 w-4 shrink-0 transition-transform {open
+											? 'rotate-180'
+											: ''}"
+									/>
+								</button>
+
+								{#if open}
+									<div class="border-border/60 border-t px-4 pt-3 pb-4">
+										<div class="text-foreground/90 text-[15px] leading-relaxed">
+											{#if qa.error && !qa.answer}
+												<div
+													class="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm"
+												>
+													<AlertTriangle
+														class="mt-0.5 h-4 w-4 shrink-0 text-red-600"
+													/>
+													<div class="min-w-0 flex-1">
+														<p class="font-semibold text-red-800">
+															Couldn't get an answer
+														</p>
+														<p class="text-red-700">{qa.error}</p>
+														{#if isNewest}
+															<button
+																type="button"
+																class="mt-2 inline-flex items-center gap-1.5 rounded-md border border-red-300 bg-white px-2.5 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
+																onclick={retryLast}
+																disabled={isStreaming}
+															>
+																<RefreshCw class="h-3 w-3" />
+																Try again
+															</button>
+														{/if}
+													</div>
+												</div>
+											{:else if qa.answer}
+												<MessageWithReferences
+													content={qa.answer}
+													reference={qa.reference}
+												/>
+												{#if qa.streaming}
+													<span
+														class="bg-primary ml-0.5 inline-block h-4 w-1.5 animate-pulse align-middle"
+													></span>
+												{/if}
+											{:else}
+												<span class="inline-flex items-center gap-1">
+													<span
+														class="bg-primary/60 h-1.5 w-1.5 animate-bounce rounded-full"
+													></span>
+													<span
+														class="bg-primary/60 h-1.5 w-1.5 animate-bounce rounded-full"
+														style="animation-delay: 0.15s"
+													></span>
+													<span
+														class="bg-primary/60 h-1.5 w-1.5 animate-bounce rounded-full"
+														style="animation-delay: 0.3s"
+													></span>
+													<span class="text-muted-foreground ml-2 text-xs"
+														>Finding an answer...</span
+													>
+												</span>
+											{/if}
+										</div>
+
+										{#if qa.reference}
+											{@const docs = uniqueDocsFromReference(qa.reference)}
+											{#if docs.length > 0}
+												<div class="mt-3">
+													<p
+														class="text-muted-foreground mb-1.5 text-[11px] font-semibold tracking-wide uppercase"
+													>
+														Sources
+													</p>
+													<div class="flex flex-wrap gap-1.5">
+														{#each docs as chunk (chunk.id)}
+															<button
+																type="button"
+																class="border-border bg-muted/40 hover:bg-primary hover:text-primary-foreground hover:border-primary text-foreground inline-flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium transition-colors"
+																onclick={() =>
+																	(activeChunk = chunk)}
+															>
+																<FileText
+																	class="h-3 w-3 shrink-0"
+																/>
+																<span class="truncate"
+																	>{chunk.document_name}</span
+																>
+															</button>
+														{/each}
+													</div>
+												</div>
+											{/if}
+										{/if}
+									</div>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
 		{:else}
 			<p
 				class="text-muted-foreground border-border rounded-md border border-dashed p-3 text-center text-xs"
