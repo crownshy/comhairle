@@ -4,8 +4,15 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import QuestionFlow from './QuestionFlow.svelte';
 	import Summary from './Summary.svelte';
-	import { hydrateSummary } from './summary';
-	import type { QuestionConfig, QuestionAnswers, ThinkingSpacePhase } from './types';
+	import { generateNextRound, hydrateRounds } from './summary';
+	import { notifications } from '$lib/notifications.svelte';
+	import type {
+		QuestionConfig,
+		QuestionAnswers,
+		SummaryRound,
+		ThinkingSpacePhase
+	} from './types';
+	import type { FlowMode } from './questionFlowState.svelte';
 
 	type Props = {
 		workflowStepId: string;
@@ -31,7 +38,14 @@
 	let loadError = $state(false);
 	let phase = $state<ThinkingSpacePhase>('questions');
 	let answers = $state<QuestionAnswers[]>([]);
-	let savedSummary = $state<string | null>(null);
+	let savedRounds = $state<SummaryRound[]>([]);
+	let flowMode = $state<FlowMode>('initial');
+	// Snapshot of answer count taken when entering extension mode. If the
+	// participant adds no new follow-ups before completing, we skip the new
+	// summary generation — nothing to summarise.
+	let answerCountAtExtensionStart = $state(0);
+	let generatingNextRound = $state(false);
+	let generationError = $state(false);
 
 	let canContinue = $derived(phase === 'summary');
 
@@ -48,11 +62,17 @@
 		try {
 			answers = await hydrateAnswers();
 			// A returning participant who already finished lands on the summary
-			// step — the agreed final screen for revisits. If they had also
-			// submitted a summary, we render it directly with no AI re-call.
+			// step — the agreed final screen for revisits. If they already have
+			// generated summary rounds, we render them directly with no AI
+			// re-call. If they completed Q&A but no summary exists yet (first
+			// visit after finishing, or backend wasn't reachable last time),
+			// generate the first round now.
 			if (allComplete(answers)) {
 				phase = 'summary';
-				savedSummary = await hydrateSummary({ workflowStepId });
+				savedRounds = await hydrateRounds({ workflowStepId });
+				if (savedRounds.length === 0) {
+					void generateRound(answers);
+				}
 			}
 		} catch (e) {
 			console.error('thinking_space: failed to load saved answers', e);
@@ -84,7 +104,8 @@
 					.map((followUp) => ({
 						id: followUp.id,
 						question: followUp.question,
-						answer: followUp.answer
+						answer: followUp.answer,
+						otherQuestions: followUp.otherQuestions ?? []
 					}))
 			});
 		}
@@ -97,6 +118,74 @@
 			const answer = list.find((questionAnswer) => questionAnswer.questionId === question.id);
 			return !!answer && answer.followUps.length >= followUpRoundsCount;
 		});
+	}
+
+	function totalAnswerCount(list: QuestionAnswers[]): number {
+		return list.reduce((acc, q) => acc + (q.rootAnswer ? 1 : 0) + q.followUps.length, 0);
+	}
+
+	function handleAnswerMore() {
+		flowMode = 'extension';
+		answerCountAtExtensionStart = totalAnswerCount(answers);
+		phase = 'questions';
+	}
+
+	function handleBackFromExtension() {
+		// Participant changed their mind mid-extension. Any follow-ups they
+		// did answer are already persisted; if any new ones were added, mint
+		// a new summary round, otherwise just return to the existing stack.
+		void finishExtension(answers);
+	}
+
+	async function finishExtension(final: QuestionAnswers[]) {
+		const before = answerCountAtExtensionStart;
+		const after = totalAnswerCount(final);
+		answers = final;
+		flowMode = 'initial';
+		// Flip back to summary immediately so the participant sees their stack
+		// of existing rounds while the new one is generating. Summary renders
+		// a loading skeleton below the stack while pendingNextRound is true.
+		phase = 'summary';
+		if (after <= before) return;
+		await generateRound(final);
+	}
+
+	async function generateRound(forAnswers: QuestionAnswers[]) {
+		generatingNextRound = true;
+		generationError = false;
+		try {
+			const round = await generateNextRound({
+				workflowStepId,
+				topic,
+				questions: rootQuestions,
+				answers: forAnswers
+			});
+			savedRounds = [...savedRounds, round];
+		} catch (e) {
+			console.error('thinking_space: failed to generate summary round', e);
+			generationError = true;
+			notifications.send({
+				message: 'Could not generate your summary. Please try again.',
+				priority: 'ERROR'
+			});
+		} finally {
+			generatingNextRound = false;
+		}
+	}
+
+	function handleRetryGenerate() {
+		void generateRound(answers);
+	}
+
+	function handleQuestionFlowComplete(final: QuestionAnswers[]) {
+		if (flowMode === 'extension') {
+			void finishExtension(final);
+			return;
+		}
+		answers = final;
+		// Initial-mode completion: mint the first summary round, then show it.
+		phase = 'summary';
+		void generateRound(final);
 	}
 </script>
 
@@ -129,10 +218,9 @@
 				questions={rootQuestions}
 				followUpCount={followUpRoundsCount}
 				initialAnswers={answers}
-				onComplete={(final) => {
-					answers = final;
-					phase = 'summary';
-				}}
+				mode={flowMode}
+				onComplete={handleQuestionFlowComplete}
+				onBack={flowMode === 'extension' ? handleBackFromExtension : undefined}
 			/>
 		{:else if phase === 'summary'}
 			<Summary
@@ -140,8 +228,12 @@
 				{workflowStepId}
 				questions={rootQuestions}
 				{answers}
-				initialSummary={savedSummary}
+				rounds={savedRounds}
+				pendingNextRound={generatingNextRound}
+				loadError={generationError}
+				onRetryGenerate={handleRetryGenerate}
 				{onDone}
+				onAnswerMore={handleAnswerMore}
 			/>
 		{/if}
 	</div>

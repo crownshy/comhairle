@@ -3,9 +3,16 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Progress } from '$lib/components/ui/progress';
-	import { CornerDownRight, Shuffle, Check, RotateCcw, ChevronLeft } from 'lucide-svelte';
+	import {
+		CornerDownRight,
+		Shuffle,
+		Check,
+		RotateCcw,
+		ChevronLeft,
+		ArrowLeft
+	} from 'lucide-svelte';
 	import type { QuestionConfig, QuestionAnswers } from './types';
-	import { QuestionFlowState } from './questionFlowState.svelte';
+	import { QuestionFlowState, type FlowMode } from './questionFlowState.svelte';
 	import FollowUpLoading from './FollowUpLoading.svelte';
 
 	type Props = {
@@ -14,7 +21,16 @@
 		questions: QuestionConfig[];
 		followUpCount: number;
 		initialAnswers?: QuestionAnswers[];
+		mode?: FlowMode;
 		onComplete: (answers: QuestionAnswers[]) => void;
+		/**
+		 * Back-out affordance, currently only used in extension mode so the
+		 * participant can return to the summary screen without finishing the
+		 * full second pass. Any follow-ups they've already submitted are
+		 * persisted; the parent decides whether to generate a new round based
+		 * on whether new answers were actually added.
+		 */
+		onBack?: () => void;
 	};
 
 	let {
@@ -23,7 +39,9 @@
 		questions,
 		followUpCount,
 		initialAnswers = [],
-		onComplete
+		mode = 'initial',
+		onComplete,
+		onBack
 	}: Props = $props();
 
 	const flow = new QuestionFlowState({
@@ -31,7 +49,8 @@
 		followUpCount,
 		workflowStepId,
 		initialAnswers,
-		onComplete
+		onComplete,
+		mode
 	});
 
 	let bottomEl = $state<HTMLDivElement | null>(null);
@@ -96,14 +115,32 @@
 	<!-- Header / progress -->
 	<div class="border-border bg-card/60 border-b px-6 py-4 backdrop-blur">
 		<div class="mx-auto max-w-2xl">
-			<div class="text-muted-foreground mb-2 flex items-center justify-end text-xs">
+			<div class="text-muted-foreground mb-2 flex items-center justify-between gap-3 text-xs">
+				{#if onBack}
+					<button
+						type="button"
+						onclick={() => onBack?.()}
+						class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors"
+					>
+						<ArrowLeft class="size-3.5" />
+						Back to summary
+					</button>
+				{:else}
+					<span></span>
+				{/if}
 				<span>
-					Question {flow.currentQuestionIndex + 1} of {questions.length} · {Math.round(
-						flow.progress
-					)}%
+					{#if flow.mode === 'extension'}
+						Adding to question {flow.currentQuestionIndex + 1} of {questions.length}
+					{:else}
+						Question {flow.currentQuestionIndex + 1} of {questions.length} · {Math.round(
+							flow.progress
+						)}%
+					{/if}
 				</span>
 			</div>
-			<Progress value={flow.progress} class="h-1.5" />
+			{#if flow.mode !== 'extension'}
+				<Progress value={flow.progress} class="h-1.5" />
+			{/if}
 		</div>
 	</div>
 

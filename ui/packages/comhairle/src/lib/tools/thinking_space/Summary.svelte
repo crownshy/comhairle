@@ -5,8 +5,8 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { Sparkles, RotateCcw, Check, CornerDownRight, PlusCircle } from 'lucide-svelte';
 	import { notifications } from '$lib/notifications.svelte';
-	import { fetchSummary, saveSummary } from './summary';
-	import type { QuestionConfig, QuestionAnswers } from './types';
+	import { saveRound } from './summary';
+	import type { QuestionConfig, QuestionAnswers, SummaryRound } from './types';
 
 	type Props = {
 		topic: string;
@@ -14,26 +14,46 @@
 		questions: QuestionConfig[];
 		answers: QuestionAnswers[];
 		/**
-		 * Previously submitted summary, if any. When provided, the screen
-		 * renders it directly, no AI re-call on revisit.
+		 * All summary rounds for this participant. The parent owns generation
+		 * and appends to this array; Summary is a pure renderer over it.
 		 */
-		initialSummary?: string | null;
+		rounds: SummaryRound[];
+		/**
+		 * True while the parent is generating a round (initial or extension).
+		 * Shows the loading skeleton below the existing stack.
+		 */
+		pendingNextRound?: boolean;
+		/**
+		 * True if the last generation attempt failed. Renders a Try again
+		 * button alongside the existing stack (or instead of it, on first-gen
+		 * failure).
+		 */
+		loadError?: boolean;
+		/** Retry the last failed generation. Required when `loadError` is true. */
+		onRetryGenerate?: () => void;
+		/** Fired when the participant submits the latest round. */
 		onDone?: () => void;
+		/** Fired when the participant clicks "I want to answer more questions". */
+		onAnswerMore?: () => void;
 	};
 
 	let {
 		topic,
-		workflowStepId,
 		questions,
 		answers,
-		initialSummary = null,
-		onDone
+		workflowStepId,
+		rounds,
+		pendingNextRound = false,
+		loadError = false,
+		onRetryGenerate,
+		onDone,
+		onAnswerMore
 	}: Props = $props();
 
-	let loading = $state(initialSummary === null);
-	let loadError = $state(false);
 	let submitting = $state(false);
-	let summary = $state(initialSummary ?? '');
+	// Per-round edit drafts (by id). Edits to any round autosave on blur.
+	let dirtyById = $state<Record<string, string>>({});
+	let savingById = $state<Record<string, boolean>>({});
 
 	const loadingMessages = [
 		'Drawing your thoughts together…',
@@ -50,7 +70,6 @@
 	let fading = $state(false);
 
 	onMount(() => {
-		if (initialSummary === null) void load();
 		const interval = setInterval(() => {
 			fading = true;
 			setTimeout(() => {
@@ -61,25 +80,52 @@
 		return () => clearInterval(interval);
 	});
 
-	async function load() {
-		loading = true;
-		loadError = false;
+	function editRound(id: string, value: string) {
+		dirtyById = { ...dirtyById, [id]: value };
+	}
+
+	async function persistEdit(id: string) {
+		const draft = dirtyById[id];
+		if (draft === undefined) return;
+		const trimmed = draft.trim();
+		if (!trimmed) return;
+		savingById = { ...savingById, [id]: true };
 		try {
-			summary = await fetchSummary({ workflowStepId, topic, questions, answers });
+			await saveRound({ workflowStepId, roundId: id, submittedText: trimmed });
+			// Note: we don't mutate `rounds` here — the parent is the source of
+			// truth. The dirty draft equals what we just persisted, so dropping
+			// the entry is enough to fall back to the parent's value on next
+			// render (which will be identical).
+			const { [id]: _, ...rest } = dirtyById;
+			dirtyById = rest;
 		} catch (e) {
 			console.error(e);
-			loadError = true;
+			notifications.send({
+				message: 'Could not save your edit. Please try again.',
+				priority: 'ERROR'
+			});
 		} finally {
-			loading = false;
+			const { [id]: _, ...rest } = savingById;
+			savingById = rest;
 		}
 	}
 
+	function valueFor(round: SummaryRound): string {
+		return dirtyById[round.id] ?? round.submittedText;
+	}
+
 	async function submit() {
-		const value = summary.trim();
+		const latest = rounds[rounds.length - 1];
+		if (!latest) return;
+		const value = valueFor(latest).trim();
 		if (!value || submitting) return;
 		submitting = true;
 		try {
-			await saveSummary({ workflowStepId, summary: value });
+			if (dirtyById[latest.id] !== undefined) {
+				await saveRound({ workflowStepId, roundId: latest.id, submittedText: value });
+				const { [latest.id]: _, ...rest } = dirtyById;
+				dirtyById = rest;
+			}
 			onDone?.();
 		} catch (e) {
 			console.error(e);
@@ -92,17 +138,18 @@
 		}
 	}
 
-	function answerMore() {
-		// TODO: wire up once the "answer more" pool / flow is finalised with the team.
-		notifications.send({
-			message: 'Answering more questions is coming soon.',
-			priority: 'INFO'
-		});
+	function roundLabel(index: number, total: number): string {
+		if (total <= 1) return "Drafted from your answers — edit anything that doesn't sound right";
+		if (index === total - 1) return `Round ${index + 1} — your latest statement`;
+		return `Round ${index + 1}`;
 	}
+
+	let showFirstGenError = $derived(loadError && rounds.length === 0 && !pendingNextRound);
+	let showRetryInline = $derived(loadError && rounds.length > 0 && !pendingNextRound);
 </script>
 
 <div class="mx-auto w-full max-w-2xl px-6 py-10">
-	<!-- <header class="mb-8 text-center">
+	<header class="mb-8 text-center">
 		{#if topic}
 			<p class="text-muted-foreground text-xs font-medium tracking-wide uppercase">
 				{topic}
@@ -113,9 +160,9 @@
 			Here's everything you shared, and a short statement we've drafted from it. Edit the
 			statement so it sounds like you — that's what you'll submit.
 		</p>
-	</header> -->
+	</header>
 
-	<!-- Answers recap first: the source material for the summary below. -->
+	<!-- Answers recap: read-only source material for the summaries below. -->
 	<section>
 		<h3 class="text-foreground text-lg font-semibold">Your answers</h3>
 		<p class="text-muted-foreground mt-1 mb-6 text-sm">A recap of what you shared.</p>
@@ -150,17 +197,32 @@
 		</div>
 	</section>
 
-	<!-- Summary: the editable artifact submitted as the participant's position statement. -->
-	<section class="mt-12 space-y-4">
-		<div class="flex items-center gap-2">
-			<Sparkles class="text-primary size-4 shrink-0" />
-			<p class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-				Drafted from your answers — edit anything that doesn't sound right
-			</p>
-		</div>
+	<!-- Summary stack: one editable textarea per round. -->
+	<section class="mt-12 space-y-8">
+		{#each rounds as round, i (round.id)}
+			<div class="space-y-3">
+				<div class="flex items-center gap-2">
+					<Sparkles class="text-primary size-4 shrink-0" />
+					<p class="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+						{roundLabel(i, rounds.length)}
+					</p>
+					{#if savingById[round.id]}
+						<span class="text-muted-foreground text-xs">Saving…</span>
+					{/if}
+				</div>
+				<Textarea
+					value={valueFor(round)}
+					oninput={(e) => editRound(round.id, e.currentTarget.value)}
+					onblur={() => persistEdit(round.id)}
+					rows={10}
+					class="text-base leading-relaxed"
+					placeholder="Your statement…"
+				/>
+			</div>
+		{/each}
 
-		{#if loading}
-			<div class="space-y-4">
+		{#if pendingNextRound}
+			<div class="space-y-3">
 				<div class="flex items-start gap-2">
 					<Sparkles class="text-primary mt-0.5 size-4 shrink-0 animate-pulse" />
 					<p
@@ -186,28 +248,52 @@
 					{/each}
 				</div>
 			</div>
-		{:else if loadError}
+		{/if}
+
+		{#if showFirstGenError}
 			<div class="space-y-3 text-center">
 				<p class="text-muted-foreground text-sm">
 					Couldn't generate your summary. Please try again.
 				</p>
 				<div class="flex justify-center">
-					<Button variant="outline" size="sm" onclick={load}>
+					<Button
+						variant="outline"
+						size="sm"
+						onclick={() => onRetryGenerate?.()}
+						disabled={!onRetryGenerate}
+					>
 						<RotateCcw class="size-3.5" />
 						Try again
 					</Button>
 				</div>
 			</div>
-		{:else}
-			<Textarea
-				bind:value={summary}
-				rows={12}
-				class="text-base leading-relaxed"
-				placeholder="Your statement…"
-			/>
-
+		{:else if !pendingNextRound && rounds.length > 0}
+			{#if showRetryInline}
+				<div
+					class="border-border flex items-center justify-between gap-3 rounded-lg border px-4 py-3"
+				>
+					<p class="text-muted-foreground text-sm">
+						Couldn't generate the new summary round.
+					</p>
+					<Button
+						variant="outline"
+						size="sm"
+						onclick={() => onRetryGenerate?.()}
+						disabled={!onRetryGenerate}
+					>
+						<RotateCcw class="size-3.5" />
+						Try again
+					</Button>
+				</div>
+			{/if}
 			<div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
-				<Button variant="outline" size="lg" class="w-full sm:w-auto" onclick={answerMore}>
+				<Button
+					variant="outline"
+					size="lg"
+					class="w-full sm:w-auto"
+					onclick={onAnswerMore}
+					disabled={!onAnswerMore}
+				>
 					<PlusCircle class="size-4" />
 					I want to answer more questions
 				</Button>
@@ -215,7 +301,7 @@
 					size="lg"
 					class="w-full sm:w-auto"
 					onclick={submit}
-					disabled={!summary.trim() || submitting}
+					disabled={!valueFor(rounds[rounds.length - 1]).trim() || submitting}
 				>
 					<Check class="size-4" />
 					{submitting ? 'Saving...' : 'Confirm & Save'}

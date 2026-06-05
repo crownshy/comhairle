@@ -23,12 +23,24 @@ export type LocalQuestionState = {
 	wantsMore: boolean;
 };
 
+/**
+ * 'initial' — the participant's first pass through Thinking Space. Each root
+ *   question must be answered, then `followUpCount` follow-ups picked. Picker
+ *   is populated by a RAGFlow call.
+ * 'extension' — the participant returned via "answer more questions". Every
+ *   root question is already answered (followUps may extend), and the picker
+ *   pool is seeded from the `otherQuestions` stored on existing follow-ups
+ *   before falling back to RAGFlow.
+ */
+export type FlowMode = 'initial' | 'extension';
+
 type Init = {
 	questions: QuestionConfig[];
 	followUpCount: number;
 	workflowStepId: string;
 	initialAnswers: QuestionAnswers[];
 	onComplete: (answers: QuestionAnswers[]) => void;
+	mode?: FlowMode;
 };
 
 /**
@@ -41,6 +53,7 @@ export class QuestionFlowState {
 	readonly questions: QuestionConfig[];
 	readonly followUpCount: number;
 	readonly workflowStepId: string;
+	readonly mode: FlowMode;
 	private readonly onComplete: (answers: QuestionAnswers[]) => void;
 
 	states = $state<LocalQuestionState[]>([]);
@@ -52,6 +65,7 @@ export class QuestionFlowState {
 		this.questions = init.questions;
 		this.followUpCount = init.followUpCount;
 		this.workflowStepId = init.workflowStepId;
+		this.mode = init.mode ?? 'initial';
 		this.onComplete = init.onComplete;
 
 		this.states = init.questions.map((_, i) => this.initialStateFor(i, init.initialAnswers));
@@ -97,8 +111,11 @@ export class QuestionFlowState {
 	}
 
 	// Resume on the first question not yet answered, or whose follow-up minimum
-	// hasn't been reached. If everything is complete, land on the last question.
+	// hasn't been reached. If everything is complete, land on the last question
+	// (initial mode) or restart from question 1 (extension mode — every root is
+	// already answered and we want a full second pass).
 	private resumeIndex(initialAnswers: QuestionAnswers[]): number {
+		if (this.mode === 'extension') return 0;
 		for (let i = 0; i < this.questions.length; i++) {
 			const stored = initialAnswers.find(
 				(answer) => answer.questionId === this.questions[i].id
@@ -107,6 +124,27 @@ export class QuestionFlowState {
 			if (stored.followUps.length < this.followUpCount) return i;
 		}
 		return Math.max(0, this.questions.length - 1);
+	}
+
+	/**
+	 * Build the picker pool from `otherQuestions` already saved on the
+	 * question's follow-ups. Latest follow-up's alternatives are surfaced
+	 * first; duplicates and already-asked questions are dropped. Returns []
+	 * when nothing usable is stored — caller should fall back to RAGFlow.
+	 */
+	private derivePickerPool(questionIndex: number): string[] {
+		const state = this.states[questionIndex];
+		const asked = new Set(state.followUps.map((followUp) => followUp.question));
+		const seen = new Set<string>();
+		const pool: string[] = [];
+		for (let i = state.followUps.length - 1; i >= 0; i--) {
+			for (const candidate of state.followUps[i].otherQuestions ?? []) {
+				if (asked.has(candidate) || seen.has(candidate)) continue;
+				seen.add(candidate);
+				pool.push(candidate);
+			}
+		}
+		return pool;
 	}
 
 	get currentState(): LocalQuestionState {
@@ -202,6 +240,22 @@ export class QuestionFlowState {
 	}
 
 	async loadPicker(questionIndex: number) {
+		// Extension mode: prefer the stored `otherQuestions` pool before
+		// spending a RAGFlow call. Only fall back to the agent when the pool
+		// is exhausted (no unused alternatives left).
+		if (this.mode === 'extension') {
+			const pool = this.derivePickerPool(questionIndex);
+			if (pool.length > 0) {
+				this.states[questionIndex] = {
+					...this.states[questionIndex],
+					picker: pool,
+					pickerLoading: false,
+					pickerError: false
+				};
+				return;
+			}
+		}
+
 		this.states[questionIndex] = {
 			...this.states[questionIndex],
 			pickerLoading: true,
@@ -320,7 +374,11 @@ export class QuestionFlowState {
 			const followUp: FollowUpAnswer = {
 				id: saved.id,
 				question: this.currentState.currentPick,
-				answer: value
+				answer: value,
+				// Remaining pool at the moment of submit — alternatives the
+				// participant didn't choose. Seeds the extension-mode picker
+				// on a future "answer more" visit.
+				otherQuestions: this.currentState.picker
 			};
 			// Always refetch the picker and stay in 'picking'. The participant
 			// chooses when to move on via the Continue button (revealed once

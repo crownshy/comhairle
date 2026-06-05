@@ -1,62 +1,86 @@
 /**
- * MOCK — placeholder until the backend summary endpoint exists.
+ * Thinking Space summary client. Wraps the backend summary endpoints (built on
+ * branch 431/thinking-space-summary, merged in) and adapts the DTO into the
+ * frontend's `SummaryRound` shape.
  *
- * The real implementation will POST to something like
- * `/api/tools/thinking_space/summary` with the workflow step id and the full
- * Q&A history, and stream back a coherent 2nd-person paragraph from a
- * dedicated RAGFlow agent. See THINKING_SPACE_SUMMARY.md for the open
- * backend questions.
+ * Endpoints:
+ *   - POST /tools/thinking_space/summaries/generate  (creates an AI-drafted row)
+ *   - POST /tools/thinking_space/summaries           (upsert: edit if summary_id, else create)
+ *   - GET  /tools/thinking_space/summaries           (list by workflow_step_id)
+ *
+ * See documentation/adr/0002-thinking-space-summary-storage.md.
+ *
+ * Known gaps in the current DTO that this file works around:
+ *   - `createdAt` is not exposed, so `SummaryRound.createdAt` is best-effort
+ *     (real time on freshly generated rounds; epoch placeholder on hydration).
+ *     Order is taken from list response order.
+ *   - The backend stores a single `summary` column, so the original AI draft
+ *     is overwritten when the participant submits an edit. After hydration
+ *     `aiDraft` and `submittedText` are necessarily the same.
  */
 
-import type { QuestionConfig, QuestionAnswers } from './types';
+import { apiClient } from '@crownshy/api-client/client';
 
-export interface FetchSummaryParams {
+import type { QuestionConfig, QuestionAnswers, SummaryRound } from './types';
+
+export interface GenerateRoundParams {
 	workflowStepId: string;
-	topic: string;
-	questions: QuestionConfig[];
-	answers: QuestionAnswers[];
+	// The backend reads topic/questions/answers from the DB; these fields are
+	// kept on the interface so callers can pass what they already have without
+	// the type complaining.
+	topic?: string;
+	questions?: QuestionConfig[];
+	answers?: QuestionAnswers[];
 }
 
-const MOCK_DELAY_MS = 1500;
-
-const MOCK_SUMMARY = `You believe this topic genuinely matters and that the way it is handled has real consequences for people in your community. Across your answers, a clear thread runs through what you shared: you care about the practical impact, not just the principle.
-
-You feel strongly that the people most affected should have more of a say, and you are uncertain about some of the trade-offs — particularly around where resources should go and who decides. You would welcome the chance to hear from others with direct experience before settling firmly on a position.
-
-Going into the deliberation, you want to keep an open mind on the details while holding on to the values you have surfaced here.`;
-
-export async function fetchSummary(_params: FetchSummaryParams): Promise<string> {
-	// TODO: replace with real endpoint. See THINKING_SPACE_SUMMARY.md.
-	await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY_MS));
-	return MOCK_SUMMARY;
-}
-
-export async function saveSummary(params: {
-	workflowStepId: string;
+interface SummaryDto {
+	id: string;
 	summary: string;
+	isAiGenerated: boolean;
+	workflowStepId: string;
+	userId: string;
+}
+
+function dtoToRound(dto: SummaryDto): SummaryRound {
+	return {
+		id: dto.id,
+		aiDraft: dto.summary,
+		submittedText: dto.summary,
+		createdAt: new Date().toISOString()
+	};
+}
+
+export async function generateNextRound(params: GenerateRoundParams): Promise<SummaryRound> {
+	const dto = await apiClient.GenerateThinkingSpaceSummary({
+		workflow_step_id: params.workflowStepId
+	});
+	return dtoToRound(dto as SummaryDto);
+}
+
+export async function saveRound(params: {
+	workflowStepId: string;
+	roundId: string;
+	submittedText: string;
 }): Promise<void> {
-	// TODO: replace with real endpoint. See THINKING_SPACE_SUMMARY.md.
-	// Demo-only: persist to localStorage so revisits can hydrate without a
-	// backend round-trip and skip the AI generation step.
-	await new Promise((resolve) => setTimeout(resolve, 300));
-	if (typeof localStorage === 'undefined') return;
-	localStorage.setItem(storageKey(params.workflowStepId), params.summary);
+	await apiClient.UpdateOrCreateThinkingSpaceSummary({
+		workflow_step_id: params.workflowStepId,
+		summary_id: params.roundId,
+		summary: params.submittedText
+	});
 }
 
-/**
- * Hydrate a previously submitted summary on revisit. Returns null when none
- * has been saved yet (first visit, or backend endpoint not yet wired up).
- *
- * When this returns a string, the Summary screen should render it directly
- * without calling the AI generation endpoint again.
- */
-export async function hydrateSummary(params: { workflowStepId: string }): Promise<string | null> {
-	// TODO: replace with real GET endpoint. See THINKING_SPACE_SUMMARY.md.
-	// Demo-only: read from localStorage (paired with saveSummary above).
-	if (typeof localStorage === 'undefined') return null;
-	return localStorage.getItem(storageKey(params.workflowStepId));
-}
+export async function hydrateRounds(params: { workflowStepId: string }): Promise<SummaryRound[]> {
+	const dtos = (await apiClient.ListThinkingSpaceSummaries({
+		queries: { workflow_step_id: params.workflowStepId }
+	})) as SummaryDto[];
 
-function storageKey(workflowStepId: string): string {
-	return `thinking_space:summary:${workflowStepId}`;
+	// Backend does not return a timestamp on the DTO yet, so trust list order
+	// (insertion order in practice). Stamp a fixed placeholder for createdAt;
+	// the field is unused for ordering here.
+	return dtos.map((dto) => ({
+		id: dto.id,
+		aiDraft: dto.summary,
+		submittedText: dto.summary,
+		createdAt: new Date(0).toISOString()
+	}));
 }
