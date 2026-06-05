@@ -247,6 +247,22 @@ export class QuestionFlowState {
 				pickerLoading: false,
 				pickerError: picker.length === 0
 			};
+			// Persist this round of generated follow-ups so the backend has the
+			// audit trail required to resume a participant later. Fire-and-forget:
+			// failure must not block the picker UI. Skips when the root answer id
+			// is missing (shouldn't happen post-root-submit, but defensive).
+			const rootAnswerId = this.states[questionIndex].rootAnswerId;
+			if (rootAnswerId && picker.length > 0) {
+				apiClient
+					.CreateThinkingSpaceFollowUpQuestions({
+						workflow_step_id: this.workflowStepId,
+						root_question_id: rootAnswerId,
+						follow_up_questions: picker
+					})
+					.catch((err) => {
+						console.error('Failed to persist follow-up questions', err);
+					});
+			}
 		} catch (e) {
 			console.error(e);
 			this.states[questionIndex] = {
