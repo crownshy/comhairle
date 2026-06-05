@@ -28,6 +28,10 @@ use crate::{
             self, AnswerStatus, CreateAnswer, ThinkingSpaceAnswer,
             ThinkingSpaceAnswerFilterOptions, UpdateAnswer,
         },
+        thinking_space_follow_up_question::{
+            self, CreateFollowUpQuestions, ThinkingSpaceFollowUpQuestion,
+            ThinkingSpaceFollowUpQuestionFilterOptions, UpdateFollowUpQuestions,
+        },
         thinking_space_summary::{
             self, CreateSummary, ThinkingSpaceSummary, ThinkingSpaceSummaryFilterOptions,
             UpdateSummary,
@@ -206,6 +210,36 @@ Use a raw HTTP request and process the response body incrementally.
                         .response::<200, Json<Vec<ThinkingSpaceSummaryDto>>>()
                 }),
             )
+            .api_route(
+                "/thinking_space/follow_ups",
+                post_with(create_thinking_space_follow_up_questions, |op| {
+                    op.id("CreateThinkingSpaceFollowUpQuestions")
+                        .summary("Create thinking space follow up questions")
+                        .description("Create thinking space follow up questions")
+                        .security_requirement("JWT")
+                        .response::<201, Json<ThinkingSpaceFollowUpQuestionDto>>()
+                }),
+            )
+            .api_route(
+                "/thinking_space/follow_ups/{follow_up_id}",
+                put_with(update_thinking_space_follow_up_questions, |op| {
+                    op.id("UpdateThinkingSpaceFollowUpQuestions")
+                        .summary("Update thinking space follow up questions")
+                        .description("Update thinking space follow up questions")
+                        .security_requirement("JWT")
+                        .response::<200, Json<ThinkingSpaceFollowUpQuestionDto>>()
+                }),
+            )
+            .api_route(
+                "/thinking_space/follow_ups",
+                get_with(list_thinking_space_follow_up_questions, |op| {
+                    op.id("ListThinkingSpaceFollowUpQuestions")
+                        .summary("List thinking space follow up questions")
+                        .description("List thinking space follow up questions")
+                        .security_requirement("JWT")
+                        .response::<200, Json<Vec<ThinkingSpaceFollowUpQuestionDto>>>()
+                }),
+            )
             .with_state(state.clone())
     }
 }
@@ -271,6 +305,28 @@ impl From<ThinkingSpaceSummary> for ThinkingSpaceSummaryDto {
             user_id: s.user_id,
             summary: s.summary,
             is_ai_generated: s.is_ai_generated,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ThinkingSpaceFollowUpQuestionDto {
+    pub id: Uuid,
+    pub workflow_step_id: Uuid,
+    pub user_id: Uuid,
+    pub root_question_id: Uuid,
+    pub follow_up_questions: Vec<String>,
+}
+
+impl From<ThinkingSpaceFollowUpQuestion> for ThinkingSpaceFollowUpQuestionDto {
+    fn from(f: ThinkingSpaceFollowUpQuestion) -> Self {
+        Self {
+            id: f.id,
+            workflow_step_id: f.workflow_step_id,
+            user_id: f.user_id,
+            root_question_id: f.root_question_id,
+            follow_up_questions: f.follow_up_questions,
         }
     }
 }
@@ -523,7 +579,7 @@ async fn generate_thinking_space_summary(
 }
 
 #[derive(Deserialize, JsonSchema, Debug)]
-struct ThinkingSpaceSummaryQuery {
+struct ThinkingSpaceQuery {
     workflow_step_id: Uuid,
 }
 
@@ -531,7 +587,7 @@ struct ThinkingSpaceSummaryQuery {
 async fn get_thinkin_space_summary(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Query(ThinkingSpaceSummaryQuery { workflow_step_id }): Query<ThinkingSpaceSummaryQuery>,
+    Query(ThinkingSpaceQuery { workflow_step_id }): Query<ThinkingSpaceQuery>,
     Path(summary_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<ThinkingSpaceSummaryDto>), ComhairleError> {
     let summary = thinking_space_summary::get_by_id(&state.db, summary_id).await?;
@@ -585,7 +641,7 @@ async fn list_thinking_space_summaries(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Query(filter_options): Query<ThinkingSpaceSummaryFilterOptions>,
-    Query(ThinkingSpaceSummaryQuery { workflow_step_id }): Query<ThinkingSpaceSummaryQuery>,
+    Query(ThinkingSpaceQuery { workflow_step_id }): Query<ThinkingSpaceQuery>,
 ) -> Result<(StatusCode, Json<Vec<ThinkingSpaceSummaryDto>>), ComhairleError> {
     let summaries = thinking_space_summary::list(&state.db, &workflow_step_id, filter_options)
         .await?
@@ -594,6 +650,48 @@ async fn list_thinking_space_summaries(
         .collect();
 
     Ok((StatusCode::OK, Json(summaries)))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn create_thinking_space_follow_up_questions(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Json(payload): Json<CreateFollowUpQuestions>,
+) -> Result<(StatusCode, Json<ThinkingSpaceFollowUpQuestionDto>), ComhairleError> {
+    let follow_ups =
+        thinking_space_follow_up_question::create(&state.db, user.id, &payload).await?;
+
+    Ok((StatusCode::CREATED, Json(follow_ups.into())))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn update_thinking_space_follow_up_questions(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path(follow_up_id): Path<Uuid>,
+    Json(payload): Json<UpdateFollowUpQuestions>,
+) -> Result<(StatusCode, Json<ThinkingSpaceFollowUpQuestionDto>), ComhairleError> {
+    let follow_ups =
+        thinking_space_follow_up_question::update(&state.db, follow_up_id, &payload).await?;
+
+    Ok((StatusCode::OK, Json(follow_ups.into())))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn list_thinking_space_follow_up_questions(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Query(ThinkingSpaceQuery { workflow_step_id }): Query<ThinkingSpaceQuery>,
+    Query(filter_options): Query<ThinkingSpaceFollowUpQuestionFilterOptions>,
+) -> Result<(StatusCode, Json<Vec<ThinkingSpaceFollowUpQuestionDto>>), ComhairleError> {
+    let follow_ups =
+        thinking_space_follow_up_question::list(&state.db, &workflow_step_id, filter_options)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect();
+
+    Ok((StatusCode::OK, Json(follow_ups)))
 }
 
 #[cfg(test)]

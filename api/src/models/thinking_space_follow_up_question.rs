@@ -35,6 +35,7 @@ const DEFAULT_COLUMNS: [ThinkingSpaceFollowUpQuestionIden; 7] = [
 pub struct CreateFollowUpQuestions {
     pub root_question_id: Uuid,
     pub follow_up_questions: Vec<String>,
+    pub workflow_step_id: Uuid,
 }
 
 impl CreateFollowUpQuestions {
@@ -42,6 +43,7 @@ impl CreateFollowUpQuestions {
         vec![
             ThinkingSpaceFollowUpQuestionIden::RootQuestionId,
             ThinkingSpaceFollowUpQuestionIden::FollowUpQuestions,
+            ThinkingSpaceFollowUpQuestionIden::WorkflowStepId,
         ]
     }
 
@@ -49,6 +51,7 @@ impl CreateFollowUpQuestions {
         vec![
             self.root_question_id.into(),
             self.follow_up_questions.clone().into(),
+            self.workflow_step_id.into(),
         ]
     }
 }
@@ -57,7 +60,6 @@ impl CreateFollowUpQuestions {
 pub async fn create(
     db: &PgPool,
     user_id: Uuid,
-    workflow_step_id: Uuid,
     create_follow_ups: &CreateFollowUpQuestions,
 ) -> Result<ThinkingSpaceFollowUpQuestion, ComhairleError> {
     let mut columns = create_follow_ups.columns();
@@ -65,8 +67,6 @@ pub async fn create(
 
     columns.push(ThinkingSpaceFollowUpQuestionIden::UserId);
     values.push(user_id.into());
-    columns.push(ThinkingSpaceFollowUpQuestionIden::WorkflowStepId);
-    values.push(workflow_step_id.into());
 
     let (sql, values) = Query::insert()
         .into_table(ThinkingSpaceFollowUpQuestionIden::Table)
@@ -135,6 +135,7 @@ pub async fn get_by_id(
 #[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct ThinkingSpaceFollowUpQuestionFilterOptions {
     user_id: Option<Uuid>,
+    root_question_id: Option<Uuid>,
 }
 
 impl ThinkingSpaceFollowUpQuestionFilterOptions {
@@ -145,6 +146,17 @@ impl ThinkingSpaceFollowUpQuestionFilterOptions {
                     Expr::col((
                         ThinkingSpaceFollowUpQuestionIden::Table,
                         ThinkingSpaceFollowUpQuestionIden::UserId,
+                    ))
+                    .eq(value),
+                )
+                .to_owned();
+        }
+        if let Some(value) = self.root_question_id {
+            query = query
+                .and_where(
+                    Expr::col((
+                        ThinkingSpaceFollowUpQuestionIden::Table,
+                        ThinkingSpaceFollowUpQuestionIden::RootQuestionId,
                     ))
                     .eq(value),
                 )
@@ -263,9 +275,10 @@ mod tests {
                 "A follow up question".to_string(),
                 "Another follow up question".to_string(),
             ],
+            workflow_step_id,
         };
 
-        let follow_ups = create(&pool, user_id, workflow_step_id, &create_follow_ups).await?;
+        let follow_ups = create(&pool, user_id, &create_follow_ups).await?;
 
         assert_eq!(
             follow_ups.root_question_id,
@@ -292,9 +305,10 @@ mod tests {
                 "A follow up question".to_string(),
                 "Another follow up question".to_string(),
             ],
+            workflow_step_id,
         };
 
-        let follow_ups = create(&pool, user_id, workflow_step_id, &create_follow_ups).await?;
+        let follow_ups = create(&pool, user_id, &create_follow_ups).await?;
 
         let update_follow_ups = UpdateFollowUpQuestions {
             follow_up_questions: vec![
@@ -328,10 +342,10 @@ mod tests {
                 "A follow up question".to_string(),
                 "Another follow up question".to_string(),
             ],
+            workflow_step_id,
         };
 
-        let created_follow_ups =
-            create(&pool, user_id, workflow_step_id, &create_follow_ups).await?;
+        let created_follow_ups = create(&pool, user_id, &create_follow_ups).await?;
 
         let follow_ups = get_by_id(&pool, created_follow_ups.id).await?;
 
@@ -355,8 +369,9 @@ mod tests {
                 "A follow up question".to_string(),
                 "Another follow up question".to_string(),
             ],
+            workflow_step_id,
         };
-        create(&pool, user_a_id, workflow_step_id, &params_a).await?;
+        create(&pool, user_a_id, &params_a).await?;
 
         let params_b = CreateFollowUpQuestions {
             root_question_id: tool_config.root_questions.first().unwrap().id,
@@ -364,8 +379,9 @@ mod tests {
                 "A follow up question".to_string(),
                 "Another follow up question".to_string(),
             ],
+            workflow_step_id,
         };
-        create(&pool, user_a_id, workflow_step_id, &params_b).await?;
+        create(&pool, user_a_id, &params_b).await?;
 
         let params_c = CreateFollowUpQuestions {
             root_question_id: tool_config.root_questions.first().unwrap().id,
@@ -373,11 +389,13 @@ mod tests {
                 "A follow up question".to_string(),
                 "Another follow up question".to_string(),
             ],
+            workflow_step_id,
         };
-        create(&pool, user_b.id, workflow_step_id, &params_c).await?;
+        create(&pool, user_b.id, &params_c).await?;
 
         let filter_options = ThinkingSpaceFollowUpQuestionFilterOptions {
             user_id: Some(user_b.id),
+            ..Default::default()
         };
         let follow_ups = list(&pool, &workflow_step_id, filter_options).await?;
 
@@ -401,9 +419,10 @@ mod tests {
                 "A follow up question".to_string(),
                 "Another follow up question".to_string(),
             ],
+            workflow_step_id,
         };
 
-        let follow_ups = create(&pool, user_id, workflow_step_id, &create_follow_ups).await?;
+        let follow_ups = create(&pool, user_id, &create_follow_ups).await?;
 
         delete(&pool, follow_ups.id).await?;
 

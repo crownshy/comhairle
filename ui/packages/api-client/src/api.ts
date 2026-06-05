@@ -536,6 +536,30 @@ export const UpdateCreateThinkingSpace = z
 export type UpdateCreateThinkingSpace = z.infer<
   typeof UpdateCreateThinkingSpace
 >;
+export const ThinkingSpaceFollowUpQuestionDto = z
+  .object({
+    followUpQuestions: z.array(z.string()),
+    id: z.string().uuid(),
+    rootQuestionId: z.string().uuid(),
+    userId: z.string().uuid(),
+    workflowStepId: z.string().uuid(),
+  })
+  .passthrough();
+export type ThinkingSpaceFollowUpQuestionDto = z.infer<
+  typeof ThinkingSpaceFollowUpQuestionDto
+>;
+export const CreateFollowUpQuestions = z
+  .object({
+    follow_up_questions: z.array(z.string()),
+    root_question_id: z.string().uuid(),
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type CreateFollowUpQuestions = z.infer<typeof CreateFollowUpQuestions>;
+export const UpdateFollowUpQuestions = z
+  .object({ follow_up_questions: z.array(z.string()) })
+  .passthrough();
+export type UpdateFollowUpQuestions = z.infer<typeof UpdateFollowUpQuestions>;
 export const CreateConversation = z
   .object({
     default_workflow_id: z.union([z.string(), z.null()]).optional(),
@@ -1790,6 +1814,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   GenerateThinkingSpaceSummary,
   ThinkingSpaceSummaryDto,
   UpdateCreateThinkingSpace,
+  ThinkingSpaceFollowUpQuestionDto,
+  CreateFollowUpQuestions,
+  UpdateFollowUpQuestions,
   CreateConversation,
   ConversationDto,
   Translation2,
@@ -3784,6 +3811,61 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: ThinkingSpaceAnswerDto,
+  },
+  {
+    method: "get",
+    path: "/tools/thinking_space/follow_ups",
+    alias: "ListThinkingSpaceFollowUpQuestions",
+    description: `List thinking space follow up questions`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "root_question_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "user_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: z.array(ThinkingSpaceFollowUpQuestionDto),
+  },
+  {
+    method: "post",
+    path: "/tools/thinking_space/follow_ups",
+    alias: "CreateThinkingSpaceFollowUpQuestions",
+    description: `Create thinking space follow up questions`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateFollowUpQuestions,
+      },
+    ],
+    response: ThinkingSpaceFollowUpQuestionDto,
+  },
+  {
+    method: "put",
+    path: "/tools/thinking_space/follow_ups/:follow_up_id",
+    alias: "UpdateThinkingSpaceFollowUpQuestions",
+    description: `Update thinking space follow up questions`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpdateFollowUpQuestions,
+      },
+    ],
+    response: ThinkingSpaceFollowUpQuestionDto,
   },
   {
     method: "get",
