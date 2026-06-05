@@ -13,7 +13,7 @@
 		knowledgeBaseIds = [],
 		title = 'Chat with Bot',
 		subtitle = 'Try answer some questions from Comhairle and explore your views.',
-		botName = 'Tutor bot',
+		botName = 'Learning assistant',
 		botSubtitle = 'Ask questions',
 		messages: initialMessages = [
 			// TODO: add back with better wording once we know where how to configure default questions
