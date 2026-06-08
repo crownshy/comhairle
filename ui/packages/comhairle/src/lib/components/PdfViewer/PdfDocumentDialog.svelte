@@ -10,16 +10,23 @@
 		src: string | null;
 		name?: string;
 		downloadHref?: string | null;
+		kind?: 'pdf' | 'image';
 	};
 
-	let { open = $bindable(false), src, name = 'Document', downloadHref = null }: Props = $props();
+	let {
+		open = $bindable(false),
+		src,
+		name = 'Document',
+		downloadHref = null,
+		kind = 'pdf'
+	}: Props = $props();
 
 	// pdfjs-dist is heavy (~1MB) and not SSR-safe, so the viewer is loaded
 	// lazily in the browser the first time a document is opened.
 	let PdfViewer = $state<Component<{ src: string }> | null>(null);
 
 	$effect(() => {
-		if (browser && open && !PdfViewer) {
+		if (browser && open && kind === 'pdf' && !PdfViewer) {
 			import('./PdfViewer.svelte').then((m) => {
 				PdfViewer = m.default as unknown as Component<{ src: string }>;
 			});
@@ -53,7 +60,11 @@
 
 		<div class="bg-muted min-h-0 flex-1 overflow-hidden">
 			{#if browser && open && src}
-				{#if PdfViewer}
+				{#if kind === 'image'}
+					<div class="flex h-full w-full items-center justify-center overflow-auto p-4">
+						<img {src} alt={name} class="max-h-full max-w-full object-contain" />
+					</div>
+				{:else if PdfViewer}
 					<PdfViewer {src} />
 				{:else}
 					<div
