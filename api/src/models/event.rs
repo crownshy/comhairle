@@ -6,10 +6,17 @@ use schemars::JsonSchema;
 use sea_query::{enum_def, Alias, Expr, PostgresQueryBuilder, Query};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::FromRow, PgPool};
+use sqlx::{
+    prelude::{FromRow, Type},
+    Decode, Encode, PgPool, Postgres,
+};
+use sqlx_postgres::{PgArgumentBuffer, PgValueRef};
 use std::str::FromStr;
 use tracing::{instrument, warn};
 use uuid::Uuid;
+
+#[cfg(test)]
+use fake::Dummy;
 
 use crate::{
     config::ComhairleConfig,
@@ -77,10 +84,85 @@ pub struct Event {
     #[serde(default)]
     pub agenda: EventAgenda,
     pub default_time_zone: String,
+    pub format: EventFormat,
+    #[partially(transparent)]
+    pub location: Option<EventLocation>,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Default)]
+pub struct EventLocation {
+    pub venue_name: String,
+    pub city: String,
+    pub state_province: String,
+    pub postal_code: String,
+    pub country_code: String,
+    pub address_line_1: String,
+    pub address_line_2: Option<String>,
+    pub address_line_3: Option<String>,
+}
+
+impl Type<Postgres> for EventLocation {
+    fn type_info() -> <Postgres as sqlx::Database>::TypeInfo {
+        <serde_json::Value as Type<Postgres>>::type_info()
+    }
+}
+
+impl<'q> Encode<'q, Postgres> for EventLocation {
+    fn encode_by_ref(
+        &self,
+        buf: &mut PgArgumentBuffer,
+    ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
+        let json = serde_json::to_value(self)?;
+        <serde_json::Value as Encode<Postgres>>::encode(json, buf)
+    }
+}
+
+impl<'r> Decode<'r, Postgres> for EventLocation {
+    fn decode(value: PgValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        let json: serde_json::Value = Decode::<Postgres>::decode(value)?;
+        Ok(serde_json::from_value(json)?)
+    }
+}
+
+impl From<EventLocation> for sea_query::Value {
+    fn from(l: EventLocation) -> Self {
+        Self::Json(Some(Box::new(
+            // `expect` should be safe here as serialization should fail at the api
+            // layer if invalid
+            serde_json::to_value(l).expect("EventLocation serialization failed"),
+        )))
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone, JsonSchema)]
+#[sqlx(type_name = "TEXT")]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(test, derive(Dummy))]
+pub enum EventFormat {
+    #[sqlx(rename = "online")]
+    Online,
+    #[sqlx(rename = "in_person")]
+    InPerson,
+}
+
+impl From<EventFormat> for sea_query::Value {
+    fn from(val: EventFormat) -> Self {
+        sea_query::Value::String(Some(Box::new(val.to_string())))
+    }
+}
+
+impl std::fmt::Display for EventFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = match self {
+            EventFormat::Online => "online",
+            EventFormat::InPerson => "in_person",
+        };
+        write!(f, "{}", value)
+    }
 }
 
 pub trait ResolveTimeZone {
@@ -247,7 +329,7 @@ impl LocalizedEvent {
     }
 }
 
-const DEFAULT_COLUMNS: [EventIden; 13] = [
+const DEFAULT_COLUMNS: [EventIden; 15] = [
     EventIden::Id,
     EventIden::Name,
     EventIden::Description,
@@ -259,6 +341,8 @@ const DEFAULT_COLUMNS: [EventIden; 13] = [
     EventIden::VideoMeetingId,
     EventIden::Agenda,
     EventIden::DefaultTimeZone,
+    EventIden::Location,
+    EventIden::Format,
     EventIden::CreatedAt,
     EventIden::UpdatedAt,
 ];
@@ -272,6 +356,7 @@ pub struct CreateEvent {
     pub end_time: DateTime<Utc>,
     pub signup_mode: String,
     pub agenda: Option<EventAgenda>,
+    pub location: Option<EventLocation>,
     pub default_time_zone: Option<String>,
 }
 
@@ -345,6 +430,12 @@ pub async fn create(
     columns.push(EventIden::VideoMeetingId);
     values.push(Uuid::new_v4().into());
 
+    if let Some(location) = &new_event.location {
+        let location_json = serde_json::to_value(location)?;
+        columns.push(EventIden::Location);
+        values.push(location_json.into());
+    }
+
     let (sql, values) = Query::insert()
         .into_table(EventIden::Table)
         .columns(columns)
@@ -382,6 +473,12 @@ impl PartialEvent {
         }
         if let Some(value) = &self.agenda {
             values.push((EventIden::Agenda, value.into()));
+        }
+        if let Some(value) = &self.location {
+            values.push((EventIden::Location, value.clone().into()));
+        }
+        if let Some(value) = &self.format {
+            values.push((EventIden::Format, value.clone().into()));
         }
         if let Some(value) = &self.default_time_zone {
             values.push((EventIden::DefaultTimeZone, value.into()));
@@ -697,6 +794,43 @@ mod tests {
     }
 
     #[sqlx::test]
+    async fn should_create_event_with_location(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        let new_event = CreateEvent {
+            name: "test_event".to_string(),
+            description: "test_desc".to_string(),
+            capacity: Some(10),
+            start_time: Utc::now(),
+            end_time: Utc::now(),
+            signup_mode: "invite".to_string(),
+            agenda: None,
+            location: Some(EventLocation {
+                venue_name: "Test venue".to_string(),
+                address_line_1: "123 Main Street".to_string(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let event = create(&pool, &conversation_id, &new_event).await?;
+
+        assert_eq!(
+            event.location.as_ref().unwrap().venue_name,
+            "Test venue".to_string(),
+            "incorrect venue"
+        );
+        assert_eq!(
+            event.location.as_ref().unwrap().address_line_1,
+            "123 Main Street".to_string(),
+            "incorrect address"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
     async fn should_update_event_data(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
@@ -736,6 +870,54 @@ mod tests {
             event.signup_mode,
             "open".to_string(),
             "incorrect signup_mode after update"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_update_event_location_data(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        let new_event = CreateEvent {
+            name: "test_event".to_string(),
+            description: "test_desc".to_string(),
+            capacity: Some(10),
+            start_time: Utc::now(),
+            end_time: Utc::now(),
+            signup_mode: "invite".to_string(),
+            agenda: None,
+            location: Some(EventLocation {
+                venue_name: "Test venue".to_string(),
+                address_line_1: "123 Main Street".to_string(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let event = create(&pool, &conversation_id, &new_event).await?;
+
+        assert_eq!(
+            event.location.unwrap().venue_name,
+            "Test venue".to_string(),
+            "incorrect venue before update"
+        );
+
+        let params = PartialEvent {
+            location: Some(EventLocation {
+                venue_name: "A change of venue".to_string(),
+                address_line_1: "123 Main Street".to_string(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let event = update(&pool, &event.id, &params).await?;
+
+        assert_eq!(
+            event.location.unwrap().venue_name,
+            "A change of venue".to_string(),
+            "incorrect venue after update"
         );
 
         Ok(())

@@ -1384,6 +1384,21 @@ export const EventAgendaItem = z.union([
   z.object({ BreakoutRoom: BreakoutRoomAgendaItem }),
 ]);
 export type EventAgendaItem = z.infer<typeof EventAgendaItem>;
+export const EventFormat = z.enum(["online", "in_person"]);
+export type EventFormat = z.infer<typeof EventFormat>;
+export const EventLocation = z
+  .object({
+    address_line_1: z.string(),
+    address_line_2: z.union([z.string(), z.null()]).optional(),
+    address_line_3: z.union([z.string(), z.null()]).optional(),
+    city: z.string(),
+    country_code: z.string(),
+    postal_code: z.string(),
+    state_province: z.string(),
+    venue_name: z.string(),
+  })
+  .passthrough();
+export type EventLocation = z.infer<typeof EventLocation>;
 export const LocalizedEventDto = z
   .object({
     agenda: z.array(EventAgendaItem),
@@ -1393,7 +1408,9 @@ export const LocalizedEventDto = z
     currentAttendance: z.union([z.number(), z.null()]).optional(),
     description: z.string(),
     endTime: z.string().datetime({ offset: true }),
+    format: EventFormat,
     id: z.string().uuid(),
+    location: z.union([EventLocation, z.null()]).optional(),
     name: z.string(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
@@ -1414,6 +1431,7 @@ export const CreateEvent = z
     default_time_zone: z.union([z.string(), z.null()]).optional(),
     description: z.string(),
     end_time: z.string().datetime({ offset: true }),
+    location: z.union([EventLocation, z.null()]).optional(),
     name: z.string(),
     signup_mode: z.string(),
     start_time: z.string().datetime({ offset: true }),
@@ -1428,7 +1446,9 @@ export const EventDto = z
     createdAt: z.string().datetime({ offset: true }),
     description: z.string().uuid(),
     endTime: z.string().datetime({ offset: true }),
+    format: EventFormat,
     id: z.string().uuid(),
+    location: z.union([EventLocation, z.null()]).optional(),
     name: z.string().uuid(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
@@ -1456,7 +1476,9 @@ export const EventWithTranslations = z
     defaultTimeZone: z.string(),
     description: z.string(),
     endTime: z.string().datetime({ offset: true }),
+    format: EventFormat,
     id: z.string().uuid(),
+    location: z.union([EventLocation, z.null()]).optional(),
     name: z.string(),
     signupMode: z.string(),
     startTime: z.string().datetime({ offset: true }),
@@ -1478,6 +1500,8 @@ export const PartialEvent = z
     default_time_zone: z.union([z.string(), z.null()]),
     description: z.union([z.string(), z.null()]),
     end_time: z.union([z.string(), z.null()]),
+    format: z.union([EventFormat, z.null()]),
+    location: z.union([EventLocation, z.null()]),
     name: z.union([z.string(), z.null()]),
     signup_mode: z.union([z.string(), z.null()]),
     start_time: z.union([z.string(), z.null()]),
@@ -1900,6 +1924,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   BasicEventAgendaItem,
   BreakoutRoomAgendaItem,
   EventAgendaItem,
+  EventFormat,
+  EventLocation,
   LocalizedEventDto,
   PaginatedResults_for_LocalizedEventDto,
   CreateEvent,

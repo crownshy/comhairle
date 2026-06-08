@@ -64,7 +64,6 @@
 		let startTime = parseDateTime(`${dateOption}T${result.data.start_time}`);
 		// TODO: can we always assume end date is the same as the start date?
 		let endTime = parseDateTime(`${dateOption}T${result.data.end_time}`);
-
 		try {
 			const { facilitators, ...eventData } = result.data;
 			const eventParams = {

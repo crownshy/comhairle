@@ -6,6 +6,12 @@ export function camelToSentenceCase(str: string) {
 	return str.replace(/[A-Z]/g, (letter) => ` ${letter.toLowerCase()}`);
 }
 
+export function snakeToSentenceCase(str: string) {
+	return str
+		.replace(/^[-_]*(.)/, (_, c) => c.toUpperCase()) // Initial char (after -/_)
+		.replace(/[-_]+(.)/g, (_, c) => ' ' + c.toUpperCase());
+}
+
 export function snakeCaseKeys(obj: { [key: string]: any }) {
 	const temp: { [key: string]: any } = {};
 	for (const [key, value] of Object.entries(obj)) {
