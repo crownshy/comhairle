@@ -101,7 +101,7 @@ impl<T> RecordWorkerError<T> for Result<T> {
             Ok(v) => Ok(v),
             Err(e) => {
                 let update_job = UpdateJob {
-                    status: Some("failed".to_string()),
+                    status: Some("error".to_string()),
                     error: Some(e.to_string()),
                     finished_at: Some(Utc::now()),
                     ..Default::default()
