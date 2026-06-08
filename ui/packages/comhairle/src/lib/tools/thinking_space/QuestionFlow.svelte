@@ -9,8 +9,7 @@
 		Check,
 		RotateCcw,
 		ChevronLeft,
-		ChevronRight,
-		ArrowLeft
+		ChevronRight
 	} from 'lucide-svelte';
 	import type { QuestionConfig, QuestionAnswers } from './types';
 	import { QuestionFlowState, type FlowMode } from './questionFlowState.svelte';
@@ -24,14 +23,6 @@
 		initialAnswers?: QuestionAnswers[];
 		mode?: FlowMode;
 		onComplete: (answers: QuestionAnswers[]) => void;
-		/**
-		 * Back-out affordance, currently only used in extension mode so the
-		 * participant can return to the summary screen without finishing the
-		 * full second pass. Any follow-ups they've already submitted are
-		 * persisted; the parent decides whether to generate a new round based
-		 * on whether new answers were actually added.
-		 */
-		onBack?: () => void;
 	};
 
 	let {
@@ -41,8 +32,7 @@
 		followUpCount,
 		initialAnswers = [],
 		mode = 'initial',
-		onComplete,
-		onBack
+		onComplete
 	}: Props = $props();
 
 	const flow = new QuestionFlowState({
@@ -127,18 +117,7 @@
 	<div class="border-border bg-card/60 border-b px-6 py-4 backdrop-blur">
 		<div class="mx-auto max-w-2xl">
 			<div class="text-muted-foreground mb-2 flex items-center justify-between gap-3 text-xs">
-				{#if onBack}
-					<button
-						type="button"
-						onclick={() => onBack?.()}
-						class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors"
-					>
-						<ArrowLeft class="size-3.5" />
-						Back to summary
-					</button>
-				{:else}
-					<span></span>
-				{/if}
+				<span></span>
 				<span>
 					{#if inExtensionPicker}
 						Pick a question to explore further
@@ -330,6 +309,18 @@
 					<!-- Picker: loading -->
 					{#if flow.currentState.pickerLoading}
 						<FollowUpLoading />
+						{#if inExtensionChain}
+							<div class="flex justify-end pt-2">
+								<Button
+									variant="outline"
+									size="sm"
+									onclick={() => flow.doneWithRoot()}
+								>
+									<Check class="size-3.5" />
+									Done with this question
+								</Button>
+							</div>
+						{/if}
 					{/if}
 
 					<!-- Picker: failed to load -->
@@ -420,7 +411,7 @@
 									<button
 										type="button"
 										onclick={() => flow.pickFollowUp(followUpQuestion)}
-										class="border-border bg-card hover:border-primary hover:bg-primary/5 w-full rounded-lg border px-4 py-3 text-left text-sm leading-relaxed transition-colors"
+										class="border-primary/20 bg-primary/5 hover:border-primary hover:bg-primary/10 w-full rounded-lg border px-4 py-3 text-left text-sm leading-relaxed transition-colors"
 									>
 										{followUpQuestion}
 									</button>

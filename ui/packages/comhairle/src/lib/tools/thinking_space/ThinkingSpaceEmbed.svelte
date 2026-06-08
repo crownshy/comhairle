@@ -130,13 +130,6 @@
 		phase = 'questions';
 	}
 
-	function handleBackFromExtension() {
-		// Participant changed their mind mid-extension. Any follow-ups they
-		// did answer are already persisted; if any new ones were added, mint
-		// a new summary round, otherwise just return to the existing stack.
-		void finishExtension(answers);
-	}
-
 	async function finishExtension(final: QuestionAnswers[]) {
 		const before = answerCountAtExtensionStart;
 		const after = totalAnswerCount(final);
@@ -220,7 +213,6 @@
 				initialAnswers={answers}
 				mode={flowMode}
 				onComplete={handleQuestionFlowComplete}
-				onBack={flowMode === 'extension' ? handleBackFromExtension : undefined}
 			/>
 		{:else if phase === 'summary'}
 			<Summary
