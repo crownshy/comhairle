@@ -48,8 +48,8 @@
 
 	<div class="space-y-2" aria-hidden="true">
 		{#each lineLayouts as layout, i (i)}
-			<div class="border-border bg-card rounded-lg border px-4 py-3">
-				<Skeleton class="h-4 {layout.first}" />
+			<div class="border-primary/20 bg-primary/5 rounded-lg border px-4 py-3">
+				<Skeleton class="bg-primary/15 h-4 {layout.first}" />
 				{#if layout.second}
 					<Skeleton class="mt-2 h-4 {layout.second}" />
 				{/if}

@@ -254,14 +254,14 @@
 					</p>
 				</div>
 				<div
-					class="border-border bg-card space-y-3 rounded-lg border px-4 py-4"
+					class="border-primary/20 bg-primary/5 space-y-3 rounded-lg border px-4 py-4"
 					aria-hidden="true"
 				>
 					{#each skeletonLines as layout, i (i)}
 						<div>
-							<Skeleton class="h-4 {layout.first}" />
+							<Skeleton class="bg-primary/15 h-4 {layout.first}" />
 							{#if layout.second}
-								<Skeleton class="mt-2 h-4 {layout.second}" />
+								<Skeleton class="bg-primary/15 mt-2 h-4 {layout.second}" />
 							{/if}
 						</div>
 					{/each}
