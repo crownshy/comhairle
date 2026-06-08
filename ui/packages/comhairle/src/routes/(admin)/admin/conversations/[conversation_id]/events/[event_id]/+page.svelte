@@ -4,6 +4,7 @@
 	import * as Form from '$lib/components/ui/form/';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as RadioGroup from '$lib/components/ui/radio-group';
+	import * as Select from '$lib/components/ui/select';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import Combobox from '$lib/components/ui/combobox/combobox.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
@@ -43,6 +44,7 @@
 	import EmailInviteForm from '$lib/components/ui/email-invites/EmailInviteForm.svelte';
 	import { inviteUrl } from '$lib/utils/invites.js';
 	import EventLocationForm from './EventLocationForm.svelte';
+	import { snakeToSentenceCase } from '$lib/utils/casingUtils.js';
 
 	let url = $page.url;
 	let { data } = $props();
@@ -80,8 +82,7 @@
 			start_time: utcTimeToLocal(event.startTime, timeZone),
 			end_time: utcTimeToLocal(event.endTime, timeZone),
 			signup_mode: event.signupMode,
-			location_venue: event.location?.venue,
-			location_address: event.location?.address
+			format: event.format
 		},
 		{
 			validators: zodClient(EventSchema),
@@ -558,6 +559,36 @@
 						</div>
 					{/if}
 				</div>
+			</div>
+
+			<!-- Format -->
+			<div
+				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+			>
+				<Form.Field form={eventForm} name="format" class="contents">
+					<Form.Control>
+						{#snippet children({ props })}
+							<Form.Label
+								class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+							>
+								<span>Format</span>
+							</Form.Label>
+							<Select.Root
+								type="single"
+								value={$form.format}
+								onValueChange={(value: string) => ($form.format = value)}
+							>
+								<Select.Trigger class="w-45"
+									>Format: {snakeToSentenceCase($form.format)}</Select.Trigger
+								>
+								<Select.Content>
+									<Select.Item value="online">Online</Select.Item>
+									<Select.Item value="in_person">In-person</Select.Item>
+								</Select.Content>
+							</Select.Root>
+						{/snippet}
+					</Form.Control>
+				</Form.Field>
 			</div>
 
 			<div

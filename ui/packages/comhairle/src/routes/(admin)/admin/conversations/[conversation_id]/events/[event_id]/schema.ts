@@ -21,8 +21,7 @@ const EventSchema = z
 				message: 'Signup mode must be either "invite" or "open".'
 			})
 		}),
-		location_venue: z.string().optional(),
-		location_address: z.string().optional()
+		format: z.string()
 	})
 	.superRefine((data, ctx) => {
 		if (data.start_time && data.end_time && data.end_time <= data.start_time) {
@@ -30,16 +29,6 @@ const EventSchema = z
 				code: z.ZodIssueCode.custom,
 				path: ['end_time'],
 				message: 'End time must be after start time.'
-			});
-		}
-
-		const hasVenue = !!data.location_venue?.trim();
-		const hasAddress = !!data.location_address?.trim();
-		if (hasVenue !== hasAddress) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				path: [!hasVenue ? 'location_venue' : 'location_address'],
-				message: 'Include both venue and address if adding a location to the event'
 			});
 		}
 	});

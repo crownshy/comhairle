@@ -15,6 +15,9 @@ use std::str::FromStr;
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
+#[cfg(test)]
+use fake::Dummy;
+
 use crate::{
     config::ComhairleConfig,
     error::ComhairleError,
@@ -81,6 +84,7 @@ pub struct Event {
     #[serde(default)]
     pub agenda: EventAgenda,
     pub default_time_zone: String,
+    pub format: EventFormat,
     #[partially(transparent)]
     pub location: Option<EventLocation>,
     #[partially(omit)]
@@ -131,6 +135,33 @@ impl From<EventLocation> for sea_query::Value {
             // layer if invalid
             serde_json::to_value(l).expect("EventLocation serialization failed"),
         )))
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq, PartialOrd, sqlx::Type, Clone, JsonSchema)]
+#[sqlx(type_name = "TEXT")]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(test, derive(Dummy))]
+pub enum EventFormat {
+    #[sqlx(rename = "online")]
+    Online,
+    #[sqlx(rename = "in_person")]
+    InPerson,
+}
+
+impl From<EventFormat> for sea_query::Value {
+    fn from(val: EventFormat) -> Self {
+        sea_query::Value::String(Some(Box::new(val.to_string())))
+    }
+}
+
+impl std::fmt::Display for EventFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = match self {
+            EventFormat::Online => "online",
+            EventFormat::InPerson => "in_person",
+        };
+        write!(f, "{}", value)
     }
 }
 
@@ -298,7 +329,7 @@ impl LocalizedEvent {
     }
 }
 
-const DEFAULT_COLUMNS: [EventIden; 14] = [
+const DEFAULT_COLUMNS: [EventIden; 15] = [
     EventIden::Id,
     EventIden::Name,
     EventIden::Description,
@@ -311,6 +342,7 @@ const DEFAULT_COLUMNS: [EventIden; 14] = [
     EventIden::Agenda,
     EventIden::DefaultTimeZone,
     EventIden::Location,
+    EventIden::Format,
     EventIden::CreatedAt,
     EventIden::UpdatedAt,
 ];
@@ -444,6 +476,9 @@ impl PartialEvent {
         }
         if let Some(value) = &self.location {
             values.push((EventIden::Location, value.clone().into()));
+        }
+        if let Some(value) = &self.format {
+            values.push((EventIden::Format, value.clone().into()));
         }
         if let Some(value) = &self.default_time_zone {
             values.push((EventIden::DefaultTimeZone, value.into()));
