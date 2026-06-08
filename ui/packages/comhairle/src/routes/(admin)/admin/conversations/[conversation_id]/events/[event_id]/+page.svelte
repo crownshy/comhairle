@@ -42,6 +42,7 @@
 	import EmailInvitesList from '$lib/components/ui/email-invites/EmailInvitesList.svelte';
 	import EmailInviteForm from '$lib/components/ui/email-invites/EmailInviteForm.svelte';
 	import { inviteUrl } from '$lib/utils/invites.js';
+	import EventLocationForm from './EventLocationForm.svelte';
 
 	let url = $page.url;
 	let { data } = $props();
@@ -126,15 +127,6 @@
 		const dateOption = result.data.start_date;
 		let startTime = parseDateTime(`${dateOption}T${result.data.start_time}`);
 		let endTime = parseDateTime(`${dateOption}T${result.data.end_time}`);
-		const location =
-			result.data.location_venue && result.data.location_address
-				? {
-						location: {
-							venue: result.data.location_venue,
-							address: result.data.location_address
-						}
-					}
-				: null;
 
 		const {
 			name: _name /* eslint-disable-line @typescript-eslint/no-unused-vars */,
@@ -146,8 +138,7 @@
 			const eventParams = {
 				...eventData,
 				start_time: startTime.toDate(getLocalTimeZone()).toISOString(),
-				end_time: endTime.toDate(getLocalTimeZone()).toISOString(),
-				...(location && location)
+				end_time: endTime.toDate(getLocalTimeZone()).toISOString()
 			};
 
 			await apiClient.UpdateEvent(eventParams, {
@@ -371,6 +362,12 @@
 			Facilitators
 		</Tabs.Trigger>
 		<Tabs.Trigger
+			value="location"
+			class="text-sidebar-foreground data-[state=active]:text-foreground border-none"
+		>
+			Location
+		</Tabs.Trigger>
+		<Tabs.Trigger
 			value="invites"
 			class="text-sidebar-foreground data-[state=active]:text-foreground border-none"
 		>
@@ -563,58 +560,6 @@
 				</div>
 			</div>
 
-			<!-- Location venue -->
-			<div
-				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-			>
-				<Form.Field form={eventForm} name="location_venue" class="contents">
-					<Form.Control>
-						{#snippet children({ props })}
-							<Form.Label
-								class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-							>
-								<span>Venue</span>
-								<span class="font-normal">In-person events only</span>
-							</Form.Label>
-							<div class="flex-1">
-								<Input
-									{...props}
-									bind:value={$form.location_venue}
-									placeholder="Venue"
-								/>
-								<Form.FieldErrors />
-							</div>
-						{/snippet}
-					</Form.Control>
-				</Form.Field>
-			</div>
-
-			<!-- Location address -->
-			<div
-				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-			>
-				<Form.Field form={eventForm} name="location_address" class="contents">
-					<Form.Control>
-						{#snippet children({ props })}
-							<Form.Label
-								class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-							>
-								<span>Address</span>
-								<span class="font-normal">In-person events only</span>
-							</Form.Label>
-							<div class="flex-1">
-								<Input
-									{...props}
-									bind:value={$form.location_address}
-									placeholder="Address"
-								/>
-								<Form.FieldErrors />
-							</div>
-						{/snippet}
-					</Form.Control>
-				</Form.Field>
-			</div>
-
 			<div
 				class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 			>
@@ -697,6 +642,17 @@
 					placeholder="Enter an email address"
 				/>
 			</div>
+		</div>
+	</Tabs.Content>
+	<Tabs.Content value="location">
+		<div class="flex flex-col gap-10 py-6">
+			<div class="flex flex-col gap-2">
+				<h2 class="text-3xl font-bold">
+					Location <span class="font-bold">(for in-person events)</span>
+				</h2>
+			</div>
+
+			<EventLocationForm {event} />
 		</div>
 	</Tabs.Content>
 	<Tabs.Content value="invites">

@@ -64,23 +64,12 @@
 		let startTime = parseDateTime(`${dateOption}T${result.data.start_time}`);
 		// TODO: can we always assume end date is the same as the start date?
 		let endTime = parseDateTime(`${dateOption}T${result.data.end_time}`);
-		const location =
-			result.data.location_venue && result.data.location_address
-				? {
-						location: {
-							venue: result.data.location_venue,
-							address: result.data.location_address
-						}
-					}
-				: null;
-
 		try {
 			const { facilitators, ...eventData } = result.data;
 			const eventParams = {
 				...eventData,
 				start_time: startTime.toDate(getLocalTimeZone()).toISOString(),
-				end_time: endTime.toDate(getLocalTimeZone()).toISOString(),
-				...(location && location)
+				end_time: endTime.toDate(getLocalTimeZone()).toISOString()
 			};
 			let event = await apiClient.CreateEvent(eventParams, {
 				params: { conversation_id: conversation.id }
@@ -333,58 +322,6 @@
 				<Form.FieldErrors class="text-destructive text-sm" />
 			</Form.Field>
 		</div>
-	</div>
-
-	<!-- Location venue -->
-	<div
-		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-	>
-		<Form.Field {form} name="location_venue" class="contents">
-			<Form.Control>
-				{#snippet children({ props })}
-					<Form.Label
-						class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-					>
-						<span>Venue</span>
-						<span class="font-normal">In-person events only</span>
-					</Form.Label>
-					<div class="flex-1">
-						<Input
-							{...props}
-							bind:value={$formData.location_venue}
-							placeholder="Venue"
-						/>
-						<Form.FieldErrors />
-					</div>
-				{/snippet}
-			</Form.Control>
-		</Form.Field>
-	</div>
-
-	<!-- Location address -->
-	<div
-		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
-	>
-		<Form.Field {form} name="location_address" class="contents">
-			<Form.Control>
-				{#snippet children({ props })}
-					<Form.Label
-						class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-					>
-						<span>Address</span>
-						<span class="font-normal">In-person events only</span>
-					</Form.Label>
-					<div class="flex-1">
-						<Input
-							{...props}
-							bind:value={$formData.location_address}
-							placeholder="Address"
-						/>
-						<Form.FieldErrors />
-					</div>
-				{/snippet}
-			</Form.Control>
-		</Form.Field>
 	</div>
 
 	<!-- Signup mode -->

@@ -8,7 +8,7 @@ use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{
     prelude::{FromRow, Type},
-    query_as_with, Decode, Encode, PgPool, Postgres,
+    Decode, Encode, PgPool, Postgres,
 };
 use sqlx_postgres::{PgArgumentBuffer, PgValueRef};
 use std::str::FromStr;
@@ -89,10 +89,16 @@ pub struct Event {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Default)]
 pub struct EventLocation {
-    venue: String,
-    address: String,
+    pub venue_name: String,
+    pub city: String,
+    pub state_province: String,
+    pub postal_code: String,
+    pub country_code: String,
+    pub address_line_1: String,
+    pub address_line_2: Option<String>,
+    pub address_line_3: Option<String>,
 }
 
 impl Type<Postgres> for EventLocation {
@@ -766,8 +772,9 @@ mod tests {
             signup_mode: "invite".to_string(),
             agenda: None,
             location: Some(EventLocation {
-                venue: "Test venue".to_string(),
-                address: "123 Main Street".to_string(),
+                venue_name: "Test venue".to_string(),
+                address_line_1: "123 Main Street".to_string(),
+                ..Default::default()
             }),
             ..Default::default()
         };
@@ -775,12 +782,12 @@ mod tests {
         let event = create(&pool, &conversation_id, &new_event).await?;
 
         assert_eq!(
-            event.location.as_ref().unwrap().venue,
+            event.location.as_ref().unwrap().venue_name,
             "Test venue".to_string(),
             "incorrect venue"
         );
         assert_eq!(
-            event.location.as_ref().unwrap().address,
+            event.location.as_ref().unwrap().address_line_1,
             "123 Main Street".to_string(),
             "incorrect address"
         );
@@ -847,23 +854,25 @@ mod tests {
             signup_mode: "invite".to_string(),
             agenda: None,
             location: Some(EventLocation {
-                venue: "Test venue".to_string(),
-                address: "123 Main Street".to_string(),
+                venue_name: "Test venue".to_string(),
+                address_line_1: "123 Main Street".to_string(),
+                ..Default::default()
             }),
             ..Default::default()
         };
         let event = create(&pool, &conversation_id, &new_event).await?;
 
         assert_eq!(
-            event.location.unwrap().venue,
+            event.location.unwrap().venue_name,
             "Test venue".to_string(),
             "incorrect venue before update"
         );
 
         let params = PartialEvent {
             location: Some(EventLocation {
-                venue: "A change of venue".to_string(),
-                address: "123 Main Street".to_string(),
+                venue_name: "A change of venue".to_string(),
+                address_line_1: "123 Main Street".to_string(),
+                ..Default::default()
             }),
             ..Default::default()
         };
@@ -871,7 +880,7 @@ mod tests {
         let event = update(&pool, &event.id, &params).await?;
 
         assert_eq!(
-            event.location.unwrap().venue,
+            event.location.unwrap().venue_name,
             "A change of venue".to_string(),
             "incorrect venue after update"
         );

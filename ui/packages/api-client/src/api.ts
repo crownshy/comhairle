@@ -1385,7 +1385,16 @@ export const EventAgendaItem = z.union([
 ]);
 export type EventAgendaItem = z.infer<typeof EventAgendaItem>;
 export const EventLocation = z
-  .object({ address: z.string(), venue: z.string() })
+  .object({
+    address_line_1: z.string(),
+    address_line_2: z.union([z.string(), z.null()]).optional(),
+    address_line_3: z.union([z.string(), z.null()]).optional(),
+    city: z.string(),
+    country_code: z.string(),
+    postal_code: z.string(),
+    state_province: z.string(),
+    venue_name: z.string(),
+  })
   .passthrough();
 export type EventLocation = z.infer<typeof EventLocation>;
 export const LocalizedEventDto = z

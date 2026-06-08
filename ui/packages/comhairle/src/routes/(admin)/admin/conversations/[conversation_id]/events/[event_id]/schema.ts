@@ -44,4 +44,17 @@ const EventSchema = z
 		}
 	});
 
+const EventLocationSchema = z.object({
+	location_venue_name: z.string(),
+	location_address_line_1: z.string(),
+	location_address_line_2: z.string().optional(),
+	location_address_line_3: z.string().optional(),
+	location_city: z.string(),
+	location_state_province: z.string(),
+	location_postal_code: z.string(),
+	location_country_code: z.string()
+});
+
+export { EventLocationSchema };
+
 export default EventSchema;
