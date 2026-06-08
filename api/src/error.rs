@@ -353,7 +353,9 @@ impl IntoResponse for ComhairleError {
             ComhairleError::NoValidUpdates | ComhairleError::EventHasPast => {
                 StatusCode::UNPROCESSABLE_ENTITY
             }
-            ComhairleError::UserNotAuthorized => StatusCode::FORBIDDEN,
+            ComhairleError::UserNotAuthorized | ComhairleError::AuthWebhookSignatureError(_) => {
+                StatusCode::FORBIDDEN
+            }
             ComhairleError::PasswordConfirmationMismatch
             | ComhairleError::WeakPassword(_)
             | ComhairleError::UnsupportedContentType(_)
