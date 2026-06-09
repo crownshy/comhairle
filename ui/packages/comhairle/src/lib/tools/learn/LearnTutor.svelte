@@ -164,6 +164,14 @@
 			<p class="text-primary mb-2 text-xs font-semibold tracking-wide uppercase">
 				Learning assistant
 			</p>
+			<div class="text-muted-foreground mb-3 space-y-2 text-sm leading-relaxed">
+				<p>Use this this space to answer questions you might have about the topic.</p>
+				<p>
+					It is best to ask questions that help you learn things. We will try to answer
+					these questions using supporting materials that have been made avaliable for
+					this conversation.
+				</p>
+			</div>
 			<div class="bg-primary/10 rounded-lg p-4">
 				<!-- Init error: shown when there's no usable session yet -->
 				{#if chatError && pageQAs.length === 0 && !initializing}
@@ -214,9 +222,9 @@
 											? 'Loading tutor session...'
 											: errBlocked
 												? 'Tutor unavailable'
-												: 'Anything unclear? Type a question here'}
+												: 'Type a question here'}
 									<span
-										class="bg-primary caret-blink ml-0.5 inline-block h-5 w-0.5 align-middle"
+										class="bg-primary ml-0.5 inline-block h-5 w-0.5 align-middle"
 									></span>
 								</button>
 							{:else}
