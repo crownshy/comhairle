@@ -3,7 +3,7 @@ use core::fmt;
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, JoinType, PostgresQueryBuilder, Query};
+use sea_query::{enum_def, Expr, JoinType, PostgresQueryBuilder, Query, SimpleExpr};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
@@ -52,15 +52,25 @@ pub struct UserProgress {
     pub user_id: Uuid,
     pub workflow_step_id: Uuid,
     pub status: ProgressStatus,
+    pub permission_to_share_with_organizers: bool,
+    pub permission_to_share_with_other_participants: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [(UserProgressIden, UserProgressIden); 6] = [
+const DEFAULT_COLUMNS: [(UserProgressIden, UserProgressIden); 8] = [
     (UserProgressIden::Table, UserProgressIden::Id),
     (UserProgressIden::Table, UserProgressIden::UserId),
     (UserProgressIden::Table, UserProgressIden::WorkflowStepId),
     (UserProgressIden::Table, UserProgressIden::Status),
+    (
+        UserProgressIden::Table,
+        UserProgressIden::PermissionToShareWithOrganizers,
+    ),
+    (
+        UserProgressIden::Table,
+        UserProgressIden::PermissionToShareWithOtherParticipants,
+    ),
     (UserProgressIden::Table, UserProgressIden::CreatedAt),
     (UserProgressIden::Table, UserProgressIden::UpdatedAt),
 ];
@@ -94,16 +104,53 @@ pub async fn create(
 
     Ok(result)
 }
+
+#[derive(Deserialize, Debug, JsonSchema, Default)]
+pub struct UpdateUserProgress {
+    pub status: Option<ProgressStatus>,
+    pub permission_to_share_with_organizers: Option<bool>,
+    pub permission_to_share_with_other_participants: Option<bool>,
+}
+
+impl UpdateUserProgress {
+    fn to_values(&self) -> Vec<(UserProgressIden, SimpleExpr)> {
+        let mut values = vec![];
+        if let Some(value) = &self.status {
+            values.push((UserProgressIden::Status, value.clone().into()));
+        }
+        if let Some(value) = &self.permission_to_share_with_organizers {
+            values.push((
+                UserProgressIden::PermissionToShareWithOrganizers,
+                (*value).into(),
+            ));
+        }
+        if let Some(value) = &self.permission_to_share_with_other_participants {
+            values.push((
+                UserProgressIden::PermissionToShareWithOtherParticipants,
+                (*value).into(),
+            ));
+        }
+
+        values
+    }
+}
+
 #[instrument(err(Debug))]
 pub async fn update(
     db: &PgPool,
     user_id: &Uuid,
     workflow_step_id: &Uuid,
-    status: ProgressStatus,
+    update_progress: &UpdateUserProgress,
 ) -> Result<UserProgress, ComhairleError> {
+    let values = update_progress.to_values();
+
+    if values.is_empty() {
+        return Err(ComhairleError::NoValidUpdates);
+    }
+
     let (sql, values) = Query::update()
         .table(UserProgressIden::Table)
-        .values([(UserProgressIden::Status, status.into())])
+        .values(values)
         .and_where(Expr::col(UserProgressIden::UserId).eq(user_id.to_owned()))
         .and_where(Expr::col(UserProgressIden::WorkflowStepId).eq(workflow_step_id.to_owned()))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
@@ -157,5 +204,121 @@ pub async fn list_for_user_on_workflow(
             Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
         }
         Err(e) => Err(ComhairleError::DatabaseError(e)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        models::{
+            model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
+            users,
+        },
+        routes::{workflow_steps::dto::WorkflowStepDto, workflows::dto::WorkflowDto},
+    };
+
+    use super::*;
+
+    use std::error::Error;
+
+    #[sqlx::test]
+    async fn should_create_user_progress(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, value, _) = session
+            .create_random_workflow(&app, &conversation_id.to_string())
+            .await?;
+        let workflow: WorkflowDto = serde_json::from_value(value)?;
+
+        let values = session
+            .create_random_workflow_steps(
+                &app,
+                &conversation_id.to_string(),
+                &workflow.id.to_string(),
+                2,
+            )
+            .await?;
+        let steps: Vec<WorkflowStepDto> = values
+            .into_iter()
+            .map(|v| serde_json::from_value(v).unwrap())
+            .collect();
+
+        let user = users::create_annon_user(&pool).await?;
+
+        let user_progress = create(
+            &pool,
+            &user.id,
+            &steps.first().unwrap().id,
+            ProgressStatus::InProgress,
+        )
+        .await?;
+
+        assert_eq!(user_progress.user_id, user.id, "user_ids don't match");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_update_user_progress(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, value, _) = session
+            .create_random_workflow(&app, &conversation_id.to_string())
+            .await?;
+        let workflow: WorkflowDto = serde_json::from_value(value)?;
+
+        let values = session
+            .create_random_workflow_steps(
+                &app,
+                &conversation_id.to_string(),
+                &workflow.id.to_string(),
+                2,
+            )
+            .await?;
+        let steps: Vec<WorkflowStepDto> = values
+            .into_iter()
+            .map(|v| serde_json::from_value(v).unwrap())
+            .collect();
+
+        let user = users::create_annon_user(&pool).await?;
+
+        let user_progress = create(
+            &pool,
+            &user.id,
+            &steps.first().unwrap().id,
+            ProgressStatus::NotStarted,
+        )
+        .await?;
+
+        assert_eq!(
+            user_progress.status,
+            ProgressStatus::NotStarted,
+            "incorrect status before update"
+        );
+        assert!(
+            user_progress.permission_to_share_with_organizers,
+            "incorrect permission before update"
+        );
+
+        let update_params = UpdateUserProgress {
+            status: Some(ProgressStatus::Done),
+            permission_to_share_with_organizers: Some(false),
+            ..Default::default()
+        };
+
+        let user_progress =
+            update(&pool, &user.id, &steps.first().unwrap().id, &update_params).await?;
+
+        assert_eq!(
+            user_progress.status,
+            ProgressStatus::Done,
+            "incorrect status after update"
+        );
+        assert!(
+            !user_progress.permission_to_share_with_organizers,
+            "incorrect permission after update"
+        );
+
+        Ok(())
     }
 }
