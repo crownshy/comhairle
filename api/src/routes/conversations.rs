@@ -237,6 +237,45 @@ pub struct SendEmailNotificationResponse {
     failed_recipients: Vec<String>,
 }
 
+#[derive(Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct NotificationRecipientsResponse {
+    /// Number of distinct workflow participants (in-app delivery target count).
+    pub participant_count: i32,
+    /// Email addresses opted in to broadcast emails for this conversation.
+    pub email_recipients: Vec<String>,
+    /// Convenience count of `email_recipients`.
+    pub email_recipient_count: i32,
+}
+
+/// Preview the recipient lists for the notify page (count + email list).
+async fn get_notification_recipients(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    Path(conversation_id): Path<Uuid>,
+) -> Result<(StatusCode, Json<NotificationRecipientsResponse>), ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+    if conversation.owner_id != user.id {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
+
+    let participant_ids =
+        user_participation::get_participant_user_ids_for_conversation(&state.db, &conversation_id)
+            .await?;
+    let email_recipients =
+        user_conversation_preferences::get_opted_in_broadcast_emails(&state.db, &conversation_id)
+            .await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(NotificationRecipientsResponse {
+            participant_count: participant_ids.len() as i32,
+            email_recipient_count: email_recipients.len() as i32,
+            email_recipients,
+        }),
+    ))
+}
+
 /// Send notification to all conversation participants
 async fn send_notification_to_participants(
     State(state): State<Arc<ComhairleState>>,
@@ -676,6 +715,16 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Send notification to all conversation participants")
                     .description("Creates a notification and sends it to all users participating in workflows within the conversation. Only conversation owners can send notifications.")
                     .response::<201, Json<SendEmailNotificationResponse>>()
+                    .tag("Notifications")
+            }),
+        )
+        .api_route(
+            "/{conversation_id}/notifications/recipients",
+            get_with(get_notification_recipients, |op| {
+                op.id("GetNotificationRecipients")
+                    .summary("Preview notification recipients")
+                    .description("Returns participant count for in-app delivery and the list of email addresses opted in to broadcast emails. Owner-only.")
+                    .response::<200, Json<NotificationRecipientsResponse>>()
                     .tag("Notifications")
             }),
         )
@@ -1704,6 +1753,462 @@ mod tests {
             status,
             StatusCode::UNAUTHORIZED,
             "Non-owner should not be able to export demographics"
+        );
+
+        Ok(())
+    }
+
+    /// Returns a fresh mock mailer that records every email passed to
+    /// `send_conversation_broadcast_email` into the given shared `Vec`,
+    /// and is tolerant of unrelated mail calls triggered by signup, etc.
+    fn recording_mailer(
+        sent: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    ) -> crate::mailer::MockComhairleMailer {
+        use crate::mailer::MockComhairleMailer;
+        let mut mailer = MockComhairleMailer::new();
+        mailer.expect_send_welcome_email().returning(|_, _| Ok(()));
+        mailer
+            .expect_send_verification_email()
+            .returning(|_, _, _| Ok(()));
+        mailer.expect_send_email().returning(|_, _, _, _, _| Ok(()));
+        mailer
+            .expect_send_otp_email()
+            .returning(|_, _, _, _| Ok(()));
+        mailer
+            .expect_send_password_reset_email()
+            .returning(|_, _, _| Ok(()));
+        mailer
+            .expect_send_event_registration_email()
+            .returning(|_, _, _, _| Ok(()));
+        mailer
+            .expect_send_event_confirmation_email()
+            .returning(|_, _, _, _| Ok(()));
+        mailer
+            .expect_send_event_reminder()
+            .returning(|_, _, _, _| Ok(()));
+        mailer
+            .expect_send_conversation_broadcast_email()
+            .returning(move |email, _subject, _html| {
+                sent.lock().unwrap().push(email.to_string());
+                Ok(())
+            });
+        mailer
+    }
+
+    /// Helper: create the conversation and return its id.
+    async fn make_conversation(
+        session: &mut UserSession,
+        app: &axum::Router,
+        slug: &str,
+    ) -> Result<uuid::Uuid, Box<dyn Error>> {
+        let (_, conversation, _) = session
+            .create_conversation(
+                app,
+                json!({
+                    "title" : "Broadcast test",
+                    "short_description" : "A test conversation",
+                    "description" : "A longer description",
+                    "image_url" : "http://someimage.png",
+                    "tags" : ["one"],
+                    "is_public" : true,
+                    "is_live" : true,
+                    "is_invite_only" : false,
+                    "slug" : slug,
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
+                }),
+            )
+            .await?;
+        let conversation: ConversationDto = serde_json::from_value(conversation)?;
+        Ok(conversation.id)
+    }
+
+    #[sqlx::test]
+    async fn broadcast_email_only_sent_to_opted_in_authenticated_users(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        use crate::models::user_conversation_preferences::{
+            self, CreateUserConversationPreferences,
+        };
+        use crate::models::users::create_user;
+        use crate::routes::auth::SignupRequest;
+        use std::sync::{Arc, Mutex};
+
+        let sent: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let mailer = recording_mailer(sent.clone());
+
+        let state = test_state()
+            .db(pool.clone())
+            .mailer(Arc::new(mailer))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin = UserSession::new_admin();
+        admin.signup(&app).await?;
+
+        let conversation_id = make_conversation(&mut admin, &app, "opt_in_authed").await?;
+
+        // user1 — opted in
+        let user1 = create_user(
+            &SignupRequest {
+                username: "opt_in_user".into(),
+                password: "password".into(),
+                email: "user1@test.com".into(),
+                avatar_url: None,
+            },
+            &pool,
+        )
+        .await?;
+        user_conversation_preferences::create(
+            &pool,
+            &CreateUserConversationPreferences {
+                user_id: user1.id,
+                conversation_id,
+                receive_updates_by_notification: Some(false),
+                receive_updates_by_email: Some(true),
+                receive_similar_conversation_updates_by_email: Some(false),
+                receive_similar_conversation_updates_by_notification: Some(false),
+            },
+        )
+        .await?;
+
+        // user2 — explicitly opted out (preferences row exists, flag false)
+        let user2 = create_user(
+            &SignupRequest {
+                username: "opt_out_user".into(),
+                password: "password".into(),
+                email: "user2@test.com".into(),
+                avatar_url: None,
+            },
+            &pool,
+        )
+        .await?;
+        user_conversation_preferences::create(
+            &pool,
+            &CreateUserConversationPreferences {
+                user_id: user2.id,
+                conversation_id,
+                receive_updates_by_notification: Some(true),
+                receive_updates_by_email: Some(false),
+                receive_similar_conversation_updates_by_email: Some(false),
+                receive_similar_conversation_updates_by_notification: Some(false),
+            },
+        )
+        .await?;
+
+        // user3 — no preferences row at all (default = not opted in)
+        let _user3 = create_user(
+            &SignupRequest {
+                username: "no_prefs_user".into(),
+                password: "password".into(),
+                email: "user3@test.com".into(),
+                avatar_url: None,
+            },
+            &pool,
+        )
+        .await?;
+
+        let (status, body, _) = admin
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/notifications"),
+                json!({
+                    "title": "Hello",
+                    "content": "{}",
+                    "delivery_method": "email",
+                    "html_content": "<p>Hi</p>",
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+
+        assert_eq!(
+            status,
+            StatusCode::CREATED,
+            "broadcast send should succeed, got body: {body:#?}"
+        );
+
+        let recorded = sent.lock().unwrap().clone();
+        assert_eq!(
+            recorded,
+            vec!["user1@test.com".to_string()],
+            "broadcast must reach only the opted-in authenticated user"
+        );
+
+        let notified = body.get("participantsNotified").and_then(|v| v.as_i64());
+        assert_eq!(notified, Some(1), "participantsNotified should be 1");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn broadcast_email_respects_anonymous_opt_in_flag(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        use crate::models::conversation_email_notification_recipients::{
+            self as anon_model, CreateConversationEmailNotificationRecipients,
+        };
+        use std::sync::{Arc, Mutex};
+
+        let sent: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let mailer = recording_mailer(sent.clone());
+
+        let state = test_state()
+            .db(pool.clone())
+            .mailer(Arc::new(mailer))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin = UserSession::new_admin();
+        admin.signup(&app).await?;
+
+        let conversation_id = make_conversation(&mut admin, &app, "opt_in_anon").await?;
+
+        // Anonymous opt-in
+        anon_model::create(
+            &pool,
+            &CreateConversationEmailNotificationRecipients {
+                conversation_id,
+                email: "anon_in@test.com".into(),
+                receive_updates_by_email: true,
+                receive_similar_conversation_updates_by_email: false,
+            },
+        )
+        .await?;
+
+        // Anonymous opt-out (e.g. registered only for similar-conversation updates)
+        anon_model::create(
+            &pool,
+            &CreateConversationEmailNotificationRecipients {
+                conversation_id,
+                email: "anon_out@test.com".into(),
+                receive_updates_by_email: false,
+                receive_similar_conversation_updates_by_email: true,
+            },
+        )
+        .await?;
+
+        let (status, _, _) = admin
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/notifications"),
+                json!({
+                    "title": "Hello",
+                    "content": "{}",
+                    "delivery_method": "email",
+                    "html_content": "<p>Hi</p>",
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::CREATED);
+
+        let recorded = sent.lock().unwrap().clone();
+        assert_eq!(
+            recorded,
+            vec!["anon_in@test.com".to_string()],
+            "broadcast must reach only the opted-in anonymous registrant"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn broadcast_email_returns_zero_when_nobody_is_opted_in(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        use std::sync::{Arc, Mutex};
+
+        let sent: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let mailer = recording_mailer(sent.clone());
+
+        let state = test_state()
+            .db(pool.clone())
+            .mailer(Arc::new(mailer))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin = UserSession::new_admin();
+        admin.signup(&app).await?;
+
+        let conversation_id = make_conversation(&mut admin, &app, "opt_in_empty").await?;
+
+        let (status, body, _) = admin
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/notifications"),
+                json!({
+                    "title": "Hello",
+                    "content": "{}",
+                    "delivery_method": "email",
+                    "html_content": "<p>Hi</p>",
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            body.get("participantsNotified").and_then(|v| v.as_i64()),
+            Some(0)
+        );
+        assert!(
+            sent.lock().unwrap().is_empty(),
+            "no mail should be sent when nobody is opted in"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn recipients_endpoint_lists_only_opted_in_emails(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        use crate::models::conversation_email_notification_recipients::{
+            self as anon_model, CreateConversationEmailNotificationRecipients,
+        };
+        use crate::models::user_conversation_preferences::{
+            self, CreateUserConversationPreferences,
+        };
+        use crate::models::users::create_user;
+        use crate::routes::auth::SignupRequest;
+        use std::sync::{Arc, Mutex};
+
+        let sent: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let mailer = recording_mailer(sent);
+
+        let state = test_state()
+            .db(pool.clone())
+            .mailer(Arc::new(mailer))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut admin = UserSession::new_admin();
+        admin.signup(&app).await?;
+
+        let conversation_id = make_conversation(&mut admin, &app, "recipients_preview").await?;
+
+        // Authenticated opt-in
+        let user_in = create_user(
+            &SignupRequest {
+                username: "in_user".into(),
+                password: "password".into(),
+                email: "authed_in@test.com".into(),
+                avatar_url: None,
+            },
+            &pool,
+        )
+        .await?;
+        user_conversation_preferences::create(
+            &pool,
+            &CreateUserConversationPreferences {
+                user_id: user_in.id,
+                conversation_id,
+                receive_updates_by_notification: Some(false),
+                receive_updates_by_email: Some(true),
+                receive_similar_conversation_updates_by_email: Some(false),
+                receive_similar_conversation_updates_by_notification: Some(false),
+            },
+        )
+        .await?;
+
+        // Authenticated opt-out
+        let user_out = create_user(
+            &SignupRequest {
+                username: "out_user".into(),
+                password: "password".into(),
+                email: "authed_out@test.com".into(),
+                avatar_url: None,
+            },
+            &pool,
+        )
+        .await?;
+        user_conversation_preferences::create(
+            &pool,
+            &CreateUserConversationPreferences {
+                user_id: user_out.id,
+                conversation_id,
+                receive_updates_by_notification: Some(false),
+                receive_updates_by_email: Some(false),
+                receive_similar_conversation_updates_by_email: Some(false),
+                receive_similar_conversation_updates_by_notification: Some(false),
+            },
+        )
+        .await?;
+
+        // Anonymous opt-in + opt-out
+        anon_model::create(
+            &pool,
+            &CreateConversationEmailNotificationRecipients {
+                conversation_id,
+                email: "anon_in@test.com".into(),
+                receive_updates_by_email: true,
+                receive_similar_conversation_updates_by_email: false,
+            },
+        )
+        .await?;
+        anon_model::create(
+            &pool,
+            &CreateConversationEmailNotificationRecipients {
+                conversation_id,
+                email: "anon_out@test.com".into(),
+                receive_updates_by_email: false,
+                receive_similar_conversation_updates_by_email: true,
+            },
+        )
+        .await?;
+
+        let url = format!("/conversation/{conversation_id}/notifications/recipients");
+        let (status, body, _) = admin.get(&app, &url).await?;
+        assert_eq!(status, StatusCode::OK);
+
+        let mut emails: Vec<String> = body
+            .get("emailRecipients")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect()
+            })
+            .unwrap_or_default();
+        emails.sort();
+
+        assert_eq!(
+            emails,
+            vec!["anon_in@test.com".to_string(), "authed_in@test.com".to_string()],
+            "recipients endpoint must list only opted-in emails (auth + anon)"
+        );
+        assert_eq!(
+            body.get("emailRecipientCount").and_then(|v| v.as_i64()),
+            Some(2)
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn recipients_endpoint_denies_non_owner(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let state = test_state().db(pool).call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut owner = UserSession::new_admin();
+        owner.signup(&app).await?;
+        let mut intruder = UserSession::new("intruder", "password", "intruder@test.com");
+        intruder.signup(&app).await?;
+
+        let conversation_id = make_conversation(&mut owner, &app, "recipients_auth").await?;
+
+        let url = format!("/conversation/{conversation_id}/notifications/recipients");
+        let (status, _, _) = intruder.get(&app, &url).await?;
+
+        assert_eq!(
+            status,
+            StatusCode::UNAUTHORIZED,
+            "non-owner must not see recipient preview"
         );
 
         Ok(())
