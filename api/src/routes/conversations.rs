@@ -207,6 +207,10 @@ pub struct SendNotificationRequest {
     /// Required when delivery_method is "email". HTML body produced by the
     /// rich text editor; rendered into a branded email template.
     pub html_content: Option<String>,
+    /// When set, the email is delivered only to this address as a preview and
+    /// no audit notification row or per-user delivery is created. Requires
+    /// delivery_method = email.
+    pub test_email_recipient: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -295,6 +299,15 @@ async fn send_notification_to_participants(
         .clone()
         .unwrap_or(DeliveryMethod::InApp);
 
+    if let Some(test_recipient) = request.test_email_recipient.clone() {
+        if !matches!(delivery_method, DeliveryMethod::Email) {
+            return Err(ComhairleError::BadRequest(
+                "test_email_recipient is only valid when delivery_method is email".into(),
+            ));
+        }
+        return send_test_broadcast_email(&state, request, test_recipient).await;
+    }
+
     match delivery_method {
         DeliveryMethod::Email => {
             send_broadcast_email_to_opted_in(&state, &conversation_id, request).await
@@ -303,6 +316,34 @@ async fn send_notification_to_participants(
             send_in_app_notification_to_participants(&state, &conversation_id, request).await
         }
     }
+}
+
+async fn send_test_broadcast_email(
+    state: &Arc<ComhairleState>,
+    request: SendNotificationRequest,
+    recipient: String,
+) -> Result<(StatusCode, Json<SendEmailNotificationResponse>), ComhairleError> {
+    let html_content = request.html_content.ok_or_else(|| {
+        ComhairleError::BadRequest("html_content is required when delivery_method is email".into())
+    })?;
+
+    state
+        .mailer
+        .send_conversation_broadcast_email(&recipient, &request.title, &html_content)
+        .map_err(|e| {
+            tracing::warn!("Failed to send test broadcast email to {}: {:?}", recipient, e);
+            ComhairleError::BadRequest(format!("Failed to send test email: {}", e))
+        })?;
+
+    Ok((
+        StatusCode::OK,
+        Json(SendEmailNotificationResponse {
+            notification_id: Uuid::nil(),
+            participants_notified: 1,
+            message: format!("Test email sent to {}", recipient),
+            failed_recipients: vec![],
+        }),
+    ))
 }
 
 async fn send_in_app_notification_to_participants(
