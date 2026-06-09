@@ -165,11 +165,20 @@
 				Learning assistant
 			</p>
 			<div class="text-muted-foreground mb-3 space-y-2 text-sm leading-relaxed">
-				<p>Use this this space to answer questions you might have about the topic.</p>
 				<p>
-					It is best to ask questions that help you learn things. We will try to answer
-					these questions using supporting materials that have been made avaliable for
-					this conversation.
+					This Learning Assistant answers questions using all the materials gathered for
+					the Assembly, not just the page you're on. This means an answer may sometimes
+					draw on a topic from a later page. It only uses these materials, not the wider
+					internet.
+				</p>
+				<p>
+					It's best for questions that help you learn, like: "Can you explain how Maine
+					funds public schools?" or "What does the research say about class size and
+					outcomes?"
+				</p>
+				<p>
+					If it references a source you'd like to read in full, all the documents are
+					available in the Library - the last page.
 				</p>
 			</div>
 			<div class="bg-primary/10 rounded-lg p-4">
