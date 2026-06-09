@@ -204,6 +204,9 @@ pub struct SendNotificationRequest {
     pub content: String,
     pub notification_type: Option<crate::models::notification::NotificationType>,
     pub delivery_method: Option<DeliveryMethod>,
+    /// Required when delivery_method is "email". HTML body produced by the
+    /// rich text editor; rendered into a branded email template.
+    pub html_content: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -228,6 +231,10 @@ pub struct SendEmailNotificationResponse {
     pub notification_id: Uuid,
     participants_notified: i32,
     message: String,
+    /// Emails that the SMTP server rejected. Only populated for the email
+    /// delivery path; always empty for in-app notifications.
+    #[serde(default)]
+    failed_recipients: Vec<String>,
 }
 
 /// Send notification to all conversation participants
@@ -244,20 +251,38 @@ async fn send_notification_to_participants(
         return Err(ComhairleError::UserNotAuthorized);
     }
 
-    // Create the notification
+    let delivery_method = request
+        .delivery_method
+        .clone()
+        .unwrap_or(DeliveryMethod::InApp);
+
+    match delivery_method {
+        DeliveryMethod::Email => {
+            send_broadcast_email_to_opted_in(&state, &conversation_id, request).await
+        }
+        DeliveryMethod::InApp => {
+            send_in_app_notification_to_participants(&state, &conversation_id, request).await
+        }
+    }
+}
+
+async fn send_in_app_notification_to_participants(
+    state: &Arc<ComhairleState>,
+    conversation_id: &Uuid,
+    request: SendNotificationRequest,
+) -> Result<(StatusCode, Json<SendEmailNotificationResponse>), ComhairleError> {
     let create_notification = CreateNotification {
         title: request.title,
         content: request.content,
         notification_type: request.notification_type,
         context_type: Some(NotificationContextType::Conversation),
-        context_id: Some(conversation_id),
+        context_id: Some(*conversation_id),
     };
 
     let notification = notification_model::create(&state.db, &create_notification).await?;
 
-    // Get all participant user IDs for this conversation
     let participant_user_ids =
-        user_participation::get_participant_user_ids_for_conversation(&state.db, &conversation_id)
+        user_participation::get_participant_user_ids_for_conversation(&state.db, conversation_id)
             .await?;
 
     if participant_user_ids.is_empty() {
@@ -267,30 +292,28 @@ async fn send_notification_to_participants(
                 notification_id: notification.id,
                 participants_notified: 0,
                 message: "No participants found for this conversation".to_string(),
+                failed_recipients: vec![],
             }),
         ));
     }
 
-    // Create deliveries for all participants
-    let delivery_method = request.delivery_method.unwrap_or(DeliveryMethod::InApp);
     let deliveries: Vec<CreateNotificationDelivery> = participant_user_ids
         .into_iter()
         .map(|user_id| CreateNotificationDelivery {
             notification_id: notification.id,
             user_id,
-            delivery_method: Some(delivery_method.clone()),
+            delivery_method: Some(DeliveryMethod::InApp),
         })
         .collect();
 
     let created_deliveries =
         notification_delivery_model::create_bulk(&state.db, &deliveries).await?;
 
-    // Send WebSocket notifications to connected users
     let notification_level = notification.notification_type.to_string();
 
     for delivery in &created_deliveries {
         let _ = crate::websockets::handlers::notifications::NotificationMessageHandler::send_notification_to_user(
-            &state,
+            state,
             &delivery.user_id,
             &notification.id,
             &notification.title,
@@ -309,6 +332,85 @@ async fn send_notification_to_participants(
                 "Notification sent to {} participants",
                 created_deliveries.len()
             ),
+            failed_recipients: vec![],
+        }),
+    ))
+}
+
+async fn send_broadcast_email_to_opted_in(
+    state: &Arc<ComhairleState>,
+    conversation_id: &Uuid,
+    request: SendNotificationRequest,
+) -> Result<(StatusCode, Json<SendEmailNotificationResponse>), ComhairleError> {
+    let html_content = request.html_content.ok_or_else(|| {
+        ComhairleError::BadRequest("html_content is required when delivery_method is email".into())
+    })?;
+
+    // Create a notification row for the audit trail. The HTML body lives in
+    // `content` so the record reflects what was actually sent; no per-user
+    // NotificationDelivery rows are created because anonymous opt-ins have
+    // no associated user.
+    let create_notification = CreateNotification {
+        title: request.title.clone(),
+        content: html_content.clone(),
+        notification_type: request.notification_type,
+        context_type: Some(NotificationContextType::Conversation),
+        context_id: Some(*conversation_id),
+    };
+
+    let notification = notification_model::create(&state.db, &create_notification).await?;
+
+    let recipient_emails =
+        user_conversation_preferences::get_opted_in_broadcast_emails(&state.db, conversation_id)
+            .await?;
+
+    if recipient_emails.is_empty() {
+        return Ok((
+            StatusCode::OK,
+            Json(SendEmailNotificationResponse {
+                notification_id: notification.id,
+                participants_notified: 0,
+                message: "No participants have opted in to email updates for this conversation"
+                    .to_string(),
+                failed_recipients: vec![],
+            }),
+        ));
+    }
+
+    let mut sent = 0i32;
+    let mut failed_recipients: Vec<String> = Vec::new();
+    let mut last_error: Option<String> = None;
+    for email in &recipient_emails {
+        match state
+            .mailer
+            .send_conversation_broadcast_email(email, &request.title, &html_content)
+        {
+            Ok(()) => sent += 1,
+            Err(e) => {
+                tracing::warn!("Failed to send broadcast email to {}: {:?}", email, e);
+                failed_recipients.push(email.clone());
+                last_error = Some(e.to_string());
+            }
+        }
+    }
+
+    let message = match (sent, failed_recipients.len()) {
+        (0, n) => format!(
+            "Failed to send to all {} recipients: {}",
+            n,
+            last_error.unwrap_or_else(|| "unknown error".into())
+        ),
+        (s, 0) => format!("Email sent to {} recipients", s),
+        (s, n) => format!("Email sent to {} of {} recipients ({} failed)", s, s + n as i32, n),
+    };
+
+    Ok((
+        StatusCode::CREATED,
+        Json(SendEmailNotificationResponse {
+            notification_id: notification.id,
+            participants_notified: sent,
+            message,
+            failed_recipients,
         }),
     ))
 }
