@@ -1127,6 +1127,18 @@ export const UserProgressDto = z
   })
   .passthrough();
 export type UserProgressDto = z.infer<typeof UserProgressDto>;
+export const UpdateUserProgress = z
+  .object({
+    permission_to_share_with_organizers: z.union([z.boolean(), z.null()]),
+    permission_to_share_with_other_participants: z.union([
+      z.boolean(),
+      z.null(),
+    ]),
+    status: z.union([ProgressStatus, z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type UpdateUserProgress = z.infer<typeof UpdateUserProgress>;
 export const InviteType = z.union([
   z.object({ email: z.string() }),
   z.object({ user: z.string().uuid() }),
@@ -1890,6 +1902,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   WorkflowStepDto,
   PartialWorkflowStep,
   UserProgressDto,
+  UpdateUserProgress,
   InviteType,
   LoginBehaviour,
   InviteStatus,
@@ -3119,9 +3132,8 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     parameters: [
       {
         name: "body",
-        description: `Defines the type of authentication has been used to create The user`,
         type: "Body",
-        schema: z.enum(["not_started", "in_progress", "done"]),
+        schema: UpdateUserProgress,
       },
     ],
     response: UserProgressDto,

@@ -63,10 +63,13 @@ export const load: PageLoad = async (event) => {
 					);
 				}
 
-				await api.SetUserProgress('in_progress', {
-					params: { conversation_id, workflow_id, workflow_step_id },
-					headers: { 'Content-Type': 'application/json' }
-				});
+				await api.SetUserProgress(
+					{ status: 'in_progress' },
+					{
+						params: { conversation_id, workflow_id, workflow_step_id },
+						headers: { 'Content-Type': 'application/json' }
+					}
+				);
 			}
 		}
 

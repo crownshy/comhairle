@@ -624,6 +624,7 @@ mod tests {
         models::{
             self,
             model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
+            user_progress::UpdateUserProgress,
             workflow,
         },
         routes::{
@@ -726,10 +727,16 @@ mod tests {
         .await?;
         workflow::register_user(&pool, &workflow.id, &user).await?;
 
-        models::user_progress::update(&pool, &user.id, &first_step.id, ProgressStatus::Done)
-            .await?;
-        models::user_progress::update(&pool, &user.id, &second_step.id, ProgressStatus::InProgress)
-            .await?;
+        let params = UpdateUserProgress {
+            status: Some(ProgressStatus::Done),
+            ..Default::default()
+        };
+        models::user_progress::update(&pool, &user.id, &first_step.id, &params).await?;
+        let params = UpdateUserProgress {
+            status: Some(ProgressStatus::InProgress),
+            ..Default::default()
+        };
+        models::user_progress::update(&pool, &user.id, &second_step.id, &params).await?;
 
         let steps = list_localized_with_progress(&pool, &workflow.id, "en", &user.id).await?;
         assert_eq!(
