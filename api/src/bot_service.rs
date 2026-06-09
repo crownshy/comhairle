@@ -253,13 +253,30 @@ pub trait ComhairleBotService: Send + Sync {
     ) -> Result<Vec<BotServiceSseEvent>, ComhairleError>;
 }
 
-#[derive(Deserialize, Debug, JsonSchema, Default, PartialEq)]
+fn default_page_size() -> Option<i32> {
+    Some(400)
+}
+
+#[derive(Deserialize, Debug, JsonSchema, PartialEq)]
 pub struct GetQueryParams {
     pub page: Option<i32>,
+    #[serde(default = "default_page_size")]
     pub page_size: Option<i32>,
     pub order_by: Option<String>,
     pub name: Option<String>,
     pub title: Option<String>,
+}
+
+impl Default for GetQueryParams {
+    fn default() -> Self {
+        Self {
+            page: None,
+            page_size: Some(400),
+            order_by: None,
+            name: None,
+            title: None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Default, Debug, Clone)]

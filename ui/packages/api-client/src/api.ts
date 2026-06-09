@@ -1331,6 +1331,11 @@ export const ChatConversationRequest = z
   .object({ question: z.string() })
   .passthrough();
 export type ChatConversationRequest = z.infer<typeof ChatConversationRequest>;
+export const page_size = z
+  .union([z.number(), z.null()])
+  .optional()
+  .default(400);
+export type page_size = z.infer<typeof page_size>;
 export const ComhairleDocument = z
   .object({
     id: z.string(),
@@ -1913,6 +1918,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PartialFeedback,
   ComhairleChatSession,
   ChatConversationRequest,
+  page_size,
   ComhairleDocument,
   UploadFileResponse,
   Order,
@@ -2365,7 +2371,7 @@ Use a raw HTTP request and process the response body incrementally.`,
       {
         name: "page_size",
         type: "Query",
-        schema: limit,
+        schema: page_size,
       },
       {
         name: "title",
