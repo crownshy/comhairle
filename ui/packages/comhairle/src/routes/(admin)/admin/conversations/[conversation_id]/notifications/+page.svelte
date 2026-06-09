@@ -25,6 +25,4 @@
 	all users who have participated in workflows within this conversation.
 </p>
 
-<div class="max-w-2xl">
-	<NotificationForm conversationId={conversation.id} />
-</div>
+<NotificationForm conversationId={conversation.id} />

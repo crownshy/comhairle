@@ -705,6 +705,7 @@ export const SendNotificationRequest = z
   .object({
     content: z.string(),
     delivery_method: z.union([DeliveryMethod, z.null()]).optional(),
+    html_content: z.union([z.string(), z.null()]).optional(),
     notification_type: z.union([NotificationType, z.null()]).optional(),
     title: z.string(),
   })
@@ -712,6 +713,7 @@ export const SendNotificationRequest = z
 export type SendNotificationRequest = z.infer<typeof SendNotificationRequest>;
 export const SendEmailNotificationResponse = z
   .object({
+    failedRecipients: z.array(z.string()).optional().default([]),
     message: z.string(),
     notificationId: z.string().uuid(),
     participantsNotified: z.number().int(),
