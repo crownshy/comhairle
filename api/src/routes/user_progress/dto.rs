@@ -20,6 +20,7 @@ pub struct UserProgressDto {
     pub user_id: Uuid,
     pub workflow_step_id: Uuid,
     pub status: ProgressStatus,
+    pub permission_to_share_with_organizers: bool,
 }
 
 impl From<UserProgress> for UserProgressDto {
@@ -29,6 +30,7 @@ impl From<UserProgress> for UserProgressDto {
             user_id: p.user_id,
             workflow_step_id: p.workflow_step_id,
             status: p.status,
+            permission_to_share_with_organizers: p.permission_to_share_with_organizers,
         }
     }
 }

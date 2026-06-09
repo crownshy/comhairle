@@ -176,14 +176,17 @@
 
 		try {
 			if (conversation.isLive) {
-				await apiClient.SetUserProgress('done', {
-					params: {
-						workflow_id: workflowStep.workflowId,
-						conversation_id: conversation.id,
-						workflow_step_id: workflowStep.id
-					},
-					headers: { 'Content-Type': 'application/json' }
-				});
+				await apiClient.SetUserProgress(
+					{ status: 'done' },
+					{
+						params: {
+							workflow_id: workflowStep.workflowId,
+							conversation_id: conversation.id,
+							workflow_step_id: workflowStep.id
+						},
+						headers: { 'Content-Type': 'application/json' }
+					}
+				);
 
 				goto(
 					next_workflow_step_url(conversation.id, workflowStep.workflowId) + queryString

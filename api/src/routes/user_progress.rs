@@ -11,10 +11,10 @@ use std::sync::Arc;
 use tracing::info;
 use uuid::Uuid;
 
-use crate::error::ComhairleError;
 use crate::ComhairleState;
 use crate::{
-    models::user_progress::{self, ProgressStatus},
+    error::ComhairleError,
+    models::user_progress::{self, UpdateUserProgress},
     routes::user_progress::dto::UserProgressDto,
 };
 
@@ -44,10 +44,10 @@ pub async fn update_user_progress(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
     Path((_, _, workflow_step_id)): Path<(Uuid, Uuid, Uuid)>,
-    Json(status): Json<ProgressStatus>,
+    Json(payload): Json<UpdateUserProgress>,
 ) -> Result<(StatusCode, Json<UserProgressDto>), ComhairleError> {
     let user_progress =
-        user_progress::update(&state.db, &user.id, &workflow_step_id, status).await?;
+        user_progress::update(&state.db, &user.id, &workflow_step_id, &payload).await?;
 
     let user_progress: UserProgressDto = user_progress.into();
     Ok((StatusCode::OK, Json(user_progress)))
@@ -114,8 +114,11 @@ mod tests {
         let target_step: serde_json::Value = steps.get(3).unwrap().to_owned();
         let workflow_step_id: String = extract("id", &target_step);
 
-        let mut user_session =
-            UserSession::new("regular_user", crate::test_helpers::TEST_PASSWORD, "regular_user@gmail.com");
+        let mut user_session = UserSession::new(
+            "regular_user",
+            crate::test_helpers::TEST_PASSWORD,
+            "regular_user@gmail.com",
+        );
         user_session.signup(&app).await?;
 
         // Sign up for the workflow
@@ -129,7 +132,7 @@ mod tests {
         );
 
         let (status, progress, _) = user_session
-            .put(&app, &url, json!("done").to_string().into())
+            .put(&app, &url, json!({"status": "done"}).to_string().into())
             .await?;
 
         let new_status: String = extract("status", &progress);

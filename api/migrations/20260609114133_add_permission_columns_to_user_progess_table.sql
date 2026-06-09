@@ -1,0 +1,5 @@
+-- Add permision_to_share_with_organizers and permision_to_share_with_other_participants to user_progress
+
+ALTER TABLE user_progress
+ADD COLUMN permission_to_share_with_organizers BOOLEAN DEFAULT TRUE,
+ADD COLUMN permission_to_share_with_other_participants BOOLEAN DEFAULT TRUE;

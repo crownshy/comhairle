@@ -812,9 +812,6 @@ mod tests {
                 .into(),
             )
             .await?;
-        println!();
-        println!("    >>>>    Value: {:#?}", value);
-        println!();
         let workflow: WorkflowDto = serde_json::from_value(value)?;
 
         assert!(!workflow.is_public, "is_public after update");
@@ -862,7 +859,7 @@ mod tests {
                 );
 
                 session
-                    .put(&app, &url, json!("done").to_string().into())
+                    .put(&app, &url, json!({ "status": "done" }).to_string().into())
                     .await?;
             }
         }

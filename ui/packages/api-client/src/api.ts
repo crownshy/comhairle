@@ -883,6 +883,7 @@ export const WorkflowStep = z
     is_offline: z.boolean(),
     name: z.string().uuid(),
     preview_tool_config: ToolConfig,
+    request_user_share_permission: z.boolean(),
     required: z.boolean(),
     step_order: z.number().int(),
     tool_config: z.union([ToolConfig, z.null()]).optional(),
@@ -964,6 +965,7 @@ export const WorkflowStepWithTranslations = z
     isOffline: z.boolean(),
     name: z.string(),
     previewToolConfig: ToolConfig,
+    requestUserSharePermission: z.boolean(),
     required: z.boolean(),
     stepOrder: z.number().int(),
     toolConfig: z.union([ToolConfig, z.null()]).optional(),
@@ -987,6 +989,7 @@ export const LocalizedWorkflowStepWithProgressDto = z
     name: z.string(),
     previewToolConfig: ToolConfig,
     progressStatus: ProgressStatus,
+    requestUserSharePermission: z.boolean(),
     required: z.boolean(),
     stepOrder: z.number().int(),
     toolConfig: z.union([ToolConfig, z.null()]).optional(),
@@ -1005,6 +1008,7 @@ export const LocalizedWorkflowStepDto = z
     isOffline: z.boolean(),
     name: z.string(),
     previewToolConfig: ToolConfig,
+    requestUserSharePermission: z.boolean(),
     required: z.boolean(),
     stepOrder: z.number().int(),
     toolConfig: z.union([ToolConfig, z.null()]).optional(),
@@ -1096,6 +1100,7 @@ export const WorkflowStepDto = z
     isOffline: z.boolean(),
     name: z.string().uuid(),
     previewToolConfig: ToolConfig,
+    requestUserSharePermission: z.boolean(),
     required: z.boolean(),
     stepOrder: z.number().int(),
     toolConfig: z.union([ToolConfig, z.null()]).optional(),
@@ -1111,6 +1116,7 @@ export const PartialWorkflowStep = z
     is_offline: z.union([z.boolean(), z.null()]),
     name: z.union([z.string(), z.null()]),
     preview_tool_config: z.union([ToolConfig, z.null()]),
+    request_user_share_permission: z.union([z.boolean(), z.null()]),
     required: z.union([z.boolean(), z.null()]),
     step_order: z.union([z.number(), z.null()]),
     tool_config: z.union([ToolConfig, z.null()]),
@@ -1121,12 +1127,25 @@ export type PartialWorkflowStep = z.infer<typeof PartialWorkflowStep>;
 export const UserProgressDto = z
   .object({
     id: z.string().uuid(),
+    permissionToShareWithOrganizers: z.boolean(),
     status: ProgressStatus,
     userId: z.string().uuid(),
     workflowStepId: z.string().uuid(),
   })
   .passthrough();
 export type UserProgressDto = z.infer<typeof UserProgressDto>;
+export const UpdateUserProgress = z
+  .object({
+    permission_to_share_with_organizers: z.union([z.boolean(), z.null()]),
+    permission_to_share_with_other_participants: z.union([
+      z.boolean(),
+      z.null(),
+    ]),
+    status: z.union([ProgressStatus, z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type UpdateUserProgress = z.infer<typeof UpdateUserProgress>;
 export const InviteType = z.union([
   z.object({ email: z.string() }),
   z.object({ user: z.string().uuid() }),
@@ -1890,6 +1909,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   WorkflowStepDto,
   PartialWorkflowStep,
   UserProgressDto,
+  UpdateUserProgress,
   InviteType,
   LoginBehaviour,
   InviteStatus,
@@ -3119,9 +3139,8 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     parameters: [
       {
         name: "body",
-        description: `Defines the type of authentication has been used to create The user`,
         type: "Body",
-        schema: z.enum(["not_started", "in_progress", "done"]),
+        schema: UpdateUserProgress,
       },
     ],
     response: UserProgressDto,
