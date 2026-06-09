@@ -46,6 +46,7 @@ pub struct WorkflowStepDto {
     pub can_revisit: bool,
     pub tool_config: Option<ToolConfig>,
     pub preview_tool_config: ToolConfig,
+    pub request_user_share_permission: bool,
 }
 
 /// Data transfer object (public API representation) for a LocalizedWorkflowStep.
@@ -80,6 +81,7 @@ pub struct LocalizedWorkflowStepDto {
     pub can_revisit: bool,
     pub tool_config: Option<ToolConfig>,
     pub preview_tool_config: ToolConfig,
+    pub request_user_share_permission: bool,
 }
 
 /// Data transfer object (public API representation) for a LocalizedWorkflowStepWithProgress.
@@ -117,6 +119,7 @@ pub struct LocalizedWorkflowStepWithProgressDto {
     pub tool_config: Option<ToolConfig>,
     pub preview_tool_config: ToolConfig,
     pub progress_status: ProgressStatus,
+    pub request_user_share_permission: bool,
 }
 
 impl From<WorkflowStep> for WorkflowStepDto {
@@ -133,6 +136,7 @@ impl From<WorkflowStep> for WorkflowStepDto {
             can_revisit: w.can_revisit,
             tool_config: w.tool_config,
             preview_tool_config: w.preview_tool_config,
+            request_user_share_permission: w.request_user_share_permission,
         }
     }
 }
@@ -151,6 +155,7 @@ impl From<LocalizedWorkflowStep> for LocalizedWorkflowStepDto {
             can_revisit: w.can_revisit,
             tool_config: w.tool_config,
             preview_tool_config: w.preview_tool_config,
+            request_user_share_permission: w.request_user_share_permission,
         }
     }
 }
@@ -169,6 +174,7 @@ impl From<LocalizedWorkflowStepWithProgress> for LocalizedWorkflowStepWithProgre
             can_revisit: w.step.can_revisit,
             tool_config: w.step.tool_config,
             preview_tool_config: w.step.preview_tool_config,
+            request_user_share_permission: w.step.request_user_share_permission,
             progress_status: w.status,
         }
     }

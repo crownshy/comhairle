@@ -45,13 +45,14 @@ pub struct WorkflowStep {
     #[partially(transparent)]
     pub tool_config: Option<ToolConfig>,
     pub preview_tool_config: ToolConfig,
+    pub request_user_share_permission: bool,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [WorkflowStepIden; 13] = [
+const DEFAULT_COLUMNS: [WorkflowStepIden; 14] = [
     WorkflowStepIden::Id,
     WorkflowStepIden::Name,
     WorkflowStepIden::WorkflowId,
@@ -63,6 +64,7 @@ const DEFAULT_COLUMNS: [WorkflowStepIden; 13] = [
     WorkflowStepIden::ToolConfig,
     WorkflowStepIden::PreviewToolConfig,
     WorkflowStepIden::Required,
+    WorkflowStepIden::RequestUserSharePermission,
     WorkflowStepIden::CreatedAt,
     WorkflowStepIden::UpdatedAt,
 ];
@@ -182,11 +184,9 @@ impl PartialWorkflowStep {
         if let Some(value) = &self.tool_config {
             values.push((WorkflowStepIden::ToolConfig, value.into()))
         };
-
         if let Some(value) = &self.preview_tool_config {
             values.push((WorkflowStepIden::PreviewToolConfig, value.into()))
         };
-
         if let Some(value) = self.step_order {
             values.push((WorkflowStepIden::StepOrder, value.into()))
         };
@@ -195,6 +195,9 @@ impl PartialWorkflowStep {
         };
         if let Some(value) = self.required {
             values.push((WorkflowStepIden::Required, value.into()))
+        };
+        if let Some(value) = self.request_user_share_permission {
+            values.push((WorkflowStepIden::RequestUserSharePermission, value.into()))
         };
         values
     }
