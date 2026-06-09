@@ -518,6 +518,7 @@ pub async fn update(
 pub struct EventOrderOptions {
     name: Option<Order>,
     created_at: Option<Order>,
+    start_time: Option<Order>,
 }
 
 impl EventOrderOptions {
@@ -525,6 +526,11 @@ impl EventOrderOptions {
         if let Some(order) = &self.created_at {
             query = query
                 .order_by((EventIden::Table, EventIden::CreatedAt), order.into())
+                .to_owned();
+        }
+        if let Some(order) = &self.start_time {
+            query = query
+                .order_by((EventIden::Table, EventIden::StartTime), order.into())
                 .to_owned();
         }
         query

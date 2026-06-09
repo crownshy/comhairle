@@ -2472,6 +2472,11 @@ curl -X POST \
         schema: created_at,
       },
       {
+        name: "start_time",
+        type: "Query",
+        schema: created_at,
+      },
+      {
         name: "capacity_status",
         type: "Query",
         schema: capacity_status,
