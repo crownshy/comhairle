@@ -36,19 +36,25 @@
 	let editor = $state<Editor>();
 	let lastDocMapKey = $state('');
 
-	let pdfDialog = $state<{
+	let previewDialog = $state<{
 		open: boolean;
+		kind: 'pdf' | 'image';
 		src: string | null;
 		name: string;
 		downloadHref: string | null;
-	}>({ open: false, src: null, name: '', downloadHref: null });
+	}>({ open: false, kind: 'pdf', src: null, name: '', downloadHref: null });
 
-	function isPdf(fileName: string): boolean {
-		return fileName.toLowerCase().endsWith('.pdf');
+	const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.avif'];
+
+	function getPreviewKind(fileName: string): 'pdf' | 'image' | null {
+		const lower = fileName.toLowerCase();
+		if (lower.endsWith('.pdf')) return 'pdf';
+		if (IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext))) return 'image';
+		return null;
 	}
 
-	/* Intercept source-document badge clicks: open PDFs in an in-page viewer
-	 * instead of downloading. Non-PDF files keep the default download behaviour. */
+	/* Intercept source-document badge clicks: open PDFs and images in an in-page
+	 * viewer instead of downloading. Other file types keep default download. */
 	function handleContentClick(event: MouseEvent) {
 		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return;
 
@@ -60,13 +66,15 @@
 		if (!documentId) return;
 
 		const doc = availableDocuments.find((d) => d.id === documentId);
-		if (!doc || !isPdf(doc.name)) return;
+		if (!doc) return;
+		const kind = getPreviewKind(doc.name);
+		if (!kind) return;
 
 		const href = badge.getAttribute('href');
 		if (!href || href === '#') return;
 
 		event.preventDefault();
-		pdfDialog = { open: true, src: href, name: doc.name, downloadHref: href };
+		previewDialog = { open: true, kind, src: href, name: doc.name, downloadHref: href };
 	}
 
 	function createRenderer() {
@@ -160,10 +168,11 @@
 </div>
 
 <PdfDocumentDialog
-	bind:open={pdfDialog.open}
-	src={pdfDialog.src}
-	name={pdfDialog.name}
-	downloadHref={pdfDialog.downloadHref}
+	bind:open={previewDialog.open}
+	kind={previewDialog.kind}
+	src={previewDialog.src}
+	name={previewDialog.name}
+	downloadHref={previewDialog.downloadHref}
 />
 
 <style>
