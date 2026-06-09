@@ -707,6 +707,7 @@ export const SendNotificationRequest = z
     delivery_method: z.union([DeliveryMethod, z.null()]).optional(),
     html_content: z.union([z.string(), z.null()]).optional(),
     notification_type: z.union([NotificationType, z.null()]).optional(),
+    test_email_recipient: z.union([z.string(), z.null()]).optional(),
     title: z.string(),
   })
   .passthrough();

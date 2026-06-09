@@ -5,6 +5,9 @@
 	import * as RadioGroup from '$lib/components/ui/radio-group';
 	import * as Alert from '$lib/components/ui/alert';
 	import * as Collapsible from '$lib/components/ui/collapsible';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { Button } from '$lib/components/ui/button';
+	import { Label } from '$lib/components/ui/label';
 	import { AlertTriangle, ChevronDown, Users } from 'lucide-svelte';
 	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
 	import { getBaseExtensions } from '$lib/components/RichTextEditor/editorConfig';
@@ -138,6 +141,57 @@
 		}
 	}
 
+	let testDialogOpen = $state(false);
+	let testEmailAddress = $state('');
+	let testEmailError = $state<string | null>(null);
+	let testSending = $state(false);
+
+	const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+	async function sendTestEmail() {
+		testEmailError = null;
+
+		const result = await validateForm({ update: true });
+		if (!result.valid) {
+			testEmailError = 'Fill in the email subject and body before sending a test.';
+			return;
+		}
+
+		const recipient = testEmailAddress.trim();
+		if (!EMAIL_PATTERN.test(recipient)) {
+			testEmailError = 'Enter a valid email address.';
+			return;
+		}
+
+		testSending = true;
+		try {
+			const response = await apiClient.SendNotificationToParticipants(
+				{
+					title: $form.title,
+					content: $form.content,
+					notification_type: 'info' as const,
+					delivery_method: 'email',
+					html_content: jsonToHtml($form.content),
+					test_email_recipient: recipient
+				},
+				{ params: { conversation_id: conversationId } }
+			);
+
+			notifications.send({
+				message: response.message || `Test email sent to ${recipient}`,
+				priority: 'SUCCESS'
+			});
+
+			testDialogOpen = false;
+			testEmailAddress = '';
+		} catch (error: any) {
+			testEmailError =
+				error?.response?.data?.message || 'Failed to send test email. Please try again.';
+		} finally {
+			testSending = false;
+		}
+	}
+
 	let isEmail = $derived($form.delivery_method === 'email');
 
 	let lastDeliveryMethod = $state($form.delivery_method);
@@ -231,14 +285,30 @@
 			</Form.Control>
 		</Form.Field>
 
-		<Form.Button class="w-full" disabled={$submitting}>
-			<Send class="mr-2 h-4 w-4" />
-			{#if $submitting}
-				Sending {isEmail ? 'email' : 'notification'}...
-			{:else}
-				Send {isEmail ? 'email' : 'notification'} to all participants
+		<div class="flex flex-col gap-2 sm:flex-row">
+			<Form.Button class="flex-1" disabled={$submitting}>
+				<Send class="mr-2 h-4 w-4" />
+				{#if $submitting}
+					Sending {isEmail ? 'email' : 'notification'}...
+				{:else}
+					Send {isEmail ? 'email' : 'notification'} to all participants
+				{/if}
+			</Form.Button>
+
+			{#if isEmail}
+				<Button
+					type="button"
+					variant="outline"
+					disabled={$submitting || testSending}
+					onclick={() => {
+						testEmailError = null;
+						testDialogOpen = true;
+					}}
+				>
+					Send test email
+				</Button>
 			{/if}
-		</Form.Button>
+		</div>
 
 		<p class="text-muted-foreground text-sm">
 			{#if isEmail}
@@ -334,3 +404,47 @@
 		{/if}
 	</aside>
 </div>
+
+<Dialog.Root bind:open={testDialogOpen}>
+	<Dialog.Content class="sm:max-w-[425px]">
+		<Dialog.Header>
+			<Dialog.Title>Send test email</Dialog.Title>
+			<Dialog.Description>
+				Send the current subject and body to a single address. Recipients opted in to this
+				conversation will not receive this preview.
+			</Dialog.Description>
+		</Dialog.Header>
+		<div class="space-y-2 py-2">
+			<Label for="test-email-recipient">Email address</Label>
+			<Input
+				id="test-email-recipient"
+				type="email"
+				placeholder="you@example.com"
+				bind:value={testEmailAddress}
+				disabled={testSending}
+				onkeydown={(e) => {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						sendTestEmail();
+					}
+				}}
+			/>
+			{#if testEmailError}
+				<p class="text-destructive text-sm">{testEmailError}</p>
+			{/if}
+		</div>
+		<Dialog.Footer>
+			<Button
+				type="button"
+				variant="outline"
+				disabled={testSending}
+				onclick={() => (testDialogOpen = false)}
+			>
+				Cancel
+			</Button>
+			<Button type="button" onclick={sendTestEmail} disabled={testSending}>
+				{testSending ? 'Sending…' : 'Send test'}
+			</Button>
+		</Dialog.Footer>
+	</Dialog.Content>
+</Dialog.Root>
