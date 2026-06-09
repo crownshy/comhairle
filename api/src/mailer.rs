@@ -76,6 +76,13 @@ pub trait ComhairleMailer: Send + Sync {
         organization: &Option<Organization>,
         link_href: String,
     ) -> Result<(), ComhairleError>;
+
+    fn send_conversation_broadcast_email(
+        &self,
+        email: &str,
+        subject: &str,
+        html_body: &str,
+    ) -> Result<(), ComhairleError>;
 }
 
 #[derive(Debug)]
@@ -110,6 +117,9 @@ impl MockComhairleMailer {
         mailer
             .expect_send_event_reminder()
             .returning(|_, _, _, _| Ok(()));
+        mailer
+            .expect_send_conversation_broadcast_email()
+            .returning(|_, _, _| Ok(()));
 
         mailer
     }
@@ -171,9 +181,10 @@ impl ComhairleMailer for Mailer {
             .credentials(self.creds.clone())
             .build();
 
-        if let Err(e) = mailer.send(&email) {
+        mailer.send(&email).map_err(|e| {
             warn!("Mailer error: {e}");
-        }
+            e
+        })?;
 
         Ok(())
     }
@@ -327,6 +338,21 @@ impl ComhairleMailer for Mailer {
                 event_link => link_href,
             },
             Some(calendar_invite),
+        )
+    }
+
+    fn send_conversation_broadcast_email(
+        &self,
+        email: &str,
+        subject: &str,
+        html_body: &str,
+    ) -> Result<(), ComhairleError> {
+        self.send_email(
+            email,
+            subject,
+            "conversation_broadcast.html",
+            context! { subject, body => html_body },
+            None,
         )
     }
 }
