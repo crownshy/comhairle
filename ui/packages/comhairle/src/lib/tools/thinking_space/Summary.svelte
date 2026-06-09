@@ -6,6 +6,9 @@
 	import { Sparkles, RotateCcw, Check, CornerDownRight, PlusCircle } from 'lucide-svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import { saveRound } from './summary';
+	import { getConsent, setConsent, type ConsentState } from './consent';
+	import ConsentModal from './ConsentModal.svelte';
+	import ConsentToggle from './ConsentToggle.svelte';
 	import type { QuestionConfig, QuestionAnswers, SummaryRound } from './types';
 
 	type Props = {
@@ -54,6 +57,13 @@
 	// Per-round edit drafts (by id). Edits to any round autosave on blur.
 	let dirtyById = $state<Record<string, string>>({});
 	let savingById = $state<Record<string, boolean>>({});
+
+	// Sharing consent for this participant's thinking-space record. `null`
+	// means "not yet decided" — modal intercepts the first Confirm & Save.
+	// Once set, the modal never re-appears; the persistent toggle takes over.
+	// svelte-ignore state_referenced_locally
+	let consent = $state<ConsentState | null>(getConsent(workflowStepId));
+	let consentModalOpen = $state(false);
 
 	const loadingMessages = [
 		'Drawing your thoughts together…',
@@ -116,6 +126,19 @@
 		if (!latest) return;
 		const value = valueFor(latest).trim();
 		if (!value || submitting) return;
+		// First-ever submit: gate on consent. Modal handles the rest.
+		if (consent === null) {
+			consentModalOpen = true;
+			return;
+		}
+		await doSubmit();
+	}
+
+	async function doSubmit() {
+		const latest = rounds[rounds.length - 1];
+		if (!latest) return;
+		const value = valueFor(latest).trim();
+		if (!value || submitting) return;
 		submitting = true;
 		try {
 			if (dirtyById[latest.id] !== undefined) {
@@ -133,6 +156,32 @@
 		} finally {
 			submitting = false;
 		}
+	}
+
+	async function handleConsentChoice(choice: ConsentState) {
+		setConsent(workflowStepId, choice);
+		consent = choice;
+		consentModalOpen = false;
+		notifications.send({
+			message:
+				choice === 'shared'
+					? 'Thanks for sharing. Your responses have been sent to the organizers. You can change your mind anytime via the toggle when you come back.'
+					: 'Thanks. Your thinking stays private. Only you can see it. You can change your mind anytime via the toggle when you come back.',
+			priority: 'SUCCESS'
+		});
+		await doSubmit();
+	}
+
+	function handleToggleChange(next: boolean) {
+		const value: ConsentState = next ? 'shared' : 'private';
+		setConsent(workflowStepId, value);
+		consent = value;
+		notifications.send({
+			message: next
+				? "You're now sharing your thinking with the organizers."
+				: 'Your thinking is private again. Only you can see it.',
+			priority: 'INFO'
+		});
 	}
 
 	function latestLabel(total: number): string {
@@ -160,6 +209,11 @@
 			Here's everything you shared, and a short statement we've drafted from it. Edit the
 			statement so it sounds like you — that's what you'll submit.
 		</p>
+		{#if consent !== null}
+			<div class="mt-4 flex justify-center">
+				<ConsentToggle shared={consent === 'shared'} onChange={handleToggleChange} />
+			</div>
+		{/if}
 	</header>
 
 	<!-- Answers recap: read-only source material for the summaries below. -->
@@ -329,3 +383,10 @@
 		{/if}
 	</section>
 </div>
+
+<ConsentModal
+	open={consentModalOpen}
+	onOpenChange={(o) => (consentModalOpen = o)}
+	onShare={() => handleConsentChoice('shared')}
+	onKeepPrivate={() => handleConsentChoice('private')}
+/>
