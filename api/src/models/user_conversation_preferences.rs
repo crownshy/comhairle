@@ -1,7 +1,9 @@
 use crate::error::ComhairleError;
+use crate::models::conversation_email_notification_recipients::ConversationEmailNotificationRecipientsIden;
+use crate::models::users::UserIden;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
+use sea_query::{enum_def, Expr, JoinType, PostgresQueryBuilder, Query, UnionType};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
@@ -244,6 +246,50 @@ pub async fn delete(
         .map_err(|_| ComhairleError::ResourceNotFound("UserConversationPreferences".into()))?;
 
     Ok(preferences)
+}
+
+pub async fn get_opted_in_broadcast_emails(
+    db: &PgPool,
+    conversation_id: &Uuid,
+) -> Result<Vec<String>, ComhairleError> {
+    let mut logged_in = Query::select()
+        .expr(Expr::col((UserIden::Table, UserIden::Email)))
+        .from(UserConversationPreferencesIden::Table)
+        .join(
+            JoinType::InnerJoin,
+            UserIden::Table,
+            Expr::col((UserIden::Table, UserIden::Id)).equals((
+                UserConversationPreferencesIden::Table,
+                UserConversationPreferencesIden::UserId,
+            )),
+        )
+        .and_where(
+            Expr::col(UserConversationPreferencesIden::ConversationId)
+                .eq(conversation_id.to_owned()),
+        )
+        .and_where(Expr::col(UserConversationPreferencesIden::ReceiveUpdatesByEmail).eq(true))
+        .and_where(Expr::col((UserIden::Table, UserIden::Email)).is_not_null())
+        .to_owned();
+
+    let anonymous = Query::select()
+        .column(ConversationEmailNotificationRecipientsIden::Email)
+        .from(ConversationEmailNotificationRecipientsIden::Table)
+        .and_where(
+            Expr::col(ConversationEmailNotificationRecipientsIden::ConversationId)
+                .eq(conversation_id.to_owned()),
+        )
+        .and_where(
+            Expr::col(ConversationEmailNotificationRecipientsIden::ReceiveUpdatesByEmail).eq(true),
+        )
+        .to_owned();
+
+    let (sql, values) = logged_in
+        .union(UnionType::Distinct, anonymous)
+        .build_sqlx(PostgresQueryBuilder);
+
+    let rows: Vec<(String,)> = sqlx::query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(rows.into_iter().map(|(email,)| email).collect())
 }
 
 pub async fn get_contacts_for_export(
