@@ -5,15 +5,18 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { Sparkles, RotateCcw, Check, CornerDownRight, PlusCircle } from 'lucide-svelte';
 	import { notifications } from '$lib/notifications.svelte';
+	import { apiClient } from '@crownshy/api-client/client';
 	import { saveRound } from './summary';
-	import { getConsent, setConsent, type ConsentState } from './consent';
 	import ConsentModal from './ConsentModal.svelte';
 	import ConsentToggle from './ConsentToggle.svelte';
 	import type { QuestionConfig, QuestionAnswers, SummaryRound } from './types';
+	import type { ProgressStatus } from '@crownshy/api-client/api';
 
 	type Props = {
 		topic: string;
 		workflowStepId: string;
+		workflowId: string;
+		conversationId: string;
 		questions: QuestionConfig[];
 		answers: QuestionAnswers[];
 		/**
@@ -32,6 +35,12 @@
 		 * failure).
 		 */
 		loadError?: boolean;
+		/** Step-level admin flag. When false, the consent modal/toggle never render. */
+		requestUserSharePermission?: boolean;
+		/** Current backend value for `permission_to_share_with_organizers`. */
+		initialPermissionToShareWithOrganizers?: boolean | null;
+		/** Used to recognise returning participants: 'done' means they've decided before. */
+		progressStatus?: ProgressStatus;
 		/** Retry the last failed generation. Required when `loadError` is true. */
 		onRetryGenerate?: () => void;
 		/** Fired when the participant submits the latest round. */
@@ -45,9 +54,14 @@
 		questions,
 		answers,
 		workflowStepId,
+		workflowId,
+		conversationId,
 		rounds,
 		pendingNextRound = false,
 		loadError = false,
+		requestUserSharePermission = false,
+		initialPermissionToShareWithOrganizers = null,
+		progressStatus = 'not_started',
 		onRetryGenerate,
 		onDone,
 		onAnswerMore
@@ -58,11 +72,15 @@
 	let dirtyById = $state<Record<string, string>>({});
 	let savingById = $state<Record<string, boolean>>({});
 
-	// Sharing consent for this participant's thinking-space record. `null`
-	// means "not yet decided" — modal intercepts the first Confirm & Save.
-	// Once set, the modal never re-appears; the persistent toggle takes over.
-	// svelte-ignore state_referenced_locally
-	let consent = $state<ConsentState | null>(getConsent(workflowStepId));
+	// Live sharing consent for this participant's thinking-space record. Hydrated
+	// from the backend user_progress row; toggle/modal flips PATCH it back.
+	// Backend defaults to TRUE (opt-out), so undefined falls back to true.
+	let consent = $state<boolean>(initialPermissionToShareWithOrganizers ?? true);
+	// "Has the participant explicitly made a sharing choice on this step?"
+	// True if they've already finished this step before (returning visit) —
+	// progressStatus === 'done' means they passed the modal at least once.
+	// Becomes true after they pick a button in the modal this session.
+	let hasDecidedConsent = $state<boolean>(progressStatus === 'done');
 	let consentModalOpen = $state(false);
 
 	const loadingMessages = [
@@ -126,8 +144,10 @@
 		if (!latest) return;
 		const value = valueFor(latest).trim();
 		if (!value || submitting) return;
-		// First-ever submit: gate on consent. Modal handles the rest.
-		if (consent === null) {
+		// First-ever submit on this step: gate on the consent modal. Returning
+		// participants (progressStatus === 'done') have already decided and skip
+		// straight to doSubmit.
+		if (requestUserSharePermission && !hasDecidedConsent) {
 			consentModalOpen = true;
 			return;
 		}
@@ -158,24 +178,53 @@
 		}
 	}
 
-	async function handleConsentChoice(choice: ConsentState) {
-		setConsent(workflowStepId, choice);
-		consent = choice;
+	async function patchConsent(value: boolean): Promise<boolean> {
+		try {
+			await apiClient.SetUserProgress(
+				{ permission_to_share_with_organizers: value },
+				{
+					params: {
+						conversation_id: conversationId,
+						workflow_id: workflowId,
+						workflow_step_id: workflowStepId
+					},
+					headers: { 'Content-Type': 'application/json' }
+				}
+			);
+			return true;
+		} catch (e) {
+			console.error('thinking_space: failed to update share permission', e);
+			notifications.send({
+				message: 'Could not save your sharing preference. Please try again.',
+				priority: 'ERROR'
+			});
+			return false;
+		}
+	}
+
+	async function handleConsentChoice(share: boolean) {
+		const ok = await patchConsent(share);
+		if (!ok) return;
+		consent = share;
+		hasDecidedConsent = true;
 		consentModalOpen = false;
 		notifications.send({
-			message:
-				choice === 'shared'
-					? 'Thanks for sharing. Your responses have been sent to the organizers. You can change your mind anytime via the toggle when you come back.'
-					: 'Thanks. Your thinking stays private. Only you can see it. You can change your mind anytime via the toggle when you come back.',
+			message: share
+				? 'Thanks for sharing. Your responses have been sent to the organizers. You can change your mind anytime via the toggle when you come back.'
+				: 'Thanks. Your thinking stays private. Only you can see it. You can change your mind anytime via the toggle when you come back.',
 			priority: 'SUCCESS'
 		});
 		await doSubmit();
 	}
 
-	function handleToggleChange(next: boolean) {
-		const value: ConsentState = next ? 'shared' : 'private';
-		setConsent(workflowStepId, value);
-		consent = value;
+	async function handleToggleChange(next: boolean) {
+		const previous = consent;
+		consent = next;
+		const ok = await patchConsent(next);
+		if (!ok) {
+			consent = previous;
+			return;
+		}
 		notifications.send({
 			message: next
 				? "You're now sharing your thinking with the organizers."
@@ -209,9 +258,9 @@
 			Here's everything you shared, and a short statement we've drafted from it. Edit the
 			statement so it sounds like you — that's what you'll submit.
 		</p>
-		{#if consent !== null}
+		{#if requestUserSharePermission && hasDecidedConsent}
 			<div class="mt-4 flex justify-center">
-				<ConsentToggle shared={consent === 'shared'} onChange={handleToggleChange} />
+				<ConsentToggle shared={consent} onChange={handleToggleChange} />
 			</div>
 		{/if}
 	</header>
@@ -387,6 +436,6 @@
 <ConsentModal
 	open={consentModalOpen}
 	onOpenChange={(o) => (consentModalOpen = o)}
-	onShare={() => handleConsentChoice('shared')}
-	onKeepPrivate={() => handleConsentChoice('private')}
+	onShare={() => handleConsentChoice(true)}
+	onKeepPrivate={() => handleConsentChoice(false)}
 />

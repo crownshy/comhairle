@@ -13,23 +13,34 @@
 		ThinkingSpacePhase
 	} from './types';
 	import type { FlowMode } from './questionFlowState.svelte';
+	import type { ProgressStatus } from '@crownshy/api-client/api';
 
 	type Props = {
 		workflowStepId: string;
+		workflowId: string;
+		conversationId: string;
 		userId: string;
 		topic?: string;
 		rootQuestions?: QuestionConfig[];
 		followUpRoundsCount?: number;
+		requestUserSharePermission?: boolean;
+		initialPermissionToShareWithOrganizers?: boolean | null;
+		progressStatus?: ProgressStatus;
 		onDone?: () => void;
 		onCanContinueChange?: (canContinue: boolean) => void;
 	};
 
 	let {
 		workflowStepId,
+		workflowId,
+		conversationId,
 		userId,
 		topic = '',
 		rootQuestions = [],
 		followUpRoundsCount = 2,
+		requestUserSharePermission = false,
+		initialPermissionToShareWithOrganizers = null,
+		progressStatus = 'not_started',
 		onDone,
 		onCanContinueChange
 	}: Props = $props();
@@ -218,6 +229,11 @@
 			<Summary
 				{topic}
 				{workflowStepId}
+				{workflowId}
+				{conversationId}
+				{requestUserSharePermission}
+				{initialPermissionToShareWithOrganizers}
+				{progressStatus}
 				questions={rootQuestions}
 				{answers}
 				rounds={savedRounds}

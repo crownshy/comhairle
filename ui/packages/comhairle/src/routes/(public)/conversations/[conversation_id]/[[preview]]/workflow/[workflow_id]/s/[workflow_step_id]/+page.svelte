@@ -317,10 +317,15 @@
 						{#key workflowStep.id}
 							<ThinkingSpace.UserUI
 								workflowStepId={workflowStep.id}
+								workflowId={workflowStep.workflowId}
+								conversationId={conversation.id}
 								userId={user.id}
 								topic={toolConfig.topic}
 								rootQuestions={toolConfig.root_questions}
 								followUpRoundsCount={toolConfig.follow_up_rounds_count}
+								requestUserSharePermission={workflowStep.requestUserSharePermission}
+								initialPermissionToShareWithOrganizers={data.permissionToShareWithOrganizers}
+								progressStatus={workflowStep.progressStatus}
 								onDone={stepComplete}
 								onCanContinueChange={handleCanContinueChange}
 							/>

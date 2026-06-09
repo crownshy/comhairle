@@ -66,6 +66,7 @@
 	});
 	let required = $derived(step?.required ?? false);
 	let revisitable = $derived(step?.canRevisit ?? false);
+	let requestUserSharePermission = $derived(step?.requestUserSharePermission ?? false);
 
 	$effect(() => {
 		name = getTextInLocale(step?.translations?.name, primaryLocale, step?.name ?? '');
@@ -200,6 +201,18 @@
 				/>
 				<Label class="text-base">Required step</Label>
 				<span class="text-muted-foreground ml-2 text-sm">(Can users skip this step?)</span>
+			</div>
+			<div class="flex items-center gap-2">
+				<Switch
+					checked={requestUserSharePermission}
+					onCheckedChange={(value) =>
+						handleSwitchChange(value, 'requestUserSharePermission')}
+				/>
+				<Label class="text-base">Ask for sharing consent</Label>
+				<span class="text-muted-foreground ml-2 text-sm"
+					>(Prompt participants to opt in or out of sharing their responses with
+					organizers.)</span
+				>
 			</div>
 		</div>
 	</Dialog.Content>

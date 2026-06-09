@@ -75,7 +75,31 @@ export const load: PageLoad = async (event) => {
 
 		const workflowStep = thisStep!;
 
-		return { conversation, workflowStep, api, workflowSteps, workflow_id, preview };
+		// Pull this step's user_progress row so child components know whether the
+		// participant already opted in to sharing. Only needed when the admin has
+		// enabled the consent prompt on this step.
+		let permissionToShareWithOrganizers: boolean | null = null;
+		if (workflowStep?.requestUserSharePermission && conversation.isLive && !preview) {
+			try {
+				const progressList = await api.GetUserProgress({
+					params: { conversation_id, workflow_id }
+				});
+				const row = progressList.find((p) => p.workflowStepId === workflowStep.id);
+				permissionToShareWithOrganizers = row?.permissionToShareWithOrganizers ?? null;
+			} catch (e) {
+				console.warn('failed to load user_progress for consent state', e);
+			}
+		}
+
+		return {
+			conversation,
+			workflowStep,
+			api,
+			workflowSteps,
+			workflow_id,
+			preview,
+			permissionToShareWithOrganizers
+		};
 	} catch (e: any) {
 		// TODO: figure out how to type this from the generated api
 		/// Throw if error is a redirect
