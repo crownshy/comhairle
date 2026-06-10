@@ -945,6 +945,14 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredWebhookSignature {
             .to_str()
             .map_err(|e| ComhairleError::AuthWebhookSignatureError(e.to_string()))?;
 
+        println!();
+        println!("    >>>>    Webhook signature: {provided_signature:#?}; Config signature: {config_signature:#?}");
+        println!(
+            "    >>>>    MAtch? : {}",
+            provided_signature == config_signature
+        );
+        println!();
+
         if provided_signature == config_signature {
             Ok(RequiredWebhookSignature)
         } else {
