@@ -103,7 +103,7 @@ pub struct CreateEmailTemplateConfig {
 #[instrument(err(Debug))]
 pub async fn create(
     db: &PgPool,
-    user_id: &Uuid,
+    user_id: Uuid,
     params: &CreateEmailTemplateConfig,
 ) -> Result<EmailTemplateConfig, ComhairleError> {
     let slots_json = serde_json::to_value(&params.slots)?;
@@ -112,12 +112,12 @@ pub async fn create(
         EmailTemplateConfigIden::Slots,
         EmailTemplateConfigIden::OwnerId,
     ];
-    let mut values = vec![slots_json.into(), (*user_id).into()];
+    let mut values = vec![slots_json.into(), user_id.into()];
 
     columns.push(EmailTemplateConfigIden::EmailType);
     values.push(params.slots.to_string().into());
 
-    let user = users::get_user_by_id(user_id, db).await?;
+    let user = users::get_user_by_id(&user_id, db).await?;
 
     if let Some(organization_id) = user.organization_id {
         columns.push(EmailTemplateConfigIden::OrganizationId);
@@ -276,7 +276,7 @@ mod tests {
             }),
         };
 
-        let email_config = create(&pool, &current_user.id, &params).await?;
+        let email_config = create(&pool, current_user.id, &params).await?;
 
         assert_eq!(
             email_config.owner_id, current_user.id,
@@ -302,7 +302,7 @@ mod tests {
             slots: create_slots.clone(),
         };
 
-        let new_email_config = create(&pool, &current_user.id, &params).await?;
+        let new_email_config = create(&pool, current_user.id, &params).await?;
 
         assert_eq!(
             new_email_config.slots, create_slots,
@@ -349,7 +349,7 @@ mod tests {
             }),
         };
 
-        let new_email_config = create(&pool, &current_user.id, &params).await?;
+        let new_email_config = create(&pool, current_user.id, &params).await?;
 
         let email_config = get_by_id(&pool, new_email_config.id).await?;
 
@@ -375,11 +375,11 @@ mod tests {
         let params_a = CreateEmailTemplateConfig {
             slots: EmailTemplateSlots::EventRegistrationConfirmation(default_slots.clone()),
         };
-        create(&pool, &user_a.id, &params_a).await?;
+        create(&pool, user_a.id, &params_a).await?;
         let params_b = CreateEmailTemplateConfig {
             slots: EmailTemplateSlots::ConversationInvite(default_slots.clone()),
         };
-        create(&pool, &user_b.id, &params_b).await?;
+        create(&pool, user_b.id, &params_b).await?;
 
         let filter_options = EmailTemplateConfigFilterOptions {
             owner_id: Some(user_b.id),
@@ -411,7 +411,7 @@ mod tests {
             }),
         };
 
-        let email_config = create(&pool, &current_user.id, &params).await?;
+        let email_config = create(&pool, current_user.id, &params).await?;
 
         delete(&pool, email_config.id).await?;
 

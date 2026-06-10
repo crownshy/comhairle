@@ -1867,6 +1867,51 @@ export const CreateApiKeyRequest = z
 export type CreateApiKeyRequest = z.infer<typeof CreateApiKeyRequest>;
 export const CreateResponse2 = z.object({ key: z.string() }).passthrough();
 export type CreateResponse2 = z.infer<typeof CreateResponse2>;
+export const EmailTemplateSlots = z.union([
+  z
+    .object({
+      body: z.string(),
+      footer: z.string(),
+      heading: z.string(),
+      intro: z.string(),
+      type: z.literal("conversation_invite"),
+    })
+    .passthrough(),
+  z
+    .object({
+      body: z.string(),
+      footer: z.string(),
+      heading: z.string(),
+      intro: z.string(),
+      type: z.literal("event_registration_confirmation"),
+    })
+    .passthrough(),
+]);
+export type EmailTemplateSlots = z.infer<typeof EmailTemplateSlots>;
+export const EmailTemplateConfigDto = z
+  .object({
+    createdAt: z.string().datetime({ offset: true }),
+    emailType: z.string(),
+    id: z.string().uuid(),
+    organizationId: z.union([z.string(), z.null()]).optional(),
+    ownerId: z.string().uuid(),
+    slots: EmailTemplateSlots,
+  })
+  .passthrough();
+export type EmailTemplateConfigDto = z.infer<typeof EmailTemplateConfigDto>;
+export const CreateEmailTemplateConfig = z
+  .object({ slots: EmailTemplateSlots })
+  .passthrough();
+export type CreateEmailTemplateConfig = z.infer<
+  typeof CreateEmailTemplateConfig
+>;
+export const UpdateEmailTemplateConfig = z
+  .object({ slots: z.union([EmailTemplateSlots, z.null()]) })
+  .partial()
+  .passthrough();
+export type UpdateEmailTemplateConfig = z.infer<
+  typeof UpdateEmailTemplateConfig
+>;
 
 export const schemas: Record<string, z.ZodType<any>> = {
   AnnonLoginRequest,
@@ -2080,6 +2125,10 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ComhairleServices,
   CreateApiKeyRequest,
   CreateResponse2,
+  EmailTemplateSlots,
+  EmailTemplateConfigDto,
+  CreateEmailTemplateConfig,
+  UpdateEmailTemplateConfig,
 };
 
 const endpoints = makeApi([
@@ -3335,6 +3384,72 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     description: `This documentation page.`,
     requestFormat: "json",
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/email_template_configs",
+    alias: "ListEmailTemplateConfigs",
+    description: `List custom email template configurations`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "organization_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "owner_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: z.array(EmailTemplateConfigDto),
+  },
+  {
+    method: "post",
+    path: "/email_template_configs",
+    alias: "CreateEmailTemplateConfig",
+    description: `Create custom content for specific email template`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateEmailTemplateConfig,
+      },
+    ],
+    response: EmailTemplateConfigDto,
+  },
+  {
+    method: "get",
+    path: "/email_template_configs/:email_config_id",
+    alias: "GetEmailTemplateConfig",
+    description: `Get custom email template configuration`,
+    requestFormat: "json",
+    response: EmailTemplateConfigDto,
+  },
+  {
+    method: "put",
+    path: "/email_template_configs/:email_config_id",
+    alias: "UpdateEmailTemplateConfig",
+    description: `Update custom email template configuration`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpdateEmailTemplateConfig,
+      },
+    ],
+    response: EmailTemplateConfigDto,
+  },
+  {
+    method: "delete",
+    path: "/email_template_configs/:email_config_id",
+    alias: "DeleteEmailTemplateConfig",
+    description: `Delete custom email template configuration`,
+    requestFormat: "json",
+    response: EmailTemplateConfigDto,
   },
   {
     method: "get",
