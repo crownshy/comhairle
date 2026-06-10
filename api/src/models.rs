@@ -2,6 +2,7 @@ pub mod api_key;
 pub mod bot_service_user_session;
 pub mod conversation;
 pub mod conversation_email_notification_recipients;
+pub mod email_template_config;
 pub mod event;
 pub mod event_attendance;
 pub mod feedback;
