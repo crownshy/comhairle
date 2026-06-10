@@ -12,12 +12,14 @@
 		toolConfig,
 		conversationId,
 		workflowId,
-		workflowStepId
+		workflowStepId,
+		isLive
 	}: {
 		toolConfig: any; // TODO:
 		conversationId: string;
 		workflowId: string;
 		workflowStepId: string;
+		isLive: boolean;
 	} = $props();
 
 	const {
@@ -50,7 +52,10 @@
 		try {
 			await apiClient.UpdateConversationWorkflowStep(
 				{
-					preview_tool_config: { ...toolConfig, [camelToSnakeCase(field)]: value }
+					[isLive ? 'tool_config' : 'preview_tool_config']: {
+						...toolConfig,
+						[camelToSnakeCase(field)]: value
+					}
 				},
 				{
 					params: {
@@ -79,7 +84,10 @@
 		try {
 			await apiClient.UpdateConversationWorkflowStep(
 				{
-					preview_tool_config: { ...toolConfig, [camelToSnakeCase(field)]: checked }
+					[isLive ? 'tool_config' : 'preview_tool_config']: {
+						...toolConfig,
+						[camelToSnakeCase(field)]: checked
+					}
 				},
 				{
 					params: {

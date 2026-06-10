@@ -479,6 +479,7 @@ pub async fn create(
     new_workflow_step: &CreateWorkflowStep,
     workflow_id: Uuid,
     primary_locale: &str,
+    is_live: bool,
 ) -> Result<WorkflowStep, ComhairleError> {
     // Generate Translations
     let name_translation = new_translation(
@@ -512,7 +513,12 @@ pub async fn create(
     values.push(workflow_id.into());
 
     columns.push(WorkflowStepIden::PreviewToolConfig);
-    values.push(serde_json::to_value(preview_tool_config).unwrap().into());
+    values.push(serde_json::to_value(&preview_tool_config)?.into());
+
+    if is_live {
+        columns.push(WorkflowStepIden::ToolConfig);
+        values.push(serde_json::to_value(&preview_tool_config)?.into());
+    }
 
     let mut transaction = state.db.begin().await?;
 
@@ -626,6 +632,7 @@ mod tests {
     use crate::{
         models::{
             self,
+            conversation::{self, PartialConversation},
             model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
             user_progress::UpdateUserProgress,
             workflow,
@@ -637,6 +644,45 @@ mod tests {
 
     use super::*;
     use std::error::Error;
+
+    #[sqlx::test]
+    async fn should_create_step_for_live_conversation(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+
+        let conversation = conversation::update(
+            &pool,
+            &conversation_id,
+            &PartialConversation {
+                is_live: Some(true),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+        let (_, workflow_res, _) = session
+            .create_random_workflow(&app, &conversation_id.to_string())
+            .await?;
+        let workflow: WorkflowDto = serde_json::from_value(workflow_res)?;
+        let steps_res = session
+            .create_random_workflow_steps(
+                &app,
+                &conversation_id.to_string(),
+                &workflow.id.to_string(),
+                1,
+            )
+            .await?;
+        let step: WorkflowStepDto = serde_json::from_value(steps_res.first().unwrap().to_owned())?;
+
+        assert!(step.tool_config.is_some(), "missing tool_config");
+        assert_eq!(
+            step.preview_tool_config,
+            step.tool_config.unwrap(),
+            "tool_config's don't match"
+        );
+
+        Ok(())
+    }
 
     #[sqlx::test]
     async fn should_update_can_revisit_field(pool: PgPool) -> Result<(), Box<dyn Error>> {
