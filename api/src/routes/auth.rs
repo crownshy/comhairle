@@ -21,10 +21,11 @@ use axum_extra::{
 use bon::builder;
 use chrono::{TimeDelta, Utc};
 use cookie::CookieBuilder;
-use hyper::HeaderMap;
+use hmac::{Hmac, KeyInit, Mac};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
 use rand_core::OsRng;
 use regex::Regex;
+use sha2::Sha256;
 use time::Duration;
 
 /// Helper function to check if a user is admin
@@ -48,7 +49,6 @@ use std::marker::PhantomData;
 use std::{collections::HashMap, sync::Arc};
 use tracing::{instrument, warn};
 use uuid::Uuid;
-// use tower_cookies::{Cookie, Cookies};
 
 use crate::{
     error::ComhairleError,
@@ -913,54 +913,35 @@ impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
     }
 }
 
-#[derive(OperationIo, Debug)]
-pub struct RequiredWebhookSignature;
+pub fn build_webhook_signature<T: Serialize>(
+    timestamp: &str,
+    body: &T,
+    secret: &str,
+) -> Result<String, ComhairleError> {
+    let body_str = serde_json::to_string(body)?;
 
-impl FromRequestParts<Arc<ComhairleState>> for RequiredWebhookSignature {
-    type Rejection = ComhairleError;
+    let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes())
+        .map_err(|e| ComhairleError::AuthWebhookSignatureError(e.to_string()))?;
 
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &Arc<ComhairleState>,
-    ) -> Result<Self, Self::Rejection> {
-        let config_signature = &state
-            .config
-            .categorization_service
-            .as_ref()
-            .ok_or(ComhairleError::NoCategorizationServiceConfigured)?
-            .webhook_signature;
+    let signed_payload = format!("{}.{}", timestamp, body_str);
 
-        let headers = parts
-            .extract::<HeaderMap>()
-            .await
-            .map_err(|e| ComhairleError::AuthWebhookSignatureError(e.to_string()))?;
+    mac.update(signed_payload.as_bytes());
 
-        let provided_signature = headers
-            .get("X-Webhook-Signature")
-            .ok_or_else(|| {
-                ComhairleError::AuthWebhookSignatureError(
-                    "Missing X-Webhook-Signature header".to_string(),
-                )
-            })?
-            .to_str()
-            .map_err(|e| ComhairleError::AuthWebhookSignatureError(e.to_string()))?;
+    Ok(format!(
+        "sha256={}",
+        hex::encode(mac.finalize().into_bytes())
+    ))
+}
 
-        println!();
-        println!("    >>>>    Webhook signature: {provided_signature:#?}; Config signature: {config_signature:#?}");
-        println!(
-            "    >>>>    MAtch? : {}",
-            provided_signature == config_signature
-        );
-        println!();
+pub fn verify_webhook_signature<T: Serialize>(
+    signature: &str,
+    timestamp: &str,
+    body: &T,
+    secret: &str,
+) -> Result<bool, ComhairleError> {
+    let expected = build_webhook_signature(timestamp, body, secret)?;
 
-        if provided_signature == config_signature {
-            Ok(RequiredWebhookSignature)
-        } else {
-            Err(ComhairleError::AuthWebhookSignatureError(
-                "Invalid X-Webhook-Signature header".to_string(),
-            ))
-        }
-    }
+    Ok(expected == signature)
 }
 
 /// Ensure the JTW is valid and if it is return the associated user

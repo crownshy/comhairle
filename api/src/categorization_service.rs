@@ -25,7 +25,7 @@ pub trait CategorizationService: Sync + Send {
     ///   job completes. The service will POST the finished report to this
     ///   endpoint. Not all implementations support webhooks; those that don't may
     ///   ignore this parameter.
-    /// * `webhook_signature` - A secret added to the webhook request on completion
+    /// * `webhook_secret` - A secret added to the webhook request on completion
     ///   which can be used to authenticate the webhook endpoints.
     ///
     /// # Errors
@@ -36,7 +36,7 @@ pub trait CategorizationService: Sync + Send {
         &self,
         comments: Vec<Comment>,
         webhook_url: String,
-        webhook_signature: String,
+        webhook_secret: String,
     ) -> Result<CreateAnalysisJobResponse>;
 }
 

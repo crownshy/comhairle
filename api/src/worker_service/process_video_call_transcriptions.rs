@@ -105,14 +105,14 @@ pub async fn generate_sensemaking_report(
         .map_err(|_| WorkerServiceError::NoCategorizationServiceError)
         .ok_or_record_failure(&req.job_id, &state.db)
         .await?;
-    let webhook_signature = &state
+    let webhook_secret = &state
         .config
         .categorization_service
         .as_ref()
         .ok_or(WorkerServiceError::NoCategorizationServiceError)
         .ok_or_record_failure(&req.job_id, &state.db)
         .await?
-        .webhook_signature;
+        .webhook_secret;
     let bulk_storage_service = state
         .required_bulk_storage_service()
         .map_err(|_| WorkerServiceError::NoBulkStorageServiceConfigured)
@@ -153,7 +153,7 @@ pub async fn generate_sensemaking_report(
                 "{}/api/conversation/{}/events/{}/report",
                 state.config.domain, req.conversation_id, req.event_id
             ),
-            webhook_signature.to_string(),
+            webhook_secret.to_string(),
         )
         .await
         .map_err(|e| WorkerServiceError::CategorizationServiceError(e.to_string()))

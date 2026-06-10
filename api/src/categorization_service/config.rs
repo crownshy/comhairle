@@ -4,5 +4,5 @@ use serde::Deserialize;
 pub struct CategorizationConfig {
     pub server_url: String,
     pub api_key: String,
-    pub webhook_signature: String,
+    pub webhook_secret: String,
 }

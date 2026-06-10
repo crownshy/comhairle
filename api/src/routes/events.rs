@@ -8,6 +8,7 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
+use hyper::HeaderMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -27,7 +28,7 @@ use crate::{
     },
     routes::{
         auth::{
-            generate_jwt, is_user_admin, RequiredAdminUser, RequiredUser, RequiredWebhookSignature,
+            generate_jwt, is_user_admin, verify_webhook_signature, RequiredAdminUser, RequiredUser,
         },
         events::dto::{EventDto, LocalizedEventDto},
         translations::LocaleExtractor,
@@ -312,7 +313,7 @@ struct SubmitReportParams {
     room_id: Option<String>,
 }
 
-#[derive(Deserialize, JsonSchema, Debug, Default)]
+#[derive(Deserialize, Serialize, JsonSchema, Debug, Default)]
 struct SubmitReportRequest {
     result: serde_json::Value,
 }
@@ -327,12 +328,49 @@ struct SubmitReportResponse {
 async fn submit_report(
     State(state): State<Arc<ComhairleState>>,
     Query(params): Query<SubmitReportParams>,
+    headers: HeaderMap,
     Path((conversation_id, event_id)): Path<(Uuid, Uuid)>,
-    RequiredWebhookSignature: RequiredWebhookSignature,
     Json(payload): Json<SubmitReportRequest>,
 ) -> Result<(StatusCode, Json<SubmitReportResponse>), ComhairleError> {
-    let event = get_by_id(&state.db, &event_id).await?;
     let bulk_storage_service = state.required_bulk_storage_service()?;
+    let webhook_secret = &state
+        .config
+        .categorization_service
+        .as_ref()
+        .ok_or(ComhairleError::NoCategorizationServiceConfigured)?
+        .webhook_secret;
+
+    let webhook_timestamp = headers
+        .get("X-Webhook-Timestamp")
+        .ok_or(ComhairleError::AuthWebhookSignatureError(
+            "Missing X-Webhook-Timestamp".to_string(),
+        ))?
+        .to_str()
+        .map_err(|_| {
+            ComhairleError::AuthWebhookSignatureError("Invalid X-Webhook-Timestamp".to_string())
+        })?;
+    let webhook_signature = headers
+        .get("X-Webhook-Signature")
+        .ok_or(ComhairleError::AuthWebhookSignatureError(
+            "Missing X-Webhook-Signature".to_string(),
+        ))?
+        .to_str()
+        .map_err(|_| {
+            ComhairleError::AuthWebhookSignatureError("Invalid X-Webhook-Signature".to_string())
+        })?;
+
+    if !verify_webhook_signature(
+        webhook_signature,
+        webhook_timestamp,
+        &payload,
+        webhook_secret,
+    )? {
+        return Err(ComhairleError::AuthWebhookSignatureError(
+            "Invalid X-Webhook-Signature".to_string(),
+        ));
+    }
+
+    let event = get_by_id(&state.db, &event_id).await?;
 
     if event.conversation_id != conversation_id {
         return Err(ComhairleError::ResourceNotFound(format!(
@@ -461,7 +499,7 @@ mod tests {
     use crate::{
         bulk_storage_service::{MockBulkStorageService, UploadResult},
         models::model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
-        routes::conversations::dto::ConversationDto,
+        routes::{auth::build_webhook_signature, conversations::dto::ConversationDto},
         setup_server,
         test_helpers::{test_state, UserSession},
         worker_service::MockWorkerService,
@@ -1024,15 +1062,17 @@ mod tests {
             .await?;
         let event: EventDto = serde_json::from_value(value)?;
 
-        let body = include_str!("../../../fixtures/tttc-report.json");
-        let webhook_hname = HeaderName::from_str("X-Webhook-Signature")?;
-        let webhook_hval = HeaderValue::from_str(
-            &state
-                .config
-                .categorization_service
-                .unwrap()
-                .webhook_signature,
-        )?;
+        let secret = &state.config.categorization_service.unwrap().webhook_secret;
+
+        let timestamp = Utc::now().timestamp();
+        let timestamp_hname = HeaderName::from_str("X-Webhook-Timestamp")?;
+        let timestamp_hval = HeaderValue::from_str(&timestamp.to_string())?;
+
+        let body_str = include_str!("../../../fixtures/tttc-report.json");
+        let body: SubmitReportRequest = serde_json::from_str(body_str)?;
+        let signature = build_webhook_signature(&timestamp.to_string(), &body, secret)?;
+        let signature_hname = HeaderName::from_str("X-Webhook-Signature")?;
+        let signature_hval = HeaderValue::from_str(&signature)?;
         let (_, value, _) = session
             .post_with_headers(
                 &app,
@@ -1040,8 +1080,11 @@ mod tests {
                     "/conversation/{}/events/{}/report",
                     conversation.id, event.id
                 ),
-                body.into(),
-                &[(webhook_hname, webhook_hval)],
+                body_str.into(),
+                &[
+                    (signature_hname, signature_hval),
+                    (timestamp_hname, timestamp_hval),
+                ],
             )
             .await?;
         let response: SubmitReportResponse = serde_json::from_value(value)?;
