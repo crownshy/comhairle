@@ -121,6 +121,7 @@ async fn create_workflow_step(
         &new_workflow,
         workflow_id,
         &conversation.primary_locale,
+        conversation.is_live,
     )
     .await?
     .into();
