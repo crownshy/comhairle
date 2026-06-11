@@ -5,6 +5,8 @@
 		parseDate,
 		parseDateTime,
 		today,
+		toTimeZone,
+		toZoned,
 		type DateValue
 	} from '@internationalized/date';
 	import * as Form from '$lib/components/ui/form';
@@ -12,6 +14,7 @@
 	import { TimeRangePicker } from '$lib/components/ui/time-picker';
 	import * as RadioGroup from '$lib/components/ui/radio-group';
 	import * as Popover from '$lib/components/ui/popover/index.js';
+	import Combobox from '$lib/components/ui/combobox/combobox.svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import NewEventSchema from './NewEventSchema';
@@ -27,12 +30,37 @@
 	import { useAdminLayoutSlots } from '../../useAdminLayoutSlots.svelte';
 
 	let { data } = $props();
-	let { form: formDefaults, conversation } = data;
+	let { form: formDefaults, conversation, user } = data;
+
+	if (user?.email && !(formDefaults.data.facilitators ?? []).includes(user.email)) {
+		formDefaults.data.facilitators = [user.email, ...(formDefaults.data.facilitators ?? [])];
+	}
+	if (!formDefaults.data.default_time_zone) {
+		formDefaults.data.default_time_zone = 'UTC';
+	}
+
+	const availableTimeZones = Array.from(
+		new Set(['UTC', ...Intl.supportedValuesOf('timeZone')])
+	).map((tz) => ({ value: tz, label: tz }));
 
 	const form = superForm(formDefaults, {
 		validators: zodClient(NewEventSchema),
 		onSubmit: handleSubmit
 	});
+
+	function convertTimeToSelectedZone(date: string, time: string, timeZone: string) {
+		if (!date || !time || !timeZone) return '';
+		const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+		const dateString = parseDateTime(`${date}T${time}`);
+		const toLocalZoned = toZoned(dateString, localTimeZone);
+		const zonedDateTime = toTimeZone(toLocalZoned, timeZone);
+		return new Intl.DateTimeFormat('en', {
+			hour: 'numeric',
+			minute: '2-digit',
+			hour12: true,
+			timeZone: zonedDateTime.timeZone
+		}).format(zonedDateTime.toDate());
+	}
 
 	const { form: formData, enhance, message: errorMessage, validateForm, submitting } = form;
 
@@ -65,7 +93,11 @@
 		// TODO: can we always assume end date is the same as the start date?
 		let endTime = parseDateTime(`${dateOption}T${result.data.end_time}`);
 		try {
-			const { facilitators, ...eventData } = result.data;
+			const { facilitators: formFacilitators, ...eventData } = result.data;
+			const facilitators =
+				user?.email && !formFacilitators.includes(user.email)
+					? [user.email, ...formFacilitators]
+					: formFacilitators;
 			const eventParams = {
 				...eventData,
 				start_time: startTime.toDate(getLocalTimeZone()).toISOString(),
@@ -250,6 +282,41 @@
 		</Form.Field>
 	</div>
 
+	<!-- Default time zone -->
+	<div
+		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
+	>
+		<Form.Field {form} name="default_time_zone" class="contents">
+			<Form.Control>
+				{#snippet children({ props })}
+					<Form.Label
+						class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+					>
+						<span>Default time zone</span>
+						<span class="font-normal">Time zone event is taking place in</span>
+					</Form.Label>
+					<div class="flex-1">
+						<Combobox
+							selectedItem={availableTimeZones.find(
+								(tz) => tz.value === $formData.default_time_zone
+							)}
+							items={availableTimeZones}
+							placeholder="Select a default timezone"
+							onSelect={(item) => ($formData.default_time_zone = item.value)}
+						/>
+						<input
+							hidden
+							{...props}
+							value={$formData.default_time_zone}
+							name="default_time_zone"
+						/>
+						<Form.FieldErrors />
+					</div>
+				{/snippet}
+			</Form.Control>
+		</Form.Field>
+	</div>
+
 	<!-- Event date -->
 	<div
 		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
@@ -304,7 +371,7 @@
 		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 	>
 		<p class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Time</p>
-		<div class="flex flex-1 flex-col gap-2">
+		<div class="flex flex-1 flex-col gap-2 2xl:flex-row 2xl:items-center">
 			<TimeRangePicker
 				startName="start_time"
 				endName="end_time"
@@ -321,6 +388,27 @@
 			<Form.Field {form} name="end_time" class="contents">
 				<Form.FieldErrors class="text-destructive text-sm" />
 			</Form.Field>
+			{#if $formData.default_time_zone && $formData.default_time_zone !== 'UTC' && $formData.start_date && $formData.start_time && $formData.end_time}
+				<div class="text-muted-foreground flex gap-2">
+					<span>{$formData.default_time_zone}</span>
+					<span>-</span>
+					<span
+						>{convertTimeToSelectedZone(
+							$formData.start_date,
+							$formData.start_time,
+							$formData.default_time_zone
+						)}</span
+					>
+					<span>-</span>
+					<span
+						>{convertTimeToSelectedZone(
+							$formData.start_date,
+							$formData.end_time,
+							$formData.default_time_zone
+						)}</span
+					>
+				</div>
+			{/if}
 		</div>
 	</div>
 

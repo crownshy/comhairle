@@ -4,9 +4,9 @@ import NewEventSchema from './NewEventSchema';
 import type { PageLoad } from '../$types';
 
 export const load: PageLoad = async ({ parent }) => {
-	const { conversation } = await parent();
+	const { conversation, user } = await parent();
 
 	const form = await superValidate(zod(NewEventSchema));
 
-	return { form, conversation };
+	return { form, conversation, user };
 };
