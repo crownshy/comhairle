@@ -1556,10 +1556,6 @@ export const ProcessTranscriptionResponse = z
 export type ProcessTranscriptionResponse = z.infer<
   typeof ProcessTranscriptionResponse
 >;
-export const SubmitReportRequest = z
-  .object({ result: z.unknown() })
-  .passthrough();
-export type SubmitReportRequest = z.infer<typeof SubmitReportRequest>;
 export const SubmitReportResponse = z
   .object({ success: z.boolean(), url: z.string() })
   .passthrough();
@@ -1977,7 +1973,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PartialEvent,
   JwtResponse,
   ProcessTranscriptionResponse,
-  SubmitReportRequest,
   SubmitReportResponse,
   EventAttendanceEtx,
   PaginatedResults_for_EventAttendanceEtx,
@@ -2707,7 +2702,7 @@ curl -X POST \
       {
         name: "body",
         type: "Body",
-        schema: z.object({ result: z.unknown() }).passthrough(),
+        schema: z.unknown(),
       },
       {
         name: "room_id",
