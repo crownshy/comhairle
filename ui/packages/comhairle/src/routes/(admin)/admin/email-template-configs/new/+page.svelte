@@ -52,6 +52,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>New Custom Email - Comhairle Admin</title>
+</svelte:head>
+
 <Select.Root type="single" value={selectedSchema.email_type} onValueChange={handleSelectSchema}>
 	<Select.Trigger class=""
 		>Email type: {snakeToSentenceCase(selectedSchema.email_type)}</Select.Trigger
