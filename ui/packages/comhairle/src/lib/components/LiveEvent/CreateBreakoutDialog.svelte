@@ -2,7 +2,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import type { VideoCallParticipant } from '$lib/services/videoCallService.svelte';
-	import { X, RefreshCw, Clock, Pin } from 'lucide-svelte';
+	import { X, RefreshCw, Clock, Pin, Users } from 'lucide-svelte';
 
 	interface Props {
 		open: boolean;
@@ -115,6 +115,14 @@
 		}
 
 		roomAssignments = newAssignments.filter((room) => room.length > 0);
+	}
+
+	function handleMaxPerRoomChange(e: Event) {
+		const next = Math.max(1, Math.min(50, Number((e.target as HTMLInputElement).value) || 1));
+		maxPerRoom = next;
+		if (roomAssignments.length > 0) {
+			handleReshuffle();
+		}
 	}
 
 	function togglePin(userId: string) {
@@ -240,18 +248,33 @@
 				Create breakout rooms
 			</h2>
 
-			<!-- Time left row -->
-			<div class="flex shrink-0 items-center gap-2">
-				<Clock class="text-foreground h-5 w-5" />
-				<span class="text-foreground text-sm font-normal">Time left</span>
-				<input
-					type="number"
-					bind:value={durationMinutes}
-					min={1}
-					max={120}
-					class="border-input bg-background h-8 w-14 rounded-lg border px-3 text-center text-sm shadow-sm"
-				/>
-				<span class="text-foreground text-sm font-normal">minutes</span>
+			<!-- Time left + room size row -->
+			<div class="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-2">
+				<div class="flex items-center gap-2">
+					<Clock class="text-foreground h-5 w-5" />
+					<span class="text-foreground text-sm font-normal">Time left</span>
+					<input
+						type="number"
+						bind:value={durationMinutes}
+						min={1}
+						max={120}
+						class="border-input bg-background h-8 w-14 rounded-lg border px-3 text-center text-sm shadow-sm"
+					/>
+					<span class="text-foreground text-sm font-normal">minutes</span>
+				</div>
+				<div class="flex items-center gap-2">
+					<Users class="text-foreground h-5 w-5" />
+					<span class="text-foreground text-sm font-normal">Max per room</span>
+					<input
+						type="number"
+						value={maxPerRoom}
+						onchange={handleMaxPerRoomChange}
+						min={1}
+						max={50}
+						class="border-input bg-background h-8 w-14 rounded-lg border px-3 text-center text-sm shadow-sm"
+					/>
+					<span class="text-foreground text-sm font-normal">people</span>
+				</div>
 			</div>
 
 			<!-- Rooms container (dark blue) -->
