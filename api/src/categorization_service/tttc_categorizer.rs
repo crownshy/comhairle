@@ -32,7 +32,7 @@ impl CategorizationService for TttcCategorizer {
         &self,
         comments: Vec<Comment>,
         webhook_url: String,
-        webhook_signature: String,
+        webhook_secret: String,
     ) -> Result<CreateAnalysisJobResponse> {
         let url = format!("{}{}/jobs", self.base_url, self.path_prefix);
 
@@ -51,7 +51,7 @@ impl CategorizationService for TttcCategorizer {
                 },
             },
             webhook_url,
-            webhook_secret: Some(webhook_signature),
+            webhook_secret: Some(webhook_secret),
         };
 
         let response = self

@@ -150,6 +150,7 @@ icalendar = "0.17.10"
 sha2 = "0.11.0"
 hex = "0.4.3"
 base64 = "0.22.1"
+hmac = "0.13.0"
 
 [dev-dependencies]
 fake = { version = "4", features = ["derive"] }
