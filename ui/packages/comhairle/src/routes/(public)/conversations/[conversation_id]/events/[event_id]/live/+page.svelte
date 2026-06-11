@@ -897,26 +897,14 @@
 								Recording
 							</span>
 						</div>
-						<!-- Desktop-only: moderator status + dev info -->
-						<div class="hidden items-center gap-2 md:flex">
-							<div class="flex items-center gap-1.5">
-								<span
-									class="{jitsiModeratorStatus
-										? 'bg-green-500'
-										: 'bg-yellow-500'} h-2.5 w-2.5 rounded-full"
-								></span>
-								<span
-									class="text-sidebar-foreground text-center text-xs leading-6 font-normal"
-								>
-									{jitsiModeratorStatus ? 'Moderator' : 'Participant'}
-								</span>
-							</div>
-							{#if currentJitsiRoomName && dev}
+						<!-- Desktop-only: dev info -->
+						{#if currentJitsiRoomName && dev}
+							<div class="hidden items-center gap-2 md:flex">
 								<span class="text-sidebar-foreground/60 text-xs">
 									Room: {currentJitsiRoomName.slice(0, 8)}...
 								</span>
-							{/if}
-						</div>
+							</div>
+						{/if}
 						<!-- Desktop chip inline -->
 						{#if currentJitsiRoomName}
 							<div class="hidden md:block">
