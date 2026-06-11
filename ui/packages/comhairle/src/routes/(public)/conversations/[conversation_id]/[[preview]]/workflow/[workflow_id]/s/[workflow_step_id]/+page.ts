@@ -2,13 +2,9 @@ import { isRedirect, redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import { notifications } from '$lib/notifications.svelte';
 import { next_workflow_step_url } from '$lib/urls';
-import type {
-	LocalizedWorkflowStepDto,
-	LocalizedWorkflowStepWithProgressDto
-} from '@crownshy/api-client/api';
 
 export const load: PageLoad = async (event) => {
-	const { api, conversation, preview } = await event.parent();
+	const { api, conversation, preview, workflowSteps } = await event.parent();
 
 	const conversation_id = conversation.id;
 	const { workflow_id, workflow_step_id } = event.params;
@@ -17,23 +13,6 @@ export const load: PageLoad = async (event) => {
 	const queryString = event.url.search;
 
 	try {
-		let workflowSteps: LocalizedWorkflowStepWithProgressDto[];
-
-		if (conversation.isLive) {
-			workflowSteps = (await api.ListConversationWorkflowSteps({
-				params: { conversation_id, workflow_id },
-				queries: { withUserProgress: true }
-			})) as LocalizedWorkflowStepWithProgressDto[];
-		} else {
-			const steps = (await api.ListConversationWorkflowSteps({
-				params: { conversation_id, workflow_id }
-			})) as LocalizedWorkflowStepDto[];
-			workflowSteps = steps.map((s) => ({
-				...s,
-				progressStatus: 'not_started' as const
-			}));
-		}
-
 		const thisStep =
 			workflow_step_id === 'revisit'
 				? workflowSteps.find((s) => s.canRevisit)
