@@ -1912,6 +1912,20 @@ export const UpdateEmailTemplateConfig = z
 export type UpdateEmailTemplateConfig = z.infer<
   typeof UpdateEmailTemplateConfig
 >;
+export const SlotSchemaDefinition = z
+  .object({
+    hint: z.string(),
+    key: z.string(),
+    label: z.string(),
+    max_chars: z.union([z.number(), z.null()]).optional(),
+    required: z.boolean(),
+  })
+  .passthrough();
+export type SlotSchemaDefinition = z.infer<typeof SlotSchemaDefinition>;
+export const EmailTypeSchema = z
+  .object({ email_type: z.string(), slots: z.array(SlotSchemaDefinition) })
+  .passthrough();
+export type EmailTypeSchema = z.infer<typeof EmailTypeSchema>;
 
 export const schemas: Record<string, z.ZodType<any>> = {
   AnnonLoginRequest,
@@ -2129,6 +2143,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EmailTemplateConfigDto,
   CreateEmailTemplateConfig,
   UpdateEmailTemplateConfig,
+  SlotSchemaDefinition,
+  EmailTypeSchema,
 };
 
 const endpoints = makeApi([
@@ -3450,6 +3466,14 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     description: `Delete custom email template configuration`,
     requestFormat: "json",
     response: EmailTemplateConfigDto,
+  },
+  {
+    method: "get",
+    path: "/email_template_configs/schemas",
+    alias: "ListEmailSlotSchemas",
+    description: `List all slot schemas for each email template type`,
+    requestFormat: "json",
+    response: z.array(EmailTypeSchema),
   },
   {
     method: "get",

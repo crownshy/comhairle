@@ -14,6 +14,12 @@ use uuid::Uuid;
 
 use crate::{error::ComhairleError, models::users};
 
+/// A client-configured email template, persisted to the `email_template_config` table.
+///
+/// Each record belongs to an owner and optionally an organization, and holds
+/// the configured slot content for a particular email type via [`EmailTemplateSlots`].
+/// The `slots` field determines which email template will be rendered and what
+/// content will be injected into it.
 #[derive(Serialize, Deserialize, Debug, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "email_template_config")]
 pub struct EmailTemplateConfig {
@@ -26,6 +32,19 @@ pub struct EmailTemplateConfig {
     pub updated_at: DateTime<Utc>,
 }
 
+/// The configurable slot content for a particular email template type.
+///
+/// Each variant corresponds to a distinct email template and carries the slot
+/// content that will be injected into it at send time. Serialised as a tagged
+/// JSON object (e.g. `{ "type": "conversation_invite", "heading": "...", ... }`)
+/// for storage in the `slots` JSONB column on [`EmailTemplateConfig`].
+///
+/// # Adding a new email type
+///
+/// 1. Add a variant here with its slot struct.
+/// 2. Add the corresponding HTML template.
+/// 3. Update [`EmailTemplateSlots::schemas`] with the new variant's schema.
+/// 4. Update [`EmailTemplateSlots::to_template`] to return the template filename.
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum EmailTemplateSlots {
@@ -33,11 +52,47 @@ pub enum EmailTemplateSlots {
     EventRegistrationConfirmation(DefaultEmailSlots),
 }
 
+const TYPE_CONVERSATION_INVITE: &str = "conversation_invite";
+const TYPE_EVENT_REGISTRATION_CONFIRMATION: &str = "event_registration_confirmation";
+
 impl EmailTemplateSlots {
-    fn to_template(&self) -> &str {
+    /// Returns the schema for every email template type.
+    ///
+    /// Each entry describes a variant of [`EmailTemplateSlots`], pairing the
+    /// variant's string identifier with the [`SlotDefinition`]s that define its
+    /// configurable slots. This is intended to be served to the frontend so it
+    /// can render the correct form fields when a user selects an email type to
+    /// configure.
+    ///
+    /// # Adding a new email type
+    ///
+    /// When a new variant is added to [`EmailTemplateSlots`], a corresponding
+    /// [`EmailTypeSchema`] must be added here manually. There is no compiler
+    /// enforcement for this.
+    pub fn schemas() -> &'static [EmailTypeSchema] {
+        &[
+            EmailTypeSchema {
+                email_type: TYPE_CONVERSATION_INVITE,
+                slots: DEFAULT_SLOTS_SCHEMA,
+            },
+            EmailTypeSchema {
+                email_type: TYPE_EVENT_REGISTRATION_CONFIRMATION,
+                slots: DEFAULT_SLOTS_SCHEMA,
+            },
+        ]
+    }
+
+    pub fn to_template(&self) -> &str {
         match self {
             EmailTemplateSlots::ConversationInvite(_) => "conversation_invite.html",
             EmailTemplateSlots::EventRegistrationConfirmation(_) => "event_confirmation.html",
+        }
+    }
+
+    pub fn schema(&self) -> &'static [SlotSchemaDefinition] {
+        match self {
+            EmailTemplateSlots::ConversationInvite(_) => DEFAULT_SLOTS_SCHEMA,
+            EmailTemplateSlots::EventRegistrationConfirmation(_) => DEFAULT_SLOTS_SCHEMA,
         }
     }
 }
@@ -45,16 +100,16 @@ impl EmailTemplateSlots {
 impl std::fmt::Display for EmailTemplateSlots {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let value = match self {
-            EmailTemplateSlots::ConversationInvite(_) => "conversation_invite",
+            EmailTemplateSlots::ConversationInvite(_) => TYPE_CONVERSATION_INVITE,
             EmailTemplateSlots::EventRegistrationConfirmation(_) => {
-                "event_registration_confirmation"
+                TYPE_EVENT_REGISTRATION_CONFIRMATION
             }
         };
         write!(f, "{}", value)
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq, Default)]
 pub struct DefaultEmailSlots {
     pub heading: String,
     pub intro: String,
@@ -84,6 +139,67 @@ impl<'r> Decode<'r, Postgres> for EmailTemplateSlots {
         Ok(serde_json::from_value(json)?)
     }
 }
+
+/// Metadata describing a single configurable slot in an email template.
+///
+/// `SlotSchemaDefinition` is used to communicate the structure of an email template
+/// to the frontend, allowing it to render the correct form fields when a user
+/// is configuring a particular email type. It is the UI-facing counterpart to
+/// the typed fields on structs like [`DefaultEmailSlots`].
+#[derive(Serialize, JsonSchema, Debug, Clone)]
+pub struct SlotSchemaDefinition {
+    /// The key used to identify this slot, matching the field name on the
+    /// corresponding slots struct (e.g. `"heading"`, `"body"`).
+    pub key: &'static str,
+    /// A human-readable label for display in the configuration UI.
+    pub label: &'static str,
+    /// A short description shown to the user explaining what this slot
+    /// controls and any guidance on what to write.
+    pub hint: &'static str,
+    /// Whether this slot must be populated before the config can be saved.
+    pub required: bool,
+    /// An optional upper bound on the number of characters allowed in this
+    /// slot. Used for both frontend validation and server-side validation
+    /// before persisting. `None` means no limit is enforced.
+    pub max_chars: Option<usize>,
+}
+
+#[derive(Serialize, JsonSchema, Debug, Clone)]
+pub struct EmailTypeSchema {
+    pub email_type: &'static str,
+    pub slots: &'static [SlotSchemaDefinition],
+}
+
+const DEFAULT_SLOTS_SCHEMA: &[SlotSchemaDefinition] = &[
+    SlotSchemaDefinition {
+        key: "heading",
+        label: "Heading",
+        hint: "The email heading",
+        required: true,
+        max_chars: Some(100),
+    },
+    SlotSchemaDefinition {
+        key: "intro",
+        label: "Intro",
+        hint: "Opening paragraph",
+        required: true,
+        max_chars: Some(100),
+    },
+    SlotSchemaDefinition {
+        key: "body",
+        label: "Body",
+        hint: "Main email content",
+        required: true,
+        max_chars: None,
+    },
+    SlotSchemaDefinition {
+        key: "footer",
+        label: "Footer",
+        hint: "Closing line",
+        required: false,
+        max_chars: Some(100),
+    },
+];
 
 const DEFAULT_COLUMNS: [EmailTemplateConfigIden; 7] = [
     EmailTemplateConfigIden::Id,

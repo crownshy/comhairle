@@ -15,8 +15,8 @@ use uuid::Uuid;
 
 use crate::{
     models::email_template_config::{
-        self, CreateEmailTemplateConfig, EmailTemplateConfigFilterOptions,
-        UpdateEmailTemplateConfig,
+        self, CreateEmailTemplateConfig, EmailTemplateConfigFilterOptions, EmailTemplateSlots,
+        EmailTypeSchema, UpdateEmailTemplateConfig,
     },
     routes::{auth::RequiredAdminUser, email_template_configs::dto::EmailTemplateConfigDto},
     ComhairleError, ComhairleState,
@@ -57,6 +57,15 @@ async fn list(
         .collect();
 
     Ok((StatusCode::OK, Json(email_configs)))
+}
+
+#[instrument(err(Debug))]
+async fn list_slot_schemas(
+    RequiredAdminUser(user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<&'static [EmailTypeSchema]>), ComhairleError> {
+    let schemas = EmailTemplateSlots::schemas();
+
+    Ok((StatusCode::OK, Json(schemas)))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -137,6 +146,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .security_requirement("JWT")
                     .tag("EmailTemplateConfig")
                     .response::<200, Json<EmailTemplateConfigDto>>()
+            }),
+        )
+        .api_route(
+            "/schemas",
+            get_with(list_slot_schemas, |op| {
+                op.id("ListEmailSlotSchemas")
+                    .summary("List email slot schemas")
+                    .description("List all slot schemas for each email template type")
+                    .security_requirement("JWT")
+                    .tag("EmailTemplateConfig")
+                    .response::<200, Json<&'static [EmailTypeSchema]>>()
             }),
         )
         .with_state(state)
