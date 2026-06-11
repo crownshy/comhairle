@@ -46,14 +46,10 @@
 		<ContentRenderer content={conversation.thankYouMessage} />
 	{/if}
 
-	{#if conversation.enableSignupPrompts}
-		<h2>Next steps</h2>
-		You can continue to contribute, let us know what you thought of the process or sign up for updates
-		on this project and others which you might be interested in.
-
+	{#snippet revisitStepList()}
 		{#if revisitableSteps.length > 0}
 			<p>Return to a previous step to update your contribution:</p>
-			<div class="mx-auto mt-4 flex flex-row items-center gap-2">
+			<div class="mx-auto mt-4 flex flex-col items-center gap-2 md:flex-row">
 				<p>Click to contribute more:</p>
 				{#each revisitableSteps as step (step.id)}
 					<Button
@@ -66,6 +62,14 @@
 				{/each}
 			</div>
 		{/if}
+	{/snippet}
+
+	{#if conversation.enableSignupPrompts}
+		<h2>Next steps</h2>
+		You can continue to contribute, let us know what you thought of the process or sign up for updates
+		on this project and others which you might be interested in.
+
+		{@render revisitStepList()}
 
 		<div class="mx-auto mt-6 flex flex-col justify-center gap-2 text-center md:flex-row">
 			<FeedbackModal conversationId={conversation.id} />
