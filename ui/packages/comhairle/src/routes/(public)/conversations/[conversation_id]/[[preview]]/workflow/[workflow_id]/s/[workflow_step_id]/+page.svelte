@@ -15,7 +15,7 @@
 
 	import { Button } from '$lib/components/ui/button';
 	import { Spinner } from '$lib/components/ui/spinner';
-	import { goto } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
 	import { page, navigating } from '$app/state';
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
@@ -187,6 +187,8 @@
 						headers: { 'Content-Type': 'application/json' }
 					}
 				);
+
+				await invalidate('app:workflow-steps');
 
 				goto(
 					next_workflow_step_url(conversation.id, workflowStep.workflowId) + queryString

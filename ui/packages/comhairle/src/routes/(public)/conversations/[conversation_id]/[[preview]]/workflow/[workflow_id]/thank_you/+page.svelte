@@ -12,6 +12,8 @@
 	let user = $derived(data.user);
 	let conversation = $derived(data.conversation);
 	let workflow = $derived(data.workflow);
+	let revisitableSteps = $derived(data.revisitableSteps);
+	let isPreview = $derived(data.preview);
 </script>
 
 <svelte:head>
@@ -48,13 +50,24 @@
 		<h2>Next steps</h2>
 		You can continue to contribute, let us know what you thought of the process or sign up for updates
 		on this project and others which you might be interested in.
-		<div class="mx-auto mt-10 flex flex-col justify-center gap-2 text-center md:flex-row">
-			<Button
-				class="no-underline"
-				variant="secondary"
-				href={workflow_step_url(conversation.id, workflow.id, 'revisit')}
-				>Contribute some more</Button
-			>
+
+		{#if revisitableSteps.length > 0}
+			<p>Return to a previous step to update your contribution:</p>
+			<div class="mx-auto mt-4 flex flex-row items-center gap-2">
+				<p>Click to contribute more:</p>
+				{#each revisitableSteps as step (step.id)}
+					<Button
+						class="no-underline"
+						variant="secondary"
+						href={workflow_step_url(conversation.id, workflow.id, step.id, isPreview)}
+					>
+						{step.name}
+					</Button>
+				{/each}
+			</div>
+		{/if}
+
+		<div class="mx-auto mt-6 flex flex-col justify-center gap-2 text-center md:flex-row">
 			<FeedbackModal conversationId={conversation.id} />
 		</div>
 
@@ -85,13 +98,8 @@
 		{/if}
 	{:else}
 		<h2>Next steps</h2>
-		<div class="mx-auto mt-10 flex flex-col justify-center gap-2 text-center md:flex-row">
-			<Button
-				class="no-underline"
-				variant="secondary"
-				href={workflow_step_url(conversation.id, workflow.id, 'revisit')}
-				>Contribute some more</Button
-			>
+		{@render revisitStepList()}
+		<div class="mx-auto mt-6 flex flex-col justify-center gap-2 text-center md:flex-row">
 			<FeedbackModal conversationId={conversation.id} />
 		</div>
 	{/if}
