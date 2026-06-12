@@ -325,7 +325,7 @@ async fn submit_report(
     Query(params): Query<SubmitReportParams>,
     headers: HeaderMap,
     Path((conversation_id, event_id)): Path<(Uuid, Uuid)>,
-    Json(payload): Json<serde_json::Value>,
+    payload: String,
 ) -> Result<(StatusCode, Json<SubmitReportResponse>), ComhairleError> {
     let bulk_storage_service = state.required_bulk_storage_service()?;
     let webhook_secret = &state
@@ -1064,8 +1064,7 @@ mod tests {
         let timestamp_hval = HeaderValue::from_str(&timestamp.to_string())?;
 
         let body_str = include_str!("../../../fixtures/tttc-report.json");
-        let body: serde_json::Value = serde_json::from_str(body_str)?;
-        let signature = build_webhook_signature(&timestamp.to_string(), &body, secret)?;
+        let signature = build_webhook_signature(&timestamp.to_string(), body_str, secret)?;
         let signature_hname = HeaderName::from_str("X-Webhook-Signature")?;
         let signature_hval = HeaderValue::from_str(&signature)?;
         let (_, value, _) = session
