@@ -122,43 +122,42 @@ export default class PolisApi {
 			});
 	}
 
-	submitStatement(statement: string) {
+	async submitStatement(statement: string): Promise<{ tid: number; pid: number } | null> {
 		this._loading = true;
 		this._error = undefined;
 		this.notify();
 
 		const authType = this._pid ? { pid: this._pid } : { xid: this.userId };
 
-		fetch(`${this.baseUrl}/api/v3/comments`, {
-			method: 'POST',
-			credentials: 'include',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				agid: 1,
-				conversation_id: this.polisId,
-				txt: statement,
-				vote: -1,
-				is_seed: false,
-				...authType
-			})
-		})
-			.then((r) => {
-				if (!r.ok) throw new Error(`submitStatement failed: ${r.status}`);
-				return r.json();
-			})
-			.then((data) => {
-				if (data.currentPid) {
-					this._pid = data.currentPid;
-				}
-			})
-			.catch((err) => {
-				console.error('[PolisApi] Error submitting statement:', err);
-				this._error = err.message;
-			})
-			.finally(() => {
-				this._loading = false;
-				this.notify();
+		try {
+			const r = await fetch(`${this.baseUrl}/api/v3/comments`, {
+				method: 'POST',
+				credentials: 'include',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					agid: 1,
+					conversation_id: this.polisId,
+					txt: statement,
+					vote: -1,
+					is_seed: false,
+					...authType
+				})
 			});
+			if (!r.ok) throw new Error(`submitStatement failed: ${r.status}`);
+			const data = await r.json();
+			if (typeof data.currentPid === 'number') {
+				this._pid = data.currentPid;
+			}
+			if (typeof data.tid !== 'number') return null;
+			return { tid: data.tid, pid: this._pid ?? 0 };
+		} catch (err) {
+			console.error('[PolisApi] Error submitting statement:', err);
+			this._error = err instanceof Error ? err.message : String(err);
+			return null;
+		} finally {
+			this._loading = false;
+			this.notify();
+		}
 	}
 
 	submitVote(vote: 'agree' | 'disagree' | 'pass') {
