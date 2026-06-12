@@ -16,7 +16,7 @@ use uuid::Uuid;
 use crate::{
     models::email_template_config::{
         self, CreateEmailTemplateConfig, EmailTemplateConfigFilterOptions, EmailTemplateSlots,
-        EmailTypeSchema, UpdateEmailTemplateConfig,
+        EmailTypeSchema, SlotSchemaDefinition, UpdateEmailTemplateConfig,
     },
     routes::{auth::RequiredAdminUser, email_template_configs::dto::EmailTemplateConfigDto},
     ComhairleError, ComhairleState,
@@ -59,15 +59,6 @@ async fn list(
     Ok((StatusCode::OK, Json(email_configs)))
 }
 
-#[instrument(err(Debug))]
-async fn list_slot_schemas(
-    RequiredAdminUser(user): RequiredAdminUser,
-) -> Result<(StatusCode, Json<&'static [EmailTypeSchema]>), ComhairleError> {
-    let schemas = EmailTemplateSlots::schemas();
-
-    Ok((StatusCode::OK, Json(schemas)))
-}
-
 #[instrument(err(Debug), skip(state))]
 async fn update(
     State(state): State<Arc<ComhairleState>>,
@@ -89,6 +80,27 @@ async fn delete(
     let email_config = email_template_config::delete(&state.db, email_config_id).await?;
 
     Ok((StatusCode::OK, Json(email_config.into())))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn get_slot_schema(
+    State(state): State<Arc<ComhairleState>>,
+    Path(email_config_id): Path<Uuid>,
+    RequiredAdminUser(user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<&'static [SlotSchemaDefinition]>), ComhairleError> {
+    let email_config = email_template_config::get_by_id(&state.db, email_config_id).await?;
+    let schema = email_config.slots.schema();
+
+    Ok((StatusCode::OK, Json(schema)))
+}
+
+#[instrument(err(Debug))]
+async fn list_slot_schemas(
+    RequiredAdminUser(user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<&'static [EmailTypeSchema]>), ComhairleError> {
+    let schemas = EmailTemplateSlots::schemas();
+
+    Ok((StatusCode::OK, Json(schemas)))
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
@@ -146,6 +158,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .security_requirement("JWT")
                     .tag("EmailTemplateConfig")
                     .response::<200, Json<EmailTemplateConfigDto>>()
+            }),
+        )
+        .api_route(
+            "/{email_config_id}/schemas",
+            get_with(get_slot_schema, |op| {
+                op.id("GetEmailSlotSchema")
+                    .summary("Get email slot schema")
+                    .description("Get slot schemas for an email config")
+                    .security_requirement("JWT")
+                    .tag("EmailTemplateConfig")
+                    .response::<200, Json<&'static [SlotSchemaDefinition]>>()
             }),
         )
         .api_route(
