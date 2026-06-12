@@ -2700,11 +2700,6 @@ curl -X POST \
     requestFormat: "json",
     parameters: [
       {
-        name: "body",
-        type: "Body",
-        schema: z.unknown(),
-      },
-      {
         name: "room_id",
         type: "Query",
         schema: created_after,

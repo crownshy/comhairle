@@ -913,30 +913,26 @@ impl FromRequestParts<Arc<ComhairleState>> for OptionalUser {
     }
 }
 
-pub fn build_webhook_signature<T: Serialize>(
+pub fn build_webhook_signature(
     timestamp: &str,
-    body: &T,
+    body: &str,
     secret: &str,
 ) -> Result<String, ComhairleError> {
-    let body_str = serde_json::to_string(body)?;
-
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes())
         .map_err(|e| ComhairleError::AuthWebhookSignatureError(e.to_string()))?;
 
-    let signed_payload = format!("{}.{}", timestamp, body_str);
+    let signed_payload = format!("{}.{}", timestamp, body);
 
     mac.update(signed_payload.as_bytes());
+    let signature = format!("sha256={}", hex::encode(mac.finalize().into_bytes()));
 
-    Ok(format!(
-        "sha256={}",
-        hex::encode(mac.finalize().into_bytes())
-    ))
+    Ok(signature)
 }
 
-pub fn verify_webhook_signature<T: Serialize>(
+pub fn verify_webhook_signature(
     signature: &str,
     timestamp: &str,
-    body: &T,
+    body: &str,
     secret: &str,
 ) -> Result<bool, ComhairleError> {
     let expected = build_webhook_signature(timestamp, body, secret)?;
