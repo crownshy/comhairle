@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr};
@@ -12,7 +14,10 @@ use sqlx_postgres::{PgArgumentBuffer, PgTypeInfo, PgValueRef};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::{error::ComhairleError, models::users};
+use crate::{
+    error::ComhairleError,
+    models::{users, SqlxResultExt},
+};
 
 /// A client-configured email template, persisted to the `email_template_config` table.
 ///
@@ -52,8 +57,8 @@ pub enum EmailTemplateSlots {
     EventRegistrationConfirmation(DefaultEmailSlots),
 }
 
-const TYPE_CONVERSATION_INVITE: &str = "conversation_invite";
-const TYPE_EVENT_REGISTRATION_CONFIRMATION: &str = "event_registration_confirmation";
+pub const TYPE_CONVERSATION_INVITE: &str = "conversation_invite";
+pub const TYPE_EVENT_REGISTRATION_CONFIRMATION: &str = "event_registration_confirmation";
 
 impl EmailTemplateSlots {
     /// Returns the schema for every email template type.
@@ -95,6 +100,29 @@ impl EmailTemplateSlots {
             EmailTemplateSlots::EventRegistrationConfirmation(_) => DEFAULT_SLOTS_SCHEMA,
         }
     }
+
+    /// Converts the email template slots into a `HashMap` of key/value pairs
+    /// suitable for use as a minijinja template context.
+    ///
+    /// The returned map contains the slot field names (e.g. `heading`, `intro`,
+    /// `body`, `footer`) and their corresponding values, which are used to
+    /// populate the variables referenced in the email's minijinja template.
+    ///
+    /// Because `minijinja::context!` supports spreading a `HashMap` with `..`,
+    /// the map returned here can be combined with additional ad-hoc context
+    /// variables that aren't stored as part of the email config (e.g. dynamic
+    /// links or IDs generated at send time). For example:
+    ///
+    /// ```ignore
+    /// let base = email_config.slots.to_mailer_map();
+    /// let context = minijinja::context! { invite_link => "foo@bar.com", ..base };
+    /// ```
+    pub fn to_mailer_map(&self) -> HashMap<&str, String> {
+        match self {
+            EmailTemplateSlots::ConversationInvite(slots) => slots.to_mailer_map(),
+            EmailTemplateSlots::EventRegistrationConfirmation(slots) => slots.to_mailer_map(),
+        }
+    }
 }
 
 impl std::fmt::Display for EmailTemplateSlots {
@@ -115,6 +143,17 @@ pub struct DefaultEmailSlots {
     pub intro: String,
     pub body: String,
     pub footer: String,
+}
+
+impl DefaultEmailSlots {
+    fn to_mailer_map(&self) -> HashMap<&str, String> {
+        HashMap::from([
+            ("heading", self.heading.clone()),
+            ("intro", self.intro.clone()),
+            ("body", self.body.clone()),
+            ("footer", self.footer.clone()),
+        ])
+    }
 }
 
 impl Type<Postgres> for EmailTemplateSlots {
@@ -304,12 +343,28 @@ pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<EmailTemplateConfig, Com
     let email_config = sqlx::query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => {
-                ComhairleError::ResourceNotFound("Email template config".into())
-            }
-            other => ComhairleError::DatabaseError(other),
-        })?;
+        .not_found_as("Email template config")?;
+
+    Ok(email_config)
+}
+
+#[instrument(err(Debug))]
+pub async fn get_by_type_user(
+    db: &PgPool,
+    user_id: Uuid,
+    email_type: &str,
+) -> Result<EmailTemplateConfig, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns(DEFAULT_COLUMNS)
+        .from(EmailTemplateConfigIden::Table)
+        .and_where(Expr::col(EmailTemplateConfigIden::OwnerId).eq(user_id))
+        .and_where(Expr::col(EmailTemplateConfigIden::EmailType).eq(email_type.to_owned()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let email_config = query_as_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .not_found_as("Email template config")?;
 
     Ok(email_config)
 }
@@ -468,6 +523,33 @@ mod tests {
         let new_email_config = create(&pool, current_user.id, &params).await?;
 
         let email_config = get_by_id(&pool, new_email_config.id).await?;
+
+        assert_eq!(new_email_config.id, email_config.id, "ids don't match");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_get_email_config_user_and_email_type(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, current_user, _) = session.current_user(&app).await?;
+
+        let params = CreateEmailTemplateConfig {
+            slots: EmailTemplateSlots::ConversationInvite(DefaultEmailSlots {
+                heading: "<h1>You're invite to a conversation</h1>".to_string(),
+                intro: "<p>You have been selected to take part in a public engagement</p>"
+                    .to_string(),
+                body: "<p>Test body content</p>".to_string(),
+                footer: "<p>Thank you for your time</p>".to_string(),
+            }),
+        };
+
+        let new_email_config = create(&pool, current_user.id, &params).await?;
+
+        let email_config =
+            get_by_type_user(&pool, current_user.id, TYPE_CONVERSATION_INVITE).await?;
 
         assert_eq!(new_email_config.id, email_config.id, "ids don't match");
 

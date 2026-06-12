@@ -105,17 +105,17 @@ async fn create_conversation_invite(
     // Send out an email notification if we can
     match &invite.invite_type {
         InviteType::Email(email) => {
-            state.mailer.send_email(
-            email,
-            "Invitation to take part in a public consultation",
-            "conversation_invite.html",
-            context! {
-                conversation_hero => conversation.image_url,
-                conversation_title=> conversation.title,
-                invite_link => format!("{}/conversations/{}/invite/{}",state.config.domain, conversation.slug.unwrap_or_else(|| conversation.id.to_string()), invite.id )
-            },
-                None
-        )?;
+            state
+                .mailer
+                .send_conversation_invite_email(
+                    &state,
+                    email,
+                    conversation.id,
+                    user.id,
+                    invite.id,
+                    &conversation.primary_locale,
+                )
+                .await?;
         }
         InviteType::User(user_id) => {
             let user = models::users::get_user_by_id(user_id, &state.db).await?;
@@ -457,7 +457,6 @@ mod tests {
     use std::error::Error;
 
     use axum::body::Body;
-    use mockall::predicate::{always, eq};
     use serde_json::json;
     use sqlx::PgPool;
     use tracing_test::traced_test;
@@ -482,16 +481,9 @@ mod tests {
 
         // Setup mailer expectations
         mailer
-            .expect_send_email()
-            .with(
-                eq("stuart.lynn@gmail.com"),
-                eq("Invitation to take part in a public consultation"),
-                eq("conversation_invite.html"),
-                always(),
-                always(),
-            )
+            .expect_send_conversation_invite_email()
             .once()
-            .returning(|_, _, _, _, _| Ok(()));
+            .returning(|_, _, _, _, _, _| Box::pin(async move { Ok(()) }));
 
         mailer
             .expect_send_welcome_email()

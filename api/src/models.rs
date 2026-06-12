@@ -1,3 +1,5 @@
+use crate::error::ComhairleError;
+
 pub mod api_key;
 pub mod bot_service_user_session;
 pub mod conversation;
@@ -37,3 +39,16 @@ pub mod workflow_step;
 
 #[cfg(test)]
 pub mod model_test_helpers;
+
+pub trait SqlxResultExt<T> {
+    fn not_found_as(self, resource: &str) -> Result<T, ComhairleError>;
+}
+
+impl<T> SqlxResultExt<T> for Result<T, sqlx::Error> {
+    fn not_found_as(self, resource: &str) -> Result<T, ComhairleError> {
+        self.map_err(|e| match e {
+            sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound(resource.into()),
+            other => ComhairleError::DatabaseError(other),
+        })
+    }
+}

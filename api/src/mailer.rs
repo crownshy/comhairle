@@ -1,8 +1,11 @@
-use crate::error::ComhairleError;
+use crate::models::email_template_config::TYPE_CONVERSATION_INVITE;
 use crate::models::event::{LocalizedEvent, ResolveTimeZone};
 use crate::models::organization::Organization;
 use crate::models::users::User;
+use crate::models::{conversation, email_template_config};
+use crate::{error::ComhairleError, ComhairleState};
 
+use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use icalendar::{self as ical, Component, EventLike};
 use lettre::message::Mailbox;
@@ -12,12 +15,15 @@ use lettre::{
     Message, SmtpTransport, Transport,
 };
 use minijinja::{context, Environment, Value};
-use std::str::FromStr;
+use std::collections::HashMap;
+use std::{str::FromStr, sync::Arc};
 use tracing::{instrument, warn};
+use uuid::Uuid;
 
 #[cfg(test)]
 use mockall::{automock, predicate::*};
 
+#[async_trait]
 #[cfg_attr(test, automock)]
 pub trait ComhairleMailer: Send + Sync {
     fn send_email(
@@ -27,6 +33,16 @@ pub trait ComhairleMailer: Send + Sync {
         template: &str,
         context: Value,
         attachment: Option<SinglePart>,
+    ) -> Result<(), ComhairleError>;
+
+    async fn send_conversation_invite_email(
+        &self,
+        state: &Arc<ComhairleState>,
+        to: &str,
+        conversation_id: Uuid,
+        user_id: Uuid,
+        invite_id: Uuid,
+        locale: &str,
     ) -> Result<(), ComhairleError>;
 
     fn send_welcome_email(&self, user: &User, verify_link: String) -> Result<(), ComhairleError>;
@@ -103,6 +119,9 @@ impl MockComhairleMailer {
             .returning(|_, _, _| Ok(()));
         mailer.expect_send_email().returning(|_, _, _, _, _| Ok(()));
         mailer
+            .expect_send_conversation_invite_email()
+            .returning(|_, _, _, _, _, _| Box::pin(async move { Ok(()) }));
+        mailer
             .expect_send_otp_email()
             .returning(|_, _, _, _| Ok(()));
         mailer
@@ -136,8 +155,45 @@ impl Mailer {
             template_engine: env,
         }
     }
+
+    /// Resolves dynamic placeholders within email template slot values.
+    ///
+    /// Each value in `slots_map` (e.g. `heading`, `intro`, `body`, `footer`)
+    /// may itself contain minijinja syntax such as `{{ conversation_title }}`,
+    /// allowing users to embed dynamic, runtime-provided data within the
+    /// content they configure for an email template.
+    ///
+    /// This method renders each slot value as its own minijinja template using
+    /// the supplied `context`, returning a new map with the resolved values.
+    /// The result can then be merged into the final context used to render the
+    /// outer email template, e.g.:
+    ///
+    /// ```ignore
+    /// let resolved = self.resolve_slots_map(&context, &slots_map)?;
+    /// let final_context = minijinja::context! { ..resolved };
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any slot value fails to render (e.g. invalid
+    /// minijinja syntax).
+    fn resolve_slots_map<'a>(
+        &self,
+        context: &minijinja::Value,
+        slots_map: &HashMap<&'a str, String>,
+    ) -> Result<HashMap<&'a str, String>, ComhairleError> {
+        let mut rendered_map: HashMap<&str, String> = HashMap::new();
+
+        for (key, value) in slots_map {
+            let rendered = self.template_engine.render_str(value, context)?;
+            rendered_map.insert(key, rendered);
+        }
+
+        Ok(rendered_map)
+    }
 }
 
+#[async_trait]
 impl ComhairleMailer for Mailer {
     #[instrument(err(Debug), skip(attachment))]
     fn send_email(
@@ -185,6 +241,57 @@ impl ComhairleMailer for Mailer {
             warn!("Mailer error: {e}");
             e
         })?;
+
+        Ok(())
+    }
+
+    async fn send_conversation_invite_email(
+        &self,
+        state: &Arc<ComhairleState>,
+        to: &str,
+        conversation_id: Uuid,
+        user_id: Uuid,
+        invite_id: Uuid,
+        locale: &str,
+    ) -> Result<(), ComhairleError> {
+        let conversation =
+            conversation::get_localised_by_id(&state.db, &conversation_id, locale).await?;
+
+        let invite_link = format!(
+            "{}/conversations/{}/invite/{}",
+            state.config.domain,
+            conversation
+                .slug
+                .unwrap_or_else(|| conversation.id.to_string()),
+            invite_id
+        );
+
+        let conversation_context = context! { conversation_title => conversation.title };
+
+        if let Ok(email_config) =
+            email_template_config::get_by_type_user(&state.db, user_id, TYPE_CONVERSATION_INVITE)
+                .await
+        {
+            let rendered_map =
+                self.resolve_slots_map(&conversation_context, &email_config.slots.to_mailer_map())?;
+
+            let context = minijinja::context! { invite_link, ..rendered_map };
+            self.send_email(
+                to,
+                "Invitation to take part in a public consultation",
+                "conversation_invite.html",
+                context,
+                None,
+            )?;
+        } else {
+            self.send_email(
+                to,
+                "Invitation to take part in a public consultation",
+                "conversation_invite.html",
+                conversation_context,
+                None,
+            )?;
+        }
 
         Ok(())
     }
