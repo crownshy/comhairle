@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{get_with, post_with},
+    routing::{get_with, post_with, put_with},
     ApiRouter,
 };
 use async_trait::async_trait;
 use axum::{
-    extract::{Json, Query, State},
+    extract::{Json, Path, Query, State},
     http::StatusCode,
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar};
@@ -18,7 +18,13 @@ use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
-    models,
+    models::{
+        self,
+        polis_statement_aux::{
+            CreatePolisStatementAux, PolisStatementAux, ThemeStatistic, UpdatePolisStatementAux,
+        },
+    },
+    routes::auth::RequiredUser,
     wiki_poll_service::{polis_service::WikiPollReport, WikiPollLogin, WikiPollService},
     ComhairleState,
 };
@@ -111,6 +117,60 @@ impl ToolImpl for PolisTool {
                         .tag("Tools")
                         .summary("Get Polis report data for a workflow step")
                         .description("Fetches the polis data export for a given workflow step")
+                }),
+            )
+            .api_route(
+                "/polis/statement_aux",
+                post_with(create_statement_aux, |op| {
+                    op.id("PolisCreateStatementAux")
+                        .tag("Tools")
+                        .summary("Create auxiliary data for a Polis statement")
+                        .description(
+                            "Creates a polis_statement_aux row capturing statement text, \
+                             moderation status, themes and the visible statement at \
+                             submission time",
+                        )
+                        .response::<201, Json<PolisStatementAux>>()
+                }),
+            )
+            .api_route(
+                "/polis/statement_aux/{id}",
+                put_with(update_statement_aux, |op| {
+                    op.id("PolisUpdateStatementAux")
+                        .tag("Tools")
+                        .summary("Update auxiliary data for a Polis statement")
+                        .description(
+                            "Updates statement_text, moderation_status, themes, \
+                             visible_statement_when_submitted, or moderation_reason",
+                        )
+                        .response::<200, Json<PolisStatementAux>>()
+                }),
+            )
+            .api_route(
+                "/polis/statement_aux",
+                get_with(list_statement_aux, |op| {
+                    op.id("PolisListStatementAux")
+                        .tag("Tools")
+                        .summary("List polis_statement_aux rows for a poll")
+                        .description(
+                            "Returns auxiliary statement data filtered by workflow_step_id \
+                             and/or polis_conversation_id (at least one is required)",
+                        )
+                        .response::<200, Json<Vec<PolisStatementAux>>>()
+                }),
+            )
+            .api_route(
+                "/polis/statement_aux/theme_stats",
+                get_with(theme_stats, |op| {
+                    op.id("PolisStatementAuxThemeStats")
+                        .tag("Tools")
+                        .summary("Statement counts per theme for a poll")
+                        .description(
+                            "Returns the count of polis_statement_aux rows tagged with each \
+                             theme, filtered by workflow_step_id and/or polis_conversation_id \
+                             (at least one is required)",
+                        )
+                        .response::<200, Json<Vec<ThemeStatistic>>>()
                 }),
             )
             .with_state(state.clone())
@@ -225,6 +285,73 @@ async fn get_report_data(
         .await?;
 
     Ok((StatusCode::OK, Json(data)))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn create_statement_aux(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Json(create_request): Json<CreatePolisStatementAux>,
+) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
+    let aux = models::polis_statement_aux::create(&state.db, user.id, &create_request).await?;
+    Ok((StatusCode::CREATED, Json(aux)))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn update_statement_aux(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(_user): RequiredUser,
+    Path(id): Path<Uuid>,
+    Json(update_request): Json<UpdatePolisStatementAux>,
+) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
+    let aux = models::polis_statement_aux::update(&state.db, id, &update_request).await?;
+    Ok((StatusCode::OK, Json(aux)))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+struct StatementAuxFilterQuery {
+    pub workflow_step_id: Option<Uuid>,
+    pub polis_conversation_id: Option<String>,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn list_statement_aux(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(_user): RequiredUser,
+    Query(filter): Query<StatementAuxFilterQuery>,
+) -> Result<(StatusCode, Json<Vec<PolisStatementAux>>), ComhairleError> {
+    if filter.workflow_step_id.is_none() && filter.polis_conversation_id.is_none() {
+        return Err(ComhairleError::BadRequest(
+            "workflow_step_id or polis_conversation_id is required".into(),
+        ));
+    }
+    let aux = models::polis_statement_aux::list_filtered(
+        &state.db,
+        filter.workflow_step_id,
+        filter.polis_conversation_id,
+    )
+    .await?;
+    Ok((StatusCode::OK, Json(aux)))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn theme_stats(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(_user): RequiredUser,
+    Query(filter): Query<StatementAuxFilterQuery>,
+) -> Result<(StatusCode, Json<Vec<ThemeStatistic>>), ComhairleError> {
+    if filter.workflow_step_id.is_none() && filter.polis_conversation_id.is_none() {
+        return Err(ComhairleError::BadRequest(
+            "workflow_step_id or polis_conversation_id is required".into(),
+        ));
+    }
+    let stats = models::polis_statement_aux::theme_stats(
+        &state.db,
+        filter.workflow_step_id,
+        filter.polis_conversation_id,
+    )
+    .await?;
+    Ok((StatusCode::OK, Json(stats)))
 }
 
 /// Logs a user into polis and proxies the cookie
