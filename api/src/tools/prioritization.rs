@@ -348,7 +348,7 @@ async fn list_proposals(
         with_translations,
     }): Query<ListProposalsQuery>,
 ) -> Result<(StatusCode, Json<ProposalsListResponse>), ComhairleError> {
-    if with_translations && is_user_admin(&user, &state.config) {
+    if with_translations && is_user_admin(&state, &user).await {
         let proposals =
             proposal::list_with_translations(&state.db, &workflow_step_id, &locale).await?;
         return Ok((
