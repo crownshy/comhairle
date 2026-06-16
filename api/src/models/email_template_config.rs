@@ -63,33 +63,6 @@ pub const TYPE_EVENT_REGISTRATION_INVITE: &str = "event_registration_invite";
 pub const TYPE_EVENT_REGISTRATION_CONFIRMATION: &str = "event_registration_confirmation";
 
 impl EmailTemplateSlots {
-    fn try_schema_for_type(email_type: &str) -> Result<EmailTypeSchema, ComhairleError> {
-        let schema = match email_type {
-            TYPE_CONVERSATION_INVITE => EmailTypeSchema {
-                email_type: TYPE_CONVERSATION_INVITE,
-                variables: &["conversation_title"],
-                slots: DEFAULT_SLOTS_SCHEMA,
-            },
-            TYPE_EVENT_REGISTRATION_INVITE => EmailTypeSchema {
-                email_type: TYPE_EVENT_REGISTRATION_INVITE,
-                variables: &["event_name", "event_time"],
-                slots: DEFAULT_SLOTS_SCHEMA,
-            },
-            TYPE_EVENT_REGISTRATION_CONFIRMATION => EmailTypeSchema {
-                email_type: TYPE_EVENT_REGISTRATION_CONFIRMATION,
-                variables: &[],
-                slots: DEFAULT_SLOTS_SCHEMA,
-            },
-            _ => {
-                return Err(ComhairleError::MissingEmailTemplateSchema(
-                    email_type.to_string(),
-                ))
-            }
-        };
-
-        Ok(schema)
-    }
-
     /// Returns the schema for every email template type.
     ///
     /// Each entry describes a variant of [`EmailTemplateSlots`], pairing the
@@ -103,16 +76,33 @@ impl EmailTemplateSlots {
     /// When a new variant is added to [`EmailTemplateSlots`], a corresponding
     /// [`EmailTypeSchema`] must be added here manually. There is no compiler
     /// enforcement for this.
-    pub fn schemas() -> Result<[EmailTypeSchema; 3], ComhairleError> {
-        Ok([
-            Self::try_schema_for_type(TYPE_CONVERSATION_INVITE)?,
-            Self::try_schema_for_type(TYPE_EVENT_REGISTRATION_INVITE)?,
-            Self::try_schema_for_type(TYPE_EVENT_REGISTRATION_CONFIRMATION)?,
-        ])
+    pub fn schemas() -> [EmailTypeSchema; 3] {
+        [
+            EmailTemplateSlots::ConversationInvite(DefaultEmailSlots::default()).schema(),
+            EmailTemplateSlots::EventRegistrationInvite(DefaultEmailSlots::default()).schema(),
+            EmailTemplateSlots::EventRegistrationConfirmation(DefaultEmailSlots::default())
+                .schema(),
+        ]
     }
 
-    pub fn schema(&self) -> Result<EmailTypeSchema, ComhairleError> {
-        Self::try_schema_for_type(&self.to_string())
+    pub fn schema(&self) -> EmailTypeSchema {
+        match self {
+            EmailTemplateSlots::ConversationInvite(_) => EmailTypeSchema {
+                email_type: self.to_type_str(),
+                variables: &["conversation_title"],
+                slots: DEFAULT_SLOTS_SCHEMA,
+            },
+            EmailTemplateSlots::EventRegistrationInvite(_) => EmailTypeSchema {
+                email_type: self.to_type_str(),
+                variables: &["event_name", "event_time"],
+                slots: DEFAULT_SLOTS_SCHEMA,
+            },
+            EmailTemplateSlots::EventRegistrationConfirmation(_) => EmailTypeSchema {
+                email_type: self.to_type_str(),
+                variables: &[],
+                slots: DEFAULT_SLOTS_SCHEMA,
+            },
+        }
     }
 
     pub fn to_template(&self) -> &str {
@@ -120,6 +110,23 @@ impl EmailTemplateSlots {
             EmailTemplateSlots::ConversationInvite(_) => "conversation_invite.html",
             EmailTemplateSlots::EventRegistrationInvite(_) => "event_registration_invite.html",
             EmailTemplateSlots::EventRegistrationConfirmation(_) => "event_confirmation.html",
+        }
+    }
+
+    /// Returns the canonical string identifier for this email template variant.
+    ///
+    /// This is the single source of truth for the string representation of each
+    /// variant, and is used by both [`Display`] and [`schema`] to avoid
+    /// duplicating the mapping. The returned string is always a `&'static str`
+    /// drawn from the `TYPE_*` constants, which allows it to be embedded in
+    /// [`EmailTypeSchema`] without lifetime annotation.
+    fn to_type_str(&self) -> &'static str {
+        match self {
+            EmailTemplateSlots::ConversationInvite(_) => TYPE_CONVERSATION_INVITE,
+            EmailTemplateSlots::EventRegistrationInvite(_) => TYPE_EVENT_REGISTRATION_INVITE,
+            EmailTemplateSlots::EventRegistrationConfirmation(_) => {
+                TYPE_EVENT_REGISTRATION_CONFIRMATION
+            }
         }
     }
 
@@ -150,14 +157,7 @@ impl EmailTemplateSlots {
 
 impl std::fmt::Display for EmailTemplateSlots {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let value = match self {
-            EmailTemplateSlots::ConversationInvite(_) => TYPE_CONVERSATION_INVITE,
-            EmailTemplateSlots::EventRegistrationInvite(_) => TYPE_EVENT_REGISTRATION_INVITE,
-            EmailTemplateSlots::EventRegistrationConfirmation(_) => {
-                TYPE_EVENT_REGISTRATION_CONFIRMATION
-            }
-        };
-        write!(f, "{}", value)
+        write!(f, "{}", self.to_type_str())
     }
 }
 

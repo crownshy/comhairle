@@ -89,7 +89,7 @@ async fn get_schema(
     RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<EmailTypeSchema>), ComhairleError> {
     let email_config = email_template_config::get_by_id(&state.db, email_config_id).await?;
-    let schema = email_config.slots.schema()?;
+    let schema = email_config.slots.schema();
 
     Ok((StatusCode::OK, Json(schema)))
 }
@@ -98,7 +98,7 @@ async fn get_schema(
 async fn list_schemas(
     RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<[EmailTypeSchema; 3]>), ComhairleError> {
-    let schemas = EmailTemplateSlots::schemas()?;
+    let schemas = EmailTemplateSlots::schemas();
 
     Ok((StatusCode::OK, Json(schemas)))
 }
