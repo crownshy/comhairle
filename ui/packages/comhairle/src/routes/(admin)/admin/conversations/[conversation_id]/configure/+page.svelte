@@ -12,8 +12,6 @@
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { autoTranslateNewLanguage } from '$lib/components/Translation/translationUtils';
 	import { LanguageSelector } from '$lib/components/ui/language-selector';
-	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
-	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import type { ConversationWithTranslations, WorkflowDto } from '@crownshy/api-client/api';
 	import { camelToSentenceCase, camelToSnakeCase, snakeCaseKeys } from '$lib/utils/casingUtils';
 
@@ -234,23 +232,13 @@
 			notifications.send({ message: 'Failed to save changes', priority: 'ERROR' });
 		}
 	}
-
-	useAdminLayoutSlots({
-		title: titleContentSnippet,
-		breadcrumbs: [{ label: 'Configure' }]
-	});
 </script>
 
 <svelte:head>
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-{#snippet titleContentSnippet()}
-	<h1 class="text-4xl font-bold">Configure</h1>
-	<AdminPrevNextControls
-		next={{ name: 'design', url: `/admin/conversations/${conversation.id}/design` }}
-	/>
-{/snippet}
+<h1 class="mb-4 text-3xl font-bold">Configure</h1>
 
 <div class="flex flex-col gap-4">
 	<h2 class="text-card-foreground text-xl font-semibold">Conversation configuration</h2>

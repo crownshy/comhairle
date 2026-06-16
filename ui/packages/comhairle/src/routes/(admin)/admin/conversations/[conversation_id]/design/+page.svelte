@@ -31,8 +31,6 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidateAll } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte.js';
-	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte.js';
-	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import DraggableList from '$lib/components/DraggableList.svelte';
 
 	let { data } = $props();
@@ -49,7 +47,6 @@
 	let conversation = $derived(data.conversation);
 	let workflowSteps = $derived(data.workflowSteps);
 	let workflow = $derived(data.workflows[0]);
-	let firstStep = $derived(workflowSteps.find((s) => s.stepOrder === 1));
 
 	$effect(() => {
 		reorderedSteps = [...workflowSteps];
@@ -136,27 +133,14 @@
 	function activeToolConfig(step: WorkflowStepWithTranslations) {
 		return conversation.isLive ? step.toolConfig : step.previewToolConfig;
 	}
-	useAdminLayoutSlots({
-		title: titleSnippet,
-		breadcrumbs: [{ label: 'Design' }]
-	});
-	let pageTitle = $derived(`Design ${conversation.title}`);
+	let pageTitle = $derived(`Workflow ${conversation.title}`);
 </script>
 
 <svelte:head>
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-{#snippet titleSnippet()}
-	<h1 class="text-4xl font-bold">Design</h1>
-	<AdminPrevNextControls
-		next={firstStep && {
-			name: firstStep.name,
-			url: `/admin/conversations/${conversation.id}/design/step/${firstStep.id}`
-		}}
-		prev={{ name: 'Configure', url: `/admin/conversations/${conversation.id}/configure` }}
-	/>
-{/snippet}
+<h1 class="mb-4 text-3xl font-bold">Workflow</h1>
 
 <h2 class="mb-5 text-2xl">Process steps</h2>
 

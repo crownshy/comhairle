@@ -7,7 +7,6 @@
 	import ElicitationBotManage from '$lib/tools/elicitation_bot/ElicitationBotManage.svelte';
 	import LivedExperienceManage from '$lib/tools/lived_experince/LivedExperinceManage.svelte';
 	import * as Prioritization from '$lib/tools/prioritization';
-	import { useAdminLayoutSlots } from '../../../useAdminLayoutSlots.svelte.js';
 	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Pencil } from 'lucide-svelte';
@@ -49,13 +48,6 @@
 		step ? (conversation.isLive ? step.toolConfig : step.previewToolConfig) : null
 	);
 
-	useAdminLayoutSlots({
-		title: titleSnippet,
-		breadcrumbs: () => [
-			{ label: 'Design', href: `/admin/conversations/${conversation.id}/design` },
-			{ label: step?.name ?? 'Step' }
-		]
-	});
 	let pageTitle = $derived(`Edit Step: ${step?.name ?? 'Step'}`);
 	let stepName = $derived(
 		getTextInLocale(
@@ -70,59 +62,57 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-{#snippet titleSnippet()}
-	<div class="flex w-full min-w-0 flex-col">
-		<div class="flex w-full min-w-0 items-center gap-3">
-			<h1
-				class="min-w-0 flex-1 truncate text-3xl font-semibold sm:max-w-[40ch] sm:text-4xl"
-				title={stepName}
-			>
-				{stepName}
-			</h1>
-			<Button
-				onclick={() => (editMetadataOpen = true)}
-				class="bg-sidebar text-sidebar-foreground hover:bg-sidebar/90 h-8 shrink-0 rounded-full px-3 text-xs"
-			>
-				<Pencil class="size-3.5" />
-				Edit
-			</Button>
-		</div>
-		{#if step?.description || step?.translations?.description}
-			<div class="mt-2">
-				<ContentRenderer
-					content={getTextInLocale(
-						step?.translations?.description,
-						conversation.primaryLocale ?? 'en',
-						step?.description ?? ''
-					)}
-					class="text-muted-foreground text-base"
-					{availableDocuments}
-					conversationId={conversation.id}
-				/>
-			</div>
-		{/if}
-		<div class="border-base-border mt-5 flex w-full border-t pt-4">
-			<AdminPrevNextControls
-				hidePrevLabel
-				next={nextStep
-					? {
-							name: nextStep.name,
-							url: `/admin/conversations/${conversation.id}/design/step/${nextStep.id}`
-						}
-					: {
-							name: 'Setup Knowledge base',
-							url: `/admin/conversations/${conversation.id}/knowledge-base`
-						}}
-				prev={prevStep
-					? {
-							name: prevStep.name,
-							url: `/admin/conversations/${conversation.id}/design/step/${prevStep.id}`
-						}
-					: { name: 'Design', url: `/admin/conversations/${conversation.id}/design` }}
+<div class="mb-6 flex w-full min-w-0 flex-col">
+	<div class="flex w-full min-w-0 items-center gap-3">
+		<h1
+			class="min-w-0 flex-1 truncate text-3xl font-semibold sm:max-w-[40ch] sm:text-4xl"
+			title={stepName}
+		>
+			{stepName}
+		</h1>
+		<Button
+			onclick={() => (editMetadataOpen = true)}
+			class="bg-sidebar text-sidebar-foreground hover:bg-sidebar/90 h-8 shrink-0 rounded-full px-3 text-xs"
+		>
+			<Pencil class="size-3.5" />
+			Edit
+		</Button>
+	</div>
+	{#if step?.description || step?.translations?.description}
+		<div class="mt-2">
+			<ContentRenderer
+				content={getTextInLocale(
+					step?.translations?.description,
+					conversation.primaryLocale ?? 'en',
+					step?.description ?? ''
+				)}
+				class="text-muted-foreground text-base"
+				{availableDocuments}
+				conversationId={conversation.id}
 			/>
 		</div>
+	{/if}
+	<div class="border-base-border mt-5 flex w-full border-t pt-4">
+		<AdminPrevNextControls
+			hidePrevLabel
+			next={nextStep
+				? {
+						name: nextStep.name,
+						url: `/admin/conversations/${conversation.id}/design/step/${nextStep.id}`
+					}
+				: {
+						name: 'Setup Knowledge base',
+						url: `/admin/conversations/${conversation.id}/knowledge-base`
+					}}
+			prev={prevStep
+				? {
+						name: prevStep.name,
+						url: `/admin/conversations/${conversation.id}/design/step/${prevStep.id}`
+					}
+				: { name: 'Workflow', url: `/admin/conversations/${conversation.id}/design` }}
+		/>
 	</div>
-{/snippet}
+</div>
 
 {#if step}
 	<CommonStepConfig

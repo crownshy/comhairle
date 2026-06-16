@@ -1,8 +1,6 @@
 <script lang="ts">
-	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Plus } from 'lucide-svelte';
-	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 	import * as Card from '$lib/components/ui/card';
 	import EventCard from '$lib/components/EventCard.svelte';
 
@@ -10,10 +8,6 @@
 	let conversation = $derived(data.conversation);
 	let events = $derived(data.events.records);
 
-	useAdminLayoutSlots({
-		title: titleSnippet,
-		breadcrumbs: [{ label: 'Events' }]
-	});
 	let pageTitle = $derived(`Manage Events - ${conversation.title}`);
 </script>
 
@@ -21,21 +15,7 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-{#snippet titleSnippet()}
-	<h1 class="text-4xl font-bold">Events</h1>
-	<AdminPrevNextControls
-		prev={{
-			name: 'Knowledge base',
-			url: `/admin/conversations/${conversation.id}/knowledge-base`
-		}}
-		next={conversation.isLive
-			? {
-					name: 'Recruit',
-					url: `/admin/conversations/${conversation.id}/invites`
-				}
-			: undefined}
-	/>
-{/snippet}
+<h1 class="mb-4 text-3xl font-bold">Events</h1>
 
 <p class="text-muted-foreground mb-10 text-base font-medium">
 	Use this space to manage your conversation's events.

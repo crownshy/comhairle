@@ -14,8 +14,6 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import EventSchema from './schema.js';
-	import { useAdminLayoutSlots } from '../../useAdminLayoutSlots.svelte.js';
-	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import { cn } from '$lib/utils';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import Button from '$lib/components/ui/button/button.svelte';
@@ -164,14 +162,6 @@
 
 	const df = new DateFormatter('en-UK', {
 		dateStyle: 'long'
-	});
-
-	useAdminLayoutSlots({
-		title: titleContentSnippet,
-		breadcrumbs: () => [
-			{ label: 'Events', href: `/admin/conversations/${conversation.id}/events` },
-			{ label: event?.name ?? 'Event' }
-		]
 	});
 
 	let eventDate = $derived($form.start_date ? parseDate($form.start_date) : undefined);
@@ -326,21 +316,12 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-{#snippet titleContentSnippet()}
-	<h1 class="text-4xl font-bold">Event: {event?.name}</h1>
+<div class="mb-6 flex flex-row items-center gap-4">
+	<h1 class="text-3xl font-bold">Event: {event?.name}</h1>
 	{#if conversation && event}
 		<Button href={`/conversations/${conversation.id}/events/${event.id}`}>Event Link</Button>
 	{/if}
-	<AdminPrevNextControls
-		prev={{
-			name: 'Knowledge base',
-			url: `/admin/conversations/${conversation.id}/knowledge-base`
-		}}
-		next={conversation.isLive
-			? { name: 'Recruit', url: `/admin/conversations/${conversation.id}/invites` }
-			: undefined}
-	/>
-{/snippet}
+</div>
 
 <Tabs.Root value="eventDetails" class="flex min-h-0 flex-1 flex-col">
 	<div class="bg-sidebar mb-8 flex w-fit shrink-0 flex-row gap-4 rounded-xl p-1">

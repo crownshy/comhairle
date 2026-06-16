@@ -2,7 +2,6 @@
 	import { BookOpen, ListChecks, MessagesSquare, Video } from 'lucide-svelte';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
-	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte.js';
 	import type { ToolConfig, WorkflowStepWithTranslations } from '@crownshy/api-client/api';
 
 	let { data } = $props();
@@ -11,20 +10,13 @@
 	function activeToolConfig(step: WorkflowStepWithTranslations): ToolConfig {
 		return conversation.isLive ? step.toolConfig : step.previewToolConfig;
 	}
-
-	useAdminLayoutSlots({
-		title: titleSnippet,
-		breadcrumbs: [{ label: 'Moderate' }]
-	});
 </script>
 
 <svelte:head>
 	<title>Moderate Conversation - Comhairle Admin</title>
 </svelte:head>
 
-{#snippet titleSnippet()}
-	<h1 class="text-4xl font-bold">Moderate</h1>
-{/snippet}
+<h1 class="mb-4 text-3xl font-bold">Moderate</h1>
 
 <p class="mb-10">Use this space to moderate the conversation</p>
 

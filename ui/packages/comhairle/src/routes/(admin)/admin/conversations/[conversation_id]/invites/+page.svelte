@@ -16,7 +16,6 @@
 	import * as Table from '$lib/components/ui/table/index.js';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import OpenInviteStatsBarChart from '$lib/components/OpenInviteStatsBarChart.svelte';
-	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte.js';
 	import EmailInvitesList from '$lib/components/ui/email-invites/EmailInvitesList.svelte';
 	import { inviteUrl } from '$lib/utils/invites.js';
 
@@ -58,10 +57,6 @@
 		sendEmailDiaglogOpen = false;
 		invalidateAll();
 	}
-	useAdminLayoutSlots({
-		title: titleContentSnippet,
-		breadcrumbs: [{ label: 'Recruit' }]
-	});
 </script>
 
 <svelte:head>
@@ -74,9 +69,7 @@
 	</div>
 {/snippet}
 
-{#snippet titleContentSnippet()}
-	<h1 class="text-4xl font-bold">Recruit</h1>
-{/snippet}
+<h1 class="mb-4 text-3xl font-bold">Recruit</h1>
 
 <Tabs.Root value="Email">
 	<Tabs.List>

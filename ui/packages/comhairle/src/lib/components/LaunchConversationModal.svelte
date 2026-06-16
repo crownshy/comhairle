@@ -16,10 +16,11 @@
 
 	type Props = {
 		conversation_id: string;
+		hideTrigger?: boolean;
+		open?: boolean;
 	};
 
-	let { conversation_id }: Props = $props();
-	let open = $state(false);
+	let { conversation_id, hideTrigger = false, open = $bindable(false) }: Props = $props();
 	const loader = useLoading();
 
 	async function launch() {
@@ -40,10 +41,12 @@
 	}
 </script>
 
-<Dialog {open}>
-	<DialogTrigger>
-		<Button variant="default" class="h-[40px]">Launch Conversation</Button>
-	</DialogTrigger>
+<Dialog bind:open>
+	{#if !hideTrigger}
+		<DialogTrigger>
+			<Button variant="default" class="h-[40px]">Launch Conversation</Button>
+		</DialogTrigger>
+	{/if}
 
 	<DialogContent>
 		<DialogHeader>
