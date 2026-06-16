@@ -358,7 +358,7 @@ export const PolisStatementAux = z
     statement_text: z.string(),
     themes: z.array(z.string()),
     updated_at: z.string().datetime({ offset: true }),
-    user_id: z.string().uuid(),
+    user_id: z.union([z.string(), z.null()]).optional(),
     visible_statement_when_submitted: z
       .union([z.string(), z.null()])
       .optional(),
@@ -395,6 +395,18 @@ export const UpdatePolisStatementAux = z
   .partial()
   .passthrough();
 export type UpdatePolisStatementAux = z.infer<typeof UpdatePolisStatementAux>;
+export const SyncStatementAuxRequest = z
+  .object({ workflow_step_id: z.string().uuid() })
+  .passthrough();
+export type SyncStatementAuxRequest = z.infer<typeof SyncStatementAuxRequest>;
+export const SyncStatementAuxResponse = z
+  .object({
+    skipped_invalid_xid: z.number().int().gte(0),
+    statements: z.array(PolisStatementAux),
+    synced: z.number().int().gte(0),
+  })
+  .passthrough();
+export type SyncStatementAuxResponse = z.infer<typeof SyncStatementAuxResponse>;
 export const ThemeStatistic = z
   .object({ count: z.number().int(), theme: z.string() })
   .passthrough();
@@ -1904,6 +1916,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PolisStatementAux,
   CreatePolisStatementAux,
   UpdatePolisStatementAux,
+  SyncStatementAuxRequest,
+  SyncStatementAuxResponse,
   ThemeStatistic,
   Story,
   ComhairleMessageReference,
@@ -3825,6 +3839,21 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: PolisStatementAux,
+  },
+  {
+    method: "post",
+    path: "/tools/polis/statement_aux/sync",
+    alias: "PolisSyncStatementAux",
+    description: `Fetches comments and xid mappings from Polis and upserts a row per statement. Existing rows have their statement_text and is_seed refreshed; moderation_status, moderation_reason, themes, visible_statement_when_submitted and user_id are preserved.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ workflow_step_id: z.string().uuid() }).passthrough(),
+      },
+    ],
+    response: SyncStatementAuxResponse,
   },
   {
     method: "get",

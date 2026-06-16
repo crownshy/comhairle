@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr};
+use sea_query::{enum_def, Expr, OnConflict, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, query_as_with, PgPool};
@@ -49,7 +49,7 @@ impl From<ModerationStatus> for sea_query::Value {
 pub struct PolisStatementAux {
     pub id: Uuid,
     pub workflow_step_id: Uuid,
-    pub user_id: Uuid,
+    pub user_id: Option<Uuid>,
     pub zid: i32,
     pub polis_conversation_id: String,
     pub polis_statement_id: i32,
@@ -143,6 +143,69 @@ pub async fn create(
         .into_table(PolisStatementAuxIden::Table)
         .columns(columns)
         .values(values)?
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let aux = query_as_with(&sql, values).fetch_one(db).await?;
+
+    Ok(aux)
+}
+
+#[derive(Debug)]
+pub struct UpsertFromPolis {
+    pub workflow_step_id: Uuid,
+    pub user_id: Option<Uuid>,
+    pub zid: i32,
+    pub polis_conversation_id: String,
+    pub polis_statement_id: i32,
+    pub statement_text: String,
+    pub is_seed: bool,
+}
+
+/// Upsert a row from polis. On conflict (workflow_step_id, polis_statement_id),
+/// only `statement_text` and `is_seed` are updated — `moderation_reason`,
+/// `themes`, `visible_statement_when_submitted`, `moderation_status` and
+/// `user_id` are preserved.
+#[instrument(err(Debug), skip(db))]
+pub async fn upsert_from_polis(
+    db: &PgPool,
+    record: &UpsertFromPolis,
+) -> Result<PolisStatementAux, ComhairleError> {
+    let columns = [
+        PolisStatementAuxIden::WorkflowStepId,
+        PolisStatementAuxIden::UserId,
+        PolisStatementAuxIden::Zid,
+        PolisStatementAuxIden::PolisConversationId,
+        PolisStatementAuxIden::PolisStatementId,
+        PolisStatementAuxIden::StatementText,
+        PolisStatementAuxIden::IsSeed,
+    ];
+    let values: Vec<SimpleExpr> = vec![
+        record.workflow_step_id.into(),
+        record.user_id.into(),
+        record.zid.into(),
+        record.polis_conversation_id.clone().into(),
+        record.polis_statement_id.into(),
+        record.statement_text.clone().into(),
+        record.is_seed.into(),
+    ];
+
+    let (sql, values) = Query::insert()
+        .into_table(PolisStatementAuxIden::Table)
+        .columns(columns)
+        .values(values)?
+        .on_conflict(
+            OnConflict::columns([
+                PolisStatementAuxIden::WorkflowStepId,
+                PolisStatementAuxIden::PolisStatementId,
+            ])
+            .update_columns([
+                PolisStatementAuxIden::StatementText,
+                PolisStatementAuxIden::IsSeed,
+            ])
+            .value(PolisStatementAuxIden::UpdatedAt, Expr::current_timestamp())
+            .to_owned(),
+        )
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 

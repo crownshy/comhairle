@@ -13,7 +13,7 @@ use axum_extra::extract::cookie::{Cookie, CookieJar};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 use crate::{
@@ -22,6 +22,7 @@ use crate::{
         self,
         polis_statement_aux::{
             CreatePolisStatementAux, PolisStatementAux, ThemeStatistic, UpdatePolisStatementAux,
+            UpsertFromPolis,
         },
     },
     routes::auth::RequiredUser,
@@ -160,6 +161,21 @@ impl ToolImpl for PolisTool {
                 }),
             )
             .api_route(
+                "/polis/statement_aux/sync",
+                post_with(sync_statement_aux, |op| {
+                    op.id("PolisSyncStatementAux")
+                        .tag("Tools")
+                        .summary("Sync polis_statement_aux with the live Polis poll")
+                        .description(
+                            "Fetches comments and xid mappings from Polis and upserts a row \
+                             per statement. Existing rows have their statement_text and \
+                             is_seed refreshed; moderation_status, moderation_reason, themes, \
+                             visible_statement_when_submitted and user_id are preserved.",
+                        )
+                        .response::<200, Json<SyncStatementAuxResponse>>()
+                }),
+            )
+            .api_route(
                 "/polis/statement_aux/theme_stats",
                 get_with(theme_stats, |op| {
                     op.id("PolisStatementAuxThemeStats")
@@ -193,6 +209,9 @@ pub enum PolisError {
 
     #[error("Failed to get comments {0}")]
     FailedToGetComments(String),
+
+    #[error("Failed to get xids {0}")]
+    FailedToGetXIDs(String),
 
     #[error("Failed to post seed comment {0}")]
     FailedToPostSeedComment(String),
@@ -332,6 +351,85 @@ async fn list_statement_aux(
     )
     .await?;
     Ok((StatusCode::OK, Json(aux)))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct SyncStatementAuxRequest {
+    pub workflow_step_id: Uuid,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct SyncStatementAuxResponse {
+    pub synced: usize,
+    pub skipped_invalid_xid: usize,
+    pub statements: Vec<PolisStatementAux>,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn sync_statement_aux(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(_user): RequiredUser,
+    Json(SyncStatementAuxRequest { workflow_step_id }): Json<SyncStatementAuxRequest>,
+) -> Result<(StatusCode, Json<SyncStatementAuxResponse>), ComhairleError> {
+    let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
+
+    let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
+        (Some(ToolConfig::Polis(config)), _) => config,
+        (None, ToolConfig::Polis(config)) => config,
+        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+    };
+
+    let client = &state.wiki_poll_service;
+    let auth_cookies = client
+        .login(&WikiPollLogin {
+            email: config.admin_user.clone(),
+            password: config.admin_password.clone(),
+        })
+        .await?;
+    info!("LOGGED IN");
+
+    let xid_rows = client.get_xids(&config.poll_id, &auth_cookies).await?;
+
+    info!("XID ROWS: {xid_rows:#?}");
+
+    let pid_to_user_id: std::collections::HashMap<u32, Uuid> = xid_rows
+        .into_iter()
+        .filter_map(|row| Uuid::parse_str(&row.xid).ok().map(|u| (row.pid, u)))
+        .collect();
+
+    let comments = client.get_comments(&config.poll_id).await?;
+
+    let mut statements = Vec::with_capacity(comments.len());
+    let mut skipped_invalid_xid = 0;
+    for comment in comments {
+        let user_id = pid_to_user_id.get(&comment.pid).copied();
+        if user_id.is_none() && !comment.is_seed {
+            skipped_invalid_xid += 1;
+        }
+        let aux = models::polis_statement_aux::upsert_from_polis(
+            &state.db,
+            &UpsertFromPolis {
+                workflow_step_id,
+                user_id,
+                zid: comment.pid as i32,
+                polis_conversation_id: config.poll_id.clone(),
+                polis_statement_id: comment.tid as i32,
+                statement_text: comment.txt,
+                is_seed: comment.is_seed,
+            },
+        )
+        .await?;
+        statements.push(aux);
+    }
+
+    Ok((
+        StatusCode::OK,
+        Json(SyncStatementAuxResponse {
+            synced: statements.len(),
+            skipped_invalid_xid,
+            statements,
+        }),
+    ))
 }
 
 #[instrument(err(Debug), skip(state))]

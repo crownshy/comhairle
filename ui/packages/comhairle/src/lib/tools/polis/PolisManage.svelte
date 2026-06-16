@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { LoadingButton } from '$lib/components/ui/button';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import Switch from '$lib/components/ui/switch/switch.svelte';
@@ -80,6 +81,30 @@
 		debouncedUpdateToolConfig(e, field);
 	}
 
+	let syncing = $state(false);
+
+	async function handleSyncStatementAux() {
+		syncing = true;
+		try {
+			const result = await apiClient.PolisSyncStatementAux({
+				workflow_step_id: workflowStepId
+			});
+			notifications.send({
+				priority: 'INFO',
+				message: `Synced ${result.synced} statements${result.skipped_invalid_xid ? ` (${result.skipped_invalid_xid} skipped)` : ''}`
+			});
+			await invalidateAll();
+		} catch (e) {
+			console.error(e);
+			notifications.send({
+				priority: 'ERROR',
+				message: 'Failed to sync statements from Polis'
+			});
+		} finally {
+			syncing = false;
+		}
+	}
+
 	async function handleToggleShowRemainingUpdate(checked: boolean, field: string) {
 		try {
 			await apiClient.UpdateConversationWorkflowStep(
@@ -141,6 +166,20 @@
 		</div>
 		<span class="mt-2 text-sm"
 			>Display the number of remaining statements to participants during voting</span
+		>
+	</div>
+
+	<div class="flex flex-col">
+		<Label class="text-lg font-semibold">Sync statements</Label>
+		<span class="mb-3 text-sm"
+			>Fetch the latest statements from Polis into the local statement table. Existing
+			moderation status, themes and notes are preserved.</span
+		>
+		<LoadingButton
+			loading={syncing}
+			onclick={handleSyncStatementAux}
+			class="w-fit"
+			variant="outline">Sync statements from Polis</LoadingButton
 		>
 	</div>
 </div>

@@ -30,6 +30,12 @@ pub trait WikiPollService: Send + Sync {
         poll_id: &str,
     ) -> Result<Vec<WikiPollComment>, WikiPollServiceError>;
 
+    async fn get_xids(
+        &self,
+        poll_id: &str,
+        auth_cookies: &str,
+    ) -> Result<Vec<WikiPollXid>, WikiPollServiceError>;
+
     async fn get_report_data(&self, poll_id: &str) -> Result<WikiPollReport, WikiPollServiceError>;
 }
 
@@ -49,6 +55,12 @@ pub struct WikiPollComment {
     pub pid: u32,
     pub quote_src_url: Option<String>,
     pub created: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Default)]
+pub struct WikiPollXid {
+    pub pid: u32,
+    pub xid: String,
 }
 
 #[cfg(test)]
@@ -76,6 +88,9 @@ impl MockWikiPollService {
                 }])
             })
         });
+        wiki_poll_service
+            .expect_get_xids()
+            .returning(|_, _| Box::pin(async move { Ok(vec![]) }));
 
         wiki_poll_service
     }
