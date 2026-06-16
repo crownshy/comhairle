@@ -13,7 +13,7 @@ use axum_extra::extract::cookie::{Cookie, CookieJar};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tracing::{info, instrument};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
@@ -386,11 +386,8 @@ async fn sync_statement_aux(
             password: config.admin_password.clone(),
         })
         .await?;
-    info!("LOGGED IN");
 
     let xid_rows = client.get_xids(&config.poll_id, &auth_cookies).await?;
-
-    info!("XID ROWS: {xid_rows:#?}");
 
     let pid_to_user_id: std::collections::HashMap<u32, Uuid> = xid_rows
         .into_iter()
