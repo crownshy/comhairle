@@ -6,12 +6,13 @@ use schemars::JsonSchema;
 use sea_query::{enum_def, Expr, JoinType, PostgresQueryBuilder, Query, SimpleExpr};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::FromRow, PgPool};
+use sqlx::{prelude::FromRow, PgConnection, PgPool};
 use tracing::instrument;
 use uuid::Uuid;
 
 use crate::error::ComhairleError;
 
+use super::user_participation::UserParticipationIden;
 use super::workflow_step::WorkflowStepIden;
 
 /// Defines the type of authentication has been used to create
@@ -103,6 +104,41 @@ pub async fn create(
         .await?;
 
     Ok(result)
+}
+
+/// Create a NotStarted user_progress row for every user already registered
+/// on a workflow, for the given workflow_step. Used when a step is added
+/// after users have registered, so they aren't stranded without a progress
+/// row for the new step. Takes a `&mut PgConnection` so it can be run
+/// inside a wider transaction (e.g. with the step insert) or standalone
+/// against a connection acquired from a pool.
+#[instrument(err(Debug))]
+pub async fn create_for_workflow_participants(
+    db: &mut PgConnection,
+    workflow_step_id: &Uuid,
+    workflow_id: &Uuid,
+) -> Result<(), ComhairleError> {
+    let select = Query::select()
+        .column(UserParticipationIden::UserId)
+        .expr(Expr::val(*workflow_step_id))
+        .expr(Expr::val(ProgressStatus::NotStarted))
+        .from(UserParticipationIden::Table)
+        .and_where(Expr::col(UserParticipationIden::WorkflowId).eq(*workflow_id))
+        .to_owned();
+
+    let (sql, values) = Query::insert()
+        .into_table(UserProgressIden::Table)
+        .columns([
+            UserProgressIden::UserId,
+            UserProgressIden::WorkflowStepId,
+            UserProgressIden::Status,
+        ])
+        .select_from(select)?
+        .build_sqlx(PostgresQueryBuilder);
+
+    sqlx::query_with(&sql, values).execute(db).await?;
+
+    Ok(())
 }
 
 #[derive(Deserialize, Debug, JsonSchema, Default)]
