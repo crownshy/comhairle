@@ -261,6 +261,7 @@ impl ComhairleMailer for Mailer {
         let conversation =
             conversation::get_localised_by_id(&state.db, &conversation_id, locale).await?;
 
+        let default_subject = "Invitation to take part in a public consultation";
         let invite_link = format!(
             "{}/conversations/{}/invite/{}",
             state.config.domain,
@@ -283,7 +284,7 @@ impl ComhairleMailer for Mailer {
             let context = minijinja::context! { invite_link, ..rendered_map };
             self.send_email(
                 to,
-                "Invitation to take part in a public consultation",
+                email_config.subject.as_deref().unwrap_or(default_subject),
                 "conversation_invite.html",
                 context,
                 None,
@@ -291,7 +292,7 @@ impl ComhairleMailer for Mailer {
         } else {
             self.send_email(
                 to,
-                "Invitation to take part in a public consultation",
+                default_subject,
                 "conversation_invite.html",
                 conversation_context,
                 None,
@@ -384,6 +385,7 @@ impl ComhairleMailer for Mailer {
     ) -> Result<(), ComhairleError> {
         let event = event::get_localized_by_id(&state.db, &event_id, locale).await?;
 
+        let default_subject = "Invitation to take part in an event";
         let invite_link = format!(
             "{}/conversations/{}/events/{}/invite/{}",
             state.config.domain, event.conversation_id, event.id, invite_id
@@ -407,11 +409,11 @@ impl ComhairleMailer for Mailer {
                 self.resolve_slots_map(&event_context, &email_config.slots.to_mailer_map())?;
 
             let context = context! { invite_link, ..rendered_map }; // TODO: find a better way of
-            // handling this
+                                                                    // handling this
 
             self.send_email(
                 email,
-                "Invitation to take part in an event",
+                email_config.subject.as_deref().unwrap_or(default_subject),
                 "event_registration_invite.html",
                 context,
                 None,
@@ -419,7 +421,7 @@ impl ComhairleMailer for Mailer {
         } else {
             self.send_email(
                 email,
-                "Invitation to take part in an event",
+                default_subject,
                 "event_registration_invite.html",
                 event_context,
                 None,

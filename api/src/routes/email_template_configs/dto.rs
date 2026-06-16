@@ -21,6 +21,7 @@ pub struct EmailTemplateConfigDto {
     pub owner_id: Uuid,
     pub organization_id: Option<Uuid>,
     pub slots: EmailTemplateSlots,
+    pub subject: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -32,6 +33,7 @@ impl From<EmailTemplateConfig> for EmailTemplateConfigDto {
             owner_id: c.owner_id,
             organization_id: c.organization_id,
             slots: c.slots,
+            subject: c.subject,
             created_at: c.created_at,
         }
     }

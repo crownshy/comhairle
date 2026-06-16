@@ -33,6 +33,7 @@ pub struct EmailTemplateConfig {
     pub organization_id: Option<Uuid>,
     pub email_type: String,
     pub slots: EmailTemplateSlots,
+    pub subject: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -265,12 +266,13 @@ const DEFAULT_SLOTS_SCHEMA: &[SlotSchemaDefinition] = &[
     },
 ];
 
-const DEFAULT_COLUMNS: [EmailTemplateConfigIden; 7] = [
+const DEFAULT_COLUMNS: [EmailTemplateConfigIden; 8] = [
     EmailTemplateConfigIden::Id,
     EmailTemplateConfigIden::OwnerId,
     EmailTemplateConfigIden::OrganizationId,
     EmailTemplateConfigIden::EmailType,
     EmailTemplateConfigIden::Slots,
+    EmailTemplateConfigIden::Subject,
     EmailTemplateConfigIden::CreatedAt,
     EmailTemplateConfigIden::UpdatedAt,
 ];
@@ -278,6 +280,7 @@ const DEFAULT_COLUMNS: [EmailTemplateConfigIden; 7] = [
 #[derive(Deserialize, JsonSchema, Debug)]
 pub struct CreateEmailTemplateConfig {
     pub slots: EmailTemplateSlots,
+    pub subject: Option<String>,
 }
 
 #[instrument(err(Debug))]
@@ -296,6 +299,11 @@ pub async fn create(
 
     columns.push(EmailTemplateConfigIden::EmailType);
     values.push(params.slots.to_string().into());
+
+    if let Some(subject) = &params.subject {
+        columns.push(EmailTemplateConfigIden::Subject);
+        values.push(subject.into());
+    }
 
     let user = users::get_user_by_id(&user_id, db).await?;
 
@@ -316,9 +324,10 @@ pub async fn create(
     Ok(email_config)
 }
 
-#[derive(Deserialize, JsonSchema, Debug)]
+#[derive(Deserialize, JsonSchema, Debug, Default)]
 pub struct UpdateEmailTemplateConfig {
     slots: Option<EmailTemplateSlots>,
+    subject: Option<String>,
 }
 
 impl UpdateEmailTemplateConfig {
@@ -327,6 +336,10 @@ impl UpdateEmailTemplateConfig {
         if let Some(value) = &self.slots {
             let slots_json = serde_json::to_value(value)?;
             values.push((EmailTemplateConfigIden::Slots, slots_json.into()));
+        }
+
+        if let Some(value) = &self.subject {
+            values.push((EmailTemplateConfigIden::Subject, value.into()))
         }
 
         Ok(values)
@@ -470,6 +483,7 @@ mod tests {
                 body: "<p>Test body content</p>".to_string(),
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
+            subject: None,
         };
 
         let email_config = create(&pool, current_user.id, &params).await?;
@@ -496,6 +510,7 @@ mod tests {
 
         let params = CreateEmailTemplateConfig {
             slots: create_slots.clone(),
+            subject: None,
         };
 
         let new_email_config = create(&pool, current_user.id, &params).await?;
@@ -518,6 +533,7 @@ mod tests {
             new_email_config.id,
             &UpdateEmailTemplateConfig {
                 slots: Some(update_slots.clone()),
+                ..Default::default()
             },
         )
         .await?;
@@ -543,6 +559,7 @@ mod tests {
                 body: "<p>Test body content</p>".to_string(),
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
+            subject: None,
         };
 
         let new_email_config = create(&pool, current_user.id, &params).await?;
@@ -569,6 +586,7 @@ mod tests {
                 body: "<p>Test body content</p>".to_string(),
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
+            subject: None,
         };
 
         let new_email_config = create(&pool, current_user.id, &params).await?;
@@ -597,10 +615,12 @@ mod tests {
 
         let params_a = CreateEmailTemplateConfig {
             slots: EmailTemplateSlots::EventRegistrationConfirmation(default_slots.clone()),
+            subject: None,
         };
         create(&pool, user_a.id, &params_a).await?;
         let params_b = CreateEmailTemplateConfig {
             slots: EmailTemplateSlots::ConversationInvite(default_slots.clone()),
+            subject: None,
         };
         create(&pool, user_b.id, &params_b).await?;
 
@@ -632,6 +652,7 @@ mod tests {
                 body: "<p>Test body content</p>".to_string(),
                 footer: "<p>Thank you for your time</p>".to_string(),
             }),
+            subject: None,
         };
 
         let email_config = create(&pool, current_user.id, &params).await?;

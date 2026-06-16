@@ -1905,17 +1905,24 @@ export const EmailTemplateConfigDto = z
     organizationId: z.union([z.string(), z.null()]).optional(),
     ownerId: z.string().uuid(),
     slots: EmailTemplateSlots,
+    subject: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();
 export type EmailTemplateConfigDto = z.infer<typeof EmailTemplateConfigDto>;
 export const CreateEmailTemplateConfig = z
-  .object({ slots: EmailTemplateSlots })
+  .object({
+    slots: EmailTemplateSlots,
+    subject: z.union([z.string(), z.null()]).optional(),
+  })
   .passthrough();
 export type CreateEmailTemplateConfig = z.infer<
   typeof CreateEmailTemplateConfig
 >;
 export const UpdateEmailTemplateConfig = z
-  .object({ slots: z.union([EmailTemplateSlots, z.null()]) })
+  .object({
+    slots: z.union([EmailTemplateSlots, z.null()]),
+    subject: z.union([z.string(), z.null()]),
+  })
   .partial()
   .passthrough();
 export type UpdateEmailTemplateConfig = z.infer<

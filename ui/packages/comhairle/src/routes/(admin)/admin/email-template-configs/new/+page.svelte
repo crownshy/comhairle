@@ -9,14 +9,17 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { goto, invalidateAll } from '$app/navigation';
 	import EmailTemplateVariables from '../EmailTemplateVariables.svelte';
+	import Input from '$lib/components/ui/input/input.svelte';
 
 	let { data } = $props();
 	const { schemas } = data;
 
 	let selectedSchema = $state(schemas[0]);
 	let formState = $derived.by(() => {
-		const output: { [key: string]: string } = {};
-		selectedSchema.slots.map((slot) => (output[slot.key] = ''));
+		const output: { slots: { [key: string]: string }; subject?: string } = {
+			slots: {}
+		};
+		selectedSchema.slots.map((slot) => (output.slots[slot.key] = ''));
 		return output;
 	});
 
@@ -28,11 +31,15 @@
 		e.preventDefault();
 
 		const toHtml: { [key: string]: string } = {};
-		Object.entries(formState).map(([key, value]) => (toHtml[key] = jsonToHtml(value)));
+		Object.entries(formState.slots).map(([key, value]) => (toHtml[key] = jsonToHtml(value)));
 
 		try {
 			const emailConfig = await apiClient.CreateEmailTemplateConfig({
-				slots: { type: selectedSchema.email_type, ...toHtml }
+				slots: {
+					type: selectedSchema.email_type,
+					...toHtml
+				},
+				...(formState.subject && { subject: formState.subject })
 			});
 
 			notifications.send({
@@ -57,24 +64,38 @@
 	<title>New Custom Email - Comhairle Admin</title>
 </svelte:head>
 
-<Select.Root type="single" value={selectedSchema.email_type} onValueChange={handleSelectSchema}>
-	<Select.Trigger class=""
-		>Email type: {snakeToSentenceCase(selectedSchema.email_type)}</Select.Trigger
-	>
-	<Select.Content>
-		{#each schemas as schema (schema.email_type)}
-			<Select.Item value={schema.email_type}
-				>{snakeToSentenceCase(schema.email_type)}</Select.Item
-			>
-		{/each}
-	</Select.Content>
-</Select.Root>
+<h1 class="text-4xl font-bold">Create new custom email</h1>
+
+<div class="flex flex-col gap-4">
+	<h2 class="text-xl font-semibold">Email type:</h2>
+	<Select.Root type="single" value={selectedSchema.email_type} onValueChange={handleSelectSchema}>
+		<Select.Trigger class="">{snakeToSentenceCase(selectedSchema.email_type)}</Select.Trigger>
+		<Select.Content>
+			{#each schemas as schema (schema.email_type)}
+				<Select.Item value={schema.email_type}
+					>{snakeToSentenceCase(schema.email_type)}</Select.Item
+				>
+			{/each}
+		</Select.Content>
+	</Select.Root>
+</div>
 
 {#if selectedSchema.variables.length > 0}
 	<EmailTemplateVariables templateVariables={selectedSchema.variables} />
 {/if}
 
 <form onsubmit={handleSubmit}>
+	<div class="flex flex-col gap-4 py-6 lg:flex-row lg:items-start lg:gap-6">
+		<Label
+			class="flex flex-col items-start text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
+			for="subject">Email subject</Label
+		>
+		<Input
+			placeholder="Subject"
+			name="subject"
+			onchange={(e) => (formState.subject = e.target?.value ?? undefined)}
+		/>
+	</div>
 	{#each selectedSchema.slots as slot (slot.key)}
 		<div
 			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
@@ -87,9 +108,10 @@
 				<span class="text-sm font-normal">{slot.hint}</span>
 			</Label>
 			<RichTextEditor
-				value={formState[slot.key]}
+				width="100%"
+				value={formState.slots[slot.key]}
 				placeholder="Enter email content..."
-				onChange={(json) => (formState[slot.key] = json)}
+				onChange={(json) => (formState.slots[slot.key] = json)}
 			/>
 		</div>
 	{/each}
