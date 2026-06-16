@@ -54,10 +54,12 @@ pub struct EmailTemplateConfig {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum EmailTemplateSlots {
     ConversationInvite(DefaultEmailSlots),
+    EventRegistrationInvite(DefaultEmailSlots),
     EventRegistrationConfirmation(DefaultEmailSlots),
 }
 
 pub const TYPE_CONVERSATION_INVITE: &str = "conversation_invite";
+pub const TYPE_EVENT_REGISTRATION_INVITE: &str = "event_registration_invite";
 pub const TYPE_EVENT_REGISTRATION_CONFIRMATION: &str = "event_registration_confirmation";
 
 impl EmailTemplateSlots {
@@ -81,6 +83,10 @@ impl EmailTemplateSlots {
                 slots: DEFAULT_SLOTS_SCHEMA,
             },
             EmailTypeSchema {
+                email_type: TYPE_EVENT_REGISTRATION_INVITE,
+                slots: DEFAULT_SLOTS_SCHEMA,
+            },
+            EmailTypeSchema {
                 email_type: TYPE_EVENT_REGISTRATION_CONFIRMATION,
                 slots: DEFAULT_SLOTS_SCHEMA,
             },
@@ -90,6 +96,7 @@ impl EmailTemplateSlots {
     pub fn to_template(&self) -> &str {
         match self {
             EmailTemplateSlots::ConversationInvite(_) => "conversation_invite.html",
+            EmailTemplateSlots::EventRegistrationInvite(_) => "event_registration_invite.html",
             EmailTemplateSlots::EventRegistrationConfirmation(_) => "event_confirmation.html",
         }
     }
@@ -97,6 +104,7 @@ impl EmailTemplateSlots {
     pub fn schema(&self) -> &'static [SlotSchemaDefinition] {
         match self {
             EmailTemplateSlots::ConversationInvite(_) => DEFAULT_SLOTS_SCHEMA,
+            EmailTemplateSlots::EventRegistrationInvite(_) => DEFAULT_SLOTS_SCHEMA,
             EmailTemplateSlots::EventRegistrationConfirmation(_) => DEFAULT_SLOTS_SCHEMA,
         }
     }
@@ -120,6 +128,7 @@ impl EmailTemplateSlots {
     pub fn to_mailer_map(&self) -> HashMap<&str, String> {
         match self {
             EmailTemplateSlots::ConversationInvite(slots) => slots.to_mailer_map(),
+            EmailTemplateSlots::EventRegistrationInvite(slots) => slots.to_mailer_map(),
             EmailTemplateSlots::EventRegistrationConfirmation(slots) => slots.to_mailer_map(),
         }
     }
@@ -129,6 +138,7 @@ impl std::fmt::Display for EmailTemplateSlots {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let value = match self {
             EmailTemplateSlots::ConversationInvite(_) => TYPE_CONVERSATION_INVITE,
+            EmailTemplateSlots::EventRegistrationInvite(_) => TYPE_EVENT_REGISTRATION_INVITE,
             EmailTemplateSlots::EventRegistrationConfirmation(_) => {
                 TYPE_EVENT_REGISTRATION_CONFIRMATION
             }

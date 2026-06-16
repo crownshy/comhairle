@@ -1,7 +1,40 @@
+<!--
+
+Variables
+
+Optional:
+- heading
+- intro
+- body
+- footer
+- organization_email
+
+Required:
+- event_name
+- event_time
+- organization_name
+- invite_link
+
+-->
+
 {% extends "email_layout.html" %}
 {% block content %}
-	<h1>Hello!</h1>
-	<p>You are invited to take part in {{event_name}} with {{organization_name}} to collaborate with them.</p>
+	{% if heading %}
+		{{heading|safe}}
+	{% else %}
+		<h1>Hello!</h1>
+	{% endif %}
+		
+	{% if intro %}
+		{{intro|safe}}
+	{% else %}
+		<p>You are invited to take part in {{event_name}} with {{organization_name}} to collaborate with them.</p>
+	{% endif %}
+	
+	{% if body %}
+		{{body|safe}}
+	{% endif %}
+
 	<p>Click the button below to register.</p>
 
 	<div class="card">
@@ -14,15 +47,19 @@
 
 	<p class="link">{{invite_link}}</p>
 
-	{% if organization_email %}
-		<p>
-			For any questions, please contact us at
-			<br />
-			<a href="mailto:{{organization_email}}">{{organization_email}}</a>
-		</p>
+	{% if footer %}	
+		{{footer|safe}}
+	{% else %}
+		{% if organization_email %}
+			<p>
+				For any questions, please contact us at
+				<br />
+				<a href="mailto:{{organization_email}}">{{organization_email}}</a>
+			</p>
+		{% endif %}
+
+		<p>We look forward to your participation!</p>
+
+		<p><strong>{{organization_name}}</strong></p>
 	{% endif %}
-
-	<p>We look forward to your participation!</p>
-
-	<p><strong>{{organization_name}}</strong></p>
 {% endblock %}

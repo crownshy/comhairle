@@ -1,5 +1,7 @@
-use crate::models::email_template_config::TYPE_CONVERSATION_INVITE;
-use crate::models::event::{LocalizedEvent, ResolveTimeZone};
+use crate::models::email_template_config::{
+    TYPE_CONVERSATION_INVITE, TYPE_EVENT_REGISTRATION_INVITE,
+};
+use crate::models::event::{self, LocalizedEvent, ResolveTimeZone};
 use crate::models::organization::Organization;
 use crate::models::users::User;
 use crate::models::{conversation, email_template_config};
@@ -38,7 +40,7 @@ pub trait ComhairleMailer: Send + Sync {
     async fn send_conversation_invite_email(
         &self,
         state: &Arc<ComhairleState>,
-        to: &str,
+        email: &str,
         conversation_id: Uuid,
         user_id: Uuid,
         invite_id: Uuid,
@@ -69,12 +71,14 @@ pub trait ComhairleMailer: Send + Sync {
         passcode_link: Option<String>,
     ) -> Result<(), ComhairleError>;
 
-    fn send_event_registration_email(
+    async fn send_event_registration_email(
         &self,
-        email: String,
-        event: &LocalizedEvent,
-        organization: &Option<Organization>,
-        invite_link: String,
+        state: &Arc<ComhairleState>,
+        email: &str,
+        event_id: Uuid,
+        user_id: Uuid,
+        invite_id: Uuid,
+        locale: &str,
     ) -> Result<(), ComhairleError>;
 
     fn send_event_confirmation_email(
@@ -129,7 +133,7 @@ impl MockComhairleMailer {
             .returning(|_, _, _| Ok(()));
         mailer
             .expect_send_event_registration_email()
-            .returning(|_, _, _, _| Ok(()));
+            .returning(|_, _, _, _, _, _| Box::pin(async move { Ok(()) }));
         mailer
             .expect_send_event_confirmation_email()
             .returning(|_, _, _, _| Ok(()));
@@ -266,7 +270,8 @@ impl ComhairleMailer for Mailer {
             invite_id
         );
 
-        let conversation_context = context! { conversation_title => conversation.title };
+        let conversation_context =
+            context! { conversation_title => conversation.title, invite_link };
 
         if let Ok(email_config) =
             email_template_config::get_by_type_user(&state.db, user_id, TYPE_CONVERSATION_INVITE)
@@ -368,26 +373,58 @@ impl ComhairleMailer for Mailer {
         }
     }
 
-    fn send_event_registration_email(
+    async fn send_event_registration_email(
         &self,
-        email: String,
-        event: &LocalizedEvent,
-        _organization: &Option<Organization>,
-        invite_link: String,
+        state: &Arc<ComhairleState>,
+        email: &str,
+        event_id: Uuid,
+        user_id: Uuid,
+        invite_id: Uuid,
+        locale: &str,
     ) -> Result<(), ComhairleError> {
-        self.send_email(
-            &email,
-            "Invitation to take part in an event",
-            "event_registration_invite.html",
-            context! {
-                event_name => event.name,
-                event_time => event.format_date_with_time_zone(event.start_time, None),
-                organization_name => "Bloom", //
-                // organization_email => organization_email,
-                invite_link => invite_link,
-            },
-            None,
+        let event = event::get_localized_by_id(&state.db, &event_id, locale).await?;
+
+        let invite_link = format!(
+            "{}/conversations/{}/events/{}/invite/{}",
+            state.config.domain, event.conversation_id, event.id, invite_id
+        );
+
+        let event_context = context! {
+            event_name => event.name,
+            event_time => event.format_date_with_time_zone(event.start_time, None),
+            organization_name => "Bloom", // TODO:
+            invite_link,
+        };
+
+        if let Ok(email_config) = email_template_config::get_by_type_user(
+            &state.db,
+            user_id,
+            TYPE_EVENT_REGISTRATION_INVITE,
         )
+        .await
+        {
+            let rendered_map =
+                self.resolve_slots_map(&event_context, &email_config.slots.to_mailer_map())?;
+
+            let context = context! { invite_link, ..rendered_map }; // TODO: find a better way of
+            // handling this
+
+            self.send_email(
+                email,
+                "Invitation to take part in an event",
+                "event_registration_invite.html",
+                context,
+                None,
+            )
+        } else {
+            self.send_email(
+                email,
+                "Invitation to take part in an event",
+                "event_registration_invite.html",
+                event_context,
+                None,
+            )
+        }
     }
 
     fn send_event_confirmation_email(

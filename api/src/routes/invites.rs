@@ -140,7 +140,7 @@ async fn create_conversation_invite(
 async fn create_event_invite(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-    OptionalUser(user): OptionalUser,
+    RequiredAdminUser(user): RequiredAdminUser,
     Json(create_invite): Json<CreateInviteDTO>,
 ) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
     if create_invite.event_id.is_none() {
@@ -150,13 +150,8 @@ async fn create_event_invite(
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
     // Create the invite
-    let invite = models::invites::create(
-        &state.db,
-        create_invite,
-        &conversation_id,
-        user.map(|u| u.id),
-    )
-    .await?;
+    let invite =
+        models::invites::create(&state.db, create_invite, &conversation_id, Some(user.id)).await?;
 
     let InviteType::Email(email) = &invite.invite_type else {
         return Err(ComhairleError::InvalidInviteType);
@@ -164,17 +159,17 @@ async fn create_event_invite(
 
     let event_id = &invite.event_id.ok_or(ComhairleError::InvalidInviteType)?;
 
-    let event =
-        event::get_localized_by_id(&state.db, event_id, &conversation.primary_locale).await?;
-
-    let invite_link = format!(
-        "{}/conversations/{}/events/{}/invite/{}",
-        state.config.domain, conversation.id, event.id, invite.id
-    );
-
     state
         .mailer
-        .send_event_registration_email(email.to_string(), &event, &None, invite_link)?;
+        .send_event_registration_email(
+            &state,
+            email,
+            *event_id,
+            user.id,
+            invite.id,
+            &conversation.primary_locale,
+        )
+        .await?;
 
     Ok((StatusCode::CREATED, Json(invite.into())))
 }

@@ -1883,6 +1883,15 @@ export const EmailTemplateSlots = z.union([
       footer: z.string(),
       heading: z.string(),
       intro: z.string(),
+      type: z.literal("event_registration_invite"),
+    })
+    .passthrough(),
+  z
+    .object({
+      body: z.string(),
+      footer: z.string(),
+      heading: z.string(),
+      intro: z.string(),
       type: z.literal("event_registration_confirmation"),
     })
     .passthrough(),
