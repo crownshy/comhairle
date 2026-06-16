@@ -289,7 +289,6 @@ pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<PolisStatementAux, Comha
 #[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct PolisStatementAuxFilterOptions {
     user_id: Option<Uuid>,
-    polis_conversation_id: Option<String>,
     polis_statement_id: Option<i32>,
 }
 
@@ -300,17 +299,6 @@ impl PolisStatementAuxFilterOptions {
                 .and_where(
                     Expr::col((PolisStatementAuxIden::Table, PolisStatementAuxIden::UserId))
                         .eq(value),
-                )
-                .to_owned();
-        }
-        if let Some(value) = &self.polis_conversation_id {
-            query = query
-                .and_where(
-                    Expr::col((
-                        PolisStatementAuxIden::Table,
-                        PolisStatementAuxIden::PolisConversationId,
-                    ))
-                    .eq(value.clone()),
                 )
                 .to_owned();
         }
@@ -333,35 +321,9 @@ impl PolisStatementAuxFilterOptions {
 #[instrument(err(Debug))]
 pub async fn list(
     db: &PgPool,
-    workflow_step_id: &Uuid,
-    filter_options: PolisStatementAuxFilterOptions,
-) -> Result<Vec<PolisStatementAux>, ComhairleError> {
-    let query = Query::select()
-        .from(PolisStatementAuxIden::Table)
-        .columns(DEFAULT_COLUMNS.map(|col| (PolisStatementAuxIden::Table, col)))
-        .and_where(
-            Expr::col((
-                PolisStatementAuxIden::Table,
-                PolisStatementAuxIden::WorkflowStepId,
-            ))
-            .eq(workflow_step_id.to_owned()),
-        )
-        .to_owned();
-
-    let query = filter_options.apply(query);
-
-    let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
-
-    let aux = query_as_with(&sql, values).fetch_all(db).await?;
-
-    Ok(aux)
-}
-
-#[instrument(err(Debug))]
-pub async fn list_filtered(
-    db: &PgPool,
     workflow_step_id: Option<Uuid>,
     polis_conversation_id: Option<String>,
+    filter_options: PolisStatementAuxFilterOptions,
 ) -> Result<Vec<PolisStatementAux>, ComhairleError> {
     let mut query = Query::select()
         .from(PolisStatementAuxIden::Table)
@@ -390,6 +352,8 @@ pub async fn list_filtered(
             )
             .to_owned();
     }
+
+    let query = filter_options.apply(query);
 
     let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
 

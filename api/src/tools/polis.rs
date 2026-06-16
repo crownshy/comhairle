@@ -21,8 +21,8 @@ use crate::{
     models::{
         self,
         polis_statement_aux::{
-            CreatePolisStatementAux, PolisStatementAux, ThemeStatistic, UpdatePolisStatementAux,
-            UpsertFromPolis,
+            CreatePolisStatementAux, PolisStatementAux, PolisStatementAuxFilterOptions,
+            ThemeStatistic, UpdatePolisStatementAux, UpsertFromPolis,
         },
     },
     routes::auth::RequiredUser,
@@ -344,10 +344,11 @@ async fn list_statement_aux(
             "workflow_step_id or polis_conversation_id is required".into(),
         ));
     }
-    let aux = models::polis_statement_aux::list_filtered(
+    let aux = models::polis_statement_aux::list(
         &state.db,
         filter.workflow_step_id,
         filter.polis_conversation_id,
+        PolisStatementAuxFilterOptions::default(),
     )
     .await?;
     Ok((StatusCode::OK, Json(aux)))
