@@ -18,7 +18,7 @@ use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::error::ComhairleError;
-use crate::models::user_progress::{ProgressStatus, UserProgressIden};
+use crate::models::user_progress::{self, ProgressStatus, UserProgressIden};
 use crate::tools::{ToolConfig, ToolSetup};
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, DbJsonBEnum, PartialEq)]
@@ -547,6 +547,16 @@ pub async fn create(
         .fetch_one(&mut *transaction)
         .await?;
 
+    // Backfill user_progress for users already registered on this workflow,
+    // so adding a step after registration doesn't leave them without rows
+    // and unable to advance.
+    user_progress::create_for_workflow_participants(
+        &mut transaction,
+        &workflow_step_result.id,
+        &workflow_id,
+    )
+    .await?;
+
     transaction.commit().await?;
 
     Ok(workflow_step_result)
@@ -740,6 +750,76 @@ mod tests {
         let steps = list_localized(&pool, &workflow.id, "en").await?;
 
         assert_eq!(steps.len(), 5, "incorrect number of steps");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_backfill_user_progress_for_existing_participants_when_step_added(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
+        let (_, workflow_res, _) = session
+            .create_random_workflow(&app, &conversation_id.to_string())
+            .await?;
+        let workflow: WorkflowDto = serde_json::from_value(workflow_res)?;
+
+        // Create a step, register the user, then add another step — the
+        // newly added step should produce a user_progress row for the
+        // already-registered user.
+        let _ = session
+            .create_random_workflow_steps(
+                &app,
+                &conversation_id.to_string(),
+                &workflow.id.to_string(),
+                1,
+            )
+            .await?;
+
+        let user = models::users::create_user(
+            &SignupRequest {
+                username: "backfill_user".to_string(),
+                password: "test_pw".to_string(),
+                avatar_url: None,
+                email: "backfill_email".to_string(),
+            },
+            &pool,
+        )
+        .await?;
+        workflow::register_user(&pool, &workflow.id, &user).await?;
+
+        let initial_progress =
+            models::user_progress::list_for_user_on_workflow(&pool, &user.id, &workflow.id).await?;
+        assert_eq!(initial_progress.len(), 1, "expected one progress row after register");
+
+        let new_steps_res = session
+            .create_random_workflow_steps(
+                &app,
+                &conversation_id.to_string(),
+                &workflow.id.to_string(),
+                1,
+            )
+            .await?;
+        let new_step: WorkflowStepDto =
+            serde_json::from_value(new_steps_res.first().unwrap().to_owned())?;
+
+        let progress_after =
+            models::user_progress::list_for_user_on_workflow(&pool, &user.id, &workflow.id).await?;
+        assert_eq!(
+            progress_after.len(),
+            2,
+            "new step should have produced a progress row for the registered user"
+        );
+        let backfilled = progress_after
+            .iter()
+            .find(|p| p.workflow_step_id == new_step.id)
+            .expect("progress row for newly added step is missing");
+        assert_eq!(
+            backfilled.status,
+            ProgressStatus::NotStarted,
+            "backfilled progress should be NotStarted"
+        );
 
         Ok(())
     }
