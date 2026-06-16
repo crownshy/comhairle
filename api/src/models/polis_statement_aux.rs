@@ -1,6 +1,8 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, OnConflict, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr};
+use sea_query::{
+    enum_def, Expr, OnConflict, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr,
+};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, query_as_with, PgPool};
@@ -9,7 +11,7 @@ use uuid::Uuid;
 
 use crate::error::ComhairleError;
 
-#[derive(Debug, Deserialize, Serialize, PartialEq, sqlx::Type, Clone, JsonSchema)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, sqlx::Type, Clone, JsonSchema, Default)]
 #[sqlx(type_name = "TEXT")]
 #[serde(rename_all = "snake_case")]
 pub enum ModerationStatus {
@@ -18,13 +20,8 @@ pub enum ModerationStatus {
     #[sqlx(rename = "rejected")]
     Rejected,
     #[sqlx(rename = "pending")]
+    #[default]
     Pending,
-}
-
-impl Default for ModerationStatus {
-    fn default() -> Self {
-        Self::Pending
-    }
 }
 
 impl std::fmt::Display for ModerationStatus {
@@ -430,7 +427,10 @@ pub async fn theme_stats(
 
     builder.push(" GROUP BY theme ORDER BY count DESC");
 
-    let stats = builder.build_query_as::<ThemeStatistic>().fetch_all(db).await?;
+    let stats = builder
+        .build_query_as::<ThemeStatistic>()
+        .fetch_all(db)
+        .await?;
 
     Ok(stats)
 }
