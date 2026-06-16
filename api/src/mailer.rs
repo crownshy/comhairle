@@ -1,5 +1,5 @@
 use crate::models::email_template_config::{
-    TYPE_CONVERSATION_INVITE, TYPE_EVENT_REGISTRATION_INVITE,
+    TYPE_CONVERSATION_INVITE, TYPE_EVENT_REGISTRATION_CONFIRMATION, TYPE_EVENT_REGISTRATION_INVITE,
 };
 use crate::models::event::{self, LocalizedEvent, ResolveTimeZone};
 use crate::models::organization::Organization;
@@ -81,12 +81,13 @@ pub trait ComhairleMailer: Send + Sync {
         locale: &str,
     ) -> Result<(), ComhairleError>;
 
-    fn send_event_confirmation_email(
+    async fn send_event_confirmation_email(
         &self,
-        email: String,
-        event: &LocalizedEvent,
-        organization: &Option<Organization>,
-        link_href: String,
+        state: &Arc<ComhairleState>,
+        email: &str,
+        event_id: Uuid,
+        user_id: Uuid,
+        locale: &str,
     ) -> Result<(), ComhairleError>;
 
     fn send_event_reminder(
@@ -136,7 +137,7 @@ impl MockComhairleMailer {
             .returning(|_, _, _, _, _, _| Box::pin(async move { Ok(()) }));
         mailer
             .expect_send_event_confirmation_email()
-            .returning(|_, _, _, _| Ok(()));
+            .returning(|_, _, _, _, _| Box::pin(async move { Ok(()) }));
         mailer
             .expect_send_event_reminder()
             .returning(|_, _, _, _| Ok(()));
@@ -429,13 +430,21 @@ impl ComhairleMailer for Mailer {
         }
     }
 
-    fn send_event_confirmation_email(
+    async fn send_event_confirmation_email(
         &self,
-        email: String,
-        event: &LocalizedEvent,
-        _organization: &Option<Organization>,
-        link_href: String,
+        state: &Arc<ComhairleState>,
+        email: &str,
+        event_id: Uuid,
+        user_id: Uuid,
+        locale: &str,
     ) -> Result<(), ComhairleError> {
+        let event = event::get_localized_by_id(&state.db, &event_id, locale).await?;
+
+        let default_subject = "Event registration confirmation";
+        let event_link = format!(
+            "{}/conversations/{}/events/{}",
+            state.config.domain, event.conversation_id, event.id
+        );
         let calendar_invite = create_calendar_invite_attachment(
             &event.name,
             &event.description,
@@ -443,19 +452,42 @@ impl ComhairleMailer for Mailer {
             event.end_time,
         )?;
 
-        self.send_email(
-            &email,
-            "Event registration confirmation",
-            "event_confirmation.html",
-            context! {
-                event_name => event.name,
-                event_time => event.format_date_with_time_zone(event.start_time, None),
-                organization_name => "Bloom", // TODO:
-                // organization_email => organization_email,
-                event_link => link_href,
-            },
-            Some(calendar_invite),
+        let event_context = context! {
+            event_name => event.name,
+            event_time => event.format_date_with_time_zone(event.start_time, None),
+            organization_name => "Bloom", // TODO:
+            // organization_email => organization_email,
+            event_link,
+        };
+
+        if let Ok(email_config) = email_template_config::get_by_type_user(
+            &state.db,
+            user_id,
+            TYPE_EVENT_REGISTRATION_CONFIRMATION,
         )
+        .await
+        {
+            let rendered_map =
+                self.resolve_slots_map(&event_context, &email_config.slots.to_mailer_map())?;
+
+            let context = context! { event_link, ..rendered_map }; // TODO: find a better way of
+
+            self.send_email(
+                email,
+                email_config.subject.as_deref().unwrap_or(default_subject),
+                "event_confirmation.html",
+                context,
+                Some(calendar_invite),
+            )
+        } else {
+            self.send_email(
+                email,
+                default_subject,
+                "event_confirmation.html",
+                event_context,
+                Some(calendar_invite),
+            )
+        }
     }
 
     fn send_event_reminder(

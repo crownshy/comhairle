@@ -1832,7 +1832,7 @@ mod tests {
             .returning(|_, _, _, _, _, _| Box::pin(async move { Ok(()) }));
         mailer
             .expect_send_event_confirmation_email()
-            .returning(|_, _, _, _| Ok(()));
+            .returning(|_, _, _, _, _| Box::pin(async move { Ok(()) }));
         mailer
             .expect_send_event_reminder()
             .returning(|_, _, _, _| Ok(()));

@@ -321,18 +321,22 @@ async fn auto_register_event_attendance(
 
     let cookie = create_session_cookie(&user, &state);
 
-    let event_link = format!(
-        "{}/conversations/{}/events/{}",
-        state.config.domain, conversation.id, event.id
-    );
-
     event
         .schedule_event_reminders(&state.db, &state.config, &user)
         .await?;
 
+    let event_owner = users::get_user_by_id(&conversation.owner_id, &state.db).await?;
+
     state
         .mailer
-        .send_event_confirmation_email(email.to_string(), &event, &None, event_link)?;
+        .send_event_confirmation_email(
+            &state,
+            email,
+            event_id,
+            event_owner.id,
+            &conversation.primary_locale,
+        )
+        .await?;
 
     Ok((jar.add(cookie), (StatusCode::OK, Json(invite.into()))))
 }
