@@ -16,6 +16,7 @@
 	import { getVoteData, incrementVotes, resetVoteCount } from './polisVoteStore';
 	import * as m from '$lib/paraglide/messages';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
+	import { apiClient } from '@crownshy/api-client/client';
 
 	type Props = {
 		polis_id: string;
@@ -85,6 +86,28 @@
 	let opinionText = $state('');
 	let opinionSubmitted = $state(false);
 	let previousText = '';
+	let visibleStatementWhenOpened: PolisStatement | undefined = undefined;
+
+	async function createStatementAux(
+		newStatement: { tid: number; pid: number },
+		statementText: string,
+		visibleTid: number | undefined
+	) {
+		try {
+			await apiClient.PolisCreateStatementAux({
+				workflow_step_id: stepId,
+				zid: newStatement.pid,
+				polis_conversation_id: polis_id,
+				polis_statement_id: newStatement.tid,
+				statement_text: statementText,
+				is_seed: false,
+				themes: [],
+				visible_statement_when_submitted: visibleTid?.toString() ?? null
+			});
+		} catch (err) {
+			console.error('[PolisEmbed] Failed to create statement aux:', err);
+		}
+	}
 
 	const disabled = $derived(voteCooldown || waitingForNext);
 	const canContinue = $derived(hasMetThreshold);
@@ -144,25 +167,36 @@
 		screen = 'voting';
 	}
 
-	function handleSubmitOpinion() {
+	async function handleSubmitOpinion() {
 		if (!opinionText.trim()) return;
-		polis.submitStatement(opinionText.trim());
+		const text = opinionText.trim();
+		const visibleTid = visibleStatementWhenOpened?.tid;
 		opinionText = '';
 		opinionSubmitted = true;
 		setTimeout(() => {
 			screen = 'voting';
 			opinionSubmitted = false;
 		}, 2000);
+		const result = await polis.submitStatement(text);
+		if (result) {
+			await createStatementAux(result, text, visibleTid);
+		}
 	}
 
-	function handleSubmitAndAddAnother() {
+	async function handleSubmitAndAddAnother() {
 		if (!opinionText.trim()) return;
-		polis.submitStatement(opinionText.trim());
+		const text = opinionText.trim();
+		const visibleTid = visibleStatementWhenOpened?.tid;
 		opinionText = '';
 		opinionSubmitted = false;
+		const result = await polis.submitStatement(text);
+		if (result) {
+			await createStatementAux(result, text, visibleTid);
+		}
 	}
 
 	function openAddOpinion() {
+		visibleStatementWhenOpened = polisCurrentStatement;
 		screen = 'add-opinion';
 		opinionSubmitted = false;
 	}

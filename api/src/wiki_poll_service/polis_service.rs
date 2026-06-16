@@ -10,12 +10,12 @@ use reqwest::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tracing::{instrument, warn};
+use tracing::{info, instrument, warn};
 
 use crate::{
     tools::polis::PolisError,
     wiki_poll_service::{
-        error::WikiPollServiceError, WikiPollComment, WikiPollLogin, WikiPollService,
+        error::WikiPollServiceError, WikiPollComment, WikiPollLogin, WikiPollService, WikiPollXid,
     },
 };
 
@@ -187,22 +187,27 @@ impl PolisClient {
             self.base_url, poll_id
         );
 
+        info!("Attempting to get comments at {url}");
+
         let response = self.client.get(&url).send().await.map_err(|e| {
             warn!("Failed to get comments: {e}");
             PolisError::FailedToGetComments(format!("Failed to get comments: {e}"))
         })?;
 
-        let data = response.json::<Vec<PolisCommentWithVoting>>().await.map_err(|e| {
-            warn!("Failed to parse comments: {e}");
-            PolisError::FailedToGetComments(format!("Failed to parse comments: {e}"))
-        })?;
+        let data = response
+            .json::<Vec<PolisCommentWithVoting>>()
+            .await
+            .map_err(|e| {
+                warn!("Failed to parse comments: {e}");
+                PolisError::FailedToGetComments(format!("Failed to parse comments: {e}"))
+            })?;
 
         Ok(data)
     }
 
     pub async fn get_comments(&self, poll_id: &str) -> Result<Vec<PolisComment>, PolisError> {
         let url = format!(
-            "{}/api/v3/comments?conversation_id={poll_id}",
+            "https://{}/api/v3/comments?conversation_id={poll_id}",
             self.base_url
         );
         let comments: Vec<PolisComment> =
@@ -287,7 +292,10 @@ impl PolisClient {
                 }
             }
 
-            let consensus = math_pca.group_aware_consensus.get(&tid.to_string()).copied();
+            let consensus = math_pca
+                .group_aware_consensus
+                .get(&tid.to_string())
+                .copied();
             let divisiveness = math_pca.pca.comment_extremity.get(idx).copied();
 
             if let (Some(overall_votes), Some(is_seed)) =
@@ -306,11 +314,7 @@ impl PolisClient {
         }
 
         // Build groups report
-        let group_sizes: Vec<u64> = math_pca
-            .group_votes
-            .values()
-            .map(|g| g.n_members)
-            .collect();
+        let group_sizes: Vec<u64> = math_pca.group_votes.values().map(|g| g.n_members).collect();
 
         println!("{:#?}", math_pca.group_votes);
 
@@ -537,6 +541,7 @@ impl WikiPollService for PolisClient {
             "https://{}/api/v3/comments?conversation_id={poll_id}",
             self.base_url
         );
+        info!("Attempting to get comments at {url}");
         let comments: Vec<WikiPollComment> = self
             .client
             .get(url)
@@ -547,6 +552,31 @@ impl WikiPollService for PolisClient {
             .map_err(|e| PolisError::FailedToGetComments(e.to_string()))?;
 
         Ok(comments)
+    }
+
+    async fn get_xids(
+        &self,
+        poll_id: &str,
+        auth_cookies: &str,
+    ) -> Result<Vec<WikiPollXid>, WikiPollServiceError> {
+        let url = format!(
+            "https://{}/api/v3/xids?conversation_id={poll_id}",
+            self.base_url
+        );
+
+        info!("attempting to get xids at {url}");
+
+        let xids: Vec<WikiPollXid> = self
+            .client
+            .get(url)
+            .header(COOKIE, auth_cookies)
+            .send()
+            .await?
+            .json()
+            .await
+            .map_err(|e| PolisError::FailedToGetXIDs(e.to_string()))?;
+
+        Ok(xids)
     }
 
     async fn get_report_data(&self, poll_id: &str) -> Result<WikiPollReport, WikiPollServiceError> {

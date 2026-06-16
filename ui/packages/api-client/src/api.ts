@@ -344,6 +344,73 @@ export const CreateOrUpdateTextTranslationRequest = z
 export type CreateOrUpdateTextTranslationRequest = z.infer<
   typeof CreateOrUpdateTextTranslationRequest
 >;
+export const ModerationStatus = z.enum(["accepted", "rejected", "pending"]);
+export type ModerationStatus = z.infer<typeof ModerationStatus>;
+export const PolisStatementAux = z
+  .object({
+    created_at: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    is_seed: z.boolean(),
+    moderation_reason: z.union([z.string(), z.null()]).optional(),
+    moderation_status: ModerationStatus,
+    polis_conversation_id: z.string(),
+    polis_statement_id: z.number().int(),
+    statement_text: z.string(),
+    themes: z.array(z.string()),
+    updated_at: z.string().datetime({ offset: true }),
+    user_id: z.union([z.string(), z.null()]).optional(),
+    visible_statement_when_submitted: z
+      .union([z.string(), z.null()])
+      .optional(),
+    workflow_step_id: z.string().uuid(),
+    zid: z.number().int(),
+  })
+  .passthrough();
+export type PolisStatementAux = z.infer<typeof PolisStatementAux>;
+export const CreatePolisStatementAux = z
+  .object({
+    is_seed: z.boolean(),
+    moderation_reason: z.union([z.string(), z.null()]).optional(),
+    moderation_status: ModerationStatus.optional(),
+    polis_conversation_id: z.string(),
+    polis_statement_id: z.number().int(),
+    statement_text: z.string(),
+    themes: z.array(z.string()),
+    visible_statement_when_submitted: z
+      .union([z.string(), z.null()])
+      .optional(),
+    workflow_step_id: z.string().uuid(),
+    zid: z.number().int(),
+  })
+  .passthrough();
+export type CreatePolisStatementAux = z.infer<typeof CreatePolisStatementAux>;
+export const UpdatePolisStatementAux = z
+  .object({
+    moderation_reason: z.union([z.string(), z.null()]),
+    moderation_status: z.union([ModerationStatus, z.null()]),
+    statement_text: z.union([z.string(), z.null()]),
+    themes: z.union([z.array(z.string()), z.null()]),
+    visible_statement_when_submitted: z.union([z.string(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type UpdatePolisStatementAux = z.infer<typeof UpdatePolisStatementAux>;
+export const SyncStatementAuxRequest = z
+  .object({ workflow_step_id: z.string().uuid() })
+  .passthrough();
+export type SyncStatementAuxRequest = z.infer<typeof SyncStatementAuxRequest>;
+export const SyncStatementAuxResponse = z
+  .object({
+    skipped_invalid_xid: z.number().int().gte(0),
+    statements: z.array(PolisStatementAux),
+    synced: z.number().int().gte(0),
+  })
+  .passthrough();
+export type SyncStatementAuxResponse = z.infer<typeof SyncStatementAuxResponse>;
+export const ThemeStatistic = z
+  .object({ count: z.number().int(), theme: z.string() })
+  .passthrough();
+export type ThemeStatistic = z.infer<typeof ThemeStatistic>;
 export const Story = z
   .object({
     id: z.string().uuid(),
@@ -1845,6 +1912,13 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UpdateTextContent,
   UpdateTextTranslation,
   CreateOrUpdateTextTranslationRequest,
+  ModerationStatus,
+  PolisStatementAux,
+  CreatePolisStatementAux,
+  UpdatePolisStatementAux,
+  SyncStatementAuxRequest,
+  SyncStatementAuxResponse,
+  ThemeStatistic,
   Story,
   ComhairleMessageReference,
   ComhairleSessionMessage,
@@ -3710,6 +3784,91 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/tools/polis/statement_aux",
+    alias: "PolisListStatementAux",
+    description: `Returns auxiliary statement data filtered by workflow_step_id and/or polis_conversation_id (at least one is required)`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "polis_conversation_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: z.array(PolisStatementAux),
+  },
+  {
+    method: "post",
+    path: "/tools/polis/statement_aux",
+    alias: "PolisCreateStatementAux",
+    description: `Creates a polis_statement_aux row capturing statement text, moderation status, themes and the visible statement at submission time`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreatePolisStatementAux,
+      },
+    ],
+    response: PolisStatementAux,
+  },
+  {
+    method: "put",
+    path: "/tools/polis/statement_aux/:id",
+    alias: "PolisUpdateStatementAux",
+    description: `Updates statement_text, moderation_status, themes, visible_statement_when_submitted, or moderation_reason`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpdatePolisStatementAux,
+      },
+    ],
+    response: PolisStatementAux,
+  },
+  {
+    method: "post",
+    path: "/tools/polis/statement_aux/sync",
+    alias: "PolisSyncStatementAux",
+    description: `Fetches comments and xid mappings from Polis and upserts a row per statement. Existing rows have their statement_text and is_seed refreshed; moderation_status, moderation_reason, themes, visible_statement_when_submitted and user_id are preserved.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ workflow_step_id: z.string().uuid() }).passthrough(),
+      },
+    ],
+    response: SyncStatementAuxResponse,
+  },
+  {
+    method: "get",
+    path: "/tools/polis/statement_aux/theme_stats",
+    alias: "PolisStatementAuxThemeStats",
+    description: `Returns the count of polis_statement_aux rows tagged with each theme, filtered by workflow_step_id and/or polis_conversation_id (at least one is required)`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "polis_conversation_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "workflow_step_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: z.array(ThemeStatistic),
   },
   {
     method: "get",
