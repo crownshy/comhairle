@@ -7,13 +7,14 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 	import { invalidateAll } from '$app/navigation';
+	import EmailTemplateVariables from '../EmailTemplateVariables.svelte';
 
 	const { data } = $props();
 	const { emailConfig, schema } = data;
 
 	let formState = $derived.by(() => {
 		const output: { [key: string]: string } = {};
-		schema.map((slot) => (output[slot.key] = emailConfig.slots[slot.key] as string));
+		schema.slots.map((slot) => (output[slot.key] = emailConfig.slots[slot.key] as string));
 		return output;
 	});
 
@@ -54,8 +55,13 @@
 </svelte:head>
 
 <h1 class="text-4xl font-bold">Custom email: {snakeToSentenceCase(emailConfig.emailType)}</h1>
+
+{#if schema.variables.length > 0}
+	<EmailTemplateVariables templateVariables={schema.variables} />
+{/if}
+
 <form onsubmit={handleSubmit}>
-	{#each schema as slot (slot.key)}
+	{#each schema.slots as slot (slot.key)}
 		<div
 			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 		>

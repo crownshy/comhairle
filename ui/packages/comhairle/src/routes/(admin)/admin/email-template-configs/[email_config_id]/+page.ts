@@ -7,7 +7,7 @@ export const load: PageLoad = async ({ params, parent }) => {
 
 	try {
 		const emailConfig = await api.GetEmailTemplateConfig({ params: { email_config_id } });
-		const schema = await api.GetEmailSlotSchema({ params: { email_config_id } });
+		const schema = await api.GetEmailTemplateSchema({ params: { email_config_id } });
 
 		return { emailConfig, schema };
 	} catch (e) {

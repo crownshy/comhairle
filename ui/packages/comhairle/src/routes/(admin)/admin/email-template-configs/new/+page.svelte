@@ -8,6 +8,7 @@
 	import { jsonToHtml } from '$lib/utils/rich-text.js';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { goto, invalidateAll } from '$app/navigation';
+	import EmailTemplateVariables from '../EmailTemplateVariables.svelte';
 
 	let { data } = $props();
 	const { schemas } = data;
@@ -68,6 +69,10 @@
 		{/each}
 	</Select.Content>
 </Select.Root>
+
+{#if selectedSchema.variables.length > 0}
+	<EmailTemplateVariables templateVariables={selectedSchema.variables} />
+{/if}
 
 <form onsubmit={handleSubmit}>
 	{#each selectedSchema.slots as slot (slot.key)}

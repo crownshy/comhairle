@@ -1932,7 +1932,11 @@ export const SlotSchemaDefinition = z
   .passthrough();
 export type SlotSchemaDefinition = z.infer<typeof SlotSchemaDefinition>;
 export const EmailTypeSchema = z
-  .object({ email_type: z.string(), slots: z.array(SlotSchemaDefinition) })
+  .object({
+    email_type: z.string(),
+    slots: z.array(SlotSchemaDefinition),
+    variables: z.array(z.string()),
+  })
   .passthrough();
 export type EmailTypeSchema = z.infer<typeof EmailTypeSchema>;
 
@@ -3479,18 +3483,18 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
   {
     method: "get",
     path: "/email_template_configs/:email_config_id/schemas",
-    alias: "GetEmailSlotSchema",
-    description: `Get slot schemas for an email config`,
+    alias: "GetEmailTemplateSchema",
+    description: `Get template schemas for an email config`,
     requestFormat: "json",
-    response: z.array(SlotSchemaDefinition),
+    response: EmailTypeSchema,
   },
   {
     method: "get",
     path: "/email_template_configs/schemas",
-    alias: "ListEmailSlotSchemas",
-    description: `List all slot schemas for each email template type`,
+    alias: "ListEmailTemplateSchemas",
+    description: `List all template schemas for each email template type`,
     requestFormat: "json",
-    response: z.array(EmailTypeSchema),
+    response: z.array(EmailTypeSchema).min(3).max(3),
   },
   {
     method: "get",

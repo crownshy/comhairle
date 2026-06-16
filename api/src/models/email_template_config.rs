@@ -63,6 +63,33 @@ pub const TYPE_EVENT_REGISTRATION_INVITE: &str = "event_registration_invite";
 pub const TYPE_EVENT_REGISTRATION_CONFIRMATION: &str = "event_registration_confirmation";
 
 impl EmailTemplateSlots {
+    fn try_schema_for_type(email_type: &str) -> Result<EmailTypeSchema, ComhairleError> {
+        let schema = match email_type {
+            TYPE_CONVERSATION_INVITE => EmailTypeSchema {
+                email_type: TYPE_CONVERSATION_INVITE,
+                variables: &["conversation_title"],
+                slots: DEFAULT_SLOTS_SCHEMA,
+            },
+            TYPE_EVENT_REGISTRATION_INVITE => EmailTypeSchema {
+                email_type: TYPE_EVENT_REGISTRATION_INVITE,
+                variables: &["event_name", "event_time"],
+                slots: DEFAULT_SLOTS_SCHEMA,
+            },
+            TYPE_EVENT_REGISTRATION_CONFIRMATION => EmailTypeSchema {
+                email_type: TYPE_EVENT_REGISTRATION_CONFIRMATION,
+                variables: &[],
+                slots: DEFAULT_SLOTS_SCHEMA,
+            },
+            _ => {
+                return Err(ComhairleError::MissingEmailTemplateSchema(
+                    email_type.to_string(),
+                ))
+            }
+        };
+
+        Ok(schema)
+    }
+
     /// Returns the schema for every email template type.
     ///
     /// Each entry describes a variant of [`EmailTemplateSlots`], pairing the
@@ -76,21 +103,16 @@ impl EmailTemplateSlots {
     /// When a new variant is added to [`EmailTemplateSlots`], a corresponding
     /// [`EmailTypeSchema`] must be added here manually. There is no compiler
     /// enforcement for this.
-    pub fn schemas() -> &'static [EmailTypeSchema] {
-        &[
-            EmailTypeSchema {
-                email_type: TYPE_CONVERSATION_INVITE,
-                slots: DEFAULT_SLOTS_SCHEMA,
-            },
-            EmailTypeSchema {
-                email_type: TYPE_EVENT_REGISTRATION_INVITE,
-                slots: DEFAULT_SLOTS_SCHEMA,
-            },
-            EmailTypeSchema {
-                email_type: TYPE_EVENT_REGISTRATION_CONFIRMATION,
-                slots: DEFAULT_SLOTS_SCHEMA,
-            },
-        ]
+    pub fn schemas() -> Result<[EmailTypeSchema; 3], ComhairleError> {
+        Ok([
+            Self::try_schema_for_type(TYPE_CONVERSATION_INVITE)?,
+            Self::try_schema_for_type(TYPE_EVENT_REGISTRATION_INVITE)?,
+            Self::try_schema_for_type(TYPE_EVENT_REGISTRATION_CONFIRMATION)?,
+        ])
+    }
+
+    pub fn schema(&self) -> Result<EmailTypeSchema, ComhairleError> {
+        Self::try_schema_for_type(&self.to_string())
     }
 
     pub fn to_template(&self) -> &str {
@@ -98,14 +120,6 @@ impl EmailTemplateSlots {
             EmailTemplateSlots::ConversationInvite(_) => "conversation_invite.html",
             EmailTemplateSlots::EventRegistrationInvite(_) => "event_registration_invite.html",
             EmailTemplateSlots::EventRegistrationConfirmation(_) => "event_confirmation.html",
-        }
-    }
-
-    pub fn schema(&self) -> &'static [SlotSchemaDefinition] {
-        match self {
-            EmailTemplateSlots::ConversationInvite(_) => DEFAULT_SLOTS_SCHEMA,
-            EmailTemplateSlots::EventRegistrationInvite(_) => DEFAULT_SLOTS_SCHEMA,
-            EmailTemplateSlots::EventRegistrationConfirmation(_) => DEFAULT_SLOTS_SCHEMA,
         }
     }
 
@@ -216,6 +230,7 @@ pub struct SlotSchemaDefinition {
 #[derive(Serialize, JsonSchema, Debug, Clone)]
 pub struct EmailTypeSchema {
     pub email_type: &'static str,
+    pub variables: &'static [&'static str],
     pub slots: &'static [SlotSchemaDefinition],
 }
 

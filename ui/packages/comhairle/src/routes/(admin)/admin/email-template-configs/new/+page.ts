@@ -4,7 +4,7 @@ export const load: PageLoad = async ({ parent }) => {
 	const { api } = await parent();
 
 	try {
-		const schemas = await api.ListEmailSlotSchemas();
+		const schemas = await api.ListEmailTemplateSchemas();
 
 		return { schemas };
 	} catch (e) {

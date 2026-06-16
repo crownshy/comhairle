@@ -310,6 +310,9 @@ pub enum ComhairleError {
     #[error("Event missing video_meeting_id")]
     NoVideoMeetingId,
 
+    #[error("Missing email template schema")]
+    MissingEmailTemplateSchema(String),
+
     #[error("CSV error: {0}")]
     CsvError(#[from] csv::Error),
 
