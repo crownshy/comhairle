@@ -1930,11 +1930,10 @@ export type UpdateEmailTemplateConfig = z.infer<
 >;
 export const SlotSchemaDefinition = z
   .object({
+    default_content: z.string(),
     hint: z.string(),
     key: z.string(),
     label: z.string(),
-    max_chars: z.union([z.number(), z.null()]).optional(),
-    required: z.boolean(),
   })
   .passthrough();
 export type SlotSchemaDefinition = z.infer<typeof SlotSchemaDefinition>;

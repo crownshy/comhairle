@@ -9,11 +9,13 @@
 	{% if intro %}
 		{{intro|safe}}
 	{% else %}
-		<p>Thank you for registering for {{event_name}}. You will be sent a reminder email before the event with instructions on how to join the online meeting.</p>
+		<p>Thank you for registering for {{event_name}}.</p>
 	{% endif %}
 
 	{% if body %}
 		{{body|safe}}
+	{% else %}
+		<p>You will be sent a reminder email before the event with instructions on how to join the online meeting.</p>
 	{% endif %}
 	
 
@@ -27,17 +29,17 @@
 
 	<p class="link">{{event_link}}</p>
 
+	{% if organization_email %}
+		<p>
+			For any questions, please contact us at
+			<br />
+			<a href="mailto:{{organization_email}}">{{organization_email}}</a>
+		</p>
+	{% endif %}
+
 	{% if footer %}
 		{{footer|safe}}
 	{% else %}
-		{% if organization_email %}
-			<p>
-				For any questions, please contact us at
-				<br />
-				<a href="mailto:{{organization_email}}">{{organization_email}}</a>
-			</p>
-		{% endif %}
-
 		<p>We look forward to seeing you there!</p>
 
 		<p><strong>{{organization_name}}</strong></p>

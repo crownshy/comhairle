@@ -26,7 +26,7 @@
 		const output: FormState = {
 			slots: {}
 		};
-		selectedSchema.slots.map((slot) => (output.slots[slot.key] = ''));
+		selectedSchema.slots.map((slot) => (output.slots[slot.key] = slot.default_content));
 		return output;
 	});
 	let previewHtml = $state('');

@@ -38,6 +38,146 @@ pub struct EmailTemplateConfig {
     pub updated_at: DateTime<Utc>,
 }
 
+pub const TYPE_CONVERSATION_INVITE: &str = "conversation_invite";
+pub const TYPE_EVENT_REGISTRATION_INVITE: &str = "event_registration_invite";
+pub const TYPE_EVENT_REGISTRATION_CONFIRMATION: &str = "event_registration_confirmation";
+
+/// Metadata describing a single configurable slot in an email template.
+///
+/// `SlotSchemaDefinition` is used to communicate the structure of an email template
+/// to the frontend, allowing it to render the correct form fields when a user
+/// is configuring a particular email type. It is the UI-facing counterpart to
+/// the typed fields on structs like [`DefaultEmailSlots`].
+#[derive(Serialize, JsonSchema, Debug, Clone)]
+pub struct SlotSchemaDefinition {
+    /// The key used to identify this slot, matching the field name on the
+    /// corresponding slots struct (e.g. `"heading"`, `"body"`).
+    pub key: &'static str,
+    /// A human-readable label for display in the configuration UI.
+    pub label: &'static str,
+    /// A short description shown to the user explaining what this slot
+    /// controls and any guidance on what to write.
+    pub hint: &'static str,
+    /// Default html used as a starting point for a slot as well as a fallback
+    /// if an [`EmailTemplateConfig`] does not exist for this user / email_type.
+    pub default_content: &'static str,
+}
+
+#[derive(Serialize, JsonSchema, Debug, Clone)]
+pub struct EmailTypeSchema {
+    pub email_type: &'static str,
+    pub variables: &'static [&'static str],
+    pub slots: &'static [SlotSchemaDefinition],
+}
+
+// ===
+//
+// Schemas
+//
+// ===
+
+pub const SLOTS_SCHEMA_CONVERSATION_INVITE: &[SlotSchemaDefinition] = &[
+    SlotSchemaDefinition {
+        key: "heading",
+        label: "Heading",
+        hint: "The email heading",
+        default_content: "Dear Invited Participant,"
+    },
+    SlotSchemaDefinition {
+        key: "intro",
+        label: "Intro",
+        hint: "Opening paragraph",
+        default_content: "<p>You have been selected to take part in a public engagement, <strong>{{conversation_title}}</strong>, hosted on the <strong>Comhairle</strong> platform by <strong>CrownShy</strong>.<p />"
+    },
+    SlotSchemaDefinition {
+        key: "body",
+        label: "Body",
+        hint: "Main email content",
+        default_content: "<p>We’re inviting you to complete the online engagement.</p><p>We’re keen to hear your real views and reflections. If you choose to take part, we ask that you:</p><ul><li>Read and consider each question carefully.</li><li>Provide your own honest opinions, not blank or repetitive answers.</li><li>Complete <strong>all sections</strong> of the engagement.</li></ul>"
+    },
+    SlotSchemaDefinition {
+        key: "footer",
+        label: "Footer",
+        hint: "Closing line",
+        default_content: "<p>Thank you very much for your time and contribution to this important process.</p><p>Warm regards, <br /><strong>The CrownShy Team.</strong></p>"
+    },
+];
+
+pub const SLOTS_SCHEMA_EVENT_REGISTRATION_INVITE: &[SlotSchemaDefinition] = &[
+    SlotSchemaDefinition {
+        key: "heading",
+        label: "Heading",
+        hint: "The email heading",
+        default_content: "Hello!"
+    },
+    SlotSchemaDefinition {
+        key: "intro",
+        label: "Intro",
+        hint: "Opening paragraph",
+        default_content: "<p>You are invited to take part in <strong>{{event_name}}</strong> with <strong>{{organization_name}}</strong> to collaborate with them.</p>"
+    },
+    SlotSchemaDefinition {
+        key: "body",
+        label: "Body",
+        hint: "Main email content",
+        default_content: "<p>Click the button below to register.</p>"
+    },
+    SlotSchemaDefinition {
+        key: "footer",
+        label: "Footer",
+        hint: "Closing line",
+        default_content: "<p>We look forward to your participation!</p><p><strong>{{organization_name}}</strong></p>"
+    },
+];
+
+pub const SLOTS_SCHEMA_EVENT_REGISTRATION_CONFIRMATION: &[SlotSchemaDefinition] = &[
+    SlotSchemaDefinition {
+        key: "heading",
+        label: "Heading",
+        hint: "The email heading",
+        default_content: "You're in!",
+    },
+    SlotSchemaDefinition {
+        key: "intro",
+        label: "Intro",
+        hint: "Opening paragraph",
+        default_content: "<p>Thank you for registering for <strong>{{event_name}}</strong>.",
+    },
+    SlotSchemaDefinition {
+        key: "body",
+        label: "Body",
+        hint: "Main email content",
+        default_content: "<p>You will be sent a reminder email before the event with instructions on how to join the online meeting.</p>",
+    },
+    SlotSchemaDefinition {
+        key: "footer",
+        label: "Footer",
+        hint: "Closing line",
+        default_content: "<p>We look forward to seeing you there!</p><p><strong>{{organization_name}}</strong></p>",
+    },
+];
+
+/// Provides conversion of a [`SlotSchemaDefinition`] slice into a [`HashMap`] of
+/// slot keys to their default content.
+///
+/// This trait exists as a workaround for Rust's orphan rules, which prevent
+/// implementing foreign traits (such as [`From`]) for foreign types (such as
+/// [`HashMap`]). Since both [`From`] and [`HashMap`] are defined outside of this
+/// crate, a direct `impl From<&[SlotSchemaDefinition]> for HashMap<String, String>`
+/// is not permitted. Defining our own trait here gives us a local trait that we
+/// are free to implement for any type.
+pub trait IntoSlotMap {
+    fn into_slots_map(&self) -> HashMap<String, String>;
+}
+
+impl IntoSlotMap for [SlotSchemaDefinition] {
+    fn into_slots_map(&self) -> HashMap<String, String> {
+        self.iter()
+            .map(|slot| (slot.key.to_string(), slot.default_content.to_string()))
+            .collect()
+    }
+}
+
 /// The configurable slot content for a particular email template type.
 ///
 /// Each variant corresponds to a distinct email template and carries the slot
@@ -50,7 +190,7 @@ pub struct EmailTemplateConfig {
 /// 1. Add a variant here with its slot struct.
 /// 2. Add the corresponding HTML template.
 /// 3. Update [`EmailTemplateSlots::schemas`] with the new variant's schema.
-/// 4. Update [`EmailTemplateSlots::to_template`] to return the template filename.
+/// 4. Update [`EmailTemplateSlots::email_template`] to return the template filename.
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum EmailTemplateSlots {
@@ -58,10 +198,6 @@ pub enum EmailTemplateSlots {
     EventRegistrationInvite(DefaultEmailSlots),
     EventRegistrationConfirmation(DefaultEmailSlots),
 }
-
-pub const TYPE_CONVERSATION_INVITE: &str = "conversation_invite";
-pub const TYPE_EVENT_REGISTRATION_INVITE: &str = "event_registration_invite";
-pub const TYPE_EVENT_REGISTRATION_CONFIRMATION: &str = "event_registration_confirmation";
 
 impl EmailTemplateSlots {
     /// Returns the schema for every email template type.
@@ -89,28 +225,40 @@ impl EmailTemplateSlots {
     pub fn schema(&self) -> EmailTypeSchema {
         match self {
             EmailTemplateSlots::ConversationInvite(_) => EmailTypeSchema {
-                email_type: self.to_type_str(),
-                variables: &["conversation_title"],
-                slots: DEFAULT_SLOTS_SCHEMA,
+                email_type: self.type_str(),
+                variables: self.template_variables(),
+                slots: SLOTS_SCHEMA_CONVERSATION_INVITE,
             },
             EmailTemplateSlots::EventRegistrationInvite(_) => EmailTypeSchema {
-                email_type: self.to_type_str(),
-                variables: &["event_name", "event_time"],
-                slots: DEFAULT_SLOTS_SCHEMA,
+                email_type: self.type_str(),
+                variables: self.template_variables(),
+                slots: SLOTS_SCHEMA_EVENT_REGISTRATION_INVITE,
             },
             EmailTemplateSlots::EventRegistrationConfirmation(_) => EmailTypeSchema {
-                email_type: self.to_type_str(),
-                variables: &["event_name", "event_time"],
-                slots: DEFAULT_SLOTS_SCHEMA,
+                email_type: self.type_str(),
+                variables: self.template_variables(),
+                slots: SLOTS_SCHEMA_EVENT_REGISTRATION_CONFIRMATION,
             },
         }
     }
 
-    pub fn to_template(&self) -> &str {
+    pub fn email_template(&self) -> &str {
         match self {
             EmailTemplateSlots::ConversationInvite(_) => "conversation_invite.html",
             EmailTemplateSlots::EventRegistrationInvite(_) => "event_registration_invite.html",
             EmailTemplateSlots::EventRegistrationConfirmation(_) => "event_confirmation.html",
+        }
+    }
+
+    fn template_variables(&self) -> &'static [&'static str] {
+        match self {
+            EmailTemplateSlots::ConversationInvite(_) => &["conversation_title"],
+            EmailTemplateSlots::EventRegistrationInvite(_) => {
+                &["event_name", "event_time", "organization_name"]
+            }
+            EmailTemplateSlots::EventRegistrationConfirmation(_) => {
+                &["event_name", "event_time", "organization_name"]
+            }
         }
     }
 
@@ -121,7 +269,7 @@ impl EmailTemplateSlots {
     /// duplicating the mapping. The returned string is always a `&'static str`
     /// drawn from the `TYPE_*` constants, which allows it to be embedded in
     /// [`EmailTypeSchema`] without lifetime annotation.
-    fn to_type_str(&self) -> &'static str {
+    fn type_str(&self) -> &'static str {
         match self {
             EmailTemplateSlots::ConversationInvite(_) => TYPE_CONVERSATION_INVITE,
             EmailTemplateSlots::EventRegistrationInvite(_) => TYPE_EVENT_REGISTRATION_INVITE,
@@ -147,7 +295,7 @@ impl EmailTemplateSlots {
     /// let base = email_config.slots.to_mailer_map();
     /// let context = minijinja::context! { invite_link => "foo@bar.com", ..base };
     /// ```
-    pub fn to_mailer_map(&self) -> HashMap<&str, String> {
+    pub fn mailer_slots_map(&self) -> HashMap<String, String> {
         match self {
             EmailTemplateSlots::ConversationInvite(slots) => slots.to_mailer_map(),
             EmailTemplateSlots::EventRegistrationInvite(slots) => slots.to_mailer_map(),
@@ -167,33 +315,49 @@ impl EmailTemplateSlots {
     /// The returned map is specific to each [`EmailTemplateSlots`] variant, as
     /// different email types expose different runtime variables. The values are
     /// illustrative only and are never used in real email sends.
-    pub fn preview_variables_map(&self) -> HashMap<&str, String> {
+    pub fn preview_variables_map(&self) -> HashMap<String, String> {
         match self {
             EmailTemplateSlots::ConversationInvite(_) => HashMap::from([(
-                "conversation_title",
+                "conversation_title".to_string(),
                 "Renewable energy in rural areas".to_string(),
             )]),
             EmailTemplateSlots::EventRegistrationConfirmation(_) => HashMap::from([
                 (
-                    "event_name",
+                    "event_name".to_string(),
                     "Prioritising accessibility in websites".to_string(),
                 ),
-                ("event_time", "24 May, 2026".to_string()),
+                ("event_time".to_string(), "24 May, 2026".to_string()),
+                ("organization_name".to_string(), "CrownShy".to_string()),
             ]),
             EmailTemplateSlots::EventRegistrationInvite(_) => HashMap::from([
                 (
-                    "event_name",
+                    "event_name".to_string(),
                     "Prioritising accessibility in websites".to_string(),
                 ),
-                ("event_time", "24 May, 2026".to_string()),
+                ("event_time".to_string(), "24 May, 2026".to_string()),
+                ("organization_name".to_string(), "CrownShy".to_string()),
             ]),
+        }
+    }
+
+    pub fn fallback_slots_map(&self) -> HashMap<String, String> {
+        match self {
+            EmailTemplateSlots::ConversationInvite(_) => {
+                SLOTS_SCHEMA_CONVERSATION_INVITE.into_slots_map()
+            }
+            EmailTemplateSlots::EventRegistrationConfirmation(_) => {
+                SLOTS_SCHEMA_EVENT_REGISTRATION_INVITE.into_slots_map()
+            }
+            EmailTemplateSlots::EventRegistrationInvite(_) => {
+                SLOTS_SCHEMA_EVENT_REGISTRATION_CONFIRMATION.into_slots_map()
+            }
         }
     }
 }
 
 impl std::fmt::Display for EmailTemplateSlots {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.to_type_str())
+        write!(f, "{}", self.type_str())
     }
 }
 
@@ -206,12 +370,12 @@ pub struct DefaultEmailSlots {
 }
 
 impl DefaultEmailSlots {
-    fn to_mailer_map(&self) -> HashMap<&str, String> {
+    fn to_mailer_map(&self) -> HashMap<String, String> {
         HashMap::from([
-            ("heading", self.heading.clone()),
-            ("intro", self.intro.clone()),
-            ("body", self.body.clone()),
-            ("footer", self.footer.clone()),
+            ("heading".to_string(), self.heading.clone()),
+            ("intro".to_string(), self.intro.clone()),
+            ("body".to_string(), self.body.clone()),
+            ("footer".to_string(), self.footer.clone()),
         ])
     }
 }
@@ -238,68 +402,6 @@ impl<'r> Decode<'r, Postgres> for EmailTemplateSlots {
         Ok(serde_json::from_value(json)?)
     }
 }
-
-/// Metadata describing a single configurable slot in an email template.
-///
-/// `SlotSchemaDefinition` is used to communicate the structure of an email template
-/// to the frontend, allowing it to render the correct form fields when a user
-/// is configuring a particular email type. It is the UI-facing counterpart to
-/// the typed fields on structs like [`DefaultEmailSlots`].
-#[derive(Serialize, JsonSchema, Debug, Clone)]
-pub struct SlotSchemaDefinition {
-    /// The key used to identify this slot, matching the field name on the
-    /// corresponding slots struct (e.g. `"heading"`, `"body"`).
-    pub key: &'static str,
-    /// A human-readable label for display in the configuration UI.
-    pub label: &'static str,
-    /// A short description shown to the user explaining what this slot
-    /// controls and any guidance on what to write.
-    pub hint: &'static str,
-    /// Whether this slot must be populated before the config can be saved.
-    pub required: bool,
-    /// An optional upper bound on the number of characters allowed in this
-    /// slot. Used for both frontend validation and server-side validation
-    /// before persisting. `None` means no limit is enforced.
-    pub max_chars: Option<usize>,
-}
-
-#[derive(Serialize, JsonSchema, Debug, Clone)]
-pub struct EmailTypeSchema {
-    pub email_type: &'static str,
-    pub variables: &'static [&'static str],
-    pub slots: &'static [SlotSchemaDefinition],
-}
-
-const DEFAULT_SLOTS_SCHEMA: &[SlotSchemaDefinition] = &[
-    SlotSchemaDefinition {
-        key: "heading",
-        label: "Heading",
-        hint: "The email heading",
-        required: true,
-        max_chars: Some(100),
-    },
-    SlotSchemaDefinition {
-        key: "intro",
-        label: "Intro",
-        hint: "Opening paragraph",
-        required: true,
-        max_chars: Some(100),
-    },
-    SlotSchemaDefinition {
-        key: "body",
-        label: "Body",
-        hint: "Main email content",
-        required: true,
-        max_chars: None,
-    },
-    SlotSchemaDefinition {
-        key: "footer",
-        label: "Footer",
-        hint: "Closing line",
-        required: false,
-        max_chars: Some(100),
-    },
-];
 
 const DEFAULT_COLUMNS: [EmailTemplateConfigIden; 8] = [
     EmailTemplateConfigIden::Id,

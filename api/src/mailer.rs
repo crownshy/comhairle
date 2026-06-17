@@ -1,10 +1,12 @@
+use crate::models::conversation;
 use crate::models::email_template_config::{
+    self, IntoSlotMap, SLOTS_SCHEMA_CONVERSATION_INVITE,
+    SLOTS_SCHEMA_EVENT_REGISTRATION_CONFIRMATION, SLOTS_SCHEMA_EVENT_REGISTRATION_INVITE,
     TYPE_CONVERSATION_INVITE, TYPE_EVENT_REGISTRATION_CONFIRMATION, TYPE_EVENT_REGISTRATION_INVITE,
 };
 use crate::models::event::{self, LocalizedEvent, ResolveTimeZone};
 use crate::models::organization::Organization;
 use crate::models::users::User;
-use crate::models::{conversation, email_template_config};
 use crate::{error::ComhairleError, ComhairleState};
 
 use async_trait::async_trait;
@@ -108,8 +110,8 @@ pub trait ComhairleMailer: Send + Sync {
     fn preview_email(
         &self,
         template: &str,
-        slots_map: HashMap<&str, String>,
-        variables_map: Option<HashMap<&str, String>>,
+        slots_map: HashMap<String, String>,
+        variables_map: Option<HashMap<String, String>>,
     ) -> Result<String, ComhairleError>;
 }
 
@@ -153,7 +155,7 @@ impl MockComhairleMailer {
             .returning(|_, _, _| Ok(()));
         mailer
             .expect_preview_email()
-            .returning(|_, _| Ok(String::new()));
+            .returning(|_, _, _| Ok(String::new()));
 
         mailer
     }
@@ -195,13 +197,13 @@ impl Mailer {
     fn resolve_slots_map<'a>(
         &self,
         context: &minijinja::Value,
-        slots_map: &HashMap<&'a str, String>,
-    ) -> Result<HashMap<&'a str, String>, ComhairleError> {
-        let mut rendered_map: HashMap<&str, String> = HashMap::new();
+        slots_map: &HashMap<String, String>,
+    ) -> Result<HashMap<String, String>, ComhairleError> {
+        let mut rendered_map: HashMap<String, String> = HashMap::new();
 
         for (key, value) in slots_map {
             let rendered = self.template_engine.render_str(value, context)?;
-            rendered_map.insert(key, rendered);
+            rendered_map.insert(key.to_string(), rendered);
         }
 
         Ok(rendered_map)
@@ -272,7 +274,6 @@ impl ComhairleMailer for Mailer {
         let conversation =
             conversation::get_localised_by_id(&state.db, &conversation_id, locale).await?;
 
-        let default_subject = "Invitation to take part in a public consultation";
         let invite_link = format!(
             "{}/conversations/{}/invite/{}",
             state.config.domain,
@@ -285,30 +286,31 @@ impl ComhairleMailer for Mailer {
         let conversation_context =
             context! { conversation_title => conversation.title, invite_link };
 
-        if let Ok(email_config) =
-            email_template_config::get_by_type_user(&state.db, user_id, TYPE_CONVERSATION_INVITE)
-                .await
-        {
-            let rendered_map =
-                self.resolve_slots_map(&conversation_context, &email_config.slots.to_mailer_map())?;
+        let default_subject = "Invitation to take part in a public consultation";
 
-            let context = minijinja::context! { invite_link, ..rendered_map };
-            self.send_email(
-                to,
-                email_config.subject.as_deref().unwrap_or(default_subject),
-                "conversation_invite.html",
-                context,
-                None,
-            )?;
-        } else {
-            self.send_email(
-                to,
-                default_subject,
-                "conversation_invite.html",
-                conversation_context,
-                None,
-            )?;
-        }
+        let (subject, slots_map) = match email_template_config::get_by_type_user(
+            &state.db,
+            user_id,
+            TYPE_CONVERSATION_INVITE,
+        )
+        .await
+        {
+            Ok(email_config) => (
+                email_config.subject.unwrap_or(default_subject.to_string()),
+                email_config.slots.mailer_slots_map(),
+            ),
+            Err(ComhairleError::ResourceNotFound(_)) => (
+                default_subject.to_string(),
+                SLOTS_SCHEMA_CONVERSATION_INVITE.into_slots_map(),
+            ),
+            Err(e) => return Err(e),
+        };
+
+        let rendered_map = self.resolve_slots_map(&conversation_context, &slots_map)?;
+
+        let context = context! { invite_link, ..rendered_map };
+
+        self.send_email(to, &subject, "conversation_invite.html", context, None)?;
 
         Ok(())
     }
@@ -396,7 +398,6 @@ impl ComhairleMailer for Mailer {
     ) -> Result<(), ComhairleError> {
         let event = event::get_localized_by_id(&state.db, &event_id, locale).await?;
 
-        let default_subject = "Invitation to take part in an event";
         let invite_link = format!(
             "{}/conversations/{}/events/{}/invite/{}",
             state.config.domain, event.conversation_id, event.id, invite_id
@@ -409,35 +410,43 @@ impl ComhairleMailer for Mailer {
             invite_link,
         };
 
-        if let Ok(email_config) = email_template_config::get_by_type_user(
+        let default_subject = "Invitation to take part in an event";
+
+        let (subject, slots_map) = match email_template_config::get_by_type_user(
             &state.db,
             user_id,
             TYPE_EVENT_REGISTRATION_INVITE,
         )
         .await
         {
-            let rendered_map =
-                self.resolve_slots_map(&event_context, &email_config.slots.to_mailer_map())?;
+            Ok(email_config) => (
+                email_config.subject.unwrap_or(default_subject.to_string()),
+                email_config.slots.mailer_slots_map(),
+            ),
+            Err(ComhairleError::ResourceNotFound(_)) => (
+                default_subject.to_string(),
+                SLOTS_SCHEMA_EVENT_REGISTRATION_INVITE.into_slots_map(),
+            ),
+            Err(e) => return Err(e),
+        };
 
-            let context = context! { invite_link, ..rendered_map }; // TODO: find a better way of
-                                                                    // handling this
+        let rendered_map = self.resolve_slots_map(&event_context, &slots_map)?;
 
-            self.send_email(
-                email,
-                email_config.subject.as_deref().unwrap_or(default_subject),
-                "event_registration_invite.html",
-                context,
-                None,
-            )
-        } else {
-            self.send_email(
-                email,
-                default_subject,
-                "event_registration_invite.html",
-                event_context,
-                None,
-            )
-        }
+        let context = context! {
+            event_name => event.name,
+            event_time => event.format_date_with_time_zone(event.start_time, None),
+            organization_name => "Bloom", // TODO:
+            invite_link,
+            ..rendered_map
+        };
+
+        self.send_email(
+            email,
+            &subject,
+            "event_registration_invite.html",
+            context,
+            None,
+        )
     }
 
     async fn send_event_confirmation_email(
@@ -470,34 +479,42 @@ impl ComhairleMailer for Mailer {
             event_link,
         };
 
-        if let Ok(email_config) = email_template_config::get_by_type_user(
+        let (subject, slots_map) = match email_template_config::get_by_type_user(
             &state.db,
             user_id,
             TYPE_EVENT_REGISTRATION_CONFIRMATION,
         )
         .await
         {
-            let rendered_map =
-                self.resolve_slots_map(&event_context, &email_config.slots.to_mailer_map())?;
+            Ok(email_config) => (
+                email_config.subject.unwrap_or(default_subject.to_string()),
+                email_config.slots.mailer_slots_map(),
+            ),
+            Err(ComhairleError::ResourceNotFound(_)) => (
+                default_subject.to_string(),
+                SLOTS_SCHEMA_EVENT_REGISTRATION_CONFIRMATION.into_slots_map(),
+            ),
+            Err(e) => return Err(e),
+        };
 
-            let context = context! { event_link, ..rendered_map }; // TODO: find a better way of
+        let rendered_map = self.resolve_slots_map(&event_context, &slots_map)?;
 
-            self.send_email(
-                email,
-                email_config.subject.as_deref().unwrap_or(default_subject),
-                "event_confirmation.html",
-                context,
-                Some(calendar_invite),
-            )
-        } else {
-            self.send_email(
-                email,
-                default_subject,
-                "event_confirmation.html",
-                event_context,
-                Some(calendar_invite),
-            )
-        }
+        let context = context! {
+            event_name => event.name,
+            event_time => event.format_date_with_time_zone(event.start_time, None),
+            organization_name => "Bloom", // TODO:
+            // organization_email => organization_email,
+            event_link,
+            ..rendered_map
+        }; // TODO: find a better way of
+
+        self.send_email(
+            email,
+            &subject,
+            "event_confirmation.html",
+            context,
+            Some(calendar_invite),
+        )
     }
 
     fn send_event_reminder(
@@ -559,8 +576,8 @@ impl ComhairleMailer for Mailer {
     fn preview_email(
         &self,
         template: &str,
-        slots_map: HashMap<&str, String>,
-        variables_map: Option<HashMap<&str, String>>,
+        slots_map: HashMap<String, String>,
+        variables_map: Option<HashMap<String, String>>,
     ) -> Result<String, ComhairleError> {
         let context = match variables_map {
             Some(var_map) => {

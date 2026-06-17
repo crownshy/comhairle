@@ -19,23 +19,12 @@ Required:
 
 {% extends "email_layout.html" %}
 {% block content %}
-	{% if heading %}
-		{{heading|safe}}
-	{% else %}
-		<h1>Hello!</h1>
-	{% endif %}
-		
-	{% if intro %}
-		{{intro|safe}}
-	{% else %}
-		<p>You are invited to take part in {{event_name}} with {{organization_name}} to collaborate with them.</p>
-	{% endif %}
+	{{heading|safe}}
 	
-	{% if body %}
-		{{body|safe}}
-	{% endif %}
+	{{intro|safe}}
 
-	<p>Click the button below to register.</p>
+	{{body|safe}}
+
 
 	<div class="card">
 		<h2>{{event_name}}</h2>
@@ -47,19 +36,13 @@ Required:
 
 	<p class="link">{{invite_link}}</p>
 
-	{% if footer %}	
-		{{footer|safe}}
-	{% else %}
-		{% if organization_email %}
-			<p>
-				For any questions, please contact us at
-				<br />
-				<a href="mailto:{{organization_email}}">{{organization_email}}</a>
-			</p>
-		{% endif %}
-
-		<p>We look forward to your participation!</p>
-
-		<p><strong>{{organization_name}}</strong></p>
+	{% if organization_email %}
+		<p>
+			For any questions, please contact us at
+			<br />
+			<a href="mailto:{{organization_email}}">{{organization_email}}</a>
+		</p>
 	{% endif %}
+
+	{{footer|safe}}
 {% endblock %}

@@ -18,32 +18,12 @@ Required:
 {% block content %}
 <div style="text-align: left">
 
-	{% if heading %}
-		{{heading|safe}}
-	{% else %}
-		<p>Dear Invited Participant,</p>
-	{% endif %}
+	<!-- TODO: wrap in h1 and make a text field instead of rich text -->
+	{{heading|safe}}
 
-	{% if intro %}
-		{{intro|safe}}
-	{% else %}
-		<p>You have been selected to take part in a public engagement hosted on the
-			<strong>Comhairle</strong> platform by <strong>CrownShy</strong>.
-		<p />
-	{% endif %}
+	{{intro|safe}}
 
-	{% if body %}
-		{{body|safe}}
-	{% else %}
-		<p>We’re inviting you to complete the online engagement.</p>
-		<p>We’re keen to hear your real views and reflections. If you choose to take part, we ask that you:</p>
-
-		<ul>
-			<li>Read and consider each question carefully.</li>
-			<li>Provide your own honest opinions, not blank or repetitive answers.</li>
-			<li>Complete <strong>all sections</strong> of the engagement.</li>
-		</ul>
-	{% endif %}
+	{{body|safe}}
 
 	<p>If you have any difficulties with completing the engagement or with the website please email us at <a
 			href='mailto:team@crown-shy.com'>team@crown-shy.com</a></p>
@@ -55,15 +35,6 @@ Required:
 	<p>The information you provide will be stored securely, kept confidential, and only used for the purposes explained in
 		our privacy notice, which you can read here: <a href="{% if domain %}{{domain}}{% else %}https://comhairle.scot/rights/privacy{% endif %}">privacy notice</a>.
 
-	{% if footer %}
-		{{footer|safe}}
-	{% else %}
-		<p>Thank you very much for your time and contribution to this important process.</p>
-
-		<p>Warm regards, <br />
-			<strong>The CrownShy Team.</strong>
-		</p>
-	{% endif %}
-
+	{{footer|safe}}
 </div>
 {% endblock %}
