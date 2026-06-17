@@ -1,6 +1,6 @@
 # ADR-0001: Admin UI drops edit-protection gating but keeps data-availability gating
 
-**Status:** Accepted
+**Status:** Have a look
 **Date:** 2026-06-16
 
 ## Context
