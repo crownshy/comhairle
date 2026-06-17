@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto, invalidate } from '$app/navigation';
+	import { getContext } from 'svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte.js';
 	import {
@@ -15,6 +16,10 @@
 	} from '$lib/workflow_templates.js';
 	import WorkflowStepStrip from '$lib/components/WorkflowStepStrip.svelte';
 	import ToolSelectionModal from '$lib/components/ToolSelectionModal.svelte';
+	import {
+		CONVERSATION_TAB_EXTRAS_CTX,
+		type ConversationTabExtras
+	} from '$lib/conversationTabExtras';
 
 	let { data, children } = $props();
 
@@ -23,6 +28,16 @@
 	let workflowSteps = $derived(data.workflowSteps ?? []);
 
 	let addStepModalOpen = $state(false);
+
+	const tabExtras = getContext<ConversationTabExtras>(CONVERSATION_TAB_EXTRAS_CTX);
+
+	$effect(() => {
+		if (!tabExtras) return;
+		tabExtras.primary = workflowStripSnippet;
+		return () => {
+			tabExtras.primary = null;
+		};
+	});
 
 	$effect(() => {
 		if (page.url.searchParams.get('addStep') === 'true') {
@@ -68,15 +83,13 @@
 	}
 </script>
 
-<!-- Strip breaks out of the parent layout's padded content wrapper so it sits flush
-     below the section tab bar, matching the chrome treatment above it. -->
-<div class="-mx-4 -mt-8 mb-8 sm:-mx-8 sm:-mt-10 lg:-mx-16">
+{#snippet workflowStripSnippet()}
 	<WorkflowStepStrip
 		conversationId={conversation.id}
 		steps={workflowSteps}
 		onAddStep={() => (addStepModalOpen = true)}
 	/>
-</div>
+{/snippet}
 
 <ToolSelectionModal
 	prompt="Select a step to add"

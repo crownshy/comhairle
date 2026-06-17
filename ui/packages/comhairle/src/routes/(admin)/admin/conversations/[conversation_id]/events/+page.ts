@@ -1,17 +1,6 @@
-import type { PageLoad } from '../design/$types';
+import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ parent }) => {
-	const { conversation, api } = await parent();
-
-	try {
-		const events = await api.ListEvents({
-			params: { conversation_id: conversation.id },
-			queries: { created_at: 'desc' }
-		});
-
-		return { conversation, events };
-	} catch (e) {
-		console.error(e);
-		return;
-	}
+	const { conversation, events } = await parent();
+	return { conversation, events };
 };

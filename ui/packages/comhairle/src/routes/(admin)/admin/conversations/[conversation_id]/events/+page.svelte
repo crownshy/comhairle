@@ -15,7 +15,7 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-<h1 class="mb-4 text-3xl font-bold">Events</h1>
+<h1 class="mt-8 mb-4 text-3xl font-bold sm:mt-10">Events</h1>
 
 <p class="text-muted-foreground mb-10 text-base font-medium">
 	Use this space to manage your conversation's events.

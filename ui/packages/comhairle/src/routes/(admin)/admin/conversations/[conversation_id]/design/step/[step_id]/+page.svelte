@@ -7,17 +7,18 @@
 	import ElicitationBotManage from '$lib/tools/elicitation_bot/ElicitationBotManage.svelte';
 	import LivedExperienceManage from '$lib/tools/lived_experince/LivedExperinceManage.svelte';
 	import * as Prioritization from '$lib/tools/prioritization';
-	import { Button } from '$lib/components/ui/button';
-	import { Pencil } from 'lucide-svelte';
-	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
-	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import { page } from '$app/state';
+	import { getContext } from 'svelte';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
+	import {
+		CONVERSATION_TAB_EXTRAS_CTX,
+		type ConversationTabExtras
+	} from '$lib/conversationTabExtras';
+
 	let { data } = $props();
 
-	let editMetadataOpen = $state(false);
 	let availableDocuments = $state<ComhairleDocument[]>([]);
 
 	$effect(() => {
@@ -44,78 +45,48 @@
 	);
 
 	let pageTitle = $derived(`Edit Step: ${step?.name ?? 'Step'}`);
-	let stepName = $derived(
-		getTextInLocale(
-			step?.translations?.name,
-			conversation.primaryLocale ?? 'en',
-			step?.name ?? ''
-		) || 'Unnamed step'
-	);
 
 	let isPolis = $derived(toolConfig?.type === 'polis');
-	let polisSubtab = $derived(page.url.searchParams.get('subtab') ?? 'setup');
+	let subtab = $derived(page.url.searchParams.get('subtab') ?? 'configure');
+
+	let subtabItems = $derived(
+		isPolis
+			? [
+					{ label: 'Configure', value: 'configure' },
+					{ label: 'Setup', value: 'setup' },
+					{ label: 'Statements', value: 'statements' },
+					{ label: 'Participants', value: 'participants' }
+				]
+			: [
+					{ label: 'Configure', value: 'configure' },
+					{ label: 'Setup', value: 'setup' }
+				]
+	);
+
+	const tabExtras = getContext<ConversationTabExtras>(CONVERSATION_TAB_EXTRAS_CTX);
+
+	$effect(() => {
+		if (!tabExtras) return;
+		tabExtras.secondary = subtabStripSnippet;
+		return () => {
+			tabExtras.secondary = null;
+		};
+	});
 </script>
 
 <svelte:head>
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-{#if isPolis}
-	<div class="-mx-4 mb-6 sm:-mx-8 lg:-mx-16">
-		<SubTabStrip
-			items={[
-				{ label: 'Setup', value: 'setup' },
-				{ label: 'Statements', value: 'statements' },
-				{ label: 'Participants', value: 'participants' }
-			]}
-			defaultValue="setup"
-		/>
-	</div>
+{#snippet subtabStripSnippet()}
+	<SubTabStrip items={subtabItems} defaultValue="configure" />
+{/snippet}
+
+{#if step && subtab === 'configure'}
+	<CommonStepConfig conversation_id={conversation.id} {conversation} {step} inline />
 {/if}
 
-<div class="mb-6 flex w-full min-w-0 flex-col">
-	<div class="flex w-full min-w-0 items-center gap-3">
-		<h1
-			class="min-w-0 flex-1 truncate text-3xl font-semibold sm:max-w-[40ch] sm:text-4xl"
-			title={stepName}
-		>
-			{stepName}
-		</h1>
-		<Button
-			onclick={() => (editMetadataOpen = true)}
-			class="bg-sidebar text-sidebar-foreground hover:bg-sidebar/90 h-8 shrink-0 rounded-full px-3 text-xs"
-		>
-			<Pencil class="size-3.5" />
-			Edit
-		</Button>
-	</div>
-	{#if step?.description || step?.translations?.description}
-		<div class="mt-2">
-			<ContentRenderer
-				content={getTextInLocale(
-					step?.translations?.description,
-					conversation.primaryLocale ?? 'en',
-					step?.description ?? ''
-				)}
-				class="text-muted-foreground text-base"
-				{availableDocuments}
-				conversationId={conversation.id}
-			/>
-		</div>
-	{/if}
-</div>
-
-{#if step}
-	<CommonStepConfig
-		conversation_id={conversation.id}
-		{conversation}
-		{step}
-		headerless
-		bind:open={editMetadataOpen}
-	/>
-{/if}
-
-{#if step && toolConfig?.type === 'learn'}
+{#if step && subtab === 'setup' && toolConfig?.type === 'learn'}
 	<LearnManage
 		conversationId={conversation.id}
 		{conversation}
@@ -124,27 +95,23 @@
 	/>
 {/if}
 
-{#if toolConfig?.type === 'polis'}
-	{#if polisSubtab === 'setup'}
-		<PolisManage
-			{toolConfig}
-			conversationId={conversation.id}
-			workflowId={workflow.id}
-			workflowStepId={step.id}
-			isLive={conversation.isLive}
-		/>
-	{:else if polisSubtab === 'statements'}
-		<div class="text-muted-foreground py-12 text-center text-sm">
-			Statements view coming soon.
-		</div>
-	{:else if polisSubtab === 'participants'}
-		<div class="text-muted-foreground py-12 text-center text-sm">
-			Participants view coming soon.
-		</div>
-	{/if}
+{#if subtab === 'setup' && toolConfig?.type === 'polis'}
+	<PolisManage
+		{toolConfig}
+		conversationId={conversation.id}
+		workflowId={workflow.id}
+		workflowStepId={step.id}
+		isLive={conversation.isLive}
+	/>
+{:else if isPolis && subtab === 'statements'}
+	<div class="text-muted-foreground py-12 text-center text-sm">Statements view coming soon.</div>
+{:else if isPolis && subtab === 'participants'}
+	<div class="text-muted-foreground py-12 text-center text-sm">
+		Participants view coming soon.
+	</div>
 {/if}
 
-{#if toolConfig?.type === 'heyform'}
+{#if subtab === 'setup' && toolConfig?.type === 'heyform'}
 	<HeyFormManage
 		conversation_id={conversation.id}
 		workflow_id={step.workflowId}
@@ -158,11 +125,11 @@
 	/>
 {/if}
 
-{#if toolConfig?.type === 'stories'}
+{#if subtab === 'setup' && toolConfig?.type === 'stories'}
 	<LivedExperienceManage />
 {/if}
 
-{#if step && toolConfig?.type === 'thinkingspace'}
+{#if step && subtab === 'setup' && toolConfig?.type === 'thinkingspace'}
 	<ThinkingSpaceManage
 		conversationId={conversation.id}
 		workflowId={step.workflowId}
@@ -171,7 +138,7 @@
 	/>
 {/if}
 
-{#if step && toolConfig?.type === 'elicitationbot'}
+{#if step && subtab === 'setup' && toolConfig?.type === 'elicitationbot'}
 	<ElicitationBotManage
 		conversationId={conversation.id}
 		workflowId={step.workflowId}
@@ -180,7 +147,7 @@
 	/>
 {/if}
 
-{#if step && toolConfig?.type === Prioritization.TOOL_NAME}
+{#if step && subtab === 'setup' && toolConfig?.type === Prioritization.TOOL_NAME}
 	{#key step.id}
 		<Prioritization.ManageUI
 			conversationId={conversation.id}

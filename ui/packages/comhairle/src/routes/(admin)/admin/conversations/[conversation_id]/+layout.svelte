@@ -1,13 +1,21 @@
 <script lang="ts">
+	import { setContext, type Snippet } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { ArrowUpRight, MoreHorizontal, Eye, ExternalLink, Check, CircleX } from 'lucide-svelte';
 	import LaunchConversationModal from '$lib/components/LaunchConversationModal.svelte';
 	import EndConversationModal from '$lib/components/EndConversationModal.svelte';
 	import ConversationTabs from '$lib/components/ConversationTabs.svelte';
+	import {
+		CONVERSATION_TAB_EXTRAS_CTX,
+		type ConversationTabExtras
+	} from '$lib/conversationTabExtras';
 	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
 
 	let { data, children } = $props();
+
+	let tabExtras = $state<ConversationTabExtras>({ primary: null, secondary: null });
+	setContext(CONVERSATION_TAB_EXTRAS_CTX, tabExtras);
 
 	let conversation = $derived(data.conversation);
 	let displayTitle = $derived(
@@ -167,13 +175,21 @@
 <!-- Row 2: section tabs -->
 <ConversationTabs conversationId={conversation.id} conversationIsLive={conversation.isLive} />
 
+<!-- Row 3+ : section-specific sub-strips injected via context (e.g. workflow steps, sub-tabs) -->
+{#if tabExtras.primary}
+	{@render tabExtras.primary()}
+{/if}
+{#if tabExtras.secondary}
+	{@render tabExtras.secondary()}
+{/if}
+
 {#if conversation.isComplete}
 	<div class="border-destructive/20 bg-destructive/10 border-b px-5 py-2">
 		<p class="text-destructive text-sm">This conversation has closed</p>
 	</div>
 {/if}
 
-<div class="bg-muted grow px-4 py-8 sm:px-8 sm:pt-10 sm:pb-12 lg:px-16 lg:pb-18">
+<div class="bg-muted grow px-4 py-8 sm:px-8 sm:pb-12 md:py-10 lg:px-16 lg:pb-18">
 	<div class="mx-auto h-full w-full max-w-[1200px]">
 		{@render children()}
 	</div>

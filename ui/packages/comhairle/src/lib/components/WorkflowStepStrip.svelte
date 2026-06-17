@@ -24,8 +24,11 @@
 	}
 </script>
 
-<nav class="border-border bg-muted/50 w-full border-b" aria-label="Workflow steps">
-	<ul class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 px-5 py-1">
+<nav
+	class="border-border bg-muted/50 scrollbar-none w-full overflow-x-auto border-b"
+	aria-label="Workflow steps"
+>
+	<ul class="flex w-full flex-wrap items-center gap-x-1.5 gap-y-0.5 px-5 py-1">
 		<li>
 			<a
 				href={basePath}
@@ -75,3 +78,12 @@
 		{/if}
 	</ul>
 </nav>
+
+<style>
+	.scrollbar-none {
+		scrollbar-width: none;
+	}
+	.scrollbar-none::-webkit-scrollbar {
+		display: none;
+	}
+</style>

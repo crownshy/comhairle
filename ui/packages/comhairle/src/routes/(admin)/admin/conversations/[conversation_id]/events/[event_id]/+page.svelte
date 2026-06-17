@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
-	import { ArrowLeft } from 'lucide-svelte';
 	import * as Form from '$lib/components/ui/form/';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as RadioGroup from '$lib/components/ui/radio-group';
@@ -319,16 +318,7 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-<div class="-mx-4 -mt-8 mb-6 sm:-mx-8 sm:-mt-10 lg:-mx-16">
-	<div class="border-border bg-background flex items-center border-b px-5 py-2">
-		<a
-			href={`/admin/conversations/${conversation.id}/events`}
-			class="text-foreground/70 hover:text-foreground inline-flex items-center gap-1.5 text-sm"
-		>
-			<ArrowLeft class="size-4" />
-			Back to events
-		</a>
-	</div>
+<div class="-mx-4 mb-6 sm:-mx-8 lg:-mx-16">
 	<SubTabStrip
 		items={[
 			{ label: 'Details', value: 'details' },
