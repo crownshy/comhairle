@@ -105,7 +105,12 @@ pub trait ComhairleMailer: Send + Sync {
         html_body: &str,
     ) -> Result<(), ComhairleError>;
 
-    fn preview_email(&self, template: &str, context: Value) -> Result<String, ComhairleError>;
+    fn preview_email(
+        &self,
+        template: &str,
+        slots_map: HashMap<&str, String>,
+        variables_map: Option<HashMap<&str, String>>,
+    ) -> Result<String, ComhairleError>;
 }
 
 #[derive(Debug)]
@@ -551,7 +556,22 @@ impl ComhairleMailer for Mailer {
     /// - The named template does not exist ([`ComhairleError::MissingEmailTemplate`])
     /// - The template fails to render (e.g. missing required variables or invalid syntax)
     /// - CSS inlining fails
-    fn preview_email(&self, template: &str, context: Value) -> Result<String, ComhairleError> {
+    fn preview_email(
+        &self,
+        template: &str,
+        slots_map: HashMap<&str, String>,
+        variables_map: Option<HashMap<&str, String>>,
+    ) -> Result<String, ComhairleError> {
+        let context = match variables_map {
+            Some(var_map) => {
+                let local_context = context! { ..var_map };
+                let rendered_map = self.resolve_slots_map(&local_context, &slots_map)?;
+
+                context! { ..rendered_map }
+            }
+            None => context! { ..slots_map },
+        };
+
         let template = self
             .template_engine
             .get_template(template)

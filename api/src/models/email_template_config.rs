@@ -154,6 +154,41 @@ impl EmailTemplateSlots {
             EmailTemplateSlots::EventRegistrationConfirmation(slots) => slots.to_mailer_map(),
         }
     }
+
+    /// Returns a map of placeholder values for runtime template variables,
+    /// used when previewing a customised [`EmailTemplateConfig`] in the frontend.
+    ///
+    /// When users compose email content they can embed dynamic variables (e.g.
+    /// `{{ conversation_title }}`) that are only available at the point an email
+    /// is actually sent. This method provides realistic example values for those
+    /// variables so that previews render meaningfully rather than showing empty
+    /// or broken output.
+    ///
+    /// The returned map is specific to each [`EmailTemplateSlots`] variant, as
+    /// different email types expose different runtime variables. The values are
+    /// illustrative only and are never used in real email sends.
+    pub fn preview_variables_map(&self) -> HashMap<&str, String> {
+        match self {
+            EmailTemplateSlots::ConversationInvite(_) => HashMap::from([(
+                "conversation_title",
+                "Renewable energy in rural areas".to_string(),
+            )]),
+            EmailTemplateSlots::EventRegistrationConfirmation(_) => HashMap::from([
+                (
+                    "event_name",
+                    "Prioritising accessibility in websites".to_string(),
+                ),
+                ("event_time", "24 May, 2026".to_string()),
+            ]),
+            EmailTemplateSlots::EventRegistrationInvite(_) => HashMap::from([
+                (
+                    "event_name",
+                    "Prioritising accessibility in websites".to_string(),
+                ),
+                ("event_time", "24 May, 2026".to_string()),
+            ]),
+        }
+    }
 }
 
 impl std::fmt::Display for EmailTemplateSlots {

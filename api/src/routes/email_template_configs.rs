@@ -123,9 +123,12 @@ async fn preview(
 ) -> Result<(StatusCode, Json<PreviewEmailTemplateConfigResponse>), ComhairleError> {
     let template = slots.to_template();
     let custom_slots_map = slots.to_mailer_map();
-    let context = minijinja::context! { ..custom_slots_map };
+    let preview_variables_map = slots.preview_variables_map();
 
-    let html = state.mailer.preview_email(template, context)?;
+    let html =
+        state
+            .mailer
+            .preview_email(template, custom_slots_map, Some(preview_variables_map))?;
 
     Ok((
         StatusCode::OK,
