@@ -1,14 +1,29 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
 	import EventStrip from '$lib/components/EventStrip.svelte';
+	import {
+		CONVERSATION_TAB_EXTRAS_CTX,
+		type ConversationTabExtras
+	} from '$lib/conversationTabExtras';
 
 	let { data, children } = $props();
 
 	let conversation = $derived(data.conversation);
 	let events = $derived(data.events?.records ?? []);
+
+	const tabExtras = getContext<ConversationTabExtras>(CONVERSATION_TAB_EXTRAS_CTX);
+
+	$effect(() => {
+		if (!tabExtras) return;
+		tabExtras.primary = eventStripSnippet;
+		return () => {
+			tabExtras.primary = null;
+		};
+	});
 </script>
 
-<div class="-mx-4 -mt-8 sm:-mx-8 sm:-mt-10 lg:-mx-16">
+{#snippet eventStripSnippet()}
 	<EventStrip conversationId={conversation.id} {events} />
-</div>
+{/snippet}
 
 {@render children()}

@@ -55,7 +55,8 @@
 					{ label: 'Configure', value: 'configure' },
 					{ label: 'Setup', value: 'setup' },
 					{ label: 'Statements', value: 'statements' },
-					{ label: 'Participants', value: 'participants' }
+					{ label: 'Participants', value: 'participants' },
+					{ label: 'Moderate', value: 'moderate' }
 				]
 			: [
 					{ label: 'Configure', value: 'configure' },

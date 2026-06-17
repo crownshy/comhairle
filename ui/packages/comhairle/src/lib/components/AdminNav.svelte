@@ -99,6 +99,41 @@
 			</SideBar.GroupContent>
 		</SideBar.Group>
 
+		<!-- Conversations section (collapsed: dot list, active pill-highlighted) -->
+		<SideBar.Group class="hidden min-h-0 flex-1 group-data-[collapsible=icon]:flex">
+			<SideBar.GroupContent class="min-h-0 flex-1">
+				<ScrollArea.Root class="h-full" type="hover">
+					<SideBar.Menu class="items-center gap-0.5">
+						{#each conversations ?? [] as conversation (conversation.id)}
+							{@const active = isConversationActive(conversation.id)}
+							<SideBar.MenuItem>
+								<SideBar.MenuButton
+									isActive={active}
+									tooltipContent={conversation.title}
+									class="flex h-8 w-8 items-center justify-center p-0"
+								>
+									{#snippet child({ props: btnProps })}
+										<a
+											{...btnProps}
+											href={`/admin/conversations/${conversation.id}/configure`}
+											aria-label={conversation.title}
+										>
+											<span
+												class="size-1.5 rounded-full {active
+													? 'bg-sidebar-accent-foreground'
+													: 'bg-sidebar-foreground/40'}"
+												aria-hidden="true"
+											></span>
+										</a>
+									{/snippet}
+								</SideBar.MenuButton>
+							</SideBar.MenuItem>
+						{/each}
+					</SideBar.Menu>
+				</ScrollArea.Root>
+			</SideBar.GroupContent>
+		</SideBar.Group>
+
 		<!-- Conversations section -->
 		<SideBar.Group
 			class="flex min-h-0 flex-1 flex-col pr-1 group-data-[collapsible=icon]:hidden"

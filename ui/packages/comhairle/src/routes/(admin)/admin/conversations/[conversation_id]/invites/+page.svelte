@@ -6,6 +6,11 @@
 	import EmailInviteForm from '$lib/components/ui/email-invites/EmailInviteForm.svelte';
 	import InviteLabelDialog from '$lib/components/InviteLabelDialog.svelte';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
+	import { getContext } from 'svelte';
+	import {
+		CONVERSATION_TAB_EXTRAS_CTX,
+		type ConversationTabExtras
+	} from '$lib/conversationTabExtras';
 
 	import { formatDistanceToNow } from 'date-fns';
 	import QrCode from 'svelte-qrcode';
@@ -27,6 +32,16 @@
 	let { conversation } = data;
 
 	let activeTab = $derived(page.url.searchParams.get('subtab') ?? 'email');
+
+	const tabExtras = getContext<ConversationTabExtras>(CONVERSATION_TAB_EXTRAS_CTX);
+
+	$effect(() => {
+		if (!tabExtras) return;
+		tabExtras.primary = inviteSubtabStripSnippet;
+		return () => {
+			tabExtras.primary = null;
+		};
+	});
 
 	function createInviteLink() {
 		selectedInvite = null;
@@ -67,7 +82,7 @@
 	</div>
 {/snippet}
 
-<div class="-mx-4 -mt-8 mb-8 sm:-mx-8 sm:-mt-10 lg:-mx-16">
+{#snippet inviteSubtabStripSnippet()}
 	<SubTabStrip
 		items={[
 			{ label: 'Email', value: 'email' },
@@ -76,7 +91,7 @@
 		]}
 		defaultValue="email"
 	/>
-</div>
+{/snippet}
 
 <h1 class="mb-4 text-3xl font-bold">Recruit</h1>
 

@@ -29,7 +29,6 @@ export const conversationSections: ConversationSection[] = [
 	{ name: 'Events', path: 'events', icon: Database },
 	{ name: 'Recruit', path: 'invites', icon: UsersRound, requiresLive: true },
 	{ name: 'Monitor', path: 'monitor', icon: Binoculars, requiresLive: true },
-	{ name: 'Moderate', path: 'moderate', icon: UsersRound, requiresLive: true },
 	{ name: 'Notify', path: 'notifications', icon: Bell, requiresLive: true },
 	{ name: 'Report', path: 'report', icon: NotebookText, requiresLive: true }
 ];
