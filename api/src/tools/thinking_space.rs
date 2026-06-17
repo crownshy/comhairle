@@ -592,10 +592,18 @@ struct ThinkingSpaceQuery {
 async fn get_thinkin_space_summary(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Query(ThinkingSpaceQuery { workflow_step_id }): Query<ThinkingSpaceQuery>,
+    Query(ThinkingSpaceQuery { workflow_step_id: _ }): Query<ThinkingSpaceQuery>,
     Path(summary_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<ThinkingSpaceSummaryDto>), ComhairleError> {
     let summary = thinking_space_summary::get_by_id(&state.db, summary_id).await?;
+
+    // Hide other users' summaries behind a 404 rather than 403 so we don't
+    // leak that a summary with this id exists.
+    if summary.user_id != user.id {
+        return Err(ComhairleError::ResourceNotFound(
+            "ThinkingSpaceSummary".to_string(),
+        ));
+    }
 
     Ok((StatusCode::OK, Json(summary.into())))
 }
@@ -645,9 +653,13 @@ async fn update_or_create_thinking_space_summary(
 async fn list_thinking_space_summaries(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Query(filter_options): Query<ThinkingSpaceSummaryFilterOptions>,
+    Query(mut filter_options): Query<ThinkingSpaceSummaryFilterOptions>,
     Query(ThinkingSpaceQuery { workflow_step_id }): Query<ThinkingSpaceQuery>,
 ) -> Result<(StatusCode, Json<Vec<ThinkingSpaceSummaryDto>>), ComhairleError> {
+    // Scope to the authenticated user regardless of any caller-supplied user_id
+    // — summaries are private to the user that authored them.
+    filter_options.user_id = Some(user.id);
+
     let summaries = thinking_space_summary::list(&state.db, &workflow_step_id, filter_options)
         .await?
         .into_iter()
