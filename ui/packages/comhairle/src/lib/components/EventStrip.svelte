@@ -24,7 +24,9 @@
 	class="border-border bg-muted/50 scrollbar-none w-full overflow-x-auto border-b"
 	aria-label="Events"
 >
-	<ul class="flex min-w-max items-center gap-1.5 px-5 py-1">
+	<ul
+		class="flex min-w-max items-center gap-x-1.5 gap-y-0.5 px-5 py-1 sm:w-full sm:min-w-0 sm:flex-wrap"
+	>
 		<li>
 			<a
 				href={basePath}
