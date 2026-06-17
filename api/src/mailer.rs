@@ -104,6 +104,8 @@ pub trait ComhairleMailer: Send + Sync {
         subject: &str,
         html_body: &str,
     ) -> Result<(), ComhairleError>;
+
+    fn preview_email(&self, template: &str, context: Value) -> Result<String, ComhairleError>;
 }
 
 #[derive(Debug)]
@@ -144,6 +146,9 @@ impl MockComhairleMailer {
         mailer
             .expect_send_conversation_broadcast_email()
             .returning(|_, _, _| Ok(()));
+        mailer
+            .expect_preview_email()
+            .returning(|_, _| Ok(String::new()));
 
         mailer
     }
@@ -532,6 +537,30 @@ impl ComhairleMailer for Mailer {
             context! { subject, body => html_body },
             None,
         )
+    }
+
+    /// Renders an email template to HTML for preview purposes.
+    ///
+    /// Intended to be called from the frontend to allow users to preview how a
+    /// customised [`EmailTemplateConfig`] will appear as they are editing it,
+    /// before any emails are actually sent.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ComhairleError`] if:
+    /// - The named template does not exist ([`ComhairleError::MissingEmailTemplate`])
+    /// - The template fails to render (e.g. missing required variables or invalid syntax)
+    /// - CSS inlining fails
+    fn preview_email(&self, template: &str, context: Value) -> Result<String, ComhairleError> {
+        let template = self
+            .template_engine
+            .get_template(template)
+            .map_err(|_| ComhairleError::MissingEmailTemplate(template.to_string()))?;
+
+        let html = template.render(context)?;
+        let html_inline_styles = css_inline::inline(&html)?;
+
+        Ok(html_inline_styles)
     }
 }
 

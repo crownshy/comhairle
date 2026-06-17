@@ -10,6 +10,8 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -103,6 +105,34 @@ async fn list_schemas(
     Ok((StatusCode::OK, Json(schemas)))
 }
 
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+struct PreviewEmailTemplateConfigRequest {
+    slots: EmailTemplateSlots,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+struct PreviewEmailTemplateConfigResponse {
+    html: String,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn preview(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    Json(PreviewEmailTemplateConfigRequest { slots }): Json<PreviewEmailTemplateConfigRequest>,
+) -> Result<(StatusCode, Json<PreviewEmailTemplateConfigResponse>), ComhairleError> {
+    let template = slots.to_template();
+    let custom_slots_map = slots.to_mailer_map();
+    let context = minijinja::context! { ..custom_slots_map };
+
+    let html = state.mailer.preview_email(template, context)?;
+
+    Ok((
+        StatusCode::OK,
+        Json(PreviewEmailTemplateConfigResponse { html }),
+    ))
+}
+
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route(
@@ -180,6 +210,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .security_requirement("JWT")
                     .tag("EmailTemplateConfig")
                     .response::<200, Json<[EmailTypeSchema; 3]>>()
+            }),
+        )
+        .api_route(
+            "/preview",
+            post_with(preview, |op| {
+                op.id("PreviewEmailTemplateConfig")
+                    .summary("Preview email template config")
+                    .description("Preview appearance of custom email before sending")
+                    .security_requirement("JWT")
+                    .tag("EmailTemplateConfig")
+                    .response::<200, Json<PreviewEmailTemplateConfigResponse>>()
             }),
         )
         .with_state(state)

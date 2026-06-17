@@ -1946,6 +1946,18 @@ export const EmailTypeSchema = z
   })
   .passthrough();
 export type EmailTypeSchema = z.infer<typeof EmailTypeSchema>;
+export const PreviewEmailTemplateConfigRequest = z
+  .object({ slots: EmailTemplateSlots })
+  .passthrough();
+export type PreviewEmailTemplateConfigRequest = z.infer<
+  typeof PreviewEmailTemplateConfigRequest
+>;
+export const PreviewEmailTemplateConfigResponse = z
+  .object({ html: z.string() })
+  .passthrough();
+export type PreviewEmailTemplateConfigResponse = z.infer<
+  typeof PreviewEmailTemplateConfigResponse
+>;
 
 export const schemas: Record<string, z.ZodType<any>> = {
   AnnonLoginRequest,
@@ -2165,6 +2177,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UpdateEmailTemplateConfig,
   SlotSchemaDefinition,
   EmailTypeSchema,
+  PreviewEmailTemplateConfigRequest,
+  PreviewEmailTemplateConfigResponse,
 };
 
 const endpoints = makeApi([
@@ -3496,6 +3510,21 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     response: EmailTypeSchema,
   },
   {
+    method: "post",
+    path: "/email_template_configs/preview",
+    alias: "PreviewEmailTemplateConfig",
+    description: `Preview appearance of custom email before sending`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: PreviewEmailTemplateConfigRequest,
+      },
+    ],
+    response: z.object({ html: z.string() }).passthrough(),
+  },
+  {
     method: "get",
     path: "/email_template_configs/schemas",
     alias: "ListEmailTemplateSchemas",
@@ -4272,11 +4301,6 @@ Use a raw HTTP request and process the response body incrementally.
         name: "is_ai_generated",
         type: "Query",
         schema: is_complete,
-      },
-      {
-        name: "user_id",
-        type: "Query",
-        schema: created_after,
       },
       {
         name: "workflow_step_id",

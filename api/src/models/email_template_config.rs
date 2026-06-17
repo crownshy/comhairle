@@ -100,7 +100,7 @@ impl EmailTemplateSlots {
             },
             EmailTemplateSlots::EventRegistrationConfirmation(_) => EmailTypeSchema {
                 email_type: self.to_type_str(),
-                variables: &[],
+                variables: &["event_name", "event_time"],
                 slots: DEFAULT_SLOTS_SCHEMA,
             },
         }
