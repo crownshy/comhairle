@@ -7,13 +7,14 @@
 	import ElicitationBotManage from '$lib/tools/elicitation_bot/ElicitationBotManage.svelte';
 	import LivedExperienceManage from '$lib/tools/lived_experince/LivedExperinceManage.svelte';
 	import * as Prioritization from '$lib/tools/prioritization';
-	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Pencil } from 'lucide-svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
 	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
+	import { page } from '$app/state';
+	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
 	let { data } = $props();
 
 	let editMetadataOpen = $state(false);
@@ -38,12 +39,6 @@
 	let workflowSteps = $derived(data.workflowSteps);
 
 	let step = $derived(workflowSteps.find((s) => s.id === step_id));
-	let nextStep = $derived(
-		step ? workflowSteps.find((s) => s.stepOrder === step.stepOrder + 1) : undefined
-	);
-	let prevStep = $derived(
-		step ? workflowSteps.find((s) => s.stepOrder === step.stepOrder - 1) : undefined
-	);
 	let toolConfig = $derived(
 		step ? (conversation.isLive ? step.toolConfig : step.previewToolConfig) : null
 	);
@@ -56,11 +51,27 @@
 			step?.name ?? ''
 		) || 'Unnamed step'
 	);
+
+	let isPolis = $derived(toolConfig?.type === 'polis');
+	let polisSubtab = $derived(page.url.searchParams.get('subtab') ?? 'setup');
 </script>
 
 <svelte:head>
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
+
+{#if isPolis}
+	<div class="-mx-4 mb-6 sm:-mx-8 lg:-mx-16">
+		<SubTabStrip
+			items={[
+				{ label: 'Setup', value: 'setup' },
+				{ label: 'Statements', value: 'statements' },
+				{ label: 'Participants', value: 'participants' }
+			]}
+			defaultValue="setup"
+		/>
+	</div>
+{/if}
 
 <div class="mb-6 flex w-full min-w-0 flex-col">
 	<div class="flex w-full min-w-0 items-center gap-3">
@@ -92,26 +103,6 @@
 			/>
 		</div>
 	{/if}
-	<div class="border-base-border mt-5 flex w-full border-t pt-4">
-		<AdminPrevNextControls
-			hidePrevLabel
-			next={nextStep
-				? {
-						name: nextStep.name,
-						url: `/admin/conversations/${conversation.id}/design/step/${nextStep.id}`
-					}
-				: {
-						name: 'Setup Knowledge base',
-						url: `/admin/conversations/${conversation.id}/knowledge-base`
-					}}
-			prev={prevStep
-				? {
-						name: prevStep.name,
-						url: `/admin/conversations/${conversation.id}/design/step/${prevStep.id}`
-					}
-				: { name: 'Workflow', url: `/admin/conversations/${conversation.id}/design` }}
-		/>
-	</div>
 </div>
 
 {#if step}
@@ -134,13 +125,23 @@
 {/if}
 
 {#if toolConfig?.type === 'polis'}
-	<PolisManage
-		{toolConfig}
-		conversationId={conversation.id}
-		workflowId={workflow.id}
-		workflowStepId={step.id}
-		isLive={conversation.isLive}
-	/>
+	{#if polisSubtab === 'setup'}
+		<PolisManage
+			{toolConfig}
+			conversationId={conversation.id}
+			workflowId={workflow.id}
+			workflowStepId={step.id}
+			isLive={conversation.isLive}
+		/>
+	{:else if polisSubtab === 'statements'}
+		<div class="text-muted-foreground py-12 text-center text-sm">
+			Statements view coming soon.
+		</div>
+	{:else if polisSubtab === 'participants'}
+		<div class="text-muted-foreground py-12 text-center text-sm">
+			Participants view coming soon.
+		</div>
+	{/if}
 {/if}
 
 {#if toolConfig?.type === 'heyform'}

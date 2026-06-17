@@ -115,15 +115,15 @@
 								{@const active = isConversationActive(conversation.id)}
 								<SideBar.MenuItem>
 									<SideBar.MenuButton
-										class="text-sidebar-foreground/80 data-[active=true]:bg-sidebar-accent h-8 w-full overflow-hidden rounded-lg p-2 data-[active=true]:font-semibold data-[active=true]:text-white"
+										class="text-sidebar-foreground/80 data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground h-8 w-full overflow-hidden rounded-lg p-2 data-[active=true]:font-semibold"
 										isActive={active}
 									>
 										{#snippet child({ props: btnProps })}
 											<a
 												{...btnProps}
 												href={`/admin/conversations/${conversation.id}/configure`}
-												class="hover:bg-sidebar-accent flex w-full items-center rounded-lg px-2 py-1.5 hover:text-white {active
-													? 'bg-sidebar-accent font-semibold text-white'
+												class="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center rounded-lg px-2 py-1.5 {active
+													? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
 													: ''}"
 											>
 												{#if conversation.title.length > 29}
