@@ -535,11 +535,16 @@ async fn generate_thinking_space_summary(
         survey_responses: Some(answers_json),
         ..Default::default()
     };
+
+    // Create a dedicated session per request so concurrent summary generations
+    // from different users cannot share bot-service session state.
+    let (_, agent_session) = bot_service
+        .create_agent_session(&bot_service_config.thinking_space_summary_agent_id)
+        .await?;
+
     let stream = bot_service
         .converse_with_agent(
-            // Should be a one-shot request so allowing bot service to generate a session
-            // per request should suffice
-            None,
+            Some(&agent_session.id),
             &bot_service_config.thinking_space_summary_agent_id,
             params,
         )
