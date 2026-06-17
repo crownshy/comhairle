@@ -4107,11 +4107,6 @@ Use a raw HTTP request and process the response body incrementally.
         schema: is_complete,
       },
       {
-        name: "user_id",
-        type: "Query",
-        schema: created_after,
-      },
-      {
         name: "workflow_step_id",
         type: "Query",
         schema: z.string().uuid(),
