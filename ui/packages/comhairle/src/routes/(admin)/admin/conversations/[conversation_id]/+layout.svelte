@@ -5,10 +5,18 @@
 	import LaunchConversationModal from '$lib/components/LaunchConversationModal.svelte';
 	import EndConversationModal from '$lib/components/EndConversationModal.svelte';
 	import ConversationTabs from '$lib/components/ConversationTabs.svelte';
+	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
 
 	let { data, children } = $props();
 
 	let conversation = $derived(data.conversation);
+	let displayTitle = $derived(
+		getTextInLocale(
+			conversation.translations?.title,
+			conversation.primaryLocale ?? 'en',
+			conversation.title
+		) || conversation.title
+	);
 	let endModalOpen = $state(false);
 	let launchModalOpen = $state(false);
 </script>
@@ -19,9 +27,9 @@
 >
 	<h1
 		class="text-primary max-w-[22ch] truncate text-lg leading-7 font-semibold sm:max-w-[40ch]"
-		title={conversation.title}
+		title={displayTitle}
 	>
-		{conversation.title}
+		{displayTitle}
 	</h1>
 
 	<!-- Mobile actions: single more-menu -->

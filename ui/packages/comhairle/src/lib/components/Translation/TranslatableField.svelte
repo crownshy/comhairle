@@ -102,6 +102,8 @@
 					await markOtherTranslationsAsDraft(id, primaryLocale, approved);
 				}
 				setSaveStatus('saved');
+
+				await invalidateAll();
 			} catch (e) {
 				console.error('Failed to save primary content:', e);
 				setSaveStatus('idle');
