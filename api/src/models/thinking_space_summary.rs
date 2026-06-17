@@ -135,8 +135,12 @@ pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<ThinkingSpaceSummary, Co
 
 #[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct ThinkingSpaceSummaryFilterOptions {
-    user_id: Option<Uuid>,
-    is_ai_generated: Option<bool>,
+    // Server-set only — handlers must scope this to the authenticated user.
+    // Hidden from the public schema/query string so callers can't spoof it.
+    #[serde(skip_deserializing)]
+    #[schemars(skip)]
+    pub user_id: Option<Uuid>,
+    pub is_ai_generated: Option<bool>,
 }
 
 impl ThinkingSpaceSummaryFilterOptions {
