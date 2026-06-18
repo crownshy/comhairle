@@ -17,9 +17,7 @@ Required:
 {% extends "email_layout.html" %}
 {% block content %}
 <div style="text-align: left">
-
-	<!-- TODO: wrap in h1 and make a text field instead of rich text -->
-	{{heading|safe}}
+	<h1>{{heading}}</h1>
 
 	{{intro|safe}}
 

@@ -61,6 +61,17 @@ pub struct SlotSchemaDefinition {
     /// Default html used as a starting point for a slot as well as a fallback
     /// if an [`EmailTemplateConfig`] does not exist for this user / email_type.
     pub default_content: &'static str,
+    /// Defines whether a slot requires rich text HTML editing or plain text
+    /// inserted into an existing HTML tag and is used on the frontend to render
+    /// the appropriate input type.
+    pub content_type: ContentType,
+}
+
+#[derive(Serialize, JsonSchema, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
+enum ContentType {
+    PlainText,
+    RichText,
 }
 
 #[derive(Serialize, JsonSchema, Debug, Clone)]
@@ -81,25 +92,29 @@ pub const SLOTS_SCHEMA_CONVERSATION_INVITE: &[SlotSchemaDefinition] = &[
         key: "heading",
         label: "Heading",
         hint: "The email heading",
-        default_content: "Dear Invited Participant,"
+        default_content: "Dear Invited Participant,",
+        content_type: ContentType::PlainText,
     },
     SlotSchemaDefinition {
         key: "intro",
         label: "Intro",
         hint: "Opening paragraph",
-        default_content: "<p>You have been selected to take part in a public engagement, <strong>{{conversation_title}}</strong>, hosted on the <strong>Comhairle</strong> platform by <strong>CrownShy</strong>.<p />"
+        default_content: "<p>You have been selected to take part in a public engagement, <strong>{{conversation_title}}</strong>, hosted on the <strong>Comhairle</strong> platform by <strong>CrownShy</strong>.<p />",
+        content_type: ContentType::RichText,
     },
     SlotSchemaDefinition {
         key: "body",
         label: "Body",
         hint: "Main email content",
-        default_content: "<p>We’re inviting you to complete the online engagement.</p><p>We’re keen to hear your real views and reflections. If you choose to take part, we ask that you:</p><ul><li>Read and consider each question carefully.</li><li>Provide your own honest opinions, not blank or repetitive answers.</li><li>Complete <strong>all sections</strong> of the engagement.</li></ul>"
+        default_content: "<p>We’re inviting you to complete the online engagement.</p><p>We’re keen to hear your real views and reflections. If you choose to take part, we ask that you:</p><ul><li>Read and consider each question carefully.</li><li>Provide your own honest opinions, not blank or repetitive answers.</li><li>Complete <strong>all sections</strong> of the engagement.</li></ul>",
+        content_type: ContentType::RichText,
     },
     SlotSchemaDefinition {
         key: "footer",
         label: "Footer",
         hint: "Closing line",
-        default_content: "<p>Thank you very much for your time and contribution to this important process.</p><p>Warm regards, <br /><strong>The CrownShy Team.</strong></p>"
+        default_content: "<p>Thank you very much for your time and contribution to this important process.</p><p>Warm regards, <br /><strong>The CrownShy Team.</strong></p>",
+        content_type: ContentType::RichText,
     },
 ];
 
@@ -108,25 +123,29 @@ pub const SLOTS_SCHEMA_EVENT_REGISTRATION_INVITE: &[SlotSchemaDefinition] = &[
         key: "heading",
         label: "Heading",
         hint: "The email heading",
-        default_content: "Hello!"
+        default_content: "Hello!",
+        content_type: ContentType::PlainText,
     },
     SlotSchemaDefinition {
         key: "intro",
         label: "Intro",
         hint: "Opening paragraph",
-        default_content: "<p>You are invited to take part in <strong>{{event_name}}</strong> with <strong>{{organization_name}}</strong> to collaborate with them.</p>"
+        default_content: "<p>You are invited to take part in <strong>{{event_name}}</strong> with <strong>{{organization_name}}</strong> to collaborate with them.</p>",
+        content_type: ContentType::RichText,
     },
     SlotSchemaDefinition {
         key: "body",
         label: "Body",
         hint: "Main email content",
-        default_content: "<p>Click the button below to register.</p>"
+        default_content: "<p>Click the button below to register.</p>",
+        content_type: ContentType::RichText,
     },
     SlotSchemaDefinition {
         key: "footer",
         label: "Footer",
         hint: "Closing line",
-        default_content: "<p>We look forward to your participation!</p><p><strong>{{organization_name}}</strong></p>"
+        default_content: "<p>We look forward to your participation!</p><p><strong>{{organization_name}}</strong></p>",
+        content_type: ContentType::RichText,
     },
 ];
 
@@ -136,24 +155,28 @@ pub const SLOTS_SCHEMA_EVENT_REGISTRATION_CONFIRMATION: &[SlotSchemaDefinition] 
         label: "Heading",
         hint: "The email heading",
         default_content: "You're in!",
+        content_type: ContentType::PlainText,
     },
     SlotSchemaDefinition {
         key: "intro",
         label: "Intro",
         hint: "Opening paragraph",
         default_content: "<p>Thank you for registering for <strong>{{event_name}}</strong>.",
+        content_type: ContentType::RichText,
     },
     SlotSchemaDefinition {
         key: "body",
         label: "Body",
         hint: "Main email content",
         default_content: "<p>You will be sent a reminder email before the event with instructions on how to join the online meeting.</p>",
+        content_type: ContentType::RichText,
     },
     SlotSchemaDefinition {
         key: "footer",
         label: "Footer",
         hint: "Closing line",
         default_content: "<p>We look forward to seeing you there!</p><p><strong>{{organization_name}}</strong></p>",
+        content_type: ContentType::RichText,
     },
 ];
 

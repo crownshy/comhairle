@@ -1,22 +1,10 @@
 {% extends "email_layout.html" %}
 {% block content %}
-	{% if heading %}
-		{{heading|safe}}
-	{% else %}
-		<h1>You're in!</h1>
-	{% endif %}
+	<h1>{{heading}}</h1>
 
-	{% if intro %}
-		{{intro|safe}}
-	{% else %}
-		<p>Thank you for registering for {{event_name}}.</p>
-	{% endif %}
+	{{intro|safe}}
 
-	{% if body %}
-		{{body|safe}}
-	{% else %}
-		<p>You will be sent a reminder email before the event with instructions on how to join the online meeting.</p>
-	{% endif %}
+	{{body|safe}}
 	
 
 	<div class="card">
@@ -37,11 +25,5 @@
 		</p>
 	{% endif %}
 
-	{% if footer %}
-		{{footer|safe}}
-	{% else %}
-		<p>We look forward to seeing you there!</p>
-
-		<p><strong>{{organization_name}}</strong></p>
-	{% endif %}
+	{{footer|safe}}
 {% endblock %}

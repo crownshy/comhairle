@@ -50,13 +50,22 @@
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
 
-		const toHtml: { [key: string]: string } = {};
-		Object.entries(formState.slots).map(([key, value]) => (toHtml[key] = jsonToHtml(value)));
+		const parsed: { [key: string]: string } = {};
+		Object.entries(formState.slots).map(([key, value]) => {
+			const matched = schema.slots.find((slot) => slot.key === key);
+			if (!matched) return;
+
+			if (matched.content_type === 'rich_text') {
+				parsed[key] = jsonToHtml(value);
+			} else {
+				parsed[key] = value;
+			}
+		});
 
 		try {
 			await apiClient.UpdateEmailTemplateConfig(
 				{
-					slots: { type: emailConfig.emailType, ...toHtml },
+					slots: { type: emailConfig.emailType, ...parsed },
 					...(formState.subject && { subject: formState.subject })
 				},
 				{ params: { email_config_id: emailConfig.id } }
@@ -97,15 +106,20 @@
 
 	const debouncedPreviewEmail = useDebounce(async () => {
 		try {
-			const toHtml: { [key: string]: string } = {};
-			Object.entries(formState.slots).forEach(([key, value]) => {
-				if (value) {
-					toHtml[key] = jsonToHtml(value);
+			const parsed: { [key: string]: string } = {};
+			Object.entries(formState.slots).map(([key, value]) => {
+				const matched = schema.slots.find((slot) => slot.key === key);
+				if (!matched) return;
+
+				if (matched.content_type === 'rich_text') {
+					parsed[key] = jsonToHtml(value);
+				} else {
+					parsed[key] = value;
 				}
 			});
 
 			const response = await apiClient.PreviewEmailTemplateConfig({
-				slots: { type: schema.email_type, ...toHtml }
+				slots: { type: schema.email_type, ...parsed }
 			});
 
 			previewHtml = response.html;
@@ -163,12 +177,20 @@
 				<span>{slot.label}</span>
 				<span class="text-sm font-normal">{slot.hint}</span>
 			</Label>
-			<RichTextEditor
-				width="100%"
-				value={formState.slots[slot.key]}
-				placeholder="Enter email content..."
-				onChange={(json) => (formState.slots[slot.key] = json)}
-			/>
+			{#if slot.content_type === 'plain_text'}
+				<Input
+					placeholder="Enter email content..."
+					defaultValue={formState.slots[slot.key]}
+					onchange={(e) => (formState.slots[slot.key] = e.target?.value)}
+				/>
+			{:else}
+				<RichTextEditor
+					width="100%"
+					value={formState.slots[slot.key]}
+					placeholder="Enter email content..."
+					onChange={(json) => (formState.slots[slot.key] = json)}
+				/>
+			{/if}
 		</div>
 	{/each}
 

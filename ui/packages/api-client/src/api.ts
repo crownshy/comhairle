@@ -1928,8 +1928,11 @@ export const UpdateEmailTemplateConfig = z
 export type UpdateEmailTemplateConfig = z.infer<
   typeof UpdateEmailTemplateConfig
 >;
+export const ContentType = z.enum(["plain_text", "rich_text"]);
+export type ContentType = z.infer<typeof ContentType>;
 export const SlotSchemaDefinition = z
   .object({
+    content_type: ContentType,
     default_content: z.string(),
     hint: z.string(),
     key: z.string(),
@@ -2174,6 +2177,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EmailTemplateConfigDto,
   CreateEmailTemplateConfig,
   UpdateEmailTemplateConfig,
+  ContentType,
   SlotSchemaDefinition,
   EmailTypeSchema,
   PreviewEmailTemplateConfigRequest,
