@@ -308,7 +308,7 @@ impl ComhairleMailer for Mailer {
 
         let rendered_map = self.resolve_slots_map(&conversation_context, &slots_map)?;
 
-        let context = context! { invite_link, ..rendered_map };
+        let context = context! { invite_link, domain => state.config.domain, ..rendered_map };
 
         self.send_email(to, &subject, "conversation_invite.html", context, None)?;
 
@@ -406,7 +406,6 @@ impl ComhairleMailer for Mailer {
         let event_context = context! {
             event_name => event.name,
             event_time => event.format_date_with_time_zone(event.start_time, None),
-            organization_name => "Bloom", // TODO:
             invite_link,
         };
 
@@ -435,7 +434,6 @@ impl ComhairleMailer for Mailer {
         let context = context! {
             event_name => event.name,
             event_time => event.format_date_with_time_zone(event.start_time, None),
-            organization_name => "Bloom", // TODO:
             invite_link,
             ..rendered_map
         };
@@ -474,8 +472,6 @@ impl ComhairleMailer for Mailer {
         let event_context = context! {
             event_name => event.name,
             event_time => event.format_date_with_time_zone(event.start_time, None),
-            organization_name => "Bloom", // TODO:
-            // organization_email => organization_email,
             event_link,
         };
 
@@ -502,8 +498,6 @@ impl ComhairleMailer for Mailer {
         let context = context! {
             event_name => event.name,
             event_time => event.format_date_with_time_zone(event.start_time, None),
-            organization_name => "Bloom", // TODO:
-            // organization_email => organization_email,
             event_link,
             ..rendered_map
         }; // TODO: find a better way of

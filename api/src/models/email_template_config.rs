@@ -132,7 +132,7 @@ pub const SLOTS_SCHEMA_EVENT_REGISTRATION_INVITE: &[SlotSchemaDefinition] = &[
         key: "intro",
         label: "Intro",
         hint: "Opening paragraph",
-        default_content: "<p>You are invited to take part in <strong>{{event_name}}</strong> with <strong>{{organization_name}}</strong> to collaborate with them.</p>",
+        default_content: "<p>You are invited to take part in <strong>{{event_name}}</strong> with <strong>CrownShy</strong> to collaborate with them.</p>",
         content_type: ContentType::RichText,
     },
     SlotSchemaDefinition {
@@ -146,7 +146,7 @@ pub const SLOTS_SCHEMA_EVENT_REGISTRATION_INVITE: &[SlotSchemaDefinition] = &[
         key: "footer",
         label: "Footer",
         hint: "Closing line",
-        default_content: "<p>We look forward to your participation!</p><p><strong>{{organization_name}}</strong></p>",
+        default_content: "<p>We look forward to your participation!</p><p><strong>CrownShy</strong></p>",
         content_type: ContentType::RichText,
     },
 ];
@@ -177,7 +177,7 @@ pub const SLOTS_SCHEMA_EVENT_REGISTRATION_CONFIRMATION: &[SlotSchemaDefinition] 
         key: "footer",
         label: "Footer",
         hint: "Closing line",
-        default_content: "<p>We look forward to seeing you there!</p><p><strong>{{organization_name}}</strong></p>",
+        default_content: "<p>We look forward to seeing you there!</p><p><strong>CrownShy</strong></p>",
         content_type: ContentType::RichText,
     },
 ];
@@ -287,10 +287,10 @@ impl EmailTemplateSlots {
         match self {
             EmailTemplateSlots::ConversationInvite(_) => &["conversation_title"],
             EmailTemplateSlots::EventRegistrationInvite(_) => {
-                &["event_name", "event_time", "organization_name"]
+                &["event_name", "event_time", "invite_link"]
             }
             EmailTemplateSlots::EventRegistrationConfirmation(_) => {
-                &["event_name", "event_time", "organization_name"]
+                &["event_name", "event_time", "event_link"]
             }
         }
     }
@@ -360,7 +360,10 @@ impl EmailTemplateSlots {
                     "Prioritising accessibility in websites".to_string(),
                 ),
                 ("event_time".to_string(), "24 May, 2026".to_string()),
-                ("organization_name".to_string(), "CrownShy".to_string()),
+                (
+                    "invite_link".to_string(),
+                    "https://crown-shy.com/invite".to_string(),
+                ),
             ]),
             EmailTemplateSlots::EventRegistrationInvite(_) => HashMap::from([
                 (
@@ -368,7 +371,10 @@ impl EmailTemplateSlots {
                     "Prioritising accessibility in websites".to_string(),
                 ),
                 ("event_time".to_string(), "24 May, 2026".to_string()),
-                ("organization_name".to_string(), "CrownShy".to_string()),
+                (
+                    "event_link".to_string(),
+                    "https://crown-shy.com/event".to_string(),
+                ),
             ]),
         }
     }
