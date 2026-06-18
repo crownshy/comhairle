@@ -33,16 +33,90 @@ pub struct EmailTemplateConfig {
     pub id: Uuid,
     pub owner_id: Uuid,
     pub organization_id: Option<Uuid>,
-    pub email_type: String,
+    pub email_type: EmailType,
     pub slots: EmailTemplateSlots,
     pub subject: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
-pub const TYPE_CONVERSATION_INVITE: &str = "conversation_invite";
-pub const TYPE_EVENT_REGISTRATION_INVITE: &str = "event_registration_invite";
-pub const TYPE_EVENT_REGISTRATION_CONFIRMATION: &str = "event_registration_confirmation";
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq, PartialOrd, sqlx::Type)]
+#[sqlx(type_name = "TEXT")]
+#[serde(rename_all = "snake_case")]
+pub enum EmailType {
+    #[sqlx(rename = "conversation_invite")]
+    ConversationInvite,
+    #[sqlx(rename = "event_registration_invite")]
+    EventRegistrationInvite,
+    #[sqlx(rename = "event_registration_invite")]
+    EventRegistrationConfirmation,
+}
+
+impl From<EmailType> for sea_query::Value {
+    fn from(val: EmailType) -> Self {
+        sea_query::Value::String(Some(Box::new(val.to_string())))
+    }
+}
+
+impl std::fmt::Display for EmailType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = match self {
+            EmailType::ConversationInvite => "conversation_invite",
+            EmailType::EventRegistrationInvite => "event_registration_invite",
+            EmailType::EventRegistrationConfirmation => "event_registration_invite",
+        };
+        write!(f, "{}", value)
+    }
+}
+
+impl Type<Postgres> for EmailTemplateSlots {
+    fn type_info() -> PgTypeInfo {
+        <serde_json::Value as Type<Postgres>>::type_info()
+    }
+}
+
+impl<'q> Encode<'q, Postgres> for EmailTemplateSlots {
+    fn encode_by_ref(
+        &self,
+        buf: &mut PgArgumentBuffer,
+    ) -> Result<IsNull, sqlx::error::BoxDynError> {
+        let json = serde_json::to_value(self)?;
+        <serde_json::Value as Encode<Postgres>>::encode(json, buf)
+    }
+}
+
+impl<'r> Decode<'r, Postgres> for EmailTemplateSlots {
+    fn decode(value: PgValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        let json: serde_json::Value = Decode::<Postgres>::decode(value)?;
+        Ok(serde_json::from_value(json)?)
+    }
+}
+
+const DEFAULT_COLUMNS: [EmailTemplateConfigIden; 8] = [
+    EmailTemplateConfigIden::Id,
+    EmailTemplateConfigIden::OwnerId,
+    EmailTemplateConfigIden::OrganizationId,
+    EmailTemplateConfigIden::EmailType,
+    EmailTemplateConfigIden::Slots,
+    EmailTemplateConfigIden::Subject,
+    EmailTemplateConfigIden::CreatedAt,
+    EmailTemplateConfigIden::UpdatedAt,
+];
+
+// ===
+//
+// Schemas
+//
+// ===
+
+#[derive(Serialize, JsonSchema, Debug, Clone)]
+pub struct EmailTypeSchema {
+    pub email_type: EmailType,
+    pub template: &'static str,
+    pub default_subject: &'static str,
+    pub variables: &'static [&'static str],
+    pub slots: &'static [SlotSchemaDefinition],
+}
 
 /// Metadata describing a single configurable slot in an email template.
 ///
@@ -76,111 +150,116 @@ enum ContentType {
     RichText,
 }
 
-#[derive(Serialize, JsonSchema, Debug, Clone)]
-pub struct EmailTypeSchema {
-    pub email_type: &'static str,
-    pub variables: &'static [&'static str],
-    pub slots: &'static [SlotSchemaDefinition],
-}
+pub const SCHEMA_CONVERSATION_INVITE: EmailTypeSchema = EmailTypeSchema {
+    email_type: EmailType::ConversationInvite,
+    template: "conversation_invite.html",
+    default_subject: "Invitation to take part in a public consultation",
+    variables: &["conversation_title"],
+    slots: &[
+        SlotSchemaDefinition {
+            key: "heading",
+            label: "Heading",
+            hint: "The email heading",
+            default_content: "Dear Invited Participant,",
+            content_type: ContentType::PlainText,
+        },
+        SlotSchemaDefinition {
+            key: "intro",
+            label: "Intro",
+            hint: "Opening paragraph",
+            default_content: "<p>You have been selected to take part in a public engagement, <strong>{{conversation_title}}</strong>, hosted on the <strong>Comhairle</strong> platform by <strong>CrownShy</strong>.<p />",
+            content_type: ContentType::RichText,
+        },
+        SlotSchemaDefinition {
+            key: "body",
+            label: "Body",
+            hint: "Main email content",
+            default_content: "<p>We’re inviting you to complete the online engagement.</p><p>We’re keen to hear your real views and reflections. If you choose to take part, we ask that you:</p><ul><li>Read and consider each question carefully.</li><li>Provide your own honest opinions, not blank or repetitive answers.</li><li>Complete <strong>all sections</strong> of the engagement.</li></ul>",
+            content_type: ContentType::RichText,
+        },
+        SlotSchemaDefinition {
+            key: "footer",
+            label: "Footer",
+            hint: "Closing line",
+            default_content: "<p>Thank you very much for your time and contribution to this important process.</p><p>Warm regards, <br /><strong>The CrownShy Team.</strong></p>",
+            content_type: ContentType::RichText,
+        },
+    ]
+};
 
-// ===
-//
-// Schemas
-//
-// ===
+pub const SCHEMA_EVENT_REGISTRATION_INVITE: EmailTypeSchema = EmailTypeSchema {
+    email_type: EmailType::EventRegistrationInvite,
+    template: "event_registration_invite.html",
+    default_subject: "Invitation to take part in an event",
+    variables: &["event_name", "event_time", "invite_link"],
+    slots: &[
+        SlotSchemaDefinition {
+            key: "heading",
+            label: "Heading",
+            hint: "The email heading",
+            default_content: "Hello!",
+            content_type: ContentType::PlainText,
+        },
+        SlotSchemaDefinition {
+            key: "intro",
+            label: "Intro",
+            hint: "Opening paragraph",
+            default_content: "<p>You are invited to take part in <strong>{{event_name}}</strong> with <strong>CrownShy</strong> to collaborate with them.</p>",
+            content_type: ContentType::RichText,
+        },
+        SlotSchemaDefinition {
+            key: "body",
+            label: "Body",
+            hint: "Main email content",
+            default_content: "<p>Click the button below to register.</p>",
+            content_type: ContentType::RichText,
+        },
+        SlotSchemaDefinition {
+            key: "footer",
+            label: "Footer",
+            hint: "Closing line",
+            default_content: "<p>We look forward to your participation!</p><p><strong>CrownShy</strong></p>",
+            content_type: ContentType::RichText,
+        },
+    ]
+};
 
-pub const SLOTS_SCHEMA_CONVERSATION_INVITE: &[SlotSchemaDefinition] = &[
-    SlotSchemaDefinition {
-        key: "heading",
-        label: "Heading",
-        hint: "The email heading",
-        default_content: "Dear Invited Participant,",
-        content_type: ContentType::PlainText,
-    },
-    SlotSchemaDefinition {
-        key: "intro",
-        label: "Intro",
-        hint: "Opening paragraph",
-        default_content: "<p>You have been selected to take part in a public engagement, <strong>{{conversation_title}}</strong>, hosted on the <strong>Comhairle</strong> platform by <strong>CrownShy</strong>.<p />",
-        content_type: ContentType::RichText,
-    },
-    SlotSchemaDefinition {
-        key: "body",
-        label: "Body",
-        hint: "Main email content",
-        default_content: "<p>We’re inviting you to complete the online engagement.</p><p>We’re keen to hear your real views and reflections. If you choose to take part, we ask that you:</p><ul><li>Read and consider each question carefully.</li><li>Provide your own honest opinions, not blank or repetitive answers.</li><li>Complete <strong>all sections</strong> of the engagement.</li></ul>",
-        content_type: ContentType::RichText,
-    },
-    SlotSchemaDefinition {
-        key: "footer",
-        label: "Footer",
-        hint: "Closing line",
-        default_content: "<p>Thank you very much for your time and contribution to this important process.</p><p>Warm regards, <br /><strong>The CrownShy Team.</strong></p>",
-        content_type: ContentType::RichText,
-    },
-];
-
-pub const SLOTS_SCHEMA_EVENT_REGISTRATION_INVITE: &[SlotSchemaDefinition] = &[
-    SlotSchemaDefinition {
-        key: "heading",
-        label: "Heading",
-        hint: "The email heading",
-        default_content: "Hello!",
-        content_type: ContentType::PlainText,
-    },
-    SlotSchemaDefinition {
-        key: "intro",
-        label: "Intro",
-        hint: "Opening paragraph",
-        default_content: "<p>You are invited to take part in <strong>{{event_name}}</strong> with <strong>CrownShy</strong> to collaborate with them.</p>",
-        content_type: ContentType::RichText,
-    },
-    SlotSchemaDefinition {
-        key: "body",
-        label: "Body",
-        hint: "Main email content",
-        default_content: "<p>Click the button below to register.</p>",
-        content_type: ContentType::RichText,
-    },
-    SlotSchemaDefinition {
-        key: "footer",
-        label: "Footer",
-        hint: "Closing line",
-        default_content: "<p>We look forward to your participation!</p><p><strong>CrownShy</strong></p>",
-        content_type: ContentType::RichText,
-    },
-];
-
-pub const SLOTS_SCHEMA_EVENT_REGISTRATION_CONFIRMATION: &[SlotSchemaDefinition] = &[
-    SlotSchemaDefinition {
-        key: "heading",
-        label: "Heading",
-        hint: "The email heading",
-        default_content: "You're in!",
-        content_type: ContentType::PlainText,
-    },
-    SlotSchemaDefinition {
-        key: "intro",
-        label: "Intro",
-        hint: "Opening paragraph",
-        default_content: "<p>Thank you for registering for <strong>{{event_name}}</strong>.",
-        content_type: ContentType::RichText,
-    },
-    SlotSchemaDefinition {
-        key: "body",
-        label: "Body",
-        hint: "Main email content",
-        default_content: "<p>You will be sent a reminder email before the event with instructions on how to join the online meeting.</p>",
-        content_type: ContentType::RichText,
-    },
-    SlotSchemaDefinition {
-        key: "footer",
-        label: "Footer",
-        hint: "Closing line",
-        default_content: "<p>We look forward to seeing you there!</p><p><strong>CrownShy</strong></p>",
-        content_type: ContentType::RichText,
-    },
-];
+pub const SCHEMA_EVENT_REGISTRATION_CONFIRMATION: EmailTypeSchema = EmailTypeSchema {
+    email_type: EmailType::EventRegistrationConfirmation,
+    template: "event_confirmation.html",
+    default_subject: "Event registration confirmation",
+    variables: &["event_name", "event_time", "event_link"],
+    slots: &[
+        SlotSchemaDefinition {
+            key: "heading",
+            label: "Heading",
+            hint: "The email heading",
+            default_content: "You're in!",
+            content_type: ContentType::PlainText,
+        },
+        SlotSchemaDefinition {
+            key: "intro",
+            label: "Intro",
+            hint: "Opening paragraph",
+            default_content: "<p>Thank you for registering for <strong>{{event_name}}</strong>.",
+            content_type: ContentType::RichText,
+        },
+        SlotSchemaDefinition {
+            key: "body",
+            label: "Body",
+            hint: "Main email content",
+            default_content: "<p>You will be sent a reminder email before the event with instructions on how to join the online meeting.</p>",
+            content_type: ContentType::RichText,
+        },
+        SlotSchemaDefinition {
+            key: "footer",
+            label: "Footer",
+            hint: "Closing line",
+            default_content: "<p>We look forward to seeing you there!</p><p><strong>CrownShy</strong></p>",
+            content_type: ContentType::RichText,
+        },
+    ]
+};
 
 /// Converts `self` to [`HashMap`] mapping email template variable keys to their content.
 pub trait MailerContextMap {
@@ -254,60 +333,13 @@ impl EmailTemplateSlots {
         ]
     }
 
+    /// Returns the schema for the associated email template type.
     pub fn schema(&self) -> EmailTypeSchema {
         match self {
-            EmailTemplateSlots::ConversationInvite(_) => EmailTypeSchema {
-                email_type: self.type_str(),
-                variables: self.template_variables(),
-                slots: SLOTS_SCHEMA_CONVERSATION_INVITE,
-            },
-            EmailTemplateSlots::EventRegistrationInvite(_) => EmailTypeSchema {
-                email_type: self.type_str(),
-                variables: self.template_variables(),
-                slots: SLOTS_SCHEMA_EVENT_REGISTRATION_INVITE,
-            },
-            EmailTemplateSlots::EventRegistrationConfirmation(_) => EmailTypeSchema {
-                email_type: self.type_str(),
-                variables: self.template_variables(),
-                slots: SLOTS_SCHEMA_EVENT_REGISTRATION_CONFIRMATION,
-            },
-        }
-    }
-
-    /// Helper method returning associated template HTML file
-    pub fn email_template(&self) -> &str {
-        match self {
-            EmailTemplateSlots::ConversationInvite(_) => "conversation_invite.html",
-            EmailTemplateSlots::EventRegistrationInvite(_) => "event_registration_invite.html",
-            EmailTemplateSlots::EventRegistrationConfirmation(_) => "event_confirmation.html",
-        }
-    }
-
-    fn template_variables(&self) -> &'static [&'static str] {
-        match self {
-            EmailTemplateSlots::ConversationInvite(_) => &["conversation_title"],
-            EmailTemplateSlots::EventRegistrationInvite(_) => {
-                &["event_name", "event_time", "invite_link"]
-            }
+            EmailTemplateSlots::ConversationInvite(_) => SCHEMA_CONVERSATION_INVITE,
+            EmailTemplateSlots::EventRegistrationInvite(_) => SCHEMA_EVENT_REGISTRATION_INVITE,
             EmailTemplateSlots::EventRegistrationConfirmation(_) => {
-                &["event_name", "event_time", "event_link"]
-            }
-        }
-    }
-
-    /// Returns the canonical string identifier for this email template variant.
-    ///
-    /// This is the single source of truth for the string representation of each
-    /// variant, and is used by both [`Display`] and [`schema`] to avoid
-    /// duplicating the mapping. The returned string is always a `&'static str`
-    /// drawn from the `TYPE_*` constants, which allows it to be embedded in
-    /// [`EmailTypeSchema`] without lifetime annotation.
-    fn type_str(&self) -> &'static str {
-        match self {
-            EmailTemplateSlots::ConversationInvite(_) => TYPE_CONVERSATION_INVITE,
-            EmailTemplateSlots::EventRegistrationInvite(_) => TYPE_EVENT_REGISTRATION_INVITE,
-            EmailTemplateSlots::EventRegistrationConfirmation(_) => {
-                TYPE_EVENT_REGISTRATION_CONFIRMATION
+                SCHEMA_EVENT_REGISTRATION_CONFIRMATION
             }
         }
     }
@@ -378,47 +410,18 @@ impl EmailTemplateSlots {
             ]),
         }
     }
+
+    /// Helper method to return HTML template file name for associated email type
+    pub fn email_template(&self) -> &str {
+        self.schema().template
+    }
 }
 
 impl std::fmt::Display for EmailTemplateSlots {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.type_str())
+        write!(f, "{}", self.schema().email_type)
     }
 }
-
-impl Type<Postgres> for EmailTemplateSlots {
-    fn type_info() -> PgTypeInfo {
-        <serde_json::Value as Type<Postgres>>::type_info()
-    }
-}
-
-impl<'q> Encode<'q, Postgres> for EmailTemplateSlots {
-    fn encode_by_ref(
-        &self,
-        buf: &mut PgArgumentBuffer,
-    ) -> Result<IsNull, sqlx::error::BoxDynError> {
-        let json = serde_json::to_value(self)?;
-        <serde_json::Value as Encode<Postgres>>::encode(json, buf)
-    }
-}
-
-impl<'r> Decode<'r, Postgres> for EmailTemplateSlots {
-    fn decode(value: PgValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
-        let json: serde_json::Value = Decode::<Postgres>::decode(value)?;
-        Ok(serde_json::from_value(json)?)
-    }
-}
-
-const DEFAULT_COLUMNS: [EmailTemplateConfigIden; 8] = [
-    EmailTemplateConfigIden::Id,
-    EmailTemplateConfigIden::OwnerId,
-    EmailTemplateConfigIden::OrganizationId,
-    EmailTemplateConfigIden::EmailType,
-    EmailTemplateConfigIden::Slots,
-    EmailTemplateConfigIden::Subject,
-    EmailTemplateConfigIden::CreatedAt,
-    EmailTemplateConfigIden::UpdatedAt,
-];
 
 #[derive(Deserialize, JsonSchema, Debug)]
 pub struct CreateEmailTemplateConfig {
@@ -533,7 +536,7 @@ pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<EmailTemplateConfig, Com
 pub async fn get_by_type_user(
     db: &PgPool,
     user_id: Uuid,
-    email_type: &str,
+    email_type: &EmailType,
 ) -> Result<EmailTemplateConfig, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
@@ -734,8 +737,12 @@ mod tests {
 
         let new_email_config = create(&pool, current_user.id, &params).await?;
 
-        let email_config =
-            get_by_type_user(&pool, current_user.id, TYPE_CONVERSATION_INVITE).await?;
+        let email_config = get_by_type_user(
+            &pool,
+            current_user.id,
+            &SCHEMA_CONVERSATION_INVITE.email_type,
+        )
+        .await?;
 
         assert_eq!(new_email_config.id, email_config.id, "ids don't match");
 

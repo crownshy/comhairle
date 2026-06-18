@@ -24,7 +24,8 @@
 	let selectedSchema = $state(schemas[0]);
 	let formState = $derived.by(() => {
 		const output: FormState = {
-			slots: {}
+			slots: {},
+			subject: selectedSchema.default_subject
 		};
 		selectedSchema.slots.map((slot) => (output.slots[slot.key] = slot.default_content));
 		return output;
@@ -162,6 +163,7 @@
 		<Input
 			placeholder="Subject"
 			name="subject"
+			defaultValue={formState.subject}
 			onchange={(e) => (formState.subject = e.target?.value ?? undefined)}
 		/>
 	</div>

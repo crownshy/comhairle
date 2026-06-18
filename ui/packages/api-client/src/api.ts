@@ -1928,6 +1928,12 @@ export const UpdateEmailTemplateConfig = z
 export type UpdateEmailTemplateConfig = z.infer<
   typeof UpdateEmailTemplateConfig
 >;
+export const EmailType = z.enum([
+  "conversation_invite",
+  "event_registration_invite",
+  "event_registration_confirmation",
+]);
+export type EmailType = z.infer<typeof EmailType>;
 export const ContentType = z.enum(["plain_text", "rich_text"]);
 export type ContentType = z.infer<typeof ContentType>;
 export const SlotSchemaDefinition = z
@@ -1942,8 +1948,10 @@ export const SlotSchemaDefinition = z
 export type SlotSchemaDefinition = z.infer<typeof SlotSchemaDefinition>;
 export const EmailTypeSchema = z
   .object({
-    email_type: z.string(),
+    default_subject: z.string(),
+    email_type: EmailType,
     slots: z.array(SlotSchemaDefinition),
+    template: z.string(),
     variables: z.array(z.string()),
   })
   .passthrough();
@@ -2177,6 +2185,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EmailTemplateConfigDto,
   CreateEmailTemplateConfig,
   UpdateEmailTemplateConfig,
+  EmailType,
   ContentType,
   SlotSchemaDefinition,
   EmailTypeSchema,
