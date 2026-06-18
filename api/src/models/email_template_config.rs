@@ -182,24 +182,37 @@ pub const SLOTS_SCHEMA_EVENT_REGISTRATION_CONFIRMATION: &[SlotSchemaDefinition] 
     },
 ];
 
-/// Provides conversion of a [`SlotSchemaDefinition`] slice into a [`HashMap`] of
-/// slot keys to their default content.
-///
-/// This trait exists as a workaround for Rust's orphan rules, which prevent
-/// implementing foreign traits (such as [`From`]) for foreign types (such as
-/// [`HashMap`]). Since both [`From`] and [`HashMap`] are defined outside of this
-/// crate, a direct `impl From<&[SlotSchemaDefinition]> for HashMap<String, String>`
-/// is not permitted. Defining our own trait here gives us a local trait that we
-/// are free to implement for any type.
-pub trait IntoSlotMap {
-    fn into_slots_map(&self) -> HashMap<String, String>;
+/// Converts `self` to [`HashMap`] mapping email template variable keys to their content.
+pub trait MailerContextMap {
+    fn mailer_context_map(&self) -> HashMap<String, String>;
 }
 
-impl IntoSlotMap for [SlotSchemaDefinition] {
-    fn into_slots_map(&self) -> HashMap<String, String> {
+/// Builds the map from each slot's key to its default content.
+impl MailerContextMap for [SlotSchemaDefinition] {
+    fn mailer_context_map(&self) -> HashMap<String, String> {
         self.iter()
             .map(|slot| (slot.key.to_string(), slot.default_content.to_string()))
             .collect()
+    }
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq, Default)]
+pub struct DefaultEmailSlots {
+    pub heading: String,
+    pub intro: String,
+    pub body: String,
+    pub footer: String,
+}
+
+/// Builds the map from the fixed email slot field names to their current values.
+impl MailerContextMap for DefaultEmailSlots {
+    fn mailer_context_map(&self) -> HashMap<String, String> {
+        HashMap::from([
+            ("heading".to_string(), self.heading.clone()),
+            ("intro".to_string(), self.intro.clone()),
+            ("body".to_string(), self.body.clone()),
+            ("footer".to_string(), self.footer.clone()),
+        ])
     }
 }
 
@@ -317,9 +330,9 @@ impl EmailTemplateSlots {
     /// ```
     pub fn mailer_slots_map(&self) -> HashMap<String, String> {
         match self {
-            EmailTemplateSlots::ConversationInvite(slots) => slots.to_mailer_map(),
-            EmailTemplateSlots::EventRegistrationInvite(slots) => slots.to_mailer_map(),
-            EmailTemplateSlots::EventRegistrationConfirmation(slots) => slots.to_mailer_map(),
+            EmailTemplateSlots::ConversationInvite(slots) => slots.mailer_context_map(),
+            EmailTemplateSlots::EventRegistrationInvite(slots) => slots.mailer_context_map(),
+            EmailTemplateSlots::EventRegistrationConfirmation(slots) => slots.mailer_context_map(),
         }
     }
 
@@ -364,25 +377,6 @@ impl EmailTemplateSlots {
 impl std::fmt::Display for EmailTemplateSlots {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.type_str())
-    }
-}
-
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq, Default)]
-pub struct DefaultEmailSlots {
-    pub heading: String,
-    pub intro: String,
-    pub body: String,
-    pub footer: String,
-}
-
-impl DefaultEmailSlots {
-    fn to_mailer_map(&self) -> HashMap<String, String> {
-        HashMap::from([
-            ("heading".to_string(), self.heading.clone()),
-            ("intro".to_string(), self.intro.clone()),
-            ("body".to_string(), self.body.clone()),
-            ("footer".to_string(), self.footer.clone()),
-        ])
     }
 }
 

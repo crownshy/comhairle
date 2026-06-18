@@ -1,6 +1,6 @@
 use crate::models::conversation;
 use crate::models::email_template_config::{
-    self, IntoSlotMap, SLOTS_SCHEMA_CONVERSATION_INVITE,
+    self, MailerContextMap, SLOTS_SCHEMA_CONVERSATION_INVITE,
     SLOTS_SCHEMA_EVENT_REGISTRATION_CONFIRMATION, SLOTS_SCHEMA_EVENT_REGISTRATION_INVITE,
     TYPE_CONVERSATION_INVITE, TYPE_EVENT_REGISTRATION_CONFIRMATION, TYPE_EVENT_REGISTRATION_INVITE,
 };
@@ -301,7 +301,7 @@ impl ComhairleMailer for Mailer {
             ),
             Err(ComhairleError::ResourceNotFound(_)) => (
                 default_subject.to_string(),
-                SLOTS_SCHEMA_CONVERSATION_INVITE.into_slots_map(),
+                SLOTS_SCHEMA_CONVERSATION_INVITE.mailer_context_map(),
             ),
             Err(e) => return Err(e),
         };
@@ -425,7 +425,7 @@ impl ComhairleMailer for Mailer {
             ),
             Err(ComhairleError::ResourceNotFound(_)) => (
                 default_subject.to_string(),
-                SLOTS_SCHEMA_EVENT_REGISTRATION_INVITE.into_slots_map(),
+                SLOTS_SCHEMA_EVENT_REGISTRATION_INVITE.mailer_context_map(),
             ),
             Err(e) => return Err(e),
         };
@@ -492,7 +492,7 @@ impl ComhairleMailer for Mailer {
             ),
             Err(ComhairleError::ResourceNotFound(_)) => (
                 default_subject.to_string(),
-                SLOTS_SCHEMA_EVENT_REGISTRATION_CONFIRMATION.into_slots_map(),
+                SLOTS_SCHEMA_EVENT_REGISTRATION_CONFIRMATION.mailer_context_map(),
             ),
             Err(e) => return Err(e),
         };
