@@ -11,6 +11,8 @@ use sqlx::{
     query_as_with, Decode, Encode, PgPool, Postgres,
 };
 use sqlx_postgres::{PgArgumentBuffer, PgTypeInfo, PgValueRef};
+use strum::EnumCount as _;
+use strum_macros::EnumCount;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -64,7 +66,7 @@ pub struct SlotSchemaDefinition {
     /// Defines whether a slot requires rich text HTML editing or plain text
     /// inserted into an existing HTML tag and is used on the frontend to render
     /// the appropriate input type.
-    pub content_type: ContentType,
+    content_type: ContentType,
 }
 
 #[derive(Serialize, JsonSchema, Debug, Clone)]
@@ -214,7 +216,7 @@ impl IntoSlotMap for [SlotSchemaDefinition] {
 /// 2. Add the corresponding HTML template.
 /// 3. Update [`EmailTemplateSlots::schemas`] with the new variant's schema.
 /// 4. Update [`EmailTemplateSlots::email_template`] to return the template filename.
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq, EnumCount)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum EmailTemplateSlots {
     ConversationInvite(DefaultEmailSlots),
@@ -228,15 +230,9 @@ impl EmailTemplateSlots {
     /// Each entry describes a variant of [`EmailTemplateSlots`], pairing the
     /// variant's string identifier with the [`SlotDefinition`]s that define its
     /// configurable slots. This is intended to be served to the frontend so it
-    /// can render the correct form fields when a user selects an email type to
-    /// configure.
-    ///
-    /// # Adding a new email type
-    ///
-    /// When a new variant is added to [`EmailTemplateSlots`], a corresponding
-    /// [`EmailTypeSchema`] must be added here manually. There is no compiler
-    /// enforcement for this.
-    pub fn schemas() -> [EmailTypeSchema; 3] {
+    /// can render the correct form fields and default content when a user
+    /// selects an email type to configure.
+    pub fn schemas() -> [EmailTypeSchema; EmailTemplateSlots::COUNT] {
         [
             EmailTemplateSlots::ConversationInvite(DefaultEmailSlots::default()).schema(),
             EmailTemplateSlots::EventRegistrationInvite(DefaultEmailSlots::default()).schema(),
@@ -265,6 +261,7 @@ impl EmailTemplateSlots {
         }
     }
 
+    /// Helper method returning associated template HTML file
     pub fn email_template(&self) -> &str {
         match self {
             EmailTemplateSlots::ConversationInvite(_) => "conversation_invite.html",
@@ -360,20 +357,6 @@ impl EmailTemplateSlots {
                 ("event_time".to_string(), "24 May, 2026".to_string()),
                 ("organization_name".to_string(), "CrownShy".to_string()),
             ]),
-        }
-    }
-
-    pub fn fallback_slots_map(&self) -> HashMap<String, String> {
-        match self {
-            EmailTemplateSlots::ConversationInvite(_) => {
-                SLOTS_SCHEMA_CONVERSATION_INVITE.into_slots_map()
-            }
-            EmailTemplateSlots::EventRegistrationConfirmation(_) => {
-                SLOTS_SCHEMA_EVENT_REGISTRATION_INVITE.into_slots_map()
-            }
-            EmailTemplateSlots::EventRegistrationInvite(_) => {
-                SLOTS_SCHEMA_EVENT_REGISTRATION_CONFIRMATION.into_slots_map()
-            }
         }
     }
 }

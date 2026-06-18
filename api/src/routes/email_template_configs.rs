@@ -12,6 +12,7 @@ use axum::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use strum::EnumCount;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -99,7 +100,13 @@ async fn get_schema(
 #[instrument(err(Debug))]
 async fn list_schemas(
     RequiredAdminUser(user): RequiredAdminUser,
-) -> Result<(StatusCode, Json<[EmailTypeSchema; 3]>), ComhairleError> {
+) -> Result<
+    (
+        StatusCode,
+        Json<[EmailTypeSchema; EmailTemplateSlots::COUNT]>,
+    ),
+    ComhairleError,
+> {
     let schemas = EmailTemplateSlots::schemas();
 
     Ok((StatusCode::OK, Json(schemas)))

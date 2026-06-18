@@ -85,6 +85,8 @@ futures = "0.3.31"
 apalis = "0.7.4"
 apalis-redis = "0.7.4"
 apalis-cron = "0.7.4"
+strum = "0.28"
+strum_macros = "0.28"
 
 #API documentation
 
