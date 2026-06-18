@@ -129,7 +129,7 @@ async fn preview(
     Json(PreviewEmailTemplateConfigRequest { slots }): Json<PreviewEmailTemplateConfigRequest>,
 ) -> Result<(StatusCode, Json<PreviewEmailTemplateConfigResponse>), ComhairleError> {
     let template = slots.email_template();
-    let custom_slots_map = slots.mailer_slots_map();
+    let custom_slots_map = slots.mailer_context_map();
     let preview_variables_map = slots.preview_variables_map();
 
     let html =

@@ -285,25 +285,22 @@ impl ComhairleMailer for Mailer {
         let conversation_context =
             context! { conversation_title => conversation.title, invite_link };
 
-        let (subject, slots_map) = match email_template_config::get_by_type_user(
+        let email_config = email_template_config::get_by_type_user(
             &state.db,
             user_id,
             &SCHEMA_CONVERSATION_INVITE.email_type,
         )
-        .await
-        {
-            Ok(email_config) => (
-                email_config
-                    .subject
-                    .unwrap_or(SCHEMA_CONVERSATION_INVITE.default_subject.to_string()),
-                email_config.slots.mailer_slots_map(),
-            ),
-            Err(ComhairleError::ResourceNotFound(_)) => (
-                SCHEMA_CONVERSATION_INVITE.default_subject.to_string(),
-                SCHEMA_CONVERSATION_INVITE.slots.mailer_context_map(),
-            ),
-            Err(e) => return Err(e),
-        };
+        .await?;
+
+        let subject = email_config
+            .as_ref()
+            .and_then(|ec| ec.subject.as_deref())
+            .unwrap_or(SCHEMA_CONVERSATION_INVITE.default_subject);
+
+        let slots_map = email_config
+            .as_ref()
+            .map(|ec| ec.slots.mailer_context_map())
+            .unwrap_or(SCHEMA_CONVERSATION_INVITE.slots.mailer_context_map());
 
         let rendered_map = self.resolve_slots_map(&conversation_context, &slots_map)?;
 
@@ -311,7 +308,7 @@ impl ComhairleMailer for Mailer {
 
         self.send_email(
             to,
-            &subject,
+            subject,
             SCHEMA_CONVERSATION_INVITE.template,
             context,
             None,
@@ -414,25 +411,22 @@ impl ComhairleMailer for Mailer {
             invite_link,
         };
 
-        let (subject, slots_map) = match email_template_config::get_by_type_user(
+        let email_config = email_template_config::get_by_type_user(
             &state.db,
             user_id,
             &SCHEMA_EVENT_REGISTRATION_INVITE.email_type,
         )
-        .await
-        {
-            Ok(email_config) => (
-                email_config
-                    .subject
-                    .unwrap_or(SCHEMA_EVENT_REGISTRATION_INVITE.default_subject.to_string()),
-                email_config.slots.mailer_slots_map(),
-            ),
-            Err(ComhairleError::ResourceNotFound(_)) => (
-                SCHEMA_EVENT_REGISTRATION_INVITE.default_subject.to_string(),
-                SCHEMA_EVENT_REGISTRATION_INVITE.slots.mailer_context_map(),
-            ),
-            Err(e) => return Err(e),
-        };
+        .await?;
+
+        let subject = email_config
+            .as_ref()
+            .and_then(|ec| ec.subject.as_deref())
+            .unwrap_or(SCHEMA_EVENT_REGISTRATION_INVITE.default_subject);
+
+        let slots_map = email_config
+            .as_ref()
+            .map(|ec| ec.slots.mailer_context_map())
+            .unwrap_or(SCHEMA_EVENT_REGISTRATION_INVITE.slots.mailer_context_map());
 
         let rendered_map = self.resolve_slots_map(&event_context, &slots_map)?;
 
@@ -445,7 +439,7 @@ impl ComhairleMailer for Mailer {
 
         self.send_email(
             email,
-            &subject,
+            subject,
             "event_registration_invite.html",
             context,
             None,
@@ -479,31 +473,26 @@ impl ComhairleMailer for Mailer {
             event_link,
         };
 
-        let (subject, slots_map) = match email_template_config::get_by_type_user(
+        let email_config = email_template_config::get_by_type_user(
             &state.db,
             user_id,
             &SCHEMA_EVENT_REGISTRATION_CONFIRMATION.email_type,
         )
-        .await
-        {
-            Ok(email_config) => (
-                email_config.subject.unwrap_or(
-                    SCHEMA_EVENT_REGISTRATION_CONFIRMATION
-                        .default_subject
-                        .to_string(),
-                ),
-                email_config.slots.mailer_slots_map(),
-            ),
-            Err(ComhairleError::ResourceNotFound(_)) => (
-                SCHEMA_EVENT_REGISTRATION_CONFIRMATION
-                    .default_subject
-                    .to_string(),
+        .await?;
+
+        let subject = email_config
+            .as_ref()
+            .and_then(|ec| ec.subject.as_deref())
+            .unwrap_or(SCHEMA_EVENT_REGISTRATION_CONFIRMATION.default_subject);
+
+        let slots_map = email_config
+            .as_ref()
+            .map(|ec| ec.slots.mailer_context_map())
+            .unwrap_or(
                 SCHEMA_EVENT_REGISTRATION_CONFIRMATION
                     .slots
                     .mailer_context_map(),
-            ),
-            Err(e) => return Err(e),
-        };
+            );
 
         let rendered_map = self.resolve_slots_map(&event_context, &slots_map)?;
 
@@ -516,7 +505,7 @@ impl ComhairleMailer for Mailer {
 
         self.send_email(
             email,
-            &subject,
+            subject,
             "event_confirmation.html",
             context,
             Some(calendar_invite),

@@ -307,7 +307,6 @@ impl MailerContextMap for DefaultEmailSlots {
 /// 1. Add a variant here with its slot struct.
 /// 2. Add the corresponding HTML template.
 /// 3. Update [`EmailTemplateSlots::schemas`] with the new variant's schema.
-/// 4. Update [`EmailTemplateSlots::email_template`] to return the template filename.
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq, EnumCount)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum EmailTemplateSlots {
@@ -357,10 +356,10 @@ impl EmailTemplateSlots {
     /// links or IDs generated at send time). For example:
     ///
     /// ```ignore
-    /// let base = email_config.slots.to_mailer_map();
+    /// let base = email_config.slots.mailer_context_map();
     /// let context = minijinja::context! { invite_link => "foo@bar.com", ..base };
     /// ```
-    pub fn mailer_slots_map(&self) -> HashMap<String, String> {
+    pub fn mailer_context_map(&self) -> HashMap<String, String> {
         match self {
             EmailTemplateSlots::ConversationInvite(slots) => slots.mailer_context_map(),
             EmailTemplateSlots::EventRegistrationInvite(slots) => slots.mailer_context_map(),
@@ -537,7 +536,7 @@ pub async fn get_by_type_user(
     db: &PgPool,
     user_id: Uuid,
     email_type: &EmailType,
-) -> Result<EmailTemplateConfig, ComhairleError> {
+) -> Result<Option<EmailTemplateConfig>, ComhairleError> {
     let (sql, values) = Query::select()
         .columns(DEFAULT_COLUMNS)
         .from(EmailTemplateConfigIden::Table)
@@ -545,10 +544,7 @@ pub async fn get_by_type_user(
         .and_where(Expr::col(EmailTemplateConfigIden::EmailType).eq(email_type.to_owned()))
         .build_sqlx(PostgresQueryBuilder);
 
-    let email_config = query_as_with(&sql, values)
-        .fetch_one(db)
-        .await
-        .not_found_as("Email template config")?;
+    let email_config = query_as_with(&sql, values).fetch_optional(db).await?;
 
     Ok(email_config)
 }
@@ -744,7 +740,11 @@ mod tests {
         )
         .await?;
 
-        assert_eq!(new_email_config.id, email_config.id, "ids don't match");
+        assert_eq!(
+            new_email_config.id,
+            email_config.unwrap().id,
+            "ids don't match"
+        );
 
         Ok(())
     }
