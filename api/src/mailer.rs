@@ -193,7 +193,7 @@ impl Mailer {
     ///
     /// Returns an error if any slot value fails to render (e.g. invalid
     /// minijinja syntax).
-    fn resolve_slots_map<'a>(
+    fn resolve_slots_map(
         &self,
         context: &minijinja::Value,
         slots_map: &HashMap<String, String>,
@@ -296,6 +296,9 @@ impl ComhairleMailer for Mailer {
             .as_ref()
             .and_then(|ec| ec.subject.as_deref())
             .unwrap_or(SCHEMA_CONVERSATION_INVITE.default_subject);
+        let subject = self
+            .template_engine
+            .render_str(subject, &conversation_context)?;
 
         let slots_map = email_config
             .as_ref()
@@ -308,7 +311,7 @@ impl ComhairleMailer for Mailer {
 
         self.send_email(
             to,
-            subject,
+            &subject,
             SCHEMA_CONVERSATION_INVITE.template,
             context,
             None,
@@ -422,6 +425,7 @@ impl ComhairleMailer for Mailer {
             .as_ref()
             .and_then(|ec| ec.subject.as_deref())
             .unwrap_or(SCHEMA_EVENT_REGISTRATION_INVITE.default_subject);
+        let subject = self.template_engine.render_str(subject, &event_context)?;
 
         let slots_map = email_config
             .as_ref()
@@ -439,7 +443,7 @@ impl ComhairleMailer for Mailer {
 
         self.send_email(
             email,
-            subject,
+            &subject,
             "event_registration_invite.html",
             context,
             None,
@@ -484,6 +488,7 @@ impl ComhairleMailer for Mailer {
             .as_ref()
             .and_then(|ec| ec.subject.as_deref())
             .unwrap_or(SCHEMA_EVENT_REGISTRATION_CONFIRMATION.default_subject);
+        let subject = self.template_engine.render_str(subject, &event_context)?;
 
         let slots_map = email_config
             .as_ref()
@@ -505,7 +510,7 @@ impl ComhairleMailer for Mailer {
 
         self.send_email(
             email,
-            subject,
+            &subject,
             "event_confirmation.html",
             context,
             Some(calendar_invite),
