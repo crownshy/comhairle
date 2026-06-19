@@ -1867,6 +1867,14 @@ export const CreateApiKeyRequest = z
 export type CreateApiKeyRequest = z.infer<typeof CreateApiKeyRequest>;
 export const CreateResponse2 = z.object({ key: z.string() }).passthrough();
 export type CreateResponse2 = z.infer<typeof CreateResponse2>;
+export const EmailType = z.enum([
+  "conversation_invite",
+  "event_registration_invite",
+  "event_registration_confirmation",
+]);
+export type EmailType = z.infer<typeof EmailType>;
+export const email_type = z.union([EmailType, z.null()]).optional();
+export type email_type = z.infer<typeof email_type>;
 export const EmailTemplateSlots = z.union([
   z
     .object({
@@ -1900,7 +1908,7 @@ export type EmailTemplateSlots = z.infer<typeof EmailTemplateSlots>;
 export const EmailTemplateConfigDto = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
-    emailType: z.string(),
+    emailType: EmailType,
     id: z.string().uuid(),
     organizationId: z.union([z.string(), z.null()]).optional(),
     ownerId: z.string().uuid(),
@@ -1928,12 +1936,6 @@ export const UpdateEmailTemplateConfig = z
 export type UpdateEmailTemplateConfig = z.infer<
   typeof UpdateEmailTemplateConfig
 >;
-export const EmailType = z.enum([
-  "conversation_invite",
-  "event_registration_invite",
-  "event_registration_confirmation",
-]);
-export type EmailType = z.infer<typeof EmailType>;
 export const ContentType = z.enum(["plain_text", "rich_text"]);
 export type ContentType = z.infer<typeof ContentType>;
 export const SlotSchemaDefinition = z
@@ -2181,11 +2183,12 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ComhairleServices,
   CreateApiKeyRequest,
   CreateResponse2,
+  EmailType,
+  email_type,
   EmailTemplateSlots,
   EmailTemplateConfigDto,
   CreateEmailTemplateConfig,
   UpdateEmailTemplateConfig,
-  EmailType,
   ContentType,
   SlotSchemaDefinition,
   EmailTypeSchema,
@@ -3455,14 +3458,9 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     requestFormat: "json",
     parameters: [
       {
-        name: "organization_id",
+        name: "email_type",
         type: "Query",
-        schema: created_after,
-      },
-      {
-        name: "owner_id",
-        type: "Query",
-        schema: created_after,
+        schema: email_type,
       },
     ],
     response: z.array(EmailTemplateConfigDto),

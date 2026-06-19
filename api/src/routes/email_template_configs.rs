@@ -53,7 +53,7 @@ async fn list(
     RequiredAdminUser(user): RequiredAdminUser,
     Query(filter_options): Query<EmailTemplateConfigFilterOptions>,
 ) -> Result<(StatusCode, Json<Vec<EmailTemplateConfigDto>>), ComhairleError> {
-    let email_configs = email_template_config::list(&state.db, filter_options)
+    let email_configs = email_template_config::list(&state.db, &user.id, filter_options)
         .await?
         .into_iter()
         .map(Into::into)
@@ -219,7 +219,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("List all template schemas for each email template type")
                     .security_requirement("JWT")
                     .tag("EmailTemplateConfig")
-                    .response::<200, Json<[EmailTypeSchema; 3]>>()
+                    .response::<200, Json<[EmailTypeSchema; EmailTemplateSlots::COUNT]>>()
             }),
         )
         .api_route(
@@ -234,4 +234,352 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
             }),
         )
         .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        mailer::MockComhairleMailer,
+        models::{
+            email_template_config::{DefaultEmailSlots, EmailType},
+            model_test_helpers::setup_default_app_and_session,
+        },
+        setup_server,
+        test_helpers::{test_state, UserSession},
+    };
+
+    use super::*;
+
+    use std::error::Error;
+
+    use sqlx::PgPool;
+
+    #[sqlx::test]
+    async fn should_create_email_template_config(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let (_, current_user, _) = session.current_user(&app).await?;
+
+        let params = CreateEmailTemplateConfig {
+            slots: EmailTemplateSlots::ConversationInvite(DefaultEmailSlots {
+                heading: "<h1>You're invite to a conversation</h1>".to_string(),
+                intro: "<p>You have been selected to take part in a public engagement</p>"
+                    .to_string(),
+                body: "<p>Test body content</p>".to_string(),
+                footer: "<p>Thank you for your time</p>".to_string(),
+            }),
+            subject: Some("A custom conversation template".to_string()),
+        };
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/email_template_configs",
+                serde_json::to_string(&params)?.into(),
+            )
+            .await?;
+        let email_config: EmailTemplateConfigDto = serde_json::from_value(value)?;
+
+        assert_eq!(
+            email_config.subject.unwrap(),
+            "A custom conversation template".to_string(),
+            "incorrect subject",
+        );
+        assert_eq!(email_config.owner_id, current_user.id, "incorrect owner_id");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_update_email_template_config(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+
+        let create_slots = EmailTemplateSlots::ConversationInvite(DefaultEmailSlots {
+            heading: "<h1>You're invite to a conversation</h1>".to_string(),
+            intro: "<p>You have been selected to take part in a public engagement</p>".to_string(),
+            body: "<p>Test body content</p>".to_string(),
+            footer: "<p>Thank you for your time</p>".to_string(),
+        });
+
+        let params = CreateEmailTemplateConfig {
+            slots: create_slots,
+            subject: Some("A custom conversation template".to_string()),
+        };
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/email_template_configs",
+                serde_json::to_string(&params)?.into(),
+            )
+            .await?;
+        let created_email_config: EmailTemplateConfigDto = serde_json::from_value(value)?;
+
+        let update_slots = EmailTemplateSlots::ConversationInvite(DefaultEmailSlots {
+            heading: "<h1>Updated heading</h1>".to_string(),
+            intro: "<p>Updated intro</p>".to_string(),
+            body: "<p>Updated body</p>".to_string(),
+            footer: "<p>Updated footer</p>".to_string(),
+        });
+        let params = UpdateEmailTemplateConfig {
+            slots: Some(update_slots.clone()),
+            subject: None,
+        };
+        let (_, value, _) = session
+            .put(
+                &app,
+                &format!("/email_template_configs/{}", created_email_config.id),
+                serde_json::to_string(&params)?.into(),
+            )
+            .await?;
+        let email_config: EmailTemplateConfigDto = serde_json::from_value(value)?;
+
+        assert_eq!(email_config.slots, update_slots, "incorrect slots");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_get_email_template_config_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+
+        let params = CreateEmailTemplateConfig {
+            slots: EmailTemplateSlots::ConversationInvite(DefaultEmailSlots {
+                heading: "<h1>You're invite to a conversation</h1>".to_string(),
+                intro: "<p>You have been selected to take part in a public engagement</p>"
+                    .to_string(),
+                body: "<p>Test body content</p>".to_string(),
+                footer: "<p>Thank you for your time</p>".to_string(),
+            }),
+            subject: Some("A custom conversation template".to_string()),
+        };
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/email_template_configs",
+                serde_json::to_string(&params)?.into(),
+            )
+            .await?;
+        let create_email_config: EmailTemplateConfigDto = serde_json::from_value(value)?;
+
+        let (_, value, _) = session
+            .get(
+                &app,
+                &format!("/email_template_configs/{}", create_email_config.id),
+            )
+            .await?;
+        let email_config: EmailTemplateConfigDto = serde_json::from_value(value)?;
+
+        assert_eq!(email_config.id, create_email_config.id, "ids don't match");
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_list_email_template_configs(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+
+        let default_slots = DefaultEmailSlots {
+            heading: "<h1>Test heading</h1>".to_string(),
+            intro: "<p>Test intro</p>".to_string(),
+            body: "<p>Test body</p>".to_string(),
+            footer: "<p>Test footer</p>".to_string(),
+        };
+
+        let params_a = CreateEmailTemplateConfig {
+            slots: EmailTemplateSlots::EventRegistrationConfirmation(default_slots.clone()),
+            subject: None,
+        };
+        session
+            .post(
+                &app,
+                "/email_template_configs",
+                serde_json::to_string(&params_a)?.into(),
+            )
+            .await?;
+
+        let params_b = CreateEmailTemplateConfig {
+            slots: EmailTemplateSlots::ConversationInvite(default_slots.clone()),
+            subject: None,
+        };
+        session
+            .post(
+                &app,
+                "/email_template_configs",
+                serde_json::to_string(&params_b)?.into(),
+            )
+            .await?;
+
+        let (_, value, _) = session
+            .get(
+                &app,
+                "/email_template_configs?email_type=event_registration_invite",
+            )
+            .await?;
+        let email_configs: Vec<EmailTemplateConfigDto> = serde_json::from_value(value)?;
+
+        assert_eq!(email_configs.len(), 1, "incorrect total");
+        assert!(
+            !email_configs
+                .iter()
+                .any(|c| c.email_type == EmailType::ConversationInvite),
+            "incorrectly email_type included"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_delete_email_template_config_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+
+        let params = CreateEmailTemplateConfig {
+            slots: EmailTemplateSlots::ConversationInvite(DefaultEmailSlots {
+                heading: "<h1>You're invite to a conversation</h1>".to_string(),
+                intro: "<p>You have been selected to take part in a public engagement</p>"
+                    .to_string(),
+                body: "<p>Test body content</p>".to_string(),
+                footer: "<p>Thank you for your time</p>".to_string(),
+            }),
+            subject: Some("A custom conversation template".to_string()),
+        };
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/email_template_configs",
+                serde_json::to_string(&params)?.into(),
+            )
+            .await?;
+        let create_email_config: EmailTemplateConfigDto = serde_json::from_value(value)?;
+
+        session
+            .delete(
+                &app,
+                &format!("/email_template_configs/{}", create_email_config.id),
+            )
+            .await?;
+
+        let (_, response, _) = session
+            .get(
+                &app,
+                &format!("/email_template_configs/{}", create_email_config.id),
+            )
+            .await?;
+
+        assert_eq!(
+            response.get("err").and_then(|v| v.as_str()).unwrap(),
+            "Email template config not found",
+            "incorrect error message"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_get_associated_schema_for_email_config_type(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+
+        let params = CreateEmailTemplateConfig {
+            slots: EmailTemplateSlots::ConversationInvite(DefaultEmailSlots {
+                heading: "<h1>You're invite to a conversation</h1>".to_string(),
+                intro: "<p>You have been selected to take part in a public engagement</p>"
+                    .to_string(),
+                body: "<p>Test body content</p>".to_string(),
+                footer: "<p>Thank you for your time</p>".to_string(),
+            }),
+            subject: Some("A custom conversation template".to_string()),
+        };
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/email_template_configs",
+                serde_json::to_string(&params)?.into(),
+            )
+            .await?;
+        let email_config: EmailTemplateConfigDto = serde_json::from_value(value)?;
+
+        let (_, response, _) = session
+            .get(
+                &app,
+                &format!("/email_template_configs/{}/schemas", email_config.id),
+            )
+            .await?;
+
+        assert_eq!(
+            response.get("email_type").and_then(|v| v.as_str()).unwrap(),
+            "conversation_invite",
+            "incorrect email_type from schema"
+        );
+        assert_eq!(
+            response.get("template").and_then(|v| v.as_str()).unwrap(),
+            "conversation_invite.html",
+            "incorrect template from schema"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_list_schemas_for_email_config_types(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+
+        let (_, value, _) = session.get(&app, "/email_template_configs/schemas").await?;
+
+        let arr = value.as_array().unwrap();
+        assert_eq!(
+            arr.len(),
+            EmailTemplateSlots::COUNT,
+            "incorrect number of schemas"
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn should_send_preview_html_of_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let html_str = "<html><h1>You're invite to a conversation</h1><p>You have been selected to take part in a public engagement</p><p>Test body content</p><p>Thank you for your time</p></html>";
+        let mut mailer = MockComhairleMailer::new();
+        mailer
+            .expect_preview_email()
+            .returning(|_, _, _| Ok(html_str.to_string()));
+        mailer.expect_send_welcome_email().returning(|_, _| Ok(()));
+
+        let state = test_state()
+            .db(pool.clone())
+            .mailer(Arc::new(mailer))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let params = PreviewEmailTemplateConfigRequest {
+            slots: EmailTemplateSlots::ConversationInvite(DefaultEmailSlots {
+                heading: "<h1>You're invite to a conversation</h1>".to_string(),
+                intro: "<p>You have been selected to take part in a public engagement</p>"
+                    .to_string(),
+                body: "<p>Test body content</p>".to_string(),
+                footer: "<p>Thank you for your time</p>".to_string(),
+            }),
+        };
+
+        let (_, value, _) = session
+            .post(
+                &app,
+                "/email_template_configs/preview",
+                serde_json::to_string(&params)?.into(),
+            )
+            .await?;
+        let response: PreviewEmailTemplateConfigResponse = serde_json::from_value(value)?;
+
+        assert_eq!(response.html, html_str, "incorrect html response");
+
+        Ok(())
+    }
 }

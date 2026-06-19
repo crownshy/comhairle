@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::models::email_template_config::{EmailTemplateConfig, EmailTemplateSlots};
+use crate::models::email_template_config::{EmailTemplateConfig, EmailTemplateSlots, EmailType};
 
 /// Data transfer object (public API representation) for an EmailTemplateConfig.
 ///
@@ -17,7 +17,7 @@ use crate::models::email_template_config::{EmailTemplateConfig, EmailTemplateSlo
 #[serde(rename_all = "camelCase")]
 pub struct EmailTemplateConfigDto {
     pub id: Uuid,
-    pub email_type: String,
+    pub email_type: EmailType,
     pub owner_id: Uuid,
     pub organization_id: Option<Uuid>,
     pub slots: EmailTemplateSlots,
@@ -29,7 +29,7 @@ impl From<EmailTemplateConfig> for EmailTemplateConfigDto {
     fn from(c: EmailTemplateConfig) -> Self {
         Self {
             id: c.id,
-            email_type: c.slots.to_string(),
+            email_type: c.email_type,
             owner_id: c.owner_id,
             organization_id: c.organization_id,
             slots: c.slots,

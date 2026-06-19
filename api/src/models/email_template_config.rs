@@ -103,6 +103,133 @@ const DEFAULT_COLUMNS: [EmailTemplateConfigIden; 8] = [
     EmailTemplateConfigIden::UpdatedAt,
 ];
 
+/// The configurable slot content for a particular email template type.
+///
+/// Each variant corresponds to a distinct email template and carries the slot
+/// content that will be injected into it at send time. Serialised as a tagged
+/// JSON object (e.g. `{ "type": "conversation_invite", "heading": "...", ... }`)
+/// for storage in the `slots` JSONB column on [`EmailTemplateConfig`].
+///
+/// # Adding a new email type
+///
+/// 1. Add a variant here with its slot struct.
+/// 2. Add the corresponding HTML template.
+/// 3. Update [`EmailTemplateSlots::schemas`] with the new variant's schema.
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq, EnumCount)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum EmailTemplateSlots {
+    ConversationInvite(DefaultEmailSlots),
+    EventRegistrationInvite(DefaultEmailSlots),
+    EventRegistrationConfirmation(DefaultEmailSlots),
+}
+
+impl EmailTemplateSlots {
+    /// Returns the schema for every email template type.
+    ///
+    /// Each entry describes a variant of [`EmailTemplateSlots`], pairing the
+    /// variant's string identifier with the [`SlotDefinition`]s that define its
+    /// configurable slots. This is intended to be served to the frontend so it
+    /// can render the correct form fields and default content when a user
+    /// selects an email type to configure.
+    pub fn schemas() -> [EmailTypeSchema; EmailTemplateSlots::COUNT] {
+        [
+            EmailTemplateSlots::ConversationInvite(DefaultEmailSlots::default()).schema(),
+            EmailTemplateSlots::EventRegistrationInvite(DefaultEmailSlots::default()).schema(),
+            EmailTemplateSlots::EventRegistrationConfirmation(DefaultEmailSlots::default())
+                .schema(),
+        ]
+    }
+
+    /// Returns the schema for the associated email template type.
+    pub fn schema(&self) -> EmailTypeSchema {
+        match self {
+            EmailTemplateSlots::ConversationInvite(_) => SCHEMA_CONVERSATION_INVITE,
+            EmailTemplateSlots::EventRegistrationInvite(_) => SCHEMA_EVENT_REGISTRATION_INVITE,
+            EmailTemplateSlots::EventRegistrationConfirmation(_) => {
+                SCHEMA_EVENT_REGISTRATION_CONFIRMATION
+            }
+        }
+    }
+
+    /// Converts the email template slots into a `HashMap` of key/value pairs
+    /// suitable for use as a minijinja template context.
+    ///
+    /// The returned map contains the slot field names (e.g. `heading`, `intro`,
+    /// `body`, `footer`) and their corresponding values, which are used to
+    /// populate the variables referenced in the email's minijinja template.
+    ///
+    /// Because `minijinja::context!` supports spreading a `HashMap` with `..`,
+    /// the map returned here can be combined with additional ad-hoc context
+    /// variables that aren't stored as part of the email config (e.g. dynamic
+    /// links or IDs generated at send time). For example:
+    ///
+    /// ```ignore
+    /// let base = email_config.slots.mailer_context_map();
+    /// let context = minijinja::context! { invite_link => "foo@bar.com", ..base };
+    /// ```
+    pub fn mailer_context_map(&self) -> HashMap<String, String> {
+        match self {
+            EmailTemplateSlots::ConversationInvite(slots) => slots.mailer_context_map(),
+            EmailTemplateSlots::EventRegistrationInvite(slots) => slots.mailer_context_map(),
+            EmailTemplateSlots::EventRegistrationConfirmation(slots) => slots.mailer_context_map(),
+        }
+    }
+
+    /// Returns a map of placeholder values for runtime template variables,
+    /// used when previewing a customised [`EmailTemplateConfig`] in the frontend.
+    ///
+    /// When users compose email content they can embed dynamic variables (e.g.
+    /// `{{ conversation_title }}`) that are only available at the point an email
+    /// is actually sent. This method provides realistic example values for those
+    /// variables so that previews render meaningfully rather than showing empty
+    /// or broken output.
+    ///
+    /// The returned map is specific to each [`EmailTemplateSlots`] variant, as
+    /// different email types expose different runtime variables. The values are
+    /// illustrative only and are never used in real email sends.
+    pub fn preview_variables_map(&self) -> HashMap<String, String> {
+        match self {
+            EmailTemplateSlots::ConversationInvite(_) => HashMap::from([(
+                "conversation_title".to_string(),
+                "Renewable energy in rural areas".to_string(),
+            )]),
+            EmailTemplateSlots::EventRegistrationConfirmation(_) => HashMap::from([
+                (
+                    "event_name".to_string(),
+                    "Prioritising accessibility in websites".to_string(),
+                ),
+                ("event_time".to_string(), "24 May, 2026".to_string()),
+                (
+                    "invite_link".to_string(),
+                    "https://crown-shy.com/invite".to_string(),
+                ),
+            ]),
+            EmailTemplateSlots::EventRegistrationInvite(_) => HashMap::from([
+                (
+                    "event_name".to_string(),
+                    "Prioritising accessibility in websites".to_string(),
+                ),
+                ("event_time".to_string(), "24 May, 2026".to_string()),
+                (
+                    "event_link".to_string(),
+                    "https://crown-shy.com/event".to_string(),
+                ),
+            ]),
+        }
+    }
+
+    /// Helper method to return HTML template file name for associated email type
+    pub fn email_template(&self) -> &str {
+        self.schema().template
+    }
+}
+
+impl std::fmt::Display for EmailTemplateSlots {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.schema().email_type)
+    }
+}
+
 // ===
 //
 // Schemas
@@ -295,134 +422,7 @@ impl MailerContextMap for DefaultEmailSlots {
     }
 }
 
-/// The configurable slot content for a particular email template type.
-///
-/// Each variant corresponds to a distinct email template and carries the slot
-/// content that will be injected into it at send time. Serialised as a tagged
-/// JSON object (e.g. `{ "type": "conversation_invite", "heading": "...", ... }`)
-/// for storage in the `slots` JSONB column on [`EmailTemplateConfig`].
-///
-/// # Adding a new email type
-///
-/// 1. Add a variant here with its slot struct.
-/// 2. Add the corresponding HTML template.
-/// 3. Update [`EmailTemplateSlots::schemas`] with the new variant's schema.
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq, EnumCount)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum EmailTemplateSlots {
-    ConversationInvite(DefaultEmailSlots),
-    EventRegistrationInvite(DefaultEmailSlots),
-    EventRegistrationConfirmation(DefaultEmailSlots),
-}
-
-impl EmailTemplateSlots {
-    /// Returns the schema for every email template type.
-    ///
-    /// Each entry describes a variant of [`EmailTemplateSlots`], pairing the
-    /// variant's string identifier with the [`SlotDefinition`]s that define its
-    /// configurable slots. This is intended to be served to the frontend so it
-    /// can render the correct form fields and default content when a user
-    /// selects an email type to configure.
-    pub fn schemas() -> [EmailTypeSchema; EmailTemplateSlots::COUNT] {
-        [
-            EmailTemplateSlots::ConversationInvite(DefaultEmailSlots::default()).schema(),
-            EmailTemplateSlots::EventRegistrationInvite(DefaultEmailSlots::default()).schema(),
-            EmailTemplateSlots::EventRegistrationConfirmation(DefaultEmailSlots::default())
-                .schema(),
-        ]
-    }
-
-    /// Returns the schema for the associated email template type.
-    pub fn schema(&self) -> EmailTypeSchema {
-        match self {
-            EmailTemplateSlots::ConversationInvite(_) => SCHEMA_CONVERSATION_INVITE,
-            EmailTemplateSlots::EventRegistrationInvite(_) => SCHEMA_EVENT_REGISTRATION_INVITE,
-            EmailTemplateSlots::EventRegistrationConfirmation(_) => {
-                SCHEMA_EVENT_REGISTRATION_CONFIRMATION
-            }
-        }
-    }
-
-    /// Converts the email template slots into a `HashMap` of key/value pairs
-    /// suitable for use as a minijinja template context.
-    ///
-    /// The returned map contains the slot field names (e.g. `heading`, `intro`,
-    /// `body`, `footer`) and their corresponding values, which are used to
-    /// populate the variables referenced in the email's minijinja template.
-    ///
-    /// Because `minijinja::context!` supports spreading a `HashMap` with `..`,
-    /// the map returned here can be combined with additional ad-hoc context
-    /// variables that aren't stored as part of the email config (e.g. dynamic
-    /// links or IDs generated at send time). For example:
-    ///
-    /// ```ignore
-    /// let base = email_config.slots.mailer_context_map();
-    /// let context = minijinja::context! { invite_link => "foo@bar.com", ..base };
-    /// ```
-    pub fn mailer_context_map(&self) -> HashMap<String, String> {
-        match self {
-            EmailTemplateSlots::ConversationInvite(slots) => slots.mailer_context_map(),
-            EmailTemplateSlots::EventRegistrationInvite(slots) => slots.mailer_context_map(),
-            EmailTemplateSlots::EventRegistrationConfirmation(slots) => slots.mailer_context_map(),
-        }
-    }
-
-    /// Returns a map of placeholder values for runtime template variables,
-    /// used when previewing a customised [`EmailTemplateConfig`] in the frontend.
-    ///
-    /// When users compose email content they can embed dynamic variables (e.g.
-    /// `{{ conversation_title }}`) that are only available at the point an email
-    /// is actually sent. This method provides realistic example values for those
-    /// variables so that previews render meaningfully rather than showing empty
-    /// or broken output.
-    ///
-    /// The returned map is specific to each [`EmailTemplateSlots`] variant, as
-    /// different email types expose different runtime variables. The values are
-    /// illustrative only and are never used in real email sends.
-    pub fn preview_variables_map(&self) -> HashMap<String, String> {
-        match self {
-            EmailTemplateSlots::ConversationInvite(_) => HashMap::from([(
-                "conversation_title".to_string(),
-                "Renewable energy in rural areas".to_string(),
-            )]),
-            EmailTemplateSlots::EventRegistrationConfirmation(_) => HashMap::from([
-                (
-                    "event_name".to_string(),
-                    "Prioritising accessibility in websites".to_string(),
-                ),
-                ("event_time".to_string(), "24 May, 2026".to_string()),
-                (
-                    "invite_link".to_string(),
-                    "https://crown-shy.com/invite".to_string(),
-                ),
-            ]),
-            EmailTemplateSlots::EventRegistrationInvite(_) => HashMap::from([
-                (
-                    "event_name".to_string(),
-                    "Prioritising accessibility in websites".to_string(),
-                ),
-                ("event_time".to_string(), "24 May, 2026".to_string()),
-                (
-                    "event_link".to_string(),
-                    "https://crown-shy.com/event".to_string(),
-                ),
-            ]),
-        }
-    }
-
-    /// Helper method to return HTML template file name for associated email type
-    pub fn email_template(&self) -> &str {
-        self.schema().template
-    }
-}
-
-impl std::fmt::Display for EmailTemplateSlots {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.schema().email_type)
-    }
-}
-
-#[derive(Deserialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct CreateEmailTemplateConfig {
     pub slots: EmailTemplateSlots,
     pub subject: Option<String>,
@@ -469,10 +469,10 @@ pub async fn create(
     Ok(email_config)
 }
 
-#[derive(Deserialize, JsonSchema, Debug, Default)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Default)]
 pub struct UpdateEmailTemplateConfig {
-    slots: Option<EmailTemplateSlots>,
-    subject: Option<String>,
+    pub slots: Option<EmailTemplateSlots>,
+    pub subject: Option<String>,
 }
 
 impl UpdateEmailTemplateConfig {
@@ -551,20 +551,14 @@ pub async fn get_by_type_user(
 
 #[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct EmailTemplateConfigFilterOptions {
-    pub owner_id: Option<Uuid>,
-    pub organization_id: Option<Uuid>,
+    pub email_type: Option<EmailType>,
 }
 
 impl EmailTemplateConfigFilterOptions {
     fn apply(&self, mut query: SelectStatement) -> SelectStatement {
-        if let Some(owner_id) = self.owner_id {
+        if let Some(email_type) = &self.email_type {
             query = query
-                .and_where(Expr::col(EmailTemplateConfigIden::OwnerId).eq(owner_id))
-                .to_owned();
-        }
-        if let Some(organization_id) = self.organization_id {
-            query = query
-                .and_where(Expr::col(EmailTemplateConfigIden::OrganizationId).eq(organization_id))
+                .and_where(Expr::col(EmailTemplateConfigIden::EmailType).eq(email_type.to_owned()))
                 .to_owned();
         }
 
@@ -575,11 +569,13 @@ impl EmailTemplateConfigFilterOptions {
 #[instrument(err(Debug))]
 pub async fn list(
     db: &PgPool,
+    user_id: &Uuid,
     filter_options: EmailTemplateConfigFilterOptions,
 ) -> Result<Vec<EmailTemplateConfig>, ComhairleError> {
     let query = Query::select()
         .from(EmailTemplateConfigIden::Table)
         .columns(DEFAULT_COLUMNS)
+        .and_where(Expr::col(EmailTemplateConfigIden::OwnerId).eq(user_id.to_owned()))
         .to_owned();
 
     let query = filter_options.apply(query);
@@ -714,7 +710,7 @@ mod tests {
     }
 
     #[sqlx::test]
-    async fn should_get_email_config_user_and_email_type(
+    async fn should_optionally_get_email_config_user_and_email_type(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
@@ -731,7 +727,7 @@ mod tests {
             subject: None,
         };
 
-        let new_email_config = create(&pool, current_user.id, &params).await?;
+        create(&pool, current_user.id, &params).await?;
 
         let email_config = get_by_type_user(
             &pool,
@@ -740,11 +736,16 @@ mod tests {
         )
         .await?;
 
-        assert_eq!(
-            new_email_config.id,
-            email_config.unwrap().id,
-            "ids don't match"
-        );
+        assert!(email_config.is_some(), "existing config not found");
+
+        let email_config = get_by_type_user(
+            &pool,
+            Uuid::new_v4(),
+            &SCHEMA_CONVERSATION_INVITE.email_type,
+        )
+        .await?;
+
+        assert!(email_config.is_none(), "random user config found");
 
         Ok(())
     }
@@ -752,9 +753,7 @@ mod tests {
     #[sqlx::test]
     async fn should_list_email_configs(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
-        let (_, user_a, _) = session.current_user(&app).await?;
-
-        let user_b = users::create_annon_user(&pool).await?;
+        let (_, user, _) = session.current_user(&app).await?;
 
         let default_slots = DefaultEmailSlots {
             heading: "<h1>Test heading</h1>".to_string(),
@@ -767,23 +766,24 @@ mod tests {
             slots: EmailTemplateSlots::EventRegistrationConfirmation(default_slots.clone()),
             subject: None,
         };
-        create(&pool, user_a.id, &params_a).await?;
+        create(&pool, user.id, &params_a).await?;
         let params_b = CreateEmailTemplateConfig {
             slots: EmailTemplateSlots::ConversationInvite(default_slots.clone()),
             subject: None,
         };
-        create(&pool, user_b.id, &params_b).await?;
+        create(&pool, user.id, &params_b).await?;
 
         let filter_options = EmailTemplateConfigFilterOptions {
-            owner_id: Some(user_b.id),
-            ..Default::default()
+            email_type: Some(EmailType::EventRegistrationConfirmation),
         };
-        let email_configs = list(&pool, filter_options).await?;
+        let email_configs = list(&pool, &user.id, filter_options).await?;
 
         assert_eq!(email_configs.len(), 1, "incorrect total");
         assert!(
-            !email_configs.iter().any(|c| c.owner_id == user_a.id),
-            "user_a incorrectly included"
+            !email_configs
+                .iter()
+                .any(|c| c.email_type == EmailType::ConversationInvite),
+            "incorrectly email_type included"
         );
 
         Ok(())
