@@ -41,14 +41,11 @@ pub struct EmailTemplateConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq, PartialOrd, sqlx::Type)]
-#[sqlx(type_name = "TEXT")]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum EmailType {
-    #[sqlx(rename = "conversation_invite")]
     ConversationInvite,
-    #[sqlx(rename = "event_registration_invite")]
     EventRegistrationInvite,
-    #[sqlx(rename = "event_registration_invite")]
     EventRegistrationConfirmation,
 }
 
@@ -63,7 +60,7 @@ impl std::fmt::Display for EmailType {
         let value = match self {
             EmailType::ConversationInvite => "conversation_invite",
             EmailType::EventRegistrationInvite => "event_registration_invite",
-            EmailType::EventRegistrationConfirmation => "event_registration_invite",
+            EmailType::EventRegistrationConfirmation => "event_registration_confirmation",
         };
         write!(f, "{}", value)
     }

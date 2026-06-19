@@ -413,7 +413,7 @@ mod tests {
         let (_, value, _) = session
             .get(
                 &app,
-                "/email_template_configs?email_type=event_registration_invite",
+                "/email_template_configs?email_type=event_registration_confirmation",
             )
             .await?;
         let email_configs: Vec<EmailTemplateConfigDto> = serde_json::from_value(value)?;
