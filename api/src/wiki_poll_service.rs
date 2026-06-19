@@ -37,6 +37,12 @@ pub trait WikiPollService: Send + Sync {
     ) -> Result<Vec<WikiPollXid>, WikiPollServiceError>;
 
     async fn get_report_data(&self, poll_id: &str) -> Result<WikiPollReport, WikiPollServiceError>;
+
+    async fn delete_poll(
+        &self,
+        poll_id: &str,
+        auth_cookies: &str,
+    ) -> Result<WikiPoll, WikiPollServiceError>;
 }
 
 #[derive(Deserialize, Serialize)]
@@ -61,6 +67,12 @@ pub struct WikiPollComment {
 pub struct WikiPollXid {
     pub pid: u32,
     pub xid: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Default)]
+pub struct WikiPoll {
+    pub poll_id: String,
+    pub is_active: Option<bool>,
 }
 
 #[cfg(test)]
@@ -91,6 +103,13 @@ impl MockWikiPollService {
         wiki_poll_service
             .expect_get_xids()
             .returning(|_, _| Box::pin(async move { Ok(vec![]) }));
+        wiki_poll_service.expect_delete_poll().returning(|_, _| {
+            Box::pin(async move {
+                Ok(WikiPoll {
+                    ..Default::default()
+                })
+            })
+        });
 
         wiki_poll_service
     }

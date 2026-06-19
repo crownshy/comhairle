@@ -15,7 +15,8 @@ use tracing::{info, instrument, warn};
 use crate::{
     tools::polis::PolisError,
     wiki_poll_service::{
-        error::WikiPollServiceError, WikiPollComment, WikiPollLogin, WikiPollService, WikiPollXid,
+        error::WikiPollServiceError, WikiPoll, WikiPollComment, WikiPollLogin, WikiPollService,
+        WikiPollXid,
     },
 };
 
@@ -169,6 +170,38 @@ pub struct PolisComment {
     pub created: String,
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+pub struct PolisPoll {
+    pub participant_count: Option<i32>,
+    pub is_anon: Option<bool>,
+    pub is_active: Option<bool>,
+    pub is_draft: Option<bool>,
+    pub is_public: Option<bool>,
+    pub is_data_open: Option<bool>,
+    pub profanity_filter: Option<bool>,
+    pub spam_filter: Option<bool>,
+    pub strict_moderation: Option<bool>,
+    pub prioritize_seed: Option<bool>,
+    pub conversation_id: String,
+    pub is_mod: Option<bool>,
+    pub created: String,
+    pub modified: String,
+}
+
+impl From<PolisPoll> for WikiPoll {
+    fn from(p: PolisPoll) -> Self {
+        Self {
+            poll_id: p.conversation_id,
+            is_active: p.is_active,
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct UpdatePollRequest {
+    pub is_active: Option<bool>,
+}
+
 impl PolisClient {
     pub fn new(base_url: &str) -> Self {
         let client = Client::new();
@@ -221,6 +254,31 @@ impl PolisClient {
                 .map_err(|e| PolisError::FailedToGetComments(e.to_string()))?;
 
         Ok(comments)
+    }
+
+    pub async fn update_poll(
+        &self,
+        poll_id: &str,
+        auth_cookies: &str,
+        params: &UpdatePollRequest,
+    ) -> Result<PolisPoll, PolisError> {
+        let url = format!(
+            "https://{}/api/v3/conversations?conversation_id={}",
+            self.base_url, poll_id,
+        );
+
+        let poll = self
+            .client
+            .put(url)
+            .header(COOKIE, auth_cookies)
+            .json(params)
+            .send()
+            .await
+            .map_err(|e| PolisError::FailedPollUpdate(e.to_string()))?
+            .json::<PolisPoll>()
+            .await?;
+
+        Ok(poll)
     }
 
     async fn get_math_pca(&self, poll_id: &str) -> Result<PolisMathPca, PolisError> {
@@ -315,8 +373,6 @@ impl PolisClient {
 
         // Build groups report
         let group_sizes: Vec<u64> = math_pca.group_votes.values().map(|g| g.n_members).collect();
-
-        println!("{:#?}", math_pca.group_votes);
 
         let mut groups_report = Vec::new();
         for (idx, cluster) in math_pca.group_clusters.iter().enumerate() {
@@ -504,6 +560,24 @@ impl WikiPollService for PolisClient {
         Ok(new_poll.conversation_id.to_owned())
     }
 
+    async fn delete_poll(
+        &self,
+        poll_id: &str,
+        auth_cookies: &str,
+    ) -> Result<WikiPoll, WikiPollServiceError> {
+        let poll = self
+            .update_poll(
+                poll_id,
+                auth_cookies,
+                &UpdatePollRequest {
+                    is_active: Some(false),
+                },
+            )
+            .await?;
+
+        Ok(poll.into())
+    }
+
     #[instrument(err(Debug), skip(self))]
     async fn post_seed_comment(
         &self,
@@ -628,8 +702,8 @@ mod tests {
     async fn login() -> Result<(), Box<dyn std::error::Error>> {
         let client = PolisClient::new("polis.comhairle.scot");
         let login = WikiPollLogin {
-            email: "cJIc2EPhHL@comhairle.com".into(),
-            password: "f8QYSX9U9x".into(),
+            email: "".into(), // Insert local values
+            password: "".into(), // Insert local values
         };
         client.login(&login).await?;
         Ok(())
@@ -641,8 +715,8 @@ mod tests {
         let client = PolisClient::new("polis.comhairle.scot");
 
         let login = WikiPollLogin {
-            email: "cJIc2EPhHL@comhairle.com".into(),
-            password: "f8QYSX9U9x".into(),
+            email: "".into(), // Insert local values
+            password: "".into(), // Insert local values
         };
         let cookies = client.login(&login).await?;
 
@@ -661,7 +735,7 @@ mod tests {
 
         let cookies = client.login(&login).await?;
 
-        let resp = client.create_poll(&cookies).await?;
+        let _resp = client.create_poll(&cookies).await?;
 
         Ok(())
     }
@@ -705,6 +779,44 @@ mod tests {
             .await?;
 
         let _comments = client.get_comments(&poll_id).await?;
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn should_update_poll() -> Result<(), Box<dyn std::error::Error>> {
+        let client = PolisClient::new("polis.comhairle.scot");
+
+        let login = WikiPollLogin {
+            email: "".into(), // Insert local values
+            password: "".into(), // Insert local values
+        };
+        let cookies = client.login(&login).await?;
+
+        let poll = client
+            .update_poll(
+                "", // Insert local values
+                &cookies,
+                &UpdatePollRequest {
+                    is_active: Some(false),
+                },
+            )
+            .await?;
+
+        assert!(!poll.is_active.unwrap(), "should be false");
+
+        let poll = client
+            .update_poll(
+                "", // Insert local values
+                &cookies,
+                &UpdatePollRequest {
+                    is_active: Some(true),
+                },
+            )
+            .await?;
+
+        assert!(poll.is_active.unwrap(), "should be true");
 
         Ok(())
     }
