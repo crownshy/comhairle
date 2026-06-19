@@ -10,14 +10,13 @@
 	import { Label } from '$lib/components/ui/label';
 	import { AlertTriangle, ChevronDown, Users } from 'lucide-svelte';
 	import RichTextEditor from '$lib/components/RichTextEditor/RichTextEditor.svelte';
-	import { getBaseExtensions } from '$lib/components/RichTextEditor/editorConfig';
-	import { generateHTML } from '@tiptap/core';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte';
 	import { Send } from 'lucide-svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { notificationFormSchema } from './NotificationForm/schema';
+	import { jsonToHtml } from '$lib/utils/rich-text';
 
 	let { conversationId }: { conversationId: string } = $props();
 
@@ -66,11 +65,6 @@
 	let failedRecipients = $state<string[]>([]);
 	let lastSendMessage = $state<string | null>(null);
 	let lastSendStatus = $state<'partial' | 'failed' | null>(null);
-
-	function jsonToHtml(jsonString: string): string {
-		const json = JSON.parse(jsonString);
-		return generateHTML(json, getBaseExtensions({ mode: 'renderer' }));
-	}
 
 	async function sendNotification({ cancel }: { cancel: () => void }) {
 		// Prevent SvelteKit's default form submission — this page has no

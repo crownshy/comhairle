@@ -1867,6 +1867,109 @@ export const CreateApiKeyRequest = z
 export type CreateApiKeyRequest = z.infer<typeof CreateApiKeyRequest>;
 export const CreateResponse2 = z.object({ key: z.string() }).passthrough();
 export type CreateResponse2 = z.infer<typeof CreateResponse2>;
+export const EmailType = z.enum([
+  "conversation_invite",
+  "event_registration_invite",
+  "event_registration_confirmation",
+]);
+export type EmailType = z.infer<typeof EmailType>;
+export const email_type = z.union([EmailType, z.null()]).optional();
+export type email_type = z.infer<typeof email_type>;
+export const EmailTemplateSlots = z.union([
+  z
+    .object({
+      body: z.string(),
+      footer: z.string(),
+      heading: z.string(),
+      intro: z.string(),
+      type: z.literal("conversation_invite"),
+    })
+    .passthrough(),
+  z
+    .object({
+      body: z.string(),
+      footer: z.string(),
+      heading: z.string(),
+      intro: z.string(),
+      type: z.literal("event_registration_invite"),
+    })
+    .passthrough(),
+  z
+    .object({
+      body: z.string(),
+      footer: z.string(),
+      heading: z.string(),
+      intro: z.string(),
+      type: z.literal("event_registration_confirmation"),
+    })
+    .passthrough(),
+]);
+export type EmailTemplateSlots = z.infer<typeof EmailTemplateSlots>;
+export const EmailTemplateConfigDto = z
+  .object({
+    createdAt: z.string().datetime({ offset: true }),
+    emailType: EmailType,
+    id: z.string().uuid(),
+    organizationId: z.union([z.string(), z.null()]).optional(),
+    ownerId: z.string().uuid(),
+    slots: EmailTemplateSlots,
+    subject: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type EmailTemplateConfigDto = z.infer<typeof EmailTemplateConfigDto>;
+export const CreateEmailTemplateConfig = z
+  .object({
+    slots: EmailTemplateSlots,
+    subject: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type CreateEmailTemplateConfig = z.infer<
+  typeof CreateEmailTemplateConfig
+>;
+export const UpdateEmailTemplateConfig = z
+  .object({
+    slots: z.union([EmailTemplateSlots, z.null()]),
+    subject: z.union([z.string(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type UpdateEmailTemplateConfig = z.infer<
+  typeof UpdateEmailTemplateConfig
+>;
+export const ContentType = z.enum(["plain_text", "rich_text"]);
+export type ContentType = z.infer<typeof ContentType>;
+export const SlotSchemaDefinition = z
+  .object({
+    content_type: ContentType,
+    default_content: z.string(),
+    hint: z.string(),
+    key: z.string(),
+    label: z.string(),
+  })
+  .passthrough();
+export type SlotSchemaDefinition = z.infer<typeof SlotSchemaDefinition>;
+export const EmailTypeSchema = z
+  .object({
+    default_subject: z.string(),
+    email_type: EmailType,
+    slots: z.array(SlotSchemaDefinition),
+    template: z.string(),
+    variables: z.array(z.string()),
+  })
+  .passthrough();
+export type EmailTypeSchema = z.infer<typeof EmailTypeSchema>;
+export const PreviewEmailTemplateConfigRequest = z
+  .object({ slots: EmailTemplateSlots })
+  .passthrough();
+export type PreviewEmailTemplateConfigRequest = z.infer<
+  typeof PreviewEmailTemplateConfigRequest
+>;
+export const PreviewEmailTemplateConfigResponse = z
+  .object({ html: z.string() })
+  .passthrough();
+export type PreviewEmailTemplateConfigResponse = z.infer<
+  typeof PreviewEmailTemplateConfigResponse
+>;
 
 export const schemas: Record<string, z.ZodType<any>> = {
   AnnonLoginRequest,
@@ -2080,6 +2183,17 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ComhairleServices,
   CreateApiKeyRequest,
   CreateResponse2,
+  EmailType,
+  email_type,
+  EmailTemplateSlots,
+  EmailTemplateConfigDto,
+  CreateEmailTemplateConfig,
+  UpdateEmailTemplateConfig,
+  ContentType,
+  SlotSchemaDefinition,
+  EmailTypeSchema,
+  PreviewEmailTemplateConfigRequest,
+  PreviewEmailTemplateConfigResponse,
 };
 
 const endpoints = makeApi([
@@ -3335,6 +3449,98 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
     description: `This documentation page.`,
     requestFormat: "json",
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/email_template_configs",
+    alias: "ListEmailTemplateConfigs",
+    description: `List custom email template configurations`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "email_type",
+        type: "Query",
+        schema: email_type,
+      },
+    ],
+    response: z.array(EmailTemplateConfigDto),
+  },
+  {
+    method: "post",
+    path: "/email_template_configs",
+    alias: "CreateEmailTemplateConfig",
+    description: `Create custom content for specific email template`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateEmailTemplateConfig,
+      },
+    ],
+    response: EmailTemplateConfigDto,
+  },
+  {
+    method: "get",
+    path: "/email_template_configs/:email_config_id",
+    alias: "GetEmailTemplateConfig",
+    description: `Get custom email template configuration`,
+    requestFormat: "json",
+    response: EmailTemplateConfigDto,
+  },
+  {
+    method: "put",
+    path: "/email_template_configs/:email_config_id",
+    alias: "UpdateEmailTemplateConfig",
+    description: `Update custom email template configuration`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpdateEmailTemplateConfig,
+      },
+    ],
+    response: EmailTemplateConfigDto,
+  },
+  {
+    method: "delete",
+    path: "/email_template_configs/:email_config_id",
+    alias: "DeleteEmailTemplateConfig",
+    description: `Delete custom email template configuration`,
+    requestFormat: "json",
+    response: EmailTemplateConfigDto,
+  },
+  {
+    method: "get",
+    path: "/email_template_configs/:email_config_id/schemas",
+    alias: "GetEmailTemplateSchema",
+    description: `Get template schemas for an email config`,
+    requestFormat: "json",
+    response: EmailTypeSchema,
+  },
+  {
+    method: "post",
+    path: "/email_template_configs/preview",
+    alias: "PreviewEmailTemplateConfig",
+    description: `Preview appearance of custom email before sending`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: PreviewEmailTemplateConfigRequest,
+      },
+    ],
+    response: z.object({ html: z.string() }).passthrough(),
+  },
+  {
+    method: "get",
+    path: "/email_template_configs/schemas",
+    alias: "ListEmailTemplateSchemas",
+    description: `List all template schemas for each email template type`,
+    requestFormat: "json",
+    response: z.array(EmailTypeSchema).min(3).max(3),
   },
   {
     method: "get",

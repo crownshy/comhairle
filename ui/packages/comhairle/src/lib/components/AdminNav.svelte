@@ -11,6 +11,7 @@
 		Settings,
 		ChevronRight,
 		Home,
+		Mail,
 		PanelLeftClose
 	} from 'lucide-svelte';
 	import { conversationSteps, NavLinkActiveStatus } from '$lib/config/conversation-steps';
@@ -82,6 +83,26 @@
 								<a {...btnProps} href="/admin/">
 									<LayoutDashboard class="size-4" />
 									Workspace
+								</a>
+							{/snippet}
+						</SideBar.MenuButton>
+					</SideBar.MenuItem>
+				</SideBar.Menu>
+			</SideBar.GroupContent>
+		</SideBar.Group>
+
+		<SideBar.Group>
+			<SideBar.GroupLabel class="text-sidebar-secondary text-xs font-medium">
+				Configuration
+			</SideBar.GroupLabel>
+			<SideBar.GroupContent>
+				<SideBar.Menu>
+					<SideBar.MenuItem>
+						<SideBar.MenuButton>
+							{#snippet child({ props: btnProps })}
+								<a {...btnProps} href="/admin/email-template-configs">
+									<Mail class="size-4" />
+									Emails
 								</a>
 							{/snippet}
 						</SideBar.MenuButton>
