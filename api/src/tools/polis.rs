@@ -184,7 +184,7 @@ impl ToolImpl for PolisTool {
                 }),
             )
             .api_route(
-                "/polis/statement_aux/moderate",
+                "/polis/statement_aux/{id}/moderate",
                 post_with(moderate_statement_aux, |op| {
                     op.id("PolisModerateStatementAux")
                         .tag("Tools")
@@ -475,16 +475,16 @@ impl From<ModerationDecisionRequest> for ModerationStatus {
 pub struct ModerateStatementAuxRequest {
     pub decision: ModerationDecisionRequest,
     pub moderation_reason: Option<String>,
-    pub statement_id: Uuid,
 }
 
 #[instrument(err(Debug), skip(state))]
 async fn moderate_statement_aux(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
+    Path(statement_id): Path<Uuid>,
     Json(request): Json<ModerateStatementAuxRequest>,
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
-    let aux = models::polis_statement_aux::get_by_id(&state.db, &request.statement_id).await?;
+    let aux = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
 
     polis_statement_aux::check_can_moderate(&state.db, &user, &aux.workflow_step_id).await?;
 
