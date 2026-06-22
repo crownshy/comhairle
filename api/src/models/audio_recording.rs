@@ -1,0 +1,360 @@
+use chrono::{DateTime, Utc};
+use schemars::JsonSchema;
+use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
+use sea_query_binder::SqlxBinder;
+use serde::{Deserialize, Serialize};
+use sqlx::{prelude::FromRow, PgPool};
+use uuid::Uuid;
+
+use crate::error::ComhairleError;
+
+/// Status of an audio recording's transcription and processing
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AudioRecordingStatus {
+    /// Recording uploaded, waiting to be processed
+    Pending,
+    /// Recording has been transcribed and report generated
+    Completed,
+    /// Recording failed during transcription/processing
+    Failed,
+}
+
+impl ToString for AudioRecordingStatus {
+    fn to_string(&self) -> String {
+        match self {
+            AudioRecordingStatus::Pending => "pending".to_string(),
+            AudioRecordingStatus::Completed => "completed".to_string(),
+            AudioRecordingStatus::Failed => "failed".to_string(),
+        }
+    }
+}
+
+/// Parse status from string (handles database TEXT type)
+impl AudioRecordingStatus {
+    pub fn from_string(s: &str) -> Result<Self, ComhairleError> {
+        match s {
+            "pending" => Ok(AudioRecordingStatus::Pending),
+            "completed" => Ok(AudioRecordingStatus::Completed),
+            "failed" => Ok(AudioRecordingStatus::Failed),
+            _ => Err(ComhairleError::ResourceNotFound(format!(
+                "Unknown status: {}",
+                s
+            ))),
+        }
+    }
+}
+
+/// An audio recording associated with an event and its breakout rooms
+///
+/// One record per event that tracks all breakout rooms and the overall status
+/// of transcription and report generation. The status reflects the entire
+/// multi-room processing pipeline.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct AudioRecording {
+    /// Unique identifier for this recording set
+    pub id: Uuid,
+    /// Event this recording belongs to
+    pub event_id: Uuid,
+    /// List of breakout room IDs
+    pub breakout_room_ids: Vec<String>,
+    /// S3 key prefix (without extension) used for generating URLs
+    /// Used as base for main and breakout room recordings
+    pub s3_key_prefix: String,
+    /// Current status of transcription/processing for entire event
+    pub status: AudioRecordingStatus,
+    /// When this recording was created
+    pub created_at: DateTime<Utc>,
+    /// When this recording's status was last updated
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Intermediate struct for database queries (with enum_def for sea_query)
+#[derive(Debug, FromRow, Clone)]
+#[enum_def(table_name = "audio_recording")]
+pub struct RawAudioRecording {
+    pub id: Uuid,
+    pub event_id: Uuid,
+    pub breakout_room_ids: Vec<String>,
+    pub s3_key_prefix: String,
+    pub status: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+const DEFAULT_COLUMNS: [RawAudioRecordingIden; 7] = [
+    RawAudioRecordingIden::Id,
+    RawAudioRecordingIden::EventId,
+    RawAudioRecordingIden::BreakoutRoomIds,
+    RawAudioRecordingIden::S3KeyPrefix,
+    RawAudioRecordingIden::Status,
+    RawAudioRecordingIden::CreatedAt,
+    RawAudioRecordingIden::UpdatedAt,
+];
+
+impl From<RawAudioRecording> for AudioRecording {
+    fn from(raw: RawAudioRecording) -> Self {
+        Self {
+            id: raw.id,
+            event_id: raw.event_id,
+            breakout_room_ids: raw.breakout_room_ids,
+            s3_key_prefix: raw.s3_key_prefix,
+            status: AudioRecordingStatus::from_string(&raw.status)
+                .unwrap_or(AudioRecordingStatus::Pending),
+            created_at: raw.created_at,
+            updated_at: raw.updated_at,
+        }
+    }
+}
+
+/// Request to create a new audio recording record
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct CreateAudioRecording {
+    pub event_id: Uuid,
+    pub breakout_room_ids: Vec<String>,
+    pub s3_key_prefix: String,
+}
+
+/// Create a new audio recording in the database
+pub async fn create(
+    db: &PgPool,
+    create_recording: &CreateAudioRecording,
+) -> Result<AudioRecording, ComhairleError> {
+    let (sql, values) = Query::insert()
+        .into_table(RawAudioRecordingIden::Table)
+        .columns([
+            RawAudioRecordingIden::EventId,
+            RawAudioRecordingIden::BreakoutRoomIds,
+            RawAudioRecordingIden::S3KeyPrefix,
+            RawAudioRecordingIden::Status,
+        ])
+        .values([
+            create_recording.event_id.into(),
+            create_recording.breakout_room_ids.clone().into(),
+            create_recording.s3_key_prefix.clone().into(),
+            "pending".into(),
+        ])
+        .unwrap()
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let recording = sqlx::query_as_with::<_, RawAudioRecording, _>(&sql, values)
+        .fetch_one(db)
+        .await?;
+
+    Ok(recording.into())
+}
+
+/// Get an audio recording by ID
+pub async fn get_by_id(db: &PgPool, recording_id: &Uuid) -> Result<AudioRecording, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns(DEFAULT_COLUMNS)
+        .from(RawAudioRecordingIden::Table)
+        .and_where(Expr::col(RawAudioRecordingIden::Id).eq(*recording_id))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let recording = sqlx::query_as_with::<_, RawAudioRecording, _>(&sql, values)
+        .fetch_optional(db)
+        .await?
+        .ok_or(ComhairleError::ResourceNotFound(
+            "Audio recording not found".to_string(),
+        ))?;
+
+    Ok(recording.into())
+}
+
+/// Get recording for an event (one per event)
+pub async fn get_by_event(db: &PgPool, event_id: &Uuid) -> Result<AudioRecording, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns(DEFAULT_COLUMNS)
+        .from(RawAudioRecordingIden::Table)
+        .and_where(Expr::col(RawAudioRecordingIden::EventId).eq(*event_id))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let recording = sqlx::query_as_with::<_, RawAudioRecording, _>(&sql, values)
+        .fetch_optional(db)
+        .await?
+        .ok_or(ComhairleError::ResourceNotFound(
+            "Audio recording not found for event".to_string(),
+        ))?;
+
+    Ok(recording.into())
+}
+
+/// Update the status of an audio recording
+pub async fn update_status(
+    db: &PgPool,
+    recording_id: &Uuid,
+    status: AudioRecordingStatus,
+) -> Result<AudioRecording, ComhairleError> {
+    let (sql, values) = Query::update()
+        .table(RawAudioRecordingIden::Table)
+        .value(RawAudioRecordingIden::Status, status.to_string())
+        .value(RawAudioRecordingIden::UpdatedAt, Expr::cust("NOW()"))
+        .and_where(Expr::col(RawAudioRecordingIden::Id).eq(*recording_id))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let recording = sqlx::query_as_with::<_, RawAudioRecording, _>(&sql, values)
+        .fetch_one(db)
+        .await?;
+
+    Ok(recording.into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::sync::Arc;
+
+    use crate::routes::conversations::dto::ConversationDto;
+    use crate::routes::events::dto::EventDto;
+    use crate::setup_server;
+    use crate::test_helpers::{test_config, test_state, UserSession};
+
+    async fn create_random_event(
+        session: &mut UserSession,
+        app: &axum::Router,
+    ) -> Result<EventDto, Box<dyn std::error::Error>> {
+        let conversation_response = session.create_random_conversation(app).await?;
+        let conversation: ConversationDto = serde_json::from_value(conversation_response.1)?;
+        let conversation_id: String = conversation.id.to_string();
+
+        let event_response = session.create_random_event(app, &conversation_id).await?;
+        let event: EventDto = serde_json::from_value(event_response.1)?;
+
+        Ok(event)
+    }
+
+    #[sqlx::test]
+    async fn test_create_audio_recording(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let event = create_random_event(&mut session, &app).await?;
+
+        let create_req = CreateAudioRecording {
+            event_id: event.id,
+            breakout_room_ids: vec!["room1".to_string(), "room2".to_string()],
+            s3_key_prefix: "test/prefix".to_string(),
+        };
+
+        let recording = create(&pool, &create_req).await?;
+        assert_eq!(recording.event_id, create_req.event_id);
+        assert_eq!(recording.breakout_room_ids, create_req.breakout_room_ids);
+        assert_eq!(recording.s3_key_prefix, create_req.s3_key_prefix);
+        assert_eq!(recording.status, AudioRecordingStatus::Pending);
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_get_by_id(pool: sqlx::PgPool) -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let event = create_random_event(&mut session, &app).await?;
+
+        let create_req = CreateAudioRecording {
+            event_id: event.id,
+            breakout_room_ids: vec!["room1".to_string()],
+            s3_key_prefix: "test/prefix".to_string(),
+        };
+
+        let created = create(&pool, &create_req).await?;
+        let fetched = get_by_id(&pool, &created.id).await?;
+
+        assert_eq!(fetched.id, created.id);
+        assert_eq!(fetched.event_id, created.event_id);
+        assert_eq!(fetched.s3_key_prefix, created.s3_key_prefix);
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_get_by_event(pool: sqlx::PgPool) -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let event = create_random_event(&mut session, &app).await?;
+
+        let create_req = CreateAudioRecording {
+            event_id: event.id,
+            breakout_room_ids: vec!["room1".to_string()],
+            s3_key_prefix: "test/prefix".to_string(),
+        };
+
+        let created = create(&pool, &create_req).await?;
+        let fetched = get_by_event(&pool, &event.id).await?;
+
+        assert_eq!(fetched.id, created.id);
+        assert_eq!(fetched.event_id, event.id);
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_update_status(pool: sqlx::PgPool) -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let event = create_random_event(&mut session, &app).await?;
+
+        let create_req = CreateAudioRecording {
+            event_id: event.id,
+            breakout_room_ids: vec!["room1".to_string()],
+            s3_key_prefix: "test/prefix".to_string(),
+        };
+
+        let created = create(&pool, &create_req).await?;
+        assert_eq!(created.status, AudioRecordingStatus::Pending);
+
+        let updated = update_status(&pool, &created.id, AudioRecordingStatus::Completed).await?;
+        assert_eq!(updated.status, AudioRecordingStatus::Completed);
+        assert!(updated.updated_at > created.updated_at);
+        assert!(updated.created_at == created.created_at);
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_get_by_id_not_found(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let _event = create_random_event(&mut session, &app).await?;
+
+        let nonexistent_id = uuid::Uuid::new_v4();
+        let result = get_by_id(&pool, &nonexistent_id).await;
+        assert!(result.is_err());
+        Ok(())
+    }
+}

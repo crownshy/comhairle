@@ -166,6 +166,18 @@ pub async fn generate_sensemaking_report(
         "Report job created in categorization service"
     );
 
+    // Update audio recording status to completed after all processing is done
+    if let Ok(audio_recording) =
+        crate::models::audio_recording::get_by_event(&state.db, &req.event_id).await
+    {
+        let _ = crate::models::audio_recording::update_status(
+            &state.db,
+            &audio_recording.id,
+            crate::models::audio_recording::AudioRecordingStatus::Completed,
+        )
+        .await;
+    }
+
     job::complete(
         &state.db,
         req.job_id,

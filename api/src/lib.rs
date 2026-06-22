@@ -267,6 +267,10 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
                                         WorkflowRouterContext::Event,
                                     ),
                                 ),
+                        )
+                        .nest_api_service(
+                            "/{event_id}/audio-recordings",
+                            routes::audio_recordings::router(state.clone()),
                         ),
                 ),
         )
