@@ -283,6 +283,10 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
         .nest_api_service("/jobs", routes::jobs::router(state.clone()))
         .nest_api_service("/services", routes::services::router(state.clone()))
         .nest_api_service("/api_keys", routes::api_keys::router(state.clone()))
+        .nest_api_service(
+            "/email_template_configs",
+            routes::email_template_configs::router(state.clone()),
+        )
         .nest_api_service("/docs", docs_routes(state.clone()))
         .finish_api_with(&mut api, api_docs)
         .layer(Extension(Arc::new(api.clone()))) // Arc is very important here or you will face massive memory and performance issues

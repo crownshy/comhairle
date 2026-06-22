@@ -3,6 +3,7 @@ pub mod auth;
 pub mod chat_sessions;
 pub mod conversations;
 pub mod documents;
+pub mod email_template_configs;
 pub mod event_attendances;
 pub mod events;
 pub mod feedback;

@@ -105,17 +105,17 @@ async fn create_conversation_invite(
     // Send out an email notification if we can
     match &invite.invite_type {
         InviteType::Email(email) => {
-            state.mailer.send_email(
-            email,
-            "Invitation to take part in a public consultation",
-            "conversation_invite.html",
-            context! {
-                conversation_hero => conversation.image_url,
-                conversation_title=> conversation.title,
-                invite_link => format!("{}/conversations/{}/invite/{}",state.config.domain, conversation.slug.unwrap_or_else(|| conversation.id.to_string()), invite.id )
-            },
-                None
-        )?;
+            state
+                .mailer
+                .send_conversation_invite_email(
+                    &state,
+                    email,
+                    conversation.id,
+                    user.id,
+                    invite.id,
+                    &conversation.primary_locale,
+                )
+                .await?;
         }
         InviteType::User(user_id) => {
             let user = models::users::get_user_by_id(user_id, &state.db).await?;
@@ -140,7 +140,7 @@ async fn create_conversation_invite(
 async fn create_event_invite(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-    OptionalUser(user): OptionalUser,
+    RequiredAdminUser(user): RequiredAdminUser,
     Json(create_invite): Json<CreateInviteDTO>,
 ) -> Result<(StatusCode, Json<InviteDto>), ComhairleError> {
     if create_invite.event_id.is_none() {
@@ -150,13 +150,8 @@ async fn create_event_invite(
     let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
 
     // Create the invite
-    let invite = models::invites::create(
-        &state.db,
-        create_invite,
-        &conversation_id,
-        user.map(|u| u.id),
-    )
-    .await?;
+    let invite =
+        models::invites::create(&state.db, create_invite, &conversation_id, Some(user.id)).await?;
 
     let InviteType::Email(email) = &invite.invite_type else {
         return Err(ComhairleError::InvalidInviteType);
@@ -164,17 +159,17 @@ async fn create_event_invite(
 
     let event_id = &invite.event_id.ok_or(ComhairleError::InvalidInviteType)?;
 
-    let event =
-        event::get_localized_by_id(&state.db, event_id, &conversation.primary_locale).await?;
-
-    let invite_link = format!(
-        "{}/conversations/{}/events/{}/invite/{}",
-        state.config.domain, conversation.id, event.id, invite.id
-    );
-
     state
         .mailer
-        .send_event_registration_email(email.to_string(), &event, &None, invite_link)?;
+        .send_event_registration_email(
+            &state,
+            email,
+            *event_id,
+            user.id,
+            invite.id,
+            &conversation.primary_locale,
+        )
+        .await?;
 
     Ok((StatusCode::CREATED, Json(invite.into())))
 }
@@ -326,18 +321,22 @@ async fn auto_register_event_attendance(
 
     let cookie = create_session_cookie(&user, &state);
 
-    let event_link = format!(
-        "{}/conversations/{}/events/{}",
-        state.config.domain, conversation.id, event.id
-    );
-
     event
         .schedule_event_reminders(&state.db, &state.config, &user)
         .await?;
 
+    let event_owner = users::get_user_by_id(&conversation.owner_id, &state.db).await?;
+
     state
         .mailer
-        .send_event_confirmation_email(email.to_string(), &event, &None, event_link)?;
+        .send_event_confirmation_email(
+            &state,
+            email,
+            event_id,
+            event_owner.id,
+            &conversation.primary_locale,
+        )
+        .await?;
 
     Ok((jar.add(cookie), (StatusCode::OK, Json(invite.into()))))
 }
@@ -457,7 +456,6 @@ mod tests {
     use std::error::Error;
 
     use axum::body::Body;
-    use mockall::predicate::{always, eq};
     use serde_json::json;
     use sqlx::PgPool;
     use tracing_test::traced_test;
@@ -482,16 +480,9 @@ mod tests {
 
         // Setup mailer expectations
         mailer
-            .expect_send_email()
-            .with(
-                eq("stuart.lynn@gmail.com"),
-                eq("Invitation to take part in a public consultation"),
-                eq("conversation_invite.html"),
-                always(),
-                always(),
-            )
+            .expect_send_conversation_invite_email()
             .once()
-            .returning(|_, _, _, _, _| Ok(()));
+            .returning(|_, _, _, _, _, _| Box::pin(async move { Ok(()) }));
 
         mailer
             .expect_send_welcome_email()

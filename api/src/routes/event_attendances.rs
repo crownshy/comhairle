@@ -110,20 +110,22 @@ pub async fn create(
                 event::get_localized_by_id(&state.db, &event_id, &conversation.primary_locale)
                     .await?;
 
+            let event_owner = users::get_user_by_id(&conversation.owner_id, &state.db).await?;
+
             event
                 .schedule_event_reminders(&state.db, &state.config, &user)
                 .await?;
 
-            let event_link = format!(
-                "{}/conversations/{}/events/{}",
-                state.config.domain, conversation.id, event.id
-            );
-            state.mailer.send_event_confirmation_email(
-                email.to_string(),
-                &event,
-                &None,
-                event_link,
-            )?;
+            state
+                .mailer
+                .send_event_confirmation_email(
+                    &state,
+                    email,
+                    event_id,
+                    event_owner.id,
+                    &conversation.primary_locale,
+                )
+                .await?;
         }
     }
 
@@ -298,7 +300,7 @@ mod tests {
         mailer
             .expect_send_event_confirmation_email()
             .once()
-            .returning(|_, _, _, _| Ok(()));
+            .returning(|_, _, _, _, _| Box::pin(async move { Ok(()) }));
         let state = test_state().db(pool).mailer(Arc::new(mailer)).call()?;
         let app = setup_server(Arc::new(state)).await?;
         let mut session = UserSession::new_admin();

@@ -1,30 +1,37 @@
+<!--
+
+Slots:
+- heading
+- intro
+- body
+- footer
+
+Variables:
+- conversation_title
+- invite_link
+- domain
+
+-->
+
 {% extends "email_layout.html" %}
 {% block content %}
-<p>Dear Invited Participant,</p>
-<p>You have been selected to take part in a public engagement hosted on the
-	<strong>Comhairle</strong> platform by <strong>CrownShy</strong>.
-<p />
-<p>We’re inviting you to complete the online engagement.</p>
-<p>We’re keen to hear your real views and reflections. If you choose to take part, we ask that you:</p>
+<div style="text-align: left">
+	<h1>{{heading}}</h1>
 
-<ul>
-	<li>Read and consider each question carefully.</li>
-	<li>Provide your own honest opinions, not blank or repetitive answers.</li>
-	<li>Complete <strong>all sections</strong> of the engagement.</li>
-</ul>
+	{{intro|safe}}
 
-<p>If you have any difficulties with completing the engagement or with the website please email us at <a
-		href='mailto:team@crown-shy.com'>team@crown-shy.com</a></p>
-<p>On the website <strong>please make sure you sign up using the email address this invitation was sent to</strong>. We
-	can only confirm your participation if you register with this address.</p>
+	{{body|safe}}
 
-<p>Here is your link to access the engagement: <a href="{{invite_link}}">{{invite_link}}</a>.
+	<p>If you have any difficulties with completing the engagement or with the website please email us at <a
+			href='mailto:team@crown-shy.com'>team@crown-shy.com</a></p>
+	<p>On the website <strong>please make sure you sign up using the email address this invitation was sent to</strong>. We
+		can only confirm your participation if you register with this address.</p>
 
-<p>The information you provide will be stored securely, kept confidential, and only used for the purposes explained in
-	our privacy notice, which you can read here: <a href="{% if domain %}{{domain}}{% else %}https://comhairle.scot/rights/privacy{% endif %}">privacy notice</a>.
-<p>Thank you very much for your time and contribution to this important process.</p>
+	<p>Here is your link to access the engagement: <a href="{{invite_link}}">{{invite_link}}</a>.
 
-<p>Warm regards, <br />
-	<strong>The CrownShy Team.</strong>
-</p>
+	<p>The information you provide will be stored securely, kept confidential, and only used for the purposes explained in
+		our privacy notice, which you can read here: <a href="{% if domain %}{{domain}}{% else %}https://comhairle.scot/rights/privacy{% endif %}">privacy notice</a>.
+
+	{{footer|safe}}
+</div>
 {% endblock %}

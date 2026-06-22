@@ -1,8 +1,27 @@
+<!--
+
+Slots:
+- heading
+- intro
+- body
+- footer
+
+Variables:
+- event_name
+- event_time
+- invite_link
+- organization_email
+
+-->
+
 {% extends "email_layout.html" %}
 {% block content %}
-	<h1>Hello!</h1>
-	<p>You are invited to take part in {{event_name}} with {{organization_name}} to collaborate with them.</p>
-	<p>Click the button below to register.</p>
+	<h1>{{heading}}</h1>
+	
+	{{intro|safe}}
+
+	{{body|safe}}
+
 
 	<div class="card">
 		<h2>{{event_name}}</h2>
@@ -22,7 +41,5 @@
 		</p>
 	{% endif %}
 
-	<p>We look forward to your participation!</p>
-
-	<p><strong>{{organization_name}}</strong></p>
+	{{footer|safe}}
 {% endblock %}
