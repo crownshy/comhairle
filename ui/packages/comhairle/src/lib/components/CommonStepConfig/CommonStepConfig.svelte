@@ -24,6 +24,7 @@
 		step: WorkflowStepWithTranslations;
 		headerless?: boolean;
 		open?: boolean;
+		inline?: boolean;
 	};
 
 	let {
@@ -31,7 +32,8 @@
 		conversation_id,
 		conversation,
 		headerless = false,
-		open = $bindable(false)
+		open = $bindable(false),
+		inline = false
 	}: Props = $props();
 
 	let primaryLocale = $derived(conversation?.primaryLocale ?? 'en');
@@ -103,117 +105,129 @@
 	}
 </script>
 
-{#if !headerless}
-	<div class="mb-10 flex flex-row items-start justify-between">
-		<div class="flex flex-col gap-2">
-			<div class="flex flex-row items-end gap-2">
-				<h2 class="text-2xl">{name || sourceName || 'Unnamed Step'}</h2>
-				{#if step?.required}
-					<p class="text-red-900">(Required)</p>
-				{:else}
-					<p class="text-green-900">(Skippable)</p>
-				{/if}
-			</div>
-			<ContentRenderer
-				content={description || sourceDescription}
-				class="text-muted-foreground text-sm"
+{#snippet fields()}
+	<!-- Name field -->
+	<div class="flex flex-col gap-1">
+		<span class="text-lg font-semibold">Name</span>
+		<p class="text-muted-foreground mb-2 text-sm">
+			The name of the step that will be shown to participants.
+		</p>
+		<TranslatableField
+			value={name}
+			onValueChange={(v) => (name = v)}
+			translation={step.translations?.name}
+			{primaryLocale}
+			{supportedLanguages}
+		/>
+	</div>
+
+	<!-- Description field -->
+	<div class="pt-4">
+		<div class="flex flex-col gap-1">
+			<span class="text-lg font-semibold">Description</span>
+			<p class="text-muted-foreground text-sm">
+				A description of this step that will inform users of its intent.
+			</p>
+		</div>
+		<div class="pt-4">
+			<TranslatableField
+				value={description}
+				onValueChange={(v) => (description = v)}
+				translation={step.translations?.description}
+				{primaryLocale}
+				{supportedLanguages}
 				{availableDocuments}
 				conversationId={conversation_id}
+				editorType="rich"
+				minHeight="100px"
+				maxHeight="150px"
 			/>
 		</div>
-		<Button variant="default" onclick={() => (open = true)}>Edit Metadata</Button>
 	</div>
-{/if}
+{/snippet}
 
-<Dialog.Root
-	bind:open
-	onOpenChange={(isOpen) => {
-		if (!isOpen) invalidateAll();
-	}}
->
-	<Dialog.Content class="flex max-h-[90vh] min-w-[70vw] flex-col rounded-xl p-0">
-		<Dialog.Header class="shrink-0 border-b p-6 pb-4">
-			<Dialog.Title class="text-2xl">Edit Step Metadata</Dialog.Title>
-			<Dialog.Description>
-				Configure the name and description shown to participants.
-			</Dialog.Description>
-		</Dialog.Header>
+{#snippet switches()}
+	<div class="flex items-center gap-2">
+		<Switch
+			checked={revisitable}
+			onCheckedChange={(value) => handleSwitchChange(value, 'canRevisit')}
+		/>
+		<Label class="text-base">Revisitable step</Label>
+		<span class="text-muted-foreground ml-2 text-sm">(Can users revisit this step?)</span>
+	</div>
+	<div class="flex items-center gap-2">
+		<Switch
+			checked={required}
+			onCheckedChange={(value) => handleSwitchChange(value, 'required')}
+		/>
+		<Label class="text-base">Required step</Label>
+		<span class="text-muted-foreground ml-2 text-sm">(Can users skip this step?)</span>
+	</div>
+	<div class="flex items-center gap-2">
+		<Switch
+			checked={requestUserSharePermission}
+			onCheckedChange={(value) => handleSwitchChange(value, 'requestUserSharePermission')}
+		/>
+		<Label class="text-base">Ask for sharing consent</Label>
+		<span class="text-muted-foreground ml-2 text-sm">
+			(Prompt participants to opt in or out of sharing their responses with organizers.)
+		</span>
+	</div>
+{/snippet}
 
-		<ScrollArea.Root class="min-h-0 flex-1">
-			<div class="px-6 pb-6">
-				<!-- Name field -->
-				<div class="flex flex-col gap-1">
-					<span class="text-lg font-semibold">Name</span>
-					<p class="text-muted-foreground mb-2 text-sm">
-						The name of the step that will be shown to participants.
-					</p>
-					<TranslatableField
-						value={name}
-						onValueChange={(v) => (name = v)}
-						translation={step.translations?.name}
-						{primaryLocale}
-						{supportedLanguages}
-					/>
-				</div>
-
-				<!-- Description field -->
-				<div class="pt-4">
-					<div class="flex flex-col gap-1">
-						<span class="text-lg font-semibold">Description</span>
-						<p class="text-muted-foreground text-sm">
-							A description of this step that will inform users of its intent.
-						</p>
-					</div>
-					<div class="pt-4">
-						<TranslatableField
-							value={description}
-							onValueChange={(v) => (description = v)}
-							translation={step.translations?.description}
-							{primaryLocale}
-							{supportedLanguages}
-							{availableDocuments}
-							conversationId={conversation_id}
-							editorType="rich"
-							minHeight="100px"
-							maxHeight="150px"
-						/>
-					</div>
-				</div>
-			</div>
-		</ScrollArea.Root>
-
-		<!-- Fixed footer with required toggle -->
-		<div class="bg-muted/30 flex shrink-0 flex-col gap-4 border-t p-6">
-			<div class="flex items-center gap-2">
-				<Switch
-					checked={revisitable}
-					onCheckedChange={(value) => handleSwitchChange(value, 'canRevisit')}
-				/>
-				<Label class="text-base">Revisitable step</Label>
-				<span class="text-muted-foreground ml-2 text-sm"
-					>(Can users revisit this step?)</span
-				>
-			</div>
-			<div class="flex items-center gap-2">
-				<Switch
-					checked={required}
-					onCheckedChange={(value) => handleSwitchChange(value, 'required')}
-				/>
-				<Label class="text-base">Required step</Label>
-				<span class="text-muted-foreground ml-2 text-sm">(Can users skip this step?)</span>
-			</div>
-			<div class="flex items-center gap-2">
-				<Switch
-					checked={requestUserSharePermission}
-					onCheckedChange={(value) =>
-						handleSwitchChange(value, 'requestUserSharePermission')}
-				/>
-				<Label class="text-base">Ask for sharing consent</Label>
-				<span class="text-muted-foreground ml-2 text-sm"
-					>(Prompt participants to opt in or out of sharing their responses with
-					organizers.)</span
-				>
-			</div>
+{#if inline}
+	<div class="flex flex-col gap-6">
+		{@render fields()}
+		<div class="border-border flex flex-col gap-4 border-t pt-6">
+			{@render switches()}
 		</div>
-	</Dialog.Content>
-</Dialog.Root>
+	</div>
+{:else}
+	{#if !headerless}
+		<div class="mb-10 flex flex-row items-start justify-between">
+			<div class="flex flex-col gap-2">
+				<div class="flex flex-row items-end gap-2">
+					<h2 class="text-2xl">{name || sourceName || 'Unnamed Step'}</h2>
+					{#if step?.required}
+						<p class="text-red-900">(Required)</p>
+					{:else}
+						<p class="text-green-900">(Skippable)</p>
+					{/if}
+				</div>
+				<ContentRenderer
+					content={description || sourceDescription}
+					class="text-muted-foreground text-sm"
+					{availableDocuments}
+					conversationId={conversation_id}
+				/>
+			</div>
+			<Button variant="default" onclick={() => (open = true)}>Edit Metadata</Button>
+		</div>
+	{/if}
+
+	<Dialog.Root
+		bind:open
+		onOpenChange={(isOpen) => {
+			if (!isOpen) invalidateAll();
+		}}
+	>
+		<Dialog.Content class="flex max-h-[90vh] min-w-[70vw] flex-col rounded-xl p-0">
+			<Dialog.Header class="shrink-0 border-b p-6 pb-4">
+				<Dialog.Title class="text-2xl">Edit Step Metadata</Dialog.Title>
+				<Dialog.Description>
+					Configure the name and description shown to participants.
+				</Dialog.Description>
+			</Dialog.Header>
+
+			<ScrollArea.Root class="min-h-0 flex-1">
+				<div class="px-6 pb-6">
+					{@render fields()}
+				</div>
+			</ScrollArea.Root>
+
+			<div class="bg-muted/30 flex shrink-0 flex-col gap-4 border-t p-6">
+				{@render switches()}
+			</div>
+		</Dialog.Content>
+	</Dialog.Root>
+{/if}

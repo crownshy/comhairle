@@ -7,7 +7,6 @@
 	import { Button } from '$lib/components/ui/button';
 
 	import type { PageProps } from './$types';
-	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 
 	let { data }: PageProps = $props();
 	let { workflowSteps, workflowStats } = data;
@@ -36,22 +35,13 @@
 			unit: null
 		}
 	];
-
-	useAdminLayoutSlots({
-		title: titleSnippet,
-		breadcrumbs: [{ label: 'Monitor' }]
-	});
 </script>
 
 <svelte:head>
 	<title>Monitor Conversation - Comhairle Admin</title>
 </svelte:head>
 
-{#snippet titleSnippet()}
-	<div class="flex items-center justify-between">
-		<h1 class="text-4xl font-bold">Monitor</h1>
-	</div>
-{/snippet}
+<h1 class="mb-4 text-3xl font-bold">Monitor</h1>
 
 <p class="mb-10">
 	See how your conversation is working, monitor recruitment and user progress and check out your

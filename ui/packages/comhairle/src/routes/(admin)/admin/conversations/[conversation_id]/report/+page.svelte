@@ -22,7 +22,6 @@
 	import 'carta-md/default.css';
 	import '@cartamd/plugin-slash/default.css';
 	import 'carta-plugin-video/default.css';
-	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte.js';
 
 	let { data } = $props();
 	let report = $derived(data.report);
@@ -67,19 +66,13 @@
 			notifications.send({ message: 'Failed to save impact', priority: 'ERROR' });
 		}
 	}
-	useAdminLayoutSlots({
-		title: titleSnippet,
-		breadcrumbs: [{ label: 'Report' }]
-	});
 </script>
 
 <svelte:head>
 	<title>Conversation Report - Comhairle Admin</title>
 </svelte:head>
 
-{#snippet titleSnippet()}
-	<h1 class="text-4xl font-bold">Report</h1>
-{/snippet}
+<h1 class="mb-4 text-3xl font-bold">Report</h1>
 
 <p class="mb-10">Use this space to edit the report for this conversation</p>
 

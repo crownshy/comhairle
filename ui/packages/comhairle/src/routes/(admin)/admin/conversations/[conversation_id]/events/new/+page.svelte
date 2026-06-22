@@ -27,7 +27,6 @@
 	import { basic_learn_config } from '$lib/workflow_templates';
 	import BadgeInput from '$lib/components/ui/badge-input/badge-input.svelte';
 	import * as Alert from '$lib/components/ui/alert';
-	import { useAdminLayoutSlots } from '../../useAdminLayoutSlots.svelte';
 
 	let { data } = $props();
 	let { form: formDefaults, conversation, user } = data;
@@ -181,23 +180,13 @@
 	}
 
 	let startDate = $derived($formData.start_date ? parseDate($formData.start_date) : undefined);
-
-	useAdminLayoutSlots({
-		title: titleContentSnippet,
-		breadcrumbs: [
-			{ label: 'Events', href: `/admin/conversations/${conversation.id}/events` },
-			{ label: 'New' }
-		]
-	});
 </script>
 
 <svelte:head>
 	<title>Create New Event - Comhairle Admin</title>
 </svelte:head>
 
-{#snippet titleContentSnippet()}
-	<h1 class="text-4xl font-bold">New Event</h1>
-{/snippet}
+<h1 class="mb-4 text-3xl font-bold">New Event</h1>
 
 <div class="flex flex-col gap-4">
 	<h2 class="text-card-foreground text-base font-semibold">Edit information</h2>

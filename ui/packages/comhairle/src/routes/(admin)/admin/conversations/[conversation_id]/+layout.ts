@@ -6,16 +6,27 @@ import type {
 	WorkflowStats,
 	WorkflowStepWithTranslations
 } from '@crownshy/api-client/api';
+import type { LayoutLoad } from './$types';
 
-export const load: PageLoad = async ({
+/**
+ * Invalidation keys for this load. Both re-run the same fetch, but the names
+ * let callers express *what* they changed without coupling to load internals.
+ * - conversation:meta — conversation record itself (title, description, flags…)
+ * - conversation:workflow — workflows + steps + stats (anything step-related)
+ */
+export const load: LayoutLoad = async ({
 	params,
-	parent
+	parent,
+	depends
 }): Promise<{
 	conversation: ConversationWithTranslations;
 	workflows: WorkflowDto[];
 	workflowSteps: WorkflowStepWithTranslations[];
 	stats: WorkflowStats;
 }> => {
+	depends('conversation:meta');
+	depends('conversation:workflow');
+
 	const conversation_id = params.conversation_id;
 	const { api } = await parent();
 

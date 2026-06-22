@@ -9,57 +9,26 @@ import {
 } from 'lucide-svelte';
 import type { ComponentType } from 'svelte';
 
-export interface ConversationStep {
+export interface ConversationSection {
 	name: string;
 	path: string;
 	icon: ComponentType;
-	activeStatus: NavLinkActiveStatus;
+	/**
+	 * If true, the section is disabled until the conversation is launched —
+	 * not for edit protection, but because the section's content depends on
+	 * participant activity that doesn't exist yet (recruiting, monitoring,
+	 * moderation queues, notifications, reports). See ADR-0001.
+	 */
+	requiresLive?: boolean;
 }
 
-export enum NavLinkActiveStatus {
-	Launch = 'launch',
-	PreLaunch = 'pre-launch',
-	Both = 'both'
-}
-
-export const conversationSteps: ConversationStep[] = [
-	{
-		name: 'Configure',
-		path: 'configure',
-		icon: TerminalSquare,
-		activeStatus: NavLinkActiveStatus.Both
-	},
-	{ name: 'Design', path: 'design', icon: Pencil, activeStatus: NavLinkActiveStatus.PreLaunch },
-	{
-		name: 'Knowledge base',
-		path: 'knowledge-base',
-		icon: Database,
-		activeStatus: NavLinkActiveStatus.PreLaunch
-	},
-	{
-		name: 'Events',
-		path: 'events',
-		icon: Database,
-		activeStatus: NavLinkActiveStatus.Both
-	},
-	{
-		name: 'Recruit',
-		path: 'invites',
-		icon: UsersRound,
-		activeStatus: NavLinkActiveStatus.Launch
-	},
-	{
-		name: 'Monitor',
-		path: 'monitor',
-		icon: Binoculars,
-		activeStatus: NavLinkActiveStatus.Launch
-	},
-	{
-		name: 'Moderate',
-		path: 'moderate',
-		icon: UsersRound,
-		activeStatus: NavLinkActiveStatus.Launch
-	},
-	{ name: 'Notify', path: 'notifications', icon: Bell, activeStatus: NavLinkActiveStatus.Launch },
-	{ name: 'Report', path: 'report', icon: NotebookText, activeStatus: NavLinkActiveStatus.Launch }
+export const conversationSections: ConversationSection[] = [
+	{ name: 'Configure', path: 'configure', icon: TerminalSquare },
+	{ name: 'Workflow', path: 'design', icon: Pencil },
+	{ name: 'Knowledge base', path: 'knowledge-base', icon: Database },
+	{ name: 'Events', path: 'events', icon: Database },
+	{ name: 'Recruit', path: 'invites', icon: UsersRound, requiresLive: true },
+	{ name: 'Monitor', path: 'monitor', icon: Binoculars, requiresLive: true },
+	{ name: 'Notify', path: 'notifications', icon: Bell, requiresLive: true },
+	{ name: 'Report', path: 'report', icon: NotebookText, requiresLive: true }
 ];

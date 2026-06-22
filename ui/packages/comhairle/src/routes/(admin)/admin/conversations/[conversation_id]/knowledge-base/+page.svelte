@@ -1,10 +1,8 @@
 <script lang="ts">
 	import type { ComhairleDocument, ConversationWithTranslations } from '@crownshy/api-client/api';
-	import AdminPrevNextControls from '$lib/components/AdminPrevNextControls.svelte';
 	import FileUpload from '$lib/components/KnowledgeBase/FileUpload.svelte';
 	import ParsedFileList from '$lib/components/KnowledgeBase/ParsedFileList.svelte';
 	import ParsingFileList from '$lib/components/KnowledgeBase/ParsingFileList.svelte';
-	import { useAdminLayoutSlots } from '../useAdminLayoutSlots.svelte';
 
 	type Props = {
 		data: {
@@ -27,25 +25,13 @@
 				(doc.parse_progress === 0 && doc.parse_status === 'CANCEL')
 		)
 	);
-
-	useAdminLayoutSlots({
-		title: titleSnippet,
-		breadcrumbs: [{ label: 'Knowledge Base' }]
-	});
 </script>
 
 <svelte:head>
 	<title>Knowledge Base - Comhairle Admin</title>
 </svelte:head>
 
-{#snippet titleSnippet()}
-	<h1 class="text-4xl font-bold">Knowledge Base</h1>
-
-	<AdminPrevNextControls
-		prev={{ name: 'Design', url: `/admin/conversations/${conversation.id}/design` }}
-		next={{ name: 'Events', url: `/admin/conversations/${conversation.id}/events` }}
-	/>
-{/snippet}
+<h1 class="mb-4 text-3xl font-bold">Knowledge Base</h1>
 
 <p class="mb-10">Use this space to manage your conversation's knowledge base</p>
 <p>
