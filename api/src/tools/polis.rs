@@ -549,34 +549,6 @@ async fn theme_stats(
     Ok((StatusCode::OK, Json(stats)))
 }
 
-/// Logs a user into polis and proxies the cookie
-/// to the frontend
-async fn admin_login(
-    State(state): State<Arc<ComhairleState>>,
-    Query(AdminLoginQuery { workflow_step_id }): Query<AdminLoginQuery>,
-    cookies: CookieJar,
-) -> Result<(CookieJar, (StatusCode, Json<String>)), ComhairleError> {
-    let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
-
-    if let ToolConfig::Polis(config) = workflow_step.preview_tool_config {
-        let client = &state.wiki_poll_service;
-        let cookie = client
-            .login(&WikiPollLogin {
-                email: config.admin_user,
-                password: config.admin_password,
-            })
-            .await?;
-        let mut parsed_cookie = Cookie::parse(cookie).map_err(|_| PolisError::FailedToLogin)?;
-        parsed_cookie.set_domain("comhairle.scot");
-
-        let new_cookies = cookies.add(parsed_cookie);
-
-        Ok((new_cookies, (StatusCode::OK, Json("logged in".into()))))
-    } else {
-        Err(ComhairleError::WorkflowStepHasWrongType("Polis".into()))
-    }
-}
-
 #[instrument(err(Debug), skip(client))]
 pub async fn launch(
     preview_config: &PolisToolConfig,
