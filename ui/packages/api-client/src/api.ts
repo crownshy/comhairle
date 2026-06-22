@@ -411,6 +411,19 @@ export const ThemeStatistic = z
   .object({ count: z.number().int(), theme: z.string() })
   .passthrough();
 export type ThemeStatistic = z.infer<typeof ThemeStatistic>;
+export const ModerationDecisionRequest = z.enum(["accept", "reject"]);
+export type ModerationDecisionRequest = z.infer<
+  typeof ModerationDecisionRequest
+>;
+export const ModerateStatementAuxRequest = z
+  .object({
+    decision: ModerationDecisionRequest,
+    moderation_reason: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type ModerateStatementAuxRequest = z.infer<
+  typeof ModerateStatementAuxRequest
+>;
 export const Story = z
   .object({
     id: z.string().uuid(),
@@ -1919,6 +1932,8 @@ export const schemas: Record<string, z.ZodType<any>> = {
   SyncStatementAuxRequest,
   SyncStatementAuxResponse,
   ThemeStatistic,
+  ModerationDecisionRequest,
+  ModerateStatementAuxRequest,
   Story,
   ComhairleMessageReference,
   ComhairleSessionMessage,
@@ -3756,21 +3771,6 @@ Use a raw HTTP request and process the response body incrementally.
     response: z.void(),
   },
   {
-    method: "post",
-    path: "/tools/polis/admin_login",
-    alias: "PolisAdminLogin",
-    description: `Logs into Polis as admin and returns session cookie`,
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "workflow_step_id",
-        type: "Query",
-        schema: z.string().uuid(),
-      },
-    ],
-    response: z.void(),
-  },
-  {
     method: "get",
     path: "/tools/polis/report_data",
     alias: "PolisGetReportData",
@@ -3831,6 +3831,21 @@ Use a raw HTTP request and process the response body incrementally.
         name: "body",
         type: "Body",
         schema: UpdatePolisStatementAux,
+      },
+    ],
+    response: PolisStatementAux,
+  },
+  {
+    method: "post",
+    path: "/tools/polis/statement_aux/:id/moderate",
+    alias: "PolisModerateStatementAux",
+    description: `Forwards a moderation decision (accept/reject) to the Polis server using the admin account, then updates the polis_statement_aux row&#x27;s moderation_status and moderation_reason`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: ModerateStatementAuxRequest,
       },
     ],
     response: PolisStatementAux,
