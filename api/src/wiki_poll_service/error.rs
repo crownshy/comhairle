@@ -11,4 +11,7 @@ pub enum WikiPollServiceError {
 
     #[error("HTTP error: {0}")]
     Http(#[from] reqwest::Error),
+
+    #[error("Moderation status integer not recognized")]
+    UnknownModerationStatus,
 }

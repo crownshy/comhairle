@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::models::polis_statement_aux;
 use aide::axum::{
     routing::{get_with, post_with, put_with},
     ApiRouter,
@@ -26,7 +27,9 @@ use crate::{
         },
     },
     routes::auth::RequiredUser,
-    wiki_poll_service::{polis_service::WikiPollReport, WikiPollLogin, WikiPollService},
+    wiki_poll_service::{
+        polis_service::WikiPollReport, ModerationStatus, WikiPollLogin, WikiPollService,
+    },
     ComhairleState,
 };
 
@@ -102,15 +105,6 @@ impl ToolImpl for PolisTool {
 
     fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
         ApiRouter::new()
-            .api_route(
-                "/polis/admin_login",
-                post_with(admin_login, |op| {
-                    op.id("PolisAdminLogin")
-                        .tag("Tools")
-                        .summary("Login as Polis admin and proxy cookie")
-                        .description("Logs into Polis as admin and returns session cookie")
-                }),
-            )
             .api_route(
                 "/polis/report_data",
                 get_with(get_report_data, |op| {
@@ -189,6 +183,21 @@ impl ToolImpl for PolisTool {
                         .response::<200, Json<Vec<ThemeStatistic>>>()
                 }),
             )
+            .api_route(
+                "/polis/statement_aux/{id}/moderate",
+                post_with(moderate_statement_aux, |op| {
+                    op.id("PolisModerateStatementAux")
+                        .tag("Tools")
+                        .summary("Moderate a Polis statement")
+                        .description(
+                            "Forwards a moderation decision (accept/reject) to the Polis \
+                             server using the admin account, then updates the \
+                             polis_statement_aux row's moderation_status and \
+                             moderation_reason",
+                        )
+                        .response::<200, Json<PolisStatementAux>>()
+                }),
+            )
             .with_state(state.clone())
     }
 }
@@ -215,6 +224,9 @@ pub enum PolisError {
 
     #[error("Failed to post seed comment {0}")]
     FailedToPostSeedComment(String),
+
+    #[error("Failed to moderate comment {0}")]
+    FailedToModerateComment(String),
 
     #[error("Failed to proxy route {from} : {to}")]
     ProxyError { from: String, to: String },
@@ -312,6 +324,16 @@ async fn create_statement_aux(
     RequiredUser(user): RequiredUser,
     Json(create_request): Json<CreatePolisStatementAux>,
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
+    let workflow_step =
+        models::workflow_step::get_by_id(&state.db, &create_request.workflow_step_id).await?;
+
+    models::user_participation::check_user_participating(
+        &state.db,
+        &workflow_step.workflow_id,
+        &user.id,
+    )
+    .await?;
+
     let aux = models::polis_statement_aux::create(&state.db, user.id, &create_request).await?;
     Ok((StatusCode::CREATED, Json(aux)))
 }
@@ -319,10 +341,11 @@ async fn create_statement_aux(
 #[instrument(err(Debug), skip(state))]
 async fn update_statement_aux(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(_user): RequiredUser,
+    RequiredUser(user): RequiredUser,
     Path(id): Path<Uuid>,
     Json(update_request): Json<UpdatePolisStatementAux>,
 ) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
+    models::polis_statement_aux::check_is_commentor(&state.db, &id, &user.id).await?;
     let aux = models::polis_statement_aux::update(&state.db, id, &update_request).await?;
     Ok((StatusCode::OK, Json(aux)))
 }
@@ -369,10 +392,11 @@ pub struct SyncStatementAuxResponse {
 #[instrument(err(Debug), skip(state))]
 async fn sync_statement_aux(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(_user): RequiredUser,
+    RequiredUser(user): RequiredUser,
     Json(SyncStatementAuxRequest { workflow_step_id }): Json<SyncStatementAuxRequest>,
 ) -> Result<(StatusCode, Json<SyncStatementAuxResponse>), ComhairleError> {
     let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
+    models::workflow::check_user_is_owner(&state.db, &workflow_step.workflow_id, &user.id).await?;
 
     let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
         (Some(ToolConfig::Polis(config)), _) => config,
@@ -414,6 +438,7 @@ async fn sync_statement_aux(
                 polis_statement_id: comment.tid as i32,
                 statement_text: comment.txt,
                 is_seed: comment.is_seed,
+                moderation_status: comment.moderation.try_into()?,
             },
         )
         .await?;
@@ -428,6 +453,80 @@ async fn sync_statement_aux(
             statements,
         }),
     ))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum ModerationDecisionRequest {
+    Accept,
+    Reject,
+}
+
+impl From<ModerationDecisionRequest> for ModerationStatus {
+    fn from(value: ModerationDecisionRequest) -> Self {
+        match value {
+            ModerationDecisionRequest::Accept => ModerationStatus::Accepted,
+            ModerationDecisionRequest::Reject => ModerationStatus::Rejected,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct ModerateStatementAuxRequest {
+    pub decision: ModerationDecisionRequest,
+    pub moderation_reason: Option<String>,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn moderate_statement_aux(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path(statement_id): Path<Uuid>,
+    Json(request): Json<ModerateStatementAuxRequest>,
+) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
+    let aux = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
+
+    polis_statement_aux::check_can_moderate(&state.db, &user, &aux.workflow_step_id).await?;
+
+    let workflow_step = models::workflow_step::get_by_id(&state.db, &aux.workflow_step_id).await?;
+
+    let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
+        (Some(ToolConfig::Polis(config)), _) => config,
+        (None, ToolConfig::Polis(config)) => config,
+        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+    };
+
+    let client = &state.wiki_poll_service;
+    let auth_cookies = client
+        .login(&WikiPollLogin {
+            email: config.admin_user.clone(),
+            password: config.admin_password.clone(),
+        })
+        .await?;
+
+    client
+        .moderate_comment(
+            &config.poll_id,
+            aux.polis_statement_id,
+            request.decision.into(),
+            &auth_cookies,
+        )
+        .await?;
+
+    let updated = models::polis_statement_aux::update(
+        &state.db,
+        statement_id,
+        &UpdatePolisStatementAux {
+            statement_text: None,
+            moderation_status: Some(request.decision.into()),
+            themes: None,
+            visible_statement_when_submitted: None,
+            moderation_reason: request.moderation_reason,
+        },
+    )
+    .await?;
+
+    Ok((StatusCode::OK, Json(updated)))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -448,34 +547,6 @@ async fn theme_stats(
     )
     .await?;
     Ok((StatusCode::OK, Json(stats)))
-}
-
-/// Logs a user into polis and proxies the cookie
-/// to the frontend
-async fn admin_login(
-    State(state): State<Arc<ComhairleState>>,
-    Query(AdminLoginQuery { workflow_step_id }): Query<AdminLoginQuery>,
-    cookies: CookieJar,
-) -> Result<(CookieJar, (StatusCode, Json<String>)), ComhairleError> {
-    let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
-
-    if let ToolConfig::Polis(config) = workflow_step.preview_tool_config {
-        let client = &state.wiki_poll_service;
-        let cookie = client
-            .login(&WikiPollLogin {
-                email: config.admin_user,
-                password: config.admin_password,
-            })
-            .await?;
-        let mut parsed_cookie = Cookie::parse(cookie).map_err(|_| PolisError::FailedToLogin)?;
-        parsed_cookie.set_domain("comhairle.scot");
-
-        let new_cookies = cookies.add(parsed_cookie);
-
-        Ok((new_cookies, (StatusCode::OK, Json("logged in".into()))))
-    } else {
-        Err(ComhairleError::WorkflowStepHasWrongType("Polis".into()))
-    }
 }
 
 #[instrument(err(Debug), skip(client))]

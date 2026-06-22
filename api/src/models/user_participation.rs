@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
 use uuid::Uuid;
 
-use crate::error::ComhairleError;
+use crate::{error::ComhairleError, models::users::User};
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "user_participation")]
@@ -98,6 +98,34 @@ pub async fn delete(
         .map_err(|_| ComhairleError::ResourceNotFound("UserParticipation".into()))?;
 
     Ok(user_participation)
+}
+
+pub async fn check_user_participating(
+    db: &PgPool,
+    workflow_id: &Uuid,
+    user_id: &Uuid,
+) -> Result<(), ComhairleError> {
+    let (sql, values) = Query::select()
+        .from(UserParticipationIden::Table)
+        .column(UserParticipationIden::UserId)
+        .and_where(
+            Expr::col((
+                UserParticipationIden::Table,
+                UserParticipationIden::WorkflowId,
+            ))
+            .eq(*workflow_id),
+        )
+        .and_where(
+            Expr::col((UserParticipationIden::Table, UserParticipationIden::UserId)).eq(*user_id),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    sqlx::query_with(&sql, values)
+        .fetch_all(db)
+        .await
+        .map_err(|_| ComhairleError::ResourceNotFound("UserParticipation".into()))?;
+
+    Ok(())
 }
 
 pub async fn get_participant_user_ids_for_conversation(
