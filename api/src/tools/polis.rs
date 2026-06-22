@@ -515,7 +515,7 @@ async fn moderate_statement_aux(
 
     let updated = models::polis_statement_aux::update(
         &state.db,
-        request.statement_id,
+        statement_id,
         &UpdatePolisStatementAux {
             statement_text: None,
             moderation_status: Some(request.decision.into()),
