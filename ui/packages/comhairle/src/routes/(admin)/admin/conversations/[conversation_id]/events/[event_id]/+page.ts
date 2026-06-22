@@ -26,12 +26,17 @@ export const load: PageLoad = async ({ params, parent }) => {
 			params: { conversation_id: conversation.id, event_id }
 		});
 
+		const recordings = await api.ListAudioRecordings({
+			params: { conversation_id, event_id }
+		});
+
 		return {
 			event,
 			conversation,
 			facilitators: facilitators.records,
 			moderators: moderators.records,
-			invites
+			invites,
+			recordings
 		};
 	} catch (e) {
 		console.error(e);
