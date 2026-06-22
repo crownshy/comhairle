@@ -1688,6 +1688,52 @@ export const CreateFacilitatorRequest = z
   .object({ email: z.string() })
   .passthrough();
 export type CreateFacilitatorRequest = z.infer<typeof CreateFacilitatorRequest>;
+export const RequestUploadUrlsRequest = z
+  .object({ breakoutRooms: z.array(z.string()) })
+  .passthrough();
+export type RequestUploadUrlsRequest = z.infer<typeof RequestUploadUrlsRequest>;
+export const RequestUploadUrlsResponse = z
+  .object({
+    breakoutRooms: z.array(z.array(z.unknown()).min(2).max(2)),
+    main: z.string(),
+  })
+  .passthrough();
+export type RequestUploadUrlsResponse = z.infer<
+  typeof RequestUploadUrlsResponse
+>;
+export const RecordingDownloadUrls = z
+  .object({
+    recordingUrl: z.string(),
+    reportUrl: z.string(),
+    transcriptUrl: z.string(),
+  })
+  .passthrough();
+export type RecordingDownloadUrls = z.infer<typeof RecordingDownloadUrls>;
+export const SignedDownloadUrls = z
+  .object({
+    breakoutRooms: z.array(z.array(z.unknown()).min(2).max(2)),
+    main: RecordingDownloadUrls,
+  })
+  .passthrough();
+export type SignedDownloadUrls = z.infer<typeof SignedDownloadUrls>;
+export const AudioRecordingStatus = z.union([
+  z.literal("pending"),
+  z.literal("completed"),
+  z.literal("failed"),
+]);
+export type AudioRecordingStatus = z.infer<typeof AudioRecordingStatus>;
+export const AudioRecordingDto = z
+  .object({
+    breakoutRoomIds: z.array(z.string()),
+    createdAt: z.string().datetime({ offset: true }),
+    eventId: z.string().uuid(),
+    id: z.string().uuid(),
+    s3KeyPrefix: z.string(),
+    status: AudioRecordingStatus,
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .passthrough();
+export type AudioRecordingDto = z.infer<typeof AudioRecordingDto>;
 export const WebSocketStats = z
   .object({
     connected_users: z.array(z.string().uuid()),
@@ -2172,6 +2218,12 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EventAttendanceDto,
   UpdateEventAttendanceRequest,
   CreateFacilitatorRequest,
+  RequestUploadUrlsRequest,
+  RequestUploadUrlsResponse,
+  RecordingDownloadUrls,
+  SignedDownloadUrls,
+  AudioRecordingStatus,
+  AudioRecordingDto,
   WebSocketStats,
   BroadcastMessage,
   BroadcastResponse,
@@ -2886,6 +2938,38 @@ curl -X POST \
       },
     ],
     response: EventAttendanceDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/events/:event_id/audio-recordings",
+    alias: "ListAudioRecordings",
+    description: `List all audio recordings for an event. Optionally filter by room_id.`,
+    requestFormat: "json",
+    response: z.array(AudioRecordingDto),
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/events/:event_id/audio-recordings/download",
+    alias: "GetAudioDownloadUrls",
+    description: `Get presigned S3 URLs for downloading transcript.json and report.txt for a recording.`,
+    requestFormat: "json",
+    response: SignedDownloadUrls,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/audio-recordings/upload",
+    alias: "RequestAudioUploadUrls",
+    description: `Request signed S3 URLs for uploading main and breakout room audio recordings. Returns presigned URLs and creates DB records.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        description: `Request body for requesting signed upload URLs`,
+        type: "Body",
+        schema: RequestUploadUrlsRequest,
+      },
+    ],
+    response: RequestUploadUrlsResponse,
   },
   {
     method: "get",

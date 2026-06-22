@@ -47,6 +47,7 @@
 	import EmailInviteForm from '$lib/components/ui/email-invites/EmailInviteForm.svelte';
 	import { inviteUrl } from '$lib/utils/invites.js';
 	import EventLocationForm from './EventLocationForm.svelte';
+	import EventRecordings from './EventRecordings.svelte';
 	import { snakeToSentenceCase } from '$lib/utils/casingUtils.js';
 
 	let url = $derived(page.url);
@@ -58,6 +59,7 @@
 	const conversation = $derived(data.conversation);
 	const facilitators = $derived(data.facilitators);
 	const moderators = $derived(data.moderators);
+	const recordings = $derived(data.recordings);
 
 	let emailInvites = $derived(
 		data.invites.filter(
@@ -340,7 +342,8 @@
 			{ label: 'Event Structure', value: 'structure' },
 			{ label: 'Facilitators', value: 'facilitators' },
 			{ label: 'Location', value: 'location' },
-			{ label: 'Invites', value: 'invites' }
+			{ label: 'Invites', value: 'invites' },
+			{ label: 'Recordings', value: 'recordings' }
 		]}
 		defaultValue="details"
 	/>
@@ -669,6 +672,8 @@
 		/>
 		<EmailInvitesList {emailInvites} inviteLink={InviteLink} />
 	</div>
+{:else if activeTab === 'recordings'}
+	<EventRecordings conversation_id={conversation.id} event_id={event.id} {recordings} />
 {/if}
 
 {#snippet InviteLink(invite: InviteDto, label: string)}

@@ -1,7 +1,11 @@
 use async_trait::async_trait;
 use aws_config::SdkConfig;
 use aws_sdk_s3::{
-    presigning::PresigningConfig, primitives::ByteStream, types::ObjectCannedAcl, Client,
+    config::{RequestChecksumCalculation, ResponseChecksumValidation},
+    presigning::PresigningConfig,
+    primitives::ByteStream,
+    types::ObjectCannedAcl,
+    Client,
 };
 use std::time::Duration;
 
@@ -31,7 +35,15 @@ impl S3StorageService {
     /// * `config` - AWS SDK configuration
     /// * `bucket` - The name of the S3 bucket to use for file storage
     pub fn new(config: &SdkConfig, bucket: String) -> Self {
-        let client = Client::new(config);
+        // aws-sdk-s3 enables "flexible checksums" by default, which signs
+        // x-amz-sdk-checksum-algorithm (and a body checksum header) into the
+        // presigned URL's SignedHeaders. Browsers don't send these headers
+        // when doing a plain PUT of a File, causing SignatureDoesNotMatch.
+        let s3_config = aws_sdk_s3::config::Builder::from(config)
+            .request_checksum_calculation(RequestChecksumCalculation::WhenRequired)
+            .response_checksum_validation(ResponseChecksumValidation::WhenRequired)
+            .build();
+        let client = Client::from_conf(s3_config);
         Self {
             s3_client: client,
             bucket,
