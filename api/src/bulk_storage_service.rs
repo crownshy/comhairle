@@ -172,9 +172,9 @@ impl MockBulkStorageService {
             Box::pin(async move { Ok("https://storage.com/signed_dowload_path".to_owned()) })
         });
 
-        storage.expect_list_keys().returning(|_, _| {
-            Box::pin(async move { Ok(vec!["recording.wav".to_string()]) })
-        });
+        storage
+            .expect_list_keys()
+            .returning(|_, _| Box::pin(async move { Ok(vec!["recording.wav".to_string()]) }));
 
         storage
     }
