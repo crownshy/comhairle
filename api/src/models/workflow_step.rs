@@ -791,7 +791,11 @@ mod tests {
 
         let initial_progress =
             models::user_progress::list_for_user_on_workflow(&pool, &user.id, &workflow.id).await?;
-        assert_eq!(initial_progress.len(), 1, "expected one progress row after register");
+        assert_eq!(
+            initial_progress.len(),
+            1,
+            "expected one progress row after register"
+        );
 
         let new_steps_res = session
             .create_random_workflow_steps(

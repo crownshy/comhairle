@@ -15,7 +15,8 @@ use tracing::{info, instrument, warn};
 use crate::{
     tools::polis::PolisError,
     wiki_poll_service::{
-        error::WikiPollServiceError, WikiPollComment, WikiPollLogin, WikiPollService, WikiPollXid,
+        error::WikiPollServiceError, ModerationStatus, WikiPollComment, WikiPollLogin,
+        WikiPollService, WikiPollXid,
     },
 };
 
@@ -167,6 +168,8 @@ pub struct PolisComment {
     pub pid: u32,
     pub quote_src_url: Option<String>,
     pub created: String,
+    #[serde(alias = "mod")]
+    pub moderation: i32,
 }
 
 impl PolisClient {
@@ -207,7 +210,7 @@ impl PolisClient {
 
     pub async fn get_comments(&self, poll_id: &str) -> Result<Vec<PolisComment>, PolisError> {
         let url = format!(
-            "https://{}/api/v3/comments?conversation_id={poll_id}",
+            "https://{}/api/v3/comments?conversation_id={poll_id}&moderation=true",
             self.base_url
         );
         let comments: Vec<PolisComment> =
@@ -586,6 +589,44 @@ impl WikiPollService for PolisClient {
 
         // Transform the raw data into structured report format
         self.transform_report_data(math_pca, comments_data)
+    }
+
+    #[instrument(err(Debug), skip(self, auth_cookies))]
+    async fn moderate_comment(
+        &self,
+        poll_id: &str,
+        tid: i32,
+        decision: ModerationStatus,
+        auth_cookies: &str,
+    ) -> Result<(), WikiPollServiceError> {
+        let body = json!({
+            "conversation_id": poll_id,
+            "tid": tid,
+            "active": decision.clone().active(),
+            "mod": decision.mod_value(),
+            "is_meta": false,
+            "velocity": 1,
+        });
+
+        let resp = self
+            .client
+            .put(format!("https://{}/api/v3/comments", self.base_url))
+            .header(COOKIE, auth_cookies)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| PolisError::FailedToModerateComment(e.to_string()))?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let text = resp.text().await.unwrap_or_default();
+            return Err(PolisError::FailedToModerateComment(format!(
+                "polis returned {status}: {text}"
+            ))
+            .into());
+        }
+
+        Ok(())
     }
 }
 

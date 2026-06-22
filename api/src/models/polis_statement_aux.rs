@@ -1,3 +1,4 @@
+use crate::models::{self, users::User};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{
@@ -9,31 +10,7 @@ use sqlx::{prelude::FromRow, query_as_with, PgPool};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::error::ComhairleError;
-
-#[derive(Debug, Deserialize, Serialize, PartialEq, sqlx::Type, Clone, JsonSchema, Default)]
-#[sqlx(type_name = "TEXT")]
-#[serde(rename_all = "snake_case")]
-pub enum ModerationStatus {
-    #[sqlx(rename = "accepted")]
-    Accepted,
-    #[sqlx(rename = "rejected")]
-    Rejected,
-    #[sqlx(rename = "pending")]
-    #[default]
-    Pending,
-}
-
-impl std::fmt::Display for ModerationStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let value = match self {
-            ModerationStatus::Accepted => "accepted",
-            ModerationStatus::Rejected => "rejected",
-            ModerationStatus::Pending => "pending",
-        };
-        write!(f, "{}", value)
-    }
-}
+use crate::{error::ComhairleError, wiki_poll_service::ModerationStatus};
 
 impl From<ModerationStatus> for sea_query::Value {
     fn from(val: ModerationStatus) -> Self {
@@ -157,6 +134,7 @@ pub struct UpsertFromPolis {
     pub polis_statement_id: i32,
     pub statement_text: String,
     pub is_seed: bool,
+    pub moderation_status: ModerationStatus,
 }
 
 /// Upsert a row from polis. On conflict (workflow_step_id, polis_statement_id),
@@ -176,6 +154,7 @@ pub async fn upsert_from_polis(
         PolisStatementAuxIden::PolisStatementId,
         PolisStatementAuxIden::StatementText,
         PolisStatementAuxIden::IsSeed,
+        PolisStatementAuxIden::ModerationStatus,
     ];
     let values: Vec<SimpleExpr> = vec![
         record.workflow_step_id.into(),
@@ -185,6 +164,7 @@ pub async fn upsert_from_polis(
         record.polis_statement_id.into(),
         record.statement_text.clone().into(),
         record.is_seed.into(),
+        record.moderation_status.clone().into(),
     ];
 
     let (sql, values) = Query::insert()
@@ -266,11 +246,11 @@ pub async fn update(
 }
 
 #[instrument(err(Debug))]
-pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<PolisStatementAux, ComhairleError> {
+pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<PolisStatementAux, ComhairleError> {
     let (sql, values) = Query::select()
         .from(PolisStatementAuxIden::Table)
         .columns(DEFAULT_COLUMNS)
-        .and_where(Expr::col(PolisStatementAuxIden::Id).eq(id))
+        .and_where(Expr::col(PolisStatementAuxIden::Id).eq(*id))
         .build_sqlx(PostgresQueryBuilder);
 
     let aux = query_as_with(&sql, values)
@@ -316,6 +296,40 @@ impl PolisStatementAuxFilterOptions {
 
         query
     }
+}
+
+#[instrument(err(Debug))]
+pub async fn check_is_commentor(
+    db: &PgPool,
+    aux_id: &Uuid,
+    user_id: &Uuid,
+) -> Result<(), ComhairleError> {
+    let aux = get_by_id(db, aux_id).await?;
+
+    if aux.user_id != Some(*user_id) {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
+
+    Ok(())
+}
+
+#[instrument(err(Debug))]
+pub async fn check_can_moderate(
+    db: &PgPool,
+    user: &User,
+    workflow_step_id: &Uuid,
+) -> Result<(), ComhairleError> {
+    let workflow_step = models::workflow_step::get_by_id(db, workflow_step_id).await?;
+
+    let workflow = models::workflow::get_by_id(db, &workflow_step.workflow_id).await?;
+    let conversation_id = workflow.conversation_id.ok_or(ComhairleError::BadRequest(
+        "workflow is not attached to a conversation".into(),
+    ))?;
+    let conversation = models::conversation::get_by_id(&db, &conversation_id).await?;
+    if conversation.owner_id != user.id {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
+    Ok(())
 }
 
 #[instrument(err(Debug))]
