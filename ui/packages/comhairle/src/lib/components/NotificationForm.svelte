@@ -264,7 +264,7 @@
 					<div class="space-y-1">
 						{#if isEmail}
 							<RichTextEditor
-								value={$form.content || null}
+								bind:value={$form.content}
 								placeholder="Compose your email..."
 								editable={!submitting}
 								onChange={(json) => ($form.content = json)}
