@@ -541,7 +541,7 @@ impl WikiPollService for PolisClient {
         poll_id: &str,
     ) -> Result<Vec<WikiPollComment>, WikiPollServiceError> {
         let url = format!(
-            "https://{}/api/v3/comments?conversation_id={poll_id}",
+            "https://{}/api/v3/comments?conversation_id={poll_id}&moderation=true",
             self.base_url
         );
         info!("Attempting to get comments at {url}");
