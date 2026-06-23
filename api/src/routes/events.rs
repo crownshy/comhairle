@@ -243,19 +243,30 @@ async fn process_transcriptions(
         )
         .await?;
 
+    // Use the format recorded for this event when present (self-serve upload
+    // flow). Legacy bot-uploaded recordings have no audio_recording row, so
+    // fall back to the historical WAV default.
+    let expected_extension =
+        crate::models::audio_recording::get_by_event(&state.db, &event_id)
+            .await
+            .map(|r| r.file_extension)
+            .unwrap_or(crate::models::audio_recording::AudioFormat::Wav)
+            .extension();
+    let expected_filename = format!("recording.{expected_extension}");
+
     let is_missing_main_recording = !entries
         .iter()
-        .any(|entry| entry.contains("recording.wav") && !entry.contains("rooms/"));
+        .any(|entry| entry.contains(&expected_filename) && !entry.contains("rooms/"));
 
     if is_missing_main_recording {
         return Err(ComhairleError::ResourceNotFound(format!(
-            "recording.wav for event {event_id}"
+            "{expected_filename} for event {event_id}"
         )));
     }
 
     let br_room_entries: Vec<String> = entries
         .into_iter()
-        .filter(|entry| entry.contains("rooms/") && entry.contains("recording.wav"))
+        .filter(|entry| entry.contains("rooms/") && entry.contains(&expected_filename))
         .collect();
 
     let create_core_event_job = CreateJob {

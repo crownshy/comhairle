@@ -23,7 +23,19 @@
 
 	const maxSizeMB = 500;
 	const maxSizeBytes = maxSizeMB * 1024 * 1024;
-	const accept = '.wav,.mp3,.m4a,.ogg,.webm,.flac,audio/*';
+	const accept = '.wav,.mp3,.m4a,.mp4,.ogg,.webm,.flac,audio/*';
+	const supportedExtensions = ['wav', 'mp3', 'm4a', 'mp4', 'ogg', 'webm', 'flac'] as const;
+	type SupportedExtension = (typeof supportedExtensions)[number];
+
+	function extractExtension(name: string): SupportedExtension | null {
+		const dot = name.lastIndexOf('.');
+		if (dot < 0) return null;
+		const ext = name.slice(dot + 1).toLowerCase();
+		const normalised = ext === 'oga' ? 'ogg' : ext;
+		return (supportedExtensions as readonly string[]).includes(normalised)
+			? (normalised as SupportedExtension)
+			: null;
+	}
 
 	type RoomSlot = {
 		key: string;
@@ -133,10 +145,31 @@
 			return;
 		}
 
+		const mainExt = extractExtension(main.file.name);
+		if (!mainExt) {
+			notifications.send({
+				message: `Unsupported audio format for "${main.file.name}". Use one of: ${supportedExtensions.join(', ')}.`,
+				priority: 'ERROR'
+			});
+			return;
+		}
+		// Transcription pipeline stores one format per recording — require all
+		// breakout files to match the main file's extension.
+		const mismatched = breakouts.find(
+			(b) => b.file && extractExtension(b.file.name) !== mainExt
+		);
+		if (mismatched) {
+			notifications.send({
+				message: `All recordings must share the same file format. "${mismatched.file?.name}" doesn't match the main room's .${mainExt} file.`,
+				priority: 'ERROR'
+			});
+			return;
+		}
+
 		isUploading = true;
 		try {
 			const urls = await apiClient.RequestAudioUploadUrls(
-				{ breakoutRooms: ids },
+				{ breakoutRooms: ids, fileExtension: mainExt },
 				{ params: { conversation_id, event_id } }
 			);
 

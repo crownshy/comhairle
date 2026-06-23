@@ -1688,8 +1688,18 @@ export const CreateFacilitatorRequest = z
   .object({ email: z.string() })
   .passthrough();
 export type CreateFacilitatorRequest = z.infer<typeof CreateFacilitatorRequest>;
+export const AudioFormat = z.enum([
+  "wav",
+  "mp3",
+  "m4a",
+  "mp4",
+  "ogg",
+  "flac",
+  "webm",
+]);
+export type AudioFormat = z.infer<typeof AudioFormat>;
 export const RequestUploadUrlsRequest = z
-  .object({ breakoutRooms: z.array(z.string()) })
+  .object({ breakoutRooms: z.array(z.string()), fileExtension: AudioFormat })
   .passthrough();
 export type RequestUploadUrlsRequest = z.infer<typeof RequestUploadUrlsRequest>;
 export const RequestUploadUrlsResponse = z
@@ -1727,6 +1737,7 @@ export const AudioRecordingDto = z
     breakoutRoomIds: z.array(z.string()),
     createdAt: z.string().datetime({ offset: true }),
     eventId: z.string().uuid(),
+    fileExtension: AudioFormat,
     id: z.string().uuid(),
     s3KeyPrefix: z.string(),
     status: AudioRecordingStatus,
@@ -2218,6 +2229,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EventAttendanceDto,
   UpdateEventAttendanceRequest,
   CreateFacilitatorRequest,
+  AudioFormat,
   RequestUploadUrlsRequest,
   RequestUploadUrlsResponse,
   RecordingDownloadUrls,
