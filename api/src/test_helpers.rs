@@ -759,6 +759,7 @@ impl UserSession {
         self.delete(app, &format!("/conversation/{id}")).await
     }
 
+    /// Creates a random launched conversation
     pub async fn create_random_conversation(
         &mut self,
         app: &Router,
@@ -781,6 +782,37 @@ impl UserSession {
                 "tags" : tags,
                 "is_public": is_public,
                 "is_live": true,
+                "is_invite_only" : is_invite_only,
+                "primary_locale" : "en",
+                "supported_languages" : ["en"]
+            }),
+        )
+        .await
+    }
+
+    /// Creates a random unlaunched conversation
+    pub async fn create_random_unlaunched_conversation(
+        &mut self,
+        app: &Router,
+    ) -> Result<(StatusCode, Value, Option<HeaderValue>), Box<dyn Error>> {
+        let title: String = Sentence(1..10).fake();
+        let description: String = Paragraph(3..4).fake();
+        let short_description: String = Paragraph(5..8).fake();
+        let image_url: String = "https://fakeimg.pl/1000x600".into();
+        let tags: Vec<String> = Words(2..4).fake();
+        let is_public: bool = true;
+        let is_invite_only: bool = false;
+
+        self.create_conversation(
+            app,
+            json!({
+                "title" : title,
+                "short_description": short_description,
+                "description": description,
+                "image_url": image_url,
+                "tags" : tags,
+                "is_public": is_public,
+                "is_live": false,
                 "is_invite_only" : is_invite_only,
                 "primary_locale" : "en",
                 "supported_languages" : ["en"]

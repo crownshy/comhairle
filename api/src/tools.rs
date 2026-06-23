@@ -6,6 +6,7 @@ use comhairle_macros::DbJsonBEnum;
 use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
@@ -70,9 +71,10 @@ pub trait ToolImpl: Send + Sync + 'static {
     async fn delete(
         config: &Self::Config,
         state: &Arc<ComhairleState>,
+        workflow_step_id: &Uuid,
     ) -> Result<(), ComhairleError> {
         // Default: no-op
-        let _ = (config, state);
+        let _ = (config, state, workflow_step_id);
         Ok(())
     }
 
@@ -164,20 +166,32 @@ impl ToolConfig {
     }
 
     /// Delete tool and clean up resources
-    pub async fn delete(&self, state: &Arc<ComhairleState>) -> Result<(), ComhairleError> {
+    pub async fn delete(
+        &self,
+        state: &Arc<ComhairleState>,
+        workflow_step_id: &Uuid,
+    ) -> Result<(), ComhairleError> {
         match self {
-            ToolConfig::Polis(config) => polis::PolisTool::delete(config, state).await,
-            ToolConfig::Learn(config) => learn::LearnTool::delete(config, state).await,
-            ToolConfig::HeyForm(config) => heyform::HeyFormTool::delete(config, state).await,
-            ToolConfig::Stories(config) => stories::StoriesTool::delete(config, state).await,
+            ToolConfig::Polis(config) => {
+                polis::PolisTool::delete(config, state, workflow_step_id).await
+            }
+            ToolConfig::Learn(config) => {
+                learn::LearnTool::delete(config, state, workflow_step_id).await
+            }
+            ToolConfig::HeyForm(config) => {
+                heyform::HeyFormTool::delete(config, state, workflow_step_id).await
+            }
+            ToolConfig::Stories(config) => {
+                stories::StoriesTool::delete(config, state, workflow_step_id).await
+            }
             ToolConfig::ElicitationBot(config) => {
-                elicitation_bot::ElicitationBotTool::delete(config, state).await
+                elicitation_bot::ElicitationBotTool::delete(config, state, workflow_step_id).await
             }
             ToolConfig::Prioritization(config) => {
-                prioritization::PrioritizationTool::delete(config, state).await
+                prioritization::PrioritizationTool::delete(config, state, workflow_step_id).await
             }
             ToolConfig::ThinkingSpace(config) => {
-                thinking_space::ThinkingSpaceTool::delete(config, state).await
+                thinking_space::ThinkingSpaceTool::delete(config, state, workflow_step_id).await
             }
         }
     }

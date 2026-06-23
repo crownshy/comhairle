@@ -176,6 +176,12 @@ pub struct UpdateFormThemeInput {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct FormDetailInput {
+    pub form_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateHiddenFieldInput {
     pub form_id: String,
     pub field_id: String,

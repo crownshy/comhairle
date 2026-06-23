@@ -103,6 +103,27 @@ impl ToolImpl for PolisTool {
         config.sanitize()
     }
 
+    async fn delete(
+        config: &Self::Config,
+        state: &Arc<ComhairleState>,
+        _workflow_step_id: &Uuid,
+    ) -> Result<(), ComhairleError> {
+        let auth_cookies = state
+            .wiki_poll_service
+            .login(&WikiPollLogin {
+                email: config.admin_user.clone(),
+                password: config.admin_password.clone(),
+            })
+            .await?;
+
+        let _poll = state
+            .wiki_poll_service
+            .delete_poll(&config.poll_id, &auth_cookies)
+            .await?;
+
+        Ok(())
+    }
+
     fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
         ApiRouter::new()
             .api_route(
@@ -235,6 +256,9 @@ pub enum PolisError {
     #[error("HTTP error: {0}")]
     Http(#[from] reqwest::Error),
 
+    #[error("Serde error: {0}")]
+    Serde(#[from] serde_json::Error),
+
     #[error("Failed to create new admin user")]
     FailedToCreateNewAdminUser,
 
@@ -249,6 +273,9 @@ pub enum PolisError {
 
     #[error("Failed to get xids {0}")]
     FailedToGetXIDs(String),
+
+    #[error("Failed to update poll {0}")]
+    FailedPollUpdate(String),
 
     #[error("Failed to post seed comment {0}")]
     FailedToPostSeedComment(String),

@@ -9,6 +9,7 @@ use heyform_sdk::{
 use rand::{distributions::Alphanumeric, seq::SliceRandom, thread_rng, Rng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::{error::ComhairleError, ComhairleState};
 
@@ -238,6 +239,25 @@ impl ToolImpl for HeyFormTool {
 
     fn sanitize(config: Self::Config) -> Self::Config {
         config.sanitize()
+    }
+
+    async fn delete(
+        config: &Self::Config,
+        _state: &Arc<ComhairleState>,
+        _workflow_step_id: &Uuid,
+    ) -> Result<(), ComhairleError> {
+        let client = HeyFormClient::new(format!("https://{}", config.server_url))?;
+
+        client
+            .login(LoginInput {
+                email: config.admin_user.clone(),
+                password: config.admin_password.clone(),
+            })
+            .await?;
+
+        client.delete_poll(&config.survey_id).await?;
+
+        Ok(())
     }
 
     fn routes(_state: &Arc<ComhairleState>) -> ApiRouter {

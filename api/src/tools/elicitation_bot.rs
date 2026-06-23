@@ -95,6 +95,44 @@ impl ToolImpl for ElicitationBotTool {
         config.sanitize()
     }
 
+    async fn delete(
+        _config: &Self::Config,
+        state: &Arc<ComhairleState>,
+        workflow_step_id: &Uuid,
+    ) -> Result<(), ComhairleError> {
+        let sessions = bot_service_user_session::list_by_workflow_step_id_and_context(
+            &state.db,
+            workflow_step_id,
+            BotServiceSessionContext::ElicitationBot,
+        )
+        .await?;
+
+        if sessions.is_empty() {
+            return Ok(());
+        }
+
+        let bot_service = state.required_bot_service()?;
+        let bot_service_config = state
+            .config
+            .bot_service
+            .as_ref()
+            .ok_or(ComhairleError::NoBotServiceConfigured)?;
+
+        for session in &sessions {
+            bot_service
+                .delete_agent_session(
+                    &session.bot_service_session_id,
+                    &bot_service_config.elicitation_bot_agent_id,
+                )
+                .await?;
+        }
+
+        let session_ids: Vec<Uuid> = sessions.into_iter().map(|session| session.id).collect();
+        bot_service_user_session::delete_by_ids(&state.db, &session_ids).await?;
+
+        Ok(())
+    }
+
     fn routes(state: &Arc<ComhairleState>) -> ApiRouter {
         ApiRouter::new()
             .api_route(

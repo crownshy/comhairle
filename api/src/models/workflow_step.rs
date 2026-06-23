@@ -288,8 +288,33 @@ pub async fn get_localised_by_id(
     Ok(workflow_step)
 }
 
-pub async fn delete(db: &PgPool, id: &Uuid) -> Result<WorkflowStep, ComhairleError> {
-    let mut transaction = db.begin().await?;
+/// Delete a workflow_step by ID, returning the deleted step
+/// If the workflow step is live, returns an error and does not delete the step
+pub async fn delete(
+    state: &Arc<ComhairleState>,
+    id: &Uuid,
+) -> Result<WorkflowStep, ComhairleError> {
+    let workflow_step = get_by_id(&state.db, id).await?;
+
+    if let Some(tool_config) = workflow_step.tool_config.as_ref() {
+        tool_config.delete(state, id).await?;
+    }
+
+    if workflow_step
+        .tool_config
+        .as_ref()
+        .map(|tool_config| tool_config != &workflow_step.preview_tool_config)
+        .unwrap_or(true)
+    {
+        workflow_step.preview_tool_config.delete(state, id).await?;
+    }
+
+    let mut transaction = state.db.begin().await?;
+
+    // Check if the workflow step is live, and if so, return an error
+    if workflow_step.tool_config.is_some() {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
 
     // Delete and return the workflow_step
     let (delete_sql, delete_values) = Query::delete()

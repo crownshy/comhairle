@@ -376,6 +376,54 @@ pub async fn get_by_workflow_step_id(
     Ok(bot_session)
 }
 
+/// Lists bot sessions by workflow step id and context.
+pub async fn list_by_workflow_step_id_and_context(
+    db: &PgPool,
+    workflow_step_id: &Uuid,
+    context: BotServiceSessionContext,
+) -> Result<Vec<BotServiceUserSession>, ComhairleError> {
+    let (sql, values) = Query::select()
+        .from(BotServiceUserSessionIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .and_where(
+            Expr::col((
+                BotServiceUserSessionIden::Table,
+                BotServiceUserSessionIden::WorkflowStepId,
+            ))
+            .eq(workflow_step_id.to_owned()),
+        )
+        .and_where(
+            Expr::col((
+                BotServiceUserSessionIden::Table,
+                BotServiceUserSessionIden::Context,
+            ))
+            .eq(context),
+        )
+        .build_sqlx(PostgresQueryBuilder);
+
+    let sessions = sqlx::query_as_with::<_, BotServiceUserSession, _>(&sql, values)
+        .fetch_all(db)
+        .await?;
+
+    Ok(sessions)
+}
+
+/// Deletes bot sessions by local table id.
+pub async fn delete_by_ids(db: &PgPool, ids: &[Uuid]) -> Result<u64, ComhairleError> {
+    if ids.is_empty() {
+        return Ok(0);
+    }
+
+    let (sql, values) = Query::delete()
+        .from_table(BotServiceUserSessionIden::Table)
+        .and_where(Expr::col(BotServiceUserSessionIden::Id).is_in(ids.iter().copied()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let result = sqlx::query_with(&sql, values).execute(db).await?;
+
+    Ok(result.rows_affected())
+}
+
 /// Retrieves a user bot session by context, user_id and either conversation_id or
 /// workflow_step_id. Will create and return a new entry if none found.
 ///
