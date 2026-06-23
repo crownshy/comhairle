@@ -1,4 +1,5 @@
 use crate::bulk_storage_service::{BulkStorageService, FileMetadata};
+use crate::models::audio_recording::AudioFormat;
 use crate::transcription_service::TranscribeFromBulkResponse;
 
 use super::error::{Result, TranscriptionServiceError};
@@ -432,6 +433,18 @@ async fn get_and_convert_transcription(
     Ok(formatted_transcription)
 }
 
+fn to_aws_media_format(audio_format: AudioFormat) -> MediaFormat {
+    match audio_format {
+        AudioFormat::Wav => MediaFormat::Wav,
+        AudioFormat::Mp3 => MediaFormat::Mp3,
+        AudioFormat::M4a => MediaFormat::M4A,
+        AudioFormat::Mp4 => MediaFormat::Mp4,
+        AudioFormat::Ogg => MediaFormat::Ogg,
+        AudioFormat::Flac => MediaFormat::Flac,
+        AudioFormat::Webm => MediaFormat::Webm,
+    }
+}
+
 #[async_trait]
 impl Transcriber for AmazonTranscriber {
     async fn transcribe(&self, _audio: &Vec<u8>) -> Result<String> {
@@ -442,9 +455,11 @@ impl Transcriber for AmazonTranscriber {
         &self,
         store_name: &str,
         location: &str,
+        audio_format: AudioFormat,
         bulk_storage_service: &Arc<dyn BulkStorageService>,
     ) -> Result<TranscribeFromBulkResponse> {
-        let uri = format!("s3://{store_name}/{location}/recording.wav");
+        let extension = audio_format.extension();
+        let uri = format!("s3://{store_name}/{location}/recording.{extension}");
 
         let audio_file = Media::builder().media_file_uri(uri).build();
         let job_name = Uuid::new_v4().to_string();
@@ -463,7 +478,7 @@ impl Transcriber for AmazonTranscriber {
             .output_bucket_name(store_name)
             .output_key(&transcription_key)
             .media(audio_file)
-            .media_format(MediaFormat::Wav)
+            .media_format(to_aws_media_format(audio_format))
             .language_code(LanguageCode::EnUs)
             .send()
             .await
@@ -1079,6 +1094,7 @@ mod tests {
             .transcribe_from_bulk_store(
                 "comhairle-media-test",
                 "events/3c22d53d-07df-4d46-802e-486b79dd1a80",
+                AudioFormat::Wav,
                 bulk_storage_service,
             )
             .await?;

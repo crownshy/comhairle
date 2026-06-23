@@ -10,6 +10,7 @@ use tokio::sync::mpsc::Receiver;
 use mockall::{automock, predicate::*};
 
 use crate::bulk_storage_service::BulkStorageService;
+use crate::models::audio_recording::AudioFormat;
 
 pub mod amazon_transcriber;
 pub mod config;
@@ -49,6 +50,7 @@ pub trait Transcriber: Sync + Send {
         &self,
         store: &str,
         location: &str,
+        audio_format: AudioFormat,
         bulk_storage_service: &Arc<dyn BulkStorageService>,
     ) -> Result<TranscribeFromBulkResponse>;
     async fn transcribe_live(

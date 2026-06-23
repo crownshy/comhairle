@@ -8,6 +8,53 @@ use uuid::Uuid;
 
 use crate::error::ComhairleError;
 
+/// Audio format of an uploaded recording. Stored in the database as the
+/// lowercase file extension so it doubles as the on-disk/S3 suffix.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum AudioFormat {
+    Wav,
+    Mp3,
+    M4a,
+    Mp4,
+    Ogg,
+    Flac,
+    Webm,
+}
+
+impl AudioFormat {
+    pub fn extension(&self) -> &'static str {
+        match self {
+            AudioFormat::Wav => "wav",
+            AudioFormat::Mp3 => "mp3",
+            AudioFormat::M4a => "m4a",
+            AudioFormat::Mp4 => "mp4",
+            AudioFormat::Ogg => "ogg",
+            AudioFormat::Flac => "flac",
+            AudioFormat::Webm => "webm",
+        }
+    }
+
+    pub fn try_from_extension(extension: &str) -> Result<Self, ComhairleError> {
+        match extension.trim_start_matches('.').to_lowercase().as_str() {
+            "wav" => Ok(AudioFormat::Wav),
+            "mp3" => Ok(AudioFormat::Mp3),
+            "m4a" => Ok(AudioFormat::M4a),
+            "mp4" => Ok(AudioFormat::Mp4),
+            "ogg" | "oga" => Ok(AudioFormat::Ogg),
+            "flac" => Ok(AudioFormat::Flac),
+            "webm" => Ok(AudioFormat::Webm),
+            ext => Err(ComhairleError::UnsupportedContentType(ext.to_string())),
+        }
+    }
+}
+
+impl std::fmt::Display for AudioFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.extension())
+    }
+}
+
 /// Status of an audio recording's transcription and processing
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -62,6 +109,8 @@ pub struct AudioRecording {
     /// S3 key prefix (without extension) used for generating URLs
     /// Used as base for main and breakout room recordings
     pub s3_key_prefix: String,
+    /// Audio format of the uploaded recording(s)
+    pub file_extension: AudioFormat,
     /// Current status of transcription/processing for entire event
     pub status: AudioRecordingStatus,
     /// When this recording was created
@@ -78,16 +127,18 @@ pub struct RawAudioRecording {
     pub event_id: Uuid,
     pub breakout_room_ids: Vec<String>,
     pub s3_key_prefix: String,
+    pub file_extension: String,
     pub status: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [RawAudioRecordingIden; 7] = [
+const DEFAULT_COLUMNS: [RawAudioRecordingIden; 8] = [
     RawAudioRecordingIden::Id,
     RawAudioRecordingIden::EventId,
     RawAudioRecordingIden::BreakoutRoomIds,
     RawAudioRecordingIden::S3KeyPrefix,
+    RawAudioRecordingIden::FileExtension,
     RawAudioRecordingIden::Status,
     RawAudioRecordingIden::CreatedAt,
     RawAudioRecordingIden::UpdatedAt,
@@ -100,6 +151,8 @@ impl From<RawAudioRecording> for AudioRecording {
             event_id: raw.event_id,
             breakout_room_ids: raw.breakout_room_ids,
             s3_key_prefix: raw.s3_key_prefix,
+            file_extension: AudioFormat::try_from_extension(&raw.file_extension)
+                .unwrap_or(AudioFormat::Wav),
             status: AudioRecordingStatus::from_string(&raw.status)
                 .unwrap_or(AudioRecordingStatus::Pending),
             created_at: raw.created_at,
@@ -115,6 +168,7 @@ pub struct CreateAudioRecording {
     pub event_id: Uuid,
     pub breakout_room_ids: Vec<String>,
     pub s3_key_prefix: String,
+    pub file_extension: AudioFormat,
 }
 
 /// Create a new audio recording in the database
@@ -128,12 +182,14 @@ pub async fn create(
             RawAudioRecordingIden::EventId,
             RawAudioRecordingIden::BreakoutRoomIds,
             RawAudioRecordingIden::S3KeyPrefix,
+            RawAudioRecordingIden::FileExtension,
             RawAudioRecordingIden::Status,
         ])
         .values([
             create_recording.event_id.into(),
             create_recording.breakout_room_ids.clone().into(),
             create_recording.s3_key_prefix.clone().into(),
+            create_recording.file_extension.extension().into(),
             "pending".into(),
         ])
         .unwrap()
@@ -247,6 +303,7 @@ mod tests {
             event_id: event.id,
             breakout_room_ids: vec!["room1".to_string(), "room2".to_string()],
             s3_key_prefix: "test/prefix".to_string(),
+            file_extension: AudioFormat::Wav,
         };
 
         let recording = create(&pool, &create_req).await?;
@@ -273,6 +330,7 @@ mod tests {
             event_id: event.id,
             breakout_room_ids: vec!["room1".to_string()],
             s3_key_prefix: "test/prefix".to_string(),
+            file_extension: AudioFormat::Wav,
         };
 
         let created = create(&pool, &create_req).await?;
@@ -300,6 +358,7 @@ mod tests {
             event_id: event.id,
             breakout_room_ids: vec!["room1".to_string()],
             s3_key_prefix: "test/prefix".to_string(),
+            file_extension: AudioFormat::Wav,
         };
 
         let created = create(&pool, &create_req).await?;
@@ -326,6 +385,7 @@ mod tests {
             event_id: event.id,
             breakout_room_ids: vec!["room1".to_string()],
             s3_key_prefix: "test/prefix".to_string(),
+            file_extension: AudioFormat::Wav,
         };
 
         let created = create(&pool, &create_req).await?;

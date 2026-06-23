@@ -38,16 +38,18 @@ async fn request_upload_urls(
 
     let event_id_str = event_id.to_string();
     let base_key_prefix = format!("events/{}", event_id_str);
+    let extension = request.file_extension.extension();
 
     let create_recording = CreateAudioRecording {
         event_id,
         breakout_room_ids: request.breakout_rooms.clone(),
         s3_key_prefix: base_key_prefix.clone(),
+        file_extension: request.file_extension,
     };
     let _ = audio_recording::create(&state.db, &create_recording).await?;
 
     let main_signed_url = bulk_storage_service
-        .get_write_file_url(&format!("{}/recording.wav", base_key_prefix))
+        .get_write_file_url(&format!("{}/recording.{}", base_key_prefix, extension))
         .await?;
 
     let mut breakout_room_urls = Vec::new();
@@ -55,7 +57,7 @@ async fn request_upload_urls(
         let breakout_key_prefix = format!("{}/rooms/{}", event_id_str, room_id);
 
         let breakout_signed_url = bulk_storage_service
-            .get_write_file_url(&format!("{}/recording.wav", breakout_key_prefix))
+            .get_write_file_url(&format!("{}/recording.{}", breakout_key_prefix, extension))
             .await?;
 
         breakout_room_urls.push((room_id, breakout_signed_url));
@@ -86,10 +88,14 @@ async fn get_download_urls(
 
     // Get the audio recording for this event
     let recording = audio_recording::get_by_event(&state.db, &event_id).await?;
+    let extension = recording.file_extension.extension();
 
     // Generate signed URLs for transcript and report
     let main_recording_url = bulk_storage_service
-        .get_read_file_url(&format!("{}/recording.wav", recording.s3_key_prefix))
+        .get_read_file_url(&format!(
+            "{}/recording.{}",
+            recording.s3_key_prefix, extension
+        ))
         .await?;
     let main_transcript_url = bulk_storage_service
         .get_read_file_url(&format!("{}/transcript.json", recording.s3_key_prefix))
@@ -110,7 +116,10 @@ async fn get_download_urls(
         let breakout_key_prefix = format!("{}/rooms/{}", event_id, room);
 
         let breakout_recording_url = bulk_storage_service
-            .get_read_file_url(&format!("{}/recording.wav", breakout_key_prefix))
+            .get_read_file_url(&format!(
+                "{}/recording.{}",
+                breakout_key_prefix, extension
+            ))
             .await?;
         let breakout_transcript_url = bulk_storage_service
             .get_read_file_url(&format!("{}/transcript.json", breakout_key_prefix))
@@ -199,6 +208,7 @@ mod tests {
     use serde_json::json;
     use std::sync::Arc;
 
+    use crate::models::audio_recording::AudioFormat;
     use crate::routes::conversations::dto::ConversationDto;
     use crate::routes::events::dto::EventDto;
     use crate::setup_server;
@@ -236,6 +246,7 @@ mod tests {
 
         let request = RequestUploadUrlsRequest {
             breakout_rooms: vec!["room1".to_string(), "room2".to_string()],
+            file_extension: AudioFormat::Wav,
         };
 
         let (status, _response, _) = session
@@ -322,6 +333,7 @@ mod tests {
 
         let request = RequestUploadUrlsRequest {
             breakout_rooms: vec!["room1".to_string(), "room2".to_string()],
+            file_extension: AudioFormat::Wav,
         };
 
         let (status, response, _) = session
@@ -407,6 +419,7 @@ mod tests {
 
         let request = RequestUploadUrlsRequest {
             breakout_rooms: vec!["room1".to_string(), "room2".to_string()],
+            file_extension: AudioFormat::Wav,
         };
 
         let (status, _response, _) = session

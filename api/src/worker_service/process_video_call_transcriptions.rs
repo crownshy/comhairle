@@ -5,7 +5,9 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::{
-    categorization_service::Comment, models::job, transcription_service::Transcription,
+    categorization_service::Comment,
+    models::{audio_recording::AudioFormat, job},
+    transcription_service::Transcription,
     ComhairleState,
 };
 
@@ -70,10 +72,19 @@ pub async fn transcribe_recording(
             .map_or(String::new(), |id| format!("/rooms/{id}"))
     );
 
+    // Look up the audio_recording to find the uploaded file format. Recordings
+    // created by the legacy bot flow may not have a DB record yet — default to
+    // WAV in that case to preserve the historical behaviour.
+    let audio_format = crate::models::audio_recording::get_by_event(&state.db, &req.event_id)
+        .await
+        .map(|r| r.file_extension)
+        .unwrap_or(AudioFormat::Wav);
+
     let result = transcription_service
         .transcribe_from_bulk_store(
             &bulk_storage_config.store_name,
             &recording_location,
+            audio_format,
             bulk_storage_service,
         )
         .await
