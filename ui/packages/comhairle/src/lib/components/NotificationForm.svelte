@@ -56,11 +56,17 @@
 			validators: zodClient(notificationFormSchema),
 			taintedMessage: false,
 			validationMethod: 'oninput',
-			onSubmit: sendNotification
+			onSubmit: async (actions) => {
+				submitting = true;
+				await sendNotification(actions);
+				submitting = false;
+			}
 		}
 	);
 
-	const { form, enhance, validateForm, submitting, reset } = notificationForm;
+	const { form, enhance, validateForm, reset } = notificationForm;
+
+	let submitting = $state<boolean>(false);
 
 	let failedRecipients = $state<string[]>([]);
 	let lastSendMessage = $state<string | null>(null);
@@ -241,7 +247,7 @@
 							placeholder={isEmail
 								? 'Enter email subject...'
 								: 'Enter notification title...'}
-							disabled={$submitting}
+							disabled={submitting}
 						/>
 						<Form.FieldErrors />
 					</div>
@@ -260,7 +266,7 @@
 							<RichTextEditor
 								value={$form.content || null}
 								placeholder="Compose your email..."
-								editable={!$submitting}
+								editable={!submitting}
 								onChange={(json) => ($form.content = json)}
 							/>
 							<input type="hidden" {...props} value={$form.content} />
@@ -270,7 +276,7 @@
 								bind:value={$form.content}
 								placeholder="Enter your notification message here..."
 								rows={4}
-								disabled={$submitting}
+								disabled={submitting}
 							/>
 						{/if}
 						<Form.FieldErrors />
@@ -280,9 +286,9 @@
 		</Form.Field>
 
 		<div class="flex flex-col gap-2 sm:flex-row">
-			<Form.Button class="flex-1" disabled={$submitting}>
+			<Form.Button class="flex-1" disabled={submitting}>
 				<Send class="mr-2 h-4 w-4" />
-				{#if $submitting}
+				{#if submitting}
 					Sending {isEmail ? 'email' : 'notification'}...
 				{:else}
 					Send {isEmail ? 'email' : 'notification'} to all participants
@@ -293,7 +299,7 @@
 				<Button
 					type="button"
 					variant="outline"
-					disabled={$submitting || testSending}
+					disabled={submitting || testSending}
 					onclick={() => {
 						testEmailError = null;
 						testDialogOpen = true;
