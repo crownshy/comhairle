@@ -101,7 +101,7 @@ async fn get_download_urls(
         .get_read_file_url(&format!("{}/transcript.json", recording.s3_key_prefix))
         .await?;
     let main_report_url = bulk_storage_service
-        .get_read_file_url(&format!("{}/report.txt", recording.s3_key_prefix))
+        .get_read_file_url(&format!("{}/report.json", recording.s3_key_prefix))
         .await?;
 
     let mut output = SignedDownloadUrls {
@@ -125,7 +125,7 @@ async fn get_download_urls(
             .get_read_file_url(&format!("{}/transcript.json", breakout_key_prefix))
             .await?;
         let breakout_report_url = bulk_storage_service
-            .get_read_file_url(&format!("{}/report.txt", breakout_key_prefix))
+            .get_read_file_url(&format!("{}/report.json", breakout_key_prefix))
             .await?;
 
         // Add to the response
@@ -182,7 +182,7 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                 op.id("GetAudioDownloadUrls")
                     .tag("Audio Recordings")
                     .summary("Get signed URLs for downloading transcript and report")
-                    .description("Get presigned S3 URLs for downloading transcript.json and report.txt for a recording.")
+                    .description("Get presigned S3 URLs for downloading transcript.json and report.json for a recording.")
                     .security_requirement("JWT")
                     .response::<200, Json<SignedDownloadUrls>>()
             }),
