@@ -102,7 +102,18 @@
 							type="checkbox"
 							class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
 						/>
-						<button class="h-full w-full" aria-label="toggle checkbox">
+						<button
+							class="h-full w-full"
+							aria-label="toggle checkbox"
+							onclick={(e: MouseEvent) => {
+								const img = e.target as HTMLImageElement;
+								const checkbox = img.parentElement
+									?.previousElementSibling as HTMLInputElement;
+								if (checkbox) {
+									checkbox.checked = !checkbox.checked;
+								}
+							}}
+						>
 							{@render galleryImage(image.src, 'temp')}
 						</button>
 					{:else}
