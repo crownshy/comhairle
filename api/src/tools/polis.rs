@@ -14,7 +14,7 @@ use axum_extra::extract::cookie::{Cookie, CookieJar};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tracing::instrument;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 use crate::{
@@ -451,6 +451,9 @@ async fn sync_statement_aux(
 
     let mut statements = Vec::with_capacity(comments.len());
     let mut skipped_invalid_xid = 0;
+
+    info!("COMMENTS {comments:#?}");
+
     for comment in comments {
         let user_id = pid_to_user_id.get(&comment.pid).copied();
         if user_id.is_none() && !comment.is_seed {
@@ -685,7 +688,9 @@ mod tests {
         let (_, conversation, _) = session.create_random_conversation(app).await?;
         let conversation_id: String = extract("id", &conversation);
 
-        let (_, workflow, _) = session.create_random_workflow(app, &conversation_id).await?;
+        let (_, workflow, _) = session
+            .create_random_workflow(app, &conversation_id)
+            .await?;
         let workflow_id: String = extract("id", &workflow);
 
         let (_, workflow_step, _) = session
@@ -741,7 +746,11 @@ mod tests {
             )
             .await?;
 
-        assert_eq!(status, StatusCode::OK, "owner should be able to add a theme");
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "owner should be able to add a theme"
+        );
         let updated: PolisStatementAux = serde_json::from_value(value)?;
         assert_eq!(updated.themes, vec!["alpha".to_string()]);
         Ok(())
@@ -819,7 +828,11 @@ mod tests {
         let (app, mut owner) = setup_default_app_and_session(&pool).await?;
         let aux = setup_polis_aux(&app, &pool, &mut owner, vec![]).await?;
 
-        let mut intruder = UserSession::new("intruder", crate::test_helpers::TEST_PASSWORD, "intruder@example.com");
+        let mut intruder = UserSession::new(
+            "intruder",
+            crate::test_helpers::TEST_PASSWORD,
+            "intruder@example.com",
+        );
         intruder.signup(&app).await?;
 
         let (status, _, _) = intruder
@@ -830,7 +843,11 @@ mod tests {
             )
             .await?;
 
-        assert_eq!(status, StatusCode::FORBIDDEN, "non-owner should be forbidden");
+        assert_eq!(
+            status,
+            StatusCode::FORBIDDEN,
+            "non-owner should be forbidden"
+        );
 
         let reloaded = polis_statement_aux::get_by_id(&pool, &aux.id).await?;
         assert!(reloaded.themes.is_empty(), "themes must not have changed");
@@ -842,7 +859,11 @@ mod tests {
         let (app, mut owner) = setup_default_app_and_session(&pool).await?;
         let aux = setup_polis_aux(&app, &pool, &mut owner, vec!["alpha".into()]).await?;
 
-        let mut intruder = UserSession::new("intruder", crate::test_helpers::TEST_PASSWORD, "intruder@example.com");
+        let mut intruder = UserSession::new(
+            "intruder",
+            crate::test_helpers::TEST_PASSWORD,
+            "intruder@example.com",
+        );
         intruder.signup(&app).await?;
 
         let (status, _, _) = intruder
