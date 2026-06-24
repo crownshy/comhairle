@@ -10,6 +10,7 @@
 		Settings,
 		Home,
 		Mail,
+		Images,
 		PanelLeftClose,
 		PanelLeftOpen
 	} from 'lucide-svelte';
@@ -112,6 +113,16 @@
 								<a {...btnProps} href="/admin/email-template-configs">
 									<Mail class="size-4" />
 									Emails
+								</a>
+							{/snippet}
+						</SideBar.MenuButton>
+					</SideBar.MenuItem>
+					<SideBar.MenuItem>
+						<SideBar.MenuButton>
+							{#snippet child({ props: btnProps })}
+								<a {...btnProps} href="/admin/media-gallery">
+									<Images class="size-4" />
+									Media gallery
 								</a>
 							{/snippet}
 						</SideBar.MenuButton>
