@@ -411,6 +411,8 @@ export const ThemeStatistic = z
   .object({ count: z.number().int(), theme: z.string() })
   .passthrough();
 export type ThemeStatistic = z.infer<typeof ThemeStatistic>;
+export const ThemeRequest = z.object({ theme: z.string() }).passthrough();
+export type ThemeRequest = z.infer<typeof ThemeRequest>;
 export const ModerationDecisionRequest = z.enum(["accept", "reject"]);
 export type ModerationDecisionRequest = z.infer<
   typeof ModerationDecisionRequest
@@ -2092,6 +2094,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   SyncStatementAuxRequest,
   SyncStatementAuxResponse,
   ThemeStatistic,
+  ThemeRequest,
   ModerationDecisionRequest,
   ModerateStatementAuxRequest,
   Story,
@@ -2963,7 +2966,7 @@ curl -X POST \
     method: "get",
     path: "/conversation/:conversation_id/events/:event_id/audio-recordings/download",
     alias: "GetAudioDownloadUrls",
-    description: `Get presigned S3 URLs for downloading transcript.json and report.txt for a recording.`,
+    description: `Get presigned S3 URLs for downloading transcript.json and report.json for a recording.`,
     requestFormat: "json",
     response: SignedDownloadUrls,
   },
@@ -4148,6 +4151,36 @@ Use a raw HTTP request and process the response body incrementally.
         name: "body",
         type: "Body",
         schema: ModerateStatementAuxRequest,
+      },
+    ],
+    response: PolisStatementAux,
+  },
+  {
+    method: "post",
+    path: "/tools/polis/statement_aux/:id/themes",
+    alias: "PolisAddStatementAuxTheme",
+    description: `Adds a theme to the statement&#x27;s themes array. Idempotent: adding a theme that is already present is a no-op. Caller must be the owner of the conversation the statement belongs to.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ theme: z.string() }).passthrough(),
+      },
+    ],
+    response: PolisStatementAux,
+  },
+  {
+    method: "delete",
+    path: "/tools/polis/statement_aux/:id/themes",
+    alias: "PolisRemoveStatementAuxTheme",
+    description: `Removes a theme from the statement&#x27;s themes array. Idempotent: removing a theme that is not present is a no-op. Caller must be the owner of the conversation the statement belongs to.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: z.object({ theme: z.string() }).passthrough(),
       },
     ],
     response: PolisStatementAux,

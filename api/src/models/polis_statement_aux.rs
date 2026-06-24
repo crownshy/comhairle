@@ -413,6 +413,55 @@ pub async fn theme_stats(
     Ok(stats)
 }
 
+#[instrument(err(Debug), skip(db))]
+pub async fn add_theme(
+    db: &PgPool,
+    id: Uuid,
+    theme: &str,
+) -> Result<PolisStatementAux, ComhairleError> {
+    let aux = sqlx::query_as::<_, PolisStatementAux>(
+        "UPDATE polis_statement_aux \
+         SET themes = CASE WHEN $2 = ANY(themes) THEN themes ELSE array_append(themes, $2) END, \
+             updated_at = NOW() \
+         WHERE id = $1 \
+         RETURNING *",
+    )
+    .bind(id)
+    .bind(theme)
+    .fetch_one(db)
+    .await
+    .map_err(|e| match e {
+        sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Polis statement aux".into()),
+        other => ComhairleError::DatabaseError(other),
+    })?;
+
+    Ok(aux)
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn remove_theme(
+    db: &PgPool,
+    id: Uuid,
+    theme: &str,
+) -> Result<PolisStatementAux, ComhairleError> {
+    let aux = sqlx::query_as::<_, PolisStatementAux>(
+        "UPDATE polis_statement_aux \
+         SET themes = array_remove(themes, $2), updated_at = NOW() \
+         WHERE id = $1 \
+         RETURNING *",
+    )
+    .bind(id)
+    .bind(theme)
+    .fetch_one(db)
+    .await
+    .map_err(|e| match e {
+        sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Polis statement aux".into()),
+        other => ComhairleError::DatabaseError(other),
+    })?;
+
+    Ok(aux)
+}
+
 #[instrument(err(Debug))]
 pub async fn delete(db: &PgPool, id: Uuid) -> Result<PolisStatementAux, ComhairleError> {
     let (sql, values) = Query::delete()

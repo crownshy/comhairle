@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::models::polis_statement_aux;
 use aide::axum::{
-    routing::{get_with, post_with, put_with},
+    routing::{delete_with, get_with, post_with, put_with},
     ApiRouter,
 };
 use async_trait::async_trait;
@@ -181,6 +181,34 @@ impl ToolImpl for PolisTool {
                              (at least one is required)",
                         )
                         .response::<200, Json<Vec<ThemeStatistic>>>()
+                }),
+            )
+            .api_route(
+                "/polis/statement_aux/{id}/themes",
+                post_with(add_statement_aux_theme, |op| {
+                    op.id("PolisAddStatementAuxTheme")
+                        .tag("Tools")
+                        .summary("Add a theme to a polis_statement_aux row")
+                        .description(
+                            "Adds a theme to the statement's themes array. Idempotent: \
+                             adding a theme that is already present is a no-op. Caller \
+                             must be the owner of the conversation the statement belongs to.",
+                        )
+                        .response::<200, Json<PolisStatementAux>>()
+                }),
+            )
+            .api_route(
+                "/polis/statement_aux/{id}/themes",
+                delete_with(remove_statement_aux_theme, |op| {
+                    op.id("PolisRemoveStatementAuxTheme")
+                        .tag("Tools")
+                        .summary("Remove a theme from a polis_statement_aux row")
+                        .description(
+                            "Removes a theme from the statement's themes array. Idempotent: \
+                             removing a theme that is not present is a no-op. Caller must be \
+                             the owner of the conversation the statement belongs to.",
+                        )
+                        .response::<200, Json<PolisStatementAux>>()
                 }),
             )
             .api_route(
@@ -529,6 +557,41 @@ async fn moderate_statement_aux(
     Ok((StatusCode::OK, Json(updated)))
 }
 
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct ThemeRequest {
+    pub theme: String,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn add_statement_aux_theme(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path(statement_id): Path<Uuid>,
+    Json(request): Json<ThemeRequest>,
+) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
+    let aux = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
+    polis_statement_aux::check_can_moderate(&state.db, &user, &aux.workflow_step_id).await?;
+
+    let updated =
+        models::polis_statement_aux::add_theme(&state.db, statement_id, &request.theme).await?;
+    Ok((StatusCode::OK, Json(updated)))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn remove_statement_aux_theme(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Path(statement_id): Path<Uuid>,
+    Json(request): Json<ThemeRequest>,
+) -> Result<(StatusCode, Json<PolisStatementAux>), ComhairleError> {
+    let aux = models::polis_statement_aux::get_by_id(&state.db, &statement_id).await?;
+    polis_statement_aux::check_can_moderate(&state.db, &user, &aux.workflow_step_id).await?;
+
+    let updated =
+        models::polis_statement_aux::remove_theme(&state.db, statement_id, &request.theme).await?;
+    Ok((StatusCode::OK, Json(updated)))
+}
+
 #[instrument(err(Debug), skip(state))]
 async fn theme_stats(
     State(state): State<Arc<ComhairleState>>,
@@ -593,6 +656,209 @@ pub async fn launch(
     }
 
     Ok(live_poll_config)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
+
+    use axum::Router;
+    use serde_json::json;
+    use sqlx::PgPool;
+
+    use crate::{
+        models::{
+            model_test_helpers::setup_default_app_and_session,
+            polis_statement_aux::{self, CreatePolisStatementAux},
+        },
+        test_helpers::{extract, polis_tool_config, UserSession},
+    };
+
+    use super::*;
+
+    async fn setup_polis_aux(
+        app: &Router,
+        pool: &PgPool,
+        session: &mut UserSession,
+        themes: Vec<String>,
+    ) -> Result<PolisStatementAux, Box<dyn Error>> {
+        let (_, conversation, _) = session.create_random_conversation(app).await?;
+        let conversation_id: String = extract("id", &conversation);
+
+        let (_, workflow, _) = session.create_random_workflow(app, &conversation_id).await?;
+        let workflow_id: String = extract("id", &workflow);
+
+        let (_, workflow_step, _) = session
+            .post(
+                app,
+                &format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step"),
+                json!({
+                    "name": "Polis step",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "polis step",
+                    "is_offline": false,
+                    "required": true,
+                    "tool_setup": polis_tool_config(),
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        let workflow_step_id: String = extract("id", &workflow_step);
+        let workflow_step_id = Uuid::parse_str(&workflow_step_id)?;
+
+        let owner_id = session.id.expect("session to be signed up");
+        let aux = polis_statement_aux::create(
+            pool,
+            owner_id,
+            &CreatePolisStatementAux {
+                workflow_step_id,
+                zid: 1,
+                polis_conversation_id: "test-poll".into(),
+                polis_statement_id: 1,
+                statement_text: "test statement".into(),
+                is_seed: false,
+                themes,
+                ..Default::default()
+            },
+        )
+        .await?;
+
+        Ok(aux)
+    }
+
+    #[sqlx::test]
+    async fn owner_can_add_theme(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let aux = setup_polis_aux(&app, &pool, &mut session, vec![]).await?;
+
+        let (status, value, _) = session
+            .post(
+                &app,
+                &format!("/tools/polis/statement_aux/{}/themes", aux.id),
+                json!({ "theme": "alpha" }).to_string().into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::OK, "owner should be able to add a theme");
+        let updated: PolisStatementAux = serde_json::from_value(value)?;
+        assert_eq!(updated.themes, vec!["alpha".to_string()]);
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn adding_theme_is_idempotent(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let aux = setup_polis_aux(&app, &pool, &mut session, vec!["alpha".into()]).await?;
+
+        let (status, value, _) = session
+            .post(
+                &app,
+                &format!("/tools/polis/statement_aux/{}/themes", aux.id),
+                json!({ "theme": "alpha" }).to_string().into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::OK);
+        let updated: PolisStatementAux = serde_json::from_value(value)?;
+        assert_eq!(
+            updated.themes,
+            vec!["alpha".to_string()],
+            "re-adding an existing theme should be a no-op"
+        );
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn owner_can_remove_theme(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let aux = setup_polis_aux(
+            &app,
+            &pool,
+            &mut session,
+            vec!["alpha".into(), "beta".into()],
+        )
+        .await?;
+
+        let (status, value, _) = session
+            .delete_with_body(
+                &app,
+                &format!("/tools/polis/statement_aux/{}/themes", aux.id),
+                json!({ "theme": "alpha" }).to_string().into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::OK);
+        let updated: PolisStatementAux = serde_json::from_value(value)?;
+        assert_eq!(updated.themes, vec!["beta".to_string()]);
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn removing_missing_theme_is_idempotent(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let aux = setup_polis_aux(&app, &pool, &mut session, vec!["alpha".into()]).await?;
+
+        let (status, value, _) = session
+            .delete_with_body(
+                &app,
+                &format!("/tools/polis/statement_aux/{}/themes", aux.id),
+                json!({ "theme": "missing" }).to_string().into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::OK);
+        let updated: PolisStatementAux = serde_json::from_value(value)?;
+        assert_eq!(updated.themes, vec!["alpha".to_string()]);
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn non_owner_cannot_add_theme(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut owner) = setup_default_app_and_session(&pool).await?;
+        let aux = setup_polis_aux(&app, &pool, &mut owner, vec![]).await?;
+
+        let mut intruder = UserSession::new("intruder", crate::test_helpers::TEST_PASSWORD, "intruder@example.com");
+        intruder.signup(&app).await?;
+
+        let (status, _, _) = intruder
+            .post(
+                &app,
+                &format!("/tools/polis/statement_aux/{}/themes", aux.id),
+                json!({ "theme": "alpha" }).to_string().into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::FORBIDDEN, "non-owner should be forbidden");
+
+        let reloaded = polis_statement_aux::get_by_id(&pool, &aux.id).await?;
+        assert!(reloaded.themes.is_empty(), "themes must not have changed");
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn non_owner_cannot_remove_theme(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut owner) = setup_default_app_and_session(&pool).await?;
+        let aux = setup_polis_aux(&app, &pool, &mut owner, vec!["alpha".into()]).await?;
+
+        let mut intruder = UserSession::new("intruder", crate::test_helpers::TEST_PASSWORD, "intruder@example.com");
+        intruder.signup(&app).await?;
+
+        let (status, _, _) = intruder
+            .delete_with_body(
+                &app,
+                &format!("/tools/polis/statement_aux/{}/themes", aux.id),
+                json!({ "theme": "alpha" }).to_string().into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::FORBIDDEN);
+
+        let reloaded = polis_statement_aux::get_by_id(&pool, &aux.id).await?;
+        assert_eq!(reloaded.themes, vec!["alpha".to_string()]);
+        Ok(())
+    }
 }
 
 async fn polis_setup(
