@@ -13,8 +13,7 @@
 		Bot,
 		GripVertical,
 		ChevronUp,
-		ChevronDown,
-		Trash2
+		ChevronDown
 	} from 'lucide-svelte';
 	import * as Card from '$lib/components/ui/card';
 	import Button from '$lib/components/ui/button/button.svelte';
@@ -31,7 +30,6 @@
 	let loading = $derived(workflowSteps === undefined);
 
 	let reorderedSteps = $state<WorkflowStepWithTranslations[]>([]);
-	let deletingStepId = $state<string | null>(null);
 
 	let showTestButtons = $derived(page.url.searchParams.get('testButtons') === '1');
 
@@ -85,31 +83,6 @@
 	async function refreshWorkflowData() {
 		await invalidate('conversation:workflow');
 		notifications.send({ priority: 'INFO', message: 'Workflow data refreshed' });
-	}
-
-	async function deleteStepForTest(step: WorkflowStepWithTranslations) {
-		const confirmed = window.confirm(
-			`Delete step \"${step.name}\"? This is a test action and cannot be undone.`
-		);
-		if (!confirmed) return;
-
-		deletingStepId = step.id;
-		try {
-			await apiClient.DeleteConversationWorkflowStep(undefined, {
-				params: {
-					conversation_id: conversation.id,
-					workflow_id: workflow.id,
-					workflow_step_id: step.id
-				}
-			});
-			await invalidate('conversation:workflow');
-			notifications.send({ priority: 'INFO', message: 'Step deleted' });
-		} catch (e) {
-			console.error(e);
-			notifications.send({ priority: 'ERROR', message: 'Failed to delete step' });
-		} finally {
-			deletingStepId = null;
-		}
 	}
 
 	function activeToolConfig(step: WorkflowStepWithTranslations) {
@@ -222,19 +195,6 @@
 								{activeToolConfig(step).type}
 							</a>
 							<div class="flex items-center gap-2">
-								{#if showTestButtons}
-									<Button
-										variant="destructive"
-										size="sm"
-										disabled={deletingStepId === step.id}
-										onclick={() => deleteStepForTest(step)}
-									>
-										<Trash2 class="mr-1 h-4 w-4" />
-										{deletingStepId === step.id
-											? 'Deleting...'
-											: 'Delete (test)'}
-									</Button>
-								{/if}
 								<Button
 									href={`/admin/conversations/${conversation.id}/design/step/${step.id}`}
 									class="secondary"
