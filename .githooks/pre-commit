@@ -27,7 +27,8 @@ format_rust() {
       # If so, stash them, run cargo fmt, re-stage the formatted files and then pop the stash
       # Otherwise, just run cargo fmt and stage the changes
       if [[ -n $(git diff --name-only --diff-filter=d "${path}/") || -n $(git ls-files --others --exclude-standard "${path}/") ]]; then
-        git stash push -m "pre-commit hook: stash ${path} changes" -- "${path}/"
+      # Stash only unstaged and untracked changes in the specified directory
+        git stash push --keep-index --include-untracked -m "pre-commit hook: stash ${path} changes" -- "${path}/"
         stash_used=true
       fi
 
