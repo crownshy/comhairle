@@ -684,7 +684,9 @@ mod tests {
     async fn should_generate_demographic_report_for_workflow(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        use crate::models::{model_test_helpers::setup_default_app_and_session, user_participation};
+        use crate::models::{
+            model_test_helpers::setup_default_app_and_session, user_participation,
+        };
 
         // Setup app and session
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
@@ -785,10 +787,7 @@ mod tests {
         let report = get_demographic_report(&pool, &workflow_id).await?;
 
         // Verify total participants
-        assert_eq!(
-            report.total_participants, 3,
-            "incorrect total participants"
-        );
+        assert_eq!(report.total_participants, 3, "incorrect total participants");
 
         // Verify ethnicity breakdown
         assert_eq!(report.ethnicity.len(), 2, "incorrect ethnicity count");
@@ -864,7 +863,9 @@ mod tests {
     async fn demographic_report_should_exclude_non_consented_users(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        use crate::models::{model_test_helpers::setup_default_app_and_session, user_participation};
+        use crate::models::{
+            model_test_helpers::setup_default_app_and_session, user_participation,
+        };
 
         // Setup app and session
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
@@ -940,10 +941,7 @@ mod tests {
         let report = get_demographic_report(&pool, &workflow_id).await?;
 
         // Both users should count in total
-        assert_eq!(
-            report.total_participants, 2,
-            "incorrect total participants"
-        );
+        assert_eq!(report.total_participants, 2, "incorrect total participants");
 
         // Only consented user should appear in demographics
         assert_eq!(report.ethnicity.len(), 1, "should only have one ethnicity");
@@ -983,7 +981,9 @@ mod tests {
     async fn demographic_report_should_handle_null_values(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
-        use crate::models::{model_test_helpers::setup_default_app_and_session, user_participation};
+        use crate::models::{
+            model_test_helpers::setup_default_app_and_session, user_participation,
+        };
 
         // Setup app and session
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
@@ -1034,22 +1034,23 @@ mod tests {
         // Should show None for null values
         assert_eq!(report.ethnicity.len(), 1, "should have one ethnicity entry");
         assert_eq!(
-            report.ethnicity[0].value,
-            None,
+            report.ethnicity[0].value, None,
             "should show None for null ethnicity"
         );
 
-        assert_eq!(report.age_ranges.len(), 1, "should have one age range entry");
         assert_eq!(
-            report.age_ranges[0].value,
-            None,
+            report.age_ranges.len(),
+            1,
+            "should have one age range entry"
+        );
+        assert_eq!(
+            report.age_ranges[0].value, None,
             "should show None for null age"
         );
 
         assert_eq!(report.gender.len(), 1, "should have one gender entry");
         assert_eq!(
-            report.gender[0].value,
-            None,
+            report.gender[0].value, None,
             "should show None for null gender"
         );
 

@@ -11,7 +11,9 @@ mod tests {
     use tower::ServiceExt;
 
     /// Helper to create test state with rate limiting enabled
-    fn test_state_with_rate_limiting(pool: sqlx::PgPool) -> Result<Arc<crate::ComhairleState>, Box<dyn Error>> {
+    fn test_state_with_rate_limiting(
+        pool: sqlx::PgPool,
+    ) -> Result<Arc<crate::ComhairleState>, Box<dyn Error>> {
         let mut state = test_state().db(pool).call()?;
         state.config.enable_rate_limiting = true; // Enable rate limiting for these tests
         Ok(Arc::new(state))
@@ -165,7 +167,8 @@ mod tests {
         // Now make multiple login attempts from a different IP to hit rate limit
         let mut last_response = None;
         for _ in 0..6 {
-            let response = login_request_with_ip(&app, "192.168.1.102", email, TEST_PASSWORD).await?;
+            let response =
+                login_request_with_ip(&app, "192.168.1.102", email, TEST_PASSWORD).await?;
             last_response = Some(response);
         }
 

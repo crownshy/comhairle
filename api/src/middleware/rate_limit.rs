@@ -76,8 +76,7 @@ pub fn create_rate_limiter(
 /// - 5 requests per minute per IP
 /// - Burst capacity of 3 requests
 /// - Suitable for login, signup, password reset, etc.
-pub fn auth_rate_limiter() -> GovernorLayer<SmartIpKeyExtractor, StateInformationMiddleware, Body>
-{
+pub fn auth_rate_limiter() -> GovernorLayer<SmartIpKeyExtractor, StateInformationMiddleware, Body> {
     create_rate_limiter(RateLimitConfig::auth_strict())
 }
 
@@ -106,8 +105,8 @@ pub fn standard_rate_limiter(
 /// - 300 requests per minute per IP
 /// - Burst capacity of 50 requests
 /// - Suitable for read-heavy operations
-pub fn lenient_rate_limiter(
-) -> GovernorLayer<SmartIpKeyExtractor, StateInformationMiddleware, Body> {
+pub fn lenient_rate_limiter() -> GovernorLayer<SmartIpKeyExtractor, StateInformationMiddleware, Body>
+{
     create_rate_limiter(RateLimitConfig::lenient())
 }
 

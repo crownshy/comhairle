@@ -83,4 +83,3 @@ mod tests {
         assert!(!has_meaningful_combo("HELLO"));
     }
 }
-

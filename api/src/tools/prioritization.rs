@@ -357,11 +357,12 @@ async fn list_proposals(
         ));
     }
 
-    let proposals: Vec<LocalizedProposalDto> = proposal::list_localized(&state.db, &workflow_step_id, &locale)
-        .await?
-        .into_iter()
-        .map(Into::into)
-        .collect();
+    let proposals: Vec<LocalizedProposalDto> =
+        proposal::list_localized(&state.db, &workflow_step_id, &locale)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect();
 
     Ok((
         StatusCode::OK,

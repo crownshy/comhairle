@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { writeFileSync, chmodSync, mkdirSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 let gitRoot;
@@ -9,15 +9,23 @@ try {
 	console.log('[install-hooks] Not a git repository, skipping hook installation');
 	process.exit(0);
 }
-const hooksDir = resolve(gitRoot, '.git', 'hooks');
-const hookPath = resolve(hooksDir, 'pre-commit');
 
-const hookScript = `#!/bin/sh
-./ui/node_modules/.bin/pretty-quick --staged
-`;
+const installerScript = resolve(gitRoot, '.githooks', 'install-hooks.sh');
 
-mkdirSync(hooksDir, { recursive: true });
-writeFileSync(hookPath, hookScript);
-chmodSync(hookPath, '755');
+if (!existsSync(installerScript)) {
+	console.error(`[install-hooks] Error: Installer script not found at ${installerScript}`);
+	process.exit(1);
+}
 
-console.log('[install-hooks] pre-commit hook installed');
+try {
+	// Execute the shell script using bash
+	// We pass the gitRoot so the shell script knows the context
+	execSync(`bash "${installerScript}"`, {
+		stdio: 'inherit',
+		env: { ...process.env, REPO_BASE: gitRoot }
+	});
+	console.log('[install-hooks] Pre-commit hooks successfully installed via shell script.');
+} catch (error) {
+	console.error('[install-hooks] Failed to execute installation script:', error.message);
+	process.exit(1);
+}
