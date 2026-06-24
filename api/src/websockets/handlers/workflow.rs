@@ -4,7 +4,10 @@ use thiserror::Error;
 use tracing::info;
 
 use crate::{
-    websockets::{error::WebsocketError, messages::WebSocketMessage, WebSocketConnection, WebSocketMessageHandler},
+    websockets::{
+        error::WebsocketError, messages::WebSocketMessage, WebSocketConnection,
+        WebSocketMessageHandler,
+    },
     ComhairleState,
 };
 

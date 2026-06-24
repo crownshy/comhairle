@@ -28,7 +28,7 @@ use crate::{
     ComhairleState,
 };
 
-/// Not sure if this is the desired behaviour. I made a few assumptions: 
+/// Not sure if this is the desired behaviour. I made a few assumptions:
 /// - The user owns the conversation
 /// - The user is a participant in any workflow of the conversation
 /// - No user is logged in but the conversation is public and live
@@ -653,38 +653,41 @@ mod tests {
             .get(&app, &format!("/conversation/{conversation_id}/documents"))
             .await?;
 
-        assert!(status.is_success(), "anon should access public+live docs: {status}");
+        assert!(
+            status.is_success(),
+            "anon should access public+live docs: {status}"
+        );
         Ok(())
     }
 
     #[sqlx::test]
-    async fn anon_forbidden_when_conversation_private(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn Error>> {
+    async fn anon_forbidden_when_conversation_private(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let kb_id = "kb-123".to_string();
-        let (app, _admin, conversation_id) =
-            setup_test_app_with_conversation(pool, kb_id, |_bs| {
-                // list_documents must NOT be invoked when access is denied.
-            })
-            .await?;
+        let (app, _admin, conversation_id) = setup_test_app_with_conversation(pool, kb_id, |_bs| {
+            // list_documents must NOT be invoked when access is denied.
+        })
+        .await?;
 
         let mut anon = UserSession::new_anon();
         let (status, _, _) = anon
             .get(&app, &format!("/conversation/{conversation_id}/documents"))
             .await?;
 
-        assert_eq!(status, StatusCode::FORBIDDEN, "anon must be denied on private conv");
+        assert_eq!(
+            status,
+            StatusCode::FORBIDDEN,
+            "anon must be denied on private conv"
+        );
         Ok(())
     }
 
     #[sqlx::test]
     async fn non_participant_user_forbidden(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let kb_id = "kb-123".to_string();
-        let (app, _admin, conversation_id) =
-            setup_test_app_with_conversation(pool, kb_id, |_bs| {
-                // list_documents must NOT be invoked when access is denied.
-            })
-            .await?;
+        let (app, _admin, conversation_id) = setup_test_app_with_conversation(pool, kb_id, |_bs| {
+            // list_documents must NOT be invoked when access is denied.
+        })
+        .await?;
 
         let mut outsider = UserSession::new(
             "outsider",
@@ -736,7 +739,10 @@ mod tests {
             .get(&app, &format!("/conversation/{conversation_id}/documents"))
             .await?;
 
-        assert!(status.is_success(), "participant should list docs: {status}");
+        assert!(
+            status.is_success(),
+            "participant should list docs: {status}"
+        );
         Ok(())
     }
 }

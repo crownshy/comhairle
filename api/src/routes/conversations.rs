@@ -331,7 +331,11 @@ async fn send_test_broadcast_email(
         .mailer
         .send_conversation_broadcast_email(&recipient, &request.title, &html_content)
         .map_err(|e| {
-            tracing::warn!("Failed to send test broadcast email to {}: {:?}", recipient, e);
+            tracing::warn!(
+                "Failed to send test broadcast email to {}: {:?}",
+                recipient,
+                e
+            );
             ComhairleError::BadRequest(format!("Failed to send test email: {}", e))
         })?;
 
@@ -481,7 +485,12 @@ async fn send_broadcast_email_to_opted_in(
             last_error.unwrap_or_else(|| "unknown error".into())
         ),
         (s, 0) => format!("Email sent to {} recipients", s),
-        (s, n) => format!("Email sent to {} of {} recipients ({} failed)", s, s + n as i32, n),
+        (s, n) => format!(
+            "Email sent to {} of {} recipients ({} failed)",
+            s,
+            s + n as i32,
+            n
+        ),
     };
 
     Ok((
@@ -1827,12 +1836,12 @@ mod tests {
         mailer
             .expect_send_event_reminder()
             .returning(|_, _, _, _| Ok(()));
-        mailer
-            .expect_send_conversation_broadcast_email()
-            .returning(move |email, _subject, _html| {
+        mailer.expect_send_conversation_broadcast_email().returning(
+            move |email, _subject, _html| {
                 sent.lock().unwrap().push(email.to_string());
                 Ok(())
-            });
+            },
+        );
         mailer
     }
 
@@ -2218,7 +2227,10 @@ mod tests {
 
         assert_eq!(
             emails,
-            vec!["anon_in@test.com".to_string(), "authed_in@test.com".to_string()],
+            vec![
+                "anon_in@test.com".to_string(),
+                "authed_in@test.com".to_string()
+            ],
             "recipients endpoint must list only opted-in emails (auth + anon)"
         );
         assert_eq!(

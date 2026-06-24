@@ -72,9 +72,10 @@ pub async fn create(
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let recipient = sqlx::query_as_with::<_, ConversationEmailNotificationRecipients, _>(&sql, values)
-        .fetch_one(db)
-        .await?;
+    let recipient =
+        sqlx::query_as_with::<_, ConversationEmailNotificationRecipients, _>(&sql, values)
+            .fetch_one(db)
+            .await?;
 
     Ok(recipient)
 }
@@ -92,15 +93,17 @@ pub async fn get_by_conversation_and_email(
                 .eq(conversation_id.to_owned()),
         )
         .and_where(
-            Expr::col(ConversationEmailNotificationRecipientsIden::Email)
-                .eq(email.to_owned()),
+            Expr::col(ConversationEmailNotificationRecipientsIden::Email).eq(email.to_owned()),
         )
         .build_sqlx(PostgresQueryBuilder);
 
-    let recipient = sqlx::query_as_with::<_, ConversationEmailNotificationRecipients, _>(&sql, values)
-        .fetch_one(db)
-        .await
-        .map_err(|_| ComhairleError::ResourceNotFound("ConversationEmailNotificationRecipients".into()))?;
+    let recipient =
+        sqlx::query_as_with::<_, ConversationEmailNotificationRecipients, _>(&sql, values)
+            .fetch_one(db)
+            .await
+            .map_err(|_| {
+                ComhairleError::ResourceNotFound("ConversationEmailNotificationRecipients".into())
+            })?;
 
     Ok(recipient)
 }
@@ -118,9 +121,10 @@ pub async fn get_by_conversation(
         )
         .build_sqlx(PostgresQueryBuilder);
 
-    let recipients = sqlx::query_as_with::<_, ConversationEmailNotificationRecipients, _>(&sql, values)
-        .fetch_all(db)
-        .await?;
+    let recipients =
+        sqlx::query_as_with::<_, ConversationEmailNotificationRecipients, _>(&sql, values)
+            .fetch_all(db)
+            .await?;
 
     Ok(recipients)
 }
@@ -137,16 +141,18 @@ pub async fn delete_by_conversation_and_email(
                 .eq(conversation_id.to_owned()),
         )
         .and_where(
-            Expr::col(ConversationEmailNotificationRecipientsIden::Email)
-                .eq(email.to_owned()),
+            Expr::col(ConversationEmailNotificationRecipientsIden::Email).eq(email.to_owned()),
         )
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let recipient = sqlx::query_as_with::<_, ConversationEmailNotificationRecipients, _>(&sql, values)
-        .fetch_one(db)
-        .await
-        .map_err(|_| ComhairleError::ResourceNotFound("ConversationEmailNotificationRecipients".into()))?;
+    let recipient =
+        sqlx::query_as_with::<_, ConversationEmailNotificationRecipients, _>(&sql, values)
+            .fetch_one(db)
+            .await
+            .map_err(|_| {
+                ComhairleError::ResourceNotFound("ConversationEmailNotificationRecipients".into())
+            })?;
 
     Ok(recipient)
 }

@@ -108,10 +108,7 @@ pub async fn list_localized(
 }
 
 #[instrument(err(Debug))]
-pub async fn list(
-    db: &PgPool,
-    workflow_step_id: &Uuid,
-) -> Result<Vec<Proposal>, ComhairleError> {
+pub async fn list(db: &PgPool, workflow_step_id: &Uuid) -> Result<Vec<Proposal>, ComhairleError> {
     let (sql, values) = Query::select()
         .from(ProposalIden::Table)
         .columns(DEFAULT_COLUMNS)

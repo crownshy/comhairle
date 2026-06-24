@@ -335,9 +335,16 @@ impl HeyFormClient {
     pub async fn create_form_hidden_field(&self, input: CreateHiddenFieldInput) -> Result<bool> {
         let variables = json!({ "input": input });
         let response: HashMap<String, bool> = self
-            .execute_graphql(CREATE_FORM_HIDDEN_FIELD_MUTATION, variables, Some("createFormHiddenField"))
+            .execute_graphql(
+                CREATE_FORM_HIDDEN_FIELD_MUTATION,
+                variables,
+                Some("createFormHiddenField"),
+            )
             .await?;
 
-        Ok(response.get("createFormHiddenField").copied().unwrap_or(false))
+        Ok(response
+            .get("createFormHiddenField")
+            .copied()
+            .unwrap_or(false))
     }
 }
