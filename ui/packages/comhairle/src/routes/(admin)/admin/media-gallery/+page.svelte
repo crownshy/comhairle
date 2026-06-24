@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { Trash2, Upload, X } from 'lucide-svelte';
+	import { SquarePen, Trash2, Upload, X } from 'lucide-svelte';
 	import climateUk from '$lib/assets/climageuk.jpg';
 	import vtaiwan from '$lib/assets/vtaiwan.jpg';
 	import seattleUSA from '$lib/assets/seattle_usa.jpg';
@@ -13,7 +13,7 @@
 	let fileInput: HTMLInputElement | undefined;
 	let form: HTMLFormElement | undefined;
 
-	let selecting = $state<boolean>(false);
+	let bulkEdit = $state<boolean>(false);
 
 	const images: { id: number; src: string }[] = [
 		{ id: 1, src: climateUk },
@@ -56,7 +56,7 @@
 				}}
 			/>
 			<div class="flex flex-row gap-4">
-				{#if !selecting}
+				{#if !bulkEdit}
 					<Button
 						onclick={() => {
 							fileInput?.click();
@@ -67,10 +67,10 @@
 					<Button
 						variant="outline"
 						onclick={() => {
-							selecting = true;
+							bulkEdit = true;
 						}}
 					>
-						<Trash2 class="h-4 w-4" />Delete
+						<SquarePen class="h-4 w-4" />Edit
 					</Button>
 				{:else}
 					<Button variant="destructive" onclick={() => {}}>
@@ -79,7 +79,7 @@
 					<Button
 						variant="outline"
 						onclick={() => {
-							selecting = false;
+							bulkEdit = false;
 						}}
 					>
 						<X class="h-4 w-4" />Cancel
@@ -89,20 +89,25 @@
 		</form>
 	</header>
 	<main class="mt-5">
+		{#snippet galleryImage(src: string, alt: string)}
+			<img {src} {alt} class="h-full w-full overflow-hidden object-cover" />
+		{/snippet}
 		<ul class="flex flex-wrap gap-2">
 			{#each images as image (image.id)}
 				<li
 					class={`relative h-[${ROW_HEIGHT}vh] hover:border-primary grow overflow-hidden rounded-sm border border-transparent`}
 				>
-					<input
-						type="checkbox"
-						class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
-					/>
-					<img
-						src={image.src}
-						alt="temp"
-						class="h-full w-full overflow-hidden object-cover"
-					/>
+					{#if bulkEdit}
+						<input
+							type="checkbox"
+							class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
+						/>
+						<button class="h-full w-full" aria-label="toggle checkbox">
+							{@render galleryImage(image.src, 'temp')}
+						</button>
+					{:else}
+						{@render galleryImage(image.src, 'temp')}
+					{/if}
 				</li>
 			{/each}
 		</ul>
