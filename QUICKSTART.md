@@ -27,6 +27,12 @@ nix develop
 ```
 Once inside the shell you have: `cargo`, `rustc`, `clippy`, `rust-analyzer`, `rustfmt`, `sqlx`, `bacon`, `cargo-watch`, `just`, `watchexec`, `node`, `pnpm`, `psql`, `redis-cli`, `atac`, plus OpenSSL / pkg-config / cmake / clang wired up via env vars.
 
+
+Setup commit hooks:
+```bash
+./.githooks/install-hooks.sh
+```
+
 ## Fast path (tmux)
 
 If you just want everything running in one go:

@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+
+# Reference: https://git-scm.com/docs/githooks#_pre_commit
+
+REPO_BASE="$(git rev-parse --show-toplevel)"
+HOOKS_PATH="${REPO_BASE}/.githooks"
+
+# Frontend changes
+if git diff --cached --name-only --diff-filter=d | grep -q "^ui/"; then
+  (
+    cd "${REPO_BASE}" || exit 1
+    npm install --prefix "ui" --quiet
+    ui/node_modules/.bin/pretty-quick --staged
+  )
+else
+  echo "No ui packages modifications"
+fi
+
+
+format_rust() {
+  local REPO_BASE="${1}"
+  local path="${2}"
+  if git diff --cached --name-only --diff-filter=d | grep -q "^${path}/"; then
+    (
+      cd "${REPO_BASE}" || exit 1
+      local stash_used=false
+      # Check if there are unstaged and/or untracked changes in the specified directory
+      # If so, stash them, run cargo fmt, re-stage the formatted files and then pop the stash
+      # Otherwise, just run cargo fmt and stage the changes
+      if [[ -n $(git diff --name-only --diff-filter=d "${path}/") || -n $(git ls-files --others --exclude-standard "${path}/") ]]; then
+        git stash push -m "pre-commit hook: stash ${path} changes" -- "${path}/"
+        stash_used=true
+      fi
+
+      cargo fmt --all
+      git add "${path}/"
+
+      if [[ $stash_used == true ]]; then
+        git stash pop --index
+      fi
+    )
+  fi
+}
+
+format_rust "${REPO_BASE}" "adaptors"
+format_rust "${REPO_BASE}" "api"
+format_rust "${REPO_BASE}" "comhairle_macros"
