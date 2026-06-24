@@ -2,10 +2,6 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { useResizeObserver } from 'runed';
 	import { Editor } from '@tiptap/core';
-	import { Color } from '@tiptap/extension-color';
-	import { ListItem } from '@tiptap/extension-list-item';
-	import { TextStyle } from '@tiptap/extension-text-style';
-	import { Underline } from '@tiptap/extension-underline';
 	import EditorToolbar from './EditorToolbar.svelte';
 	import { type ActiveStates } from '$lib/components/RichTextEditor/types';
 	import { detectContentType } from '$lib/utils/contentDetection';
@@ -28,8 +24,7 @@
 	};
 
 	let {
-		value = null,
-		placeholder = 'Start typing...',
+		value = $bindable(),
 		editable = true,
 		class: className = '',
 		minHeight = '200px',
