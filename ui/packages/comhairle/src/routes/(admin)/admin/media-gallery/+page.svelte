@@ -94,7 +94,10 @@
 				<li
 					class={`relative h-[${ROW_HEIGHT}vh] hover:border-primary grow overflow-hidden rounded-sm border border-transparent`}
 				>
-					<input type="checkbox" class="accent-primary absolute top-2 left-2 z-2 h-4" />
+					<input
+						type="checkbox"
+						class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
+					/>
 					<img
 						src={image.src}
 						alt="temp"
