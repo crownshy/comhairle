@@ -12,14 +12,13 @@ if git diff --cached --name-only --diff-filter=d | grep -q "^ui/"; then
     npm install --prefix "ui" --quiet
     ui/node_modules/.bin/pretty-quick --staged
   )
-else
-  echo "No ui packages modifications"
 fi
 
 
 format_rust() {
   local REPO_BASE="${1}"
   local path="${2}"
+  local cargo_toml_path="${REPO_BASE}/${path}/Cargo.toml"
   if git diff --cached --name-only --diff-filter=d | grep -q "^${path}/"; then
     (
       cd "${REPO_BASE}" || exit 1
@@ -32,7 +31,7 @@ format_rust() {
         stash_used=true
       fi
 
-      cargo fmt --all
+      cargo fmt --manifest-path "${cargo_toml_path}"
       git add "${path}/"
 
       if [[ $stash_used == true ]]; then
