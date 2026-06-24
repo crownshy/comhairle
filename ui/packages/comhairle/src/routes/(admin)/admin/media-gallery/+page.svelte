@@ -73,7 +73,12 @@
 						<SquarePen class="h-4 w-4" />Edit
 					</Button>
 				{:else}
-					<Button variant="destructive" onclick={() => {}}>
+					<Button
+						variant="destructive"
+						onclick={() => {
+							// TODO: Open popup for confirmation
+						}}
+					>
 						<Trash2 class="h-4 w-4" />Delete
 					</Button>
 					<Button
@@ -90,7 +95,7 @@
 	</header>
 	<main class="mt-5">
 		{#snippet galleryImage(src: string, alt: string)}
-			<img {src} {alt} class="h-full w-full overflow-hidden object-cover" />
+			<img {src} {alt} class="h-full w-full cursor-pointer overflow-hidden object-cover" />
 		{/snippet}
 		<ul class="flex flex-wrap gap-2">
 			{#each images as image (image.id)}
