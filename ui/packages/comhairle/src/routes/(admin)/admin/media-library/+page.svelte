@@ -106,7 +106,7 @@
 		<ul class="flex flex-wrap gap-2">
 			{#each images as image (image.id)}
 				<li
-					class={`relative h-[${ROW_HEIGHT}vh] hover:border-primary grow overflow-hidden rounded-sm border border-transparent`}
+					class={`relative h-[${ROW_HEIGHT}vh] hover:border-primary grow overflow-hidden rounded-sm border border-2 border-transparent`}
 				>
 					{#if bulkEdit}
 						<label>
