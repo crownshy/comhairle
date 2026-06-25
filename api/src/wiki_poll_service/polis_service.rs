@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use async_trait::async_trait;
 use cookie::Cookie;
@@ -41,7 +41,7 @@ struct PolisCommentWithVoting {
 struct PolisMathPca {
     tids: Vec<u32>,
     #[serde(rename = "group-votes")]
-    group_votes: HashMap<String, GroupVoteData>,
+    group_votes: BTreeMap<String, GroupVoteData>,
     #[serde(rename = "group-aware-consensus")]
     group_aware_consensus: HashMap<String, f64>,
     pca: PcaData,
