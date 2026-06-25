@@ -157,5 +157,8 @@ hmac = "0.13.0"
 [dev-dependencies]
 fake = { version = "4", features = ["derive"] }
 
+[profile.dev.package.sqlx-macros]
+opt-level = 3
+
 [build-dependencies]
 minijinja-embed = "2.10.2"

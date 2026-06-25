@@ -260,7 +260,7 @@ mod tests {
         Ok((user.id, workflow_step.id))
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_thinking_space_summary(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (user_id, workflow_step_id) = create_thinking_space_resources(&pool).await?;
 
@@ -280,7 +280,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_update_thinking_space_summary(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (user_id, workflow_step_id) = create_thinking_space_resources(&pool).await?;
 
@@ -312,7 +312,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_thinking_space_summary_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (user_id, workflow_step_id) = create_thinking_space_resources(&pool).await?;
 
@@ -330,7 +330,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_list_thinking_space_summaries(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (user_a_id, workflow_step_id) = create_thinking_space_resources(&pool).await?;
 
@@ -381,7 +381,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_delete_thinking_space_summary(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (user_id, workflow_step_id) = create_thinking_space_resources(&pool).await?;
 

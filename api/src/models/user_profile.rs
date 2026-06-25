@@ -447,7 +447,7 @@ mod tests {
     use sqlx::PgPool;
     use std::error::Error;
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_user_profile(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = crate::models::users::create_user(
             &SignupRequest {
@@ -494,7 +494,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_profile_by_user_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = crate::models::users::create_user(
             &SignupRequest {
@@ -531,7 +531,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_update_profile(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = crate::models::users::create_user(
             &SignupRequest {
@@ -599,7 +599,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_enforce_one_profile_per_user(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = crate::models::users::create_user(
             &SignupRequest {
@@ -636,7 +636,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_cascade_delete_profile_when_user_deleted(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -680,7 +680,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_generate_demographic_report_for_workflow(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -859,7 +859,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn demographic_report_should_exclude_non_consented_users(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -977,7 +977,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn demographic_report_should_handle_null_values(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {

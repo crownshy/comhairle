@@ -339,7 +339,7 @@ mod tests {
     use super::*;
     use std::error::Error;
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_organization(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let _ = setup_default_app_and_session(&pool).await?;
 
@@ -368,7 +368,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_update_an_organization(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let _ = setup_default_app_and_session(&pool).await?;
         let new_org = CreateOrganization {
@@ -411,7 +411,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_a_list_of_localized_organizations(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -467,7 +467,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_filter_organizations_by_region(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let (_, region_res_1, _) = session.create_random_region(&app).await?;
@@ -566,7 +566,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_a_localized_organization(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let _ = setup_default_app_and_session(&pool).await?;
         let new_org = CreateOrganization {
@@ -588,7 +588,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_an_organization(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let _ = setup_default_app_and_session(&pool).await?;
         let new_org = CreateOrganization {
@@ -609,7 +609,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_delete_an_organization(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let _ = setup_default_app_and_session(&pool).await?;
         let new_org = CreateOrganization {

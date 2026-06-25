@@ -285,7 +285,7 @@ mod tests {
         Ok(event)
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_create_audio_recording(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -314,7 +314,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_get_by_id(pool: sqlx::PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let mut config = test_config()?;
         config.bot_service = None;
@@ -342,7 +342,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_get_by_event(pool: sqlx::PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let mut config = test_config()?;
         config.bot_service = None;
@@ -369,7 +369,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_update_status(pool: sqlx::PgPool) -> Result<(), Box<dyn std::error::Error>> {
         let mut config = test_config()?;
         config.bot_service = None;
@@ -398,7 +398,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_get_by_id_not_found(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
