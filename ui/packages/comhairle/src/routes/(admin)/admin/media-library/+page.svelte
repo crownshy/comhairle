@@ -9,7 +9,7 @@
 	import comhairleLogo from '$lib/assets/comhairle_logo.png';
 	import placeholderConvo from '$lib/assets/placeholder_convo.png';
 	import comhairleFullLogo from '$lib/assets/comhairle_full_logo.svg';
-	import DeleteDialog from './DeleteDialog.svelte';
+	import DeleteDialog, { openDeleteDialog } from './DeleteDialog.svelte';
 
 	let fileInput: HTMLInputElement | undefined;
 	let form: HTMLFormElement | undefined;
@@ -28,7 +28,7 @@
 
 	const ROW_HEIGHT = 30;
 
-	let deleteDialog: DeleteDialog | undefined;
+	let deleteForm: HTMLFormElement | undefined;
 
 	let selected = $state([]);
 </script>
@@ -82,7 +82,7 @@
 						variant="destructive"
 						disabled={selected.length === 0}
 						onclick={() => {
-							deleteDialog?.open();
+							openDeleteDialog();
 						}}
 					>
 						<Trash2 class="h-4 w-4" />Delete
@@ -100,33 +100,44 @@
 		</form>
 	</header>
 	<main class="mt-5">
-		{#snippet libraryImage(src: string, alt: string)}
-			<img {src} {alt} class="h-full w-full cursor-pointer overflow-hidden object-cover" />
-		{/snippet}
-		<ul class="flex flex-wrap gap-2">
-			{#each images as image (image.id)}
-				<li
-					class={`relative h-[${ROW_HEIGHT}vh] hover:border-primary grow overflow-hidden rounded-sm border border-2 border-transparent`}
-				>
-					{#if bulkEdit}
-						<label>
-							<input
-								type="checkbox"
-								name={image.id.toString()}
-								value={image.id.toString()}
-								class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
-								bind:group={selected}
-							/>
+		<form method="POST" action="?/delete" use:enhance bind:this={deleteForm}>
+			{#snippet libraryImage(src: string, alt: string)}
+				<img
+					{src}
+					{alt}
+					class="h-full w-full cursor-pointer overflow-hidden object-cover"
+				/>
+			{/snippet}
+			<ul class="flex flex-wrap gap-2">
+				{#each images as image (image.id)}
+					<li
+						class={`relative h-[${ROW_HEIGHT}vh] hover:border-primary grow overflow-hidden rounded-sm border border-2 border-transparent`}
+					>
+						{#if bulkEdit}
+							<label>
+								<input
+									type="checkbox"
+									name="items"
+									value={image.id.toString()}
+									class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
+									bind:group={selected}
+								/>
+								{@render libraryImage(image.src, 'temp')}
+							</label>
+						{:else}
 							{@render libraryImage(image.src, 'temp')}
-						</label>
-					{:else}
-						{@render libraryImage(image.src, 'temp')}
-					{/if}
-				</li>
-			{/each}
-		</ul>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+			<DeleteDialog
+				count={selected.length}
+				onconfirm={() => {
+					deleteForm?.submit();
+				}}
+			/>
+		</form>
 	</main>
-	<DeleteDialog bind:this={deleteDialog} />
 </div>
 
 <style>

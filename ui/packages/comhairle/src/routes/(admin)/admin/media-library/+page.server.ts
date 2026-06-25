@@ -4,5 +4,9 @@ export const actions = {
 	upload: async ({ request }: RequestEvent) => {
 		const data = await request.formData();
 		console.log('data:', data);
+	},
+	delete: async ({ request }: RequestEvent) => {
+		const data = await request.formData();
+		console.log('data:', data);
 	}
 };
