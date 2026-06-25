@@ -120,9 +120,9 @@
 					<SideBar.MenuItem>
 						<SideBar.MenuButton>
 							{#snippet child({ props: btnProps })}
-								<a {...btnProps} href="/admin/media-gallery">
+								<a {...btnProps} href="/admin/media-library">
 									<Images class="size-4" />
-									Media gallery
+									Media library
 								</a>
 							{/snippet}
 						</SideBar.MenuButton>
