@@ -110,9 +110,7 @@
 			{/snippet}
 			<ul class="flex flex-wrap gap-2">
 				{#each images as image (image.id)}
-					<li
-						class={`relative h-[${ROW_HEIGHT}vh] hover:border-primary grow overflow-hidden rounded-sm border border-2 border-transparent`}
-					>
+					<li class={`relative h-[${ROW_HEIGHT}vh] grow overflow-hidden rounded-sm`}>
 						{#if bulkEdit}
 							<label>
 								<input
@@ -143,5 +141,12 @@
 <style>
 	input:checked + * {
 		filter: opacity(50%);
+	}
+	img {
+		transition: all 300ms ease-out;
+	}
+	img:is(:focus, :hover) {
+		filter: brightness(85%);
+		transform: scale(1.02);
 	}
 </style>
