@@ -29,6 +29,8 @@
 	const ROW_HEIGHT = 30;
 
 	let deleteDialog: DeleteDialog | undefined;
+
+	let selected = $state([]);
 </script>
 
 <svelte:head>
@@ -78,6 +80,7 @@
 				{:else}
 					<Button
 						variant="destructive"
+						disabled={selected.length === 0}
 						onclick={() => {
 							deleteDialog?.open();
 						}}
@@ -106,24 +109,16 @@
 					class={`relative h-[${ROW_HEIGHT}vh] hover:border-primary grow overflow-hidden rounded-sm border border-transparent`}
 				>
 					{#if bulkEdit}
-						<input
-							type="checkbox"
-							class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
-						/>
-						<button
-							class="h-full w-full"
-							aria-label="toggle checkbox"
-							onclick={(e: MouseEvent) => {
-								const img = e.target as HTMLImageElement;
-								const checkbox = img.parentElement
-									?.previousElementSibling as HTMLInputElement;
-								if (checkbox) {
-									checkbox.checked = !checkbox.checked;
-								}
-							}}
-						>
+						<label>
+							<input
+								type="checkbox"
+								name={image.id.toString()}
+								value={image.id.toString()}
+								class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
+								bind:group={selected}
+							/>
 							{@render libraryImage(image.src, 'temp')}
-						</button>
+						</label>
 					{:else}
 						{@render libraryImage(image.src, 'temp')}
 					{/if}
