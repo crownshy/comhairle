@@ -230,6 +230,10 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
                         .nest_api_service(
                             "/{workflow_id}/progress",
                             routes::user_progress::router(state.clone()),
+                        )
+                        .nest_api_service(
+                            "/{workflow_id}/recruitment_targets",
+                            routes::recruitment_targets::router(state.clone()),
                         ),
                 )
                 .nest_api_service(
