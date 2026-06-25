@@ -9,6 +9,7 @@
 	import comhairleLogo from '$lib/assets/comhairle_logo.png';
 	import placeholderConvo from '$lib/assets/placeholder_convo.png';
 	import comhairleFullLogo from '$lib/assets/comhairle_full_logo.svg';
+	import DeleteDialog from './DeleteDialog.svelte';
 
 	let fileInput: HTMLInputElement | undefined;
 	let form: HTMLFormElement | undefined;
@@ -26,6 +27,8 @@
 	];
 
 	const ROW_HEIGHT = 30;
+
+	let deleteDialog: DeleteDialog | undefined;
 </script>
 
 <svelte:head>
@@ -76,7 +79,7 @@
 					<Button
 						variant="destructive"
 						onclick={() => {
-							// TODO: Open popup for confirmation
+							deleteDialog?.open();
 						}}
 					>
 						<Trash2 class="h-4 w-4" />Delete
@@ -128,6 +131,7 @@
 			{/each}
 		</ul>
 	</main>
+	<DeleteDialog bind:this={deleteDialog} />
 </div>
 
 <style>
