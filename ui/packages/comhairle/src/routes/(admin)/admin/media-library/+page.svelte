@@ -32,12 +32,12 @@
 </script>
 
 <svelte:head>
-	<title>Media gallery - Comhairle Admin</title>
+	<title>Media library - Comhairle Admin</title>
 </svelte:head>
 
 <div class="mx-auto w-4/5 p-10">
 	<header class="flex flex-row items-baseline justify-between">
-		<h1 class="text-4xl font-bold">Media gallery</h1>
+		<h1 class="text-4xl font-bold">Media library</h1>
 
 		<form
 			bind:this={form}
@@ -97,7 +97,7 @@
 		</form>
 	</header>
 	<main class="mt-5">
-		{#snippet galleryImage(src: string, alt: string)}
+		{#snippet libraryImage(src: string, alt: string)}
 			<img {src} {alt} class="h-full w-full cursor-pointer overflow-hidden object-cover" />
 		{/snippet}
 		<ul class="flex flex-wrap gap-2">
@@ -122,10 +122,10 @@
 								}
 							}}
 						>
-							{@render galleryImage(image.src, 'temp')}
+							{@render libraryImage(image.src, 'temp')}
 						</button>
 					{:else}
-						{@render galleryImage(image.src, 'temp')}
+						{@render libraryImage(image.src, 'temp')}
 					{/if}
 				</li>
 			{/each}
