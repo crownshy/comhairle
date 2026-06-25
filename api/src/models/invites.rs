@@ -446,7 +446,7 @@ mod tests {
         );
         Ok(())
     }
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_correct_stats_for_invite(db: PgPool) -> Result<(), Box<dyn Error>> {
         let user1 = users::create_user(&Faker.fake(), &db).await?;
         let user2 = users::create_user(&Faker.fake(), &db).await?;
@@ -530,7 +530,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn open_invite_should_remain_open_when_rejected(
         db: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -608,7 +608,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn pending_invite_should_be_marked_rejected_when_rejected(
         db: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -686,7 +686,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_list_invites_for_an_event(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user1 = users::create_user(&Faker.fake(), &pool).await?;
         let user2 = users::create_user(&Faker.fake(), &pool).await?;

@@ -513,7 +513,7 @@ mod tests {
 
     use super::*;
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_an_event(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
@@ -551,7 +551,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_an_event_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
@@ -575,7 +575,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_list_events(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
@@ -606,7 +606,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_return_ordered_list_of_events(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
@@ -708,7 +708,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_return_filtered_list_of_events(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
@@ -812,7 +812,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_update_an_event(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
@@ -842,7 +842,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_delete_an_event(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
@@ -875,7 +875,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_start_transcription_single_pipeline_for_event(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -930,7 +930,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_return_err_if_recording_missing(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let mut storage_service = MockBulkStorageService::new();
 
@@ -974,7 +974,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_start_transcription_pipelines_for_event_with_breakout_rooms(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -1038,7 +1038,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_upload_report_to_bulk_storage(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let mut bulk_storage_service = MockBulkStorageService::new();
 

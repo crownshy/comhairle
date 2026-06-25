@@ -264,7 +264,7 @@ mod tests {
         Ok((user.id, workflow_step.id, tool_config))
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_follow_up_questions(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (user_id, workflow_step_id, tool_config) =
             create_thinking_space_resources(&pool).await?;
@@ -294,7 +294,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_update_follow_up_questions(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (user_id, workflow_step_id, tool_config) =
             create_thinking_space_resources(&pool).await?;
@@ -331,7 +331,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_follow_up_questions_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (user_id, workflow_step_id, tool_config) =
             create_thinking_space_resources(&pool).await?;
@@ -354,7 +354,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_list_follow_up_questions_for_workflow_step(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -408,7 +408,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_delete_follow_up_questions_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (user_id, workflow_step_id, tool_config) =
             create_thinking_space_resources(&pool).await?;

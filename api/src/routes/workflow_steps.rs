@@ -327,7 +327,7 @@ mod tests {
     use sqlx::PgPool;
     use std::{error::Error, sync::Arc};
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_create_a_workflow_step(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -368,7 +368,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_create_workflow_step_for_an_event_workflow(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -415,7 +415,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_list_workflow_steps(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -495,7 +495,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_retreive_workflow_step(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -570,7 +570,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_get_workflow_step_for_an_event_workflow(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
@@ -611,7 +611,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn workflow_steps_should_reorder_when_a_step_is_deleted(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -698,7 +698,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn workflow_steps_should_return_in_correct_order(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -761,7 +761,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn workflow_steps_should_update_their_order_when_a_new_one_is_inserted(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -847,7 +847,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn workflow_steps_should_rearange_properly_when_one_is_moved(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {

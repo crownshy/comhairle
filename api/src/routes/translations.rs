@@ -441,7 +441,7 @@ mod tests {
     use serde_json::json;
     use std::{error::Error, sync::Arc};
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_create_text_content(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -484,7 +484,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_get_text_content_with_translations(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -541,7 +541,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_update_text_content(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -586,7 +586,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_delete_text_content(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -627,7 +627,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_create_text_translation(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -674,7 +674,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_auto_generate_translation(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
         let mut mock_translation_service = MockTranslationService::new();
 
@@ -750,7 +750,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_auto_generate_all_translations(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
         let mut mock_translation_service = MockTranslationService::new();
 
@@ -862,7 +862,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_get_text_translation(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -911,7 +911,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_update_existing_translation_via_post(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -974,7 +974,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_update_text_translation_via_put(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -1037,7 +1037,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_delete_text_translation(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -1078,7 +1078,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_non_admin_access_denied(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -1103,7 +1103,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_get_nonexistent_text_content(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -1121,7 +1121,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_get_nonexistent_translation(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -1155,7 +1155,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_update_invalid_text_content(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -1181,7 +1181,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_empty_update_request(pool: sqlx::PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;

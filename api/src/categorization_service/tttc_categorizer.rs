@@ -170,7 +170,7 @@ mod tests {
     use sqlx::PgPool;
     use std::error::Error;
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     #[ignore]
     async fn should_create_new_tttc_job(pool: PgPool) -> std::result::Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;

@@ -87,7 +87,7 @@ mod tests {
         test_helpers::{extract, test_state, UserSession},
     };
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_register_a_user_for_a_workflow(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {

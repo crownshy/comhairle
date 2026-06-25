@@ -76,7 +76,7 @@ mod tests {
         Ok(app.clone().oneshot(request).await?)
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_signup_within_burst_limit_succeeds(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state_with_rate_limiting(pool)?;
         let app = setup_rate_limited_server(state).await?;
@@ -114,7 +114,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_signup_exceeding_rate_limit_returns_429(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -153,7 +153,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_login_exceeding_rate_limit_returns_429(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -182,7 +182,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_different_ips_have_separate_rate_limits(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -228,7 +228,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_rate_limit_headers_are_present(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state_with_rate_limiting(pool)?;
         let app = setup_rate_limited_server(state).await?;
@@ -285,7 +285,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_rate_limit_decreases_with_each_request(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {

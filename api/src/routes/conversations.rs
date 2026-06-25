@@ -826,7 +826,7 @@ mod tests {
     use std::error::Error;
     use std::sync::Arc;
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_create_conversation_without_bot_service_resources(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -874,7 +874,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_create_conversation_with_bot_service_resources(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -929,7 +929,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_update_a_conversation(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -976,7 +976,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_not_be_able_to_udpate_owner_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -1026,7 +1026,7 @@ mod tests {
 
         Ok(())
     }
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_list_conversations(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -1093,7 +1093,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_search_conversations(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -1155,7 +1155,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_order_conversations(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -1229,7 +1229,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_correctly_page_conversations(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -1286,7 +1286,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_get_a_created_conversation_by_id(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -1368,7 +1368,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_get_a_created_conversation_with_translations(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -1486,7 +1486,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_be_able_to_delete_conversation(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let mut bot_service = MockComhairleBotService::new();
         bot_service
@@ -1564,7 +1564,7 @@ mod tests {
 
         Ok(())
     }
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn conversation_slugs_should_be_unique(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -1616,7 +1616,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_export_conversation_demographics(pool: PgPool) -> Result<(), Box<dyn Error>> {
         use crate::models::{user_participation, user_profile};
         use crate::routes::auth::SignupRequest;
@@ -1763,7 +1763,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_deny_demographics_export_to_non_owner(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -1873,7 +1873,7 @@ mod tests {
         Ok(conversation.id)
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn broadcast_email_only_sent_to_opted_in_authenticated_users(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -1992,7 +1992,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn broadcast_email_respects_anonymous_opt_in_flag(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -2065,7 +2065,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn broadcast_email_returns_zero_when_nobody_is_opted_in(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -2112,7 +2112,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn recipients_endpoint_lists_only_opted_in_emails(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -2241,7 +2241,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn recipients_endpoint_denies_non_owner(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn Error>> {

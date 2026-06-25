@@ -574,7 +574,7 @@ mod tests {
     use std::sync::Arc;
     use uuid::Uuid;
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_create_otp_user(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = create_otp_user(
             &OtpSignupRequest {
@@ -595,7 +595,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn user_has_resource_role_tests(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool.clone()).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -720,7 +720,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_update_user_with_organization(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut admin_session) = setup_default_app_and_session(&pool).await?;
         let (_, response, _) = admin_session.create_random_organization(&app).await?;

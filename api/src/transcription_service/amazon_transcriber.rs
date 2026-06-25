@@ -1082,7 +1082,7 @@ mod tests {
         assert_eq!(consolidated.events[1].start_time, 9.876);
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     #[ignore]
     async fn test_transcription_of_bulk_storage_audio_file(
         pool: PgPool,

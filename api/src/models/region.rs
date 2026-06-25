@@ -306,7 +306,7 @@ mod tests {
     use super::*;
     use std::error::Error;
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_a_region(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let _ = setup_default_app_and_session(&pool).await?;
 
@@ -333,7 +333,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_update_a_region(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let _ = setup_default_app_and_session(&pool).await?;
         let new_region = CreateRegion {
@@ -375,7 +375,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_list_ordered_regions(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let _ = setup_default_app_and_session(&pool).await?;
 
@@ -457,7 +457,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_list_regions_filtered_by_organization(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -517,7 +517,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_a_localized_region(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let _ = setup_default_app_and_session(&pool).await?;
         let new_region = CreateRegion {
@@ -540,7 +540,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_delete_a_region(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let _ = setup_default_app_and_session(&pool).await?;
         let new_region = CreateRegion {

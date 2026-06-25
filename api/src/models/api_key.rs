@@ -151,7 +151,7 @@ mod tests {
         assert_eq!(hash, hash_api_key(&raw));
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_return_matching_user_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = users::create_annon_user(&pool).await?;
 

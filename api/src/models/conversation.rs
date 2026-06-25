@@ -874,7 +874,7 @@ mod tests {
     use super::*;
     use std::error::Error;
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_conversation_with_oranganization_id(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -924,7 +924,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_filter_conversations_by_case_insensitive_keyword(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -1061,7 +1061,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_list_conversations_by_organization_id(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {

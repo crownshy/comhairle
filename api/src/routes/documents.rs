@@ -449,7 +449,7 @@ mod tests {
         Ok((app, session, id))
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_return_document_list(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let document = ComhairleDocument {
             id: "456".to_string(),
@@ -491,7 +491,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_return_single_document(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let document = ComhairleDocument {
             id: "doc-456".to_string(),
@@ -529,7 +529,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_delete_document(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let kb_id = "kb-123".to_string();
         let (app, mut session, conversation_id) =
@@ -554,7 +554,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_upload_a_document(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let upload_request = UploadFileRequest {
             filename: "test.txt".to_string(),
@@ -632,7 +632,7 @@ mod tests {
             });
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn anon_can_list_documents_when_public_and_live(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -660,7 +660,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn anon_forbidden_when_conversation_private(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let kb_id = "kb-123".to_string();
         let (app, _admin, conversation_id) = setup_test_app_with_conversation(pool, kb_id, |_bs| {
@@ -681,7 +681,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn non_participant_user_forbidden(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let kb_id = "kb-123".to_string();
         let (app, _admin, conversation_id) = setup_test_app_with_conversation(pool, kb_id, |_bs| {
@@ -708,7 +708,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn participant_can_list_documents(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let kb_id = "kb-123".to_string();
         let (app, mut admin, conversation_id) =

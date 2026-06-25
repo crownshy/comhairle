@@ -490,7 +490,7 @@ mod tests {
 
     use super::*;
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn upsert_from_polis_refreshes_moderation_status(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {

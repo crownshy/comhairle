@@ -380,7 +380,7 @@ mod tests {
 
     use std::error::Error;
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_scheduled_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let params = CreateScheduledEmail {
             user_email: "test@test.com".to_string(),
@@ -410,7 +410,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_update_scheduled_email(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let params = CreateScheduledEmail {
             user_email: "test@test.com".to_string(),
@@ -450,7 +450,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_scheduled_email_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let params = CreateScheduledEmail {
             user_email: "test@test.com".to_string(),
@@ -482,7 +482,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_list_scheduled_emails(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let params_1 = CreateScheduledEmail {
             user_email: "user-1@test.com".to_string(),
@@ -559,7 +559,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_list_scheduled_emails_upcoming_2_hours(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -659,7 +659,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_delete_scheduled_email_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let params = CreateScheduledEmail {
             user_email: "test@test.com".to_string(),
