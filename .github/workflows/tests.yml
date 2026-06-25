@@ -80,6 +80,8 @@ jobs:
           POSTGRES_USER: test_user
           POSTGRES_PASSWORD: test_password
           POSTGRES_DB: test_db
+          # CI-only: avoid SCRAM/MD5 mismatch when PgBouncer authenticates upstream.
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         # wait for PG to be ready, disabled because we check later on
@@ -137,8 +139,26 @@ jobs:
         name: Wait for PostgreSQL to be ready
         run: |
           for i in {1..30}; do
-            nc -z localhost 5432 && echo "PostgreSQL is ready" && exit 0
-            echo "Waiting for PostgreSQL..."
+            pg_ready=0
+
+            if nc -z localhost 5432; then
+              pg_ready=1
+            fi
+
+            if [[ "$pg_ready" -eq 1 ]]; then
+              echo "PostgreSQL (5432) is ready"
+            fi
+
+            if nc -z localhost 5432; then
+              pg_ready=1
+            fi
+
+            if [[ "$pg_ready" -eq 1 ]]; then
+              echo "PostgreSQL (5432) is ready"
+              exit 0
+            fi
+
+            echo "Waiting for PostgreSQL (5432)..."
             sleep 2
           done
           echo "PostgreSQL failed to start" && exit 1
