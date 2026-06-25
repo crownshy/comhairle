@@ -332,7 +332,7 @@ mod tests {
         Ok((app, session, workflow_step_id))
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_agent_session(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session, workflow_step_id) =
             setup_test_app_with_workflow_step(pool, |bot_service| {
@@ -375,7 +375,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_converse_with_agent_and_return_byte_stream(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {

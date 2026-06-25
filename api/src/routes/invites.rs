@@ -474,7 +474,7 @@ mod tests {
 
     use super::*;
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn admin_should_be_able_to_create_invitation(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let mut mailer = MockComhairleMailer::new();
 
@@ -515,7 +515,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn non_admin_should_not_be_able_to_create_invitation(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -549,7 +549,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     #[traced_test]
     fn only_correct_user_should_be_able_to_accept_email_invitation(
         pool: PgPool,
@@ -621,7 +621,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_create_attendance_for_existing_user_and_sign_in(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -701,7 +701,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_continue_with_invite_update_if_user_already_registered(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -792,7 +792,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_create_new_otp_user_with_attendance_and_signin(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -867,7 +867,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_fail_if_invite_type_incorrect(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool.clone()).call()?;
         let app = setup_server(Arc::new(state)).await?;
@@ -918,7 +918,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     fn should_fail_if_invite_missing_event_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let state = test_state().db(pool.clone()).call()?;
         let app = setup_server(Arc::new(state)).await?;

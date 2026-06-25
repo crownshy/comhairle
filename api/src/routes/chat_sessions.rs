@@ -149,7 +149,7 @@ mod tests {
     use serde_json::json;
     use sqlx::PgPool;
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_return_single_chat_session(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let chat_session = ComhairleChatSession {
             id: "456".to_string(),
@@ -245,7 +245,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_converse_with_chat_and_return_byte_stream(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {

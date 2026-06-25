@@ -29,6 +29,11 @@ use websockets::WebSocketService;
 
 #[cfg(test)]
 mod test_helpers;
+#[cfg(test)]
+// sqlx::test expands every migration into the test binary for every invocation.
+// So, it massively bloats both the binary size and compile time.
+// Using a common migrator for all tests avoids this issue.
+const SQLX_MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!();
 
 use std::sync::Arc;
 

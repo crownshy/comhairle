@@ -230,7 +230,7 @@ mod tests {
         media::create(db, &params, user_id).await
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_upload_media_to_bulk_storage_and_create_record(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -278,7 +278,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_media_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         session.signup(&app).await?;
@@ -301,7 +301,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_list_media(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         session.signup(&app).await?;
@@ -329,7 +329,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_delete_media(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let mut bulk_storage_service = MockBulkStorageService::new();
         bulk_storage_service

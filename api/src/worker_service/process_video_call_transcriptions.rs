@@ -253,7 +253,7 @@ mod tests {
         Ok(Data::new(Arc::new(state)))
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     #[ignore]
     async fn should_transcribe_audio_recording(
         pool: PgPool,
@@ -272,7 +272,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     #[ignore]
     async fn should_generate_sense_making_report_from_transcript(
         pool: PgPool,

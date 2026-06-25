@@ -730,7 +730,7 @@ mod tests {
 
     use std::error::Error;
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_thinking_space_answer_via_api(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -801,7 +801,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_list_thinking_space_answers_via_api(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -883,7 +883,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_update_thinking_space_answer_via_api(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {

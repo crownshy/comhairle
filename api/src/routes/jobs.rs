@@ -126,7 +126,7 @@ mod tests {
         test_helpers::{test_state, UserSession},
     };
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_new_job(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let job_1 = CreateJob {
             step: Some("initialize".to_string()),
@@ -151,7 +151,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_job_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let job_1 = CreateJob {
             step: Some("initialize".to_string()),
@@ -178,7 +178,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_retrieve_a_list_of_jobs(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let job_1 = CreateJob {
             step: Some("initialize".to_string()),
@@ -216,7 +216,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_retrieve_jobs_list_filtered_by_step(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -261,7 +261,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_delete_a_job_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let job_1 = CreateJob {
             step: Some("initialize".to_string()),

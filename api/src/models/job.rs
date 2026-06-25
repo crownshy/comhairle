@@ -302,7 +302,7 @@ mod tests {
 
     use std::error::Error;
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_job(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let job = create(
             &pool,
@@ -321,7 +321,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_mark_job_as_completed(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let job = create(
             &pool,

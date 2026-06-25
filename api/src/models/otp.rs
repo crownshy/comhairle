@@ -174,7 +174,7 @@ mod tests {
 
     use std::error::Error;
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_create_otp_for_user_with_expiry(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = users::create_otp_user(
             &OtpSignupRequest {
@@ -201,7 +201,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_mark_existing_otps_as_error_when_new_otp_created(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
@@ -228,7 +228,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_fail_otp_create_for_annon_users(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = users::create_annon_user(&pool).await?;
 
@@ -240,7 +240,7 @@ mod tests {
         }
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_otp_by_id(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = users::create_otp_user(
             &OtpSignupRequest {
@@ -260,7 +260,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_get_otp_by_user_code(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = users::create_otp_user(
             &OtpSignupRequest {
@@ -283,7 +283,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_return_error_for_expired_otps(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let user = users::create_otp_user(
             &OtpSignupRequest {
@@ -315,7 +315,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn should_return_error_if_user_or_code_incorrect(
         pool: PgPool,
     ) -> Result<(), Box<dyn Error>> {
