@@ -31,8 +31,6 @@
 
 	let reorderedSteps = $state<WorkflowStepWithTranslations[]>([]);
 
-	let showTestButtons = $derived(page.url.searchParams.get('testButtons') === '1');
-
 	$effect(() => {
 		reorderedSteps = workflowSteps
 			? [...workflowSteps].sort((a, b) => a.stepOrder - b.stepOrder)
@@ -80,11 +78,6 @@
 		await handleCommit(next);
 	}
 
-	async function refreshWorkflowData() {
-		await invalidate('conversation:workflow');
-		notifications.send({ priority: 'INFO', message: 'Workflow data refreshed' });
-	}
-
 	function activeToolConfig(step: WorkflowStepWithTranslations) {
 		return conversation.isLive ? step.toolConfig : step.previewToolConfig;
 	}
@@ -109,24 +102,6 @@
 			Learn what makes for good process design.
 		</a>
 	</p>
-
-	{#if showTestButtons}
-		<Card.Root class="mb-6 border-orange-300 bg-orange-50/40">
-			<Card.Header>
-				<Card.Title class="text-base">Test Buttons</Card.Title>
-				<Card.Description>
-					Temporary controls for validating workflow-step backend behavior.
-				</Card.Description>
-			</Card.Header>
-			<Card.Content>
-				<div class="flex flex-wrap gap-2">
-					<Button variant="outline" onclick={refreshWorkflowData}
-						>Reload workflow data</Button
-					>
-				</div>
-			</Card.Content>
-		</Card.Root>
-	{/if}
 
 	<div class="mb-5 flex flex-col gap-y-5">
 		<DraggableList

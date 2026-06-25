@@ -108,9 +108,11 @@
 
 	let deleteOpen = $state(false);
 	let deleting = $state(false);
+	let deleteError = $state<string | null>(null);
 
 	async function deleteStep() {
 		deleting = true;
+		deleteError = null;
 		try {
 			await apiClient.DeleteConversationWorkflowStep(undefined, {
 				params: {
@@ -126,6 +128,7 @@
 			});
 		} catch (e) {
 			console.error(e);
+			deleteError = 'Something went wrong while deleting this step. Please try again.';
 			notifications.send({ priority: 'ERROR', message: 'Failed to delete step' });
 		} finally {
 			deleting = false;
@@ -213,7 +216,14 @@
 			</p>
 		</div>
 		<div>
-			<Button variant="destructive" disabled={deleting} onclick={() => (deleteOpen = true)}>
+			<Button
+				variant="destructive"
+				disabled={deleting}
+				onclick={() => {
+					deleteError = null;
+					deleteOpen = true;
+				}}
+			>
 				<Trash2 class="mr-2 h-4 w-4" />
 				Delete step
 			</Button>
@@ -229,6 +239,15 @@
 					remaining steps. This action cannot be undone.
 				</AlertDialog.Description>
 			</AlertDialog.Header>
+
+			{#if deleteError}
+				<p
+					class="border-destructive/30 bg-destructive/10 text-destructive rounded-md border p-3 text-sm"
+					role="alert"
+				>
+					{deleteError}
+				</p>
+			{/if}
 			<AlertDialog.Footer class="flex-col-reverse sm:flex-row">
 				<AlertDialog.Cancel class="w-full sm:w-auto" disabled={deleting}>
 					Cancel
