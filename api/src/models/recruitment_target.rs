@@ -358,6 +358,14 @@ mod tests {
         )
         .await?;
 
+        // The workflow route auto-assigns the created workflow as the
+        // conversation's default_workflow_id, and that FK has no ON DELETE
+        // clause. Clear it so the workflow row can actually be deleted.
+        sqlx::query("UPDATE conversation SET default_workflow_id = NULL WHERE default_workflow_id = $1")
+            .bind(workflow_id)
+            .execute(&pool)
+            .await?;
+
         crate::models::workflow::delete(&pool, &workflow_id).await?;
 
         let result = get_by_id(&pool, &target.id).await;
