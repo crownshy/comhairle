@@ -82,13 +82,14 @@ pub struct Conversation {
     pub call_to_action: Option<TextContentId>,
     pub enable_signup_prompts: bool,
     pub show_thank_you_page_annon_instructions: bool,
+    pub metadata: serde_json::Value,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ConversationIden; 29] = [
+const DEFAULT_COLUMNS: [ConversationIden; 30] = [
     ConversationIden::Id,
     ConversationIden::Title,
     ConversationIden::ShortDescription,
@@ -118,6 +119,7 @@ const DEFAULT_COLUMNS: [ConversationIden; 29] = [
     ConversationIden::CallToAction,
     ConversationIden::EnableSignupPrompts,
     ConversationIden::ShowThankYouPageAnnonInstructions,
+    ConversationIden::Metadata,
 ];
 
 impl PartialConversation {
@@ -198,6 +200,9 @@ impl PartialConversation {
                 ConversationIden::ShowThankYouPageAnnonInstructions,
                 (*value).into(),
             ))
+        };
+        if let Some(value) = &self.metadata {
+            values.push((ConversationIden::Metadata, value.clone().into()))
         };
 
         if let Some(value) = &self.supported_languages {
@@ -541,6 +546,40 @@ pub async fn update(
     let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
         .fetch_one(db)
         .await?;
+
+    Ok(conversation)
+}
+
+/// Merge the supplied object into the conversation's `metadata` jsonb column at
+/// the top level. Existing keys are overwritten by the patch, keys not present
+/// in the patch are left untouched. This is a shallow merge — nested objects
+/// are replaced, not merged recursively. `patch` must be a JSON object.
+pub async fn patch_metadata(
+    db: &PgPool,
+    id: &Uuid,
+    patch: &serde_json::Value,
+) -> Result<Conversation, ComhairleError> {
+    if !patch.is_object() {
+        return Err(ComhairleError::BadRequest(
+            "metadata patch must be a JSON object".into(),
+        ));
+    }
+
+    let conversation = sqlx::query_as::<_, Conversation>(
+        "UPDATE conversation
+            SET metadata = metadata || $1::jsonb,
+                updated_at = NOW()
+            WHERE id = $2
+            RETURNING *",
+    )
+    .bind(patch)
+    .bind(id)
+    .fetch_one(db)
+    .await
+    .map_err(|e| match e {
+        sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Conversation".into()),
+        other => ComhairleError::DatabaseError(other),
+    })?;
 
     Ok(conversation)
 }
