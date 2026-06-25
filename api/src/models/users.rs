@@ -295,7 +295,7 @@ async fn insert_otp_user(
             }
             Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
         }
-        Err(e) =>  Err(ComhairleError::DatabaseError(e))
+        Err(e) => Err(ComhairleError::DatabaseError(e)),
     }
 }
 

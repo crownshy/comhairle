@@ -126,7 +126,7 @@ pub async fn check_user_is_owner(
 ) -> Result<(), ComhairleError> {
     let workflow = get_by_id(&db, workflow_id).await?;
     if let Some(conversation_id) = workflow.conversation_id {
-        let conversation = get_by_id(&db, &conversation_id).await?;
+        let conversation = super::conversation::get_by_id(db, &conversation_id).await?;
         if conversation.owner_id != *user_id {
             return Err(ComhairleError::UserNotAuthorized);
         }

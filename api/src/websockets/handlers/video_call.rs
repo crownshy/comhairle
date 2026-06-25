@@ -753,36 +753,37 @@ impl VideoCallMessageHandler {
                 // Check if the user is authorized (moderator or facilitator)
                 if let Some(participant) = call.participants.get(&user_id) {
                     if participant.role == "moderator" || participant.role == "facilitator" {
-                        let breakout_rooms = if let Some(ref explicit) = assignment_data.room_assignments {
-                            // Use explicit assignments, filtering to known participants
-                            explicit
-                                .iter()
-                                .map(|room_ids| BreakoutRoomAssignments {
-                                    participants: room_ids
-                                        .iter()
-                                        .filter(|id| call.participants.contains_key(id))
-                                        .copied()
-                                        .collect(),
-                                })
-                                .filter(|room| !room.participants.is_empty())
-                                .collect()
-                        } else {
-                            // Collect all participant IDs
-                            let mut participant_ids: Vec<Uuid> =
-                                call.participants.keys().copied().collect();
+                        let breakout_rooms =
+                            if let Some(ref explicit) = assignment_data.room_assignments {
+                                // Use explicit assignments, filtering to known participants
+                                explicit
+                                    .iter()
+                                    .map(|room_ids| BreakoutRoomAssignments {
+                                        participants: room_ids
+                                            .iter()
+                                            .filter(|id| call.participants.contains_key(id))
+                                            .copied()
+                                            .collect(),
+                                    })
+                                    .filter(|room| !room.participants.is_empty())
+                                    .collect()
+                            } else {
+                                // Collect all participant IDs
+                                let mut participant_ids: Vec<Uuid> =
+                                    call.participants.keys().copied().collect();
 
-                            // Shuffle participants randomly
-                            let mut rng = rand::thread_rng();
-                            participant_ids.shuffle(&mut rng);
+                                // Shuffle participants randomly
+                                let mut rng = rand::thread_rng();
+                                participant_ids.shuffle(&mut rng);
 
-                            // Divide into rooms with max_users_per_room
-                            participant_ids
-                                .chunks(max_users)
-                                .map(|chunk| BreakoutRoomAssignments {
-                                    participants: chunk.to_vec(),
-                                })
-                                .collect()
-                        };
+                                // Divide into rooms with max_users_per_room
+                                participant_ids
+                                    .chunks(max_users)
+                                    .map(|chunk| BreakoutRoomAssignments {
+                                        participants: chunk.to_vec(),
+                                    })
+                                    .collect()
+                            };
 
                         call.breakout_rooms = breakout_rooms;
                         return true;
@@ -1079,10 +1080,7 @@ impl WebSocketMessageHandler for VideoCallMessageHandler {
                     }
                     "video_call:resolve_breakout_room_assistance_request" => {
                         self.resolve_breakout_room_assistance_request(
-                            &event_id,
-                            data,
-                            connection,
-                            state,
+                            &event_id, data, connection, state,
                         )
                         .await?
                     }

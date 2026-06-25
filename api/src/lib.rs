@@ -128,6 +128,10 @@ pub struct Args {
     export_api_spec: bool,
 }
 
+async fn health_check() -> &'static str {
+    "OK"
+}
+
 pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, ComhairleError> {
     let args = Args::try_parse().unwrap_or_default();
 
@@ -193,6 +197,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
 
     // build our application with a route
     let app = ApiRouter::new()
+        .route("/health", axum::routing::get(health_check))
         .nest_api_service("/auth", auth_router)
         .nest_api_service(
             "/user",

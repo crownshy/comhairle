@@ -21,10 +21,7 @@ use crate::{
         pagination::{OrderParams, PageOptions, PaginatedResults},
         users::{UpdateUserRequest, UpgradeAccountRequest},
     },
-    routes::{
-        conversations::dto::LocalizedConversationDto,
-        user::dto::UserDto,
-    },
+    routes::{conversations::dto::LocalizedConversationDto, user::dto::UserDto},
     ComhairleState,
 };
 

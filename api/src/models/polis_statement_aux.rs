@@ -138,9 +138,9 @@ pub struct UpsertFromPolis {
 }
 
 /// Upsert a row from polis. On conflict (workflow_step_id, polis_statement_id),
-/// only `statement_text` and `is_seed` are updated — `moderation_reason`,
-/// `themes`, `visible_statement_when_submitted`, `moderation_status` and
-/// `user_id` are preserved.
+/// `statement_text`, `is_seed`, and `moderation_status` are refreshed from
+/// polis — `moderation_reason`, `themes`, `visible_statement_when_submitted`,
+/// and `user_id` are preserved (these are comhairle-side state polis doesn't know about).
 #[instrument(err(Debug), skip(db))]
 pub async fn upsert_from_polis(
     db: &PgPool,
@@ -179,6 +179,7 @@ pub async fn upsert_from_polis(
             .update_columns([
                 PolisStatementAuxIden::StatementText,
                 PolisStatementAuxIden::IsSeed,
+                PolisStatementAuxIden::ModerationStatus,
             ])
             .value(PolisStatementAuxIden::UpdatedAt, Expr::current_timestamp())
             .to_owned(),
@@ -413,6 +414,55 @@ pub async fn theme_stats(
     Ok(stats)
 }
 
+#[instrument(err(Debug), skip(db))]
+pub async fn add_theme(
+    db: &PgPool,
+    id: Uuid,
+    theme: &str,
+) -> Result<PolisStatementAux, ComhairleError> {
+    let aux = sqlx::query_as::<_, PolisStatementAux>(
+        "UPDATE polis_statement_aux \
+         SET themes = CASE WHEN $2 = ANY(themes) THEN themes ELSE array_append(themes, $2) END, \
+             updated_at = NOW() \
+         WHERE id = $1 \
+         RETURNING *",
+    )
+    .bind(id)
+    .bind(theme)
+    .fetch_one(db)
+    .await
+    .map_err(|e| match e {
+        sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Polis statement aux".into()),
+        other => ComhairleError::DatabaseError(other),
+    })?;
+
+    Ok(aux)
+}
+
+#[instrument(err(Debug), skip(db))]
+pub async fn remove_theme(
+    db: &PgPool,
+    id: Uuid,
+    theme: &str,
+) -> Result<PolisStatementAux, ComhairleError> {
+    let aux = sqlx::query_as::<_, PolisStatementAux>(
+        "UPDATE polis_statement_aux \
+         SET themes = array_remove(themes, $2), updated_at = NOW() \
+         WHERE id = $1 \
+         RETURNING *",
+    )
+    .bind(id)
+    .bind(theme)
+    .fetch_one(db)
+    .await
+    .map_err(|e| match e {
+        sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Polis statement aux".into()),
+        other => ComhairleError::DatabaseError(other),
+    })?;
+
+    Ok(aux)
+}
+
 #[instrument(err(Debug))]
 pub async fn delete(db: &PgPool, id: Uuid) -> Result<PolisStatementAux, ComhairleError> {
     let (sql, values) = Query::delete()
@@ -424,4 +474,90 @@ pub async fn delete(db: &PgPool, id: Uuid) -> Result<PolisStatementAux, Comhairl
     let aux = query_as_with(&sql, values).fetch_one(db).await?;
 
     Ok(aux)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
+
+    use serde_json::json;
+    use sqlx::PgPool;
+
+    use crate::{
+        models::model_test_helpers::setup_default_app_and_session,
+        test_helpers::{extract, polis_tool_config},
+    };
+
+    use super::*;
+
+    #[sqlx::test]
+    async fn upsert_from_polis_refreshes_moderation_status(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+
+        let (_, conversation, _) = session.create_random_conversation(&app).await?;
+        let conversation_id: String = extract("id", &conversation);
+
+        let (_, workflow, _) = session
+            .create_random_workflow(&app, &conversation_id)
+            .await?;
+        let workflow_id: String = extract("id", &workflow);
+
+        let (_, workflow_step, _) = session
+            .post(
+                &app,
+                &format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step"),
+                json!({
+                    "name": "Polis step",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "polis step",
+                    "is_offline": false,
+                    "required": true,
+                    "tool_setup": polis_tool_config(),
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        let workflow_step_id: String = extract("id", &workflow_step);
+        let workflow_step_id = Uuid::parse_str(&workflow_step_id)?;
+
+        let record = UpsertFromPolis {
+            workflow_step_id,
+            user_id: None,
+            zid: 7,
+            polis_conversation_id: "test-poll".into(),
+            polis_statement_id: 42,
+            statement_text: "first text".into(),
+            is_seed: false,
+            moderation_status: ModerationStatus::Pending,
+        };
+
+        let initial = upsert_from_polis(&pool, &record).await?;
+        assert_eq!(initial.moderation_status, ModerationStatus::Pending);
+
+        let accepted = upsert_from_polis(
+            &pool,
+            &UpsertFromPolis {
+                statement_text: "updated text".into(),
+                moderation_status: ModerationStatus::Accepted,
+                ..record
+            },
+        )
+        .await?;
+
+        assert_eq!(
+            accepted.id, initial.id,
+            "should have hit ON CONFLICT, not inserted a new row"
+        );
+        assert_eq!(
+            accepted.moderation_status,
+            ModerationStatus::Accepted,
+            "moderation_status should refresh from polis on re-sync"
+        );
+        assert_eq!(accepted.statement_text, "updated text");
+        Ok(())
+    }
 }

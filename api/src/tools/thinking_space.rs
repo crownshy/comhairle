@@ -592,7 +592,9 @@ struct ThinkingSpaceQuery {
 async fn get_thinkin_space_summary(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
-    Query(ThinkingSpaceQuery { workflow_step_id: _ }): Query<ThinkingSpaceQuery>,
+    Query(ThinkingSpaceQuery {
+        workflow_step_id: _,
+    }): Query<ThinkingSpaceQuery>,
     Path(summary_id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<ThinkingSpaceSummaryDto>), ComhairleError> {
     let summary = thinking_space_summary::get_by_id(&state.db, summary_id).await?;
