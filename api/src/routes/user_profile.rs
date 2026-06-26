@@ -130,7 +130,7 @@ mod tests {
         assert!(status.is_success(), "error response status");
 
         let profile: UserProfileDto = serde_json::from_value(response)?;
-        assert_eq!(profile.consented, true, "incorrect consented");
+        assert!(profile.consented, "incorrect consented");
         assert_eq!(
             profile.ethnicity,
             Some("Asian".to_string()),
@@ -174,7 +174,7 @@ mod tests {
         assert!(status.is_success(), "error response status");
 
         let profile: UserProfileDto = serde_json::from_value(response)?;
-        assert_eq!(profile.consented, true, "incorrect consented");
+        assert!(profile.consented, "incorrect consented");
         assert_eq!(
             profile.ethnicity,
             Some("Hispanic".to_string()),
@@ -221,7 +221,7 @@ mod tests {
             updated_profile.id, original_profile.id,
             "should be same profile"
         );
-        assert_eq!(updated_profile.consented, true, "consented not updated");
+        assert!(updated_profile.consented, "consented not updated");
         assert_eq!(
             updated_profile.ethnicity,
             Some("Black".to_string()),

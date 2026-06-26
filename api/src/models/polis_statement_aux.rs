@@ -326,7 +326,7 @@ pub async fn check_can_moderate(
     let conversation_id = workflow.conversation_id.ok_or(ComhairleError::BadRequest(
         "workflow is not attached to a conversation".into(),
     ))?;
-    let conversation = models::conversation::get_by_id(&db, &conversation_id).await?;
+    let conversation = models::conversation::get_by_id(db, &conversation_id).await?;
     if conversation.owner_id != user.id {
         return Err(ComhairleError::UserNotAuthorized);
     }

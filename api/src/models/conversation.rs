@@ -760,13 +760,11 @@ pub async fn create(
         Ok(conversation) => Ok(conversation),
         Err(sqlx::Error::Database(db_err)) => {
             let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
-            if pg_err.code() == "23505" {
-                if let Some(constraint) = pg_err.constraint() {
-                    if constraint.contains("slug") {
+            if pg_err.code() == "23505"
+                && let Some(constraint) = pg_err.constraint()
+                    && constraint.contains("slug") {
                         return Err(ComhairleError::DuplicateSlug(slug));
                     }
-                }
-            }
             Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
         }
         Err(e) => Err(ComhairleError::DatabaseError(e)),

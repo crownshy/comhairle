@@ -10,7 +10,6 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
-use axum_extra::extract::cookie::{Cookie, CookieJar};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -688,6 +687,30 @@ pub async fn launch(
     Ok(live_poll_config)
 }
 
+async fn polis_setup(
+    setup: &PolisToolSetup,
+    polis_url: &str,
+    client: &Arc<dyn WikiPollService>,
+) -> Result<PolisToolConfig, ComhairleError> {
+    let (email, password) = client.create_random_admin_user().await?;
+    let auth_cookies = client
+        .login(&WikiPollLogin {
+            email: email.clone(),
+            password: password.clone(),
+        })
+        .await?;
+    let poll_id = client.create_poll(&auth_cookies).await?;
+
+    Ok(PolisToolConfig {
+        server_url: polis_url.to_string(),
+        poll_id,
+        admin_user: email,
+        admin_password: password,
+        required_votes: Some(setup.required_votes.unwrap_or(10)),
+        show_remaining_statements: setup.show_remaining_statements,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use std::error::Error;
@@ -907,28 +930,4 @@ mod tests {
         assert_eq!(reloaded.themes, vec!["alpha".to_string()]);
         Ok(())
     }
-}
-
-async fn polis_setup(
-    setup: &PolisToolSetup,
-    polis_url: &str,
-    client: &Arc<dyn WikiPollService>,
-) -> Result<PolisToolConfig, ComhairleError> {
-    let (email, password) = client.create_random_admin_user().await?;
-    let auth_cookies = client
-        .login(&WikiPollLogin {
-            email: email.clone(),
-            password: password.clone(),
-        })
-        .await?;
-    let poll_id = client.create_poll(&auth_cookies).await?;
-
-    Ok(PolisToolConfig {
-        server_url: polis_url.to_string(),
-        poll_id,
-        admin_user: email,
-        admin_password: password,
-        required_votes: Some(setup.required_votes.unwrap_or(10)),
-        show_remaining_statements: setup.show_remaining_statements,
-    })
 }

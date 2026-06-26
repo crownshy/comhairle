@@ -355,12 +355,11 @@ impl VideoCallMessageHandler {
         let participant_ids = self
             .with_video_call_state(event_id, |call| {
                 // Check if the sender is authorized to broadcast
-                if let Some(sender) = call.participants.get(&connection.user.id) {
-                    if sender.role == "moderator" || sender.role == "facilitator" {
+                if let Some(sender) = call.participants.get(&connection.user.id)
+                    && (sender.role == "moderator" || sender.role == "facilitator") {
                         // Return all participant user IDs
                         return Some(call.participants.keys().copied().collect::<Vec<Uuid>>());
                     }
-                }
                 None
             })?
             .flatten();
@@ -582,12 +581,11 @@ impl VideoCallMessageHandler {
         let authorized = self
             .with_video_call_state_mut(&state_data.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
-                if let Some(participant) = call.participants.get(&user_id) {
-                    if participant.role == "moderator" || participant.role == "facilitator" {
+                if let Some(participant) = call.participants.get(&user_id)
+                    && (participant.role == "moderator" || participant.role == "facilitator") {
                         call.status = new_status;
                         return true;
                     }
-                }
                 false
             })?
             .unwrap_or(false);
@@ -625,13 +623,13 @@ impl VideoCallMessageHandler {
         state: &Arc<ComhairleState>,
     ) -> Result<(), VideoCallWSError> {
         let request: BreakoutRoomAssistanceRequestData = serde_json::from_value(data.clone())
-            .map_err(|e| VideoCallWSError::IncorrectMessageFormat(e))?;
+            .map_err(VideoCallWSError::IncorrectMessageFormat)?;
 
         self.with_video_call_state_mut(event_id, |call| {
             call.breakout_room_assistance_requests
                 .entry(request.room_name)
                 .or_insert(BreakoutRoomAssistanceRequest {
-                    made_by_user: connection.user.id.clone(),
+                    made_by_user: connection.user.id,
                 });
         })?;
 
@@ -680,14 +678,13 @@ impl VideoCallMessageHandler {
         let authorized = self
             .with_video_call_state_mut(&request.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
-                if let Some(participant) = call.participants.get(&user_id) {
-                    if participant.role == "moderator" || participant.role == "facilitator" {
+                if let Some(participant) = call.participants.get(&user_id)
+                    && (participant.role == "moderator" || participant.role == "facilitator") {
                         // Remove the assistance request for this room
                         call.breakout_room_assistance_requests
                             .remove(&request.room_name);
                         return true;
                     }
-                }
                 false
             })?
             .unwrap_or(false);
@@ -751,8 +748,8 @@ impl VideoCallMessageHandler {
         let authorized = self
             .with_video_call_state_mut(&assignment_data.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
-                if let Some(participant) = call.participants.get(&user_id) {
-                    if participant.role == "moderator" || participant.role == "facilitator" {
+                if let Some(participant) = call.participants.get(&user_id)
+                    && (participant.role == "moderator" || participant.role == "facilitator") {
                         let breakout_rooms =
                             if let Some(ref explicit) = assignment_data.room_assignments {
                                 // Use explicit assignments, filtering to known participants
@@ -788,7 +785,6 @@ impl VideoCallMessageHandler {
                         call.breakout_rooms = breakout_rooms;
                         return true;
                     }
-                }
                 false
             })?
             .unwrap_or(false);
@@ -842,12 +838,11 @@ impl VideoCallMessageHandler {
         let authorized = self
             .with_video_call_state_mut(&session_data.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
-                if let Some(participant) = call.participants.get(&user_id) {
-                    if participant.role == "moderator" || participant.role == "facilitator" {
+                if let Some(participant) = call.participants.get(&user_id)
+                    && (participant.role == "moderator" || participant.role == "facilitator") {
                         call.breakout_session = Some(BreakoutSession { ends });
                         return true;
                     }
-                }
                 false
             })?
             .unwrap_or(false);
@@ -901,15 +896,14 @@ impl VideoCallMessageHandler {
         let authorized = self
             .with_video_call_state_mut(&extension_data.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
-                if let Some(participant) = call.participants.get(&user_id) {
-                    if participant.role == "moderator" || participant.role == "facilitator" {
+                if let Some(participant) = call.participants.get(&user_id)
+                    && (participant.role == "moderator" || participant.role == "facilitator") {
                         // Update the end time if a session is active
                         if let Some(session) = &mut call.breakout_session {
                             session.ends = new_ends;
                             return true;
                         }
                     }
-                }
                 false
             })?
             .unwrap_or(false);
@@ -962,12 +956,11 @@ impl VideoCallMessageHandler {
         let authorized = self
             .with_video_call_state_mut(&end_data.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
-                if let Some(participant) = call.participants.get(&user_id) {
-                    if participant.role == "moderator" || participant.role == "facilitator" {
+                if let Some(participant) = call.participants.get(&user_id)
+                    && (participant.role == "moderator" || participant.role == "facilitator") {
                         call.breakout_session = None;
                         return true;
                     }
-                }
                 false
             })?
             .unwrap_or(false);

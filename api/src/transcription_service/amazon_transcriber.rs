@@ -112,7 +112,7 @@ fn ffmpeg_convert_stream(mut audio_in: mpsc::Receiver<Bytes>) -> Result<mpsc::Re
             if chunk_count == 1 && webm.len() >= 4 {
                 let first_bytes = &webm[0..4];
                 info!("First 4 bytes: {:02X?}", first_bytes);
-                if first_bytes != &[0x1A, 0x45, 0xDF, 0xA3] {
+                if first_bytes != [0x1A, 0x45, 0xDF, 0xA3] {
                     warn!(
                         "WARNING: Does not start with EBML signature! Got: {:02X?}",
                         first_bytes
@@ -338,8 +338,8 @@ fn consolidated_transcription(raw_transcription: &Transcription) -> Transcriptio
     }
 
     // Push the final accumulated segment if it's not empty
-    if !running_segment.is_empty() {
-        if let (Some(start_time), Some(end_time)) = (segment_start_time, segment_end_time) {
+    if !running_segment.is_empty()
+        && let (Some(start_time), Some(end_time)) = (segment_start_time, segment_end_time) {
             new_events.push(TranscriptEvent {
                 text: running_segment,
                 start_time,
@@ -348,7 +348,6 @@ fn consolidated_transcription(raw_transcription: &Transcription) -> Transcriptio
                 is_pending: false,
             });
         }
-    }
 
     // Now consolidate all trailing pending events into a single event
     if let Some(first_pending_idx) = first_pending_idx {
@@ -391,7 +390,7 @@ fn consolidated_transcription(raw_transcription: &Transcription) -> Transcriptio
     }
 
     Transcription {
-        start_time: raw_transcription.start_time.clone(),
+        start_time: raw_transcription.start_time,
         events: new_events,
         has_speaker_ids: raw_transcription.has_speaker_ids,
     }
@@ -629,14 +628,14 @@ impl Transcriber for AmazonTranscriber {
             loop {
                 match transcribe_stream.transcript_result_stream.recv().await {
                     Ok(event) => {
-                        if let Some(event) = event {
-                            if let Ok(transcript_event) = event.as_transcript_event() {
-                                if let Some(transcript) = transcript_event.transcript() {
-                                    if let Some(results) = &transcript.results {
+                        if let Some(event) = event
+                            && let Ok(transcript_event) = event.as_transcript_event()
+                                && let Some(transcript) = transcript_event.transcript()
+                                    && let Some(results) = &transcript.results {
                                         info!("Transcription result event {results:#?}");
                                         for result in results.iter() {
-                                            if let Some(alt) = result.alternatives().first() {
-                                                if let Some(items) = &alt.items {
+                                            if let Some(alt) = result.alternatives().first()
+                                                && let Some(items) = &alt.items {
                                                     let mut all_items = vec![];
                                                     for item in items {
                                                         if let Some(content) = &item.content {
@@ -670,12 +669,8 @@ impl Transcriber for AmazonTranscriber {
                                                         .send(result)
                                                         .await;
                                                 }
-                                            }
                                         }
                                     }
-                                }
-                            }
-                        }
                     }
                     Err(e) => {
                         error!("Transcription stream error: {e:#?}");
@@ -838,7 +833,7 @@ mod tests {
         // Note: "All right." and "Sounds good." are merged because same speaker
         // with only 280ms pause (< 5000ms threshold)
         assert_eq!(consolidated.events.len(), 2);
-        assert_eq!(consolidated.has_speaker_ids, true);
+        assert!(consolidated.has_speaker_ids);
 
         // First segment: Speaker 0
         assert_eq!(consolidated.events[0].speaker_id, Some("0".to_string()));
@@ -848,7 +843,7 @@ mod tests {
         );
         assert_eq!(consolidated.events[0].start_time, 0.776);
         assert_eq!(consolidated.events[0].end_time, 3.076);
-        assert_eq!(consolidated.events[0].is_pending, false);
+        assert!(!consolidated.events[0].is_pending);
 
         // Second segment: Speaker 1 says both utterances merged due to short pause
         assert_eq!(consolidated.events[1].speaker_id, Some("1".to_string()));
@@ -914,11 +909,11 @@ mod tests {
 
         // First is consolidated non-pending
         assert_eq!(consolidated.events[0].text, "Hello world");
-        assert_eq!(consolidated.events[0].is_pending, false);
+        assert!(!consolidated.events[0].is_pending);
 
         // Trailing pending events are consolidated into one
         assert_eq!(consolidated.events[1].text, "pending word");
-        assert_eq!(consolidated.events[1].is_pending, true);
+        assert!(consolidated.events[1].is_pending);
         assert_eq!(consolidated.events[1].start_time, 2.0);
         assert_eq!(consolidated.events[1].end_time, 3.0);
     }
@@ -945,11 +940,11 @@ mod tests {
         assert_eq!(consolidated.events.len(), 2);
 
         assert_eq!(consolidated.events[0].text, "Hello");
-        assert_eq!(consolidated.events[0].is_pending, false);
+        assert!(!consolidated.events[0].is_pending);
 
         // Pending events consolidated with proper punctuation (no space before ?)
         assert_eq!(consolidated.events[1].text, "How are you?");
-        assert_eq!(consolidated.events[1].is_pending, true);
+        assert!(consolidated.events[1].is_pending);
     }
 
     #[test]

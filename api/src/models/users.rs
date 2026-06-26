@@ -180,15 +180,14 @@ pub async fn create_user(user: &SignupRequest, db: &PgPool) -> Result<User, Comh
         Ok(user) => Ok(user),
         Err(sqlx::Error::Database(db_err)) => {
             let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
-            if pg_err.code() == "23505" {
-                if let Some(constraint) = pg_err.constraint() {
+            if pg_err.code() == "23505"
+                && let Some(constraint) = pg_err.constraint() {
                     if constraint.contains("username") {
                         return Err(ComhairleError::DuplicateUsername(user.username.clone()));
                     } else if constraint.contains("email") {
                         return Err(ComhairleError::DuplicateEmail(user.email.clone()));
                     }
                 }
-            }
             Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
         }
         Err(e) => Err(ComhairleError::DatabaseError(e)),
@@ -284,15 +283,14 @@ async fn insert_otp_user(
         Ok(user) => Ok(Some(user)),
         Err(sqlx::Error::Database(db_err)) => {
             let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
-            if pg_err.code() == "23505" {
-                if let Some(constraint) = pg_err.constraint() {
+            if pg_err.code() == "23505"
+                && let Some(constraint) = pg_err.constraint() {
                     if constraint.contains("username") {
                         return Ok(None);
                     } else if constraint.contains("email") {
                         return Err(ComhairleError::DuplicateEmail(email.to_string()));
                     }
                 }
-            }
             Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
         }
         Err(e) => Err(ComhairleError::DatabaseError(e)),
@@ -486,15 +484,13 @@ pub async fn update_user(
         Ok(user) => Ok(user),
         Err(sqlx::Error::Database(db_err)) => {
             let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
-            if pg_err.code() == "23505" {
-                if let Some(constraint) = pg_err.constraint() {
-                    if constraint.contains("username") {
+            if pg_err.code() == "23505"
+                && let Some(constraint) = pg_err.constraint()
+                    && constraint.contains("username") {
                         return Err(ComhairleError::DuplicateUsername(
                             update_request.username.clone().unwrap_or_default(),
                         ));
                     }
-                }
-            }
             Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
         }
         Err(e) => Err(ComhairleError::DatabaseError(e)),
@@ -537,8 +533,8 @@ pub async fn upgrade_account(
         Ok(user) => Ok(user),
         Err(sqlx::Error::Database(db_err)) => {
             let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
-            if pg_err.code() == "23505" {
-                if let Some(constraint) = pg_err.constraint() {
+            if pg_err.code() == "23505"
+                && let Some(constraint) = pg_err.constraint() {
                     if constraint.contains("username") {
                         return Err(ComhairleError::DuplicateUsername(
                             upgrade_request.username.clone(),
@@ -549,7 +545,6 @@ pub async fn upgrade_account(
                         ));
                     }
                 }
-            }
             Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
         }
         Err(e) => Err(ComhairleError::DatabaseError(e)),

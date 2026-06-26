@@ -84,7 +84,7 @@ pub fn db_enum_derive(input: TokenStream) -> TokenStream {
         .map(|id| id.to_string().to_lowercase())
         .collect();
 
-    let gen = quote! {
+    let r#gen = quote! {
         impl std::fmt::Display for #name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 match self {
@@ -140,7 +140,7 @@ pub fn db_enum_derive(input: TokenStream) -> TokenStream {
 
     };
 
-    gen.into()
+    r#gen.into()
 }
 
 /// Macro to generate a localized version of a struct and query functions for translation
@@ -518,11 +518,10 @@ fn is_optional_text_content_id_type(ty: &Type) -> bool {
                     return false;
                 }
 
-                if let PathArguments::AngleBracketed(args) = &segment.arguments {
-                    if let Some(GenericArgument::Type(inner_type)) = args.args.first() {
+                if let PathArguments::AngleBracketed(args) = &segment.arguments
+                    && let Some(GenericArgument::Type(inner_type)) = args.args.first() {
                         return is_text_content_id_type(inner_type);
                     }
-                }
             }
             false
         }

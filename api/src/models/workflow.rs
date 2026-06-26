@@ -124,7 +124,7 @@ pub async fn check_user_is_owner(
     workflow_id: &Uuid,
     user_id: &Uuid,
 ) -> Result<(), ComhairleError> {
-    let workflow = get_by_id(&db, workflow_id).await?;
+    let workflow = get_by_id(db, workflow_id).await?;
     if let Some(conversation_id) = workflow.conversation_id {
         let conversation = super::conversation::get_by_id(db, &conversation_id).await?;
         if conversation.owner_id != *user_id {
