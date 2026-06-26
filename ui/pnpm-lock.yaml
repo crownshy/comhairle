@@ -1656,15 +1656,8 @@ packages:
     peerDependencies:
       '@testing-library/dom': '>=7.21.4'
 
-  '@thisux/sveltednd@0.0.12':
-    resolution: {integrity: sha512-9edVcakYkoCzU6pNIwmJ6Cf+9anECod26Ue/rL3Ssf5LyuLaBLXtBx4H4U8YwQCkwtMeSGFf0OsiMpPpFjvCcg==}
-    peerDependencies:
-      svelte: ^5.0.0
-
   '@thisux/sveltednd@0.0.14':
     resolution: {integrity: sha512-Vbq69SU3HUomPg6oCXtb89OG89hka0YIkdaErYibn3waK7tYE66IcQxD/Fzg8YNW3EVsXoA9kc7kW5EUBCSQGg==}
-    peerDependencies:
-      svelte: ^5.0.0
 
   '@thisux/sveltednd@0.0.17':
     resolution: {integrity: sha512-lRninjw439phhA8xAHqCpMAX0hnwFMdbXW4M0XJgAdnGxeum+QsLiIC4P3HnkNXAygsVKUqxRcbS84CxDZ9hPw==}
@@ -2103,6 +2096,7 @@ packages:
 
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
+    deprecated: Potential CWE-502 - Update to 1.3.1 or higher
 
   '@valibot/to-json-schema@1.5.0':
     resolution: {integrity: sha512-GE7DmSr1C2UCWPiV0upRH6mv0cCPsqYGs819fb6srCS1tWhyXrkGGe+zxUiwzn/L1BOfADH4sNjY/YHCuP8phQ==}
@@ -3459,6 +3453,7 @@ packages:
 
   lucide-svelte@0.487.0:
     resolution: {integrity: sha512-ags7npK5Nv6AI9LBpAbijpmHxcO9hOeP0/7yJ72++AOBWmwB0X7LqNQFJk1PBe4wM0UsgklWQdyRZyx8s9xyXg==}
+    deprecated: Package deprecated. Please use @lucide/svelte instead.
     peerDependencies:
       svelte: ^3 || ^4 || ^5.0.0-next.42
 
@@ -4617,6 +4612,7 @@ packages:
 
   uuid@10.0.0:
     resolution: {integrity: sha512-8XkAphELsDnEGrDxUOHB3RGvXz6TeuYSGEZBOjtTtPm2lwhGBjLgOzLHB63IUWfBpNucQjND6d3AOudO+H3RWQ==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   uuid@11.1.0:
@@ -6038,18 +6034,11 @@ snapshots:
     dependencies:
       '@testing-library/dom': 10.4.0
 
-  '@thisux/sveltednd@0.0.12(svelte@5.53.3)':
-    dependencies:
-      svelte: 5.53.3
-
-  '@thisux/sveltednd@0.0.14(svelte@5.53.3)':
-    dependencies:
-      '@thisux/sveltednd': 0.0.12(svelte@5.53.3)
-      svelte: 5.53.3
+  '@thisux/sveltednd@0.0.14': {}
 
   '@thisux/sveltednd@0.0.17(svelte@5.53.3)':
     dependencies:
-      '@thisux/sveltednd': 0.0.14(svelte@5.53.3)
+      '@thisux/sveltednd': 0.0.14
       svelte: 5.53.3
 
   '@thisux/sveltednd@0.0.18(svelte@5.53.3)':
@@ -6065,6 +6054,10 @@ snapshots:
   '@tiptap/core@3.20.0(@tiptap/pm@3.20.0)':
     dependencies:
       '@tiptap/pm': 3.20.0
+
+  '@tiptap/extension-audio@3.27.1(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))':
+    dependencies:
+      '@tiptap/core': 3.20.0(@tiptap/pm@3.20.0)
 
   '@tiptap/extension-blockquote@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))':
     dependencies:
