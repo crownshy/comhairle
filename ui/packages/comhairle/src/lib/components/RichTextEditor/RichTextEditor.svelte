@@ -47,6 +47,7 @@
 	let showLinkPopover = $state(false);
 	let showImagePopover = $state(false);
 	let showVideoPopover = $state(false);
+	let showAudioPopover = $state(false);
 	let showDocumentPopover = $state(false);
 
 	let isCompact = $derived(containerWidth < 600);
@@ -93,7 +94,7 @@
 		if (!editorElement) return;
 
 		isInitializing = true;
-		const detected = detectContentType(value);
+		const detected = detectContentType(value ?? undefined);
 		const docMap = buildDocMap(availableDocuments);
 		lastDocMapKey = JSON.stringify({ docMap, conversationId });
 
@@ -222,6 +223,7 @@
 			bind:showLinkPopover
 			bind:showImagePopover
 			bind:showVideoPopover
+			bind:showAudioPopover
 			bind:showDocumentPopover
 			documents={availableDocuments}
 			{menuExpanded}
@@ -230,6 +232,7 @@
 			onLinkPopoverChange={(open) => (showLinkPopover = open)}
 			onImagePopoverChange={(open) => (showImagePopover = open)}
 			onVideoPopoverChange={(open) => (showVideoPopover = open)}
+			onAudioPopoverChange={(open) => (showAudioPopover = open)}
 			onDocumentPopoverChange={(open) => (showDocumentPopover = open)}
 		/>
 	{/if}
