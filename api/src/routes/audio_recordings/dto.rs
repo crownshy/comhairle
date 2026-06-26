@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::models::audio_recording::{AudioFormat, AudioRecording, AudioRecordingStatus};
 
-/// Data transfer object for a room's audio recording.
+/// Data transfer object for an audio recording.
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AudioRecordingDto {
@@ -34,27 +34,27 @@ impl From<AudioRecording> for AudioRecordingDto {
     }
 }
 
-/// Request body for creating a room and requesting its upload URL.
+/// Request body for creating an audio recording and requesting its upload URL.
 #[cfg_attr(test, derive(Serialize))]
 #[derive(Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateRoomRequest {
-    /// Name for the room, unique within the event.
+pub struct CreateRecordingRequest {
+    /// Name for the recording (its room name), unique within the event.
     pub name: String,
     /// Audio format of the file being uploaded.
     pub file_extension: AudioFormat,
 }
 
-/// Response after creating a room: the created room plus a presigned upload URL.
+/// Response after creating an audio recording: the created recording plus a presigned upload URL.
 #[cfg_attr(test, derive(Deserialize))]
 #[derive(Serialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateRoomResponse {
-    pub room: AudioRecordingDto,
+pub struct CreateRecordingResponse {
+    pub recording: AudioRecordingDto,
     pub upload_url: String,
 }
 
-/// Signed URLs for downloading a room's recording, transcript, and report.
+/// Signed URLs for downloading a recording's audio, transcript, and report.
 #[cfg_attr(test, derive(Deserialize))]
 #[derive(Serialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -64,19 +64,19 @@ pub struct RecordingDownloadUrls {
     pub report_url: String,
 }
 
-/// A room's details together with its signed download URLs.
+/// A recording's details together with its signed download URLs.
 #[cfg_attr(test, derive(Deserialize))]
 #[derive(Serialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct RoomDetailResponse {
-    pub room: AudioRecordingDto,
+pub struct RecordingDetailResponse {
+    pub recording: AudioRecordingDto,
     pub downloads: RecordingDownloadUrls,
 }
 
-/// Response after enqueuing processing for a room.
+/// Response after enqueuing processing for a recording.
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ProcessRoomResponse {
+pub struct ProcessRecordingResponse {
     pub message: String,
     pub job_id: Uuid,
 }
