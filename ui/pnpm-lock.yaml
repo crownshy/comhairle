@@ -64,6 +64,9 @@ importers:
       '@tiptap/core':
         specifier: ^3.11.0
         version: 3.20.0(@tiptap/pm@3.20.0)
+      '@tiptap/extension-audio':
+        specifier: ^3.27.1
+        version: 3.27.1(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))
       '@tiptap/extension-color':
         specifier: ^3.11.0
         version: 3.20.0(@tiptap/extension-text-style@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0)))
@@ -1682,6 +1685,11 @@ packages:
     resolution: {integrity: sha512-aC9aROgia/SpJqhsXFiX9TsligL8d+oeoI8W3u00WI45s0VfsqjgeKQLDLF7Tu7hC+7F02teC84SAHuup003VQ==}
     peerDependencies:
       '@tiptap/pm': ^3.20.0
+
+  '@tiptap/extension-audio@3.27.1':
+    resolution: {integrity: sha512-PJ1IAhLTpRUmjmT9nemldD2DiLgUqFUl0U2LRR59/lFcxYyRlhlTbHiibv/Rc2xmYTVpx39lMMfcos3MzuM+3w==}
+    peerDependencies:
+      '@tiptap/core': 3.27.1
 
   '@tiptap/extension-blockquote@3.20.0':
     resolution: {integrity: sha512-LQzn6aGtL4WXz2+rYshl/7/VnP2qJTpD7fWL96GXAzhqviPEY1bJES7poqJb3MU/gzl8VJUVzVzU1VoVfUKlbA==}

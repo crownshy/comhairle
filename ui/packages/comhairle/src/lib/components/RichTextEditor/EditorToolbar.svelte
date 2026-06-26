@@ -23,9 +23,8 @@
 		Video,
 		FileText,
 		ChevronDown,
-		Code2,
 		MoreHorizontal,
-		X
+		Music
 	} from 'lucide-svelte';
 
 	type Props = {
@@ -34,6 +33,7 @@
 		showLinkPopover: boolean;
 		showImagePopover: boolean;
 		showVideoPopover: boolean;
+		showAudioPopover: boolean;
 		showDocumentPopover: boolean;
 		documents: ComhairleDocument[];
 		menuExpanded: boolean;
@@ -42,6 +42,7 @@
 		onLinkPopoverChange: (open: boolean) => void;
 		onImagePopoverChange: (open: boolean) => void;
 		onVideoPopoverChange: (open: boolean) => void;
+		onAudioPopoverChange: (open: boolean) => void;
 		onDocumentPopoverChange: (open: boolean) => void;
 	};
 
@@ -51,6 +52,7 @@
 		showLinkPopover = $bindable(),
 		showImagePopover = $bindable(),
 		showVideoPopover = $bindable(),
+		showAudioPopover = $bindable(),
 		showDocumentPopover = $bindable(),
 		documents,
 		menuExpanded,
@@ -59,12 +61,13 @@
 		onLinkPopoverChange,
 		onImagePopoverChange,
 		onVideoPopoverChange,
+		onAudioPopoverChange,
 		onDocumentPopoverChange
 	}: Props = $props();
 </script>
 
 <div
-	class="border-border bg-muted relative flex min-h-12 items-center gap-1 overflow-x-auto rounded-t-[12px] border border-b-0 px-3 xl:p-2"
+	class="border-border bg-muted relative flex min-h-12 items-center gap-1 overflow-x-auto rounded-t-xl border border-b-0 px-3 xl:p-2"
 >
 	<!-- Always visible on mobile: Heading + BISU -->
 	<div class="flex flex-1 items-center gap-1 xl:flex-none">
@@ -346,6 +349,29 @@
 				>
 					<button type="button" title="Add Video" aria-label="Add Video" class="btn">
 						<Video size={16} />
+					</button>
+				</UrlInputPopover>
+				<UrlInputPopover
+					bind:open={showAudioPopover}
+					label="Insert Audio"
+					placeholder="https://example.com/file.mp3"
+					onSubmit={(url) => {
+						editor
+							?.chain()
+							.focus()
+							.setAudio({ src: url, autoplay: false, controls: true })
+							.run();
+					}}
+					onOpenChange={onAudioPopoverChange}
+					validateFn={(url) => {
+						if (!validateUrl(url)) {
+							return 'Please enter a valid Audio URL';
+						}
+						return null;
+					}}
+				>
+					<button type="button" title="Add Audio" aria-label="Add Audio" class="btn">
+						<Music size={16} />
 					</button>
 				</UrlInputPopover>
 				<DocumentPickerPopover
