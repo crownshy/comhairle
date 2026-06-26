@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { type Snippet } from 'svelte';
 	import * as Popover from '$lib/components/ui/popover';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -13,7 +13,7 @@
 		onSubmit: (value: string) => void;
 		onOpenChange: (open: boolean) => void;
 		validateFn?: (value: string) => string | null;
-		children: any;
+		children: Snippet;
 	};
 
 	let {
@@ -42,9 +42,13 @@
 	$effect(() => {
 		if (open && inputElement) {
 			// Small delay to ensure popover is fully rendered
-			setTimeout(() => {
+			const timeout = setTimeout(() => {
 				inputElement?.focus();
 			}, 100);
+
+			return () => {
+				clearTimeout(timeout);
+			};
 		}
 	});
 
@@ -91,10 +95,9 @@
 		<div class="space-y-4">
 			<div class="space-y-2">
 				<Label for="url-input">{label}</Label>
-                <!-- todo: resolve warning -->
 				<Input
 					id="url-input"
-					bind:this={inputElement}
+					bind:ref={inputElement}
 					bind:value={inputValue}
 					type="url"
 					{placeholder}
@@ -103,7 +106,7 @@
 					aria-describedby={errorMessage ? 'error-message' : undefined}
 				/>
 				{#if errorMessage}
-					<p id="error-message" class="text-sm text-destructive" role="alert">
+					<p id="error-message" class="text-destructive text-sm" role="alert">
 						{errorMessage}
 					</p>
 				{/if}
