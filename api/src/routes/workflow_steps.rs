@@ -129,6 +129,7 @@ async fn create_workflow_step(
 }
 
 /// Update workflow handler
+#[instrument(err(Debug), skip(state))]
 async fn update_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     WorkflowStepPathCtx {
@@ -145,6 +146,7 @@ async fn update_workflow_step(
 }
 
 /// List workflows handler
+#[instrument(err(Debug), skip(state))]
 async fn list_workflows_step(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -206,6 +208,7 @@ async fn list_workflows_step(
 }
 
 /// Get a specific workflow
+#[instrument(err(Debug), skip(state))]
 async fn get_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     RequiredUser(user): RequiredUser,
@@ -234,6 +237,7 @@ async fn get_workflow_step(
 }
 
 /// Delete a specific workflow
+#[instrument(err(Debug), skip(state))]
 async fn delete_workflow_step(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(_user): RequiredAdminUser,
@@ -242,7 +246,7 @@ async fn delete_workflow_step(
         workflow_step_id,
     }: WorkflowStepPathCtx,
 ) -> Result<(StatusCode, Json<WorkflowStepDto>), ComhairleError> {
-    let workflow = workflow_step::delete(&state.db, &workflow_step_id)
+    let workflow = workflow_step::delete(&state, &workflow_step_id)
         .await?
         .into();
     Ok((StatusCode::OK, Json(workflow)))
@@ -622,78 +626,93 @@ mod tests {
 
         session.signup(&app).await?;
 
-        let (_, conversation, _) = session.create_random_conversation(&app).await?;
+        let (_, unlaunched_conversation, _) =
+            session.create_random_unlaunched_conversation(&app).await?;
+        let (_, launched_conversation, _) = session.create_random_conversation(&app).await?;
 
-        let conversation_id: String = extract("id", &conversation);
+        for (conversation, expected_status) in vec![
+            (unlaunched_conversation, StatusCode::OK),
+            (launched_conversation, StatusCode::FORBIDDEN),
+        ] {
+            let conversation_id: String = extract("id", &conversation);
 
-        let (_, workflow, _) = session
-            .create_random_workflow(&app, &conversation_id)
-            .await?;
+            let (_, workflow, _) = session
+                .create_random_workflow(&app, &conversation_id)
+                .await?;
 
-        let workflow_id: String = extract("id", &workflow);
+            let workflow_id: String = extract("id", &workflow);
 
-        let url = format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step");
+            let url =
+                format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step");
 
-        let mut workflow_steps: Vec<serde_json::Value> = vec![];
-        for no in 0..10 {
-            let (_, step, _) = session
-                .post(
+            let mut workflow_steps: Vec<serde_json::Value> = vec![];
+            for no in 0..10 {
+                let (_, step, _) = session
+                    .post(
+                        &app,
+                        &url,
+                        json!({
+                        "name": format!("{no}"),
+                        "step_order": no+1,
+                        "activation_rule" : "manual",
+                        "description": "A manually retired polis workflow step",
+                        "required":true,
+                        "is_offline": false,
+                        "tool_setup": learn_tool_config()})
+                        .to_string()
+                        .into(),
+                    )
+                    .await
+                    .expect("Workflow step to be created");
+                workflow_steps.push(step);
+            }
+
+            let delete_id: String = extract("id", workflow_steps.get(4).unwrap());
+
+            let (status, _, _) = session
+                .delete(
                     &app,
-                    &url,
-                    json!({
-                    "name": format!("{no}"),
-                    "step_order": no+1,
-                    "activation_rule" : "manual",
-                    "description": "A manually retired polis workflow step",
-                    "required":true,
-                    "is_offline": false,
-                    "tool_setup": learn_tool_config()})
-                    .to_string()
-                    .into(),
+                    &format!(
+                        "/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step/{delete_id}"
+                    ),
                 )
-                .await
-                .expect("Workflow step to be created");
-            workflow_steps.push(step);
+                .await?;
+
+            assert_eq!(
+                status, expected_status,
+                "should get the correct response for the conversation"
+            );
+
+            let (_, steps, _) = session
+                .get(
+                    &app,
+                    &format!(
+                        "/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step"
+                    ),
+                )
+                .await?;
+
+            let steps: Vec<LocalizedWorkflowStepDto> = serde_json::from_value(steps).unwrap();
+            if status.is_success() {
+                assert_eq!(steps.len(), 9, "should get the correct number of steps");
+
+                let orders: Vec<i32> = steps.iter().map(|s| s.step_order).collect();
+                let names: Vec<String> = steps.iter().map(|s| s.name.clone()).collect();
+
+                assert_eq!(
+                    orders,
+                    [1, 2, 3, 4, 5, 6, 7, 8, 9],
+                    "should get back the correct orders"
+                );
+                assert_eq!(
+                    names,
+                    ["0", "1", "2", "3", "5", "6", "7", "8", "9"],
+                    "should get back the correct names"
+                );
+            } else {
+                assert_eq!(steps.len(), 10, "should get the correct number of steps");
+            }
         }
-
-        let delete_id: String = extract("id", workflow_steps.get(4).unwrap());
-
-        let (status, _, _) = session
-            .delete(
-                &app,
-                &format!(
-                "/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step/{delete_id}"
-            ),
-            )
-            .await?;
-
-        assert_eq!(status, StatusCode::OK, "should be deleted");
-
-        let (_, steps, _) = session
-            .get(
-                &app,
-                &format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step"),
-            )
-            .await?;
-
-        let steps: Vec<LocalizedWorkflowStepDto> = serde_json::from_value(steps).unwrap();
-
-        assert_eq!(steps.len(), 9, "should get the correct number of steps");
-
-        let orders: Vec<i32> = steps.iter().map(|s| s.step_order).collect();
-
-        let names: Vec<String> = steps.iter().map(|s| s.name.clone()).collect();
-
-        assert_eq!(
-            orders,
-            [1, 2, 3, 4, 5, 6, 7, 8, 9],
-            "should get back the correct orders"
-        );
-        assert_eq!(
-            names,
-            ["0", "1", "2", "3", "5", "6", "7", "8", "9"],
-            "should get back the correct names"
-        );
 
         Ok(())
     }

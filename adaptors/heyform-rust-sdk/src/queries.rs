@@ -29,6 +29,12 @@ mutation updateForm($input: UpdateFormInput!) {
 }
 "#;
 
+pub const DELETE_FORM_MUTATION: &str = r#"
+mutation deleteForm($input: FormDetailInput!) {
+  deleteForm(input: $input)
+}
+"#;
+
 pub const UPDATE_FORM_SCHEMAS_MUTATION: &str = r#"
 mutation updateFormSchemas($input: UpdateFormSchemasInput!) {
   updateFormSchemas(input: $input)

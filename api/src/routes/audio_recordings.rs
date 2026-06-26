@@ -116,10 +116,7 @@ async fn get_download_urls(
         let breakout_key_prefix = format!("{}/rooms/{}", event_id, room);
 
         let breakout_recording_url = bulk_storage_service
-            .get_read_file_url(&format!(
-                "{}/recording.{}",
-                breakout_key_prefix, extension
-            ))
+            .get_read_file_url(&format!("{}/recording.{}", breakout_key_prefix, extension))
             .await?;
         let breakout_transcript_url = bulk_storage_service
             .get_read_file_url(&format!("{}/transcript.json", breakout_key_prefix))
@@ -308,9 +305,7 @@ mod tests {
             .expect_get_write_file_url()
             .times(3) // 1 main + 2 breakout rooms
             .returning(|_| {
-                Box::pin(async move {
-                    Ok("https://s3.example.com/signed-upload-url".to_string())
-                })
+                Box::pin(async move { Ok("https://s3.example.com/signed-upload-url".to_string()) })
             });
 
         let mut config = test_config()?;
@@ -350,10 +345,13 @@ mod tests {
         assert_eq!(status, StatusCode::OK);
 
         let upload_response: RequestUploadUrlsResponse = serde_json::from_value(response)?;
-        
+
         // Verify main room URL
         assert!(!upload_response.main.is_empty());
-        assert_eq!(upload_response.main, "https://s3.example.com/signed-upload-url");
+        assert_eq!(
+            upload_response.main,
+            "https://s3.example.com/signed-upload-url"
+        );
 
         // Verify breakout room URLs
         assert_eq!(upload_response.breakout_rooms.len(), 2);
@@ -364,7 +362,10 @@ mod tests {
 
         // Verify recording was created in database
         let recording = audio_recording::get_by_event(&pool, &Uuid::parse_str(&event_id)?).await?;
-        assert_eq!(recording.breakout_room_ids, vec!["room1".to_string(), "room2".to_string()]);
+        assert_eq!(
+            recording.breakout_room_ids,
+            vec!["room1".to_string(), "room2".to_string()]
+        );
         assert_eq!(
             recording.status,
             audio_recording::AudioRecordingStatus::Pending
@@ -384,9 +385,7 @@ mod tests {
             .expect_get_write_file_url()
             .times(3) // 1 main + 2 breakout rooms
             .returning(|_| {
-                Box::pin(async move {
-                    Ok("https://s3.example.com/signed-upload-url".to_string())
-                })
+                Box::pin(async move { Ok("https://s3.example.com/signed-upload-url".to_string()) })
             });
 
         // Mock the get_read_file_url calls for download (3 files per room: recording, transcript, report)
@@ -462,10 +461,7 @@ mod tests {
         assert!(!download_response.main.report_url.is_empty());
 
         // Verify main room URLs contain expected paths
-        assert!(download_response
-            .main
-            .recording_url
-            .contains("signed-read"));
+        assert!(download_response.main.recording_url.contains("signed-read"));
         assert!(download_response
             .main
             .transcript_url
@@ -513,7 +509,11 @@ mod tests {
         assert_eq!(status, StatusCode::OK);
 
         let recordings: Vec<AudioRecordingDto> = serde_json::from_value(response)?;
-        assert_eq!(recordings.len(), 0, "Should return empty list when no recording exists");
+        assert_eq!(
+            recordings.len(),
+            0,
+            "Should return empty list when no recording exists"
+        );
 
         Ok(())
     }

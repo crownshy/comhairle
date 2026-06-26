@@ -264,6 +264,20 @@ impl HeyFormClient {
         Ok(response.get("updateFormSchemas").copied().unwrap_or(false))
     }
 
+    pub async fn delete_poll(&self, form_id: &str) -> Result<bool> {
+        let variables = json!({
+            "input": {
+                "formId": form_id
+            }
+        });
+
+        let response: HashMap<String, bool> = self
+            .execute_graphql(DELETE_FORM_MUTATION, variables, Some("deleteForm"))
+            .await?;
+
+        Ok(response.get("deleteForm").copied().unwrap_or(false))
+    }
+
     /// Set custom CSS on a form
     pub async fn set_custom_css(&self, form_id: &str, custom_css: &str) -> Result<bool> {
         let theme = FormTheme {

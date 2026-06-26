@@ -82,6 +82,12 @@ pub trait WikiPollService: Send + Sync {
         decision: ModerationStatus,
         auth_cookies: &str,
     ) -> Result<(), WikiPollServiceError>;
+
+    async fn delete_poll(
+        &self,
+        poll_id: &str,
+        auth_cookies: &str,
+    ) -> Result<WikiPoll, WikiPollServiceError>;
 }
 
 impl ModerationStatus {
@@ -124,6 +130,12 @@ pub struct WikiPollXid {
     pub xid: String,
 }
 
+#[derive(Deserialize, Serialize, Debug, Default)]
+pub struct WikiPoll {
+    pub poll_id: String,
+    pub is_active: Option<bool>,
+}
+
 #[cfg(test)]
 impl MockWikiPollService {
     pub fn base() -> MockWikiPollService {
@@ -155,6 +167,13 @@ impl MockWikiPollService {
         wiki_poll_service
             .expect_moderate_comment()
             .returning(|_, _, _, _| Box::pin(async move { Ok(()) }));
+        wiki_poll_service.expect_delete_poll().returning(|_, _| {
+            Box::pin(async move {
+                Ok(WikiPoll {
+                    ..Default::default()
+                })
+            })
+        });
 
         wiki_poll_service
     }

@@ -246,12 +246,11 @@ async fn process_transcriptions(
     // Use the format recorded for this event when present (self-serve upload
     // flow). Legacy bot-uploaded recordings have no audio_recording row, so
     // fall back to the historical WAV default.
-    let expected_extension =
-        crate::models::audio_recording::get_by_event(&state.db, &event_id)
-            .await
-            .map(|r| r.file_extension)
-            .unwrap_or(crate::models::audio_recording::AudioFormat::Wav)
-            .extension();
+    let expected_extension = crate::models::audio_recording::get_by_event(&state.db, &event_id)
+        .await
+        .map(|r| r.file_extension)
+        .unwrap_or(crate::models::audio_recording::AudioFormat::Wav)
+        .extension();
     let expected_filename = format!("recording.{expected_extension}");
 
     let is_missing_main_recording = !entries
