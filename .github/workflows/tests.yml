@@ -6,7 +6,40 @@ on:
   workflow_dispatch:  # Allows manual triggering
     
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      -
+        name: Checkout repository
+        uses: actions/checkout@v4
+
+      -
+        name: Detect API and frontend changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            api:
+              - 'api/**'
+              - 'adaptors/**'
+              - 'comhairle_macros/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'api/Cargo.toml'
+              - 'api/Cargo.lock'
+              - 'rust-toolchain'
+              - 'rust-toolchain.toml'
+              - '.github/workflows/tests.yml'
+            frontend:
+              - 'ui/**'
+              - '.github/workflows/tests.yml'
+
   frontend-unit-tests:
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     environment: base 
 
@@ -30,12 +63,14 @@ jobs:
         working-directory: ui
         run: pnpm install --frozen-lockfile
 
-      - 
+      -
         name: Run tests
         working-directory: ui
         run: pnpm --filter comhairle test:unit
 
   api-unit-tests:
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.api == 'true'
     runs-on: ubuntu-latest
     environment: base 
 
@@ -57,7 +92,7 @@ jobs:
     steps:
       - 
         name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - 
         name: Install Rust
@@ -66,14 +101,38 @@ jobs:
           toolchain: stable
           override: true
 
-      - name: Cache
+      -
+        name: Resolve cargo-nextest version
+        id: nextest-version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(cargo search cargo-nextest --limit 1 | sed -n 's/^cargo-nextest = "\([^"]*\)".*/\1/p')
+          if [[ -z "$version" ]]; then
+            echo "Failed to resolve cargo-nextest version" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      -
+        name: Cache cargo-nextest
+        id: cache-nextest
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          path: ~/.cargo/bin/cargo-nextest
+          key: ${{ runner.os }}-cargo-nextest-${{ steps.nextest-version.outputs.version }}
+
+      -
+        name: Install cargo nextest
+        if: steps.cache-nextest.outputs.cache-hit != 'true'
+        run: cargo install cargo-nextest --locked --version ${{ steps.nextest-version.outputs.version }}
+
+      - 
+        name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
 
       - 
         name: Wait for PostgreSQL to be ready
@@ -102,4 +161,4 @@ jobs:
           CATEGORIZATION_SERVICE__SERVER_URL: ${{ secrets.CATEGORIZATION_SERVICE__SERVER_URL }}
           CATEGORIZATION_SERVICE__WEBHOOK_SECRET: ${{ secrets.CATEGORIZATION_SERVICE__WEBHOOK_SECRET }}
           BULK_STORAGE_SERVICE__STORE_NAME: ${{ secrets.BULK_STORAGE_SERVICE__STORE_NAME }}
-        run: cargo test --verbose
+        run: cargo nextest run --verbose

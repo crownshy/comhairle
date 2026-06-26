@@ -10,7 +10,7 @@
 		src: string | null;
 		name?: string;
 		downloadHref?: string | null;
-		kind?: 'pdf' | 'image';
+		kind?: 'pdf' | 'image' | 'docx';
 	};
 
 	let {
@@ -21,14 +21,20 @@
 		kind = 'pdf'
 	}: Props = $props();
 
-	// pdfjs-dist is heavy (~1MB) and not SSR-safe, so the viewer is loaded
-	// lazily in the browser the first time a document is opened.
+	// pdfjs-dist (~1MB) and mammoth (~500KB) are heavy and not SSR-safe, so the
+	// viewers are loaded lazily in the browser the first time a document is opened.
 	let PdfViewer = $state<Component<{ src: string }> | null>(null);
+	let DocxViewer = $state<Component<{ src: string }> | null>(null);
 
 	$effect(() => {
-		if (browser && open && kind === 'pdf' && !PdfViewer) {
+		if (!browser || !open) return;
+		if (kind === 'pdf' && !PdfViewer) {
 			import('./PdfViewer.svelte').then((m) => {
 				PdfViewer = m.default as unknown as Component<{ src: string }>;
+			});
+		} else if (kind === 'docx' && !DocxViewer) {
+			import('./DocxViewer.svelte').then((m) => {
+				DocxViewer = m.default as unknown as Component<{ src: string }>;
 			});
 		}
 	});
@@ -64,7 +70,9 @@
 					<div class="flex h-full w-full items-center justify-center overflow-auto p-4">
 						<img {src} alt={name} class="max-h-full max-w-full object-contain" />
 					</div>
-				{:else if PdfViewer}
+				{:else if kind === 'docx' && DocxViewer}
+					<DocxViewer {src} />
+				{:else if kind === 'pdf' && PdfViewer}
 					<PdfViewer {src} />
 				{:else}
 					<div

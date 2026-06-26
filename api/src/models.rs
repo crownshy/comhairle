@@ -21,6 +21,7 @@ pub mod pagination;
 pub mod polis_statement_aux;
 pub mod proposal;
 pub mod proposal_response;
+pub mod recruitment_target;
 pub mod region;
 pub mod report;
 pub mod report_impact;

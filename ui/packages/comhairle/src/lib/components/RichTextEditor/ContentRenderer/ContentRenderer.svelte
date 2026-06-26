@@ -38,23 +38,26 @@
 
 	let previewDialog = $state<{
 		open: boolean;
-		kind: 'pdf' | 'image';
+		kind: 'pdf' | 'image' | 'docx';
 		src: string | null;
 		name: string;
 		downloadHref: string | null;
 	}>({ open: false, kind: 'pdf', src: null, name: '', downloadHref: null });
 
 	const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.avif'];
+	const DOCX_EXTENSIONS = ['.doc', '.docx'];
 
-	function getPreviewKind(fileName: string): 'pdf' | 'image' | null {
+	function getPreviewKind(fileName: string): 'pdf' | 'image' | 'docx' | null {
 		const lower = fileName.toLowerCase();
 		if (lower.endsWith('.pdf')) return 'pdf';
 		if (IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext))) return 'image';
+		if (DOCX_EXTENSIONS.some((ext) => lower.endsWith(ext))) return 'docx';
 		return null;
 	}
 
-	/* Intercept source-document badge clicks: open PDFs and images in an in-page
-	 * viewer instead of downloading. Other file types keep default download. */
+	/* Intercept source-document badge clicks: open PDFs, images, and Word
+	 * documents in an in-page viewer instead of downloading. Other file types
+	 * keep default download. */
 	function handleContentClick(event: MouseEvent) {
 		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return;
 

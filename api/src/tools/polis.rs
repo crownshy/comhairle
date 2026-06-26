@@ -733,7 +733,7 @@ mod tests {
         Ok(aux)
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn owner_can_add_theme(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let aux = setup_polis_aux(&app, &pool, &mut session, vec![]).await?;
@@ -756,7 +756,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn adding_theme_is_idempotent(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let aux = setup_polis_aux(&app, &pool, &mut session, vec!["alpha".into()]).await?;
@@ -779,7 +779,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn owner_can_remove_theme(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let aux = setup_polis_aux(
@@ -804,7 +804,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn removing_missing_theme_is_idempotent(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let aux = setup_polis_aux(&app, &pool, &mut session, vec!["alpha".into()]).await?;
@@ -823,7 +823,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn non_owner_cannot_add_theme(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut owner) = setup_default_app_and_session(&pool).await?;
         let aux = setup_polis_aux(&app, &pool, &mut owner, vec![]).await?;
@@ -854,7 +854,7 @@ mod tests {
         Ok(())
     }
 
-    #[sqlx::test]
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn non_owner_cannot_remove_theme(pool: PgPool) -> Result<(), Box<dyn Error>> {
         let (app, mut owner) = setup_default_app_and_session(&pool).await?;
         let aux = setup_polis_aux(&app, &pool, &mut owner, vec!["alpha".into()]).await?;
