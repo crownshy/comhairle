@@ -94,23 +94,23 @@ impl AudioRecordingStatus {
 
 /// An audio recording for a single named room within an event.
 ///
-/// One record per room. An event may have many rooms, each with a name that is
+/// An event may have many recordings, each with a name (or "room name") that is
 /// unique within that event. The status tracks transcription and report
-/// generation for this room only.
+/// generation for this recording only.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct AudioRecording {
-    /// Unique identifier for this room's recording
+    /// Unique identifier for this recordings's recording
     pub id: Uuid,
-    /// Event this room belongs to
+    /// Event this recording belongs to
     pub event_id: Uuid,
-    /// User-supplied room name, unique within the event
+    /// User-supplied recording/room name, unique within the event
     pub name: String,
     /// S3 key prefix (without extension) used for generating URLs
     pub s3_key_prefix: String,
     /// Audio format of the uploaded recording
     pub file_extension: AudioFormat,
-    /// Current status of transcription & report processing for this room
+    /// Current status of transcription & report processing for this recording
     pub status: AudioRecordingStatus,
     /// When this recording was created
     pub created_at: DateTime<Utc>,
@@ -206,7 +206,7 @@ pub async fn create(
         Err(sqlx::Error::Database(db_err)) => {
             let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
             if pg_err.code() == "23505" {
-                return Err(ComhairleError::DuplicateRoomName(
+                return Err(ComhairleError::DuplicateRecordingName(
                     create_recording.name.clone(),
                 ));
             }
@@ -234,7 +234,7 @@ pub async fn get_by_id(db: &PgPool, recording_id: &Uuid) -> Result<AudioRecordin
     Ok(recording.into())
 }
 
-/// List all rooms (recordings) for an event, oldest first.
+/// List all recordings for an event, oldest first.
 pub async fn list_by_event(
     db: &PgPool,
     event_id: &Uuid,
@@ -365,7 +365,7 @@ mod tests {
         )
         .await
         .unwrap_err();
-        assert!(matches!(err, ComhairleError::DuplicateRoomName(_)));
+        assert!(matches!(err, ComhairleError::DuplicateRecordingName(_)));
 
         // A second room with a different name in the same event is allowed.
         create(

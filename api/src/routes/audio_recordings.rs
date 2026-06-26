@@ -1,7 +1,7 @@
 //! Audio recording endpoints, mounted under
 //! `/conversation/{conversation_id}/events/{event_id}/audio_recordings`.
 //!
-//! Each recording is for a single named room within an event. The UI adds recordings one
+//! Each recording lives under an event. The UI adds recordings one
 //! at a time: create a recording (which returns a presigned upload URL), upload the
 //! file, then start processing. Status is tracked per recording.
 
@@ -38,7 +38,7 @@ use crate::ComhairleState;
 ///
 /// # Errors
 /// * `ComhairleError::NoBulkStorageServiceConfigured` if no bulk storage service is configured.
-/// * `ComhairleError::DuplicateRoomName` if a recording with this name already exists for the event.
+/// * `ComhairleError::DuplicateRecordingName` if a recording with this name already exists for the event.
 /// * `ComhairleError::DatabaseError` on database errors.
 #[instrument(err(Debug), skip(state))]
 async fn create_recording(
@@ -49,8 +49,6 @@ async fn create_recording(
 ) -> Result<(StatusCode, Json<CreateRecordingResponse>), ComhairleError> {
     let bulk_storage_service = state.required_bulk_storage_service()?;
 
-    // Generate the recording id up front so the S3 key prefix is fixed before the row
-    // is inserted. The human name lives only in the DB; the S3 path uses the id.
     let recording_id = Uuid::new_v4();
     let extension = request.file_extension.extension();
     let s3_key_prefix = format!("events/{event_id}/recordings/{recording_id}");
@@ -180,8 +178,7 @@ async fn process_recording(
 
 /// Webhook receiver for a recording's categorization report.
 ///
-/// Authenticated by the HMAC signature headers (not an admin JWT). Stores the
-/// report payload at the recording's S3 prefix.
+/// Authenticated by the HMAC signature headers (not an admin JWT).
 ///
 /// # Errors
 /// * `ComhairleError::AuthWebhookSignatureError` if the signature is missing or invalid.
@@ -226,7 +223,6 @@ async fn submit_report(
         ));
     }
 
-    // Confirm the event belongs to the conversation, then the recording to the event.
     let event = event::get_by_id(&state.db, &event_id).await?;
     if event.conversation_id != conversation_id {
         return Err(ComhairleError::ResourceNotFound(format!(
