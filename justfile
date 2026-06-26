@@ -33,6 +33,12 @@ api-watch:
 seed:
     ./scripts/seed-minimal.sh
 
+# Run the mock Talk to the City categorization service (local report webhooks).
+# Report callbacks are delivered straight to the API (API_BASE, default :3000),
+# bypassing the UI's Vite dev proxy which strips the X-Webhook-* auth headers.
+mock-tttc:
+    node scripts/mock-tttc.mjs
+
 # Start Redis for the apalis worker service (creates container on first run)
 start-redis:
     docker start apalis-redis 2>/dev/null || docker run -d \
