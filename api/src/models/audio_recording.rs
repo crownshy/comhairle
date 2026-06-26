@@ -55,24 +55,32 @@ impl std::fmt::Display for AudioFormat {
     }
 }
 
-/// Status of an audio recording's transcription and processing
+/// Status of an audio recording as it moves through the transcription and
+/// categorization pipeline (recording → transcript → report).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum AudioRecordingStatus {
-    /// Recording uploaded, waiting to be processed
+    /// Recording uploaded; not yet processed (also covers queued/transcribing).
     Pending,
-    /// Recording has been transcribed and report generated
-    Completed,
-    /// Recording failed during transcription/processing
-    Failed,
+    /// Transcript produced and submitted to the categorization service; the
+    /// report has not arrived yet.
+    TranscriptAvailable,
+    /// Both the transcript and the categorization report are available.
+    BothAvailable,
+    /// The transcription stage failed.
+    TranscriptFailure,
+    /// The categorization stage failed.
+    CategorizationFailure,
 }
 
 impl ToString for AudioRecordingStatus {
     fn to_string(&self) -> String {
         match self {
             AudioRecordingStatus::Pending => "pending".to_string(),
-            AudioRecordingStatus::Completed => "completed".to_string(),
-            AudioRecordingStatus::Failed => "failed".to_string(),
+            AudioRecordingStatus::TranscriptAvailable => "transcript_available".to_string(),
+            AudioRecordingStatus::BothAvailable => "both_available".to_string(),
+            AudioRecordingStatus::TranscriptFailure => "transcript_failure".to_string(),
+            AudioRecordingStatus::CategorizationFailure => "categorization_failure".to_string(),
         }
     }
 }
@@ -82,8 +90,10 @@ impl AudioRecordingStatus {
     pub fn from_string(s: &str) -> Result<Self, ComhairleError> {
         match s {
             "pending" => Ok(AudioRecordingStatus::Pending),
-            "completed" => Ok(AudioRecordingStatus::Completed),
-            "failed" => Ok(AudioRecordingStatus::Failed),
+            "transcript_available" => Ok(AudioRecordingStatus::TranscriptAvailable),
+            "both_available" => Ok(AudioRecordingStatus::BothAvailable),
+            "transcript_failure" => Ok(AudioRecordingStatus::TranscriptFailure),
+            "categorization_failure" => Ok(AudioRecordingStatus::CategorizationFailure),
             _ => Err(ComhairleError::ResourceNotFound(format!(
                 "Unknown status: {}",
                 s
@@ -545,13 +555,14 @@ mod tests {
         let created = create(&pool, &create_req).await?;
         assert_eq!(created.status, AudioRecordingStatus::Pending);
 
-        let updated = update_status(&pool, &created.id, AudioRecordingStatus::Completed).await?;
-        assert_eq!(updated.status, AudioRecordingStatus::Completed);
+        let updated =
+            update_status(&pool, &created.id, AudioRecordingStatus::BothAvailable).await?;
+        assert_eq!(updated.status, AudioRecordingStatus::BothAvailable);
         assert!(updated.updated_at > created.updated_at);
         assert!(updated.created_at == created.created_at);
         Ok(())
     }
-
+    
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_get_by_id_not_found(
         pool: sqlx::PgPool,

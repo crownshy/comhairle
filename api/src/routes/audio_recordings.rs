@@ -242,6 +242,13 @@ async fn submit_report(
         .upload_file(&path, bytes, metadata)
         .await?;
 
+    audio_recording::update_status(
+        &state.db,
+        &recording.id,
+        audio_recording::AudioRecordingStatus::BothAvailable,
+    )
+    .await?;
+
     Ok((
         StatusCode::CREATED,
         Json(SubmitReportResponse {
@@ -506,6 +513,103 @@ mod tests {
             .await?;
 
         assert_eq!(status, StatusCode::NOT_FOUND);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_submit_report_marks_both_available(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::bulk_storage_service::UploadResult;
+        use crate::routes::auth::build_webhook_signature;
+        use axum::body::Body;
+        use axum::http::{HeaderName, HeaderValue};
+        use chrono::Utc;
+        use std::str::FromStr;
+
+        let mut storage_service = crate::bulk_storage_service::MockBulkStorageService::new();
+        storage_service
+            .expect_upload_file()
+            .times(1)
+            .returning(|_, _, _| {
+                Box::pin(async move {
+                    Ok(UploadResult {
+                        url: "https://s3.example.com/report.json".to_string(),
+                    })
+                })
+            });
+
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let webhook_secret = config
+            .categorization_service
+            .as_ref()
+            .expect("test config has a categorization service")
+            .webhook_secret
+            .clone();
+
+        let state = Arc::new(
+            test_state()
+                .db(pool.clone())
+                .config(config)
+                .bulk_storage_service(Arc::new(storage_service))
+                .call()?,
+        );
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let (conversation, event) = create_random_event(&mut session, &app).await?;
+
+        // A recording that has its transcript but is awaiting its report.
+        let recording = audio_recording::create(
+            &pool,
+            &CreateAudioRecording {
+                id: Uuid::new_v4(),
+                event_id: event.id,
+                name: "Main Room".to_string(),
+                s3_key_prefix: format!("events/{}/recordings/{}", event.id, Uuid::new_v4()),
+                file_extension: AudioFormat::Wav,
+            },
+        )
+        .await?;
+
+        // Sign the payload the way the categorization service would.
+        let body = serde_json::json!({ "report": "done" }).to_string();
+        let timestamp = Utc::now().timestamp().to_string();
+        let signature = build_webhook_signature(&timestamp, &body, &webhook_secret)?;
+
+        let (status, _resp, _) = session
+            .post_with_headers(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/audio_recordings/{}/report",
+                    conversation.id, event.id, recording.id
+                ),
+                Body::from(body),
+                &[
+                    (
+                        HeaderName::from_str("X-Webhook-Timestamp")?,
+                        HeaderValue::from_str(&timestamp)?,
+                    ),
+                    (
+                        HeaderName::from_str("X-Webhook-Signature")?,
+                        HeaderValue::from_str(&signature)?,
+                    ),
+                ],
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::CREATED);
+
+        // The recording is now both_available.
+        let refreshed = audio_recording::get_by_id(&pool, &recording.id).await?;
+        assert_eq!(
+            refreshed.status,
+            audio_recording::AudioRecordingStatus::BothAvailable
+        );
+
         Ok(())
     }
 }

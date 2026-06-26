@@ -6,7 +6,10 @@ use uuid::Uuid;
 
 use crate::{
     categorization_service::Comment,
-    models::job,
+    models::{
+        audio_recording::{self, AudioRecordingStatus},
+        job,
+    },
     transcription_service::Transcription,
     ComhairleState,
 };
@@ -40,6 +43,22 @@ pub struct UploadReport {
 }
 
 pub async fn transcribe_recording(
+    req: TranscribeRecording,
+    state: Data<Arc<ComhairleState>>,
+) -> Result<GoTo<GenerateReport>> {
+    let recording_id = req.recording_id;
+    let db = state.db.clone();
+    let outcome = transcribe_recording_inner(req, state).await;
+    let status = if outcome.is_ok() {
+        AudioRecordingStatus::TranscriptAvailable
+    } else {
+        AudioRecordingStatus::TranscriptFailure
+    };
+    let _ = audio_recording::update_status(&db, &recording_id, status).await;
+    outcome
+}
+
+async fn transcribe_recording_inner(
     req: TranscribeRecording,
     state: Data<Arc<ComhairleState>>,
 ) -> Result<GoTo<GenerateReport>> {
@@ -104,6 +123,24 @@ pub async fn transcribe_recording(
 }
 
 pub async fn generate_sensemaking_report(
+    req: GenerateReport,
+    state: Data<Arc<ComhairleState>>,
+) -> Result<GoTo<&'static str>> {
+    let recording_id = req.recording_id;
+    let db = state.db.clone();
+    let outcome = generate_sensemaking_report_inner(req, state).await;
+    if outcome.is_err() {
+        let _ = audio_recording::update_status(
+            &db,
+            &recording_id,
+            AudioRecordingStatus::CategorizationFailure,
+        )
+        .await;
+    }
+    outcome
+}
+
+async fn generate_sensemaking_report_inner(
     req: GenerateReport,
     state: Data<Arc<ComhairleState>>,
 ) -> Result<GoTo<&'static str>> {
@@ -172,15 +209,6 @@ pub async fn generate_sensemaking_report(
         categorization_job_id = %analysis_job.id,
         "Report job created in categorization service"
     );
-
-    // Mark this recording as completed once it has been submitted for
-    // categorization.
-    let _ = crate::models::audio_recording::update_status(
-        &state.db,
-        &req.recording_id,
-        crate::models::audio_recording::AudioRecordingStatus::Completed,
-    )
-    .await;
 
     job::complete(
         &state.db,
