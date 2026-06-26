@@ -6,7 +6,7 @@
 		"comhairle": "pnpm --filter comhairle dev",
 		"format": "pretty-quick --staged",
 		"format:check": "pretty-quick --check",
-		"prepare": "cd .. && node ./ui/scripts/install-hooks.mjs"
+		"prepare": "node ./scripts/install-hooks.mjs"
 	},
 	"devDependencies": {
 		"prettier": "^3.4.2",
