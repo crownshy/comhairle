@@ -8,32 +8,26 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::StatusCode,
 };
-use hyper::HeaderMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
-    bulk_storage_service::{extract_room_id_from_key, FileMetadata},
     error::ComhairleError,
     models::{
         event::{
-            self, get_by_id, CreateEvent, EventFilterOptions, EventOrderOptions,
-            EventWithTranslations, PartialEvent,
+            self, CreateEvent, EventFilterOptions, EventOrderOptions, EventWithTranslations,
+            PartialEvent,
         },
         event_attendance,
-        job::{self, CreateJob},
         pagination::{PageOptions, PaginatedResults},
     },
     routes::{
-        auth::{
-            generate_jwt, is_user_admin, verify_webhook_signature, RequiredAdminUser, RequiredUser,
-        },
+        auth::{generate_jwt, is_user_admin, RequiredAdminUser, RequiredUser},
         events::dto::{EventDto, LocalizedEventDto},
         translations::LocaleExtractor,
     },
-    worker_service::process_video_call_transcriptions::TranscribeRecording,
     ComhairleState,
 };
 
@@ -216,198 +210,6 @@ async fn get_jwt(
     Ok((StatusCode::OK, Json(JwtResponse { jwt, is_moderator })))
 }
 
-#[derive(Serialize, Deserialize, Debug, JsonSchema)]
-struct ProcessTranscriptionResponse {
-    message: String,
-    job_ids: Vec<Uuid>,
-}
-
-#[instrument(err(Debug), skip(state))]
-async fn process_transcriptions(
-    State(state): State<Arc<ComhairleState>>,
-    Path((conversation_id, event_id)): Path<(Uuid, Uuid)>,
-) -> Result<(StatusCode, Json<ProcessTranscriptionResponse>), ComhairleError> {
-    let _event = event::get_by_id(&state.db, &event_id).await?;
-    let worker_service = state.required_worker_service()?;
-    let bulk_storage_service = state.required_bulk_storage_service()?;
-    let bulk_storage_config = state
-        .config
-        .bulk_storage_service
-        .as_ref()
-        .ok_or(ComhairleError::NoBulkStorageServiceConfigured)?;
-
-    let entries = bulk_storage_service
-        .list_keys(
-            &bulk_storage_config.store_name,
-            Some(&format!("events/{event_id}/")),
-        )
-        .await?;
-
-    // Use the format recorded for this event when present (self-serve upload
-    // flow). Legacy bot-uploaded recordings have no audio_recording row, so
-    // fall back to the historical WAV default.
-    let expected_extension = crate::models::audio_recording::get_by_event(&state.db, &event_id)
-        .await
-        .map(|r| r.file_extension)
-        .unwrap_or(crate::models::audio_recording::AudioFormat::Wav)
-        .extension();
-    let expected_filename = format!("recording.{expected_extension}");
-
-    let is_missing_main_recording = !entries
-        .iter()
-        .any(|entry| entry.contains(&expected_filename) && !entry.contains("rooms/"));
-
-    if is_missing_main_recording {
-        return Err(ComhairleError::ResourceNotFound(format!(
-            "{expected_filename} for event {event_id}"
-        )));
-    }
-
-    let br_room_entries: Vec<String> = entries
-        .into_iter()
-        .filter(|entry| entry.contains("rooms/") && entry.contains(&expected_filename))
-        .collect();
-
-    let create_core_event_job = CreateJob {
-        progress: Some(0.0),
-        ..Default::default()
-    };
-    let core_event_job = job::create(&state.db, create_core_event_job).await?;
-
-    worker_service
-        .push_transcription_job(TranscribeRecording {
-            event_id,
-            conversation_id,
-            room_id: None,
-            job_id: core_event_job.id,
-        })
-        .await?;
-
-    let mut br_room_job_ids = vec![];
-    for entry in br_room_entries {
-        let room_id = extract_room_id_from_key(&entry);
-
-        if let Some(room_id) = room_id {
-            let create_job = CreateJob {
-                progress: Some(0.0),
-                ..Default::default()
-            };
-            let job = job::create(&state.db, create_job).await?;
-            br_room_job_ids.push(job.id);
-
-            worker_service
-                .push_transcription_job(TranscribeRecording {
-                    event_id,
-                    conversation_id,
-                    room_id: Some(room_id.to_string()),
-                    job_id: job.id,
-                })
-                .await?;
-        }
-    }
-
-    let mut job_ids = vec![core_event_job.id];
-    job_ids.extend(br_room_job_ids);
-
-    Ok((
-        StatusCode::OK,
-        Json(ProcessTranscriptionResponse {
-            message: "Transcription processing moved to background jobs".to_string(),
-            job_ids,
-        }),
-    ))
-}
-
-#[derive(Deserialize, JsonSchema, Debug, Default)]
-struct SubmitReportParams {
-    room_id: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
-struct SubmitReportResponse {
-    url: String,
-    success: bool,
-}
-
-#[instrument(err(Debug), skip(state))]
-async fn submit_report(
-    State(state): State<Arc<ComhairleState>>,
-    Query(params): Query<SubmitReportParams>,
-    headers: HeaderMap,
-    Path((conversation_id, event_id)): Path<(Uuid, Uuid)>,
-    payload: String,
-) -> Result<(StatusCode, Json<SubmitReportResponse>), ComhairleError> {
-    let bulk_storage_service = state.required_bulk_storage_service()?;
-    let webhook_secret = &state
-        .config
-        .categorization_service
-        .as_ref()
-        .ok_or(ComhairleError::NoCategorizationServiceConfigured)?
-        .webhook_secret;
-
-    let webhook_timestamp = headers
-        .get("X-Webhook-Timestamp")
-        .ok_or(ComhairleError::AuthWebhookSignatureError(
-            "Missing X-Webhook-Timestamp".to_string(),
-        ))?
-        .to_str()
-        .map_err(|_| {
-            ComhairleError::AuthWebhookSignatureError("Invalid X-Webhook-Timestamp".to_string())
-        })?;
-    let webhook_signature = headers
-        .get("X-Webhook-Signature")
-        .ok_or(ComhairleError::AuthWebhookSignatureError(
-            "Missing X-Webhook-Signature".to_string(),
-        ))?
-        .to_str()
-        .map_err(|_| {
-            ComhairleError::AuthWebhookSignatureError("Invalid X-Webhook-Signature".to_string())
-        })?;
-
-    if !verify_webhook_signature(
-        webhook_signature,
-        webhook_timestamp,
-        &payload,
-        webhook_secret,
-    )? {
-        return Err(ComhairleError::AuthWebhookSignatureError(
-            "Invalid X-Webhook-Signature".to_string(),
-        ));
-    }
-
-    let event = get_by_id(&state.db, &event_id).await?;
-
-    if event.conversation_id != conversation_id {
-        return Err(ComhairleError::ResourceNotFound(format!(
-            "No event {event_id} found for conversation {conversation_id}"
-        )));
-    }
-
-    let path = if let Some(room_id) = params.room_id {
-        format!("events/{}/rooms/{}/report.json", event_id, room_id)
-    } else {
-        format!("events/{}/report.json", event_id)
-    };
-
-    let bytes = serde_json::to_vec(&payload)?;
-    let metadata = FileMetadata {
-        is_public: false,
-        content_type: "application/json".to_string(),
-    };
-
-    let result = bulk_storage_service
-        .upload_file(&path, bytes, metadata)
-        .await?;
-
-    Ok((
-        StatusCode::CREATED,
-        Json(SubmitReportResponse {
-            success: true,
-            url: result.url,
-        }),
-    ))
-}
-
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
         .api_route("/", get_with(list, |op| {
@@ -468,46 +270,18 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .response::<200, Json<JwtResponse>>()
 
         }))
-        .api_route("/{event_id}/transcriptions", 
-            post_with(process_transcriptions, |op| {
-                op.id("ProcessVideoCallTranscriptions")
-                    .tag("Events")
-                    .summary("Process video call transcription")
-                    .description("Triggers transcription processing in a background worker")
-                    .security_requirement("JWT")
-                    .response::<200, Json<ProcessTranscriptionResponse>>()
-
-        }))
-        .api_route("/{event_id}/report", 
-            post_with(submit_report, |op| {
-                op.id("SubmitEventReport")
-                    .tag("Events")
-                    .summary("Categorization report")
-                    .description("Submit categorization report to bulk storage")
-                    .response::<201, Json<SubmitReportResponse>>()
-
-        }))
         .with_state(state)
 }
 
 #[cfg(test)]
 mod tests {
-    use axum::{
-        body::Body,
-        http::{HeaderName, HeaderValue},
-    };
     use chrono::Utc;
     use serde_json::json;
     use sqlx::PgPool;
-    use std::{error::Error, str::FromStr};
+    use std::error::Error;
 
-    use crate::{
-        bulk_storage_service::{MockBulkStorageService, UploadResult},
-        models::model_test_helpers::{get_random_conversation_id, setup_default_app_and_session},
-        routes::{auth::build_webhook_signature, conversations::dto::ConversationDto},
-        setup_server,
-        test_helpers::{test_state, UserSession},
-        worker_service::MockWorkerService,
+    use crate::models::model_test_helpers::{
+        get_random_conversation_id, setup_default_app_and_session,
     };
 
     use super::*;
@@ -869,235 +643,6 @@ mod tests {
             response.get("err").and_then(|v| v.as_str()).unwrap(),
             "Event not found",
             "incorrect error message"
-        );
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_start_transcription_single_pipeline_for_event(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn Error>> {
-        let mut worker_service = MockWorkerService::new();
-
-        worker_service
-            .expect_push_transcription_job()
-            .once()
-            .returning(|_| Box::pin(async move { Ok(()) }));
-
-        let mut storage_service = MockBulkStorageService::new();
-
-        storage_service
-            .expect_list_keys()
-            .once()
-            .returning(|_, _| Box::pin(async move { Ok(vec!["recording.wav".to_string()]) }));
-
-        let state = test_state()
-            .db(pool)
-            .worker_service(Arc::new(worker_service))
-            .bulk_storage_service(Arc::new(storage_service))
-            .call()?;
-        let app = setup_server(Arc::new(state)).await?;
-        let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
-
-        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-
-        let (_, response, _) = session
-            .create_random_event(&app, &conversation_id.to_string())
-            .await?;
-        let event: EventDto = serde_json::from_value(response)?;
-
-        let (_, value, _) = session
-            .post(
-                &app,
-                &format!(
-                    "/conversation/{}/events/{}/transcriptions",
-                    conversation_id, event.id
-                ),
-                Body::empty(),
-            )
-            .await?;
-        let response: ProcessTranscriptionResponse = serde_json::from_value(value)?;
-
-        assert_eq!(
-            response.job_ids.len(),
-            1,
-            "incorrect number of jobs spawned"
-        );
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_return_err_if_recording_missing(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let mut storage_service = MockBulkStorageService::new();
-
-        storage_service
-            .expect_list_keys()
-            .once()
-            .returning(|_, _| Box::pin(async move { Ok(vec!["not-a-recording.pdf".to_string()]) }));
-
-        let state = test_state()
-            .db(pool)
-            .bulk_storage_service(Arc::new(storage_service))
-            .call()?;
-        let app = setup_server(Arc::new(state)).await?;
-        let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
-
-        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-
-        let (_, response, _) = session
-            .create_random_event(&app, &conversation_id.to_string())
-            .await?;
-        let event: EventDto = serde_json::from_value(response)?;
-
-        let (_, value, _) = session
-            .post(
-                &app,
-                &format!(
-                    "/conversation/{}/events/{}/transcriptions",
-                    conversation_id, event.id
-                ),
-                Body::empty(),
-            )
-            .await?;
-
-        assert_eq!(
-            value.get("err").and_then(|v| v.as_str()).unwrap(),
-            &format!("recording.wav for event {} not found", event.id),
-            "incorrect error message"
-        );
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_start_transcription_pipelines_for_event_with_breakout_rooms(
-        pool: PgPool,
-    ) -> Result<(), Box<dyn Error>> {
-        let mut worker_service = MockWorkerService::new();
-
-        worker_service
-            .expect_push_transcription_job()
-            .times(5)
-            .returning(|_| Box::pin(async move { Ok(()) }));
-
-        let mut storage_service = MockBulkStorageService::new();
-
-        storage_service.expect_list_keys().once().returning(|_, _| {
-            Box::pin(async move {
-                Ok(vec![
-                    "recording.wav".to_string(),
-                    ".secret-file.temp".to_string(),
-                    "rooms/1234/recording.wav".to_string(),
-                    "rooms/1234/.secret-file.temp".to_string(),
-                    "rooms/4321/recording.wav".to_string(),
-                    "rooms/5678/recording.wav".to_string(),
-                    "rooms/8765/recording.wav".to_string(),
-                ])
-            })
-        });
-
-        let state = test_state()
-            .db(pool)
-            .worker_service(Arc::new(worker_service))
-            .bulk_storage_service(Arc::new(storage_service))
-            .call()?;
-        let app = setup_server(Arc::new(state)).await?;
-        let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
-
-        let conversation_id = get_random_conversation_id(&app, &mut session).await?;
-
-        let (_, response, _) = session
-            .create_random_event(&app, &conversation_id.to_string())
-            .await?;
-        let event: EventDto = serde_json::from_value(response)?;
-
-        let (_, value, _) = session
-            .post(
-                &app,
-                &format!(
-                    "/conversation/{}/events/{}/transcriptions",
-                    conversation_id, event.id
-                ),
-                Body::empty(),
-            )
-            .await?;
-        let response: ProcessTranscriptionResponse = serde_json::from_value(value)?;
-
-        assert_eq!(
-            response.job_ids.len(),
-            5,
-            "incorrect number of jobs spawned"
-        );
-
-        Ok(())
-    }
-
-    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
-    async fn should_upload_report_to_bulk_storage(pool: PgPool) -> Result<(), Box<dyn Error>> {
-        let mut bulk_storage_service = MockBulkStorageService::new();
-
-        bulk_storage_service
-            .expect_upload_file()
-            .once()
-            .returning(|_, _, _| {
-                Box::pin(async move {
-                    Ok(UploadResult {
-                        url: "https://storage.com/some_file".to_owned(),
-                    })
-                })
-            });
-
-        let state = test_state()
-            .db(pool)
-            .bulk_storage_service(Arc::new(bulk_storage_service))
-            .call()?;
-        let app = setup_server(Arc::new(state.clone())).await?;
-        let mut session = UserSession::new_admin();
-        session.signup(&app).await?;
-
-        let (_, value, _) = session.create_random_conversation(&app).await?;
-        let conversation: ConversationDto = serde_json::from_value(value)?;
-        let (_, value, _) = session
-            .create_random_event(&app, &conversation.id.to_string())
-            .await?;
-        let event: EventDto = serde_json::from_value(value)?;
-
-        let secret = &state.config.categorization_service.unwrap().webhook_secret;
-
-        let timestamp = Utc::now().timestamp();
-        let timestamp_hname = HeaderName::from_str("X-Webhook-Timestamp")?;
-        let timestamp_hval = HeaderValue::from_str(&timestamp.to_string())?;
-
-        let body_str = include_str!("../../../fixtures/tttc-report.json");
-        let signature = build_webhook_signature(&timestamp.to_string(), body_str, secret)?;
-        let signature_hname = HeaderName::from_str("X-Webhook-Signature")?;
-        let signature_hval = HeaderValue::from_str(&signature)?;
-        let (_, value, _) = session
-            .post_with_headers(
-                &app,
-                &format!(
-                    "/conversation/{}/events/{}/report",
-                    conversation.id, event.id
-                ),
-                body_str.into(),
-                &[
-                    (signature_hname, signature_hval),
-                    (timestamp_hname, timestamp_hval),
-                ],
-            )
-            .await?;
-        let response: SubmitReportResponse = serde_json::from_value(value)?;
-
-        assert!(response.success, "incorrect success");
-        assert_eq!(
-            response.url,
-            "https://storage.com/some_file".to_string(),
-            "incorrect url"
         );
 
         Ok(())

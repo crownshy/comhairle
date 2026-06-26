@@ -283,7 +283,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
                                 ),
                         )
                         .nest_api_service(
-                            "/{event_id}/audio-recordings",
+                            "/{event_id}/rooms",
                             routes::audio_recordings::router(state.clone()),
                         ),
                 ),

@@ -5,13 +5,13 @@ use uuid::Uuid;
 
 use crate::models::audio_recording::{AudioFormat, AudioRecording, AudioRecordingStatus};
 
-/// Data transfer object for an AudioRecording
+/// Data transfer object for a room's audio recording.
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AudioRecordingDto {
     pub id: Uuid,
     pub event_id: Uuid,
-    pub breakout_room_ids: Vec<String>,
+    pub name: String,
     pub s3_key_prefix: String,
     pub file_extension: AudioFormat,
     pub status: AudioRecordingStatus,
@@ -24,7 +24,7 @@ impl From<AudioRecording> for AudioRecordingDto {
         Self {
             id: recording.id,
             event_id: recording.event_id,
-            breakout_room_ids: recording.breakout_room_ids,
+            name: recording.name,
             s3_key_prefix: recording.s3_key_prefix,
             file_extension: recording.file_extension,
             status: recording.status,
@@ -34,27 +34,27 @@ impl From<AudioRecording> for AudioRecordingDto {
     }
 }
 
-/// Request body for requesting signed upload URLs
+/// Request body for creating a room and requesting its upload URL.
 #[cfg_attr(test, derive(Serialize))]
 #[derive(Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct RequestUploadUrlsRequest {
-    /// List of breakout room IDs (empty list means only main room)
-    pub breakout_rooms: Vec<String>,
-    /// Audio format of the files being uploaded (all files share the same format)
+pub struct CreateRoomRequest {
+    /// Name for the room, unique within the event.
+    pub name: String,
+    /// Audio format of the file being uploaded.
     pub file_extension: AudioFormat,
 }
 
-/// Response with signed upload URLs for main and breakout rooms
+/// Response after creating a room: the created room plus a presigned upload URL.
 #[cfg_attr(test, derive(Deserialize))]
 #[derive(Serialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct RequestUploadUrlsResponse {
-    pub main: String,
-    pub breakout_rooms: Vec<(String, String)>,
+pub struct CreateRoomResponse {
+    pub room: AudioRecordingDto,
+    pub upload_url: String,
 }
 
-/// Response with signed download URLs for main and breakout rooms
+/// Signed URLs for downloading a room's recording, transcript, and report.
 #[cfg_attr(test, derive(Deserialize))]
 #[derive(Serialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -64,11 +64,28 @@ pub struct RecordingDownloadUrls {
     pub report_url: String,
 }
 
-/// Signed URL information for downloading recordings, transcripts, and reports for main and breakout rooms.
+/// A room's details together with its signed download URLs.
 #[cfg_attr(test, derive(Deserialize))]
 #[derive(Serialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct SignedDownloadUrls {
-    pub main: RecordingDownloadUrls,
-    pub breakout_rooms: Vec<(String, RecordingDownloadUrls)>,
+pub struct RoomDetailResponse {
+    pub room: AudioRecordingDto,
+    pub downloads: RecordingDownloadUrls,
+}
+
+/// Response after enqueuing processing for a room.
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcessRoomResponse {
+    pub message: String,
+    pub job_id: Uuid,
+}
+
+/// Response after a categorization report is stored.
+#[cfg_attr(test, derive(Deserialize))]
+#[derive(Serialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct SubmitReportResponse {
+    pub url: String,
+    pub success: bool,
 }
