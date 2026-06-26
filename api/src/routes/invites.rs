@@ -284,7 +284,7 @@ async fn auto_register_event_attendance(
         event::get_localized_by_id(&state.db, &event_id, &conversation.primary_locale).await?;
 
     let email = match &invite.invite_type {
-        InviteType::Email(ref email) => email,
+        InviteType::Email(email) => email,
         _ => return Err(ComhairleError::InvalidInviteType),
     };
 
