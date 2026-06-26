@@ -36,8 +36,7 @@
 						confirm_password: confirmPassword,
 						token: data.token
 					});
-					await invalidateAll();
-					await goto(resolve('/auth/password-reset/success'));
+					await goto(resolve('/auth/password-reset/success'), { invalidateAll: true });
 				} catch (e) {
 					responseMessage = e.response?.data?.err || m.something_went_wrong();
 				}

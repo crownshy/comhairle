@@ -74,8 +74,7 @@
 			params: { conversation_id: data.conversation.id, workflow_id: firstWorkflow.id }
 		});
 
-		await invalidateAll();
-		goto(firstWorkflowPath);
+		goto(firstWorkflowPath, { invalidateAll: true });
 	}
 
 	async function redirectToSignIn() {

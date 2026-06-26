@@ -38,7 +38,6 @@
 						email,
 						password
 					});
-					await invalidateAll();
 
 					let redirectTo = backTo ?? '/';
 					if (redirectTo === '/') {
@@ -53,7 +52,7 @@
 						} catch {}
 					}
 
-					await goto(resolve(redirectTo));
+					await goto(resolve(redirectTo), { invalidateAll: true });
 				} catch (e) {
 					responseMessage = e.response.data.err;
 				}

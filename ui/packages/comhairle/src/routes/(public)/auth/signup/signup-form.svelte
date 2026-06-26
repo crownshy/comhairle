@@ -37,12 +37,12 @@
 						password,
 						email
 					});
-					await invalidateAll();
 					if (user.auth_type === 'annon') {
-						await goto(backTo ?? '/');
+						await goto(backTo ?? '/', { invalidateAll: true });
 					} else {
 						await goto(
-							`/auth/verification-message?backTo=${encodeURIComponent(backTo ?? '/')}`
+							`/auth/verification-message?backTo=${encodeURIComponent(backTo ?? '/')}`,
+							{ invalidateAll: true }
 						);
 					}
 				} catch (e) {

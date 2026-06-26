@@ -30,8 +30,7 @@
 			await loader.run(async () => {
 				try {
 					await apiClient.PasswordResetCreate({ email });
-					await invalidateAll();
-					await goto(resolve('/auth/password-reset/sent'));
+					await goto(resolve('/auth/password-reset/sent'), { invalidateAll: true });
 				} catch (e) {
 					if (e.response?.status === 404) {
 						responseMessage = m.email_address_not_found();

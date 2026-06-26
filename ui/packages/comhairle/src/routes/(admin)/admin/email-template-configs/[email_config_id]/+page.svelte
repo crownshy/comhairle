@@ -92,9 +92,7 @@
 				params: { email_config_id: emailConfig.id }
 			});
 
-			await invalidateAll();
-
-			goto('/admin/email-template-configs');
+			goto('/admin/email-template-configs', { invalidateAll: true });
 		} catch (e) {
 			console.error(e);
 			notifications.send({

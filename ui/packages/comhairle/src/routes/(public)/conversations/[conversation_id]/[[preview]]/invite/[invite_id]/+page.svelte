@@ -60,8 +60,7 @@
 				await apiClient.SignupAnnonUser(undefined, {});
 			}
 			await acceptInvite();
-			await invalidateAll();
-			await goto(firstWorkflowPath + url.search);
+			await goto(firstWorkflowPath + url.search, { invalidateAll: true });
 		} catch (e) {
 			console.error(e);
 		}

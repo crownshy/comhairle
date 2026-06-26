@@ -42,8 +42,7 @@
 				priority: 'INFO'
 			});
 
-			await invalidateAll();
-			await goto(resolve(redirectUrl));
+			await goto(resolve(redirectUrl), { invalidateAll: true });
 		} catch (e) {
 			console.error(e);
 			error = e.message;
@@ -61,8 +60,7 @@
 				priority: 'INFO'
 			});
 
-			await invalidateAll();
-			await goto(resolve(redirectUrl));
+			await goto(resolve(redirectUrl), { invalidateAll: true });
 		} catch (e) {
 			console.error(e);
 			if (

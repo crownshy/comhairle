@@ -37,13 +37,12 @@
 						email,
 						redirect_url: backTo
 					});
-					await invalidateAll();
 
 					sessionStorage.setItem('pendingOtpEmail', email);
 
 					let redirectTo = `/auth/login-otp?backTo=${encodeURIComponent(backTo)}`;
 
-					await goto(resolve(redirectTo));
+					await goto(resolve(redirectTo), { invalidateAll: true });
 				} catch (e) {
 					responseMessage = e.response?.data?.err ?? 'Failed to send one-time-passcode';
 				}

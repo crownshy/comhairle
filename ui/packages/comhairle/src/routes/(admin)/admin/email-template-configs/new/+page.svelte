@@ -77,9 +77,7 @@
 				message: 'Successfully create new custom email'
 			});
 
-			await invalidateAll();
-
-			goto(`/admin/email-template-configs/${emailConfig.id}`);
+			goto(`/admin/email-template-configs/${emailConfig.id}`, { invalidateAll: true });
 		} catch (e) {
 			console.error(e);
 			notifications.send({
