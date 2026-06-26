@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import * as ScrollArea from '$lib/components/ui/scroll-area';
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { Trash2, LoaderCircle } from 'lucide-svelte';
 	import { notifications } from '$lib/notifications.svelte';
 	import type {
 		ComhairleDocument,
@@ -103,6 +105,35 @@
 	function handleSwitchChange(checked: boolean, field: string) {
 		debouncedUpdateRequired(checked, field);
 	}
+
+	let deleteOpen = $state(false);
+	let deleting = $state(false);
+	let deleteError = $state<string | null>(null);
+
+	async function deleteStep() {
+		deleting = true;
+		deleteError = null;
+		try {
+			await apiClient.DeleteConversationWorkflowStep(undefined, {
+				params: {
+					conversation_id,
+					workflow_id: step.workflowId,
+					workflow_step_id: step.id
+				}
+			});
+			notifications.send({ priority: 'INFO', message: 'Step deleted' });
+			deleteOpen = false;
+			await goto(`/admin/conversations/${conversation_id}/design`, {
+				invalidate: ['conversation:workflow']
+			});
+		} catch (e) {
+			console.error(e);
+			deleteError = 'Something went wrong while deleting this step. Please try again.';
+			notifications.send({ priority: 'ERROR', message: 'Failed to delete step' });
+		} finally {
+			deleting = false;
+		}
+	}
 </script>
 
 {#snippet fields()}
@@ -175,11 +206,78 @@
 	</div>
 {/snippet}
 
+{#snippet dangerZone()}
+	<div class="border-destructive/30 flex flex-col gap-4 rounded-lg border p-6">
+		<div class="flex flex-col gap-1">
+			<span class="text-destructive text-lg font-semibold">Danger zone</span>
+			<p class="text-muted-foreground text-sm">
+				Deleting this step permanently removes it and its configuration. The remaining steps
+				will be renumbered. This action cannot be undone.
+			</p>
+		</div>
+		<div>
+			<Button
+				variant="destructive"
+				disabled={deleting}
+				onclick={() => {
+					deleteError = null;
+					deleteOpen = true;
+				}}
+			>
+				<Trash2 class="mr-2 h-4 w-4" />
+				Delete step
+			</Button>
+		</div>
+	</div>
+
+	<AlertDialog.Root bind:open={deleteOpen}>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>Delete “{name || sourceName || 'this step'}”?</AlertDialog.Title>
+				<AlertDialog.Description>
+					This permanently removes the step and its configuration, and renumbers the
+					remaining steps. This action cannot be undone.
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+
+			{#if deleteError}
+				<p
+					class="border-destructive/30 bg-destructive/10 text-destructive rounded-md border p-3 text-sm"
+					role="alert"
+				>
+					{deleteError}
+				</p>
+			{/if}
+			<AlertDialog.Footer class="flex-col-reverse sm:flex-row">
+				<AlertDialog.Cancel class="w-full sm:w-auto" disabled={deleting}>
+					Cancel
+				</AlertDialog.Cancel>
+				<AlertDialog.Action
+					class="bg-destructive hover:bg-destructive/90 w-full text-white sm:w-auto"
+					disabled={deleting}
+					onclick={(e) => {
+						e.preventDefault();
+						deleteStep();
+					}}
+				>
+					{#if deleting}
+						<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+					{/if}
+					Delete step
+				</AlertDialog.Action>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
+{/snippet}
+
 {#if inline}
 	<div class="flex flex-col gap-6">
 		{@render fields()}
 		<div class="border-border flex flex-col gap-4 border-t pt-6">
 			{@render switches()}
+		</div>
+		<div class="border-border border-t pt-6">
+			{@render dangerZone()}
 		</div>
 	</div>
 {:else}
