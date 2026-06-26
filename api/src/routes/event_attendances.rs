@@ -104,8 +104,8 @@ pub async fn create(
 
     let event_attendance = event_attendance::create(&state.db, &create_event_attendance).await?;
 
-    if let Some(ref email) = user.email {
-        if &event_attendance.role == "participant" {
+    if let Some(ref email) = user.email
+        && &event_attendance.role == "participant" {
             let event =
                 event::get_localized_by_id(&state.db, &event_id, &conversation.primary_locale)
                     .await?;
@@ -127,7 +127,6 @@ pub async fn create(
                 )
                 .await?;
         }
-    }
 
     Ok((StatusCode::CREATED, Json(event_attendance.into())))
 }

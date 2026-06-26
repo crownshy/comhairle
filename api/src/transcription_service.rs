@@ -32,6 +32,12 @@ pub struct Transcription {
     pub has_speaker_ids: bool,
 }
 
+impl Default for Transcription {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Transcription {
     pub fn new() -> Self {
         Self {
@@ -72,8 +78,8 @@ pub struct TranscribeFromBulkResponse {
 #[cfg(test)]
 impl MockTranscriber {
     pub fn base() -> MockTranscriber {
-        let transcriber = MockTranscriber::new();
+        
 
-        transcriber
+        MockTranscriber::new()
     }
 }

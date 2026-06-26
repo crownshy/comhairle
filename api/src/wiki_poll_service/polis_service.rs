@@ -333,8 +333,8 @@ impl PolisClient {
             // Calculate group votes for this comment
             let mut group_votes_list = Vec::new();
             for (group_id_str, group_data) in math_pca.group_votes.iter() {
-                if let Ok(group_id) = group_id_str.parse::<u32>() {
-                    if let Some(vote_breakdown) = group_data.votes.get(&tid.to_string()) {
+                if let Ok(group_id) = group_id_str.parse::<u32>()
+                    && let Some(vote_breakdown) = group_data.votes.get(&tid.to_string()) {
                         let passes = vote_breakdown
                             .saw
                             .saturating_sub(vote_breakdown.agrees)
@@ -347,7 +347,6 @@ impl PolisClient {
                             passes,
                         });
                     }
-                }
             }
 
             let consensus = math_pca

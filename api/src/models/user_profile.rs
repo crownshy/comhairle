@@ -171,7 +171,7 @@ pub async fn update(
 
     if let Some(value) = &update.consented {
         query = query
-            .value(UserProfileIden::Consented, value.clone())
+            .value(UserProfileIden::Consented, *value)
             .to_owned();
         has_updates = true;
     }
@@ -180,7 +180,7 @@ pub async fn update(
         has_updates = true;
     }
     if let Some(value) = &update.age {
-        query = query.value(UserProfileIden::Age, value.clone()).to_owned();
+        query = query.value(UserProfileIden::Age, *value).to_owned();
         has_updates = true;
     }
     if let Some(value) = &update.gender {
@@ -473,7 +473,7 @@ mod tests {
         let profile = create(&pool, &create_profile).await?;
 
         assert_eq!(profile.user_id, user.id, "incorrect user_id");
-        assert_eq!(profile.consented, true, "incorrect consented");
+        assert!(profile.consented, "incorrect consented");
         assert_eq!(
             profile.ethnicity,
             Some("Asian".to_string()),
@@ -526,7 +526,7 @@ mod tests {
             "incorrect profile id"
         );
         assert_eq!(fetched_profile.user_id, user.id, "incorrect user_id");
-        assert_eq!(fetched_profile.consented, true, "incorrect consented");
+        assert!(fetched_profile.consented, "incorrect consented");
 
         Ok(())
     }
@@ -574,7 +574,7 @@ mod tests {
         )
         .await?;
 
-        assert_eq!(updated_profile.consented, true, "consented not updated");
+        assert!(updated_profile.consented, "consented not updated");
         assert_eq!(
             updated_profile.ethnicity,
             Some("Black".to_string()),

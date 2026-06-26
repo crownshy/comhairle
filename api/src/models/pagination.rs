@@ -95,11 +95,10 @@ fn parse_sort_options_to_json(order_str: &str) -> Value {
 
     for part in order_str.split(',') {
         let mut iter = part.split_whitespace();
-        if let (Some(field), Some(order_str)) = (iter.next(), iter.next()) {
-            if let Ok(order) = Order::from_str(order_str) {
+        if let (Some(field), Some(order_str)) = (iter.next(), iter.next())
+            && let Ok(order) = Order::from_str(order_str) {
                 map.insert(field.to_string(), json!(order));
             }
-        }
     }
 
     Value::Object(map)

@@ -630,10 +630,8 @@ mod tests {
             session.create_random_unlaunched_conversation(&app).await?;
         let (_, launched_conversation, _) = session.create_random_conversation(&app).await?;
 
-        for (conversation, expected_status) in vec![
-            (unlaunched_conversation, StatusCode::OK),
-            (launched_conversation, StatusCode::FORBIDDEN),
-        ] {
+        for (conversation, expected_status) in [(unlaunched_conversation, StatusCode::OK),
+            (launched_conversation, StatusCode::FORBIDDEN)] {
             let conversation_id: String = extract("id", &conversation);
 
             let (_, workflow, _) = session

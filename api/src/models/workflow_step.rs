@@ -685,7 +685,7 @@ mod tests {
         let (app, mut session) = setup_default_app_and_session(&pool).await?;
         let conversation_id = get_random_conversation_id(&app, &mut session).await?;
 
-        let conversation = conversation::update(
+        let _conversation = conversation::update(
             &pool,
             &conversation_id,
             &PartialConversation {

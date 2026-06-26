@@ -572,7 +572,7 @@ async fn export_conversation_contacts(
         let mut writer = csv::Writer::from_writer(&mut csv_output);
 
         // Write headers
-        writer.write_record(&[
+        writer.write_record([
             "Email",
             "User Type",
             "Conversation Updates",
@@ -648,7 +648,7 @@ async fn export_conversation_demographics(
         let mut writer = csv::Writer::from_writer(&mut csv_output);
 
         // Write headers
-        writer.write_record(&[
+        writer.write_record([
             "User ID",
             "Ethnicity",
             "Age",

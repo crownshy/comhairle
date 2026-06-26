@@ -56,13 +56,9 @@ pub enum EventAgendaItem {
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, DbJsonBEnum, Clone, PartialEq)]
 #[serde(transparent)]
+#[derive(Default)]
 pub struct EventAgenda(pub Vec<EventAgendaItem>);
 
-impl Default for EventAgenda {
-    fn default() -> Self {
-        Self(Vec::new())
-    }
-}
 
 #[derive(Serialize, Deserialize, Partial, Debug, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "event")]

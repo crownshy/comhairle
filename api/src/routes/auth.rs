@@ -145,7 +145,7 @@ pub fn validate_password_strength(password: &str) -> Result<(), ComhairleError> 
             } else {
                 Some(
                     suggs
-                        .into_iter()
+                        .iter()
                         .map(|s| format!("{:?}", s))
                         .collect::<Vec<String>>()
                         .join("; "),

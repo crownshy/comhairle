@@ -575,15 +575,12 @@ async fn handle_websocket_message(
         Message::Text(text) => {
             if let Ok(ws_message) = serde_json::from_str::<WebSocketMessage>(&text) {
                 // Handle core protocol messages
-                match &ws_message {
-                    WebSocketMessage::Ping { timestamp } => {
-                        let pong = WebSocketMessage::Pong {
-                            timestamp: *timestamp,
-                        };
-                        connection.send_message(&pong).await?;
-                        return Ok(());
-                    }
-                    _ => {}
+                if let WebSocketMessage::Ping { timestamp } = &ws_message {
+                    let pong = WebSocketMessage::Pong {
+                        timestamp: *timestamp,
+                    };
+                    connection.send_message(&pong).await?;
+                    return Ok(());
                 }
 
                 // Route message to registered handlers based on message type
@@ -656,15 +653,14 @@ async fn route_to_handler(
         _ => None,
     };
 
-    if let Some(domain) = domain {
-        if let Some(handler) = state.websockets.get_handler(domain) {
+    if let Some(domain) = domain
+        && let Some(handler) = state.websockets.get_handler(domain) {
             handler
                 .handle_message(message, connection, state)
                 .await
                 .map_err(|e| ComhairleError::WebSocketHandlerError(Box::new(e)))?;
             return Ok(true);
         }
-    }
 
     Ok(false)
 }

@@ -518,11 +518,10 @@ fn is_optional_text_content_id_type(ty: &Type) -> bool {
                     return false;
                 }
 
-                if let PathArguments::AngleBracketed(args) = &segment.arguments {
-                    if let Some(GenericArgument::Type(inner_type)) = args.args.first() {
+                if let PathArguments::AngleBracketed(args) = &segment.arguments
+                    && let Some(GenericArgument::Type(inner_type)) = args.args.first() {
                         return is_text_content_id_type(inner_type);
                     }
-                }
             }
             false
         }
