@@ -39,7 +39,7 @@ impl From<AudioRecording> for AudioRecordingDto {
 #[derive(Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateRecordingRequest {
-    /// Name for the recording (its room name), unique within the event.
+    /// Name for the recording, unique within the event.
     pub name: String,
     /// Audio format of the file being uploaded.
     pub file_extension: AudioFormat,

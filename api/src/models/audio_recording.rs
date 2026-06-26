@@ -234,6 +234,32 @@ pub async fn get_by_id(db: &PgPool, recording_id: &Uuid) -> Result<AudioRecordin
     Ok(recording.into())
 }
 
+/// Get an audio recording by ID, scoped to the event it must belong to.
+///
+/// Returns [`ComhairleError::ResourceNotFound`] if no recording with that id
+/// exists for the given event.
+pub async fn get_by_id_and_event(
+    db: &PgPool,
+    recording_id: &Uuid,
+    event_id: &Uuid,
+) -> Result<AudioRecording, ComhairleError> {
+    let (sql, values) = Query::select()
+        .columns(DEFAULT_COLUMNS)
+        .from(RawAudioRecordingIden::Table)
+        .and_where(Expr::col(RawAudioRecordingIden::Id).eq(*recording_id))
+        .and_where(Expr::col(RawAudioRecordingIden::EventId).eq(*event_id))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let recording = sqlx::query_as_with::<_, RawAudioRecording, _>(&sql, values)
+        .fetch_optional(db)
+        .await?
+        .ok_or(ComhairleError::ResourceNotFound(
+            "Audio recording not found".to_string(),
+        ))?;
+
+    Ok(recording.into())
+}
+
 /// List all recordings for an event, oldest first.
 pub async fn list_by_event(
     db: &PgPool,
@@ -407,6 +433,44 @@ mod tests {
         assert_eq!(fetched.id, created.id);
         assert_eq!(fetched.event_id, created.event_id);
         assert_eq!(fetched.s3_key_prefix, created.s3_key_prefix);
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_get_by_id_and_event(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let event = create_random_event(&mut session, &app).await?;
+
+        let created = create(
+            &pool,
+            &CreateAudioRecording {
+                id: Uuid::new_v4(),
+                event_id: event.id,
+                name: "Room 1".to_string(),
+                s3_key_prefix: "test/prefix".to_string(),
+                file_extension: AudioFormat::Wav,
+            },
+        )
+        .await?;
+
+        // Matching event scopes the lookup successfully.
+        let fetched = get_by_id_and_event(&pool, &created.id, &event.id).await?;
+        assert_eq!(fetched.id, created.id);
+
+        // A mismatched event id yields ResourceNotFound, not the row.
+        let other_event = create_random_event(&mut session, &app).await?;
+        let result = get_by_id_and_event(&pool, &created.id, &other_event.id).await;
+        assert!(matches!(result, Err(ComhairleError::ResourceNotFound(_))));
+
         Ok(())
     }
 

@@ -67,8 +67,6 @@ pub async fn transcribe_recording(
         "Starting transcription sensemaking pipeline"
     );
 
-    // The recording row is the single source of truth for both the S3 key prefix
-    // and the uploaded file format.
     let recording = crate::models::audio_recording::get_by_id(&state.db, &req.recording_id)
         .await
         .map_err(|e| WorkerServiceError::DbError(e.to_string()))

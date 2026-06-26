@@ -108,7 +108,7 @@ async fn get_recording(
 ) -> Result<(StatusCode, Json<RecordingDetailResponse>), ComhairleError> {
     let bulk_storage_service = state.required_bulk_storage_service()?;
 
-    let recording = get_recording_for_event(&state, &event_id, &recording_id).await?;
+    let recording = audio_recording::get_by_id_and_event(&state.db, &recording_id, &event_id).await?;
     let extension = recording.file_extension.extension();
     let prefix = &recording.s3_key_prefix;
 
@@ -147,7 +147,7 @@ async fn process_recording(
     let worker_service = state.required_worker_service()?;
 
     // Ensure the recording exists and belongs to this event before enqueuing work.
-    let _recording = get_recording_for_event(&state, &event_id, &recording_id).await?;
+    let _recording = audio_recording::get_by_id_and_event(&state.db, &recording_id, &event_id).await?;
 
     let job = job::create(
         &state.db,
@@ -229,7 +229,7 @@ async fn submit_report(
             "No event {event_id} found for conversation {conversation_id}"
         )));
     }
-    let recording = get_recording_for_event(&state, &event_id, &recording_id).await?;
+    let recording = audio_recording::get_by_id_and_event(&state.db, &recording_id, &event_id).await?;
 
     let path = format!("{}/report.json", recording.s3_key_prefix);
     let bytes = serde_json::to_vec(&payload)?;
@@ -249,21 +249,6 @@ async fn submit_report(
             url: result.url,
         }),
     ))
-}
-
-/// Fetch a recording and verify it belongs to the given event.
-async fn get_recording_for_event(
-    state: &Arc<ComhairleState>,
-    event_id: &Uuid,
-    recording_id: &Uuid,
-) -> Result<audio_recording::AudioRecording, ComhairleError> {
-    let recording = audio_recording::get_by_id(&state.db, recording_id).await?;
-    if recording.event_id != *event_id {
-        return Err(ComhairleError::ResourceNotFound(format!(
-            "No recording {recording_id} found for event {event_id}"
-        )));
-    }
-    Ok(recording)
 }
 
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
