@@ -9,12 +9,17 @@
 	import comhairleLogo from '$lib/assets/comhairle_logo.png';
 	import placeholderConvo from '$lib/assets/placeholder_convo.png';
 	import comhairleFullLogo from '$lib/assets/comhairle_full_logo.svg';
-	import DeleteDialog, { openDeleteDialog } from './DeleteDialog.svelte';
+	import DeleteDialog from './DeleteDialog.svelte';
+	import ErrorDialog from './ErrorDialog.svelte';
 
 	let fileInput: HTMLInputElement | undefined;
-	let form: HTMLFormElement | undefined;
+	let uploadForm: HTMLFormElement | undefined;
+	let deleteForm: HTMLFormElement | undefined;
 
 	let bulkEdit = $state<boolean>(false);
+	let selected = $state([]);
+
+	let deleteDialogOpen = $state<boolean>(false);
 
 	const images: { id: number; src: string }[] = [
 		{ id: 1, src: climateUk },
@@ -28,9 +33,7 @@
 
 	const ROW_HEIGHT = 30;
 
-	let deleteForm: HTMLFormElement | undefined;
-
-	let selected = $state([]);
+	const { form } = $props();
 </script>
 
 <svelte:head>
@@ -42,7 +45,7 @@
 		<h1 class="text-4xl font-bold">Media library</h1>
 
 		<form
-			bind:this={form}
+			bind:this={uploadForm}
 			method="POST"
 			action="?/upload"
 			enctype="multipart/form-data"
@@ -57,7 +60,7 @@
 				class="hidden"
 				aria-hidden="true"
 				oninput={() => {
-					form?.submit();
+					uploadForm?.submit();
 				}}
 			/>
 			<div class="flex flex-row gap-4">
@@ -82,7 +85,7 @@
 						variant="destructive"
 						disabled={selected.length === 0}
 						onclick={() => {
-							openDeleteDialog();
+							deleteDialogOpen = true;
 						}}
 					>
 						<Trash2 class="h-4 w-4" />Delete
@@ -128,7 +131,9 @@
 					</li>
 				{/each}
 			</ul>
+			<ErrorDialog open={!!form?.error} message={form?.error ?? ''} />
 			<DeleteDialog
+				open={deleteDialogOpen}
 				count={selected.length}
 				onconfirm={() => {
 					deleteForm?.submit();
