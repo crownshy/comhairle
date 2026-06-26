@@ -17,8 +17,7 @@
 		try {
 			await apiClient.LoginOtpToken({ token: jwt });
 
-			await invalidateAll();
-			await goto(resolve(backTo));
+			await goto(resolve(backTo), { invalidateAll: true });
 		} catch (e) {
 			console.error(e);
 			error = 'Failed to verify one-time-passcode';

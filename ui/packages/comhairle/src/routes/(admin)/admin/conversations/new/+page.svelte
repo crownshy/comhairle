@@ -79,9 +79,8 @@
 			}
 
 			notifications.addFlash({ message: 'Conversastion Created' });
-			await invalidateAll();
-
-			goto(manage_conversation_url(conversation.id));
+			
+			goto(manage_conversation_url(conversation.id), { invalidateAll: true });
 		} catch (e) {
 			console.warn(e);
 			notifications.send({ message: 'Something went wrong creating the conversation' });

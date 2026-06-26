@@ -34,8 +34,7 @@
 					await apiClient.LoginAnnonUser({
 						username
 					});
-					await invalidateAll();
-					await goto(backTo ?? '/');
+					await goto(backTo ?? '/', { invalidateAll: true });
 				} catch (e) {
 					$errMessage = e.response.data.err;
 				}
