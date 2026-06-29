@@ -27,6 +27,7 @@
 		Music,
 		type Icon
 	} from 'lucide-svelte';
+	import type { ComponentType } from 'svelte';
 
 	type Props = {
 		editor: Editor | undefined;
@@ -66,12 +67,13 @@
 		onDocumentPopoverChange
 	}: Props = $props();
 
+	// TODO: Upgrade lucide icons library to be able to use svelte 5 syntax as ComponentType is deprecated
 	type ButtonProps = {
 		title: string;
 		active: boolean;
 		onclick?: () => void;
-		classes: string;
-	} & ({ text: string; Icon?: undefined } | { text?: undefined; Icon: Icon });
+		classes?: string;
+	} & ({ text: string; Icon?: undefined } | { text?: undefined; Icon: ComponentType<Icon> });
 </script>
 
 {#snippet divider()}
