@@ -1,12 +1,7 @@
 <script lang="ts">
 	import type { Editor } from '@tiptap/core';
 	import type { ActiveStates } from './types';
-	import {
-		validateUrl,
-		validateIframeUrl,
-		DEFAULT_ALLOWED_DOMAINS
-	} from '$lib/utils/urlValidation';
-	import UrlInputPopover from '$lib/components/UrlInputPopover/UrlInputPopover.svelte';
+	import UrlInputPopover from '$lib/components/RichTextEditor/UrlInputPopover/UrlInputPopover.svelte';
 	import DocumentPickerPopover from './DocumentPickerPopover.svelte';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
@@ -60,10 +55,6 @@
 		menuExpanded,
 		compact = false,
 		onToggleMenu,
-		onLinkPopoverChange,
-		onImagePopoverChange,
-		onVideoPopoverChange,
-		onAudioPopoverChange,
 		onDocumentPopoverChange
 	}: Props = $props();
 
@@ -256,74 +247,49 @@
 			<!-- Link, Image & Video -->
 			<div class="flex items-center gap-0.5">
 				<UrlInputPopover
-					bind:open={showLinkPopover}
-					label="Insert Link"
-					placeholder="https://example.com"
+					type="link"
 					onSubmit={(url) => {
 						editor?.chain().focus().setLink({ href: url }).run();
 					}}
-					onOpenChange={onLinkPopoverChange}
-					validateFn={(url) => {
-						if (!validateUrl(url)) {
-							return 'Please enter a valid HTTPS URL';
-						}
-						return null;
-					}}
 				>
-					<button
-						type="button"
-						title="Add Link"
-						aria-label="Add Link"
-						class="btn"
-						class:!bg-primary={activeStates.link}
-						class:!text-primary-foreground={activeStates.link}
-						class:!font-semibold={activeStates.link}
-					>
-						<LinkIcon size={16} />
-					</button>
+					{@render button({
+						title: 'Add Link',
+						active: activeStates.link,
+						onclick: (e: MouseEvent) => {
+							if (activeStates.link) {
+								e.stopPropagation();
+								editor?.chain().focus().unsetLink().run();
+							}
+						},
+						Icon: LinkIcon
+					})}
 				</UrlInputPopover>
 				<UrlInputPopover
-					bind:open={showImagePopover}
-					label="Insert Image"
-					placeholder="https://example.com/image.jpg"
+					type="image"
 					onSubmit={(url) => {
 						editor?.chain().focus().setImage({ src: url }).run();
 					}}
-					onOpenChange={onImagePopoverChange}
-					validateFn={(url) => {
-						if (!validateUrl(url)) {
-							return 'Please enter a valid HTTPS image URL';
-						}
-						return null;
-					}}
 				>
-					<button type="button" title="Add Image" aria-label="Add Image" class="btn">
-						<ImageIcon size={16} />
-					</button>
+					{@render button({
+						title: 'Add Image',
+						active: false,
+						Icon: ImageIcon
+					})}
 				</UrlInputPopover>
 				<UrlInputPopover
-					bind:open={showVideoPopover}
-					label="Insert Video"
-					placeholder="https://youtube.com/embed/..."
+					type="video"
 					onSubmit={(url) => {
 						editor?.chain().focus().setIframe({ src: url }).run();
 					}}
-					onOpenChange={onVideoPopoverChange}
-					validateFn={(url) => {
-						if (!validateIframeUrl(url, DEFAULT_ALLOWED_DOMAINS)) {
-							return 'Please enter a valid video URL';
-						}
-						return null;
-					}}
 				>
-					<button type="button" title="Add Video" aria-label="Add Video" class="btn">
-						<Video size={16} />
-					</button>
+					{@render button({
+						title: 'Add Video',
+						active: false,
+						Icon: Video
+					})}
 				</UrlInputPopover>
 				<UrlInputPopover
-					bind:open={showAudioPopover}
-					label="Insert Audio"
-					placeholder="https://example.com/file.mp3"
+					type="audio"
 					onSubmit={(url) => {
 						editor
 							?.chain()
@@ -331,17 +297,12 @@
 							.setAudio({ src: url, autoplay: false, controls: true })
 							.run();
 					}}
-					onOpenChange={onAudioPopoverChange}
-					validateFn={(url) => {
-						if (!validateUrl(url)) {
-							return 'Please enter a valid Audio URL';
-						}
-						return null;
-					}}
 				>
-					<button type="button" title="Add Audio" aria-label="Add Audio" class="btn">
-						<Music size={16} />
-					</button>
+					{@render button({
+						title: 'Add Audio',
+						active: false,
+						Icon: Music
+					})}
 				</UrlInputPopover>
 				<DocumentPickerPopover
 					bind:open={showDocumentPopover}
@@ -351,14 +312,12 @@
 					}}
 					onOpenChange={onDocumentPopoverChange}
 				>
-					<button
-						type="button"
-						title="Insert Source Document"
-						aria-label="Insert Source Document"
-						class="btn"
-					>
-						<FileText size={16} />
-					</button>
+					{@render button({
+						title: 'Insert Source Document',
+						active: false,
+						onclick: () => {},
+						Icon: FileText
+					})}
 				</DocumentPickerPopover>
 			</div>
 		</div>

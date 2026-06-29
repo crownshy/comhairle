@@ -4,39 +4,58 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import {
+		DEFAULT_ALLOWED_DOMAINS,
+		validateIframeUrl,
+		validateUrl
+	} from '$lib/utils/urlValidation';
+	import { capitalise } from '$lib/utils/string';
 
 	type Props = {
-		open: boolean;
-		label: string;
+		type: 'audio' | 'image' | 'video' | 'link';
+		onSubmit: (value: string) => void;
+		children: Snippet;
+		label?: string;
 		placeholder?: string;
 		buttonText?: string;
-		onSubmit: (value: string) => void;
-		onOpenChange: (open: boolean) => void;
-		validateFn?: (value: string) => string | null;
-		children: Snippet;
 	};
 
 	let {
-		open = $bindable(false),
 		label,
-		placeholder = 'https://example.com',
+		placeholder,
 		buttonText = 'Insert', // TODO: consider translations
+		type,
 		onSubmit,
-		onOpenChange,
-		validateFn,
 		children
 	}: Props = $props();
 
+	let open = $state<boolean>(false);
 	let inputValue = $state('');
 	let errorMessage = $state<string | null>(null);
-	let inputElement: HTMLInputElement | undefined = $state();
 
-	$effect(() => {
-		if (!open) {
-			inputValue = '';
-			errorMessage = null;
+	function validate(url: string) {
+		switch (type) {
+			case 'video':
+				return validateIframeUrl(url, DEFAULT_ALLOWED_DOMAINS);
+			case 'audio':
+			case 'image':
+			case 'link':
+				return validateUrl(url);
 		}
-	});
+	}
+
+	function getPlaceholder(type: Props['type']): string {
+		switch (type) {
+			case 'video':
+				return 'https://youtube.com/embed/...';
+			case 'audio':
+				return 'https://example.com/audio.mp3';
+			case 'image':
+				return 'https://example.com/image.jpg';
+			case 'link':
+				return 'https://example.com';
+		}
+	}
 
 	function handleSubmit() {
 		const trimmed = inputValue.trim();
@@ -46,16 +65,14 @@
 			return;
 		}
 
-		if (validateFn) {
-			const error = validateFn(trimmed);
-			if (error) {
-				errorMessage = error;
-				return;
-			}
+		const validURL = validate(trimmed);
+		if (validURL === null) {
+			errorMessage = `Please enter a valid ${type} URL`;
+			return;
 		}
 
-		onSubmit(trimmed);
-		onOpenChange(false);
+		onSubmit(validURL);
+		open = false;
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -66,24 +83,31 @@
 	}
 
 	function handleCancel() {
-		onOpenChange(false);
+		open = false;
 	}
 </script>
 
-<Popover.Root bind:open {onOpenChange}>
+<Popover.Root
+	bind:open
+	onOpenChange={(open) => {
+		if (!open) {
+			inputValue = '';
+			errorMessage = null;
+		}
+	}}
+>
 	<Popover.Trigger>
 		{@render children()}
 	</Popover.Trigger>
 	<Popover.Content class="w-80" side="bottom" align="start">
 		<div class="space-y-4">
 			<div class="space-y-2">
-				<Label for="url-input">{label}</Label>
+				<Label for="url-input">{label ?? `Insert ${capitalise(type)}`}</Label>
 				<Input
 					id="url-input"
-					bind:ref={inputElement}
 					bind:value={inputValue}
 					type="url"
-					{placeholder}
+					placeholder={placeholder ?? getPlaceholder(type)}
 					onkeydown={handleKeydown}
 					aria-invalid={!!errorMessage}
 					aria-describedby={errorMessage ? 'error-message' : undefined}
