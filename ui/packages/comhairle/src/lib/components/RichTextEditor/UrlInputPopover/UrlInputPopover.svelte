@@ -33,6 +33,13 @@
 	let inputValue = $state('');
 	let errorMessage = $state<string | null>(null);
 
+	$effect(() => {
+		if (!open) {
+			inputValue = '';
+			errorMessage = null;
+		}
+	});
+
 	function validate(url: string) {
 		switch (type) {
 			case 'video':
@@ -87,15 +94,7 @@
 	}
 </script>
 
-<Popover.Root
-	bind:open
-	onOpenChange={(open) => {
-		if (!open) {
-			inputValue = '';
-			errorMessage = null;
-		}
-	}}
->
+<Popover.Root bind:open>
 	<Popover.Trigger>
 		{@render children()}
 	</Popover.Trigger>
