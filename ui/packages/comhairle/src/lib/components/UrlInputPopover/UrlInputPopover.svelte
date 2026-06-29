@@ -38,20 +38,6 @@
 		}
 	});
 
-	// Focus input when popover opens
-	$effect(() => {
-		if (open && inputElement) {
-			// Small delay to ensure popover is fully rendered
-			const timeout = setTimeout(() => {
-				inputElement?.focus();
-			}, 100);
-
-			return () => {
-				clearTimeout(timeout);
-			};
-		}
-	});
-
 	function handleSubmit() {
 		const trimmed = inputValue.trim();
 
@@ -76,9 +62,6 @@
 		if (e.key === 'Enter') {
 			e.preventDefault();
 			handleSubmit();
-		} else if (e.key === 'Escape') {
-			e.preventDefault();
-			onOpenChange(false);
 		}
 	}
 
