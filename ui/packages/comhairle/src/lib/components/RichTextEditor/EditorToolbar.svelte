@@ -62,7 +62,7 @@
 	type ButtonProps = {
 		title: string;
 		active: boolean;
-		onclick?: () => void;
+		onclick?: (event: MouseEvent) => void;
 		classes?: string;
 	} & ({ text: string; Icon?: undefined } | { text?: undefined; Icon: ComponentType<Icon> });
 </script>
@@ -255,9 +255,9 @@
 					{@render button({
 						title: 'Add Link',
 						active: activeStates.link,
-						onclick: (e: MouseEvent) => {
+						onclick: (event) => {
 							if (activeStates.link) {
-								e.stopPropagation();
+								event.stopPropagation();
 								editor?.chain().focus().unsetLink().run();
 							}
 						},
