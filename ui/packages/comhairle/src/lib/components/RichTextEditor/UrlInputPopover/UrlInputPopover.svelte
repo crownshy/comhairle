@@ -103,6 +103,16 @@
 	</Popover.Trigger>
 	<Popover.Content class="w-80" side="bottom" align="start">
 		<div class="space-y-4">
+			{#if allowLocalSelection}
+				<span class="mb-2 block text-sm leading-none font-medium">
+					{`Insert ${capitalise(type)} From Files`}
+				</span>
+				<div class="flex flex-row gap-2">
+					<Button size="sm"><Images class="h-4 w-4" />Media library</Button>
+					<Button size="sm"><Upload class="h-4 w-4" />Upload</Button>
+				</div>
+				<hr class="mx-2 my-4" />
+			{/if}
 			<div class="space-y-2">
 				<Label for="url-input"
 					>{label ??
@@ -128,15 +138,5 @@
 				<Button size="sm" onclick={handleSubmit}>{buttonText}</Button>
 			</div>
 		</div>
-		{#if allowLocalSelection}
-			<hr class="mx-2 my-4" />
-			<span class="mb-2 block text-sm leading-none font-medium">
-				{`Insert ${capitalise(type)} From Files`}
-			</span>
-			<div class="flex flex-row gap-2">
-				<Button size="sm"><Upload class="h-4 w-4" />Upload</Button>
-				<Button size="sm"><Images class="h-4 w-4" />Media library</Button>
-			</div>
-		{/if}
 	</Popover.Content>
 </Popover.Root>
