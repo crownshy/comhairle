@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
+	import { Button, LoadingButton } from '$lib/components/ui/button';
 	import { fly, fade } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import {
@@ -14,6 +14,7 @@
 	} from 'lucide-svelte';
 	import PolisApi, { type PolisApiState, type PolisStatement } from './PolisApi';
 	import { getVoteData, incrementVotes, resetVoteCount } from './polisVoteStore';
+	import { opinionCounter } from './polisCounter';
 	import * as m from '$lib/paraglide/messages';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
@@ -22,7 +23,7 @@
 		polis_id: string;
 		polis_url: string;
 		user_id: string;
-		onDone: () => void;
+		onDone: () => void | Promise<void>;
 		requiredVotes?: number;
 		workflowStepId?: string;
 		showRemainingStatementCount?: boolean;
@@ -67,10 +68,6 @@
 			previousText = newTxt;
 			waitingForNext = false;
 		}
-
-		if (screen === 'voting' && s.ready && !s.loading && !s.currentStatement && !s.error) {
-			screen = 'completed';
-		}
 	}
 
 	const polis = new PolisApi(user_id, polis_id, handlePolisChange, 'en', polis_url);
@@ -85,8 +82,19 @@
 	let voteCooldown = $state(false);
 	let opinionText = $state('');
 	let opinionSubmitted = $state(false);
+	let opinionSubmitting = $state(false);
+	let opinionError = $state(false);
+	let returningToVoting = $state(false);
+	const submitBusy = $derived(opinionSubmitting || returningToVoting);
 	let previousText = '';
 	let visibleStatementWhenOpened: PolisStatement | undefined = undefined;
+
+	// `required_votes` is optional in the tool config and can arrive as null/0,
+	// which would break the threshold and progress maths. Fall back to a sane
+	// positive default so "continue" still unlocks correctly.
+	const safeRequiredVotes = $derived(
+		typeof requiredVotes === 'number' && requiredVotes > 0 ? Math.floor(requiredVotes) : 10
+	);
 
 	async function createStatementAux(
 		newStatement: { tid: number; pid: number },
@@ -120,20 +128,34 @@
 	let anchoredTotal = $state<number | null>(null);
 
 	$effect(() => {
-		if (polisReady && !polisLoading && anchoredRemaining === null) {
+		if (!polisReady || polisLoading) return;
+
+		if (anchoredRemaining === null || anchoredTotal === null) {
 			anchoredRemaining = polisRemaining;
 			anchoredTotal = polisTotal;
+		} else if (polisTotal !== anchoredTotal) {
+			// The pool changed size. Re-sync to the live counts
+			anchoredTotal = polisTotal;
+			anchoredRemaining = polisRemaining;
 		}
 	});
 
-	const displayedRemaining = $derived(Math.max(0, anchoredRemaining ?? polisRemaining));
-	const displayedTotal = $derived(anchoredTotal ?? polisTotal);
-	const currentOpinionNumber = $derived(
-		displayedTotal > 0 ? displayedTotal - displayedRemaining : 0
+	const opinionPosition = $derived(
+		opinionCounter(anchoredTotal ?? polisTotal, anchoredRemaining ?? polisRemaining)
 	);
 
+	const poolExhausted = $derived(
+		polisReady && !polisLoading && !polisError && !polisCurrentStatement
+	);
+
+	$effect(() => {
+		if (screen === 'voting' && poolExhausted) {
+			screen = 'completed';
+		}
+	});
+
 	function doVote(type: 'agree' | 'disagree' | 'pass') {
-		if (voteCooldown) return;
+		if (voteCooldown || !polisCurrentStatement) return;
 		waitingForNext = true;
 		voteCooldown = true;
 
@@ -144,10 +166,10 @@
 			anchoredRemaining--;
 		}
 
-		const data = incrementVotes(user_id, polis_id, requiredVotes);
+		const data = incrementVotes(user_id, polis_id, safeRequiredVotes);
 		hasMetThreshold = data.hasMetThreshold;
 
-		if (data.totalVotes === requiredVotes) {
+		if (data.totalVotes === safeRequiredVotes) {
 			setTimeout(() => {
 				screen = 'continue-prompt';
 				voteCooldown = false;
@@ -167,38 +189,66 @@
 		screen = 'voting';
 	}
 
-	async function handleSubmitOpinion() {
-		if (!opinionText.trim()) return;
-		const text = opinionText.trim();
-		const visibleTid = visibleStatementWhenOpened?.tid;
-		opinionText = '';
-		opinionSubmitted = true;
-		setTimeout(() => {
-			screen = 'voting';
-			opinionSubmitted = false;
-		}, 2000);
-		const result = await polis.submitStatement(text);
-		if (result) {
-			await createStatementAux(result, text, visibleTid);
+	let continuing = $state(false);
+
+	async function handleContinue() {
+		if (continuing) return;
+		continuing = true;
+		try {
+			await onDone();
+		} finally {
+			// Navigation usually unmounts us first; reset as a safety net if it didn't.
+			continuing = false;
 		}
 	}
 
-	async function handleSubmitAndAddAnother() {
-		if (!opinionText.trim()) return;
-		const text = opinionText.trim();
+	async function submitOpinion(text: string): Promise<boolean> {
 		const visibleTid = visibleStatementWhenOpened?.tid;
-		opinionText = '';
-		opinionSubmitted = false;
+		opinionSubmitting = true;
+		opinionError = false;
 		const result = await polis.submitStatement(text);
-		if (result) {
-			await createStatementAux(result, text, visibleTid);
+		opinionSubmitting = false;
+		if (!result) {
+			opinionError = true;
+			return false;
 		}
+		await createStatementAux(result, text, visibleTid);
+		opinionText = '';
+
+		polis.fetchNextStatement();
+		return true;
+	}
+
+	async function handleSubmitOpinion() {
+		const text = opinionText.trim();
+		if (!text || opinionSubmitting) return;
+		if (!(await submitOpinion(text))) return;
+		opinionSubmitted = true;
+		returningToVoting = true;
+		setTimeout(() => {
+			screen = 'voting';
+			opinionSubmitted = false;
+			returningToVoting = false;
+		}, 2000);
+	}
+
+	async function handleSubmitAndAddAnother() {
+		const text = opinionText.trim();
+		if (!text || opinionSubmitting) return;
+		if (!(await submitOpinion(text))) return;
+
+		opinionSubmitted = true;
+		setTimeout(() => {
+			opinionSubmitted = false;
+		}, 2000);
 	}
 
 	function openAddOpinion() {
 		visibleStatementWhenOpened = polisCurrentStatement;
 		screen = 'add-opinion';
 		opinionSubmitted = false;
+		opinionError = false;
+		returningToVoting = false;
 	}
 
 	function closeAddOpinion() {
@@ -209,10 +259,8 @@
 		}
 	}
 
-	const remainingBeforeContinue = $derived(requiredVotes - totalVotes);
-	const progress = $derived(
-		requiredVotes > 0 ? ((requiredVotes - remainingBeforeContinue) / requiredVotes) * 100 : 0
-	);
+	const remainingBeforeContinue = $derived(safeRequiredVotes - totalVotes);
+	const progress = $derived(Math.min(100, Math.max(0, (totalVotes / safeRequiredVotes) * 100)));
 </script>
 
 <div
@@ -227,11 +275,11 @@
 			<!-- Opinion counter -->
 			{#if !polisReady}
 				<div class="bg-foreground/10 h-5 w-32 animate-pulse rounded md:h-6"></div>
-			{:else if !polisError && showRemainingStatementCount}
+			{:else if !polisError && !poolExhausted && showRemainingStatementCount}
 				<p class="text-muted-foreground tex-base font-semibold md:text-lg">
 					{m.polis_opinion_counter({
-						current: currentOpinionNumber + 1,
-						total: displayedTotal
+						current: opinionPosition.current,
+						total: opinionPosition.total
 					})}
 				</p>
 				<div class="bg-secondary/30 relative h-1.5 w-full">
@@ -257,7 +305,9 @@
 							{m.polis_error_description()}
 						</p>
 					</div>
-				{:else if !polisReady || waitingForNext}
+				{:else if !polisReady || waitingForNext || !polisCurrentStatement}
+					<!-- Loading, between statements, or briefly empty before the screen
+					     flips to "completed" — show a skeleton, never a blank card. -->
 					<div in:fade={{ duration: 200 }} class="w-full animate-pulse">
 						<div class="space-y-3">
 							<div class="bg-foreground/10 h-8 w-full rounded"></div>
@@ -284,7 +334,7 @@
 				{/if}
 			</div>
 
-			{#if !polisError}
+			{#if !polisError && polisCurrentStatement}
 				<!-- Vote buttons -->
 				<div class="flex flex-wrap items-start gap-4 md:gap-6">
 					<Button
@@ -338,15 +388,16 @@
 			<!-- Continue to next step (only after threshold) -->
 			{#if canContinue}
 				<div class="mt-4 w-full border-t pt-6" in:fade={{ duration: 300 }}>
-					<Button
+					<LoadingButton
 						variant="primaryDark"
 						size="lg"
-						onclick={onDone}
+						loading={continuing}
+						onclick={handleContinue}
 						class="gap-2 px-6 py-4 text-lg"
 					>
 						{m.polis_continue_to_next_step()}
-						<ChevronRight class="h-5 w-5" />
-					</Button>
+						{#if !continuing}<ChevronRight class="h-5 w-5" />{/if}
+					</LoadingButton>
 				</div>
 			{/if}
 		</div>
@@ -389,36 +440,45 @@
 				>
 					{m.polis_opinion_submitted()}
 				</div>
+			{:else if opinionError}
+				<div
+					class="bg-destructive/10 text-destructive w-full rounded-lg p-4 text-center font-medium"
+				>
+					{m.something_went_wrong()}
+				</div>
 			{/if}
 
 			<div class="w-full pb-6">
 				<textarea
 					bind:value={opinionText}
+					oninput={() => (opinionError = false)}
 					placeholder={m.polis_opinion_placeholder()}
 					class="bg-background text-foreground placeholder:text-muted-foreground border-input focus:ring-primary/30 h-28 w-full resize-none rounded-lg border p-4 text-base shadow-sm outline-none focus:ring-2"
 				></textarea>
 			</div>
 
 			<div class="flex flex-wrap items-start gap-6">
-				<Button
+				<LoadingButton
 					variant="default"
 					size="lg"
+					loading={submitBusy}
 					disabled={!opinionText.trim()}
 					onclick={handleSubmitOpinion}
 					class="gap-2 px-6 py-4 text-lg"
 				>
 					{m.submit()}
-				</Button>
-				<Button
+				</LoadingButton>
+				<LoadingButton
 					variant="ghost"
 					size="lg"
 					class="text-lg"
+					loading={submitBusy}
 					disabled={!opinionText.trim()}
 					onclick={handleSubmitAndAddAnother}
 				>
 					{m.polis_submit_and_add_another()}
-					<ChevronRight class="h-5 w-5" />
-				</Button>
+					{#if !submitBusy}<ChevronRight class="h-5 w-5" />{/if}
+				</LoadingButton>
 			</div>
 
 			<button
@@ -450,15 +510,16 @@
 				>
 					{m.polis_continue_voting()}
 				</Button>
-				<Button
+				<LoadingButton
 					variant="ghost"
 					size="lg"
+					loading={continuing}
 					class="text-muted-foreground hover:text-foreground flex items-center gap-2 px-6 py-4 text-lg font-medium transition-colors"
-					onclick={onDone}
+					onclick={handleContinue}
 				>
 					{m.polis_continue_to_next_step()}
-					<ChevronRight class="h-5 w-5" />
-				</Button>
+					{#if !continuing}<ChevronRight class="h-5 w-5" />{/if}
+				</LoadingButton>
 			</div>
 		</div>
 	{:else if screen === 'completed'}
@@ -487,14 +548,15 @@
 			</Button>
 		</div>
 
-		<Button
+		<LoadingButton
 			variant="primaryDark"
 			size="lg"
-			onclick={onDone}
+			loading={continuing}
+			onclick={handleContinue}
 			class="mb-5 gap-2 px-6 py-4 text-lg"
 		>
 			{m.continue_()}
-			<ChevronRight class="h-5 w-5" />
-		</Button>
+			{#if !continuing}<ChevronRight class="h-5 w-5" />{/if}
+		</LoadingButton>
 	{/if}
 </div>
