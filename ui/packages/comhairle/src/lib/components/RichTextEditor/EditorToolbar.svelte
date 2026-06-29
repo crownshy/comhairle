@@ -268,6 +268,7 @@
 				onSubmit={(url) => {
 					editor?.chain().focus().setImage({ src: url }).run();
 				}}
+				allowLocalSelection
 			>
 				{@render button({
 					title: 'Add Image',

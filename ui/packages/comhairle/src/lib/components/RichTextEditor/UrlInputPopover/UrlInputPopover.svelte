@@ -10,6 +10,7 @@
 		validateUrl
 	} from '$lib/utils/urlValidation';
 	import { capitalise } from '$lib/utils/string';
+	import { Upload, Images } from 'lucide-svelte';
 
 	type Props = {
 		type: 'audio' | 'image' | 'video' | 'link';
@@ -17,16 +18,18 @@
 		children: Snippet;
 		label?: string;
 		placeholder?: string;
+		allowLocalSelection?: boolean;
 		buttonText?: string;
 	};
 
 	let {
 		label,
 		placeholder,
-		buttonText = 'Insert', // TODO: consider translations
 		type,
 		onSubmit,
-		children
+		children,
+		allowLocalSelection,
+		buttonText = 'Insert' // TODO: consider translations
 	}: Props = $props();
 
 	let open = $state<boolean>(false);
@@ -101,7 +104,10 @@
 	<Popover.Content class="w-80" side="bottom" align="start">
 		<div class="space-y-4">
 			<div class="space-y-2">
-				<Label for="url-input">{label ?? `Insert ${capitalise(type)}`}</Label>
+				<Label for="url-input"
+					>{label ??
+						`Insert ${capitalise(type)}${allowLocalSelection ? ' From URL' : ''}`}</Label
+				>
 				<Input
 					id="url-input"
 					bind:value={inputValue}
@@ -122,5 +128,15 @@
 				<Button size="sm" onclick={handleSubmit}>{buttonText}</Button>
 			</div>
 		</div>
+		{#if allowLocalSelection}
+			<hr class="mx-2 my-4" />
+			<span class="mb-2 block text-sm leading-none font-medium">
+				{`Insert ${capitalise(type)} From Files`}
+			</span>
+			<div class="flex flex-row gap-2">
+				<Button size="sm"><Upload class="h-4 w-4" />Upload</Button>
+				<Button size="sm"><Images class="h-4 w-4" />Media library</Button>
+			</div>
+		{/if}
 	</Popover.Content>
 </Popover.Root>
