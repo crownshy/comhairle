@@ -43,7 +43,6 @@
 <div class="mx-auto w-4/5 p-10">
 	<header class="flex flex-row items-baseline justify-between">
 		<h1 class="text-4xl font-bold">Media library</h1>
-
 		<form
 			bind:this={uploadForm}
 			method="POST"

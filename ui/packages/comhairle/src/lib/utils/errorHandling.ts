@@ -16,22 +16,35 @@ export async function tryCatchAsync<T, E extends string>(
 
 const ERROR_500 = 'Internal server error. Please try again, and contact us if the issue persists.';
 
+async function getErrorMessage(response: Response): Promise<string | undefined> {
+	if (response.status >= 500) {
+		return ERROR_500;
+	}
+	const tryJson = await tryCatchAsync(() => response.json());
+	if (tryJson.err === null && tryJson.ok.err) {
+		return tryJson.ok.err;
+	}
+	if (response.statusText) {
+		return response.statusText;
+	}
+	return undefined;
+}
+
 type FetchErr = { status: number; message: string };
 export async function tryFetch<T extends Response>(
 	fn: () => Promise<T>
 ): Promise<Result<'ok', T, FetchErr>> {
-	try {
-		const result = await fn();
-		if (!result.ok) {
-			const body = await result.json();
-			const errMessage: string | undefined = result.status >= 500 ? ERROR_500 : body.err;
-			return {
-				ok: null,
-				err: { status: result.status, message: errMessage ?? JSON.stringify(body) }
-			};
-		}
-		return { ok: result, err: null };
-	} catch (e) {
-		return { ok: null, err: { status: -1, message: JSON.stringify(e) } };
+	const response = await fn();
+	console.log(response);
+	if (!response.ok) {
+		const errMessage = await getErrorMessage(response);
+		return {
+			ok: null,
+			err: {
+				status: response.status,
+				message: errMessage ?? 'Unrecognised error, please contact us'
+			}
+		};
 	}
+	return { ok: response, err: null };
 }
