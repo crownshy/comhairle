@@ -234,7 +234,7 @@
 
 			{@render divider()}
 
-			<!-- Blockquote -->
+			<!-- Blockquote & Link -->
 			{@render button({
 				title: 'Blockquote',
 				active: activeStates.blockquote,
@@ -262,7 +262,7 @@
 
 			{@render divider()}
 
-			<!-- Link, Image & Video -->
+			<!-- Image, Video & Audio -->
 			<UrlInputPopover
 				type="image"
 				onSubmit={(url) => {
