@@ -115,6 +115,9 @@ pub enum ComhairleError {
     #[error("Slug {0} already taken")]
     DuplicateSlug(String),
 
+    #[error("A recording named {0} already exists for this event")]
+    DuplicateRecordingName(String),
+
     #[error("Failed to hash password")]
     PasswordHash,
 
@@ -343,6 +346,7 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::EventAtCapacity
             | ComhairleError::InviteResponseAlreadyCreated
             | ComhairleError::DuplicateSlug(_)
+            | ComhairleError::DuplicateRecordingName(_)
             | ComhairleError::UserAlreadyRegisteredForEvent(_)
             | ComhairleError::UserAlreadyParticipatingInWorkflow(_) => StatusCode::CONFLICT,
             ComhairleError::ResourceNotFound(_)
