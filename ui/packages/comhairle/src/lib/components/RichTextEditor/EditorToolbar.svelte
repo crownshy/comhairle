@@ -161,7 +161,7 @@
 		</div>
 
 		<!-- Mobile/Compact "more" toggle -->
-		{#if !compact}
+		{#if compact}
 			<button
 				type="button"
 				class="text-muted-foreground hover:bg-accent hover:text-accent-foreground ml-auto flex shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent p-1.5 xl:hidden"
