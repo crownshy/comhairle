@@ -241,85 +241,83 @@
 				onclick: () => editor?.chain().focus().toggleBlockquote().run(),
 				Icon: Quote
 			})}
+			<UrlInputPopover
+				type="link"
+				onSubmit={(url) => {
+					editor?.chain().focus().setLink({ href: url }).run();
+				}}
+			>
+				{@render button({
+					title: 'Add Link',
+					active: activeStates.link,
+					onclick: (event) => {
+						if (activeStates.link) {
+							event.stopPropagation();
+							editor?.chain().focus().unsetLink().run();
+						}
+					},
+					Icon: LinkIcon
+				})}
+			</UrlInputPopover>
 
 			{@render divider()}
 
 			<!-- Link, Image & Video -->
-			<div class="flex items-center gap-0.5">
-				<UrlInputPopover
-					type="link"
-					onSubmit={(url) => {
-						editor?.chain().focus().setLink({ href: url }).run();
-					}}
-				>
-					{@render button({
-						title: 'Add Link',
-						active: activeStates.link,
-						onclick: (event) => {
-							if (activeStates.link) {
-								event.stopPropagation();
-								editor?.chain().focus().unsetLink().run();
-							}
-						},
-						Icon: LinkIcon
-					})}
-				</UrlInputPopover>
-				<UrlInputPopover
-					type="image"
-					onSubmit={(url) => {
-						editor?.chain().focus().setImage({ src: url }).run();
-					}}
-				>
-					{@render button({
-						title: 'Add Image',
-						active: false,
-						Icon: ImageIcon
-					})}
-				</UrlInputPopover>
-				<UrlInputPopover
-					type="video"
-					onSubmit={(url) => {
-						editor?.chain().focus().setIframe({ src: url }).run();
-					}}
-				>
-					{@render button({
-						title: 'Add Video',
-						active: false,
-						Icon: Video
-					})}
-				</UrlInputPopover>
-				<UrlInputPopover
-					type="audio"
-					onSubmit={(url) => {
-						editor
-							?.chain()
-							.focus()
-							.setAudio({ src: url, autoplay: false, controls: true })
-							.run();
-					}}
-				>
-					{@render button({
-						title: 'Add Audio',
-						active: false,
-						Icon: Music
-					})}
-				</UrlInputPopover>
-				<DocumentPickerPopover
-					bind:open={showDocumentPopover}
-					{documents}
-					onSelect={(docId) => {
-						editor?.chain().focus().setSourceDocument({ documentId: docId }).run();
-					}}
-					onOpenChange={onDocumentPopoverChange}
-				>
-					{@render button({
-						title: 'Insert Source Document',
-						active: false,
-						onclick: () => {},
-						Icon: FileText
-					})}
-				</DocumentPickerPopover>
-			</div>
+			<UrlInputPopover
+				type="image"
+				onSubmit={(url) => {
+					editor?.chain().focus().setImage({ src: url }).run();
+				}}
+			>
+				{@render button({
+					title: 'Add Image',
+					active: false,
+					Icon: ImageIcon
+				})}
+			</UrlInputPopover>
+			<UrlInputPopover
+				type="video"
+				onSubmit={(url) => {
+					editor?.chain().focus().setIframe({ src: url }).run();
+				}}
+			>
+				{@render button({
+					title: 'Add Video',
+					active: false,
+					Icon: Video
+				})}
+			</UrlInputPopover>
+			<UrlInputPopover
+				type="audio"
+				onSubmit={(url) => {
+					editor
+						?.chain()
+						.focus()
+						.setAudio({ src: url, autoplay: false, controls: true })
+						.run();
+				}}
+			>
+				{@render button({
+					title: 'Add Audio',
+					active: false,
+					Icon: Music
+				})}
+			</UrlInputPopover>
+			<DocumentPickerPopover
+				bind:open={showDocumentPopover}
+				{documents}
+				onSelect={(docId) => {
+					editor?.chain().focus().setSourceDocument({ documentId: docId }).run();
+				}}
+				onOpenChange={onDocumentPopoverChange}
+			>
+				{@render button({
+					title: 'Insert Source Document',
+					active: false,
+					onclick: () => {},
+					Icon: FileText
+				})}
+			</DocumentPickerPopover>
 		</div>
 	{/if}
 </div>
