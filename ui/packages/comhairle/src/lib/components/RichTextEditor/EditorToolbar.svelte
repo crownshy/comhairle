@@ -265,10 +265,10 @@
 			<!-- Image, Video & Audio -->
 			<UrlInputPopover
 				type="image"
+				allowLocalSelection
 				onSubmit={(url) => {
 					editor?.chain().focus().setImage({ src: url }).run();
 				}}
-				allowLocalSelection
 			>
 				{@render button({
 					title: 'Add Image',
@@ -278,6 +278,7 @@
 			</UrlInputPopover>
 			<UrlInputPopover
 				type="video"
+				allowLocalSelection
 				onSubmit={(url) => {
 					editor?.chain().focus().setIframe({ src: url }).run();
 				}}
@@ -290,6 +291,7 @@
 			</UrlInputPopover>
 			<UrlInputPopover
 				type="audio"
+				allowLocalSelection
 				onSubmit={(url) => {
 					editor
 						?.chain()
