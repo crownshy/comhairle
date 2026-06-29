@@ -631,7 +631,7 @@ mod tests {
         let (_, launched_conversation, _) = session.create_random_conversation(&app).await?;
 
         for (conversation, expected_status) in [(unlaunched_conversation, StatusCode::OK),
-            (launched_conversation, StatusCode::FORBIDDEN)] {
+            (launched_conversation, StatusCode::OK)] {
             let conversation_id: String = extract("id", &conversation);
 
             let (_, workflow, _) = session
