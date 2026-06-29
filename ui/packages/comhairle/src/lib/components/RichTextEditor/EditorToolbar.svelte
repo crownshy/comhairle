@@ -25,7 +25,7 @@
 		ChevronDown,
 		MoreHorizontal,
 		Music,
-		type IconNode
+		type Icon
 	} from 'lucide-svelte';
 
 	type Props = {
@@ -65,19 +65,20 @@
 		onAudioPopoverChange,
 		onDocumentPopoverChange
 	}: Props = $props();
+
+	type ButtonProps = {
+		title: string;
+		active: boolean;
+		onclick?: () => void;
+		classes: string;
+	} & ({ text: string; Icon?: undefined } | { text?: undefined; Icon: Icon });
 </script>
 
 {#snippet divider()}
 	<div class="bg-border mx-1 hidden h-5 w-px shrink-0 xl:block"></div>
 {/snippet}
 
-{#snippet button(
-	title: string,
-	active: boolean,
-	onclick: () => void,
-	content: IconNode | string,
-	classes?: string
-)}
+{#snippet button({ title, active, onclick, classes, text, Icon }: ButtonProps)}
 	<button
 		type="button"
 		{onclick}
@@ -88,10 +89,11 @@
 		class:!text-primary-foreground={active}
 		class:!font-semibold={active}
 	>
-		{#if typeof content === 'string'}
-			{content}
-		{:else}
-			<content size={16}></content>
+		{#if text}
+			{text}
+		{/if}
+		{#if Icon}
+			<Icon size={16} />
 		{/if}
 	</button>
 {/snippet}
@@ -139,35 +141,34 @@
 
 		<!-- BISU (always visible) -->
 		<div class="flex items-center gap-0.5">
-			{@render button(
-				'Bold',
-				activeStates.bold,
-				() => editor?.chain().focus().toggleBold().run(),
-				'B',
-				'font-bold'
-			)}
-
-			{@render button(
-				'Italic',
-				activeStates.italic,
-				() => editor?.chain().focus().toggleItalic().run(),
-				'I',
-				'italic'
-			)}
-			{@render button(
-				'Strikethrough',
-				activeStates.strike,
-				() => editor?.chain().focus().toggleStrike().run(),
-				'S',
-				'line-through'
-			)}
-			{@render button(
-				'Underline',
-				activeStates.underline,
-				() => editor?.chain().focus().toggleUnderline().run(),
-				'U',
-				'underline'
-			)}
+			{@render button({
+				title: 'Bold',
+				active: activeStates.bold,
+				onclick: () => editor?.chain().focus().toggleBold().run(),
+				text: 'B',
+				classes: 'font-bold'
+			})}
+			{@render button({
+				title: 'Italic',
+				active: activeStates.italic,
+				onclick: () => editor?.chain().focus().toggleItalic().run(),
+				text: 'I',
+				classes: 'italic'
+			})}
+			{@render button({
+				title: 'Strikethrough',
+				active: activeStates.strike,
+				onclick: () => editor?.chain().focus().toggleStrike().run(),
+				text: 'S',
+				classes: 'line-through'
+			})}
+			{@render button({
+				title: 'Underline',
+				active: activeStates.underline,
+				onclick: () => editor?.chain().focus().toggleUnderline().run(),
+				text: 'U',
+				classes: 'underline'
+			})}
 		</div>
 
 		<!-- Mobile/Compact "more" toggle -->
@@ -194,103 +195,59 @@
 
 			<!-- Lists -->
 			<div class="flex items-center gap-0.5">
-				<button
-					type="button"
-					onclick={() => editor?.chain().focus().toggleBulletList().run()}
-					title="Bullet List"
-					aria-label="Bullet List"
-					class="btn"
-					class:!bg-primary={activeStates.bulletList}
-					class:!text-primary-foreground={activeStates.bulletList}
-					class:!font-semibold={activeStates.bulletList}
-				>
-					<List size={16} />
-				</button>
-				<button
-					type="button"
-					onclick={() => editor?.chain().focus().toggleOrderedList().run()}
-					title="Numbered List"
-					aria-label="Numbered List"
-					class="btn"
-					class:!bg-primary={activeStates.orderedList}
-					class:!text-primary-foreground={activeStates.orderedList}
-					class:!font-semibold={activeStates.orderedList}
-				>
-					<ListOrdered size={16} />
-				</button>
+				{@render button({
+					title: 'Bullet List',
+					active: activeStates.bulletList,
+					onclick: () => editor?.chain().focus().toggleBulletList().run(),
+					Icon: List
+				})}
+				{@render button({
+					title: 'Numbered List',
+					active: activeStates.orderedList,
+					onclick: () => editor?.chain().focus().toggleOrderedList().run(),
+					Icon: ListOrdered
+				})}
 			</div>
 
 			{@render divider()}
 
 			<!-- Text Alignment -->
 			<div class="flex items-center gap-0.5">
-				<button
-					type="button"
-					onclick={() => editor?.chain().focus().setTextAlign('left').run()}
-					title="Align Left"
-					aria-label="Align Left"
-					class="btn"
-					class:!bg-primary={activeStates.textAlign === 'left'}
-					class:!text-primary-foreground={activeStates.textAlign === 'left'}
-					class:!font-semibold={activeStates.textAlign === 'left'}
-				>
-					<AlignLeft size={16} />
-				</button>
-				<button
-					type="button"
-					onclick={() => editor?.chain().focus().setTextAlign('center').run()}
-					title="Align Center"
-					aria-label="Align Center"
-					class="btn"
-					class:!bg-primary={activeStates.textAlign === 'center'}
-					class:!text-primary-foreground={activeStates.textAlign === 'center'}
-					class:!font-semibold={activeStates.textAlign === 'center'}
-				>
-					<AlignCenter size={16} />
-				</button>
-				<button
-					type="button"
-					onclick={() => editor?.chain().focus().setTextAlign('right').run()}
-					title="Align Right"
-					aria-label="Align Right"
-					class="btn"
-					class:!bg-primary={activeStates.textAlign === 'right'}
-					class:!text-primary-foreground={activeStates.textAlign === 'right'}
-					class:!font-semibold={activeStates.textAlign === 'right'}
-				>
-					<AlignRight size={16} />
-				</button>
-				<button
-					type="button"
-					onclick={() => editor?.chain().focus().setTextAlign('justify').run()}
-					title="Justify"
-					aria-label="Justify"
-					class="btn"
-					class:!bg-primary={activeStates.textAlign === 'justify'}
-					class:!text-primary-foreground={activeStates.textAlign === 'justify'}
-					class:!font-semibold={activeStates.textAlign === 'justify'}
-				>
-					<AlignJustify size={16} />
-				</button>
+				{@render button({
+					title: 'Align Left',
+					active: activeStates.textAlign === 'left',
+					onclick: () => editor?.chain().focus().setTextAlign('left').run(),
+					Icon: AlignLeft
+				})}
+				{@render button({
+					title: 'Align Center',
+					active: activeStates.textAlign === 'center',
+					onclick: () => editor?.chain().focus().setTextAlign('center').run(),
+					Icon: AlignCenter
+				})}
+				{@render button({
+					title: 'Align Right',
+					active: activeStates.textAlign === 'right',
+					onclick: () => editor?.chain().focus().setTextAlign('right').run(),
+					Icon: AlignRight
+				})}
+				{@render button({
+					title: 'Justify',
+					active: activeStates.textAlign === 'justify',
+					onclick: () => editor?.chain().focus().setTextAlign('justify').run(),
+					Icon: AlignJustify
+				})}
 			</div>
 
 			{@render divider()}
 
 			<!-- Blockquote -->
-			<div class="flex items-center gap-0.5">
-				<button
-					type="button"
-					onclick={() => editor?.chain().focus().toggleBlockquote().run()}
-					title="Blockquote"
-					aria-label="Blockquote"
-					class="btn"
-					class:!bg-primary={activeStates.blockquote}
-					class:!text-primary-foreground={activeStates.blockquote}
-					class:!font-semibold={activeStates.blockquote}
-				>
-					<Quote size={16} />
-				</button>
-			</div>
+			{@render button({
+				title: 'Blockquote',
+				active: activeStates.blockquote,
+				onclick: () => editor?.chain().focus().toggleBlockquote().run(),
+				Icon: Quote
+			})}
 
 			{@render divider()}
 
