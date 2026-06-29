@@ -24,7 +24,8 @@
 		FileText,
 		ChevronDown,
 		MoreHorizontal,
-		Music
+		Music,
+		type IconNode
 	} from 'lucide-svelte';
 
 	type Props = {
@@ -66,6 +67,34 @@
 	}: Props = $props();
 </script>
 
+{#snippet divider()}
+	<div class="bg-border mx-1 hidden h-5 w-px shrink-0 xl:block"></div>
+{/snippet}
+
+{#snippet button(
+	title: string,
+	active: boolean,
+	onclick: () => void,
+	content: IconNode | string,
+	classes?: string
+)}
+	<button
+		type="button"
+		{onclick}
+		{title}
+		aria-label={title}
+		class={`btn ${classes}`}
+		class:!bg-primary={active}
+		class:!text-primary-foreground={active}
+		class:!font-semibold={active}
+	>
+		{#if typeof content === 'string'}
+			{content}
+		{:else}
+			<content size={16}></content>
+		{/if}
+	</button>
+{/snippet}
 <div
 	class="border-border bg-muted relative flex min-h-12 items-center gap-1 overflow-x-auto rounded-t-xl border border-b-0 px-3 xl:p-2"
 >
@@ -106,58 +135,39 @@
 			</div>
 		</div>
 
-		<div class="bg-border mx-1 h-5 w-px shrink-0"></div>
+		{@render divider()}
 
 		<!-- BISU (always visible) -->
 		<div class="flex items-center gap-0.5">
-			<button
-				type="button"
-				onclick={() => editor?.chain().focus().toggleBold().run()}
-				title="Bold"
-				aria-label="Bold"
-				class="btn font-bold"
-				class:!bg-primary={activeStates.bold}
-				class:!text-primary-foreground={activeStates.bold}
-				class:!font-semibold={activeStates.bold}
-			>
-				B
-			</button>
-			<button
-				type="button"
-				onclick={() => editor?.chain().focus().toggleItalic().run()}
-				title="Italic"
-				aria-label="Italic"
-				class="btn italic"
-				class:!bg-primary={activeStates.italic}
-				class:!text-primary-foreground={activeStates.italic}
-				class:!font-semibold={activeStates.italic}
-			>
-				I
-			</button>
-			<button
-				type="button"
-				onclick={() => editor?.chain().focus().toggleStrike().run()}
-				title="Strikethrough"
-				aria-label="Strikethrough"
-				class="btn line-through"
-				class:!bg-primary={activeStates.strike}
-				class:!text-primary-foreground={activeStates.strike}
-				class:!font-semibold={activeStates.strike}
-			>
-				S
-			</button>
-			<button
-				type="button"
-				onclick={() => editor?.chain().focus().toggleUnderline().run()}
-				title="Underline"
-				aria-label="Underline"
-				class="btn underline"
-				class:!bg-primary={activeStates.underline}
-				class:!text-primary-foreground={activeStates.underline}
-				class:!font-semibold={activeStates.underline}
-			>
-				U
-			</button>
+			{@render button(
+				'Bold',
+				activeStates.bold,
+				() => editor?.chain().focus().toggleBold().run(),
+				'B',
+				'font-bold'
+			)}
+
+			{@render button(
+				'Italic',
+				activeStates.italic,
+				() => editor?.chain().focus().toggleItalic().run(),
+				'I',
+				'italic'
+			)}
+			{@render button(
+				'Strikethrough',
+				activeStates.strike,
+				() => editor?.chain().focus().toggleStrike().run(),
+				'S',
+				'line-through'
+			)}
+			{@render button(
+				'Underline',
+				activeStates.underline,
+				() => editor?.chain().focus().toggleUnderline().run(),
+				'U',
+				'underline'
+			)}
 		</div>
 
 		<!-- Mobile/Compact "more" toggle -->
@@ -180,7 +190,7 @@
 			class:flex={menuExpanded}
 			class:hidden={!menuExpanded}
 		>
-			<div class="bg-border mx-1 hidden h-5 w-px shrink-0 xl:block"></div>
+			{@render divider()}
 
 			<!-- Lists -->
 			<div class="flex items-center gap-0.5">
@@ -210,7 +220,7 @@
 				</button>
 			</div>
 
-			<div class="bg-border mx-1 hidden h-5 w-px shrink-0 xl:block"></div>
+			{@render divider()}
 
 			<!-- Text Alignment -->
 			<div class="flex items-center gap-0.5">
@@ -264,7 +274,7 @@
 				</button>
 			</div>
 
-			<div class="bg-border mx-1 hidden h-5 w-px shrink-0 xl:block"></div>
+			{@render divider()}
 
 			<!-- Blockquote -->
 			<div class="flex items-center gap-0.5">
@@ -282,7 +292,7 @@
 				</button>
 			</div>
 
-			<div class="bg-border mx-1 hidden h-5 w-px shrink-0 xl:block"></div>
+			{@render divider()}
 
 			<!-- Link, Image & Video -->
 			<div class="flex items-center gap-0.5">
