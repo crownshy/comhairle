@@ -314,7 +314,6 @@
 				{@render button({
 					title: 'Insert Source Document',
 					active: false,
-					onclick: () => {},
 					Icon: FileText
 				})}
 			</DocumentPickerPopover>
