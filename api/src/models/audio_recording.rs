@@ -56,31 +56,37 @@ impl std::fmt::Display for AudioFormat {
 }
 
 /// Status of an audio recording as it moves through the transcription and
-/// categorization pipeline (recording → transcript → report).
+/// categorization pipeline. Each name describes what is happening *at* that
+/// state, so the natural flow reads:
+/// `AwaitingUpload → Transcribing → Categorizing → Complete`
+/// with terminal failure states branching off each processing stage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum AudioRecordingStatus {
-    /// Recording uploaded; not yet processed (also covers queued/transcribing).
-    Pending,
+    /// Row created; the file is being (or has yet to be) uploaded to bulk storage.
+    AwaitingUpload,
+    /// File received; transcription job has been enqueued or is running.
+    Transcribing,
     /// Transcript produced and submitted to the categorization service; the
     /// report has not arrived yet.
-    TranscriptAvailable,
+    Categorizing,
     /// Both the transcript and the categorization report are available.
-    BothAvailable,
+    Complete,
     /// The transcription stage failed.
-    TranscriptFailure,
+    TranscriptionFailed,
     /// The categorization stage failed.
-    CategorizationFailure,
+    CategorizationFailed,
 }
 
 impl ToString for AudioRecordingStatus {
     fn to_string(&self) -> String {
         match self {
-            AudioRecordingStatus::Pending => "pending".to_string(),
-            AudioRecordingStatus::TranscriptAvailable => "transcript_available".to_string(),
-            AudioRecordingStatus::BothAvailable => "both_available".to_string(),
-            AudioRecordingStatus::TranscriptFailure => "transcript_failure".to_string(),
-            AudioRecordingStatus::CategorizationFailure => "categorization_failure".to_string(),
+            AudioRecordingStatus::AwaitingUpload => "awaiting_upload".to_string(),
+            AudioRecordingStatus::Transcribing => "transcribing".to_string(),
+            AudioRecordingStatus::Categorizing => "categorizing".to_string(),
+            AudioRecordingStatus::Complete => "complete".to_string(),
+            AudioRecordingStatus::TranscriptionFailed => "transcription_failed".to_string(),
+            AudioRecordingStatus::CategorizationFailed => "categorization_failed".to_string(),
         }
     }
 }
@@ -89,11 +95,12 @@ impl ToString for AudioRecordingStatus {
 impl AudioRecordingStatus {
     pub fn from_string(s: &str) -> Result<Self, ComhairleError> {
         match s {
-            "pending" => Ok(AudioRecordingStatus::Pending),
-            "transcript_available" => Ok(AudioRecordingStatus::TranscriptAvailable),
-            "both_available" => Ok(AudioRecordingStatus::BothAvailable),
-            "transcript_failure" => Ok(AudioRecordingStatus::TranscriptFailure),
-            "categorization_failure" => Ok(AudioRecordingStatus::CategorizationFailure),
+            "awaiting_upload" => Ok(AudioRecordingStatus::AwaitingUpload),
+            "transcribing" => Ok(AudioRecordingStatus::Transcribing),
+            "categorizing" => Ok(AudioRecordingStatus::Categorizing),
+            "complete" => Ok(AudioRecordingStatus::Complete),
+            "transcription_failed" => Ok(AudioRecordingStatus::TranscriptionFailed),
+            "categorization_failed" => Ok(AudioRecordingStatus::CategorizationFailed),
             _ => Err(ComhairleError::ResourceNotFound(format!(
                 "Unknown status: {}",
                 s
@@ -163,7 +170,7 @@ impl From<RawAudioRecording> for AudioRecording {
             file_extension: AudioFormat::try_from_extension(&raw.file_extension)
                 .unwrap_or(AudioFormat::Wav),
             status: AudioRecordingStatus::from_string(&raw.status)
-                .unwrap_or(AudioRecordingStatus::Pending),
+                .unwrap_or(AudioRecordingStatus::AwaitingUpload),
             created_at: raw.created_at,
             updated_at: raw.updated_at,
         }
@@ -202,7 +209,7 @@ pub async fn create(
             create_recording.name.clone().into(),
             create_recording.s3_key_prefix.clone().into(),
             create_recording.file_extension.extension().into(),
-            "pending".into(),
+            AudioRecordingStatus::AwaitingUpload.to_string().into(),
         ])
         .unwrap()
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
@@ -289,6 +296,32 @@ pub async fn list_by_event(
     Ok(recordings.into_iter().map(Into::into).collect())
 }
 
+/// Delete an audio recording scoped to its event.
+///
+/// Returns [`ComhairleError::ResourceNotFound`] if no recording with that id
+/// exists for the given event.
+pub async fn delete(
+    db: &PgPool,
+    recording_id: &Uuid,
+    event_id: &Uuid,
+) -> Result<AudioRecording, ComhairleError> {
+    let (sql, values) = Query::delete()
+        .from_table(RawAudioRecordingIden::Table)
+        .and_where(Expr::col(RawAudioRecordingIden::Id).eq(*recording_id))
+        .and_where(Expr::col(RawAudioRecordingIden::EventId).eq(*event_id))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let recording = sqlx::query_as_with::<_, RawAudioRecording, _>(&sql, values)
+        .fetch_optional(db)
+        .await?
+        .ok_or(ComhairleError::ResourceNotFound(
+            "Audio recording not found".to_string(),
+        ))?;
+
+    Ok(recording.into())
+}
+
 /// Update the status of an audio recording
 pub async fn update_status(
     db: &PgPool,
@@ -362,7 +395,7 @@ mod tests {
         assert_eq!(recording.event_id, create_req.event_id);
         assert_eq!(recording.name, create_req.name);
         assert_eq!(recording.s3_key_prefix, create_req.s3_key_prefix);
-        assert_eq!(recording.status, AudioRecordingStatus::Pending);
+        assert_eq!(recording.status, AudioRecordingStatus::AwaitingUpload);
         Ok(())
     }
 
@@ -553,16 +586,60 @@ mod tests {
         };
 
         let created = create(&pool, &create_req).await?;
-        assert_eq!(created.status, AudioRecordingStatus::Pending);
+        assert_eq!(created.status, AudioRecordingStatus::AwaitingUpload);
 
-        let updated =
-            update_status(&pool, &created.id, AudioRecordingStatus::BothAvailable).await?;
-        assert_eq!(updated.status, AudioRecordingStatus::BothAvailable);
+        let updated = update_status(&pool, &created.id, AudioRecordingStatus::Complete).await?;
+        assert_eq!(updated.status, AudioRecordingStatus::Complete);
         assert!(updated.updated_at > created.updated_at);
         assert!(updated.created_at == created.created_at);
         Ok(())
     }
     
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_delete_scopes_to_event(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let event = create_random_event(&mut session, &app).await?;
+
+        let created = create(
+            &pool,
+            &CreateAudioRecording {
+                id: Uuid::new_v4(),
+                event_id: event.id,
+                name: "Room 1".to_string(),
+                s3_key_prefix: "test/prefix".to_string(),
+                file_extension: AudioFormat::Wav,
+            },
+        )
+        .await?;
+
+        // A mismatched event id refuses to delete and yields ResourceNotFound.
+        let other_event = create_random_event(&mut session, &app).await?;
+        let result = delete(&pool, &created.id, &other_event.id).await;
+        assert!(matches!(result, Err(ComhairleError::ResourceNotFound(_))));
+        // The row still exists.
+        assert!(get_by_id(&pool, &created.id).await.is_ok());
+
+        // The matching event id deletes the row.
+        let deleted = delete(&pool, &created.id, &event.id).await?;
+        assert_eq!(deleted.id, created.id);
+        assert!(get_by_id(&pool, &created.id).await.is_err());
+
+        // A second delete of the same row is a not-found.
+        let result = delete(&pool, &created.id, &event.id).await;
+        assert!(matches!(result, Err(ComhairleError::ResourceNotFound(_))));
+
+        Ok(())
+    }
+
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_get_by_id_not_found(
         pool: sqlx::PgPool,

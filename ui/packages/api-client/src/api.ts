@@ -1241,6 +1241,35 @@ export const UpdateUserProgress = z
   .partial()
   .passthrough();
 export type UpdateUserProgress = z.infer<typeof UpdateUserProgress>;
+export const RecruitmentTargetDto = z
+  .object({
+    bucket: z.string(),
+    createdAt: z.string().datetime({ offset: true }),
+    id: z.string().uuid(),
+    metric: z.string(),
+    targetCount: z.number().int(),
+    updatedAt: z.string().datetime({ offset: true }),
+    workflowId: z.string().uuid(),
+  })
+  .passthrough();
+export type RecruitmentTargetDto = z.infer<typeof RecruitmentTargetDto>;
+export const CreateRecruitmentTarget = z
+  .object({
+    bucket: z.string(),
+    metric: z.string(),
+    target_count: z.number().int(),
+  })
+  .passthrough();
+export type CreateRecruitmentTarget = z.infer<typeof CreateRecruitmentTarget>;
+export const PartialRecruitmentTarget = z
+  .object({
+    bucket: z.union([z.string(), z.null()]),
+    metric: z.union([z.string(), z.null()]),
+    target_count: z.union([z.number(), z.null()]),
+  })
+  .partial()
+  .passthrough();
+export type PartialRecruitmentTarget = z.infer<typeof PartialRecruitmentTarget>;
 export const InviteType = z.union([
   z.object({ email: z.string() }),
   z.object({ user: z.string().uuid() }),
@@ -1632,16 +1661,6 @@ export const JwtResponse = z
   .object({ isModerator: z.boolean(), jwt: z.string() })
   .passthrough();
 export type JwtResponse = z.infer<typeof JwtResponse>;
-export const ProcessTranscriptionResponse = z
-  .object({ job_ids: z.array(z.string().uuid()), message: z.string() })
-  .passthrough();
-export type ProcessTranscriptionResponse = z.infer<
-  typeof ProcessTranscriptionResponse
->;
-export const SubmitReportResponse = z
-  .object({ success: z.boolean(), url: z.string() })
-  .passthrough();
-export type SubmitReportResponse = z.infer<typeof SubmitReportResponse>;
 export const EventAttendanceEtx = z
   .object({
     createdAt: z.string().datetime({ offset: true }),
@@ -1700,19 +1719,36 @@ export const AudioFormat = z.enum([
   "webm",
 ]);
 export type AudioFormat = z.infer<typeof AudioFormat>;
-export const RequestUploadUrlsRequest = z
-  .object({ breakoutRooms: z.array(z.string()), fileExtension: AudioFormat })
-  .passthrough();
-export type RequestUploadUrlsRequest = z.infer<typeof RequestUploadUrlsRequest>;
-export const RequestUploadUrlsResponse = z
+export const AudioRecordingStatus = z.union([
+  z.literal("awaiting_upload"),
+  z.literal("transcribing"),
+  z.literal("categorizing"),
+  z.literal("complete"),
+  z.literal("transcription_failed"),
+  z.literal("categorization_failed"),
+]);
+export type AudioRecordingStatus = z.infer<typeof AudioRecordingStatus>;
+export const AudioRecordingDto = z
   .object({
-    breakoutRooms: z.array(z.array(z.unknown()).min(2).max(2)),
-    main: z.string(),
+    createdAt: z.string().datetime({ offset: true }),
+    eventId: z.string().uuid(),
+    fileExtension: AudioFormat,
+    id: z.string().uuid(),
+    name: z.string(),
+    s3KeyPrefix: z.string(),
+    status: AudioRecordingStatus,
+    updatedAt: z.string().datetime({ offset: true }),
   })
   .passthrough();
-export type RequestUploadUrlsResponse = z.infer<
-  typeof RequestUploadUrlsResponse
->;
+export type AudioRecordingDto = z.infer<typeof AudioRecordingDto>;
+export const CreateRecordingRequest = z
+  .object({ fileExtension: AudioFormat, name: z.string() })
+  .passthrough();
+export type CreateRecordingRequest = z.infer<typeof CreateRecordingRequest>;
+export const CreateRecordingResponse = z
+  .object({ recording: AudioRecordingDto, uploadUrl: z.string() })
+  .passthrough();
+export type CreateRecordingResponse = z.infer<typeof CreateRecordingResponse>;
 export const RecordingDownloadUrls = z
   .object({
     recordingUrl: z.string(),
@@ -1721,32 +1757,22 @@ export const RecordingDownloadUrls = z
   })
   .passthrough();
 export type RecordingDownloadUrls = z.infer<typeof RecordingDownloadUrls>;
-export const SignedDownloadUrls = z
-  .object({
-    breakoutRooms: z.array(z.array(z.unknown()).min(2).max(2)),
-    main: RecordingDownloadUrls,
-  })
+export const RecordingDetailResponse = z
+  .object({ downloads: RecordingDownloadUrls, recording: AudioRecordingDto })
   .passthrough();
-export type SignedDownloadUrls = z.infer<typeof SignedDownloadUrls>;
-export const AudioRecordingStatus = z.union([
-  z.literal("pending"),
-  z.literal("completed"),
-  z.literal("failed"),
-]);
-export type AudioRecordingStatus = z.infer<typeof AudioRecordingStatus>;
-export const AudioRecordingDto = z
-  .object({
-    breakoutRoomIds: z.array(z.string()),
-    createdAt: z.string().datetime({ offset: true }),
-    eventId: z.string().uuid(),
-    fileExtension: AudioFormat,
-    id: z.string().uuid(),
-    s3KeyPrefix: z.string(),
-    status: AudioRecordingStatus,
-    updatedAt: z.string().datetime({ offset: true }),
-  })
+export type RecordingDetailResponse = z.infer<typeof RecordingDetailResponse>;
+export const DeleteRecordingResponse = z
+  .object({ recording: AudioRecordingDto })
   .passthrough();
-export type AudioRecordingDto = z.infer<typeof AudioRecordingDto>;
+export type DeleteRecordingResponse = z.infer<typeof DeleteRecordingResponse>;
+export const ProcessRecordingResponse = z
+  .object({ jobId: z.string().uuid(), message: z.string() })
+  .passthrough();
+export type ProcessRecordingResponse = z.infer<typeof ProcessRecordingResponse>;
+export const SubmitReportResponse = z
+  .object({ success: z.boolean(), url: z.string() })
+  .passthrough();
+export type SubmitReportResponse = z.infer<typeof SubmitReportResponse>;
 export const WebSocketStats = z
   .object({
     connected_users: z.array(z.string().uuid()),
@@ -2172,6 +2198,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PartialWorkflowStep,
   UserProgressDto,
   UpdateUserProgress,
+  RecruitmentTargetDto,
+  CreateRecruitmentTarget,
+  PartialRecruitmentTarget,
   InviteType,
   LoginBehaviour,
   InviteStatus,
@@ -2224,8 +2253,6 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EventResponse,
   PartialEvent,
   JwtResponse,
-  ProcessTranscriptionResponse,
-  SubmitReportResponse,
   EventAttendanceEtx,
   PaginatedResults_for_EventAttendanceEtx,
   CreateEventAttendanceRequest,
@@ -2233,12 +2260,15 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UpdateEventAttendanceRequest,
   CreateFacilitatorRequest,
   AudioFormat,
-  RequestUploadUrlsRequest,
-  RequestUploadUrlsResponse,
-  RecordingDownloadUrls,
-  SignedDownloadUrls,
   AudioRecordingStatus,
   AudioRecordingDto,
+  CreateRecordingRequest,
+  CreateRecordingResponse,
+  RecordingDownloadUrls,
+  RecordingDetailResponse,
+  DeleteRecordingResponse,
+  ProcessRecordingResponse,
+  SubmitReportResponse,
   WebSocketStats,
   BroadcastMessage,
   BroadcastResponse,
@@ -2956,35 +2986,59 @@ curl -X POST \
   },
   {
     method: "get",
-    path: "/conversation/:conversation_id/events/:event_id/audio-recordings",
+    path: "/conversation/:conversation_id/events/:event_id/audio_recordings",
     alias: "ListAudioRecordings",
-    description: `List all audio recordings for an event. Optionally filter by room_id.`,
+    description: `List all audio recordings for an event with their processing status.`,
     requestFormat: "json",
     response: z.array(AudioRecordingDto),
   },
   {
-    method: "get",
-    path: "/conversation/:conversation_id/events/:event_id/audio-recordings/download",
-    alias: "GetAudioDownloadUrls",
-    description: `Get presigned S3 URLs for downloading transcript.json and report.json for a recording.`,
-    requestFormat: "json",
-    response: SignedDownloadUrls,
-  },
-  {
     method: "post",
-    path: "/conversation/:conversation_id/events/:event_id/audio-recordings/upload",
-    alias: "RequestAudioUploadUrls",
-    description: `Request signed S3 URLs for uploading main and breakout room audio recordings. Returns presigned URLs and creates DB records.`,
+    path: "/conversation/:conversation_id/events/:event_id/audio_recordings",
+    alias: "CreateAudioRecording",
+    description: `Create a named audio recording for an event and return a presigned S3 URL for uploading its audio.`,
     requestFormat: "json",
     parameters: [
       {
         name: "body",
-        description: `Request body for requesting signed upload URLs`,
+        description: `Request body for creating an audio recording and requesting its upload URL.`,
         type: "Body",
-        schema: RequestUploadUrlsRequest,
+        schema: CreateRecordingRequest,
       },
     ],
-    response: RequestUploadUrlsResponse,
+    response: CreateRecordingResponse,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/:recording_id",
+    alias: "GetAudioRecording",
+    description: `Get an audio recording&#x27;s details and presigned S3 URLs for its audio, transcript, and report.`,
+    requestFormat: "json",
+    response: RecordingDetailResponse,
+  },
+  {
+    method: "delete",
+    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/:recording_id",
+    alias: "DeleteAudioRecording",
+    description: `Delete an audio recording and best-effort-clean its files from bulk storage. Useful for clearing stuck rows left behind by a failed upload.`,
+    requestFormat: "json",
+    response: DeleteRecordingResponse,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/:recording_id/process",
+    alias: "ProcessAudioRecording",
+    description: `Enqueue a background job to transcribe and categorize a single audio recording.`,
+    requestFormat: "json",
+    response: ProcessRecordingResponse,
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/:recording_id/report",
+    alias: "SubmitAudioRecordingReport",
+    description: `Webhook for the categorization service to submit a recording&#x27;s report. Authenticated by HMAC signature headers.`,
+    requestFormat: "json",
+    response: SubmitReportResponse,
   },
   {
     method: "get",
@@ -2993,29 +3047,6 @@ curl -X POST \
     description: `Get a auth JWT for an event`,
     requestFormat: "json",
     response: JwtResponse,
-  },
-  {
-    method: "post",
-    path: "/conversation/:conversation_id/events/:event_id/report",
-    alias: "SubmitEventReport",
-    description: `Submit categorization report to bulk storage`,
-    requestFormat: "json",
-    parameters: [
-      {
-        name: "room_id",
-        type: "Query",
-        schema: created_after,
-      },
-    ],
-    response: SubmitReportResponse,
-  },
-  {
-    method: "post",
-    path: "/conversation/:conversation_id/events/:event_id/transcriptions",
-    alias: "ProcessVideoCallTranscriptions",
-    description: `Triggers transcription processing in a background worker`,
-    requestFormat: "json",
-    response: ProcessTranscriptionResponse,
   },
   {
     method: "get",
@@ -3458,6 +3489,56 @@ Use query param withUserProgress&#x3D;true to get the active user&#x27;s progres
       },
     ],
     response: UserProgressDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/recruitment_targets",
+    alias: "ListRecruitmentTargets",
+    requestFormat: "json",
+    response: z.array(RecruitmentTargetDto),
+  },
+  {
+    method: "post",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/recruitment_targets",
+    alias: "CreateRecruitmentTarget",
+    description: `Records the target number of participants for a given demographic metric/bucket combination on this workflow. Upserts on (workflow_id, metric, bucket).`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateRecruitmentTarget,
+      },
+    ],
+    response: RecruitmentTargetDto,
+  },
+  {
+    method: "get",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/recruitment_targets/:recruitment_target_id",
+    alias: "GetRecruitmentTarget",
+    requestFormat: "json",
+    response: RecruitmentTargetDto,
+  },
+  {
+    method: "put",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/recruitment_targets/:recruitment_target_id",
+    alias: "UpdateRecruitmentTarget",
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: PartialRecruitmentTarget,
+      },
+    ],
+    response: RecruitmentTargetDto,
+  },
+  {
+    method: "delete",
+    path: "/conversation/:conversation_id/workflow/:workflow_id/recruitment_targets/:recruitment_target_id",
+    alias: "DeleteRecruitmentTarget",
+    requestFormat: "json",
+    response: RecruitmentTargetDto,
   },
   {
     method: "post",

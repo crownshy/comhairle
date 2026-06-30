@@ -50,9 +50,9 @@ pub async fn transcribe_recording(
     let db = state.db.clone();
     let outcome = transcribe_recording_inner(req, state).await;
     let status = if outcome.is_ok() {
-        AudioRecordingStatus::TranscriptAvailable
+        AudioRecordingStatus::Categorizing
     } else {
-        AudioRecordingStatus::TranscriptFailure
+        AudioRecordingStatus::TranscriptionFailed
     };
     let _ = audio_recording::update_status(&db, &recording_id, status).await;
     outcome
@@ -133,7 +133,7 @@ pub async fn generate_sensemaking_report(
         let _ = audio_recording::update_status(
             &db,
             &recording_id,
-            AudioRecordingStatus::CategorizationFailure,
+            AudioRecordingStatus::CategorizationFailed,
         )
         .await;
     }

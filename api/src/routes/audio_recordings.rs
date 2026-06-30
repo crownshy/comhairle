@@ -10,7 +10,7 @@ pub mod dto;
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{get_with, post_with},
+    routing::{delete_with, get_with, post_with},
     ApiRouter,
 };
 use axum::{
@@ -27,8 +27,8 @@ use crate::models::audio_recording::{self, CreateAudioRecording};
 use crate::models::event;
 use crate::models::job::{self, CreateJob};
 use crate::routes::audio_recordings::dto::{
-    AudioRecordingDto, CreateRecordingRequest, CreateRecordingResponse, ProcessRecordingResponse,
-    RecordingDownloadUrls, RecordingDetailResponse, SubmitReportResponse,
+    AudioRecordingDto, CreateRecordingRequest, CreateRecordingResponse, DeleteRecordingResponse,
+    ProcessRecordingResponse, RecordingDetailResponse, RecordingDownloadUrls, SubmitReportResponse,
 };
 use crate::routes::auth::{verify_webhook_signature, RequiredAdminUser};
 use crate::worker_service::process_video_call_transcriptions::TranscribeRecording;
@@ -167,11 +167,65 @@ async fn process_recording(
         })
         .await?;
 
+    // Move out of `awaiting_upload`/failure states so the UI immediately
+    // reflects that the file has been received and work is underway.
+    audio_recording::update_status(
+        &state.db,
+        &recording_id,
+        audio_recording::AudioRecordingStatus::Transcribing,
+    )
+    .await?;
+
     Ok((
         StatusCode::OK,
         Json(ProcessRecordingResponse {
             message: "Recording processing moved to a background job".to_string(),
             job_id: job.id,
+        }),
+    ))
+}
+
+/// Delete a recording and best-effort-clean its files from bulk storage.
+///
+/// Used to remove stuck/orphaned recordings (e.g. a mid-upload failure left the
+/// row in `pending` forever). Storage deletes are idempotent and silent on
+/// missing keys, so partially-uploaded recordings clean up cleanly. Any
+/// in-flight processing job for this recording will fail to find the row and
+/// drop on the floor — acceptable given the row is being abandoned.
+///
+/// # Errors
+/// * `ComhairleError::NoBulkStorageServiceConfigured` if no bulk storage service is configured.
+/// * `ComhairleError::ResourceNotFound` if the recording does not exist for this event.
+#[instrument(err(Debug), skip(state))]
+async fn delete_recording(
+    State(state): State<Arc<ComhairleState>>,
+    Path((_conversation_id, event_id, recording_id)): Path<(Uuid, Uuid, Uuid)>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+) -> Result<(StatusCode, Json<DeleteRecordingResponse>), ComhairleError> {
+    let bulk_storage_service = state.required_bulk_storage_service()?;
+
+    let recording = audio_recording::get_by_id_and_event(&state.db, &recording_id, &event_id).await?;
+
+    // Best-effort: log and swallow storage errors so a hung S3 doesn't block
+    // the user from getting rid of a stuck row.
+    let extension = recording.file_extension.extension();
+    let prefix = &recording.s3_key_prefix;
+    for path in [
+        format!("{prefix}/recording.{extension}"),
+        format!("{prefix}/transcript.json"),
+        format!("{prefix}/report.json"),
+    ] {
+        if let Err(err) = bulk_storage_service.delete_file(&path).await {
+            tracing::warn!(?err, path, "failed to delete recording file from bulk storage");
+        }
+    }
+
+    let deleted = audio_recording::delete(&state.db, &recording_id, &event_id).await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(DeleteRecordingResponse {
+            recording: deleted.into(),
         }),
     ))
 }
@@ -245,7 +299,7 @@ async fn submit_report(
     audio_recording::update_status(
         &state.db,
         &recording.id,
-        audio_recording::AudioRecordingStatus::BothAvailable,
+        audio_recording::AudioRecordingStatus::Complete,
     )
     .await?;
 
@@ -291,6 +345,17 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .description("Get an audio recording's details and presigned S3 URLs for its audio, transcript, and report.")
                     .security_requirement("JWT")
                     .response::<200, Json<RecordingDetailResponse>>()
+            }),
+        )
+        .api_route(
+            "/{recording_id}",
+            delete_with(delete_recording, |op| {
+                op.id("DeleteAudioRecording")
+                    .tag("Audio Recordings")
+                    .summary("Delete an audio recording")
+                    .description("Delete an audio recording and best-effort-clean its files from bulk storage. Useful for clearing stuck rows left behind by a failed upload.")
+                    .security_requirement("JWT")
+                    .response::<200, Json<DeleteRecordingResponse>>()
             }),
         )
         .api_route(
@@ -517,6 +582,122 @@ mod tests {
     }
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_delete_recording_removes_row_and_files(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut storage_service = crate::bulk_storage_service::MockBulkStorageService::new();
+        // We expect attempts to delete the three known suffixes; mock them all
+        // as successful.
+        storage_service
+            .expect_delete_file()
+            .times(3)
+            .returning(|_| Box::pin(async move { Ok(()) }));
+
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(
+            test_state()
+                .db(pool.clone())
+                .config(config)
+                .bulk_storage_service(Arc::new(storage_service))
+                .call()?,
+        );
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let (conversation, event) = create_random_event(&mut session, &app).await?;
+
+        let recording = audio_recording::create(
+            &pool,
+            &CreateAudioRecording {
+                id: Uuid::new_v4(),
+                event_id: event.id,
+                name: "Main Room".to_string(),
+                s3_key_prefix: format!("events/{}/recordings/{}", event.id, Uuid::new_v4()),
+                file_extension: AudioFormat::Wav,
+            },
+        )
+        .await?;
+
+        let (status, _resp, _) = session
+            .delete(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/audio_recordings/{}",
+                    conversation.id, event.id, recording.id
+                ),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+
+        // The row is gone.
+        let recordings = audio_recording::list_by_event(&pool, &event.id).await?;
+        assert_eq!(recordings.len(), 0);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_delete_recording_survives_storage_errors(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::bulk_storage_service::error::BulkStorageError;
+
+        let mut storage_service = crate::bulk_storage_service::MockBulkStorageService::new();
+        // Every storage delete fails (e.g. files were never uploaded).
+        storage_service
+            .expect_delete_file()
+            .returning(|_| {
+                Box::pin(async move { Err(BulkStorageError::FailedToDelete("nope".to_string())) })
+            });
+
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(
+            test_state()
+                .db(pool.clone())
+                .config(config)
+                .bulk_storage_service(Arc::new(storage_service))
+                .call()?,
+        );
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let (conversation, event) = create_random_event(&mut session, &app).await?;
+
+        let recording = audio_recording::create(
+            &pool,
+            &CreateAudioRecording {
+                id: Uuid::new_v4(),
+                event_id: event.id,
+                name: "Main Room".to_string(),
+                s3_key_prefix: format!("events/{}/recordings/{}", event.id, Uuid::new_v4()),
+                file_extension: AudioFormat::Wav,
+            },
+        )
+        .await?;
+
+        let (status, _resp, _) = session
+            .delete(
+                &app,
+                &format!(
+                    "/conversation/{}/events/{}/audio_recordings/{}",
+                    conversation.id, event.id, recording.id
+                ),
+            )
+            .await?;
+        assert_eq!(status, StatusCode::OK);
+        // The DB row is gone even though the storage cleanup failed.
+        assert!(audio_recording::get_by_id(&pool, &recording.id).await.is_err());
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_submit_report_marks_both_available(
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -603,11 +784,11 @@ mod tests {
 
         assert_eq!(status, StatusCode::CREATED);
 
-        // The recording is now both_available.
+        // The recording is now complete.
         let refreshed = audio_recording::get_by_id(&pool, &recording.id).await?;
         assert_eq!(
             refreshed.status,
-            audio_recording::AudioRecordingStatus::BothAvailable
+            audio_recording::AudioRecordingStatus::Complete
         );
 
         Ok(())
