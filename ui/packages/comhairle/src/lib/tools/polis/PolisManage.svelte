@@ -34,12 +34,17 @@
 
 	let base_url = $derived(polisUrl.startsWith('https://') ? polisUrl : `https://${polisUrl}`);
 	let url = $derived(`${base_url}/m/${polisId}`);
-	let iframe = $state();
+	let iframe = $state<HTMLIFrameElement>();
 	let firstLoad = $state(true);
+
+	let requiredVotesInput = $state(requiredVotes);
+	$effect(() => {
+		requiredVotesInput = requiredVotes;
+	});
 
 	function tryLogin() {
 		if (firstLoad) {
-			iframe.contentWindow.postMessage(
+			iframe?.contentWindow?.postMessage(
 				{ user: adminUser, password: adminPassword, type: 'POLIS_LOGIN' },
 				base_url
 			);
@@ -48,7 +53,10 @@
 	}
 
 	const debouncedUpdateToolConfig = useDebounce(async (e: Event, field: string) => {
-		const value = +(e.target as HTMLInputElement).value;
+		const raw = (e.target as HTMLInputElement).value;
+		const value = Number(raw);
+		// Don't persist an empty, invalid, or non-positive number
+		if (raw.trim() === '' || !Number.isFinite(value) || value < 1) return;
 
 		try {
 			await apiClient.UpdateConversationWorkflowStep(
@@ -146,8 +154,10 @@
 			id="requiredVotes"
 			name="requiredVotes"
 			type="number"
+			min="1"
+			step="1"
 			class="w-1/4"
-			defaultvalue={requiredVotes}
+			bind:value={requiredVotesInput}
 			oninput={(e) => handleUpdateToolConfig(e, 'requiredVotes')}
 		/>
 	</div>

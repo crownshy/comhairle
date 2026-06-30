@@ -311,11 +311,6 @@ pub async fn delete(
 
     let mut transaction = state.db.begin().await?;
 
-    // Check if the workflow step is live, and if so, return an error
-    if workflow_step.tool_config.is_some() {
-        return Err(ComhairleError::UserNotAuthorized);
-    }
-
     // Delete and return the workflow_step
     let (delete_sql, delete_values) = Query::delete()
         .from_table(WorkflowStepIden::Table)

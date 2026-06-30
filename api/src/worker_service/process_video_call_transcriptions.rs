@@ -6,7 +6,10 @@ use uuid::Uuid;
 
 use crate::{
     categorization_service::Comment,
-    models::{audio_recording::AudioFormat, job},
+    models::{
+        audio_recording::{self, AudioRecordingStatus},
+        job,
+    },
     transcription_service::Transcription,
     ComhairleState,
 };
@@ -17,7 +20,8 @@ use super::error::{RecordWorkerError, Result, WorkerServiceError};
 pub struct TranscribeRecording {
     pub event_id: Uuid,
     pub conversation_id: Uuid,
-    pub room_id: Option<String>,
+    /// The audio recording being processed.
+    pub recording_id: Uuid,
     pub job_id: Uuid,
 }
 
@@ -26,6 +30,8 @@ pub struct GenerateReport {
     pub transcription_key: String,
     pub event_id: Uuid,
     pub conversation_id: Uuid,
+    /// The audio recording being processed.
+    pub recording_id: Uuid,
     pub job_id: Uuid,
 }
 
@@ -37,6 +43,22 @@ pub struct UploadReport {
 }
 
 pub async fn transcribe_recording(
+    req: TranscribeRecording,
+    state: Data<Arc<ComhairleState>>,
+) -> Result<GoTo<GenerateReport>> {
+    let recording_id = req.recording_id;
+    let db = state.db.clone();
+    let outcome = transcribe_recording_inner(req, state).await;
+    let status = if outcome.is_ok() {
+        AudioRecordingStatus::TranscriptAvailable
+    } else {
+        AudioRecordingStatus::TranscriptFailure
+    };
+    let _ = audio_recording::update_status(&db, &recording_id, status).await;
+    outcome
+}
+
+async fn transcribe_recording_inner(
     req: TranscribeRecording,
     state: Data<Arc<ComhairleState>>,
 ) -> Result<GoTo<GenerateReport>> {
@@ -64,21 +86,13 @@ pub async fn transcribe_recording(
         "Starting transcription sensemaking pipeline"
     );
 
-    let recording_location = format!(
-        "events/{}{}",
-        req.event_id,
-        req.room_id
-            .as_deref()
-            .map_or(String::new(), |id| format!("/rooms/{id}"))
-    );
-
-    // Look up the audio_recording to find the uploaded file format. Recordings
-    // created by the legacy bot flow may not have a DB record yet — default to
-    // WAV in that case to preserve the historical behaviour.
-    let audio_format = crate::models::audio_recording::get_by_event(&state.db, &req.event_id)
+    let recording = crate::models::audio_recording::get_by_id(&state.db, &req.recording_id)
         .await
-        .map(|r| r.file_extension)
-        .unwrap_or(AudioFormat::Wav);
+        .map_err(|e| WorkerServiceError::DbError(e.to_string()))
+        .ok_or_record_failure(&req.job_id, &state.db)
+        .await?;
+    let recording_location = recording.s3_key_prefix.clone();
+    let audio_format = recording.file_extension;
 
     let result = transcription_service
         .transcribe_from_bulk_store(
@@ -103,11 +117,30 @@ pub async fn transcribe_recording(
         transcription_key: format!("{recording_location}/transcript.json"),
         event_id: req.event_id,
         conversation_id: req.conversation_id,
+        recording_id: req.recording_id,
         job_id: req.job_id,
     }))
 }
 
 pub async fn generate_sensemaking_report(
+    req: GenerateReport,
+    state: Data<Arc<ComhairleState>>,
+) -> Result<GoTo<&'static str>> {
+    let recording_id = req.recording_id;
+    let db = state.db.clone();
+    let outcome = generate_sensemaking_report_inner(req, state).await;
+    if outcome.is_err() {
+        let _ = audio_recording::update_status(
+            &db,
+            &recording_id,
+            AudioRecordingStatus::CategorizationFailure,
+        )
+        .await;
+    }
+    outcome
+}
+
+async fn generate_sensemaking_report_inner(
     req: GenerateReport,
     state: Data<Arc<ComhairleState>>,
 ) -> Result<GoTo<&'static str>> {
@@ -161,8 +194,8 @@ pub async fn generate_sensemaking_report(
         .create_analysis_job(
             comments,
             format!(
-                "{}/api/conversation/{}/events/{}/report",
-                state.config.domain, req.conversation_id, req.event_id
+                "{}/api/conversation/{}/events/{}/audio_recordings/{}/report",
+                state.config.domain, req.conversation_id, req.event_id, req.recording_id
             ),
             webhook_secret.to_string(),
         )
@@ -176,18 +209,6 @@ pub async fn generate_sensemaking_report(
         categorization_job_id = %analysis_job.id,
         "Report job created in categorization service"
     );
-
-    // Update audio recording status to completed after all processing is done
-    if let Ok(audio_recording) =
-        crate::models::audio_recording::get_by_event(&state.db, &req.event_id).await
-    {
-        let _ = crate::models::audio_recording::update_status(
-            &state.db,
-            &audio_recording.id,
-            crate::models::audio_recording::AudioRecordingStatus::Completed,
-        )
-        .await;
-    }
 
     job::complete(
         &state.db,
@@ -263,7 +284,7 @@ mod tests {
         let request = TranscribeRecording {
             event_id: Uuid::from_str("3c22d53d-07df-4d46-802e-486b79dd1a80").unwrap(),
             conversation_id: Uuid::new_v4(),
-            room_id: None,
+            recording_id: Uuid::new_v4(),
             job_id: Uuid::new_v4(),
         };
 
@@ -284,6 +305,7 @@ mod tests {
                 .to_string(),
             event_id: Uuid::from_str("3c22d53d-07df-4d46-802e-486b79dd1a80").unwrap(),
             conversation_id: Uuid::new_v4(),
+            recording_id: Uuid::new_v4(),
             job_id: Uuid::new_v4(),
         };
 
