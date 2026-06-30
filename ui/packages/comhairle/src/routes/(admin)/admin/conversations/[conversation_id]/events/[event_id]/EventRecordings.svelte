@@ -10,7 +10,7 @@
 	import type {
 		AudioRecordingDto,
 		AudioRecordingStatus,
-		SignedDownloadUrls
+		RecordingDownloadUrls
 	} from '@crownshy/api-client/api';
 
 	type Props = {
@@ -37,47 +37,44 @@
 			: null;
 	}
 
-	type RoomSlot = {
+	type UploadRow = {
 		key: string;
-		label: string; // "Main" or breakout room ID
-		isMain: boolean;
+		name: string;
 		file: File | null;
-		progress: number; // 0-100
+		progress: number;
 		state: 'idle' | 'uploading' | 'done' | 'error';
 		error?: string;
 	};
 
-	function makeRoomSlot(isMain: boolean, label = ''): RoomSlot {
+	function makeRow(): UploadRow {
 		return {
 			key: crypto.randomUUID(),
-			label: isMain ? 'Main room' : label,
-			isMain,
+			name: '',
 			file: null,
 			progress: 0,
 			state: 'idle'
 		};
 	}
 
-	const recording = $derived(recordings[0] ?? null);
-	const hasPending = $derived(recording?.status === 'pending');
-
-	let slots = $state<RoomSlot[]>([makeRoomSlot(true)]);
+	let rows = $state<UploadRow[]>([makeRow()]);
 	let isUploading = $state(false);
 	let isDraggingOver = $state<string | null>(null);
 
-	let downloadUrls = $state<SignedDownloadUrls | null>(null);
-	let loadingDownloads = $state(false);
+	let downloads = $state<Record<string, RecordingDownloadUrls>>({});
+	let loadingDownloads = $state<Set<string>>(new Set());
 
-	function addBreakoutRow() {
-		const next = slots.filter((s) => !s.isMain).length + 1;
-		slots = [...slots, makeRoomSlot(false, `room-${next}`)];
+	const hasPending = $derived(recordings.some((r) => r.status === 'pending'));
+
+	function addRow() {
+		rows = [...rows, makeRow()];
 	}
 
 	function removeRow(key: string) {
-		slots = slots.filter((s) => s.key !== key);
+		rows = rows.filter((r) => r.key !== key);
+		if (rows.length === 0) rows = [makeRow()];
 	}
 
-	function chooseFile(slot: RoomSlot, file: File | null) {
+	function chooseFile(row: UploadRow, file: File | null) {
 		if (!file) return;
 		if (file.size > maxSizeBytes) {
 			notifications.send({
@@ -86,10 +83,15 @@
 			});
 			return;
 		}
-		slot.file = file;
-		slot.progress = 0;
-		slot.state = 'idle';
-		slot.error = undefined;
+		row.file = file;
+		row.progress = 0;
+		row.state = 'idle';
+		row.error = undefined;
+		if (!row.name.trim()) {
+			const dot = file.name.lastIndexOf('.');
+			row.name = dot > 0 ? file.name.slice(0, dot) : file.name;
+		}
+		rows = [...rows];
 	}
 
 	function uploadToSignedUrl(
@@ -118,157 +120,173 @@
 		});
 	}
 
-	async function startUpload() {
-		const main = slots.find((s) => s.isMain);
-		if (!main?.file) {
-			notifications.send({
-				message: 'Please select a main-room recording',
-				priority: 'ERROR'
-			});
-			return;
+	async function uploadRow(row: UploadRow): Promise<boolean> {
+		const name = row.name.trim();
+		if (!row.file) {
+			row.state = 'error';
+			row.error = 'Choose a file';
+			rows = [...rows];
+			return false;
 		}
-		const breakouts = slots.filter((s) => !s.isMain);
-		const missingBreakout = breakouts.find((b) => !b.file || !b.label.trim());
-		if (missingBreakout) {
-			notifications.send({
-				message: 'Each breakout room needs a name and a file',
-				priority: 'ERROR'
-			});
-			return;
+		const ext = extractExtension(row.file.name);
+		if (!ext) {
+			row.state = 'error';
+			row.error = `Unsupported format. Use: ${supportedExtensions.join(', ')}.`;
+			rows = [...rows];
+			return false;
 		}
-		const ids = breakouts.map((b) => b.label.trim());
-		if (new Set(ids).size !== ids.length) {
-			notifications.send({
-				message: 'Breakout room names must be unique',
-				priority: 'ERROR'
+		row.state = 'uploading';
+		row.progress = 0;
+		row.error = undefined;
+		rows = [...rows];
+		try {
+			const created = await apiClient.CreateAudioRecording(
+				{ name, fileExtension: ext },
+				{ params: { conversation_id, event_id } }
+			);
+			await uploadToSignedUrl(row.file, created.uploadUrl, (pct) => {
+				row.progress = pct;
+				rows = [...rows];
 			});
-			return;
+			await apiClient.ProcessAudioRecording(undefined, {
+				params: { conversation_id, event_id, recording_id: created.recording.id }
+			});
+			row.state = 'done';
+			rows = [...rows];
+			return true;
+		} catch (e) {
+			console.error(e);
+			row.state = 'error';
+			row.error = e instanceof Error ? e.message : 'Upload failed';
+			rows = [...rows];
+			return false;
 		}
+	}
 
-		const mainExt = extractExtension(main.file.name);
-		if (!mainExt) {
+	async function startUpload() {
+		const pending = rows.filter((r) => r.state !== 'done');
+		const names = pending.map((r) => r.name.trim());
+		if (names.some((n) => !n)) {
+			notifications.send({ message: 'Each recording needs a name', priority: 'ERROR' });
+			return;
+		}
+		if (new Set(names).size !== names.length) {
 			notifications.send({
-				message: `Unsupported audio format for "${main.file.name}". Use one of: ${supportedExtensions.join(', ')}.`,
+				message: 'Recording names must be unique within this batch',
 				priority: 'ERROR'
 			});
 			return;
 		}
-		// Transcription pipeline stores one format per recording — require all
-		// breakout files to match the main file's extension.
-		const mismatched = breakouts.find(
-			(b) => b.file && extractExtension(b.file.name) !== mainExt
-		);
-		if (mismatched) {
+		const existing = new Set(recordings.map((r) => r.name));
+		const clash = names.find((n) => existing.has(n));
+		if (clash) {
 			notifications.send({
-				message: `All recordings must share the same file format. "${mismatched.file?.name}" doesn't match the main room's .${mainExt} file.`,
+				message: `"${clash}" is already used by an existing recording`,
 				priority: 'ERROR'
 			});
+			return;
+		}
+		if (pending.some((r) => !r.file)) {
+			notifications.send({ message: 'Each row needs an audio file', priority: 'ERROR' });
 			return;
 		}
 
 		isUploading = true;
+		let successCount = 0;
 		try {
-			const urls = await apiClient.RequestAudioUploadUrls(
-				{ breakoutRooms: ids, fileExtension: mainExt },
-				{ params: { conversation_id, event_id } }
-			);
-
-			main.state = 'uploading';
-			slots = [...slots];
-			await uploadToSignedUrl(main.file, urls.main, (pct) => {
-				main.progress = pct;
-				slots = [...slots];
-			});
-			main.state = 'done';
-			slots = [...slots];
-
-			for (const [roomId, signedUrl] of urls.breakoutRooms as unknown as [string, string][]) {
-				const slot = breakouts.find((b) => b.label.trim() === roomId);
-				if (!slot?.file) continue;
-				slot.state = 'uploading';
-				slots = [...slots];
-				try {
-					await uploadToSignedUrl(slot.file, signedUrl, (pct) => {
-						slot.progress = pct;
-						slots = [...slots];
-					});
-					slot.state = 'done';
-				} catch (e) {
-					slot.state = 'error';
-					slot.error = e instanceof Error ? e.message : 'Upload failed';
-				}
-				slots = [...slots];
+			for (const row of pending) {
+				const ok = await uploadRow(row);
+				if (ok) successCount += 1;
 			}
-
-			try {
-				await apiClient.ProcessVideoCallTranscriptions(undefined, {
-					params: { conversation_id, event_id }
-				});
-				notifications.send({
-					message: 'Recordings uploaded — transcription started',
-					priority: 'INFO'
-				});
-			} catch (e) {
-				console.error(e);
-				notifications.send({
-					message:
-						'Uploaded, but failed to start transcription. Retry from the Recordings tab.',
-					priority: 'ERROR'
-				});
-			}
-			await invalidateAll();
-		} catch (e) {
-			console.error(e);
-			notifications.send({
-				message: 'Failed to start upload',
-				priority: 'ERROR'
-			});
 		} finally {
 			isUploading = false;
 		}
-	}
 
-	async function retryTranscription() {
-		try {
-			await apiClient.ProcessVideoCallTranscriptions(undefined, {
-				params: { conversation_id, event_id }
+		if (successCount > 0) {
+			notifications.send({
+				message: `Uploaded ${successCount} recording${successCount === 1 ? '' : 's'} — transcription started`,
+				priority: 'INFO'
 			});
-			notifications.send({ message: 'Transcription started', priority: 'INFO' });
+			// Keep failed rows so the user can fix and retry; drop successful ones.
+			rows = rows.filter((r) => r.state !== 'done');
+			if (rows.length === 0) rows = [makeRow()];
 			await invalidateAll();
-		} catch (e) {
-			console.error(e);
-			notifications.send({ message: 'Failed to start transcription', priority: 'ERROR' });
 		}
 	}
 
-	function statusVariant(status: AudioRecordingStatus): 'default' | 'secondary' | 'destructive' {
-		if (status === 'completed') return 'default';
-		if (status === 'failed') return 'destructive';
-		return 'secondary';
+	async function retryProcessing(recordingId: string) {
+		try {
+			await apiClient.ProcessAudioRecording(undefined, {
+				params: { conversation_id, event_id, recording_id: recordingId }
+			});
+			notifications.send({ message: 'Processing restarted', priority: 'INFO' });
+			await invalidateAll();
+		} catch (e) {
+			console.error(e);
+			notifications.send({ message: 'Failed to restart processing', priority: 'ERROR' });
+		}
 	}
 
 	async function refreshStatus() {
 		await invalidateAll();
 	}
 
-	async function loadDownloadUrls() {
-		if (!recording || recording.status !== 'completed') return;
-		loadingDownloads = true;
+	async function loadDownloads(recordingId: string) {
+		if (downloads[recordingId] || loadingDownloads.has(recordingId)) return;
+		loadingDownloads.add(recordingId);
+		loadingDownloads = new Set(loadingDownloads);
 		try {
-			downloadUrls = await apiClient.GetAudioDownloadUrls({
-				params: { conversation_id, event_id }
+			const detail = await apiClient.GetAudioRecording({
+				params: { conversation_id, event_id, recording_id: recordingId }
 			});
+			downloads = { ...downloads, [recordingId]: detail.downloads };
 		} catch (e) {
 			console.error(e);
-			notifications.send({ message: 'Failed to load download URLs', priority: 'ERROR' });
 		} finally {
-			loadingDownloads = false;
+			loadingDownloads.delete(recordingId);
+			loadingDownloads = new Set(loadingDownloads);
 		}
 	}
 
+	function statusVariant(status: AudioRecordingStatus): 'default' | 'secondary' | 'destructive' {
+		if (status === 'both_available') return 'default';
+		if (status === 'transcript_failure' || status === 'categorization_failure')
+			return 'destructive';
+		return 'secondary';
+	}
+
+	function statusLabel(status: AudioRecordingStatus): string {
+		switch (status) {
+			case 'pending':
+				return 'Processing';
+			case 'transcript_available':
+				return 'Transcript ready';
+			case 'both_available':
+				return 'Complete';
+			case 'transcript_failure':
+				return 'Transcription failed';
+			case 'categorization_failure':
+				return 'Categorization failed';
+		}
+	}
+
+	function hasTranscript(status: AudioRecordingStatus): boolean {
+		return (
+			status === 'transcript_available' ||
+			status === 'both_available' ||
+			status === 'categorization_failure'
+		);
+	}
+
+	function hasReport(status: AudioRecordingStatus): boolean {
+		return status === 'both_available';
+	}
+
 	$effect(() => {
-		if (recording?.status === 'completed' && !downloadUrls && !loadingDownloads) {
-			loadDownloadUrls();
+		for (const r of recordings) {
+			if (r.status !== 'pending' && !downloads[r.id] && !loadingDownloads.has(r.id)) {
+				loadDownloads(r.id);
+			}
 		}
 	});
 
@@ -281,22 +299,22 @@
 	});
 </script>
 
-{#snippet dropZone(slot: RoomSlot)}
+{#snippet dropZone(row: UploadRow)}
 	<div
 		role="button"
 		tabindex="0"
 		class="border-input dark:bg-input/30 flex cursor-pointer flex-col items-center gap-3 rounded-xl border bg-gray-50 p-6 transition-colors"
-		class:bg-gray-100={isDraggingOver === slot.key}
-		class:border-primary={isDraggingOver === slot.key}
+		class:bg-gray-100={isDraggingOver === row.key}
+		class:border-primary={isDraggingOver === row.key}
 		ondrop={(e) => {
 			e.preventDefault();
 			isDraggingOver = null;
 			const f = e.dataTransfer?.files?.[0];
-			if (f) chooseFile(slot, f);
+			if (f) chooseFile(row, f);
 		}}
 		ondragover={(e) => {
 			e.preventDefault();
-			isDraggingOver = slot.key;
+			isDraggingOver = row.key;
 		}}
 		ondragleave={(e) => {
 			e.preventDefault();
@@ -311,10 +329,10 @@
 		}}
 	>
 		<FileAudio class="h-7 w-7 text-gray-400" />
-		{#if slot.file}
-			<div class="text-foreground text-sm font-medium">{slot.file.name}</div>
+		{#if row.file}
+			<div class="text-foreground text-sm font-medium">{row.file.name}</div>
 			<div class="text-muted-foreground text-xs">
-				{(slot.file.size / 1024 / 1024).toFixed(1)} MB
+				{(row.file.size / 1024 / 1024).toFixed(1)} MB
 			</div>
 		{:else}
 			<div class="text-foreground text-sm">Drag an audio file here, or</div>
@@ -327,154 +345,105 @@
 				disabled={isUploading}
 				onchange={(e) => {
 					const f = (e.target as HTMLInputElement).files?.[0] ?? null;
-					chooseFile(slot, f);
+					chooseFile(row, f);
 				}}
 			/>
 			<span
 				class="border-input hover:bg-accent bg-background inline-flex items-center rounded-md border px-3 py-1.5 text-sm"
 			>
-				{slot.file ? 'Choose a different file' : 'Choose file'}
+				{row.file ? 'Choose a different file' : 'Choose file'}
 			</span>
 		</label>
-		{#if slot.state === 'uploading' || slot.state === 'done'}
+		{#if row.state === 'uploading' || row.state === 'done'}
 			<div class="w-full">
-				<Progress value={slot.progress} class="h-2" />
+				<Progress value={row.progress} class="h-2" />
 				<div class="text-muted-foreground mt-1 text-center text-xs">
-					{slot.state === 'done' ? 'Uploaded' : `${slot.progress}%`}
+					{row.state === 'done' ? 'Uploaded' : `${row.progress}%`}
 				</div>
 			</div>
-		{:else if slot.state === 'error'}
-			<div class="text-destructive text-xs">{slot.error}</div>
+		{:else if row.state === 'error'}
+			<div class="text-destructive text-xs">{row.error}</div>
 		{/if}
 	</div>
 {/snippet}
 
 <div class="flex flex-col gap-8 py-6">
-	{#if recording}
+	{#if recordings.length > 0}
 		<section class="flex flex-col gap-3">
 			<div class="flex items-center justify-between">
-				<div class="flex items-center gap-3">
-					<h2 class="text-2xl font-bold">Recordings</h2>
-					<Badge variant={statusVariant(recording.status)} class="capitalize">
-						{recording.status}
-					</Badge>
-				</div>
-				<div class="flex items-center gap-2">
-					{#if recording.status !== 'completed'}
-						<Button variant="outline" size="sm" onclick={retryTranscription}>
-							Start transcription
-						</Button>
-					{/if}
-					<Button variant="outline" size="sm" onclick={refreshStatus}>
-						<RefreshCw class="mr-2 h-4 w-4" />
-						Refresh
-					</Button>
-				</div>
+				<h2 class="text-2xl font-bold">Recordings</h2>
+				<Button variant="outline" size="sm" onclick={refreshStatus}>
+					<RefreshCw class="mr-2 h-4 w-4" />
+					Refresh
+				</Button>
 			</div>
 
 			<div class="border-border overflow-hidden rounded-lg border">
 				<table class="w-full text-sm">
 					<thead class="bg-muted/50">
 						<tr>
-							<th class="px-4 py-2 text-left font-medium">Room</th>
+							<th class="px-4 py-2 text-left font-medium">Name</th>
 							<th class="px-4 py-2 text-left font-medium">Status</th>
 							<th class="px-4 py-2 text-right font-medium">Files</th>
 						</tr>
 					</thead>
 					<tbody>
-						<tr class="border-t">
-							<td class="px-4 py-3 font-medium">Main room</td>
-							<td class="px-4 py-3">
-								<Badge variant={statusVariant(recording.status)} class="capitalize">
-									{recording.status}
-								</Badge>
-							</td>
-							<td class="px-4 py-3 text-right">
-								{#if recording.status === 'completed' && downloadUrls}
-									<div class="flex justify-end gap-2">
-										<a
-											href={downloadUrls.main.recordingUrl}
-											target="_blank"
-											rel="noopener"
-											class="text-primary text-xs hover:underline"
-										>
-											<Download class="inline h-3 w-3" /> Audio
-										</a>
-										<a
-											href={downloadUrls.main.transcriptUrl}
-											target="_blank"
-											rel="noopener"
-											class="text-primary text-xs hover:underline"
-										>
-											<Download class="inline h-3 w-3" /> Transcript
-										</a>
-										<a
-											href={downloadUrls.main.reportUrl}
-											target="_blank"
-											rel="noopener"
-											class="text-primary text-xs hover:underline"
-										>
-											<Download class="inline h-3 w-3" /> Report
-										</a>
-									</div>
-								{:else}
-									<span class="text-muted-foreground text-xs">—</span>
-								{/if}
-							</td>
-						</tr>
-						{#each recording.breakoutRoomIds as roomId (roomId)}
-							{@const breakoutUrls = downloadUrls?.breakoutRooms.find(
-								(b) => (b as unknown as [string, unknown])[0] === roomId
-							) as unknown as
-								| [
-										string,
-										{
-											recordingUrl: string;
-											transcriptUrl: string;
-											reportUrl: string;
-										}
-								  ]
-								| undefined}
+						{#each recordings as recording (recording.id)}
+							{@const urls = downloads[recording.id]}
 							<tr class="border-t">
-								<td class="px-4 py-3">{roomId}</td>
+								<td class="px-4 py-3 font-medium">{recording.name}</td>
 								<td class="px-4 py-3">
-									<Badge
-										variant={statusVariant(recording.status)}
-										class="capitalize"
-									>
-										{recording.status}
-									</Badge>
+									<div class="flex items-center gap-2">
+										<Badge variant={statusVariant(recording.status)}>
+											{statusLabel(recording.status)}
+										</Badge>
+										{#if recording.status === 'transcript_failure' || recording.status === 'categorization_failure'}
+											<Button
+												variant="outline"
+												size="sm"
+												onclick={() => retryProcessing(recording.id)}
+											>
+												Retry
+											</Button>
+										{/if}
+									</div>
 								</td>
 								<td class="px-4 py-3 text-right">
-									{#if recording.status === 'completed' && breakoutUrls}
+									{#if urls}
 										<div class="flex justify-end gap-2">
 											<a
-												href={breakoutUrls[1].recordingUrl}
+												href={urls.recordingUrl}
 												target="_blank"
 												rel="noopener"
 												class="text-primary text-xs hover:underline"
 											>
 												<Download class="inline h-3 w-3" /> Audio
 											</a>
-											<a
-												href={breakoutUrls[1].transcriptUrl}
-												target="_blank"
-												rel="noopener"
-												class="text-primary text-xs hover:underline"
-											>
-												<Download class="inline h-3 w-3" /> Transcript
-											</a>
-											<a
-												href={breakoutUrls[1].reportUrl}
-												target="_blank"
-												rel="noopener"
-												class="text-primary text-xs hover:underline"
-											>
-												<Download class="inline h-3 w-3" /> Report
-											</a>
+											{#if hasTranscript(recording.status)}
+												<a
+													href={urls.transcriptUrl}
+													target="_blank"
+													rel="noopener"
+													class="text-primary text-xs hover:underline"
+												>
+													<Download class="inline h-3 w-3" /> Transcript
+												</a>
+											{/if}
+											{#if hasReport(recording.status)}
+												<a
+													href={urls.reportUrl}
+													target="_blank"
+													rel="noopener"
+													class="text-primary text-xs hover:underline"
+												>
+													<Download class="inline h-3 w-3" /> Report
+												</a>
+											{/if}
 										</div>
-									{:else}
+									{:else if recording.status === 'pending'}
 										<span class="text-muted-foreground text-xs">—</span>
+									{:else}
+										<span class="text-muted-foreground text-xs">Loading…</span>
 									{/if}
 								</td>
 							</tr>
@@ -494,55 +463,48 @@
 	<section class="flex flex-col gap-4">
 		<div class="flex flex-col gap-1">
 			<h2 class="text-2xl font-bold">
-				{recording ? 'Upload again' : 'Upload recordings'}
+				{recordings.length > 0 ? 'Add more recordings' : 'Upload recordings'}
 			</h2>
 			<p class="text-muted-foreground text-sm">
-				Audio up to {maxSizeMB}MB per file. Add a row for each breakout room you want to
-				upload.
+				Audio up to {maxSizeMB}MB per file. Upload one recording per room — add a row for
+				each.
 			</p>
 		</div>
 
-		{#each slots as slot (slot.key)}
+		{#each rows as row (row.key)}
 			<div class="border-border flex flex-col gap-3 rounded-lg border p-4">
 				<div class="flex items-center justify-between gap-3">
-					{#if slot.isMain}
-						<div class="text-sm font-semibold">Main room</div>
-					{:else}
-						<div class="flex flex-1 items-center gap-2">
-							<label
-								class="text-sm font-semibold whitespace-nowrap"
-								for="room-{slot.key}"
-							>
-								Breakout ID
-							</label>
-							<Input
-								id="room-{slot.key}"
-								class="max-w-xs"
-								bind:value={slot.label}
-								disabled={isUploading}
-								placeholder="e.g. room-1"
-							/>
-						</div>
-						<Button
-							variant="ghost"
-							size="sm"
-							onclick={() => removeRow(slot.key)}
+					<div class="flex flex-1 items-center gap-2">
+						<label class="text-sm font-semibold whitespace-nowrap" for="name-{row.key}">
+							Name
+						</label>
+						<Input
+							id="name-{row.key}"
+							class="max-w-xs"
+							bind:value={row.name}
 							disabled={isUploading}
-						>
-							<Trash2 class="h-4 w-4" />
-						</Button>
-					{/if}
+							placeholder="e.g. Main room, Breakout 1"
+						/>
+					</div>
+					<Button
+						variant="ghost"
+						size="sm"
+						onclick={() => removeRow(row.key)}
+						disabled={isUploading || rows.length === 1}
+					>
+						<Trash2 class="h-4 w-4" />
+					</Button>
 				</div>
-				{@render dropZone(slot)}
+				{@render dropZone(row)}
 			</div>
 		{/each}
 
 		<div class="flex flex-wrap items-center gap-3">
-			<Button variant="outline" onclick={addBreakoutRow} disabled={isUploading}>
-				<Plus class="mr-2 h-4 w-4" /> Add breakout room
+			<Button variant="outline" onclick={addRow} disabled={isUploading}>
+				<Plus class="mr-2 h-4 w-4" /> Add another recording
 			</Button>
 			<Button onclick={startUpload} disabled={isUploading}>
-				{isUploading ? 'Uploading…' : 'Upload recordings'}
+				{isUploading ? 'Uploading…' : 'Upload'}
 			</Button>
 		</div>
 	</section>
