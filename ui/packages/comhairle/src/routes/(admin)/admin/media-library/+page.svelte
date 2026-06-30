@@ -11,6 +11,7 @@
 	import comhairleFullLogo from '$lib/assets/comhairle_full_logo.svg';
 	import DeleteDialog from './DeleteDialog.svelte';
 	import ErrorDialog from './ErrorDialog.svelte';
+	import { flip } from 'svelte/animate';
 
 	let fileInput: HTMLInputElement | undefined;
 	let uploadForm: HTMLFormElement | undefined;
@@ -112,7 +113,10 @@
 			{/snippet}
 			<ul class="flex flex-wrap gap-2">
 				{#each images as image (image.id)}
-					<li class={`relative h-[${ROW_HEIGHT}vh] grow overflow-hidden rounded-sm`}>
+					<li
+						class={`relative h-[${ROW_HEIGHT}vh] grow overflow-hidden rounded-sm`}
+						animate:flip={{ duration: 100 }}
+					>
 						{#if bulkEdit}
 							<label>
 								<input
@@ -146,11 +150,13 @@
 	input:checked + * {
 		filter: opacity(50%);
 	}
+
 	img {
 		transition: all 300ms ease-out;
-	}
-	img:is(:focus, :hover) {
-		filter: brightness(85%);
-		transform: scale(1.02);
+
+		&:is(:focus, :hover) {
+			filter: brightness(85%);
+			transform: scale(1.01);
+		}
 	}
 </style>
