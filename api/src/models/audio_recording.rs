@@ -56,31 +56,37 @@ impl std::fmt::Display for AudioFormat {
 }
 
 /// Status of an audio recording as it moves through the transcription and
-/// categorization pipeline (recording → transcript → report).
+/// categorization pipeline. Each name describes what is happening *at* that
+/// state, so the natural flow reads:
+/// `AwaitingUpload → Transcribing → Categorizing → Complete`
+/// with terminal failure states branching off each processing stage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum AudioRecordingStatus {
-    /// Recording uploaded; not yet processed (also covers queued/transcribing).
-    Pending,
+    /// Row created; the file is being (or has yet to be) uploaded to bulk storage.
+    AwaitingUpload,
+    /// File received; transcription job has been enqueued or is running.
+    Transcribing,
     /// Transcript produced and submitted to the categorization service; the
     /// report has not arrived yet.
-    TranscriptAvailable,
+    Categorizing,
     /// Both the transcript and the categorization report are available.
-    BothAvailable,
+    Complete,
     /// The transcription stage failed.
-    TranscriptFailure,
+    TranscriptionFailed,
     /// The categorization stage failed.
-    CategorizationFailure,
+    CategorizationFailed,
 }
 
 impl ToString for AudioRecordingStatus {
     fn to_string(&self) -> String {
         match self {
-            AudioRecordingStatus::Pending => "pending".to_string(),
-            AudioRecordingStatus::TranscriptAvailable => "transcript_available".to_string(),
-            AudioRecordingStatus::BothAvailable => "both_available".to_string(),
-            AudioRecordingStatus::TranscriptFailure => "transcript_failure".to_string(),
-            AudioRecordingStatus::CategorizationFailure => "categorization_failure".to_string(),
+            AudioRecordingStatus::AwaitingUpload => "awaiting_upload".to_string(),
+            AudioRecordingStatus::Transcribing => "transcribing".to_string(),
+            AudioRecordingStatus::Categorizing => "categorizing".to_string(),
+            AudioRecordingStatus::Complete => "complete".to_string(),
+            AudioRecordingStatus::TranscriptionFailed => "transcription_failed".to_string(),
+            AudioRecordingStatus::CategorizationFailed => "categorization_failed".to_string(),
         }
     }
 }
@@ -89,11 +95,12 @@ impl ToString for AudioRecordingStatus {
 impl AudioRecordingStatus {
     pub fn from_string(s: &str) -> Result<Self, ComhairleError> {
         match s {
-            "pending" => Ok(AudioRecordingStatus::Pending),
-            "transcript_available" => Ok(AudioRecordingStatus::TranscriptAvailable),
-            "both_available" => Ok(AudioRecordingStatus::BothAvailable),
-            "transcript_failure" => Ok(AudioRecordingStatus::TranscriptFailure),
-            "categorization_failure" => Ok(AudioRecordingStatus::CategorizationFailure),
+            "awaiting_upload" => Ok(AudioRecordingStatus::AwaitingUpload),
+            "transcribing" => Ok(AudioRecordingStatus::Transcribing),
+            "categorizing" => Ok(AudioRecordingStatus::Categorizing),
+            "complete" => Ok(AudioRecordingStatus::Complete),
+            "transcription_failed" => Ok(AudioRecordingStatus::TranscriptionFailed),
+            "categorization_failed" => Ok(AudioRecordingStatus::CategorizationFailed),
             _ => Err(ComhairleError::ResourceNotFound(format!(
                 "Unknown status: {}",
                 s
@@ -163,7 +170,7 @@ impl From<RawAudioRecording> for AudioRecording {
             file_extension: AudioFormat::try_from_extension(&raw.file_extension)
                 .unwrap_or(AudioFormat::Wav),
             status: AudioRecordingStatus::from_string(&raw.status)
-                .unwrap_or(AudioRecordingStatus::Pending),
+                .unwrap_or(AudioRecordingStatus::AwaitingUpload),
             created_at: raw.created_at,
             updated_at: raw.updated_at,
         }
@@ -202,7 +209,7 @@ pub async fn create(
             create_recording.name.clone().into(),
             create_recording.s3_key_prefix.clone().into(),
             create_recording.file_extension.extension().into(),
-            "pending".into(),
+            AudioRecordingStatus::AwaitingUpload.to_string().into(),
         ])
         .unwrap()
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
@@ -388,7 +395,7 @@ mod tests {
         assert_eq!(recording.event_id, create_req.event_id);
         assert_eq!(recording.name, create_req.name);
         assert_eq!(recording.s3_key_prefix, create_req.s3_key_prefix);
-        assert_eq!(recording.status, AudioRecordingStatus::Pending);
+        assert_eq!(recording.status, AudioRecordingStatus::AwaitingUpload);
         Ok(())
     }
 
@@ -579,11 +586,10 @@ mod tests {
         };
 
         let created = create(&pool, &create_req).await?;
-        assert_eq!(created.status, AudioRecordingStatus::Pending);
+        assert_eq!(created.status, AudioRecordingStatus::AwaitingUpload);
 
-        let updated =
-            update_status(&pool, &created.id, AudioRecordingStatus::BothAvailable).await?;
-        assert_eq!(updated.status, AudioRecordingStatus::BothAvailable);
+        let updated = update_status(&pool, &created.id, AudioRecordingStatus::Complete).await?;
+        assert_eq!(updated.status, AudioRecordingStatus::Complete);
         assert!(updated.updated_at > created.updated_at);
         assert!(updated.created_at == created.created_at);
         Ok(())

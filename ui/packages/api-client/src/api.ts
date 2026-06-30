@@ -1720,11 +1720,12 @@ export const AudioFormat = z.enum([
 ]);
 export type AudioFormat = z.infer<typeof AudioFormat>;
 export const AudioRecordingStatus = z.union([
-  z.literal("pending"),
-  z.literal("transcript_available"),
-  z.literal("both_available"),
-  z.literal("transcript_failure"),
-  z.literal("categorization_failure"),
+  z.literal("awaiting_upload"),
+  z.literal("transcribing"),
+  z.literal("categorizing"),
+  z.literal("complete"),
+  z.literal("transcription_failed"),
+  z.literal("categorization_failed"),
 ]);
 export type AudioRecordingStatus = z.infer<typeof AudioRecordingStatus>;
 export const AudioRecordingDto = z

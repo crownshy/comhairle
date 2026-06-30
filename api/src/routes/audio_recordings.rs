@@ -167,6 +167,15 @@ async fn process_recording(
         })
         .await?;
 
+    // Move out of `awaiting_upload`/failure states so the UI immediately
+    // reflects that the file has been received and work is underway.
+    audio_recording::update_status(
+        &state.db,
+        &recording_id,
+        audio_recording::AudioRecordingStatus::Transcribing,
+    )
+    .await?;
+
     Ok((
         StatusCode::OK,
         Json(ProcessRecordingResponse {
@@ -290,7 +299,7 @@ async fn submit_report(
     audio_recording::update_status(
         &state.db,
         &recording.id,
-        audio_recording::AudioRecordingStatus::BothAvailable,
+        audio_recording::AudioRecordingStatus::Complete,
     )
     .await?;
 
@@ -775,11 +784,11 @@ mod tests {
 
         assert_eq!(status, StatusCode::CREATED);
 
-        // The recording is now both_available.
+        // The recording is now complete.
         let refreshed = audio_recording::get_by_id(&pool, &recording.id).await?;
         assert_eq!(
             refreshed.status,
-            audio_recording::AudioRecordingStatus::BothAvailable
+            audio_recording::AudioRecordingStatus::Complete
         );
 
         Ok(())

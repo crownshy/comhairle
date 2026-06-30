@@ -64,7 +64,8 @@
 	let loadingDownloads = $state<Set<string>>(new Set());
 	let deletingIds = $state<Set<string>>(new Set());
 
-	const hasPending = $derived(recordings.some((r) => r.status === 'pending'));
+	const isInFlight = (s: AudioRecordingStatus) => s === 'transcribing' || s === 'categorizing';
+	const hasInFlight = $derived(recordings.some((r) => isInFlight(r.status)));
 
 	function addRow() {
 		rows = [...rows, makeRow()];
@@ -275,49 +276,61 @@
 	}
 
 	function statusVariant(status: AudioRecordingStatus): 'default' | 'secondary' | 'destructive' {
-		if (status === 'both_available') return 'default';
-		if (status === 'transcript_failure' || status === 'categorization_failure')
+		if (status === 'complete') return 'default';
+		if (status === 'transcription_failed' || status === 'categorization_failed')
 			return 'destructive';
 		return 'secondary';
 	}
 
 	function statusLabel(status: AudioRecordingStatus): string {
 		switch (status) {
-			case 'pending':
-				return 'Processing';
-			case 'transcript_available':
-				return 'Transcript ready';
-			case 'both_available':
+			case 'awaiting_upload':
+				return 'Awaiting upload';
+			case 'transcribing':
+				return 'Transcribing';
+			case 'categorizing':
+				return 'Categorizing';
+			case 'complete':
 				return 'Complete';
-			case 'transcript_failure':
+			case 'transcription_failed':
 				return 'Transcription failed';
-			case 'categorization_failure':
+			case 'categorization_failed':
 				return 'Categorization failed';
 		}
 	}
 
 	function hasTranscript(status: AudioRecordingStatus): boolean {
 		return (
-			status === 'transcript_available' ||
-			status === 'both_available' ||
-			status === 'categorization_failure'
+			status === 'categorizing' || status === 'complete' || status === 'categorization_failed'
 		);
 	}
 
 	function hasReport(status: AudioRecordingStatus): boolean {
-		return status === 'both_available';
+		return status === 'complete';
+	}
+
+	// Statuses where we know the audio is in storage (so download URLs are
+	// worth pre-fetching). `awaiting_upload` and `transcription_failed` rows
+	// may have no audio at all, so we skip them.
+	function hasStoredAudio(status: AudioRecordingStatus): boolean {
+		return (
+			status === 'transcribing' ||
+			status === 'categorizing' ||
+			status === 'complete' ||
+			status === 'categorization_failed'
+		);
 	}
 
 	$effect(() => {
 		for (const r of recordings) {
-			if (r.status !== 'pending' && !downloads[r.id] && !loadingDownloads.has(r.id)) {
+			if (hasStoredAudio(r.status) && !downloads[r.id] && !loadingDownloads.has(r.id)) {
 				loadDownloads(r.id);
 			}
 		}
 	});
 
 	$effect(() => {
-		if (!hasPending) return;
+		if (!hasInFlight) return;
 		const interval = setInterval(() => {
 			invalidateAll();
 		}, 10000);
@@ -425,7 +438,7 @@
 										<Badge variant={statusVariant(recording.status)}>
 											{statusLabel(recording.status)}
 										</Badge>
-										{#if recording.status === 'transcript_failure' || recording.status === 'categorization_failure'}
+										{#if recording.status === 'transcription_failed' || recording.status === 'categorization_failed'}
 											<Button
 												variant="outline"
 												size="sm"
@@ -469,10 +482,10 @@
 												</a>
 											{/if}
 										</div>
-									{:else if recording.status === 'pending'}
-										<span class="text-muted-foreground text-xs">—</span>
-									{:else}
+									{:else if hasStoredAudio(recording.status)}
 										<span class="text-muted-foreground text-xs">Loading…</span>
+									{:else}
+										<span class="text-muted-foreground text-xs">—</span>
 									{/if}
 								</td>
 								<td class="px-4 py-3 text-right">
@@ -493,7 +506,7 @@
 				</table>
 			</div>
 
-			{#if hasPending}
+			{#if hasInFlight}
 				<p class="text-muted-foreground text-xs">
 					Processing audio… status will refresh automatically every 10 seconds.
 				</p>
