@@ -10,7 +10,8 @@
 		validateUrl
 	} from '$lib/utils/urlValidation';
 	import { capitalise } from '$lib/utils/string';
-	import { Upload, Images } from 'lucide-svelte';
+	import { Upload, Images, SquareArrowOutUpLeft } from 'lucide-svelte';
+	import * as Dialog from '$lib/components/ui/dialog';
 
 	type Props = {
 		type: 'audio' | 'image' | 'video' | 'link';
@@ -108,7 +109,28 @@
 					{`Insert ${capitalise(type)} From Files`}
 				</span>
 				<div class="flex flex-row gap-2">
-					<Button size="sm"><Images class="h-4 w-4" />Media library</Button>
+					<Dialog.Root>
+						<Dialog.Trigger>
+							<Button size="sm"><Images class="h-4 w-4" />Media library</Button>
+						</Dialog.Trigger>
+						<Dialog.Portal>
+							<Dialog.Content>
+								<Dialog.Title>
+									<div class="flex flex-row items-center gap-1">
+										<span>Media library</span>
+										<Button
+											href="/admin/media-library"
+											variant="ghost"
+											title="Go to media library"
+											aria-label="Go to media library"
+										>
+											<SquareArrowOutUpLeft />
+										</Button>
+									</div>
+								</Dialog.Title>
+							</Dialog.Content>
+						</Dialog.Portal>
+					</Dialog.Root>
 					<Button size="sm"><Upload class="h-4 w-4" />Upload</Button>
 				</div>
 				<hr class="mx-2 my-4" />
