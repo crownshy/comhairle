@@ -12,7 +12,7 @@
 	import DeleteDialog from './DeleteDialog.svelte';
 	import ErrorDialog from './ErrorDialog.svelte';
 	import { flip } from 'svelte/animate';
-	import Media from '$lib/components/Media';
+	import { MediaUpload } from '$lib/components/Media';
 
 	let deleteForm: HTMLFormElement | undefined;
 
@@ -45,7 +45,7 @@
 		<h1 class="text-4xl font-bold">Media library</h1>
 		<div class="flex flex-row gap-4">
 			{#if !bulkEdit}
-				<Media.Upload />
+				<MediaUpload />
 				<Button
 					variant="outline"
 					onclick={() => {

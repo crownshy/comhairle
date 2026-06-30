@@ -1,5 +1,3 @@
-import Upload from './Upload.svelte';
+import MediaUpload from './MediaUpload.svelte';
 
-export default {
-	Upload
-};
+export { MediaUpload };

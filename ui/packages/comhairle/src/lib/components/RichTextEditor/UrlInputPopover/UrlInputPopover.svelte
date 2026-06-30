@@ -10,8 +10,9 @@
 		validateUrl
 	} from '$lib/utils/urlValidation';
 	import { capitalise } from '$lib/utils/string';
-	import { Upload, Images, SquareArrowOutUpLeft } from 'lucide-svelte';
+	import { Images, SquareArrowOutUpLeft } from 'lucide-svelte';
 	import * as Dialog from '$lib/components/ui/dialog';
+	import { MediaUpload } from '$lib/components/Media';
 
 	type Props = {
 		type: 'audio' | 'image' | 'video' | 'link';
@@ -131,7 +132,7 @@
 							</Dialog.Content>
 						</Dialog.Portal>
 					</Dialog.Root>
-					<Button size="sm"><Upload class="h-4 w-4" />Upload</Button>
+					<MediaUpload clientSide size="sm" />
 				</div>
 				<hr class="mx-2 my-4" />
 			{/if}

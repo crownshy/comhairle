@@ -31,7 +31,7 @@ async function getErrorMessage(response: Response): Promise<string | undefined> 
 	return undefined;
 }
 
-type FetchErr =
+export type FetchErr =
 	| { id: 'NETWORK_ERROR'; message: typeof NO_INTERNET }
 	| { id: 'HTTP_ERROR'; status: number; message: string };
 /**
