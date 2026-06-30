@@ -327,6 +327,12 @@ pub enum ComhairleError {
 
     #[error("Unsupported Content-Type: {0}")]
     UnsupportedContentType(String),
+
+    #[error("Redis error: {0}")]
+    RedisError(String),
+
+    #[error("Deserialization error: {0}")]
+    DeserializationError(String),
 }
 
 #[derive(Debug, Serialize, JsonSchema)]

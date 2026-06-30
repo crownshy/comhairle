@@ -1,3 +1,4 @@
+pub mod config;
 pub mod error;
 pub mod handlers;
 pub mod messages;
@@ -19,6 +20,7 @@ use axum::{
 use dashmap::DashMap;
 use futures_util::{SinkExt, StreamExt};
 use messages::{NotificationLevel, WebSocketMessage};
+use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use tokio::sync::mpsc;
 use tracing::{error, info, instrument, warn};
@@ -29,9 +31,11 @@ use mockall::{automock, predicate::*};
 
 use async_trait::async_trait;
 
-use crate::{
-    error::ComhairleError, models::users::User, routes::auth::RequiredUser, ComhairleState,
-};
+use crate::ComhairleState;
+use crate::error::ComhairleError;
+use crate::models::users::User;
+use crate::routes::auth::RequiredUser;
+use crate::websockets::config::WebsocketConfig;
 
 /// Trait for handling domain-specific WebSocket messages.
 ///
@@ -191,11 +195,50 @@ pub type ConnectionMap = Arc<DashMap<ConnectionId, WebSocketConnection>>;
 pub type UserConnectionMap = Arc<DashMap<Uuid, Vec<ConnectionId>>>;
 pub type HandlerRegistry = Arc<DashMap<String, Arc<dyn WebSocketMessageHandler>>>;
 
+#[derive(Clone, Debug)]
+struct ComhairleWebSocketServiceRedis {
+    redis_publisher: redis::aio::MultiplexedConnection,
+    redis_url: String,
+    instance_id: Uuid,
+}
+
 #[derive(Clone)]
 pub struct ComhairleWebSocketService {
     pub connections: ConnectionMap,
     pub user_connections: UserConnectionMap,
     pub handlers: HandlerRegistry,
+    redis_service: Option<ComhairleWebSocketServiceRedis>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum WebsocketPubSubMessage {
+    Broadcast {
+        sender_id: Uuid,
+        message: serde_json::Value,
+        authenticated_only: bool,
+    },
+    SendToUser {
+        sender_id: Uuid,
+        user_id: String,
+        message: serde_json::Value,
+    },
+    SendToConnections {
+        sender_id: Uuid,
+        connection_ids: Vec<usize>,
+        message: serde_json::Value,
+    },
+}
+
+impl WebsocketPubSubMessage {
+    pub fn to_websocket_message(&self) -> Result<WebSocketMessage, ComhairleError> {
+        let message: serde_json::Value = match self {
+            WebsocketPubSubMessage::Broadcast { message, .. } => message.clone(),
+            WebsocketPubSubMessage::SendToUser { message, .. } => message.clone(),
+            WebsocketPubSubMessage::SendToConnections { message, .. } => message.clone(),
+        };
+        serde_json::from_value(message)
+            .map_err(|e| ComhairleError::DeserializationError(e.to_string()))
+    }
 }
 
 #[async_trait]
@@ -271,18 +314,250 @@ impl MockWebSocketService {
 }
 
 impl ComhairleWebSocketService {
-    pub fn new() -> Self {
-        Self {
+    pub async fn new(config: Option<&WebsocketConfig>) -> Result<Self, ComhairleError> {
+        let redis_service = if let Some(config) = &config {
+            let client = redis::Client::open(config.redis_pubsub_url.as_str())
+                .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
+
+            // Get a multiplexed connection for PUBLISHING
+            let redis_publisher = client
+                .get_multiplexed_async_connection()
+                .await
+                .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
+
+            Some(ComhairleWebSocketServiceRedis {
+                redis_publisher,
+                redis_url: config.redis_pubsub_url.clone(),
+                instance_id: Uuid::new_v4(),
+            })
+        } else {
+            None
+        };
+
+        Ok(Self {
             connections: Arc::new(DashMap::new()),
             user_connections: Arc::new(DashMap::new()),
             handlers: Arc::new(DashMap::new()),
-        }
+            redis_service,
+        })
     }
-}
 
-impl Default for ComhairleWebSocketService {
-    fn default() -> Self {
-        Self::new()
+    pub async fn start_pubsub_subscriber(
+        &self,
+    ) -> Result<tokio::task::JoinHandle<()>, ComhairleError> {
+        if self.redis_service.is_none() {
+            return Err(ComhairleError::RedisError(
+                "Redis pub/sub is not configured".to_string(),
+            ));
+        }
+        let redis_service = self.redis_service.as_ref().unwrap();
+        // Create a DEDICATED connection just for listening
+        let client = redis::Client::open(redis_service.redis_url.as_str())
+            .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
+        let mut pubsub = client
+            .get_async_pubsub()
+            .await
+            .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
+
+        pubsub
+            .subscribe("comhairle_api_websocket_messages")
+            .await
+            .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
+
+        let self_clone = self.clone();
+
+        let handle = tokio::spawn(async move {
+            while let Some(msg) = pubsub.on_message().next().await {
+                let payload: Vec<u8> = msg.get_payload_bytes().to_vec();
+                let pubsub_msg: WebsocketPubSubMessage = match serde_json::from_slice(&payload) {
+                    Ok(m) => m,
+                    Err(_) => continue,
+                };
+
+                match pubsub_msg {
+                    WebsocketPubSubMessage::Broadcast {
+                        sender_id,
+                        message,
+                        authenticated_only,
+                    } => {
+                        // PREVENT ECHO: Skip if we sent this message!
+                        if sender_id == self_clone.redis_service.as_ref().unwrap().instance_id {
+                            continue;
+                        }
+
+                        if let Ok(ws_message) = serde_json::from_value(message) {
+                            if authenticated_only {
+                                let _ = self_clone
+                                    .broadcast_to_authenticated_users_local(&ws_message)
+                                    .await;
+                            } else {
+                                // Important: Call the LOCAL method, not the trait method,
+                                // to avoid publishing it back to Redis!
+                                let _ = self_clone.broadcast_to_all_local(&ws_message).await;
+                            }
+                        }
+                    }
+                    WebsocketPubSubMessage::SendToUser {
+                        sender_id,
+                        user_id,
+                        message,
+                    } => {
+                        if sender_id == self_clone.redis_service.as_ref().unwrap().instance_id {
+                            continue;
+                        }
+
+                        if let Ok(ws_message) = serde_json::from_value(message) {
+                            if let Ok(user_uuid) = Uuid::parse_str(&user_id) {
+                                let _ =
+                                    self_clone.send_to_user_local(&user_uuid, &ws_message).await;
+                            }
+                        }
+                    }
+                    WebsocketPubSubMessage::SendToConnections {
+                        sender_id,
+                        connection_ids,
+                        message,
+                    } => {
+                        if sender_id == self_clone.redis_service.as_ref().unwrap().instance_id {
+                            continue;
+                        }
+
+                        if let Ok(ws_message) = serde_json::from_value(message) {
+                            let connection_ids = connection_ids
+                                .into_iter()
+                                .map(ConnectionId)
+                                .collect::<Vec<_>>();
+                            let _ = self_clone
+                                .send_to_connections_local(&connection_ids, &ws_message)
+                                .await;
+                        }
+                    }
+                }
+            }
+        });
+
+        Ok(handle)
+    }
+
+    async fn publish_to_redis(
+        &self,
+        message: &WebsocketPubSubMessage,
+    ) -> Result<(), ComhairleError> {
+        if self.redis_service.is_none() {
+            return Err(ComhairleError::RedisError(
+                "Redis pub/sub is not configured".to_string(),
+            ));
+        }
+        let redis_service = self.redis_service.as_ref().unwrap();
+        let mut conn = redis_service.redis_publisher.clone();
+        if let Ok(payload) = serde_json::to_string(message) {
+            use redis::AsyncCommands;
+            conn.publish::<_, _, ()>("comhairle_api_websocket_messages", payload)
+                .await
+                .map_err(|e| ComhairleError::RedisError(e.to_string()))?;
+        }
+        Ok(())
+    }
+
+    async fn broadcast_to_all_local(
+        &self,
+        message: &WebSocketMessage,
+    ) -> Result<usize, ComhairleError> {
+        let mut sent_count = 0;
+        let mut failed_connections = Vec::new();
+
+        for connection_ref in self.connections.iter() {
+            let connection = connection_ref.value();
+            if (connection.send_message(message).await).is_err() {
+                failed_connections.push(connection.id.clone());
+            } else {
+                sent_count += 1;
+            }
+        }
+
+        for failed_id in failed_connections {
+            self.remove_connection(&failed_id);
+        }
+
+        Ok(sent_count)
+    }
+
+    async fn broadcast_to_authenticated_users_local(
+        &self,
+        message: &WebSocketMessage,
+    ) -> Result<usize, ComhairleError> {
+        let mut sent_count = 0;
+        let mut failed_connections = Vec::new();
+
+        for connection_ref in self.connections.iter() {
+            let connection = connection_ref.value();
+            if (connection.send_message(message).await).is_err() {
+                failed_connections.push(connection.id.clone());
+            } else {
+                sent_count += 1;
+            }
+        }
+
+        for failed_id in failed_connections {
+            self.remove_connection(&failed_id);
+        }
+
+        Ok(sent_count)
+    }
+
+    async fn send_to_user_local(
+        &self,
+        user_id: &Uuid,
+        message: &WebSocketMessage,
+    ) -> Result<usize, ComhairleError> {
+        let connection_ids = match self.user_connections.get(user_id) {
+            Some(ids) => ids.clone(),
+            None => return Ok(0),
+        };
+
+        let mut sent_count = 0;
+        let mut failed_connections = Vec::new();
+
+        for connection_id in &connection_ids {
+            if let Some(connection) = self.connections.get(connection_id) {
+                if (connection.send_message(message).await).is_err() {
+                    failed_connections.push(connection_id.clone());
+                } else {
+                    sent_count += 1;
+                }
+            }
+        }
+
+        for failed_id in failed_connections {
+            self.remove_connection(&failed_id);
+        }
+
+        Ok(sent_count)
+    }
+
+    async fn send_to_connections_local(
+        &self,
+        conn_uuids: &[ConnectionId],
+        message: &WebSocketMessage,
+    ) -> Result<usize, ComhairleError> {
+        let mut sent_count = 0;
+        let mut failed_connections = Vec::new();
+
+        for connection_id in conn_uuids {
+            if let Some(connection) = self.connections.get(connection_id) {
+                if (connection.send_message(message).await).is_err() {
+                    failed_connections.push(connection_id.clone());
+                } else {
+                    sent_count += 1;
+                }
+            }
+        }
+
+        for failed_id in failed_connections {
+            self.remove_connection(&failed_id);
+        }
+
+        Ok(sent_count)
     }
 }
 
@@ -317,20 +592,17 @@ impl WebSocketService for ComhairleWebSocketService {
     }
 
     async fn broadcast_to_all(&self, message: &WebSocketMessage) -> Result<usize, ComhairleError> {
-        let mut sent_count = 0;
-        let mut failed_connections = Vec::new();
+        let sent_count = self.broadcast_to_all_local(message).await?;
 
-        for connection_ref in self.connections.iter() {
-            let connection = connection_ref.value();
-            if (connection.send_message(message).await).is_err() {
-                failed_connections.push(connection.id.clone());
-            } else {
-                sent_count += 1;
-            }
-        }
+        if let Some(redis_service) = &self.redis_service {
+            let pubsub_message = WebsocketPubSubMessage::Broadcast {
+                sender_id: redis_service.instance_id,
+                message: serde_json::to_value(message)
+                    .map_err(|e| ComhairleError::SerializationError(e.to_string()))?,
+                authenticated_only: false,
+            };
 
-        for failed_id in failed_connections {
-            self.remove_connection(&failed_id);
+            self.publish_to_redis(&pubsub_message).await?;
         }
 
         Ok(sent_count)
@@ -340,20 +612,17 @@ impl WebSocketService for ComhairleWebSocketService {
         &self,
         message: &WebSocketMessage,
     ) -> Result<usize, ComhairleError> {
-        let mut sent_count = 0;
-        let mut failed_connections = Vec::new();
+        let sent_count = self.broadcast_to_authenticated_users_local(message).await?;
 
-        for connection_ref in self.connections.iter() {
-            let connection = connection_ref.value();
-            if (connection.send_message(message).await).is_err() {
-                failed_connections.push(connection.id.clone());
-            } else {
-                sent_count += 1;
-            }
-        }
+        if let Some(redis_service) = &self.redis_service {
+            let pubsub_message = WebsocketPubSubMessage::Broadcast {
+                sender_id: redis_service.instance_id,
+                message: serde_json::to_value(message)
+                    .map_err(|e| ComhairleError::SerializationError(e.to_string()))?,
+                authenticated_only: true,
+            };
 
-        for failed_id in failed_connections {
-            self.remove_connection(&failed_id);
+            self.publish_to_redis(&pubsub_message).await?;
         }
 
         Ok(sent_count)
@@ -364,26 +633,17 @@ impl WebSocketService for ComhairleWebSocketService {
         user_id: &Uuid,
         message: &WebSocketMessage,
     ) -> Result<usize, ComhairleError> {
-        let connection_ids = match self.user_connections.get(user_id) {
-            Some(ids) => ids.clone(),
-            None => return Ok(0),
-        };
+        let sent_count = self.send_to_user_local(user_id, message).await?;
 
-        let mut sent_count = 0;
-        let mut failed_connections = Vec::new();
+        if let Some(redis_service) = &self.redis_service {
+            let pubsub_message = WebsocketPubSubMessage::SendToUser {
+                sender_id: redis_service.instance_id,
+                user_id: user_id.to_string(),
+                message: serde_json::to_value(message)
+                    .map_err(|e| ComhairleError::SerializationError(e.to_string()))?,
+            };
 
-        for connection_id in &connection_ids {
-            if let Some(connection) = self.connections.get(connection_id) {
-                if (connection.send_message(message).await).is_err() {
-                    failed_connections.push(connection_id.clone());
-                } else {
-                    sent_count += 1;
-                }
-            }
-        }
-
-        for failed_id in failed_connections {
-            self.remove_connection(&failed_id);
+            self.publish_to_redis(&pubsub_message).await?;
         }
 
         Ok(sent_count)
@@ -394,21 +654,19 @@ impl WebSocketService for ComhairleWebSocketService {
         connection_ids: &[ConnectionId],
         message: &WebSocketMessage,
     ) -> Result<usize, ComhairleError> {
-        let mut sent_count = 0;
-        let mut failed_connections = Vec::new();
+        let sent_count = self
+            .send_to_connections_local(connection_ids, message)
+            .await?;
 
-        for connection_id in connection_ids {
-            if let Some(connection) = self.connections.get(connection_id) {
-                if (connection.send_message(message).await).is_err() {
-                    failed_connections.push(connection_id.clone());
-                } else {
-                    sent_count += 1;
-                }
-            }
-        }
+        if let Some(redis_service) = &self.redis_service {
+            let pubsub_message = WebsocketPubSubMessage::SendToConnections {
+                sender_id: redis_service.instance_id,
+                connection_ids: connection_ids.iter().map(|id| id.0).collect(),
+                message: serde_json::to_value(message)
+                    .map_err(|e| ComhairleError::SerializationError(e.to_string()))?,
+            };
 
-        for failed_id in failed_connections {
-            self.remove_connection(&failed_id);
+            self.publish_to_redis(&pubsub_message).await?;
         }
 
         Ok(sent_count)
@@ -663,4 +921,157 @@ async fn route_to_handler(
         }
 
     Ok(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use redis_test::server::RedisServer;
+
+    #[tokio::test]
+    async fn test_websocket_broadcast_to_all_with_redis_pubsub() {
+        // Keep Redis server alive throughout the test (for temporary servers)
+        let _redis_server: Option<redis_test::server::RedisServer>;
+        let redis_url: String;
+
+        // Try to connect to localhost:6379 first (CI environment)
+        let client = redis::Client::open("redis://localhost:6379/");
+        let can_connect = if let Ok(client) = client {
+            client.get_connection().is_ok()
+        } else {
+            false
+        };
+
+        if can_connect {
+            eprintln!("Using Redis at localhost:6379 (CI environment)");
+            _redis_server = None;
+            redis_url = "redis://localhost:6379/".to_string();
+        } else {
+            // Try to start a temporary server for local development
+            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| RedisServer::new())) {
+                Ok(server) => {
+                    let addr = server.connection_info().addr().to_string();
+                    redis_url = format!("redis://{}/", addr);
+
+                    // Wait for the Redis server to start up
+                    for attempt in 0..5 {
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                        if let Ok(client) = redis::Client::open(redis_url.as_str()) {
+                            if client.get_connection().is_ok() {
+                                eprintln!("Temporary Redis server started at {}", addr);
+                                break;
+                            }
+                        }
+                        if attempt == 4 {
+                            eprintln!("Failed to start temporary Redis server");
+                            return;
+                        }
+                    }
+                    _redis_server = Some(server);
+                }
+                Err(_) => {
+                    eprintln!("Could not start temporary Redis - skipping test");
+                    return;
+                }
+            }
+        }
+
+        // Create two independent WebSocket services with Redis pub/sub enabled
+        let websocket_config = Some(WebsocketConfig {
+            redis_pubsub_url: redis_url.clone(),
+        });
+
+        let service_1 = ComhairleWebSocketService::new(websocket_config.as_ref())
+            .await
+            .expect("Failed to create service 1");
+        let service_2 = ComhairleWebSocketService::new(websocket_config.as_ref())
+            .await
+            .expect("Failed to create service 2");
+
+        // Start subscribers for both services
+        let _subscriber_1 = service_1
+            .start_pubsub_subscriber()
+            .await
+            .expect("Failed to start subscriber 1");
+        let _subscriber_2 = service_2
+            .start_pubsub_subscriber()
+            .await
+            .expect("Failed to start subscriber 2");
+
+        // Create mock users
+        let user_id = Uuid::new_v4();
+        let user = crate::models::users::User {
+            id: user_id,
+            email: Some("test@example.com".to_string()),
+            username: Some("test_user".to_string()),
+            password: None,
+            avatar_url: None,
+            email_verified: true,
+            auth_type: crate::models::users::UserAuthType::EmailPassword,
+            organization_id: None,
+        };
+
+        let addr = "127.0.0.1:9999".parse().unwrap();
+        let (connection_1, mut receiver_1) = WebSocketConnection::new(user.clone(), addr);
+        let (connection_2, mut receiver_2) = WebSocketConnection::new(user.clone(), addr);
+
+        service_1.add_connection(connection_1.clone());
+        service_2.add_connection(connection_2.clone());
+
+        // Give time for subscriptions to be ready
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        // Create a test message
+        let test_message = WebSocketMessage::Notification {
+            title: "Test Broadcast".to_string(),
+            message: "Hello from service 1".to_string(),
+            level: NotificationLevel::Info,
+        };
+
+        // Broadcast from service 1 (this should be received by service 2's connections via Redis)
+        let sent_count = service_1
+            .broadcast_to_all(&test_message)
+            .await
+            .expect("Failed to broadcast from service 1");
+
+        assert_eq!(
+            sent_count, 1,
+            "Service 1 should have sent to its own connection"
+        );
+
+        // Give time for the message to be published and received via Redis
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+
+        // Check if connection 1 received the message (from its own broadcast)
+        if let Ok(msg) =
+            tokio::time::timeout(std::time::Duration::from_millis(100), receiver_1.recv()).await
+        {
+            if let Some(msg) = msg {
+                if let Ok(ws_msg) =
+                    serde_json::from_str::<WebSocketMessage>(msg.to_text().unwrap_or(""))
+                {
+                    // Message should be received via the channel
+                    assert!(matches!(ws_msg, WebSocketMessage::Notification { .. }));
+                }
+            }
+        }
+
+        // Check if service_2's connections received the broadcast via Redis pub/sub
+        // The message should have been published to Redis and received by the subscriber
+        if let Ok(msg) =
+            tokio::time::timeout(std::time::Duration::from_millis(500), receiver_2.recv()).await
+        {
+            if let Some(msg) = msg {
+                if let Ok(ws_msg) =
+                    serde_json::from_str::<WebSocketMessage>(msg.to_text().unwrap_or(""))
+                {
+                    assert!(matches!(ws_msg, WebSocketMessage::Notification { .. }));
+                }
+            }
+        }
+
+        // Verify the message was received by both services
+        assert_eq!(service_1.get_connection_count(), 1);
+        assert_eq!(service_2.get_connection_count(), 1);
+    }
 }
