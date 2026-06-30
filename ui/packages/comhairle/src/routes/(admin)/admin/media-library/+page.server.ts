@@ -18,7 +18,12 @@ export const actions = {
 		console.error('response:', response);
 
 		if (response.err !== null) {
-			return fail(response.err.status, { error: response.err.message });
+			switch (response.err.id) {
+				case 'NETWORK_ERROR':
+					return fail(400, { error: response.err.message });
+				case 'HTTP_ERROR':
+					return fail(response.err.status, { error: response.err.message });
+			}
 		}
 		return json({ message: 'ok' });
 	},
