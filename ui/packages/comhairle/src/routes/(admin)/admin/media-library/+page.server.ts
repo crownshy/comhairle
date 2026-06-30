@@ -6,11 +6,13 @@ export const actions = {
 	upload: async ({ request, fetch }: RequestEvent) => {
 		const data = await request.formData();
 
-		const response = await tryFetch(() =>
-			fetch('/api/media', {
+		const response = await tryFetch(
+			'/api/media',
+			{
 				method: 'POST',
 				body: data
-			})
+			},
+			fetch
 		);
 
 		console.error('response:', response);
