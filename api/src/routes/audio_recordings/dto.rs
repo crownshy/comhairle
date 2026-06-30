@@ -81,6 +81,14 @@ pub struct ProcessRecordingResponse {
     pub job_id: Uuid,
 }
 
+/// Response after deleting a recording.
+#[cfg_attr(test, derive(Deserialize))]
+#[derive(Serialize, JsonSchema, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteRecordingResponse {
+    pub recording: AudioRecordingDto,
+}
+
 /// Response after a categorization report is stored.
 #[cfg_attr(test, derive(Deserialize))]
 #[derive(Serialize, JsonSchema, Debug)]

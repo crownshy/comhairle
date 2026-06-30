@@ -289,6 +289,32 @@ pub async fn list_by_event(
     Ok(recordings.into_iter().map(Into::into).collect())
 }
 
+/// Delete an audio recording scoped to its event.
+///
+/// Returns [`ComhairleError::ResourceNotFound`] if no recording with that id
+/// exists for the given event.
+pub async fn delete(
+    db: &PgPool,
+    recording_id: &Uuid,
+    event_id: &Uuid,
+) -> Result<AudioRecording, ComhairleError> {
+    let (sql, values) = Query::delete()
+        .from_table(RawAudioRecordingIden::Table)
+        .and_where(Expr::col(RawAudioRecordingIden::Id).eq(*recording_id))
+        .and_where(Expr::col(RawAudioRecordingIden::EventId).eq(*event_id))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let recording = sqlx::query_as_with::<_, RawAudioRecording, _>(&sql, values)
+        .fetch_optional(db)
+        .await?
+        .ok_or(ComhairleError::ResourceNotFound(
+            "Audio recording not found".to_string(),
+        ))?;
+
+    Ok(recording.into())
+}
+
 /// Update the status of an audio recording
 pub async fn update_status(
     db: &PgPool,
@@ -563,6 +589,51 @@ mod tests {
         Ok(())
     }
     
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn test_delete_scopes_to_event(
+        pool: sqlx::PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = test_config()?;
+        config.bot_service = None;
+        let state = Arc::new(test_state().db(pool.clone()).config(config).call()?);
+        let app = setup_server(state.clone()).await?;
+
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let event = create_random_event(&mut session, &app).await?;
+
+        let created = create(
+            &pool,
+            &CreateAudioRecording {
+                id: Uuid::new_v4(),
+                event_id: event.id,
+                name: "Room 1".to_string(),
+                s3_key_prefix: "test/prefix".to_string(),
+                file_extension: AudioFormat::Wav,
+            },
+        )
+        .await?;
+
+        // A mismatched event id refuses to delete and yields ResourceNotFound.
+        let other_event = create_random_event(&mut session, &app).await?;
+        let result = delete(&pool, &created.id, &other_event.id).await;
+        assert!(matches!(result, Err(ComhairleError::ResourceNotFound(_))));
+        // The row still exists.
+        assert!(get_by_id(&pool, &created.id).await.is_ok());
+
+        // The matching event id deletes the row.
+        let deleted = delete(&pool, &created.id, &event.id).await?;
+        assert_eq!(deleted.id, created.id);
+        assert!(get_by_id(&pool, &created.id).await.is_err());
+
+        // A second delete of the same row is a not-found.
+        let result = delete(&pool, &created.id, &event.id).await;
+        assert!(matches!(result, Err(ComhairleError::ResourceNotFound(_))));
+
+        Ok(())
+    }
+
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_get_by_id_not_found(
         pool: sqlx::PgPool,

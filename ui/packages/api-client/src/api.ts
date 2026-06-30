@@ -1760,6 +1760,10 @@ export const RecordingDetailResponse = z
   .object({ downloads: RecordingDownloadUrls, recording: AudioRecordingDto })
   .passthrough();
 export type RecordingDetailResponse = z.infer<typeof RecordingDetailResponse>;
+export const DeleteRecordingResponse = z
+  .object({ recording: AudioRecordingDto })
+  .passthrough();
+export type DeleteRecordingResponse = z.infer<typeof DeleteRecordingResponse>;
 export const ProcessRecordingResponse = z
   .object({ jobId: z.string().uuid(), message: z.string() })
   .passthrough();
@@ -2261,6 +2265,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   CreateRecordingResponse,
   RecordingDownloadUrls,
   RecordingDetailResponse,
+  DeleteRecordingResponse,
   ProcessRecordingResponse,
   SubmitReportResponse,
   WebSocketStats,
@@ -3009,6 +3014,14 @@ curl -X POST \
     description: `Get an audio recording&#x27;s details and presigned S3 URLs for its audio, transcript, and report.`,
     requestFormat: "json",
     response: RecordingDetailResponse,
+  },
+  {
+    method: "delete",
+    path: "/conversation/:conversation_id/events/:event_id/audio_recordings/:recording_id",
+    alias: "DeleteAudioRecording",
+    description: `Delete an audio recording and best-effort-clean its files from bulk storage. Useful for clearing stuck rows left behind by a failed upload.`,
+    requestFormat: "json",
+    response: DeleteRecordingResponse,
   },
   {
     method: "post",

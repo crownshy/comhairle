@@ -62,6 +62,7 @@
 
 	let downloads = $state<Record<string, RecordingDownloadUrls>>({});
 	let loadingDownloads = $state<Set<string>>(new Set());
+	let deletingIds = $state<Set<string>>(new Set());
 
 	const hasPending = $derived(recordings.some((r) => r.status === 'pending'));
 
@@ -211,6 +212,31 @@
 			rows = rows.filter((r) => r.state !== 'done');
 			if (rows.length === 0) rows = [makeRow()];
 			await invalidateAll();
+		}
+	}
+
+	async function deleteRecording(recording: AudioRecordingDto) {
+		const ok = window.confirm(
+			`Delete recording "${recording.name}"? This removes its audio, transcript, and report. This cannot be undone.`
+		);
+		if (!ok) return;
+		deletingIds.add(recording.id);
+		deletingIds = new Set(deletingIds);
+		try {
+			await apiClient.DeleteAudioRecording(undefined, {
+				params: { conversation_id, event_id, recording_id: recording.id }
+			});
+			notifications.send({ message: `Deleted "${recording.name}"`, priority: 'INFO' });
+			await invalidateAll();
+		} catch (e) {
+			console.error(e);
+			notifications.send({
+				message: `Failed to delete "${recording.name}"`,
+				priority: 'ERROR'
+			});
+		} finally {
+			deletingIds.delete(recording.id);
+			deletingIds = new Set(deletingIds);
 		}
 	}
 
@@ -385,12 +411,14 @@
 							<th class="px-4 py-2 text-left font-medium">Name</th>
 							<th class="px-4 py-2 text-left font-medium">Status</th>
 							<th class="px-4 py-2 text-right font-medium">Files</th>
+							<th class="w-12 px-4 py-2"></th>
 						</tr>
 					</thead>
 					<tbody>
 						{#each recordings as recording (recording.id)}
 							{@const urls = downloads[recording.id]}
-							<tr class="border-t">
+							{@const isDeleting = deletingIds.has(recording.id)}
+							<tr class="border-t" class:opacity-50={isDeleting}>
 								<td class="px-4 py-3 font-medium">{recording.name}</td>
 								<td class="px-4 py-3">
 									<div class="flex items-center gap-2">
@@ -401,6 +429,7 @@
 											<Button
 												variant="outline"
 												size="sm"
+												disabled={isDeleting}
 												onclick={() => retryProcessing(recording.id)}
 											>
 												Retry
@@ -445,6 +474,18 @@
 									{:else}
 										<span class="text-muted-foreground text-xs">Loading…</span>
 									{/if}
+								</td>
+								<td class="px-4 py-3 text-right">
+									<Button
+										variant="ghost"
+										size="sm"
+										title="Delete recording"
+										aria-label="Delete recording {recording.name}"
+										disabled={isDeleting}
+										onclick={() => deleteRecording(recording)}
+									>
+										<Trash2 class="text-muted-foreground h-4 w-4" />
+									</Button>
 								</td>
 							</tr>
 						{/each}
