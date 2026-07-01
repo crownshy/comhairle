@@ -14,6 +14,7 @@
 	import { flip } from 'svelte/animate';
 	import { MediaUpload } from '$lib/components/Media';
 	import { m } from '$lib/paraglide/messages';
+	import { notifications } from '$lib/notifications.svelte';
 
 	let deleteForm: HTMLFormElement | undefined;
 
@@ -33,6 +34,17 @@
 	const ROW_HEIGHT = 30;
 
 	const { form } = $props();
+
+	$effect(() => {
+		if (form?.failed) {
+			console.log(form.failed);
+			form.failed.forEach(([name, message]) => {
+				notifications.send({
+					message: `${name} failed to delete: ${message}`
+				});
+			});
+		}
+	});
 </script>
 
 <svelte:head>
@@ -76,16 +88,7 @@
 		</div>
 	</header>
 	<main class="mt-5">
-		<form
-			method="POST"
-			action="?/delete"
-			use:enhance={() => {
-				return async ({ update }) => {
-					await update();
-				};
-			}}
-			bind:this={deleteForm}
-		>
+		<form method="POST" action="?/delete" use:enhance bind:this={deleteForm}>
 			{#snippet libraryImage(src: string, alt: string)}
 				<img
 					{src}
