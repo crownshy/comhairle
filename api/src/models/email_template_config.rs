@@ -2,13 +2,14 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr};
+use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{
+    Decode, Encode, PgPool, Postgres,
     encode::IsNull,
     prelude::{FromRow, Type},
-    query_as_with, Decode, Encode, PgPool, Postgres,
+    query_as_with,
 };
 use sqlx_postgres::{PgArgumentBuffer, PgTypeInfo, PgValueRef};
 use strum::EnumCount as _;
@@ -18,7 +19,7 @@ use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
-    models::{users, SqlxResultExt},
+    models::{SqlxResultExt, users},
 };
 
 /// A client-configured email template, persisted to the `email_template_config` table.
@@ -308,7 +309,7 @@ pub const SCHEMA_CONVERSATION_INVITE: EmailTypeSchema = EmailTypeSchema {
             default_content: "<p>Thank you very much for your time and contribution to this important process.</p><p>Warm regards, <br /><strong>The CrownShy Team.</strong></p>",
             content_type: ContentType::RichText,
         },
-    ]
+    ],
 };
 
 pub const SCHEMA_EVENT_REGISTRATION_INVITE: EmailTypeSchema = EmailTypeSchema {
@@ -345,7 +346,7 @@ pub const SCHEMA_EVENT_REGISTRATION_INVITE: EmailTypeSchema = EmailTypeSchema {
             default_content: "<p>We look forward to your participation!</p><p><strong>CrownShy</strong></p>",
             content_type: ContentType::RichText,
         },
-    ]
+    ],
 };
 
 pub const SCHEMA_EVENT_REGISTRATION_CONFIRMATION: EmailTypeSchema = EmailTypeSchema {
@@ -382,7 +383,7 @@ pub const SCHEMA_EVENT_REGISTRATION_CONFIRMATION: EmailTypeSchema = EmailTypeSch
             default_content: "<p>We look forward to seeing you there!</p><p><strong>CrownShy</strong></p>",
             content_type: ContentType::RichText,
         },
-    ]
+    ],
 };
 
 /// Converts `self` to [`HashMap`] mapping email template variable keys to their content.

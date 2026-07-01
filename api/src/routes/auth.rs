@@ -1,28 +1,28 @@
 use aide::{
-    axum::{
-        routing::{get_with, post_with},
-        ApiRouter,
-    },
     OperationIo,
+    axum::{
+        ApiRouter,
+        routing::{get_with, post_with},
+    },
 };
 
-use argon2::{password_hash::SaltString, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::SaltString};
 use axum::{
-    extract::{FromRequestParts, Json, Path, State},
-    http::{request::Parts, StatusCode},
-    response::{IntoResponse, Response},
     RequestPartsExt,
+    extract::{FromRequestParts, Json, Path, State},
+    http::{StatusCode, request::Parts},
+    response::{IntoResponse, Response},
 };
 use axum_extra::{
-    extract::cookie::{Cookie, CookieJar, SameSite},
-    headers::{authorization::Bearer, Authorization},
     TypedHeader,
+    extract::cookie::{Cookie, CookieJar, SameSite},
+    headers::{Authorization, authorization::Bearer},
 };
 use bon::builder;
 use chrono::{TimeDelta, Utc};
 use cookie::CookieBuilder;
 use hmac::{Hmac, KeyInit, Mac};
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode};
 use rand_core::OsRng;
 use regex::Regex;
 use sha2::Sha256;
@@ -43,7 +43,7 @@ pub fn is_user_admin(
     false
 }
 use schemars::JsonSchema;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::json;
 use std::marker::PhantomData;
 use std::{collections::HashMap, sync::Arc};
@@ -51,17 +51,17 @@ use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         api_key, otp,
         users::{
-            self, create_annon_user, create_otp_user, create_user, get_user_by_email,
-            get_user_by_id, get_user_by_username, get_user_resource_roles, update_user, Resource,
-            Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
+            self, Resource, Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
+            create_annon_user, create_otp_user, create_user, get_user_by_email, get_user_by_id,
+            get_user_by_username, get_user_resource_roles, update_user,
         },
     },
     routes::user::dto::UserDto,
-    ComhairleState,
 };
 
 #[cfg(test)]
@@ -1210,16 +1210,16 @@ mod tests {
             model_test_helpers::setup_default_app_and_session,
             otp,
             users::{
-                self, add_user_resource_role, get_user_by_email, Resource, Role, UpdateUserRequest,
-                User, UserAuthType,
+                self, Resource, Role, UpdateUserRequest, User, UserAuthType,
+                add_user_resource_role, get_user_by_email,
             },
         },
         routes::{
-            auth::{generate_jwt, EmailLinkClaims, SessionClaims},
+            auth::{EmailLinkClaims, SessionClaims, generate_jwt},
             user::dto::UserDto,
         },
         setup_server,
-        test_helpers::{test_state, UserSession, TEST_PASSWORD},
+        test_helpers::{TEST_PASSWORD, UserSession, test_state},
     };
 
     use argon2::{Argon2, PasswordHash, PasswordVerifier};

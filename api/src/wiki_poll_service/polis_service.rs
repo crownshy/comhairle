@@ -2,10 +2,10 @@ use std::collections::{BTreeMap, HashMap};
 
 use async_trait::async_trait;
 use cookie::Cookie;
-use rand::{distributions::Alphanumeric, Rng};
+use rand::{Rng, distributions::Alphanumeric};
 use reqwest::{
-    header::{COOKIE, SET_COOKIE},
     Client,
+    header::{COOKIE, SET_COOKIE},
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -334,19 +334,20 @@ impl PolisClient {
             let mut group_votes_list = Vec::new();
             for (group_id_str, group_data) in math_pca.group_votes.iter() {
                 if let Ok(group_id) = group_id_str.parse::<u32>()
-                    && let Some(vote_breakdown) = group_data.votes.get(&tid.to_string()) {
-                        let passes = vote_breakdown
-                            .saw
-                            .saturating_sub(vote_breakdown.agrees)
-                            .saturating_sub(vote_breakdown.disagrees);
+                    && let Some(vote_breakdown) = group_data.votes.get(&tid.to_string())
+                {
+                    let passes = vote_breakdown
+                        .saw
+                        .saturating_sub(vote_breakdown.agrees)
+                        .saturating_sub(vote_breakdown.disagrees);
 
-                        group_votes_list.push(GroupVoteCounts {
-                            group_id,
-                            agrees: vote_breakdown.agrees,
-                            disagrees: vote_breakdown.disagrees,
-                            passes,
-                        });
-                    }
+                    group_votes_list.push(GroupVoteCounts {
+                        group_id,
+                        agrees: vote_breakdown.agrees,
+                        disagrees: vote_breakdown.disagrees,
+                        passes,
+                    });
+                }
             }
 
             let consensus = math_pca

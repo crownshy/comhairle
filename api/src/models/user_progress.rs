@@ -3,10 +3,10 @@ use core::fmt;
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, JoinType, PostgresQueryBuilder, Query, SimpleExpr};
+use sea_query::{Expr, JoinType, PostgresQueryBuilder, Query, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::FromRow, PgConnection, PgPool};
+use sqlx::{PgConnection, PgPool, prelude::FromRow};
 use tracing::instrument;
 use uuid::Uuid;
 

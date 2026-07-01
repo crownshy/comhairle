@@ -2,11 +2,11 @@ use crate::models::{self, users::User};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{
-    enum_def, Expr, OnConflict, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr,
+    Expr, OnConflict, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def,
 };
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::FromRow, query_as_with, PgPool};
+use sqlx::{PgPool, prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 

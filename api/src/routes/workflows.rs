@@ -1,20 +1,21 @@
 use std::{collections::HashMap, fmt::Display, sync::Arc};
 
 use aide::{
-    axum::{
-        routing::{delete_with, get_with, post_with, put_with},
-        ApiRouter,
-    },
     OperationIo,
+    axum::{
+        ApiRouter,
+        routing::{delete_with, get_with, post_with, put_with},
+    },
 };
 use axum::{
-    extract::{FromRequestParts, Path, State},
-    http::{request::Parts, StatusCode},
     Json,
+    extract::{FromRequestParts, Path, State},
+    http::{StatusCode, request::Parts},
 };
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         conversation::{self, PartialConversation},
@@ -27,7 +28,6 @@ use crate::{
         auth::{RequiredAdminUser, RequiredUser},
         workflows::dto::WorkflowDto,
     },
-    ComhairleState,
 };
 
 pub mod dto;
@@ -403,7 +403,7 @@ mod tests {
         },
         routes::{events::dto::EventDto, workflows::dto::WorkflowDto},
         setup_server,
-        test_helpers::{extract, test_state, UserSession},
+        test_helpers::{UserSession, extract, test_state},
     };
     use axum::{body::Body, http::StatusCode};
     use serde_json::json;

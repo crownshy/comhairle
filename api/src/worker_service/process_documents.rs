@@ -7,12 +7,12 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     bot_service::UpdateChatRequest,
     models::{
         self,
         job::{self, UpdateJob},
     },
-    ComhairleState,
 };
 
 use super::error::{RecordWorkerError, Result, WorkerServiceError};

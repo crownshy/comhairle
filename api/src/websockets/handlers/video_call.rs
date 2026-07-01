@@ -12,8 +12,8 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::{
-    websockets::{messages::WebSocketMessage, WebSocketConnection, WebSocketMessageHandler},
     ComhairleState,
+    websockets::{WebSocketConnection, WebSocketMessageHandler, messages::WebSocketMessage},
 };
 
 /// Represents a participant in a video call.
@@ -356,10 +356,11 @@ impl VideoCallMessageHandler {
             .with_video_call_state(event_id, |call| {
                 // Check if the sender is authorized to broadcast
                 if let Some(sender) = call.participants.get(&connection.user.id)
-                    && (sender.role == "moderator" || sender.role == "facilitator") {
-                        // Return all participant user IDs
-                        return Some(call.participants.keys().copied().collect::<Vec<Uuid>>());
-                    }
+                    && (sender.role == "moderator" || sender.role == "facilitator")
+                {
+                    // Return all participant user IDs
+                    return Some(call.participants.keys().copied().collect::<Vec<Uuid>>());
+                }
                 None
             })?
             .flatten();
@@ -582,10 +583,11 @@ impl VideoCallMessageHandler {
             .with_video_call_state_mut(&state_data.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
                 if let Some(participant) = call.participants.get(&user_id)
-                    && (participant.role == "moderator" || participant.role == "facilitator") {
-                        call.status = new_status;
-                        return true;
-                    }
+                    && (participant.role == "moderator" || participant.role == "facilitator")
+                {
+                    call.status = new_status;
+                    return true;
+                }
                 false
             })?
             .unwrap_or(false);
@@ -679,12 +681,13 @@ impl VideoCallMessageHandler {
             .with_video_call_state_mut(&request.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
                 if let Some(participant) = call.participants.get(&user_id)
-                    && (participant.role == "moderator" || participant.role == "facilitator") {
-                        // Remove the assistance request for this room
-                        call.breakout_room_assistance_requests
-                            .remove(&request.room_name);
-                        return true;
-                    }
+                    && (participant.role == "moderator" || participant.role == "facilitator")
+                {
+                    // Remove the assistance request for this room
+                    call.breakout_room_assistance_requests
+                        .remove(&request.room_name);
+                    return true;
+                }
                 false
             })?
             .unwrap_or(false);
@@ -749,42 +752,43 @@ impl VideoCallMessageHandler {
             .with_video_call_state_mut(&assignment_data.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
                 if let Some(participant) = call.participants.get(&user_id)
-                    && (participant.role == "moderator" || participant.role == "facilitator") {
-                        let breakout_rooms =
-                            if let Some(ref explicit) = assignment_data.room_assignments {
-                                // Use explicit assignments, filtering to known participants
-                                explicit
-                                    .iter()
-                                    .map(|room_ids| BreakoutRoomAssignments {
-                                        participants: room_ids
-                                            .iter()
-                                            .filter(|id| call.participants.contains_key(id))
-                                            .copied()
-                                            .collect(),
-                                    })
-                                    .filter(|room| !room.participants.is_empty())
-                                    .collect()
-                            } else {
-                                // Collect all participant IDs
-                                let mut participant_ids: Vec<Uuid> =
-                                    call.participants.keys().copied().collect();
+                    && (participant.role == "moderator" || participant.role == "facilitator")
+                {
+                    let breakout_rooms =
+                        if let Some(ref explicit) = assignment_data.room_assignments {
+                            // Use explicit assignments, filtering to known participants
+                            explicit
+                                .iter()
+                                .map(|room_ids| BreakoutRoomAssignments {
+                                    participants: room_ids
+                                        .iter()
+                                        .filter(|id| call.participants.contains_key(id))
+                                        .copied()
+                                        .collect(),
+                                })
+                                .filter(|room| !room.participants.is_empty())
+                                .collect()
+                        } else {
+                            // Collect all participant IDs
+                            let mut participant_ids: Vec<Uuid> =
+                                call.participants.keys().copied().collect();
 
-                                // Shuffle participants randomly
-                                let mut rng = rand::thread_rng();
-                                participant_ids.shuffle(&mut rng);
+                            // Shuffle participants randomly
+                            let mut rng = rand::thread_rng();
+                            participant_ids.shuffle(&mut rng);
 
-                                // Divide into rooms with max_users_per_room
-                                participant_ids
-                                    .chunks(max_users)
-                                    .map(|chunk| BreakoutRoomAssignments {
-                                        participants: chunk.to_vec(),
-                                    })
-                                    .collect()
-                            };
+                            // Divide into rooms with max_users_per_room
+                            participant_ids
+                                .chunks(max_users)
+                                .map(|chunk| BreakoutRoomAssignments {
+                                    participants: chunk.to_vec(),
+                                })
+                                .collect()
+                        };
 
-                        call.breakout_rooms = breakout_rooms;
-                        return true;
-                    }
+                    call.breakout_rooms = breakout_rooms;
+                    return true;
+                }
                 false
             })?
             .unwrap_or(false);
@@ -839,10 +843,11 @@ impl VideoCallMessageHandler {
             .with_video_call_state_mut(&session_data.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
                 if let Some(participant) = call.participants.get(&user_id)
-                    && (participant.role == "moderator" || participant.role == "facilitator") {
-                        call.breakout_session = Some(BreakoutSession { ends });
-                        return true;
-                    }
+                    && (participant.role == "moderator" || participant.role == "facilitator")
+                {
+                    call.breakout_session = Some(BreakoutSession { ends });
+                    return true;
+                }
                 false
             })?
             .unwrap_or(false);
@@ -897,13 +902,14 @@ impl VideoCallMessageHandler {
             .with_video_call_state_mut(&extension_data.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
                 if let Some(participant) = call.participants.get(&user_id)
-                    && (participant.role == "moderator" || participant.role == "facilitator") {
-                        // Update the end time if a session is active
-                        if let Some(session) = &mut call.breakout_session {
-                            session.ends = new_ends;
-                            return true;
-                        }
+                    && (participant.role == "moderator" || participant.role == "facilitator")
+                {
+                    // Update the end time if a session is active
+                    if let Some(session) = &mut call.breakout_session {
+                        session.ends = new_ends;
+                        return true;
                     }
+                }
                 false
             })?
             .unwrap_or(false);
@@ -957,10 +963,11 @@ impl VideoCallMessageHandler {
             .with_video_call_state_mut(&end_data.event_id, |call| {
                 // Check if the user is authorized (moderator or facilitator)
                 if let Some(participant) = call.participants.get(&user_id)
-                    && (participant.role == "moderator" || participant.role == "facilitator") {
-                        call.breakout_session = None;
-                        return true;
-                    }
+                    && (participant.role == "moderator" || participant.role == "facilitator")
+                {
+                    call.breakout_session = None;
+                    return true;
+                }
                 false
             })?
             .unwrap_or(false);

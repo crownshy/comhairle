@@ -1,21 +1,21 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{get_with, put_with},
     ApiRouter,
+    routing::{get_with, put_with},
 };
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use schemars::JsonSchema;
 use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::{
-    error::ComhairleError,
-    routes::user_conversation_preferences::dto::UserConversationPreferencesDto, ComhairleState,
+    ComhairleState, error::ComhairleError,
+    routes::user_conversation_preferences::dto::UserConversationPreferencesDto,
 };
 
 use super::auth::RequiredUser;

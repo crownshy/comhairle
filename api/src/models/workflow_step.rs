@@ -1,19 +1,19 @@
 use std::sync::Arc;
 
-use crate::models::translations::{new_translation, TextContentId, TextFormat};
+use crate::ComhairleState;
+use crate::models::translations::{TextContentId, TextFormat, new_translation};
 use crate::models::users::UserIden;
 use crate::tools::ToolConfigSanitize;
-use crate::ComhairleState;
 use chrono::{DateTime, Utc};
 use comhairle_macros::{DbJsonBEnum, Translatable};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, Order, Query};
+use sea_query::{Expr, Order, Query, enum_def};
 use sea_query::{JoinType, PostgresQueryBuilder};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::PgConnection;
-use sqlx::{prelude::FromRow, PgPool};
+use sqlx::{PgPool, prelude::FromRow};
 use tracing::{instrument, warn};
 use uuid::Uuid;
 

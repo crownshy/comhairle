@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use aide::{
-    axum::{
-        routing::{get_with, post_with, put_with},
-        ApiRouter,
-    },
     OperationIo,
+    axum::{
+        ApiRouter,
+        routing::{get_with, post_with, put_with},
+    },
 };
 use async_trait::async_trait;
 use axum::{
@@ -20,6 +20,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     bot_service::AgentConversationRequest,
     error::ComhairleError,
     models::{
@@ -40,7 +41,6 @@ use crate::{
     },
     routes::auth::RequiredUser,
     tools::ToolConfig,
-    ComhairleState,
 };
 
 use super::{ToolConfigSanitize, ToolImpl};
@@ -411,7 +411,7 @@ async fn converse(
         _ => {
             return Err(ComhairleError::ToolConfigError(
                 "incorrect config type".to_string(),
-            ))
+            ));
         }
     };
 
@@ -551,7 +551,7 @@ async fn generate_thinking_space_summary(
         _ => {
             return Err(ComhairleError::ToolConfigError(
                 "incorrect config type".to_string(),
-            ))
+            ));
         }
     };
 
@@ -592,7 +592,8 @@ async fn generate_thinking_space_summary(
     let sse_events = bot_service.parse_sse_stream_to_events(stream).await?;
 
     let final_event = sse_events
-        .iter().rfind(|e| e.event == "node_finished" && e.component_type == Some("Message".to_string()))
+        .iter()
+        .rfind(|e| e.event == "node_finished" && e.component_type == Some("Message".to_string()))
         .ok_or_else(|| {
             ComhairleError::CorruptedData("Missing summary from bot service agent".to_string())
         })?;

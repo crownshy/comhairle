@@ -1,9 +1,9 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr};
+use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::FromRow, query_as_with, PgPool};
+use sqlx::{PgPool, prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -223,7 +223,7 @@ mod tests {
         },
         routes::workflow_steps::dto::WorkflowStepDto,
         test_helpers::thinking_space_tool_config,
-        tools::{thinking_space::ThinkingSpaceToolConfig, ToolConfig},
+        tools::{ToolConfig, thinking_space::ThinkingSpaceToolConfig},
     };
 
     use serde_json::json;

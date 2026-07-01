@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use comhairle_macros::DbStringEnum;
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, PostgresQueryBuilder, Query};
+use sea_query::{PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;

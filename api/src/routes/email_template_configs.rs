@@ -3,8 +3,8 @@ pub mod dto;
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{delete_with, get_with, post_with, put_with},
     ApiRouter,
+    routing::{delete_with, get_with, post_with, put_with},
 };
 use axum::{
     extract::{Json, Path, Query, State},
@@ -17,12 +17,12 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
+    ComhairleError, ComhairleState,
     models::email_template_config::{
         self, CreateEmailTemplateConfig, EmailTemplateConfigFilterOptions, EmailTemplateSlots,
         EmailTypeSchema, UpdateEmailTemplateConfig,
     },
     routes::{auth::RequiredAdminUser, email_template_configs::dto::EmailTemplateConfigDto},
-    ComhairleError, ComhairleState,
 };
 
 #[instrument(err(Debug), skip(state))]
@@ -245,7 +245,7 @@ mod tests {
             model_test_helpers::setup_default_app_and_session,
         },
         setup_server,
-        test_helpers::{test_state, UserSession},
+        test_helpers::{UserSession, test_state},
     };
 
     use super::*;

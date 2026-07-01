@@ -5,13 +5,13 @@ use async_trait::async_trait;
 use comhairle_macros::DbJsonBEnum;
 use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     tools::thinking_space::{ThinkingSpaceReport, ThinkingSpaceToolConfig, ThinkingSpaceToolSetup},
-    ComhairleState,
 };
 
 pub mod elicitation_bot;

@@ -2,10 +2,10 @@ use crate::error::ComhairleError;
 use chrono::{DateTime, Utc};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
+use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::FromRow, PgPool};
+use sqlx::{PgPool, prelude::FromRow};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -170,9 +170,7 @@ pub async fn update(
     let mut has_updates = false;
 
     if let Some(value) = &update.consented {
-        query = query
-            .value(UserProfileIden::Consented, *value)
-            .to_owned();
+        query = query.value(UserProfileIden::Consented, *value).to_owned();
         has_updates = true;
     }
     if let Some(value) = &update.ethnicity {
