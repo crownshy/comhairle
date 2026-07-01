@@ -20,8 +20,6 @@
 	let bulkEdit = $state<boolean>(false);
 	let selected = $state([]);
 
-	let deleteDialogOpen = $state<boolean>(false);
-
 	const images: { id: number; src: string }[] = [
 		{ id: 1, src: climateUk },
 		{ id: 2, src: vtaiwan },
@@ -56,15 +54,16 @@
 					<SquarePen class="h-4 w-4" />{m.edit()}
 				</Button>
 			{:else}
-				<Button
-					variant="destructive"
-					disabled={selected.length === 0}
-					onclick={() => {
-						deleteDialogOpen = true;
+				<DeleteDialog
+					count={selected.length}
+					onconfirm={() => {
+						deleteForm?.submit();
 					}}
 				>
-					<Trash2 class="h-4 w-4" />{m.delete()}
-				</Button>
+					<Button variant="destructive" disabled={selected.length === 0}>
+						<Trash2 class="h-4 w-4" />{m.delete()}
+					</Button>
+				</DeleteDialog>
 				<Button
 					variant="outline"
 					onclick={() => {
@@ -118,13 +117,6 @@
 				{/each}
 			</ul>
 			<ErrorDialog open={!!form?.error} message={form?.error ?? ''} />
-			<DeleteDialog
-				open={deleteDialogOpen}
-				count={selected.length}
-				onconfirm={() => {
-					deleteForm?.submit();
-				}}
-			/>
 		</form>
 	</main>
 </div>
