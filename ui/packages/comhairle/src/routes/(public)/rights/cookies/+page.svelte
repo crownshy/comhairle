@@ -2,53 +2,49 @@
 	import * as CookieConsent from 'vanilla-cookieconsent';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import * as Table from '$lib/components/ui/table';
+	import * as m from '$lib/paraglide/messages';
 
 	const sectionTitle = 'text-2xl font-bold text-foreground md:text-3xl';
 	const body = 'text-base leading-7 text-foreground';
 
 	const cookies = [
-		{
-			name: 'auth_token',
-			purpose: 'Used to login a user and associate their responses with a user account',
-			expiry: '48 hours after last page submission'
-		},
+		{ name: 'auth_token', purpose: m.cookies_auth_purpose(), expiry: m.cookies_auth_expiry() },
 		{
 			name: 'paraglide_lang',
-			purpose: "Stores the user's language preference",
-			expiry: '400 days after last page submission'
+			purpose: m.cookies_lang_purpose(),
+			expiry: m.cookies_lang_expiry()
 		}
 	];
 </script>
 
 <svelte:head>
-	<title>Cookie Policy - Comhairle</title>
+	<title>{m.cookies_title()} - Comhairle</title>
 </svelte:head>
 
 <section class="flex flex-col gap-8 md:gap-12">
-	<h2 class={sectionTitle}>Cookie Policy</h2>
+	<h2 class={sectionTitle}>{m.cookies_title()}</h2>
 
 	<div class="flex flex-col gap-5">
 		<p class={body}>
-			For the Comhairle platform to function we will place small data files, known as cookies
-			on your computer. To learn more about cookies and how to manage them check out
-			<a href="https://allaboutcookies.org" class="text-primary underline"
-				>allaboutcookies.org</a
+			{m.cookies_intro_pre()}<a
+				href="https://allaboutcookies.org"
+				class="text-primary underline">allaboutcookies.org</a
 			>
 		</p>
 
 		<Button variant="outline" size="sm" onclick={CookieConsent.showPreferences}>
-			Show and edit your cookie preferences
+			{m.cookies_prefs_button()}
 		</Button>
 
-		<p class={body}>Comhairle makes use of the following essential cookies:</p>
+		<p class={body}>{m.cookies_essential_intro()}</p>
 
 		<div class="overflow-x-auto">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
-						<Table.Head>Cookie Name</Table.Head>
-						<Table.Head>Purpose</Table.Head>
-						<Table.Head>Expiry</Table.Head>
+						<Table.Head>{m.cookies_col_name()}</Table.Head>
+						<Table.Head>{m.cookies_col_purpose()}</Table.Head>
+						<Table.Head>{m.cookies_col_expiry()}</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
