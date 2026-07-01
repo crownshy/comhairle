@@ -21,6 +21,7 @@
 
 	let { conversation_id, event_id, recordings }: Props = $props();
 
+	// TODO: Merge with interfaces/Media.ts
 	const maxSizeMB = 500;
 	const maxSizeBytes = maxSizeMB * 1024 * 1024;
 	const accept = '.wav,.mp3,.m4a,.mp4,.ogg,.webm,.flac,audio/*';

@@ -22,6 +22,7 @@
 	let isDragging = $state(false);
 	let isUploading = $state(false);
 
+	// TODO: Merge with interfaces/Media.ts
 	const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
 	async function uploadFile(file: File) {
@@ -147,7 +148,7 @@
 		<div
 			role="button"
 			tabindex="0"
-			class="flex cursor-pointer flex-col items-center gap-4 rounded-xl border border-input bg-gray-50 dark:bg-input/30 p-8 transition-colors"
+			class="border-input dark:bg-input/30 flex cursor-pointer flex-col items-center gap-4 rounded-xl border bg-gray-50 p-8 transition-colors"
 			class:bg-gray-100={isDragging}
 			class:border-primary={isDragging}
 			ondrop={handleDrop}
