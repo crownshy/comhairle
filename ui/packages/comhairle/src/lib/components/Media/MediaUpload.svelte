@@ -5,6 +5,7 @@
 	import type { ComponentProps } from 'svelte';
 	import Media from '$lib/interfaces/Media';
 	import { notifications } from '$lib/notifications.svelte';
+	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 
 	interface Props extends Omit<ComponentProps<typeof Button>, 'onclick'> {
 		clientSide?: boolean;
@@ -13,6 +14,8 @@
 
 	let fileInput: HTMLInputElement | undefined;
 	let uploadForm: HTMLFormElement | undefined;
+
+	let uploading = $state<boolean>(false);
 </script>
 
 <form
@@ -20,7 +23,13 @@
 	method="POST"
 	action="/admin/media-library?/upload"
 	enctype="multipart/form-data"
-	use:enhance
+	use:enhance={() => {
+		uploading = true;
+		return async ({ update }) => {
+			await update();
+			uploading = false;
+		};
+	}}
 >
 	<input
 		bind:this={fileInput}
@@ -59,11 +68,17 @@
 		}}
 	/>
 	<Button
+		disabled={uploading}
 		onclick={() => {
 			fileInput?.click();
 		}}
 		{...props}
 	>
-		<Upload class="h-4 w-4" />Upload
+		{#if uploading}
+			<Spinner />
+		{:else}
+			<Upload class="h-4 w-4" />
+		{/if}
+		Upload
 	</Button>
 </form>
