@@ -88,13 +88,6 @@
 	</header>
 	<main class="mt-5">
 		<form method="POST" action="?/delete" use:enhance bind:this={deleteForm}>
-			{#snippet libraryImage(src: string, alt: string)}
-				<img
-					{src}
-					{alt}
-					class="h-full w-full cursor-pointer overflow-hidden object-cover"
-				/>
-			{/snippet}
 			<ul class="flex flex-wrap gap-2">
 				{#each images as image (image.id)}
 					<li
@@ -110,10 +103,20 @@
 									class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
 									bind:group={selected}
 								/>
-								{@render libraryImage(image.src, 'temp')}
+								<span>
+									<MediaItem
+										type={item.contentType.split('/')[0]}
+										src={item.src}
+										alt="temp"
+									/>
+								</span>
 							</label>
 						{:else}
-							{@render libraryImage(image.src, 'temp')}
+							<MediaItem
+								type={item.contentType.split('/')[0]}
+								src={item.src}
+								alt="temp"
+							/>
 						{/if}
 					</li>
 				{/each}
@@ -127,7 +130,7 @@
 		filter: opacity(50%);
 	}
 
-	img {
+	li {
 		transition: all 300ms ease-out;
 
 		&:is(:focus, :hover) {
