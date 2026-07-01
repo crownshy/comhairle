@@ -74,7 +74,7 @@
 		</div>
 
 		<!-- Desktop Navigation -->
-		<div class="hidden gap-3 min-[900px]:flex">
+		<div class="navbar:flex hidden gap-3">
 			{#each links as link (link.href)}
 				<Button
 					href={link.href}
@@ -87,7 +87,7 @@
 			{/each}
 		</div>
 
-		<div class="hidden items-center gap-x-4 min-[900px]:flex">
+		<div class="navbar:flex hidden items-center gap-x-4">
 			<LocaleSwitcher
 				class="data-[placeholder]:text-primary-foreground rounded-full border border-none bg-transparent py-5 text-base shadow-xs hover:bg-white/10"
 			/>
@@ -106,14 +106,14 @@
 		</div>
 
 		<!-- Mobile Navigation -->
-		<div class="min-[900px]:hidden">
+		<div class="navbar:hidden">
 			<Drawer.Root bind:open={isOpen} direction="bottom">
 				<Drawer.Trigger>
-					<svelte:fragment slot="child">
-						<Button variant="nav" size="icon" aria-label="Open menu">
+					{#snippet child({ props })}
+						<Button {...props} variant="nav" size="icon" aria-label="Open menu">
 							<Menu class="size-7" />
 						</Button>
-					</svelte:fragment>
+					{/snippet}
 				</Drawer.Trigger>
 				<Drawer.Content>
 					<div class="mx-auto flex w-full max-w-md flex-col gap-1 p-4 pb-8">
