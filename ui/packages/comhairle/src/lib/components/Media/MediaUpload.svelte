@@ -6,6 +6,7 @@
 	import Media from '$lib/interfaces/Media';
 	import { notifications } from '$lib/notifications.svelte';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	interface Props extends Omit<ComponentProps<typeof Button>, 'onclick'> {
 		clientSide?: boolean;
@@ -79,6 +80,6 @@
 		{:else}
 			<Upload class="h-4 w-4" />
 		{/if}
-		Upload
+		{m.upload()}
 	</Button>
 </form>

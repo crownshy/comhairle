@@ -13,6 +13,7 @@
 	import ErrorDialog from './ErrorDialog.svelte';
 	import { flip } from 'svelte/animate';
 	import { MediaUpload } from '$lib/components/Media';
+	import { m } from '$lib/paraglide/messages';
 
 	let deleteForm: HTMLFormElement | undefined;
 
@@ -52,7 +53,7 @@
 						bulkEdit = true;
 					}}
 				>
-					<SquarePen class="h-4 w-4" />Edit
+					<SquarePen class="h-4 w-4" />{m.edit()}
 				</Button>
 			{:else}
 				<Button
@@ -62,7 +63,7 @@
 						deleteDialogOpen = true;
 					}}
 				>
-					<Trash2 class="h-4 w-4" />Delete
+					<Trash2 class="h-4 w-4" />{m.delete()}
 				</Button>
 				<Button
 					variant="outline"
@@ -70,7 +71,7 @@
 						bulkEdit = false;
 					}}
 				>
-					<X class="h-4 w-4" />Cancel
+					<X class="h-4 w-4" />{m.cancel()}
 				</Button>
 			{/if}
 		</div>
