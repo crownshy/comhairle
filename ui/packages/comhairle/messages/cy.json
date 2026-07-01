@@ -206,7 +206,6 @@
 	"tos_s9_body": "Efallai y byddwn yn diweddaru'r T&C hyn o bryd i'w gilydd. Bydd newidiadau'n cael eu postio ar y dudalen hon gyda dyddiad \"Diweddarwyd Ddiwethaf\" diwygiedig. Mae parhau i ddefnyddio ar ôl newidiadau yn gyfystyr â derbyn y telerau diwygiedig.",
 	"tos_s10_heading": "10. Gwybodaeth Gyswllt",
 	"tos_s10_body": "Am unrhyw gwestiynau neu bryderon ynghylch y Telerau ac Amodau hyn, cysylltwch â ni yn:",
-	"tos_s10_contact": "Crown Shy Ltd   E-bost:",
 	"tos_outro": "Trwy ddefnyddio ein gwefan, rydych yn cydnabod eich bod wedi darllen, deall a chytuno i'r Telerau ac Amodau hyn.",
 	"cookies_title": "Polisi Cwcis",
 	"cookies_intro_pre": "Er mwyn i blatfform Comhairle weithredu, byddwn yn gosod ffeiliau data bach, a elwir yn gwcis, ar eich cyfrifiadur. I ddysgu mwy am gwcis a sut i'w rheoli, ewch i ",
@@ -256,5 +255,6 @@
 	"a11y_prep_heading": "Paratoi'r datganiad hygyrchedd hwn",
 	"a11y_prep_line1": "Paratowyd y datganiad hwn ar 5 Mawrth 2026. Fe'i hadolygwyd ddiwethaf ar 5 Mawrth 2026.",
 	"a11y_prep_line2": "Profwyd y wefan hon ddiwethaf ar 5 Mawrth 2026 yn erbyn safon WCAG 2.2 AA.",
-	"a11y_prep_line3": "Cynhaliwyd y prawf gan dîm datblygu CrownShy. Profwyd y tudalennau a welwyd fwyaf gan ddefnyddio offer profi awtomataidd. Cynhaliwyd adolygiad mewnol pellach o'r wefan yn erbyn safon WCAG 2.2 AA."
+	"a11y_prep_line3": "Cynhaliwyd y prawf gan dîm datblygu CrownShy. Profwyd y tudalennau a welwyd fwyaf gan ddefnyddio offer profi awtomataidd. Cynhaliwyd adolygiad mewnol pellach o'r wefan yn erbyn safon WCAG 2.2 AA.",
+	"tos_s10_email_label": "E-bost:"
 }

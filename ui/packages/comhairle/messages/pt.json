@@ -206,7 +206,6 @@
 	"tos_s9_body": "Podemos atualizar periodicamente estes T&C. As alterações serão publicadas nesta página com uma data de \"Última Atualização\" revista. A continuação da utilização após as alterações constitui a aceitação dos termos revistos.",
 	"tos_s10_heading": "10. Informações de Contacto",
 	"tos_s10_body": "Para quaisquer questões ou preocupações relativas a estes Termos e Condições, contacte-nos através de:",
-	"tos_s10_contact": "Crown Shy Ltd   Email:",
 	"tos_outro": "Ao utilizar o nosso website, reconhece que leu, compreendeu e concordou com estes Termos e Condições.",
 	"cookies_title": "Política de Cookies",
 	"cookies_intro_pre": "Para que a plataforma Comhairle funcione, colocaremos pequenos ficheiros de dados, conhecidos como cookies, no seu computador. Para saber mais sobre cookies e como geri-los, consulte ",
@@ -256,5 +255,6 @@
 	"a11y_prep_heading": "Preparação desta declaração de acessibilidade",
 	"a11y_prep_line1": "Esta declaração foi preparada a 5 de março de 2026. Foi revista pela última vez a 5 de março de 2026.",
 	"a11y_prep_line2": "Este website foi testado pela última vez a 5 de março de 2026 em relação à norma WCAG 2.2 AA.",
-	"a11y_prep_line3": "O teste foi realizado pela equipa de desenvolvimento da CrownShy. As páginas mais visualizadas foram testadas utilizando ferramentas de teste automatizadas. Foi realizada uma revisão interna adicional do website em relação à norma WCAG 2.2 AA."
+	"a11y_prep_line3": "O teste foi realizado pela equipa de desenvolvimento da CrownShy. As páginas mais visualizadas foram testadas utilizando ferramentas de teste automatizadas. Foi realizada uma revisão interna adicional do website em relação à norma WCAG 2.2 AA.",
+	"tos_s10_email_label": "Email:"
 }

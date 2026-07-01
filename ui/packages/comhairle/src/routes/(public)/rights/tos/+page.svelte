@@ -99,10 +99,15 @@
 			<h3 class={heading}>{m.tos_s10_heading()}</h3>
 			<p class={body}>{m.tos_s10_body()}</p>
 			<Highlight>
-				{m.tos_s10_contact()}
-				<a href="mailto:team@crown-shy.com" class="text-primary underline"
-					>team@crown-shy.com</a
-				>
+				<div class="flex flex-col">
+					<span>Crown Shy Ltd</span>
+					<span>
+						{m.tos_s10_email_label()}
+						<a href="mailto:team@crown-shy.com" class="text-primary underline"
+							>team@crown-shy.com</a
+						>
+					</span>
+				</div>
 			</Highlight>
 			<p class={body}>{m.tos_outro()}</p>
 		</div>

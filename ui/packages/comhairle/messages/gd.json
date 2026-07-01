@@ -206,7 +206,6 @@
 	"tos_s9_body": "Dh'fhaodadh sinn na T&C seo ùrachadh bho àm gu àm. Thèid atharraichean a phostadh air an duilleag seo le ceann-latha \"Air Ùrachadh mu Dheireadh\" ath-sgrùdaichte. Tha cleachdadh leantainneach às dèidh atharraichean a' ciallachadh gu bheil thu a' gabhail ris na cumhaichean ath-sgrùdaichte.",
 	"tos_s10_heading": "10. Fiosrachadh Conaltraidh",
 	"tos_s10_body": "Airson ceist no dragh sam bith mu na Cumhaichean & Cùmhnantan seo, cuir fios thugainn aig:",
-	"tos_s10_contact": "Crown Shy Ltd   Post-d:",
 	"tos_outro": "Le bhith a' cleachdadh na làraich-lìn againn, tha thu ag aithneachadh gun do leugh thu, gun do thuig thu, agus gun do dh'aontaich thu ris na Cumhaichean & Cùmhnantan seo.",
 	"cookies_title": "Poileasaidh Briosgaidean",
 	"cookies_intro_pre": "Gus an obraich àrd-ùrlar Comhairle, cuiridh sinn faidhlichean dàta beaga, ris an canar briosgaidean, air a' choimpiutair agad. Gus barrachd ionnsachadh mu bhriosgaidean agus mar a riaghlas tu iad, thoir sùil air ",
@@ -256,5 +255,6 @@
 	"a11y_prep_heading": "Ullachadh na h-aithris ruigsinneachd seo",
 	"a11y_prep_line1": "Chaidh an aithris seo ullachadh air 5 Màrt 2026. Chaidh a h-ath-sgrùdadh mu dheireadh air 5 Màrt 2026.",
 	"a11y_prep_line2": "Chaidh an làrach-lìn seo a dhearbhadh mu dheireadh air 5 Màrt 2026 an aghaidh inbhe WCAG 2.2 AA.",
-	"a11y_prep_line3": "Chaidh an dearbhadh a dhèanamh le sgioba leasachaidh CrownShy. Chaidh na duilleagan air an tug a' mhòr-chuid sùil a dhearbhadh a' cleachdadh innealan dearbhaidh fèin-obrachail. Chaidh ath-sgrùdadh a-staigh eile den làrach-lìn a dhèanamh an aghaidh inbhe WCAG 2.2 AA."
+	"a11y_prep_line3": "Chaidh an dearbhadh a dhèanamh le sgioba leasachaidh CrownShy. Chaidh na duilleagan air an tug a' mhòr-chuid sùil a dhearbhadh a' cleachdadh innealan dearbhaidh fèin-obrachail. Chaidh ath-sgrùdadh a-staigh eile den làrach-lìn a dhèanamh an aghaidh inbhe WCAG 2.2 AA.",
+	"tos_s10_email_label": "Post-d:"
 }
