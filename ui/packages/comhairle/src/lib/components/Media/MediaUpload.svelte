@@ -34,7 +34,8 @@
 			if (clientSide) {
 				const { files } = e.target as HTMLInputElement;
 				if (!files) return;
-				const response = await Media.upload('/api/media', files);
+				const media = new Media();
+				const response = await media.upload('/api/media', files);
 				let count = 0;
 				for (const res of response) {
 					if (res.err !== null) {

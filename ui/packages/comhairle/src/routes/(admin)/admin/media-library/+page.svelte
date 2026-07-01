@@ -76,7 +76,16 @@
 		</div>
 	</header>
 	<main class="mt-5">
-		<form method="POST" action="?/delete" use:enhance bind:this={deleteForm}>
+		<form
+			method="POST"
+			action="?/delete"
+			use:enhance={() => {
+				return async ({ update }) => {
+					await update();
+				};
+			}}
+			bind:this={deleteForm}
+		>
 			{#snippet libraryImage(src: string, alt: string)}
 				<img
 					{src}
@@ -94,7 +103,7 @@
 							<label>
 								<input
 									type="checkbox"
-									name="items"
+									name="media"
 									value={image.id.toString()}
 									class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
 									bind:group={selected}

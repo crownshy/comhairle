@@ -8,7 +8,7 @@ type Opts = {
 	fetchRef?: typeof fetch; // If used on the backend and we need to use the alternate fetch
 };
 
-class MediaHandler {
+class Media {
 	async #upload(to: string, file: File, opts?: Opts): Promise<UploadReturn> {
 		if (opts?.maxSizeMB && file.size > opts.maxSizeMB * 1024 * 1024) {
 			return {
@@ -63,7 +63,5 @@ class MediaHandler {
 		return this.#upload(to, files, opts);
 	}
 }
-
-const Media = new MediaHandler();
 
 export default Media;

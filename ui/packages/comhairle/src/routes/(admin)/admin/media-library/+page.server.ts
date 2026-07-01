@@ -27,8 +27,30 @@ export const actions = {
 		}
 		return json({ message: 'ok' });
 	},
-	delete: async ({ request }: RequestEvent) => {
+	delete: async ({ request, fetch }: RequestEvent) => {
 		const data = await request.formData();
-		console.log('data:', data);
+		const media = data.getAll('media') as string[];
+
+		const results: { id: string; request: ReturnType<typeof tryFetch> }[] = [];
+		for (const id of media) {
+			results.push({
+				id,
+				request: tryFetch(`/api/media/${id}`, { method: 'DELETE' }, fetch)
+			});
+		}
+
+		const failed: [string, string][] = [];
+		for (const result of results) {
+			const response = await result.request;
+			if (response.err !== null) {
+				failed.push([result.id, response.err.message]);
+			}
+		}
+
+		if (failed.length > 0) {
+			return fail(500, { failed });
+		}
+
+		return new Response('ok', { status: 200 });
 	}
 };
