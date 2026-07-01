@@ -1,31 +1,25 @@
 import { tryFetch } from '$lib/utils/errorHandling';
-import { fail, json } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import type { RequestEvent } from './$types';
+import Media from '$lib/interfaces/Media';
 
 export const actions = {
 	upload: async ({ request, fetch }: RequestEvent) => {
 		const data = await request.formData();
-
-		const response = await tryFetch(
-			'/api/media',
-			{
-				method: 'POST',
-				body: data
-			},
-			fetch
-		);
-
-		console.error('response:', response);
-
-		if (response.err !== null) {
-			switch (response.err.id) {
-				case 'NETWORK_ERROR':
-					return fail(400, { error: response.err.message });
-				case 'HTTP_ERROR':
-					return fail(response.err.status, { error: response.err.message });
-			}
+		const files = data.getAll('media');
+		if (files === null) {
+			return fail(422, { failures: ["Couldn't find files"] });
 		}
-		return json({ message: 'ok' });
+
+		const media = new Media();
+		const responses = await media.upload('/api/media', files as File[], { fetchRef: fetch });
+
+		const errors = responses.filter((r) => r.err !== null);
+		if (responses.some((r) => r.err !== null)) {
+			return fail(422, { failures: errors.map((e) => e.err.message) });
+		}
+
+		return new Response('ok', { status: 201 });
 	},
 	delete: async ({ request, fetch }: RequestEvent) => {
 		const data = await request.formData();
@@ -39,16 +33,16 @@ export const actions = {
 			});
 		}
 
-		const failed: [string, string][] = [];
+		const failures: string[] = [];
 		for (const result of results) {
 			const response = await result.request;
 			if (response.err !== null) {
-				failed.push([result.id, response.err.message]);
+				failures.push(`${result.id} failed to delete, ${response.err.message}`);
 			}
 		}
 
-		if (failed.length > 0) {
-			return fail(500, { failed });
+		if (failures.length > 0) {
+			return fail(500, { failures });
 		}
 
 		return new Response('ok', { status: 200 });

@@ -38,7 +38,7 @@ class Media {
 				ok: null,
 				err: {
 					...response.err,
-					message: `${file.name} failed to upload: ` + response.err.message
+					message: `${file.name} failed to upload - ` + response.err.message
 				} as FetchErr
 			};
 		}
@@ -47,13 +47,13 @@ class Media {
 	}
 
 	async upload(to: string, files: File, opts?: Opts): Promise<UploadReturn>;
-	async upload(to: string, files: FileList, opts?: Opts): Promise<UploadReturn[]>;
+	async upload(to: string, files: File[], opts?: Opts): Promise<UploadReturn[]>;
 	async upload(
 		to: string,
-		files: File | FileList,
+		files: File | File[],
 		opts?: Opts
 	): Promise<UploadReturn | UploadReturn[]> {
-		if (files instanceof FileList) {
+		if (Array.isArray(files)) {
 			const results: Promise<UploadReturn>[] = [];
 			for (const file of files) {
 				results.push(this.#upload(to, file, opts));

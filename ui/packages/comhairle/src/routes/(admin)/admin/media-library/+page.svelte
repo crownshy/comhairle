@@ -10,7 +10,6 @@
 	import placeholderConvo from '$lib/assets/placeholder_convo.png';
 	import comhairleFullLogo from '$lib/assets/comhairle_full_logo.svg';
 	import DeleteDialog from './DeleteDialog.svelte';
-	import ErrorDialog from './ErrorDialog.svelte';
 	import { flip } from 'svelte/animate';
 	import { MediaUpload } from '$lib/components/Media';
 	import { m } from '$lib/paraglide/messages';
@@ -36,11 +35,11 @@
 	const { form } = $props();
 
 	$effect(() => {
-		if (form?.failed) {
-			console.log(form.failed);
-			form.failed.forEach(([name, message]) => {
+		if (form?.failures) {
+			form.failures.forEach((message) => {
 				notifications.send({
-					message: `${name} failed to delete: ${message}`
+					message,
+					priority: 'ERROR'
 				});
 			});
 		}
@@ -119,7 +118,6 @@
 					</li>
 				{/each}
 			</ul>
-			<ErrorDialog open={!!form?.error} message={form?.error ?? ''} />
 		</form>
 	</main>
 </div>
