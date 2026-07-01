@@ -5,14 +5,14 @@ pub mod routes;
 pub mod setup;
 
 use std::sync::{
-    atomic::{AtomicUsize, Ordering},
     Arc,
+    atomic::{AtomicUsize, Ordering},
 };
 
 use axum::{
     extract::{
-        ws::{Message, WebSocket, WebSocketUpgrade},
         ConnectInfo, State,
+        ws::{Message, WebSocket, WebSocketUpgrade},
     },
     response::Response,
 };
@@ -30,7 +30,7 @@ use mockall::{automock, predicate::*};
 use async_trait::async_trait;
 
 use crate::{
-    error::ComhairleError, models::users::User, routes::auth::RequiredUser, ComhairleState,
+    ComhairleState, error::ComhairleError, models::users::User, routes::auth::RequiredUser,
 };
 
 /// Trait for handling domain-specific WebSocket messages.
@@ -654,13 +654,14 @@ async fn route_to_handler(
     };
 
     if let Some(domain) = domain
-        && let Some(handler) = state.websockets.get_handler(domain) {
-            handler
-                .handle_message(message, connection, state)
-                .await
-                .map_err(|e| ComhairleError::WebSocketHandlerError(Box::new(e)))?;
-            return Ok(true);
-        }
+        && let Some(handler) = state.websockets.get_handler(domain)
+    {
+        handler
+            .handle_message(message, connection, state)
+            .await
+            .map_err(|e| ComhairleError::WebSocketHandlerError(Box::new(e)))?;
+        return Ok(true);
+    }
 
     Ok(false)
 }

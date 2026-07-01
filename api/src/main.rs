@@ -1,8 +1,9 @@
 use aws_config::BehaviorVersion;
 use comhairle::{
+    ComhairleState,
     bot_service::{ComhairleBotService, ComhairleRagBotService},
-    bulk_storage_service::{s3_storage::S3StorageService, BulkStorageService},
-    categorization_service::{tttc_categorizer::TttcCategorizer, CategorizationService},
+    bulk_storage_service::{BulkStorageService, s3_storage::S3StorageService},
+    categorization_service::{CategorizationService, tttc_categorizer::TttcCategorizer},
     config::{TranscriptionServiceConfig, TranslatorConfig},
     db::setup_db,
     mailer::Mailer,
@@ -12,7 +13,6 @@ use comhairle::{
     websockets::ComhairleWebSocketService,
     wiki_poll_service::polis_service::PolisClient,
     worker_service::{init_monitor, init_worker_service},
-    ComhairleState,
 };
 use std::{error::Error, sync::Arc};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};

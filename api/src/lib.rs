@@ -21,8 +21,8 @@ use bot_service::ComhairleBotService;
 use clap::Parser;
 use docs::docs_routes;
 use mailer::ComhairleMailer;
-pub use routes::auth::hash_pw;
 use routes::auth::AUTH_KEY;
+pub use routes::auth::hash_pw;
 use tokio::fs;
 use translation_service::TranslationService;
 use websockets::WebSocketService;
@@ -38,9 +38,9 @@ const SQLX_MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!();
 use std::sync::Arc;
 
 use axum::{
-    extract::DefaultBodyLimit,
-    http::{header, HeaderValue, Method},
     Extension, Router,
+    extract::DefaultBodyLimit,
+    http::{HeaderValue, Method, header},
 };
 
 use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};

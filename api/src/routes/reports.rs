@@ -1,24 +1,24 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{get_with, post_with, put_with},
     ApiRouter,
+    routing::{get_with, post_with, put_with},
 };
 use axum::{
-    extract::{Path, State},
     Json,
+    extract::{Path, State},
 };
 use hyper::StatusCode;
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         self,
         report::{FullReportDto, PartialReport},
     },
     routes::reports::dto::ReportDto,
-    ComhairleState,
 };
 
 pub mod dto;

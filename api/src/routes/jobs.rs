@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{delete_with, get_with, post_with},
     ApiRouter,
+    routing::{delete_with, get_with, post_with},
 };
 use axum::{
     extract::{Json, Path, Query, State},
@@ -12,13 +12,13 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         job::{self, CreateJob, Job, JobFilterOptions, JobOrderOptions},
         pagination::{OrderParams, PageOptions, PaginatedResults},
     },
     routes::auth::RequiredAdminUser,
-    ComhairleState,
 };
 
 #[instrument(err(Debug), skip(state))]
@@ -123,7 +123,7 @@ mod tests {
     use crate::{
         models::job::CreateJob,
         setup_server,
-        test_helpers::{test_state, UserSession},
+        test_helpers::{UserSession, test_state},
     };
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]

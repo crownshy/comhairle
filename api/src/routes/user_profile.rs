@@ -1,19 +1,19 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{get_with, put_with},
     ApiRouter,
+    routing::{get_with, put_with},
 };
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{Json, extract::State, http::StatusCode};
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         self,
         user_profile::{CreateUserProfile, PartialUserProfile},
     },
     routes::{auth::RequiredUser, user_profile::dto::UserProfileDto},
-    ComhairleState,
 };
 
 pub mod dto;

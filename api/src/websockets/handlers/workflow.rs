@@ -4,11 +4,11 @@ use thiserror::Error;
 use tracing::info;
 
 use crate::{
-    websockets::{
-        error::WebsocketError, messages::WebSocketMessage, WebSocketConnection,
-        WebSocketMessageHandler,
-    },
     ComhairleState,
+    websockets::{
+        WebSocketConnection, WebSocketMessageHandler, error::WebsocketError,
+        messages::WebSocketMessage,
+    },
 };
 
 #[derive(Error, Debug)]

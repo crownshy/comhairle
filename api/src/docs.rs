@@ -3,14 +3,14 @@ use std::sync::Arc;
 use aide::swagger::Swagger;
 use aide::{
     axum::{
-        routing::{get, get_with},
         ApiRouter, IntoApiResponse,
+        routing::{get, get_with},
     },
     openapi::OpenApi,
     redoc::Redoc,
     scalar::Scalar,
 };
-use axum::{response::IntoResponse, Extension, Json};
+use axum::{Extension, Json, response::IntoResponse};
 
 use crate::ComhairleState;
 

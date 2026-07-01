@@ -1,9 +1,9 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
+use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::FromRow, PgPool};
+use sqlx::{PgPool, prelude::FromRow};
 use uuid::Uuid;
 
 use crate::error::ComhairleError;
@@ -352,7 +352,7 @@ mod tests {
     use crate::routes::conversations::dto::ConversationDto;
     use crate::routes::events::dto::EventDto;
     use crate::setup_server;
-    use crate::test_helpers::{test_config, test_state, UserSession};
+    use crate::test_helpers::{UserSession, test_config, test_state};
 
     async fn create_random_event(
         session: &mut UserSession,
@@ -594,7 +594,7 @@ mod tests {
         assert!(updated.created_at == created.created_at);
         Ok(())
     }
-    
+
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
     async fn test_delete_scopes_to_event(
         pool: sqlx::PgPool,

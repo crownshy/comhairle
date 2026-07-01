@@ -2,14 +2,14 @@ use std::fmt;
 
 use crate::{
     error::ComhairleError,
-    routes::auth::{hash_pw, validate_password_strength, OtpSignupRequest, SignupRequest},
+    routes::auth::{OtpSignupRequest, SignupRequest, hash_pw, validate_password_strength},
     tools::id::gen_id,
 };
 use schemars::JsonSchema;
-use sea_query::{enum_def, extension::postgres::PgExpr, Expr, PostgresQueryBuilder, Query};
+use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def, extension::postgres::PgExpr};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::FromRow, PgPool};
+use sqlx::{PgPool, prelude::FromRow};
 use uuid::Uuid;
 
 /// Defines the type of authentication has been used to create
@@ -181,13 +181,14 @@ pub async fn create_user(user: &SignupRequest, db: &PgPool) -> Result<User, Comh
         Err(sqlx::Error::Database(db_err)) => {
             let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
             if pg_err.code() == "23505"
-                && let Some(constraint) = pg_err.constraint() {
-                    if constraint.contains("username") {
-                        return Err(ComhairleError::DuplicateUsername(user.username.clone()));
-                    } else if constraint.contains("email") {
-                        return Err(ComhairleError::DuplicateEmail(user.email.clone()));
-                    }
+                && let Some(constraint) = pg_err.constraint()
+            {
+                if constraint.contains("username") {
+                    return Err(ComhairleError::DuplicateUsername(user.username.clone()));
+                } else if constraint.contains("email") {
+                    return Err(ComhairleError::DuplicateEmail(user.email.clone()));
                 }
+            }
             Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
         }
         Err(e) => Err(ComhairleError::DatabaseError(e)),
@@ -284,13 +285,14 @@ async fn insert_otp_user(
         Err(sqlx::Error::Database(db_err)) => {
             let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
             if pg_err.code() == "23505"
-                && let Some(constraint) = pg_err.constraint() {
-                    if constraint.contains("username") {
-                        return Ok(None);
-                    } else if constraint.contains("email") {
-                        return Err(ComhairleError::DuplicateEmail(email.to_string()));
-                    }
+                && let Some(constraint) = pg_err.constraint()
+            {
+                if constraint.contains("username") {
+                    return Ok(None);
+                } else if constraint.contains("email") {
+                    return Err(ComhairleError::DuplicateEmail(email.to_string()));
                 }
+            }
             Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
         }
         Err(e) => Err(ComhairleError::DatabaseError(e)),
@@ -486,11 +488,12 @@ pub async fn update_user(
             let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
             if pg_err.code() == "23505"
                 && let Some(constraint) = pg_err.constraint()
-                    && constraint.contains("username") {
-                        return Err(ComhairleError::DuplicateUsername(
-                            update_request.username.clone().unwrap_or_default(),
-                        ));
-                    }
+                && constraint.contains("username")
+            {
+                return Err(ComhairleError::DuplicateUsername(
+                    update_request.username.clone().unwrap_or_default(),
+                ));
+            }
             Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
         }
         Err(e) => Err(ComhairleError::DatabaseError(e)),
@@ -534,17 +537,18 @@ pub async fn upgrade_account(
         Err(sqlx::Error::Database(db_err)) => {
             let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
             if pg_err.code() == "23505"
-                && let Some(constraint) = pg_err.constraint() {
-                    if constraint.contains("username") {
-                        return Err(ComhairleError::DuplicateUsername(
-                            upgrade_request.username.clone(),
-                        ));
-                    } else if constraint.contains("email") {
-                        return Err(ComhairleError::DuplicateEmail(
-                            upgrade_request.email.clone(),
-                        ));
-                    }
+                && let Some(constraint) = pg_err.constraint()
+            {
+                if constraint.contains("username") {
+                    return Err(ComhairleError::DuplicateUsername(
+                        upgrade_request.username.clone(),
+                    ));
+                } else if constraint.contains("email") {
+                    return Err(ComhairleError::DuplicateEmail(
+                        upgrade_request.email.clone(),
+                    ));
                 }
+            }
             Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
         }
         Err(e) => Err(ComhairleError::DatabaseError(e)),
@@ -558,11 +562,11 @@ mod tests {
     use crate::{
         models::{
             model_test_helpers::setup_default_app_and_session,
-            users::{add_user_resource_role, create_user, user_has_resource_role, Resource, Role},
+            users::{Resource, Role, add_user_resource_role, create_user, user_has_resource_role},
         },
         routes::{auth::SignupRequest, organizations::dto::OrganizationDto},
         setup_server,
-        test_helpers::{test_state, UserSession},
+        test_helpers::{UserSession, test_state},
     };
     use sqlx::PgPool;
     use std::error::Error;

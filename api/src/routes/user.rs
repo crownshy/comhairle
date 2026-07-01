@@ -1,19 +1,20 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{get_with, put_with},
     ApiRouter,
+    routing::{get_with, put_with},
 };
 use axum::{
+    Json,
     extract::{Query, State},
     http::StatusCode,
-    Json,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         self,
@@ -22,12 +23,11 @@ use crate::{
         users::{UpdateUserRequest, UpgradeAccountRequest},
     },
     routes::{conversations::dto::LocalizedConversationDto, user::dto::UserDto},
-    ComhairleState,
 };
 
 pub mod dto;
 
-use super::auth::{is_user_admin, RequiredAdminUser, RequiredUser};
+use super::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
 use super::translations::LocaleExtractor;
 
 pub async fn get_user_owned_conversations(

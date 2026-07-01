@@ -1,12 +1,13 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
+use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{
+    Decode, Encode, PgPool, Postgres,
     encode::IsNull,
     prelude::{FromRow, Type},
-    query_as, query_as_with, Decode, Encode, PgPool, Postgres,
+    query_as, query_as_with,
 };
 use sqlx_postgres::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef};
 use tracing::instrument;

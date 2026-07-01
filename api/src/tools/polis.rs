@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use crate::models::polis_statement_aux;
 use aide::axum::{
-    routing::{delete_with, get_with, post_with, put_with},
     ApiRouter,
+    routing::{delete_with, get_with, post_with, put_with},
 };
 use async_trait::async_trait;
 use axum::{
@@ -17,6 +17,7 @@ use tracing::{info, instrument};
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         self,
@@ -27,9 +28,8 @@ use crate::{
     },
     routes::auth::RequiredUser,
     wiki_poll_service::{
-        polis_service::WikiPollReport, ModerationStatus, WikiPollLogin, WikiPollService,
+        ModerationStatus, WikiPollLogin, WikiPollService, polis_service::WikiPollReport,
     },
-    ComhairleState,
 };
 
 use super::{ToolConfig, ToolConfigSanitize, ToolImpl};
@@ -724,7 +724,7 @@ mod tests {
             model_test_helpers::setup_default_app_and_session,
             polis_statement_aux::{self, CreatePolisStatementAux},
         },
-        test_helpers::{extract, polis_tool_config, UserSession},
+        test_helpers::{UserSession, extract, polis_tool_config},
     };
 
     use super::*;

@@ -14,19 +14,19 @@ use tokio::{sync::Mutex, time::timeout};
 use tracing::{error, instrument};
 
 use crate::{
+    ComhairleState,
     config::WorkerConfig,
     error::ComhairleError,
     worker_service::{
-        process_documents::{process_document_handler, DocumentJob},
+        process_documents::{DocumentJob, process_document_handler},
         process_video_call_transcriptions::{
-            generate_sensemaking_report, transcribe_recording, TranscribeRecording,
+            TranscribeRecording, generate_sensemaking_report, transcribe_recording,
         },
         scheduled_emails::{
-            retrieve_and_enqueue_scheduled_emails, send_scheduled_email, ScheduledEmailsRequest,
-            SendScheduledEmailJob,
+            ScheduledEmailsRequest, SendScheduledEmailJob, retrieve_and_enqueue_scheduled_emails,
+            send_scheduled_email,
         },
     },
-    ComhairleState,
 };
 
 #[cfg(test)]

@@ -2,28 +2,29 @@ use std::sync::Arc;
 
 use super::{
     pagination::{Order, PageOptions, PaginatedResults},
-    translations::{new_translation, TextContentId, TextFormat},
+    translations::{TextContentId, TextFormat, new_translation},
     user_participation::UserParticipationIden,
     workflow::WorkflowIden,
 };
 use crate::{
+    ComhairleState,
     bot_service::{
         ComhairleBotService, ComhairlePrompt, CreateChatRequest, DEFAULT_CHAT_NOT_FOUND_RESPONSE,
         DEFAULT_CHAT_OPENER, DEFAULT_CHAT_PROMPT,
     },
     config::ComhairleConfig,
     error::ComhairleError,
-    models, ComhairleState,
+    models,
 };
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, extension::postgres::PgExpr, Cond, Expr, PostgresQueryBuilder, Query};
+use sea_query::{Cond, Expr, PostgresQueryBuilder, Query, enum_def, extension::postgres::PgExpr};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use slugify::slugify;
-use sqlx::{prelude::FromRow, PgPool};
+use sqlx::{PgPool, prelude::FromRow};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -762,9 +763,10 @@ pub async fn create(
             let pg_err = db_err.downcast_ref::<sqlx::postgres::PgDatabaseError>();
             if pg_err.code() == "23505"
                 && let Some(constraint) = pg_err.constraint()
-                    && constraint.contains("slug") {
-                        return Err(ComhairleError::DuplicateSlug(slug));
-                    }
+                && constraint.contains("slug")
+            {
+                return Err(ComhairleError::DuplicateSlug(slug));
+            }
             Err(ComhairleError::DatabaseError(sqlx::Error::Database(db_err)))
         }
         Err(e) => Err(ComhairleError::DatabaseError(e)),
@@ -859,14 +861,14 @@ mod tests {
     use crate::{
         models::{
             model_test_helpers::setup_default_app_and_session,
-            users::{create_user, update_user, UpdateUserRequest},
+            users::{UpdateUserRequest, create_user, update_user},
         },
         routes::{
             auth::SignupRequest, conversations::dto::ConversationDto,
             organizations::dto::OrganizationDto,
         },
         setup_server,
-        test_helpers::{test_state, UserSession},
+        test_helpers::{UserSession, test_state},
     };
 
     use super::*;

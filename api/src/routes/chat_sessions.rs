@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use aide::{
-    axum::{
-        routing::{get_with, post_with},
-        ApiRouter,
-    },
     OperationIo,
+    axum::{
+        ApiRouter,
+        routing::{get_with, post_with},
+    },
 };
 use axum::{
     body::Body,
@@ -17,6 +17,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     bot_service::{ChatConversationRequest, ComhairleChatSession},
     error::ComhairleError,
     models::{
@@ -24,7 +25,6 @@ use crate::{
         conversation,
     },
     routes::auth::RequiredUser,
-    ComhairleState,
 };
 
 #[instrument(err(Debug), skip(state))]
@@ -50,7 +50,7 @@ pub async fn get_session(
         None => {
             return Err(ComhairleError::CorruptedData(
                 "Missing chat_bot_id on conversation: {conversation_id}".to_string(),
-            ))
+            ));
         }
     };
 
@@ -96,7 +96,7 @@ async fn converse(
         None => {
             return Err(ComhairleError::CorruptedData(
                 "Missing chat_bot_id on conversation: {conversation_id}".to_string(),
-            ))
+            ));
         }
     };
 
@@ -138,13 +138,13 @@ mod tests {
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
     use crate::{
         setup_server,
-        test_helpers::{test_state, UserSession},
+        test_helpers::{UserSession, test_state},
     };
     use std::error::Error;
     use std::{pin::Pin, sync::Arc};
 
-    use axum::body::{to_bytes, Body, Bytes};
-    use futures::{stream, Stream};
+    use axum::body::{Body, Bytes, to_bytes};
+    use futures::{Stream, stream};
     use mockall::predicate::{always, eq};
     use serde_json::json;
     use sqlx::PgPool;

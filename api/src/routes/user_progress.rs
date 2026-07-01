@@ -1,11 +1,11 @@
 use aide::axum::{
-    routing::{get_with, put_with},
     ApiRouter,
+    routing::{get_with, put_with},
 };
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use std::sync::Arc;
 use tracing::info;
@@ -84,7 +84,7 @@ mod tests {
 
     use crate::{
         setup_server,
-        test_helpers::{extract, test_state, UserSession},
+        test_helpers::{UserSession, extract, test_state},
     };
 
     #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
