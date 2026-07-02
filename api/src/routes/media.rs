@@ -3,8 +3,8 @@ pub mod dto;
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{delete_with, get_with, post_with},
     ApiRouter,
+    routing::{delete_with, get_with, post_with},
 };
 use axum::extract::{Json, Multipart, Path, Query, State};
 use hyper::StatusCode;
@@ -12,6 +12,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     bulk_storage_service::FileMetadata,
     error::ComhairleError,
     models::{
@@ -20,7 +21,6 @@ use crate::{
     },
     routes::{auth::RequiredAdminUser, media::dto::MediaDto},
     tools::id::gen_id,
-    ComhairleState,
 };
 
 #[instrument(err(Debug), skip(state))]
@@ -210,7 +210,7 @@ mod tests {
             pagination::PaginatedResults,
         },
         setup_server,
-        test_helpers::{multipart_body_builder, test_state, UserSession, TEST_PASSWORD},
+        test_helpers::{TEST_PASSWORD, UserSession, multipart_body_builder, test_state},
     };
 
     use sqlx::PgPool;

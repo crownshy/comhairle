@@ -6,7 +6,7 @@ use crate::models::email_template_config::{
 use crate::models::event::{self, LocalizedEvent, ResolveTimeZone};
 use crate::models::organization::Organization;
 use crate::models::users::User;
-use crate::{error::ComhairleError, ComhairleState};
+use crate::{ComhairleState, error::ComhairleError};
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -14,10 +14,10 @@ use icalendar::{self as ical, Component, EventLike};
 use lettre::message::Mailbox;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{
-    message::{header::ContentType, Attachment, Body, MultiPart, SinglePart},
     Message, SmtpTransport, Transport,
+    message::{Attachment, Body, MultiPart, SinglePart, header::ContentType},
 };
-use minijinja::{context, Environment, Value};
+use minijinja::{Environment, Value, context};
 use std::collections::HashMap;
 use std::{str::FromStr, sync::Arc};
 use tracing::{instrument, warn};

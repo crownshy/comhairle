@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{delete_with, get_with, post_with, put_with},
     ApiRouter,
+    routing::{delete_with, get_with, post_with, put_with},
 };
 use axum::{
     extract::{Json, Path, Query, State},
@@ -14,6 +14,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         conversation, event,
@@ -28,7 +29,6 @@ use crate::{
         auth::{RequiredAdminUser, RequiredUser},
         event_attendances::dto::EventAttendanceDto,
     },
-    ComhairleState,
 };
 
 pub mod dto;
@@ -105,28 +105,28 @@ pub async fn create(
     let event_attendance = event_attendance::create(&state.db, &create_event_attendance).await?;
 
     if let Some(ref email) = user.email
-        && &event_attendance.role == "participant" {
-            let event =
-                event::get_localized_by_id(&state.db, &event_id, &conversation.primary_locale)
-                    .await?;
+        && &event_attendance.role == "participant"
+    {
+        let event =
+            event::get_localized_by_id(&state.db, &event_id, &conversation.primary_locale).await?;
 
-            let event_owner = users::get_user_by_id(&conversation.owner_id, &state.db).await?;
+        let event_owner = users::get_user_by_id(&conversation.owner_id, &state.db).await?;
 
-            event
-                .schedule_event_reminders(&state.db, &state.config, &user)
-                .await?;
+        event
+            .schedule_event_reminders(&state.db, &state.config, &user)
+            .await?;
 
-            state
-                .mailer
-                .send_event_confirmation_email(
-                    &state,
-                    email,
-                    event_id,
-                    event_owner.id,
-                    &conversation.primary_locale,
-                )
-                .await?;
-        }
+        state
+            .mailer
+            .send_event_confirmation_email(
+                &state,
+                email,
+                event_id,
+                event_owner.id,
+                &conversation.primary_locale,
+            )
+            .await?;
+    }
 
     Ok((StatusCode::CREATED, Json(event_attendance.into())))
 }
@@ -284,7 +284,7 @@ mod tests {
         },
         routes::{auth::SignupRequest, events::dto::EventDto},
         setup_server,
-        test_helpers::{test_state, UserSession},
+        test_helpers::{UserSession, test_state},
     };
 
     use super::*;

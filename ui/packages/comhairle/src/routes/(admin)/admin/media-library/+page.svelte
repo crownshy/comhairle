@@ -82,11 +82,11 @@
 								bind:group={selected}
 							/>
 							<span>
-								<MediaItem {type} src={media.src} alt="" />
+								<MediaItem {type} src={media.url} alt="" />
 							</span>
 						</label>
 					{:else}
-						<MediaItem {type} src={media.src} alt="" />
+						<MediaItem {type} src={media.url} alt="" />
 					{/if}
 				{/snippet}
 			</MediaLibrary>

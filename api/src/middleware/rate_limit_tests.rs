@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::test_helpers::{test_state, TEST_PASSWORD};
+    use crate::test_helpers::{TEST_PASSWORD, test_state};
     use axum::{
         body::Body,
         http::{Request, StatusCode},

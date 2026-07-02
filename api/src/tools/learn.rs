@@ -6,7 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::models::translations::TextContentId;
-use crate::{error::ComhairleError, ComhairleState};
+use crate::{ComhairleState, error::ComhairleError};
 
 use super::{ToolConfigSanitize, ToolImpl};
 

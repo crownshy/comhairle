@@ -10,8 +10,8 @@ pub mod dto;
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{delete_with, get_with, post_with},
     ApiRouter,
+    routing::{delete_with, get_with, post_with},
 };
 use axum::{
     extract::{Json, Path, State},
@@ -21,6 +21,7 @@ use hyper::HeaderMap;
 use tracing::instrument;
 use uuid::Uuid;
 
+use crate::ComhairleState;
 use crate::bulk_storage_service::FileMetadata;
 use crate::error::ComhairleError;
 use crate::models::audio_recording::{self, CreateAudioRecording};
@@ -30,9 +31,8 @@ use crate::routes::audio_recordings::dto::{
     AudioRecordingDto, CreateRecordingRequest, CreateRecordingResponse, DeleteRecordingResponse,
     ProcessRecordingResponse, RecordingDetailResponse, RecordingDownloadUrls, SubmitReportResponse,
 };
-use crate::routes::auth::{verify_webhook_signature, RequiredAdminUser};
+use crate::routes::auth::{RequiredAdminUser, verify_webhook_signature};
 use crate::worker_service::process_video_call_transcriptions::TranscribeRecording;
-use crate::ComhairleState;
 
 /// Create an audio recording and return a presigned URL for uploading its audio.
 ///
@@ -91,7 +91,12 @@ async fn list_recordings(
     let recordings = audio_recording::list_by_event(&state.db, &event_id).await?;
     Ok((
         StatusCode::OK,
-        Json(recordings.into_iter().map(AudioRecordingDto::from).collect()),
+        Json(
+            recordings
+                .into_iter()
+                .map(AudioRecordingDto::from)
+                .collect(),
+        ),
     ))
 }
 
@@ -108,7 +113,8 @@ async fn get_recording(
 ) -> Result<(StatusCode, Json<RecordingDetailResponse>), ComhairleError> {
     let bulk_storage_service = state.required_bulk_storage_service()?;
 
-    let recording = audio_recording::get_by_id_and_event(&state.db, &recording_id, &event_id).await?;
+    let recording =
+        audio_recording::get_by_id_and_event(&state.db, &recording_id, &event_id).await?;
     let extension = recording.file_extension.extension();
     let prefix = &recording.s3_key_prefix;
 
@@ -147,7 +153,8 @@ async fn process_recording(
     let worker_service = state.required_worker_service()?;
 
     // Ensure the recording exists and belongs to this event before enqueuing work.
-    let _recording = audio_recording::get_by_id_and_event(&state.db, &recording_id, &event_id).await?;
+    let _recording =
+        audio_recording::get_by_id_and_event(&state.db, &recording_id, &event_id).await?;
 
     let job = job::create(
         &state.db,
@@ -204,7 +211,8 @@ async fn delete_recording(
 ) -> Result<(StatusCode, Json<DeleteRecordingResponse>), ComhairleError> {
     let bulk_storage_service = state.required_bulk_storage_service()?;
 
-    let recording = audio_recording::get_by_id_and_event(&state.db, &recording_id, &event_id).await?;
+    let recording =
+        audio_recording::get_by_id_and_event(&state.db, &recording_id, &event_id).await?;
 
     // Best-effort: log and swallow storage errors so a hung S3 doesn't block
     // the user from getting rid of a stuck row.
@@ -216,7 +224,11 @@ async fn delete_recording(
         format!("{prefix}/report.json"),
     ] {
         if let Err(err) = bulk_storage_service.delete_file(&path).await {
-            tracing::warn!(?err, path, "failed to delete recording file from bulk storage");
+            tracing::warn!(
+                ?err,
+                path,
+                "failed to delete recording file from bulk storage"
+            );
         }
     }
 
@@ -271,7 +283,12 @@ async fn submit_report(
             ComhairleError::AuthWebhookSignatureError("Invalid X-Webhook-Signature".to_string())
         })?;
 
-    if !verify_webhook_signature(webhook_signature, webhook_timestamp, &payload, webhook_secret)? {
+    if !verify_webhook_signature(
+        webhook_signature,
+        webhook_timestamp,
+        &payload,
+        webhook_secret,
+    )? {
         return Err(ComhairleError::AuthWebhookSignatureError(
             "Invalid X-Webhook-Signature".to_string(),
         ));
@@ -283,7 +300,8 @@ async fn submit_report(
             "No event {event_id} found for conversation {conversation_id}"
         )));
     }
-    let recording = audio_recording::get_by_id_and_event(&state.db, &recording_id, &event_id).await?;
+    let recording =
+        audio_recording::get_by_id_and_event(&state.db, &recording_id, &event_id).await?;
 
     let path = format!("{}/report.json", recording.s3_key_prefix);
     let bytes = serde_json::to_vec(&payload)?;
@@ -393,7 +411,7 @@ mod tests {
     use crate::routes::conversations::dto::ConversationDto;
     use crate::routes::events::dto::EventDto;
     use crate::setup_server;
-    use crate::test_helpers::{test_config, test_state, UserSession};
+    use crate::test_helpers::{UserSession, test_config, test_state};
 
     async fn create_random_event(
         session: &mut UserSession,
@@ -491,7 +509,10 @@ mod tests {
         session.signup(&app).await?;
 
         let (conversation, event) = create_random_event(&mut session, &app).await?;
-        let url = format!("/conversation/{}/events/{}/audio_recordings/", conversation.id, event.id);
+        let url = format!(
+            "/conversation/{}/events/{}/audio_recordings/",
+            conversation.id, event.id
+        );
         let request = CreateRecordingRequest {
             name: "Room A".to_string(),
             file_extension: AudioFormat::Wav,
@@ -545,10 +566,12 @@ mod tests {
         pool: sqlx::PgPool,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut storage_service = crate::bulk_storage_service::MockBulkStorageService::new();
-        storage_service.expect_get_read_file_url().returning(|path| {
-            let url = format!("https://s3.example.com/{path}");
-            Box::pin(async move { Ok(url) })
-        });
+        storage_service
+            .expect_get_read_file_url()
+            .returning(|path| {
+                let url = format!("https://s3.example.com/{path}");
+                Box::pin(async move { Ok(url) })
+            });
 
         let mut config = test_config()?;
         config.bot_service = None;
@@ -647,11 +670,9 @@ mod tests {
 
         let mut storage_service = crate::bulk_storage_service::MockBulkStorageService::new();
         // Every storage delete fails (e.g. files were never uploaded).
-        storage_service
-            .expect_delete_file()
-            .returning(|_| {
-                Box::pin(async move { Err(BulkStorageError::FailedToDelete("nope".to_string())) })
-            });
+        storage_service.expect_delete_file().returning(|_| {
+            Box::pin(async move { Err(BulkStorageError::FailedToDelete("nope".to_string())) })
+        });
 
         let mut config = test_config()?;
         config.bot_service = None;
@@ -692,7 +713,11 @@ mod tests {
             .await?;
         assert_eq!(status, StatusCode::OK);
         // The DB row is gone even though the storage cleanup failed.
-        assert!(audio_recording::get_by_id(&pool, &recording.id).await.is_err());
+        assert!(
+            audio_recording::get_by_id(&pool, &recording.id)
+                .await
+                .is_err()
+        );
 
         Ok(())
     }

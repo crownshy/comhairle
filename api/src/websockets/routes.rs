@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use crate::{error::ComhairleError, routes::auth::RequiredAdminUser, ComhairleState};
+use crate::{ComhairleState, error::ComhairleError, routes::auth::RequiredAdminUser};
 use aide::{
-    axum::{
-        routing::{get_with, post_with},
-        ApiRouter,
-    },
     OperationIo,
+    axum::{
+        ApiRouter,
+        routing::{get_with, post_with},
+    },
 };
-use axum::{extract::State, routing::get, Json};
+use axum::{Json, extract::State, routing::get};
 use serde::{Deserialize, Serialize};
 
 use schemars::JsonSchema;

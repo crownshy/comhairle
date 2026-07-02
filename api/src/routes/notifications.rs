@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{get_with, put_with},
     ApiRouter,
+    routing::{get_with, put_with},
 };
 use axum::{
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
-    Json,
 };
 use chrono::Utc;
 use schemars::JsonSchema;
@@ -15,6 +15,7 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         notification_delivery::{
@@ -22,7 +23,6 @@ use crate::{
         },
         pagination::{OrderParams, PageOptions, PaginatedResults},
     },
-    ComhairleState,
 };
 
 use super::auth::RequiredUser;

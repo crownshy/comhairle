@@ -4,24 +4,25 @@ use std::{collections::HashMap, error::Error, sync::Arc};
 use uuid::Uuid;
 
 use axum::{
-    body::Body,
-    http::{header::COOKIE, HeaderName, HeaderValue, Request, StatusCode},
-    response::Response,
     Router,
+    body::Body,
+    http::{HeaderName, HeaderValue, Request, StatusCode, header::COOKIE},
+    response::Response,
 };
 use bon::builder;
 use fake::{
-    faker::lorem::en::{Paragraph, Sentence, Words},
     Fake,
+    faker::lorem::en::{Paragraph, Sentence, Words},
 };
 use http_body_util::BodyExt;
 use serde::de::DeserializeOwned;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use sqlx::PgPool;
 use tower::ServiceExt;
 
 use crate::{
+    ComhairleState,
     bot_service::{ComhairleBotService, MockComhairleBotService},
     bulk_storage_service::{BulkStorageService, MockBulkStorageService},
     categorization_service::{CategorizationService, MockCategorizationService},
@@ -34,7 +35,6 @@ use crate::{
     websockets::{MockWebSocketService, WebSocketService},
     wiki_poll_service::{MockWikiPollService, WikiPollService},
     worker_service::{MockWorkerService, WorkerService},
-    ComhairleState,
 };
 
 /// Standard test password that meets all security requirements:

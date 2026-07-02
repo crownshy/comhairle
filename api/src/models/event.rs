@@ -3,12 +3,12 @@ use chrono_tz::Tz;
 use comhairle_macros::{DbJsonBEnum, Translatable};
 use partially::Partial;
 use schemars::JsonSchema;
-use sea_query::{enum_def, Alias, Expr, PostgresQueryBuilder, Query};
+use sea_query::{Alias, Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
 use sqlx::{
-    prelude::{FromRow, Type},
     Decode, Encode, PgPool, Postgres,
+    prelude::{FromRow, Type},
 };
 use sqlx_postgres::{PgArgumentBuffer, PgValueRef};
 use std::str::FromStr;
@@ -26,10 +26,10 @@ use crate::{
         otp,
         pagination::{Order, PageOptions, PaginatedResults},
         scheduled_email::{self, CreateScheduledEmail, EmailTemplate, ScheduledEmailConfig},
-        translations::{new_translation, TextContentId, TextFormat},
+        translations::{TextContentId, TextFormat, new_translation},
         users::User,
     },
-    routes::auth::{generate_jwt, OtpClaims},
+    routes::auth::{OtpClaims, generate_jwt},
 };
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
@@ -58,7 +58,6 @@ pub enum EventAgendaItem {
 #[serde(transparent)]
 #[derive(Default)]
 pub struct EventAgenda(pub Vec<EventAgendaItem>);
-
 
 #[derive(Serialize, Deserialize, Partial, Debug, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "event")]

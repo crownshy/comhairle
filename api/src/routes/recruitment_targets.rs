@@ -1,17 +1,18 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{delete_with, get_with, post_with, put_with},
     ApiRouter,
+    routing::{delete_with, get_with, post_with, put_with},
 };
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         self,
@@ -21,7 +22,6 @@ use crate::{
         auth::RequiredAdminUser, recruitment_targets::dto::RecruitmentTargetDto,
         workflows::WorkflowPathCtx,
     },
-    ComhairleState,
 };
 
 pub mod dto;

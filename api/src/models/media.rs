@@ -1,9 +1,9 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr};
+use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::FromRow, PgPool};
+use sqlx::{PgPool, prelude::FromRow};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -30,6 +30,15 @@ pub struct Media {
     pub owner_id: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+impl Media {
+    pub fn url(&self) -> String {
+        format!(
+            "https://{}.s3.amazonaws.com/{}",
+            self.store_name, self.storage_key
+        )
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, PartialEq, sqlx::Type, Clone, JsonSchema)]

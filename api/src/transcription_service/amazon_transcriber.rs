@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use aws_config;
 use aws_sdk_transcribe;
 use aws_sdk_transcribe::types::{
-    builders::SettingsBuilder, LanguageCode, Media, MediaFormat, TranscriptionJobStatus,
+    LanguageCode, Media, MediaFormat, TranscriptionJobStatus, builders::SettingsBuilder,
 };
 use aws_sdk_transcribestreaming;
 use aws_sdk_transcribestreaming::primitives::Blob;
@@ -339,15 +339,16 @@ fn consolidated_transcription(raw_transcription: &Transcription) -> Transcriptio
 
     // Push the final accumulated segment if it's not empty
     if !running_segment.is_empty()
-        && let (Some(start_time), Some(end_time)) = (segment_start_time, segment_end_time) {
-            new_events.push(TranscriptEvent {
-                text: running_segment,
-                start_time,
-                end_time,
-                speaker_id,
-                is_pending: false,
-            });
-        }
+        && let (Some(start_time), Some(end_time)) = (segment_start_time, segment_end_time)
+    {
+        new_events.push(TranscriptEvent {
+            text: running_segment,
+            start_time,
+            end_time,
+            speaker_id,
+            is_pending: false,
+        });
+    }
 
     // Now consolidate all trailing pending events into a single event
     if let Some(first_pending_idx) = first_pending_idx {
@@ -630,47 +631,45 @@ impl Transcriber for AmazonTranscriber {
                     Ok(event) => {
                         if let Some(event) = event
                             && let Ok(transcript_event) = event.as_transcript_event()
-                                && let Some(transcript) = transcript_event.transcript()
-                                    && let Some(results) = &transcript.results {
-                                        info!("Transcription result event {results:#?}");
-                                        for result in results.iter() {
-                                            if let Some(alt) = result.alternatives().first()
-                                                && let Some(items) = &alt.items {
-                                                    let mut all_items = vec![];
-                                                    for item in items {
-                                                        if let Some(content) = &item.content {
-                                                            all_items.push(TranscriptEvent {
-                                                                text: content.to_owned(),
-                                                                start_time: item.start_time,
-                                                                end_time: item.end_time,
-                                                                speaker_id: item.speaker.to_owned(),
-                                                                is_pending: result.is_partial,
-                                                            })
-                                                        }
-                                                    }
-                                                    full_transcription
-                                                        .events
-                                                        .retain(|x| !x.is_pending);
-
-                                                    full_transcription
-                                                        .events
-                                                        .extend_from_slice(all_items.as_slice());
-
-                                                    let result = consolidated_transcription(
-                                                        &full_transcription,
-                                                    );
-
-                                                    info!("\n\n------------");
-                                                    info!("{result:#?}");
-                                                    info!("------------\n\n");
-
-                                                    let _ = transcript_tx
-                                                        //TODO figure out if we can remove this clone
-                                                        .send(result)
-                                                        .await;
-                                                }
+                            && let Some(transcript) = transcript_event.transcript()
+                            && let Some(results) = &transcript.results
+                        {
+                            info!("Transcription result event {results:#?}");
+                            for result in results.iter() {
+                                if let Some(alt) = result.alternatives().first()
+                                    && let Some(items) = &alt.items
+                                {
+                                    let mut all_items = vec![];
+                                    for item in items {
+                                        if let Some(content) = &item.content {
+                                            all_items.push(TranscriptEvent {
+                                                text: content.to_owned(),
+                                                start_time: item.start_time,
+                                                end_time: item.end_time,
+                                                speaker_id: item.speaker.to_owned(),
+                                                is_pending: result.is_partial,
+                                            })
                                         }
                                     }
+                                    full_transcription.events.retain(|x| !x.is_pending);
+
+                                    full_transcription
+                                        .events
+                                        .extend_from_slice(all_items.as_slice());
+
+                                    let result = consolidated_transcription(&full_transcription);
+
+                                    info!("\n\n------------");
+                                    info!("{result:#?}");
+                                    info!("------------\n\n");
+
+                                    let _ = transcript_tx
+                                        //TODO figure out if we can remove this clone
+                                        .send(result)
+                                        .await;
+                                }
+                            }
+                        }
                     }
                     Err(e) => {
                         error!("Transcription stream error: {e:#?}");

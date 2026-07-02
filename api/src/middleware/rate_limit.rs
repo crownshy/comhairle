@@ -3,7 +3,7 @@ use axum::body::Body;
 use governor::middleware::StateInformationMiddleware;
 use std::sync::Arc;
 use tower_governor::{
-    governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor, GovernorLayer,
+    GovernorLayer, governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor,
 };
 
 /// Configuration for rate limiting
@@ -96,8 +96,8 @@ pub fn auth_rate_limiter_if_enabled(
 /// - 100 requests per minute per IP
 /// - Burst capacity of 20 requests
 /// - Suitable for most CRUD operations
-pub fn standard_rate_limiter(
-) -> GovernorLayer<SmartIpKeyExtractor, StateInformationMiddleware, Body> {
+pub fn standard_rate_limiter()
+-> GovernorLayer<SmartIpKeyExtractor, StateInformationMiddleware, Body> {
     create_rate_limiter(RateLimitConfig::standard())
 }
 

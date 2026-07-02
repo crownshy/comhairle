@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{delete_with, get_with, post_with, put_with},
     ApiRouter,
+    routing::{delete_with, get_with, post_with, put_with},
 };
 use axum::{
     extract::{Json, Path, Query, State},
@@ -14,6 +14,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         event::{
@@ -24,11 +25,10 @@ use crate::{
         pagination::{PageOptions, PaginatedResults},
     },
     routes::{
-        auth::{generate_jwt, is_user_admin, RequiredAdminUser, RequiredUser},
+        auth::{RequiredAdminUser, RequiredUser, generate_jwt, is_user_admin},
         events::dto::{EventDto, LocalizedEventDto},
         translations::LocaleExtractor,
     },
-    ComhairleState,
 };
 
 pub mod dto;

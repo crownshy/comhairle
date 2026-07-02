@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use aide::{
-    axum::{
-        routing::{get_with, post_with},
-        ApiRouter,
-    },
     OperationIo,
+    axum::{
+        ApiRouter,
+        routing::{get_with, post_with},
+    },
 };
 use async_trait::async_trait;
 use axum::{
@@ -20,6 +20,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     bot_service::{AgentConversationRequest, ComhairleAgentSession},
     error::ComhairleError,
     models::{
@@ -28,7 +29,6 @@ use crate::{
     },
     routes::auth::RequiredUser,
     tools::ToolConfig,
-    ComhairleState,
 };
 
 use super::{ToolConfigSanitize, ToolImpl};
@@ -238,7 +238,7 @@ async fn converse(
         _ => {
             return Err(ComhairleError::ToolConfigError(
                 "incorrect config type".to_string(),
-            ))
+            ));
         }
     };
 
@@ -275,14 +275,14 @@ mod tests {
     use crate::{
         bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService},
         setup_server,
-        test_helpers::{elicitation_bot_tool_config, test_state, UserSession},
+        test_helpers::{UserSession, elicitation_bot_tool_config, test_state},
     };
 
     use axum::{
-        body::{to_bytes, Bytes},
         Router,
+        body::{Bytes, to_bytes},
     };
-    use futures::{stream, Stream};
+    use futures::{Stream, stream};
     use mockall::predicate::always;
     use serde_json::json;
     use sqlx::PgPool;

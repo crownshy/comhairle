@@ -5,12 +5,12 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     models::{notification, notification_delivery},
     websockets::{
-        error::WebsocketError, messages::WebSocketMessage, WebSocketConnection,
-        WebSocketMessageHandler,
+        WebSocketConnection, WebSocketMessageHandler, error::WebsocketError,
+        messages::WebSocketMessage,
     },
-    ComhairleState,
 };
 
 #[derive(Error, Debug)]

@@ -5,12 +5,12 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     mailer::build_invite_attachment,
     models::{
         job::{self, CreateJob},
-        scheduled_email::{list_upcoming_scheduled_emails, ScheduledEmail},
+        scheduled_email::{ScheduledEmail, list_upcoming_scheduled_emails},
     },
-    ComhairleState,
 };
 
 use super::error::{RecordWorkerError, Result, WorkerServiceError};

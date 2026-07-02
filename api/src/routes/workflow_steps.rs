@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use aide::axum::routing::{delete_with, get_with, post_with, put_with};
-use aide::axum::ApiRouter;
 use aide::OperationIo;
+use aide::axum::ApiRouter;
+use aide::axum::routing::{delete_with, get_with, post_with, put_with};
 
 use axum::http::request::Parts;
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -23,12 +23,12 @@ use crate::routes::workflow_steps::dto::{
 };
 use crate::routes::workflows::{SourcePathCtx, WorkflowPathCtx, WorkflowRouterContext};
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::workflow_step::{self, CreateWorkflowStep, PartialWorkflowStep},
-    ComhairleState,
 };
 
-use super::auth::{is_user_admin, RequiredAdminUser, RequiredUser};
+use super::auth::{RequiredAdminUser, RequiredUser, is_user_admin};
 use crate::models::{self, conversation, user_participation};
 use axum::extract::{FromRequestParts, Query};
 
@@ -324,7 +324,7 @@ mod tests {
             workflows::dto::WorkflowDto,
         },
         setup_server,
-        test_helpers::{extract, learn_tool_config, polis_tool_config, test_state, UserSession},
+        test_helpers::{UserSession, extract, learn_tool_config, polis_tool_config, test_state},
     };
     use axum::http::StatusCode;
     use serde_json::json;
@@ -630,8 +630,10 @@ mod tests {
             session.create_random_unlaunched_conversation(&app).await?;
         let (_, launched_conversation, _) = session.create_random_conversation(&app).await?;
 
-        for (conversation, expected_status) in [(unlaunched_conversation, StatusCode::OK),
-            (launched_conversation, StatusCode::OK)] {
+        for (conversation, expected_status) in [
+            (unlaunched_conversation, StatusCode::OK),
+            (launched_conversation, StatusCode::OK),
+        ] {
             let conversation_id: String = extract("id", &conversation);
 
             let (_, workflow, _) = session
