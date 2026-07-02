@@ -158,7 +158,8 @@
 	async function handleInitOptionalTranslationField(
 		content: string,
 		field: string,
-		format: 'plain' | 'rich' = 'rich'
+		format: 'plain' | 'rich' = 'rich',
+		autoTranslate: boolean = false
 	) {
 		try {
 			if (!conversation) return;
@@ -173,6 +174,19 @@
 				{ [camelToSnakeCase(field)]: textContentRes.id },
 				{ params: { conversation_id: conversation.id } }
 			);
+
+			if (autoTranslate) {
+				const targetLocales = supportedLanguages.filter((lang) => lang !== primaryLanguage);
+				if (targetLocales.length > 0) {
+					notifications.send({ message: 'Generating translations...', priority: 'INFO' });
+					for (const locale of targetLocales) {
+						await autoTranslateNewLanguage(locale, [textContentRes.id]);
+					}
+					notifications.send({ message: 'Translations generated', priority: 'INFO' });
+				}
+			}
+
+			await invalidateAll();
 		} catch (e) {
 			console.error(e);
 			notifications.send({
@@ -384,7 +398,12 @@
 							translation={conversation.translations?.privacyPolicy ?? undefined}
 							editorType="rich"
 							onSaveSource={(content: string) =>
-								handleInitOptionalTranslationField(content, 'privacyPolicy')}
+								handleInitOptionalTranslationField(
+									content,
+									'privacyPolicy',
+									'rich',
+									true
+								)}
 							primaryLocale={primaryLanguage}
 							{supportedLanguages}
 							inputProps={props}
@@ -413,7 +432,12 @@
 							translation={conversation.translations?.shortPrivacyPolicy ?? undefined}
 							editorType="rich"
 							onSaveSource={(content: string) =>
-								handleInitOptionalTranslationField(content, 'shortPrivacyPolicy')}
+								handleInitOptionalTranslationField(
+									content,
+									'shortPrivacyPolicy',
+									'rich',
+									true
+								)}
 							primaryLocale={primaryLanguage}
 							{supportedLanguages}
 							inputProps={props}

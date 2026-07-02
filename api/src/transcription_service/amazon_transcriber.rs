@@ -489,8 +489,14 @@ impl Transcriber for AmazonTranscriber {
                 TranscriptionServiceError::TranscriptionFailure(detail)
             })?;
 
+        // Poll AWS Transcribe until the job finishes. Backoff doubles from
+        // 100ms up to a 30s ceiling — without the cap the doubling ran away
+        // (~24h sleeps after ~20 polls), leaving jobs wedged in the queue
+        // long after AWS had actually finished.
+        const MAX_SNOOZE_MS: u64 = 30_000;
+        const MAX_TOTAL_MS: u64 = 2 * 60 * 60 * 1000; // 2 hours
         let mut snooze: u64 = 100;
-        let mut snooze_total = snooze;
+        let mut snooze_total: u64 = 0;
 
         let mut found = false;
 
@@ -564,7 +570,13 @@ impl Transcriber for AmazonTranscriber {
 
                 found = true
             } else {
-                snooze *= 2;
+                if snooze_total >= MAX_TOTAL_MS {
+                    return Err(TranscriptionServiceError::TranscriptionFailure(format!(
+                        "Transcription job {job_name} did not finish within {MAX_TOTAL_MS}ms"
+                    )));
+                }
+
+                snooze = (snooze * 2).min(MAX_SNOOZE_MS);
                 snooze_total += snooze;
 
                 tokio::time::sleep(tokio::time::Duration::from_millis(snooze)).await;
