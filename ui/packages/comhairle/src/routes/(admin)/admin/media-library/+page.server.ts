@@ -4,23 +4,19 @@ import type { RequestEvent } from './$types';
 import Media from '$lib/interfaces/Media';
 import type { MediaDto } from '@crownshy/api-client/api';
 
-export type ContentType = MediaDto['contentType'] | 'audio/mp3';
-export type MockData = Pick<MediaDto, 'id'> &
-	Record<'src', string> &
-	Record<'contentType', ContentType>;
 export async function load({ fetch }: RequestEvent) {
 	const response = await tryFetch('/api/media', undefined, fetch);
 	if (response.err !== null) {
 		// FIX:
-		return fail(500);
+		return fail(500, { error: "Couldn't get media from the server" });
 	}
 	const data = await tryCatchAsync(() => response.ok.json());
 	if (data.err !== null) {
 		// FIX:
-		return fail(500);
+		return fail(500, { error: 'Failed to parse the response from the server' });
 	}
 	return {
-		media: data.ok.records
+		media: data.ok.records as MediaDto[]
 	};
 }
 export const actions = {

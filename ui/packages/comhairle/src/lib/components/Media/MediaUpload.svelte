@@ -46,7 +46,7 @@
 			if (clientSide) {
 				const rawFiles = (e.target as HTMLInputElement).files;
 				if (!rawFiles) return;
-				const response = await media.upload('/api/media', media.sanitiseMulti(rawFiles));
+				const response = await media.upload('/api/media', Media.sanitiseMulti(rawFiles));
 				let count = 0;
 				for (const res of response) {
 					if (res.err !== null) {

@@ -1908,6 +1908,7 @@ export const MediaContentType = z.enum([
   "video/mp4",
   "video/mpeg",
   "video/webm",
+  "audio/mpeg",
 ]);
 export type MediaContentType = z.infer<typeof MediaContentType>;
 export const content_type = z.union([MediaContentType, z.null()]).optional();
@@ -1921,6 +1922,7 @@ export const MediaDto = z
     ownerId: z.string().uuid(),
     storageKey: z.string(),
     storeName: z.string(),
+    url: z.string(),
   })
   .passthrough();
 export type MediaDto = z.infer<typeof MediaDto>;

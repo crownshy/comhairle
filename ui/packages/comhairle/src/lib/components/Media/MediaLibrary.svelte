@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { htmlFromMediaType, type HTMLMediaElement } from '$lib/utils/types';
 	import type { Snippet } from 'svelte';
-	import type { MockData } from '../../../routes/(admin)/admin/media-library/+page.server';
+	import type { MediaDto } from '@crownshy/api-client/api';
 
-	interface Props {
-		data: MockData[];
+	interface Props<T extends MediaDto> {
+		data: T[];
 		rowHeight: number;
-		media: Snippet<[type: HTMLMediaElement, d: MockData]>;
+		media: Snippet<[type: HTMLMediaElement, d: T]>;
 	}
 
-	const { data, rowHeight, media }: Props = $props();
+	const { data, rowHeight, media }: Props<MediaDto> = $props();
 </script>
 
 <ul class="flex flex-wrap gap-2">

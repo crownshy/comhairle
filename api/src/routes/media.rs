@@ -100,6 +100,7 @@ async fn upload(
         | MediaContentType::Gif
         | MediaContentType::Webp => "images",
         MediaContentType::Mp4 | MediaContentType::Mpeg | MediaContentType::Webm => "video",
+        MediaContentType::Mp3 => "audio",
     };
     let storage_key = format!("{prefix}/{filename}");
     bulk_storage_service

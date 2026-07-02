@@ -66,6 +66,9 @@ pub enum MediaContentType {
     #[sqlx(rename = "video/webm")]
     #[serde(rename = "video/webm")]
     Webm,
+    #[sqlx(rename = "audio/mpeg")]
+    #[serde(rename = "audio/mpeg")]
+    Mp3,
 }
 
 impl From<MediaContentType> for sea_query::Value {
@@ -84,6 +87,7 @@ impl std::fmt::Display for MediaContentType {
             MediaContentType::Mp4 => "video/mp4",
             MediaContentType::Mpeg => "video/mpeg",
             MediaContentType::Webm => "video/webm",
+            MediaContentType::Mp3 => "audio/mpeg",
         };
         write!(f, "{}", value)
     }
@@ -99,6 +103,7 @@ impl MediaContentType {
             "video/mp4" => Ok(Self::Mp4),
             "video/mpeg" => Ok(Self::Mpeg),
             "video/webm" => Ok(Self::Webm),
+            "audio/mpeg" => Ok(Self::Mp3),
             ct => Err(ComhairleError::UnsupportedContentType(ct.to_string())),
         }
     }
@@ -114,6 +119,7 @@ impl MediaContentType {
             "mp4" => Ok(Self::Mp4),
             "mpeg" | "mpg" => Ok(Self::Mpeg),
             "webm" => Ok(Self::Webm),
+            "mp3" => Ok(Self::Mp3),
             ext => Err(ComhairleError::UnsupportedContentType(ext.to_string())),
         }
     }
