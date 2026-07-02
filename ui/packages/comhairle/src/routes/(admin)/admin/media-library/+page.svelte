@@ -3,11 +3,11 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { SquarePen, Trash2, X } from 'lucide-svelte';
 	import DeleteDialog from './DeleteDialog.svelte';
-	import { flip } from 'svelte/animate';
 	import { MediaUpload } from '$lib/components/Media';
 	import { m } from '$lib/paraglide/messages';
 	import { notifications } from '$lib/notifications.svelte';
 	import MediaItem from '$lib/components/Media/MediaItem.svelte';
+	import { htmlFromMediaType } from '$lib/utils/types';
 
 	let deleteForm: HTMLFormElement | undefined;
 
@@ -74,35 +74,27 @@
 		<form method="POST" action="?/delete" use:enhance bind:this={deleteForm}>
 			<ul class="flex flex-wrap gap-2">
 				{#each data.media as item (item.id)}
-					<li
-						class={`relative h-[${ROW_HEIGHT}vh] grow overflow-hidden rounded-sm`}
-						animate:flip={{ duration: 100 }}
-					>
-						{#if bulkEdit}
-							<label>
-								<input
-									type="checkbox"
-									name="media"
-									value={item.id.toString()}
-									class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
-									bind:group={selected}
-								/>
-								<span>
-									<MediaItem
-										type={item.contentType.split('/')[0]}
-										src={item.src}
-										alt="temp"
+					{@const type = htmlFromMediaType(item.contentType)}
+					{#if type}
+						<li class={`relative h-[${ROW_HEIGHT}vh] grow overflow-hidden rounded-sm`}>
+							{#if bulkEdit}
+								<label>
+									<input
+										type="checkbox"
+										name="media"
+										value={item.id.toString()}
+										class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
+										bind:group={selected}
 									/>
-								</span>
-							</label>
-						{:else}
-							<MediaItem
-								type={item.contentType.split('/')[0]}
-								src={item.src}
-								alt="temp"
-							/>
-						{/if}
-					</li>
+									<span>
+										<MediaItem {type} src={item.src} alt="" />
+									</span>
+								</label>
+							{:else}
+								<MediaItem {type} src={item.src} alt="" />
+							{/if}
+						</li>
+					{/if}
 				{/each}
 			</ul>
 		</form>

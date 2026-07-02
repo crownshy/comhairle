@@ -1,9 +1,11 @@
 <script lang="ts">
 	type Props = {
+		type: 'audio' | 'video' | 'img';
 		src: string;
-	} & ({ type: 'audio' | 'video'; alt?: undefined } | { type: 'image'; alt: string });
+		alt: string;
+	};
 
-	const { src, alt, type }: Props = $props();
+	const { type, src, alt }: Props = $props();
 </script>
 
 {#if type === 'audio'}

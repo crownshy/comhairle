@@ -13,7 +13,7 @@ import comhairleLogo from '$lib/assets/comhairle_logo.png';
 import placeholderConvo from '$lib/assets/placeholder_convo.png';
 import comhairleFullLogo from '$lib/assets/comhairle_full_logo.svg';
 
-type ContentType = MediaDto['contentType'] | 'audio/mp3';
+export type ContentType = MediaDto['contentType'] | 'audio/mp3';
 type MockData = Pick<MediaDto, 'id'> & Record<'src', string> & Record<'contentType', ContentType>;
 export function load() {
 	const media: MockData[] = [
