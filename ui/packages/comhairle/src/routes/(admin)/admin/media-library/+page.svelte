@@ -70,7 +70,7 @@
 			{/if}
 		</div>
 	</header>
-	<main class="mt-5">
+	<div class="mt-5">
 		<form method="POST" action="?/delete" use:enhance bind:this={deleteForm}>
 			<ul class="flex flex-wrap gap-2">
 				{#each data.media as item (item.id)}
@@ -98,7 +98,7 @@
 				{/each}
 			</ul>
 		</form>
-	</main>
+	</div>
 </div>
 
 <style>
