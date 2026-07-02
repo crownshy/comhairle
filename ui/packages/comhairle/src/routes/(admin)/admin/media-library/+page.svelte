@@ -7,14 +7,12 @@
 	import { m } from '$lib/paraglide/messages';
 	import { notifications } from '$lib/notifications.svelte';
 	import MediaItem from '$lib/components/Media/MediaItem.svelte';
-	import { htmlFromMediaType } from '$lib/utils/types';
+	import MediaLibrary from '$lib/components/Media/MediaLibrary.svelte';
 
 	let deleteForm: HTMLFormElement | undefined;
 
 	let bulkEdit = $state<boolean>(false);
 	let selected = $state([]);
-
-	const ROW_HEIGHT = 30;
 
 	const { form, data } = $props();
 
@@ -72,31 +70,26 @@
 	</header>
 	<div class="mt-5">
 		<form method="POST" action="?/delete" use:enhance bind:this={deleteForm}>
-			<ul class="flex flex-wrap gap-2">
-				{#each data.media as item (item.id)}
-					{@const type = htmlFromMediaType(item.contentType)}
-					{#if type}
-						<li class={`relative h-[${ROW_HEIGHT}vh] grow overflow-hidden rounded-sm`}>
-							{#if bulkEdit}
-								<label>
-									<input
-										type="checkbox"
-										name="media"
-										value={item.id.toString()}
-										class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
-										bind:group={selected}
-									/>
-									<span>
-										<MediaItem {type} src={item.src} alt="" />
-									</span>
-								</label>
-							{:else}
-								<MediaItem {type} src={item.src} alt="" />
-							{/if}
-						</li>
+			<MediaLibrary data={data.media} rowHeight={30}>
+				{#snippet media(type, media)}
+					{#if bulkEdit}
+						<label>
+							<input
+								type="checkbox"
+								name="media"
+								value={media.id.toString()}
+								class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
+								bind:group={selected}
+							/>
+							<span>
+								<MediaItem {type} src={media.src} alt="" />
+							</span>
+						</label>
+					{:else}
+						<MediaItem {type} src={media.src} alt="" />
 					{/if}
-				{/each}
-			</ul>
+				{/snippet}
+			</MediaLibrary>
 		</form>
 	</div>
 </div>
@@ -104,14 +97,5 @@
 <style>
 	input:checked + * {
 		filter: opacity(50%);
-	}
-
-	li {
-		transition: all 300ms ease-out;
-
-		&:is(:focus, :hover) {
-			filter: brightness(85%);
-			transform: scale(1.01);
-		}
 	}
 </style>

@@ -1,6 +1,6 @@
 import type { ContentType } from '../../routes/(admin)/admin/media-library/+page.server';
 
-type HTMLMediaElement = 'audio' | 'img' | 'video';
+export type HTMLMediaElement = 'audio' | 'img' | 'video';
 /**
  * Function to convert from Media type to a html type
  * htmlTypeFromMediaType("audio/mp3") => "audio"

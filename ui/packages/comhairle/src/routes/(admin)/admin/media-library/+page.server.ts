@@ -14,7 +14,9 @@ import placeholderConvo from '$lib/assets/placeholder_convo.png';
 import comhairleFullLogo from '$lib/assets/comhairle_full_logo.svg';
 
 export type ContentType = MediaDto['contentType'] | 'audio/mp3';
-type MockData = Pick<MediaDto, 'id'> & Record<'src', string> & Record<'contentType', ContentType>;
+export type MockData = Pick<MediaDto, 'id'> &
+	Record<'src', string> &
+	Record<'contentType', ContentType>;
 export function load() {
 	const media: MockData[] = [
 		{ id: '1', src: climateUk, contentType: 'image/jpeg' },
