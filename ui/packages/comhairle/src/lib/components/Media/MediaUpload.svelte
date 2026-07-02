@@ -13,6 +13,8 @@
 	}
 	const { clientSide, ...props }: Props = $props();
 
+	const media = new Media();
+
 	let fileInput: HTMLInputElement | undefined;
 	let uploadForm: HTMLFormElement | undefined;
 
@@ -42,10 +44,9 @@
 		aria-hidden="true"
 		oninput={async (e) => {
 			if (clientSide) {
-				const { files } = e.target as HTMLInputElement;
-				if (!files) return;
-				const media = new Media();
-				const response = await media.upload('/api/media', files);
+				const rawFiles = (e.target as HTMLInputElement).files;
+				if (!rawFiles) return;
+				const response = await media.upload('/api/media', media.sanitiseMulti(rawFiles));
 				let count = 0;
 				for (const res of response) {
 					if (res.err !== null) {

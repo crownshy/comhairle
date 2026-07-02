@@ -46,6 +46,23 @@ class Media {
 		return { ok: response.ok, err: null };
 	}
 
+	/**
+	 * When you have an input with multiple selections possible you can either get a File or a FileList.
+	 * They're very different types that are difficult to handle and FileList has limited TS support.
+	 * This function is to sanitise these outputs so that it will return a File[] which is predictable and works well with TS
+	 */
+	sanitiseMulti(files: File | FileList): File[] {
+		const filesArray: File[] = [];
+		if (Array.isArray(files)) {
+			for (const f of files) {
+				filesArray.push(f);
+			}
+		} else {
+			filesArray.push(files as File);
+		}
+		return filesArray;
+	}
+
 	async upload(to: string, files: File, opts?: Opts): Promise<UploadReturn>;
 	async upload(to: string, files: File[], opts?: Opts): Promise<UploadReturn[]>;
 	async upload(
