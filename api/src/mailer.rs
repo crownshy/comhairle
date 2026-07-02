@@ -9,7 +9,7 @@ use crate::models::users::User;
 use crate::{ComhairleState, error::ComhairleError};
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Datelike, Utc};
 use icalendar::{self as ical, Component, EventLike};
 use lettre::message::Mailbox;
 use lettre::transport::smtp::authentication::Credentials;
@@ -18,13 +18,15 @@ use lettre::{
     message::{Attachment, Body, MultiPart, SinglePart, header::ContentType},
 };
 use minijinja::{Environment, Value, context};
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::LazyLock};
 use std::{str::FromStr, sync::Arc};
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
 #[cfg(test)]
 use mockall::{automock, predicate::*};
+
+static MAILER_YEAR: LazyLock<i32> = LazyLock::new(|| chrono::Utc::now().year());
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -164,6 +166,7 @@ impl Mailer {
     pub fn new(host: &str, user: &str, password: &str) -> Self {
         let creds = Credentials::new(user.to_string(), password.to_string());
         let mut env = minijinja::Environment::new();
+        env.add_global("year", minijinja::Value::from(*MAILER_YEAR));
         minijinja_embed::load_templates!(&mut env);
         Self {
             host: host.into(),
