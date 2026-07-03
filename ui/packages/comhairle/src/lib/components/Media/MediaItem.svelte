@@ -1,13 +1,14 @@
 <script lang="ts">
+	import type { HTMLMediaElement } from '$lib/utils/types';
 	import { type Icon, Music, Video } from 'lucide-svelte';
 	// FIX: Upgrade lucide icons to remove deprecated types
 	import type { ComponentType } from 'svelte';
 
-	type Props = {
-		type: 'audio' | 'video' | 'img';
+	interface Props {
+		type: HTMLMediaElement;
 		src: string;
 		alt: string;
-	};
+	}
 
 	const { type, src, alt }: Props = $props();
 </script>
