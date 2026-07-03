@@ -7,12 +7,11 @@ import type { MediaDto } from '@crownshy/api-client/api';
 export async function load({ fetch }: RequestEvent) {
 	const response = await tryFetch('/api/media', undefined, fetch);
 	if (response.err !== null) {
-		// FIX:
 		return fail(500, { error: "Couldn't get media from the server" });
 	}
 	const data = await tryCatchAsync(() => response.ok.json());
 	if (data.err !== null) {
-		// FIX:
+		// FIX: Return JSON error
 		return fail(500, { error: 'Failed to parse the response from the server' });
 	}
 	return {
