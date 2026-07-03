@@ -88,7 +88,7 @@
 		if (!editorElement) return;
 
 		isInitializing = true;
-		const detected = detectContentType(value ?? undefined);
+		const detected = detectContentType(value);
 		const docMap = buildDocMap(availableDocuments);
 		lastDocMapKey = JSON.stringify({ docMap, conversationId });
 
