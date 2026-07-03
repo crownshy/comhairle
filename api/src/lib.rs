@@ -8,8 +8,11 @@ pub mod error;
 pub mod mailer;
 mod middleware;
 pub mod models;
+pub mod redis_connection;
 mod routes;
 pub mod schema_helpers;
+#[cfg(test)]
+mod test_helpers;
 mod tools;
 pub mod transcription_service;
 pub mod translation_service;
@@ -17,45 +20,41 @@ pub mod websockets;
 pub mod wiki_poll_service;
 pub mod worker_service;
 
-use bot_service::ComhairleBotService;
-use clap::Parser;
-use docs::docs_routes;
-use mailer::ComhairleMailer;
-use routes::auth::AUTH_KEY;
-pub use routes::auth::hash_pw;
-use tokio::fs;
-use translation_service::TranslationService;
-use websockets::WebSocketService;
-
-#[cfg(test)]
-mod test_helpers;
-#[cfg(test)]
-// sqlx::test expands every migration into the test binary for every invocation.
-// So, it massively bloats both the binary size and compile time.
-// Using a common migrator for all tests avoids this issue.
-const SQLX_MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!();
-
-use std::sync::Arc;
-
+use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
 use axum::{
     Extension, Router,
     extract::DefaultBodyLimit,
     http::{HeaderValue, Method, header},
 };
-
-use aide::{axum::ApiRouter, openapi::OpenApi, transform::TransformOpenApi};
-
+use bot_service::ComhairleBotService;
+use clap::Parser;
 use config::ComhairleConfig;
 use db::run_migrations;
+use docs::docs_routes;
 use error::ComhairleError;
+use mailer::ComhairleMailer;
+pub use routes::auth::hash_pw;
+use routes::auth::AUTH_KEY;
 use sqlx_postgres::PgPool;
+use std::sync::Arc;
+use tokio::fs;
 use tower_http::cors::CorsLayer;
+use translation_service::TranslationService;
+use websockets::WebSocketService;
 
-use crate::{
-    bulk_storage_service::BulkStorageService, categorization_service::CategorizationService,
-    routes::workflows::WorkflowRouterContext, transcription_service::Transcriber,
-    wiki_poll_service::WikiPollService, worker_service::WorkerService,
-};
+use crate::bulk_storage_service::BulkStorageService;
+use crate::categorization_service::CategorizationService;
+use crate::redis_connection::RedisConnection;
+use crate::routes::workflows::WorkflowRouterContext;
+use crate::transcription_service::Transcriber;
+use crate::wiki_poll_service::WikiPollService;
+use crate::worker_service::WorkerService;
+
+#[cfg(test)]
+// sqlx::test expands every migration into the test binary for every invocation.
+// So, it massively bloats both the binary size and compile time.
+// Using a common migrator for all tests avoids this issue.
+const SQLX_MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!();
 
 #[derive(Clone)]
 pub struct ComhairleState {
@@ -70,6 +69,7 @@ pub struct ComhairleState {
     pub transcription_service: Option<Arc<dyn Transcriber>>,
     pub worker_service: Option<Arc<dyn WorkerService>>,
     pub categorization_service: Option<Arc<dyn CategorizationService>>,
+    pub redis_conn: Option<Arc<dyn RedisConnection>>,
 }
 
 impl ComhairleState {
@@ -305,6 +305,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
             "/email_template_configs",
             routes::email_template_configs::router(state.clone()),
         )
+        .nest_api_service("/permissions", routes::permissions::router(state.clone()))
         .nest_api_service("/docs", docs_routes(state.clone()))
         .finish_api_with(&mut api, api_docs)
         .layer(Extension(Arc::new(api.clone()))) // Arc is very important here or you will face massive memory and performance issues

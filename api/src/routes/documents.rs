@@ -48,7 +48,7 @@ async fn require_conversation_document_access(
         return Err(ComhairleError::UserNotAuthorized);
     };
 
-    if is_user_admin(user, &state.config) {
+    if is_user_admin(&state, user).await {
         return Ok(());
     }
 

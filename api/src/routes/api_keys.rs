@@ -26,7 +26,7 @@ async fn create(
     RequiredAdminUser(user): RequiredAdminUser,
     Json(payload): Json<CreateApiKeyRequest>,
 ) -> Result<(StatusCode, Json<CreateResponse>), ComhairleError> {
-    if !is_user_admin(&user, &state.config) {
+    if !is_user_admin(&state, &user).await {
         return Err(ComhairleError::UserNotAuthorized);
     }
 

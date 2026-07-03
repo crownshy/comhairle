@@ -156,10 +156,8 @@ async fn get_conversation(
 
     // Check if user is admin and withTranslations is requested
     let should_return_with_translations = query.with_translations
-        && user
-            .as_ref()
-            .map(|u| is_user_admin(u, &state.config))
-            .unwrap_or(false);
+        && user.is_some()
+        && is_user_admin(&state, user.as_ref().unwrap()).await;
 
     if should_return_with_translations {
         // Convert to ConversationWithTranslations
