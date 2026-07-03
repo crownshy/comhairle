@@ -58,6 +58,9 @@
 	let firstWorkflowPath = $derived(
 		`/conversations/${conversation.slug}${preview ? '/preview' : ''}/workflow/${firstWorkflow.id}/next`
 	);
+	const returnPath = $derived(
+		`/conversations/${conversation.slug}${preview ? '/preview' : ''}/workflow/${firstWorkflow.id}/return`
+	);
 
 	async function redirectToLogin() {
 		if (isSubmitting) return;
@@ -130,10 +133,8 @@
 			<ConversationSummary {conversation}>
 				{#if user}
 					{#if participation}
-						<Button
-							class="mt-5 w-full md:w-fit"
-							variant="primaryDark"
-							href={firstWorkflowPath}>{m.jump_back_in()}</Button
+						<Button class="mt-5 w-full md:w-fit" variant="primaryDark" href={returnPath}
+							>{m.jump_back_in()}</Button
 						>
 					{:else}
 						<Button
