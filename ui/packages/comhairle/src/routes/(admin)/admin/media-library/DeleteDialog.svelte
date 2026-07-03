@@ -16,11 +16,13 @@
 	<Dialog.Trigger>
 		{@render children()}
 	</Dialog.Trigger>
-	<Dialog.Content class="rounded-xl p-0">
-		<Dialog.Header class="shrink-0 border-b p-6 pb-4">
-			<Dialog.Title class="text-2xl">Delete {count} items?</Dialog.Title>
-			<Dialog.Description>This is permanent</Dialog.Description>
-			<Button onclick={onconfirm}>Yes</Button>
-		</Dialog.Header>
-	</Dialog.Content>
+	<Dialog.Portal>
+		<Dialog.Content class="rounded-xl p-0">
+			<Dialog.Header class="shrink-0 border-b p-6 pb-4">
+				<Dialog.Title class="text-2xl">Delete {count} items?</Dialog.Title>
+				<Dialog.Description>This is permanent</Dialog.Description>
+				<Button onclick={onconfirm}>Yes</Button>
+			</Dialog.Header>
+		</Dialog.Content>
+	</Dialog.Portal>
 </Dialog.Root>
