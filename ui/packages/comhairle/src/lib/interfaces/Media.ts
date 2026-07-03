@@ -21,7 +21,6 @@ class Media {
 		}
 
 		const formData = new FormData();
-		console.log(file);
 		formData.append('file', file, file.name);
 
 		const response = await tryFetch(
