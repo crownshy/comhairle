@@ -70,7 +70,7 @@
 	</header>
 	<div class="mt-5">
 		<form method="POST" action="?/delete" use:enhance bind:this={deleteForm}>
-			<MediaLibrary data={data.media} rowHeight={30}>
+			<MediaLibrary data={data.media}>
 				{#snippet media(type, media)}
 					{#if bulkEdit}
 						<label>

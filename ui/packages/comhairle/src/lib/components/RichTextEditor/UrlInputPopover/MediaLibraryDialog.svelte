@@ -58,7 +58,7 @@
 		>
 	</Dialog.Trigger>
 	<Dialog.Portal>
-		<Dialog.Content>
+		<Dialog.Content class="sm:max-w-3xl">
 			<Dialog.Title>
 				<div class="flex flex-row items-center gap-1">
 					<span>Media library</span>

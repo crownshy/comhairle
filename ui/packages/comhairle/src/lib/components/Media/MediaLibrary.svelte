@@ -9,10 +9,10 @@
 		media: Snippet<[type: HTMLMediaElement, d: T]>;
 	}
 
-	const { data, rowHeight, media }: Props<MediaDto> = $props();
+	const { data, media }: Props<MediaDto> = $props();
 </script>
 
-<ul class="flex flex-wrap gap-2">
+<ul class="grid gap-y-5">
 	{#if data.length === 0}
 		<div class="mt-8">
 			<p class="text-muted-foreground font-bold">No media found</p>
@@ -21,7 +21,7 @@
 		{#each data as d (d.id)}
 			{@const type = htmlFromMediaType(d.contentType)}
 			{#if type}
-				<li class={`relative h-[${rowHeight}vh] grow overflow-hidden rounded-sm`}>
+				<li class="relative overflow-hidden rounded-sm">
 					{@render media(type, d)}
 				</li>
 			{/if}
@@ -30,6 +30,11 @@
 </ul>
 
 <style>
+	ul {
+		--media-width: 275px;
+		grid-template-columns: repeat(auto-fit, minmax(var(--media-width), 1fr));
+	}
+
 	li {
 		transition: all 300ms ease-out;
 
