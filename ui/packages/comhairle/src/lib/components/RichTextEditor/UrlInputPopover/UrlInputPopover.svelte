@@ -115,7 +115,16 @@
 							open = false;
 						}}
 					/>
-					<MediaUpload clientSide size="sm" />
+					<MediaUpload
+						clientSide
+						size="sm"
+						oncomplete={(urls) => {
+							for (const url of urls) {
+								onSubmit(url);
+							}
+							open = false;
+						}}
+					/>
 				</div>
 				<hr class="mx-2 my-4" />
 			{/if}

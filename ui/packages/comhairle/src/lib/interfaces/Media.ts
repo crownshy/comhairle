@@ -21,14 +21,18 @@ class Media {
 		}
 
 		const formData = new FormData();
-		formData.append('file', file);
+		console.log(file);
+		formData.append('file', file, file.name);
 
 		const response = await tryFetch(
 			to,
 			{
 				method: 'POST',
 				credentials: 'include',
-				body: formData
+				body: formData,
+				headers: {
+					enctype: 'multipart/form-data'
+				}
 			},
 			opts?.fetchRef ?? fetch
 		);
@@ -46,6 +50,11 @@ class Media {
 		return { ok: response.ok, err: null };
 	}
 
+	static #isFileList(files: File | FileList): files is FileList {
+		//@ts-expect-error exists on FileList but not File, this is expected to differentiate between them
+		return !!files.item;
+	}
+
 	/**
 	 * When you have an input with multiple selections possible you can either get a File or a FileList.
 	 * They're very different types that are difficult to handle and FileList has limited TS support.
@@ -53,7 +62,7 @@ class Media {
 	 */
 	static sanitiseMulti(files: File | FileList): File[] {
 		const filesArray: File[] = [];
-		if (Array.isArray(files)) {
+		if (this.#isFileList(files)) {
 			for (const f of files) {
 				filesArray.push(f);
 			}
