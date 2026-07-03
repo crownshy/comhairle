@@ -29,19 +29,7 @@ export const load: PageLoad = async ({ parent, params, url }) => {
 					preview
 				);
 			} else {
-				const firstRevisitableStep = [...workflowSteps]
-					.sort((a, b) => a.stepOrder - b.stepOrder)
-					.find((s) => s.canRevisit);
-				if (firstRevisitableStep) {
-					redirect_url = workflow_step_url(
-						conversation.id,
-						workflow_id,
-						firstRevisitableStep.id,
-						preview
-					);
-				} else {
-					redirect_url = thank_you_page(conversation.id, workflow_id, preview);
-				}
+				redirect_url = thank_you_page(conversation.id, workflow_id, preview);
 			}
 		} else {
 			const firstStep = workflowSteps.find((s) => s.stepOrder === 1);
