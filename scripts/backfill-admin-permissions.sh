@@ -65,6 +65,18 @@ WITH target_users AS (
     FROM comhairle_user
     WHERE LOWER(email) ~* ${ADMIN_USERS_REGEX@Q}
 ),
+grantor_user AS (
+    SELECT id
+    FROM comhairle_user
+    WHERE LOWER(email) = 'admin@crown-shy.com'
+    LIMIT 1
+),
+selected_grantor AS (
+    SELECT COALESCE(
+        (SELECT id FROM grantor_user),
+        (SELECT id FROM target_users ORDER BY id LIMIT 1)
+    ) AS id
+),
 inserted AS (
     INSERT INTO resource_permissions (
         user_id,
@@ -80,7 +92,7 @@ inserted AS (
         '00000000-0000-0000-0000-000000000000'::UUID,
         'system',
         'admin',
-        '00000000-0000-0000-0000-000000000000'::UUID,
+        (SELECT id FROM selected_grantor),
         'Backfilled by backfill-admin-permissions script',
         NOW()
     FROM target_users
