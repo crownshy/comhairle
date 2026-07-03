@@ -41,7 +41,6 @@
 		bind:this={fileInput}
 		type="file"
 		name="media"
-		accept="image/*"
 		multiple
 		class="hidden"
 		aria-hidden="true"
@@ -50,10 +49,7 @@
 				const rawFiles = (e.target as HTMLInputElement).files;
 				if (!rawFiles) return;
 				// FIX: Check why the erroring here is incorrect
-				const response = await media.upload(
-					'/api/media',
-					Media.sanitiseMulti(rawFiles)
-				);
+				const response = await media.upload('/api/media', Media.sanitiseMulti(rawFiles));
 				const urls: string[] = [];
 				for (const res of response) {
 					if (res.err !== null) {
@@ -76,7 +72,7 @@
 						priority: 'SUCCESS'
 					});
 				}
-				oncomplete(urls);
+				oncomplete?.(urls);
 				return;
 			}
 			uploadForm?.submit();
