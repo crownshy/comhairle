@@ -2,20 +2,21 @@
 	import * as Popover from '$lib/components/ui/popover';
 	import { FileText } from 'lucide-svelte';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
+	import type { Snippet } from 'svelte';
 
 	type Props = {
-		open: boolean;
 		documents: ComhairleDocument[];
 		onSelect: (documentId: string) => void;
-		onOpenChange: (open: boolean) => void;
-		children: any;
+		children: Snippet;
 	};
 
-	let { open = $bindable(false), documents, onSelect, onOpenChange, children }: Props = $props();
+	let { documents, onSelect, children }: Props = $props();
+
+	let open = $state<boolean>(false);
 
 	function handleSelect(docId: string) {
 		onSelect(docId);
-		onOpenChange(false);
+		open = false;
 	}
 
 	function formatSize(bytes: number): string {
@@ -25,7 +26,7 @@
 	}
 </script>
 
-<Popover.Root bind:open {onOpenChange}>
+<Popover.Root bind:open>
 	<Popover.Trigger>
 		{@render children()}
 	</Popover.Trigger>

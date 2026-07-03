@@ -27,35 +27,19 @@
 	type Props = {
 		editor: Editor | undefined;
 		activeStates: ActiveStates;
-		showLinkPopover: boolean;
-		showImagePopover: boolean;
-		showVideoPopover: boolean;
-		showAudioPopover: boolean;
-		showDocumentPopover: boolean;
 		documents: ComhairleDocument[];
 		menuExpanded: boolean;
 		compact?: boolean;
 		onToggleMenu: () => void;
-		onLinkPopoverChange: (open: boolean) => void;
-		onImagePopoverChange: (open: boolean) => void;
-		onVideoPopoverChange: (open: boolean) => void;
-		onAudioPopoverChange: (open: boolean) => void;
-		onDocumentPopoverChange: (open: boolean) => void;
 	};
 
 	let {
 		editor,
 		activeStates,
-		showLinkPopover = $bindable(),
-		showImagePopover = $bindable(),
-		showVideoPopover = $bindable(),
-		showAudioPopover = $bindable(),
-		showDocumentPopover = $bindable(),
 		documents,
 		menuExpanded,
 		compact = false,
-		onToggleMenu,
-		onDocumentPopoverChange
+		onToggleMenu
 	}: Props = $props();
 
 	// TODO: Upgrade lucide icons library to be able to use svelte 5 syntax as ComponentType is deprecated
@@ -307,12 +291,10 @@
 				})}
 			</UrlInputPopover>
 			<DocumentPickerPopover
-				bind:open={showDocumentPopover}
 				{documents}
 				onSelect={(docId) => {
 					editor?.chain().focus().setSourceDocument({ documentId: docId }).run();
 				}}
-				onOpenChange={onDocumentPopoverChange}
 			>
 				{@render button({
 					title: 'Insert Source Document',
