@@ -109,7 +109,12 @@
 					{`Insert ${capitalise(type)} From Files`}
 				</span>
 				<div class="flex flex-row gap-2">
-					<MediaLibraryDialog />
+					<MediaLibraryDialog
+						onconfirm={(url) => {
+							onSubmit(url);
+							open = false;
+						}}
+					/>
 					<MediaUpload clientSide size="sm" />
 				</div>
 				<hr class="mx-2 my-4" />

@@ -25,6 +25,12 @@
 		<!-- > -->
 		{@render placeholder(Video)}
 	{:else}
-		<img {src} {alt} class="h-full w-full cursor-pointer overflow-hidden object-cover" />
+		<img {src} {alt} class="h-full w-full overflow-hidden object-cover" />
 	{/if}
 </div>
+
+<style>
+	div {
+		border: 2px solid var(--selected, 'transparent');
+	}
+</style>

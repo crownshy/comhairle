@@ -41,6 +41,14 @@
 	}
 
 	let dataRequest = $state.raw<ReturnType<typeof getData> | null>(null);
+
+	interface Props {
+		onconfirm: (url: string) => void;
+	}
+
+	const { onconfirm }: Props = $props();
+
+	let url = $state(null);
 </script>
 
 <Dialog.Root>
@@ -60,16 +68,25 @@
 	<Dialog.Portal>
 		<Dialog.Content class="sm:max-w-3xl">
 			<Dialog.Title>
-				<div class="flex flex-row items-center gap-1">
-					<span>Media library</span>
+				<div class="mr-8 flex flex-row items-center justify-between">
+					<div class="flex flex-row items-center gap-1">
+						<span>Media library</span>
+						<Button
+							href="/admin/media-library"
+							variant="ghost"
+							title="Go to media library"
+							aria-label="Go to media library"
+						>
+							<SquareArrowOutUpLeft />
+						</Button>
+					</div>
 					<Button
-						href="/admin/media-library"
-						variant="ghost"
-						title="Go to media library"
-						aria-label="Go to media library"
+						disabled={!url}
+						onclick={() => {
+							if (!url) return;
+							onconfirm(url);
+						}}>Insert</Button
 					>
-						<SquareArrowOutUpLeft />
-					</Button>
 				</div>
 				{#if dataRequest !== null}
 					{#await dataRequest}
@@ -80,7 +97,21 @@
 						{:else}
 							<MediaLibrary data={data.ok} rowHeight={15}>
 								{#snippet media(type, media)}
-									<MediaItem {type} src={media.url} alt="" />
+									<label>
+										<input
+											type="radio"
+											name="selected"
+											value={media.url}
+											bind:group={url}
+											class="hidden"
+										/>
+										<MediaItem
+											{type}
+											src={media.url}
+											alt=""
+											--selected={url === media.url && 'var(--ring)'}
+										/>
+									</label>
 								{/snippet}
 							</MediaLibrary>
 						{/if}
