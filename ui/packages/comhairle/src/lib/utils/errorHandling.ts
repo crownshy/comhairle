@@ -42,10 +42,12 @@ export type FetchErr =
  */
 export async function tryFetch(
 	endpoint: string | URL | Request,
-	params: RequestInit | undefined,
+	params: RequestInit | undefined = undefined,
 	fetchRef: typeof fetch = fetch
 ): Promise<Result<'ok', Response, FetchErr>> {
-	const response = await tryCatchAsync(() => fetchRef(endpoint, params));
+	const response = await tryCatchAsync(() =>
+		fetchRef(endpoint, { ...params, credentials: 'include' })
+	);
 	if (response.err !== null) {
 		return { ok: null, err: { id: 'NETWORK_ERROR', message: NO_INTERNET } };
 	}

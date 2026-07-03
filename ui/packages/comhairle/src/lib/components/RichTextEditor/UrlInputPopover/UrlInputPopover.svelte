@@ -10,7 +10,6 @@
 		validateUrl
 	} from '$lib/utils/urlValidation';
 	import { capitalise } from '$lib/utils/string';
-	import { Images } from 'lucide-svelte';
 	import { MediaUpload } from '$lib/components/Media';
 	import MediaLibraryDialog from './MediaLibraryDialog.svelte';
 
@@ -110,9 +109,7 @@
 					{`Insert ${capitalise(type)} From Files`}
 				</span>
 				<div class="flex flex-row gap-2">
-					<MediaLibraryDialog>
-						<Button size="sm"><Images class="h-4 w-4" />Media library</Button>
-					</MediaLibraryDialog>
+					<MediaLibraryDialog />
 					<MediaUpload clientSide size="sm" />
 				</div>
 				<hr class="mx-2 my-4" />
