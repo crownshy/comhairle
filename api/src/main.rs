@@ -1,4 +1,5 @@
 use aws_config::BehaviorVersion;
+use comhairle::redis_connection::RedisImpl;
 use comhairle::{
     ComhairleState,
     bot_service::{ComhairleBotService, ComhairleRagBotService},
@@ -14,6 +15,7 @@ use comhairle::{
     wiki_poll_service::polis_service::PolisClient,
     worker_service::{init_monitor, init_worker_service},
 };
+use redis::aio::ConnectionManagerConfig;
 use std::{error::Error, sync::Arc};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -109,6 +111,34 @@ async fn main() -> Result<(), Box<dyn Error>> {
             as Arc<dyn CategorizationService>
     });
 
+    // Setup Redis connection for permissions cache
+    let redis_conn = if let Some(ref redis_url) = config.redis_cache_url {
+        match redis::Client::open(redis_url.as_str()) {
+            Ok(client) => {
+                let timeout = std::time::Duration::from_secs(5);
+                let config =
+                    ConnectionManagerConfig::default().set_connection_timeout(Some(timeout));
+                match client.get_connection_manager_lazy(config) {
+                    Ok(manager) => {
+                        tracing::info!("Redis permissions cache connected");
+                        Some(Arc::new(RedisImpl::new(manager))
+                            as Arc<dyn comhairle::redis_connection::RedisConnection>)
+                    }
+                    Err(e) => {
+                        tracing::warn!("Redis permissions cache unavailable: {e}");
+                        None
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Invalid Redis URL for permissions cache: {e}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     let state = Arc::new(ComhairleState {
         db,
         mailer,
@@ -121,6 +151,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         worker_service,
         bulk_storage_service,
         categorization_service,
+        redis_conn,
     });
 
     // Register WebSocket message handlers

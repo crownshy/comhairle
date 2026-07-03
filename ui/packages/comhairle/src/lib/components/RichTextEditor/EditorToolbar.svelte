@@ -325,7 +325,7 @@
 </div>
 
 <style>
-	@import 'tailwindcss';
+	@reference '../../../app.css';
 
 	.btn {
 		@apply flex h-7 min-w-7 shrink-0 cursor-pointer items-center justify-center rounded border-0 bg-transparent px-1.5 py-1 text-sm leading-none transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-40;

@@ -166,7 +166,7 @@ async fn list_workflows_step(
         .map_err(|_| ComhairleError::UserIsNotParticipatingInTheConversation)?;
 
     let should_return_with_translations =
-        query.with_translations && is_user_admin(&user, &state.config);
+        query.with_translations && is_user_admin(&state, &user).await;
 
     if should_return_with_translations {
         let steps_with_translations =

@@ -21,11 +21,13 @@
 	</div>
 
 	<div class="flex flex-col gap-5">
-		<img
-			class="max-h-[468px] w-full object-contain"
-			src={conversation.imageUrl}
-			alt={conversation.title}
-		/>
+		{#if conversation.imageUrl}
+			<img
+				class="max-h-117 w-full object-contain"
+				src={conversation.imageUrl}
+				alt={conversation.title}
+			/>
+		{/if}
 		<p class="text-foreground md:text-lg">{conversation.description}</p>
 		<div class="block md:hidden">
 			{@render children()}

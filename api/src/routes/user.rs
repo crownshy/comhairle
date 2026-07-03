@@ -88,7 +88,7 @@ pub async fn get_user_roles(
 ) -> Result<(StatusCode, Json<Vec<UserRoles>>), ComhairleError> {
     let mut roles = vec![];
 
-    if is_user_admin(&user, &state.config) {
+    if is_user_admin(&state, &user).await {
         roles.push(UserRoles {
             resource: ResourceType::Site,
             roles: vec![ResourceRole::Admin],

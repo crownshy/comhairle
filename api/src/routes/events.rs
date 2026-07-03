@@ -81,7 +81,7 @@ async fn get(
     let event = event::get_by_id(&state.db, &event_id).await?;
 
     let should_return_with_translations =
-        query.with_translations && is_user_admin(&user, &state.config);
+        query.with_translations && is_user_admin(&state, &user).await;
 
     if should_return_with_translations {
         let event_with_translations =

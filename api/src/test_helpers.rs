@@ -1,3 +1,4 @@
+use crate::redis_connection::RedisConnection;
 use chrono::Utc;
 use hyper::header::AUTHORIZATION;
 use std::{collections::HashMap, error::Error, sync::Arc};
@@ -101,6 +102,7 @@ pub fn test_state(
     bulk_storage_service: Option<Arc<dyn BulkStorageService>>,
     worker_service: Option<Arc<dyn WorkerService>>,
     categorization_service: Option<Arc<dyn CategorizationService>>,
+    redis_conn: Option<Arc<dyn RedisConnection>>,
 ) -> Result<ComhairleState, Box<dyn Error>> {
     let state = ComhairleState {
         db,
@@ -122,6 +124,7 @@ pub fn test_state(
         bulk_storage_service: bulk_storage_service
             .map(Some)
             .unwrap_or_else(mock_bulk_storage),
+        redis_conn,
     };
     Ok(state)
 }
