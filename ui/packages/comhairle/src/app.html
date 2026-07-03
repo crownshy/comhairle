@@ -18,9 +18,11 @@
 			(function () {
 				var storedMode = localStorage.getItem('comhairle-theme-mode');
 				var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-				if ((storedMode || (prefersDark ? 'dark' : 'light')) === 'dark') {
+				var isDark = (storedMode || (prefersDark ? 'dark' : 'light')) === 'dark';
+				if (isDark) {
 					document.documentElement.classList.add('dark');
 				}
+				document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
 			})();
 		</script>
 		%sveltekit.head%
