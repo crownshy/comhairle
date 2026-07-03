@@ -3,7 +3,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import type { Snippet } from 'svelte';
 
-	export interface Props {
+	interface Props {
 		count: number;
 		onconfirm: () => void;
 		children: Snippet;
