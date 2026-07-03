@@ -69,7 +69,7 @@ jobs:
           build-args: |
             BUILDKIT_INLINE_CACHE=1
 
-      - name: Dry run: skip build and push
+      - name: Dry run - skip build and push
         if: steps.check-existing.outputs.missing == 'true' && inputs.dry_run
         run: echo "Dry run enabled. Skipping API image build and push."
 

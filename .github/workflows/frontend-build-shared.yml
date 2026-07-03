@@ -65,7 +65,7 @@ jobs:
           push: true
           tags: ${{ inputs.tags }}
 
-      - name: Dry run: skip build and push
+      - name: Dry run - skip build and push
         if: steps.check-existing.outputs.missing == 'true' && inputs.dry_run
         run: echo "Dry run enabled. Skipping frontend image build and push."
 
