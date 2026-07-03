@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
-@import '$lib/styles/comhairle-themes.css';
+@import './lib/styles/comhairle-themes.css';
 @plugin '@tailwindcss/typography';
 
 @custom-variant dark (&:is(.dark *));
