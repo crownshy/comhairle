@@ -1,97 +1,46 @@
 name: build-api-docker
 
 on:
-  push:
-    tags:
-      - 'v*'  # Runs only when a new tag starting with 'v' is pushed
-    branches:
-      - staging  # Runs when there is an update to the staging branch
   workflow_dispatch:  # Allows manual triggering
+    inputs:
+      dry_run:
+        description: When true, do not push images
+        required: false
+        default: false
+        type: boolean
+  workflow_call:  # Allows workflow to be called by other workflows
+    inputs:
+      dry_run:
+        description: When true, do not push images
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build-and-push-release:
     if: startsWith(github.ref, 'refs/tags/v') && github.ref_type == 'tag'
-    runs-on: ubuntu-latest
-    environment: base 
-    steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v4
-      -
-        name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      -
-        name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      -
-        name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      -
-        name: Build and push API image (release)
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            crownshy/comhairle_api:${{ github.ref_name }}
-            crownshy/comhairle_api:latest
-          cache-from: |
-            type=gha
-            type=registry,ref=crownshy/comhairle_api:latest
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64
-          build-args: |
-            BUILDKIT_INLINE_CACHE=1
+    uses: ./.github/workflows/api-build-shared.yml
+    with:
+      tags: |
+        crownshy/comhairle_api:${{ github.ref_name }}
+        crownshy/comhairle_api:latest
+      cache_from: |
+        type=gha
+        type=registry,ref=crownshy/comhairle_api:latest
+      dry_run: ${{ inputs.dry_run || false }}
+    secrets: inherit
       
-  build-and-run-staging:
+  build-and-push-staging:
     if: github.ref == 'refs/heads/staging'
-    runs-on: ubuntu-latest
-    environment: base 
-    steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v4
-      -
-        name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      -
-        name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      -
-        name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      -
-        name: Build and push API image (staging)
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            crownshy/comhairle_api:${{github.sha}}
-            crownshy/comhairle_api:staging
-          cache-from: |
-            type=gha
-            type=registry,ref=crownshy/comhairle_api:staging
-            type=registry,ref=crownshy/comhairle_api:latest
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64
-          build-args: |
-            BUILDKIT_INLINE_CACHE=1
-      - 
-        name: Update GitOps manifests
-        run: |
-            git clone https://${{ secrets.GITOPS_TOKEN }}@github.com/crownshy/helm_charts.git
-            cd helm_charts
-            sed -i "s|docker_tag_api:.*|docker_tag_api: \"${{ github.sha }}\"|g" comhairle/stage_values.yaml
-            git add .
-            git config --global user.email "stuart.lynn@gmail.com"
-            git config --global user.name "Stuart Lynn"
-            git commit -m "Updating stage api image tag to ${{ github.sha }}"
-            git push
+    uses: ./.github/workflows/api-build-shared.yml
+    with:
+      tags: |
+        crownshy/comhairle_api:${{ github.sha }}
+        crownshy/comhairle_api:staging
+      cache_from: |
+        type=gha
+        type=registry,ref=crownshy/comhairle_api:staging
+        type=registry,ref=crownshy/comhairle_api:latest
+      dry_run: ${{ inputs.dry_run || false }}
+    secrets: inherit
      
