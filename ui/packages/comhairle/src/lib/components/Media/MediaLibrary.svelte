@@ -5,7 +5,6 @@
 
 	interface Props<T extends MediaDto> {
 		data: T[];
-		rowHeight: number;
 		media: Snippet<[type: HTMLMediaElement, d: T]>;
 	}
 

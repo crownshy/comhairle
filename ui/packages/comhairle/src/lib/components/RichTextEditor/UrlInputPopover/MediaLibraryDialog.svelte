@@ -95,7 +95,7 @@
 						{#if data.err !== null}
 							<p>{data.err.message}</p>
 						{:else}
-							<MediaLibrary data={data.ok} rowHeight={15}>
+							<MediaLibrary data={data.ok}>
 								{#snippet media(type, media)}
 									<label>
 										<input
