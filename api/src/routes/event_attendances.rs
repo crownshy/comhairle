@@ -113,7 +113,12 @@ pub async fn create(
         let event_owner = users::get_user_by_id(&conversation.owner_id, &state.db).await?;
 
         event
-            .schedule_event_reminders(&state.db, &state.config, &user)
+            .schedule_event_reminders(
+                &state.db,
+                &user,
+                conversation.owner_id,
+                &conversation.primary_locale,
+            )
             .await?;
 
         state

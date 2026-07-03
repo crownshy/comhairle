@@ -19,17 +19,14 @@ use uuid::Uuid;
 use fake::Dummy;
 
 use crate::{
-    config::ComhairleConfig,
     error::ComhairleError,
-    mailer::build_calendar_invite,
     models::{
-        SqlxResultExt, otp,
+        SqlxResultExt,
         pagination::{Order, PageOptions, PaginatedResults},
         scheduled_email::{self, CreateScheduledEmail, EmailTemplate, ScheduledEmailConfig},
         translations::{TextContentId, TextFormat, new_translation},
         users::User,
     },
-    routes::auth::{OtpClaims, generate_jwt},
 };
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, Clone, PartialEq)]
@@ -185,140 +182,45 @@ impl ResolveTimeZone for LocalizedEvent {
     }
 }
 
-struct ScheduleEventEmail<'a> {
-    db: &'a PgPool,
-    config: &'a ComhairleConfig,
-    user: &'a User,
-    email: &'a str,
-    event_path: &'a str,
-    calendar_invite: &'a icalendar::Calendar,
-}
-
 impl LocalizedEvent {
     pub async fn schedule_event_reminders(
         &self,
         db: &PgPool,
-        config: &ComhairleConfig,
-        user: &User,
+        recipient: &User,
+        owner_id: Uuid,
+        locale: &str,
     ) -> Result<(), ComhairleError> {
         if self.start_time <= Utc::now() {
             warn!("Event has past");
             return Ok(());
         }
 
-        let calendar_invite = build_calendar_invite(
-            &self.name,
-            &self.description,
-            self.start_time,
-            self.end_time,
-        );
-
-        let email = user.email.as_ref().ok_or(ComhairleError::WrongUserType)?;
-        let event_path = format!("/conversations/{}/events/{}", self.conversation_id, self.id);
-
-        let params = ScheduleEventEmail {
-            db,
-            config,
-            user,
-            email,
-            event_path: &event_path,
-            calendar_invite: &calendar_invite,
-        };
-
-        self.schedule_first_reminder(&params).await?;
-        self.schedule_second_reminder(&params).await?;
-
-        Ok(())
-    }
-
-    async fn schedule_first_reminder(
-        &self,
-        params: &ScheduleEventEmail<'_>,
-    ) -> Result<(), ComhairleError> {
-        let ScheduleEventEmail {
-            db,
-            user: _user,
-            config,
-            email,
-            event_path,
-            calendar_invite,
-        } = params;
+        let email = recipient
+            .email
+            .as_ref()
+            .ok_or(ComhairleError::WrongUserType)?;
 
         let email_config = ScheduledEmailConfig {
-            subject: "Upcoming event reminder".to_string(),
             template: EmailTemplate::EventReminder {
-                event_name: self.name.clone(),
-                event_time: self.format_date_with_time_zone(self.start_time, None),
-                event_link: format!("{}{}", &config.domain, event_path),
-                organization_name: "Bloom".to_string(), // TODO:
-                organization_email: None,
+                event_id: self.id,
+                recipient_id: recipient.id,
+                owner_id,
+                locale: locale.to_string(),
             },
-            attachment: Some(calendar_invite.to_string()),
         };
-        let scheduled_email_params = CreateScheduledEmail {
+        let params_24_hours = CreateScheduledEmail {
             user_email: email.to_string(),
-            email_config,
+            email_config: email_config.clone(),
             send_at: self.start_time - chrono::Duration::days(1),
         };
-        scheduled_email::create(db, scheduled_email_params).await?;
+        scheduled_email::create(db, params_24_hours).await?;
 
-        Ok(())
-    }
-
-    async fn schedule_second_reminder(
-        &self,
-        params: &ScheduleEventEmail<'_>,
-    ) -> Result<(), ComhairleError> {
-        let ScheduleEventEmail {
-            db,
-            user,
-            config,
-            email,
-            event_path,
-            calendar_invite,
-        } = params;
-
-        let event_live_path = format!("{event_path}/live");
-
-        let otp = otp::create(db, &user.id, Some(event_live_path), Some(self.start_time)).await?;
-
-        let claims = OtpClaims {
-            email: email.to_string(),
-            otp: otp.code.clone(),
-        };
-        // Ensure JWT doesn't expire before event begins
-        let event_jwt_duration = self.start_time - Utc::now();
-        let otp_token = generate_jwt()
-            .user(user)
-            .secret(&config.jwt_secret)
-            .custom_claims(claims)
-            .duration(event_jwt_duration)
-            .call();
-
-        let encoded_redirect_url = urlencoding::encode(&otp.redirect_url);
-        let otp_link = format!(
-            "{}/auth/login-otp/{}?backTo={}",
-            config.domain, otp_token, encoded_redirect_url
-        );
-
-        let email_config = ScheduledEmailConfig {
-            subject: "Event beginning soon".to_string(),
-            template: EmailTemplate::EventReminder {
-                event_name: self.name.clone(),
-                event_time: self.format_date_with_time_zone(self.start_time, None),
-                event_link: otp_link,
-                organization_name: "Bloom".to_string(), // TODO:
-                organization_email: None,
-            },
-            attachment: Some(calendar_invite.to_string()),
-        };
-        let scheduled_email_params = CreateScheduledEmail {
+        let params_2_hours = CreateScheduledEmail {
             user_email: email.to_string(),
             email_config,
             send_at: self.start_time - chrono::Duration::hours(2),
         };
-
-        scheduled_email::create(db, scheduled_email_params).await?;
+        scheduled_email::create(db, params_2_hours).await?;
 
         Ok(())
     }

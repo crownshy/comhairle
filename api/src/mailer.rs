@@ -1,11 +1,11 @@
-use crate::models::conversation;
 use crate::models::email_template_config::{
     self, MailerContextMap, SCHEMA_CONVERSATION_INVITE, SCHEMA_EVENT_REGISTRATION_CONFIRMATION,
     SCHEMA_EVENT_REGISTRATION_INVITE,
 };
-use crate::models::event::{self, LocalizedEvent, ResolveTimeZone};
-use crate::models::organization::Organization;
-use crate::models::users::User;
+use crate::models::event::{self, ResolveTimeZone};
+use crate::models::users::{self, User};
+use crate::models::{conversation, otp};
+use crate::routes::auth::{OtpClaims, generate_jwt};
 use crate::{ComhairleState, error::ComhairleError};
 
 use async_trait::async_trait;
@@ -93,12 +93,14 @@ pub trait ComhairleMailer: Send + Sync {
         locale: &str,
     ) -> Result<(), ComhairleError>;
 
-    fn send_event_reminder(
+    async fn send_event_reminder(
         &self,
-        email: String,
-        event: &LocalizedEvent,
-        organization: &Option<Organization>,
-        link_href: String,
+        state: &Arc<ComhairleState>,
+        email: &str,
+        event_id: Uuid,
+        recipient_id: Uuid,
+        sender_id: Uuid,
+        locale: &str,
     ) -> Result<(), ComhairleError>;
 
     fn send_conversation_broadcast_email(
@@ -150,7 +152,7 @@ impl MockComhairleMailer {
             .returning(|_, _, _, _, _| Box::pin(async move { Ok(()) }));
         mailer
             .expect_send_event_reminder()
-            .returning(|_, _, _, _| Ok(()));
+            .returning(|_, _, _, _, _, _| Box::pin(async move { Ok(()) }));
         mailer
             .expect_send_conversation_broadcast_email()
             .returning(|_, _, _| Ok(()));
@@ -520,13 +522,50 @@ impl ComhairleMailer for Mailer {
         )
     }
 
-    fn send_event_reminder(
+    async fn send_event_reminder(
         &self,
-        email: String,
-        event: &LocalizedEvent,
-        _organization: &Option<Organization>,
-        link_href: String,
+        state: &Arc<ComhairleState>,
+        email: &str,
+        event_id: Uuid,
+        recipient_id: Uuid,
+        _sender_id: Uuid,
+        locale: &str,
     ) -> Result<(), ComhairleError> {
+        let event = event::get_localized_by_id(&state.db, &event_id, locale).await?;
+        let recipient = users::get_user_by_id(&recipient_id, &state.db).await?;
+
+        let event_path = format!(
+            "/conversations/{}/events/{}/live",
+            event.conversation_id, event.id
+        );
+
+        let otp = otp::create(
+            &state.db,
+            &recipient.id,
+            Some(event_path),
+            Some(event.start_time),
+        )
+        .await?;
+
+        let claims = OtpClaims {
+            email: email.to_string(),
+            otp: otp.code.clone(),
+        };
+        // Ensure JWT doesn't expire before event begins
+        let event_jwt_duration = event.start_time - Utc::now();
+        let otp_token = generate_jwt()
+            .user(&recipient)
+            .secret(&state.config.jwt_secret)
+            .custom_claims(claims)
+            .duration(event_jwt_duration)
+            .call();
+
+        let encoded_redirect_url = urlencoding::encode(&otp.redirect_url);
+        let otp_link = format!(
+            "{}/auth/login-otp/{}?backTo={}",
+            state.config.domain, otp_token, encoded_redirect_url
+        );
+
         let calendar_invite = create_calendar_invite_attachment(
             &event.name,
             &event.description,
@@ -535,15 +574,14 @@ impl ComhairleMailer for Mailer {
         )?;
 
         self.send_email(
-            &email,
+            email,
             "Upcoming event reminder",
             "event_reminder.html",
             context! {
                 event_name => event.name,
                 event_time => event.format_date_with_time_zone(event.start_time, None),
                 organization_name => "Bloom", // TODO:
-                // organization_email => None,
-                event_link => link_href,
+                event_link => otp_link,
             },
             Some(calendar_invite),
         )

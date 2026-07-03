@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
@@ -17,6 +19,7 @@ use uuid::Uuid;
 use fake::Dummy;
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         SqlxResultExt,
@@ -39,8 +42,6 @@ pub struct ScheduledEmail {
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct ScheduledEmailConfig {
     pub template: EmailTemplate,
-    pub subject: String,
-    pub attachment: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
@@ -48,12 +49,33 @@ pub struct ScheduledEmailConfig {
 pub enum EmailTemplate {
     // Extend with other templates relevant to scheduling
     EventReminder {
-        event_name: String,
-        event_time: String,
-        event_link: String,
-        organization_name: String,
-        organization_email: Option<String>,
+        event_id: Uuid,
+        recipient_id: Uuid,
+        owner_id: Uuid,
+        locale: String,
     },
+}
+
+impl EmailTemplate {
+    pub async fn mailer_send(
+        &self,
+        email: &str,
+        state: &Arc<ComhairleState>,
+    ) -> Result<(), ComhairleError> {
+        match self {
+            EmailTemplate::EventReminder {
+                event_id,
+                recipient_id,
+                owner_id,
+                locale,
+            } => {
+                state
+                    .mailer
+                    .send_event_reminder(state, email, *event_id, *recipient_id, *owner_id, locale)
+                    .await
+            }
+        }
+    }
 }
 
 impl std::fmt::Display for EmailTemplate {
@@ -62,29 +84,6 @@ impl std::fmt::Display for EmailTemplate {
             EmailTemplate::EventReminder { .. } => "event_reminder.html",
         };
         write!(f, "{}", value)
-    }
-}
-
-impl EmailTemplate {
-    pub fn to_mailer_context(&self) -> minijinja::Value {
-        match self {
-            EmailTemplate::EventReminder {
-                event_name,
-                event_time,
-                event_link,
-                organization_name,
-                organization_email,
-                ..
-            } => {
-                minijinja::context! {
-                    event_name => event_name,
-                    event_time => event_time,
-                    event_link => event_link,
-                    organization_name => organization_name,
-                    organization_email => organization_email,
-                }
-            }
-        }
     }
 }
 
@@ -387,15 +386,12 @@ mod tests {
             user_email: "test@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::days(1),
             email_config: ScheduledEmailConfig {
-                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
-                    event_name: "test_event".to_string(),
-                    event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
-                    event_link: "https://test.com".to_string(),
-                    organization_name: "Test org".to_string(),
-                    organization_email: None,
+                    event_id: Uuid::new_v4(),
+                    recipient_id: Uuid::new_v4(),
+                    owner_id: Uuid::new_v4(),
+                    locale: "en".to_string(),
                 },
-                attachment: None,
             },
         };
 
@@ -417,15 +413,12 @@ mod tests {
             user_email: "test@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::days(1),
             email_config: ScheduledEmailConfig {
-                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
-                    event_name: "test_event".to_string(),
-                    event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
-                    event_link: "https://test.com".to_string(),
-                    organization_name: "Test org".to_string(),
-                    organization_email: None,
+                    event_id: Uuid::new_v4(),
+                    recipient_id: Uuid::new_v4(),
+                    owner_id: Uuid::new_v4(),
+                    locale: "en".to_string(),
                 },
-                attachment: None,
             },
         };
 
@@ -457,15 +450,12 @@ mod tests {
             user_email: "test@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::days(1),
             email_config: ScheduledEmailConfig {
-                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
-                    event_name: "test_event".to_string(),
-                    event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
-                    event_link: "https://test.com".to_string(),
-                    organization_name: "Test org".to_string(),
-                    organization_email: None,
+                    event_id: Uuid::new_v4(),
+                    recipient_id: Uuid::new_v4(),
+                    owner_id: Uuid::new_v4(),
+                    locale: "en".to_string(),
                 },
-                attachment: None,
             },
         };
 
@@ -489,45 +479,36 @@ mod tests {
             user_email: "user-1@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::days(1),
             email_config: ScheduledEmailConfig {
-                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
-                    event_name: "test_event".to_string(),
-                    event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
-                    event_link: "https://test.com".to_string(),
-                    organization_name: "Test org".to_string(),
-                    organization_email: None,
+                    event_id: Uuid::new_v4(),
+                    recipient_id: Uuid::new_v4(),
+                    owner_id: Uuid::new_v4(),
+                    locale: "en".to_string(),
                 },
-                attachment: None,
             },
         };
         let params_2 = CreateScheduledEmail {
             user_email: "user-2@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::days(2),
             email_config: ScheduledEmailConfig {
-                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
-                    event_name: "test_event".to_string(),
-                    event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
-                    event_link: "https://test.com".to_string(),
-                    organization_name: "Test org".to_string(),
-                    organization_email: None,
+                    event_id: Uuid::new_v4(),
+                    recipient_id: Uuid::new_v4(),
+                    owner_id: Uuid::new_v4(),
+                    locale: "en".to_string(),
                 },
-                attachment: None,
             },
         };
         let params_3 = CreateScheduledEmail {
             user_email: "user-1@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::days(2),
             email_config: ScheduledEmailConfig {
-                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
-                    event_name: "test_event".to_string(),
-                    event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
-                    event_link: "https://test.com".to_string(),
-                    organization_name: "Test org".to_string(),
-                    organization_email: None,
+                    event_id: Uuid::new_v4(),
+                    recipient_id: Uuid::new_v4(),
+                    owner_id: Uuid::new_v4(),
+                    locale: "en".to_string(),
                 },
-                attachment: None,
             },
         };
 
@@ -568,75 +549,60 @@ mod tests {
             user_email: "user-1@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::hours(23),
             email_config: ScheduledEmailConfig {
-                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
-                    event_name: "test_event".to_string(),
-                    event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
-                    event_link: "https://test.com".to_string(),
-                    organization_name: "Test org".to_string(),
-                    organization_email: None,
+                    event_id: Uuid::new_v4(),
+                    recipient_id: Uuid::new_v4(),
+                    owner_id: Uuid::new_v4(),
+                    locale: "en".to_string(),
                 },
-                attachment: None,
             },
         };
         let params_2_days = CreateScheduledEmail {
             user_email: "user-2@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::days(2),
             email_config: ScheduledEmailConfig {
-                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
-                    event_name: "test_event".to_string(),
-                    event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
-                    event_link: "https://test.com".to_string(),
-                    organization_name: "Test org".to_string(),
-                    organization_email: None,
+                    event_id: Uuid::new_v4(),
+                    recipient_id: Uuid::new_v4(),
+                    owner_id: Uuid::new_v4(),
+                    locale: "en".to_string(),
                 },
-                attachment: None,
             },
         };
         let params_past = CreateScheduledEmail {
             user_email: "user-1@test.com".to_string(),
             send_at: Utc::now() - chrono::Duration::days(1),
             email_config: ScheduledEmailConfig {
-                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
-                    event_name: "test_event".to_string(),
-                    event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
-                    event_link: "https://test.com".to_string(),
-                    organization_name: "Test org".to_string(),
-                    organization_email: None,
+                    event_id: Uuid::new_v4(),
+                    recipient_id: Uuid::new_v4(),
+                    owner_id: Uuid::new_v4(),
+                    locale: "en".to_string(),
                 },
-                attachment: None,
             },
         };
         let params_sent = CreateScheduledEmail {
             user_email: "user-1@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::minutes(15),
             email_config: ScheduledEmailConfig {
-                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
-                    event_name: "test_event".to_string(),
-                    event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
-                    event_link: "https://test.com".to_string(),
-                    organization_name: "Test org".to_string(),
-                    organization_email: None,
+                    event_id: Uuid::new_v4(),
+                    recipient_id: Uuid::new_v4(),
+                    owner_id: Uuid::new_v4(),
+                    locale: "en".to_string(),
                 },
-                attachment: None,
             },
         };
         let params_30_mins = CreateScheduledEmail {
             user_email: "user-1@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::minutes(30),
             email_config: ScheduledEmailConfig {
-                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
-                    event_name: "test_event".to_string(),
-                    event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
-                    event_link: "https://test.com".to_string(),
-                    organization_name: "Test org".to_string(),
-                    organization_email: None,
+                    event_id: Uuid::new_v4(),
+                    recipient_id: Uuid::new_v4(),
+                    owner_id: Uuid::new_v4(),
+                    locale: "en".to_string(),
                 },
-                attachment: None,
             },
         };
 
@@ -666,15 +632,12 @@ mod tests {
             user_email: "test@test.com".to_string(),
             send_at: Utc::now() + chrono::Duration::days(1),
             email_config: ScheduledEmailConfig {
-                subject: "test subject".to_string(),
                 template: EmailTemplate::EventReminder {
-                    event_name: "test_event".to_string(),
-                    event_time: (Utc::now() + chrono::Duration::days(1)).to_string(),
-                    event_link: "https://test.com".to_string(),
-                    organization_name: "Test org".to_string(),
-                    organization_email: None,
+                    event_id: Uuid::new_v4(),
+                    recipient_id: Uuid::new_v4(),
+                    owner_id: Uuid::new_v4(),
+                    locale: "en".to_string(),
                 },
-                attachment: None,
             },
         };
 

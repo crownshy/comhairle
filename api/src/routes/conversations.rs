@@ -1927,7 +1927,7 @@ mod tests {
             .returning(|_, _, _, _, _| Box::pin(async move { Ok(()) }));
         mailer
             .expect_send_event_reminder()
-            .returning(|_, _, _, _| Ok(()));
+            .returning(|_, _, _, _, _, _| Box::pin(async move { Ok(()) }));
         mailer.expect_send_conversation_broadcast_email().returning(
             move |email, _subject, _html| {
                 sent.lock().unwrap().push(email.to_string());
