@@ -11,7 +11,7 @@
 	const { data, media }: Props<MediaDto> = $props();
 </script>
 
-<ul class="grid gap-y-5">
+<ul class="grid gap-5">
 	{#if data.length === 0}
 		<div class="mt-8">
 			<p class="text-muted-foreground font-bold">No media found</p>
@@ -30,8 +30,8 @@
 
 <style>
 	ul {
-		--media-width: 275px;
-		grid-template-columns: repeat(auto-fit, minmax(var(--media-width), 1fr));
+		--min-width: 275px;
+		grid-template-columns: repeat(auto-fit, minmax(var(--min-width), 1fr));
 	}
 
 	li {

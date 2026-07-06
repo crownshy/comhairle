@@ -13,7 +13,9 @@
 	const { type, src, alt }: Props = $props();
 </script>
 
-<div class="flex h-28 w-3xs flex-row items-center justify-center rounded bg-gray-600">
+<div
+	class="flex aspect-video max-w-96 flex-row items-center justify-center overflow-hidden rounded bg-gray-600"
+>
 	{#snippet placeholder(Icon: ComponentType<Icon>)}
 		<Icon size={50} />
 	{/snippet}
