@@ -22,6 +22,40 @@
 	let uploadForm: HTMLFormElement | undefined;
 
 	let uploading = $state<boolean>(false);
+
+	async function oninput(e: Event) {
+		if (clientSide) {
+			const rawFiles = (e.target as HTMLInputElement).files;
+			if (!rawFiles) return;
+			// FIX: Check why the erroring here is incorrect
+			const response = await media.upload('/api/media', Media.sanitiseMulti(rawFiles));
+			const urls: string[] = [];
+			for (const res of response) {
+				if (res.err !== null) {
+					notifications.send({
+						message: res.err.message,
+						priority: 'ERROR'
+					});
+					continue;
+				}
+				const result = await tryCatchAsync(() => res.ok.json());
+				if (result.err !== null) {
+					// NOTE: Data might be uploaded but wouldn't count as uploaded if the response can't be parsed, probably need to fix at some point
+					continue;
+				}
+				urls.push((result.ok as MediaDto).url);
+			}
+			if (urls.length > 0) {
+				notifications.send({
+					message: `${urls.length} files uploaded`,
+					priority: 'SUCCESS'
+				});
+			}
+			oncomplete?.(urls);
+			return;
+		}
+		uploadForm?.submit();
+	}
 </script>
 
 <form
@@ -44,39 +78,7 @@
 		multiple
 		class="hidden"
 		aria-hidden="true"
-		oninput={async (e) => {
-			if (clientSide) {
-				const rawFiles = (e.target as HTMLInputElement).files;
-				if (!rawFiles) return;
-				// FIX: Check why the erroring here is incorrect
-				const response = await media.upload('/api/media', Media.sanitiseMulti(rawFiles));
-				const urls: string[] = [];
-				for (const res of response) {
-					if (res.err !== null) {
-						notifications.send({
-							message: res.err.message,
-							priority: 'ERROR'
-						});
-						continue;
-					}
-					const result = await tryCatchAsync(() => res.ok.json());
-					if (result.err !== null) {
-						// NOTE: Data might be uploaded but wouldn't count as uploaded if the response can't be parsed, probably need to fix at some point
-						continue;
-					}
-					urls.push((result.ok as MediaDto).url);
-				}
-				if (urls.length > 0) {
-					notifications.send({
-						message: `${urls.length} files uploaded`,
-						priority: 'SUCCESS'
-					});
-				}
-				oncomplete?.(urls);
-				return;
-			}
-			uploadForm?.submit();
-		}}
+		{oninput}
 	/>
 	<Button
 		disabled={uploading}

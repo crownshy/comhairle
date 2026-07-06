@@ -25,10 +25,7 @@ use sha2::Sha256;
 use time::Duration;
 
 /// Helper function to check if a user is admin
-pub async fn is_user_admin(
-    state: &Arc<ComhairleState>,
-    user: &crate::models::users::User,
-) -> bool {
+pub async fn is_user_admin(state: &Arc<ComhairleState>, user: &crate::models::users::User) -> bool {
     // Check if the user has the system admin role
     if has_resource_permission(
         &state,
@@ -37,7 +34,8 @@ pub async fn is_user_admin(
         user.organization_id.as_ref(),
     )
     .await
-    .unwrap_or(false) {
+    .unwrap_or(false)
+    {
         return true;
     }
 
@@ -58,16 +56,22 @@ use std::{collections::HashMap, sync::Arc};
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
-use crate::{error::ComhairleError, models::permissions::{ExtractResourceId, GrantRoleRequest, SystemAdminRole, SystemResourceRole, UserOrOrganizationId, grant_role}};
-use crate::models::permissions::{has_resource_permission, ResourceRole};
+use crate::ComhairleState;
+use crate::models::permissions::{ResourceRole, has_resource_permission};
 use crate::models::users::{
-    self, create_annon_user, create_otp_user, create_user, get_user_by_email, get_user_by_id,
-    get_user_by_username, get_user_resource_roles, update_user, Resource, Role, UpdateUserRequest,
-    User, UserAuthType, UserResourceRole,
+    self, Resource, Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
+    create_annon_user, create_otp_user, create_user, get_user_by_email, get_user_by_id,
+    get_user_by_username, get_user_resource_roles, update_user,
 };
 use crate::models::{api_key, otp};
 use crate::routes::user::dto::UserDto;
-use crate::ComhairleState;
+use crate::{
+    error::ComhairleError,
+    models::permissions::{
+        ExtractResourceId, GrantRoleRequest, SystemAdminRole, SystemResourceRole,
+        UserOrOrganizationId, grant_role,
+    },
+};
 
 #[cfg(test)]
 use fake::Dummy;

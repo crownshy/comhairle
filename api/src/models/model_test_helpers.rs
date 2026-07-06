@@ -1,12 +1,12 @@
 use std::{error::Error, sync::Arc};
 
-use crate::models::users::{update_user, UpdateUserRequest};
+use crate::models::users::{UpdateUserRequest, update_user};
 use crate::routes::conversations::dto::ConversationDto;
 use crate::routes::organizations::dto::OrganizationDto;
 use crate::routes::user::dto::UserDto;
 use crate::routes::workflows::dto::WorkflowDto;
 use crate::setup_server;
-use crate::test_helpers::{test_state, UserSession};
+use crate::test_helpers::{UserSession, test_state};
 
 use axum::Router;
 use sqlx::PgPool;

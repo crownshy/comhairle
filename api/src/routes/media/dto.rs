@@ -33,7 +33,7 @@ impl From<Media> for MediaDto {
     fn from(m: Media) -> Self {
         Self {
             id: m.id,
-            url: m.url().clone(),
+            url: m.url(),
             store_name: m.store_name,
             storage_key: m.storage_key,
             filename: m.filename,

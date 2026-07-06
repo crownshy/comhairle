@@ -9,44 +9,30 @@
 	import MediaLibrary from '$lib/components/Media/MediaLibrary.svelte';
 	import MediaItem from '$lib/components/Media/MediaItem.svelte';
 	import type { MediaDto } from '@crownshy/api-client/api';
-	import { tryCatchAsync, tryFetch, type FetchErr, type Result } from '$lib/utils/errorHandling';
+	import { tryCatchAsync, type FetchErr, type Result } from '$lib/utils/errorHandling';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
-
-	async function getData(): Promise<Result<'ok', MediaDto[], FetchErr>> {
-		const request = await tryFetch('/api/media');
-		// FIX:
-		if (request.err !== null) {
-			return {
-				ok: null,
-				err: {
-					id: 'NETWORK_ERROR',
-					message: 'Network error. Please check your internet connection.'
-				}
-			};
-		}
-		const json = await tryCatchAsync(() => request.ok.json());
-		if (json.err !== null) {
-			// FIX:
-			return {
-				ok: null,
-				err: {
-					id: 'NETWORK_ERROR',
-					message: 'Network error. Please check your internet connection.'
-				}
-			};
-		}
-		const media = json.ok.records as MediaDto[];
-		cache = media;
-		return { ok: media, err: null };
-	}
-
-	let dataRequest = $state.raw<ReturnType<typeof getData> | null>(null);
+	import { apiClient } from '@crownshy/api-client/client';
 
 	interface Props {
 		onconfirm: (url: string) => void;
 	}
 
 	const { onconfirm }: Props = $props();
+
+	async function getData(): Promise<Result<'ok', MediaDto[], string>> {
+		const request = await tryCatchAsync(() => apiClient.ListMedia());
+		if (request.err !== null) {
+			return {
+				ok: null,
+				err: request.err
+			};
+		}
+		const media = request.ok.records as MediaDto[];
+		cache = media;
+		return { ok: media, err: null };
+	}
+
+	let dataRequest = $state.raw<ReturnType<typeof getData> | null>(null);
 
 	let url = $state(null);
 </script>

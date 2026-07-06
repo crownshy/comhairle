@@ -35,7 +35,7 @@ export type FetchErr =
 	| { id: 'NETWORK_ERROR'; message: typeof NO_INTERNET }
 	| { id: 'HTTP_ERROR'; status: number; message: string };
 /**
- * Wrapper for fetch that will feed back an error whenever the response is not 200-299
+ * Wrapper for fetch that will feed back an error whenever the response is not 200-299, mainly for server-side, client side should use apiClient
  * @param endpoint - URL to fetch
  * @param params - Fetch parameters
  * @param [fetchRef=fetch] - Fetch reference, will use the default fetch, but pass the reference on the backend if used in a +page.server.ts file
