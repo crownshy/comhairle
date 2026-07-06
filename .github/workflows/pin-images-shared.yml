@@ -1,0 +1,163 @@
+name: pin-images-shared
+
+on:
+  workflow_call:
+    inputs:
+      gitops_file_path:
+        description: Path to the values file in the GitOps repo to update
+        required: true
+        type: string
+      pin_ref:
+        description: The image ref (sha or tag) to write into each key
+        required: true
+        type: string
+      pin_keys:
+        description: Space-delimited list of YAML keys to pin to pin_ref
+        required: true
+        type: string
+      commit_message:
+        description: Commit message for the pin update
+        required: true
+        type: string
+      gitops_repo:
+        description: owner/repo of the GitOps repository
+        required: false
+        default: crownshy/helm_charts
+        type: string
+      validation:
+        description: >-
+          How to guard against pinning backwards: "ancestry" requires the
+          current pin to be a git ancestor of pin_ref (for sha pins);
+          "semver" requires pin_ref to version-sort greater than the current
+          pin (for tag pins, and immune to history rewrites).
+        required: false
+        default: ancestry
+        type: string
+      dry_run:
+        description: When true, do not push the pin commit
+        required: false
+        default: false
+        type: boolean
+      force_pin:
+        description: When true, skip ancestry validation for pinning
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  pin:
+    runs-on: ubuntu-latest
+    environment: base
+    permissions:
+      contents: read
+    env:
+      PIN_REF: ${{ inputs.pin_ref }}
+      PIN_KEYS: ${{ inputs.pin_keys }}
+      COMMIT_MESSAGE: ${{ inputs.commit_message }}
+      VALIDATION: ${{ inputs.validation }}
+      DRY_RUN: ${{ inputs.dry_run }}
+      FORCE_PIN: ${{ inputs.force_pin }}
+      GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
+      GITOPS_REPO: ${{ inputs.gitops_repo }}
+      GITOPS_FILE_PATH: ${{ inputs.gitops_file_path }}
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate ancestry and update pins via GitHub API
+        run: |
+          set -euo pipefail
+
+          API_URL="https://api.github.com/repos/${GITOPS_REPO}"
+          COMMON_HEADERS=(
+            -H "Accept: application/vnd.github+json"
+            -H "Authorization: Bearer ${GITOPS_TOKEN}"
+            -H "X-GitHub-Api-Version: 2022-11-28"
+          )
+
+          # Get existing pins from the downstream repo.
+          repo_info="$(curl -fsSL "${COMMON_HEADERS[@]}" "${API_URL}")"
+          default_branch="$(jq -r '.default_branch' <<<"${repo_info}")"
+
+          content_obj="$(curl -fsSL "${COMMON_HEADERS[@]}" "${API_URL}/contents/${GITOPS_FILE_PATH}?ref=${default_branch}")"
+          current_sha="$(jq -r '.sha' <<<"${content_obj}")"
+          current_text="$(jq -r '.content' <<<"${content_obj}" | tr -d '\n' | base64 -d)"
+
+          # Guard against pinning backwards: each current pin must be older than
+          # the new pin (git ancestry for sha pins, version order for tag pins).
+          all_up_to_date=true
+          for key in ${PIN_KEYS}; do
+            current_pin="$(printf '%s\n' "${current_text}" | sed -nE "s/^${key}:\s*\"?([^\"[:space:]]+)\"?\s*\$/\1/p" | head -n1)"
+
+            if [[ "${current_pin}" != "${PIN_REF}" ]]; then
+              all_up_to_date=false
+            fi
+
+            if [[ "${FORCE_PIN}" != "true" && "${current_pin}" != "${PIN_REF}" ]]; then
+              if [[ -z "${current_pin}" ]]; then
+                echo "Could not find pin for ${key} in ${GITOPS_FILE_PATH}" >&2
+                exit 1
+              fi
+
+              if [[ "${VALIDATION}" == "semver" ]]; then
+                # Refuse unless pin_ref version-sorts strictly greater than the current pin.
+                greater="$(printf '%s\n%s\n' "${current_pin}" "${PIN_REF}" | sort -V | tail -n1)"
+                if [[ "${greater}" != "${PIN_REF}" ]]; then
+                  echo "Refusing to pin ${key}: new version ${PIN_REF} is not greater than current ${current_pin}" >&2
+                  exit 1
+                fi
+              else
+                if ! git merge-base --is-ancestor "${current_pin}" "${PIN_REF}"; then
+                  echo "Refusing to pin ${key}: current pin ${current_pin} is not an ancestor of ${PIN_REF}" >&2
+                  exit 1
+                fi
+              fi
+            fi
+          done
+
+          if [[ "${all_up_to_date}" == "true" ]]; then
+            echo "Pins already up to date; no commit needed."
+            exit 0
+          fi
+
+          if [[ "${FORCE_PIN}" == "true" ]]; then
+            echo "force_pin enabled. Skipping pin ancestry validation."
+          fi
+
+          # Create new manifest content with updated pins.
+          updated_text="$(printf '%s\n' "${current_text}" \
+            | awk -v pin="${PIN_REF}" -v keys="${PIN_KEYS}" '
+                BEGIN { n = split(keys, k, " "); for (i = 1; i <= n; i++) want[k[i]] = 1 }
+                {
+                  line = $0
+                  for (key in want) {
+                    if (line ~ "^" key ":") { line = key ": \"" pin "\""; break }
+                  }
+                  print line
+                }
+              '
+          )"
+
+          # Push new commit via GitHub API.
+          encoded_content="$(printf '%s' "${updated_text}" | base64 -w 0)"
+
+          update_payload="$(jq -n \
+          --arg message "${COMMIT_MESSAGE}" \
+          --arg content "${encoded_content}" \
+          --arg sha "${current_sha}" \
+          --arg branch "${default_branch}" \
+          '{
+            message: $message,
+            content: $content,
+            sha: $sha,
+            branch: $branch
+          }')"
+
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            echo "Dry run enabled. Skipping pin commit update."
+            exit 0
+          fi
+
+          curl -fsSL -X PUT "${COMMON_HEADERS[@]}" -d "${update_payload}" "${API_URL}/contents/${GITOPS_FILE_PATH}"

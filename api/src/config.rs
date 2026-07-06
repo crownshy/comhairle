@@ -1,12 +1,14 @@
 use config::{Config, Environment, File};
 use serde::Deserialize;
 
+pub use crate::bot_service::config::BotServiceConfig;
+pub use crate::bulk_storage_service::config::BulkStorageServiceConfig;
 use crate::categorization_service::config::CategorizationConfig;
-pub use crate::{
-    bot_service::config::BotServiceConfig, bulk_storage_service::config::BulkStorageServiceConfig,
-    error::ComhairleError, transcription_service::config::TranscriptionServiceConfig,
-    translation_service::config::TranslatorConfig, worker_service::config::WorkerConfig,
-};
+pub use crate::error::ComhairleError;
+pub use crate::transcription_service::config::TranscriptionServiceConfig;
+pub use crate::translation_service::config::TranslatorConfig;
+use crate::websockets::config::WebsocketConfig;
+pub use crate::worker_service::config::WorkerConfig;
 
 pub fn load() -> Result<ComhairleConfig, ComhairleError> {
     let config = Config::builder()
@@ -76,4 +78,5 @@ pub struct ComhairleConfig {
     pub worker_service: Option<WorkerConfig>,
     pub categorization_service: Option<CategorizationConfig>,
     pub bulk_storage_service: Option<BulkStorageServiceConfig>,
+    pub websocket_service: Option<WebsocketConfig>,
 }
