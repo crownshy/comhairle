@@ -547,6 +547,7 @@ impl UserSession {
         let value = response_to_json(response).await;
         Ok((status, value, cookie))
     }
+
     pub async fn logout(
         &mut self,
         app: &Router,
