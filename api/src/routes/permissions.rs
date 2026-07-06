@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{delete_with, get_with, post_with},
     ApiRouter,
+    routing::{delete_with, get_with, post_with},
 };
 use axum::{
     extract::{Json, Path, Query, State},
@@ -15,14 +15,14 @@ use uuid::Uuid;
 
 use crate::models::pagination::{PageOptions, PaginatedResults};
 use crate::models::permissions::{
-    self, list_permissions, GrantRoleRequest, ListPermissionsFilters, PermissionTriplet,
-    RevokeRoleRequest, SystemAdminRole, SystemResource, UserOrOrganizationId,
+    self, GrantRoleRequest, ListPermissionsFilters, PermissionTriplet, RevokeRoleRequest,
+    SystemAdminRole, SystemResource, UserOrOrganizationId, list_permissions,
 };
 use crate::routes::auth::RequiredUserPermission;
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::permissions::{grant_role, revoke_role},
-    ComhairleState,
 };
 
 /// Represents the resource type and ID for a permission operation.
@@ -289,9 +289,9 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 mod tests {
     use crate::models::pagination::PaginatedResults;
     use crate::models::permissions::{
-        grant_role, has_resource_permission, list_permissions, GrantRoleRequest,
-        ListPermissionsFilters, NamedRole, PermissionTriplet, ResourcePermission, ResourceRole,
-        SystemResourceRole, UserOrOrganizationId,
+        GrantRoleRequest, ListPermissionsFilters, NamedRole, PermissionTriplet, ResourcePermission,
+        ResourceRole, SystemResourceRole, UserOrOrganizationId, grant_role,
+        has_resource_permission, list_permissions,
     };
     use crate::routes::permissions::{
         GrantPermissionBody, ListPermissionsQuery, RevokePermissionQuery, SystemAdminRole,

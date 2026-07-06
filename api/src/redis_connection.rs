@@ -5,9 +5,9 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use redis::aio::ConnectionManager;
 use redis::AsyncCommands;
 use redis::RedisError;
+use redis::aio::ConnectionManager;
 #[cfg(test)]
 use tokio::sync::Mutex;
 
@@ -137,10 +137,7 @@ impl RedisConnection for MockRedis {
     }
 
     async fn set_ex(&self, key: &str, value: &str, _ttl_secs: u64) -> Result<(), RedisError> {
-        self
-            .lock()
-            .await
-            .insert(key.to_string(), value.to_string());
+        self.lock().await.insert(key.to_string(), value.to_string());
         Ok(())
     }
 

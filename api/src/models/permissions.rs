@@ -5,16 +5,16 @@ use axum::extract::FromRequestParts;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::IdenStatic;
-use sea_query::{enum_def, Expr, OnConflict, PostgresQueryBuilder, Query};
+use sea_query::{Expr, OnConflict, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::prelude::FromRow;
 use sqlx::Row;
+use sqlx::prelude::FromRow;
 use uuid::Uuid;
 
+use crate::ComhairleState;
 use crate::error::ComhairleError;
 use crate::models::pagination::{PageOptions, PaginatedResults};
-use crate::ComhairleState;
 
 /// Represents the system administrator role.
 #[derive(Debug)]
@@ -475,7 +475,13 @@ pub async fn has_resource_permission(
                 &UserOrOrganizationId::Org(organization_id.unwrap()),
             )
         };
-        cache_set(conn.as_ref(), &key, result, state.config.redis_cache_ttl_secs).await;
+        cache_set(
+            conn.as_ref(),
+            &key,
+            result,
+            state.config.redis_cache_ttl_secs,
+        )
+        .await;
     }
 
     Ok(result)
@@ -866,14 +872,18 @@ mod tests {
         };
         let user_permissions = list_permissions(&state, request).await?;
         assert_eq!(user_permissions.records.len(), 2);
-        assert!(user_permissions
-            .records
-            .iter()
-            .any(|p| p.resource_id == resource_1_id && p.role_name == TEST_ROLE_NAME));
-        assert!(user_permissions
-            .records
-            .iter()
-            .any(|p| p.resource_id == resource_2_id && p.role_name == OTHER_ROLE_NAME));
+        assert!(
+            user_permissions
+                .records
+                .iter()
+                .any(|p| p.resource_id == resource_1_id && p.role_name == TEST_ROLE_NAME)
+        );
+        assert!(
+            user_permissions
+                .records
+                .iter()
+                .any(|p| p.resource_id == resource_2_id && p.role_name == OTHER_ROLE_NAME)
+        );
 
         // List permissions for the organization
         let request = ListPermissionsFilters {
@@ -892,10 +902,12 @@ mod tests {
         };
         let viewer_permissions = list_permissions(&state, request).await?;
         assert_eq!(viewer_permissions.records.len(), 2);
-        assert!(viewer_permissions
-            .records
-            .iter()
-            .all(|p| p.role_name == OTHER_ROLE_NAME));
+        assert!(
+            viewer_permissions
+                .records
+                .iter()
+                .all(|p| p.role_name == OTHER_ROLE_NAME)
+        );
 
         Ok(())
     }
