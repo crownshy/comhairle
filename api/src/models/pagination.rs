@@ -1,15 +1,15 @@
 use std::{str::FromStr, sync::Arc};
 
 use aide::OperationIo;
-use axum::{extract::FromRequestParts, http::request::Parts, RequestPartsExt};
+use axum::{RequestPartsExt, extract::FromRequestParts, http::request::Parts};
 use schemars::JsonSchema;
 use sea_query::{Alias, Expr, PostgresQueryBuilder, SelectStatement};
 use sea_query_binder::SqlxBinder;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde_json::{Value, json};
 use sqlx::{FromRow, PgPool};
 
-use crate::{error::ComhairleError, ComhairleState};
+use crate::{ComhairleState, error::ComhairleError};
 
 #[derive(Deserialize, Debug, OperationIo)]
 pub struct Sort {
@@ -47,7 +47,7 @@ where
     }
 }
 
-#[derive(Deserialize, Debug, Serialize, JsonSchema, Clone)]
+#[derive(Deserialize, Debug, Default, Serialize, JsonSchema, Clone)]
 pub struct PageOptions {
     pub offset: Option<u64>,
     pub limit: Option<u64>,
@@ -96,9 +96,10 @@ fn parse_sort_options_to_json(order_str: &str) -> Value {
     for part in order_str.split(',') {
         let mut iter = part.split_whitespace();
         if let (Some(field), Some(order_str)) = (iter.next(), iter.next())
-            && let Ok(order) = Order::from_str(order_str) {
-                map.insert(field.to_string(), json!(order));
-            }
+            && let Ok(order) = Order::from_str(order_str)
+        {
+            map.insert(field.to_string(), json!(order));
+        }
     }
 
     Value::Object(map)

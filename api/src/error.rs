@@ -6,10 +6,10 @@ use crate::{
 };
 use aide::OperationIo;
 use axum::{
+    Json,
     extract::{multipart::MultipartError, rejection::PathRejection},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use heyform_sdk::HeyFormError;
 use ragflow::RagflowError;
@@ -130,7 +130,7 @@ pub enum ComhairleError {
     #[error("Password does not meet security requirements: {0}")]
     WeakPassword(String),
 
-    #[error("User Required for this route")]
+    #[error("User required for this route")]
     UserRequired,
 
     #[error("Auth Error {0}")]
@@ -333,6 +333,14 @@ pub enum ComhairleError {
 
     #[error("Deserialization error: {0}")]
     DeserializationError(String),
+    #[error("Role '{0}' is already granted on this resource")]
+    RoleAlreadyGranted(String),
+
+    #[error("Role '{0}' is not granted on this resource")]
+    RoleNotFound(String),
+
+    #[error("Cannot revoke the last system admin role")]
+    CannotRevokeLastAdmin,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -354,7 +362,10 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::DuplicateSlug(_)
             | ComhairleError::DuplicateRecordingName(_)
             | ComhairleError::UserAlreadyRegisteredForEvent(_)
-            | ComhairleError::UserAlreadyParticipatingInWorkflow(_) => StatusCode::CONFLICT,
+            | ComhairleError::UserAlreadyParticipatingInWorkflow(_)
+            | ComhairleError::RoleAlreadyGranted(_) => StatusCode::CONFLICT,
+            ComhairleError::RoleNotFound(_) => StatusCode::NOT_FOUND,
+            ComhairleError::CannotRevokeLastAdmin => StatusCode::FORBIDDEN,
             ComhairleError::ResourceNotFound(_)
             | ComhairleError::NoUserFound
             | ComhairleError::NoUserFoundForEmail(_)

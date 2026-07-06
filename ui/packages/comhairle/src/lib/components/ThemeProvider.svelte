@@ -12,7 +12,7 @@
 		if (typeof document === 'undefined') return;
 
 		const html = document.documentElement;
-		
+
 		const themeName = themeStore.name;
 		const isDark = themeStore.isDark;
 
@@ -27,6 +27,8 @@
 		} else {
 			html.classList.remove('dark');
 		}
+
+		html.style.colorScheme = isDark ? 'dark' : 'light';
 	});
 </script>
 

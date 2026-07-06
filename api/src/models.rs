@@ -18,6 +18,7 @@ pub mod notification_delivery;
 pub mod organization;
 pub mod otp;
 pub mod pagination;
+pub mod permissions;
 pub mod polis_statement_aux;
 pub mod proposal;
 pub mod proposal_response;

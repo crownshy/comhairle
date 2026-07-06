@@ -3,10 +3,10 @@ use crate::models::conversation_email_notification_recipients::ConversationEmail
 use crate::models::users::UserIden;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, JoinType, PostgresQueryBuilder, Query, UnionType};
+use sea_query::{Expr, JoinType, PostgresQueryBuilder, Query, UnionType, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::FromRow, PgPool};
+use sqlx::{PgPool, prelude::FromRow};
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]

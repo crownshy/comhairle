@@ -6,8 +6,8 @@ use axum::{
 };
 
 use aide::axum::{
-    routing::{delete_with, get_with, post_with, put_with},
     ApiRouter,
+    routing::{delete_with, get_with, post_with, put_with},
 };
 
 use schemars::JsonSchema;
@@ -16,6 +16,7 @@ use tracing::{info, instrument};
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         conversation::{
@@ -38,10 +39,9 @@ use crate::{
         conversations::dto::{ConversationDto, LocalizedConversationDto},
         translations::LocaleExtractor,
     },
-    ComhairleState,
 };
 
-use super::auth::{is_user_admin, OptionalUser, RequiredAdminUser};
+use super::auth::{OptionalUser, RequiredAdminUser, is_user_admin};
 
 pub mod dto;
 
@@ -156,10 +156,8 @@ async fn get_conversation(
 
     // Check if user is admin and withTranslations is requested
     let should_return_with_translations = query.with_translations
-        && user
-            .as_ref()
-            .map(|u| is_user_admin(u, &state.config))
-            .unwrap_or(false);
+        && user.is_some()
+        && is_user_admin(&state, user.as_ref().unwrap()).await;
 
     if should_return_with_translations {
         // Convert to ConversationWithTranslations
@@ -814,8 +812,8 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 mod tests {
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
     use crate::config::BotServiceConfig;
-    use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
     use crate::routes::conversations::ConversationResponse;
+    use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
     use crate::routes::translations::dto::TextContentDto;
     use crate::test_helpers::{test_config, test_state};
     use crate::{setup_server, test_helpers::UserSession};

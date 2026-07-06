@@ -2,19 +2,19 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::{enum_def, Expr, PostgresQueryBuilder, Query};
+use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::FromRow, PgPool};
+use sqlx::{PgPool, prelude::FromRow};
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     bot_service::{ComhairleBotService, CreateChatSessionRequest},
     config::ComhairleConfig,
     error::ComhairleError,
     models::{conversation, workflow_step},
     tools::ToolConfig,
-    ComhairleState,
 };
 
 #[cfg(test)]
@@ -174,7 +174,7 @@ pub async fn create(
                 None => {
                     return Err(ComhairleError::CorruptedData(
                         "Missing conversation_id for qa_bot session".to_string(),
-                    ))
+                    ));
                 }
             };
             // TODO: need to make this default to the local of the conversation
@@ -201,7 +201,7 @@ pub async fn create(
                 None => {
                     return Err(ComhairleError::CorruptedData(
                         "Missing workflow_step_id for elicitation_bot session".to_string(),
-                    ))
+                    ));
                 }
             };
 
@@ -215,7 +215,7 @@ pub async fn create(
                 _ => {
                     return Err(ComhairleError::ToolConfigError(
                         "Incorrect config type".to_string(),
-                    ))
+                    ));
                 }
             };
 
@@ -231,7 +231,7 @@ pub async fn create(
                 None => {
                     return Err(ComhairleError::CorruptedData(
                         "Missing workflow_step_id for thinking_space session".to_string(),
-                    ))
+                    ));
                 }
             };
 
@@ -245,7 +245,7 @@ pub async fn create(
                 _ => {
                     return Err(ComhairleError::ToolConfigError(
                         "Incorrect config type".to_string(),
-                    ))
+                    ));
                 }
             };
 

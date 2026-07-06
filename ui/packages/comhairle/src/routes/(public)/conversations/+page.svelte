@@ -36,7 +36,7 @@
 	</a>
 {/snippet}
 
-<div class="flex h-full flex-col pt-10">
+<div class="flex h-full flex-col pt-10 md:pt-20">
 	<header class="mb:pb-20 px-2 pb-5 md:px-0">
 		<h1 class="mb-4 text-4xl font-bold">{m.conversations()}</h1>
 		<p class="mb-4">

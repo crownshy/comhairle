@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{delete_with, get_with, post_with},
     ApiRouter,
+    routing::{delete_with, get_with, post_with},
 };
 use async_trait::async_trait;
 use axum::{
@@ -15,6 +15,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         proposal::{self, CreateProposal, LocalizedProposal, Proposal, ProposalWithTranslations},
@@ -25,12 +26,11 @@ use crate::{
         translations::TextContentId,
     },
     routes::{
-        auth::{is_user_admin, RequiredAdminUser, RequiredUser},
+        auth::{RequiredAdminUser, RequiredUser, is_user_admin},
         translations::LocaleExtractor,
     },
     schema_helpers::{example_localized_text, example_uuid},
     tools::{ToolConfigSanitize, ToolImpl},
-    ComhairleState,
 };
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
@@ -348,7 +348,7 @@ async fn list_proposals(
         with_translations,
     }): Query<ListProposalsQuery>,
 ) -> Result<(StatusCode, Json<ProposalsListResponse>), ComhairleError> {
-    if with_translations && is_user_admin(&user, &state.config) {
+    if with_translations && is_user_admin(&state, &user).await {
         let proposals =
             proposal::list_with_translations(&state.db, &workflow_step_id, &locale).await?;
         return Ok((

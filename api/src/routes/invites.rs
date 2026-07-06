@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{get_with, patch_with, post_with},
     ApiRouter,
+    routing::{get_with, patch_with, post_with},
 };
 use axum::{
-    extract::{Path, State},
     Json,
+    extract::{Path, State},
 };
 use axum_extra::extract::CookieJar;
 use hyper::StatusCode;
@@ -15,6 +15,7 @@ use tracing::{instrument, warn};
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::{
         self, conversation, event,
@@ -23,10 +24,9 @@ use crate::{
         users, workflow,
     },
     routes::{
-        auth::{create_session_cookie, OtpSignupRequest},
+        auth::{OtpSignupRequest, create_session_cookie},
         invites::dto::InviteDto,
     },
-    ComhairleState,
 };
 
 use super::auth::{OptionalUser, RequiredAdminUser, RequiredUser};
@@ -469,7 +469,7 @@ mod tests {
         },
         routes::{events::dto::EventDto, user::dto::UserDto},
         setup_server,
-        test_helpers::{extract, test_state, UserSession},
+        test_helpers::{UserSession, extract, test_state},
     };
 
     use super::*;

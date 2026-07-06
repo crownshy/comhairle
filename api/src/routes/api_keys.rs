@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use aide::axum::{routing::post_with, ApiRouter};
+use aide::axum::{ApiRouter, routing::post_with};
 use axum::{
     extract::{Json, State},
     http::StatusCode,
@@ -9,10 +9,10 @@ use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::{
+    ComhairleState,
     error::ComhairleError,
     models::api_key::{self, CreateApiKeyRequest},
-    routes::auth::{is_user_admin, RequiredAdminUser},
-    ComhairleState,
+    routes::auth::{RequiredAdminUser, is_user_admin},
 };
 
 #[derive(Serialize, Debug, JsonSchema)]
@@ -26,7 +26,7 @@ async fn create(
     RequiredAdminUser(user): RequiredAdminUser,
     Json(payload): Json<CreateApiKeyRequest>,
 ) -> Result<(StatusCode, Json<CreateResponse>), ComhairleError> {
-    if !is_user_admin(&user, &state.config) {
+    if !is_user_admin(&state, &user).await {
         return Err(ComhairleError::UserNotAuthorized);
     }
 

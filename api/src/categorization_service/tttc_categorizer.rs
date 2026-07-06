@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use crate::categorization_service::{error::CategorizationServiceError, CreateAnalysisJobResponse};
+use crate::categorization_service::{CreateAnalysisJobResponse, error::CategorizationServiceError};
 
-use super::{error::Result, CategorizationService, Comment};
+use super::{CategorizationService, Comment, error::Result};
 
 pub struct TttcCategorizer {
     client: Client,

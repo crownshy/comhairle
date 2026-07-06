@@ -78,8 +78,6 @@ pub struct TranscribeFromBulkResponse {
 #[cfg(test)]
 impl MockTranscriber {
     pub fn base() -> MockTranscriber {
-        
-
         MockTranscriber::new()
     }
 }

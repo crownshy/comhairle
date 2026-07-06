@@ -1,20 +1,20 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{get_with, post_with},
     ApiRouter,
+    routing::{get_with, post_with},
 };
 use async_trait::async_trait;
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{error::ComhairleError, ComhairleState};
+use crate::{ComhairleState, error::ComhairleError};
 
 use super::{ToolConfigSanitize, ToolImpl};
 

@@ -1,40 +1,48 @@
-use aide::{
-    axum::{
-        routing::{get_with, post_with},
-        ApiRouter,
-    },
-    OperationIo,
-};
+use aide::OperationIo;
+use aide::axum::ApiRouter;
+use aide::axum::routing::{get_with, post_with};
 
-use argon2::{password_hash::SaltString, Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::SaltString};
 use axum::{
-    extract::{FromRequestParts, Json, Path, State},
-    http::{request::Parts, StatusCode},
-    response::{IntoResponse, Response},
     RequestPartsExt,
+    extract::{FromRequestParts, Json, Path, State},
+    http::{StatusCode, request::Parts},
+    response::{IntoResponse, Response},
 };
 use axum_extra::{
-    extract::cookie::{Cookie, CookieJar, SameSite},
-    headers::{authorization::Bearer, Authorization},
     TypedHeader,
+    extract::cookie::{Cookie, CookieJar, SameSite},
+    headers::{Authorization, authorization::Bearer},
 };
 use bon::builder;
 use chrono::{TimeDelta, Utc};
 use cookie::CookieBuilder;
 use hmac::{Hmac, KeyInit, Mac};
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode};
 use rand_core::OsRng;
 use regex::Regex;
 use sha2::Sha256;
 use time::Duration;
 
 /// Helper function to check if a user is admin
-pub fn is_user_admin(
+pub async fn is_user_admin(
+    state: &Arc<ComhairleState>,
     user: &crate::models::users::User,
-    config: &crate::config::ComhairleConfig,
 ) -> bool {
+    // Check if the user has the system admin role
+    if has_resource_permission(
+        &state,
+        SystemAdminRole::make_system_triplet(),
+        &user.id,
+        user.organization_id.as_ref(),
+    )
+    .await
+    .unwrap_or(false) {
+        return true;
+    }
+
     let re = Regex::new(r"^test(?:[1-9]|10)@crown-shy\.com$").unwrap();
-    if let (Some(admin_users), Some(email)) = (&config.admin_users, &user.email) {
+    if let (Some(admin_users), Some(email)) = (&state.config.admin_users, &user.email) {
         let downcase_admin_users: Vec<String> =
             admin_users.iter().map(|a| a.to_lowercase()).collect();
         return downcase_admin_users.contains(&email.to_lowercase())
@@ -43,26 +51,23 @@ pub fn is_user_admin(
     false
 }
 use schemars::JsonSchema;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::json;
 use std::marker::PhantomData;
 use std::{collections::HashMap, sync::Arc};
 use tracing::{instrument, warn};
 use uuid::Uuid;
 
-use crate::{
-    error::ComhairleError,
-    models::{
-        api_key, otp,
-        users::{
-            self, create_annon_user, create_otp_user, create_user, get_user_by_email,
-            get_user_by_id, get_user_by_username, get_user_resource_roles, update_user, Resource,
-            Role, UpdateUserRequest, User, UserAuthType, UserResourceRole,
-        },
-    },
-    routes::user::dto::UserDto,
-    ComhairleState,
+use crate::{error::ComhairleError, models::permissions::{ExtractResourceId, GrantRoleRequest, SystemAdminRole, SystemResourceRole, UserOrOrganizationId, grant_role}};
+use crate::models::permissions::{has_resource_permission, ResourceRole};
+use crate::models::users::{
+    self, create_annon_user, create_otp_user, create_user, get_user_by_email, get_user_by_id,
+    get_user_by_username, get_user_resource_roles, update_user, Resource, Role, UpdateUserRequest,
+    User, UserAuthType, UserResourceRole,
 };
+use crate::models::{api_key, otp};
+use crate::routes::user::dto::UserDto;
+use crate::ComhairleState;
 
 #[cfg(test)]
 use fake::Dummy;
@@ -283,7 +288,6 @@ pub struct SignupRequest {
 }
 
 /// Signup handler
-
 #[instrument(err(Debug), skip(state, payload))]
 async fn signup(
     State(state): State<Arc<ComhairleState>>,
@@ -296,6 +300,21 @@ async fn signup(
     let user = create_user(&payload, &state.db).await?;
 
     send_verification_email(&user, &state)?;
+
+    if let Some(admin_users) = &state.config.admin_users {
+        if admin_users.contains(&user.email.clone().unwrap_or_default()) {
+            grant_role(
+                &state,
+                GrantRoleRequest {
+                    actor_id: UserOrOrganizationId::User(&user.id),
+                    permission_triplet: SystemAdminRole::make_system_triplet(),
+                    grant_reason: "Admin signup",
+                    granted_by: &user.id,
+                },
+            )
+            .await?;
+        }
+    }
 
     let cookie = create_session_cookie(&user, &state);
 
@@ -843,6 +862,58 @@ async fn resolve_user_from_request(
     }
 }
 
+/// An extractor to get a required role for the current user and target resource.
+#[derive(OperationIo)]
+pub struct RequiredUserPermission<Role: ResourceRole, Id: ExtractResourceId> {
+    pub user: User,
+    pub _phantom_data: PhantomData<(Role, Id)>,
+}
+
+impl<Role, Id> FromRequestParts<Arc<ComhairleState>> for RequiredUserPermission<Role, Id>
+where
+    Role: ResourceRole,
+    Id: ExtractResourceId,
+{
+    type Rejection = ComhairleError;
+
+    /// Extracts the current user and resource ID from the request, then checks if
+    /// the user has the required role for that resource.
+    ///
+    /// # Errors
+    ///
+    /// * Returns [`ComhairleError::UserRequired`] if no user is logged in.
+    /// * Returns [`ComhairleError::ResourceNotFound`] if the resource ID cannot be
+    ///   extracted from the request.
+    /// * Returns [`ComhairleError::UserNotAuthorized`] if the user does not have
+    ///   the required role.
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &Arc<ComhairleState>,
+    ) -> Result<Self, Self::Rejection> {
+        let user = resolve_user_from_request(parts, state).await?;
+
+        let id = Id::from_request_parts(parts, state).await.map_err(|_| {
+            ComhairleError::ResourceNotFound("Path must contain a resource id".to_string())
+        })?;
+
+        if has_resource_permission(
+            &state,
+            Role::make_triplet(&id.resource_id()),
+            &user.id,
+            user.organization_id.as_ref(),
+        )
+        .await?
+        {
+            Ok(RequiredUserPermission {
+                user,
+                _phantom_data: PhantomData,
+            })
+        } else {
+            Err(ComhairleError::UserNotAuthorized)
+        }
+    }
+}
+
 /// An extractor to get a required current user.
 /// If no user is logged in then this will fail and
 /// Return a Not Found response
@@ -858,7 +929,7 @@ impl FromRequestParts<Arc<ComhairleState>> for RequiredAdminUser {
     ) -> Result<Self, Self::Rejection> {
         let user = resolve_user_from_request(parts, state).await?;
 
-        if is_user_admin(&user, &state.config) {
+        if is_user_admin(&state, &user).await {
             Ok(RequiredAdminUser(user.clone()))
         } else {
             Err(ComhairleError::RequiresAuthUser)
@@ -1210,16 +1281,16 @@ mod tests {
             model_test_helpers::setup_default_app_and_session,
             otp,
             users::{
-                self, add_user_resource_role, get_user_by_email, Resource, Role, UpdateUserRequest,
-                User, UserAuthType,
+                self, Resource, Role, UpdateUserRequest, User, UserAuthType,
+                add_user_resource_role, get_user_by_email,
             },
         },
         routes::{
-            auth::{generate_jwt, EmailLinkClaims, SessionClaims},
+            auth::{EmailLinkClaims, SessionClaims, generate_jwt},
             user::dto::UserDto,
         },
         setup_server,
-        test_helpers::{test_state, UserSession, TEST_PASSWORD},
+        test_helpers::{TEST_PASSWORD, UserSession, test_state},
     };
 
     use argon2::{Argon2, PasswordHash, PasswordVerifier};

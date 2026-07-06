@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use aide::axum::{
-    routing::{delete_with, get_with, post_with},
     ApiRouter,
+    routing::{delete_with, get_with, post_with},
 };
 use axum::{
     body::Body,
@@ -16,6 +16,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     bot_service::{ComhairleDocument, GetQueryParams, UploadFileRequest},
     error::ComhairleError,
     models::{
@@ -23,9 +24,8 @@ use crate::{
         job::{self, CreateJob},
         user_participation,
     },
-    routes::auth::{is_user_admin, OptionalUser, RequiredAdminUser},
+    routes::auth::{OptionalUser, RequiredAdminUser, is_user_admin},
     worker_service::process_documents::DocumentJob,
-    ComhairleState,
 };
 
 /// Not sure if this is the desired behaviour. I made a few assumptions:
@@ -48,7 +48,7 @@ async fn require_conversation_document_access(
         return Err(ComhairleError::UserNotAuthorized);
     };
 
-    if is_user_admin(user, &state.config) {
+    if is_user_admin(&state, user).await {
         return Ok(());
     }
 
@@ -256,7 +256,7 @@ async fn get_knowledge_base_id(
             return Err(ComhairleError::CorruptedData(format!(
                 "Missing knowledge_base_id on conversation {}",
                 conversation.id
-            )))
+            )));
         }
     };
 
@@ -359,7 +359,7 @@ mod tests {
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
     use crate::test_helpers::test_state;
     use crate::{setup_server, test_helpers::UserSession};
-    use axum::{body::Body, http::StatusCode, Router};
+    use axum::{Router, body::Body, http::StatusCode};
     use mockall::predicate::eq;
     use serde_json::json;
     use sqlx::PgPool;

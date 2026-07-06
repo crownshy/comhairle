@@ -5,13 +5,13 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::{
+    ComhairleState,
     categorization_service::Comment,
     models::{
         audio_recording::{self, AudioRecordingStatus},
         job,
     },
     transcription_service::Transcription,
-    ComhairleState,
 };
 
 use super::error::{RecordWorkerError, Result, WorkerServiceError};
@@ -229,8 +229,8 @@ mod tests {
     use sqlx::PgPool;
 
     use crate::{
-        bulk_storage_service::{s3_storage::S3StorageService, BulkStorageService},
-        categorization_service::{tttc_categorizer::TttcCategorizer, CategorizationService},
+        bulk_storage_service::{BulkStorageService, s3_storage::S3StorageService},
+        categorization_service::{CategorizationService, tttc_categorizer::TttcCategorizer},
         config::TranscriptionServiceConfig,
         test_helpers::{test_config, test_state},
         transcription_service::amazon_transcriber::AmazonTranscriber,

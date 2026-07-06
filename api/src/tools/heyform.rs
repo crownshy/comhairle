@@ -3,15 +3,15 @@ use std::sync::Arc;
 use aide::axum::ApiRouter;
 use async_trait::async_trait;
 use heyform_sdk::{
-    client::HeyFormClient, CreateFormInput, CreateHiddenFieldInput, CreateTeamInput, FormKind,
-    InteractiveMode, LoginInput, SignUpInput,
+    CreateFormInput, CreateHiddenFieldInput, CreateTeamInput, FormKind, InteractiveMode,
+    LoginInput, SignUpInput, client::HeyFormClient,
 };
-use rand::{distributions::Alphanumeric, seq::SliceRandom, thread_rng, Rng};
+use rand::{Rng, distributions::Alphanumeric, seq::SliceRandom, thread_rng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{error::ComhairleError, ComhairleState};
+use crate::{ComhairleState, error::ComhairleError};
 
 use super::{ToolConfigSanitize, ToolImpl};
 
