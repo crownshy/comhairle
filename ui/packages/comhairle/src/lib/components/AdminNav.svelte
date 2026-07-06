@@ -6,7 +6,6 @@
 	import {
 		Info,
 		LayoutDashboard,
-		Plus,
 		Settings,
 		Home,
 		Mail,
@@ -14,6 +13,7 @@
 		PanelLeftOpen
 	} from 'lucide-svelte';
 	import { Button } from './ui/button';
+	import NewConversationButton from './NewConversationButton.svelte';
 	import { userInitials } from '$lib/utils';
 	import ComhairleLogo from './ComhairleLogo.svelte';
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
@@ -218,14 +218,10 @@
 	</SideBar.Content>
 
 	<div class="shrink-0 px-7 group-data-[collapsible=icon]:px-2">
-		<Button
-			href="/admin/conversations/new"
+		<NewConversationButton
 			class="w-full group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:p-0"
-			variant="default"
-		>
-			<Plus class="size-4" />
-			<span class="group-data-[collapsible=icon]:hidden">New conversation</span>
-		</Button>
+			labelClass="group-data-[collapsible=icon]:hidden"
+		/>
 	</div>
 
 	<SideBar.Footer>
