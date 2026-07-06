@@ -13,10 +13,12 @@
 	const { type, alt, ...props }: Props = $props();
 </script>
 
-<div class="container aspect-video max-w-96 items-center overflow-hidden rounded-lg bg-gray-600">
-	<div class="justify-self-center">
+<div
+	class="background container aspect-video max-w-96 items-center overflow-hidden rounded-lg bg-gray-600"
+>
+	<div class="media-background justify-self-center overflow-hidden">
 		{#snippet placeholder(Icon: ComponentType<Icon>)}
-			<Icon size={50} />
+			<Icon size={78} strokeWidth={1.7} />
 		{/snippet}
 		{#if type === 'audio'}
 			<!-- <audio {src} controls autoplay={false} class="h-full w-full"></audio> -->
@@ -27,7 +29,7 @@
 			<!-- > -->
 			{@render placeholder(Video)}
 		{:else}
-			<img src={props.url} {alt} class="aspect-video max-h-28 object-contain" />
+			<img src={props.url} {alt} class="aspect-video max-h-32 object-contain" />
 		{/if}
 	</div>
 	<div class="bg-primary text-primary-foreground self-stretch px-5 py-2">
@@ -41,5 +43,18 @@
 		grid-template-rows: 4fr 1fr;
 		grid-template-columns: 1fr;
 		border: 2px solid var(--selected, 'transparent');
+	}
+	.background {
+		--size: 24px;
+		--bg-color: oklch(0.4 5% 270);
+		--bg-alt-color: oklch(from var(--bg-color) calc(l * 0.85) c h);
+
+		background: repeating-conic-gradient(
+				var(--bg-color) 0%,
+				var(--bg-color) 25%,
+				var(--bg-alt-color) 0%,
+				var(--bg-alt-color) 50%
+			)
+			50% center / var(--size) var(--size);
 	}
 </style>

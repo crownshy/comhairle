@@ -39,7 +39,7 @@
 		translate: 0px 0px;
 
 		&:is(:focus, :hover) {
-			translate: 0px -4px;
+			translate: 0px -3px;
 		}
 	}
 </style>
