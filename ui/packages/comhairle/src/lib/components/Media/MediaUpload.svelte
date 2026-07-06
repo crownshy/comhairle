@@ -12,7 +12,7 @@
 
 	interface Props extends Omit<ComponentProps<typeof Button>, 'onclick'> {
 		clientSide?: boolean;
-		oncomplete?: (urls: string[]) => void;
+		oncomplete?: (media: MediaDto[]) => void;
 	}
 	const { clientSide, oncomplete, ...props }: Props = $props();
 
@@ -29,7 +29,7 @@
 			if (!rawFiles) return;
 			// FIX: Check why the erroring here is incorrect
 			const response = await media.upload('/api/media', Media.sanitiseMulti(rawFiles));
-			const urls: string[] = [];
+			const newMedia: MediaDto[] = [];
 			for (const res of response) {
 				if (res.err !== null) {
 					notifications.send({
@@ -43,15 +43,15 @@
 					// NOTE: Data might be uploaded but wouldn't count as uploaded if the response can't be parsed, probably need to fix at some point
 					continue;
 				}
-				urls.push((result.ok as MediaDto).url);
+				newMedia.push(result.ok as MediaDto);
 			}
-			if (urls.length > 0) {
+			if (newMedia.length > 0) {
 				notifications.send({
-					message: `${urls.length} files uploaded`,
+					message: `${newMedia.length} files uploaded`,
 					priority: 'SUCCESS'
 				});
 			}
-			oncomplete?.(urls);
+			oncomplete?.(newMedia);
 			return;
 		}
 		uploadForm?.submit();

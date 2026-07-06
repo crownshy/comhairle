@@ -1,5 +1,11 @@
 <script lang="ts" module>
 	let cache: MediaDto[] | null = null;
+
+	export function addToCache(media: MediaDto): void {
+		if (cache !== null) {
+			cache.push(media);
+		}
+	}
 </script>
 
 <script lang="ts">
