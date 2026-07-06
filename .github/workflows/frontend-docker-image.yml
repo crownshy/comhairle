@@ -1,88 +1,34 @@
 name: build-frontend-docker
 
 on:
-  push:
-    tags:
-      - 'v*'  # Runs only when a new tag starting with 'v' is pushed
-    branches:
-      - staging  # Runs when there is an update to the staging branch
   workflow_dispatch:  # Allows manual triggering
+    inputs:
+      dry_run:
+        description: When true, do not push images
+        required: false
+        default: false
+        type: boolean
+  workflow_call:  # Allows workflow to be called by other workflows
+    inputs:
+      dry_run:
+        description: When true, do not push images
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build-and-push-release:
     if: startsWith(github.ref, 'refs/tags/v') && github.ref_type == 'tag'
-    runs-on: ubuntu-latest
-    environment: base 
-    steps:
-      - 
-        name: Set Swap Space 
-        uses: pierotofy/set-swap-space@master
-        with:
-          swap-size-gb: 10
-      -
-        name: Checkout
-        uses: actions/checkout@v4
-      -
-        name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      -
-        name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      -
-        name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      -
-        name: Build and push frotnend
-        uses: docker/build-push-action@v6
-        with:
-          context: ./ui
-          push: true
-          tags: crownshy/comhairle_frontend:${{ github.ref_name }}
+    uses: ./.github/workflows/frontend-build-shared.yml
+    with:
+      tags: crownshy/comhairle_frontend:${{ github.ref_name }}
+      dry_run: ${{ inputs.dry_run || false }}
+    secrets: inherit
           
-  build-and-run-staging:
+  build-and-push-staging:
     if: github.ref == 'refs/heads/staging'
-    runs-on: ubuntu-latest
-    environment: base 
-    steps:
-      - 
-        name: Set Swap Space 
-        uses: pierotofy/set-swap-space@master
-        with:
-          swap-size-gb: 10
-      -
-        name: Checkout
-        uses: actions/checkout@v4
-      -
-        name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      -
-        name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      -
-        name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      -
-        name: Build and push API image (staging)
-        uses: docker/build-push-action@v6
-        with:
-          context: ./ui
-          push: true
-          tags: crownshy/comhairle_frontend:${{github.sha}}
-      - 
-        name: Update GitOps manifests
-        run: |
-            git clone https://${{ secrets.GITOPS_TOKEN }}@github.com/crownshy/helm_charts.git
-            cd helm_charts
-            sed -i "s|docker_tag_frontend:.*|docker_tag_frontend: \"${{ github.sha }}\"|g" comhairle/stage_values.yaml
-            git add .
-            git config --global user.email "stuart.lynn@gmail.com"
-            git config --global user.name "Stuart Lynn"
-            git commit -m "Updating stage frontend image tag to ${{ github.sha }}"
-            git push
-     
+    uses: ./.github/workflows/frontend-build-shared.yml
+    with:
+      tags: crownshy/comhairle_frontend:${{ github.sha }}
+      dry_run: ${{ inputs.dry_run || false }}
+    secrets: inherit

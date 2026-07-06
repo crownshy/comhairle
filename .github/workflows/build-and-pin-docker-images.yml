@@ -1,0 +1,147 @@
+name: build-and-pin-docker-images
+
+on:
+  push:
+    tags:
+        - 'v*'
+    branches:
+      - staging
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: When true, do not push images or pin manifests
+        required: false
+        default: false
+        type: boolean
+      force_pin:
+        description: When true, skip ancestry validation for pinning
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  build-api:
+    uses: ./.github/workflows/api.yml
+    with:
+      dry_run: ${{ github.event.inputs.dry_run == 'true' }}
+    secrets: inherit
+
+  build-frontend:
+    uses: ./.github/workflows/frontend-docker-image.yml
+    with:
+      dry_run: ${{ github.event.inputs.dry_run == 'true' }}
+    secrets: inherit
+
+  #  It looks like we don't pin the release images yet.
+  build-and-push-release:
+    if: startsWith(github.ref, 'refs/tags/v') && github.ref_type == 'tag'
+    needs:
+      - build-api
+      - build-frontend
+    uses: ./.github/workflows/api.yml
+    with:
+      dry_run: ${{ github.event.inputs.dry_run == 'true' }}
+    secrets: inherit
+
+  pin-staging-manifests:
+    if: github.ref == 'refs/heads/staging'
+    needs:
+      - build-api
+      - build-frontend
+    runs-on: ubuntu-latest
+    environment: base
+    permissions:
+      contents: read
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      DRY_RUN: ${{ github.event.inputs.dry_run == 'true' }}
+      FORCE_PIN: ${{ github.event.inputs.force_pin == 'true' }}
+      GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
+      GITOPS_REPO: crownshy/helm_charts
+      GITOPS_FILE_PATH: comhairle/stage_values.yaml
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate ancestry and update pins via GitHub API
+        run: |
+          set -euo pipefail
+
+          API_URL="https://api.github.com/repos/${GITOPS_REPO}"
+          COMMON_HEADERS=(
+            -H "Accept: application/vnd.github+json"
+            -H "Authorization: Bearer ${GITOPS_TOKEN}"
+            -H "X-GitHub-Api-Version: 2022-11-28"
+          )
+
+          # Get existing pins from the downstream repo.
+          repo_info="$(curl -fsSL "${COMMON_HEADERS[@]}" "${API_URL}")"
+          default_branch="$(jq -r '.default_branch' <<<"${repo_info}")"
+
+          content_obj="$(curl -fsSL "${COMMON_HEADERS[@]}" "${API_URL}/contents/${GITOPS_FILE_PATH}?ref=${default_branch}")"
+          current_sha="$(jq -r '.sha' <<<"${content_obj}")"
+          current_text="$(jq -r '.content' <<<"${content_obj}" | tr -d '\n' | base64 -d)"
+
+          current_api_pin="$(printf '%s\n' "${current_text}" | sed -nE 's/^docker_tag_api:\s*"?([0-9a-f]{40})"?\s*$/\1/p' | head -n1)"
+          current_frontend_pin="$(printf '%s\n' "${current_text}" | sed -nE 's/^docker_tag_frontend:\s*"?([0-9a-f]{40})"?\s*$/\1/p' | head -n1)"
+
+          # Validate current pins are ancestors of the new pins before updating.
+          if [[ "${current_api_pin}" == "${SOURCE_SHA}" && "${current_frontend_pin}" == "${SOURCE_SHA}" ]]; then
+            echo "Pins already up to date; no commit needed."
+            exit 0
+          fi
+
+          if [[ "${FORCE_PIN}" != "true" ]]; then
+            if [[ -z "${current_api_pin}" || -z "${current_frontend_pin}" ]]; then
+              echo "Could not find pins in stage values" >&2
+              exit 1
+            fi
+
+            if ! git merge-base --is-ancestor "${current_api_pin}" "${SOURCE_SHA}"; then
+              echo "Refusing to pin api: current pin ${current_api_pin} is not an ancestor of ${SOURCE_SHA}" >&2
+              exit 1
+            fi
+
+            if ! git merge-base --is-ancestor "${current_frontend_pin}" "${SOURCE_SHA}"; then
+              echo "Refusing to pin frontend: current pin ${current_frontend_pin} is not an ancestor of ${SOURCE_SHA}" >&2
+              exit 1
+            fi
+          else
+            echo "force_pin enabled. Skipping pin ancestry validation."
+          fi
+
+          # Create new manifest content with updated pins.
+          updated_text="$(printf '%s\n' "${current_text}" \
+            | awk -v api="${SOURCE_SHA}" -v frontend="${SOURCE_SHA}" '
+                /^docker_tag_api:/      { $0 = "docker_tag_api: \"" api "\"" }
+                /^docker_tag_frontend:/ { $0 = "docker_tag_frontend: \"" frontend "\"" }
+                { print }
+              '
+          )"
+
+          # Push new commit via GitHub API.
+          encoded_content="$(printf '%s' "${updated_text}" | base64 -w 0)"
+
+          update_payload="$(jq -n \
+          --arg message "Pin staging frontend/api images to ${SOURCE_SHA}" \
+          --arg content "${encoded_content}" \
+          --arg sha "${current_sha}" \
+          --arg branch "${default_branch}" \
+          '{
+            message: $message,
+            content: $content,
+            sha: $sha,
+            branch: $branch
+          }')"
+
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            echo "Dry run enabled. Skipping pin commit update."
+            exit 0
+          fi
+
+          curl -fsSL -X PUT "${COMMON_HEADERS[@]}" -d "${update_payload}" "${API_URL}/contents/${GITOPS_FILE_PATH}"
