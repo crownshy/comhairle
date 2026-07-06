@@ -79,7 +79,7 @@
 						<Spinner />
 					{:then data}
 						{#if data.err !== null}
-							<p>{data.err.message}</p>
+							<p>{data.err}</p>
 						{:else}
 							<MediaLibrary data={data.ok}>
 								{#snippet media(type, media)}
