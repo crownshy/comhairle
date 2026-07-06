@@ -1,6 +1,10 @@
 <script lang="ts">
 	import UrlInputPopover from './UrlInputPopover.svelte';
-	import { validateUrl, validateIframeUrl, DEFAULT_ALLOWED_DOMAINS } from '$lib/utils/urlValidation';
+	import {
+		validateUrl,
+		validateIframeUrl,
+		DEFAULT_ALLOWED_DOMAINS
+	} from '$lib/utils/urlValidation';
 
 	type ValidationType = 'url' | 'image' | 'video';
 
@@ -61,7 +65,7 @@
 		{buttonText}
 		onSubmit={handleSubmit}
 		onOpenChange={(open) => (isOpen = open)}
-		validateFn={validateFn}
+		{validateFn}
 	>
 		<button type="button" class={buttonStyle}>
 			{buttonLabel}

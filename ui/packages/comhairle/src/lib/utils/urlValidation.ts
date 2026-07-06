@@ -13,10 +13,9 @@ export const urlSchema = z
 	.max(MAX_URL_LENGTH)
 	.url()
 	.refine((url) => url.startsWith('https://'), { message: 'URL must use HTTPS' })
-	.refine(
-		(url) => !DANGEROUS_PROTOCOLS.some((p) => url.toLowerCase().startsWith(p)),
-		{ message: 'Dangerous protocol detected' }
-	);
+	.refine((url) => !DANGEROUS_PROTOCOLS.some((p) => url.toLowerCase().startsWith(p)), {
+		message: 'Dangerous protocol detected'
+	});
 
 /**
  * Validates a URL string for security and format.
@@ -94,5 +93,6 @@ export const DEFAULT_ALLOWED_DOMAINS = [
 	'*.youtube.com',
 	'youtu.be',
 	'vimeo.com',
-	'player.vimeo.com'
+	'player.vimeo.com',
+	'comhairle-media-test.s3.amazonaws.com'
 ];

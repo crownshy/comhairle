@@ -44,11 +44,6 @@
 	let menuExpanded = $state(false);
 	let previousValue = $state<string>();
 
-	let showLinkPopover = $state(false);
-	let showImagePopover = $state(false);
-	let showVideoPopover = $state(false);
-	let showDocumentPopover = $state(false);
-
 	let isCompact = $derived(containerWidth < 600);
 
 	let activeStates = $state<ActiveStates>({
@@ -219,18 +214,10 @@
 		<EditorToolbar
 			{editor}
 			{activeStates}
-			bind:showLinkPopover
-			bind:showImagePopover
-			bind:showVideoPopover
-			bind:showDocumentPopover
 			documents={availableDocuments}
 			{menuExpanded}
 			compact={isCompact}
 			onToggleMenu={() => (menuExpanded = !menuExpanded)}
-			onLinkPopoverChange={(open) => (showLinkPopover = open)}
-			onImagePopoverChange={(open) => (showImagePopover = open)}
-			onVideoPopoverChange={(open) => (showVideoPopover = open)}
-			onDocumentPopoverChange={(open) => (showDocumentPopover = open)}
 		/>
 	{/if}
 

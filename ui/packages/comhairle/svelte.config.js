@@ -7,7 +7,8 @@ const TRUSTED_SOURCES = [
 	'https://polis.comhairle.scot',
 	'https://www.youtube.com',
 	'https://youtube.com',
-	'https://www.youtube-nocookie.com'
+	'https://www.youtube-nocookie.com',
+	'https://comhairle-media-test.s3.amazonaws.com'
 ];
 
 /** @type {import('@sveltejs/kit').Config} */

@@ -26,7 +26,7 @@
 	<AdminNav user={data.user} conversations={conversations.records} path={page.url.pathname} />
 	<SideBar.Inset>
 		<SidebarFloatingTriggers />
-		<main class="bg-muted flex flex-grow flex-col overflow-y-auto">
+		<main class="bg-muted flex grow flex-col overflow-y-auto">
 			{@render children()}
 		</main>
 	</SideBar.Inset>
