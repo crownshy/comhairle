@@ -1,6 +1,6 @@
 use crate::models::email_template_config::{
     self, MailerContextMap, SCHEMA_CONVERSATION_INVITE, SCHEMA_EVENT_REGISTRATION_CONFIRMATION,
-    SCHEMA_EVENT_REGISTRATION_INVITE,
+    SCHEMA_EVENT_REGISTRATION_INVITE, SCHEMA_EVENT_REMINDER,
 };
 use crate::models::event::{self, ResolveTimeZone};
 use crate::models::users::{self, User};
@@ -308,7 +308,7 @@ impl ComhairleMailer for Mailer {
         let slots_map = email_config
             .as_ref()
             .map(|ec| ec.slots.mailer_context_map())
-            .unwrap_or(SCHEMA_CONVERSATION_INVITE.slots.mailer_context_map());
+            .unwrap_or_else(|| SCHEMA_CONVERSATION_INVITE.slots.mailer_context_map());
 
         let rendered_map = self.resolve_slots_map(&conversation_context, &slots_map)?;
 
@@ -435,7 +435,7 @@ impl ComhairleMailer for Mailer {
         let slots_map = email_config
             .as_ref()
             .map(|ec| ec.slots.mailer_context_map())
-            .unwrap_or(SCHEMA_EVENT_REGISTRATION_INVITE.slots.mailer_context_map());
+            .unwrap_or_else(|| SCHEMA_EVENT_REGISTRATION_INVITE.slots.mailer_context_map());
 
         let rendered_map = self.resolve_slots_map(&event_context, &slots_map)?;
 
@@ -449,7 +449,7 @@ impl ComhairleMailer for Mailer {
         self.send_email(
             email,
             &subject,
-            "event_registration_invite.html",
+            SCHEMA_EVENT_REGISTRATION_INVITE.template,
             context,
             None,
         )
@@ -498,11 +498,11 @@ impl ComhairleMailer for Mailer {
         let slots_map = email_config
             .as_ref()
             .map(|ec| ec.slots.mailer_context_map())
-            .unwrap_or(
+            .unwrap_or_else(|| {
                 SCHEMA_EVENT_REGISTRATION_CONFIRMATION
                     .slots
-                    .mailer_context_map(),
-            );
+                    .mailer_context_map()
+            });
 
         let rendered_map = self.resolve_slots_map(&event_context, &slots_map)?;
 
@@ -516,7 +516,7 @@ impl ComhairleMailer for Mailer {
         self.send_email(
             email,
             &subject,
-            "event_confirmation.html",
+            SCHEMA_EVENT_REGISTRATION_CONFIRMATION.template,
             context,
             Some(calendar_invite),
         )
@@ -528,7 +528,7 @@ impl ComhairleMailer for Mailer {
         email: &str,
         event_id: Uuid,
         recipient_id: Uuid,
-        _sender_id: Uuid,
+        sender_id: Uuid,
         locale: &str,
     ) -> Result<(), ComhairleError> {
         let event = event::get_localized_by_id(&state.db, &event_id, locale).await?;
@@ -573,16 +573,44 @@ impl ComhairleMailer for Mailer {
             event.end_time,
         )?;
 
+        let event_context = context! {
+            event_name => event.name,
+            event_time => event.format_date_with_time_zone(event.start_time, None),
+            event_link => otp_link,
+        };
+
+        let email_config = email_template_config::get_by_type_user(
+            &state.db,
+            sender_id,
+            &SCHEMA_EVENT_REMINDER.email_type,
+        )
+        .await?;
+
+        let subject = email_config
+            .as_ref()
+            .and_then(|ec| ec.subject.as_deref())
+            .unwrap_or(SCHEMA_EVENT_REMINDER.default_subject);
+        let subject = self.template_engine.render_str(subject, &event_context)?;
+
+        let slots_map = email_config
+            .as_ref()
+            .map(|ec| ec.slots.mailer_context_map())
+            .unwrap_or_else(|| SCHEMA_EVENT_REMINDER.slots.mailer_context_map());
+
+        let rendered_map = self.resolve_slots_map(&event_context, &slots_map)?;
+
+        let context = context! {
+            event_name => event.name,
+            event_time => event.format_date_with_time_zone(event.start_time, None),
+            event_link => otp_link,
+            ..rendered_map
+        };
+
         self.send_email(
             email,
-            "Upcoming event reminder",
-            "event_reminder.html",
-            context! {
-                event_name => event.name,
-                event_time => event.format_date_with_time_zone(event.start_time, None),
-                organization_name => "Bloom", // TODO:
-                event_link => otp_link,
-            },
+            &subject,
+            SCHEMA_EVENT_REMINDER.template,
+            context,
             Some(calendar_invite),
         )
     }

@@ -48,6 +48,7 @@ pub enum EmailType {
     ConversationInvite,
     EventRegistrationInvite,
     EventRegistrationConfirmation,
+    EventReminder,
 }
 
 impl From<EmailType> for sea_query::Value {
@@ -62,6 +63,7 @@ impl std::fmt::Display for EmailType {
             EmailType::ConversationInvite => "conversation_invite",
             EmailType::EventRegistrationInvite => "event_registration_invite",
             EmailType::EventRegistrationConfirmation => "event_registration_confirmation",
+            EmailType::EventReminder => "event_reminder",
         };
         write!(f, "{}", value)
     }
@@ -119,6 +121,7 @@ pub enum EmailTemplateSlots {
     ConversationInvite(DefaultEmailSlots),
     EventRegistrationInvite(DefaultEmailSlots),
     EventRegistrationConfirmation(DefaultEmailSlots),
+    EventReminder(DefaultEmailSlots),
 }
 
 impl EmailTemplateSlots {
@@ -135,6 +138,7 @@ impl EmailTemplateSlots {
             EmailTemplateSlots::EventRegistrationInvite(DefaultEmailSlots::default()).schema(),
             EmailTemplateSlots::EventRegistrationConfirmation(DefaultEmailSlots::default())
                 .schema(),
+            EmailTemplateSlots::EventReminder(DefaultEmailSlots::default()).schema(),
         ]
     }
 
@@ -146,6 +150,7 @@ impl EmailTemplateSlots {
             EmailTemplateSlots::EventRegistrationConfirmation(_) => {
                 SCHEMA_EVENT_REGISTRATION_CONFIRMATION
             }
+            EmailTemplateSlots::EventReminder(_) => SCHEMA_EVENT_REMINDER,
         }
     }
 
@@ -170,6 +175,7 @@ impl EmailTemplateSlots {
             EmailTemplateSlots::ConversationInvite(slots) => slots.mailer_context_map(),
             EmailTemplateSlots::EventRegistrationInvite(slots) => slots.mailer_context_map(),
             EmailTemplateSlots::EventRegistrationConfirmation(slots) => slots.mailer_context_map(),
+            EmailTemplateSlots::EventReminder(slots) => slots.mailer_context_map(),
         }
     }
 
@@ -203,6 +209,17 @@ impl EmailTemplateSlots {
                 ),
             ]),
             EmailTemplateSlots::EventRegistrationInvite(_) => HashMap::from([
+                (
+                    "event_name".to_string(),
+                    "Prioritising accessibility in websites".to_string(),
+                ),
+                ("event_time".to_string(), "24 May, 2026".to_string()),
+                (
+                    "event_link".to_string(),
+                    "https://crown-shy.com/event".to_string(),
+                ),
+            ]),
+            EmailTemplateSlots::EventReminder(_) => HashMap::from([
                 (
                     "event_name".to_string(),
                     "Prioritising accessibility in websites".to_string(),
@@ -343,7 +360,7 @@ pub const SCHEMA_EVENT_REGISTRATION_INVITE: EmailTypeSchema = EmailTypeSchema {
             key: "footer",
             label: "Footer",
             hint: "Closing line",
-            default_content: "<p>We look forward to your participation!</p><p><strong>CrownShy</strong></p>",
+            default_content: "<p>For any questions, please contact us at<br /><a href=\"mailto:team@crown-shy.com\">team@crown-shy.com</a></p><p><p>We look forward to your participation!</p><p><strong>CrownShy</strong></p>",
             content_type: ContentType::RichText,
         },
     ],
@@ -380,7 +397,44 @@ pub const SCHEMA_EVENT_REGISTRATION_CONFIRMATION: EmailTypeSchema = EmailTypeSch
             key: "footer",
             label: "Footer",
             hint: "Closing line",
-            default_content: "<p>We look forward to seeing you there!</p><p><strong>CrownShy</strong></p>",
+            default_content: "<p>For any questions, please contact us at<br /><a href=\"mailto:team@crown-shy.com\">team@crown-shy.com</a></p><p><p>We look forward to seeing you there!</p><p><strong>CrownShy</strong></p>",
+            content_type: ContentType::RichText,
+        },
+    ],
+};
+
+pub const SCHEMA_EVENT_REMINDER: EmailTypeSchema = EmailTypeSchema {
+    email_type: EmailType::EventReminder,
+    template: "event_reminder.html",
+    default_subject: "Upcoming event reminder",
+    variables: &["event_name", "event_time", "event_link"],
+    slots: &[
+        SlotSchemaDefinition {
+            key: "heading",
+            label: "Heading",
+            hint: "The email heading",
+            default_content: "Reminder!",
+            content_type: ContentType::PlainText,
+        },
+        SlotSchemaDefinition {
+            key: "intro",
+            label: "Intro",
+            hint: "Opening paragraph",
+            default_content: "<p>An event you recently registered for is starting soon.</p>",
+            content_type: ContentType::RichText,
+        },
+        SlotSchemaDefinition {
+            key: "body",
+            label: "Body",
+            hint: "Main email content",
+            default_content: "<p><strong>{{event_name}}</strong> will begin at {{event_time}}. Click the button below to join the event.</p>",
+            content_type: ContentType::RichText,
+        },
+        SlotSchemaDefinition {
+            key: "footer",
+            label: "Footer",
+            hint: "Closing line",
+            default_content: "<p>For any questions, please contact us at<br /><a href=\"mailto:team@crown-shy.com\">team@crown-shy.com</a></p><p>We look forward to seeing you there!</p><p><strong>CrownShy</strong></p>",
             content_type: ContentType::RichText,
         },
     ],
