@@ -27,7 +27,6 @@ export type DisplayStep = {
 
 export type TemplateBadge = {
 	label: string;
-	/** Tailwind background class, matching the design tokens. */
 	class: string;
 };
 
