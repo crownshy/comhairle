@@ -11,7 +11,7 @@
 	} from '$lib/utils/urlValidation';
 	import { capitalise } from '$lib/utils/string';
 	import { MediaUpload } from '$lib/components/Media';
-	import MediaLibraryDialog from './MediaLibraryDialog.svelte';
+	import MediaLibraryDialog, { addToCache } from './MediaLibraryDialog.svelte';
 
 	type Props = {
 		type: 'audio' | 'image' | 'video' | 'link';
@@ -118,9 +118,10 @@
 					<MediaUpload
 						clientSide
 						size="sm"
-						oncomplete={(urls) => {
-							for (const url of urls) {
-								onSubmit(url);
+						oncomplete={(media) => {
+							for (const m of media) {
+								addToCache(m);
+								onSubmit(m.url);
 							}
 							open = false;
 						}}
