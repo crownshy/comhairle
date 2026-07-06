@@ -99,7 +99,7 @@
 										/>
 										<MediaItem
 											{type}
-											src={media.url}
+											{...media}
 											alt=""
 											--selected={url === media.url && 'var(--ring)'}
 										/>

@@ -20,7 +20,7 @@
 		{#each data as d (d.id)}
 			{@const type = htmlFromMediaType(d.contentType)}
 			{#if type}
-				<li class="relative overflow-hidden rounded-sm">
+				<li class="relative">
 					{@render media(type, d)}
 				</li>
 			{/if}
@@ -35,11 +35,11 @@
 	}
 
 	li {
-		transition: all 300ms ease-out;
+		transition: translate 150ms ease-out;
+		translate: 0px 0px;
 
 		&:is(:focus, :hover) {
-			filter: brightness(85%);
-			transform: scale(1.01);
+			translate: 0px -4px;
 		}
 	}
 </style>
