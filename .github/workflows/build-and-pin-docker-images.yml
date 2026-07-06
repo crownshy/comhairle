@@ -1,0 +1,69 @@
+name: build-and-pin-docker-images
+
+on:
+  push:
+    tags:
+        - 'v*'
+    branches:
+      - staging
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: When true, do not push images or pin manifests
+        required: false
+        default: false
+        type: boolean
+      force_pin:
+        description: When true, skip ancestry validation for pinning
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  # Builds release images (:<tag> + :latest) on tag pushes and staging images
+  # (:<sha> + :staging) on staging pushes; the release/staging split is gated
+  # inside each reusable workflow.
+  build-api:
+    uses: ./.github/workflows/api.yml
+    with:
+      dry_run: ${{ github.event.inputs.dry_run == 'true' }}
+    secrets: inherit
+
+  build-frontend:
+    uses: ./.github/workflows/frontend-docker-image.yml
+    with:
+      dry_run: ${{ github.event.inputs.dry_run == 'true' }}
+    secrets: inherit
+
+  pin-staging-manifests:
+    if: github.ref == 'refs/heads/staging'
+    needs:
+      - build-api
+      - build-frontend
+    uses: ./.github/workflows/pin-images-shared.yml
+    with:
+      gitops_file_path: comhairle/stage_values.yaml
+      pin_ref: ${{ github.sha }}
+      pin_keys: docker_tag_api docker_tag_frontend
+      commit_message: Pin staging frontend/api images to ${{ github.sha }}
+      dry_run: ${{ github.event.inputs.dry_run == 'true' }}
+      force_pin: ${{ github.event.inputs.force_pin == 'true' }}
+    secrets: inherit
+
+  pin-prod-manifests:
+    if: startsWith(github.ref, 'refs/tags/v') && github.ref_type == 'tag'
+    needs:
+      - build-api
+      - build-frontend
+    uses: ./.github/workflows/pin-images-shared.yml
+    with:
+      gitops_file_path: comhairle/prod_values.yaml
+      pin_ref: ${{ github.ref_name }}
+      pin_keys: docker_tag docker_tag_api docker_tag_frontend
+      commit_message: Pin prod frontend/api images to ${{ github.ref_name }}
+      dry_run: ${{ github.event.inputs.dry_run == 'true' }}
+      force_pin: ${{ github.event.inputs.force_pin == 'true' }}
+    secrets: inherit

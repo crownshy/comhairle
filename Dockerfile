@@ -24,25 +24,20 @@ RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/li
 COPY --from=planner /workspace/recipe.json recipe.json
 
 # Build dependencies - this layer is cached unless dependencies change
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
-    --mount=type=cache,target=/workspace/target \
-    cargo chef cook --release --recipe-path recipe.json --package comhairle_api && \
-    # Copy the built dependencies out of the cache mount
-    mkdir -p /tmp/target && \
-    cp -r target/release/deps /tmp/target/ && \
-    cp -r target/release/build /tmp/target/ 2>/dev/null || true
+RUN --mount=type=cache,target=/usr/local/cargo/registry,id=cargo-registry \
+    --mount=type=cache,target=/usr/local/cargo/git,id=cargo-git \
+    --mount=type=cache,target=/workspace/target,id=cargo-target \
+    cargo chef cook --release --recipe-path recipe.json --package comhairle_api
 
 # Copy source code
 COPY . .
 
-# Restore built dependencies
-RUN cp -r /tmp/target/* target/release/ 2>/dev/null || true
-
-# Build the application
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git \
-    cargo build --release --package comhairle_api
+# Build the application and copy the binary out of the cache mount
+RUN --mount=type=cache,target=/usr/local/cargo/registry,id=cargo-registry \
+    --mount=type=cache,target=/usr/local/cargo/git,id=cargo-git \
+    --mount=type=cache,target=/workspace/target,id=cargo-target \
+    cargo build --release --package comhairle_api && \
+    cp /workspace/target/release/comhairle_api /workspace/comhairle_api
 
 # ---- Production Stage ----
 FROM debian:bookworm-slim AS production
@@ -52,7 +47,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y libssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Copy the compiled binary from the builder stage
-COPY --from=builder /workspace/target/release/comhairle_api .
+COPY --from=builder /workspace/comhairle_api .
 
 # Expose the service port (adjust if needed)
 EXPOSE 3000

@@ -328,6 +328,11 @@ pub enum ComhairleError {
     #[error("Unsupported Content-Type: {0}")]
     UnsupportedContentType(String),
 
+    #[error("Redis error: {0}")]
+    RedisError(String),
+
+    #[error("Deserialization error: {0}")]
+    DeserializationError(String),
     #[error("Role '{0}' is already granted on this resource")]
     RoleAlreadyGranted(String),
 
