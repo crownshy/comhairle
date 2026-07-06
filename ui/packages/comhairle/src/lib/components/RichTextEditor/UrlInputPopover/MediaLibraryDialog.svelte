@@ -9,7 +9,7 @@
 	import MediaLibrary from '$lib/components/Media/MediaLibrary.svelte';
 	import MediaItem from '$lib/components/Media/MediaItem.svelte';
 	import type { MediaDto } from '@crownshy/api-client/api';
-	import { tryCatchAsync, type FetchErr, type Result } from '$lib/utils/errorHandling';
+	import { tryCatchAsync, type Result } from '$lib/utils/errorHandling';
 	import Spinner from '$lib/components/ui/spinner/spinner.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 
