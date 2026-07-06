@@ -57,8 +57,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         &config.mailer.password,
     ));
 
+    // Setup Websocket service
+    let websockets =
+        Arc::new(ComhairleWebSocketService::new(config.websocket_service.as_ref()).await?);
+
     // Setup Translation Service
-    //
     let translation_service =
         config
             .translator
@@ -79,9 +82,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     } else {
         None
     };
-
-    // Setup Websocket service
-    let websockets = Arc::new(ComhairleWebSocketService::new());
 
     // Setup Transcription Service
     let transcription_service = match &config.transcription_service {
