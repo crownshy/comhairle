@@ -75,9 +75,10 @@
 	const timeZone = getLocalTimeZone();
 	const [startDate, _startTimeWithZone] = $derived(event.startTime.split('T'));
 	const [, _endTimeWithZone] = $derived(event.endTime.split('T'));
-	const availableTimeZones = Array.from(
-		new Set(['UTC', ...Intl.supportedValuesOf('timeZone')])
-	).map((tz) => ({ value: tz, label: tz }));
+	const availableTimeZones = Intl.supportedValuesOf('timeZone').map((tz) => ({
+		value: tz,
+		label: tz
+	}));
 
 	const eventForm = superForm(
 		{
@@ -518,7 +519,7 @@
 				<Form.Field form={eventForm} name="end_time" class="contents">
 					<Form.FieldErrors class="text-destructive text-sm" />
 				</Form.Field>
-				{#if $form.default_time_zone !== 'UTC'}
+				{#if $form.default_time_zone !== 'Europe/London'}
 					<div class="text-muted-foreground flex gap-2">
 						<span>{$form.default_time_zone}</span>
 						<span>-</span>
