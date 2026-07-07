@@ -50,7 +50,8 @@ pub struct Conversation {
     pub description: TextContentId,
     #[partially(transparent)]
     pub video_url: Option<String>,
-    pub image_url: String,
+    #[partially(transparent)]
+    pub image: Option<Uuid>,
     pub tags: Vec<String>,
     pub is_public: bool,
     pub is_live: bool,
@@ -93,7 +94,7 @@ const DEFAULT_COLUMNS: [ConversationIden; 29] = [
     ConversationIden::ShortDescription,
     ConversationIden::Description,
     ConversationIden::VideoUrl,
-    ConversationIden::ImageUrl,
+    ConversationIden::Image,
     ConversationIden::Tags,
     ConversationIden::IsPublic,
     ConversationIden::IsLive,
@@ -134,8 +135,8 @@ impl PartialConversation {
         if let Some(value) = &self.video_url {
             values.push((ConversationIden::VideoUrl, value.into()))
         };
-        if let Some(value) = &self.image_url {
-            values.push((ConversationIden::ImageUrl, value.into()))
+        if let Some(value) = &self.image {
+            values.push((ConversationIden::Image, (*value).into()))
         };
         if let Some(value) = &self.tags {
             values.push((
@@ -598,7 +599,8 @@ pub struct CreateConversation {
     pub short_description: String,
     pub description: String,
     pub video_url: Option<String>,
-    pub image_url: String,
+    #[cfg_attr(test, dummy(expr = "None"))]
+    pub image: Option<Uuid>,
     pub tags: Option<Vec<String>>,
     pub is_public: bool,
     pub is_live: bool,
@@ -613,30 +615,40 @@ pub struct CreateConversation {
 
 impl CreateConversation {
     pub fn columns(&self) -> Vec<ConversationIden> {
-        vec![
+        let mut columns = vec![
             ConversationIden::VideoUrl,
-            ConversationIden::ImageUrl,
             ConversationIden::Tags,
             ConversationIden::IsPublic,
             ConversationIden::IsLive,
             ConversationIden::IsInviteOnly,
             ConversationIden::PrimaryLocale,
             ConversationIden::SupportedLanguages,
-        ]
+        ];
+
+        if self.image.is_some() {
+            columns.push(ConversationIden::Image);
+        }
+
+        columns
     }
     pub fn values(&self) -> Vec<sea_query::SimpleExpr> {
         let tags = self.tags.to_owned().unwrap_or_default();
 
-        vec![
+        let mut values = vec![
             self.video_url.to_owned().into(),
-            self.image_url.to_owned().into(),
             tags.into(),
             self.is_public.into(),
             self.is_live.into(),
             self.is_invite_only.into(),
             self.primary_locale.to_owned().into(),
             self.supported_languages.to_owned().into(),
-        ]
+        ];
+
+        if let Some(image) = self.image {
+            values.push(image.into());
+        }
+
+        values
     }
 }
 

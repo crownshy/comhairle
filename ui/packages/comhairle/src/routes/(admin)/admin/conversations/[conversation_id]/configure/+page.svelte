@@ -36,7 +36,7 @@
 		$form.title = data.conversation.title;
 		$form.shortDescription = data.conversation.shortDescription;
 		$form.description = data.conversation.description;
-		$form.imageUrl = data.conversation.imageUrl;
+		$form.image = data.conversation.image;
 		$form.isPublic = data.conversation.isPublic;
 		$form.isInviteOnly = data.conversation.isInviteOnly;
 		$form.privacyPolicy = data.conversation.privacyPolicy;
@@ -368,15 +368,17 @@
 						>Banner image URL</Form.Label
 					>
 					<div class="flex flex-1 flex-col gap-4">
-						<Input {...props} bind:value={$form.imageUrl} />
+						<Input {...props} bind:value={$form.image} />
 						<Form.FieldErrors />
-						{#if $form.imageUrl}
+						<!--
+						{#if $form.image}
 							<img
 								class="bg-muted w-full max-w-md rounded-lg object-cover"
 								alt="Conversation Banner"
-								src={$form.imageUrl}
+								src={$form.image}
 							/>
 						{/if}
+						-->
 					</div>
 				{/snippet}
 			</Form.Control>

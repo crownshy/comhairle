@@ -121,12 +121,12 @@ async fn create_conversation_invite(
             let user = models::users::get_user_by_id(user_id, &state.db).await?;
             if let Some(email) = &user.email {
                 state.mailer.send_email(
-                email,
-                "You have been invited to the conversation",
-                "conversation_invite.html",
-                context! {user=>user, conversation_hero => conversation.image_url , conversation_title=>conversation.title},
-                None
-            )?;
+                    email,
+                    "You have been invited to the conversation",
+                    "conversation_invite.html",
+                    context! {user=>user, conversation_title=>conversation.title},
+                    None,
+                )?;
             }
         }
         models::invites::InviteType::Open | models::invites::InviteType::SingleUse => {}

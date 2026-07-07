@@ -5,6 +5,7 @@ use uuid::Uuid;
 use crate::{
     models::{
         conversation::{Conversation, LocalizedConversation},
+        media::{FromWithMedia, MediaResolver},
         pagination::PaginatedResults,
         translations::TextContentId,
     },
@@ -40,7 +41,7 @@ pub struct ConversationDto {
     #[schemars(example = "example_uuid")]
     pub description: TextContentId,
     pub video_url: Option<String>,
-    pub image_url: String,
+    pub image: Option<Uuid>,
     pub tags: Vec<String>,
     pub is_public: bool,
     pub is_live: bool,
@@ -98,7 +99,7 @@ pub struct LocalizedConversationDto {
     #[schemars(example = "example_localized_text")]
     pub description: String,
     pub video_url: Option<String>,
-    pub image_url: String,
+    pub image_url: Option<String>,
     pub tags: Vec<String>,
     pub is_public: bool,
     pub is_live: bool,
@@ -135,7 +136,7 @@ impl From<Conversation> for ConversationDto {
             short_description: c.short_description,
             description: c.description,
             video_url: c.video_url,
-            image_url: c.image_url,
+            image: c.image,
             tags: c.tags,
             is_public: c.is_public,
             is_live: c.is_live,
@@ -167,7 +168,7 @@ impl From<LocalizedConversation> for LocalizedConversationDto {
             short_description: c.short_description,
             description: c.description,
             video_url: c.video_url,
-            image_url: c.image_url,
+            image_url: None,
             tags: c.tags,
             is_public: c.is_public,
             is_live: c.is_live,
@@ -191,11 +192,52 @@ impl From<LocalizedConversation> for LocalizedConversationDto {
     }
 }
 
-impl From<PaginatedResults<LocalizedConversation>> for PaginatedResults<LocalizedConversationDto> {
-    fn from(r: PaginatedResults<LocalizedConversation>) -> Self {
+impl FromWithMedia<LocalizedConversation> for LocalizedConversationDto {
+    fn from_with_media(c: LocalizedConversation, media: &MediaResolver) -> Self {
         Self {
-            total: r.total,
-            records: r.records.into_iter().map(Into::into).collect(),
+            id: c.id,
+            title: c.title,
+            short_description: c.short_description,
+            description: c.description,
+            video_url: c.video_url,
+            image_url: c.image.and_then(|image| media.url_for(image)),
+            tags: c.tags,
+            is_public: c.is_public,
+            is_live: c.is_live,
+            is_complete: c.is_complete,
+            is_invite_only: c.is_invite_only,
+            slug: c.slug,
+            primary_locale: c.primary_locale,
+            knowledge_base_id: c.knowledge_base_id,
+            chat_bot_id: c.chat_bot_id,
+            enable_qa_chat_bot: c.enable_qa_chat_bot,
+            supported_languages: c.supported_languages,
+            organization_id: c.organization_id,
+            privacy_policy: c.privacy_policy,
+            short_privacy_policy: c.short_privacy_policy,
+            faqs: c.faqs,
+            thank_you_message: c.thank_you_message,
+            call_to_action: c.call_to_action,
+            enable_signup_prompts: c.enable_signup_prompts,
+            show_thank_you_page_annon_instructions: c.show_thank_you_page_annon_instructions,
+        }
+    }
+}
+
+impl FromWithMedia<PaginatedResults<LocalizedConversation>>
+    for PaginatedResults<LocalizedConversationDto>
+{
+    fn from_with_media(
+        results: PaginatedResults<LocalizedConversation>,
+        media: &MediaResolver,
+    ) -> Self {
+        Self {
+            total: results.total,
+            records: results
+                .records
+                .into_iter()
+                .map(|r| LocalizedConversationDto::from_with_media(r, media))
+                .collect(),
         }
     }
 }

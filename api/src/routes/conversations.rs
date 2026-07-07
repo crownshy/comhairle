@@ -26,6 +26,7 @@ use crate::{
         conversation_email_notification_recipients::{
             self as email_recipients_model, CreateConversationEmailNotificationRecipients,
         },
+        media::{FromWithMedia, MediaResolver},
         notification::{self as notification_model, CreateNotification, NotificationContextType},
         notification_delivery::{
             self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
@@ -87,17 +88,29 @@ async fn list_conversations(
 ) -> Result<(StatusCode, Json<PaginatedResults<LocalizedConversationDto>>), ComhairleError> {
     filter_options.enforce_live();
 
-    let conversations = conversation::list(
+    let results = conversation::list(
         &state.db,
         page_options,
         order_options,
         filter_options,
         Some(locale),
     )
-    .await?
-    .into();
+    .await?;
 
-    Ok((StatusCode::OK, Json(conversations)))
+    let media = MediaResolver::load(
+        &state.db,
+        &results
+            .records
+            .iter()
+            .filter_map(|c| c.image)
+            .collect::<Vec<_>>(),
+    )
+    .await?;
+
+    let results_with_media: PaginatedResults<LocalizedConversationDto> =
+        FromWithMedia::from_with_media(results, &media);
+
+    Ok((StatusCode::OK, Json(results_with_media)))
 }
 
 async fn launch_conversation(
@@ -174,10 +187,18 @@ async fn get_conversation(
     } else {
         // Return localized conversation as before
         info!("Trying to get localized translations for {locale}");
-        let conversation: LocalizedConversationDto =
+        let conversation =
             conversation::get_localised_by_id_or_slug(&state.db, &conversation_ident, &locale)
-                .await?
-                .into();
+                .await?;
+
+        let conversation: LocalizedConversationDto = match conversation.image {
+            Some(image) => {
+                let media = MediaResolver::load(&state.db, &[image]).await?;
+
+                FromWithMedia::from_with_media(conversation, &media)
+            }
+            None => conversation.into(),
+        };
 
         Ok((
             StatusCode::OK,
@@ -844,7 +865,6 @@ mod tests {
                     "title" : "Test conversation",
                     "short_description" : "A test conversation",
                     "description" : "A longer description",
-                    "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
                     "is_live": true,
@@ -858,11 +878,6 @@ mod tests {
         let conversation: ConversationDto = serde_json::from_value(response)?;
 
         assert_eq!(status, StatusCode::CREATED, "Should be created");
-        assert_eq!(
-            conversation.image_url,
-            "http://someimage.png".to_string(),
-            "incorrect json response"
-        );
         assert!(
             conversation.knowledge_base_id.is_none(),
             "incorrect knowledge_base_id"
@@ -899,7 +914,6 @@ mod tests {
                     "title" : "Test conversation",
                     "short_description" : "A test conversation",
                     "description" : "A longer description",
-                    "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
                     "is_live": true,
@@ -913,11 +927,6 @@ mod tests {
         let conversation: ConversationDto = serde_json::from_value(response)?;
 
         assert_eq!(status, StatusCode::CREATED, "Should be created");
-        assert_eq!(
-            conversation.image_url,
-            "http://someimage.png".to_string(),
-            "incorrect json response"
-        );
         assert!(
             conversation.knowledge_base_id.is_some(),
             "incorrect knowledge_base_id"
