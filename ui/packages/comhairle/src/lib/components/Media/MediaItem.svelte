@@ -34,8 +34,11 @@
 			<img src={props.url} {alt} class="aspect-video max-h-32 object-contain" />
 		{/if}
 	</div>
-	<div class="bg-card text-card-foreground self-stretch px-5 py-2 text-xs" title={props.filename}>
-		<div class="grid-auto grid items-center justify-between">
+	<div
+		class="bg-card text-card-foreground flex flex-col items-start self-stretch px-5 py-2 text-xs"
+		title={props.filename}
+	>
+		<div class="grid-auto grid items-center justify-between self-stretch">
 			<div class="truncate font-bold">
 				{props.filename}
 			</div>

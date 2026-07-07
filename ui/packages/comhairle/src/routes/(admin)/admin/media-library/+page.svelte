@@ -8,6 +8,7 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import MediaItem from '$lib/components/Media/MediaItem.svelte';
 	import MediaLibrary from '$lib/components/Media/MediaLibrary.svelte';
+	import * as Dialog from '$lib/components/ui/dialog';
 
 	let deleteForm: HTMLFormElement | undefined;
 
@@ -86,11 +87,20 @@
 							</span>
 						</label>
 					{:else}
-						<MediaItem {type} {...media} alt="" />
+						<button class="inline h-full w-full" onclick={() => {}}>
+							<MediaItem {type} {...media} alt="" />
+						</button>
 					{/if}
 				{/snippet}
 			</MediaLibrary>
 		</form>
+		<Dialog.Root>
+			<Dialog.Portal>
+				<Dialog.Overlay>
+					<Dialog.Content>Content!</Dialog.Content>
+				</Dialog.Overlay>
+			</Dialog.Portal>
+		</Dialog.Root>
 	</div>
 </div>
 
