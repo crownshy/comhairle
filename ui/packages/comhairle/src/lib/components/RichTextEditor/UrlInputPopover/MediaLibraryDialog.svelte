@@ -60,12 +60,13 @@
 	<Dialog.Portal>
 		<Dialog.Content class="sm:max-w-3xl">
 			<Dialog.Title>
-				<div class="mr-8 flex flex-row items-center justify-between">
+				<div class="mr-8 mb-5 flex flex-row items-center justify-between">
 					<div class="flex flex-row items-center gap-1">
 						<span>Media library</span>
 						<Button
 							href="/admin/media-library"
 							variant="ghost"
+							size="sm"
 							title="Go to media library"
 							aria-label="Go to media library"
 						>
@@ -99,7 +100,7 @@
 										/>
 										<MediaItem
 											{type}
-											src={media.url}
+											{...media}
 											alt=""
 											--selected={url === media.url && 'var(--ring)'}
 										/>

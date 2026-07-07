@@ -11,7 +11,7 @@
 	const { data, media }: Props<MediaDto> = $props();
 </script>
 
-<ul class="grid gap-y-5">
+<ul class="grid gap-5">
 	{#if data.length === 0}
 		<div class="mt-8">
 			<p class="text-muted-foreground font-bold">No media found</p>
@@ -20,7 +20,7 @@
 		{#each data as d (d.id)}
 			{@const type = htmlFromMediaType(d.contentType)}
 			{#if type}
-				<li class="relative overflow-hidden rounded-sm">
+				<li class="relative">
 					{@render media(type, d)}
 				</li>
 			{/if}
@@ -30,16 +30,16 @@
 
 <style>
 	ul {
-		--media-width: 275px;
-		grid-template-columns: repeat(auto-fit, minmax(var(--media-width), 1fr));
+		--min-width: 275px;
+		grid-template-columns: repeat(auto-fit, minmax(var(--min-width), 1fr));
 	}
 
 	li {
-		transition: all 300ms ease-out;
+		transition: translate 150ms ease-out;
+		translate: 0px 0px;
 
 		&:is(:focus, :hover) {
-			filter: brightness(85%);
-			transform: scale(1.01);
+			translate: 0px -3px;
 		}
 	}
 </style>
