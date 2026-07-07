@@ -9,19 +9,22 @@ type Opts = {
 };
 
 class Media {
-	async #upload(to: string, file: File, opts?: Opts): Promise<UploadReturn> {
-		if (opts?.maxSizeMB && file.size > opts.maxSizeMB * 1024 * 1024) {
-			return {
-				ok: null,
-				err: {
-					id: 'MAX_SIZE_EXCEEDED',
-					message: `${file.name} exceeds max size ${opts.maxSizeMB}MB`
-				}
-			};
-		}
-
+	async #upload(to: string, files: File[], opts?: Opts): Promise<UploadReturn> {
 		const formData = new FormData();
-		formData.append('file', file, file.name);
+
+		for (const file of files) {
+			if (opts?.maxSizeMB && file.size > opts.maxSizeMB * 1024 * 1024) {
+				return {
+					ok: null,
+					err: {
+						id: 'MAX_SIZE_EXCEEDED',
+						message: `${file.name} exceeds max size ${opts.maxSizeMB}MB`
+					}
+				};
+			}
+
+			formData.append('file', file, file.name);
+		}
 
 		const response = await tryFetch(
 			to,
@@ -41,7 +44,7 @@ class Media {
 				ok: null,
 				err: {
 					...response.err,
-					message: `${file.name} failed to upload - ` + response.err.message
+					message: 'Failed to upload - ' + response.err.message
 				} as FetchErr
 			};
 		}
@@ -71,20 +74,7 @@ class Media {
 		return filesArray;
 	}
 
-	async upload(to: string, files: File, opts?: Opts): Promise<UploadReturn>;
-	async upload(to: string, files: File[], opts?: Opts): Promise<UploadReturn[]>;
-	async upload(
-		to: string,
-		files: File | File[],
-		opts?: Opts
-	): Promise<UploadReturn | UploadReturn[]> {
-		if (Array.isArray(files)) {
-			const results: Promise<UploadReturn>[] = [];
-			for (const file of files) {
-				results.push(this.#upload(to, file, opts));
-			}
-			return Promise.all(results);
-		}
+	async upload(to: string, files: File[], opts?: Opts): Promise<UploadReturn> {
 		return this.#upload(to, files, opts);
 	}
 }

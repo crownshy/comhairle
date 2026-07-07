@@ -3910,7 +3910,7 @@ curl -X POST \
         schema: z.array(z.any()),
       },
     ],
-    response: MediaDto,
+    response: z.array(MediaDto),
   },
   {
     method: "get",

@@ -402,20 +402,14 @@
 							updateConversationMedia(media, 'image');
 						}}
 					/>
-					<!-- TODO
 					<MediaUpload
 						clientSide
 						size="sm"
 						oncomplete={(media) => {
-							console.log('Upload', media);
-							// for (const m of media) {
-							// 	addToCache(m);
-							// 	onSubmit(m.url);
-							// }
-							// open = false;
+							if (!media.length) return;
+							updateConversationMedia(media[0], 'image');
 						}}
 					/>
-					-->
 				</div>
 				{#if imageMedia}
 					<div class="h-70 w-auto">

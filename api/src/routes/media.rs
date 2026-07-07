@@ -52,7 +52,7 @@ async fn upload(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
     mut form_data: Multipart,
-) -> Result<(StatusCode, Json<MediaDto>), ComhairleError> {
+) -> Result<(StatusCode, Json<Vec<MediaDto>>), ComhairleError> {
     let bulk_storage_service = state.required_bulk_storage_service()?;
     let bulk_storage_config = state
         .config
@@ -60,62 +60,66 @@ async fn upload(
         .as_ref()
         .ok_or(ComhairleError::NoBulkStorageServiceConfigured)?;
 
-    let (filename, content_type_header, bytes) = match form_data.next_field().await? {
-        Some(field) => {
-            let content_type = field.content_type().map(|ct| ct.to_string());
-            let filename = field
-                .file_name()
-                .map(|f| f.to_string())
-                .unwrap_or_else(gen_id);
-            let bytes = field.bytes().await?.to_vec();
+    let mut files = vec![];
+    while let Some(mut field) = form_data.next_field().await? {
+        let content_type = field.content_type().map(|ct| ct.to_string());
+        let filename = field
+            .file_name()
+            .map(|f| f.to_string())
+            .unwrap_or_else(gen_id);
+        let bytes = field.bytes().await?.to_vec();
 
-            (filename, content_type, bytes)
-        }
-        None => return Err(ComhairleError::BadRequest("Missing form field".to_string())),
-    };
-
-    if form_data.next_field().await?.is_some() {
-        return Err(ComhairleError::BadRequest(
-            "Only one file upload allowed".to_string(),
-        ));
+        files.push((filename, bytes, content_type));
     }
 
-    let content_type = content_type_header
-        .map(|ct| MediaContentType::try_from_mime(&ct))
-        .unwrap_or_else(|| {
-            let extension = std::path::Path::new(&filename)
-                .extension()
-                .and_then(|ext| ext.to_str())
-                .unwrap_or("");
-            MediaContentType::try_from_extension(extension)
-        })?;
+    if files.is_empty() {
+        return Err(ComhairleError::BadRequest("No files to upload".to_string()));
+    }
 
-    let metadata = FileMetadata {
-        is_public: true,
-        content_type: content_type.to_string(),
-    };
-    let prefix = match content_type {
-        MediaContentType::Jpeg
-        | MediaContentType::Png
-        | MediaContentType::Gif
-        | MediaContentType::Webp => "images",
-        MediaContentType::Mp4 | MediaContentType::Mpeg | MediaContentType::Webm => "video",
-        MediaContentType::Mp3 => "audio",
-    };
-    let storage_key = format!("{prefix}/{filename}");
-    bulk_storage_service
-        .upload_file(&storage_key, bytes, metadata)
-        .await?;
+    let mut media = vec![];
 
-    let create_media = CreateMedia {
-        store_name: bulk_storage_config.store_name.to_string(),
-        storage_key,
-        filename,
-        content_type,
-    };
-    let media = media::create(&state.db, &create_media, &user.id).await?;
+    for (filename, bytes, content_type_header) in files {
+        let content_type = content_type_header
+            .map(|ct| MediaContentType::try_from_mime(&ct))
+            .unwrap_or_else(|| {
+                let extension = std::path::Path::new(&filename)
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .unwrap_or("");
+                MediaContentType::try_from_extension(extension)
+            })?;
 
-    Ok((StatusCode::CREATED, Json(media.into())))
+        let metadata = FileMetadata {
+            is_public: true,
+            content_type: content_type.to_string(),
+        };
+        let prefix = match content_type {
+            MediaContentType::Jpeg
+            | MediaContentType::Png
+            | MediaContentType::Gif
+            | MediaContentType::Webp => "images",
+            MediaContentType::Mp4 | MediaContentType::Mpeg | MediaContentType::Webm => "video",
+            MediaContentType::Mp3 => "audio",
+        };
+        let storage_key = format!("{prefix}/{filename}");
+        bulk_storage_service
+            .upload_file(&storage_key, bytes, metadata)
+            .await?;
+
+        let create_media = CreateMedia {
+            store_name: bulk_storage_config.store_name.to_string(),
+            storage_key,
+            filename,
+            content_type,
+        };
+        let media_record = media::create(&state.db, &create_media, &user.id).await?;
+
+        media.push(media_record);
+    }
+
+    let media: Vec<MediaDto> = media.into_iter().map(Into::into).collect();
+
+    Ok((StatusCode::CREATED, Json(media)))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -181,7 +185,7 @@ curl -X POST \\
                             ",
                     )
                     .security_requirement("JWT")
-                    .response::<201, Json<MediaDto>>()
+                    .response::<201, Json<Vec<MediaDto>>>()
             }),
         )
         .api_route(
@@ -267,11 +271,15 @@ mod tests {
         let (_, value, _) = session
             .post_multipart(&app, "/media", boundary, body.into())
             .await?;
-        let media: MediaDto = serde_json::from_value(value)?;
+        let media: Vec<MediaDto> = serde_json::from_value(value)?;
 
-        assert_eq!(media.filename, filename.to_string(), "incorrect filename");
         assert_eq!(
-            media.content_type,
+            media[0].filename,
+            filename.to_string(),
+            "incorrect filename"
+        );
+        assert_eq!(
+            media[0].content_type,
             MediaContentType::Jpeg,
             "incorrect content_type"
         );

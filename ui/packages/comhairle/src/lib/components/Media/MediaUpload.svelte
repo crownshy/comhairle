@@ -29,29 +29,21 @@
 			if (!rawFiles) return;
 			// FIX: Check why the erroring here is incorrect
 			const response = await media.upload('/api/media', Media.sanitiseMulti(rawFiles));
-			const newMedia: MediaDto[] = [];
-			for (const res of response) {
-				if (res.err !== null) {
-					notifications.send({
-						message: res.err.message,
-						priority: 'ERROR'
-					});
-					continue;
-				}
-				const result = await tryCatchAsync(() => res.ok.json());
-				if (result.err !== null) {
-					// NOTE: Data might be uploaded but wouldn't count as uploaded if the response can't be parsed, probably need to fix at some point
-					continue;
-				}
-				newMedia.push(result.ok as MediaDto);
-			}
-			if (newMedia.length > 0) {
+
+			if (response.err !== null) {
 				notifications.send({
-					message: `${newMedia.length} files uploaded`,
-					priority: 'SUCCESS'
+					message: response.err.message,
+					priority: 'ERROR'
 				});
+				return;
 			}
-			oncomplete?.(newMedia);
+			const result = await tryCatchAsync(() => response.ok.json());
+			if (result.err !== null) {
+				// NOTE: Data might be uploaded but wouldn't count as uploaded if the response can't be parsed, probably need to fix at some point
+				return;
+			}
+
+			oncomplete?.(result.ok as MediaDto[]);
 			return;
 		}
 		uploadForm?.submit();

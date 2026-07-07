@@ -1555,13 +1555,13 @@ mod tests {
         let (_, value, _) = session
             .post_multipart(&app, "/media", boundary, body.into())
             .await?;
-        let media: MediaDto = serde_json::from_value(value)?;
+        let media: Vec<MediaDto> = serde_json::from_value(value)?;
 
         session
             .update_conversation(
                 &app,
                 &conversation.id.to_string(),
-                json!({ "image": media.id }),
+                json!({ "image": media[0].id }),
             )
             .await?;
 
