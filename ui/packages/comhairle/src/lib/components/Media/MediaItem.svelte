@@ -34,10 +34,12 @@
 			<img src={props.url} {alt} class="aspect-video max-h-32 object-contain" />
 		{/if}
 	</div>
-	<div class="bg-card text-card-foreground self-stretch px-5 py-2 text-xs">
-		<div class="flex justify-between">
-			<span class="font-bold">{props.filename}</span>
-			<Badge variant="secondary" class="self-center">
+	<div class="bg-card text-card-foreground self-stretch px-5 py-2 text-xs" title={props.filename}>
+		<div class="grid-auto grid items-center justify-between">
+			<div class="truncate font-bold">
+				{props.filename}
+			</div>
+			<Badge variant="secondary" class="justify-self-end">
 				{capitalise(type)}
 			</Badge>
 		</div>
@@ -64,5 +66,8 @@
 				var(--bg-alt-color) 50%
 			)
 			50% center / var(--size) var(--size);
+	}
+	.grid-auto {
+		grid-template-columns: auto auto;
 	}
 </style>
