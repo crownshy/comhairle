@@ -1,9 +1,11 @@
 <script lang="ts">
+	import { capitalise } from '$lib/utils/string';
 	import type { HTMLMediaElement } from '$lib/utils/types';
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import { type Icon, Music, Video } from 'lucide-svelte';
 	// FIX: Upgrade lucide icons to remove deprecated types
 	import type { ComponentType } from 'svelte';
+	import Badge from '$lib/components/ui/badge/badge.svelte';
 
 	interface Props extends MediaDto {
 		type: HTMLMediaElement;
@@ -14,11 +16,11 @@
 </script>
 
 <div
-	class="background container aspect-video max-w-96 items-center overflow-hidden rounded-lg bg-gray-600"
+	class="background container aspect-video max-w-96 cursor-pointer items-center overflow-hidden rounded-lg"
 >
-	<div class="media-background justify-self-center overflow-hidden">
+	<div class="media-background justify-self-center overflow-hidden select-none">
 		{#snippet placeholder(Icon: ComponentType<Icon>)}
-			<Icon size={78} strokeWidth={1.7} />
+			<Icon size={80} strokeWidth={1.7} />
 		{/snippet}
 		{#if type === 'audio'}
 			<!-- <audio {src} controls autoplay={false} class="h-full w-full"></audio> -->
@@ -32,8 +34,14 @@
 			<img src={props.url} {alt} class="aspect-video max-h-32 object-contain" />
 		{/if}
 	</div>
-	<div class="bg-primary text-primary-foreground self-stretch px-5 py-2">
-		{props.filename}
+	<div class="bg-card text-card-foreground self-stretch px-5 py-2 text-xs">
+		<div class="flex justify-between">
+			<span class="font-bold">{props.filename}</span>
+			<Badge variant="secondary" class="self-center">
+				{capitalise(type)}
+			</Badge>
+		</div>
+		<span class="text-muted-foreground">{props.contentType.split('/')[1].toUpperCase()}</span>
 	</div>
 </div>
 
