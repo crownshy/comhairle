@@ -110,8 +110,8 @@
 				</span>
 				<div class="flex flex-row gap-2">
 					<MediaLibraryDialog
-						onconfirm={(url) => {
-							onSubmit(url);
+						onconfirm={(media) => {
+							onSubmit(media.url);
 							open = false;
 						}}
 					/>

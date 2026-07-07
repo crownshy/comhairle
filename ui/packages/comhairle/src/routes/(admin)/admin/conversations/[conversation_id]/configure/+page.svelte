@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Input } from '$lib/components/ui/input';
 	import { Switch } from '$lib/components/ui/switch';
 	import * as Form from '$lib/components/ui/form/';
 	import { notifications } from '$lib/notifications.svelte';
@@ -12,8 +11,16 @@
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { autoTranslateNewLanguage } from '$lib/components/Translation/translationUtils';
 	import { LanguageSelector } from '$lib/components/ui/language-selector';
-	import type { ConversationWithTranslations, WorkflowDto } from '@crownshy/api-client/api';
+	import type {
+		ConversationWithTranslations,
+		MediaDto,
+		WorkflowDto
+	} from '@crownshy/api-client/api';
 	import { camelToSentenceCase, camelToSnakeCase, snakeCaseKeys } from '$lib/utils/casingUtils';
+	import { Image as ImageIcon } from 'lucide-svelte';
+	import MediaLibraryDialog from '$lib/components/RichTextEditor/UrlInputPopover/MediaLibraryDialog.svelte';
+	import MediaUpload from '$lib/components/Media/MediaUpload.svelte';
+	import Label from '$lib/components/ui/label/label.svelte';
 
 	let {
 		data
@@ -21,10 +28,12 @@
 		data: {
 			conversation: ConversationWithTranslations;
 			workflows: WorkflowDto[];
+			media: MediaDto | null;
 		};
 	} = $props();
 	let conversation = $derived(data.conversation);
 	let workflow = $derived(data.workflows[0]);
+	let imageMedia = $derived(data.media);
 
 	let primaryLanguage = $state(data.conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $state(data.conversation.supportedLanguages ?? ['en']);
@@ -36,7 +45,6 @@
 		$form.title = data.conversation.title;
 		$form.shortDescription = data.conversation.shortDescription;
 		$form.description = data.conversation.description;
-		$form.image = data.conversation.image;
 		$form.isPublic = data.conversation.isPublic;
 		$form.isInviteOnly = data.conversation.isInviteOnly;
 		$form.privacyPolicy = data.conversation.privacyPolicy;
@@ -134,7 +142,6 @@
 			title: data.conversation.title,
 			shortDescription: data.conversation.shortDescription,
 			description: data.conversation.description,
-			imageUrl: data.conversation.imageUrl,
 			privacyPolicy: data.conversation.privacyPolicy,
 			shortPrivacyPolicy: data.conversation.shortPrivacyPolicy,
 			faqs: data.conversation.faqs,
@@ -244,6 +251,30 @@
 			notifications.send({ message: 'Updated conversation', priority: 'INFO' });
 		} catch (e) {
 			notifications.send({ message: 'Failed to save changes', priority: 'ERROR' });
+		}
+	}
+
+	async function updateConversationMedia(media: MediaDto, field: string) {
+		try {
+			await apiClient.UpdateConversation(
+				{
+					[field]: media.id
+				},
+				{ params: { conversation_id: conversation.id } }
+			);
+
+			notifications.send({
+				message: 'Successfully updated conversation media',
+				priority: 'INFO'
+			});
+
+			await invalidateAll();
+		} catch (e) {
+			console.error(e);
+			notifications.send({
+				message: 'Something went wrong updating conversation media',
+				priority: 'ERROR'
+			});
 		}
 	}
 </script>
@@ -361,28 +392,46 @@
 	<div
 		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 	>
-		<Form.Field form={conversationForm} name="imageUrl" class="contents">
-			<Form.Control>
-				{#snippet children({ props })}
-					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-						>Banner image URL</Form.Label
-					>
-					<div class="flex flex-1 flex-col gap-4">
-						<Input {...props} bind:value={$form.image} />
-						<Form.FieldErrors />
-						<!--
-						{#if $form.image}
-							<img
-								class="bg-muted w-full max-w-md rounded-lg object-cover"
-								alt="Conversation Banner"
-								src={$form.image}
-							/>
-						{/if}
-						-->
+		<div class="contents">
+			<Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Banner image URL</Label
+			>
+			<div class="align-start flex w-full flex-col gap-4">
+				<div class="flex flex-1 gap-4">
+					<MediaLibraryDialog
+						onconfirm={(media) => {
+							updateConversationMedia(media, 'image');
+						}}
+					/>
+					<!-- TODO
+					<MediaUpload
+						clientSide
+						size="sm"
+						oncomplete={(media) => {
+							console.log('Upload', media);
+							// for (const m of media) {
+							// 	addToCache(m);
+							// 	onSubmit(m.url);
+							// }
+							// open = false;
+						}}
+					/>
+					-->
+				</div>
+				{#if imageMedia}
+					<div class="h-70 w-auto">
+						<img
+							src={imageMedia.url}
+							alt="Conversation"
+							class="h-full w-auto object-contain"
+						/>
 					</div>
-				{/snippet}
-			</Form.Control>
-		</Form.Field>
+				{:else}
+					<div class="flex w-full">
+						<ImageIcon class="h-full w-full" />
+					</div>
+				{/if}
+			</div>
+		</div>
 	</div>
 
 	<!-- Privacy policy -->

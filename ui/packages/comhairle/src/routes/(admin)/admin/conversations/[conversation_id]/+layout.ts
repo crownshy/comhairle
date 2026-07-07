@@ -2,6 +2,7 @@ import { notifications } from '$lib/notifications.svelte';
 import { redirect } from '@sveltejs/kit';
 import type {
 	ConversationWithTranslations,
+	MediaDto,
 	WorkflowDto,
 	WorkflowStats,
 	WorkflowStepWithTranslations
@@ -23,6 +24,7 @@ export const load: LayoutLoad = async ({
 	workflows: WorkflowDto[];
 	workflowSteps: WorkflowStepWithTranslations[];
 	stats: WorkflowStats;
+	media: MediaDto | null;
 }> => {
 	depends('conversation:meta');
 	depends('conversation:workflow');
@@ -39,6 +41,11 @@ export const load: LayoutLoad = async ({
 		let stats = undefined;
 		let workflowSteps = undefined;
 
+		let media: MediaDto | null = null;
+		if (conversation.image) {
+			media = await api.GetMedia({ params: { media_id: conversation.image } });
+		}
+
 		if (workflows.length > 0) {
 			stats = await api.GetConversationWorkflowStats({
 				params: { conversation_id, workflow_id: workflows[0].id }
@@ -48,7 +55,7 @@ export const load: LayoutLoad = async ({
 				queries: { withTranslations: true }
 			});
 		}
-		return { conversation, workflows, stats, workflowSteps };
+		return { conversation, workflows, stats, workflowSteps, media };
 	} catch (e) {
 		console.error(e);
 		notifications.addFlash({
