@@ -99,7 +99,7 @@ pub struct LocalizedConversationDto {
     #[schemars(example = "example_localized_text")]
     pub description: String,
     pub video_url: Option<String>,
-    pub image_url: Option<String>,
+    pub image_url: String,
     pub tags: Vec<String>,
     pub is_public: bool,
     pub is_live: bool,
@@ -160,47 +160,18 @@ impl From<Conversation> for ConversationDto {
     }
 }
 
-impl From<LocalizedConversation> for LocalizedConversationDto {
-    fn from(c: LocalizedConversation) -> Self {
-        Self {
-            id: c.id,
-            title: c.title,
-            short_description: c.short_description,
-            description: c.description,
-            video_url: c.video_url,
-            image_url: None,
-            tags: c.tags,
-            is_public: c.is_public,
-            is_live: c.is_live,
-            is_complete: c.is_complete,
-            is_invite_only: c.is_invite_only,
-            slug: c.slug,
-            primary_locale: c.primary_locale,
-            knowledge_base_id: c.knowledge_base_id,
-            chat_bot_id: c.chat_bot_id,
-            enable_qa_chat_bot: c.enable_qa_chat_bot,
-            supported_languages: c.supported_languages,
-            organization_id: c.organization_id,
-            privacy_policy: c.privacy_policy,
-            short_privacy_policy: c.short_privacy_policy,
-            faqs: c.faqs,
-            thank_you_message: c.thank_you_message,
-            call_to_action: c.call_to_action,
-            enable_signup_prompts: c.enable_signup_prompts,
-            show_thank_you_page_annon_instructions: c.show_thank_you_page_annon_instructions,
-        }
-    }
-}
-
 impl FromWithMedia<LocalizedConversation> for LocalizedConversationDto {
-    fn from_with_media(c: LocalizedConversation, media: &MediaResolver) -> Self {
+    fn from_with_media(c: LocalizedConversation, media: &MediaResolver, fallback: &str) -> Self {
         Self {
             id: c.id,
             title: c.title,
             short_description: c.short_description,
             description: c.description,
             video_url: c.video_url,
-            image_url: c.image.and_then(|image| media.url_for(image)),
+            image_url: c
+                .image
+                .and_then(|image| media.url_for(image))
+                .unwrap_or_else(|| fallback.to_string()),
             tags: c.tags,
             is_public: c.is_public,
             is_live: c.is_live,
@@ -230,13 +201,14 @@ impl FromWithMedia<PaginatedResults<LocalizedConversation>>
     fn from_with_media(
         results: PaginatedResults<LocalizedConversation>,
         media: &MediaResolver,
+        fallback: &str,
     ) -> Self {
         Self {
             total: results.total,
             records: results
                 .records
                 .into_iter()
-                .map(|r| LocalizedConversationDto::from_with_media(r, media))
+                .map(|r| LocalizedConversationDto::from_with_media(r, media, fallback))
                 .collect(),
         }
     }

@@ -108,7 +108,11 @@ async fn list_conversations(
     .await?;
 
     let results_with_media: PaginatedResults<LocalizedConversationDto> =
-        FromWithMedia::from_with_media(results, &media);
+        FromWithMedia::from_with_media(
+            results,
+            &media,
+            &state.config.default_conversation_image_url,
+        );
 
     Ok((StatusCode::OK, Json(results_with_media)))
 }
@@ -191,14 +195,17 @@ async fn get_conversation(
             conversation::get_localised_by_id_or_slug(&state.db, &conversation_ident, &locale)
                 .await?;
 
-        let conversation: LocalizedConversationDto = match conversation.image {
-            Some(image) => {
-                let media = MediaResolver::load(&state.db, &[image]).await?;
+        let media = MediaResolver::load(
+            &state.db,
+            &conversation.image.map(|image| [image]).unwrap_or_default(),
+        )
+        .await?;
 
-                FromWithMedia::from_with_media(conversation, &media)
-            }
-            None => conversation.into(),
-        };
+        let conversation = FromWithMedia::from_with_media(
+            conversation,
+            &media,
+            &state.config.default_conversation_image_url,
+        );
 
         Ok((
             StatusCode::OK,

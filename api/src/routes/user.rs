@@ -59,7 +59,11 @@ pub async fn get_user_owned_conversations(
     .await?;
 
     let results_with_media: PaginatedResults<LocalizedConversationDto> =
-        FromWithMedia::from_with_media(results, &media);
+        FromWithMedia::from_with_media(
+            results,
+            &media,
+            &state.config.default_conversation_image_url,
+        );
 
     Ok((StatusCode::OK, Json(results_with_media)))
 }
@@ -101,7 +105,9 @@ pub async fn get_conversations_user_participating_in(
 
     let conversations = conversations
         .into_iter()
-        .map(|c| FromWithMedia::from_with_media(c, &media))
+        .map(|c| {
+            FromWithMedia::from_with_media(c, &media, &state.config.default_conversation_image_url)
+        })
         .collect();
 
     Ok((StatusCode::OK, Json(conversations)))

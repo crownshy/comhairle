@@ -111,7 +111,7 @@ export const LocalizedConversationDto = z
     enableSignupPrompts: z.boolean(),
     faqs: z.union([z.string(), z.null()]).optional(),
     id: z.string().uuid(),
-    imageUrl: z.union([z.string(), z.null()]).optional(),
+    imageUrl: z.string(),
     isComplete: z.boolean(),
     isInviteOnly: z.boolean(),
     isLive: z.boolean(),

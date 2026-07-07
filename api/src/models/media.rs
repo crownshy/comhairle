@@ -193,7 +193,11 @@ impl MediaResolver {
 pub trait FromWithMedia<T> {
     /// Performs the conversion from `model` to `Self`, resolving media
     /// references via `media`.
-    fn from_with_media(model: T, media: &MediaResolver) -> Self;
+    ///
+    /// If a media reference is absent (e.g. an optional field with no
+    /// associated media) or its ID could not be resolved by `media`,
+    /// `fallback` is used in its place instead.
+    fn from_with_media(model: T, media: &MediaResolver, fallback: &str) -> Self;
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
