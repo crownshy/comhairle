@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { capitalise } from '$lib/utils/string';
+	import { capitalise } from '$lib/utils/casingUtils';
 	import type { HTMLMediaElement } from '$lib/utils/types';
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import { type Icon, Music, Video } from 'lucide-svelte';
