@@ -304,6 +304,7 @@
 							primaryLocale={primaryLanguage}
 							{supportedLanguages}
 							inputType="textarea"
+							placeholder="A short description for this conversation."
 							inputProps={props}
 						/>
 						<Form.FieldErrors />
@@ -331,6 +332,7 @@
 							primaryLocale={primaryLanguage}
 							{supportedLanguages}
 							inputType="textarea"
+							placeholder="Introduce people to what is being discussed and outline the actions that might be taken as a result of the conversation."
 							inputProps={props}
 						/>
 						<Form.FieldErrors />
