@@ -14,15 +14,17 @@
 		alt: string;
 	}
 
-	const { type, filename: currentFilename, alt: currentAlt, src }: Props = $props();
+	const { type, filename: currentFilename, src }: Props = $props();
 
 	const LABEL_SPACING = 'mb-2';
 	const INPUT_SPACING = 'mb-8';
 
-	let filename = $derived(currentFilename.split('.')[0]);
-	const extension = $derived(`.${currentFilename.split('.')[1]}`);
+	let file = $derived.by(() => {
+		const fileInfo = currentFilename.split('.');
+		return { name: fileInfo[0], extension: `.${fileInfo[1]}` };
+	});
 
-	let alt = $derived(currentAlt);
+	// let alt = $derived(currentAlt);
 </script>
 
 <Dialog.Portal>
@@ -53,20 +55,21 @@
 						<Input
 							id="filename"
 							type="text"
-							bind:value={filename}
+							bind:value={file.name}
 							class="rounded-none rounded-s-lg border-e-0"
 						/>
 						<div
 							class="flex flex-col items-center justify-center self-stretch rounded-e-lg border border-s-0 px-4 text-xs"
 						>
-							{extension}
+							{file.extension}
 						</div>
 					</div>
-					<Label class={`${LABEL_SPACING} text-muted-foreground`} for="alt"
-						>Alt text</Label
-					>
-					<Input class={INPUT_SPACING} id="alt" type="text" bind:value={alt} />
-					<div class="mt-5 flex flex-row items-center self-end lg:mt-10">
+					<!-- Need to first add in alt field on the DB -->
+					<!-- <Label class={`${LABEL_SPACING} text-muted-foreground`} for="alt" -->
+					<!-- 	>Alt text</Label -->
+					<!-- > -->
+					<!-- <Input class={INPUT_SPACING} id="alt" type="text" bind:value={alt} /> -->
+					<div class="mt-5 flex flex-row items-center self-end">
 						<Button
 							variant="outline"
 							class="mr-5"
