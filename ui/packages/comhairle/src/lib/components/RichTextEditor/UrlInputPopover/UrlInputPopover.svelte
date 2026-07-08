@@ -11,7 +11,7 @@
 	} from '$lib/utils/urlValidation';
 	import { capitalise } from '$lib/utils/string';
 	import { MediaUpload } from '$lib/components/Media';
-	import MediaLibraryDialog, { addToCache } from './MediaLibraryDialog.svelte';
+	import MediaLibraryDialog, { addToCache } from '../../Media/MediaLibraryDialog.svelte';
 
 	type Props = {
 		type: 'audio' | 'image' | 'video' | 'link';
@@ -110,8 +110,8 @@
 				</span>
 				<div class="flex flex-row gap-2">
 					<MediaLibraryDialog
-						onconfirm={(url) => {
-							onSubmit(url);
+						onconfirm={(media) => {
+							onSubmit(media.url);
 							open = false;
 						}}
 					/>
