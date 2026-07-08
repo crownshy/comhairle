@@ -20,7 +20,7 @@
 	import { apiClient } from '@crownshy/api-client/client';
 
 	interface Props {
-		onconfirm: (url: string) => void;
+		onconfirm: (media: MediaDto) => void;
 	}
 
 	const { onconfirm }: Props = $props();
@@ -40,11 +40,12 @@
 
 	let dataRequest = $state.raw<ReturnType<typeof getData> | null>(null);
 
-	let url = $state(null);
+	let selectedMedia = $state<MediaDto | null>(null);
+	let open = $state(false);
 </script>
 
-<Dialog.Root>
-	<Dialog.Trigger>
+<Dialog.Root bind:open>
+	<Dialog.Trigger class="flex justify-start">
 		<Button
 			size="sm"
 			aria-label="Open media library"
@@ -58,7 +59,7 @@
 		>
 	</Dialog.Trigger>
 	<Dialog.Portal>
-		<Dialog.Content class="sm:max-w-3xl">
+		<Dialog.Content class="max-h-[80vh] overflow-y-auto sm:max-w-3xl">
 			<Dialog.Title>
 				<div class="mr-8 mb-5 flex flex-row items-center justify-between">
 					<div class="flex flex-row items-center gap-1">
@@ -74,11 +75,12 @@
 						</Button>
 					</div>
 					<Button
-						disabled={!url}
+						disabled={!selectedMedia}
 						onclick={() => {
-							if (!url) return;
-							onconfirm(url);
-						}}>Insert</Button
+							if (!selectedMedia) return;
+							onconfirm(selectedMedia);
+							open = false;
+						}}>Select</Button
 					>
 				</div>
 				{#if dataRequest !== null}
@@ -94,15 +96,16 @@
 										<input
 											type="radio"
 											name="selected"
-											value={media.url}
-											bind:group={url}
+											value={media}
+											bind:group={selectedMedia}
 											class="hidden"
 										/>
 										<MediaItem
 											{type}
 											{...media}
 											alt=""
-											--selected={url === media.url && 'var(--ring)'}
+											--selected={selectedMedia?.url === media.url &&
+												'var(--ring)'}
 										/>
 									</label>
 								{/snippet}

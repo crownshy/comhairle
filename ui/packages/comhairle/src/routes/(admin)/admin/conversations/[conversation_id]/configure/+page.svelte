@@ -1,10 +1,9 @@
 <script lang="ts">
-	import { Input } from '$lib/components/ui/input';
 	import { Switch } from '$lib/components/ui/switch';
 	import * as Form from '$lib/components/ui/form/';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate, invalidateAll } from '$app/navigation';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { conversationConfigSchema } from './schema';
@@ -12,8 +11,19 @@
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { autoTranslateNewLanguage } from '$lib/components/Translation/translationUtils';
 	import { LanguageSelector } from '$lib/components/ui/language-selector';
-	import type { ConversationWithTranslations, WorkflowDto } from '@crownshy/api-client/api';
+	import type {
+		ConversationWithTranslations,
+		MediaDto,
+		WorkflowDto
+	} from '@crownshy/api-client/api';
 	import { camelToSentenceCase, camelToSnakeCase, snakeCaseKeys } from '$lib/utils/casingUtils';
+	import { Image as ImageIcon } from 'lucide-svelte';
+	import MediaLibraryDialog, {
+		addToCache
+	} from '$lib/components/Media/MediaLibraryDialog.svelte';
+	import MediaUpload from '$lib/components/Media/MediaUpload.svelte';
+	import Label from '$lib/components/ui/label/label.svelte';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 	let {
 		data
@@ -21,10 +31,12 @@
 		data: {
 			conversation: ConversationWithTranslations;
 			workflows: WorkflowDto[];
+			media: MediaDto | null;
 		};
 	} = $props();
 	let conversation = $derived(data.conversation);
 	let workflow = $derived(data.workflows[0]);
+	let imageMedia = $derived(data.media);
 
 	let primaryLanguage = $state(data.conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $state(data.conversation.supportedLanguages ?? ['en']);
@@ -36,7 +48,6 @@
 		$form.title = data.conversation.title;
 		$form.shortDescription = data.conversation.shortDescription;
 		$form.description = data.conversation.description;
-		$form.imageUrl = data.conversation.imageUrl;
 		$form.isPublic = data.conversation.isPublic;
 		$form.isInviteOnly = data.conversation.isInviteOnly;
 		$form.privacyPolicy = data.conversation.privacyPolicy;
@@ -134,7 +145,6 @@
 			title: data.conversation.title,
 			shortDescription: data.conversation.shortDescription,
 			description: data.conversation.description,
-			imageUrl: data.conversation.imageUrl,
 			privacyPolicy: data.conversation.privacyPolicy,
 			shortPrivacyPolicy: data.conversation.shortPrivacyPolicy,
 			faqs: data.conversation.faqs,
@@ -245,6 +255,34 @@
 		} catch (e) {
 			notifications.send({ message: 'Failed to save changes', priority: 'ERROR' });
 		}
+	}
+
+	async function updateConversationMedia(media: MediaDto, field: string) {
+		const response = await tryCatchAsync(() =>
+			apiClient.UpdateConversation(
+				{
+					[field]: media.id
+				},
+				{ params: { conversation_id: conversation.id } }
+			)
+		);
+
+		if (response.err !== null) {
+			console.error(response.err);
+			notifications.send({
+				message: 'Something went wrong updating conversation media',
+				priority: 'ERROR'
+			});
+
+			return;
+		}
+
+		notifications.send({
+			message: 'Successfully updated conversation media',
+			priority: 'INFO'
+		});
+
+		await invalidate('conversation:meta');
 	}
 </script>
 
@@ -361,26 +399,43 @@
 	<div
 		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 	>
-		<Form.Field form={conversationForm} name="imageUrl" class="contents">
-			<Form.Control>
-				{#snippet children({ props })}
-					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-						>Banner image URL</Form.Label
-					>
-					<div class="flex flex-1 flex-col gap-4">
-						<Input {...props} bind:value={$form.imageUrl} />
-						<Form.FieldErrors />
-						{#if $form.imageUrl}
-							<img
-								class="bg-muted w-full max-w-md rounded-lg object-cover"
-								alt="Conversation Banner"
-								src={$form.imageUrl}
-							/>
-						{/if}
+		<div class="contents">
+			<Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Banner image URL</Label
+			>
+			<div class="align-start flex w-full flex-col gap-4">
+				<div class="flex flex-1 gap-4">
+					<MediaLibraryDialog
+						onconfirm={(media) => {
+							updateConversationMedia(media, 'image');
+						}}
+					/>
+					<MediaUpload
+						clientSide
+						size="sm"
+						oncomplete={(media) => {
+							if (!media.length) return;
+							updateConversationMedia(media[0], 'image');
+							for (const m of media) {
+								addToCache(m);
+							}
+						}}
+					/>
+				</div>
+				{#if imageMedia}
+					<div class="h-70 w-auto">
+						<img
+							src={imageMedia.url}
+							alt="Conversation"
+							class="h-full w-auto object-contain"
+						/>
 					</div>
-				{/snippet}
-			</Form.Control>
-		</Form.Field>
+				{:else}
+					<div class="flex w-full">
+						<ImageIcon class="h-full w-full" />
+					</div>
+				{/if}
+			</div>
+		</div>
 	</div>
 
 	<!-- Privacy policy -->

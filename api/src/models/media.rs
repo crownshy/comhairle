@@ -1,9 +1,11 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr, enum_def};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::{PgPool, prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -135,6 +137,68 @@ const DEFAULT_COLUMNS: [MediaIden; 8] = [
     MediaIden::CreatedAt,
     MediaIden::UpdatedAt,
 ];
+
+/// A batch-loaded lookup table mapping media IDs to their resolved URLs.
+///
+/// `MediaResolver` exists to avoid N+1 queries when converting DB models
+/// (which reference media by [`Uuid`]) into DTOs (which need the resolved
+/// URL string). Load it once with [`MediaResolver::load`] for a batch of
+/// IDs, then query it synchronously via [`MediaResolver::url_for`] while
+/// assembling DTOs.
+#[derive(Debug)]
+pub struct MediaResolver(HashMap<Uuid, String>);
+
+impl MediaResolver {
+    /// Fetches media rows for the given `ids` and builds a resolver from them.
+    ///
+    /// Only rows matching `ids` are loaded, so this is safe to call with a
+    /// list of IDs collected from an arbitrary batch of records. IDs with no
+    /// matching row are simply absent from the resulting map.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ComhairleError`] if the underlying query fails.
+    pub async fn load(db: &PgPool, ids: &[Uuid]) -> Result<Self, ComhairleError> {
+        let (sql, values) = Query::select()
+            .from(MediaIden::Table)
+            .columns(DEFAULT_COLUMNS)
+            .and_where(Expr::col(MediaIden::Id).is_in(ids.to_owned()))
+            .build_sqlx(PostgresQueryBuilder);
+
+        let media = query_as_with::<_, Media, _>(&sql, values)
+            .fetch_all(db)
+            .await?;
+
+        Ok(Self(
+            media.into_iter().map(|row| (row.id, row.url())).collect(),
+        ))
+    }
+
+    /// Returns the resolved URL for a given media `id`, if it was loaded.
+    ///
+    /// Returns `None` if `id` was not present in the batch passed to
+    /// [`MediaResolver::load`]
+    pub fn url_for(&self, id: Uuid) -> Option<String> {
+        self.0.get(&id).map(|url| url.to_owned())
+    }
+}
+
+/// Converts a value into `Self` using a [`MediaResolver`] to resolve any
+/// media references (e.g. `Uuid` fields) into their corresponding URLs.
+///
+/// This mirrors [`From`], but for conversions that need previously-resolved
+/// media data rather than performing async DB lookups inline. Callers are
+/// expected to batch-load a [`MediaResolver`] for all relevant IDs up front
+/// (e.g. via [`MediaResolver::load`]) before calling `from_with_media`.
+pub trait FromWithMedia<T> {
+    /// Performs the conversion from `model` to `Self`, resolving media
+    /// references via `media`.
+    ///
+    /// If a media reference is absent (e.g. an optional field with no
+    /// associated media) or its ID could not be resolved by `media`,
+    /// `fallback` is used in its place instead.
+    fn from_with_media(model: T, media: &MediaResolver, fallback: &str) -> Self;
+}
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct CreateMedia {

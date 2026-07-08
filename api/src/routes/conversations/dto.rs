@@ -5,6 +5,7 @@ use uuid::Uuid;
 use crate::{
     models::{
         conversation::{Conversation, LocalizedConversation},
+        media::{FromWithMedia, MediaResolver},
         pagination::PaginatedResults,
         translations::TextContentId,
     },
@@ -40,7 +41,7 @@ pub struct ConversationDto {
     #[schemars(example = "example_uuid")]
     pub description: TextContentId,
     pub video_url: Option<String>,
-    pub image_url: String,
+    pub image: Option<Uuid>,
     pub tags: Vec<String>,
     pub is_public: bool,
     pub is_live: bool,
@@ -135,7 +136,7 @@ impl From<Conversation> for ConversationDto {
             short_description: c.short_description,
             description: c.description,
             video_url: c.video_url,
-            image_url: c.image_url,
+            image: c.image,
             tags: c.tags,
             is_public: c.is_public,
             is_live: c.is_live,
@@ -159,15 +160,18 @@ impl From<Conversation> for ConversationDto {
     }
 }
 
-impl From<LocalizedConversation> for LocalizedConversationDto {
-    fn from(c: LocalizedConversation) -> Self {
+impl FromWithMedia<LocalizedConversation> for LocalizedConversationDto {
+    fn from_with_media(c: LocalizedConversation, media: &MediaResolver, fallback: &str) -> Self {
         Self {
             id: c.id,
             title: c.title,
             short_description: c.short_description,
             description: c.description,
             video_url: c.video_url,
-            image_url: c.image_url,
+            image_url: c
+                .image
+                .and_then(|image| media.url_for(image))
+                .unwrap_or_else(|| fallback.to_string()),
             tags: c.tags,
             is_public: c.is_public,
             is_live: c.is_live,
@@ -191,11 +195,21 @@ impl From<LocalizedConversation> for LocalizedConversationDto {
     }
 }
 
-impl From<PaginatedResults<LocalizedConversation>> for PaginatedResults<LocalizedConversationDto> {
-    fn from(r: PaginatedResults<LocalizedConversation>) -> Self {
+impl FromWithMedia<PaginatedResults<LocalizedConversation>>
+    for PaginatedResults<LocalizedConversationDto>
+{
+    fn from_with_media(
+        results: PaginatedResults<LocalizedConversation>,
+        media: &MediaResolver,
+        fallback: &str,
+    ) -> Self {
         Self {
-            total: r.total,
-            records: r.records.into_iter().map(Into::into).collect(),
+            total: results.total,
+            records: results
+                .records
+                .into_iter()
+                .map(|r| LocalizedConversationDto::from_with_media(r, media, fallback))
+                .collect(),
         }
     }
 }

@@ -26,6 +26,7 @@ use crate::{
         conversation_email_notification_recipients::{
             self as email_recipients_model, CreateConversationEmailNotificationRecipients,
         },
+        media::{FromWithMedia, MediaResolver},
         notification::{self as notification_model, CreateNotification, NotificationContextType},
         notification_delivery::{
             self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
@@ -87,17 +88,33 @@ async fn list_conversations(
 ) -> Result<(StatusCode, Json<PaginatedResults<LocalizedConversationDto>>), ComhairleError> {
     filter_options.enforce_live();
 
-    let conversations = conversation::list(
+    let results = conversation::list(
         &state.db,
         page_options,
         order_options,
         filter_options,
         Some(locale),
     )
-    .await?
-    .into();
+    .await?;
 
-    Ok((StatusCode::OK, Json(conversations)))
+    let media = MediaResolver::load(
+        &state.db,
+        &results
+            .records
+            .iter()
+            .filter_map(|c| c.image)
+            .collect::<Vec<_>>(),
+    )
+    .await?;
+
+    let results_with_media: PaginatedResults<LocalizedConversationDto> =
+        FromWithMedia::from_with_media(
+            results,
+            &media,
+            &state.config.default_conversation_image_url,
+        );
+
+    Ok((StatusCode::OK, Json(results_with_media)))
 }
 
 async fn launch_conversation(
@@ -174,10 +191,21 @@ async fn get_conversation(
     } else {
         // Return localized conversation as before
         info!("Trying to get localized translations for {locale}");
-        let conversation: LocalizedConversationDto =
+        let conversation =
             conversation::get_localised_by_id_or_slug(&state.db, &conversation_ident, &locale)
-                .await?
-                .into();
+                .await?;
+
+        let media = MediaResolver::load(
+            &state.db,
+            &conversation.image.map(|image| [image]).unwrap_or_default(),
+        )
+        .await?;
+
+        let conversation = FromWithMedia::from_with_media(
+            conversation,
+            &media,
+            &state.config.default_conversation_image_url,
+        );
 
         Ok((
             StatusCode::OK,
@@ -811,11 +839,13 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
 #[cfg(test)]
 mod tests {
     use crate::bot_service::{ComhairleChat, ComhairleKnowledgeBase, MockComhairleBotService};
+    use crate::bulk_storage_service::{MockBulkStorageService, UploadResult};
     use crate::config::BotServiceConfig;
     use crate::routes::conversations::ConversationResponse;
     use crate::routes::conversations::dto::{ConversationDto, LocalizedConversationDto};
+    use crate::routes::media::dto::MediaDto;
     use crate::routes::translations::dto::TextContentDto;
-    use crate::test_helpers::{test_config, test_state};
+    use crate::test_helpers::{multipart_body_builder, test_config, test_state};
     use crate::{setup_server, test_helpers::UserSession};
     use axum::http::StatusCode;
     use serde_json::json;
@@ -844,7 +874,6 @@ mod tests {
                     "title" : "Test conversation",
                     "short_description" : "A test conversation",
                     "description" : "A longer description",
-                    "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
                     "is_live": true,
@@ -858,11 +887,6 @@ mod tests {
         let conversation: ConversationDto = serde_json::from_value(response)?;
 
         assert_eq!(status, StatusCode::CREATED, "Should be created");
-        assert_eq!(
-            conversation.image_url,
-            "http://someimage.png".to_string(),
-            "incorrect json response"
-        );
         assert!(
             conversation.knowledge_base_id.is_none(),
             "incorrect knowledge_base_id"
@@ -899,7 +923,6 @@ mod tests {
                     "title" : "Test conversation",
                     "short_description" : "A test conversation",
                     "description" : "A longer description",
-                    "image_url" : "http://someimage.png",
                     "tags" : ["one", "two", "three"],
                     "is_public" : false,
                     "is_live": true,
@@ -913,11 +936,6 @@ mod tests {
         let conversation: ConversationDto = serde_json::from_value(response)?;
 
         assert_eq!(status, StatusCode::CREATED, "Should be created");
-        assert_eq!(
-            conversation.image_url,
-            "http://someimage.png".to_string(),
-            "incorrect json response"
-        );
         assert!(
             conversation.knowledge_base_id.is_some(),
             "incorrect knowledge_base_id"
@@ -1432,9 +1450,6 @@ mod tests {
                 .into(),
             )
             .await?;
-        println!();
-        println!("    >>>>    Updated conversation: {update_res:#?}");
-        println!();
 
         let (status, value, _) = session
             .get(
@@ -1480,6 +1495,85 @@ mod tests {
             }
             _ => panic!("Expected ConversationResponse::WithTranslations"),
         }
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    fn should_be_able_to_get_conversation_with_media(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let boundary = "test-boundary";
+        let filename = "test_file.jpg";
+        let content_type = "image/jpeg";
+
+        let mut bulk_storage_service = MockBulkStorageService::new();
+        bulk_storage_service
+            .expect_upload_file()
+            .once()
+            .returning(move |_, _, _| {
+                Box::pin(async move {
+                    Ok(UploadResult {
+                        url: format!("https://storage.com/{}", filename),
+                    })
+                })
+            });
+
+        let state = test_state()
+            .db(pool)
+            .bulk_storage_service(Arc::new(bulk_storage_service))
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+
+        let mut session = UserSession::new_admin();
+
+        session.signup(&app).await?;
+        let (_, value, _) = session
+            .create_conversation(
+                &app,
+                json! ({
+                    "title" : "Test conversation",
+                    "short_description" : "A test conversation",
+                    "description" : "A longer description",
+                    "image_url" : "http://someimage.png",
+                    "tags" : ["one", "two", "three"],
+                    "is_public" : false,
+                    "is_live" : false,
+                    "is_invite_only" : false,
+                    "slug" : "new_conversation",
+                    "primary_locale" : "en",
+                    "supported_languages" : ["en"]
+                }),
+            )
+            .await?;
+        let conversation: ConversationDto = serde_json::from_value(value)?;
+
+        let body = multipart_body_builder()
+            .content("test-content")
+            .boundary(boundary)
+            .filename(filename)
+            .content_type(content_type)
+            .call();
+        let (_, value, _) = session
+            .post_multipart(&app, "/media", boundary, body.into())
+            .await?;
+        let media: Vec<MediaDto> = serde_json::from_value(value)?;
+
+        session
+            .update_conversation(
+                &app,
+                &conversation.id.to_string(),
+                json!({ "image": media[0].id }),
+            )
+            .await?;
+
+        let (_, value, _) = session
+            .get(&app, &format!("/conversation/{}", conversation.id))
+            .await?;
+        let conversation: LocalizedConversationDto = serde_json::from_value(value)?;
+
+        assert!(
+            conversation.image_url.contains("/images/test_file.jpg"),
+            "incorrect image_url"
+        );
 
         Ok(())
     }
