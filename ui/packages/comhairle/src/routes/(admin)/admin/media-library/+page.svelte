@@ -21,12 +21,10 @@
 	const { form, data } = $props();
 
 	$effect(() => {
-		if (form?.failures) {
-			form.failures.forEach((message) => {
-				notifications.send({
-					message,
-					priority: 'ERROR'
-				});
+		if (form?.error) {
+			notifications.send({
+				message: form.error,
+				priority: 'ERROR'
 			});
 		}
 	});
@@ -113,10 +111,12 @@
 			</form>
 			{#if details !== null}
 				<DetailsDialog
+					id={details.id}
 					type={htmlFromMediaType(details.contentType)}
 					filename={details.filename}
 					src={details.url}
 					alt=""
+					close={() => (details = null)}
 				/>
 			{/if}
 		</Dialog.Root>

@@ -6,15 +6,22 @@
 	import Input from '$lib/components/ui/input/input.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { Trash2 } from 'lucide-svelte';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import { apiClient } from '@crownshy/api-client/client';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import { notifications } from '$lib/notifications.svelte';
+	import { invalidate } from '$app/navigation';
 
 	interface Props {
 		type: HTMLMediaElement | undefined;
+		id: string;
 		filename: string;
 		src: string;
 		alt: string;
+		close: () => void;
 	}
 
-	const { type, filename: currentFilename, src }: Props = $props();
+	const { id, type, filename: currentFilename, src, close }: Props = $props();
 
 	const LABEL_SPACING = 'mb-2';
 	const INPUT_SPACING = 'mb-8';
@@ -25,6 +32,30 @@
 	});
 
 	// let alt = $derived(currentAlt);
+
+	let deleteDialogOpen = $state<boolean>(false);
+
+	async function deleteMedia() {
+		const response = await tryCatchAsync(() =>
+			apiClient.DeleteMedia(undefined, {
+				params: {
+					media_id: id
+				}
+			})
+		);
+
+		if (response.err !== null) {
+			notifications.send({
+				message: 'Could not delete media. Please try again later.',
+				priority: 'ERROR'
+			});
+			return;
+		}
+
+		deleteDialogOpen = false;
+		close();
+		await invalidate('media-library:media');
+	}
 </script>
 
 <Dialog.Portal>
@@ -70,12 +101,27 @@
 					<!-- > -->
 					<!-- <Input class={INPUT_SPACING} id="alt" type="text" bind:value={alt} /> -->
 					<div class="mt-5 flex flex-row items-center self-end">
-						<Button
-							variant="outline"
-							class="mr-5"
-							aria-label="Delete media"
-							title="Delete media"><Trash2 /></Button
-						>
+						<AlertDialog.Root bind:open={deleteDialogOpen}>
+							<AlertDialog.Trigger>
+								<Button
+									variant="outline"
+									class="mr-5"
+									aria-label="Delete media"
+									title="Delete media"><Trash2 /></Button
+								>
+							</AlertDialog.Trigger>
+							<AlertDialog.Portal>
+								<AlertDialog.Content>
+									Are you sure you want to delete this?
+									<AlertDialog.Footer>
+										<AlertDialog.Action onclick={deleteMedia}
+											>Yes</AlertDialog.Action
+										>
+										<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+									</AlertDialog.Footer>
+								</AlertDialog.Content>
+							</AlertDialog.Portal>
+						</AlertDialog.Root>
 						<Button>Update</Button>
 					</div>
 				</aside>
