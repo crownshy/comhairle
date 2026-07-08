@@ -3,7 +3,7 @@
 	import * as Form from '$lib/components/ui/form/';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate, invalidateAll } from '$app/navigation';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { conversationConfigSchema } from './schema';
@@ -18,9 +18,12 @@
 	} from '@crownshy/api-client/api';
 	import { camelToSentenceCase, camelToSnakeCase, snakeCaseKeys } from '$lib/utils/casingUtils';
 	import { Image as ImageIcon } from 'lucide-svelte';
-	import MediaLibraryDialog from '$lib/components/RichTextEditor/UrlInputPopover/MediaLibraryDialog.svelte';
+	import MediaLibraryDialog, {
+		addToCache
+	} from '$lib/components/Media/MediaLibraryDialog.svelte';
 	import MediaUpload from '$lib/components/Media/MediaUpload.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 	let {
 		data
@@ -255,27 +258,31 @@
 	}
 
 	async function updateConversationMedia(media: MediaDto, field: string) {
-		try {
-			await apiClient.UpdateConversation(
+		const response = await tryCatchAsync(() =>
+			apiClient.UpdateConversation(
 				{
 					[field]: media.id
 				},
 				{ params: { conversation_id: conversation.id } }
-			);
+			)
+		);
 
-			notifications.send({
-				message: 'Successfully updated conversation media',
-				priority: 'INFO'
-			});
-
-			await invalidateAll();
-		} catch (e) {
-			console.error(e);
+		if (response.err !== null) {
+			console.error(response.err);
 			notifications.send({
 				message: 'Something went wrong updating conversation media',
 				priority: 'ERROR'
 			});
+
+			return;
 		}
+
+		notifications.send({
+			message: 'Successfully updated conversation media',
+			priority: 'INFO'
+		});
+
+		await invalidate('conversation:meta');
 	}
 </script>
 
@@ -408,6 +415,9 @@
 						oncomplete={(media) => {
 							if (!media.length) return;
 							updateConversationMedia(media[0], 'image');
+							for (const m of media) {
+								addToCache(m);
+							}
 						}}
 					/>
 				</div>

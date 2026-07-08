@@ -59,7 +59,7 @@
 		>
 	</Dialog.Trigger>
 	<Dialog.Portal>
-		<Dialog.Content class="sm:max-w-3xl">
+		<Dialog.Content class="max-h-[80vh] overflow-y-auto sm:max-w-3xl">
 			<Dialog.Title>
 				<div class="mr-8 mb-5 flex flex-row items-center justify-between">
 					<div class="flex flex-row items-center gap-1">

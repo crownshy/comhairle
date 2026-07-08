@@ -9,7 +9,7 @@ type Opts = {
 };
 
 class Media {
-	async #upload(to: string, files: File[], opts?: Opts): Promise<UploadReturn> {
+	async upload(to: string, files: File[], opts?: Opts): Promise<UploadReturn> {
 		const formData = new FormData();
 
 		for (const file of files) {
@@ -72,10 +72,6 @@ class Media {
 			filesArray.push(files as File);
 		}
 		return filesArray;
-	}
-
-	async upload(to: string, files: File[], opts?: Opts): Promise<UploadReturn> {
-		return this.#upload(to, files, opts);
 	}
 }
 
