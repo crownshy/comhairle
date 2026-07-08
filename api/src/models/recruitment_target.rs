@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow};
 use uuid::Uuid;
 
-use crate::error::ComhairleError;
+use crate::{error::ComhairleError, models::SqlxResultExt};
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "recruitment_target")]
@@ -95,7 +95,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<RecruitmentTarget, Comh
     let target = sqlx::query_as_with::<_, RecruitmentTarget, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("RecruitmentTarget".into()))?;
+        .resolve_db_err("Recruitment Target")?;
 
     Ok(target)
 }
@@ -165,7 +165,7 @@ pub async fn update(
     let target = sqlx::query_as_with::<_, RecruitmentTarget, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("RecruitmentTarget".into()))?;
+        .resolve_db_err("Recruitment Target")?;
 
     Ok(target)
 }
@@ -180,7 +180,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<RecruitmentTarget, Comhair
     let target = sqlx::query_as_with::<_, RecruitmentTarget, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("RecruitmentTarget".into()))?;
+        .resolve_db_err("Recruitment Target")?;
 
     Ok(target)
 }

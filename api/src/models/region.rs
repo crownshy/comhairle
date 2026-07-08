@@ -15,6 +15,7 @@ use fake::Dummy;
 use crate::{
     error::ComhairleError,
     models::{
+        SqlxResultExt,
         organization::OrganizationIden,
         pagination::{Order, PageOptions, PaginatedResults},
         translations::{TextContentId, TextFormat, new_translation},
@@ -273,10 +274,7 @@ pub async fn get_localized_by_id(
     let region = query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Region".into()),
-            other => ComhairleError::DatabaseError(other),
-        })?;
+        .resolve_db_err("Region")?;
 
     Ok(region)
 }
@@ -289,7 +287,10 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Region, ComhairleError> {
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let region = query_as_with(&sql, values).fetch_one(db).await?;
+    let region = query_as_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Region")?;
 
     Ok(region)
 }

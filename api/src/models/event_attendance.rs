@@ -10,6 +10,7 @@ use uuid::Uuid;
 use crate::{
     error::ComhairleError,
     models::{
+        SqlxResultExt,
         event::EventIden,
         pagination::{Order, PageOptions, PaginatedResults},
         users::UserIden,
@@ -271,12 +272,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<EventAttendance, Comhai
     let event_attendance = sqlx::query_as_with::<_, EventAttendance, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => {
-                ComhairleError::ResourceNotFound("EventAttendance".to_string())
-            }
-            other => ComhairleError::DatabaseError(other),
-        })?;
+        .resolve_db_err("Event Attendance")?;
 
     Ok(event_attendance)
 }
@@ -303,12 +299,7 @@ pub async fn get_by_event_and_user(
     let event_attendance = sqlx::query_as_with::<_, EventAttendance, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => {
-                ComhairleError::ResourceNotFound("EventAttendance".to_string())
-            }
-            other => ComhairleError::DatabaseError(other),
-        })?;
+        .resolve_db_err("Event Attendance")?;
 
     Ok(event_attendance)
 }
@@ -800,7 +791,7 @@ mod tests {
 
         match err {
             ComhairleError::ResourceNotFound(e) => {
-                assert_eq!(e, "EventAttendance".to_string(), "incorrect error message");
+                assert_eq!(e, "Event Attendance".to_string(), "incorrect error message");
             }
             _ => panic!("Expected ResourceNotFound error"),
         }

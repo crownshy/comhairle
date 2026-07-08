@@ -14,7 +14,7 @@ use crate::{
     },
     config::ComhairleConfig,
     error::ComhairleError,
-    models,
+    models::{self, SqlxResultExt},
 };
 use chrono::{DateTime, Utc};
 use comhairle_macros::Translatable;
@@ -394,7 +394,7 @@ pub async fn delete(
         .fetch_one(db)
         .await
         .inspect_err(|e| println!("{e:#?}"))
-        .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
+        .resolve_db_err("Conversation")?;
 
     if let Some(bot_service) = bot_service {
         if let Some(ref knowledge_base_id) = conversation.knowledge_base_id {
@@ -444,7 +444,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Conversation, Comhairle
     let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
+        .resolve_db_err("Conversation")?;
 
     Ok(conversation)
 }
@@ -469,7 +469,7 @@ pub async fn get_localised_by_id(
         .fetch_one(db)
         .await
         .inspect_err(|e| println!("{e:#?}"))
-        .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
+        .resolve_db_err("Conversation")?;
 
     Ok(conversation)
 }
@@ -486,7 +486,7 @@ pub async fn get_by_slug(db: &PgPool, slug: &str) -> Result<Conversation, Comhai
     let conversation = sqlx::query_as_with::<_, Conversation, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
+        .resolve_db_err("Conversation")?;
 
     Ok(conversation)
 }
@@ -509,7 +509,7 @@ pub async fn get_localised_by_slug(
     let conversation = sqlx::query_as_with::<_, LocalizedConversation, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("Conversation".into()))?;
+        .resolve_db_err("Conversation")?;
 
     Ok(conversation)
 }

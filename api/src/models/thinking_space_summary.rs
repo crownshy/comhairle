@@ -7,7 +7,7 @@ use sqlx::{PgPool, prelude::FromRow, query_as_with};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::error::ComhairleError;
+use crate::{error::ComhairleError, models::SqlxResultExt};
 
 #[derive(Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "thinking_space_summary")]
@@ -123,12 +123,7 @@ pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<ThinkingSpaceSummary, Co
     let summary = query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => {
-                ComhairleError::ResourceNotFound("Thinking space summary".into())
-            }
-            other => ComhairleError::DatabaseError(other),
-        })?;
+        .resolve_db_err("Thinking Space Summary")?;
 
     Ok(summary)
 }
@@ -398,7 +393,7 @@ mod tests {
 
         match err {
             ComhairleError::ResourceNotFound(message) => {
-                assert!(message.contains("Thinking space summary"))
+                assert!(message.contains("Thinking Space Summary"))
             }
             _ => panic!("Expected ResourceNotFound error"),
         }

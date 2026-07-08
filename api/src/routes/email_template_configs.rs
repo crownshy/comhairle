@@ -469,7 +469,7 @@ mod tests {
 
         assert_eq!(
             response.get("err").and_then(|v| v.as_str()).unwrap(),
-            "Email template config not found",
+            "Email Template Config not found",
             "incorrect error message"
         );
 

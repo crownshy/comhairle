@@ -551,7 +551,7 @@ mod tests {
 
         assert_eq!(
             response.get("err").and_then(|v| v.as_str()).unwrap(),
-            "EventAttendance not found",
+            "Event Attendance not found",
             "incorrect event_id"
         );
 

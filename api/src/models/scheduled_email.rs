@@ -18,7 +18,10 @@ use fake::Dummy;
 
 use crate::{
     error::ComhairleError,
-    models::pagination::{Order, PageOptions, PaginatedResults},
+    models::{
+        SqlxResultExt,
+        pagination::{Order, PageOptions, PaginatedResults},
+    },
 };
 
 #[derive(Serialize, Deserialize, Debug, FromRow, Clone, JsonSchema)]
@@ -263,10 +266,7 @@ pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<ScheduledEmail, Comhairl
     let email = query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Scheduled email".into()),
-            other => ComhairleError::DatabaseError(other),
-        })?;
+        .resolve_db_err("Scheduled Email")?;
 
     Ok(email)
 }
@@ -686,7 +686,7 @@ mod tests {
 
         match err {
             ComhairleError::ResourceNotFound(e) => {
-                assert_eq!(e, "Scheduled email".to_string(), "incorrect error message");
+                assert_eq!(e, "Scheduled Email".to_string(), "incorrect error message");
             }
             _ => panic!("Expected ResourceNotFound error"),
         }

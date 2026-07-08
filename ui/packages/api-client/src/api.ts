@@ -2070,6 +2070,35 @@ export const PreviewEmailTemplateConfigResponse = z
 export type PreviewEmailTemplateConfigResponse = z.infer<
   typeof PreviewEmailTemplateConfigResponse
 >;
+export const ResourcePermission = z
+  .object({
+    grant_reason: z.string(),
+    granted_at: z.string().datetime({ offset: true }),
+    granted_by: z.union([z.string(), z.null()]).optional(),
+    id: z.string().uuid(),
+    organization_id: z.union([z.string(), z.null()]).optional(),
+    resource_id: z.string().uuid(),
+    resource_type: z.string(),
+    role_name: z.string(),
+    user_id: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type ResourcePermission = z.infer<typeof ResourcePermission>;
+export const PaginatedResults_for_ResourcePermission = z
+  .object({ records: z.array(ResourcePermission), total: z.number().int() })
+  .passthrough();
+export type PaginatedResults_for_ResourcePermission = z.infer<
+  typeof PaginatedResults_for_ResourcePermission
+>;
+export const GrantPermissionBody = z
+  .object({
+    grant_reason: z.string(),
+    organization_id: z.union([z.string(), z.null()]).optional(),
+    role_name: z.string(),
+    user_id: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type GrantPermissionBody = z.infer<typeof GrantPermissionBody>;
 
 export const schemas: Record<string, z.ZodType<any>> = {
   AnnonLoginRequest,
@@ -2308,6 +2337,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   EmailTypeSchema,
   PreviewEmailTemplateConfigRequest,
   PreviewEmailTemplateConfigResponse,
+  ResourcePermission,
+  PaginatedResults_for_ResourcePermission,
+  GrantPermissionBody,
 };
 
 const endpoints = makeApi([
@@ -4040,6 +4072,147 @@ curl -X POST \
     description: `Delete an organization`,
     requestFormat: "json",
     response: OrganizationDto,
+  },
+  {
+    method: "get",
+    path: "/permissions",
+    alias: "ListPermissions",
+    description: `Returns role assignments using offset-based pagination. Optionally filter by user_id, organization_id, or role_name. Use the &#x60;offset&#x60; and &#x60;limit&#x60; query params to page through results.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "organization_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "role_name",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "user_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: PaginatedResults_for_ResourcePermission,
+  },
+  {
+    method: "get",
+    path: "/permissions/:resource_type/:resource_id",
+    alias: "ListResourcePermissions",
+    description: `Returns role assignments for a specific resource using offset-based pagination. Optionally filter by user_id, organization_id, or role_name. The caller must hold the Owner role on the resource.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "resource_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "resource_type",
+        type: "Path",
+        schema: z.string(),
+      },
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "organization_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "role_name",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "user_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: PaginatedResults_for_ResourcePermission,
+  },
+  {
+    method: "post",
+    path: "/permissions/:resource_type/:resource_id",
+    alias: "GrantPermission",
+    description: `Grants a role to a user or organisation on a resource. The caller must hold the Owner role on the resource.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        description: `Represents a request body for granting a permission to a user or organization.`,
+        type: "Body",
+        schema: GrantPermissionBody,
+      },
+      {
+        name: "resource_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "resource_type",
+        type: "Path",
+        schema: z.string(),
+      },
+    ],
+    response: ResourcePermission,
+  },
+  {
+    method: "delete",
+    path: "/permissions/:resource_type/:resource_id",
+    alias: "RevokePermission",
+    description: `Revokes a role from a user or organisation on a resource. The actor (user_id or organization_id) and role_name are provided as query parameters. The caller must hold the Owner role on the resource.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "resource_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "resource_type",
+        type: "Path",
+        schema: z.string(),
+      },
+      {
+        name: "organization_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "role_name",
+        type: "Query",
+        schema: z.string(),
+      },
+      {
+        name: "user_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: z.void(),
   },
   {
     method: "get",
