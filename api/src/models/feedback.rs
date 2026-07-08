@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow};
 use uuid::Uuid;
 
-use crate::error::ComhairleError;
+use crate::{error::ComhairleError, models::SqlxResultExt};
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "feedback")]
@@ -100,7 +100,7 @@ pub async fn list_for_conversation(
     let feedback = sqlx::query_as_with::<_, Feedback, _>(&sql, values)
         .fetch_all(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("Feedback".into()))?;
+        .resolve_db_err("Feedback")?;
 
     Ok(feedback)
 }
@@ -120,7 +120,7 @@ pub async fn list_for_user_on_conversation(
     let feedback = sqlx::query_as_with::<_, Feedback, _>(&sql, values)
         .fetch_all(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("Feedback".into()))?;
+        .resolve_db_err("Feedback")?;
 
     Ok(feedback)
 }

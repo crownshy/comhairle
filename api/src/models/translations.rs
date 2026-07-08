@@ -1,7 +1,9 @@
 use std::str::FromStr;
 use std::{fmt, sync::Arc};
 
-use crate::{error::ComhairleError, translation_service::TranslationService};
+use crate::{
+    error::ComhairleError, models::SqlxResultExt, translation_service::TranslationService,
+};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
@@ -476,7 +478,7 @@ pub async fn get_text_content_by_id(
     let text_content = sqlx::query_as_with::<_, TextContent, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("TextContent".into()))?;
+        .resolve_db_err("Text Content")?;
 
     Ok(text_content)
 }
@@ -524,10 +526,7 @@ pub async fn update_text_content(
     let text_content = sqlx::query_as_with::<_, TextContent, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("TextContent".into()),
-            _ => ComhairleError::DatabaseError(e),
-        })?;
+        .resolve_db_err("Text Content")?;
 
     Ok(text_content)
 }
@@ -561,7 +560,7 @@ pub async fn delete_text_content(
         .fetch_one(db)
         .await
         .inspect_err(|e| println!("{e:#?}"))
-        .map_err(|_| ComhairleError::ResourceNotFound("TextContent".into()))?;
+        .resolve_db_err("Text Content")?;
 
     Ok(text_content)
 }
@@ -634,7 +633,7 @@ pub async fn get_text_translation_by_id(
     let text_translation = sqlx::query_as_with::<_, TextTranslation, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("TextTranslation".into()))?;
+        .resolve_db_err("Text Translation")?;
 
     Ok(text_translation)
 }
@@ -701,7 +700,7 @@ pub async fn get_text_translation_by_content_and_locale(
     let text_translation = sqlx::query_as_with::<_, TextTranslation, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("TextTranslation".into()))?;
+        .resolve_db_err("Text Translation")?;
 
     Ok(text_translation)
 }
@@ -777,7 +776,7 @@ pub async fn delete_text_translation(
     let text_translation = sqlx::query_as_with::<_, TextTranslation, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("TextTranslation".into()))?;
+        .resolve_db_err("Text Translation")?;
 
     Ok(text_translation)
 }

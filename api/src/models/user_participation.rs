@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow};
 use uuid::Uuid;
 
-use crate::error::ComhairleError;
+use crate::{error::ComhairleError, models::SqlxResultExt};
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "user_participation")]
@@ -95,7 +95,7 @@ pub async fn delete(
     let user_participation = sqlx::query_as_with::<_, UserParticipation, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("UserParticipation".into()))?;
+        .resolve_db_err("User Participation")?;
 
     Ok(user_participation)
 }
@@ -123,7 +123,7 @@ pub async fn check_user_participating(
     sqlx::query_with(&sql, values)
         .fetch_all(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("UserParticipation".into()))?;
+        .resolve_db_err("User Participation")?;
 
     Ok(())
 }

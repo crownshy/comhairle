@@ -9,7 +9,10 @@ use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
-    models::users::{self, UserAuthType},
+    models::{
+        SqlxResultExt,
+        users::{self, UserAuthType},
+    },
     tools::id::gen_id,
 };
 
@@ -126,12 +129,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Otp, ComhairleError> {
     let otp = sqlx::query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => {
-                ComhairleError::ResourceNotFound("One time passcode".into())
-            }
-            other => ComhairleError::DatabaseError(other),
-        })?;
+        .resolve_db_err("One Time Passcode")?;
 
     Ok(otp)
 }
@@ -156,12 +154,7 @@ pub async fn accept(
     let otp = sqlx::query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => {
-                ComhairleError::ResourceNotFound("One time passcode".into())
-            }
-            other => ComhairleError::DatabaseError(other),
-        })?;
+        .resolve_db_err("One Time Passcode")?;
 
     Ok(otp)
 }
@@ -305,7 +298,7 @@ mod tests {
             ComhairleError::ResourceNotFound(e) => {
                 assert_eq!(
                     e,
-                    "One time passcode".to_string(),
+                    "One Time Passcode".to_string(),
                     "incorrect error message"
                 );
             }
@@ -340,7 +333,7 @@ mod tests {
 
         match (first_error, second_error) {
             (ComhairleError::ResourceNotFound(first), ComhairleError::ResourceNotFound(second)) => {
-                let message = "One time passcode".to_string();
+                let message = "One Time Passcode".to_string();
                 assert_eq!(first, message, "incorrect error message");
                 assert_eq!(second, message, "incorrect error message")
             }
