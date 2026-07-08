@@ -430,8 +430,12 @@
 						/>
 					</div>
 				{:else}
-					<div class="flex w-full">
-						<ImageIcon class="h-full w-full" />
+					<div class="relative h-40 w-fit rounded-3xl bg-white/60">
+						<ImageIcon class="h-full w-auto" />
+						<span
+							class="absolute top-1/2 left-1/2 z-10 -translate-1/2 text-center text-xl font-bold text-gray-600"
+							>Awaiting image</span
+						>
 					</div>
 				{/if}
 			</div>
