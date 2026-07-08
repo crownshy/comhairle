@@ -4,6 +4,8 @@
 	import '$lib/components/Media/MediaBackground.css';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
+	import Button from '$lib/components/ui/button/button.svelte';
+	import { Trash2 } from 'lucide-svelte';
 
 	interface Props {
 		type: HTMLMediaElement | undefined;
@@ -25,11 +27,11 @@
 
 <Dialog.Portal>
 	<Dialog.Overlay>
-		<Dialog.Content class="flex h-[80vh] min-w-[90vw] flex-col">
-			<Dialog.Header class="font-bold">Details</Dialog.Header>
+		<Dialog.Content class="flex h-[80vh] min-w-[90vw] flex-col overflow-y-scroll">
+			<Dialog.Header class="text-xl font-bold">Details</Dialog.Header>
 			<div class="grid-columns grid gap-7">
 				<div
-					class="chequered-background flex min-h-[50vh] flex-col justify-center rounded p-1 lg:p-6"
+					class="chequered-background flex flex-col justify-center rounded p-1 lg:min-h-[50vh] lg:p-6"
 				>
 					{#if type === undefined}
 						<p>Error reading file type</p>
@@ -43,7 +45,7 @@
 						<img {src} alt="" class="max-h-[60vh] object-contain" />
 					{/if}
 				</div>
-				<aside class="mr-0 w-full lg:mr-auto lg:w-9/10">
+				<aside class="mr-0 flex w-full flex-col lg:mr-auto lg:w-9/10">
 					<Label class={`${LABEL_SPACING} text-muted-foreground`} for="filename"
 						>Filename</Label
 					>
@@ -64,6 +66,15 @@
 						>Alt text</Label
 					>
 					<Input class={INPUT_SPACING} id="alt" type="text" bind:value={alt} />
+					<div class="mt-5 flex flex-row items-center self-end lg:mt-10">
+						<Button
+							variant="outline"
+							class="mr-5"
+							aria-label="Delete media"
+							title="Delete media"><Trash2 /></Button
+						>
+						<Button>Update</Button>
+					</div>
 				</aside>
 			</div>
 		</Dialog.Content>
