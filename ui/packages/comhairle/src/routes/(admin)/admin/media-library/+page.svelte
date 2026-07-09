@@ -114,6 +114,7 @@
 					id={details.id}
 					type={htmlFromMediaType(details.contentType)}
 					filename={details.filename}
+					name={details.name}
 					src={details.url}
 					alt=""
 					close={() => (details = null)}

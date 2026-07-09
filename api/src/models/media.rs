@@ -27,6 +27,8 @@ pub struct Media {
     /// Identifier in bulk_storage_service
     pub storage_key: String,
     pub filename: String,
+    // User defined identifier
+    pub name: String,
     /// MIME type of the media uploaded
     pub content_type: MediaContentType,
     pub owner_id: Uuid,
@@ -127,11 +129,12 @@ impl MediaContentType {
     }
 }
 
-const DEFAULT_COLUMNS: [MediaIden; 8] = [
+const DEFAULT_COLUMNS: [MediaIden; 9] = [
     MediaIden::Id,
     MediaIden::StoreName,
     MediaIden::StorageKey,
     MediaIden::Filename,
+    MediaIden::Name,
     MediaIden::ContentType,
     MediaIden::OwnerId,
     MediaIden::CreatedAt,
@@ -205,6 +208,7 @@ pub struct CreateMedia {
     pub store_name: String,
     pub storage_key: String,
     pub filename: String,
+    pub name: String,
     pub content_type: MediaContentType,
 }
 
@@ -423,6 +427,7 @@ mod tests {
             store_name: "test_media".to_string(),
             storage_key: "asd123/test-image.jpg".to_string(),
             filename: "test-image.jpg".to_string(),
+            name: "test-image.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -456,6 +461,7 @@ mod tests {
             store_name: "test_media".to_string(),
             storage_key: "asd123/test-image.jpg".to_string(),
             filename: "test-image.jpg".to_string(),
+            name: "test-image.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -489,30 +495,35 @@ mod tests {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-b.jpg".to_string(),
             filename: "image-b.jpg".to_string(),
+            name: "image-b.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_2 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-a.jpg".to_string(),
             filename: "image-a.jpg".to_string(),
+            name: "image-a.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_3 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-d.jpg".to_string(),
             filename: "image-d.jpg".to_string(),
+            name: "image-d.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_4 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-c.jpg".to_string(),
             filename: "image-c.jpg".to_string(),
+            name: "image-c.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_5 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-e.jpg".to_string(),
             filename: "image-e.jpg".to_string(),
+            name: "image-e.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -556,18 +567,21 @@ mod tests {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-b.jpg".to_string(),
             filename: "image-b.jpg".to_string(),
+            name: "image-b.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_2 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-a.jpg".to_string(),
             filename: "image-a.jpg".to_string(),
+            name: "image-a.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_3 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-d.jpg".to_string(),
             filename: "image-d.jpg".to_string(),
+            name: "image-d.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -610,6 +624,7 @@ mod tests {
             store_name: "test_media".to_string(),
             storage_key: "asd123/test-image.jpg".to_string(),
             filename: "test-image.jpg".to_string(),
+            name: "test-image.jpg".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 

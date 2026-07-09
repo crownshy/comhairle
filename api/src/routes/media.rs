@@ -109,6 +109,7 @@ async fn upload(
         let create_media = CreateMedia {
             store_name: bulk_storage_config.store_name.to_string(),
             storage_key,
+            name: filename.clone(),
             filename,
             content_type,
         };
@@ -229,6 +230,7 @@ mod tests {
             store_name: "comhairle-media-test".to_string(),
             storage_key: format!("images/{random_name}.jpg"),
             filename: format!("{random_name}.jpg"),
+            name: format!("{random_name}.jpg"),
             content_type: MediaContentType::Jpeg,
         };
 

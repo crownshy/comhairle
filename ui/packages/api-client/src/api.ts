@@ -1919,6 +1919,7 @@ export const MediaDto = z
     createdAt: z.string().datetime({ offset: true }),
     filename: z.string(),
     id: z.string().uuid(),
+    name: z.string(),
     ownerId: z.string().uuid(),
     storageKey: z.string(),
     storeName: z.string(),
