@@ -21,6 +21,7 @@
 	import SidebarResizeHandle from './SidebarResizeHandle.svelte';
 	import { sidebarWidth, EXPAND_WIDTH } from './sidebarWidth.svelte.js';
 	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
+	import { SIDEBAR_KEYBOARD_SHORTCUT } from './ui/sidebar/constants';
 
 	const sidebar = useSidebar();
 
@@ -51,6 +52,7 @@
 			variant="ghost"
 			size="icon"
 			class="text-sidebar-foreground/70 hover:text-sidebar size-7 group-data-[collapsible=icon]:hidden"
+			title={`Open / close (Ctrl+${SIDEBAR_KEYBOARD_SHORTCUT} or Cmd+${SIDEBAR_KEYBOARD_SHORTCUT})`}
 			onclick={() => sidebar.toggle()}
 		>
 			<PanelLeftClose class="size-4" />
@@ -60,6 +62,7 @@
 			variant="ghost"
 			size="icon"
 			class="text-sidebar-foreground/70 hover:text-sidebar mx-auto hidden size-7 group-data-[collapsible=icon]:flex"
+			title={`Open / close (Ctrl+${SIDEBAR_KEYBOARD_SHORTCUT} or Cmd+${SIDEBAR_KEYBOARD_SHORTCUT})`}
 			onclick={expandSidebar}
 		>
 			<PanelLeftOpen class="size-4" />
