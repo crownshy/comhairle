@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { LoadingButton } from '$lib/components/ui/button';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import Switch from '$lib/components/ui/switch/switch.svelte';
+	import { Textarea } from '$lib/components/ui/textarea';
 	import { notifications } from '$lib/notifications.svelte';
-	import { camelToSentenceCase, camelToSnakeCase } from '$lib/utils/casingUtils';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { useDebounce } from 'runed';
 
@@ -16,7 +15,7 @@
 		workflowStepId,
 		isLive
 	}: {
-		toolConfig: any; // TODO:
+		toolConfig: any; // TODO: type once tool config types are generated
 		conversationId: string;
 		workflowId: string;
 		workflowStepId: string;
@@ -24,207 +23,189 @@
 	} = $props();
 
 	const {
-		poll_id: polisId,
-		server_url: polisUrl,
-		admin_password: adminPassword,
-		admin_user: adminUser,
 		required_votes: requiredVotes,
-		show_remaining_statements: showRemainingStatements = true
+		show_remaining_statements: showRemaining = true,
+		topic = '',
+		description = '',
+		strict_moderation: strictModeration = false,
+		label_seeds_as_conversation_starter: labelSeeds = false
 	} = $derived(toolConfig);
 
-	let base_url = $derived(polisUrl.startsWith('https://') ? polisUrl : `https://${polisUrl}`);
-	let url = $derived(`${base_url}/m/${polisId}`);
-	let iframe = $state<HTMLIFrameElement>();
-	let firstLoad = $state(true);
-
+	// Local copies for the text inputs, resynced when the load re-runs.
 	let requiredVotesInput = $state(requiredVotes);
+	let topicInput = $state(topic);
+	let descriptionInput = $state(description);
 	$effect(() => {
 		requiredVotesInput = requiredVotes;
 	});
+	$effect(() => {
+		topicInput = topic;
+	});
+	$effect(() => {
+		descriptionInput = description;
+	});
 
-	function tryLogin() {
-		if (firstLoad) {
-			iframe?.contentWindow?.postMessage(
-				{ user: adminUser, password: adminPassword, type: 'POLIS_LOGIN' },
-				base_url
+	// Config keys that must be proxied to Polis (the rest are comhairle-only
+	// display flags that live in tool_config).
+	const POLIS_KEYS = new Set(['topic', 'description', 'is_active', 'strict_moderation']);
+
+	/**
+	 * Persist a single Setup field. Polis-owned fields (see POLIS_KEYS) are
+	 * written to the Polis conversation first (enforcement) and then mirrored
+	 * into tool_config so the form can pre-fill next time; display-only flags
+	 * skip Polis. Order is Polis-then-mirror so a Polis failure doesn't leave a
+	 * tool_config value Polis never accepted.
+	 */
+	async function saveField(field: string, value: unknown) {
+		try {
+			if (POLIS_KEYS.has(field)) {
+				await apiClient.PolisUpdateConfig({
+					workflow_step_id: workflowStepId,
+					[field]: value
+				});
+			}
+			await apiClient.UpdateConversationWorkflowStep(
+				{
+					[isLive ? 'tool_config' : 'preview_tool_config']: {
+						...toolConfig,
+						[field]: value
+					}
+				},
+				{
+					params: {
+						conversation_id: conversationId,
+						workflow_id: workflowId,
+						workflow_step_id: workflowStepId
+					}
+				}
 			);
-			firstLoad = false;
+			await invalidateAll();
+		} catch (e) {
+			console.error(e);
+			notifications.send({ priority: 'ERROR', message: 'Failed to update setup' });
 		}
 	}
 
-	const debouncedUpdateToolConfig = useDebounce(async (e: Event, field: string) => {
-		const raw = (e.target as HTMLInputElement).value;
+	const saveTopic = useDebounce((v: string) => saveField('topic', v), 500);
+	const saveDescription = useDebounce((v: string) => saveField('description', v), 500);
+	const saveRequiredVotes = useDebounce((raw: string) => {
 		const value = Number(raw);
-		// Don't persist an empty, invalid, or non-positive number
+		// Don't persist an empty, invalid, or non-positive number.
 		if (raw.trim() === '' || !Number.isFinite(value) || value < 1) return;
-
-		try {
-			await apiClient.UpdateConversationWorkflowStep(
-				{
-					[isLive ? 'tool_config' : 'preview_tool_config']: {
-						...toolConfig,
-						[camelToSnakeCase(field)]: value
-					}
-				},
-				{
-					params: {
-						conversation_id: conversationId,
-						workflow_id: workflowId,
-						workflow_step_id: workflowStepId
-					}
-				}
-			);
-			notifications.send({
-				priority: 'INFO',
-				message: `Updated ${camelToSentenceCase(field)}`
-			});
-			await invalidateAll();
-		} catch (e) {
-			console.error(e);
-			notifications.send({ priority: 'ERROR', message: 'Failed to update tool config' });
-		}
+		saveField('required_votes', value);
 	}, 500);
-
-	function handleUpdateToolConfig(e: Event, field: string) {
-		debouncedUpdateToolConfig(e, field);
-	}
-
-	let syncing = $state(false);
-
-	async function handleSyncStatementAux() {
-		syncing = true;
-		try {
-			const result = await apiClient.PolisSyncStatementAux({
-				workflow_step_id: workflowStepId
-			});
-			notifications.send({
-				priority: 'INFO',
-				message: `Synced ${result.synced} statements${result.skipped_invalid_xid ? ` (${result.skipped_invalid_xid} skipped)` : ''}`
-			});
-			await invalidateAll();
-		} catch (e) {
-			console.error(e);
-			notifications.send({
-				priority: 'ERROR',
-				message: 'Failed to sync statements from Polis'
-			});
-		} finally {
-			syncing = false;
-		}
-	}
-
-	async function handleToggleShowRemainingUpdate(checked: boolean, field: string) {
-		try {
-			await apiClient.UpdateConversationWorkflowStep(
-				{
-					[isLive ? 'tool_config' : 'preview_tool_config']: {
-						...toolConfig,
-						[camelToSnakeCase(field)]: checked
-					}
-				},
-				{
-					params: {
-						conversation_id: conversationId,
-						workflow_id: workflowId,
-						workflow_step_id: workflowStepId
-					}
-				}
-			);
-			notifications.send({
-				priority: 'INFO',
-				message: `Updated ${camelToSentenceCase(field)}`
-			});
-			await invalidateAll();
-		} catch (e) {
-			console.error(e);
-			notifications.send({ priority: 'ERROR', message: 'Failed to update tool config' });
-		}
-	}
 </script>
 
-<h2 class="my-5 text-2xl font-bold">Polis Setup</h2>
+<div class="mb-8 flex max-w-2xl flex-col gap-8">
+	<h2 class="text-2xl font-bold">Setup</h2>
 
-<div class="mb-8 space-y-6">
-	<div class="flex flex-col">
-		<Label for="requiredVotes" class="text-lg font-semibold">Required votes</Label>
-		<span class="mb-4 text-sm"
-			>Number of votes required before a user is able to progress to the next step</span
-		>
-		<Input
-			id="requiredVotes"
-			name="requiredVotes"
-			type="number"
-			min="1"
-			step="1"
-			class="w-1/4"
-			bind:value={requiredVotesInput}
-			oninput={(e) => handleUpdateToolConfig(e, 'requiredVotes')}
-		/>
-	</div>
-
-	<div class="flex flex-col">
-		<div class="flex items-center space-x-2">
-			<Switch
-				id="showRemainingStatements"
-				checked={showRemainingStatements}
-				onCheckedChange={(checked) =>
-					handleToggleShowRemainingUpdate(checked, 'showRemainingStatements')}
-			/>
-			<Label for="showRemainingStatements" class="text-lg font-semibold"
-				>Show remaining statements</Label
+	<!-- Content -->
+	<div class="flex flex-col gap-4">
+		<div class="flex flex-col gap-1">
+			<h3 class="text-base font-bold">Content</h3>
+			<span class="text-muted-foreground text-sm"
+				>This configures the Polis conversation.</span
 			>
 		</div>
-		<span class="mt-2 text-sm"
-			>Display the number of remaining statements to participants during voting</span
-		>
+
+		<div class="flex flex-col gap-1">
+			<Label for="topic" class="text-muted-foreground text-xs tracking-tight uppercase"
+				>Topic</Label
+			>
+			<Input
+				id="topic"
+				bind:value={topicInput}
+				placeholder="Conversation topic"
+				oninput={(e) => saveTopic((e.currentTarget as HTMLInputElement).value)}
+			/>
+		</div>
+
+		<div class="flex flex-col gap-1">
+			<Label for="description" class="text-muted-foreground text-xs tracking-tight uppercase">
+				Description
+			</Label>
+			<Textarea
+				id="description"
+				bind:value={descriptionInput}
+				rows={3}
+				placeholder="What is this conversation about?"
+				oninput={(e) => saveDescription((e.currentTarget as HTMLTextAreaElement).value)}
+			/>
+		</div>
 	</div>
 
-	<div class="flex flex-col">
-		<Label class="text-lg font-semibold">Sync statements</Label>
-		<span class="mb-3 text-sm"
-			>Fetch the latest statements from Polis into the local statement table. Existing
-			moderation status, themes and notes are preserved.</span
-		>
-		<LoadingButton
-			loading={syncing}
-			onclick={handleSyncStatementAux}
-			class="w-fit"
-			variant="outline">Sync statements from Polis</LoadingButton
-		>
-	</div>
-</div>
+	<!-- Settings -->
+	<div class="flex flex-col gap-4">
+		<div class="flex flex-col gap-1">
+			<h3 class="text-base font-bold">Settings</h3>
+			<span class="text-muted-foreground text-sm">Customise what participants will see.</span>
+		</div>
 
-<div class="grid grid-cols-[1fr_30vw]">
-	<iframe
-		bind:this={iframe}
-		onload={tryLogin}
-		src={url}
-		title="Polis poll"
-		style="width:100%;height:100%"
-	></iframe>
-	<div>
-		<h2 class="text-xl">Guidance</h2>
-		<p class="my-5">
-			Polis seed statements are the initial set of statements provided to participants in a
-			Polis conversation to help spark discussion and guide the direction of the debate. They
-			serve as a starting framework, giving people something concrete to agree or disagree
-			with before participants begin contributing their own ideas. Well-crafted seed
-			statements cover a broad range of perspectives on the issue at hand, ensuring that
-			participants from different backgrounds and viewpoints feel invited to engage. They
-			don’t aim to be exhaustive but instead create an entry point that stimulates
-			conversation and reveals patterns of agreement and disagreement across diverse groups.
-		</p>
-		<p>
-			When writing good Polis seed statements, clarity and neutrality are key. Avoid jargon,
-			complex phrasing, or emotionally charged language that might alienate participants. The
-			statements should be concise, specific, and testable—something participants can
-			reasonably say “agree” or “disagree” to, rather than vague sentiments. It’s also helpful
-			to include a variety of framings: some that reflect common arguments, some that test
-			assumptions, and some that raise trade-offs or edge cases. Finally, balance matters; if
-			all the seed statements lean heavily toward one viewpoint, the conversation will feel
-			biased from the start. A thoughtful mix ensures participants see themselves reflected
-			early on, which increases engagement and makes it easier for the group’s collective
-			intelligence to emerge.
-		</p>
+		<div class="flex flex-col gap-1">
+			<Label for="requiredVotes" class="text-sm font-semibold">Required votes</Label>
+			<span class="text-muted-foreground mb-1 text-xs">
+				Number of votes required before a participant can progress to the next step.
+			</span>
+			<Input
+				id="requiredVotes"
+				name="requiredVotes"
+				type="number"
+				min="1"
+				step="1"
+				class="w-32"
+				bind:value={requiredVotesInput}
+				oninput={(e) => saveRequiredVotes((e.currentTarget as HTMLInputElement).value)}
+			/>
+		</div>
+
+		<div class="flex items-start justify-between gap-4">
+			<div class="flex flex-col gap-0.5">
+				<Label for="showRemaining" class="text-sm font-medium"
+					>Show remaining statements</Label
+				>
+				<span class="text-muted-foreground text-xs">
+					Display the number of remaining statements to participants during voting.
+				</span>
+			</div>
+			<Switch
+				id="showRemaining"
+				checked={showRemaining}
+				onCheckedChange={(checked) => saveField('show_remaining_statements', checked)}
+			/>
+		</div>
+
+		<div class="flex items-start justify-between gap-4">
+			<div class="flex flex-col gap-0.5">
+				<Label for="strictModeration" class="text-sm font-medium">
+					No comments shown without moderator approval
+				</Label>
+				<span class="text-muted-foreground text-xs">
+					When on, every statement must be accepted or rejected in the Moderation tab
+					before participants see it.
+				</span>
+			</div>
+			<Switch
+				id="strictModeration"
+				checked={strictModeration}
+				onCheckedChange={(checked) => saveField('strict_moderation', checked)}
+			/>
+		</div>
+
+		<div class="flex items-start justify-between gap-4">
+			<div class="flex flex-col gap-0.5">
+				<Label for="labelSeeds" class="text-sm font-medium">
+					Label seed statements as Conversation Starter
+				</Label>
+				<span class="text-muted-foreground text-xs">
+					When on, seed statements carry a styled "conversation starter" label.
+				</span>
+			</div>
+			<Switch
+				id="labelSeeds"
+				checked={labelSeeds}
+				onCheckedChange={(checked) =>
+					saveField('label_seeds_as_conversation_starter', checked)}
+			/>
+		</div>
 	</div>
 </div>
