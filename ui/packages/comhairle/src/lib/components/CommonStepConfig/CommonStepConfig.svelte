@@ -235,8 +235,9 @@
 			<AlertDialog.Header>
 				<AlertDialog.Title>Delete “{name || sourceName || 'this step'}”?</AlertDialog.Title>
 				<AlertDialog.Description>
-					This permanently removes the step and its configuration, and renumbers the
-					remaining steps. This action cannot be undone.
+					This permanently removes the step and its configuration along with any
+					associated data (e.g. user participation data), and renumbers the remaining
+					steps. This action cannot be undone.
 				</AlertDialog.Description>
 			</AlertDialog.Header>
 

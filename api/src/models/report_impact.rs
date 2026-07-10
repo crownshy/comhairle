@@ -8,7 +8,7 @@ use sqlx::{PgPool, prelude::FromRow};
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::error::ComhairleError;
+use crate::{error::ComhairleError, models::SqlxResultExt};
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema)]
 #[enum_def(table_name = "report_impact")]
@@ -126,5 +126,5 @@ pub async fn get_for_report(
     sqlx::query_as_with::<_, ReportImpact, _>(&sql, values)
         .fetch_all(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("ReportImpacts".into()))
+        .resolve_db_err("Report Impact")
 }

@@ -344,6 +344,93 @@ export const CreateOrUpdateTextTranslationRequest = z
 export type CreateOrUpdateTextTranslationRequest = z.infer<
   typeof CreateOrUpdateTextTranslationRequest
 >;
+export const GroupVoteCounts = z
+  .object({
+    agrees: z.number().int().gte(0),
+    disagrees: z.number().int().gte(0),
+    group_id: z.number().int().gte(0),
+    passes: z.number().int().gte(0),
+  })
+  .passthrough();
+export type GroupVoteCounts = z.infer<typeof GroupVoteCounts>;
+export const VoteCounts = z
+  .object({
+    agrees: z.number().int().gte(0),
+    disagrees: z.number().int().gte(0),
+    passes: z.number().int().gte(0),
+  })
+  .passthrough();
+export type VoteCounts = z.infer<typeof VoteCounts>;
+export const CommentReportData = z
+  .object({
+    divisiveness: z.union([z.number(), z.null()]).optional(),
+    group_informed_consensus: z.union([z.number(), z.null()]).optional(),
+    group_votes: z.array(GroupVoteCounts),
+    is_seed: z.boolean(),
+    overall_votes: VoteCounts,
+    text: z.string(),
+    tid: z.number().int().gte(0),
+  })
+  .passthrough();
+export type CommentReportData = z.infer<typeof CommentReportData>;
+export const RepresentativeComment = z
+  .object({ text: z.string(), tid: z.number().int().gte(0) })
+  .passthrough();
+export type RepresentativeComment = z.infer<typeof RepresentativeComment>;
+export const GroupReportData = z
+  .object({
+    group_id: z.number().int().gte(0),
+    members: z.array(z.number().int().gte(0)),
+    representative_comments: z.array(RepresentativeComment),
+    total_members: z.number().int().gte(0),
+  })
+  .passthrough();
+export type GroupReportData = z.infer<typeof GroupReportData>;
+export const PcaPosition = z
+  .object({ x: z.number(), y: z.number() })
+  .passthrough();
+export type PcaPosition = z.infer<typeof PcaPosition>;
+export const ParticipantReportData = z
+  .object({
+    group_id: z.union([z.number(), z.null()]).optional(),
+    pca_position: z.union([PcaPosition, z.null()]).optional(),
+    pid: z.number().int().gte(0),
+  })
+  .passthrough();
+export type ParticipantReportData = z.infer<typeof ParticipantReportData>;
+export const WikiPollReport = z
+  .object({
+    comments: z.array(CommentReportData),
+    groups: z.array(GroupReportData),
+    participants: z.array(ParticipantReportData),
+  })
+  .passthrough();
+export type WikiPollReport = z.infer<typeof WikiPollReport>;
+export const UpdatePolisConfigRequest = z
+  .object({
+    description: z.union([z.string(), z.null()]).optional(),
+    is_active: z.union([z.boolean(), z.null()]).optional(),
+    strict_moderation: z.union([z.boolean(), z.null()]).optional(),
+    topic: z.union([z.string(), z.null()]).optional(),
+    workflow_step_id: z.string().uuid(),
+  })
+  .passthrough();
+export type UpdatePolisConfigRequest = z.infer<typeof UpdatePolisConfigRequest>;
+export const WikiPoll = z
+  .object({
+    is_active: z.union([z.boolean(), z.null()]).optional(),
+    poll_id: z.string(),
+  })
+  .passthrough();
+export type WikiPoll = z.infer<typeof WikiPoll>;
+export const PostSeedRequest = z
+  .object({ statement_text: z.string(), workflow_step_id: z.string().uuid() })
+  .passthrough();
+export type PostSeedRequest = z.infer<typeof PostSeedRequest>;
+export const PostSeedResponse = z
+  .object({ polis_statement_id: z.string() })
+  .passthrough();
+export type PostSeedResponse = z.infer<typeof PostSeedResponse>;
 export const ModerationStatus = z.enum(["accepted", "rejected", "pending"]);
 export type ModerationStatus = z.infer<typeof ModerationStatus>;
 export const PolisStatementAux = z
@@ -1919,6 +2006,7 @@ export const MediaDto = z
     createdAt: z.string().datetime({ offset: true }),
     filename: z.string(),
     id: z.string().uuid(),
+    name: z.string(),
     ownerId: z.string().uuid(),
     storageKey: z.string(),
     storeName: z.string(),
@@ -1932,6 +2020,11 @@ export const PaginatedResults_for_MediaDto = z
 export type PaginatedResults_for_MediaDto = z.infer<
   typeof PaginatedResults_for_MediaDto
 >;
+export const MediaEditableFields = z
+  .object({ name: z.union([z.string(), z.null()]) })
+  .partial()
+  .passthrough();
+export type MediaEditableFields = z.infer<typeof MediaEditableFields>;
 export const Job = z
   .object({
     completion_message: z.union([z.string(), z.null()]).optional(),
@@ -2144,6 +2237,18 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UpdateTextContent,
   UpdateTextTranslation,
   CreateOrUpdateTextTranslationRequest,
+  GroupVoteCounts,
+  VoteCounts,
+  CommentReportData,
+  RepresentativeComment,
+  GroupReportData,
+  PcaPosition,
+  ParticipantReportData,
+  WikiPollReport,
+  UpdatePolisConfigRequest,
+  WikiPoll,
+  PostSeedRequest,
+  PostSeedResponse,
   ModerationStatus,
   PolisStatementAux,
   CreatePolisStatementAux,
@@ -2320,6 +2425,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   content_type,
   MediaDto,
   PaginatedResults_for_MediaDto,
+  MediaEditableFields,
   Job,
   PaginatedResults_for_Job,
   CreateJob,
@@ -3929,6 +4035,21 @@ curl -X POST \
     response: MediaDto,
   },
   {
+    method: "patch",
+    path: "/media/:media_id",
+    alias: "UpdateMedia",
+    description: `Update a media record by id`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: MediaEditableFields,
+      },
+    ],
+    response: MediaDto,
+  },
+  {
     method: "get",
     path: "/notifications",
     alias: "GetAllNotifications",
@@ -4332,6 +4453,21 @@ Use a raw HTTP request and process the response body incrementally.
     response: z.void(),
   },
   {
+    method: "put",
+    path: "/tools/polis/config",
+    alias: "PolisUpdateConfig",
+    description: `Proxies topic, description, strict_moderation and is_active to the Polis conversation via the server-side admin session. Only provided fields are written.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: UpdatePolisConfigRequest,
+      },
+    ],
+    response: WikiPoll,
+  },
+  {
     method: "get",
     path: "/tools/polis/report_data",
     alias: "PolisGetReportData",
@@ -4344,7 +4480,22 @@ Use a raw HTTP request and process the response body incrementally.
         schema: z.string().uuid(),
       },
     ],
-    response: z.void(),
+    response: WikiPollReport,
+  },
+  {
+    method: "post",
+    path: "/tools/polis/seed",
+    alias: "PolisPostSeed",
+    description: `Posts a moderator-authored seed statement (is_seed) to the active Polis poll via the server-side admin session. Re-sync to surface it in the local statement_aux table.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: PostSeedRequest,
+      },
+    ],
+    response: z.object({ polis_statement_id: z.string() }).passthrough(),
   },
   {
     method: "get",

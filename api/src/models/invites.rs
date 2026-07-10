@@ -1,4 +1,4 @@
-use crate::error::ComhairleError;
+use crate::{error::ComhairleError, models::SqlxResultExt};
 use chrono::{DateTime, Utc};
 use comhairle_macros::{DbJsonBEnum, DbStringEnum};
 use partially::Partial;
@@ -260,10 +260,7 @@ pub async fn get_by_id(db: &PgPool, invite_id: &Uuid) -> Result<Invite, Comhairl
     let invite = sqlx::query_as_with::<_, Invite, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| {
-            println!("{e:#?}");
-            ComhairleError::ResourceNotFound("Invite".into())
-        })?;
+        .resolve_db_err("Invite")?;
 
     Ok(invite)
 }
@@ -289,7 +286,7 @@ pub async fn update(
     let invite = sqlx::query_as_with::<_, Invite, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("Invite".into()))?;
+        .resolve_db_err("Invite")?;
 
     Ok(invite)
 }
@@ -305,7 +302,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Invite, ComhairleError> {
     let invite = sqlx::query_as_with::<_, Invite, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("Invite".into()))?;
+        .resolve_db_err("Invite")?;
 
     Ok(invite)
 }

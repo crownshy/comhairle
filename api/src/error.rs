@@ -295,6 +295,9 @@ pub enum ComhairleError {
     #[error("Bad request: {0}")]
     BadRequest(String),
 
+    #[error("Conflict: {0}")]
+    Conflict(String),
+
     #[error("Tool config error: {0}")]
     ToolConfigError(String),
 
@@ -363,6 +366,7 @@ impl IntoResponse for ComhairleError {
             | ComhairleError::DuplicateRecordingName(_)
             | ComhairleError::UserAlreadyRegisteredForEvent(_)
             | ComhairleError::UserAlreadyParticipatingInWorkflow(_)
+            | ComhairleError::Conflict(_)
             | ComhairleError::RoleAlreadyGranted(_) => StatusCode::CONFLICT,
             ComhairleError::RoleNotFound(_) => StatusCode::NOT_FOUND,
             ComhairleError::CannotRevokeLastAdmin => StatusCode::FORBIDDEN,
