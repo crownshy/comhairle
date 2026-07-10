@@ -33,11 +33,11 @@
 	</div>
 	<div
 		class="bg-card text-card-foreground flex flex-col items-start self-stretch px-5 py-2 text-xs"
-		title={props.filename}
+		title={props.name}
 	>
 		<div class="grid-auto grid items-center justify-between self-stretch">
 			<div class="truncate font-bold">
-				{props.filename}
+				{props.name}
 			</div>
 			<Badge variant="secondary" class="justify-self-end">
 				{capitalise(type)}

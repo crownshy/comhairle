@@ -59,13 +59,30 @@
 	}
 
 	async function updateMedia() {
-		// const response = await tryCatchAsync(() =>
-		// 	apiClient.UpdateMedia(undefined, {
-		// 		params: {
-		// 			media_id: id
-		// 		}
-		// 	})
-		// );
+		const response = await tryCatchAsync(() =>
+			apiClient.UpdateMedia(
+				{ name },
+				{
+					params: {
+						media_id: id
+					}
+				}
+			)
+		);
+
+		if (response.err !== null) {
+			notifications.send({
+				message: `Failed to update ${filename}. Please try again.`,
+				priority: 'ERROR'
+			});
+			return;
+		}
+		notifications.send({
+			message: `Updated ${filename} successfully`,
+			priority: 'SUCCESS'
+		});
+		editable = false;
+		await invalidate('media-library:media');
 	}
 </script>
 
@@ -144,7 +161,7 @@
 							<Button variant="outline" onclick={() => (editable = false)}>
 								Cancel
 							</Button>
-							<Button class="ml-2" onclick={() => (editable = false)}>Update</Button>
+							<Button class="ml-2" onclick={updateMedia}>Update</Button>
 						{/if}
 					</div>
 				</aside>
