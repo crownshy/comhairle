@@ -5,6 +5,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { notifications } from '$lib/notifications.svelte';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import { Check, X, Plus, Upload, RefreshCw } from '@lucide/svelte';
@@ -74,17 +75,16 @@
 		const text = draftText.trim();
 		if (!text || addingSeed) return;
 		addingSeed = true;
-		try {
-			await postSeeds([text]);
-			draftText = '';
-			showAddForm = false;
-			notifications.send({ priority: 'INFO', message: 'Seed statement added' });
-		} catch (e) {
-			console.error('PolisPostSeed failed', e);
+		const { err } = await tryCatchAsync(() => postSeeds([text]));
+		addingSeed = false;
+		if (err) {
+			console.error('PolisPostSeed failed', err);
 			notifications.send({ priority: 'ERROR', message: 'Failed to add statement' });
-		} finally {
-			addingSeed = false;
+			return;
 		}
+		draftText = '';
+		showAddForm = false;
+		notifications.send({ priority: 'INFO', message: 'Seed statement added' });
 	}
 
 	async function importCsv(e: Event) {
@@ -92,7 +92,8 @@
 		const file = input.files?.[0];
 		if (!file || csvImporting) return;
 		csvImporting = true;
-		try {
+
+		const { ok: count, err } = await tryCatchAsync(async () => {
 			// One statement per line; strip wrapping quotes and a leading header row.
 			const lines = (await file.text())
 				.split(/\r?\n/)
@@ -101,21 +102,24 @@
 			if (['statement', 'statements', 'text'].includes(lines[0]?.toLowerCase())) {
 				lines.shift();
 			}
-			if (lines.length) {
-				await postSeeds(lines);
-				notifications.send({
-					priority: 'INFO',
-					message: `Imported ${lines.length} statement${lines.length === 1 ? '' : 's'}`
-				});
-			}
-			showAddForm = false;
-		} catch (err) {
+			if (lines.length) await postSeeds(lines);
+			return lines.length;
+		});
+		csvImporting = false;
+		input.value = '';
+
+		if (err) {
 			console.error('CSV import failed', err);
 			notifications.send({ priority: 'ERROR', message: 'CSV import failed' });
-		} finally {
-			csvImporting = false;
-			input.value = '';
+			return;
 		}
+		if (count) {
+			notifications.send({
+				priority: 'INFO',
+				message: `Imported ${count} statement${count === 1 ? '' : 's'}`
+			});
+		}
+		showAddForm = false;
 	}
 
 	// --- Status filters ---
