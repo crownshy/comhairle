@@ -524,7 +524,7 @@ pub async fn get_by_id(db: &PgPool, id: Uuid) -> Result<EmailTemplateConfig, Com
     let email_config = sqlx::query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .not_found_as("Email template config")?;
+        .resolve_db_err("Email Template Config")?;
 
     Ok(email_config)
 }
@@ -813,7 +813,7 @@ mod tests {
             ComhairleError::ResourceNotFound(e) => {
                 assert_eq!(
                     e,
-                    "Email template config".to_string(),
+                    "Email Template Config".to_string(),
                     "incorrect error message"
                 );
             }

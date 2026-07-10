@@ -14,7 +14,10 @@ use fake::Dummy;
 
 use crate::{
     error::ComhairleError,
-    models::pagination::{Order, PageOptions, PaginatedResults},
+    models::{
+        SqlxResultExt,
+        pagination::{Order, PageOptions, PaginatedResults},
+    },
 };
 
 /// A media record, which references an upload in the bulk_storage_service.
@@ -293,10 +296,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> 
     let media = sqlx::query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Media".to_string()),
-            other => ComhairleError::DatabaseError(other),
-        })?;
+        .resolve_db_err("Media")?;
 
     Ok(media)
 }
@@ -452,7 +452,10 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> {
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let media = sqlx::query_as_with(&sql, values).fetch_one(db).await?;
+    let media = sqlx::query_as_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Media")?;
 
     Ok(media)
 }

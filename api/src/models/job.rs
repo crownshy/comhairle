@@ -8,7 +8,10 @@ use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
-    models::pagination::{Order, PageOptions, PaginatedResults},
+    models::{
+        SqlxResultExt,
+        pagination::{Order, PageOptions, PaginatedResults},
+    },
 };
 
 #[derive(Serialize, Deserialize, FromRow, Clone, JsonSchema, Debug)]
@@ -183,7 +186,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Job, ComhairleError> {
     let job = sqlx::query_as_with::<_, Job, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("Job".into()))?;
+        .resolve_db_err("Job")?;
 
     Ok(job)
 }
@@ -198,7 +201,7 @@ pub async fn get_id_id(db: &PgPool, id: &Uuid) -> Result<Job, ComhairleError> {
     let job = sqlx::query_as_with::<_, Job, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("Job".into()))?;
+        .resolve_db_err("Job")?;
 
     Ok(job)
 }

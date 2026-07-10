@@ -1,6 +1,6 @@
-use crate::error::ComhairleError;
 use crate::models::conversation_email_notification_recipients::ConversationEmailNotificationRecipientsIden;
 use crate::models::users::UserIden;
+use crate::{error::ComhairleError, models::SqlxResultExt};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{Expr, JoinType, PostgresQueryBuilder, Query, UnionType, enum_def};
@@ -141,7 +141,7 @@ pub async fn get_by_user_and_conversation(
     let preferences = sqlx::query_as_with::<_, UserConversationPreferences, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("UserConversationPreferences".into()))?;
+        .resolve_db_err("User Conversation Preferences")?;
 
     Ok(preferences)
 }
@@ -243,7 +243,7 @@ pub async fn delete(
     let preferences = sqlx::query_as_with::<_, UserConversationPreferences, _>(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|_| ComhairleError::ResourceNotFound("UserConversationPreferences".into()))?;
+        .resolve_db_err("User Conversation Preferences")?;
 
     Ok(preferences)
 }

@@ -15,6 +15,7 @@ use fake::Dummy;
 use crate::{
     error::ComhairleError,
     models::{
+        SqlxResultExt,
         pagination::{Order, PageOptions, PaginatedResults},
         translations::{TextContentId, TextFormat, new_translation},
     },
@@ -290,10 +291,7 @@ pub async fn get_localized_by_id(
     let organization = query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Organization".into()),
-            other => ComhairleError::DatabaseError(other),
-        })?;
+        .resolve_db_err("Organization")?;
 
     Ok(organization)
 }
@@ -309,10 +307,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Organization, Comhairle
     let organization = query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Organization".into()),
-            other => ComhairleError::DatabaseError(other),
-        })?;
+        .resolve_db_err("Organization")?;
 
     Ok(organization)
 }
@@ -325,7 +320,10 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<Organization, ComhairleErr
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let organization = sqlx::query_as_with(&sql, values).fetch_one(db).await?;
+    let organization = sqlx::query_as_with(&sql, values)
+        .fetch_one(db)
+        .await
+        .resolve_db_err("Organization")?;
 
     Ok(organization)
 }

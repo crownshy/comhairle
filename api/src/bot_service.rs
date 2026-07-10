@@ -23,8 +23,7 @@ If something in the background materials is unclear, you can ask me about it.
 
 You can ask me any question or ask me to explain something in simpler language.
 "#;
-pub const DEFAULT_CHAT_NOT_FOUND_RESPONSE: &str =
-    "Sorry I couldn't find an answer to that question.";
+pub const DEFAULT_CHAT_NOT_FOUND_RESPONSE: &str = "That one's outside what I can help with based on the materials I have available. If your question is about the topic, try asking in a different way. I'm happy to keep trying!";
 /// Default system prompt for conversation Q&A chatbots
 pub const DEFAULT_CHAT_PROMPT: &str = r#"You are a helpful assistant for a participatory democracy platform.
 

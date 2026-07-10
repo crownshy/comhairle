@@ -15,7 +15,8 @@ use tracing::{info, instrument, warn};
 use crate::tools::polis::PolisError;
 use crate::wiki_poll_service::error::WikiPollServiceError;
 use crate::wiki_poll_service::{
-    ModerationStatus, WikiPoll, WikiPollComment, WikiPollLogin, WikiPollService, WikiPollXid,
+    ModerationStatus, WikiPoll, WikiPollComment, WikiPollConfigUpdate, WikiPollLogin,
+    WikiPollService, WikiPollXid,
 };
 
 // Raw Polis API response structures
@@ -197,9 +198,16 @@ impl From<PolisPoll> for WikiPoll {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Default)]
 pub struct UpdatePollRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub is_active: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub topic: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub strict_moderation: Option<bool>,
 }
 
 impl PolisClient {
@@ -571,6 +579,29 @@ impl WikiPollService for PolisClient {
                 auth_cookies,
                 &UpdatePollRequest {
                     is_active: Some(false),
+                    ..Default::default()
+                },
+            )
+            .await?;
+
+        Ok(poll.into())
+    }
+
+    async fn update_poll_config(
+        &self,
+        poll_id: &str,
+        auth_cookies: &str,
+        config: &WikiPollConfigUpdate,
+    ) -> Result<WikiPoll, WikiPollServiceError> {
+        let poll = self
+            .update_poll(
+                poll_id,
+                auth_cookies,
+                &UpdatePollRequest {
+                    is_active: config.is_active,
+                    topic: config.topic.clone(),
+                    description: config.description.clone(),
+                    strict_moderation: config.strict_moderation,
                 },
             )
             .await?;
@@ -838,6 +869,7 @@ mod tests {
                 &cookies,
                 &UpdatePollRequest {
                     is_active: Some(false),
+                    ..Default::default()
                 },
             )
             .await?;
@@ -850,6 +882,7 @@ mod tests {
                 &cookies,
                 &UpdatePollRequest {
                     is_active: Some(true),
+                    ..Default::default()
                 },
             )
             .await?;

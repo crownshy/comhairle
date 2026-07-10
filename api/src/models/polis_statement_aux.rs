@@ -1,4 +1,4 @@
-use crate::models::{self, users::User};
+use crate::models::{self, SqlxResultExt, users::User};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{
@@ -257,12 +257,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<PolisStatementAux, Comh
     let aux = query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => {
-                ComhairleError::ResourceNotFound("Polis statement aux".into())
-            }
-            other => ComhairleError::DatabaseError(other),
-        })?;
+        .resolve_db_err("Polis Statement Aux")?;
 
     Ok(aux)
 }
@@ -431,10 +426,7 @@ pub async fn add_theme(
     .bind(theme)
     .fetch_one(db)
     .await
-    .map_err(|e| match e {
-        sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Polis statement aux".into()),
-        other => ComhairleError::DatabaseError(other),
-    })?;
+    .resolve_db_err("Polis Statement Aux")?;
 
     Ok(aux)
 }
@@ -455,10 +447,7 @@ pub async fn remove_theme(
     .bind(theme)
     .fetch_one(db)
     .await
-    .map_err(|e| match e {
-        sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Polis statement aux".into()),
-        other => ComhairleError::DatabaseError(other),
-    })?;
+    .resolve_db_err("Polis Statement Aux")?;
 
     Ok(aux)
 }

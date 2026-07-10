@@ -23,7 +23,7 @@ use crate::{
     error::ComhairleError,
     mailer::build_calendar_invite,
     models::{
-        otp,
+        SqlxResultExt, otp,
         pagination::{Order, PageOptions, PaginatedResults},
         scheduled_email::{self, CreateScheduledEmail, EmailTemplate, ScheduledEmailConfig},
         translations::{TextContentId, TextFormat, new_translation},
@@ -685,10 +685,7 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Event, ComhairleError> 
     let event = sqlx::query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Event".into()),
-            other => ComhairleError::DatabaseError(other),
-        })?;
+        .resolve_db_err("Event")?;
 
     Ok(event)
 }
@@ -712,10 +709,7 @@ pub async fn get_localized_by_id(
     let event = sqlx::query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Event".into()),
-            other => ComhairleError::DatabaseError(other),
-        })?;
+        .resolve_db_err("Event")?;
 
     Ok(event)
 }

@@ -1,4 +1,4 @@
-use crate::error::ComhairleError;
+use crate::{error::ComhairleError, models::SqlxResultExt};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{Expr, PostgresQueryBuilder, Query, enum_def};
@@ -101,9 +101,7 @@ pub async fn get_by_conversation_and_email(
         sqlx::query_as_with::<_, ConversationEmailNotificationRecipients, _>(&sql, values)
             .fetch_one(db)
             .await
-            .map_err(|_| {
-                ComhairleError::ResourceNotFound("ConversationEmailNotificationRecipients".into())
-            })?;
+            .resolve_db_err("Conversation Email Notification Recipients")?;
 
     Ok(recipient)
 }
@@ -150,9 +148,7 @@ pub async fn delete_by_conversation_and_email(
         sqlx::query_as_with::<_, ConversationEmailNotificationRecipients, _>(&sql, values)
             .fetch_one(db)
             .await
-            .map_err(|_| {
-                ComhairleError::ResourceNotFound("ConversationEmailNotificationRecipients".into())
-            })?;
+            .resolve_db_err("Conversation Email Notification Recipients")?;
 
     Ok(recipient)
 }

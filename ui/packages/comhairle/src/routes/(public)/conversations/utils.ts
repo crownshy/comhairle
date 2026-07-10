@@ -39,12 +39,13 @@ export const getSearch = (url: URL): string => {
 
 export const setSearch = (_url: URL, search: string): URL => {
 	const url = new URL(_url);
+	url.searchParams.delete('page');
 	if (search) {
 		url.searchParams.set('search', search);
-		setPage(url, 0)
+		setPage(url, 0);
 	} else {
 		url.searchParams.delete('search');
-		setPage(url, 0)
+		setPage(url, 0);
 	}
 	return url;
 };
