@@ -31,11 +31,12 @@ export const load: PageLoad = async (event) => {
 			console.error('Failed to load Polis statement aux', e);
 		}
 		try {
-			// Typed as WikiPollReport by the client; structurally PolisReportData.
-			// Fails (→ null) when the poll has no votes yet.
-			reportData = (await api.PolisGetReportData({
+			// PolisReportData is WikiPollReport (the client's return type) plus the
+			// client-only theme overlay, so this assigns without a cast. Fails
+			// (→ null) when the poll has no votes yet.
+			reportData = await api.PolisGetReportData({
 				queries: { workflow_step_id: step_id }
-			})) as unknown as PolisReportData;
+			});
 		} catch (e) {
 			console.error('Failed to load Polis report data', e);
 		}
