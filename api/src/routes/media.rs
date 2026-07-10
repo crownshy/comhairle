@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use aide::axum::{
     ApiRouter,
-    routing::{delete_with, get_with, post_with},
+    routing::{delete_with, get_with, patch_with, post_with},
 };
 use axum::extract::{Json, Multipart, Path, Query, State};
 use hyper::StatusCode;
@@ -16,7 +16,10 @@ use crate::{
     bulk_storage_service::FileMetadata,
     error::ComhairleError,
     models::{
-        media::{self, CreateMedia, MediaContentType, MediaFilterOptions, MediaOrderOptions},
+        media::{
+            self, CreateMedia, MediaContentType, MediaEditableFields, MediaFilterOptions,
+            MediaOrderOptions,
+        },
         pagination::{PageOptions, PaginatedResults},
     },
     routes::{auth::RequiredAdminUser, media::dto::MediaDto},
@@ -124,6 +127,18 @@ async fn upload(
 }
 
 #[instrument(err(Debug), skip(state))]
+async fn update(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    Path(media_id): Path<Uuid>,
+    Json(update_media): Json<MediaEditableFields>,
+) -> Result<(StatusCode, Json<MediaDto>), ComhairleError> {
+    let media = media::update(&state.db, &media_id, &update_media).await?;
+
+    Ok((StatusCode::CREATED, Json(media.into())))
+}
+
+#[instrument(err(Debug), skip(state))]
 async fn delete(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(user): RequiredAdminUser,
@@ -187,6 +202,17 @@ curl -X POST \\
                     )
                     .security_requirement("JWT")
                     .response::<201, Json<Vec<MediaDto>>>()
+            }),
+        )
+        .api_route(
+            "/{media_id}",
+            patch_with(update, |op| {
+                op.id("UpdateMedia")
+                    .tag("Media")
+                    .summary("Update a media record")
+                    .description("Update a media record by id")
+                    .security_requirement("JWT")
+                    .response::<200, Json<MediaDto>>()
             }),
         )
         .api_route(
@@ -336,6 +362,43 @@ mod tests {
             results.records[0].id, created_media_1.id,
             "incorrect first id"
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_update_media(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        session.signup(&app).await?;
+
+        session
+            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
+            .await?;
+
+        let (_, user, _) = session.current_user(&app).await?;
+
+        let created_media = create_random_image_record(&pool, &user.id).await?;
+        let current_name = created_media.filename.clone();
+
+        let new_name = gen_id();
+        let update = MediaEditableFields {
+            name: Some(new_name.clone()),
+            ..Default::default()
+        };
+        let body = serde_json::to_vec(&update)?;
+
+        let _ = session
+            .patch(&app, &format!("/media/{}", created_media.id), body.into())
+            .await?;
+
+        let (status, response, _) = session
+            .get(&app, &format!("/media/{}", created_media.id))
+            .await?;
+
+        let media: MediaDto = serde_json::from_value(response)?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(media.name, new_name, "incorrect filename");
 
         Ok(())
     }

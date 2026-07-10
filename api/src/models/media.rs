@@ -218,6 +218,7 @@ impl CreateMedia {
             MediaIden::StoreName,
             MediaIden::StorageKey,
             MediaIden::Filename,
+            MediaIden::Name,
             MediaIden::ContentType,
         ]
     }
@@ -227,6 +228,7 @@ impl CreateMedia {
             (*self.store_name).into(),
             (*self.storage_key).into(),
             (*self.filename).into(),
+            (*self.name).into(),
             self.content_type.clone().into(),
         ]
     }
@@ -297,6 +299,23 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<Media, ComhairleError> 
         })?;
 
     Ok(media)
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, Default)]
+pub struct MediaEditableFields {
+    pub name: Option<String>,
+}
+
+impl MediaEditableFields {
+    fn to_values(&self) -> Vec<(MediaIden, sea_query::SimpleExpr)> {
+        let mut values = Vec::new();
+
+        if let Some(value) = &self.name {
+            values.push((MediaIden::Name, value.into()));
+        }
+
+        values
+    }
 }
 
 #[derive(Deserialize, Debug, JsonSchema, Default)]
@@ -374,6 +393,42 @@ pub async fn list(
     let query = order_options.apply(query);
 
     let media = page_options.fetch_paginated_results(db, query).await?;
+
+    Ok(media)
+}
+
+/// Update a media record by its ID.
+///
+/// # Arguments
+///
+/// * `db` - Database connection pool
+/// * `id` - Unique identifier of the media record to delete
+/// * `update_media` - MediaEditableFields of the fields that you want to change
+///
+/// # Returns
+///
+/// Returns a `Result` containing the updated `Media` record, or `ComhairleError`
+/// if the query fails.
+#[instrument(err(Debug))]
+pub async fn update(
+    db: &PgPool,
+    id: &Uuid,
+    update_media: &MediaEditableFields,
+) -> Result<Media, ComhairleError> {
+    let values = update_media.to_values();
+
+    if values.is_empty() {
+        return Err(ComhairleError::NoValidUpdates);
+    }
+
+    let (sql, values) = Query::update()
+        .table(MediaIden::Table)
+        .values(values.into_iter())
+        .and_where(Expr::col(MediaIden::Id).eq(id.to_owned()))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let media = sqlx::query_as_with(&sql, values).fetch_one(db).await?;
 
     Ok(media)
 }
@@ -606,6 +661,40 @@ mod tests {
         assert_eq!(results.total, 2, "incorrect total");
         assert_eq!(results.records[0].id, media_2.id, "incorrect first id");
         assert_eq!(results.records[1].id, media_3.id, "incorrect second id");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_update_media_record(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        session.signup(&app).await?;
+        session
+            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
+            .await?;
+
+        let (_, user, _) = session.current_user(&app).await?;
+
+        let params = CreateMedia {
+            store_name: "test_media".to_string(),
+            storage_key: "asd123/test-image.jpg".to_string(),
+            filename: "test-image.jpg".to_string(),
+            name: "test-image.jpg".to_string(),
+            content_type: MediaContentType::Jpeg,
+        };
+
+        let created_media = create(&pool, &params, &user.id).await?;
+
+        let update_media = MediaEditableFields {
+            name: Some("new-name.jpg".to_string()),
+            ..Default::default()
+        };
+
+        let _ = update(&pool, &created_media.id, &update_media).await?;
+
+        let media = get_by_id(&pool, &created_media.id).await?;
+
+        assert_eq!(media.name, "new-name.jpg".to_string(), "incorrect filename");
 
         Ok(())
     }
