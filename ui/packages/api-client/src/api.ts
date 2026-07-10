@@ -1933,6 +1933,11 @@ export const PaginatedResults_for_MediaDto = z
 export type PaginatedResults_for_MediaDto = z.infer<
   typeof PaginatedResults_for_MediaDto
 >;
+export const MediaEditableFields = z
+  .object({ name: z.union([z.string(), z.null()]) })
+  .partial()
+  .passthrough();
+export type MediaEditableFields = z.infer<typeof MediaEditableFields>;
 export const Job = z
   .object({
     completion_message: z.union([z.string(), z.null()]).optional(),
@@ -2321,6 +2326,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   content_type,
   MediaDto,
   PaginatedResults_for_MediaDto,
+  MediaEditableFields,
   Job,
   PaginatedResults_for_Job,
   CreateJob,
@@ -3927,6 +3933,21 @@ curl -X POST \
     alias: "DeleteMedia",
     description: `Delete media record by id`,
     requestFormat: "json",
+    response: MediaDto,
+  },
+  {
+    method: "patch",
+    path: "/media/:media_id",
+    alias: "UpdateMedia",
+    description: `Update a media record by id`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: MediaEditableFields,
+      },
+    ],
     response: MediaDto,
   },
   {
