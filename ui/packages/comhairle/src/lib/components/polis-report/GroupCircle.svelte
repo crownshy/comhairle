@@ -60,10 +60,7 @@
 	const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
 </script>
 
-<!-- Vote-breakdown on hover. HoverCard (bits-ui) portals the panel to the body and
-     uses Floating UI collision handling, so it flips/shifts to stay on-screen and
-     never extends or is clipped by the page — unlike the old CSS-only tooltip that
-     ran off the right edge on the last column. -->
+<!-- Vote-breakdown on hover-->
 <HoverCard.Root openDelay={80} closeDelay={80}>
 	<HoverCard.Trigger
 		class="flex cursor-default flex-col items-center gap-0.5 outline-none"
