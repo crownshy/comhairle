@@ -109,11 +109,17 @@ async fn upload(
             .upload_file(&storage_key, bytes, metadata)
             .await?;
 
+        let mut name = filename.clone();
+
+        if let Some((prefix, _)) = name.rsplit_once('.') {
+            name = prefix.to_string();
+        }
+
         // TODO: Change name to be able to be set when uploading instead of copied from filename
         let create_media = CreateMedia {
             store_name: bulk_storage_config.store_name.to_string(),
             storage_key,
-            name: filename.clone(),
+            name,
             filename,
             content_type,
         };
@@ -257,7 +263,7 @@ mod tests {
             store_name: "comhairle-media-test".to_string(),
             storage_key: format!("images/{random_name}.jpg"),
             filename: format!("{random_name}.jpg"),
-            name: format!("{random_name}.jpg"),
+            name: format!("{random_name}"),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -379,7 +385,6 @@ mod tests {
         let (_, user, _) = session.current_user(&app).await?;
 
         let created_media = create_random_image_record(&pool, &user.id).await?;
-        let current_name = created_media.filename.clone();
 
         let new_name = gen_id();
         let update = MediaEditableFields {

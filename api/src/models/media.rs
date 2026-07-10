@@ -482,7 +482,7 @@ mod tests {
             store_name: "test_media".to_string(),
             storage_key: "asd123/test-image.jpg".to_string(),
             filename: "test-image.jpg".to_string(),
-            name: "test-image.jpg".to_string(),
+            name: "test-image".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -516,7 +516,7 @@ mod tests {
             store_name: "test_media".to_string(),
             storage_key: "asd123/test-image.jpg".to_string(),
             filename: "test-image.jpg".to_string(),
-            name: "test-image.jpg".to_string(),
+            name: "test-image".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -550,35 +550,35 @@ mod tests {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-b.jpg".to_string(),
             filename: "image-b.jpg".to_string(),
-            name: "image-b.jpg".to_string(),
+            name: "image-b".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_2 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-a.jpg".to_string(),
             filename: "image-a.jpg".to_string(),
-            name: "image-a.jpg".to_string(),
+            name: "image-a".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_3 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-d.jpg".to_string(),
             filename: "image-d.jpg".to_string(),
-            name: "image-d.jpg".to_string(),
+            name: "image-d".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_4 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-c.jpg".to_string(),
             filename: "image-c.jpg".to_string(),
-            name: "image-c.jpg".to_string(),
+            name: "image-c".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_5 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-e.jpg".to_string(),
             filename: "image-e.jpg".to_string(),
-            name: "image-e.jpg".to_string(),
+            name: "image-e".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -622,21 +622,21 @@ mod tests {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-b.jpg".to_string(),
             filename: "image-b.jpg".to_string(),
-            name: "image-b.jpg".to_string(),
+            name: "image-b".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_2 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-a.jpg".to_string(),
             filename: "image-a.jpg".to_string(),
-            name: "image-a.jpg".to_string(),
+            name: "image-a".to_string(),
             content_type: MediaContentType::Jpeg,
         };
         let params_3 = CreateMedia {
             store_name: "test_media".to_string(),
             storage_key: "asd123/image-d.jpg".to_string(),
             filename: "image-d.jpg".to_string(),
-            name: "image-d.jpg".to_string(),
+            name: "image-d".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -679,14 +679,14 @@ mod tests {
             store_name: "test_media".to_string(),
             storage_key: "asd123/test-image.jpg".to_string(),
             filename: "test-image.jpg".to_string(),
-            name: "test-image.jpg".to_string(),
+            name: "test-image".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
         let created_media = create(&pool, &params, &user.id).await?;
 
         let update_media = MediaEditableFields {
-            name: Some("new-name.jpg".to_string()),
+            name: Some("new-name".to_string()),
             ..Default::default()
         };
 
@@ -694,7 +694,7 @@ mod tests {
 
         let media = get_by_id(&pool, &created_media.id).await?;
 
-        assert_eq!(media.name, "new-name.jpg".to_string(), "incorrect filename");
+        assert_eq!(media.name, "new-name".to_string(), "incorrect filename");
 
         Ok(())
     }
@@ -713,7 +713,7 @@ mod tests {
             store_name: "test_media".to_string(),
             storage_key: "asd123/test-image.jpg".to_string(),
             filename: "test-image.jpg".to_string(),
-            name: "test-image.jpg".to_string(),
+            name: "test-image".to_string(),
             content_type: MediaContentType::Jpeg,
         };
 
