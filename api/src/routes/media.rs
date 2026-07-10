@@ -109,6 +109,7 @@ async fn upload(
             .upload_file(&storage_key, bytes, metadata)
             .await?;
 
+        // TODO: Change name to be able to be set when uploading instead of copied from filename
         let create_media = CreateMedia {
             store_name: bulk_storage_config.store_name.to_string(),
             storage_key,
