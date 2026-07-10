@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { setContext, type Snippet } from 'svelte';
+	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { ArrowUpRight, MoreHorizontal, Eye, ExternalLink, Check, CircleX } from 'lucide-svelte';
@@ -27,11 +28,18 @@
 	);
 	let endModalOpen = $state(false);
 	let launchModalOpen = $state(false);
+
+	// Only the design board itself is full-bleed (it renders its own white card + palette
+	// + scroll region). Every other tab — including the design step config pages under
+	// /design/step/* — keeps the padded, max-width reading column.
+	let isDesignBoard = $derived(
+		page.url.pathname.replace(/\/+$/, '') === `/admin/conversations/${conversation.id}/design`
+	);
 </script>
 
 <!-- Row 1: conversation title + launch controls -->
 <div
-	class="border-border bg-background flex w-full items-center justify-between border-b py-2 pr-3 pl-14 md:px-6"
+	class="border-border bg-background flex w-full shrink-0 items-center justify-between border-b py-2 pr-3 pl-14 md:px-6"
 >
 	<h1
 		class="text-primary max-w-[22ch] truncate text-lg leading-7 font-semibold sm:max-w-[40ch]"
@@ -172,25 +180,35 @@
 	hideTrigger
 />
 
-<!-- Row 2: section tabs -->
-<ConversationTabs conversationId={conversation.id} conversationIsLive={conversation.isLive} />
+<!-- Rows 2–4: section tabs + injected sub-strips. shrink-0 so these fixed headers keep
+	 their height inside the viewport-capped `main` (otherwise flexbox compresses them). -->
+<div class="flex shrink-0 flex-col">
+	<!-- Row 2: section tabs -->
+	<ConversationTabs conversationId={conversation.id} conversationIsLive={conversation.isLive} />
 
-<!-- Row 3+ : section-specific sub-strips injected via context (e.g. workflow steps, sub-tabs) -->
-{#if tabExtras.primary}
-	{@render tabExtras.primary()}
-{/if}
-{#if tabExtras.secondary}
-	{@render tabExtras.secondary()}
-{/if}
+	<!-- Row 3+ : section-specific sub-strips injected via context (e.g. workflow steps, sub-tabs) -->
+	{#if tabExtras.primary}
+		{@render tabExtras.primary()}
+	{/if}
+	{#if tabExtras.secondary}
+		{@render tabExtras.secondary()}
+	{/if}
 
-{#if conversation.isComplete}
-	<div class="border-destructive/20 bg-destructive/10 border-b px-5 py-2">
-		<p class="text-destructive text-sm">This conversation has closed</p>
-	</div>
-{/if}
+	{#if conversation.isComplete}
+		<div class="border-destructive/20 bg-destructive/10 border-b px-5 py-2">
+			<p class="text-destructive text-sm">This conversation has closed</p>
+		</div>
+	{/if}
+</div>
 
-<div class="bg-muted grow px-4 py-8 sm:px-8 sm:pb-12 md:py-10 lg:px-16 lg:pb-18">
-	<div class="mx-auto h-full w-full max-w-[1200px]">
+{#if isDesignBoard}
+	<div class="bg-card flex min-h-0 grow flex-col overflow-hidden">
 		{@render children()}
 	</div>
-</div>
+{:else}
+	<div class="bg-muted grow px-4 py-8 sm:px-8 sm:pb-12 md:py-10 lg:px-16 lg:pb-18">
+		<div class="mx-auto h-full w-full max-w-[1200px]">
+			{@render children()}
+		</div>
+	</div>
+{/if}

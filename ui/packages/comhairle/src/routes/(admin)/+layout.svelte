@@ -20,13 +20,14 @@
 </script>
 
 <SideBar.Provider
+	class="h-svh"
 	style="--sidebar-width: {sidebarWidth.width}px;"
 	data-sidebar-resizing={sidebarWidth.resizing || sidebarWidth.initializing ? '' : undefined}
 >
 	<AdminNav user={data.user} conversations={conversations.records} path={page.url.pathname} />
-	<SideBar.Inset>
+	<SideBar.Inset class="min-h-0 min-w-0">
 		<SidebarFloatingTriggers />
-		<main class="bg-muted flex grow flex-col overflow-y-auto">
+		<main class="bg-muted flex min-h-0 w-full min-w-0 grow flex-col overflow-y-auto">
 			{@render children()}
 		</main>
 	</SideBar.Inset>
