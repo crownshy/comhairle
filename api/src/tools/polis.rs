@@ -26,7 +26,7 @@ use crate::{
             ThemeStatistic, UpdatePolisStatementAux, UpsertFromPolis,
         },
     },
-    routes::auth::RequiredUser,
+    routes::auth::{RequiredAdminUser, RequiredUser},
     wiki_poll_service::{
         ModerationStatus, WikiPoll, WikiPollConfigUpdate, WikiPollLogin, WikiPollService,
         polis_service::WikiPollReport,
@@ -416,7 +416,7 @@ pub struct UpdatePolisConfigRequest {
 #[instrument(err(Debug), skip(state))]
 async fn update_polis_config(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
+    RequiredAdminUser(user): RequiredAdminUser,
     Json(request): Json<UpdatePolisConfigRequest>,
 ) -> Result<(StatusCode, Json<WikiPoll>), ComhairleError> {
     let workflow_step =
@@ -471,7 +471,7 @@ pub struct PostSeedResponse {
 #[instrument(err(Debug), skip(state))]
 async fn post_seed(
     State(state): State<Arc<ComhairleState>>,
-    RequiredUser(user): RequiredUser,
+    RequiredAdminUser(user): RequiredAdminUser,
     Json(request): Json<PostSeedRequest>,
 ) -> Result<(StatusCode, Json<PostSeedResponse>), ComhairleError> {
     let workflow_step =
