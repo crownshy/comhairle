@@ -2182,6 +2182,7 @@ export const GrantPermissionBody = z
     grant_reason: z.string(),
     organization_id: z.union([z.string(), z.null()]).optional(),
     role_name: z.string(),
+    user_email: z.union([z.string(), z.null()]).optional(),
     user_id: z.union([z.string(), z.null()]).optional(),
   })
   .passthrough();

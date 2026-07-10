@@ -310,7 +310,7 @@ async fn signup(
             grant_role(
                 &state,
                 GrantRoleRequest {
-                    actor_id: UserOrOrganizationId::User(&user.id),
+                    actor_id: UserOrOrganizationId::User(user.id),
                     permission_triplet: SystemAdminRole::make_system_triplet(),
                     grant_reason: "Admin signup",
                     granted_by: &user.id,
@@ -1482,6 +1482,8 @@ mod tests {
             avatar_url: None,
             email_verified: false,
             organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         };
         let claims = SessionClaims {
             username: user.username.clone(),
@@ -1530,6 +1532,8 @@ mod tests {
             avatar_url: None,
             email_verified: false,
             organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         };
         let claims = SessionClaims {
             username: user.username.clone(),
@@ -1582,6 +1586,8 @@ mod tests {
             avatar_url: None,
             email_verified: user.email_verified,
             organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         };
         let claims = SessionClaims {
             username: user.username.clone(),
@@ -1902,6 +1908,8 @@ mod tests {
             avatar_url: None,
             email_verified: false,
             organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         };
         let claims = EmailLinkClaims {
             email: Some(email.to_string()),
@@ -1964,6 +1972,8 @@ mod tests {
             auth_type: UserAuthType::EmailPassword,
             email_verified: false,
             organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         };
         let claims = EmailLinkClaims {
             email: Some(email.to_string()),
@@ -2011,6 +2021,8 @@ mod tests {
             avatar_url: None,
             email_verified: false,
             organization_id: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         };
         let claims = EmailLinkClaims { email: None };
         let token = generate_jwt()

@@ -83,6 +83,29 @@ pub trait SystemResourceRole: NamedRole {
     }
 }
 
+/// The resource type associated with conversation-level permissions.
+pub const CONVERSATION_RESOURCE_TYPE: &str = "conversation";
+
+/// Grants read and update access to a resource, but not full write access —
+/// only a subset of update operations are permitted (e.g. editing content), while
+/// others (e.g. `launch`) are excluded and require a higher-privileged role.
+pub const CONTENT_EDITOR_ROLE: &str = "content_editor";
+
+#[derive(Debug)]
+pub struct ConversationContentEditor;
+
+impl NamedRole for ConversationContentEditor {
+    fn name() -> &'static str {
+        "conversation:content_editor"
+    }
+}
+
+impl ResourceRole for ConversationContentEditor {
+    fn resource_type() -> &'static str {
+        CONVERSATION_RESOURCE_TYPE
+    }
+}
+
 /// Represents a role that can be assigned to a user or organization on a specific
 /// resource.
 pub trait ResourceRole: NamedRole {
@@ -132,15 +155,15 @@ const DEFAULT_COLUMNS: [ResourcePermissionIden; 9] = [
 
 /// Represents either a user or an organization for role assignment purposes.
 #[derive(Debug)]
-pub enum UserOrOrganizationId<'request> {
-    User(&'request Uuid),
-    Org(&'request Uuid),
+pub enum UserOrOrganizationId {
+    User(Uuid),
+    Org(Uuid),
 }
 
 /// Request struct for granting a role to a user or organization on a resource.
 #[derive(Debug)]
 pub struct GrantRoleRequest<'request> {
-    pub actor_id: UserOrOrganizationId<'request>,
+    pub actor_id: UserOrOrganizationId,
     pub granted_by: &'request Uuid,
     pub grant_reason: &'request str,
     pub permission_triplet: PermissionTriplet<'request>,
@@ -149,14 +172,14 @@ pub struct GrantRoleRequest<'request> {
 /// Request struct for revoking a role from a user or organization on a resource.
 #[derive(Debug)]
 pub struct RevokeRoleRequest<'request> {
-    pub actor_id: UserOrOrganizationId<'request>,
+    pub actor_id: UserOrOrganizationId,
     pub permission_triplet: PermissionTriplet<'request>,
 }
 
 /// Generates a cache key for storing permission checks in Redis.
 fn permission_cache_key(
     permission_triplet: &PermissionTriplet<'_>,
-    actor_id: &UserOrOrganizationId<'_>,
+    actor_id: &UserOrOrganizationId,
 ) -> String {
     let PermissionTriplet(resource_type, resource_id, role_name) = *permission_triplet;
     match *actor_id {
@@ -221,8 +244,8 @@ pub async fn grant_role(
     request: GrantRoleRequest<'_>,
 ) -> Result<ResourcePermission, ComhairleError> {
     let (user_id, organization_id) = match request.actor_id {
-        UserOrOrganizationId::User(user_id) => (Some(*user_id), None),
-        UserOrOrganizationId::Org(org_id) => (None, Some(*org_id)),
+        UserOrOrganizationId::User(user_id) => (Some(user_id), None),
+        UserOrOrganizationId::Org(org_id) => (None, Some(org_id)),
     };
 
     let PermissionTriplet(resource_type, resource_id, role_name) = request.permission_triplet;
@@ -318,10 +341,10 @@ pub async fn revoke_role(
 
     match request.actor_id {
         UserOrOrganizationId::User(user_id) => {
-            query.and_where(Expr::col(ResourcePermissionIden::UserId).eq(*user_id));
+            query.and_where(Expr::col(ResourcePermissionIden::UserId).eq(user_id));
         }
         UserOrOrganizationId::Org(org_id) => {
-            query.and_where(Expr::col(ResourcePermissionIden::OrganizationId).eq(*org_id));
+            query.and_where(Expr::col(ResourcePermissionIden::OrganizationId).eq(org_id));
         }
     };
 
@@ -352,7 +375,7 @@ pub async fn revoke_role(
 pub struct ListPermissionsFilters<'request> {
     pub resource_type: Option<&'request str>,
     pub resource_id: Option<&'request Uuid>,
-    pub actor: Option<UserOrOrganizationId<'request>>,
+    pub actor: Option<UserOrOrganizationId>,
     pub role_name: Option<&'request str>,
     pub page_options: PageOptions,
 }
@@ -381,10 +404,10 @@ pub async fn list_permissions(
 
     match request.actor {
         Some(UserOrOrganizationId::User(user_id)) => {
-            query.and_where(Expr::col(ResourcePermissionIden::UserId).eq(*user_id));
+            query.and_where(Expr::col(ResourcePermissionIden::UserId).eq(user_id));
         }
         Some(UserOrOrganizationId::Org(org_id)) => {
-            query.and_where(Expr::col(ResourcePermissionIden::OrganizationId).eq(*org_id));
+            query.and_where(Expr::col(ResourcePermissionIden::OrganizationId).eq(org_id));
         }
         None => {}
     }
@@ -409,9 +432,9 @@ pub async fn has_resource_permission(
 ) -> Result<bool, ComhairleError> {
     let redis_conn = state.redis_conn.clone();
     if let Some(ref conn) = redis_conn {
-        let key = permission_cache_key(&permission_triplet, &UserOrOrganizationId::User(user_id));
+        let key = permission_cache_key(&permission_triplet, &UserOrOrganizationId::User(*user_id));
         let org_key = organization_id.map(|org_id| {
-            permission_cache_key(&permission_triplet, &UserOrOrganizationId::Org(org_id))
+            permission_cache_key(&permission_triplet, &UserOrOrganizationId::Org(*org_id))
         });
         if let Some(cached) = cache_get(conn.as_ref(), &key, org_key.as_deref()).await {
             return Ok(cached);
@@ -468,11 +491,11 @@ pub async fn has_resource_permission(
             true
         };
         let key = if is_user {
-            permission_cache_key(&permission_triplet, &UserOrOrganizationId::User(user_id))
+            permission_cache_key(&permission_triplet, &UserOrOrganizationId::User(*user_id))
         } else {
             permission_cache_key(
                 &permission_triplet,
-                &UserOrOrganizationId::Org(organization_id.unwrap()),
+                &UserOrOrganizationId::Org(*organization_id.unwrap()),
             )
         };
         cache_set(
@@ -545,7 +568,7 @@ mod tests {
 
         // Grant a role to the user
         let grant_request = GrantRoleRequest {
-            actor_id: UserOrOrganizationId::User(&user_id),
+            actor_id: UserOrOrganizationId::User(user_id),
             permission_triplet: TestRole::make_triplet(&resource_id),
             granted_by: &session.id.unwrap(),
             grant_reason: "Testing",
@@ -598,7 +621,7 @@ mod tests {
 
         // Grant a role to the organization
         let grant_request = GrantRoleRequest {
-            actor_id: UserOrOrganizationId::Org(&org_id),
+            actor_id: UserOrOrganizationId::Org(org_id),
             permission_triplet: TestRole::make_triplet(&resource_id),
             granted_by: &session.id.unwrap(),
             grant_reason: "Testing",
@@ -678,7 +701,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing",
@@ -690,7 +713,7 @@ mod tests {
         let err = grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing",
@@ -719,7 +742,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing",
@@ -737,7 +760,7 @@ mod tests {
         revoke_role(
             &state,
             RevokeRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
             },
         )
@@ -763,7 +786,7 @@ mod tests {
         let result = revoke_role(
             &state,
             RevokeRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user.id),
+                actor_id: UserOrOrganizationId::User(user.id),
                 permission_triplet: SystemAdminRole::make_system_triplet(),
             },
         )
@@ -789,7 +812,7 @@ mod tests {
         let err = revoke_role(
             &state,
             RevokeRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
             },
         )
@@ -818,7 +841,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_1_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing",
@@ -829,7 +852,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::Org(&org_id),
+                actor_id: UserOrOrganizationId::Org(org_id),
                 permission_triplet: OtherRole::make_triplet(&resource_1_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing",
@@ -840,7 +863,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: OtherRole::make_triplet(&resource_2_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing",
@@ -867,7 +890,7 @@ mod tests {
 
         // List permissions for the user
         let request = ListPermissionsFilters {
-            actor: Some(UserOrOrganizationId::User(&user_id)),
+            actor: Some(UserOrOrganizationId::User(user_id)),
             ..Default::default()
         };
         let user_permissions = list_permissions(&state, request).await?;
@@ -887,7 +910,7 @@ mod tests {
 
         // List permissions for the organization
         let request = ListPermissionsFilters {
-            actor: Some(UserOrOrganizationId::Org(&org_id)),
+            actor: Some(UserOrOrganizationId::Org(org_id)),
             ..Default::default()
         };
         let org_permissions = list_permissions(&state, request).await?;
@@ -926,7 +949,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing",
@@ -937,7 +960,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: OtherRole::make_triplet(&resource_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing",
@@ -953,7 +976,7 @@ mod tests {
             let request = ListPermissionsFilters {
                 resource_type: Some(TEST_RESOURCE_TYPE),
                 resource_id: Some(&resource_id),
-                actor: Some(UserOrOrganizationId::User(&user_id)),
+                actor: Some(UserOrOrganizationId::User(user_id)),
                 page_options: PageOptions {
                     offset,
                     limit: Some(LIMIT as u64),
@@ -1014,7 +1037,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing cache",
@@ -1030,7 +1053,7 @@ mod tests {
 
         let key = permission_cache_key(
             &TestRole::make_triplet(&resource_id),
-            &UserOrOrganizationId::User(&user_id),
+            &UserOrOrganizationId::User(user_id),
         );
         let cached = mock.get_value(&key).await;
         assert_eq!(
@@ -1085,7 +1108,7 @@ mod tests {
 
         let key = permission_cache_key(
             &TestRole::make_triplet(&resource_id),
-            &UserOrOrganizationId::User(&user_id),
+            &UserOrOrganizationId::User(user_id),
         );
         let cached = mock.get_value(&key).await;
         assert_eq!(
@@ -1098,7 +1121,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing cache invalidation",
@@ -1141,7 +1164,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &session.id.unwrap(),
                 grant_reason: "Testing cache invalidation",
@@ -1156,7 +1179,7 @@ mod tests {
 
         let key = permission_cache_key(
             &TestRole::make_triplet(&resource_id),
-            &UserOrOrganizationId::User(&user_id),
+            &UserOrOrganizationId::User(user_id),
         );
         let cached = mock.get_value(&key).await;
         assert_eq!(
@@ -1169,7 +1192,7 @@ mod tests {
         revoke_role(
             &state,
             RevokeRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user_id),
+                actor_id: UserOrOrganizationId::User(user_id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
             },
         )

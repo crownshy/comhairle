@@ -10,13 +10,17 @@ use axum::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
 use tracing::instrument;
 use uuid::Uuid;
 
-use crate::models::pagination::{PageOptions, PaginatedResults};
 use crate::models::permissions::{
     self, GrantRoleRequest, ListPermissionsFilters, PermissionTriplet, RevokeRoleRequest,
     SystemAdminRole, SystemResource, UserOrOrganizationId, list_permissions,
+};
+use crate::models::{
+    pagination::{PageOptions, PaginatedResults},
+    users,
 };
 use crate::routes::auth::RequiredUserPermission;
 use crate::{
@@ -37,6 +41,7 @@ pub struct TargetResourceId {
 pub struct GrantPermissionBody {
     pub user_id: Option<Uuid>,
     pub organization_id: Option<Uuid>,
+    pub user_email: Option<String>,
     pub role_name: String,
     pub grant_reason: String,
 }
@@ -63,18 +68,26 @@ pub struct ListPermissionsQuery {
 ///
 /// # Errors
 ///
-/// Returns [`ComhairleError::BadRequest`] if both user_id and organization_id are provided.
-fn resolve_actor<'actor>(
-    user_id: &'actor Option<Uuid>,
-    organization_id: &'actor Option<Uuid>,
+/// * Returns [`ComhairleError::BadRequest`] if more than one of user_id, organization_id or user_email are provided.
+/// * Returns [`ComhairleError::NoUserFoundForEmail`] if no user found for a given user_email.
+async fn resolve_actor(
+    db: &PgPool,
+    user_id: Option<Uuid>,
+    organization_id: Option<Uuid>,
+    user_email: Option<String>,
     allow_none: bool,
-) -> Result<Option<UserOrOrganizationId<'actor>>, ComhairleError> {
-    match (user_id, organization_id) {
-        (Some(uid), None) => Ok(Some(UserOrOrganizationId::User(uid))),
-        (None, Some(oid)) => Ok(Some(UserOrOrganizationId::Org(oid))),
-        (None, None) if allow_none => Ok(None),
+) -> Result<Option<UserOrOrganizationId>, ComhairleError> {
+    match (user_id, organization_id, user_email) {
+        (Some(uid), None, None) => Ok(Some(UserOrOrganizationId::User(uid))),
+        (None, Some(oid), None) => Ok(Some(UserOrOrganizationId::Org(oid))),
+        (None, None, Some(u_email)) => {
+            let user = users::get_user_by_email(&u_email, db).await?;
+
+            Ok(Some(UserOrOrganizationId::User(user.id)))
+        }
+        (None, None, None) if allow_none => Ok(None),
         _ => Err(ComhairleError::BadRequest(
-            "Only one of user_id or organization_id can be provided".into(),
+            "Only one of user_id, organization_id or user_email can be provided".into(),
         )),
     }
 }
@@ -84,7 +97,7 @@ fn resolve_actor<'actor>(
 /// # Errors
 ///
 /// * Returns [`ComhairleError::RoleAlreadyGranted`] if the role was already granted to the actor.
-/// * Returns [`ComhairleError::BadRequest`] if both user_id and organization_id are provided in the request body.
+/// * Returns [`ComhairleError::BadRequest`] if more than one of user_id, organization_id or user_email are provided in the request body.
 /// * Returns [`ComhairleError::DatabaseError`] if there is an error querying the database.
 #[instrument(err(Debug), skip(state))]
 async fn grant(
@@ -96,7 +109,15 @@ async fn grant(
     Path(path): Path<TargetResourceId>,
     Json(body): Json<GrantPermissionBody>,
 ) -> Result<(StatusCode, Json<permissions::ResourcePermission>), ComhairleError> {
-    let actor_id = resolve_actor(&body.user_id, &body.organization_id, false)?.unwrap();
+    let actor_id = resolve_actor(
+        &state.db,
+        body.user_id,
+        body.organization_id,
+        body.user_email,
+        false,
+    )
+    .await?
+    .unwrap();
 
     let permission_triplet =
         PermissionTriplet(&path.resource_type, &path.resource_id, &body.role_name);
@@ -128,7 +149,9 @@ async fn revoke(
     Path(path): Path<TargetResourceId>,
     Query(query): Query<RevokePermissionQuery>,
 ) -> Result<StatusCode, ComhairleError> {
-    let actor_id = resolve_actor(&query.user_id, &query.organization_id, false)?.unwrap();
+    let actor_id = resolve_actor(&state.db, query.user_id, query.organization_id, None, false)
+        .await?
+        .unwrap();
 
     let permission_triplet =
         PermissionTriplet(&path.resource_type, &path.resource_id, &query.role_name);
@@ -162,7 +185,7 @@ async fn list(
     ),
     ComhairleError,
 > {
-    let actor = resolve_actor(&query.user_id, &query.organization_id, true)?;
+    let actor = resolve_actor(&state.db, query.user_id, query.organization_id, None, true).await?;
     let page_options = PageOptions {
         limit: query.limit,
         offset: query.offset,
@@ -199,7 +222,7 @@ async fn list_for_resource(
     ),
     ComhairleError,
 > {
-    let actor = resolve_actor(&query.user_id, &query.organization_id, true)?;
+    let actor = resolve_actor(&state.db, query.user_id, query.organization_id, None, true).await?;
     let page_options = PageOptions {
         limit: query.limit,
         offset: query.offset,
@@ -407,6 +430,7 @@ mod tests {
         let grant_body = GrantPermissionBody {
             user_id: Some(user.id),
             organization_id: None,
+            user_email: None,
             role_name: "editor".into(),
             grant_reason: "Testing".into(),
         };
@@ -459,7 +483,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user.id),
+                actor_id: UserOrOrganizationId::User(user.id),
                 permission_triplet: TestRole::make_triplet(&resource_id),
                 granted_by: &user.id,
                 grant_reason: "Testing".into(),
@@ -511,7 +535,7 @@ mod tests {
             grant_role(
                 &state,
                 GrantRoleRequest {
-                    actor_id: UserOrOrganizationId::User(&user.id),
+                    actor_id: UserOrOrganizationId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
                     grant_reason: "Testing".into(),
@@ -585,7 +609,7 @@ mod tests {
             grant_role(
                 &state,
                 GrantRoleRequest {
-                    actor_id: UserOrOrganizationId::User(&user.id),
+                    actor_id: UserOrOrganizationId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
                     grant_reason: "Testing".into(),
@@ -600,7 +624,7 @@ mod tests {
             grant_role(
                 &state,
                 GrantRoleRequest {
-                    actor_id: UserOrOrganizationId::User(&user.id),
+                    actor_id: UserOrOrganizationId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
                     grant_reason: "Testing".into(),
@@ -680,7 +704,7 @@ mod tests {
             grant_role(
                 &state,
                 GrantRoleRequest {
-                    actor_id: UserOrOrganizationId::User(&user.id),
+                    actor_id: UserOrOrganizationId::User(user.id),
                     permission_triplet,
                     granted_by: &user.id,
                     grant_reason: "Testing".into(),
@@ -693,7 +717,7 @@ mod tests {
         grant_role(
             &state,
             GrantRoleRequest {
-                actor_id: UserOrOrganizationId::User(&user.id),
+                actor_id: UserOrOrganizationId::User(user.id),
                 permission_triplet: PermissionTriplet(RESOURCE_TYPE, &resource_2_id, "Role1"),
                 granted_by: &user.id,
                 grant_reason: "Testing".into(),
@@ -748,6 +772,7 @@ mod tests {
         let grant_body = GrantPermissionBody {
             user_id: Some(user.id),
             organization_id: None,
+            user_email: None,
             role_name: TestRole::name().into(),
             grant_reason: "Testing".into(),
         };
@@ -770,7 +795,7 @@ mod tests {
         let permissions = list_permissions(
             &state,
             ListPermissionsFilters {
-                actor: Some(UserOrOrganizationId::User(&user.id)),
+                actor: Some(UserOrOrganizationId::User(user.id)),
                 role_name: Some(TestRole::name()),
                 resource_type: Some(RESOURCE_TYPE),
                 resource_id: Some(&resource_id),

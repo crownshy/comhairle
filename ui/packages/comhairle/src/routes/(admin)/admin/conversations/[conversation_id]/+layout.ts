@@ -3,6 +3,7 @@ import { redirect } from '@sveltejs/kit';
 import type {
 	ConversationWithTranslations,
 	MediaDto,
+	UserDto,
 	WorkflowDto,
 	WorkflowStats,
 	WorkflowStepWithTranslations
@@ -25,12 +26,13 @@ export const load: LayoutLoad = async ({
 	workflowSteps: WorkflowStepWithTranslations[];
 	stats: WorkflowStats;
 	media: MediaDto | null;
+	user: UserDto;
 }> => {
 	depends('conversation:meta');
 	depends('conversation:workflow');
 
 	const conversation_id = params.conversation_id;
-	const { api } = await parent();
+	const { user, api } = await parent();
 
 	try {
 		const conversation = (await api.GetConversation({
@@ -55,7 +57,7 @@ export const load: LayoutLoad = async ({
 				queries: { withTranslations: true }
 			});
 		}
-		return { conversation, workflows, stats, workflowSteps, media };
+		return { conversation, workflows, stats, workflowSteps, media, user };
 	} catch (e) {
 		console.error(e);
 		notifications.addFlash({
