@@ -17,6 +17,7 @@
 		ConversationWithTranslations,
 		MediaDto,
 		UserDto,
+		UserWithPermissionDto,
 		WorkflowDto
 	} from '@crownshy/api-client/api';
 	import { camelToSentenceCase, camelToSnakeCase, snakeCaseKeys } from '$lib/utils/casingUtils';
@@ -42,11 +43,13 @@
 			workflows: WorkflowDto[];
 			media: MediaDto | null;
 			user: UserDto;
+			usersWithPermission: UserWithPermissionDto[];
 		};
 	} = $props();
 	let conversation = $derived(data.conversation);
 	let workflow = $derived(data.workflows[0]);
 	let imageMedia = $derived(data.media);
+	let permittedUsers = $derived(data.usersWithPermission);
 
 	let primaryLanguage = $state(data.conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $state(data.conversation.supportedLanguages ?? ['en']);
@@ -337,6 +340,7 @@
 		resourceType="conversation"
 		role="content_editor"
 		grantReason="Conversation editing"
+		{permittedUsers}
 	/>
 {:else}
 	<form method="POST" onsubmit={updateConversation} class="mt-8 flex flex-col" use:enhance>

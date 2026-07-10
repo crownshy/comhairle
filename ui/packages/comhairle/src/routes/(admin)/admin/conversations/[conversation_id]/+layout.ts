@@ -4,6 +4,7 @@ import type {
 	ConversationWithTranslations,
 	MediaDto,
 	UserDto,
+	UserWithPermissionDto,
 	WorkflowDto,
 	WorkflowStats,
 	WorkflowStepWithTranslations
@@ -48,6 +49,17 @@ export const load: LayoutLoad = async ({
 			media = await api.GetMedia({ params: { media_id: conversation.image } });
 		}
 
+		let usersWithPermission: UserWithPermissionDto[] = [];
+		if (user.id === conversation.ownerId) {
+			usersWithPermission = await api.ListUsersWithPermission({
+				params: {
+					resource_type: 'conversation',
+					resource_id: conversation.id
+				},
+				queries: { role_name: 'content_editor' }
+			});
+		}
+
 		if (workflows.length > 0) {
 			stats = await api.GetConversationWorkflowStats({
 				params: { conversation_id, workflow_id: workflows[0].id }
@@ -57,7 +69,7 @@ export const load: LayoutLoad = async ({
 				queries: { withTranslations: true }
 			});
 		}
-		return { conversation, workflows, stats, workflowSteps, media, user };
+		return { conversation, workflows, stats, workflowSteps, media, user, usersWithPermission };
 	} catch (e) {
 		console.error(e);
 		notifications.addFlash({

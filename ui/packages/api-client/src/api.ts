@@ -2187,6 +2187,15 @@ export const GrantPermissionBody = z
   })
   .passthrough();
 export type GrantPermissionBody = z.infer<typeof GrantPermissionBody>;
+export const UserWithPermissionDto = z
+  .object({
+    email: z.union([z.string(), z.null()]).optional(),
+    id: z.string().uuid(),
+    roleName: z.string(),
+    username: z.union([z.string(), z.null()]).optional(),
+  })
+  .passthrough();
+export type UserWithPermissionDto = z.infer<typeof UserWithPermissionDto>;
 
 export const schemas: Record<string, z.ZodType<any>> = {
   AnnonLoginRequest,
@@ -2440,6 +2449,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ResourcePermission,
   PaginatedResults_for_ResourcePermission,
   GrantPermissionBody,
+  UserWithPermissionDto,
 };
 
 const endpoints = makeApi([
@@ -4313,6 +4323,51 @@ curl -X POST \
       },
     ],
     response: z.void(),
+  },
+  {
+    method: "get",
+    path: "/permissions/:resource_type/:resource_id/users",
+    alias: "ListUsersWithPermission",
+    description: `List users with a give permission (role + resource_type) for a given resource`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "resource_id",
+        type: "Path",
+        schema: z.string().uuid(),
+      },
+      {
+        name: "resource_type",
+        type: "Path",
+        schema: z.string(),
+      },
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "organization_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "role_name",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "user_id",
+        type: "Query",
+        schema: created_after,
+      },
+    ],
+    response: z.array(UserWithPermissionDto),
   },
   {
     method: "get",

@@ -11,17 +11,19 @@
 	import { userEmailPermissionsForm } from './schema';
 	import { defaults, superForm } from 'sveltekit-superforms';
 	import Spinner from '../ui/spinner/spinner.svelte';
+	import type { UserWithPermissionDto } from '@crownshy/api-client/api';
+	import { invalidate } from '$app/navigation';
 
 	type Props = {
 		resourceId: string;
 		resourceType: string;
 		role: string;
 		grantReason: string;
+		permittedUsers: UserWithPermissionDto[];
 	};
 
-	let { resourceId, resourceType, role, grantReason }: Props = $props();
+	let { resourceId, resourceType, role, grantReason, permittedUsers }: Props = $props();
 
-	let data = $state([]);
 	let loading = $state(false);
 
 	let userEmailPermissionForm = superForm(defaults(zod(userEmailPermissionsForm)), {
@@ -46,7 +48,7 @@
 			apiClient.GrantPermission(
 				{
 					user_email: result.data.email as string,
-					role_name: `${resourceType}:${role}`,
+					role_name: role,
 					grant_reason: grantReason
 				},
 				{ params: { resource_type: resourceType, resource_id: resourceId } }
@@ -70,6 +72,7 @@
 		notifications.send({
 			message: `Successfully granted ${snakeToSentenceCase(role)} permission`
 		});
+		invalidate('conversation:meta');
 	}
 </script>
 
@@ -104,20 +107,24 @@
 	<Card.Root>
 		<Card.Header>
 			<h1 class="text-xl font-bold">
-				{`${snakeToSentenceCase(resourceType)} ${snakeToSentenceCase(role)}s`}
+				{`${snakeToSentenceCase(resourceType)} ${snakeToSentenceCase(role).toLowerCase()} users`}
 			</h1>
 		</Card.Header>
 		<Card.Content>
 			<Table.Root>
 				<Table.Header>
 					<Table.Row>
+						<Table.Head class="w-37.5">Username</Table.Head>
 						<Table.Head class="w-37.5">Email</Table.Head>
+						<Table.Head class="w-37.5">Role</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
-					{#each data as row (row.id)}
+					{#each permittedUsers as user (user.id)}
 						<Table.Row>
-							<Table.Cell>Foo</Table.Cell>
+							<Table.Cell>{user.username}</Table.Cell>
+							<Table.Cell>{user.email}</Table.Cell>
+							<Table.Cell>{user.roleName}</Table.Cell>
 						</Table.Row>
 					{/each}
 				</Table.Body>

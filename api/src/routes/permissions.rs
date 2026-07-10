@@ -16,7 +16,7 @@ use uuid::Uuid;
 
 use crate::models::permissions::{
     self, GrantRoleRequest, ListPermissionsFilters, PermissionTriplet, RevokeRoleRequest,
-    SystemAdminRole, SystemResource, UserOrOrganizationId, list_permissions,
+    SystemAdminRole, SystemResource, UserOrOrganizationId, UserWithPermissionDto, list_permissions,
 };
 use crate::models::{
     pagination::{PageOptions, PaginatedResults},
@@ -241,6 +241,23 @@ async fn list_for_resource(
     Ok((StatusCode::OK, Json(page)))
 }
 
+#[instrument(err(Debug), skip(state))]
+async fn list_users_with_permission(
+    State(state): State<Arc<ComhairleState>>,
+    Path(path): Path<TargetResourceId>,
+    Query(query): Query<ListPermissionsQuery>,
+) -> Result<(StatusCode, Json<Vec<UserWithPermissionDto>>), ComhairleError> {
+    let users_with_permission = permissions::list_users_with_permission(
+        &state.db,
+        &path.resource_type,
+        path.resource_id,
+        query.role_name.as_deref(),
+    )
+    .await?;
+
+    Ok((StatusCode::OK, Json(users_with_permission)))
+}
+
 /// Creates the permissions API router with all the defined routes and their corresponding handlers.
 pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
     ApiRouter::new()
@@ -303,6 +320,20 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     )
                     .security_requirement("JWT")
                     .response::<200, ()>()
+            }),
+        )
+        .api_route(
+            "/{resource_type}/{resource_id}/users",
+            get_with(list_users_with_permission, |op| {
+                op.id("ListUsersWithPermission")
+                    .tag("Permissions")
+                    .summary("List users with permissions")
+                    .description(
+                        "List users with a give permission (role + resource_type) \
+                        for a given resource",
+                    )
+                    .security_requirement("JWT")
+                    .response::<200, Json<Vec<UserWithPermissionDto>>>()
             }),
         )
         .with_state(state)

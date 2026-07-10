@@ -1,15 +1,17 @@
 use std::sync::Arc;
 
+use crate::models::users::UserIden;
 use crate::redis_connection::RedisConnection;
 use axum::extract::FromRequestParts;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use sea_query::IdenStatic;
 use sea_query::{Expr, OnConflict, PostgresQueryBuilder, Query, enum_def};
+use sea_query::{IdenStatic, JoinType};
 use sea_query_binder::SqlxBinder;
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
 use sqlx::prelude::FromRow;
+use sqlx::{PgPool, Row, query_as_with};
+use tracing::instrument;
 use uuid::Uuid;
 
 use crate::ComhairleState;
@@ -96,7 +98,7 @@ pub struct ConversationContentEditor;
 
 impl NamedRole for ConversationContentEditor {
     fn name() -> &'static str {
-        "conversation:content_editor"
+        "content_editor"
     }
 }
 
@@ -508,6 +510,76 @@ pub async fn has_resource_permission(
     }
 
     Ok(result)
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema, FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct UserWithPermissionDto {
+    pub id: Uuid,
+    pub username: Option<String>,
+    pub email: Option<String>,
+    pub role_name: String,
+}
+
+#[instrument(err(Debug))]
+pub async fn list_users_with_permission(
+    db: &PgPool,
+    resource_type: &str,
+    resource_id: Uuid,
+    role_name: Option<&str>,
+) -> Result<Vec<UserWithPermissionDto>, ComhairleError> {
+    let mut query = Query::select()
+        .from(ResourcePermissionIden::Table)
+        .join(
+            JoinType::InnerJoin,
+            UserIden::Table,
+            Expr::col((UserIden::Table, UserIden::Id)).equals((
+                ResourcePermissionIden::Table,
+                ResourcePermissionIden::UserId,
+            )),
+        )
+        .columns([
+            (UserIden::Table, UserIden::Id),
+            (UserIden::Table, UserIden::Username),
+            (UserIden::Table, UserIden::Email),
+        ])
+        .column((
+            ResourcePermissionIden::Table,
+            ResourcePermissionIden::RoleName,
+        ))
+        .and_where(
+            Expr::col((
+                ResourcePermissionIden::Table,
+                ResourcePermissionIden::ResourceType,
+            ))
+            .eq(resource_type.to_owned()),
+        )
+        .and_where(
+            Expr::col((
+                ResourcePermissionIden::Table,
+                ResourcePermissionIden::ResourceId,
+            ))
+            .eq(resource_id.to_owned()),
+        )
+        .to_owned();
+
+    if let Some(role_name) = role_name {
+        query = query
+            .and_where(
+                Expr::col((
+                    ResourcePermissionIden::Table,
+                    ResourcePermissionIden::RoleName,
+                ))
+                .eq(role_name.to_owned()),
+            )
+            .to_owned();
+    }
+
+    let (sql, values) = query.build_sqlx(PostgresQueryBuilder);
+
+    let users_with_permission = query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(users_with_permission)
 }
 
 #[cfg(test)]
@@ -1209,6 +1281,65 @@ mod tests {
             has_resource_permission(&state, TestRole::make_triplet(&resource_id), &user_id, None)
                 .await?;
         assert!(!second, "expected no permission after revoke");
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_list_users_with_permission(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let state = Arc::new(test_state().db(pool).call()?);
+        let (app, mut session) = setup_default_app_and_session(&state.db).await?;
+
+        let user_a_id = get_random_user_id(&app, &mut session).await?;
+        let user_b_id = get_random_user_id(&app, &mut session).await?;
+        let user_c_id = get_random_user_id(&app, &mut session).await?;
+
+        let resource_id = Uuid::new_v4();
+
+        let grant_request_a = GrantRoleRequest {
+            actor_id: UserOrOrganizationId::User(user_a_id),
+            permission_triplet: TestRole::make_triplet(&resource_id),
+            granted_by: &session.id.unwrap(),
+            grant_reason: "Testing",
+        };
+        grant_role(&state, grant_request_a).await?;
+
+        let grant_request_b = GrantRoleRequest {
+            actor_id: UserOrOrganizationId::User(user_b_id),
+            permission_triplet: TestRole::make_triplet(&resource_id),
+            granted_by: &session.id.unwrap(),
+            grant_reason: "Testing",
+        };
+        grant_role(&state, grant_request_b).await?;
+
+        let users_with_permission = list_users_with_permission(
+            &state.db,
+            TestRole::resource_type(),
+            resource_id,
+            Some(TestRole::name()),
+        )
+        .await?;
+
+        assert!(
+            users_with_permission.iter().any(|u| u.id == user_a_id),
+            "missing user_a"
+        );
+        assert!(
+            users_with_permission.iter().any(|u| u.id == user_b_id),
+            "missing user_b"
+        );
+        assert!(
+            !users_with_permission.iter().any(|u| u.id == user_c_id),
+            "user_b incorrectly included"
+        );
+        assert!(
+            users_with_permission
+                .iter()
+                .all(|u| u.role_name == TestRole::name()),
+            "wrong role_name"
+        );
 
         Ok(())
     }
