@@ -28,7 +28,8 @@ use crate::{
     },
     routes::auth::RequiredUser,
     wiki_poll_service::{
-        ModerationStatus, WikiPollLogin, WikiPollService, polis_service::WikiPollReport,
+        ModerationStatus, WikiPoll, WikiPollConfigUpdate, WikiPollLogin, WikiPollService,
+        polis_service::WikiPollReport,
     },
 };
 
@@ -132,6 +133,35 @@ impl ToolImpl for PolisTool {
                         .tag("Tools")
                         .summary("Get Polis report data for a workflow step")
                         .description("Fetches the polis data export for a given workflow step")
+                        .response::<200, Json<WikiPollReport>>()
+                }),
+            )
+            .api_route(
+                "/polis/config",
+                put_with(update_polis_config, |op| {
+                    op.id("PolisUpdateConfig")
+                        .tag("Tools")
+                        .summary("Update the Polis conversation configuration")
+                        .description(
+                            "Proxies topic, description, strict_moderation and is_active to the \
+                             Polis conversation via the server-side admin session. Only provided \
+                             fields are written.",
+                        )
+                        .response::<200, Json<WikiPoll>>()
+                }),
+            )
+            .api_route(
+                "/polis/seed",
+                post_with(post_seed, |op| {
+                    op.id("PolisPostSeed")
+                        .tag("Tools")
+                        .summary("Post a seed statement to the Polis conversation")
+                        .description(
+                            "Posts a moderator-authored seed statement (is_seed) to the active \
+                             Polis poll via the server-side admin session. Re-sync to surface it \
+                             in the local statement_aux table.",
+                        )
+                        .response::<201, Json<PostSeedResponse>>()
                 }),
             )
             .api_route(
@@ -370,6 +400,106 @@ async fn get_report_data(
         .await?;
 
     Ok((StatusCode::OK, Json(data)))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct UpdatePolisConfigRequest {
+    pub workflow_step_id: Uuid,
+    pub is_active: Option<bool>,
+    pub topic: Option<String>,
+    pub description: Option<String>,
+    pub strict_moderation: Option<bool>,
+}
+
+/// Writes Polis conversation-level configuration (topic, description,
+/// strict_moderation, is_active) through the server-side admin session.
+#[instrument(err(Debug), skip(state))]
+async fn update_polis_config(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Json(request): Json<UpdatePolisConfigRequest>,
+) -> Result<(StatusCode, Json<WikiPoll>), ComhairleError> {
+    let workflow_step =
+        models::workflow_step::get_by_id(&state.db, &request.workflow_step_id).await?;
+    models::workflow::check_user_is_owner(&state.db, &workflow_step.workflow_id, &user.id).await?;
+
+    let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
+        (Some(ToolConfig::Polis(config)), _) => config,
+        (None, ToolConfig::Polis(config)) => config,
+        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+    };
+
+    let client = &state.wiki_poll_service;
+    let auth_cookies = client
+        .login(&WikiPollLogin {
+            email: config.admin_user.clone(),
+            password: config.admin_password.clone(),
+        })
+        .await?;
+
+    let poll = client
+        .update_poll_config(
+            &config.poll_id,
+            &auth_cookies,
+            &WikiPollConfigUpdate {
+                is_active: request.is_active,
+                topic: request.topic,
+                description: request.description,
+                strict_moderation: request.strict_moderation,
+            },
+        )
+        .await?;
+
+    Ok((StatusCode::OK, Json(poll)))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct PostSeedRequest {
+    pub workflow_step_id: Uuid,
+    pub statement_text: String,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct PostSeedResponse {
+    /// The Polis statement id (tid) of the newly created seed.
+    pub polis_statement_id: String,
+}
+
+/// Posts a moderator-authored seed statement to the active Polis poll through
+/// the server-side admin session. Callers should re-sync afterwards to surface
+/// the seed in the local statement_aux table.
+#[instrument(err(Debug), skip(state))]
+async fn post_seed(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Json(request): Json<PostSeedRequest>,
+) -> Result<(StatusCode, Json<PostSeedResponse>), ComhairleError> {
+    let workflow_step =
+        models::workflow_step::get_by_id(&state.db, &request.workflow_step_id).await?;
+    models::workflow::check_user_is_owner(&state.db, &workflow_step.workflow_id, &user.id).await?;
+
+    let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
+        (Some(ToolConfig::Polis(config)), _) => config,
+        (None, ToolConfig::Polis(config)) => config,
+        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+    };
+
+    let client = &state.wiki_poll_service;
+    let auth_cookies = client
+        .login(&WikiPollLogin {
+            email: config.admin_user.clone(),
+            password: config.admin_password.clone(),
+        })
+        .await?;
+
+    let polis_statement_id = client
+        .post_seed_comment(&request.statement_text, &config.poll_id, &auth_cookies)
+        .await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(PostSeedResponse { polis_statement_id }),
+    ))
 }
 
 #[instrument(err(Debug), skip(state))]
