@@ -136,7 +136,7 @@ async fn update(
 ) -> Result<(StatusCode, Json<MediaDto>), ComhairleError> {
     let media = media::update(&state.db, &media_id, &update_media).await?;
 
-    Ok((StatusCode::CREATED, Json(media.into())))
+    Ok((StatusCode::OK, Json(media.into())))
 }
 
 #[instrument(err(Debug), skip(state))]
