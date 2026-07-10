@@ -27,7 +27,7 @@ pub struct Media {
     /// Identifier in bulk_storage_service
     pub storage_key: String,
     pub filename: String,
-    // User defined identifier
+    /// User defined identifier
     pub name: String,
     /// MIME type of the media uploaded
     pub content_type: MediaContentType,
