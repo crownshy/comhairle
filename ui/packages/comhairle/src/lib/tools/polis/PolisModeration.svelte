@@ -93,32 +93,53 @@
 		if (!file || csvImporting) return;
 		csvImporting = true;
 
-		const result = await tryCatchAsync(async () => {
-			// One statement per line; strip wrapping quotes and a leading header row.
-			const lines = (await file.text())
-				.split(/\r?\n/)
-				.map((l) => l.replace(/^"(.*)"$/, '$1').trim())
-				.filter(Boolean);
-			if (['statement', 'statements', 'text'].includes(lines[0]?.toLowerCase())) {
-				lines.shift();
+		const result = await tryCatchAsync<number, 'INCORRECT_FILE_TYPE' | 'NO_VALUES_FOUND'>(
+			async () => {
+				if (!file.name.toLowerCase().endsWith('.csv')) throw 'INCORRECT_FILE_TYPE';
+
+				// One statement per line; strip wrapping quotes and a leading header row.
+				const lines = (await file.text())
+					.split(/\r?\n/)
+					.map((l) => l.replace(/^"(.*)"$/, '$1').trim())
+					.filter(Boolean);
+				if (['statement', 'statements', 'text'].includes(lines[0]?.toLowerCase())) {
+					lines.shift();
+				}
+				if (!lines.length) throw 'NO_VALUES_FOUND';
+
+				await postSeeds(lines);
+				return lines.length;
 			}
-			if (lines.length) await postSeeds(lines);
-			return lines.length;
-		});
+		);
 		csvImporting = false;
 		input.value = '';
 
 		if (result.err !== null) {
 			console.error('CSV import failed', result.err);
-			notifications.send({ priority: 'ERROR', message: 'CSV import failed' });
+			switch (result.err) {
+				case 'INCORRECT_FILE_TYPE':
+					notifications.send({
+						priority: 'ERROR',
+						message: 'Only CSV files are allowed'
+					});
+					break;
+				case 'NO_VALUES_FOUND':
+					notifications.send({
+						priority: 'ERROR',
+						message: 'No statements found in that file'
+					});
+					break;
+				default:
+					// postSeeds / network failures are not one of the typed strings.
+					notifications.send({ priority: 'ERROR', message: 'CSV import failed' });
+			}
 			return;
 		}
-		if (result.ok) {
-			notifications.send({
-				priority: 'INFO',
-				message: `Imported ${result.ok} statement${result.ok === 1 ? '' : 's'}`
-			});
-		}
+
+		notifications.send({
+			priority: 'INFO',
+			message: `Imported ${result.ok} statement${result.ok === 1 ? '' : 's'}`
+		});
 		showAddForm = false;
 	}
 
