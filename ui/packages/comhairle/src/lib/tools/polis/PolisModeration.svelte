@@ -75,10 +75,10 @@
 		const text = draftText.trim();
 		if (!text || addingSeed) return;
 		addingSeed = true;
-		const { err } = await tryCatchAsync(() => postSeeds([text]));
+		const result = await tryCatchAsync(() => postSeeds([text]));
 		addingSeed = false;
-		if (err) {
-			console.error('PolisPostSeed failed', err);
+		if (result.err !== null) {
+			console.error('PolisPostSeed failed', result.err);
 			notifications.send({ priority: 'ERROR', message: 'Failed to add statement' });
 			return;
 		}
@@ -93,7 +93,7 @@
 		if (!file || csvImporting) return;
 		csvImporting = true;
 
-		const { ok: count, err } = await tryCatchAsync(async () => {
+		const result = await tryCatchAsync(async () => {
 			// One statement per line; strip wrapping quotes and a leading header row.
 			const lines = (await file.text())
 				.split(/\r?\n/)
@@ -108,15 +108,15 @@
 		csvImporting = false;
 		input.value = '';
 
-		if (err) {
-			console.error('CSV import failed', err);
+		if (result.err !== null) {
+			console.error('CSV import failed', result.err);
 			notifications.send({ priority: 'ERROR', message: 'CSV import failed' });
 			return;
 		}
-		if (count) {
+		if (result.ok) {
 			notifications.send({
 				priority: 'INFO',
-				message: `Imported ${count} statement${count === 1 ? '' : 's'}`
+				message: `Imported ${result.ok} statement${result.ok === 1 ? '' : 's'}`
 			});
 		}
 		showAddForm = false;
