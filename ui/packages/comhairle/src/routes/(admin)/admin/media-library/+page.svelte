@@ -124,10 +124,8 @@
 							</label>
 						{:else}
 							<Dialog.Trigger
-								class="inline h-full w-full"
-								onclick={() => {
-									details = media;
-								}}
+								class="inline aspect-video h-full"
+								onclick={() => (details = media)}
 							>
 								<MediaItem {type} {...media} alt="" />
 							</Dialog.Trigger>
