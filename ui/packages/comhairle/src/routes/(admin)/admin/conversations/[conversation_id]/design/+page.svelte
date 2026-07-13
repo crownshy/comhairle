@@ -6,7 +6,6 @@
 	import { notifications } from '$lib/notifications.svelte.js';
 	import { saveTranslation } from '$lib/components/Translation/translationUtils';
 	import DraggableList from '$lib/components/DraggableList.svelte';
-	import StepPreview from '$lib/components/StepPreview.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -15,13 +14,10 @@
 	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
 	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
 	import { moveItem } from '$lib/utils/reorder';
-	import { SvelteSet } from 'svelte/reactivity';
 	import {
 		Pencil,
 		Trash2,
 		ChevronDown,
-		ChevronRight,
-		ArrowUpRight,
 		ArrowUp,
 		ArrowDown,
 		MoreVertical,
@@ -46,18 +42,11 @@
 	let editingId = $state<string | null>(null);
 	let editValue = $state('');
 	let boardEl = $state<HTMLDivElement | null>(null);
-	// Which cards have their preview expanded (collapsed by default).
-	const expandedIds = new SvelteSet<string>();
 	// The freshly-added step to flash a highlight ring on.
 	let highlightId = $state<string | null>(null);
 
 	function stepUrl(step: WorkflowStepWithTranslations): string {
 		return `/admin/conversations/${conversation.id}/design/step/${step.id}`;
-	}
-
-	function toggleExpand(id: string) {
-		if (expandedIds.has(id)) expandedIds.delete(id);
-		else expandedIds.add(id);
 	}
 
 	// --- Templates (re-seed the whole workflow) ---
@@ -293,119 +282,84 @@
 					{#snippet children(step, index)}
 						{@const type = stepType(step)}
 						{@const meta = toolMeta(type)}
-						{@const expanded = expandedIds.has(step.id)}
-						<!-- The whole card navigates to Configure (stretched link below), so it
-						     gets a pointer cursor and a hover lift to read as clickable. -->
+						<!-- Single-row card. The step name is a stretched link making the whole
+						     card navigate to Configure; the actions menu sits above it (z-10) so
+						     its clicks win. Pointer cursor + hover lift read as clickable. -->
 						<div
 							data-step-id={step.id}
-							class="bg-card group hover:border-primary/50 border-border relative cursor-pointer rounded-xl border transition-all hover:shadow-md {highlightId ===
+							class="bg-card group hover:border-primary/50 border-border relative flex cursor-pointer items-center gap-4 rounded-xl border p-4 transition-all hover:shadow-md {highlightId ===
 							step.id
 								? 'ring-primary ring-2 ring-offset-2'
 								: ''}"
 						>
-							<!-- Header row. The step name is a stretched link: it makes the whole
-							     card navigate to Configure, while the controls below sit above it
-							     (z-10) so their own clicks win. -->
-							<div class="flex items-center gap-4 p-4">
-								<button
-									type="button"
-									aria-label={expanded ? 'Collapse preview' : 'Expand preview'}
-									aria-expanded={expanded}
-									class="text-muted-foreground hover:text-foreground relative z-10 shrink-0"
-									onclick={() => toggleExpand(step.id)}
-								>
-									<ChevronRight
-										class="size-4 transition-transform {expanded
-											? 'rotate-90'
-											: ''}"
-									/>
-								</button>
-
-								<div
-									class="bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-lg text-sm font-bold"
-								>
-									{index + 1}
-								</div>
-
-								<div class="flex min-w-0 flex-1 flex-col">
-									{#if editingId === step.id}
-										<!-- svelte-ignore a11y_autofocus -->
-										<input
-											autofocus
-											bind:value={editValue}
-											onblur={() => commitEdit(step)}
-											onkeydown={(e) => {
-												if (e.key === 'Enter') commitEdit(step);
-												if (e.key === 'Escape') editingId = null;
-											}}
-											class="border-input relative z-10 rounded border px-1 text-base outline-none"
-										/>
-									{:else}
-										<a
-											href={stepUrl(step)}
-											class="text-foreground group-hover:text-primary truncate text-base font-medium transition-colors after:absolute after:inset-0 after:content-['']"
-										>
-											{step.name}
-										</a>
-									{/if}
-									<span class="text-primary text-sm font-medium">
-										{meta?.displayName ?? type}
-									</span>
-								</div>
-
-								<!-- Actions menu (above the stretched link). All step actions live
-								     here to keep the card uncluttered; the whole card is draggable,
-								     and Move up/down provide a no-drag reorder path. -->
-								<div class="relative z-10 shrink-0">
-									<DropdownMenu.Root>
-										<DropdownMenu.Trigger
-											aria-label="Step actions"
-											class="text-muted-foreground hover:text-foreground hover:bg-accent flex size-9 items-center justify-center rounded-md transition-colors"
-										>
-											<MoreVertical class="size-5" />
-										</DropdownMenu.Trigger>
-										<DropdownMenu.Content align="end">
-											<DropdownMenu.Item onSelect={() => startEdit(step)}>
-												<Pencil class="size-4" /> Rename
-											</DropdownMenu.Item>
-											<DropdownMenu.Item
-												disabled={index === 0}
-												onSelect={() => moveStep(index, -1)}
-											>
-												<ArrowUp class="size-4" /> Move up
-											</DropdownMenu.Item>
-											<DropdownMenu.Item
-												disabled={index === reorderedSteps.length - 1}
-												onSelect={() => moveStep(index, 1)}
-											>
-												<ArrowDown class="size-4" /> Move down
-											</DropdownMenu.Item>
-											<DropdownMenu.Item
-												class="text-destructive"
-												onSelect={() => deleteStep(step)}
-											>
-												<Trash2 class="size-4" /> Delete
-											</DropdownMenu.Item>
-										</DropdownMenu.Content>
-									</DropdownMenu.Root>
-								</div>
+							<div
+								class="bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-lg text-sm font-bold"
+							>
+								{index + 1}
 							</div>
 
-							{#if expanded}
-								<div class="border-border relative border-t p-4">
-									<div class="relative">
-										<StepPreview {type} />
-										<Button
-											variant="link"
-											href={stepUrl(step)}
-											class="absolute top-2 right-2 z-10"
+							<div class="flex min-w-0 flex-1 flex-col">
+								{#if editingId === step.id}
+									<!-- svelte-ignore a11y_autofocus -->
+									<input
+										autofocus
+										bind:value={editValue}
+										onblur={() => commitEdit(step)}
+										onkeydown={(e) => {
+											if (e.key === 'Enter') commitEdit(step);
+											if (e.key === 'Escape') editingId = null;
+										}}
+										class="border-input relative z-10 rounded border px-1 text-base outline-none"
+									/>
+								{:else}
+									<a
+										href={stepUrl(step)}
+										class="text-foreground group-hover:text-primary truncate text-base font-medium transition-colors after:absolute after:inset-0 after:content-['']"
+									>
+										{step.name}
+									</a>
+								{/if}
+								<span class="text-primary text-sm font-medium">
+									{meta?.displayName ?? type}
+								</span>
+							</div>
+
+							<!-- Actions menu (above the stretched link). All step actions live
+								     here to keep the card uncluttered; the whole card is draggable,
+								     and Move up/down provide a no-drag reorder path. -->
+							<div class="relative z-10 shrink-0">
+								<DropdownMenu.Root>
+									<DropdownMenu.Trigger
+										aria-label="Step actions"
+										class="text-muted-foreground hover:text-foreground hover:bg-accent flex size-9 items-center justify-center rounded-md transition-colors"
+									>
+										<MoreVertical class="size-5" />
+									</DropdownMenu.Trigger>
+									<DropdownMenu.Content align="end">
+										<DropdownMenu.Item onSelect={() => startEdit(step)}>
+											<Pencil class="size-4" /> Rename
+										</DropdownMenu.Item>
+										<DropdownMenu.Item
+											disabled={index === 0}
+											onSelect={() => moveStep(index, -1)}
 										>
-											Configure step
-											<ArrowUpRight class="size-3" />
-										</Button>
-									</div>
-								</div>
-							{/if}
+											<ArrowUp class="size-4" /> Move up
+										</DropdownMenu.Item>
+										<DropdownMenu.Item
+											disabled={index === reorderedSteps.length - 1}
+											onSelect={() => moveStep(index, 1)}
+										>
+											<ArrowDown class="size-4" /> Move down
+										</DropdownMenu.Item>
+										<DropdownMenu.Item
+											class="text-destructive"
+											onSelect={() => deleteStep(step)}
+										>
+											<Trash2 class="size-4" /> Delete
+										</DropdownMenu.Item>
+									</DropdownMenu.Content>
+								</DropdownMenu.Root>
+							</div>
 						</div>
 					{/snippet}
 				</DraggableList>
