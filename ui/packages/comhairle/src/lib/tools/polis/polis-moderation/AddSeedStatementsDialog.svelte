@@ -7,14 +7,13 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import { Plus, Upload } from '@lucide/svelte';
 
-	let {
-		workflowStepId,
-		onSeeded
-	}: {
+	type Props = {
 		workflowStepId: string;
 		// Called after seeds are posted + synced so the parent can refresh its data.
 		onSeeded: () => void | Promise<void>;
-	} = $props();
+	};
+
+	let { workflowStepId, onSeeded }: Props = $props();
 
 	let open = $state(false);
 	let draftText = $state('');
@@ -37,10 +36,10 @@
 		const text = draftText.trim();
 		if (!text || addingSeed) return;
 		addingSeed = true;
-		const { err } = await tryCatchAsync(() => postSeeds([text]));
+		const result = await tryCatchAsync(() => postSeeds([text]));
 		addingSeed = false;
-		if (err) {
-			console.error('PolisPostSeed failed', err);
+		if (result.err !== null) {
+			console.error('PolisPostSeed failed', result.err);
 			notifications.send({ priority: 'ERROR', message: 'Failed to add statement' });
 			return;
 		}
@@ -55,32 +54,53 @@
 		if (!file || csvImporting) return;
 		csvImporting = true;
 
-		const { ok: count, err } = await tryCatchAsync(async () => {
-			// One statement per line; strip wrapping quotes and a leading header row.
-			const lines = (await file.text())
-				.split(/\r?\n/)
-				.map((l) => l.replace(/^"(.*)"$/, '$1').trim())
-				.filter(Boolean);
-			if (['statement', 'statements', 'text'].includes(lines[0]?.toLowerCase())) {
-				lines.shift();
+		const result = await tryCatchAsync<number, 'INCORRECT_FILE_TYPE' | 'NO_VALUES_FOUND'>(
+			async () => {
+				if (!file.name.toLowerCase().endsWith('.csv')) throw 'INCORRECT_FILE_TYPE';
+
+				// One statement per line; strip wrapping quotes and a leading header row.
+				const lines = (await file.text())
+					.split(/\r?\n/)
+					.map((l) => l.replace(/^"(.*)"$/, '$1').trim())
+					.filter(Boolean);
+				if (['statement', 'statements', 'text'].includes(lines[0]?.toLowerCase())) {
+					lines.shift();
+				}
+				if (!lines.length) throw 'NO_VALUES_FOUND';
+
+				await postSeeds(lines);
+				return lines.length;
 			}
-			if (lines.length) await postSeeds(lines);
-			return lines.length;
-		});
+		);
 		csvImporting = false;
 		input.value = '';
 
-		if (err) {
-			console.error('CSV import failed', err);
-			notifications.send({ priority: 'ERROR', message: 'CSV import failed' });
+		if (result.err !== null) {
+			console.error('CSV import failed', result.err);
+			switch (result.err) {
+				case 'INCORRECT_FILE_TYPE':
+					notifications.send({
+						priority: 'ERROR',
+						message: 'Only CSV files are allowed'
+					});
+					break;
+				case 'NO_VALUES_FOUND':
+					notifications.send({
+						priority: 'ERROR',
+						message: 'No statements found in that file'
+					});
+					break;
+				default:
+					// postSeeds / network failures are not one of the typed strings.
+					notifications.send({ priority: 'ERROR', message: 'CSV import failed' });
+			}
 			return;
 		}
-		if (count) {
-			notifications.send({
-				priority: 'INFO',
-				message: `Imported ${count} statement${count === 1 ? '' : 's'}`
-			});
-		}
+
+		notifications.send({
+			priority: 'INFO',
+			message: `Imported ${result.ok} statement${result.ok === 1 ? '' : 's'}`
+		});
 		open = false;
 	}
 </script>
@@ -127,7 +147,7 @@
 			<input
 				bind:this={fileInput}
 				type="file"
-				accept=".csv,.txt"
+				accept=".csv"
 				class="hidden"
 				onchange={importCsv}
 			/>
