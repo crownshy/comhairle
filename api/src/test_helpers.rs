@@ -1,4 +1,7 @@
-use crate::redis_connection::RedisConnection;
+use crate::{
+    models::permissions::{NamedRole, ResourceRole},
+    redis_connection::RedisConnection,
+};
 use chrono::Utc;
 use hyper::header::AUTHORIZATION;
 use std::{collections::HashMap, error::Error, sync::Arc};
@@ -134,6 +137,22 @@ pub fn test_config() -> Result<ComhairleConfig, Box<dyn Error>> {
     config.admin_users = Some(vec!["admin@crown-shy.com".into()]);
     config.enable_rate_limiting = false; // Disable rate limiting for tests by default
     Ok(config)
+}
+
+pub const TEST_RESOURCE_TYPE: &str = "test_resource_type";
+pub const TEST_ROLE_NAME: &str = "tester";
+pub struct TestRole;
+
+impl NamedRole for TestRole {
+    fn name() -> &'static str {
+        TEST_ROLE_NAME
+    }
+}
+
+impl ResourceRole for TestRole {
+    fn resource_type() -> &'static str {
+        TEST_RESOURCE_TYPE
+    }
 }
 
 pub fn extract<T: DeserializeOwned>(target: &str, entity: &serde_json::Value) -> T {

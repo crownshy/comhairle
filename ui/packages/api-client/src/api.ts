@@ -5154,6 +5154,76 @@ This struct contains optional fields that can be updated on a TextTranslation re
   },
   {
     method: "get",
+    path: "/user/permitted_conversations",
+    alias: "GetPermittedConversations",
+    description: `Gets a list of the conversations a user is permitted access to`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "created_after",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "created_before",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "is_complete",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "is_invite_only",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "is_live",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "is_public",
+        type: "Query",
+        schema: is_complete,
+      },
+      {
+        name: "keyword",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "organization_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "owner_id",
+        type: "Query",
+        schema: created_after,
+      },
+      {
+        name: "limit",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "offset",
+        type: "Query",
+        schema: limit,
+      },
+      {
+        name: "role_name",
+        type: "Query",
+        schema: z.string(),
+      },
+    ],
+    response: PaginatedResults_for_LocalizedConversationDto,
+  },
+  {
+    method: "get",
     path: "/user/preferences",
     alias: "GetAllUserConversationPreferences",
     description: `Returns all conversation notification preferences for the authenticated user`,

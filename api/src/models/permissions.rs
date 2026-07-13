@@ -590,27 +590,11 @@ mod tests {
         get_random_organization_id, get_random_user_id, setup_default_app_and_session,
     };
     use crate::redis_connection::{MockRedis, RedisConnection};
-    use crate::test_helpers::test_state;
+    use crate::test_helpers::{TEST_RESOURCE_TYPE, TEST_ROLE_NAME, TestRole, test_state};
 
     use sqlx::PgPool;
 
-    const TEST_RESOURCE_TYPE: &str = "test_resource_type";
-    const TEST_ROLE_NAME: &str = "tester";
     const OTHER_ROLE_NAME: &str = "other_role";
-    struct TestRole;
-
-    impl NamedRole for TestRole {
-        fn name() -> &'static str {
-            TEST_ROLE_NAME
-        }
-    }
-
-    impl ResourceRole for TestRole {
-        fn resource_type() -> &'static str {
-            TEST_RESOURCE_TYPE
-        }
-    }
-
     struct OtherRole;
 
     impl NamedRole for OtherRole {
