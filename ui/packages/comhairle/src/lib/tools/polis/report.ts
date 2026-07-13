@@ -36,16 +36,18 @@ export function computeGroupVotePercents(
 		const group = groups.find((g) => g.group_id === gv.group_id);
 		const totalMembers = group ? group.total_members : gv.agrees + gv.disagrees + gv.passes;
 		const totalVoted = gv.agrees + gv.disagrees + gv.passes;
-		const denom = excludePasses ? gv.agrees + gv.disagrees : totalVoted;
-		const pct = (n: number) => (denom > 0 ? (n / denom) * 100 : 0);
+		const denominator = excludePasses ? gv.agrees + gv.disagrees : totalVoted;
+		// Share of `denominator` a given vote count represents, as a 0-100 percentage.
+		const percentOf = (voteCount: number) =>
+			denominator > 0 ? (voteCount / denominator) * 100 : 0;
 		return {
 			group_id: gv.group_id,
 			label: groupLabel(gv.group_id),
 			totalMembers,
 			totalVoted,
-			agreed: pct(gv.agrees),
-			disagreed: pct(gv.disagrees),
-			passed: excludePasses ? 0 : pct(gv.passes)
+			agreed: percentOf(gv.agrees),
+			disagreed: percentOf(gv.disagrees),
+			passed: excludePasses ? 0 : percentOf(gv.passes)
 		};
 	});
 }
@@ -158,10 +160,12 @@ export function getDifferenceStatements(
 ): ReportComment[] {
 	return withMinVotes(data.comments, minVotes)
 		.map((c) => {
-			const pcts = computeGroupVotePercents(c, data.groups, { excludePasses }).map(
+			const agreePercents = computeGroupVotePercents(c, data.groups, { excludePasses }).map(
 				(p) => p.agreed
 			);
-			const spread = pcts.length ? Math.max(...pcts) - Math.min(...pcts) : 0;
+			const spread = agreePercents.length
+				? Math.max(...agreePercents) - Math.min(...agreePercents)
+				: 0;
 			return { c, spread };
 		})
 		.filter(({ spread }) => spread > threshold)
@@ -180,19 +184,19 @@ export function getUncertaintyStatements(
 	const filtered = withMinVotes(data.comments, minVotes);
 	if (filtered.length === 0) return [];
 
-	const passPcts = filtered.map((c) => {
+	const passPercents = filtered.map((c) => {
 		const t = totalVotes(c);
 		return t === 0 ? 0 : (c.overall_votes.passes / t) * 100;
 	});
-	const avg = passPcts.reduce((s, x) => s + x, 0) / passPcts.length;
-	const variance = passPcts.reduce((s, x) => s + (x - avg) ** 2, 0) / passPcts.length;
+	const avg = passPercents.reduce((s, x) => s + x, 0) / passPercents.length;
+	const variance = passPercents.reduce((s, x) => s + (x - avg) ** 2, 0) / passPercents.length;
 	const stdev = Math.sqrt(variance);
 	const cutoff = Math.max(avg + stdev, 30);
 
 	return filtered
-		.map((c, i) => ({ c, pct: passPcts[i] }))
-		.filter(({ pct }) => pct >= cutoff)
-		.sort((a, b) => b.pct - a.pct)
+		.map((c, i) => ({ c, passPercent: passPercents[i] }))
+		.filter(({ passPercent }) => passPercent >= cutoff)
+		.sort((a, b) => b.passPercent - a.passPercent)
 		.map(({ c }) => c);
 }
 

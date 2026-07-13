@@ -9,7 +9,7 @@
 		 * primary fill when selected and the subtle secondary surface when idle.
 		 */
 		variant?: 'default' | 'primary';
-		onclick?: () => void;
+		onclick: () => void;
 	}
 
 	let { label, selected, variant = 'default', onclick }: Props = $props();

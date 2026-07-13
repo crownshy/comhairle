@@ -41,6 +41,9 @@
 		statementAux: PolisStatementAux[];
 	} = $props();
 
+	// "aux" = PolisStatementAux: our supplementary per-statement record (themes,
+	// moderation status/reason, step id, seed flag) that Polis itself doesn't store.
+	//
 	// Local mutable aux map (keyed by Polis tid) so picker edits re-render without
 	// waiting for the invalidated load to round-trip. Re-seeded whenever the
 	// `statementAux` prop changes (e.g. after an invalidate or slug change).
