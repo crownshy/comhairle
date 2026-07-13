@@ -10,7 +10,7 @@
 		/** Controlled — checked = the option is INCLUDED (shown). */
 		checked?: boolean;
 		align?: 'left' | 'center' | 'right';
-		onchange?: (next: boolean) => void;
+		onchange: (next: boolean) => void;
 	}
 
 	let { label, optionLabel, checked = false, align = 'left', onchange }: Props = $props();
@@ -22,7 +22,7 @@
 	} as const;
 
 	function toggle() {
-		onchange?.(!checked);
+		onchange(!checked);
 	}
 </script>
 
