@@ -10,7 +10,10 @@ use uuid::Uuid;
 
 use crate::{
     error::ComhairleError,
-    models::translations::{TextContentId, TextFormat, new_translation},
+    models::{
+        SqlxResultExt,
+        translations::{TextContentId, TextFormat, new_translation},
+    },
 };
 
 /// A single translatable body section of a [`crate::models::proposal::Proposal`].
@@ -69,15 +72,16 @@ pub async fn create(
 #[instrument(err(Debug))]
 pub async fn next_position(db: &PgPool, proposal_id: &Uuid) -> Result<i32, ComhairleError> {
     let sections = list(db, proposal_id).await?;
-    Ok(sections.iter().map(|s| s.position).max().map_or(0, |m| m + 1))
+    Ok(sections
+        .iter()
+        .map(|s| s.position)
+        .max()
+        .map_or(0, |m| m + 1))
 }
 
 /// Lists the raw sections for a proposal, ordered by `position`.
 #[instrument(err(Debug))]
-pub async fn list(
-    db: &PgPool,
-    proposal_id: &Uuid,
-) -> Result<Vec<ProposalSection>, ComhairleError> {
+pub async fn list(db: &PgPool, proposal_id: &Uuid) -> Result<Vec<ProposalSection>, ComhairleError> {
     let (sql, values) = Query::select()
         .from(ProposalSectionIden::Table)
         .columns(DEFAULT_COLUMNS)
@@ -146,10 +150,7 @@ pub async fn delete(db: &PgPool, id: &Uuid) -> Result<ProposalSection, Comhairle
     let section = query_as_with(&sql, values)
         .fetch_one(db)
         .await
-        .map_err(|e| match e {
-            sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("ProposalSection".into()),
-            other => ComhairleError::DatabaseError(other),
-        })?;
+        .resolve_db_err("ProposalSection")?;
 
     Ok(section)
 }
