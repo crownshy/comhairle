@@ -966,6 +966,7 @@ async fn polis_setup(
 #[cfg(test)]
 mod tests {
     use std::error::Error;
+    use std::sync::Arc;
 
     use axum::Router;
     use serde_json::json;
@@ -976,7 +977,9 @@ mod tests {
             model_test_helpers::setup_default_app_and_session,
             polis_statement_aux::{self, CreatePolisStatementAux},
         },
-        test_helpers::{UserSession, extract, polis_tool_config},
+        setup_server,
+        test_helpers::{UserSession, extract, polis_tool_config, test_state},
+        wiki_poll_service::{MockWikiPollService, WikiPollService, error::WikiPollServiceError},
     };
 
     use super::*;
@@ -1180,6 +1183,268 @@ mod tests {
 
         let reloaded = polis_statement_aux::get_by_id(&pool, &aux.id).await?;
         assert_eq!(reloaded.themes, vec!["alpha".to_string()]);
+        Ok(())
+    }
+
+    /// Create a conversation + workflow + Polis workflow step, returning the step id.
+    async fn setup_polis_step(
+        app: &Router,
+        session: &mut UserSession,
+    ) -> Result<Uuid, Box<dyn Error>> {
+        let (_, conversation, _) = session.create_random_conversation(app).await?;
+        let conversation_id: String = extract("id", &conversation);
+
+        let (_, workflow, _) = session
+            .create_random_workflow(app, &conversation_id)
+            .await?;
+        let workflow_id: String = extract("id", &workflow);
+
+        let (_, workflow_step, _) = session
+            .post(
+                app,
+                &format!("/conversation/{conversation_id}/workflow/{workflow_id}/workflow_step"),
+                json!({
+                    "name": "Polis step",
+                    "step_order": 1,
+                    "activation_rule": "manual",
+                    "description": "polis step",
+                    "is_offline": false,
+                    "required": true,
+                    "tool_setup": polis_tool_config(),
+                })
+                .to_string()
+                .into(),
+            )
+            .await?;
+        let workflow_step_id: String = extract("id", &workflow_step);
+        Ok(Uuid::parse_str(&workflow_step_id)?)
+    }
+
+    /// Insert a pending aux row using `tid` as both zid and polis_statement_id.
+    async fn insert_pending_aux(
+        pool: &PgPool,
+        owner_id: Uuid,
+        workflow_step_id: Uuid,
+        tid: i32,
+    ) -> Result<PolisStatementAux, Box<dyn Error>> {
+        let aux = polis_statement_aux::create(
+            pool,
+            owner_id,
+            &CreatePolisStatementAux {
+                workflow_step_id,
+                zid: tid,
+                polis_conversation_id: "test-poll".into(),
+                polis_statement_id: tid,
+                statement_text: format!("statement {tid}"),
+                is_seed: false,
+                ..Default::default()
+            },
+        )
+        .await?;
+        Ok(aux)
+    }
+
+    /// A Polis mock that handles step provisioning normally but makes
+    /// `moderate_comment` fail for the given statement ids (tids), so we can
+    /// exercise the partial-failure path.
+    fn poll_service_failing_tids(failing: Vec<i32>) -> Arc<dyn WikiPollService> {
+        let mut service = MockWikiPollService::new();
+        service
+            .expect_create_random_admin_user()
+            .returning(|| Box::pin(async { Ok(("u@mock.com".to_string(), "pw".to_string())) }));
+        service
+            .expect_login()
+            .returning(|_| Box::pin(async { Ok("cookie".to_string()) }));
+        service
+            .expect_create_poll()
+            .returning(|_| Box::pin(async { Ok("test_poll_id".to_string()) }));
+        service
+            .expect_moderate_comment()
+            .returning(move |_poll, tid, _decision, _cookies| {
+                let fails = failing.contains(&tid);
+                Box::pin(async move {
+                    if fails {
+                        Err(WikiPollServiceError::UnknownModerationStatus)
+                    } else {
+                        Ok(())
+                    }
+                })
+            });
+        Arc::new(service)
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn owner_can_batch_moderate(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let workflow_step_id = setup_polis_step(&app, &mut session).await?;
+        let owner_id = session.id.expect("session to be signed up");
+
+        let a = insert_pending_aux(&pool, owner_id, workflow_step_id, 1).await?;
+        let b = insert_pending_aux(&pool, owner_id, workflow_step_id, 2).await?;
+        let c = insert_pending_aux(&pool, owner_id, workflow_step_id, 3).await?;
+
+        let (status, value, _) = session
+            .post(
+                &app,
+                "/tools/polis/statement_aux/moderate_batch",
+                json!({ "ids": [a.id, b.id, c.id], "decision": "accept" })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::OK);
+        let response: ModerateStatementAuxBatchResponse = serde_json::from_value(value)?;
+        assert_eq!(response.succeeded.len(), 3, "all three should succeed");
+        assert!(response.failed.is_empty(), "no failures expected");
+        assert!(
+            response
+                .succeeded
+                .iter()
+                .all(|s| s.moderation_status == ModerationStatus::Accepted),
+            "returned rows should be accepted"
+        );
+
+        for aux in [&a, &b, &c] {
+            let reloaded = polis_statement_aux::get_by_id(&pool, &aux.id).await?;
+            assert_eq!(reloaded.moderation_status, ModerationStatus::Accepted);
+        }
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn batch_moderate_reports_partial_failures(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        // Polis rejects the moderation for statement 2 only.
+        let service = poll_service_failing_tids(vec![2]);
+        let state = test_state()
+            .db(pool.clone())
+            .wiki_poll_service(service)
+            .call()?;
+        let app = setup_server(Arc::new(state)).await?;
+        let mut session = UserSession::new_admin();
+        session.signup(&app).await?;
+
+        let workflow_step_id = setup_polis_step(&app, &mut session).await?;
+        let owner_id = session.id.expect("session to be signed up");
+
+        let a = insert_pending_aux(&pool, owner_id, workflow_step_id, 1).await?;
+        let b = insert_pending_aux(&pool, owner_id, workflow_step_id, 2).await?;
+        let c = insert_pending_aux(&pool, owner_id, workflow_step_id, 3).await?;
+
+        let (status, value, _) = session
+            .post(
+                &app,
+                "/tools/polis/statement_aux/moderate_batch",
+                json!({ "ids": [a.id, b.id, c.id], "decision": "accept" })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "the batch is a 200 even when some rows fail"
+        );
+        let response: ModerateStatementAuxBatchResponse = serde_json::from_value(value)?;
+
+        assert_eq!(response.succeeded.len(), 2, "statements 1 and 3 succeed");
+        assert_eq!(response.failed.len(), 1, "statement 2 fails");
+        assert_eq!(
+            response.failed[0].id, b.id,
+            "the failing row is statement 2"
+        );
+
+        // Only the rows Polis accepted are persisted; the failed one stays pending.
+        assert_eq!(
+            polis_statement_aux::get_by_id(&pool, &a.id)
+                .await?
+                .moderation_status,
+            ModerationStatus::Accepted
+        );
+        assert_eq!(
+            polis_statement_aux::get_by_id(&pool, &b.id)
+                .await?
+                .moderation_status,
+            ModerationStatus::Pending,
+            "the row Polis rejected must remain unchanged"
+        );
+        assert_eq!(
+            polis_statement_aux::get_by_id(&pool, &c.id)
+                .await?
+                .moderation_status,
+            ModerationStatus::Accepted
+        );
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn non_owner_cannot_batch_moderate(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut owner) = setup_default_app_and_session(&pool).await?;
+        let workflow_step_id = setup_polis_step(&app, &mut owner).await?;
+        let owner_id = owner.id.expect("session to be signed up");
+        let a = insert_pending_aux(&pool, owner_id, workflow_step_id, 1).await?;
+
+        let mut intruder = UserSession::new(
+            "intruder",
+            crate::test_helpers::TEST_PASSWORD,
+            "intruder@example.com",
+        );
+        intruder.signup(&app).await?;
+
+        let (status, _, _) = intruder
+            .post(
+                &app,
+                "/tools/polis/statement_aux/moderate_batch",
+                json!({ "ids": [a.id], "decision": "accept" })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+
+        assert_eq!(status, StatusCode::FORBIDDEN);
+        let reloaded = polis_statement_aux::get_by_id(&pool, &a.id).await?;
+        assert_eq!(
+            reloaded.moderation_status,
+            ModerationStatus::Pending,
+            "a forbidden request must not change any row"
+        );
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn batch_moderate_rejects_ids_from_different_steps(
+        pool: PgPool,
+    ) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        let owner_id = session.id.expect("session to be signed up");
+
+        let step_one = setup_polis_step(&app, &mut session).await?;
+        let step_two = setup_polis_step(&app, &mut session).await?;
+        let a = insert_pending_aux(&pool, owner_id, step_one, 1).await?;
+        let b = insert_pending_aux(&pool, owner_id, step_two, 1).await?;
+
+        let (status, _, _) = session
+            .post(
+                &app,
+                "/tools/polis/statement_aux/moderate_batch",
+                json!({ "ids": [a.id, b.id], "decision": "accept" })
+                    .to_string()
+                    .into(),
+            )
+            .await?;
+
+        assert_eq!(
+            status,
+            StatusCode::BAD_REQUEST,
+            "all ids must belong to the same workflow step"
+        );
+
+        // Neither row should have been touched.
+        for aux in [&a, &b] {
+            let reloaded = polis_statement_aux::get_by_id(&pool, &aux.id).await?;
+            assert_eq!(reloaded.moderation_status, ModerationStatus::Pending);
+        }
         Ok(())
     }
 }
