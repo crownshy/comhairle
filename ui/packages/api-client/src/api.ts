@@ -1028,10 +1028,21 @@ export const ToolConfig = z.union([
     .object({
       admin_password: z.string(),
       admin_user: z.string(),
+      description: z.union([z.string(), z.null()]).optional().default(null),
+      is_active: z.union([z.boolean(), z.null()]).optional().default(null),
+      label_seeds_as_conversation_starter: z
+        .boolean()
+        .optional()
+        .default(false),
       poll_id: z.string(),
       required_votes: z.union([z.number(), z.null()]).optional(),
       server_url: z.string(),
       show_remaining_statements: z.boolean().optional().default(true),
+      strict_moderation: z
+        .union([z.boolean(), z.null()])
+        .optional()
+        .default(null),
+      topic: z.union([z.string(), z.null()]).optional().default(null),
       type: z.literal("polis"),
     })
     .passthrough(),

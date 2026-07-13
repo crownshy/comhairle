@@ -44,6 +44,22 @@ pub struct PolisToolConfig {
     pub required_votes: Option<i32>,
     #[serde(default = "default_show_remaining_statements")]
     pub show_remaining_statements: bool,
+    // Mirror of the Polis conversation config. These are written through to
+    // Polis via PolisUpdateConfig AND stored here so the Setup tab can pre-fill
+    // them (Polis exposes no read path for topic/description/is_active/
+    // strict_moderation).
+    #[serde(default)]
+    pub topic: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub is_active: Option<bool>,
+    #[serde(default)]
+    pub strict_moderation: Option<bool>,
+    // comhairle-only display flag (not sent to Polis): style seed statements
+    // with a "conversation starter" label in the participant embed.
+    #[serde(default)]
+    pub label_seeds_as_conversation_starter: bool,
 }
 
 fn default_show_remaining_statements() -> bool {
@@ -59,6 +75,11 @@ impl ToolConfigSanitize for PolisToolConfig {
             poll_id: self.poll_id.clone(),
             required_votes: self.required_votes,
             show_remaining_statements: self.show_remaining_statements,
+            topic: self.topic.clone(),
+            description: self.description.clone(),
+            is_active: self.is_active,
+            strict_moderation: self.strict_moderation,
+            label_seeds_as_conversation_starter: self.label_seeds_as_conversation_starter,
         }
     }
 }
@@ -960,6 +981,13 @@ async fn polis_setup(
         admin_password: password,
         required_votes: Some(setup.required_votes.unwrap_or(10)),
         show_remaining_statements: setup.show_remaining_statements,
+        // Mirror Polis's creation defaults so the Setup tab reflects reality
+        // before the admin edits anything.
+        topic: None,
+        description: None,
+        is_active: Some(true),
+        strict_moderation: Some(false),
+        label_seeds_as_conversation_starter: false,
     })
 }
 
