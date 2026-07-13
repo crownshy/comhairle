@@ -3,14 +3,7 @@
 	import { Check, X } from '@lucide/svelte';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 
-	let {
-		row,
-		selected,
-		pending,
-		bulkWorking,
-		onToggle,
-		onModerate
-	}: {
+	type Props = {
 		row: PolisStatementAux;
 		selected: boolean;
 		// This row has an accept/reject request in flight.
@@ -19,7 +12,9 @@
 		bulkWorking: boolean;
 		onToggle: (checked: boolean) => void;
 		onModerate: (status: 'accepted' | 'rejected') => void;
-	} = $props();
+	};
+
+	let { row, selected, pending, bulkWorking, onToggle, onModerate }: Props = $props();
 
 	// Left accent bar colour keyed on seed/status. Olive-green primary stands in
 	// for "accepted"; there is no dedicated success token in the theme.

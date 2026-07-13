@@ -33,19 +33,12 @@
 		label_seeds_as_conversation_starter: labelSeeds = false
 	} = $derived(toolConfig);
 
-	// Local copies for the text inputs, resynced when the load re-runs.
-	let requiredVotesInput = $state(requiredVotes);
-	let topicInput = $state(topic);
-	let descriptionInput = $state(description);
-	$effect(() => {
-		requiredVotesInput = requiredVotes;
-	});
-	$effect(() => {
-		topicInput = topic;
-	});
-	$effect(() => {
-		descriptionInput = description;
-	});
+	// Local copies for the text inputs. Writable `$derived`: the user's keystrokes
+	// (via bind:value) override these until the load re-runs, at which point they
+	// resync to the freshly loaded config.
+	let requiredVotesInput = $derived(requiredVotes);
+	let topicInput = $derived(topic);
+	let descriptionInput = $derived(description);
 
 	// Config keys that must be proxied to Polis (the rest are comhairle-only
 	// display flags that live in tool_config).

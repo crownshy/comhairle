@@ -7,17 +7,7 @@
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import StatementModerationRow from './StatementModerationRow.svelte';
 
-	let {
-		rows,
-		selected,
-		pending,
-		bulkAction,
-		onToggleSelect,
-		onToggleAll,
-		onClear,
-		onBulkModerate,
-		onModerate
-	}: {
+	type Props = {
 		// The visible (filtered + searched) statements, already ordered.
 		rows: PolisStatementAux[];
 		// Selection + per-row in-flight state, keyed by aux row id.
@@ -30,7 +20,19 @@
 		onClear: () => void;
 		onBulkModerate: (status: 'accepted' | 'rejected') => void;
 		onModerate: (row: PolisStatementAux, status: 'accepted' | 'rejected') => void;
-	} = $props();
+	};
+
+	let {
+		rows,
+		selected,
+		pending,
+		bulkAction,
+		onToggleSelect,
+		onToggleAll,
+		onClear,
+		onBulkModerate,
+		onModerate
+	}: Props = $props();
 
 	const bulkWorking = $derived(bulkAction !== null);
 

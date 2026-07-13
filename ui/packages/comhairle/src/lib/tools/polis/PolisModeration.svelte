@@ -18,12 +18,11 @@
 		statements: PolisStatementAux[];
 	} = $props();
 
-	// Local mutable copy so optimistic accept/reject re-renders without a refetch.
-	// Reset whenever the load re-runs (sync/seed invalidate `polis:statement-aux`).
-	let statements = $state<PolisStatementAux[]>(initialStatements);
-	$effect(() => {
-		statements = initialStatements;
-	});
+	// Local optimistic copy so accept/reject re-renders without a refetch. A writable
+	// `$derived` seeds from the prop and lets optimistic assignments below override it,
+	// then resyncs on its own when the load re-runs (sync/seed invalidate
+	// `polis:statement-aux` and a fresh `initialStatements` flows back down).
+	let statements = $derived(initialStatements);
 
 	// --- Sync from Polis ---
 	// Participant submissions only appear here after a sync — aux rows are synced
