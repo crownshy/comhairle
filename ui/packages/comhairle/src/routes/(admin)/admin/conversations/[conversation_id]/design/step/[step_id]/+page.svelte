@@ -2,6 +2,7 @@
 	import LearnManage from '$lib/tools/learn/LearnManage.svelte';
 	import PolisManage from '$lib/tools/polis/PolisManage.svelte';
 	import PolisModeration from '$lib/tools/polis/PolisModeration.svelte';
+	import PolisInsights from '$lib/tools/polis/PolisInsights.svelte';
 	import CommonStepConfig from '$lib/components/CommonStepConfig/CommonStepConfig.svelte';
 	import HeyFormManage from '$lib/tools/heyform/HeyFormManage.svelte';
 	import ThinkingSpaceManage from '$lib/tools/thinking_space/ThinkingSpaceManage.svelte';
@@ -106,8 +107,12 @@
 	/>
 {:else if step && isPolis && subtab === 'moderation'}
 	<PolisModeration workflowStepId={step.id} statements={data.statementAux ?? []} />
-{:else if isPolis && subtab === 'insights'}
-	<div class="text-muted-foreground py-12 text-center text-sm">Insights view coming soon.</div>
+{:else if step && isPolis && subtab === 'insights'}
+	<PolisInsights
+		workflowStepId={step.id}
+		reportData={data.reportData ?? null}
+		statementAux={data.statementAux ?? []}
+	/>
 {/if}
 
 {#if subtab === 'setup' && toolConfig?.type === 'heyform'}
