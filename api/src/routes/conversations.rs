@@ -7,7 +7,7 @@ use axum::{
 
 use aide::axum::{
     ApiRouter,
-    ApiRouter,
+    routing::{delete_with, get_with, patch_with, post_with, put_with},
 };
 
 use schemars::JsonSchema;
