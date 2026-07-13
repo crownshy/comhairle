@@ -5,7 +5,7 @@
 	let { guide }: { guide: ToolGuide } = $props();
 </script>
 
-<div class="w-[640px] max-w-full">
+<div class="max-w-3xl">
 	<h1 class="text-foreground text-4xl font-bold">{guide.title}</h1>
 
 	<div class="mt-12 flex flex-col gap-5">
@@ -18,12 +18,12 @@
 				</div>
 			{:else}
 				{#if section.heading}
-					<h2 class="text-foreground text-2xl font-semibold">{section.heading}</h2>
+					<h2 class="text-foreground text-3xl font-semibold">{section.heading}</h2>
 				{/if}
 				{#if section.html}
 					<!-- Trusted static copy from tool_guides.ts -->
 					<div
-						class="text-foreground prose prose-sm max-w-none text-base leading-7 [&_a]:underline [&_li]:my-1 [&_p]:my-0 [&_ul]:list-disc [&_ul]:pl-6"
+						class="text-foreground prose prose-sm max-w-none text-lg leading-8 [&_a]:underline [&_li]:my-1 [&_p]:my-0 [&_ul]:list-disc [&_ul]:pl-6"
 					>
 						{@html section.html}
 					</div>
