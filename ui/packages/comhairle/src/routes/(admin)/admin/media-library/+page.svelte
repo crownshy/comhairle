@@ -8,6 +8,10 @@
 	import { notifications } from '$lib/notifications.svelte';
 	import MediaItem from '$lib/components/Media/MediaItem.svelte';
 	import MediaLibrary from '$lib/components/Media/MediaLibrary.svelte';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import type { MediaDto } from '@crownshy/api-client/api';
+	import DetailsDialog from './DetailsDialog.svelte';
+	import { htmlFromMediaType } from '$lib/utils/types';
 
 	let deleteForm: HTMLFormElement | undefined;
 
@@ -17,15 +21,15 @@
 	const { form, data } = $props();
 
 	$effect(() => {
-		if (form?.failures) {
-			form.failures.forEach((message) => {
-				notifications.send({
-					message,
-					priority: 'ERROR'
-				});
+		if (form?.error) {
+			notifications.send({
+				message: form.error,
+				priority: 'ERROR'
 			});
 		}
 	});
+
+	let details = $state<MediaDto | null>(null);
 </script>
 
 <svelte:head>
@@ -69,28 +73,54 @@
 		</div>
 	</header>
 	<div class="mt-5">
-		<form method="POST" action="?/delete" use:enhance bind:this={deleteForm}>
-			<MediaLibrary data={data.media ?? []}>
-				{#snippet media(type, media)}
-					{#if bulkEdit}
-						<label>
-							<input
-								type="checkbox"
-								name="media"
-								value={media.id.toString()}
-								class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
-								bind:group={selected}
-							/>
-							<span>
+		<Dialog.Root
+			onOpenChange={(open) => {
+				if (!open) {
+					details = null;
+				}
+			}}
+		>
+			<form method="POST" action="?/delete" use:enhance bind:this={deleteForm}>
+				<MediaLibrary data={data.media ?? []}>
+					{#snippet media(type, media)}
+						{#if bulkEdit}
+							<label>
+								<input
+									type="checkbox"
+									name="media"
+									value={media.id.toString()}
+									class="accent-primary absolute top-2 left-2 z-2 h-4 cursor-pointer"
+									bind:group={selected}
+								/>
+								<span>
+									<MediaItem {type} {...media} alt="" />
+								</span>
+							</label>
+						{:else}
+							<Dialog.Trigger
+								class="inline h-full w-full"
+								onclick={() => {
+									details = media;
+								}}
+							>
 								<MediaItem {type} {...media} alt="" />
-							</span>
-						</label>
-					{:else}
-						<MediaItem {type} {...media} alt="" />
-					{/if}
-				{/snippet}
-			</MediaLibrary>
-		</form>
+							</Dialog.Trigger>
+						{/if}
+					{/snippet}
+				</MediaLibrary>
+			</form>
+			{#if details !== null}
+				<DetailsDialog
+					id={details.id}
+					type={htmlFromMediaType(details.contentType)}
+					filename={details.filename}
+					name={details.name}
+					src={details.url}
+					alt=""
+					close={() => (details = null)}
+				/>
+			{/if}
+		</Dialog.Root>
 	</div>
 </div>
 
