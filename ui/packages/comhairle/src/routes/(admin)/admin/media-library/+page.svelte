@@ -11,7 +11,9 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import type { MediaDto } from '@crownshy/api-client/api';
 	import DetailsDialog from './DetailsDialog.svelte';
-	import { htmlFromMediaType } from '$lib/utils/types';
+	import { htmlFromMediaType, type HTMLMediaElement } from '$lib/utils/types';
+	import { Badge } from '$lib/components/ui/badge';
+	import { capitalise } from '$lib/utils/casingUtils';
 
 	let deleteForm: HTMLFormElement | undefined;
 
@@ -30,11 +32,45 @@
 	});
 
 	let details = $state<MediaDto | null>(null);
+
+	let filter = $state<HTMLMediaElement | null>(null);
+
+	let items = $derived.by(() => {
+		if (!data.media) {
+			return [];
+		}
+		if (filter === null) {
+			return data.media;
+		}
+		return data.media.filter((m) => htmlFromMediaType(m.contentType) === filter);
+	});
 </script>
 
 <svelte:head>
 	<title>Media library - Comhairle Admin</title>
 </svelte:head>
+
+{#snippet filterButton(type: HTMLMediaElement)}
+	<label class="cursor-pointer">
+		<input
+			type="radio"
+			name="filter"
+			class="hidden"
+			value={type}
+			onclick={(e) => {
+				e.preventDefault();
+				if (filter === type) {
+					filter = null;
+					return;
+				}
+				filter = type;
+			}}
+		/>
+		<Badge variant={filter === type ? 'primary' : 'default'} class="px-3 py-1 text-xs"
+			>{capitalise(type)}</Badge
+		>
+	</label>
+{/snippet}
 
 <div class="mx-auto w-4/5 p-10">
 	<header class="flex flex-row items-baseline justify-between">
@@ -42,36 +78,26 @@
 		<div class="flex flex-row gap-4">
 			{#if !bulkEdit}
 				<MediaUpload />
-				<Button
-					variant="outline"
-					onclick={() => {
-						bulkEdit = true;
-					}}
-				>
+				<Button variant="outline" onclick={() => (bulkEdit = true)}>
 					<SquarePen class="h-4 w-4" />{m.edit()}
 				</Button>
 			{:else}
-				<DeleteDialog
-					count={selected.length}
-					onconfirm={() => {
-						deleteForm?.submit();
-					}}
-				>
+				<DeleteDialog count={selected.length} onconfirm={() => deleteForm?.submit()}>
 					<Button variant="destructive" disabled={selected.length === 0}>
 						<Trash2 class="h-4 w-4" />{m.delete()}
 					</Button>
 				</DeleteDialog>
-				<Button
-					variant="outline"
-					onclick={() => {
-						bulkEdit = false;
-					}}
-				>
+				<Button variant="outline" onclick={() => (bulkEdit = false)}>
 					<X class="h-4 w-4" />{m.cancel()}
 				</Button>
 			{/if}
 		</div>
 	</header>
+	<div class="mt-5 flex flex-row gap-4">
+		{@render filterButton('audio')}
+		{@render filterButton('image')}
+		{@render filterButton('video')}
+	</div>
 	<div class="mt-5">
 		<Dialog.Root
 			onOpenChange={(open) => {
@@ -81,7 +107,7 @@
 			}}
 		>
 			<form method="POST" action="?/delete" use:enhance bind:this={deleteForm}>
-				<MediaLibrary data={data.media ?? []}>
+				<MediaLibrary data={items}>
 					{#snippet media(type, media)}
 						{#if bulkEdit}
 							<label>
