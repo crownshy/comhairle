@@ -3,7 +3,7 @@ import { apiClient } from '@crownshy/api-client/client';
 import type {
 	PartialWorkflowStep,
 	ProposalsListResponse,
-	ProposalWithTranslations as ApiProposalWithTranslations,
+	ProposalWithTranslationsDto as ApiProposalWithTranslations,
 	Question as ApiQuestion
 } from '@crownshy/api-client/api';
 import type {
@@ -97,9 +97,12 @@ export function resolveToolConfig(workflowStep: WorkflowStepInput, isLive: boole
 		| { type?: string; questions?: unknown[]; randomize_order?: boolean }
 		| null
 		| undefined;
-	if (raw?.type !== 'prioritization') return { questions: [], randomizeOrder: false };
+	if (raw?.type !== 'prioritization')
+		return { questions: [], sectionQuestions: [], randomizeOrder: false };
+	const withSections = raw as typeof raw & { section_questions?: unknown[] };
 	return {
 		questions: (raw.questions ?? []).map(normaliseQuestion),
+		sectionQuestions: (withSections.section_questions ?? []).map(normaliseQuestion),
 		randomizeOrder: Boolean(raw.randomize_order)
 	};
 }
@@ -111,9 +114,15 @@ function mapWithTranslations(p: ApiProposalWithTranslations): Proposal {
 		id: p.id,
 		workflowStepId: p.workflowStepId,
 		title: p.title,
-		body: p.body,
-		titleTranslations: p.translations.title,
-		bodyTranslations: p.translations.body
+		titleTranslations: p.titleTranslations,
+		sections: [...p.sections]
+			.sort((a, b) => a.position - b.position)
+			.map((s) => ({
+				id: s.id,
+				position: s.position,
+				body: s.body,
+				bodyTranslations: s.bodyTranslations
+			}))
 	};
 }
 
@@ -122,10 +131,11 @@ async function fetchWithTranslations(workflowStepId: string): Promise<Proposal[]
 		queries: { workflowStepId, withTranslations: true }
 	})) as unknown as ProposalsListResponse;
 	/** The endpoint returns an untagged union; admin callers always get the
-	 * with-translations variant. Structural check + a single cast because TS
-	 * can't narrow on `every()`. */
-	const arr = raw as Array<{ translations?: unknown }>;
-	if (!Array.isArray(arr) || arr.some((p) => !p?.translations)) {
+	 * with-translations variant. The admin variant carries `titleTranslations`
+	 * (the localized variant does not), so use that to tell them apart. Structural
+	 * check + a single cast because TS can't narrow on `every()`. */
+	const arr = raw as Array<{ titleTranslations?: unknown }>;
+	if (!Array.isArray(arr) || arr.some((p) => !p?.titleTranslations)) {
 		throw new Error(
 			'Expected admin proposals with translations, got localized payload. Are you logged in as an admin?'
 		);
@@ -140,26 +150,33 @@ export function listProposals(workflowStepId: string): Promise<Proposal[]> {
 	return fetchWithTranslations(workflowStepId);
 }
 
-/** Participant list — locale-resolved title/body only. */
+/** Participant list — locale-resolved title + ordered section bodies. */
 export async function listLocalizedProposals(workflowStepId: string): Promise<LocalizedProposal[]> {
 	const raw = (await apiClient.ListProposals({
 		queries: { workflowStepId, withTranslations: false }
-	})) as unknown as Array<{ id: string; workflowStepId: string; title: string; body: string }>;
+	})) as unknown as Array<{
+		id: string;
+		workflowStepId: string;
+		title: string;
+		sections: Array<{ id: string; position: number; body: string }>;
+	}>;
 	return raw.map((p) => ({
 		id: p.id,
 		workflowStepId: p.workflowStepId,
 		title: p.title,
-		body: p.body
+		sections: [...(p.sections ?? [])]
+			.sort((a, b) => a.position - b.position)
+			.map((s) => ({ id: s.id, position: s.position, body: s.body }))
 	}));
 }
 
 export async function createProposal(
 	workflowStepId: string,
-	input: { title: string; body: string }
+	input: { title: string; sections: string[] }
 ): Promise<Proposal> {
 	const { id: createdId } = await apiClient.CreateProposal({
 		title: input.title,
-		body: input.body,
+		sections: input.sections,
 		workflow_step_id: workflowStepId
 	});
 	/** CreateProposal returns the raw ProposalDto (TextContent IDs only).
@@ -174,6 +191,17 @@ export async function createProposal(
 
 export async function deleteProposal(id: string): Promise<void> {
 	await apiClient.DeleteProposal(undefined, { params: { proposal_id: id } });
+}
+
+/** Append a new (optionally empty) section to a proposal. */
+export async function addSection(proposalId: string, body: string): Promise<void> {
+	await apiClient.CreateProposalSection({ body }, { params: { proposal_id: proposalId } });
+}
+
+export async function deleteSection(proposalId: string, sectionId: string): Promise<void> {
+	await apiClient.DeleteProposalSection(undefined, {
+		params: { proposal_id: proposalId, section_id: sectionId }
+	});
 }
 
 /* ---------- Tool config ---------- */
@@ -191,6 +219,7 @@ export async function updateToolConfig(opts: {
 		workflowStepId: opts.workflowStepId,
 		isLive: opts.isLive,
 		questions: opts.toolConfig.questions.map(denormaliseQuestion),
+		sectionQuestions: opts.toolConfig.sectionQuestions.map(denormaliseQuestion),
 		randomizeOrder: opts.toolConfig.randomizeOrder
 	});
 }
@@ -201,11 +230,13 @@ async function putToolConfig(opts: {
 	workflowStepId: string;
 	isLive: boolean;
 	questions: ApiQuestion[];
+	sectionQuestions: ApiQuestion[];
 	randomizeOrder: boolean;
 }): Promise<void> {
 	const payload = {
 		type: 'prioritization' as const,
 		questions: opts.questions,
+		section_questions: opts.sectionQuestions,
 		randomize_order: opts.randomizeOrder
 	};
 	const body: PartialWorkflowStep = opts.isLive
@@ -232,7 +263,8 @@ export async function submitResponse(
 		{
 			question_responses: responses.map((r) => ({
 				question_id: r.questionId,
-				value: r.value
+				value: r.value,
+				...(r.sectionId ? { section_id: r.sectionId } : {})
 			}))
 		},
 		{ params: { proposal_id: proposalId } }
@@ -245,9 +277,13 @@ export async function listResponses(proposalId: string): Promise<ProposalRespons
 		id: d.id,
 		proposalId: d.proposalId,
 		userId: d.userId,
-		responses: d.response.map((r) => ({
-			questionId: r.question_id,
-			value: r.value
-		}))
+		responses: d.response.map((r) => {
+			const sectionId = (r as { section_id?: string }).section_id;
+			return {
+				questionId: r.question_id,
+				value: r.value,
+				...(sectionId ? { sectionId } : {})
+			};
+		})
 	}));
 }

@@ -559,6 +559,24 @@ export const ConversationRequest = z
   .object({ question: z.string() })
   .passthrough();
 export type ConversationRequest = z.infer<typeof ConversationRequest>;
+export const Translation2 = z
+  .object({
+    textContent: TextContentDto,
+    textTranslations: z.array(TextTranslationDto),
+  })
+  .passthrough();
+export type Translation2 = z.infer<typeof Translation2>;
+export const SectionWithTranslationsDto = z
+  .object({
+    body: z.string(),
+    bodyTranslations: Translation2,
+    id: z.string().uuid(),
+    position: z.number().int(),
+  })
+  .passthrough();
+export type SectionWithTranslationsDto = z.infer<
+  typeof SectionWithTranslationsDto
+>;
 export const Translation = z
   .object({
     textContent: TextContentDto,
@@ -566,53 +584,74 @@ export const Translation = z
   })
   .passthrough();
 export type Translation = z.infer<typeof Translation>;
-export const ProposalTranslations = z
-  .object({ body: Translation, title: Translation })
-  .passthrough();
-export type ProposalTranslations = z.infer<typeof ProposalTranslations>;
-export const ProposalWithTranslations = z
+export const ProposalWithTranslationsDto = z
   .object({
-    body: z.string(),
-    createdAt: z.string().datetime({ offset: true }),
     id: z.string().uuid(),
+    sections: z.array(SectionWithTranslationsDto),
     title: z.string(),
-    translations: ProposalTranslations,
-    updatedAt: z.string().datetime({ offset: true }),
+    titleTranslations: Translation,
     workflowStepId: z.string().uuid(),
   })
   .passthrough();
-export type ProposalWithTranslations = z.infer<typeof ProposalWithTranslations>;
-export const LocalizedProposalDto = z
+export type ProposalWithTranslationsDto = z.infer<
+  typeof ProposalWithTranslationsDto
+>;
+export const LocalizedProposalSectionDto = z
   .object({
     body: z.string(),
     id: z.string().uuid(),
+    position: z.number().int(),
+  })
+  .passthrough();
+export type LocalizedProposalSectionDto = z.infer<
+  typeof LocalizedProposalSectionDto
+>;
+export const LocalizedProposalDto = z
+  .object({
+    id: z.string().uuid(),
+    sections: z.array(LocalizedProposalSectionDto),
     title: z.string(),
     workflowStepId: z.string().uuid(),
   })
   .passthrough();
 export type LocalizedProposalDto = z.infer<typeof LocalizedProposalDto>;
 export const ProposalsListResponse = z.union([
-  z.array(ProposalWithTranslations),
+  z.array(ProposalWithTranslationsDto),
   z.array(LocalizedProposalDto),
 ]);
 export type ProposalsListResponse = z.infer<typeof ProposalsListResponse>;
 export const CreateProposalRequest = z
   .object({
-    body: z.string(),
+    sections: z.array(z.string()).optional().default([]),
     title: z.string(),
     workflow_step_id: z.string().uuid(),
   })
   .passthrough();
 export type CreateProposalRequest = z.infer<typeof CreateProposalRequest>;
-export const ProposalDto = z
+export const ProposalSectionDto = z
   .object({
     body: z.string().uuid(),
     id: z.string().uuid(),
+    position: z.number().int(),
+  })
+  .passthrough();
+export type ProposalSectionDto = z.infer<typeof ProposalSectionDto>;
+export const ProposalDto = z
+  .object({
+    id: z.string().uuid(),
+    sections: z.array(ProposalSectionDto),
     title: z.string().uuid(),
     workflowStepId: z.string().uuid(),
   })
   .passthrough();
 export type ProposalDto = z.infer<typeof ProposalDto>;
+export const CreateSectionRequest = z
+  .object({
+    body: z.string(),
+    position: z.union([z.number(), z.null()]).optional().default(null),
+  })
+  .passthrough();
+export type CreateSectionRequest = z.infer<typeof CreateSectionRequest>;
 export const ResponseValue = z.union([z.number(), z.string()]);
 export type ResponseValue = z.infer<typeof ResponseValue>;
 export const Response = z
@@ -778,23 +817,23 @@ export const ConversationDto = z
   })
   .passthrough();
 export type ConversationDto = z.infer<typeof ConversationDto>;
-export const Translation2 = z
+export const Translation3 = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation2 = z.infer<typeof Translation2>;
+export type Translation3 = z.infer<typeof Translation3>;
 export const ConversationTranslations = z
   .object({
-    callToAction: z.union([Translation2, z.null()]).optional(),
-    description: Translation2,
-    faqs: z.union([Translation2, z.null()]).optional(),
-    privacyPolicy: z.union([Translation2, z.null()]).optional(),
-    shortDescription: Translation2,
-    shortPrivacyPolicy: z.union([Translation2, z.null()]).optional(),
-    thankYouMessage: z.union([Translation2, z.null()]).optional(),
-    title: Translation2,
+    callToAction: z.union([Translation3, z.null()]).optional(),
+    description: Translation3,
+    faqs: z.union([Translation3, z.null()]).optional(),
+    privacyPolicy: z.union([Translation3, z.null()]).optional(),
+    shortDescription: Translation3,
+    shortPrivacyPolicy: z.union([Translation3, z.null()]).optional(),
+    thankYouMessage: z.union([Translation3, z.null()]).optional(),
+    title: Translation3,
   })
   .passthrough();
 export type ConversationTranslations = z.infer<typeof ConversationTranslations>;
@@ -1137,15 +1176,15 @@ export const UserParticipation = z
   })
   .passthrough();
 export type UserParticipation = z.infer<typeof UserParticipation>;
-export const Translation3 = z
+export const Translation4 = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation3 = z.infer<typeof Translation3>;
+export type Translation4 = z.infer<typeof Translation4>;
 export const WorkflowStepTranslations = z
-  .object({ description: Translation3, name: Translation3 })
+  .object({ description: Translation4, name: Translation4 })
   .passthrough();
 export type WorkflowStepTranslations = z.infer<typeof WorkflowStepTranslations>;
 export const WorkflowStepWithTranslations = z
@@ -1702,15 +1741,15 @@ export const EventDto = z
   })
   .passthrough();
 export type EventDto = z.infer<typeof EventDto>;
-export const Translation4 = z
+export const Translation5 = z
   .object({
     textContent: TextContentDto,
     textTranslations: z.array(TextTranslationDto),
   })
   .passthrough();
-export type Translation4 = z.infer<typeof Translation4>;
+export type Translation5 = z.infer<typeof Translation5>;
 export const EventTranslations = z
-  .object({ description: Translation4, name: Translation4 })
+  .object({ description: Translation5, name: Translation5 })
   .passthrough();
 export type EventTranslations = z.infer<typeof EventTranslations>;
 export const EventWithTranslations = z
@@ -2275,13 +2314,17 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ComhairleSessionMessage,
   ComhairleAgentSession,
   ConversationRequest,
+  Translation2,
+  SectionWithTranslationsDto,
   Translation,
-  ProposalTranslations,
-  ProposalWithTranslations,
+  ProposalWithTranslationsDto,
+  LocalizedProposalSectionDto,
   LocalizedProposalDto,
   ProposalsListResponse,
   CreateProposalRequest,
+  ProposalSectionDto,
   ProposalDto,
+  CreateSectionRequest,
   ResponseValue,
   Response,
   QuestionResponses,
@@ -2301,7 +2344,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   UpdateFollowUpQuestions,
   CreateConversation,
   ConversationDto,
-  Translation2,
+  Translation3,
   ConversationTranslations,
   ConversationWithTranslations,
   ConversationResponse,
@@ -2330,7 +2373,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   DemographicCategory,
   DemographicReport,
   UserParticipation,
-  Translation3,
+  Translation4,
   WorkflowStepTranslations,
   WorkflowStepWithTranslations,
   ProgressStatus,
@@ -2394,7 +2437,7 @@ export const schemas: Record<string, z.ZodType<any>> = {
   PaginatedResults_for_LocalizedEventDto,
   CreateEvent,
   EventDto,
-  Translation4,
+  Translation5,
   EventTranslations,
   EventWithTranslations,
   EventResponse,
@@ -4707,6 +4750,29 @@ Create a response for prioritization tool proposal
       },
     ],
     response: ProposalResponseDto,
+  },
+  {
+    method: "post",
+    path: "/tools/prioritization/proposals/:proposal_id/sections",
+    alias: "CreateProposalSection",
+    description: `Append a section to a prioritization tool proposal`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: CreateSectionRequest,
+      },
+    ],
+    response: ProposalSectionDto,
+  },
+  {
+    method: "delete",
+    path: "/tools/prioritization/proposals/:proposal_id/sections/:section_id",
+    alias: "DeleteProposalSection",
+    description: `Delete a section from a prioritization tool proposal`,
+    requestFormat: "json",
+    response: ProposalSectionDto,
   },
   {
     method: "get",

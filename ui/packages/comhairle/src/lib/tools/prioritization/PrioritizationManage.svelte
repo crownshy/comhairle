@@ -60,17 +60,27 @@
 	let deletingQuestionInFlight = $state(false);
 	let randomizeSaving = $state(false);
 
+	/** Per-section question editor/delete state (mirrors the proposal-question flow). */
+	let sectionQuestionEditorOpen = $state(false);
+	let sectionQuestionDeleteOpen = $state(false);
+	let selectedSectionQuestion = $state<Question | null>(null);
+	let deletingSectionQuestionInFlight = $state(false);
+
 	const questions = $derived<Question[]>(toolConfig.questions ?? []);
+	const sectionQuestions = $derived<Question[]>(toolConfig.sectionQuestions ?? []);
 
 	/** Local mirror of `questions` so svelte-dnd-action can mutate during drag. As a writable $derived it tracks upstream by default but stays at any value we assign until the source changes again — exactly the in-flight-then-snap-back behaviour the dnd lib needs. */
 	let localQuestions = $derived(questions);
+	let localSectionQuestions = $derived(sectionQuestions);
 	let savingOrder = $state(false);
+	let savingSectionOrder = $state(false);
 
 	async function commitQuestionOrder(next: Question[]) {
 		savingOrder = true;
 		try {
 			await store.saveToolConfig({
 				questions: next,
+				sectionQuestions,
 				randomizeOrder: toolConfig.randomizeOrder
 			});
 		} catch {
@@ -78,6 +88,21 @@
 			localQuestions = questions;
 		} finally {
 			savingOrder = false;
+		}
+	}
+
+	async function commitSectionQuestionOrder(next: Question[]) {
+		savingSectionOrder = true;
+		try {
+			await store.saveToolConfig({
+				questions,
+				sectionQuestions: next,
+				randomizeOrder: toolConfig.randomizeOrder
+			});
+		} catch {
+			localSectionQuestions = sectionQuestions;
+		} finally {
+			savingSectionOrder = false;
 		}
 	}
 
@@ -136,6 +161,7 @@
 			const next = questions.filter((q) => q.id !== selectedQuestion!.id);
 			await store.saveToolConfig({
 				questions: next,
+				sectionQuestions,
 				randomizeOrder: toolConfig.randomizeOrder
 			});
 			questionDeleteOpen = false;
@@ -147,11 +173,46 @@
 		}
 	}
 
+	function openCreateSectionQuestion() {
+		selectedSectionQuestion = null;
+		sectionQuestionEditorOpen = true;
+	}
+
+	function openEditSectionQuestion(q: Question) {
+		selectedSectionQuestion = q;
+		sectionQuestionEditorOpen = true;
+	}
+
+	function confirmDeleteSectionQuestion(q: Question) {
+		selectedSectionQuestion = q;
+		sectionQuestionDeleteOpen = true;
+	}
+
+	async function runDeleteSectionQuestion() {
+		if (!selectedSectionQuestion) return;
+		deletingSectionQuestionInFlight = true;
+		try {
+			const next = sectionQuestions.filter((q) => q.id !== selectedSectionQuestion!.id);
+			await store.saveToolConfig({
+				questions,
+				sectionQuestions: next,
+				randomizeOrder: toolConfig.randomizeOrder
+			});
+			sectionQuestionDeleteOpen = false;
+			selectedSectionQuestion = null;
+		} catch {
+			/** store.saveToolConfig surfaces an error toast. */
+		} finally {
+			deletingSectionQuestionInFlight = false;
+		}
+	}
+
 	async function toggleRandomize(checked: boolean) {
 		randomizeSaving = true;
 		try {
 			await store.saveToolConfig({
 				questions,
+				sectionQuestions,
 				randomizeOrder: checked
 			});
 		} catch {
@@ -271,6 +332,84 @@
 	<div class="space-y-4">
 		<header class="flex items-start justify-between gap-4">
 			<div>
+				<h2 class="text-2xl font-semibold">Per-section questions</h2>
+				<p class="text-muted-foreground text-sm">
+					Participants will answer these for every section of every proposal.
+				</p>
+			</div>
+			<Button onclick={openCreateSectionQuestion}>
+				<Plus class="mr-2 h-4 w-4" /> Add question
+			</Button>
+		</header>
+
+		{#if sectionQuestions.length === 0}
+			<Card.Root>
+				<Card.Content class="py-10 text-center">
+					<p class="text-muted-foreground">
+						No per-section questions yet. Add one to ask it about every section.
+					</p>
+				</Card.Content>
+			</Card.Root>
+		{:else}
+			<DraggableList
+				items={localSectionQuestions}
+				onReorder={(next) => (localSectionQuestions = next)}
+				onCommit={commitSectionQuestionOrder}
+				dragDisabled={savingSectionOrder}
+				class="space-y-3"
+			>
+				{#snippet children(q: Question)}
+					<Card.Root>
+						<Card.Header class="flex flex-row items-start justify-between gap-4">
+							<div class="flex min-w-0 flex-1 items-start gap-3">
+								<button
+									type="button"
+									aria-label="Drag to reorder"
+									class="text-muted-foreground hover:text-foreground mt-1 cursor-grab active:cursor-grabbing"
+								>
+									<GripVertical class="h-4 w-4" />
+								</button>
+								<div class="min-w-0 flex-1 space-y-2">
+									<Card.Title class="text-lg">
+										{q.text || 'Untitled question'}
+									</Card.Title>
+									<div
+										class="text-muted-foreground flex flex-wrap items-center gap-2 text-xs"
+									>
+										<Badge variant="outline">{describeType(q.type)}</Badge>
+										{#if summariseScale(q.type)}
+											<span>{summariseScale(q.type)}</span>
+										{/if}
+									</div>
+								</div>
+							</div>
+							<div class="flex shrink-0 gap-2">
+								<Button
+									variant="outline"
+									size="sm"
+									onclick={() => openEditSectionQuestion(q)}
+								>
+									<Pencil class="mr-2 h-3.5 w-3.5" /> Edit
+								</Button>
+								<Button
+									variant="ghost"
+									size="sm"
+									class="text-destructive hover:text-destructive"
+									onclick={() => confirmDeleteSectionQuestion(q)}
+								>
+									<Trash2 class="mr-2 h-3.5 w-3.5" /> Delete
+								</Button>
+							</div>
+						</Card.Header>
+					</Card.Root>
+				{/snippet}
+			</DraggableList>
+		{/if}
+	</div>
+
+	<div class="space-y-4">
+		<header class="flex items-start justify-between gap-4">
+			<div>
 				<h2 class="text-2xl font-semibold">Proposals</h2>
 				<p class="text-muted-foreground text-sm">
 					Add the proposals participants will rate against the questions above.
@@ -318,11 +457,13 @@
 								<Card.Title class="text-lg">
 									{proposal.title || 'Untitled proposal'}
 								</Card.Title>
-								{#if proposal.body}
-									<div class="text-muted-foreground text-sm">
-										<ContentRenderer content={proposal.body} />
-									</div>
-								{/if}
+								{#each proposal.sections as section (section.id)}
+									{#if section.body}
+										<div class="text-muted-foreground text-sm">
+											<ContentRenderer content={section.body} />
+										</div>
+									{/if}
+								{/each}
 							</div>
 							<div class="flex shrink-0 gap-2">
 								<Button
@@ -369,9 +510,22 @@
 	question={selectedQuestion}
 	{store}
 	{toolConfig}
+	target="proposal"
 	onOpenChange={(o) => {
 		questionEditorOpen = o;
 		if (!o) selectedQuestion = null;
+	}}
+/>
+
+<QuestionEditorDialog
+	open={sectionQuestionEditorOpen}
+	question={selectedSectionQuestion}
+	{store}
+	{toolConfig}
+	target="section"
+	onOpenChange={(o) => {
+		sectionQuestionEditorOpen = o;
+		if (!o) selectedSectionQuestion = null;
 	}}
 />
 
@@ -420,6 +574,36 @@
 			<AlertDialog.Cancel disabled={deletingQuestionInFlight}>Cancel</AlertDialog.Cancel>
 			<AlertDialog.Action disabled={deletingQuestionInFlight} onclick={runDeleteQuestion}>
 				{#if deletingQuestionInFlight}
+					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+				{/if}
+				Delete
+			</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
+
+<AlertDialog.Root
+	open={sectionQuestionDeleteOpen}
+	onOpenChange={(o) => {
+		sectionQuestionDeleteOpen = o;
+		if (!o) selectedSectionQuestion = null;
+	}}
+>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Delete per-section question?</AlertDialog.Title>
+			<AlertDialog.Description>
+				This will remove the question from every section in this step. Existing responses to
+				it will no longer be collected.
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel disabled={deletingSectionQuestionInFlight}>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Action
+				disabled={deletingSectionQuestionInFlight}
+				onclick={runDeleteSectionQuestion}
+			>
+				{#if deletingSectionQuestionInFlight}
 					<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
 				{/if}
 				Delete

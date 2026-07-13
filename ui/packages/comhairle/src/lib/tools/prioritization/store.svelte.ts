@@ -32,7 +32,7 @@ export function createStore(opts: {
 		}
 	}
 
-	async function create(input: { title: string; body: string }) {
+	async function create(input: { title: string; sections: string[] }) {
 		const created = await api.createProposal(opts.workflowStepId, input);
 		proposals = [...proposals, created];
 		return created;
@@ -44,6 +44,26 @@ export function createStore(opts: {
 			proposals = proposals.filter((p) => p.id !== id);
 		} catch (e) {
 			notifications.send({ priority: 'ERROR', message: 'Failed to delete proposal' });
+			throw e;
+		}
+	}
+
+	async function addSection(proposalId: string, body: string) {
+		try {
+			await api.addSection(proposalId, body);
+			await refresh();
+		} catch (e) {
+			notifications.send({ priority: 'ERROR', message: 'Failed to add section' });
+			throw e;
+		}
+	}
+
+	async function removeSection(proposalId: string, sectionId: string) {
+		try {
+			await api.deleteSection(proposalId, sectionId);
+			await refresh();
+		} catch (e) {
+			notifications.send({ priority: 'ERROR', message: 'Failed to delete section' });
 			throw e;
 		}
 	}
@@ -76,6 +96,8 @@ export function createStore(opts: {
 		refresh,
 		create,
 		remove,
+		addSection,
+		removeSection,
 		saveToolConfig
 	};
 }
