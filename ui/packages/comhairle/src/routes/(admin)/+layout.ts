@@ -6,9 +6,13 @@ export const load: LayoutLoad = async ({ parent }) => {
 	const { api } = await parent();
 
 	try {
-		const conversations = await api.GetOwnedConversations();
+		const ownedConversations = await api.GetOwnedConversations();
 
-		return { conversations };
+		const permittedConversations = await api.GetPermittedConversations({
+			queries: { role_name: 'content_editor' }
+		});
+
+		return { ownedConversations, permittedConversations };
 	} catch (e) {
 		if (e.status === 401) {
 			notifications.addFlash({ message: 'You are not authorised', priority: 'WARNING' });

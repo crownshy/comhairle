@@ -8,7 +8,8 @@
 	import { loginRedirect } from '$lib/urls';
 
 	let { children, data }: LayoutProps = $props();
-	let conversations = $derived(data.conversations);
+	let ownedConversations = $derived(data.ownedConversations);
+	let permittedConversations = $derived(data.permittedConversations);
 
 	if (!data.user) {
 		loginRedirect(page.url.toString(), 'You need to be logged in to access this');
@@ -23,7 +24,12 @@
 	style="--sidebar-width: {sidebarWidth.width}px;"
 	data-sidebar-resizing={sidebarWidth.resizing || sidebarWidth.initializing ? '' : undefined}
 >
-	<AdminNav user={data.user} conversations={conversations.records} path={page.url.pathname} />
+	<AdminNav
+		user={data.user}
+		ownedConversations={ownedConversations?.records ?? []}
+		permittedConversations={permittedConversations?.records ?? []}
+		path={page.url.pathname}
+	/>
 	<SideBar.Inset>
 		<SidebarFloatingTriggers />
 		<main class="bg-muted flex grow flex-col overflow-y-auto">
