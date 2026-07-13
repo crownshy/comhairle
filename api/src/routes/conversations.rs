@@ -7,7 +7,7 @@ use axum::{
 
 use aide::axum::{
     ApiRouter,
-    routing::{delete_with, get_with, post_with, put_with},
+    routing::{delete_with, get_with, patch_with, post_with, put_with},
 };
 
 use schemars::JsonSchema;
@@ -74,6 +74,20 @@ async fn update_conversation(
     Json(conversation): Json<PartialConversation>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     let conversation = conversation::update(&state.db, &id, &conversation).await?;
+    let conversation: ConversationDto = conversation.into();
+    Ok((StatusCode::OK, Json(conversation)))
+}
+
+/// Shallow-merge the request body into the conversation's `metadata` jsonb
+/// column. Keys present in the body are written; keys not present are left
+/// untouched. The body must be a JSON object.
+async fn patch_conversation_metadata(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(_user): RequiredAdminUser,
+    Path(id): Path<Uuid>,
+    Json(patch): Json<serde_json::Value>,
+) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
+    let conversation = conversation::patch_metadata(&state.db, &id, &patch).await?;
     let conversation: ConversationDto = conversation.into();
     Ok((StatusCode::OK, Json(conversation)))
 }
@@ -771,6 +785,21 @@ pub fn router(state: Arc<ComhairleState>) -> ApiRouter {
                     .summary("Delete the conversation and all related content")
                     .tag("Conversation")
                     .description("Delete the conversation and all related content")
+                    .response::<200, Json<ConversationDto>>()
+            }),
+        )
+        .api_route(
+            "/{conversation_id}/metadata",
+            patch_with(patch_conversation_metadata, |op| {
+                op.id("PatchConversationMetadata")
+                    .summary("Shallow-merge keys into conversation metadata")
+                    .tag("Conversation")
+                    .description(
+                        "Accepts a JSON object and merges it into the conversation's \
+                         `metadata` jsonb column at the top level. Keys in the body \
+                         overwrite existing keys; keys not present are left untouched. \
+                         Nested objects are replaced, not deep-merged.",
+                    )
                     .response::<200, Json<ConversationDto>>()
             }),
         )
