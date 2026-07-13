@@ -13,6 +13,7 @@ use crate::{
     error::ComhairleError,
     models::{
         SqlxResultExt,
+        proposal_section::{self, ProposalSection},
         translations::{TextContentId, TextFormat, new_translation},
     },
 };
@@ -26,18 +27,16 @@ pub struct Proposal {
     #[partially(omit)]
     pub workflow_step_id: Uuid,
     pub title: TextContentId,
-    pub body: TextContentId,
     #[partially(omit)]
     pub created_at: DateTime<Utc>,
     #[partially(omit)]
     pub updated_at: DateTime<Utc>,
 }
 
-const DEFAULT_COLUMNS: [ProposalIden; 6] = [
+const DEFAULT_COLUMNS: [ProposalIden; 5] = [
     ProposalIden::Id,
     ProposalIden::WorkflowStepId,
     ProposalIden::Title,
-    ProposalIden::Body,
     ProposalIden::CreatedAt,
     ProposalIden::UpdatedAt,
 ];
@@ -45,41 +44,37 @@ const DEFAULT_COLUMNS: [ProposalIden; 6] = [
 #[derive(Deserialize, JsonSchema, Debug)]
 pub struct CreateProposal {
     pub title: String,
-    pub body: String,
+    /// Ordered list of section bodies (rich text). Each becomes a `ProposalSection`.
+    pub sections: Vec<String>,
 }
 
+/// Creates a proposal and its ordered sections, returning both.
 #[instrument(err(Debug))]
 pub async fn create(
     db: &PgPool,
     workflow_step_id: &Uuid,
     new_proposal: &CreateProposal,
     locale: &str,
-) -> Result<Proposal, ComhairleError> {
-    let mut columns = vec![];
-    let mut values = vec![];
-
-    columns.push(ProposalIden::WorkflowStepId);
-    values.push((*workflow_step_id).into());
-
+) -> Result<(Proposal, Vec<ProposalSection>), ComhairleError> {
     let title = new_translation(db, locale, &new_proposal.title, TextFormat::Plain).await?;
-    let body = new_translation(db, locale, &new_proposal.body, TextFormat::Rich).await?;
-
-    columns.push(ProposalIden::Title);
-    values.push(title.id.into());
-
-    columns.push(ProposalIden::Body);
-    values.push(body.id.into());
 
     let (sql, values) = Query::insert()
         .into_table(ProposalIden::Table)
-        .columns(columns)
-        .values(values)?
+        .columns([ProposalIden::WorkflowStepId, ProposalIden::Title])
+        .values([(*workflow_step_id).into(), title.id.into()])?
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
 
-    let proposal = query_as_with(&sql, values).fetch_one(db).await?;
+    let proposal: Proposal = query_as_with(&sql, values).fetch_one(db).await?;
 
-    Ok(proposal)
+    let mut sections = Vec::with_capacity(new_proposal.sections.len());
+    for (index, body) in new_proposal.sections.iter().enumerate() {
+        let section =
+            proposal_section::create(db, &proposal.id, index as i32, body, locale).await?;
+        sections.push(section);
+    }
+
+    Ok((proposal, sections))
 }
 
 #[instrument(err(Debug))]
@@ -217,14 +212,15 @@ mod tests {
 
         let create_proposal = CreateProposal {
             title: "Test proposal".to_string(),
-            body: "Test proposal".to_string(),
+            sections: vec!["Test proposal".to_string()],
         };
-        let proposal = create(&pool, &workflow_step.id, &create_proposal, "en").await?;
+        let (proposal, sections) = create(&pool, &workflow_step.id, &create_proposal, "en").await?;
 
         assert_eq!(
             proposal.workflow_step_id, workflow_step.id,
             "incorrect workflow_step_id"
         );
+        assert_eq!(sections.len(), 1, "expected one section");
 
         Ok(())
     }
@@ -255,9 +251,9 @@ mod tests {
 
         let create_proposal = CreateProposal {
             title: "Test proposal".to_string(),
-            body: "Test proposal body".to_string(),
+            sections: vec!["Test proposal body".to_string()],
         };
-        let new_proposal = create(&pool, &workflow_step.id, &create_proposal, "en").await?;
+        let (new_proposal, _) = create(&pool, &workflow_step.id, &create_proposal, "en").await?;
 
         let proposal = get_localized_by_id(&pool, &new_proposal.id, "en").await?;
 
@@ -266,8 +262,11 @@ mod tests {
             "Test proposal".to_string(),
             "incorrect title"
         );
+
+        let sections = proposal_section::list_localized(&pool, &new_proposal.id, "en").await?;
+        assert_eq!(sections.len(), 1, "incorrect number of sections");
         assert_eq!(
-            proposal.body,
+            sections[0].body,
             "Test proposal body".to_string(),
             "incorrect body"
         );
@@ -301,15 +300,15 @@ mod tests {
 
         let create_proposal_1 = CreateProposal {
             title: "Proposal A".to_string(),
-            body: "Proposal A".to_string(),
+            sections: vec!["Proposal A".to_string()],
         };
         let create_proposal_2 = CreateProposal {
             title: "Proposal B".to_string(),
-            body: "Proposal B".to_string(),
+            sections: vec!["Proposal B".to_string()],
         };
         let create_proposal_3 = CreateProposal {
             title: "Proposal C".to_string(),
-            body: "Proposal C".to_string(),
+            sections: vec!["Proposal C".to_string()],
         };
         create(&pool, &workflow_step.id, &create_proposal_1, "en").await?;
         create(&pool, &workflow_step.id, &create_proposal_2, "en").await?;
@@ -348,9 +347,9 @@ mod tests {
 
         let create_proposal = CreateProposal {
             title: "Test proposal".to_string(),
-            body: "Test proposal".to_string(),
+            sections: vec!["Test proposal".to_string()],
         };
-        let proposal = create(&pool, &workflow_step.id, &create_proposal, "en").await?;
+        let (proposal, _) = create(&pool, &workflow_step.id, &create_proposal, "en").await?;
 
         delete(&pool, &proposal.id).await?;
 

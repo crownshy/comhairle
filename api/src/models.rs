@@ -24,6 +24,7 @@ pub mod permissions;
 pub mod polis_statement_aux;
 pub mod proposal;
 pub mod proposal_response;
+pub mod proposal_section;
 pub mod recruitment_target;
 pub mod region;
 pub mod report;
