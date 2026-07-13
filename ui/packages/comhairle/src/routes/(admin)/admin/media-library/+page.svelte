@@ -72,10 +72,10 @@
 	</label>
 {/snippet}
 
-<div class="mx-auto w-4/5 p-10">
-	<header class="flex flex-row items-baseline justify-between">
+<div class="mx-auto w-11/12 p-10">
+	<header class="flex flex-row items-baseline justify-between lg:w-10/12">
 		<h1 class="text-4xl font-bold">Media library</h1>
-		<div class="flex flex-row gap-4">
+		<div class="flex flex-col gap-4 md:flex-row">
 			{#if !bulkEdit}
 				<MediaUpload />
 				<Button variant="outline" onclick={() => (bulkEdit = true)}>
