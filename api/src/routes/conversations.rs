@@ -32,11 +32,16 @@ use crate::{
             self as notification_delivery_model, CreateNotificationDelivery, DeliveryMethod,
         },
         pagination::{OrderParams, PageOptions, PaginatedResults},
+        permissions::{
+            ConversationContentEditorRole, ConversationResource, ResourceRole,
+            has_resource_permission,
+        },
         user_conversation_preferences,
         user_participation::{self},
         user_profile,
     },
     routes::{
+        auth::RequiredUserPermission,
         conversations::dto::{ConversationDto, LocalizedConversationDto},
         translations::LocaleExtractor,
     },
@@ -70,6 +75,10 @@ async fn create_conversation(
 async fn update_conversation(
     State(state): State<Arc<ComhairleState>>,
     RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredUserPermission { .. }: RequiredUserPermission<
+        ConversationContentEditorRole,
+        ConversationResource,
+    >,
     Path(id): Path<Uuid>,
     Json(conversation): Json<PartialConversation>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
@@ -120,12 +129,17 @@ async fn list_conversations(
 async fn launch_conversation(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
     let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
     if conversation.is_live {
         return Err(ComhairleError::ConversationAlreadyLive);
     }
+
+    if user.id != conversation.owner_id {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
+
     let conversation: ConversationDto = conversation::launch(&state.db, conversation_id, &state)
         .await?
         .into();
@@ -163,11 +177,19 @@ async fn get_conversation(
     // If this isn't a live conversation and the user is not the owner
     if !original_conversation.is_live {
         if let Some(user) = &user {
-            if user.id != original_conversation.owner_id {
-                return Err(ComhairleError::UserIsNotConversationOwner);
+            if user.id != original_conversation.owner_id
+                && !has_resource_permission(
+                    &state,
+                    ConversationContentEditorRole::make_triplet(&original_conversation.id),
+                    &user.id,
+                    None,
+                )
+                .await?
+            {
+                return Err(ComhairleError::UserNotAuthorized);
             }
         } else {
-            return Err(ComhairleError::UserIsNotConversationOwner);
+            return Err(ComhairleError::UserNotAuthorized);
         }
     }
 
@@ -217,10 +239,18 @@ async fn get_conversation(
 /// Delete a specific conversation
 async fn delete_conversation(
     State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
     Path(id): Path<Uuid>,
 ) -> Result<(StatusCode, Json<ConversationDto>), ComhairleError> {
+    let conversation = conversation::get_by_id(&state.db, &id).await?;
+
+    if user.id != conversation.owner_id {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
+
     let conversation = conversation::delete(&state.db, &state.bot_service, &id).await?;
     let conversation: ConversationDto = conversation.into();
+
     Ok((StatusCode::OK, Json(conversation)))
 }
 

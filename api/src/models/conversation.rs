@@ -923,7 +923,7 @@ mod tests {
         models::{
             model_test_helpers::setup_default_app_and_session,
             permissions::{
-                ConversationContentEditor, GrantRoleRequest, NamedRole, ResourceRole,
+                ConversationContentEditorRole, GrantRoleRequest, NamedRole, ResourceRole,
                 UserOrOrganizationId, grant_role,
             },
             users::{self, UpdateUserRequest, create_user, update_user},
@@ -1210,7 +1210,7 @@ mod tests {
 
         let grant_request_a_a = GrantRoleRequest {
             actor_id: UserOrOrganizationId::User(user_a.id),
-            permission_triplet: ConversationContentEditor::make_triplet(&conversation.id),
+            permission_triplet: ConversationContentEditorRole::make_triplet(&conversation.id),
             granted_by: &session.id.unwrap(),
             grant_reason: "Testing",
         };
@@ -1241,7 +1241,7 @@ mod tests {
             page_options.clone(),
             order_options,
             filter_options,
-            ConversationContentEditor::name(),
+            ConversationContentEditorRole::name(),
             Some("en".to_string()),
         )
         .await?;
@@ -1258,7 +1258,7 @@ mod tests {
             page_options.clone(),
             order_options,
             filter_options,
-            ConversationContentEditor::name(),
+            ConversationContentEditorRole::name(),
             Some("en".to_string()),
         )
         .await?;

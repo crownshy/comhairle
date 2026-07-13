@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::models::users::UserIden;
 use crate::redis_connection::RedisConnection;
-use axum::extract::FromRequestParts;
+use axum::extract::{FromRequestParts, Path};
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use sea_query::{Expr, OnConflict, PostgresQueryBuilder, Query, enum_def};
@@ -16,7 +16,10 @@ use uuid::Uuid;
 
 use crate::ComhairleState;
 use crate::error::ComhairleError;
-use crate::models::pagination::{PageOptions, PaginatedResults};
+use crate::models::{
+    self,
+    pagination::{PageOptions, PaginatedResults},
+};
 
 /// Represents the system administrator role.
 #[derive(Debug)]
@@ -45,14 +48,75 @@ impl FromRequestParts<Arc<ComhairleState>> for SystemResource {
     }
 }
 
+#[derive(Deserialize)]
+pub struct ConversationPath {
+    pub conversation_id: Uuid,
+}
+
+#[derive(Debug)]
+pub struct ConversationResource {
+    conversation_id: Uuid,
+    owner_id: Uuid,
+}
+
+impl FromRequestParts<Arc<ComhairleState>> for ConversationResource {
+    type Rejection = ComhairleError;
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        state: &Arc<ComhairleState>,
+    ) -> Result<Self, Self::Rejection> {
+        let Path(ConversationPath { conversation_id }) =
+            Path::<ConversationPath>::from_request_parts(parts, state)
+                .await
+                .map_err(|_| {
+                    ComhairleError::ResourceNotFound(
+                        "Path must contain a conversation_id".to_string(),
+                    )
+                })?;
+
+        let conversation = models::conversation::get_by_id(&state.db, &conversation_id).await?;
+
+        Ok(ConversationResource {
+            conversation_id,
+            owner_id: conversation.owner_id,
+        })
+    }
+}
+
 /// A trait for extracting a resource ID from a request.
-pub trait ExtractResourceId: FromRequestParts<Arc<ComhairleState>> + 'static + Send + Sync {
+pub trait ExtractResourceId:
+    FromRequestParts<Arc<ComhairleState>> + 'static + Send + Sync + OwnedResource
+{
     fn resource_id(&self) -> Uuid;
 }
 
 impl ExtractResourceId for SystemResource {
     fn resource_id(&self) -> Uuid {
         SYSTEM_RESOURCE_ID
+    }
+}
+
+/// A trait for extracting owner_id for a resource if available
+pub trait OwnedResource {
+    fn owner_id(&self) -> Option<Uuid>;
+}
+
+impl OwnedResource for SystemResource {
+    fn owner_id(&self) -> Option<Uuid> {
+        None
+    }
+}
+
+impl ExtractResourceId for ConversationResource {
+    fn resource_id(&self) -> Uuid {
+        self.conversation_id
+    }
+}
+
+impl OwnedResource for ConversationResource {
+    fn owner_id(&self) -> Option<Uuid> {
+        Some(self.owner_id)
     }
 }
 
@@ -94,15 +158,15 @@ pub const CONVERSATION_RESOURCE_TYPE: &str = "conversation";
 pub const CONTENT_EDITOR_ROLE: &str = "content_editor";
 
 #[derive(Debug)]
-pub struct ConversationContentEditor;
+pub struct ConversationContentEditorRole;
 
-impl NamedRole for ConversationContentEditor {
+impl NamedRole for ConversationContentEditorRole {
     fn name() -> &'static str {
         "content_editor"
     }
 }
 
-impl ResourceRole for ConversationContentEditor {
+impl ResourceRole for ConversationContentEditorRole {
     fn resource_type() -> &'static str {
         CONVERSATION_RESOURCE_TYPE
     }
