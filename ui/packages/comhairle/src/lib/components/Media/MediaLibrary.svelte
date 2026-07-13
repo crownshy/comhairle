@@ -30,16 +30,7 @@
 
 <style>
 	ul {
-		--min-width: 275px;
+		--min-width: 345px;
 		grid-template-columns: repeat(auto-fit, minmax(var(--min-width), 1fr));
-	}
-
-	li {
-		transition: translate 150ms ease-out;
-		translate: 0px 0px;
-
-		&:is(:focus, :hover) {
-			translate: 0px -3px;
-		}
 	}
 </style>
