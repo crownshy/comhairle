@@ -544,7 +544,8 @@
 				onclick={openAddOpinion}
 			>
 				<MessageSquare fill="currentColor" class="h-5 w-5" />
-				{m.polis_add_opinion_long()}
+				<span class="hidden md:inline">{m.polis_add_opinion_long()}</span>
+				<span class="md:hidden">{m.polis_add_your_own_opinion()}</span>
 			</Button>
 		</div>
 
