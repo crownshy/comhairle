@@ -206,7 +206,7 @@
 		{@render children()}
 	</div>
 {:else}
-	<div class="bg-muted grow px-4 py-8 sm:px-8 sm:pb-12 md:py-10 lg:px-16 lg:pb-18">
+	<div class="bg-muted grow px-4 pt-2 pb-8 sm:px-8 sm:pb-12 md:py-8 lg:px-16">
 		<div class="mx-auto h-full w-full max-w-[1200px]">
 			{@render children()}
 		</div>

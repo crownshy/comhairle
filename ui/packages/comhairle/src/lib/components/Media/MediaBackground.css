@@ -1,0 +1,13 @@
+.chequered-background {
+	--size: 24px;
+	--bg-color: oklch(0.4 5% 270);
+	--bg-alt-color: oklch(from var(--bg-color) calc(l * 0.85) c h);
+
+	background: repeating-conic-gradient(
+			var(--bg-color) 0%,
+			var(--bg-color) 25%,
+			var(--bg-alt-color) 0%,
+			var(--bg-alt-color) 50%
+		)
+		50% center / var(--size) var(--size);
+}

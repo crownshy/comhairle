@@ -177,6 +177,7 @@ pub async fn setup_server(state: Arc<ComhairleState>) -> Result<Router<()>, Comh
             Method::GET,
             Method::POST,
             Method::PUT,
+            Method::PATCH,
             Method::OPTIONS,
             Method::DELETE,
         ])

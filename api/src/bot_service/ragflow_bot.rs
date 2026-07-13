@@ -879,6 +879,7 @@ impl From<CreateChatRequest> for CreateChat {
                 }]),
                 use_kg: Some(false),
                 keyword: Some(false),
+                empty_response: prompt.empty_response,
                 ..Default::default()
             }),
         }
