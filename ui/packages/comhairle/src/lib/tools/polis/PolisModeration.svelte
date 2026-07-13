@@ -1,15 +1,13 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
-	import { Button, LoadingButton } from '$lib/components/ui/button';
-	import { Checkbox } from '$lib/components/ui/checkbox';
+	import { LoadingButton } from '$lib/components/ui/button';
 	import Input from '$lib/components/ui/input/input.svelte';
-	import * as Card from '$lib/components/ui/card';
-	import { Spinner } from '$lib/components/ui/spinner';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
-	import { Check, X, RefreshCw, Search } from '@lucide/svelte';
+	import { RefreshCw, Search } from '@lucide/svelte';
 	import AddSeedStatementsDialog from './polis-moderation/AddSeedStatementsDialog.svelte';
+	import StatementsTable from './polis-moderation/StatementsTable.svelte';
 
 	let {
 		workflowStepId,
@@ -89,9 +87,6 @@
 	// on the currently visible (filtered + searched) rows only.
 	let selected = $state<Record<string, boolean>>({});
 	const selectedVisible = $derived(visible.filter((r) => selected[r.id]));
-	const selectedCount = $derived(selectedVisible.length);
-	const allVisibleSelected = $derived(visible.length > 0 && selectedCount === visible.length);
-	const someVisibleSelected = $derived(selectedCount > 0 && !allVisibleSelected);
 
 	function toggleSelect(id: string, checked: boolean) {
 		selected = { ...selected, [id]: checked };
@@ -178,15 +173,6 @@
 			pending = { ...pending, [row.id]: false };
 		}
 	}
-
-	// Left accent bar colour keyed on seed/status. Olive-green primary stands in
-	// for "accepted"; there is no dedicated success token in the theme.
-	function accentFor(row: PolisStatementAux): string {
-		if (row.is_seed) return 'bg-accent';
-		if (row.moderation_status === 'accepted') return 'bg-primary';
-		if (row.moderation_status === 'rejected') return 'bg-destructive';
-		return 'bg-muted-foreground/40';
-	}
 </script>
 
 <div class="flex flex-col gap-6 rounded-xl">
@@ -239,159 +225,15 @@
 	</div>
 
 	<!-- Statements list -->
-	<Card.Root class="gap-0 overflow-hidden py-0">
-		<!-- The header row doubles as the bulk-actions bar when rows are selected.
-		     Keeping a fixed height means the card (and the list below) never shifts
-		     when a selection starts or clears. -->
-		<div class="flex min-h-[3.5rem] items-center border-b px-4">
-			{#if selectedCount > 0}
-				<div class="flex w-full items-center gap-3">
-					<Checkbox
-						checked={allVisibleSelected}
-						indeterminate={someVisibleSelected}
-						onCheckedChange={(v) => toggleSelectAll(v === true)}
-						aria-label="Select all statements"
-					/>
-					<span class="text-sm font-medium">{selectedCount} selected</span>
-					<div class="ml-auto flex items-center gap-2">
-						<LoadingButton
-							size="sm"
-							loading={bulkAction === 'accepted'}
-							disabled={bulkWorking}
-							onclick={() => bulkModerate('accepted')}
-						>
-							<Check class="size-4" />
-							Approve
-						</LoadingButton>
-						<LoadingButton
-							size="sm"
-							variant="destructive"
-							loading={bulkAction === 'rejected'}
-							disabled={bulkWorking}
-							onclick={() => bulkModerate('rejected')}
-						>
-							<X class="size-4" />
-							Reject
-						</LoadingButton>
-						<Button
-							size="sm"
-							variant="ghost"
-							disabled={bulkWorking}
-							onclick={clearSelection}
-						>
-							Clear
-						</Button>
-					</div>
-				</div>
-			{:else}
-				<div
-					class="text-muted-foreground grid w-full grid-cols-[2.5rem_3rem_minmax(0,1fr)_auto] items-center gap-4 text-xs font-semibold uppercase"
-				>
-					<div class="flex items-center">
-						<Checkbox
-							checked={allVisibleSelected}
-							indeterminate={someVisibleSelected}
-							onCheckedChange={(v) => toggleSelectAll(v === true)}
-							aria-label="Select all statements"
-						/>
-					</div>
-					<div>#</div>
-					<div>Statement</div>
-					<div class="pr-2">Action</div>
-				</div>
-			{/if}
-		</div>
-
-		<div class="relative">
-			<!-- Dim + block the rows while a bulk moderation is in flight. -->
-			{#if bulkWorking}
-				<div
-					class="bg-background/50 absolute inset-0 z-10 flex items-center justify-center backdrop-blur-[1px]"
-				>
-					<Spinner class="text-muted-foreground size-6" />
-				</div>
-			{/if}
-
-			{#if visible.length === 0}
-				<p class="text-muted-foreground px-4 py-6 text-sm italic">
-					No statements match this filter.
-				</p>
-			{:else}
-				{#each visible as row (row.id)}
-					<div
-						role="button"
-						tabindex="0"
-						aria-pressed={!!selected[row.id]}
-						onclick={(e) => {
-							// Ignore clicks that land on the checkbox or the accept/reject controls.
-							if (
-								bulkWorking ||
-								(e.target as HTMLElement).closest('[data-row-control]')
-							)
-								return;
-							toggleSelect(row.id, !selected[row.id]);
-						}}
-						onkeydown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') {
-								e.preventDefault();
-								if (!bulkWorking) toggleSelect(row.id, !selected[row.id]);
-							}
-						}}
-						class={`border-border group relative grid cursor-pointer grid-cols-[2.5rem_3rem_minmax(0,1fr)_auto] items-center gap-4 border-b py-4 pl-4 transition-colors last:border-b-0 ${
-							selected[row.id] ? 'bg-primary/5' : 'hover:bg-muted/40'
-						}`}
-					>
-						<!-- Left accent bar (status colour) -->
-						<span
-							class={`absolute top-0 bottom-0 left-0 w-1 transition-all group-hover:w-1.5 ${accentFor(row)}`}
-						></span>
-
-						<!-- Select -->
-						<div class="flex items-center" data-row-control>
-							<Checkbox
-								checked={!!selected[row.id]}
-								disabled={bulkWorking}
-								onCheckedChange={(v) => toggleSelect(row.id, v === true)}
-								aria-label="Select statement"
-							/>
-						</div>
-
-						<!-- # -->
-						<div class="text-muted-foreground text-center text-xs tabular-nums">
-							{row.polis_statement_id}
-						</div>
-
-						<!-- Statement text -->
-						<p class="min-w-0 text-base leading-7">{row.statement_text}</p>
-
-						<!-- Actions -->
-						<div class="flex items-center gap-1 self-center pr-2" data-row-control>
-							<button
-								type="button"
-								disabled={pending[row.id] ||
-									bulkWorking ||
-									row.moderation_status === 'accepted'}
-								onclick={() => setStatus(row, 'accepted')}
-								title="Accept"
-								class="text-primary hover:bg-primary/15 inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-transparent"
-							>
-								<Check class="size-6" />
-							</button>
-							<button
-								type="button"
-								disabled={pending[row.id] ||
-									bulkWorking ||
-									row.moderation_status === 'rejected'}
-								onclick={() => setStatus(row, 'rejected')}
-								title="Reject"
-								class="text-destructive hover:bg-destructive/15 inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 disabled:hover:bg-transparent"
-							>
-								<X class="size-6" />
-							</button>
-						</div>
-					</div>
-				{/each}
-			{/if}
-		</div>
-	</Card.Root>
+	<StatementsTable
+		rows={visible}
+		{selected}
+		{pending}
+		{bulkAction}
+		onToggleSelect={toggleSelect}
+		onToggleAll={toggleSelectAll}
+		onClear={clearSelection}
+		onBulkModerate={bulkModerate}
+		onModerate={setStatus}
+	/>
 </div>
