@@ -3,6 +3,7 @@
 	import { LoadingButton } from '$lib/components/ui/button';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { notifications } from '$lib/notifications.svelte';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import { RefreshCw, Search } from '@lucide/svelte';
@@ -112,25 +113,27 @@
 		bulkAction = status;
 
 		// Optimistic: flip all targets at once.
-		const ids = new Set(targets.map((t) => t.id));
+		const ids = targets.map((t) => t.id);
+		const idSet = new Set(ids);
 		statements = statements.map((s) =>
-			ids.has(s.id) ? { ...s, moderation_status: status } : s
+			idSet.has(s.id) ? { ...s, moderation_status: status } : s
 		);
 
-		const results = await Promise.allSettled(
-			targets.map((t) =>
-				apiClient.PolisModerateStatementAux({ decision }, { params: { id: t.id } })
-			)
+		// One request: the backend logs in to Polis once, moderates every id, and
+		// reports per-row failures rather than failing the whole batch.
+		const result = await tryCatchAsync(() =>
+			apiClient.PolisModerateStatementAuxBatch({ ids, decision })
 		);
-		const failed = results.filter((r) => r.status === 'rejected').length;
 
 		bulkAction = null;
 		clearSelection();
-		if (failed) {
-			console.error(`Bulk moderate: ${failed}/${targets.length} failed`);
+		if (result.err) {
+			console.error('Bulk moderate failed', result.err);
+			notifications.send({ priority: 'ERROR', message: 'Failed to update statements' });
+		} else if (result.ok.failed.length) {
 			notifications.send({
 				priority: 'ERROR',
-				message: `${failed} of ${targets.length} failed to update`
+				message: `${result.ok.failed.length} of ${targets.length} failed to update`
 			});
 		} else {
 			notifications.send({

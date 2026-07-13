@@ -513,6 +513,28 @@ export const ModerateStatementAuxRequest = z
 export type ModerateStatementAuxRequest = z.infer<
   typeof ModerateStatementAuxRequest
 >;
+export const ModerateStatementAuxBatchRequest = z
+  .object({
+    decision: ModerationDecisionRequest,
+    ids: z.array(z.string().uuid()),
+  })
+  .passthrough();
+export type ModerateStatementAuxBatchRequest = z.infer<
+  typeof ModerateStatementAuxBatchRequest
+>;
+export const ModerateBatchFailure = z
+  .object({ error: z.string(), id: z.string().uuid() })
+  .passthrough();
+export type ModerateBatchFailure = z.infer<typeof ModerateBatchFailure>;
+export const ModerateStatementAuxBatchResponse = z
+  .object({
+    failed: z.array(ModerateBatchFailure),
+    succeeded: z.array(PolisStatementAux),
+  })
+  .passthrough();
+export type ModerateStatementAuxBatchResponse = z.infer<
+  typeof ModerateStatementAuxBatchResponse
+>;
 export const Story = z
   .object({
     id: z.string().uuid(),
@@ -2253,6 +2275,9 @@ export const schemas: Record<string, z.ZodType<any>> = {
   ThemeRequest,
   ModerationDecisionRequest,
   ModerateStatementAuxRequest,
+  ModerateStatementAuxBatchRequest,
+  ModerateBatchFailure,
+  ModerateStatementAuxBatchResponse,
   Story,
   ComhairleMessageReference,
   ComhairleSessionMessage,
@@ -4569,6 +4594,21 @@ Use a raw HTTP request and process the response body incrementally.
       },
     ],
     response: PolisStatementAux,
+  },
+  {
+    method: "post",
+    path: "/tools/polis/statement_aux/moderate_batch",
+    alias: "PolisModerateStatementAuxBatch",
+    description: `Forwards an accept/reject decision for many polis_statement_aux rows to Polis using a single admin login, then bulk-updates the rows that succeeded. All ids must belong to the same workflow step. Returns the updated rows plus any per-row failures.`,
+    requestFormat: "json",
+    parameters: [
+      {
+        name: "body",
+        type: "Body",
+        schema: ModerateStatementAuxBatchRequest,
+      },
+    ],
+    response: ModerateStatementAuxBatchResponse,
   },
   {
     method: "post",

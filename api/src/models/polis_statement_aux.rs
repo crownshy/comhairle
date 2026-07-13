@@ -262,6 +262,56 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<PolisStatementAux, Comh
     Ok(aux)
 }
 
+/// Fetch many rows by id in a single query. Returns whatever ids exist (order is
+/// unspecified); the caller compares the count to detect missing ids.
+#[instrument(err(Debug))]
+pub async fn get_by_ids(
+    db: &PgPool,
+    ids: &[Uuid],
+) -> Result<Vec<PolisStatementAux>, ComhairleError> {
+    if ids.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let (sql, values) = Query::select()
+        .from(PolisStatementAuxIden::Table)
+        .columns(DEFAULT_COLUMNS)
+        .and_where(Expr::col(PolisStatementAuxIden::Id).is_in(ids.iter().copied()))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let aux = query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(aux)
+}
+
+/// Bulk-set `moderation_status` for many rows in one statement, returning the
+/// updated rows. Used by batch moderation once the decisions have been forwarded
+/// to Polis. An empty id slice is a no-op.
+#[instrument(err(Debug))]
+pub async fn update_moderation_status_many(
+    db: &PgPool,
+    ids: &[Uuid],
+    status: ModerationStatus,
+) -> Result<Vec<PolisStatementAux>, ComhairleError> {
+    if ids.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let values: Vec<(PolisStatementAuxIden, SimpleExpr)> =
+        vec![(PolisStatementAuxIden::ModerationStatus, status.into())];
+
+    let (sql, values) = Query::update()
+        .table(PolisStatementAuxIden::Table)
+        .values(values)
+        .and_where(Expr::col(PolisStatementAuxIden::Id).is_in(ids.iter().copied()))
+        .returning(Query::returning().columns(DEFAULT_COLUMNS))
+        .build_sqlx(PostgresQueryBuilder);
+
+    let aux = query_as_with(&sql, values).fetch_all(db).await?;
+
+    Ok(aux)
+}
+
 #[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct PolisStatementAuxFilterOptions {
     user_id: Option<Uuid>,

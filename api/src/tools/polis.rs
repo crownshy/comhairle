@@ -276,6 +276,21 @@ impl ToolImpl for PolisTool {
                         .response::<200, Json<PolisStatementAux>>()
                 }),
             )
+            .api_route(
+                "/polis/statement_aux/moderate_batch",
+                post_with(moderate_statement_aux_batch, |op| {
+                    op.id("PolisModerateStatementAuxBatch")
+                        .tag("Tools")
+                        .summary("Moderate multiple Polis statements in one request")
+                        .description(
+                            "Forwards an accept/reject decision for many polis_statement_aux \
+                             rows to Polis using a single admin login, then bulk-updates the \
+                             rows that succeeded. All ids must belong to the same workflow \
+                             step. Returns the updated rows plus any per-row failures.",
+                        )
+                        .response::<200, Json<ModerateStatementAuxBatchResponse>>()
+                }),
+            )
             .with_state(state.clone())
     }
 }
@@ -714,6 +729,113 @@ async fn moderate_statement_aux(
     .await?;
 
     Ok((StatusCode::OK, Json(updated)))
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct ModerateStatementAuxBatchRequest {
+    /// polis_statement_aux ids to moderate. All must belong to the same workflow step.
+    pub ids: Vec<Uuid>,
+    pub decision: ModerationDecisionRequest,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct ModerateBatchFailure {
+    pub id: Uuid,
+    pub error: String,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+pub struct ModerateStatementAuxBatchResponse {
+    /// Rows whose decision was applied in Polis and persisted locally.
+    pub succeeded: Vec<PolisStatementAux>,
+    /// Rows whose Polis moderation call failed; their status is left unchanged.
+    pub failed: Vec<ModerateBatchFailure>,
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn moderate_statement_aux_batch(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredUser(user): RequiredUser,
+    Json(request): Json<ModerateStatementAuxBatchRequest>,
+) -> Result<(StatusCode, Json<ModerateStatementAuxBatchResponse>), ComhairleError> {
+    if request.ids.is_empty() {
+        return Err(ComhairleError::BadRequest("ids must not be empty".into()));
+    }
+
+    // Load every target row up front: this validates the ids and gives us the
+    // polis_statement_ids to forward, without a DB round-trip per row.
+    let rows = models::polis_statement_aux::get_by_ids(&state.db, &request.ids).await?;
+    if rows.len() != request.ids.len() {
+        return Err(ComhairleError::BadRequest(
+            "one or more statement ids do not exist".into(),
+        ));
+    }
+
+    // A selection always comes from a single moderation view (one workflow step,
+    // one poll), so we authorize and log in to Polis exactly once for the batch.
+    let workflow_step_id = rows[0].workflow_step_id;
+    if rows.iter().any(|r| r.workflow_step_id != workflow_step_id) {
+        return Err(ComhairleError::BadRequest(
+            "all statements must belong to the same workflow step".into(),
+        ));
+    }
+
+    polis_statement_aux::check_can_moderate(&state.db, &user, &workflow_step_id).await?;
+
+    let workflow_step = models::workflow_step::get_by_id(&state.db, &workflow_step_id).await?;
+    let config = match (workflow_step.tool_config, workflow_step.preview_tool_config) {
+        (Some(ToolConfig::Polis(config)), _) => config,
+        (None, ToolConfig::Polis(config)) => config,
+        _ => return Err(ComhairleError::WorkflowStepHasWrongType("Polis".into())),
+    };
+
+    let client = &state.wiki_poll_service;
+    let auth_cookies = client
+        .login(&WikiPollLogin {
+            email: config.admin_user.clone(),
+            password: config.admin_password.clone(),
+        })
+        .await?;
+
+    let status: ModerationStatus = request.decision.into();
+
+    // Forward each decision to Polis, collecting per-row failures instead of
+    // aborting the whole batch on the first error.
+    let mut succeeded_ids: Vec<Uuid> = Vec::new();
+    let mut failed: Vec<ModerateBatchFailure> = Vec::new();
+    for row in &rows {
+        match client
+            .moderate_comment(
+                &config.poll_id,
+                row.polis_statement_id,
+                status.clone(),
+                &auth_cookies,
+            )
+            .await
+        {
+            Ok(()) => succeeded_ids.push(row.id),
+            Err(e) => {
+                tracing::error!("Batch moderate failed for {}: {e:?}", row.id);
+                failed.push(ModerateBatchFailure {
+                    id: row.id,
+                    error: "Failed to moderate statement in Polis".into(),
+                });
+            }
+        }
+    }
+
+    // Persist moderation_status for the rows Polis accepted, in one statement.
+    let succeeded = models::polis_statement_aux::update_moderation_status_many(
+        &state.db,
+        &succeeded_ids,
+        status,
+    )
+    .await?;
+
+    Ok((
+        StatusCode::OK,
+        Json(ModerateStatementAuxBatchResponse { succeeded, failed }),
+    ))
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
