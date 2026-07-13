@@ -576,10 +576,7 @@ pub async fn patch_metadata(
     .bind(id)
     .fetch_one(db)
     .await
-    .map_err(|e| match e {
-        sqlx::Error::RowNotFound => ComhairleError::ResourceNotFound("Conversation".into()),
-        other => ComhairleError::DatabaseError(other),
-    })?;
+    .resolve_db_err("Conversation")?;
 
     Ok(conversation)
 }
