@@ -233,7 +233,7 @@
 	 viewport. Only the inner column scrolls. -->
 <div class="bg-muted flex min-h-0 w-full flex-1 overflow-hidden">
 	<div bind:this={boardEl} class="min-h-0 flex-1 overflow-auto">
-		<div class="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6">
+		<div class="mx-auto flex w-full max-w-5xl flex-col gap-4 py-6">
 			<!-- Toolbar -->
 			<div class="flex shrink-0 flex-col items-center justify-between gap-2 sm:flex-row">
 				<div class="flex flex-col">
