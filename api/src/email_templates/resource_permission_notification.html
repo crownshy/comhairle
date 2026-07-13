@@ -1,0 +1,32 @@
+<!--
+
+Variables:
+- resource_type
+- resource_id
+
+-->
+
+{% extends "email_layout.html" %}
+{% block content %}
+	<div style="text-align: left">
+	  <h1>Your permissions have been updated on Comhairle</h1>
+	  
+	  {% if action == "granted" %}
+		<p>You have been granted a new permission:</p>
+	  {% else %}
+		<p>You have had a permission revoked:</p>
+	  {% endif %}
+
+	  <div class="card" style="text-align: left">
+		<ul>
+		  <li><span style="font-weight: bold">Role:</span>&nbsp;{{role}}</li>
+		  <li><span style="font-weight: bold">Resource type:</span>&nbsp;{{resource_type}}</li>
+		  <li><span style="font-weight: bold">Resource ID:</span>&nbsp;{{resource_id}}</li>
+		</ul>
+	  </div>
+
+	  <p>This change should now be reflected when you visit the Comhairle platform.</p>
+
+	  <p>If you did not expect this change, please email the CrownShy team at <a href="mailto:team@crown-shy.com" class="link">team@crown-shy.com</a>.</p>
+	</div>
+{% endblock %}

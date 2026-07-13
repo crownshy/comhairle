@@ -132,6 +132,19 @@ async fn grant(
     )
     .await?;
 
+    match actor_id {
+        UserOrOrganizationId::User(uid) => {
+            let user = users::get_user_by_id(&uid, &state.db).await?;
+
+            if let Some(email) = user.email {
+                state
+                    .mailer
+                    .send_permission_notification_email(&email, &permission, "granted")?;
+            }
+        }
+        UserOrOrganizationId::Org(_) => {}
+    }
+
     Ok((StatusCode::CREATED, Json(permission)))
 }
 

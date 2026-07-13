@@ -5,6 +5,7 @@ use crate::models::email_template_config::{
 };
 use crate::models::event::{self, LocalizedEvent, ResolveTimeZone};
 use crate::models::organization::Organization;
+use crate::models::permissions::ResourcePermission;
 use crate::models::users::User;
 use crate::{ComhairleState, error::ComhairleError};
 
@@ -108,6 +109,13 @@ pub trait ComhairleMailer: Send + Sync {
         html_body: &str,
     ) -> Result<(), ComhairleError>;
 
+    fn send_permission_notification_email(
+        &self,
+        email: &str,
+        permission: &ResourcePermission,
+        action: &str,
+    ) -> Result<(), ComhairleError>;
+
     fn preview_email(
         &self,
         template: &str,
@@ -153,6 +161,9 @@ impl MockComhairleMailer {
             .returning(|_, _, _, _| Ok(()));
         mailer
             .expect_send_conversation_broadcast_email()
+            .returning(|_, _, _| Ok(()));
+        mailer
+            .expect_send_permission_notification_email()
             .returning(|_, _, _| Ok(()));
         mailer
             .expect_preview_email()
@@ -560,6 +571,26 @@ impl ComhairleMailer for Mailer {
             subject,
             "conversation_broadcast.html",
             context! { subject, body => html_body },
+            None,
+        )
+    }
+
+    fn send_permission_notification_email(
+        &self,
+        email: &str,
+        permission: &ResourcePermission,
+        action: &str,
+    ) -> Result<(), ComhairleError> {
+        self.send_email(
+            email,
+            "Your Comhairle permissions have changed",
+            "resource_permission_notification.html",
+            context! {
+                role => permission.role_name,
+                resource_type => permission.resource_type,
+                resource_id => permission.resource_id,
+                action,
+            },
             None,
         )
     }

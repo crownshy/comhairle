@@ -156,7 +156,7 @@ const DEFAULT_COLUMNS: [ResourcePermissionIden; 9] = [
 ];
 
 /// Represents either a user or an organization for role assignment purposes.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum UserOrOrganizationId {
     User(Uuid),
     Org(Uuid),
