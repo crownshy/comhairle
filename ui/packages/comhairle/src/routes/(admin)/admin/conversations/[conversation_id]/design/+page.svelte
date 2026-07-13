@@ -246,16 +246,16 @@
 	<div bind:this={boardEl} class="min-h-0 flex-1 overflow-auto">
 		<div class="mx-auto flex w-full max-w-5xl flex-col gap-4 p-6">
 			<!-- Toolbar -->
-			<div class="flex shrink-0 items-center justify-between gap-2">
+			<div class="flex shrink-0 flex-col items-center justify-between gap-2 sm:flex-row">
 				<div class="flex flex-col">
-					<h1 class="text-2xl font-bold">Process steps</h1>
+					<h1 class="self-start text-2xl font-bold sm:self-auto">Process steps</h1>
 					<p class="text-muted-foreground text-sm">
 						Design and configure your engagement, one step at a time.
 					</p>
 				</div>
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger
-						class="border-primary text-primary flex h-8 shrink-0 items-center gap-2 rounded-full border px-3 text-xs font-medium shadow-sm"
+						class="bg-card border-primary text-primary flex h-8 shrink-0 items-center gap-2 self-end rounded-full border px-3 py-4 text-base font-medium shadow-sm sm:self-auto"
 					>
 						Template: {currentTemplateLabel}
 						<ChevronDown class="size-3" />
