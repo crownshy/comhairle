@@ -12,18 +12,15 @@
 	 * it emits the selected tool's `creationKey` and the parent creates the step and
 	 * closes the dialog.
 	 */
-	let {
-		open = $bindable(false),
-		adding = false,
-		onAdd
-	}: {
+	type Props = {
 		/** Two-way open state. */
 		open?: boolean;
 		/** Disables the confirm button while the parent is creating the step. */
 		adding?: boolean;
 		/** Called with the chosen tool's `creationKey` when the user confirms. */
 		onAdd: (creationKey: CreationKey) => void;
-	} = $props();
+	};
+	let { open = $bindable(false), adding = false, onAdd }: Props = $props();
 
 	let selectedType = $state<ToolType>(PALETTE_TOOLS[0].type);
 	const selected = $derived(
