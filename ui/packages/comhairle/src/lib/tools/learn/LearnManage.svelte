@@ -1,10 +1,23 @@
 <script lang="ts">
-	import type {
-		LocalizedPage,
-		WorkflowStepWithTranslations,
-		ConversationWithTranslations,
-		ComhairleDocument
+	import {
+		type LocalizedPage,
+		type WorkflowStepWithTranslations,
+		type ConversationWithTranslations,
+		type ComhairleDocument,
+		type ToolConfig
 	} from '@crownshy/api-client/api';
+	import { apiClient } from '@crownshy/api-client/client';
+	import { invalidateAll } from '$app/navigation';
+	import { notifications } from '$lib/notifications.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
+	import {
+		aiTranslateContent,
+		type TranslationStatus
+	} from '$lib/components/Translation/translationUtils';
+	import { Skeleton } from '$lib/components/ui/skeleton';
+	import DraggableList from '$lib/components/DraggableList.svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 
 	interface ExtendedLocalizedPage extends LocalizedPage {
 		lang: string;
@@ -14,21 +27,10 @@
 	type Props = {
 		conversationId: string;
 		conversation: ConversationWithTranslations;
-		workflowStep: WorkflowStepWithTranslations;
+		workflowStep: Omit<WorkflowStepWithTranslations, 'toolConfig'> &
+			Extract<ToolConfig, { type: 'learn' }>;
 		isLive: boolean;
 	};
-
-	import { apiClient } from '@crownshy/api-client/client';
-	import { invalidateAll } from '$app/navigation';
-	import { notifications } from '$lib/notifications.svelte';
-	import * as Select from '$lib/components/ui/select';
-	import { Button } from '$lib/components/ui/button';
-	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
-	import {
-		aiTranslateContent,
-		type TranslationStatus
-	} from '$lib/components/Translation/translationUtils';
-	import { Skeleton } from '$lib/components/ui/skeleton';
 
 	let { conversationId, conversation, workflowStep, isLive }: Props = $props();
 
@@ -37,13 +39,14 @@
 	let primaryLocale = $derived(conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(conversation.supportedLanguages ?? ['en']);
 
-	type LearnToolConfig = { type: 'learn'; pages: ExtendedLocalizedPage[][] };
+	type Pages = Record<number, ExtendedLocalizedPage[]>;
 
 	let sourceConfig = $derived(
-		(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig) as LearnToolConfig
+		(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig)
 	);
 
-	let pages = $state<ExtendedLocalizedPage[][]>([]);
+	// svelte-ignore non_reactive_update
+	let pages = new SvelteMap<keyof Pages, Pages[keyof Pages]>();
 	let hasLocalChanges = $state(false);
 
 	let lastPropsConfig = $state<string>('');
@@ -54,7 +57,7 @@
 		if (propsConfig !== lastPropsConfig && !hasLocalChanges) {
 			pages = structuredClone(sourceConfig?.pages ?? []);
 			lastPropsConfig = propsConfig;
-			if (isInitialLoad && pages.length > 0) {
+			if (isInitialLoad && pages.size > 0) {
 				isInitialLoad = false;
 			}
 		}
@@ -75,10 +78,10 @@
 		});
 	}
 
-	let currentPageIndex = $state(0);
+	let id = $state<number>(0);
 
 	function getTranslation(lang: string): ExtendedLocalizedPage | undefined {
-		return pages[currentPageIndex]?.find((p) => p.lang === lang);
+		return pages.get(id)?.find((p) => p.lang === lang);
 	}
 
 	let sourceContent = $derived.by(() => {
@@ -111,28 +114,66 @@
 	});
 
 	function deletePage() {
+		syncPage(() => {
+			pages.delete(id);
+		});
+	}
+
+	function syncPage(callback: () => void, options?: SaveToServerOptions) {
 		markLocalChanges();
-		pages = pages.filter((_: ExtendedLocalizedPage[], i: number) => i !== currentPageIndex);
-		currentPageIndex = Math.max(currentPageIndex - 1, 0);
-		saveToServer();
+		callback();
+		saveToServer(options);
 	}
 
 	function addPage() {
-		markLocalChanges();
-		const newPage: ExtendedLocalizedPage[] = [
-			{
-				lang: primaryLocale,
-				content: `# Page ${pages.length + 1}`,
-				type: 'markdown',
-				requires_validation: false
-			}
-		];
-		pages.push(newPage);
-		currentPageIndex = pages.length - 1;
-		saveToServer();
+		syncPage(() => {
+			const newId =
+				pages
+					.entries()
+					.drop(pages.size - 1)
+					.next().value?.[0] ?? 0;
+			const newPage: ExtendedLocalizedPage[] = [
+				{
+					lang: primaryLocale,
+					content: `# Page ${pages.size + 1}`,
+					type: 'markdown',
+					requires_validation: false
+				}
+			];
+			pages.set(newId, newPage);
+		});
 	}
 
-	async function saveToServer({ invalidate = true }: { invalidate?: boolean } = {}) {
+	function upsertPage(
+		lang: string,
+		options?: Partial<Pick<ExtendedLocalizedPage, 'content' | 'requires_validation'>>
+	) {
+		syncPage(() => {
+			const page = pages.get(id);
+			if (!page) return;
+			const existing = getTranslation(lang);
+			if (!existing) {
+				pages.set(
+					id,
+					page.concat([
+						{
+							lang,
+							type: 'markdown',
+							content: options?.content ?? '',
+							requires_validation: options?.requires_validation ?? false
+						}
+					])
+				);
+				return;
+			}
+			if (!!options?.content) {
+				existing.content = options.content;
+			}
+		});
+	}
+
+	type SaveToServerOptions = { invalidate?: boolean };
+	async function saveToServer({ invalidate = true }: SaveToServerOptions = {}) {
 		try {
 			const configToSave = getToolConfigForSave();
 			await apiClient.UpdateConversationWorkflowStep(
@@ -158,18 +199,25 @@
 		if (source) {
 			source.content = content;
 			source.type = 'markdown';
-		} else if (pages[currentPageIndex]) {
-			pages[currentPageIndex].push({
-				lang: primaryLocale,
-				type: 'markdown',
-				content,
-				requires_validation: false
-			});
+		} else if (!!pages.get(id)?.length) {
+			pages.set(id, [
+				{
+					lang: primaryLocale,
+					type: 'markdown',
+					content,
+					requires_validation: false
+				}
+			]);
 		}
-		for (const t of pages[currentPageIndex] ?? []) {
-			if (t.lang !== primaryLocale) t.requires_validation = true;
-		}
-		pages = [...pages];
+		pages.set(
+			id,
+			pages.get(id)?.map((p) => {
+				if (p.lang !== primaryLocale) {
+					p.requires_validation = true;
+				}
+				return p;
+			}) ?? []
+		);
 		saveToServer({ invalidate: false });
 	}
 
@@ -180,13 +228,16 @@
 			target.content = content;
 			target.type = 'markdown';
 			target.requires_validation = true;
-		} else if (pages[currentPageIndex]) {
-			pages[currentPageIndex].push({
-				lang,
-				type: 'markdown',
-				content,
-				requires_validation: true
-			});
+		} else if (!!pages.get(id)?.length) {
+			pages.set(
+				id,
+				pages.get(id).concat({
+					lang,
+					type: 'markdown',
+					content,
+					requires_validation: true
+				})
+			);
 		}
 		pages = [...pages];
 		saveToServer({ invalidate: false });
@@ -258,21 +309,11 @@
 				<Skeleton class="h-10 w-24" />
 				<Skeleton class="h-10 w-28" />
 			{:else}
-				<Select.Root
-					type="single"
-					value={currentPageIndex.toString()}
-					onValueChange={(value: string) => (currentPageIndex = parseInt(value))}
-				>
-					<Select.Trigger class="w-[180px] bg-white"
-						>Page {currentPageIndex + 1}</Select.Trigger
-					>
-					<Select.Content>
-						{#each pages as _, i}
-							<Select.Item value={i.toString()}>Page {i + 1}</Select.Item>
-						{/each}
-					</Select.Content>
-				</Select.Root>
-
+				<DraggableList items={pages}>
+					{#snippet children(_, i)}
+						<div>Page {i}</div>
+					{/snippet}
+				</DraggableList>
 				<Button class="rounded-md" onclick={addPage}>+ Add Page</Button>
 				<Button
 					variant="destructive"
@@ -314,7 +355,7 @@
 			editorType="rich"
 			minHeight="300px"
 			dialogMinHeight="250px"
-			dialogTitle="Translate: Page {currentPageIndex + 1}"
+			dialogTitle="Translate: Page {id + 1}"
 			initialContents={pageContents}
 			initialStatuses={pageStatuses}
 			{availableDocuments}

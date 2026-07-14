@@ -37,11 +37,10 @@
 	});
 
 	let conversation = $derived(data.conversation);
-	let step_id = $derived(data.step_id);
 	let workflow = $derived(data.workflows[0]);
 	let workflowSteps = $derived(data.workflowSteps);
 
-	let step = $derived(workflowSteps.find((s) => s.id === step_id));
+	let step = $derived(workflowSteps.find((s) => s.id === data.step_id));
 	let toolConfig = $derived(
 		step ? (conversation.isLive ? step.toolConfig : step.previewToolConfig) : null
 	);
@@ -84,84 +83,86 @@
 	<SubTabStrip items={subtabItems} defaultValue="configure" />
 {/snippet}
 
-{#if step && subtab === 'configure'}
-	<CommonStepConfig conversation_id={conversation.id} {conversation} {step} inline />
-{/if}
+{#if !step}
+	<p>Could not find step! Please try again</p>
+{:else}
+	{#if subtab === 'configure'}
+		<CommonStepConfig conversation_id={conversation.id} {conversation} {step} inline />
+	{/if}
+	{#if subtab === 'setup' && toolConfig?.type === 'learn'}
+		<LearnManage
+			conversationId={conversation.id}
+			{conversation}
+			isLive={conversation.isLive}
+			workflowStep={step}
+		/>
+	{/if}
+	{#if subtab === 'setup' && toolConfig?.type === 'polis'}
+		<PolisManage
+			{toolConfig}
+			conversationId={conversation.id}
+			workflowId={workflow.id}
+			workflowStepId={step.id}
+			isLive={conversation.isLive}
+		/>
+	{:else if isPolis && subtab === 'moderation'}
+		<PolisModeration workflowStepId={step.id} statements={data.statementAux ?? []} />
+	{:else if isPolis && subtab === 'insights'}
+		<PolisInsights
+			workflowStepId={step.id}
+			reportData={data.reportData ?? null}
+			statementAux={data.statementAux ?? []}
+		/>
+	{/if}
 
-{#if step && subtab === 'setup' && toolConfig?.type === 'learn'}
-	<LearnManage
-		conversationId={conversation.id}
-		{conversation}
-		isLive={conversation.isLive}
-		workflowStep={step}
-	/>
-{/if}
+	{#if subtab === 'setup' && toolConfig?.type === 'heyform'}
+		<HeyFormManage
+			conversation_id={conversation.id}
+			workflow_id={step.workflowId}
+			workflow_step_id={step.id}
+			survey_url={toolConfig.server_url}
+			survey_id={toolConfig.survey_id}
+			admin_user={toolConfig.admin_user}
+			admin_password={toolConfig.admin_password}
+			workspace_id={toolConfig.workspace_id}
+			project_id={toolConfig.project_id}
+		/>
+	{/if}
 
-{#if subtab === 'setup' && toolConfig?.type === 'polis'}
-	<PolisManage
-		{toolConfig}
-		conversationId={conversation.id}
-		workflowId={workflow.id}
-		workflowStepId={step.id}
-		isLive={conversation.isLive}
-	/>
-{:else if step && isPolis && subtab === 'moderation'}
-	<PolisModeration workflowStepId={step.id} statements={data.statementAux ?? []} />
-{:else if step && isPolis && subtab === 'insights'}
-	<PolisInsights
-		workflowStepId={step.id}
-		reportData={data.reportData ?? null}
-		statementAux={data.statementAux ?? []}
-	/>
-{/if}
+	{#if subtab === 'setup' && toolConfig?.type === 'stories'}
+		<LivedExperienceManage />
+	{/if}
 
-{#if subtab === 'setup' && toolConfig?.type === 'heyform'}
-	<HeyFormManage
-		conversation_id={conversation.id}
-		workflow_id={step.workflowId}
-		workflow_step_id={step.id}
-		survey_url={toolConfig.server_url}
-		survey_id={toolConfig.survey_id}
-		admin_user={toolConfig.admin_user}
-		admin_password={toolConfig.admin_password}
-		workspace_id={toolConfig.workspace_id}
-		project_id={toolConfig.project_id}
-	/>
-{/if}
-
-{#if subtab === 'setup' && toolConfig?.type === 'stories'}
-	<LivedExperienceManage />
-{/if}
-
-{#if step && subtab === 'setup' && toolConfig?.type === 'thinkingspace'}
-	<ThinkingSpaceManage
-		conversationId={conversation.id}
-		workflowId={step.workflowId}
-		workflowStep={step}
-		isLive={conversation.isLive}
-	/>
-{/if}
-
-{#if step && subtab === 'setup' && toolConfig?.type === 'elicitationbot'}
-	<ElicitationBotManage
-		conversationId={conversation.id}
-		workflowId={step.workflowId}
-		workflowStep={step}
-		isLive={conversation.isLive}
-	/>
-{/if}
-
-{#if step && subtab === 'setup' && toolConfig?.type === Prioritization.TOOL_NAME}
-	{#key step.id}
-		<Prioritization.ManageUI
+	{#if subtab === 'setup' && toolConfig?.type === 'thinkingspace'}
+		<ThinkingSpaceManage
 			conversationId={conversation.id}
 			workflowId={step.workflowId}
 			workflowStep={step}
-			conversation={{
-				primaryLocale: conversation.primaryLocale,
-				isLive: conversation.isLive,
-				supportedLanguages: conversation.supportedLanguages
-			}}
+			isLive={conversation.isLive}
 		/>
-	{/key}
+	{/if}
+
+	{#if subtab === 'setup' && toolConfig?.type === 'elicitationbot'}
+		<ElicitationBotManage
+			conversationId={conversation.id}
+			workflowId={step.workflowId}
+			workflowStep={step}
+			isLive={conversation.isLive}
+		/>
+	{/if}
+
+	{#if subtab === 'setup' && toolConfig?.type === Prioritization.TOOL_NAME}
+		{#key step.id}
+			<Prioritization.ManageUI
+				conversationId={conversation.id}
+				workflowId={step.workflowId}
+				workflowStep={step}
+				conversation={{
+					primaryLocale: conversation.primaryLocale,
+					isLive: conversation.isLive,
+					supportedLanguages: conversation.supportedLanguages
+				}}
+			/>
+		{/key}
+	{/if}
 {/if}
