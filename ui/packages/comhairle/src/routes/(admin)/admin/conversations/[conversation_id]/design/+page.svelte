@@ -264,7 +264,7 @@
 					class="border-border text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-12 text-center"
 				>
 					<p class="text-sm">No steps yet. Add your first step to get started.</p>
-					<Button onclick={() => addStepDialog.request()}>
+					<Button onclick={() => (addStepDialog.open = true)}>
 						<Plus class="size-4" />
 						Add step
 					</Button>
@@ -365,7 +365,7 @@
 				</DraggableList>
 
 				<div>
-					<Button variant="outline" onclick={() => addStepDialog.request()}>
+					<Button variant="outline" onclick={() => (addStepDialog.open = true)}>
 						<Plus class="size-4" />
 						Add step
 					</Button>

@@ -20,7 +20,6 @@
 	let workflow = $derived(data.workflows[0]);
 	let workflowSteps = $derived(data.workflowSteps ?? []);
 
-	let addStepModalOpen = $state(false);
 	let adding = $state(false);
 
 	const tabExtras = getContext<ConversationTabExtras>(CONVERSATION_TAB_EXTRAS_CTX);
@@ -36,18 +35,8 @@
 	// Deep link: /design?addStep=true opens the dialog, then drops the query param.
 	$effect(() => {
 		if (page.url.searchParams.get('addStep') === 'true') {
-			addStepModalOpen = true;
+			addStepDialog.open = true;
 			goto(page.url.pathname, { replaceState: true });
-		}
-	});
-
-	// Cross-component opener: the board's empty-state / footer button asks the layout
-	// to open the dialog by bumping the shared request counter.
-	let seenRequestCount = addStepDialog.requestCount;
-	$effect(() => {
-		if (addStepDialog.requestCount !== seenRequestCount) {
-			seenRequestCount = addStepDialog.requestCount;
-			addStepModalOpen = true;
 		}
 	});
 
@@ -65,7 +54,7 @@
 			await invalidate('conversation:workflow');
 			notifications.send({ priority: 'INFO', message: 'Step added' });
 			newStepHighlight.flag(created.id);
-			addStepModalOpen = false;
+			addStepDialog.open = false;
 		} catch (e) {
 			console.error(e);
 			notifications.send({ priority: 'ERROR', message: 'Failed to create step' });
@@ -79,10 +68,10 @@
 	<WorkflowStepStrip
 		conversationId={conversation.id}
 		steps={workflowSteps}
-		onAddStep={() => (addStepModalOpen = true)}
+		onAddStep={() => (addStepDialog.open = true)}
 	/>
 {/snippet}
 
-<AddStepDialog bind:open={addStepModalOpen} {adding} onAdd={addStep} />
+<AddStepDialog bind:open={addStepDialog.open} {adding} onAdd={addStep} />
 
 {@render children()}
