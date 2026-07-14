@@ -785,7 +785,13 @@ async fn moderate_statement_aux_batch(
 
     // Load every target row up front: this validates the ids and gives us the
     // polis_statement_ids to forward, without a DB round-trip per row.
-    let rows = models::polis_statement_aux::get_by_ids(&state.db, &request.ids).await?;
+    let rows = models::polis_statement_aux::list(
+        &state.db,
+        None,
+        None,
+        PolisStatementAuxFilterOptions::by_ids(request.ids.clone()),
+    )
+    .await?;
     if rows.len() != request.ids.len() {
         return Err(ComhairleError::BadRequest(
             "one or more statement ids do not exist".into(),
@@ -846,10 +852,13 @@ async fn moderate_statement_aux_batch(
     }
 
     // Persist moderation_status for the rows Polis accepted, in one statement.
-    let succeeded = models::polis_statement_aux::update_moderation_status_many(
+    let succeeded = models::polis_statement_aux::update_many(
         &state.db,
         &succeeded_ids,
-        status,
+        &UpdatePolisStatementAux {
+            moderation_status: Some(status),
+            ..Default::default()
+        },
     )
     .await?;
 

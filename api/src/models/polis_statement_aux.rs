@@ -192,7 +192,7 @@ pub async fn upsert_from_polis(
     Ok(aux)
 }
 
-#[derive(Deserialize, Debug, JsonSchema)]
+#[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct UpdatePolisStatementAux {
     pub statement_text: Option<String>,
     pub moderation_status: Option<ModerationStatus>,
@@ -201,38 +201,49 @@ pub struct UpdatePolisStatementAux {
     pub moderation_reason: Option<String>,
 }
 
+impl UpdatePolisStatementAux {
+    /// The `(column, value)` pairs for the fields that are `Some`. Shared by the
+    /// single-row `update` and the bulk `update_many` so both apply the same
+    /// partial-update semantics.
+    fn changed_columns(&self) -> Vec<(PolisStatementAuxIden, SimpleExpr)> {
+        let mut values: Vec<(PolisStatementAuxIden, SimpleExpr)> = vec![];
+
+        if let Some(text) = &self.statement_text {
+            values.push((PolisStatementAuxIden::StatementText, text.clone().into()));
+        }
+        if let Some(status) = &self.moderation_status {
+            values.push((
+                PolisStatementAuxIden::ModerationStatus,
+                status.clone().into(),
+            ));
+        }
+        if let Some(themes) = &self.themes {
+            values.push((PolisStatementAuxIden::Themes, themes.clone().into()));
+        }
+        if let Some(visible) = &self.visible_statement_when_submitted {
+            values.push((
+                PolisStatementAuxIden::VisibleStatementWhenSubmitted,
+                visible.clone().into(),
+            ));
+        }
+        if let Some(reason) = &self.moderation_reason {
+            values.push((
+                PolisStatementAuxIden::ModerationReason,
+                reason.clone().into(),
+            ));
+        }
+
+        values
+    }
+}
+
 #[instrument(err(Debug))]
 pub async fn update(
     db: &PgPool,
     id: Uuid,
     update_aux: &UpdatePolisStatementAux,
 ) -> Result<PolisStatementAux, ComhairleError> {
-    let mut values: Vec<(PolisStatementAuxIden, SimpleExpr)> = vec![];
-
-    if let Some(text) = &update_aux.statement_text {
-        values.push((PolisStatementAuxIden::StatementText, text.clone().into()));
-    }
-    if let Some(status) = &update_aux.moderation_status {
-        values.push((
-            PolisStatementAuxIden::ModerationStatus,
-            status.clone().into(),
-        ));
-    }
-    if let Some(themes) = &update_aux.themes {
-        values.push((PolisStatementAuxIden::Themes, themes.clone().into()));
-    }
-    if let Some(visible) = &update_aux.visible_statement_when_submitted {
-        values.push((
-            PolisStatementAuxIden::VisibleStatementWhenSubmitted,
-            visible.clone().into(),
-        ));
-    }
-    if let Some(reason) = &update_aux.moderation_reason {
-        values.push((
-            PolisStatementAuxIden::ModerationReason,
-            reason.clone().into(),
-        ));
-    }
+    let values = update_aux.changed_columns();
 
     let (sql, values) = Query::update()
         .table(PolisStatementAuxIden::Table)
@@ -262,47 +273,23 @@ pub async fn get_by_id(db: &PgPool, id: &Uuid) -> Result<PolisStatementAux, Comh
     Ok(aux)
 }
 
-/// Fetch many rows by id in a single query. Returns whatever ids exist (order is
-/// unspecified); the caller compares the count to detect missing ids.
+/// Bulk partial-update many rows in one statement, returning the updated rows.
+/// Applies the same field semantics as [`update`]: only the `Some` fields of
+/// `update_aux` are written. Used by batch moderation once the decisions have
+/// been forwarded to Polis. An empty id slice is a no-op.
 #[instrument(err(Debug))]
-pub async fn get_by_ids(
+pub async fn update_many(
     db: &PgPool,
     ids: &[Uuid],
+    update_aux: &UpdatePolisStatementAux,
 ) -> Result<Vec<PolisStatementAux>, ComhairleError> {
     if ids.is_empty() {
         return Ok(vec![]);
     }
-
-    let (sql, values) = Query::select()
-        .from(PolisStatementAuxIden::Table)
-        .columns(DEFAULT_COLUMNS)
-        .and_where(Expr::col(PolisStatementAuxIden::Id).is_in(ids.iter().copied()))
-        .build_sqlx(PostgresQueryBuilder);
-
-    let aux = query_as_with(&sql, values).fetch_all(db).await?;
-
-    Ok(aux)
-}
-
-/// Bulk-set `moderation_status` for many rows in one statement, returning the
-/// updated rows. Used by batch moderation once the decisions have been forwarded
-/// to Polis. An empty id slice is a no-op.
-#[instrument(err(Debug))]
-pub async fn update_moderation_status_many(
-    db: &PgPool,
-    ids: &[Uuid],
-    status: ModerationStatus,
-) -> Result<Vec<PolisStatementAux>, ComhairleError> {
-    if ids.is_empty() {
-        return Ok(vec![]);
-    }
-
-    let values: Vec<(PolisStatementAuxIden, SimpleExpr)> =
-        vec![(PolisStatementAuxIden::ModerationStatus, status.into())];
 
     let (sql, values) = Query::update()
         .table(PolisStatementAuxIden::Table)
-        .values(values)
+        .values(update_aux.changed_columns())
         .and_where(Expr::col(PolisStatementAuxIden::Id).is_in(ids.iter().copied()))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
@@ -314,12 +301,30 @@ pub async fn update_moderation_status_many(
 
 #[derive(Deserialize, Debug, JsonSchema, Default)]
 pub struct PolisStatementAuxFilterOptions {
+    ids: Option<Vec<Uuid>>,
     user_id: Option<Uuid>,
     polis_statement_id: Option<i32>,
 }
 
 impl PolisStatementAuxFilterOptions {
+    /// Restrict a `list` to a known set of ids. Used for batch lookups where the
+    /// caller already holds the ids (e.g. batch moderation validating a selection).
+    pub fn by_ids(ids: Vec<Uuid>) -> Self {
+        Self {
+            ids: Some(ids),
+            ..Default::default()
+        }
+    }
+
     fn apply(&self, mut query: SelectStatement) -> SelectStatement {
+        if let Some(ids) = &self.ids {
+            query = query
+                .and_where(
+                    Expr::col((PolisStatementAuxIden::Table, PolisStatementAuxIden::Id))
+                        .is_in(ids.iter().copied()),
+                )
+                .to_owned();
+        }
         if let Some(value) = self.user_id {
             query = query
                 .and_where(
