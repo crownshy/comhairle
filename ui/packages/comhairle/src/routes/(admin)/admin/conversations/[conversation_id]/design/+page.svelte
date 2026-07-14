@@ -22,7 +22,8 @@
 		ArrowDown,
 		MoreVertical,
 		Plus,
-		LoaderCircle
+		LoaderCircle,
+		GripVertical
 	} from 'lucide-svelte';
 
 	let { data } = $props();
@@ -42,8 +43,6 @@
 	let editingId = $state<string | null>(null);
 	let editValue = $state('');
 	let boardEl = $state<HTMLDivElement | null>(null);
-	// The freshly-added step to flash a highlight ring on.
-	let highlightId = $state<string | null>(null);
 
 	function stepUrl(step: WorkflowStepWithTranslations): string {
 		return `/admin/conversations/${conversation.id}/design/step/${step.id}`;
@@ -202,23 +201,18 @@
 		}
 	}
 
-	// --- Highlight a step just created via the AddStepDialog (owned by the layout) ---
+	// --- Scroll a step just created via the AddStepDialog into view (dialog owned by the layout) ---
 	$effect(() => {
 		const pending = newStepHighlight.id;
 		if (!pending) return;
 		// Wait until the invalidated steps actually include the new one.
 		if (!reorderedSteps.some((s) => s.id === pending)) return;
-		highlightId = pending;
 		newStepHighlight.clear();
 		tick().then(() => {
 			boardEl
 				?.querySelector(`[data-step-id="${pending}"]`)
 				?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		});
-		const timer = setTimeout(() => {
-			if (highlightId === pending) highlightId = null;
-		}, 2200);
-		return () => clearTimeout(timer);
 	});
 
 	let pageTitle = $derived(`Design ${conversation.title}`);
@@ -231,7 +225,7 @@
 <!-- Full-bleed surface; the design tab has no page padding. overflow-hidden makes this
 	 an independent scroll boundary so the list can't push the sidebar-inset past the
 	 viewport. Only the inner column scrolls. -->
-<div class="bg-muted flex min-h-0 w-full flex-1 overflow-hidden">
+<div class="bg-muted flex min-h-0 w-full flex-1 overflow-hidden px-2">
 	<div bind:this={boardEl} class="min-h-0 flex-1 overflow-auto">
 		<div class="mx-auto flex w-full max-w-5xl flex-col gap-4 py-6">
 			<!-- Toolbar -->
@@ -244,7 +238,7 @@
 				</div>
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger
-						class="bg-card border-primary text-primary flex h-8 shrink-0 items-center gap-2 self-end rounded-full border px-3 py-4 text-base font-medium shadow-sm sm:self-auto"
+						class="bg-card border-primary text-primary flex h-8 shrink-0 items-center gap-2 self-end rounded-full border px-3 py-4 text-sm font-medium shadow-sm sm:self-auto"
 					>
 						Template: {currentTemplateLabel}
 						<ChevronDown class="size-3" />
@@ -261,7 +255,7 @@
 
 			{#if reorderedSteps.length === 0}
 				<div
-					class="border-border text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-12 text-center"
+					class="border-border bg-card text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-12 text-center"
 				>
 					<p class="text-sm">No steps yet. Add your first step to get started.</p>
 					<Button onclick={() => (addStepDialog.open = true)}>
@@ -287,11 +281,15 @@
 						     its clicks win. Pointer cursor + hover lift read as clickable. -->
 						<div
 							data-step-id={step.id}
-							class="bg-card group hover:border-primary/50 border-border relative flex cursor-pointer items-center gap-4 rounded-xl border p-4 transition-all hover:shadow-md {highlightId ===
-							step.id
-								? 'ring-primary ring-2 ring-offset-2'
-								: ''}"
+							class="bg-card group hover:border-primary/50 border-border relative flex cursor-pointer items-center gap-4 rounded-xl border p-4 transition-all hover:shadow-md"
 						>
+							<!-- Drag handle. The whole card is draggable; this grip is the
+							     affordance that signals it. Sits above the stretched link. -->
+							<GripVertical
+								class="text-muted-foreground group-hover:text-foreground relative z-10 size-5 shrink-0 cursor-grab transition-colors"
+								aria-hidden="true"
+							/>
+
 							<div
 								class="bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-lg text-sm font-bold"
 							>
@@ -314,7 +312,7 @@
 								{:else}
 									<a
 										href={stepUrl(step)}
-										class="text-foreground group-hover:text-primary truncate text-base font-medium transition-colors after:absolute after:inset-0 after:content-['']"
+										class="text-foreground group-hover:text-primary truncate text-base font-medium transition-colors outline-none after:absolute after:inset-0 after:content-['']"
 									>
 										{step.name}
 									</a>
