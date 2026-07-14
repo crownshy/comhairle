@@ -3,8 +3,8 @@
 	import GuideArticle from '$lib/components/GuideArticle.svelte';
 	import { TOOL_GUIDES } from '$lib/tool_guides';
 
-	let key = $derived(page.url.pathname.split('/').filter(Boolean).pop() ?? '');
-	let guide = $derived(TOOL_GUIDES[key]);
+	// The tool's key is the `[tool_id]` route param, which matches the TOOL_GUIDES keys.
+	let guide = $derived(TOOL_GUIDES[page.params.tool_id ?? '']);
 </script>
 
 <svelte:head>
