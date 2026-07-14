@@ -99,14 +99,12 @@ impl ExtractResourceId for SystemResource {
 
 /// A trait for extracting owner_id for a resource if available
 pub trait OwnedResource {
-    fn owner_id(&self) -> Option<Uuid>;
-}
-
-impl OwnedResource for SystemResource {
     fn owner_id(&self) -> Option<Uuid> {
         None
     }
 }
+
+impl OwnedResource for SystemResource {}
 
 impl ExtractResourceId for ConversationResource {
     fn resource_id(&self) -> Uuid {

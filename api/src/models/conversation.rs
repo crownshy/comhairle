@@ -43,7 +43,7 @@ pub enum IdOrSlug {
 
 #[derive(Partial, Debug, Deserialize, Serialize, FromRow, Clone, JsonSchema, Translatable)]
 #[enum_def(table_name = "conversation")]
-#[partially(derive(Deserialize, Debug, JsonSchema, Default))]
+#[partially(derive(Serialize, Deserialize, Debug, JsonSchema, Default))]
 pub struct Conversation {
     #[partially(omit)]
     pub id: Uuid,

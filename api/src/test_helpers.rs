@@ -134,7 +134,10 @@ pub fn test_state(
 
 pub fn test_config() -> Result<ComhairleConfig, Box<dyn Error>> {
     let mut config = crate::config::load()?;
-    config.admin_users = Some(vec!["admin@crown-shy.com".into()]);
+    config.admin_users = Some(vec![
+        "admin@crown-shy.com".into(),
+        "test@crown-shy.com".into(),
+    ]);
     config.enable_rate_limiting = false; // Disable rate limiting for tests by default
     Ok(config)
 }
