@@ -8,7 +8,7 @@
 	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
 	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
 	import WorkflowStepStrip from '$lib/components/WorkflowStepStrip.svelte';
-	import AddStepDialog from '$lib/components/AddStepDialog.svelte';
+	import AddStepDialog from './AddStepDialog.svelte';
 	import {
 		CONVERSATION_TAB_EXTRAS_CTX,
 		type ConversationTabExtras

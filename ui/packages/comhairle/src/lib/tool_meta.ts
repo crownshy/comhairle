@@ -46,8 +46,8 @@ export type ToolMeta = {
 	tagline: string;
 	/** Icon shown on cards and the palette. */
 	icon: typeof Icon;
-	/** Route key under /admin/info/tools/<infoKey>. */
-	infoKey: string;
+	/** Route slug under /admin/info/tools/<infoSlug>. */
+	infoSlug: string;
 	/** Key passed to the add-step switch (see {@link import('./createWorkflowStep').createWorkflowStep}). */
 	creationKey: CreationKey;
 	/**
@@ -84,7 +84,7 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		tagline:
 			'Present participants with information to help them learn about the topic at hand.',
 		icon: BookOpen,
-		infoKey: 'learn',
+		infoSlug: 'learn',
 		creationKey: 'Learn',
 		estimatedMinutes: 10,
 		description:
@@ -102,7 +102,7 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		tagline:
 			'Help participants explore their views by asking them non-leading coaching questions that broaden and deepen their views.',
 		icon: Bot,
-		infoKey: 'thinking_space',
+		infoSlug: 'thinking_space',
 		creationKey: 'Thinking Space',
 		estimatedMinutes: 12,
 		// PLACEHOLDER copy — needs product/design review.
@@ -124,7 +124,7 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		tagline:
 			"Show participants others' views and vote 'Agree' 'Disagree' or 'Pass' if unable to decide. Participants can also make their own views for others to vote on.",
 		icon: MessagesSquare,
-		infoKey: 'polis',
+		infoSlug: 'polis',
 		creationKey: 'Polis',
 		estimatedMinutes: 12,
 		// PLACEHOLDER copy — needs product/design review.
@@ -145,7 +145,7 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		displayName: 'Survey',
 		tagline: 'Ask participants a series of pre-planned questions.',
 		icon: ListChecks,
-		infoKey: 'heyform',
+		infoSlug: 'heyform',
 		creationKey: 'Survey',
 		estimatedMinutes: 9,
 		// PLACEHOLDER copy — needs product/design review.
@@ -161,7 +161,7 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		tagline:
 			'Collect a set of proposals and have participants score each one against a shared set of questions.',
 		icon: ListOrdered,
-		infoKey: 'prioritization',
+		infoSlug: 'prioritization',
 		creationKey: 'Prioritization',
 		estimatedMinutes: 10,
 		// PLACEHOLDER copy — needs product/design review.
@@ -177,7 +177,7 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		tagline:
 			'Help participants refine and capture their views through an AI bot mediated interaction.',
 		icon: Bot,
-		infoKey: 'elicitation_bot',
+		infoSlug: 'elicitation_bot',
 		creationKey: 'Elicitation Bot',
 		estimatedMinutes: 10,
 		// PLACEHOLDER copy — needs product/design review.
@@ -195,7 +195,7 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		displayName: 'Lived Experience',
 		tagline: 'Let users record short videos of their lived experience.',
 		icon: Video,
-		infoKey: 'lived_experience',
+		infoSlug: 'lived_experience',
 		creationKey: 'Lived Experience',
 		estimatedMinutes: 8,
 		// PLACEHOLDER copy — needs product/design review.
@@ -231,7 +231,7 @@ export function toolMeta(type: string | undefined | null): ToolMeta | undefined 
 
 export function toolInfoUrl(type: string | undefined | null): string {
 	const meta = toolMeta(type);
-	return meta ? `/admin/info/tools/${meta.infoKey}` : '/admin/info/tools';
+	return meta ? `/admin/info/tools/${meta.infoSlug}` : '/admin/info/tools';
 }
 
 /**
