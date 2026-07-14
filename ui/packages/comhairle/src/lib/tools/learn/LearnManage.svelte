@@ -81,6 +81,40 @@
 		return pages[currentPageIndex]?.find((p) => p.lang === lang);
 	}
 
+	/**
+	 * Insert or update the `lang` translation on the current page.
+	 *
+	 * Finds the existing entry and mutates it in place, or appends a new one if
+	 * none exists yet. `pages` is `$state`, so the in-place mutation is reactive on
+	 * its own; no reassignment is needed. Does nothing if the current page is absent.
+	 *
+	 * @param lang - locale of the translation to upsert
+	 * @param fields - `content` to set, and `requiresValidation` for the entry. On
+	 *   update, an omitted field is left untouched; on insert it defaults (empty
+	 *   content, `requires_validation: false`).
+	 */
+	function upsertTranslation(
+		lang: string,
+		fields: { content?: string; requiresValidation?: boolean }
+	) {
+		const page = pages[currentPageIndex];
+		if (!page) return;
+		const existing = getTranslation(lang);
+		if (existing) {
+			if (fields.content !== undefined) existing.content = fields.content;
+			existing.type = 'markdown';
+			if (fields.requiresValidation !== undefined)
+				existing.requires_validation = fields.requiresValidation;
+		} else {
+			page.push({
+				lang,
+				type: 'markdown',
+				content: fields.content ?? '',
+				requires_validation: fields.requiresValidation ?? false
+			});
+		}
+	}
+
 	let sourceContent = $derived.by(() => {
 		const source = getTranslation(primaryLocale);
 		return source?.content ?? '';
@@ -154,41 +188,17 @@
 
 	function handleSaveSource(content: string) {
 		markLocalChanges();
-		const source = getTranslation(primaryLocale);
-		if (source) {
-			source.content = content;
-			source.type = 'markdown';
-		} else if (pages[currentPageIndex]) {
-			pages[currentPageIndex].push({
-				lang: primaryLocale,
-				type: 'markdown',
-				content,
-				requires_validation: false
-			});
-		}
+		upsertTranslation(primaryLocale, { content });
+		// Editing the source text invalidates every existing translation of this page.
 		for (const t of pages[currentPageIndex] ?? []) {
 			if (t.lang !== primaryLocale) t.requires_validation = true;
 		}
-		pages = [...pages];
 		saveToServer({ invalidate: false });
 	}
 
 	function handleSaveTarget(lang: string, content: string) {
 		markLocalChanges();
-		const target = getTranslation(lang);
-		if (target) {
-			target.content = content;
-			target.type = 'markdown';
-			target.requires_validation = true;
-		} else if (pages[currentPageIndex]) {
-			pages[currentPageIndex].push({
-				lang,
-				type: 'markdown',
-				content,
-				requires_validation: true
-			});
-		}
-		pages = [...pages];
+		upsertTranslation(lang, { content, requiresValidation: true });
 		saveToServer({ invalidate: false });
 	}
 
@@ -197,19 +207,7 @@
 		sContent: string
 	): Promise<{ content: string; requiresValidation: boolean }> {
 		const translatedContent = await aiTranslateContent(sContent, targetLang, primaryLocale);
-		let t = getTranslation(targetLang);
-		if (t) {
-			t.content = translatedContent;
-			t.requires_validation = true;
-		} else {
-			pages[currentPageIndex].push({
-				lang: targetLang,
-				type: 'markdown',
-				content: translatedContent,
-				requires_validation: true
-			});
-		}
-		pages = [...pages];
+		upsertTranslation(targetLang, { content: translatedContent, requiresValidation: true });
 		await saveToServer({ invalidate: false });
 		return { content: translatedContent, requiresValidation: true };
 	}
@@ -219,7 +217,6 @@
 		if (!t) return;
 		markLocalChanges();
 		t.requires_validation = false;
-		pages = [...pages];
 		await saveToServer({ invalidate: false });
 	}
 
@@ -228,7 +225,6 @@
 		if (!t) return;
 		markLocalChanges();
 		t.requires_validation = true;
-		pages = [...pages];
 		await saveToServer({ invalidate: false });
 	}
 
