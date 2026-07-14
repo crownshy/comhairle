@@ -1378,7 +1378,7 @@ mod tests {
         );
         assert!(
             !users_with_permission.iter().any(|u| u.id == user_c_id),
-            "user_b incorrectly included"
+            "user_c incorrectly included"
         );
         assert!(
             users_with_permission
