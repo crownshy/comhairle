@@ -1,5 +1,6 @@
 import type { LocalizedConversationDto } from '@crownshy/api-client/api';
 import { apiClient } from '@crownshy/api-client/client';
+import type { CreationKey } from './tool_meta';
 import {
 	basic_learn_config,
 	basic_polis_config,
@@ -26,8 +27,10 @@ type ConversationRef = { id: string };
  * @param creationKey - e.g. `'Polis'`, `'Learn'`, `'Elicitation Bot'`.
  * @param conversation - needed because the elicitation-bot config is conversation-scoped.
  */
-export function toolSetupForCreationKey(creationKey: string, conversation: ConversationRef) {
-	return {
+export function toolSetupForCreationKey(creationKey: CreationKey, conversation: ConversationRef) {
+	// `satisfies Record<CreationKey, ...>` makes this lookup exhaustive: adding a new
+	// CreationKey without a config here is a compile error.
+	const configByCreationKey = {
 		Polis: basic_polis_config,
 		Learn: basic_learn_config,
 		Survey: basic_survey_config,
@@ -37,7 +40,8 @@ export function toolSetupForCreationKey(creationKey: string, conversation: Conve
 		'Elicitation Bot': basic_elicitation_bot_config(conversation as LocalizedConversationDto),
 		'Thinking Space': basic_thinking_space_config(),
 		Prioritization: basic_prioritization_config
-	}[creationKey];
+	} satisfies Record<CreationKey, unknown>;
+	return configByCreationKey[creationKey];
 }
 
 /**
@@ -57,7 +61,7 @@ export function nextStepOrder(existingSteps: { stepOrder: number }[]): number {
 export async function createWorkflowStep(params: {
 	conversation: ConversationRef;
 	workflowId: string;
-	creationKey: string;
+	creationKey: CreationKey;
 	existingSteps: { stepOrder: number }[];
 }): Promise<Awaited<ReturnType<typeof apiClient.CreateConversationWorkflowStep>> | undefined> {
 	const { conversation, workflowId, creationKey, existingSteps } = params;

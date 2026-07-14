@@ -4,6 +4,7 @@
 	import { getContext } from 'svelte';
 	import { notifications } from '$lib/notifications.svelte.js';
 	import { createWorkflowStep } from '$lib/createWorkflowStep';
+	import type { CreationKey } from '$lib/tool_meta';
 	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
 	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
 	import WorkflowStepStrip from '$lib/components/WorkflowStepStrip.svelte';
@@ -50,7 +51,7 @@
 		}
 	});
 
-	async function addStep(creationKey: string) {
+	async function addStep(creationKey: CreationKey) {
 		if (adding) return;
 		adding = true;
 		try {

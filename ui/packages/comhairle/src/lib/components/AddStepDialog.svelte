@@ -2,7 +2,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import SelectableOptionRow from '$lib/components/SelectableOptionRow.svelte';
-	import { PALETTE_TOOLS, toolInfoUrl, type ToolType } from '$lib/tool_meta';
+	import { PALETTE_TOOLS, toolInfoUrl, type ToolType, type CreationKey } from '$lib/tool_meta';
 	import { BookOpen, ExternalLink, Check } from 'lucide-svelte';
 
 	/**
@@ -22,7 +22,7 @@
 		/** Disables the confirm button while the parent is creating the step. */
 		adding?: boolean;
 		/** Called with the chosen tool's `creationKey` when the user confirms. */
-		onAdd: (creationKey: string) => void;
+		onAdd: (creationKey: CreationKey) => void;
 	} = $props();
 
 	let selectedType = $state<ToolType>(PALETTE_TOOLS[0].type);

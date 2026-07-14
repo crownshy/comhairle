@@ -21,6 +21,22 @@ export type ToolType =
 	| 'thinkingspace'
 	| 'prioritization';
 
+/**
+ * PascalCase key that seeds a new step's starter config and default name.
+ * Distinct from both {@link ToolType} (the machine discriminant, e.g. `heyform`) and
+ * `displayName` (the verbose Figma label, e.g. `Survey`). Consumed by the switches in
+ * {@link import('./createWorkflowStep').toolSetupForCreationKey} and
+ * `defaultStepCreationParams`; typing it keeps those lookups exhaustive.
+ */
+export type CreationKey =
+	| 'Learn'
+	| 'Thinking Space'
+	| 'Polis'
+	| 'Survey'
+	| 'Prioritization'
+	| 'Elicitation Bot'
+	| 'Lived Experience';
+
 export type ToolMeta = {
 	/** ToolConfig discriminant. */
 	type: ToolType;
@@ -33,7 +49,7 @@ export type ToolMeta = {
 	/** Route key under /admin/info/tools/<infoKey>. */
 	infoKey: string;
 	/** Key passed to the add-step switch (see {@link import('./createWorkflowStep').createWorkflowStep}). */
-	creationKey: string;
+	creationKey: CreationKey;
 	/**
 	 * Hardcoded typical duration in minutes shown on the "Estimated time" pill.
 	 * Placeholder until a real per-step `estimated_minutes` column lands (see CONTEXT.md).
