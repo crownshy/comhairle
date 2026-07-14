@@ -30,7 +30,7 @@
 	</div>
 
 	<!-- Body: left nav + article, left-aligned to the window (no centered max-width).
-	     The reading measure lives on the article itself (GuideArticle caps its own width),
+	     The reading measure lives on the article itself (the page caps its own width),
 	     so the nav and logo stay far left while the copy stays readable. Below md the nav
 	     collapses into a Select dropdown above the article; from md up it is the left rail. -->
 	<div class="px-4 py-6 md:px-8">

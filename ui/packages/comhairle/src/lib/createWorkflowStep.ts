@@ -28,20 +28,28 @@ type ConversationRef = { id: string };
  * @param conversation - needed because the elicitation-bot config is conversation-scoped.
  */
 export function toolSetupForCreationKey(creationKey: CreationKey, conversation: ConversationRef) {
-	// `satisfies Record<CreationKey, ...>` makes this lookup exhaustive: adding a new
-	// CreationKey without a config here is a compile error.
-	const configByCreationKey = {
-		Polis: basic_polis_config,
-		Learn: basic_learn_config,
-		Survey: basic_survey_config,
-		'Lived Experience': basic_lived_experience_config,
-		// basic_elicitation_bot_config only reads `conversation.id`; the cast avoids
-		// requiring the full LocalizedConversationDto that callers don't have to hand.
-		'Elicitation Bot': basic_elicitation_bot_config(conversation as LocalizedConversationDto),
-		'Thinking Space': basic_thinking_space_config(),
-		Prioritization: basic_prioritization_config
-	} satisfies Record<CreationKey, unknown>;
-	return configByCreationKey[creationKey];
+	switch (creationKey) {
+		case 'Polis':
+			return basic_polis_config;
+		case 'Learn':
+			return basic_learn_config;
+		case 'Survey':
+			return basic_survey_config;
+		case 'Lived Experience':
+			return basic_lived_experience_config;
+		case 'Elicitation Bot':
+			// basic_elicitation_bot_config only reads `conversation.id`; the cast avoids
+			// requiring the full LocalizedConversationDto that callers don't have to hand.
+			return basic_elicitation_bot_config(conversation as LocalizedConversationDto);
+		case 'Thinking Space':
+			return basic_thinking_space_config();
+		case 'Prioritization':
+			return basic_prioritization_config;
+	}
+	// Unreachable: `creationKey` is exhausted above. Assigning it to `never` makes a
+	// newly added CreationKey without a case here a compile error.
+	const exhaustive: never = creationKey;
+	return exhaustive;
 }
 
 /**
