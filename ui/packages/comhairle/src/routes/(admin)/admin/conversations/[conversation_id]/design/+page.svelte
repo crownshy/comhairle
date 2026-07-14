@@ -323,6 +323,32 @@
 								</span>
 							</div>
 
+							<!-- Inline reorder arrows: a desktop-only quick path that reveals on
+							     card hover / keyboard focus. Duplicates the Move up/down menu
+							     items (kept for touch and the menu-driven flow). -->
+							<div
+								class="relative z-10 hidden shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 sm:flex"
+							>
+								<button
+									type="button"
+									aria-label="Move step up"
+									disabled={index === 0}
+									onclick={() => moveStep(index, -1)}
+									class="text-muted-foreground hover:text-foreground hover:bg-accent flex size-8 items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-30"
+								>
+									<ArrowUp class="size-4" />
+								</button>
+								<button
+									type="button"
+									aria-label="Move step down"
+									disabled={index === reorderedSteps.length - 1}
+									onclick={() => moveStep(index, 1)}
+									class="text-muted-foreground hover:text-foreground hover:bg-accent flex size-8 items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-30"
+								>
+									<ArrowDown class="size-4" />
+								</button>
+							</div>
+
 							<!-- Actions menu (above the stretched link). All step actions live
 								     here to keep the card uncluttered; the whole card is draggable,
 								     and Move up/down provide a no-drag reorder path. -->
