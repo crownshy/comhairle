@@ -5,7 +5,7 @@
  * Pure, so it powers the board's button/keyboard reorder without touching the DOM.
  */
 export function moveItem<T>(items: readonly T[], index: number, direction: -1 | 1): T[] {
-	const next = [...items];
+	const next = items.slice();
 	const target = index + direction;
 	if (index < 0 || index >= next.length || target < 0 || target >= next.length) {
 		return next;
