@@ -205,7 +205,7 @@ impl UpdatePolisStatementAux {
     /// The `(column, value)` pairs for the fields that are `Some`. Shared by the
     /// single-row `update` and the bulk `update_many` so both apply the same
     /// partial-update semantics.
-    fn changed_columns(&self) -> Vec<(PolisStatementAuxIden, SimpleExpr)> {
+    fn to_values(&self) -> Vec<(PolisStatementAuxIden, SimpleExpr)> {
         let mut values: Vec<(PolisStatementAuxIden, SimpleExpr)> = vec![];
 
         if let Some(text) = &self.statement_text {
@@ -243,7 +243,7 @@ pub async fn update(
     id: Uuid,
     update_aux: &UpdatePolisStatementAux,
 ) -> Result<PolisStatementAux, ComhairleError> {
-    let values = update_aux.changed_columns();
+    let values = update_aux.to_values();
 
     let (sql, values) = Query::update()
         .table(PolisStatementAuxIden::Table)
@@ -289,7 +289,7 @@ pub async fn update_many(
 
     let (sql, values) = Query::update()
         .table(PolisStatementAuxIden::Table)
-        .values(update_aux.changed_columns())
+        .values(update_aux.to_values())
         .and_where(Expr::col(PolisStatementAuxIden::Id).is_in(ids.iter().copied()))
         .returning(Query::returning().columns(DEFAULT_COLUMNS))
         .build_sqlx(PostgresQueryBuilder);
