@@ -613,10 +613,14 @@ async fn register_email_for_updates(
 async fn export_conversation_contacts(
     State(state): State<Arc<ComhairleState>>,
     Path(conversation_id): Path<Uuid>,
-    RequiredAdminUser(_user): RequiredAdminUser,
+    RequiredAdminUser(user): RequiredAdminUser,
 ) -> Result<(StatusCode, [(String, String); 2], String), ComhairleError> {
     // Verify conversation exists
-    conversation::get_by_id(&state.db, &conversation_id).await?;
+    let conversation = conversation::get_by_id(&state.db, &conversation_id).await?;
+
+    if conversation.owner_id != user.id {
+        return Err(ComhairleError::UserNotAuthorized);
+    }
 
     // Get all contacts who opted in
     let contacts =
