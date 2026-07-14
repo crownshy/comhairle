@@ -5,13 +5,7 @@
 	 * A single selectable radio-row for the two-column picker dialogs (choose-a-template
 	 * and add-a-step). Renders a radio dot + name + description, with selected styling.
 	 */
-	let {
-		selected = false,
-		name,
-		description,
-		onSelect,
-		class: className = ''
-	}: {
+	type Props = {
 		/** Whether this row is the currently-selected option. */
 		selected?: boolean;
 		/** Option title. */
@@ -21,7 +15,9 @@
 		/** Called when the row is clicked. */
 		onSelect: () => void;
 		class?: string;
-	} = $props();
+	};
+
+	let { selected = false, name, description, onSelect, class: className = '' }: Props = $props();
 </script>
 
 <button
