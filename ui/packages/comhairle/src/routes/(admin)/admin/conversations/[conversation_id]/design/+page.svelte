@@ -9,7 +9,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { toolMeta } from '$lib/tool_meta';
+	import { toolMeta, toolInfoUrl } from '$lib/tool_meta';
 	import { workflow_templates } from '$lib/workflow_templates.js';
 	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
 	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
@@ -23,7 +23,8 @@
 		MoreVertical,
 		Plus,
 		LoaderCircle,
-		GripVertical
+		GripVertical,
+		Info
 	} from 'lucide-svelte';
 
 	let { data } = $props();
@@ -312,7 +313,7 @@
 								{:else}
 									<a
 										href={stepUrl(step)}
-										class="text-foreground group-hover:text-primary truncate text-base font-medium transition-colors outline-none after:absolute after:inset-0 after:content-['']"
+										class="text-foreground group-hover:text-primary truncate text-lg font-medium transition-colors outline-none after:absolute after:inset-0 after:content-['']"
 									>
 										{step.name}
 									</a>
@@ -334,9 +335,6 @@
 										<MoreVertical class="size-5" />
 									</DropdownMenu.Trigger>
 									<DropdownMenu.Content align="end">
-										<DropdownMenu.Item onSelect={() => startEdit(step)}>
-											<Pencil class="size-4" /> Rename
-										</DropdownMenu.Item>
 										<DropdownMenu.Item
 											disabled={index === 0}
 											onSelect={() => moveStep(index, -1)}
@@ -349,6 +347,20 @@
 										>
 											<ArrowDown class="size-4" /> Move down
 										</DropdownMenu.Item>
+										<DropdownMenu.Item onSelect={() => startEdit(step)}>
+											<Pencil class="size-4" /> Rename
+										</DropdownMenu.Item>
+										<DropdownMenu.Separator />
+										<DropdownMenu.Item>
+											<a
+												href={toolInfoUrl(type)}
+												target="_blank"
+												class="flex w-full items-center gap-2"
+											>
+												<Info class="size-4" /> Step info
+											</a>
+										</DropdownMenu.Item>
+										<DropdownMenu.Separator />
 										<DropdownMenu.Item
 											class="text-destructive"
 											onSelect={() => deleteStep(step)}
