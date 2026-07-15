@@ -17,7 +17,6 @@
 	} from '$lib/components/Translation/translationUtils';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import DraggableList from '$lib/components/DraggableList.svelte';
-	import { SvelteMap } from 'svelte/reactivity';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { onMount, type ComponentProps } from 'svelte';
 
@@ -47,51 +46,50 @@
 	let primaryLocale = $derived(conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(conversation.supportedLanguages ?? ['en']);
 
-	type Id = number;
+	type Id = string;
 	type Language = string;
 	type Pages = Record<Id, Record<Language, ExtendedLocalizedPage>>;
 
-	let sourceConfig = $derived(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig);
+	let sourceConfig = $derived(
+		(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig) as {
+			type: 'learn';
+			pages: ExtendedLocalizedPage[][];
+		}
+	);
 
 	// svelte-ignore non_reactive_update
-	let pages = new SvelteMap<keyof Pages, Pages[keyof Pages]>();
+	let pages = $state<Pages>({});
 	let hasLocalChanges = $state(false);
 
-	let list: ComponentProps<typeof DraggableList>['items'] = $derived.by(() => {
-		const list = [];
-		for (const id of pages.keys()) {
-			console.log(id);
-			list.push({ id: id.toString() });
-		}
-		return list;
-	});
+	let list: ComponentProps<typeof DraggableList>['items'] = $derived(
+		Object.keys(pages).map((id) => ({ id }))
+	);
 
 	onMount(() => {
-		console.log('pages:', sourceConfig);
-		(sourceConfig?.pages as ExtendedLocalizedPage[][] | undefined)?.forEach((page, i) => {
+		sourceConfig?.pages?.forEach((page, i) => {
 			const extendedLocalizedPage: Record<Language, ExtendedLocalizedPage> = {};
 			page.forEach((p) => {
 				extendedLocalizedPage[p.lang] = p;
 			});
-			pages.set(i, extendedLocalizedPage);
+			pages[i] = extendedLocalizedPage;
 		});
 	});
 
 	let lastPropsConfig = $state<string>('');
 	$effect(() => {
 		const propsConfig = JSON.stringify({
-			pages: sourceConfig?.pages
+			pages: sourceConfig.pages
 		});
 		if (propsConfig !== lastPropsConfig && !hasLocalChanges) {
-			(sourceConfig?.pages as ExtendedLocalizedPage[][] | undefined)?.forEach((page, i) => {
+			sourceConfig.pages.forEach((page, i) => {
 				const extendedLocalizedPage: Record<Language, ExtendedLocalizedPage> = {};
 				page.forEach((p) => {
 					extendedLocalizedPage[p.lang] = p;
 				});
-				pages.set(i, extendedLocalizedPage);
+				pages[i] = extendedLocalizedPage;
 			});
 			lastPropsConfig = propsConfig;
-			if (isInitialLoad && pages.size > 0) {
+			if (isInitialLoad && Object.keys(pages).length > 0) {
 				isInitialLoad = false;
 			}
 		}
@@ -109,7 +107,7 @@
 
 	let id = $state<number>(0);
 
-	let sourceContent = $derived(pages.get(id)?.[primaryLocale]?.content ?? '');
+	let sourceContent = $derived(pages[id]?.[primaryLocale]?.content ?? '');
 
 	let targetLanguages = $derived(
 		supportedLanguages.filter((lang: string) => lang !== primaryLocale)
@@ -121,11 +119,11 @@
 	}
 	let pageData = $derived.by((): PageData => {
 		const pageData: PageData = {
-			initialContents: { [primaryLocale]: pages.get(id)?.[primaryLocale]?.content ?? '' },
+			initialContents: { [primaryLocale]: pages[id]?.[primaryLocale]?.content ?? '' },
 			statuses: {}
 		};
 		for (const lang of targetLanguages) {
-			const translation = pages.get(id)?.[lang];
+			const translation = pages[id]?.[lang];
 			pageData.initialContents[lang] = translation?.content ?? '';
 			pageData.statuses[lang] =
 				translation?.requires_validation === false ? 'approved' : 'draft';
@@ -141,26 +139,23 @@
 
 	function deletePage() {
 		syncPages(() => {
-			pages.delete(id);
-			list = list.filter((l) => Number(l.id) === id);
+			delete pages[id];
+			id = +Object.keys(pages)[0];
 		});
 	}
 
 	function addPage() {
 		syncPages(() => {
-			const latestId =
-				pages
-					.entries()
-					.drop(pages.size - 1)
-					.next().value?.[0] ?? 0;
-			const newId = latestId + 1;
+			const keys = Object.keys(pages);
+			const latestId = Number(keys[keys.length - 1]);
+			const newId = (latestId + 1).toString();
 			const newPage: ExtendedLocalizedPage = {
 				lang: primaryLocale,
-				content: `# Page ${pages.size + 1}`,
+				content: `# Page ${keys.length + 1}`,
 				type: 'markdown',
 				requires_validation: false
 			};
-			pages.set(newId, { [primaryLocale]: newPage });
+			pages[newId] = { [primaryLocale]: newPage };
 		});
 	}
 
@@ -173,7 +168,7 @@
 		const requires_validation = from === 'target';
 		return syncPages(
 			() => {
-				const page = pages.get(id);
+				const page = pages[id];
 				if (!page) return;
 				page[lang] = {
 					lang,
@@ -192,7 +187,7 @@
 					case 'target':
 						break;
 				}
-				pages.set(id, page);
+				pages[id] = page;
 			},
 			{ invalidate: false }
 		);
@@ -200,10 +195,9 @@
 
 	type SaveToServerOptions = { invalidate?: boolean };
 	async function saveToServer({ invalidate = true }: SaveToServerOptions = {}) {
-		const allPages = [];
-		for (const translations of pages.values()) {
-			allPages.push(Object.values(translations));
-		}
+		const allPages: ExtendedLocalizedPage[][] = Object.values(pages).map((translations) =>
+			Object.values(translations)
+		);
 
 		const configToSave: Props['workflowStep']['toolConfig'] = {
 			type: 'learn',
@@ -234,10 +228,10 @@
 	async function modifyValidation(lang: string, validation: boolean): Promise<void> {
 		return syncPages(
 			() => {
-				const page = pages.get(id);
+				const page = pages[id];
 				if (!page || !page[lang]) return;
 				page[lang].requires_validation = validation;
-				pages.set(id, page);
+				pages[id] = page;
 			},
 			{ invalidate: false }
 		);
@@ -281,7 +275,7 @@
 					variant="destructive"
 					class="rounded-md"
 					onclick={deletePage}
-					disabled={pages.size <= 1}>- Delete Page</Button
+					disabled={Object.keys(pages).length <= 1}>- Delete Page</Button
 				>
 			{/if}
 		</div>
