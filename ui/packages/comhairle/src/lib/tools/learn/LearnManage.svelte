@@ -24,30 +24,34 @@
 		requires_validation: boolean;
 	}
 
-	type Props = {
+	interface Props {
 		conversationId: string;
 		conversation: ConversationWithTranslations;
-		workflowStep: Omit<WorkflowStepWithTranslations, 'toolConfig'> &
-			Extract<ToolConfig, { type: 'learn' }>;
+		workflowStep: Omit<WorkflowStepWithTranslations, 'toolConfig' | 'previewToolConfig'> & {
+			toolConfig: Extract<ToolConfig, { type: 'learn' }>;
+			previewToolConfig: Extract<ToolConfig, { type: 'learn' }>;
+		};
 		isLive: boolean;
-	};
+	}
 
 	let { conversationId, conversation, workflowStep, isLive }: Props = $props();
 
-	let isInitialLoad = $state(true);
+	let isInitialLoad = $state(false);
 
 	let primaryLocale = $derived(conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(conversation.supportedLanguages ?? ['en']);
 
-	type Pages = Record<number, ExtendedLocalizedPage[]>;
+	type Id = number;
+	type Language = string;
+	type Pages = Record<Id, Record<Language, ExtendedLocalizedPage>>;
 
-	let sourceConfig = $derived(
-		(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig)
-	);
+	let sourceConfig = $derived(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig);
 
 	// svelte-ignore non_reactive_update
 	let pages = new SvelteMap<keyof Pages, Pages[keyof Pages]>();
 	let hasLocalChanges = $state(false);
+
+	let list = $derived(Object.keys(pages).map((id) => ({ id })));
 
 	let lastPropsConfig = $state<string>('');
 	$effect(() => {
@@ -63,31 +67,19 @@
 		}
 	});
 
-	function getToolConfigForSave(): LearnToolConfig {
-		return { type: 'learn', pages };
-	}
-
-	function markLocalChanges() {
-		hasLocalChanges = true;
-	}
-
-	function clearLocalChanges() {
-		hasLocalChanges = false;
-		lastPropsConfig = JSON.stringify({
-			pages: sourceConfig?.pages
-		});
-	}
+	const localChanges = {
+		dirty: () => (hasLocalChanges = true),
+		clear: () => {
+			hasLocalChanges = false;
+			lastPropsConfig = JSON.stringify({
+				pages: sourceConfig?.pages
+			});
+		}
+	};
 
 	let id = $state<number>(0);
 
-	function getTranslation(lang: string): ExtendedLocalizedPage | undefined {
-		return pages.get(id)?.find((p) => p.lang === lang);
-	}
-
-	let sourceContent = $derived.by(() => {
-		const source = getTranslation(primaryLocale);
-		return source?.content ?? '';
-	});
+	let sourceContent = $derived(pages.get(id)?.[primaryLocale]?.content ?? '');
 
 	let targetLanguages = $derived(
 		supportedLanguages.filter((lang: string) => lang !== primaryLocale)
@@ -113,69 +105,76 @@
 		return s;
 	});
 
+	async function syncPages(callback: () => Promise<void> | void, options?: SaveToServerOptions) {
+		localChanges.dirty();
+		await callback();
+		return saveToServer(options);
+	}
+
 	function deletePage() {
-		syncPage(() => {
+		syncPages(() => {
 			pages.delete(id);
 		});
 	}
 
-	function syncPage(callback: () => void, options?: SaveToServerOptions) {
-		markLocalChanges();
-		callback();
-		saveToServer(options);
-	}
-
 	function addPage() {
-		syncPage(() => {
+		syncPages(() => {
 			const newId =
 				pages
 					.entries()
 					.drop(pages.size - 1)
 					.next().value?.[0] ?? 0;
-			const newPage: ExtendedLocalizedPage[] = [
-				{
-					lang: primaryLocale,
-					content: `# Page ${pages.size + 1}`,
-					type: 'markdown',
-					requires_validation: false
-				}
-			];
-			pages.set(newId, newPage);
+			const newPage: ExtendedLocalizedPage = {
+				lang: primaryLocale,
+				content: `# Page ${pages.size + 1}`,
+				type: 'markdown',
+				requires_validation: false
+			};
+			pages.set(newId, { [primaryLocale]: newPage });
 		});
 	}
 
-	function upsertPage(
+	type From = 'source' | 'target';
+	function upsertContent(
+		from: From,
 		lang: string,
-		options?: Partial<Pick<ExtendedLocalizedPage, 'content' | 'requires_validation'>>
+		content: ExtendedLocalizedPage['content'] | undefined
 	) {
-		syncPage(() => {
-			const page = pages.get(id);
-			if (!page) return;
-			const existing = getTranslation(lang);
-			if (!existing) {
-				pages.set(
-					id,
-					page.concat([
-						{
-							lang,
-							type: 'markdown',
-							content: options?.content ?? '',
-							requires_validation: options?.requires_validation ?? false
+		const requires_validation = from === 'target';
+		return syncPages(
+			() => {
+				const page = pages.get(id);
+				if (!page) return;
+				page[lang] = {
+					lang,
+					type: 'markdown',
+					content: content ?? page[lang]?.content ?? '',
+					requires_validation
+				};
+				switch (from) {
+					case 'source':
+						for (const translation in page) {
+							if (page[translation].lang !== primaryLocale) {
+								page[translation].requires_validation = true;
+							}
 						}
-					])
-				);
-				return;
-			}
-			if (!!options?.content) {
-				existing.content = options.content;
-			}
-		});
+						break;
+					case 'target':
+						break;
+				}
+				pages.set(id, page);
+			},
+			{ invalidate: false }
+		);
 	}
 
 	type SaveToServerOptions = { invalidate?: boolean };
 	async function saveToServer({ invalidate = true }: SaveToServerOptions = {}) {
 		try {
-			const configToSave = getToolConfigForSave();
+			const configToSave: Props['workflowStep']['toolConfig'] = {
+				type: 'learn',
+				pages: []
+			};
 			await apiClient.UpdateConversationWorkflowStep(
 				isLive ? { tool_config: configToSave } : { preview_tool_config: configToSave },
 				{
@@ -187,100 +186,22 @@
 				}
 			);
 			if (invalidate) await invalidateAll();
-			clearLocalChanges();
+			localChanges.clear();
 		} catch (e) {
 			notifications.send({ message: 'Failed to save changes', priority: 'ERROR' });
 		}
 	}
 
-	function handleSaveSource(content: string) {
-		markLocalChanges();
-		const source = getTranslation(primaryLocale);
-		if (source) {
-			source.content = content;
-			source.type = 'markdown';
-		} else if (!!pages.get(id)?.length) {
-			pages.set(id, [
-				{
-					lang: primaryLocale,
-					type: 'markdown',
-					content,
-					requires_validation: false
-				}
-			]);
-		}
-		pages.set(
-			id,
-			pages.get(id)?.map((p) => {
-				if (p.lang !== primaryLocale) {
-					p.requires_validation = true;
-				}
-				return p;
-			}) ?? []
+	async function modifyValidation(lang: string, validation: boolean): Promise<void> {
+		return syncPages(
+			() => {
+				const page = pages.get(id);
+				if (!page || !page[lang]) return;
+				page[lang].requires_validation = validation;
+				pages.set(id, page);
+			},
+			{ invalidate: false }
 		);
-		saveToServer({ invalidate: false });
-	}
-
-	function handleSaveTarget(lang: string, content: string) {
-		markLocalChanges();
-		const target = getTranslation(lang);
-		if (target) {
-			target.content = content;
-			target.type = 'markdown';
-			target.requires_validation = true;
-		} else if (!!pages.get(id)?.length) {
-			pages.set(
-				id,
-				pages.get(id).concat({
-					lang,
-					type: 'markdown',
-					content,
-					requires_validation: true
-				})
-			);
-		}
-		pages = [...pages];
-		saveToServer({ invalidate: false });
-	}
-
-	async function handleAiTranslate(
-		targetLang: string,
-		sContent: string
-	): Promise<{ content: string; requiresValidation: boolean }> {
-		const translatedContent = await aiTranslateContent(sContent, targetLang, primaryLocale);
-		let t = getTranslation(targetLang);
-		if (t) {
-			t.content = translatedContent;
-			t.requires_validation = true;
-		} else {
-			pages[currentPageIndex].push({
-				lang: targetLang,
-				type: 'markdown',
-				content: translatedContent,
-				requires_validation: true
-			});
-		}
-		pages = [...pages];
-		await saveToServer({ invalidate: false });
-		return { content: translatedContent, requiresValidation: true };
-	}
-
-	async function handleApprove(lang: string) {
-		const t = getTranslation(lang);
-		if (!t) return;
-		markLocalChanges();
-		t.requires_validation = false;
-		pages = [...pages];
-		await saveToServer({ invalidate: false });
-	}
-
-	async function handleMarkAsDraft(lang: string) {
-		const t = getTranslation(lang);
-		if (!t) return;
-		markLocalChanges();
-		t.requires_validation = true;
-		pages = [...pages];
-		await saveToServer({ invalidate: false });
 	}
 
 	// --- Document list for inline source document picker ---
@@ -309,9 +230,9 @@
 				<Skeleton class="h-10 w-24" />
 				<Skeleton class="h-10 w-28" />
 			{:else}
-				<DraggableList items={pages}>
-					{#snippet children(_, i)}
-						<div>Page {i}</div>
+				<DraggableList items={list} onReorder={(next) => (list = next)}>
+					{#snippet children(item)}
+						<div>Page {item.id}</div>
 					{/snippet}
 				</DraggableList>
 				<Button class="rounded-md" onclick={addPage}>+ Add Page</Button>
@@ -319,7 +240,7 @@
 					variant="destructive"
 					class="rounded-md"
 					onclick={deletePage}
-					disabled={pages.length <= 1}>- Delete Page</Button
+					disabled={pages.size <= 1}>- Delete Page</Button
 				>
 			{/if}
 		</div>
@@ -349,7 +270,7 @@
 	{:else}
 		<TranslatableField
 			value={sourceContent}
-			onValueChange={handleSaveSource}
+			onValueChange={(content) => upsertContent('source', primaryLocale, content)}
 			{primaryLocale}
 			{supportedLanguages}
 			editorType="rich"
@@ -360,11 +281,19 @@
 			initialStatuses={pageStatuses}
 			{availableDocuments}
 			{conversationId}
-			onSaveSource={handleSaveSource}
-			onSaveTarget={handleSaveTarget}
-			onAiTranslate={handleAiTranslate}
-			onApprove={handleApprove}
-			onMarkAsDraft={handleMarkAsDraft}
+			onSaveSource={(content) => upsertContent('source', primaryLocale, content)}
+			onSaveTarget={(lang, content) => upsertContent('target', lang, content)}
+			onAiTranslate={async (targetLang, sContent) => {
+				const translatedContent = await aiTranslateContent(
+					sContent,
+					targetLang,
+					primaryLocale
+				);
+				await upsertContent('target', targetLang, translatedContent);
+				return { content: translatedContent, requiresValidation: true };
+			}}
+			onApprove={(lang) => modifyValidation(lang, true)}
+			onMarkAsDraft={(lang) => modifyValidation(lang, false)}
 		/>
 	{/if}
 </div>
