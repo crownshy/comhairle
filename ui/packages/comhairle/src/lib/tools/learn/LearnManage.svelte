@@ -3,7 +3,8 @@
 		type LocalizedPage,
 		type WorkflowStepWithTranslations,
 		type ConversationWithTranslations,
-		type ComhairleDocument
+		type ComhairleDocument,
+		type ToolConfig
 	} from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidateAll } from '$app/navigation';
@@ -18,17 +19,24 @@
 	import DraggableList from '$lib/components/DraggableList.svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
-	import type { ComponentProps } from 'svelte';
+	import { onMount, type ComponentProps } from 'svelte';
 
 	interface ExtendedLocalizedPage extends LocalizedPage {
 		lang: string;
 		requires_validation: boolean;
 	}
 
+	type WorkflowStepWithTranslationsAndTool<T> = Exclude<
+		WorkflowStepWithTranslations,
+		'toolConfig' | 'previewToolConfig'
+	> & {
+		toolConfig: Extract<ToolConfig, { type: T }>;
+		previewToolConfig: Extract<ToolConfig, { type: T }>;
+	};
 	interface Props {
 		conversationId: string;
 		conversation: ConversationWithTranslations;
-		workflowStep: WorkflowStepWithTranslations;
+		workflowStep: WorkflowStepWithTranslationsAndTool<'learn'>;
 		isLive: boolean;
 	}
 
@@ -52,9 +60,21 @@
 	let list: ComponentProps<typeof DraggableList>['items'] = $derived.by(() => {
 		const list = [];
 		for (const id of pages.keys()) {
+			console.log(id);
 			list.push({ id: id.toString() });
 		}
 		return list;
+	});
+
+	onMount(() => {
+		console.log('pages:', sourceConfig);
+		(sourceConfig?.pages as ExtendedLocalizedPage[][] | undefined)?.forEach((page, i) => {
+			const extendedLocalizedPage: Record<Language, ExtendedLocalizedPage> = {};
+			page.forEach((p) => {
+				extendedLocalizedPage[p.lang] = p;
+			});
+			pages.set(i, extendedLocalizedPage);
+		});
 	});
 
 	let lastPropsConfig = $state<string>('');
@@ -122,16 +142,18 @@
 	function deletePage() {
 		syncPages(() => {
 			pages.delete(id);
+			list = list.filter((l) => Number(l.id) === id);
 		});
 	}
 
 	function addPage() {
 		syncPages(() => {
-			const newId =
+			const latestId =
 				pages
 					.entries()
 					.drop(pages.size - 1)
 					.next().value?.[0] ?? 0;
+			const newId = latestId + 1;
 			const newPage: ExtendedLocalizedPage = {
 				lang: primaryLocale,
 				content: `# Page ${pages.size + 1}`,
@@ -178,9 +200,14 @@
 
 	type SaveToServerOptions = { invalidate?: boolean };
 	async function saveToServer({ invalidate = true }: SaveToServerOptions = {}) {
+		const allPages = [];
+		for (const translations of pages.values()) {
+			allPages.push(Object.values(translations));
+		}
+
 		const configToSave: Props['workflowStep']['toolConfig'] = {
 			type: 'learn',
-			pages: Object.entries(pages).map((p) => p[1][1])
+			pages: allPages
 		};
 
 		const response = await tryCatchAsync(() =>
@@ -244,7 +271,9 @@
 			{:else}
 				<DraggableList items={list} onReorder={(next) => (list = next)}>
 					{#snippet children(item)}
-						<Button onclick={() => (id = Number(item.id))}>Page {item.id}</Button>
+						<Button onclick={() => (id = Number(item.id))}
+							>Page {Number(item.id) + 1}</Button
+						>
 					{/snippet}
 				</DraggableList>
 				<Button class="rounded-md" onclick={addPage}>+ Add Page</Button>
