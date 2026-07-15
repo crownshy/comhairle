@@ -3,8 +3,7 @@
 		type LocalizedPage,
 		type WorkflowStepWithTranslations,
 		type ConversationWithTranslations,
-		type ComhairleDocument,
-		type ToolConfig
+		type ComhairleDocument
 	} from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidateAll } from '$app/navigation';
@@ -18,6 +17,8 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import DraggableList from '$lib/components/DraggableList.svelte';
 	import { SvelteMap } from 'svelte/reactivity';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
+	import type { ComponentProps } from 'svelte';
 
 	interface ExtendedLocalizedPage extends LocalizedPage {
 		lang: string;
@@ -27,10 +28,7 @@
 	interface Props {
 		conversationId: string;
 		conversation: ConversationWithTranslations;
-		workflowStep: Omit<WorkflowStepWithTranslations, 'toolConfig' | 'previewToolConfig'> & {
-			toolConfig: Extract<ToolConfig, { type: 'learn' }>;
-			previewToolConfig: Extract<ToolConfig, { type: 'learn' }>;
-		};
+		workflowStep: WorkflowStepWithTranslations;
 		isLive: boolean;
 	}
 
@@ -51,7 +49,13 @@
 	let pages = new SvelteMap<keyof Pages, Pages[keyof Pages]>();
 	let hasLocalChanges = $state(false);
 
-	let list = $derived(Object.keys(pages).map((id) => ({ id })));
+	let list: ComponentProps<typeof DraggableList>['items'] = $derived.by(() => {
+		const list = [];
+		for (const id of pages.keys()) {
+			list.push({ id: id.toString() });
+		}
+		return list;
+	});
 
 	let lastPropsConfig = $state<string>('');
 	$effect(() => {
@@ -59,7 +63,13 @@
 			pages: sourceConfig?.pages
 		});
 		if (propsConfig !== lastPropsConfig && !hasLocalChanges) {
-			pages = structuredClone(sourceConfig?.pages ?? []);
+			(sourceConfig?.pages as ExtendedLocalizedPage[][] | undefined)?.forEach((page, i) => {
+				const extendedLocalizedPage: Record<Language, ExtendedLocalizedPage> = {};
+				page.forEach((p) => {
+					extendedLocalizedPage[p.lang] = p;
+				});
+				pages.set(i, extendedLocalizedPage);
+			});
 			lastPropsConfig = propsConfig;
 			if (isInitialLoad && pages.size > 0) {
 				isInitialLoad = false;
@@ -85,24 +95,22 @@
 		supportedLanguages.filter((lang: string) => lang !== primaryLocale)
 	);
 
-	let pageContents = $derived.by((): Record<string, string> => {
-		const c: Record<string, string> = {};
-		c[primaryLocale] = sourceContent;
+	interface PageData {
+		initialContents: Record<Language, string>;
+		statuses: Record<Language, TranslationStatus>;
+	}
+	let pageData = $derived.by((): PageData => {
+		const pageData: PageData = {
+			initialContents: { [primaryLocale]: pages.get(id)?.[primaryLocale]?.content ?? '' },
+			statuses: {}
+		};
 		for (const lang of targetLanguages) {
-			const t = getTranslation(lang);
-			c[lang] = t?.content ?? '';
+			const translation = pages.get(id)?.[lang];
+			pageData.initialContents[lang] = translation?.content ?? '';
+			pageData.statuses[lang] =
+				translation?.requires_validation === false ? 'approved' : 'draft';
 		}
-		return c;
-	});
-
-	let pageStatuses = $derived.by((): Record<string, TranslationStatus> => {
-		const s: Record<string, TranslationStatus> = {};
-		s[primaryLocale] = 'primary';
-		for (const lang of targetLanguages) {
-			const t = getTranslation(lang);
-			s[lang] = t && t.requires_validation === false ? 'approved' : 'draft';
-		}
-		return s;
+		return pageData;
 	});
 
 	async function syncPages(callback: () => Promise<void> | void, options?: SaveToServerOptions) {
@@ -170,12 +178,13 @@
 
 	type SaveToServerOptions = { invalidate?: boolean };
 	async function saveToServer({ invalidate = true }: SaveToServerOptions = {}) {
-		try {
-			const configToSave: Props['workflowStep']['toolConfig'] = {
-				type: 'learn',
-				pages: []
-			};
-			await apiClient.UpdateConversationWorkflowStep(
+		const configToSave: Props['workflowStep']['toolConfig'] = {
+			type: 'learn',
+			pages: Object.entries(pages).map((p) => p[1][1])
+		};
+
+		const response = await tryCatchAsync(() =>
+			apiClient.UpdateConversationWorkflowStep(
 				isLive ? { tool_config: configToSave } : { preview_tool_config: configToSave },
 				{
 					params: {
@@ -184,12 +193,15 @@
 						workflow_step_id: workflowStep.id
 					}
 				}
-			);
-			if (invalidate) await invalidateAll();
-			localChanges.clear();
-		} catch (e) {
+			)
+		);
+
+		if (response.err !== null) {
 			notifications.send({ message: 'Failed to save changes', priority: 'ERROR' });
 		}
+
+		if (invalidate) await invalidateAll();
+		localChanges.clear();
 	}
 
 	async function modifyValidation(lang: string, validation: boolean): Promise<void> {
@@ -226,13 +238,13 @@
 	<div class="flex items-center justify-between gap-4">
 		<div class="flex items-center gap-2">
 			{#if isInitialLoad}
-				<Skeleton class="h-10 w-[180px]" />
+				<Skeleton class="h-10 w-45" />
 				<Skeleton class="h-10 w-24" />
 				<Skeleton class="h-10 w-28" />
 			{:else}
 				<DraggableList items={list} onReorder={(next) => (list = next)}>
 					{#snippet children(item)}
-						<div>Page {item.id}</div>
+						<Button onclick={() => (id = Number(item.id))}>Page {item.id}</Button>
 					{/snippet}
 				</DraggableList>
 				<Button class="rounded-md" onclick={addPage}>+ Add Page</Button>
@@ -277,8 +289,8 @@
 			minHeight="300px"
 			dialogMinHeight="250px"
 			dialogTitle="Translate: Page {id + 1}"
-			initialContents={pageContents}
-			initialStatuses={pageStatuses}
+			initialContents={pageData.initialContents}
+			initialStatuses={pageData.statuses}
 			{availableDocuments}
 			{conversationId}
 			onSaveSource={(content) => upsertContent('source', primaryLocale, content)}
