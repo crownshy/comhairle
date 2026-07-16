@@ -2,20 +2,13 @@
 	import { page } from '$app/state';
 	import { goto, invalidate } from '$app/navigation';
 	import { getContext } from 'svelte';
-	import { apiClient } from '@crownshy/api-client/client';
 	import { notifications } from '$lib/notifications.svelte.js';
-	import {
-		basic_learn_config,
-		basic_polis_config,
-		basic_survey_config,
-		basic_lived_experience_config,
-		basic_elicitation_bot_config,
-		basic_thinking_space_config,
-		basic_prioritization_config,
-		defaultStepCreationParams
-	} from '$lib/workflow_templates.js';
+	import { createWorkflowStep } from '$lib/createWorkflowStep';
+	import type { CreationKey } from '$lib/tool_meta';
+	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
+	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
 	import WorkflowStepStrip from '$lib/components/WorkflowStepStrip.svelte';
-	import ToolSelectionModal from '$lib/components/ToolSelectionModal.svelte';
+	import AddStepDialog from './AddStepDialog.svelte';
 	import {
 		CONVERSATION_TAB_EXTRAS_CTX,
 		type ConversationTabExtras
@@ -27,7 +20,7 @@
 	let workflow = $derived(data.workflows[0]);
 	let workflowSteps = $derived(data.workflowSteps ?? []);
 
-	let addStepModalOpen = $state(false);
+	let adding = $state(false);
 
 	const tabExtras = getContext<ConversationTabExtras>(CONVERSATION_TAB_EXTRAS_CTX);
 
@@ -39,46 +32,34 @@
 		};
 	});
 
+	// Deep link: /design?addStep=true opens the dialog, then drops the query param.
 	$effect(() => {
 		if (page.url.searchParams.get('addStep') === 'true') {
-			addStepModalOpen = true;
+			addStepDialog.open = true;
 			goto(page.url.pathname, { replaceState: true });
 		}
 	});
 
-	async function addStep(step: string) {
-		const tool_setup = {
-			Polis: basic_polis_config,
-			Learn: basic_learn_config,
-			Survey: basic_survey_config,
-			'Lived Experience': basic_lived_experience_config,
-			'Elicitation Bot': basic_elicitation_bot_config(conversation),
-			'Thinking Space': basic_thinking_space_config(),
-			Prioritization: basic_prioritization_config
-		}[step];
-
-		const new_step_order =
-			workflowSteps.length > 0 ? Math.max(...workflowSteps.map((ws) => ws.stepOrder)) + 1 : 1;
-
+	async function addStep(creationKey: CreationKey) {
+		if (adding) return;
+		adding = true;
 		try {
-			await apiClient.CreateConversationWorkflowStep(
-				{
-					name: defaultStepCreationParams[step]?.name ?? `New ${step} Step`,
-					description:
-						defaultStepCreationParams[step]?.description ?? `A new ${step} Step`,
-					is_offline: false,
-					activation_rule: 'manual',
-					step_order: new_step_order,
-					tool_setup,
-					required: true
-				},
-				{ params: { conversation_id: conversation.id, workflow_id: workflow.id } }
-			);
+			const created = await createWorkflowStep({
+				conversation,
+				workflowId: workflow.id,
+				creationKey,
+				existingSteps: workflowSteps
+			});
+			if (!created) return;
 			await invalidate('conversation:workflow');
-			notifications.send({ priority: 'INFO', message: 'Step Added' });
+			notifications.send({ priority: 'INFO', message: 'Step added' });
+			newStepHighlight.flag(created.id);
+			addStepDialog.open = false;
 		} catch (e) {
 			console.error(e);
 			notifications.send({ priority: 'ERROR', message: 'Failed to create step' });
+		} finally {
+			adding = false;
 		}
 	}
 </script>
@@ -87,14 +68,10 @@
 	<WorkflowStepStrip
 		conversationId={conversation.id}
 		steps={workflowSteps}
-		onAddStep={() => (addStepModalOpen = true)}
+		onAddStep={() => (addStepDialog.open = true)}
 	/>
 {/snippet}
 
-<ToolSelectionModal
-	prompt="Select a step to add"
-	onSelection={addStep}
-	bind:open={addStepModalOpen}
-/>
+<AddStepDialog bind:open={addStepDialog.open} {adding} onAdd={addStep} />
 
 {@render children()}

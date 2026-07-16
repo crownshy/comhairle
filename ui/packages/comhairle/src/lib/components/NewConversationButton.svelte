@@ -9,6 +9,7 @@
 	import { manage_conversation_url } from '$lib/urls';
 	import { createConversation } from '$lib/createConversation';
 	import { conversationTemplates } from '$lib/conversation_templates';
+	import SelectableOptionRow from '$lib/components/SelectableOptionRow.svelte';
 	import { cn } from '$lib/utils';
 
 	let {
@@ -71,32 +72,12 @@
 			<!-- Left: selectable template list -->
 			<div class="flex w-96 shrink-0 flex-col gap-3 self-stretch overflow-y-auto pr-1">
 				{#each conversationTemplates as template (template.key)}
-					<button
-						type="button"
-						onclick={() => (selectedKey = template.key)}
-						class={cn(
-							'flex items-start gap-3 rounded-lg border p-4 text-left transition-colors',
-							selectedKey === template.key
-								? 'border-primary bg-accent'
-								: 'border-border bg-card hover:bg-accent/50'
-						)}
-					>
-						<span
-							class={cn(
-								'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border',
-								selectedKey === template.key ? 'border-primary' : 'border-border'
-							)}
-						>
-							{#if selectedKey === template.key}
-								<span class="bg-primary size-2 rounded-full"></span>
-							{/if}
-						</span>
-						<span class="flex flex-col gap-1 overflow-hidden">
-							<span class="text-foreground text-sm">{template.name}</span>
-							<span class="text-muted-foreground text-sm">{template.description}</span
-							>
-						</span>
-					</button>
+					<SelectableOptionRow
+						selected={selectedKey === template.key}
+						name={template.name}
+						description={template.description}
+						onSelect={() => (selectedKey = template.key)}
+					/>
 				{/each}
 			</div>
 
