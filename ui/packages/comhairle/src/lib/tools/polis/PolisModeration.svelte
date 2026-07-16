@@ -3,6 +3,7 @@
 	import { LoadingButton } from '$lib/components/ui/button';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { notifications } from '$lib/notifications.svelte';
+	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { PolisStatementAux } from '@crownshy/api-client/api';
 	import { RefreshCw, Search } from '@lucide/svelte';
@@ -31,24 +32,29 @@
 	async function syncFromPolis() {
 		if (syncing) return;
 		syncing = true;
-		try {
-			const res = await apiClient.PolisSyncStatementAux({ workflow_step_id: workflowStepId });
-			notifications.send({
-				priority: 'INFO',
-				message: `Synced ${res.synced} statement${res.synced === 1 ? '' : 's'} from Polis${
-					res.skipped_invalid_xid ? ` (${res.skipped_invalid_xid} skipped)` : ''
-				}`
-			});
-			await invalidate('polis:statement-aux');
-		} catch (e) {
-			console.error('PolisSyncStatementAux failed', e);
+
+		const res = await tryCatchAsync(() =>
+			apiClient.PolisSyncStatementAux({ workflow_step_id: workflowStepId })
+		);
+		if (res.err !== null) {
+			console.error('PolisSyncStatementAux failed', res.err);
 			notifications.send({
 				priority: 'ERROR',
 				message: 'Failed to sync statements from Polis'
 			});
-		} finally {
 			syncing = false;
+			return;
 		}
+
+		notifications.send({
+			priority: 'INFO',
+			message: `Synced ${res.ok.synced} statement${res.ok.synced === 1 ? '' : 's'} from Polis${
+				res.ok.skipped_invalid_xid ? ` (${res.ok.skipped_invalid_xid} skipped)` : ''
+			}`
+		});
+		// Keep the spinner up through the reload so the button doesn't flicker.
+		await invalidate('polis:statement-aux');
+		syncing = false;
 	}
 
 	// --- Status filters + search ---
@@ -111,25 +117,27 @@
 		bulkAction = status;
 
 		// Optimistic: flip all targets at once.
-		const ids = new Set(targets.map((t) => t.id));
+		const ids = targets.map((t) => t.id);
+		const idSet = new Set(ids);
 		statements = statements.map((s) =>
-			ids.has(s.id) ? { ...s, moderation_status: status } : s
+			idSet.has(s.id) ? { ...s, moderation_status: status } : s
 		);
 
-		const results = await Promise.allSettled(
-			targets.map((t) =>
-				apiClient.PolisModerateStatementAux({ decision }, { params: { id: t.id } })
-			)
+		// One request: the backend logs in to Polis once, moderates every id, and
+		// reports per-row failures rather than failing the whole batch.
+		const result = await tryCatchAsync(() =>
+			apiClient.PolisModerateStatementAuxBatch({ ids, decision })
 		);
-		const failed = results.filter((r) => r.status === 'rejected').length;
 
 		bulkAction = null;
 		clearSelection();
-		if (failed) {
-			console.error(`Bulk moderate: ${failed}/${targets.length} failed`);
+		if (result.err !== null) {
+			console.error('Bulk moderate failed', result.err);
+			notifications.send({ priority: 'ERROR', message: 'Failed to update statements' });
+		} else if (result.ok.failed.length) {
 			notifications.send({
 				priority: 'ERROR',
-				message: `${failed} of ${targets.length} failed to update`
+				message: `${result.ok.failed.length} of ${targets.length} failed to update`
 			});
 		} else {
 			notifications.send({
@@ -156,21 +164,20 @@
 			s.id === row.id ? { ...s, moderation_status: status } : s
 		);
 
-		try {
-			const updated = await apiClient.PolisModerateStatementAux(
-				{ decision },
-				{ params: { id: row.id } }
-			);
-			statements = statements.map((s) => (s.id === row.id ? updated : s));
-		} catch (e) {
-			console.error('PolisModerateStatementAux failed', e);
+		const res = await tryCatchAsync(() =>
+			apiClient.PolisModerateStatementAux({ decision }, { params: { id: row.id } })
+		);
+		pending = { ...pending, [row.id]: false };
+
+		if (res.err !== null) {
+			console.error('PolisModerateStatementAux failed', res.err);
 			statements = statements.map((s) =>
 				s.id === row.id ? { ...s, moderation_status: prevStatus } : s
 			);
 			notifications.send({ priority: 'ERROR', message: 'Failed to update statement' });
-		} finally {
-			pending = { ...pending, [row.id]: false };
+			return;
 		}
+		statements = statements.map((s) => (s.id === row.id ? res.ok : s));
 	}
 </script>
 
