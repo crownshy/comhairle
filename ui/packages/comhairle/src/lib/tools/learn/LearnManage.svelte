@@ -57,7 +57,6 @@
 		}
 	);
 
-	// svelte-ignore non_reactive_update
 	let pages = $state<Pages>({});
 	let hasLocalChanges = $state(false);
 
