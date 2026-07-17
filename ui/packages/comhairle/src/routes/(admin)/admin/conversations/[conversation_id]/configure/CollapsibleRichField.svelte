@@ -8,13 +8,15 @@
 		label: string;
 		/** Current primary-locale value, for the preview and the empty check. */
 		content: string | null | undefined;
+		/** Whether this field is expanded. Controlled by the parent so only one is open at a time. */
+		open: boolean;
+		/** Request to expand (true) or collapse (false) this field. */
+		onOpenChange: (open: boolean) => void;
 		/** The editor to reveal when expanded (a TranslatableField and its errors). */
 		children: Snippet;
 	};
 
-	let { label, content, children }: Props = $props();
-
-	let open = $state(false);
+	let { label, content, open, onOpenChange, children }: Props = $props();
 
 	// Rich text counts as empty when it's null/blank or just an empty paragraph, so a
 	// never-set field shows the "Add …" call to action rather than an empty preview card.
@@ -36,7 +38,7 @@
 			<button
 				type="button"
 				class="text-muted-foreground hover:text-foreground text-sm font-medium"
-				onclick={() => (open = false)}
+				onclick={() => onOpenChange(false)}
 			>
 				Done
 			</button>
@@ -45,8 +47,8 @@
 {:else if isEmpty}
 	<button
 		type="button"
-		onclick={() => (open = true)}
-		class="border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground flex h-11 w-full items-center gap-2 rounded-lg border border-dashed px-4 text-sm"
+		onclick={() => onOpenChange(true)}
+		class="bg-card border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground flex h-11 w-full items-center gap-2 rounded-lg border border-dashed px-4 text-sm"
 	>
 		<Plus class="size-4" />
 		Add {label.toLowerCase()}
@@ -54,7 +56,7 @@
 {:else}
 	<button
 		type="button"
-		onclick={() => (open = true)}
+		onclick={() => onOpenChange(true)}
 		class="bg-card border-border hover:border-primary/60 flex w-full flex-col gap-2 rounded-lg border p-4 text-left"
 	>
 		<div class="text-foreground line-clamp-3 w-full text-sm">

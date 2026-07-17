@@ -12,9 +12,10 @@
 	import { conversationConfigSchema } from './schema';
 	import TeamManager from '$lib/components/TeamManager.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
-	import * as Tooltip from '$lib/components/ui/tooltip';
+	import * as HoverCard from '$lib/components/ui/hover-card';
 	import ConfigureTabStrip, { type ConfigureTab } from './ConfigureTabStrip.svelte';
 	import CollapsibleRichField from './CollapsibleRichField.svelte';
+	import ExampleDialog from './ExampleDialog.svelte';
 	import {
 		CONVERSATION_TAB_EXTRAS_CTX,
 		type ConversationTabExtras
@@ -28,7 +29,7 @@
 		WorkflowDto
 	} from '@crownshy/api-client/api';
 	import { camelToSentenceCase, camelToSnakeCase } from '$lib/utils/casingUtils';
-	import { Image as ImageIcon, ArrowUpRight, HelpCircle } from 'lucide-svelte';
+	import { Image as ImageIcon, Info } from 'lucide-svelte';
 	import MediaLibraryDialog, {
 		addToCache
 	} from '$lib/components/Media/MediaLibraryDialog.svelte';
@@ -71,9 +72,35 @@
 	let activeTab = $derived(page.url.searchParams.get('tab') ?? tabs[0].id);
 	let header = $derived(tabHeaders[activeTab] ?? tabHeaders.details);
 
-	// Base for the "See where" links: the participant preview always renders in preview mode,
-	// so each field can deep-link to the exact surface it appears on (privacy, faq, thank-you…).
-	let previewBase = $derived(`/conversations/${conversation.id}/preview`);
+	// "See example" opens a modal with a static screenshot of where the field appears for
+	// participants. Images are hand-maintained assets under static/examples/; a missing one
+	// falls back to "Example coming soon" (see ExampleDialog).
+	const examples: Record<string, { title: string; src: string }> = {
+		title: { title: 'Title', src: '/examples/title.png' },
+		shortDescription: { title: 'Short description', src: '/examples/short-description.png' },
+		description: { title: 'Description', src: '/examples/description.png' },
+		banner: { title: 'Banner image', src: '/examples/banner.png' },
+		privacyPolicy: { title: 'Privacy Policy', src: '/examples/privacy-policy.png' },
+		shortPrivacyPolicy: {
+			title: 'Short Privacy Policy',
+			src: '/examples/short-privacy-policy.png'
+		},
+		faqs: { title: 'FAQs', src: '/examples/faqs.png' },
+		thankYouMessage: { title: 'Thank you message', src: '/examples/thank-you.png' },
+		callToAction: { title: 'Call to action', src: '/examples/call-to-action.png' }
+	};
+	let exampleKey = $state<string | null>(null);
+	let exampleOpen = $state(false);
+	let exampleEntry = $derived(exampleKey ? examples[exampleKey] : null);
+
+	function openExample(key: string) {
+		exampleKey = key;
+		exampleOpen = true;
+	}
+
+	// The rich Content fields behave as an accordion: at most one is expanded at a time.
+	// Holds the field name of the open one, or null when all are collapsed.
+	let openContentField = $state<string | null>(null);
 
 	// Inject the full-bleed sub-tab strip into "Row 3" of the conversation layout,
 	// the same slot the workflow step strip uses. Cleared on unmount.
@@ -357,59 +384,58 @@
 	<ConfigureTabStrip {tabs} />
 {/snippet}
 
-<!-- "See where" deep-link to the live participant preview surface this field appears on. Opens
-	 in a new tab; skipped when a field has no distinct participant surface (e.g. Language). -->
-{#snippet seeWhere(previewHref: string)}
-	{#if previewHref}
-		<a
-			href={previewHref}
-			target="_blank"
-			rel="noopener"
-			class="text-primary mt-1.5 inline-flex items-center gap-1 text-sm hover:underline"
+<!-- The (i) affordance: a hover card (bits-ui LinkPreview, via our HoverCard wrapper) that shows
+	 the field's description on hover, plus an optional "See example" button that opens the image
+	 modal. Keeping the heavy image behind an explicit click means an accidental hover only ever
+	 reveals a light text card. `exampleKey` indexes the examples map. -->
+{#snippet infoPreview(info: string, exampleKey: string = '')}
+	<HoverCard.Root openDelay={150} closeDelay={100}>
+		<HoverCard.Trigger
+			class="text-muted-foreground hover:text-foreground inline-flex cursor-help"
+			aria-label="More information"
 		>
-			See where
-			<ArrowUpRight class="size-3.5" />
-		</a>
-	{/if}
+			<Info class="size-4" />
+		</HoverCard.Trigger>
+		<HoverCard.Content class="w-72 text-sm" side="top" sideOffset={6}>
+			<p>{info}</p>
+			{#if exampleKey}
+				<button
+					type="button"
+					onclick={() => openExample(exampleKey)}
+					class="text-primary mt-3 inline-flex items-center gap-1 text-sm font-medium hover:underline"
+				>
+					<ImageIcon class="size-3.5" />
+					See example
+				</button>
+			{/if}
+		</HoverCard.Content>
+	</HoverCard.Root>
 {/snippet}
 
 <!-- Left-column label for a form field. `label` stays a <Form.Label> so it keeps its `for`
-	 association with the control. What the field does lives in the field's placeholder; this
-	 column just carries the label and a "See where" link to the surface it appears on. -->
-{#snippet fieldLabel(label: string, previewHref: string = '')}
+	 association with the control. The (i) beside it carries the description and the example. -->
+{#snippet fieldLabel(label: string, exampleKey: string = '', info: string = '')}
 	<div class="lg:w-50 lg:shrink-0 lg:pt-2">
-		<Form.Label class="text-sm font-semibold">{label}</Form.Label>
-		{@render seeWhere(previewHref)}
+		<div class="flex items-center gap-1.5">
+			<Form.Label class="text-sm font-semibold">{label}</Form.Label>
+			{#if info || exampleKey}
+				{@render infoPreview(info, exampleKey)}
+			{/if}
+		</div>
 	</div>
 {/snippet}
 
 <!-- Same, for rows whose control isn't a Form.Field (Banner, Language), so there's no label to
 	 associate. -->
-{#snippet plainLabel(label: string, description: string = '', previewHref: string = '')}
+{#snippet plainLabel(label: string, exampleKey: string = '', info: string = '')}
 	<div class="lg:w-50 lg:shrink-0 lg:pt-2">
-		<p class="text-sm font-semibold">{label}</p>
-		{#if description}
-			<p class="text-muted-foreground mt-1 text-sm">{description}</p>
-		{/if}
-		{@render seeWhere(previewHref)}
+		<div class="flex items-center gap-1.5">
+			<p class="text-sm font-semibold">{label}</p>
+			{#if info || exampleKey}
+				{@render infoPreview(info, exampleKey)}
+			{/if}
+		</div>
 	</div>
-{/snippet}
-
-<!-- Small info affordance for Access toggles: a "?" that reveals a fuller plain-language
-	 explanation of what the setting does for participants. -->
-{#snippet infoTip(text: string)}
-	<Tooltip.Provider delayDuration={150}>
-		<Tooltip.Root>
-			<Tooltip.Trigger
-				type="button"
-				class="text-muted-foreground hover:text-foreground"
-				aria-label="More information"
-			>
-				<HelpCircle class="size-4" />
-			</Tooltip.Trigger>
-			<Tooltip.Content class="max-w-xs text-sm">{text}</Tooltip.Content>
-		</Tooltip.Root>
-	</Tooltip.Provider>
 {/snippet}
 
 <PageHeader title={header.title} description={header.description} />
@@ -425,7 +451,11 @@
 			<Form.Field form={conversationForm} name="title" class="contents">
 				<Form.Control>
 					{#snippet children({ props })}
-						{@render fieldLabel('Title', previewBase)}
+						{@render fieldLabel(
+							'Title',
+							'title',
+							"The conversation's name. Shown as the heading participants see, and on listing cards, invitations, and the thank-you and report pages."
+						)}
 						<div class="flex-1" id="conversation-title-field">
 							<TranslatableField
 								value={$form.title}
@@ -450,7 +480,11 @@
 			<Form.Field form={conversationForm} name="shortDescription" class="contents">
 				<Form.Control>
 					{#snippet children({ props })}
-						{@render fieldLabel('Short description', previewBase)}
+						{@render fieldLabel(
+							'Short description',
+							'shortDescription',
+							'A one-line summary, shown under the title on the landing page and on conversation cards in listings.'
+						)}
 						<div class="flex-1">
 							<TranslatableField
 								value={$form.shortDescription}
@@ -477,7 +511,11 @@
 			<Form.Field form={conversationForm} name="description" class="contents">
 				<Form.Control>
 					{#snippet children({ props })}
-						{@render fieldLabel('Description', previewBase)}
+						{@render fieldLabel(
+							'Description',
+							'description',
+							'A fuller introduction, shown beside the banner image on the landing and invitation pages.'
+						)}
 						<div class="flex-1">
 							<TranslatableField
 								value={$form.description}
@@ -503,6 +541,7 @@
 		>
 			{@render plainLabel(
 				'Language options',
+				'',
 				'The primary language plus any others you support. Adding a language lets you translate the other fields into it.'
 			)}
 			<div class="max-w-md flex-1">
@@ -522,8 +561,8 @@
 			<div class="contents">
 				{@render plainLabel(
 					'Banner image',
-					'Shown beside the description on the landing and invitation pages.',
-					previewBase
+					'banner',
+					'Shown beside the description on the landing and invitation pages.'
 				)}
 				<div class="align-start flex w-full flex-col gap-4">
 					<div class="flex flex-1 gap-4">
@@ -574,11 +613,18 @@
 			<Form.Field form={conversationForm} name="privacyPolicy" class="contents">
 				<Form.Control>
 					{#snippet children({ props })}
-						{@render fieldLabel('Privacy Policy', `${previewBase}/privacy`)}
+						{@render fieldLabel(
+							'Privacy Policy',
+							'privacyPolicy',
+							"The full policy, shown on the Privacy Policy page and the 'Find out more' panel. Leave blank to use Comhairle's default."
+						)}
 						<div class="flex-1">
 							<CollapsibleRichField
 								label="Privacy policy"
 								content={$form.privacyPolicy}
+								open={openContentField === 'privacyPolicy'}
+								onOpenChange={(o) =>
+									(openContentField = o ? 'privacyPolicy' : null)}
 							>
 								<TranslatableField
 									value={$form.privacyPolicy || null}
@@ -613,11 +659,18 @@
 			<Form.Field form={conversationForm} name="shortPrivacyPolicy" class="contents">
 				<Form.Control>
 					{#snippet children({ props })}
-						{@render fieldLabel('Short Privacy Policy', previewBase)}
+						{@render fieldLabel(
+							'Short Privacy Policy',
+							'shortPrivacyPolicy',
+							"Shown in the consent dialog participants accept before joining. Leave blank to use Comhairle's default."
+						)}
 						<div class="flex-1">
 							<CollapsibleRichField
 								label="Short privacy policy"
 								content={$form.shortPrivacyPolicy}
+								open={openContentField === 'shortPrivacyPolicy'}
+								onOpenChange={(o) =>
+									(openContentField = o ? 'shortPrivacyPolicy' : null)}
 							>
 								<TranslatableField
 									value={$form.shortPrivacyPolicy || null}
@@ -652,9 +705,18 @@
 			<Form.Field form={conversationForm} name="faqs" class="contents">
 				<Form.Control>
 					{#snippet children({ props })}
-						{@render fieldLabel('FAQs', `${previewBase}/faq`)}
+						{@render fieldLabel(
+							'FAQs',
+							'faqs',
+							"Shown on the FAQ page and the 'Find out more' panel. Leave blank to use Comhairle's default FAQs."
+						)}
 						<div class="flex-1">
-							<CollapsibleRichField label="FAQs" content={$form.faqs}>
+							<CollapsibleRichField
+								label="FAQs"
+								content={$form.faqs}
+								open={openContentField === 'faqs'}
+								onOpenChange={(o) => (openContentField = o ? 'faqs' : null)}
+							>
 								<TranslatableField
 									value={$form.faqs || null}
 									onValueChange={(v) => ($form.faqs = v)}
@@ -684,12 +746,16 @@
 					{#snippet children({ props })}
 						{@render fieldLabel(
 							'Thank you message',
-							`${previewBase}/workflow/${workflow.id}/thank_you`
+							'thankYouMessage',
+							"Shown on the thank-you page after someone finishes. Leave blank for the default 'Thank you for participating' message."
 						)}
 						<div class="flex-1">
 							<CollapsibleRichField
 								label="Thank you message"
 								content={$form.thankYouMessage}
+								open={openContentField === 'thankYouMessage'}
+								onOpenChange={(o) =>
+									(openContentField = o ? 'thankYouMessage' : null)}
 							>
 								<TranslatableField
 									value={$form.thankYouMessage || null}
@@ -722,13 +788,16 @@
 			<Form.Field form={conversationForm} name="callToAction" class="contents">
 				<Form.Control>
 					{#snippet children({ props })}
-						{@render fieldLabel('Call to action', previewBase)}
+						{@render fieldLabel(
+							'Call to action',
+							'callToAction',
+							"The label on the main join button. Leave blank for 'Join the conversation'."
+						)}
 						<div class="flex-1">
 							<TranslatableField
 								value={$form.callToAction || null}
 								onValueChange={(v) => ($form.callToAction = v)}
 								translation={conversation.translations?.callToAction ?? undefined}
-								placeholder="The label on the main join button. Leave blank for 'Join the conversation'."
 								onSaveSource={(content: string) =>
 									handleInitOptionalTranslationField(
 										content,
@@ -763,7 +832,7 @@
 										<Form.Label class="text-sm font-medium"
 											>Show conversation publicly</Form.Label
 										>
-										{@render infoTip(
+										{@render infoPreview(
 											'When this conversation is launched, anyone (even without an account) can open its documents and data. Off means only you, collaborators, and participants can.'
 										)}
 									</div>
@@ -791,7 +860,7 @@
 										<Form.Label class="text-sm font-medium"
 											>Only allow participation by invite</Form.Label
 										>
-										{@render infoTip(
+										{@render infoPreview(
 											'Only people you invite can take part. With this off, anyone with the link can participate.'
 										)}
 									</div>
@@ -820,7 +889,7 @@
 										<Form.Label class="text-sm font-medium"
 											>Automatically log in with an anonymous account</Form.Label
 										>
-										{@render infoTip(
+										{@render infoPreview(
 											'Visitors who are not signed in get a temporary anonymous account automatically, so they can take part without registering. They can upgrade to a real account later.'
 										)}
 									</div>
@@ -848,7 +917,7 @@
 										<Form.Label class="text-sm font-medium"
 											>Show Learning Assistant</Form.Label
 										>
-										{@render infoTip(
+										{@render infoPreview(
 											"Shows a Q&A 'Learning Assistant' that answers participants' questions from the conversation's knowledge base. Set it up on the Knowledge Base page."
 										)}
 									</div>
@@ -884,7 +953,7 @@
 										<Form.Label class="text-sm font-medium"
 											>Enable signup prompts</Form.Label
 										>
-										{@render infoTip(
+										{@render infoPreview(
 											'Shows prompts encouraging participants to create an account on the thank-you page after they finish.'
 										)}
 									</div>
@@ -913,7 +982,7 @@
 										<Form.Label class="text-sm font-medium"
 											>Show thank you page anonymous instructions</Form.Label
 										>
-										{@render infoTip(
+										{@render infoPreview(
 											'On the thank-you page, shows anonymous participants their temporary ID and how to log back in later to see the results.'
 										)}
 									</div>
@@ -952,3 +1021,9 @@
 		</div>
 	{/if}
 </div>
+
+<ExampleDialog
+	bind:open={exampleOpen}
+	title={exampleEntry?.title ?? ''}
+	src={exampleEntry?.src ?? null}
+/>
