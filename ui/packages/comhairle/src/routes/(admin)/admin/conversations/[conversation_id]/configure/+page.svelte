@@ -12,7 +12,9 @@
 	import { conversationConfigSchema } from './schema';
 	import TeamManager from '$lib/components/TeamManager.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import ConfigureTabStrip, { type ConfigureTab } from './ConfigureTabStrip.svelte';
+	import CollapsibleRichField from './CollapsibleRichField.svelte';
 	import {
 		CONVERSATION_TAB_EXTRAS_CTX,
 		type ConversationTabExtras
@@ -26,12 +28,11 @@
 		WorkflowDto
 	} from '@crownshy/api-client/api';
 	import { camelToSentenceCase, camelToSnakeCase } from '$lib/utils/casingUtils';
-	import { Image as ImageIcon } from 'lucide-svelte';
+	import { Image as ImageIcon, ArrowUpRight, HelpCircle } from 'lucide-svelte';
 	import MediaLibraryDialog, {
 		addToCache
 	} from '$lib/components/Media/MediaLibraryDialog.svelte';
 	import MediaUpload from '$lib/components/Media/MediaUpload.svelte';
-	import Label from '$lib/components/ui/label/label.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 
 	let {
@@ -69,6 +70,10 @@
 	};
 	let activeTab = $derived(page.url.searchParams.get('tab') ?? tabs[0].id);
 	let header = $derived(tabHeaders[activeTab] ?? tabHeaders.details);
+
+	// Base for the "See where" links: the participant preview always renders in preview mode,
+	// so each field can deep-link to the exact surface it appears on (privacy, faq, thank-you…).
+	let previewBase = $derived(`/conversations/${conversation.id}/preview`);
 
 	// Inject the full-bleed sub-tab strip into "Row 3" of the conversation layout,
 	// the same slot the workflow step strip uses. Cleared on unmount.
@@ -262,6 +267,13 @@
 
 	let { form } = conversationForm;
 
+	// Gate the inline autosave for required text fields: TranslatableField saves on every change,
+	// so without this an empty title/description would persist even while the form shows its
+	// "required" error. Optional fields get no guard and keep autosaving blank values.
+	function requiredFieldValidator(field: 'title' | 'shortDescription' | 'description') {
+		return (value: string) => conversationConfigSchema.shape[field].safeParse(value).success;
+	}
+
 	// Access toggles autosave on change (the page has no Save button — see ADR-0004).
 	// `$form.<field>` is updated optimistically by `bind:checked`; on failure we revert it.
 	// TODO: replace the per-toggle toast with a quiet inline "Saving → Saved" indicator per
@@ -345,6 +357,61 @@
 	<ConfigureTabStrip {tabs} />
 {/snippet}
 
+<!-- "See where" deep-link to the live participant preview surface this field appears on. Opens
+	 in a new tab; skipped when a field has no distinct participant surface (e.g. Language). -->
+{#snippet seeWhere(previewHref: string)}
+	{#if previewHref}
+		<a
+			href={previewHref}
+			target="_blank"
+			rel="noopener"
+			class="text-primary mt-1.5 inline-flex items-center gap-1 text-sm hover:underline"
+		>
+			See where
+			<ArrowUpRight class="size-3.5" />
+		</a>
+	{/if}
+{/snippet}
+
+<!-- Left-column label for a form field. `label` stays a <Form.Label> so it keeps its `for`
+	 association with the control. What the field does lives in the field's placeholder; this
+	 column just carries the label and a "See where" link to the surface it appears on. -->
+{#snippet fieldLabel(label: string, previewHref: string = '')}
+	<div class="lg:w-50 lg:shrink-0 lg:pt-2">
+		<Form.Label class="text-sm font-semibold">{label}</Form.Label>
+		{@render seeWhere(previewHref)}
+	</div>
+{/snippet}
+
+<!-- Same, for rows whose control isn't a Form.Field (Banner, Language), so there's no label to
+	 associate. -->
+{#snippet plainLabel(label: string, description: string = '', previewHref: string = '')}
+	<div class="lg:w-50 lg:shrink-0 lg:pt-2">
+		<p class="text-sm font-semibold">{label}</p>
+		{#if description}
+			<p class="text-muted-foreground mt-1 text-sm">{description}</p>
+		{/if}
+		{@render seeWhere(previewHref)}
+	</div>
+{/snippet}
+
+<!-- Small info affordance for Access toggles: a "?" that reveals a fuller plain-language
+	 explanation of what the setting does for participants. -->
+{#snippet infoTip(text: string)}
+	<Tooltip.Provider delayDuration={150}>
+		<Tooltip.Root>
+			<Tooltip.Trigger
+				type="button"
+				class="text-muted-foreground hover:text-foreground"
+				aria-label="More information"
+			>
+				<HelpCircle class="size-4" />
+			</Tooltip.Trigger>
+			<Tooltip.Content class="max-w-xs text-sm">{text}</Tooltip.Content>
+		</Tooltip.Root>
+	</Tooltip.Provider>
+{/snippet}
+
 <PageHeader title={header.title} description={header.description} />
 
 <!-- One superForm still backs every field (its inline validation + $form binding); there is
@@ -358,13 +425,12 @@
 			<Form.Field form={conversationForm} name="title" class="contents">
 				<Form.Control>
 					{#snippet children({ props })}
-						<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-							>Title</Form.Label
-						>
+						{@render fieldLabel('Title', previewBase)}
 						<div class="flex-1" id="conversation-title-field">
 							<TranslatableField
 								value={$form.title}
 								onValueChange={(v) => ($form.title = v)}
+								canSave={requiredFieldValidator('title')}
 								translation={conversation.translations?.title}
 								primaryLocale={primaryLanguage}
 								{supportedLanguages}
@@ -384,18 +450,17 @@
 			<Form.Field form={conversationForm} name="shortDescription" class="contents">
 				<Form.Control>
 					{#snippet children({ props })}
-						<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-							>Short description</Form.Label
-						>
+						{@render fieldLabel('Short description', previewBase)}
 						<div class="flex-1">
 							<TranslatableField
 								value={$form.shortDescription}
 								onValueChange={(v) => ($form.shortDescription = v)}
+								canSave={requiredFieldValidator('shortDescription')}
 								translation={conversation.translations?.shortDescription}
 								primaryLocale={primaryLanguage}
 								{supportedLanguages}
 								inputType="textarea"
-								placeholder="A short description for this conversation."
+								placeholder="A one-line summary, shown under the title on the landing page and on conversation cards in listings."
 								inputProps={props}
 							/>
 							<Form.FieldErrors />
@@ -412,18 +477,17 @@
 			<Form.Field form={conversationForm} name="description" class="contents">
 				<Form.Control>
 					{#snippet children({ props })}
-						<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-							>Description</Form.Label
-						>
+						{@render fieldLabel('Description', previewBase)}
 						<div class="flex-1">
 							<TranslatableField
 								value={$form.description}
 								onValueChange={(v) => ($form.description = v)}
+								canSave={requiredFieldValidator('description')}
 								translation={conversation.translations?.description}
 								primaryLocale={primaryLanguage}
 								{supportedLanguages}
 								inputType="textarea"
-								placeholder="Introduce people to what is being discussed and outline the actions that might be taken as a result of the conversation."
+								placeholder="Introduce people to what is being discussed and outline the actions that might be taken as a result of the conversation. A fuller introduction, shown beside the banner image on the landing and invitation pages."
 								inputProps={props}
 							/>
 							<Form.FieldErrors />
@@ -437,7 +501,10 @@
 		<div
 			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 		>
-			<p class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Language options</p>
+			{@render plainLabel(
+				'Language options',
+				'The primary language plus any others you support. Adding a language lets you translate the other fields into it.'
+			)}
 			<div class="max-w-md flex-1">
 				<LanguageSelector
 					bind:primaryLanguage
@@ -453,9 +520,11 @@
 			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 		>
 			<div class="contents">
-				<Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-					>Banner image URL</Label
-				>
+				{@render plainLabel(
+					'Banner image',
+					'Shown beside the description on the landing and invitation pages.',
+					previewBase
+				)}
 				<div class="align-start flex w-full flex-col gap-4">
 					<div class="flex flex-1 gap-4">
 						<MediaLibraryDialog
@@ -505,27 +574,32 @@
 			<Form.Field form={conversationForm} name="privacyPolicy" class="contents">
 				<Form.Control>
 					{#snippet children({ props })}
-						<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-							>Privacy Policy</Form.Label
-						>
+						{@render fieldLabel('Privacy Policy', `${previewBase}/privacy`)}
 						<div class="flex-1">
-							<TranslatableField
-								value={$form.privacyPolicy || null}
-								onValueChange={(v) => ($form.privacyPolicy = v)}
-								translation={conversation.translations?.privacyPolicy ?? undefined}
-								editorType="rich"
-								onSaveSource={(content: string) =>
-									handleInitOptionalTranslationField(
-										content,
-										'privacyPolicy',
-										'rich',
-										true
-									)}
-								primaryLocale={primaryLanguage}
-								{supportedLanguages}
-								inputProps={props}
-							/>
-							<Form.FieldErrors />
+							<CollapsibleRichField
+								label="Privacy policy"
+								content={$form.privacyPolicy}
+							>
+								<TranslatableField
+									value={$form.privacyPolicy || null}
+									onValueChange={(v) => ($form.privacyPolicy = v)}
+									translation={conversation.translations?.privacyPolicy ??
+										undefined}
+									editorType="rich"
+									placeholder="The full policy, shown on the Privacy Policy page and the 'Find out more' panel. Leave blank to use Comhairle's default."
+									onSaveSource={(content: string) =>
+										handleInitOptionalTranslationField(
+											content,
+											'privacyPolicy',
+											'rich',
+											true
+										)}
+									primaryLocale={primaryLanguage}
+									{supportedLanguages}
+									inputProps={props}
+								/>
+								<Form.FieldErrors />
+							</CollapsibleRichField>
 						</div>
 					{/snippet}
 				</Form.Control>
@@ -539,28 +613,32 @@
 			<Form.Field form={conversationForm} name="shortPrivacyPolicy" class="contents">
 				<Form.Control>
 					{#snippet children({ props })}
-						<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-							>Short Privacy Policy</Form.Label
-						>
+						{@render fieldLabel('Short Privacy Policy', previewBase)}
 						<div class="flex-1">
-							<TranslatableField
-								value={$form.shortPrivacyPolicy || null}
-								onValueChange={(v) => ($form.shortPrivacyPolicy = v)}
-								translation={conversation.translations?.shortPrivacyPolicy ??
-									undefined}
-								editorType="rich"
-								onSaveSource={(content: string) =>
-									handleInitOptionalTranslationField(
-										content,
-										'shortPrivacyPolicy',
-										'rich',
-										true
-									)}
-								primaryLocale={primaryLanguage}
-								{supportedLanguages}
-								inputProps={props}
-							/>
-							<Form.FieldErrors />
+							<CollapsibleRichField
+								label="Short privacy policy"
+								content={$form.shortPrivacyPolicy}
+							>
+								<TranslatableField
+									value={$form.shortPrivacyPolicy || null}
+									onValueChange={(v) => ($form.shortPrivacyPolicy = v)}
+									translation={conversation.translations?.shortPrivacyPolicy ??
+										undefined}
+									editorType="rich"
+									placeholder="Shown in the consent dialog participants accept before joining. Leave blank to use Comhairle's default."
+									onSaveSource={(content: string) =>
+										handleInitOptionalTranslationField(
+											content,
+											'shortPrivacyPolicy',
+											'rich',
+											true
+										)}
+									primaryLocale={primaryLanguage}
+									{supportedLanguages}
+									inputProps={props}
+								/>
+								<Form.FieldErrors />
+							</CollapsibleRichField>
 						</div>
 					{/snippet}
 				</Form.Control>
@@ -574,22 +652,23 @@
 			<Form.Field form={conversationForm} name="faqs" class="contents">
 				<Form.Control>
 					{#snippet children({ props })}
-						<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-							>FAQs</Form.Label
-						>
+						{@render fieldLabel('FAQs', `${previewBase}/faq`)}
 						<div class="flex-1">
-							<TranslatableField
-								value={$form.faqs || null}
-								onValueChange={(v) => ($form.faqs = v)}
-								translation={conversation.translations?.faqs ?? undefined}
-								editorType="rich"
-								onSaveSource={(content: string) =>
-									handleInitOptionalTranslationField(content, 'faqs')}
-								primaryLocale={primaryLanguage}
-								{supportedLanguages}
-								inputProps={props}
-							/>
-							<Form.FieldErrors />
+							<CollapsibleRichField label="FAQs" content={$form.faqs}>
+								<TranslatableField
+									value={$form.faqs || null}
+									onValueChange={(v) => ($form.faqs = v)}
+									translation={conversation.translations?.faqs ?? undefined}
+									editorType="rich"
+									placeholder="Shown on the FAQ page and the 'Find out more' panel. Leave blank to use Comhairle's default FAQs."
+									onSaveSource={(content: string) =>
+										handleInitOptionalTranslationField(content, 'faqs')}
+									primaryLocale={primaryLanguage}
+									{supportedLanguages}
+									inputProps={props}
+								/>
+								<Form.FieldErrors />
+							</CollapsibleRichField>
 						</div>
 					{/snippet}
 				</Form.Control>
@@ -603,23 +682,33 @@
 			<Form.Field form={conversationForm} name="thankYouMessage" class="contents">
 				<Form.Control>
 					{#snippet children({ props })}
-						<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-							>Thank you message</Form.Label
-						>
+						{@render fieldLabel(
+							'Thank you message',
+							`${previewBase}/workflow/${workflow.id}/thank_you`
+						)}
 						<div class="flex-1">
-							<TranslatableField
-								value={$form.thankYouMessage || null}
-								onValueChange={(v) => ($form.thankYouMessage = v)}
-								translation={conversation.translations?.thankYouMessage ??
-									undefined}
-								editorType="rich"
-								onSaveSource={(content: string) =>
-									handleInitOptionalTranslationField(content, 'thankYouMessage')}
-								primaryLocale={primaryLanguage}
-								{supportedLanguages}
-								inputProps={props}
-							/>
-							<Form.FieldErrors />
+							<CollapsibleRichField
+								label="Thank you message"
+								content={$form.thankYouMessage}
+							>
+								<TranslatableField
+									value={$form.thankYouMessage || null}
+									onValueChange={(v) => ($form.thankYouMessage = v)}
+									translation={conversation.translations?.thankYouMessage ??
+										undefined}
+									editorType="rich"
+									placeholder="Shown on the thank-you page after someone finishes. Leave blank for the default 'Thank you for participating' message."
+									onSaveSource={(content: string) =>
+										handleInitOptionalTranslationField(
+											content,
+											'thankYouMessage'
+										)}
+									primaryLocale={primaryLanguage}
+									{supportedLanguages}
+									inputProps={props}
+								/>
+								<Form.FieldErrors />
+							</CollapsibleRichField>
 						</div>
 					{/snippet}
 				</Form.Control>
@@ -633,14 +722,13 @@
 			<Form.Field form={conversationForm} name="callToAction" class="contents">
 				<Form.Control>
 					{#snippet children({ props })}
-						<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
-							>Call to action</Form.Label
-						>
+						{@render fieldLabel('Call to action', previewBase)}
 						<div class="flex-1">
 							<TranslatableField
 								value={$form.callToAction || null}
 								onValueChange={(v) => ($form.callToAction = v)}
 								translation={conversation.translations?.callToAction ?? undefined}
+								placeholder="The label on the main join button. Leave blank for 'Join the conversation'."
 								onSaveSource={(content: string) =>
 									handleInitOptionalTranslationField(
 										content,
@@ -671,11 +759,16 @@
 						{#snippet children({ props })}
 							<div class="flex items-center justify-between gap-4">
 								<div class="flex flex-col gap-1">
-									<Form.Label class="text-sm font-medium"
-										>Show conversation publicly</Form.Label
-									>
+									<div class="flex items-center gap-1.5">
+										<Form.Label class="text-sm font-medium"
+											>Show conversation publicly</Form.Label
+										>
+										{@render infoTip(
+											'When this conversation is launched, anyone (even without an account) can open its documents and data. Off means only you, collaborators, and participants can.'
+										)}
+									</div>
 									<p class="text-muted-foreground text-sm">
-										Allow export of personal data and backups.
+										Let anyone view this conversation's data once it's launched.
 									</p>
 								</div>
 								<Switch
@@ -694,9 +787,14 @@
 						{#snippet children({ props })}
 							<div class="flex items-center justify-between gap-4">
 								<div class="flex flex-col gap-1">
-									<Form.Label class="text-sm font-medium"
-										>Only allow participation by invite</Form.Label
-									>
+									<div class="flex items-center gap-1.5">
+										<Form.Label class="text-sm font-medium"
+											>Only allow participation by invite</Form.Label
+										>
+										{@render infoTip(
+											'Only people you invite can take part. With this off, anyone with the link can participate.'
+										)}
+									</div>
 									<p class="text-muted-foreground text-sm">
 										Admins can invite and manage members.
 									</p>
@@ -718,9 +816,14 @@
 						{#snippet children({ props })}
 							<div class="flex items-center justify-between gap-4">
 								<div class="flex flex-col gap-1">
-									<Form.Label class="text-sm font-medium"
-										>Automatically log in with an anonymous account</Form.Label
-									>
+									<div class="flex items-center gap-1.5">
+										<Form.Label class="text-sm font-medium"
+											>Automatically log in with an anonymous account</Form.Label
+										>
+										{@render infoTip(
+											'Visitors who are not signed in get a temporary anonymous account automatically, so they can take part without registering. They can upgrade to a real account later.'
+										)}
+									</div>
 									<p class="text-muted-foreground text-sm">
 										Creates a temporary account for unauthenticated users.
 									</p>
@@ -741,9 +844,14 @@
 						{#snippet children({ props })}
 							<div class="flex items-center justify-between gap-4">
 								<div class="flex flex-col gap-1">
-									<Form.Label class="text-sm font-medium"
-										>Show Learning Assistant</Form.Label
-									>
+									<div class="flex items-center gap-1.5">
+										<Form.Label class="text-sm font-medium"
+											>Show Learning Assistant</Form.Label
+										>
+										{@render infoTip(
+											"Shows a Q&A 'Learning Assistant' that answers participants' questions from the conversation's knowledge base. Set it up on the Knowledge Base page."
+										)}
+									</div>
 									<p class="text-muted-foreground text-sm">
 										Display a Q&A Learning Assistant on the conversation.<br />
 										{#if !conversation.isLive}
@@ -772,9 +880,14 @@
 						{#snippet children({ props })}
 							<div class="flex items-center justify-between gap-4">
 								<div class="flex flex-col gap-1">
-									<Form.Label class="text-sm font-medium"
-										>Enable signup prompts</Form.Label
-									>
+									<div class="flex items-center gap-1.5">
+										<Form.Label class="text-sm font-medium"
+											>Enable signup prompts</Form.Label
+										>
+										{@render infoTip(
+											'Shows prompts encouraging participants to create an account on the thank-you page after they finish.'
+										)}
+									</div>
 									<p class="text-muted-foreground text-sm">
 										Toggle whether to display signup prompts on thank you page.
 									</p>
@@ -796,9 +909,14 @@
 						{#snippet children({ props })}
 							<div class="flex items-center justify-between gap-4">
 								<div class="flex flex-col gap-1">
-									<Form.Label class="text-sm font-medium"
-										>Show thank you page anonymous instructions</Form.Label
-									>
+									<div class="flex items-center gap-1.5">
+										<Form.Label class="text-sm font-medium"
+											>Show thank you page anonymous instructions</Form.Label
+										>
+										{@render infoTip(
+											'On the thank-you page, shows anonymous participants their temporary ID and how to log back in later to see the results.'
+										)}
+									</div>
 									<p class="text-muted-foreground text-sm">
 										Display instructions for anonymous users on the thank you
 										page.
