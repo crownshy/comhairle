@@ -1,10 +1,8 @@
 <script lang="ts">
 	import {
 		type LocalizedPage,
-		type WorkflowStepWithTranslations,
 		type ConversationWithTranslations,
-		type ComhairleDocument,
-		type ToolConfig
+		type ComhairleDocument
 	} from '@crownshy/api-client/api';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidateAll } from '$app/navigation';
@@ -18,20 +16,19 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import DraggableList from '$lib/components/DraggableList.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
-	import { onMount, type ComponentProps } from 'svelte';
+	import { onMount } from 'svelte';
+	import { GripVertical } from 'lucide-svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import Pages from './Pages.svelte';
+	import type { WorkflowStepWithTranslationsAndTool } from '$lib/tools/types';
 
 	interface ExtendedLocalizedPage extends LocalizedPage {
 		lang: string;
 		requires_validation: boolean;
 	}
 
-	type WorkflowStepWithTranslationsAndTool<T> = Exclude<
-		WorkflowStepWithTranslations,
-		'toolConfig' | 'previewToolConfig'
-	> & {
-		toolConfig: Extract<ToolConfig, { type: T }>;
-		previewToolConfig: Extract<ToolConfig, { type: T }>;
-	};
+	type Language = string;
+
 	interface Props {
 		conversationId: string;
 		conversation: ConversationWithTranslations;
@@ -42,13 +39,8 @@
 	let { conversationId, conversation, workflowStep, isLive }: Props = $props();
 
 	let isInitialLoad = $state(false);
-
 	let primaryLocale = $derived(conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(conversation.supportedLanguages ?? ['en']);
-
-	type Id = string;
-	type Language = string;
-	type Pages = Record<Id, Record<Language, ExtendedLocalizedPage>>;
 
 	let sourceConfig = $derived(
 		(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig) as {
@@ -57,150 +49,14 @@
 		}
 	);
 
-	let pages = $state<Pages>({});
-	let hasLocalChanges = $state(false);
-
-	let list: ComponentProps<typeof DraggableList>['items'] = $derived(
-		Object.keys(pages).map((id) => ({ id }))
-	);
-
-	onMount(() => {
-		sourceConfig?.pages?.forEach((page, i) => {
-			const extendedLocalizedPage: Record<Language, ExtendedLocalizedPage> = {};
-			page.forEach((p) => {
-				extendedLocalizedPage[p.lang] = p;
-			});
-			pages[i] = extendedLocalizedPage;
-		});
-	});
-
-	let lastPropsConfig = $state<string>('');
-	$effect(() => {
-		const propsConfig = JSON.stringify({
-			pages: sourceConfig.pages
-		});
-		if (propsConfig !== lastPropsConfig && !hasLocalChanges) {
-			sourceConfig.pages.forEach((page, i) => {
-				const extendedLocalizedPage: Record<Language, ExtendedLocalizedPage> = {};
-				page.forEach((p) => {
-					extendedLocalizedPage[p.lang] = p;
-				});
-				pages[i] = extendedLocalizedPage;
-			});
-			lastPropsConfig = propsConfig;
-			if (isInitialLoad && Object.keys(pages).length > 0) {
-				isInitialLoad = false;
-			}
-		}
-	});
-
-	const localChanges = {
-		dirty: () => (hasLocalChanges = true),
-		clear: () => {
-			hasLocalChanges = false;
-			lastPropsConfig = JSON.stringify({
-				pages: sourceConfig?.pages
-			});
-		}
-	};
-
-	let id = $state<number>(0);
-
-	let sourceContent = $derived(pages[id]?.[primaryLocale]?.content ?? '');
-
-	let targetLanguages = $derived(
-		supportedLanguages.filter((lang: string) => lang !== primaryLocale)
-	);
-
-	interface PageData {
-		initialContents: Record<Language, string>;
-		statuses: Record<Language, TranslationStatus>;
-	}
-	let pageData = $derived.by((): PageData => {
-		const pageData: PageData = {
-			initialContents: { [primaryLocale]: pages[id]?.[primaryLocale]?.content ?? '' },
-			statuses: {}
-		};
-		for (const lang of targetLanguages) {
-			const translation = pages[id]?.[lang];
-			pageData.initialContents[lang] = translation?.content ?? '';
-			pageData.statuses[lang] =
-				translation?.requires_validation === false ? 'approved' : 'draft';
-		}
-		return pageData;
-	});
-
-	async function syncPages(callback: () => Promise<void> | void, options?: SaveToServerOptions) {
-		localChanges.dirty();
-		await callback();
-		return saveToServer(options);
-	}
-
-	function deletePage() {
-		syncPages(() => {
-			delete pages[id];
-			id = +Object.keys(pages)[0];
-		});
-	}
-
-	function addPage() {
-		syncPages(() => {
-			const keys = Object.keys(pages);
-			const latestId = Number(keys[keys.length - 1]);
-			const newId = (latestId + 1).toString();
-			const newPage: ExtendedLocalizedPage = {
-				lang: primaryLocale,
-				content: `# Page ${keys.length + 1}`,
-				type: 'markdown',
-				requires_validation: false
-			};
-			pages[newId] = { [primaryLocale]: newPage };
-		});
-	}
-
-	type From = 'source' | 'target';
-	function upsertContent(
-		from: From,
-		lang: string,
-		content: ExtendedLocalizedPage['content'] | undefined
-	) {
-		const requires_validation = from === 'target';
-		return syncPages(
-			() => {
-				const page = pages[id];
-				if (!page) return;
-				page[lang] = {
-					lang,
-					type: 'markdown',
-					content: content ?? page[lang]?.content ?? '',
-					requires_validation
-				};
-				switch (from) {
-					case 'source':
-						for (const translation in page) {
-							if (page[translation].lang !== primaryLocale) {
-								page[translation].requires_validation = true;
-							}
-						}
-						break;
-					case 'target':
-						break;
-				}
-				pages[id] = page;
-			},
-			{ invalidate: false }
-		);
-	}
-
 	type SaveToServerOptions = { invalidate?: boolean };
-	async function saveToServer({ invalidate = true }: SaveToServerOptions = {}) {
-		const allPages: ExtendedLocalizedPage[][] = Object.values(pages).map((translations) =>
-			Object.values(translations)
-		);
-
+	async function save(
+		pages: ExtendedLocalizedPage[][],
+		{ invalidate = true }: SaveToServerOptions = {}
+	) {
 		const configToSave: Props['workflowStep']['toolConfig'] = {
 			type: 'learn',
-			pages: allPages
+			pages
 		};
 
 		const response = await tryCatchAsync(() =>
@@ -221,20 +77,74 @@
 		}
 
 		if (invalidate) await invalidateAll();
-		localChanges.clear();
+		localChanges.restore();
 	}
 
-	async function modifyValidation(lang: string, validation: boolean): Promise<void> {
-		return syncPages(
-			() => {
-				const page = pages[id];
-				if (!page || !page[lang]) return;
-				page[lang].requires_validation = validation;
-				pages[id] = page;
-			},
-			{ invalidate: false }
-		);
+	class LocalChanges {
+		exist = $state(false);
+
+		dirty() {
+			this.exist = true;
+		}
+
+		restore() {
+			this.exist = false;
+			lastPropsConfig = JSON.stringify({
+				pages: sourceConfig?.pages
+			});
+		}
 	}
+
+	const localChanges = new LocalChanges();
+	const pages = new Pages();
+
+	pages.onChange(({ invalidate }) => {
+		localChanges.dirty();
+		return save(pages.toLocalizedPages(), { invalidate });
+	});
+
+	onMount(() => {
+		pages.load(sourceConfig?.pages ?? []);
+	});
+
+	let lastPropsConfig = $state<string>('');
+	$effect(() => {
+		const propsConfig = JSON.stringify({
+			pages: sourceConfig.pages
+		});
+		if (propsConfig !== lastPropsConfig && !localChanges.exist) {
+			pages.load(sourceConfig.pages);
+			lastPropsConfig = propsConfig;
+			if (isInitialLoad && Object.keys(pages).length > 0) {
+				isInitialLoad = false;
+			}
+		}
+	});
+
+	let sourceContent = $derived(pages.items[pages.currentId]?.[primaryLocale]?.content ?? '');
+	let targetLanguages = $derived(
+		supportedLanguages.filter((lang: string) => lang !== primaryLocale)
+	);
+
+	interface PageData {
+		initialContents: Record<Language, string>;
+		statuses: Record<Language, TranslationStatus>;
+	}
+	let pageData = $derived.by((): PageData => {
+		const pageData: PageData = {
+			initialContents: {
+				[primaryLocale]: pages.items[pages.currentId]?.[primaryLocale]?.content ?? ''
+			},
+			statuses: {}
+		};
+		for (const lang of targetLanguages) {
+			const translation = pages.items[pages.currentId]?.[lang];
+			pageData.initialContents[lang] = translation?.content ?? '';
+			pageData.statuses[lang] =
+				translation?.requires_validation === false ? 'approved' : 'draft';
+		}
+		return pageData;
+	});
 
 	// --- Document list for inline source document picker ---
 	let availableDocuments = $state<ComhairleDocument[]>([]);
@@ -262,19 +172,42 @@
 				<Skeleton class="h-10 w-24" />
 				<Skeleton class="h-10 w-28" />
 			{:else}
-				<DraggableList items={list} onReorder={(next) => (list = next)}>
+				<DraggableList
+					items={pages.order}
+					onReorder={(next) => (pages.order = next)}
+					class="bg-muted flex flex-row items-center gap-2"
+				>
 					{#snippet children(item)}
-						<Button onclick={() => (id = Number(item.id))}
-							>Page {Number(item.id) + 1}</Button
+						<Badge
+							class="flex flex-row items-center px-4 py-2"
+							variant={Number(item.id) === pages.currentId ? 'primary' : 'outline'}
 						>
+							<GripVertical
+								class="text-muted-foreground cursor-grab {Number(item.id) ===
+								pages.currentId
+									? 'text-primary-foreground'
+									: ''}"
+								size={16}
+							/>
+							<label class="cursor-pointer"
+								>Page {Number(item.id) + 1}
+								<input
+									class="hidden"
+									type="radio"
+									name="currentId"
+									value={Number(item.id)}
+									bind:group={pages.currentId}
+								/>
+							</label>
+						</Badge>
 					{/snippet}
 				</DraggableList>
-				<Button class="rounded-md" onclick={addPage}>+ Add Page</Button>
+				<Button variant="ghost" onclick={() => pages.new(primaryLocale)}>+ Add Page</Button>
 				<Button
 					variant="destructive"
 					class="rounded-md"
-					onclick={deletePage}
-					disabled={Object.keys(pages).length <= 1}>- Delete Page</Button
+					onclick={() => pages.current.delete()}
+					disabled={pages.count <= 1}>- Delete Page</Button
 				>
 			{/if}
 		</div>
@@ -304,30 +237,32 @@
 	{:else}
 		<TranslatableField
 			value={sourceContent}
-			onValueChange={(content) => upsertContent('source', primaryLocale, content)}
+			onValueChange={(content) =>
+				pages.current.upsertContent('source', primaryLocale, content)}
 			{primaryLocale}
 			{supportedLanguages}
 			editorType="rich"
 			minHeight="300px"
 			dialogMinHeight="250px"
-			dialogTitle="Translate: Page {id + 1}"
+			dialogTitle="Translate: Page {pages.currentId + 1}"
 			initialContents={pageData.initialContents}
 			initialStatuses={pageData.statuses}
 			{availableDocuments}
 			{conversationId}
-			onSaveSource={(content) => upsertContent('source', primaryLocale, content)}
-			onSaveTarget={(lang, content) => upsertContent('target', lang, content)}
+			onSaveSource={(content) =>
+				pages.current.upsertContent('source', primaryLocale, content)}
+			onSaveTarget={(lang, content) => pages.current.upsertContent('target', lang, content)}
 			onAiTranslate={async (targetLang, sContent) => {
 				const translatedContent = await aiTranslateContent(
 					sContent,
 					targetLang,
 					primaryLocale
 				);
-				await upsertContent('target', targetLang, translatedContent);
+				await pages.current.upsertContent('target', targetLang, translatedContent);
 				return { content: translatedContent, requiresValidation: true };
 			}}
-			onApprove={(lang) => modifyValidation(lang, true)}
-			onMarkAsDraft={(lang) => modifyValidation(lang, false)}
+			onApprove={(lang) => pages.current.modifyValidation(lang, true)}
+			onMarkAsDraft={(lang) => pages.current.modifyValidation(lang, false)}
 		/>
 	{/if}
 </div>
