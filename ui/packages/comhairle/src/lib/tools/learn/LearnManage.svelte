@@ -19,7 +19,10 @@
 	import { GripVertical } from 'lucide-svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import Pages, { type ExtendedLocalizedPage, type Language } from './Pages.svelte';
-	import type { WorkflowStepWithTranslationsAndTool } from '$lib/tools/types';
+	import type {
+		InstancedToolConfig,
+		WorkflowStepWithTranslationsAndTool
+	} from '$lib/tools/types';
 
 	interface Props {
 		conversationId: string;
@@ -34,11 +37,12 @@
 	let primaryLocale = $derived(conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $derived(conversation.supportedLanguages ?? ['en']);
 
-	let sourceConfig = $derived(
-		(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig) as {
-			type: 'learn';
-			pages: ExtendedLocalizedPage[][];
-		}
+	// FIX: Remove this after the types have been fixed on the backend
+	type LearnToolConfig = Exclude<InstancedToolConfig<'learn'>, 'pages'> & {
+		pages: ExtendedLocalizedPage[][];
+	};
+	let sourceConfig: LearnToolConfig = $derived(
+		(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig) as LearnToolConfig
 	);
 
 	type SaveToServerOptions = { invalidate?: boolean };
