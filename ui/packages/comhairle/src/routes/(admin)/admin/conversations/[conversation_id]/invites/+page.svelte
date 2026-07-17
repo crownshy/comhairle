@@ -2,6 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import Button from '$lib/components/ui/button/button.svelte';
+	import PageHeader from '$lib/components/PageHeader.svelte';
 
 	import EmailInviteForm from '$lib/components/ui/email-invites/EmailInviteForm.svelte';
 	import InviteLabelDialog from '$lib/components/InviteLabelDialog.svelte';
@@ -93,7 +94,7 @@
 	/>
 {/snippet}
 
-<h1 class="mb-4 text-3xl font-bold">Recruit</h1>
+<PageHeader title="Recruit" />
 
 {#if activeTab === 'email'}
 	<EmailInviteForm conversationId={conversation.id} onDone={emailInvitesSubmitted} />
