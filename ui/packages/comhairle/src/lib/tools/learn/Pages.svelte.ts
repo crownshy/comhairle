@@ -6,7 +6,7 @@ export type Language = string;
 type IPages = Record<Id, Record<Language, ExtendedLocalizedPage>>;
 
 export interface ExtendedLocalizedPage extends LocalizedPage {
-	lang: string;
+	lang: Language;
 	requires_validation: boolean;
 }
 
