@@ -14,6 +14,7 @@
 	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
 	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
 	import { moveItem } from '$lib/utils/reorder';
+	import { cn } from '$lib/utils';
 	import {
 		Pencil,
 		Trash2,
@@ -202,18 +203,30 @@
 		}
 	}
 
-	// --- Scroll a step just created via the AddStepDialog into view (dialog owned by the layout) ---
+	// --- Scroll a step just created via the AddStepDialog into view and briefly highlight
+	//     it, so it's clear which card is the one just added (the dialog is owned by the
+	//     layout, so it hands the new id over via `newStepHighlight`). ---
+	let highlightedStepId = $state<string | null>(null);
+	// Plain handle so the highlight's own timer isn't torn down when this effect re-runs
+	// after we clear `newStepHighlight` below.
+	let highlightTimer: ReturnType<typeof setTimeout> | undefined;
+
 	$effect(() => {
 		const pending = newStepHighlight.id;
 		if (!pending) return;
 		// Wait until the invalidated steps actually include the new one.
 		if (!reorderedSteps.some((s) => s.id === pending)) return;
 		newStepHighlight.clear();
+		highlightedStepId = pending;
 		tick().then(() => {
 			boardEl
 				?.querySelector(`[data-step-id="${pending}"]`)
 				?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		});
+		clearTimeout(highlightTimer);
+		highlightTimer = setTimeout(() => {
+			if (highlightedStepId === pending) highlightedStepId = null;
+		}, 2500);
 	});
 
 	let pageTitle = $derived(`Design ${conversation.title}`);
@@ -282,7 +295,11 @@
 						     its clicks win. Pointer cursor + hover lift read as clickable. -->
 						<div
 							data-step-id={step.id}
-							class="bg-card group hover:border-primary/50 border-border relative flex cursor-pointer items-center gap-4 rounded-xl border p-4 transition-all hover:shadow-md"
+							class={cn(
+								'bg-card group hover:border-primary/50 border-border relative flex cursor-pointer items-center gap-4 rounded-xl border p-4 transition-all hover:shadow-md',
+								highlightedStepId === step.id &&
+									'ring-primary ring-offset-muted ring-2 ring-offset-2'
+							)}
 						>
 							<!-- Drag handle. The whole card is draggable; this grip is the
 							     affordance that signals it. Sits above the stretched link. -->
