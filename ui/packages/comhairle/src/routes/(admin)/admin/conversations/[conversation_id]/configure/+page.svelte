@@ -1,9 +1,11 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { Switch } from '$lib/components/ui/switch';
 	import * as Form from '$lib/components/ui/form/';
 	import { notifications } from '$lib/notifications.svelte';
 	import { apiClient } from '@crownshy/api-client/client';
 	import { invalidate, invalidateAll } from '$app/navigation';
+	import { justCreatedConversation } from '$lib/stores/justCreatedConversation.svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { conversationConfigSchema } from './schema';
@@ -41,6 +43,22 @@
 	let primaryLanguage = $state(data.conversation.primaryLocale ?? 'en');
 	let supportedLanguages = $state(data.conversation.supportedLanguages ?? ['en']);
 	let pageTitle = $derived(`Configure ${conversation.title}`);
+
+	// When we land here straight after creating this conversation, focus and select the
+	// auto-generated "Untitled …" title so it's obvious this is a brand-new conversation
+	// ready to be named, rather than looking identical to the one the user came from.
+	onMount(() => {
+		if (justCreatedConversation.id !== conversation.id) return;
+		justCreatedConversation.clear();
+		// Defer a frame so the title field is mounted and populated before we select it.
+		requestAnimationFrame(() => {
+			const input = document.querySelector<HTMLInputElement>(
+				'#conversation-title-field input'
+			);
+			input?.focus();
+			input?.select();
+		});
+	});
 
 	$effect(() => {
 		primaryLanguage = data.conversation.primaryLocale ?? 'en';
@@ -308,7 +326,7 @@
 					<Form.Label class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2"
 						>Title</Form.Label
 					>
-					<div class="flex-1">
+					<div class="flex-1" id="conversation-title-field">
 						<TranslatableField
 							value={$form.title}
 							onValueChange={(v) => ($form.title = v)}

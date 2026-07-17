@@ -2,13 +2,16 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Accordion from '$lib/components/ui/accordion';
-	import { buttonVariants } from '$lib/components/ui/button';
+	import { Portal } from 'bits-ui';
+	import { buttonVariants, LoadingButton } from '$lib/components/ui/button';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import { Plus } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte';
 	import { manage_conversation_url } from '$lib/urls';
 	import { createConversation } from '$lib/createConversation';
 	import { conversationTemplates } from '$lib/conversation_templates';
+	import { justCreatedConversation } from '$lib/stores/justCreatedConversation.svelte';
 	import SelectableOptionRow from '$lib/components/SelectableOptionRow.svelte';
 	import { cn } from '$lib/utils';
 
@@ -30,6 +33,8 @@
 		submitting = true;
 		try {
 			const conversation = await createConversation(templateKey ? { templateKey } : {});
+			// Flag it so the configure page it lands on makes its newness obvious.
+			justCreatedConversation.flag(conversation.id);
 			notifications.addFlash({ message: 'Conversation created' });
 			dialogOpen = false;
 			await goto(manage_conversation_url(conversation.id), { invalidateAll: true });
@@ -70,7 +75,9 @@
 
 		<div class="flex min-h-0 flex-1 items-start gap-6 overflow-hidden">
 			<!-- Left: selectable template list -->
-			<div class="flex w-96 shrink-0 flex-col gap-3 self-stretch overflow-y-auto pr-1">
+			<div
+				class="flex w-96 shrink-0 flex-col gap-3 self-stretch overflow-y-auto pr-4 [scrollbar-gutter:stable]"
+			>
 				{#each conversationTemplates as template (template.key)}
 					<SelectableOptionRow
 						selected={selectedKey === template.key}
@@ -159,14 +166,36 @@
 			<Dialog.Close class={buttonVariants({ variant: 'outline', size: 'sm' })}
 				>Close</Dialog.Close
 			>
-			<button
-				type="button"
-				disabled={submitting}
+			<LoadingButton
+				variant="default"
+				size="sm"
+				loading={submitting}
 				onclick={() => create(selected.key)}
-				class={buttonVariants({ variant: 'default', size: 'sm' })}
 			>
 				Get started
-			</button>
+			</LoadingButton>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
+
+<!-- Immediate, screen-level feedback while the conversation is being created (covers
+	both "Start from blank", where the dropdown has already closed, and a template).
+	Portaled to <body> so no sidebar stacking context can trap it below the page. -->
+{#if submitting}
+	<Portal>
+		<div
+			class="bg-background/70 fixed inset-0 z-[100] flex items-center justify-center backdrop-blur-sm"
+			role="status"
+			aria-live="polite"
+		>
+			<div
+				class="bg-card border-border flex items-center gap-3 rounded-xl border px-5 py-4 shadow-lg"
+			>
+				<Spinner class="text-primary size-5" />
+				<span class="text-foreground text-base font-medium"
+					>Creating your conversation…</span
+				>
+			</div>
+		</div>
+	</Portal>
+{/if}
