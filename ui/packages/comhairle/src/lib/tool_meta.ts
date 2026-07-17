@@ -73,9 +73,9 @@ export type ToolMeta = {
  * Keyed by the ToolConfig discriminant.
  *
  * NOTE: the `description` / `bestFor` / `features` / `whatYoudGet` copy is authored
- * detail-panel content. `learn` uses the finalised Figma copy; the other six are
- * PLACEHOLDER copy derived from each tool's tagline and still need product/design
- * sign-off before this ships.
+ * detail-panel content. `learn`, `thinkingspace`, `polis` and `heyform` use the
+ * finalised Figma copy; the others are still PLACEHOLDER copy derived from each
+ * tool's tagline and need product/design sign-off before they ship.
  */
 export const TOOL_META: Record<ToolType, ToolMeta> = {
 	learn: {
@@ -105,18 +105,14 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		infoSlug: 'thinking_space',
 		creationKey: 'Thinking Space',
 		estimatedMinutes: 12,
-		// PLACEHOLDER copy — needs product/design review.
 		description:
-			'Help participants explore their own views before contributing. A guided space asks non-leading coaching questions that broaden and deepen what a participant thinks, one follow-up at a time.',
-		bestFor: [
-			'Helping participants form considered views',
-			'Warming up before a poll or discussion'
-		],
-		features: [
-			'Adaptive follow-up questions',
-			'Participants review and edit before submitting'
-		],
-		whatYoudGet: ['Reflective written responses', 'Themes across participants']
+			'Help participants explore their views by asking them non-leading coaching questions that broaden and deepen their views.',
+		bestFor: ['Reflective individual exercises', 'Preparation before group dialogue'],
+		features: ['AI-guided coaching questions', 'Adaptive follow-up prompts'],
+		whatYoudGet: [
+			'Participant reflection responses (depend on consent)',
+			'Participant reflection summaries (depend on consent)'
+		]
 	},
 	polis: {
 		type: 'polis',
@@ -127,18 +123,14 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		infoSlug: 'polis',
 		creationKey: 'Polis',
 		estimatedMinutes: 12,
-		// PLACEHOLDER copy — needs product/design review.
 		description:
-			'Surface the range of views in your community. Participants vote Agree, Disagree, or Pass on statements, and can add their own for others to vote on, revealing where consensus and division lie.',
+			"Show participants others' views and vote 'Agree', 'Disagree' or 'Pass'. Participants can also submit their own views.",
 		bestFor: [
-			'Finding common ground on divisive topics',
-			"Surfacing views you didn't know to ask about"
+			'Surfacing diverse perspectives',
+			'Encourage broad participation in early stage discussion'
 		],
-		features: [
-			'Participant-submitted statements',
-			'Real-time consensus and opinion-group analysis'
-		],
-		whatYoudGet: ['Consensus statements', 'Opinion-group breakdown']
+		features: ['Real-time opinion group mapping', 'Participant-submitted statements'],
+		whatYoudGet: ['Voting breakdowns by statement', 'Consensus and divergence insights']
 	},
 	heyform: {
 		type: 'heyform',
@@ -148,12 +140,10 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		infoSlug: 'heyform',
 		creationKey: 'Survey',
 		estimatedMinutes: 9,
-		// PLACEHOLDER copy — needs product/design review.
-		description:
-			'Ask participants a series of pre-planned questions. Mix multiple choice, rating, and open-text questions to gather structured, comparable responses.',
-		bestFor: ['Structured feedback', 'Demographic or screening questions'],
-		features: ['Multiple question types', 'Required and optional questions'],
-		whatYoudGet: ['Per-question response breakdown', 'Exportable responses']
+		description: 'Ask participants a series of pre-planned questions.',
+		bestFor: ['Structured data collection and analysis', 'Pre- and post-engagement feedback'],
+		features: ['Multiple question types', 'Conditional logic'],
+		whatYoudGet: ['Aggregated responses', 'Individual response breakdown']
 	},
 	prioritization: {
 		type: 'prioritization',
@@ -164,7 +154,7 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		infoSlug: 'prioritization',
 		creationKey: 'Prioritization',
 		estimatedMinutes: 10,
-		// PLACEHOLDER copy — needs product/design review.
+		// PLACEHOLDER copy (needs product/design review).
 		description:
 			'Collect a set of proposals and have participants score each one against a shared set of questions, producing a ranked, comparable view of what matters most.',
 		bestFor: ['Ranking ideas or options', 'Allocating limited resources'],
@@ -180,7 +170,7 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		infoSlug: 'elicitation_bot',
 		creationKey: 'Elicitation Bot',
 		estimatedMinutes: 10,
-		// PLACEHOLDER copy — needs product/design review.
+		// PLACEHOLDER copy (needs product/design review).
 		description:
 			'Help participants refine and capture their views through an AI-mediated conversation. The bot asks questions, then extracts claims participants can approve, edit, or remove.',
 		bestFor: [
@@ -198,7 +188,7 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 		infoSlug: 'lived_experience',
 		creationKey: 'Lived Experience',
 		estimatedMinutes: 8,
-		// PLACEHOLDER copy — needs product/design review.
+		// PLACEHOLDER copy (needs product/design review).
 		description:
 			'Let participants record short videos sharing their lived experience, capturing context and emotion that text alone can miss.',
 		bestFor: ['Gathering personal testimony', 'Human-centred, qualitative input'],
@@ -208,21 +198,69 @@ export const TOOL_META: Record<ToolType, ToolMeta> = {
 };
 
 /**
- * Order the tools appear in the left palette. Matches the Figma palette (minus the
- * unbacked "Video call"), with the two Figma-omitted-but-working tools appended so
- * nothing regresses (see CONTEXT.md / grilling notes).
+ * A palette entry that has no backing workflow tool, so "+ Add this step" creates a
+ * conversation Event (e.g. a live video conference) instead of a workflow step. It
+ * carries the same display fields as {@link ToolMeta} but no {@link CreationKey}; the
+ * absence of `creationKey` is what {@link isEventPaletteItem} keys off. See CONTEXT.md
+ * ("Online video conference" is display-only in templates until a tool backs it).
  */
-export const PALETTE_ORDER: ToolType[] = [
-	'learn',
-	'thinkingspace',
-	'polis',
-	'heyform',
-	'prioritization',
-	'elicitationbot',
-	'stories'
-];
+export type EventPaletteMeta = {
+	/** Palette-only identifier. Not a ToolConfig discriminant, so it never resolves via {@link toolMeta}. */
+	type: 'videoconference';
+	displayName: string;
+	tagline: string;
+	icon: typeof Icon;
+	infoSlug: string;
+	estimatedMinutes: number;
+	description: string;
+	bestFor: string[];
+	features: string[];
+	whatYoudGet: string[];
+};
 
-export const PALETTE_TOOLS: ToolMeta[] = PALETTE_ORDER.map((t) => TOOL_META[t]);
+/** An entry in the add-step palette: a real tool, or an event stand-in. */
+export type PaletteItem = ToolMeta | EventPaletteMeta;
+
+/** Narrows a palette entry to the event stand-in (adds an Event, not a workflow step). */
+export function isEventPaletteItem(item: PaletteItem): item is EventPaletteMeta {
+	return !('creationKey' in item);
+}
+
+const VIDEO_CONFERENCE: EventPaletteMeta = {
+	type: 'videoconference',
+	displayName: 'Online video conference',
+	tagline: 'Facilitate live video meetings for real-time collaboration and discussion.',
+	icon: Video,
+	infoSlug: 'online_group_conversation',
+	estimatedMinutes: 60,
+	description: 'Facilitate live video meetings for real-time collaboration and discussion.',
+	bestFor: ['Live workshops and discussion', 'Presentations, demonstrations, and training'],
+	features: [
+		'Breakout rooms for small group discussions',
+		'Supports interactive facilitation in a live setting'
+	],
+	whatYoudGet: [
+		'Transcription of main and breakout rooms',
+		'Summary and themes of ideas emerged from the discussion'
+	]
+};
+
+/**
+ * Order the entries appear in the left palette. Follows the finalised Figma palette
+ * order (Topic onboarding, Participant-led poll, Survey, Online video conference,
+ * Individual view exploration), with the remaining working-but-Figma-omitted tools
+ * appended so nothing regresses (see CONTEXT.md / grilling notes).
+ */
+export const PALETTE_TOOLS: PaletteItem[] = [
+	TOOL_META.learn,
+	TOOL_META.polis,
+	TOOL_META.heyform,
+	VIDEO_CONFERENCE,
+	TOOL_META.thinkingspace,
+	TOOL_META.prioritization,
+	TOOL_META.elicitationbot,
+	TOOL_META.stories
+];
 
 export function toolMeta(type: string | undefined | null): ToolMeta | undefined {
 	if (!type) return undefined;

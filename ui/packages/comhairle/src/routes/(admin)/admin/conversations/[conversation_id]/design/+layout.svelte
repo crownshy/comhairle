@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto, invalidate } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { getContext } from 'svelte';
 	import { notifications } from '$lib/notifications.svelte.js';
 	import { createWorkflowStep } from '$lib/createWorkflowStep';
@@ -62,6 +63,18 @@
 			adding = false;
 		}
 	}
+
+	// The "Online video conference" palette entry has no backing workflow tool, so
+	// adding it creates a conversation Event instead. Hand off to the create-event
+	// flow, where the organiser sets the required date, time, and details.
+	function addEvent() {
+		addStepDialog.open = false;
+		goto(
+			resolve('/(admin)/admin/conversations/[conversation_id]/events/new', {
+				conversation_id: conversation.id
+			})
+		);
+	}
 </script>
 
 {#snippet workflowStripSnippet()}
@@ -72,6 +85,6 @@
 	/>
 {/snippet}
 
-<AddStepDialog bind:open={addStepDialog.open} {adding} onAdd={addStep} />
+<AddStepDialog bind:open={addStepDialog.open} {adding} onAdd={addStep} onAddEvent={addEvent} />
 
 {@render children()}
