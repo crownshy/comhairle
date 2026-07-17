@@ -2,9 +2,8 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Accordion from '$lib/components/ui/accordion';
-	import { Portal } from 'bits-ui';
 	import { buttonVariants, LoadingButton } from '$lib/components/ui/button';
-	import { Spinner } from '$lib/components/ui/spinner';
+	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
 	import { Plus } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte';
@@ -179,23 +178,5 @@
 </Dialog.Root>
 
 <!-- Immediate, screen-level feedback while the conversation is being created (covers
-	both "Start from blank", where the dropdown has already closed, and a template).
-	Portaled to <body> so no sidebar stacking context can trap it below the page. -->
-{#if submitting}
-	<Portal>
-		<div
-			class="bg-background/70 fixed inset-0 z-[100] flex items-center justify-center backdrop-blur-sm"
-			role="status"
-			aria-live="polite"
-		>
-			<div
-				class="bg-card border-border flex items-center gap-3 rounded-xl border px-5 py-4 shadow-lg"
-			>
-				<Spinner class="text-primary size-5" />
-				<span class="text-foreground text-base font-medium"
-					>Creating your conversation…</span
-				>
-			</div>
-		</div>
-	</Portal>
-{/if}
+	both "Start from blank", where the dropdown has already closed, and a template). -->
+<LoadingOverlay open={submitting} message="Creating your conversation…" />

@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { buttonVariants, LoadingButton } from '$lib/components/ui/button';
 	import SelectableOptionRow from '$lib/components/SelectableOptionRow.svelte';
+	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
 	import { PALETTE_TOOLS, isEventPaletteItem, type CreationKey } from '$lib/tool_meta';
 	import { BookOpen, ExternalLink, Check } from 'lucide-svelte';
 
@@ -183,3 +184,7 @@
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
+
+<!-- The dialog stays open while the step is created, so a button spinner alone is easy to
+	miss (Polis/HeyForm can take a few seconds). Mirror the create-conversation overlay. -->
+<LoadingOverlay open={adding} message="Adding step…" />
