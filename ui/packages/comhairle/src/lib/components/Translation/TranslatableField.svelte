@@ -36,6 +36,7 @@
 		dialogMinHeight?: string;
 		dialogTitle?: string;
 		inputProps?: Record<string, any>;
+		// Should translation be optional? Without it, it doesn't show "saving"
 		translation?: TranslationData;
 		initialContents?: Record<string, string>;
 		initialStatuses?: Record<string, TranslationStatus>;
