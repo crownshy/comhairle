@@ -2,6 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import { Plus, Pencil } from 'lucide-svelte';
 	import ContentRenderer from '$lib/components/RichTextEditor/ContentRenderer/ContentRenderer.svelte';
+	import { Button } from '$lib/components/ui/button';
 
 	type Props = {
 		/** Field name, used in the empty-state call to action ("Add privacy policy"). */
@@ -32,23 +33,17 @@
 </script>
 
 {#if open}
-	<div class="flex flex-col gap-2">
+	<div class="flex flex-col gap-1">
 		{@render children()}
 		<div>
-			<button
-				type="button"
-				class="text-muted-foreground hover:text-foreground text-sm font-medium"
-				onclick={() => onOpenChange(false)}
-			>
-				Done
-			</button>
+			<Button variant="outline" onclick={() => onOpenChange(false)}>Done</Button>
 		</div>
 	</div>
 {:else if isEmpty}
 	<button
 		type="button"
 		onclick={() => onOpenChange(true)}
-		class="bg-card border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground flex h-11 w-full items-center gap-2 rounded-lg border border-dashed px-4 text-sm"
+		class="bg-card border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground flex h-11 w-full items-center gap-2 rounded-lg border border-dashed px-4 text-left text-sm"
 	>
 		<Plus class="size-4" />
 		Add {label.toLowerCase()}

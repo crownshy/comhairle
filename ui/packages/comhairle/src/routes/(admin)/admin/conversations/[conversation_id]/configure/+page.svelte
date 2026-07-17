@@ -494,7 +494,7 @@
 								primaryLocale={primaryLanguage}
 								{supportedLanguages}
 								inputType="textarea"
-								placeholder="A one-line summary, shown under the title on the landing page and on conversation cards in listings."
+								placeholder="A short description for this conversation."
 								inputProps={props}
 							/>
 							<Form.FieldErrors />
@@ -525,7 +525,7 @@
 								primaryLocale={primaryLanguage}
 								{supportedLanguages}
 								inputType="textarea"
-								placeholder="Introduce people to what is being discussed and outline the actions that might be taken as a result of the conversation. A fuller introduction, shown beside the banner image on the landing and invitation pages."
+								placeholder="Introduce people to what is being discussed and outline the actions that might be taken as a result of the conversation."
 								inputProps={props}
 							/>
 							<Form.FieldErrors />
