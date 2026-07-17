@@ -41,7 +41,7 @@
 				aria-current={manageActive ? 'page' : undefined}
 			>
 				<Settings2 class="size-4" />
-				Manage
+				Design
 			</a>
 		</li>
 		{#if loading}
