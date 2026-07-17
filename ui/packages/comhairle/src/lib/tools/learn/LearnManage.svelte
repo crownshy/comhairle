@@ -98,9 +98,9 @@
 	const localChanges = new LocalChanges();
 	const pages = new Pages();
 
-	pages.onChange(({ invalidate }) => {
+	pages.onChange((options) => {
 		localChanges.dirty();
-		return save(pages.toLocalizedPages(), { invalidate });
+		return save(pages.toLocalizedPages(), { invalidate: options?.invalidate ?? true });
 	});
 
 	onMount(() => {
@@ -174,7 +174,7 @@
 			{:else}
 				<DraggableList
 					items={pages.order}
-					onReorder={(next) => (pages.order = next)}
+					onReorder={(order) => pages.reorder(order)}
 					class="bg-muted flex flex-row items-center gap-2"
 				>
 					{#snippet children(item)}

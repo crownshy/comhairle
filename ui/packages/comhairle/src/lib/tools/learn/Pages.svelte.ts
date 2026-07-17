@@ -1,4 +1,5 @@
 import type { LocalizedPage } from '@crownshy/api-client/api';
+import { SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
 
 type Id = string;
 type Language = string;
@@ -10,8 +11,8 @@ interface ExtendedLocalizedPage extends LocalizedPage {
 }
 
 type From = 'source' | 'target';
-type Callback = (options: { invalidate?: boolean }) => Promise<void>;
-type Order = { id: string }[]; // Matching DraggableList "items" prop
+type Callback = (options?: { invalidate?: boolean }) => Promise<void>;
+type Order = { id: string; [SHADOW_ITEM_MARKER_PROPERTY_NAME]?: boolean }[]; // Matching DraggableList "items" prop
 
 class Pages {
 	items = $state<IPages>({});
@@ -39,7 +40,7 @@ class Pages {
 		};
 		this.items[newId] = { [primaryLocale]: newPage };
 		this.order.push({ id: newId });
-		return this.#callback({});
+		return this.#callback();
 	}
 
 	load(source: ExtendedLocalizedPage[][]) {
@@ -59,6 +60,16 @@ class Pages {
 		return this.order.map((p) => Object.values(this.items[p.id]));
 	}
 
+	reorder(order: Order) {
+		this.order = order;
+
+		// If it's currently being dragged then don't send it to the server until it's finished dragging
+		if (order.some((o) => o[SHADOW_ITEM_MARKER_PROPERTY_NAME])) {
+			return;
+		}
+		return this.#callback();
+	}
+
 	get current() {
 		return {
 			delete: () => {
@@ -66,7 +77,7 @@ class Pages {
 				const index = this.order.findIndex((p) => Number(p.id) === this.currentId);
 				this.order.splice(index, 1);
 				this.currentId = Number(Math.max(index - 1, 0));
-				return this.#callback({});
+				return this.#callback();
 			},
 
 			upsertContent: (
