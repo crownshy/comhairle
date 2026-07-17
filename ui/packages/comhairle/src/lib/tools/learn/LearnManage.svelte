@@ -245,6 +245,7 @@
 			minHeight="300px"
 			dialogMinHeight="250px"
 			dialogTitle="Translate: Page {pages.currentId + 1}"
+			translation={workflowStep.translations.description}
 			initialContents={pageData.initialContents}
 			initialStatuses={pageData.statuses}
 			{availableDocuments}
