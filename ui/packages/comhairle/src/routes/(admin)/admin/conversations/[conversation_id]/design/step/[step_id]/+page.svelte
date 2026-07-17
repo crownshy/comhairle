@@ -9,8 +9,6 @@
 	import ElicitationBotManage from '$lib/tools/elicitation_bot/ElicitationBotManage.svelte';
 	import LivedExperienceManage from '$lib/tools/lived_experince/LivedExperinceManage.svelte';
 	import * as Prioritization from '$lib/tools/prioritization';
-	import { apiClient } from '@crownshy/api-client/client';
-	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import { page } from '$app/state';
 	import { getContext } from 'svelte';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
@@ -20,21 +18,6 @@
 	} from '$lib/conversationTabExtras';
 
 	let { data } = $props();
-
-	let availableDocuments = $state<ComhairleDocument[]>([]);
-
-	$effect(() => {
-		const cid = data.conversation?.id;
-		if (!cid) return;
-		apiClient
-			.ListDocuments({ params: { conversation_id: cid } })
-			.then((docs) => {
-				availableDocuments = docs.filter((d) => d.parse_status === 'DONE');
-			})
-			.catch(() => {
-				availableDocuments = [];
-			});
-	});
 
 	let conversation = $derived(data.conversation);
 	let workflow = $derived(data.workflows[0]);
