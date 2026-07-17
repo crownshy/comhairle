@@ -82,7 +82,7 @@ class Pages {
 
 			upsertContent: (
 				from: From,
-				lang: string,
+				lang: Language,
 				content: ExtendedLocalizedPage['content'] | undefined
 			) => {
 				const requires_validation = from === 'target';
@@ -109,7 +109,7 @@ class Pages {
 				return this.#callback({ invalidate: false });
 			},
 
-			modifyValidation: async (lang: string, validation: boolean) => {
+			modifyValidation: async (lang: Language, validation: boolean) => {
 				const page = this.items[this.currentId];
 				if (!page || !page[lang]) return;
 				page[lang].requires_validation = validation;
