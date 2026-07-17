@@ -75,10 +75,10 @@
 					>
 						<BookOpen class="text-primary size-4 shrink-0" />
 						<span class="flex flex-1 flex-col">
-							<span class="text-primary text-sm font-semibold">
+							<span class="text-primary text-xs font-semibold">
 								Introduction & setup guide
 							</span>
-							<span class="text-muted-foreground text-sm">
+							<span class="text-muted-foreground text-xs">
 								Learn how to configure this step, see examples, and understand best
 								practices.
 							</span>
