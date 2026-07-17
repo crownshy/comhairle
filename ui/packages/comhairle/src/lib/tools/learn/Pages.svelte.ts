@@ -2,10 +2,10 @@ import type { LocalizedPage } from '@crownshy/api-client/api';
 import { SHADOW_ITEM_MARKER_PROPERTY_NAME } from 'svelte-dnd-action';
 
 type Id = string;
-type Language = string;
+export type Language = string;
 type IPages = Record<Id, Record<Language, ExtendedLocalizedPage>>;
 
-interface ExtendedLocalizedPage extends LocalizedPage {
+export interface ExtendedLocalizedPage extends LocalizedPage {
 	lang: string;
 	requires_validation: boolean;
 }

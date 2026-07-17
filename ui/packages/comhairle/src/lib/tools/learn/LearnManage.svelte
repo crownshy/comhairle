@@ -1,6 +1,5 @@
 <script lang="ts">
 	import {
-		type LocalizedPage,
 		type ConversationWithTranslations,
 		type ComhairleDocument
 	} from '@crownshy/api-client/api';
@@ -19,15 +18,8 @@
 	import { onMount } from 'svelte';
 	import { GripVertical } from 'lucide-svelte';
 	import { Badge } from '$lib/components/ui/badge';
-	import Pages from './Pages.svelte';
+	import Pages, { type ExtendedLocalizedPage, type Language } from './Pages.svelte';
 	import type { WorkflowStepWithTranslationsAndTool } from '$lib/tools/types';
-
-	interface ExtendedLocalizedPage extends LocalizedPage {
-		lang: string;
-		requires_validation: boolean;
-	}
-
-	type Language = string;
 
 	interface Props {
 		conversationId: string;
