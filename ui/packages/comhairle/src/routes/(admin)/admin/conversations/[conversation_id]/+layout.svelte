@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { setContext, type Snippet } from 'svelte';
-	import { page } from '$app/state';
+	import { setContext } from 'svelte';
+	import { page, navigating } from '$app/state';
+	import TabContentSkeleton from './TabContentSkeleton.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { ArrowUpRight, MoreHorizontal, Eye, ExternalLink, Check, CircleX } from 'lucide-svelte';
@@ -8,6 +9,8 @@
 	import EndConversationModal from '$lib/components/EndConversationModal.svelte';
 	import ConversationTabs from '$lib/components/ConversationTabs.svelte';
 	import TabStripSkeleton from '$lib/components/TabStripSkeleton.svelte';
+	import WorkflowStepStrip from '$lib/components/WorkflowStepStrip.svelte';
+	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
 	import {
 		CONVERSATION_TAB_EXTRAS_CTX,
 		type ConversationTabExtras
@@ -38,10 +41,30 @@
 		page.url.pathname.replace(/\/+$/, '') === `/admin/conversations/${conversation.id}/design`
 	);
 
+	// The whole Workflow section (the board and its /design/step/* pages) shows the workflow
+	// step strip. We render it here from `data.workflowSteps` (loaded by this layout) so it's
+	// server-rendered, rather than injected by the design layout's client `$effect`.
+	let isDesignSection = $derived.by(() => {
+		const base = `/admin/conversations/${conversation.id}/design`;
+		const path = page.url.pathname.replace(/\/+$/, '');
+		return path === base || path.startsWith(`${base}/`);
+	});
+
+	// A pending navigation to a *different* section (pathname changes, unlike Configure's
+	// `?tab=` sub-tabs which only swap the query). `page` still reflects the old route until
+	// the load resolves, so this is how we know a throttled tab switch is in flight.
+	let switchingSection = $derived(
+		!!navigating.to && navigating.to.url.pathname !== page.url.pathname
+	);
+
+	// While switching, reserve the *destination's* strip and content skeletons so the whole
+	// content region flips to a loading state the instant the tab is clicked.
+	let effectivePathname = $derived(navigating.to?.url.pathname ?? page.url.pathname);
+
 	// Reserve the injected primary strip's row with a matching skeleton (null = no strip on this
 	// route) so a hard refresh doesn't shift the layout. See conversationPrimaryStripSkeleton for why.
 	let primaryStripSkeleton = $derived(
-		conversationPrimaryStripSkeleton(page.url.pathname, conversation.id)
+		conversationPrimaryStripSkeleton(effectivePathname, conversation.id)
 	);
 </script>
 
@@ -194,8 +217,23 @@
 	<!-- Row 2: section tabs -->
 	<ConversationTabs conversationId={conversation.id} conversationIsLive={conversation.isLive} />
 
-	<!-- Row 3+ : section-specific sub-strips injected via context (e.g. workflow steps, sub-tabs) -->
-	{#if tabExtras.primary}
+	<!-- Row 3+ : section sub-strips. The workflow strip is rendered here from loaded data so
+		 it's server-rendered; other sections still inject theirs via context. While switching
+		 sections we ignore both and show the destination's reserved skeleton instead. -->
+	{#if switchingSection}
+		{#if primaryStripSkeleton}
+			<TabStripSkeleton
+				leadingIcon={primaryStripSkeleton.leadingIcon}
+				widths={primaryStripSkeleton.widths}
+			/>
+		{/if}
+	{:else if isDesignSection}
+		<WorkflowStepStrip
+			conversationId={conversation.id}
+			steps={data.workflowSteps}
+			onAddStep={() => (addStepDialog.open = true)}
+		/>
+	{:else if tabExtras.primary}
 		{@render tabExtras.primary()}
 	{:else if primaryStripSkeleton}
 		<TabStripSkeleton
@@ -203,7 +241,7 @@
 			widths={primaryStripSkeleton.widths}
 		/>
 	{/if}
-	{#if tabExtras.secondary}
+	{#if tabExtras.secondary && !switchingSection}
 		{@render tabExtras.secondary()}
 	{/if}
 
@@ -216,14 +254,26 @@
 
 {#if isDesignBoard}
 	<div class="bg-card flex min-h-0 grow flex-col overflow-hidden">
-		{@render children()}
+		{#if switchingSection}
+			<div class="pt-page-top px-gutter">
+				<div class="w-full max-w-[1200px]">
+					<TabContentSkeleton />
+				</div>
+			</div>
+		{:else}
+			{@render children()}
+		{/if}
 	</div>
 {:else}
 	<!-- Mobile: symmetric `px-gutter` so content is evenly inset. Larger screens keep the
 		 left gutter for tab alignment and widen the right margin. Top is token-driven. -->
 	<div class="bg-muted pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
 		<div class="h-full w-full max-w-[1200px]">
-			{@render children()}
+			{#if switchingSection}
+				<TabContentSkeleton />
+			{:else}
+				{@render children()}
+			{/if}
 		</div>
 	</div>
 {/if}
