@@ -19,14 +19,16 @@
 	import ComhairleLogo from './ComhairleLogo.svelte';
 	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
 	import SidebarResizeHandle from './SidebarResizeHandle.svelte';
-	import { sidebarWidth, EXPAND_WIDTH } from './sidebarWidth.svelte.js';
+	import { useSidebarWidth } from './sidebarWidthContext.svelte.js';
+	import { EXPAND_WIDTH } from './sidebarWidth.js';
 	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
 	import { SIDEBAR_KEYBOARD_SHORTCUT } from './ui/sidebar/constants';
 
 	const sidebar = useSidebar();
+	const sidebarWidth = useSidebarWidth();
 
 	function expandSidebar() {
-		if (sidebarWidth.width < EXPAND_WIDTH) sidebarWidth.set(EXPAND_WIDTH);
+		if (sidebarWidth.width < EXPAND_WIDTH) sidebarWidth.setWidth(EXPAND_WIDTH);
 		sidebar.setOpen(true);
 		sidebarWidth.persist();
 	}
