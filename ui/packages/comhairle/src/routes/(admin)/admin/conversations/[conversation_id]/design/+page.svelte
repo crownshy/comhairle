@@ -6,6 +6,7 @@
 	import { notifications } from '$lib/notifications.svelte.js';
 	import { saveTranslation } from '$lib/components/Translation/translationUtils';
 	import DraggableList from '$lib/components/DraggableList.svelte';
+	import StepListSkeleton from './StepListSkeleton.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -34,12 +35,16 @@
 	let workflow = $derived(data.workflows[0]);
 	let workflowSteps = $derived<WorkflowStepWithTranslations[] | undefined>(data.workflowSteps);
 
-	let reorderedSteps = $state<WorkflowStepWithTranslations[]>([]);
-	$effect(() => {
-		reorderedSteps = workflowSteps
-			? [...workflowSteps].sort((a, b) => a.stepOrder - b.stepOrder)
-			: [];
-	});
+	// `undefined` = steps not loaded yet (show a skeleton); `[]` = genuinely no steps.
+	let loadingSteps = $derived(workflowSteps === undefined);
+
+	// Writable derived: seeds from the loaded steps and re-seeds whenever they change (e.g.
+	// after `invalidate`), while a drag/reorder can still assign to it locally in between.
+	// Using $derived (not $state + $effect) means SSR renders the real order too, so a slow
+	// client no longer flashes the empty state before hydration. (See CLAUDE.md.)
+	let reorderedSteps = $derived(
+		workflowSteps ? [...workflowSteps].sort((a, b) => a.stepOrder - b.stepOrder) : []
+	);
 
 	// --- Ephemeral UI state ---
 	let editingId = $state<string | null>(null);
@@ -268,7 +273,9 @@
 				</DropdownMenu.Root>
 			</div>
 
-			{#if reorderedSteps.length === 0}
+			{#if loadingSteps}
+				<StepListSkeleton />
+			{:else if reorderedSteps.length === 0}
 				<div
 					class="border-border bg-card text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-12 text-center"
 				>

@@ -7,10 +7,12 @@
 	import LaunchConversationModal from '$lib/components/LaunchConversationModal.svelte';
 	import EndConversationModal from '$lib/components/EndConversationModal.svelte';
 	import ConversationTabs from '$lib/components/ConversationTabs.svelte';
+	import TabStripSkeleton from '$lib/components/TabStripSkeleton.svelte';
 	import {
 		CONVERSATION_TAB_EXTRAS_CTX,
 		type ConversationTabExtras
 	} from '$lib/conversationTabExtras';
+	import { conversationPrimaryStripSkeleton } from '$lib/utils/conversationTabStrip';
 	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
 
 	let { data, children } = $props();
@@ -34,6 +36,12 @@
 	// /design/step/* — keeps the padded, max-width reading column.
 	let isDesignBoard = $derived(
 		page.url.pathname.replace(/\/+$/, '') === `/admin/conversations/${conversation.id}/design`
+	);
+
+	// Reserve the injected primary strip's row with a matching skeleton (null = no strip on this
+	// route) so a hard refresh doesn't shift the layout. See conversationPrimaryStripSkeleton for why.
+	let primaryStripSkeleton = $derived(
+		conversationPrimaryStripSkeleton(page.url.pathname, conversation.id)
 	);
 </script>
 
@@ -189,6 +197,11 @@
 	<!-- Row 3+ : section-specific sub-strips injected via context (e.g. workflow steps, sub-tabs) -->
 	{#if tabExtras.primary}
 		{@render tabExtras.primary()}
+	{:else if primaryStripSkeleton}
+		<TabStripSkeleton
+			leadingIcon={primaryStripSkeleton.leadingIcon}
+			widths={primaryStripSkeleton.widths}
+		/>
 	{/if}
 	{#if tabExtras.secondary}
 		{@render tabExtras.secondary()}
