@@ -30,5 +30,7 @@ export const load: LayoutLoad = async (event) => {
 					{ label: 'Setup', value: 'setup' }
 				];
 
-	return { step_id, subtabItems };
+	// `step` and `toolConfig` are shared by every sub-tab page (Configure/Setup/Moderation/
+	// Insights), so they resolve once here and each page reads them from merged layout data.
+	return { step_id, step, toolConfig, subtabItems };
 };

@@ -59,11 +59,22 @@
 		return path === base || path.startsWith(`${base}/`);
 	});
 
-	// A pending navigation to a *different* section (pathname changes, unlike Configure's
-	// `?tab=` sub-tabs which only swap the query). `page` still reflects the old route until
-	// the load resolves, so this is how we know a throttled tab switch is in flight.
+	// A workflow step's sub-tabs (Configure/Setup/Moderation/Insights) are real routes, so
+	// navigating between them changes the pathname. That's *not* a section switch: Row 3, Row 4
+	// and the content shell all stay mounted while only the inner page swaps. Collapsing the
+	// sub-tab segment off a step path lets `switchingSection` tell the two apart.
+	function sectionKey(pathname: string): string {
+		return pathname
+			.replace(/\/+$/, '')
+			.replace(/(\/design\/step\/[^/]+)\/(configure|setup|moderation|insights)$/, '$1');
+	}
+
+	// A pending navigation to a *different* section or step (its `sectionKey` changes, unlike
+	// Configure's `?tab=` sub-tabs which only swap the query, or a step's sub-tab routes which
+	// share a key). `page` still reflects the old route until the load resolves, so this is how
+	// we know a throttled tab switch is in flight.
 	let switchingSection = $derived(
-		!!navigating.to && navigating.to.url.pathname !== page.url.pathname
+		!!navigating.to && sectionKey(navigating.to.url.pathname) !== sectionKey(page.url.pathname)
 	);
 
 	// While switching, reserve the *destination's* strip and content skeletons so the whole
