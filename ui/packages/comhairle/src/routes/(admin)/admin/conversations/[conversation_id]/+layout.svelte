@@ -12,6 +12,8 @@
 	import WorkflowStepStrip from '$lib/components/WorkflowStepStrip.svelte';
 	import ConfigureTabStrip from './configure/ConfigureTabStrip.svelte';
 	import { CONFIGURE_TABS } from './configure/tabs';
+	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
+	import { INVITE_SUBTABS } from './invites/tabs';
 	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
 	import {
 		CONVERSATION_TAB_EXTRAS_CTX,
@@ -58,6 +60,12 @@
 	let isConfigureSection = $derived(
 		page.url.pathname.replace(/\/+$/, '') ===
 			`/admin/conversations/${conversation.id}/configure`
+	);
+
+	// Recruit (invites) is the same shape as Configure: a static `?subtab=` strip over one page,
+	// so we server-render it here from INVITE_SUBTABS instead of a client `$effect`.
+	let isInvitesSection = $derived(
+		page.url.pathname.replace(/\/+$/, '') === `/admin/conversations/${conversation.id}/invites`
 	);
 
 	// The whole Workflow section (the board and its /design/step/* pages) shows the workflow
@@ -265,6 +273,8 @@
 		/>
 	{:else if isConfigureSection}
 		<ConfigureTabStrip tabs={CONFIGURE_TABS} />
+	{:else if isInvitesSection}
+		<SubTabStrip tone="primary" items={INVITE_SUBTABS} defaultValue="email" />
 	{:else if tabExtras.primary}
 		{@render tabExtras.primary()}
 	{:else if primaryStripSkeleton}
