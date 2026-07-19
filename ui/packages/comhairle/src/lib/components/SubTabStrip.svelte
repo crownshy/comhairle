@@ -35,7 +35,9 @@
 		: 'bg-accent'}"
 	aria-label="Sub sections"
 >
-	<ul class="flex min-w-full items-center gap-1.5 px-5">
+	<!-- Left padding is one item's px-3.5 short of the full gutter so the first tab's text
+		 lands on the gutter column, matching the Row 2 strip above. See TabStripShell. -->
+	<ul class="flex min-w-full items-center gap-1.5 pr-5 pl-[calc(var(--spacing-gutter)-0.875rem)]">
 		{#each items as item (item.value)}
 			{@const active = item.value === currentValue}
 			<li class="shrink-0">

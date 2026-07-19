@@ -24,17 +24,16 @@
 	 real strips. -->
 <TabStripShell ariaHidden>
 	{#if leadingIcon}
-		<!-- Leading icon tab (bleeds into the gutter like the real strips' first item). -->
-		<li class="-ml-3.5 flex h-9 items-center gap-1.5 px-3.5">
+		<!-- Leading icon tab, matching the real strips' first item. -->
+		<li class="flex h-9 items-center gap-1.5 px-3.5">
 			<Skeleton class="bg-primary/15 size-4 rounded" />
 			<Skeleton class="bg-primary/15 h-4 w-14 rounded-md" />
 		</li>
 	{/if}
 	{#each widths as width, i (i)}
-		<!-- Without a leading icon, the first pill bleeds into the gutter (-ml-3.5 cancels
-			 its own px-3.5) to align with the real strip's first tab. Tinted with the brand
-			 color so the shimmer reads against the secondary strip instead of gray-on-gray. -->
-		<li class="flex h-9 items-center px-3.5" class:-ml-3.5={!leadingIcon && i === 0}>
+		<!-- Tinted with the brand color so the shimmer reads against the secondary strip
+			 instead of gray-on-gray. -->
+		<li class="flex h-9 items-center px-3.5">
 			<Skeleton class="bg-primary/15 h-4 rounded-md" style="width: {width}rem" />
 		</li>
 	{/each}
