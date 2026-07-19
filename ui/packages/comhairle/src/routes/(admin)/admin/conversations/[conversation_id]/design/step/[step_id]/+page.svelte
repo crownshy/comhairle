@@ -12,12 +12,6 @@
 	import { apiClient } from '@crownshy/api-client/client';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 	import { page } from '$app/state';
-	import { getContext } from 'svelte';
-	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
-	import {
-		CONVERSATION_TAB_EXTRAS_CTX,
-		type ConversationTabExtras
-	} from '$lib/conversationTabExtras';
 
 	let { data } = $props();
 
@@ -49,40 +43,14 @@
 	let pageTitle = $derived(`Edit Step: ${step?.name ?? 'Step'}`);
 
 	let isPolis = $derived(toolConfig?.type === 'polis');
+	// The sub-tab strip (Row 4) is now rendered from `+layout.svelte`; this page only reads
+	// which sub-tab is active to switch content. See +layout.ts for the strip's data.
 	let subtab = $derived(page.url.searchParams.get('subtab') ?? 'configure');
-
-	let subtabItems = $derived(
-		isPolis
-			? [
-					{ label: 'Configure', value: 'configure' },
-					{ label: 'Setup', value: 'setup' },
-					{ label: 'Moderation', value: 'moderation' },
-					{ label: 'Insights', value: 'insights' }
-				]
-			: [
-					{ label: 'Configure', value: 'configure' },
-					{ label: 'Setup', value: 'setup' }
-				]
-	);
-
-	const tabExtras = getContext<ConversationTabExtras>(CONVERSATION_TAB_EXTRAS_CTX);
-
-	$effect(() => {
-		if (!tabExtras) return;
-		tabExtras.secondary = subtabStripSnippet;
-		return () => {
-			tabExtras.secondary = null;
-		};
-	});
 </script>
 
 <svelte:head>
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
-
-{#snippet subtabStripSnippet()}
-	<SubTabStrip items={subtabItems} defaultValue="configure" />
-{/snippet}
 
 {#if step && subtab === 'configure'}
 	<CommonStepConfig conversation_id={conversation.id} {conversation} {step} inline />

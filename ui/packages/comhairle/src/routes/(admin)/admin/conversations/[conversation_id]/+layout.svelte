@@ -41,6 +41,15 @@
 		page.url.pathname.replace(/\/+$/, '') === `/admin/conversations/${conversation.id}/design`
 	);
 
+	// A single workflow step (/design/step/*) owns its own content region: its layout renders
+	// a full-bleed sub-tab strip (Row 4) flush under Row 3, then its own padded reading column.
+	// So we render its children bare here rather than wrapping them in the padded column below.
+	let isStepPage = $derived(
+		page.url.pathname
+			.replace(/\/+$/, '')
+			.startsWith(`/admin/conversations/${conversation.id}/design/step/`)
+	);
+
 	// The whole Workflow section (the board and its /design/step/* pages) shows the workflow
 	// step strip. We render it here from `data.workflowSteps` (loaded by this layout) so it's
 	// server-rendered, rather than injected by the design layout's client `$effect`.
@@ -264,6 +273,18 @@
 			{@render children()}
 		{/if}
 	</div>
+{:else if isStepPage}
+	<!-- The step layout renders Row 4 + its own padded column; while switching in, stand in with
+		 the same padded skeleton so the region doesn't collapse before the step load resolves. -->
+	{#if switchingSection}
+		<div class="bg-muted pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
+			<div class="h-full w-full max-w-[1200px]">
+				<TabContentSkeleton />
+			</div>
+		</div>
+	{:else}
+		{@render children()}
+	{/if}
 {:else}
 	<!-- Mobile: symmetric `px-gutter` so content is evenly inset. Larger screens keep the
 		 left gutter for tab alignment and widen the right margin. Top is token-driven. -->
