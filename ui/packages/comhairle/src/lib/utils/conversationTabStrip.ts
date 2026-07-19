@@ -15,11 +15,10 @@ export type TabStripSkeletonShape = {
 
 /**
  * Per-section skeletons for the "Row 3" primary strip, shown *while switching into* a section
- * (before the destination's load resolves). Most strips now server-render from data/constants
- * in the conversation layout (design, configure, invites); Events still injects its strip via a
- * child `$effect` (see {@link CONVERSATION_TAB_EXTRAS_CTX}), which doesn't run during SSR. Either
- * way the destination strip isn't mounted mid-navigation, so the layout reserves the row with
- * one of these to avoid a shift.
+ * (before the destination's load resolves). Every strip now server-renders from data/constants
+ * in the conversation layout (design, configure, invites, events), but the destination strip
+ * isn't mounted mid-navigation, so the layout reserves the row with one of these to avoid a
+ * shift.
  *
  * Keyed by the section segment right after `/admin/conversations/<id>/`. Widths roughly
  * match each real strip: Configure's four sub-tabs; design/events lead with an icon tab

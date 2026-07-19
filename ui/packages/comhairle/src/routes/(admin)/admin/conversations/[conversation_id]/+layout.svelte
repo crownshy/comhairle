@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { setContext } from 'svelte';
 	import { page, navigating } from '$app/state';
 	import TabContentSkeleton from './TabContentSkeleton.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -14,18 +13,13 @@
 	import { CONFIGURE_TABS } from './configure/tabs';
 	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
 	import { INVITE_SUBTABS } from './invites/tabs';
+	import EventStrip from '$lib/components/EventStrip.svelte';
+	import { EVENT_SUBTABS } from './events/[event_id]/tabs';
 	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
-	import {
-		CONVERSATION_TAB_EXTRAS_CTX,
-		type ConversationTabExtras
-	} from '$lib/conversationTabExtras';
 	import { conversationPrimaryStripSkeleton } from '$lib/utils/conversationTabStrip';
 	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
 
 	let { data, children } = $props();
-
-	let tabExtras = $state<ConversationTabExtras>({ primary: null, secondary: null });
-	setContext(CONVERSATION_TAB_EXTRAS_CTX, tabExtras);
 
 	let conversation = $derived(data.conversation);
 	let displayTitle = $derived(
@@ -67,6 +61,21 @@
 	let isInvitesSection = $derived(
 		page.url.pathname.replace(/\/+$/, '') === `/admin/conversations/${conversation.id}/invites`
 	);
+
+	// The Events section shows the events strip (Row 3) on every /events* page, rendered from
+	// `data.events` like the workflow step strip. Event *detail* pages additionally show a static
+	// `?subtab=` strip (Row 4). Both are server-rendered here rather than injected via `$effect`.
+	let eventsBase = $derived(`/admin/conversations/${conversation.id}/events`);
+	let isEventsSection = $derived.by(() => {
+		const path = page.url.pathname.replace(/\/+$/, '');
+		return path === eventsBase || path.startsWith(`${eventsBase}/`);
+	});
+	// A single event: /events/<id> (not the list, not /events/new). Its detail sub-tabs are the
+	// only thing on Row 4 here now.
+	let isEventDetailPage = $derived.by(() => {
+		const path = page.url.pathname.replace(/\/+$/, '');
+		return path.startsWith(`${eventsBase}/`) && path !== `${eventsBase}/new`;
+	});
 
 	// The whole Workflow section (the board and its /design/step/* pages) shows the workflow
 	// step strip. We render it here from `data.workflowSteps` (loaded by this layout) so it's
@@ -255,9 +264,9 @@
 	<!-- Row 2: section tabs -->
 	<ConversationTabs conversationId={conversation.id} conversationIsLive={conversation.isLive} />
 
-	<!-- Row 3+ : section sub-strips. The workflow strip is rendered here from loaded data so
-		 it's server-rendered; other sections still inject theirs via context. While switching
-		 sections we ignore both and show the destination's reserved skeleton instead. -->
+	<!-- Row 3+ : section sub-strips, all server-rendered here from loaded data / static lists
+		 (keyed off the pathname), never injected from a child `$effect`. While switching sections
+		 we ignore them and show the destination's reserved skeleton instead. -->
 	{#if switchingSection}
 		{#if primaryStripSkeleton}
 			<TabStripSkeleton
@@ -275,16 +284,17 @@
 		<ConfigureTabStrip tabs={CONFIGURE_TABS} />
 	{:else if isInvitesSection}
 		<SubTabStrip tone="primary" items={INVITE_SUBTABS} defaultValue="email" />
-	{:else if tabExtras.primary}
-		{@render tabExtras.primary()}
+	{:else if isEventsSection}
+		<EventStrip conversationId={conversation.id} events={data.events} />
 	{:else if primaryStripSkeleton}
 		<TabStripSkeleton
 			leadingIcon={primaryStripSkeleton.leadingIcon}
 			widths={primaryStripSkeleton.widths}
 		/>
 	{/if}
-	{#if tabExtras.secondary && !switchingSection}
-		{@render tabExtras.secondary()}
+	<!-- Row 4: only the event-detail sub-tabs live here now. -->
+	{#if isEventDetailPage && !switchingSection}
+		<SubTabStrip items={EVENT_SUBTABS} defaultValue="details" />
 	{/if}
 
 	{#if conversation.isComplete}

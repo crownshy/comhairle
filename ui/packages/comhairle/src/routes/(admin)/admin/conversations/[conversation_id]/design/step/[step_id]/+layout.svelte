@@ -14,11 +14,10 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-<!-- Row 4: the step's sub-tab strip, now real routes (Configure/Setup/Moderation/Insights).
+<!-- Row 4: the step's sub-tab strip, real routes (Configure/Setup/Moderation/Insights).
 	 Rendered here from `data` (server-rendered) so a hard refresh of /design/step/* paints it
-	 immediately, rather than flashing in after hydration like the old `tabExtras.secondary`
-	 `$effect` did. The parent conversation layout gives the step route a full-bleed region (no
-	 padded wrapper) so this strip sits flush under Row 3. -->
+	 immediately, rather than flashing in after hydration. The parent conversation layout gives
+	 the step route a full-bleed region (no padded wrapper) so this strip sits flush under Row 3. -->
 <SubTabStrip items={subtabItems} {basePath} />
 
 <div class="bg-muted pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
