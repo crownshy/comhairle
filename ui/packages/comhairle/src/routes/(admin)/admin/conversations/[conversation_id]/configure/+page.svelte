@@ -76,10 +76,7 @@
 	// participants. Images are hand-maintained assets under static/examples/; a missing one
 	// falls back to "Example coming soon" (see ExampleDialog).
 	const examples: Record<string, { title: string; src: string }> = {
-		title: { title: 'Title', src: '/examples/title.png' },
 		shortDescription: { title: 'Short description', src: '/examples/short-description.png' },
-		description: { title: 'Description', src: '/examples/description.png' },
-		banner: { title: 'Banner image', src: '/examples/banner.png' },
 		privacyPolicy: { title: 'Privacy Policy', src: '/examples/privacy-policy.png' },
 		shortPrivacyPolicy: {
 			title: 'Short Privacy Policy',
@@ -453,7 +450,7 @@
 					{#snippet children({ props })}
 						{@render fieldLabel(
 							'Title',
-							'title',
+							'',
 							"The conversation's name. Shown as the heading participants see, and on listing cards, invitations, and the thank-you and report pages."
 						)}
 						<div class="flex-1" id="conversation-title-field">
@@ -513,7 +510,7 @@
 					{#snippet children({ props })}
 						{@render fieldLabel(
 							'Description',
-							'description',
+							'',
 							'A fuller introduction, shown beside the banner image on the landing and invitation pages.'
 						)}
 						<div class="flex-1">
@@ -561,7 +558,7 @@
 			<div class="contents">
 				{@render plainLabel(
 					'Banner image',
-					'banner',
+					'',
 					'Shown beside the description on the landing and invitation pages.'
 				)}
 				<div class="align-start flex w-full flex-col gap-4">
