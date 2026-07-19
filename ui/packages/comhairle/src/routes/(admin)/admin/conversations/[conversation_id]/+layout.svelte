@@ -10,6 +10,8 @@
 	import ConversationTabs from '$lib/components/ConversationTabs.svelte';
 	import TabStripSkeleton from '$lib/components/TabStripSkeleton.svelte';
 	import WorkflowStepStrip from '$lib/components/WorkflowStepStrip.svelte';
+	import ConfigureTabStrip from './configure/ConfigureTabStrip.svelte';
+	import { CONFIGURE_TABS } from './configure/tabs';
 	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
 	import {
 		CONVERSATION_TAB_EXTRAS_CTX,
@@ -48,6 +50,14 @@
 		page.url.pathname
 			.replace(/\/+$/, '')
 			.startsWith(`/admin/conversations/${conversation.id}/design/step/`)
+	);
+
+	// Configure's sub-tabs are a static list (its `?tab=` sections share one form + load), so we
+	// server-render the strip here from CONFIGURE_TABS, the same way the workflow step strip is
+	// rendered from data, rather than the page injecting it via a client `$effect`.
+	let isConfigureSection = $derived(
+		page.url.pathname.replace(/\/+$/, '') ===
+			`/admin/conversations/${conversation.id}/configure`
 	);
 
 	// The whole Workflow section (the board and its /design/step/* pages) shows the workflow
@@ -253,6 +263,8 @@
 			steps={data.workflowSteps}
 			onAddStep={() => (addStepDialog.open = true)}
 		/>
+	{:else if isConfigureSection}
+		<ConfigureTabStrip tabs={CONFIGURE_TABS} />
 	{:else if tabExtras.primary}
 		{@render tabExtras.primary()}
 	{:else if primaryStripSkeleton}

@@ -2,9 +2,7 @@
 	import { page } from '$app/state';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import TabStripShell from '$lib/components/TabStripShell.svelte';
-
-	/** One selectable sub-tab of the Configure page. `id` is the `?tab=` value. */
-	export type ConfigureTab = { id: string; label: string };
+	import type { ConfigureTab } from './tabs';
 
 	type Props = {
 		/** Tabs to render, in display order. First tab is the default when `?tab=` is absent. */
