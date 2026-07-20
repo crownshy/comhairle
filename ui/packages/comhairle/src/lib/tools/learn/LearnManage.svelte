@@ -163,7 +163,7 @@
 					onReorder={(order) => pages.reorder(order)}
 					class="bg-muted flex flex-row items-center gap-2"
 				>
-					{#snippet children(item)}
+					{#snippet children(item, i)}
 						<Badge
 							class="flex flex-row items-center px-4 py-2"
 							variant={Number(item.id) === pages.currentId ? 'primary' : 'outline'}
@@ -176,7 +176,7 @@
 								size={16}
 							/>
 							<label class="cursor-pointer"
-								>Page {Number(item.id) + 1}
+								>Page {i + 1}
 								<input
 									class="hidden"
 									type="radio"
