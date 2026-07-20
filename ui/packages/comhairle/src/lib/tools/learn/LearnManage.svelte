@@ -23,7 +23,7 @@
 		InstancedToolConfig,
 		WorkflowStepWithTranslationsAndTool
 	} from '$lib/tools/types';
-	import * as Popover from '$lib/components/ui/popover';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 
 	interface Props {
 		conversationId: string;
@@ -192,13 +192,20 @@
 				<Button variant="ghost" size="sm" onclick={() => pages.new(primaryLocale)}
 					>+ Add Page</Button
 				>
-				<Popover.Root>
-					{#if pages.count >= 5}
-						<TriangleAlert size={22} class="text-amber-400" />
-					{:else}
-						<Info size={22} />
-					{/if}
-				</Popover.Root>
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						{#snippet child({ props })}
+							{#if pages.count >= 5}
+								<TriangleAlert size={22} class="text-amber-400" {...props} />
+							{:else}
+								<Info size={22} {...props} />
+							{/if}
+						{/snippet}
+					</Tooltip.Trigger>
+					<Tooltip.Content
+						>Most conversations work best with 5 pages or fewer</Tooltip.Content
+					>
+				</Tooltip.Root>
 			{/if}
 		</div>
 	</div>
@@ -256,10 +263,9 @@
 			onMarkAsDraft={(lang) => pages.current.modifyValidation(lang, false)}
 		/>
 	{/if}
-	<Button
-		variant="destructive"
-		class="rounded-md {pages.count === 1 && 'hidden'}"
-		aria-hidden={pages.count === 1}
-		onclick={() => pages.current.delete()}>- Delete Page</Button
-	>
+	{#if pages.count > 1}
+		<Button variant="destructive" class="rounded-md " onclick={() => pages.current.delete()}
+			>- Delete Page</Button
+		>
+	{/if}
 </div>
