@@ -10,10 +10,11 @@
 		gd: 'Gaelic',
 		cy: 'Welsh',
 		zh: 'Chinese',
-		es: 'Spanish',
 		fr: 'French',
 		ar: 'Arabic',
-		pt: 'Portuguese'
+		pt: 'Portuguese',
+		ps: 'Pashto',
+		prs: 'Dari'
 	};
 
 	function setCookie(name: string, value: string, days: number = 365) {
