@@ -44,6 +44,15 @@
 			notifications.send({ priority: 'INFO', message: 'Step added' });
 			newStepHighlight.flag(created.id);
 			addStepDialog.open = false;
+
+			// Drop the operator straight into the new step's Configure tab, rather than leaving them
+			// on the board to hunt for it.
+			await goto(
+				resolve(
+					'/(admin)/admin/conversations/[conversation_id]/design/step/[step_id]/configure',
+					{ conversation_id: conversation.id, step_id: created.id }
+				)
+			);
 		} catch (e) {
 			console.error(e);
 			notifications.send({ priority: 'ERROR', message: 'Failed to create step' });
