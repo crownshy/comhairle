@@ -36,6 +36,12 @@
 		dialogMinHeight?: string;
 		dialogTitle?: string;
 		inputProps?: Record<string, any>;
+		/**
+		 * Optional guard run against the primary-locale value before autosaving. Return `false`
+		 * to skip the save (e.g. the value fails validation, such as a required field left blank).
+		 * Omit it and every change autosaves, which is correct for optional fields.
+		 */
+		canSave?: (value: string) => boolean;
 		// FIX: Should translation be optional? Without it, it doesn't show "saving"
 		translation?: TranslationData;
 		initialContents?: Record<string, string>;
@@ -65,6 +71,7 @@
 		dialogMinHeight = '200px',
 		dialogTitle = 'Content Translation',
 		inputProps = {},
+		canSave,
 		translation,
 		initialContents,
 		initialStatuses,
@@ -91,6 +98,12 @@
 	}
 
 	const debouncedSaveInline = useDebounce(async (content: string) => {
+		// Never persist a value the parent has rejected (e.g. a required field cleared to blank).
+		// The debounce fires with the latest content, so a value typed then cleared is dropped here.
+		if (canSave && !canSave(content)) {
+			setSaveStatus('idle');
+			return;
+		}
 		if (isTextContentMode && textContentId) {
 			const id = textContentId;
 			setSaveStatus('saving');
@@ -157,7 +170,9 @@
 	}
 
 	function saveInlinePrimary(content: string) {
-		if (isTextContentMode) setSaveStatus('saving');
+		// Still reset the debounce timer on every keystroke, but don't show "Saving" for a value
+		// that the guard below will drop; the debounced callback repeats the check before saving.
+		if (isTextContentMode && (!canSave || canSave(content))) setSaveStatus('saving');
 		debouncedSaveInline(content);
 	}
 

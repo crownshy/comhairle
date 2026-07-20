@@ -7,10 +7,12 @@
 	import LaunchConversationModal from '$lib/components/LaunchConversationModal.svelte';
 	import EndConversationModal from '$lib/components/EndConversationModal.svelte';
 	import ConversationTabs from '$lib/components/ConversationTabs.svelte';
+	import TabStripSkeleton from '$lib/components/TabStripSkeleton.svelte';
 	import {
 		CONVERSATION_TAB_EXTRAS_CTX,
 		type ConversationTabExtras
 	} from '$lib/conversationTabExtras';
+	import { conversationPrimaryStripSkeleton } from '$lib/utils/conversationTabStrip';
 	import { getTextInLocale } from '$lib/components/Translation/translationUtils';
 
 	let { data, children } = $props();
@@ -35,11 +37,17 @@
 	let isDesignBoard = $derived(
 		page.url.pathname.replace(/\/+$/, '') === `/admin/conversations/${conversation.id}/design`
 	);
+
+	// Reserve the injected primary strip's row with a matching skeleton (null = no strip on this
+	// route) so a hard refresh doesn't shift the layout. See conversationPrimaryStripSkeleton for why.
+	let primaryStripSkeleton = $derived(
+		conversationPrimaryStripSkeleton(page.url.pathname, conversation.id)
+	);
 </script>
 
 <!-- Row 1: conversation title + launch controls -->
 <div
-	class="border-border bg-background flex w-full shrink-0 items-center justify-between border-b py-2 pr-3 pl-14 md:px-6"
+	class="border-border bg-background md:pl-gutter flex w-full shrink-0 items-center justify-between border-b py-2 pr-3 pl-14 md:pr-6"
 >
 	<h1
 		class="text-primary max-w-[22ch] truncate text-lg leading-7 font-semibold sm:max-w-[40ch]"
@@ -189,13 +197,18 @@
 	<!-- Row 3+ : section-specific sub-strips injected via context (e.g. workflow steps, sub-tabs) -->
 	{#if tabExtras.primary}
 		{@render tabExtras.primary()}
+	{:else if primaryStripSkeleton}
+		<TabStripSkeleton
+			leadingIcon={primaryStripSkeleton.leadingIcon}
+			widths={primaryStripSkeleton.widths}
+		/>
 	{/if}
 	{#if tabExtras.secondary}
 		{@render tabExtras.secondary()}
 	{/if}
 
 	{#if conversation.isComplete}
-		<div class="border-destructive/20 bg-destructive/10 border-b px-5 py-2">
+		<div class="border-destructive/20 bg-destructive/10 pl-gutter border-b py-2 pr-5">
 			<p class="text-destructive text-sm">This conversation has closed</p>
 		</div>
 	{/if}
@@ -206,8 +219,10 @@
 		{@render children()}
 	</div>
 {:else}
-	<div class="bg-muted grow px-4 pt-2 pb-8 sm:px-8 sm:pb-12 md:py-8 lg:px-16">
-		<div class="mx-auto h-full w-full max-w-[1200px]">
+	<!-- Mobile: symmetric `px-gutter` so content is evenly inset. Larger screens keep the
+		 left gutter for tab alignment and widen the right margin. Top is token-driven. -->
+	<div class="bg-muted pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
+		<div class="h-full w-full max-w-[1200px]">
 			{@render children()}
 		</div>
 	</div>

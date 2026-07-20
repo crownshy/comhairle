@@ -1,28 +1,33 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
-	import { buttonVariants } from '$lib/components/ui/button';
+	import { resolve } from '$app/paths';
+	import { buttonVariants, LoadingButton } from '$lib/components/ui/button';
 	import SelectableOptionRow from '$lib/components/SelectableOptionRow.svelte';
-	import { PALETTE_TOOLS, toolInfoUrl, type ToolType, type CreationKey } from '$lib/tool_meta';
+	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
+	import { PALETTE_TOOLS, isEventPaletteItem, type CreationKey } from '$lib/tool_meta';
 	import { BookOpen, ExternalLink, Check } from 'lucide-svelte';
 
 	/**
 	 * The "Add a step" dialog: a two-column picker (step-type list on the left, rich
 	 * detail panel on the right). Mirrors the choose-a-template dialog's shell and
-	 * reuses {@link SelectableOptionRow}. It does not touch the API itself — on confirm
-	 * it emits the selected tool's `creationKey` and the parent creates the step and
-	 * closes the dialog.
+	 * reuses {@link SelectableOptionRow}. It does not touch the API itself. On confirm
+	 * it emits either the selected tool's `creationKey` (via {@link onAdd}) or, for an
+	 * event stand-in like the video conference, calls {@link onAddEvent}; the parent
+	 * then creates the step or event and closes the dialog.
 	 */
 	type Props = {
 		/** Two-way open state. */
 		open?: boolean;
 		/** Disables the confirm button while the parent is creating the step. */
 		adding?: boolean;
-		/** Called with the chosen tool's `creationKey` when the user confirms. */
+		/** Called with the chosen tool's `creationKey` when the user confirms a tool step. */
 		onAdd: (creationKey: CreationKey) => void;
+		/** Called when the user confirms an event stand-in (no backing tool, e.g. video conference). */
+		onAddEvent: () => void;
 	};
-	let { open = $bindable(false), adding = false, onAdd }: Props = $props();
+	let { open = $bindable(false), adding = false, onAdd, onAddEvent }: Props = $props();
 
-	let selectedType = $state<ToolType>(PALETTE_TOOLS[0].type);
+	let selectedType = $state<string>(PALETTE_TOOLS[0].type);
 	const selected = $derived(
 		PALETTE_TOOLS.find((t) => t.type === selectedType) ?? PALETTE_TOOLS[0]
 	);
@@ -35,13 +40,15 @@
 		<Dialog.Header>
 			<Dialog.Title class="text-center text-2xl font-semibold">Add a step</Dialog.Title>
 			<Dialog.Description class="text-center">
-				Choose a step type below — you can configure details later.
+				Choose a step type below. You can configure details later.
 			</Dialog.Description>
 		</Dialog.Header>
 
 		<div class="flex min-h-0 flex-1 items-start gap-6 overflow-hidden">
 			<!-- Left: selectable step-type list -->
-			<div class="flex w-96 shrink-0 flex-col gap-3 self-stretch overflow-y-auto pr-1">
+			<div
+				class="flex w-96 shrink-0 flex-col gap-3 self-stretch overflow-y-auto pr-4 [scrollbar-gutter:stable]"
+			>
 				{#each PALETTE_TOOLS as tool (tool.type)}
 					<SelectableOptionRow
 						selected={selectedType === tool.type}
@@ -58,11 +65,13 @@
 			>
 				<div class="flex flex-col gap-2">
 					<h3 class="text-foreground text-base font-bold">{selected.displayName}</h3>
-					<p class="text-muted-foreground text-sm">{selected.description}</p>
+					<p class="text-muted-foreground text-base">{selected.description}</p>
 
 					<!-- Setup guide callout -->
 					<a
-						href={toolInfoUrl(selected.type)}
+						href={resolve('/(admin)/admin/info/tools/[tool_id]', {
+							tool_id: selected.infoSlug
+						})}
 						target="_blank"
 						rel="noopener noreferrer"
 						class="bg-accent border-border hover:bg-accent/70 flex items-center gap-2 rounded-lg border px-3 py-2.5 transition-colors"
@@ -70,7 +79,7 @@
 						<BookOpen class="text-primary size-4 shrink-0" />
 						<span class="flex flex-1 flex-col">
 							<span class="text-primary text-xs font-semibold">
-								{selected.displayName} — introduction & setup guide
+								Introduction & setup guide
 							</span>
 							<span class="text-muted-foreground text-xs">
 								Learn how to configure this step, see examples, and understand best
@@ -106,7 +115,7 @@
 								>
 									<Check class="text-primary size-2.5" />
 								</span>
-								<span class="text-muted-foreground text-sm">{item}</span>
+								<span class="text-muted-foreground text-base">{item}</span>
 							</div>
 						{/each}
 					</section>
@@ -122,7 +131,7 @@
 								>
 									<Check class="text-primary size-2.5" />
 								</span>
-								<span class="text-muted-foreground text-sm">{item}</span>
+								<span class="text-muted-foreground text-base">{item}</span>
 							</div>
 						{/each}
 					</section>
@@ -138,7 +147,7 @@
 								>
 									<Check class="text-primary size-2.5" />
 								</span>
-								<span class="text-muted-foreground text-sm">{item}</span>
+								<span class="text-muted-foreground text-base">{item}</span>
 							</div>
 						{/each}
 					</section>
@@ -148,7 +157,9 @@
 
 		<Dialog.Footer class="items-center sm:justify-between">
 			<a
-				href={toolInfoUrl(selected.type)}
+				href={resolve('/(admin)/admin/info/tools/[tool_id]', {
+					tool_id: selected.infoSlug
+				})}
 				target="_blank"
 				rel="noopener noreferrer"
 				class="text-primary inline-flex items-center gap-1.5 text-sm font-medium"
@@ -160,15 +171,20 @@
 				<Dialog.Close class={buttonVariants({ variant: 'outline', size: 'sm' })}>
 					Cancel
 				</Dialog.Close>
-				<button
-					type="button"
-					disabled={adding}
-					onclick={() => onAdd(selected.creationKey)}
-					class={buttonVariants({ variant: 'default', size: 'sm' })}
+				<LoadingButton
+					variant="default"
+					size="sm"
+					loading={adding}
+					onclick={() =>
+						isEventPaletteItem(selected) ? onAddEvent() : onAdd(selected.creationKey)}
 				>
 					+ Add this step
-				</button>
+				</LoadingButton>
 			</div>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
+
+<!-- The dialog stays open while the step is created, so a button spinner alone is easy to
+	miss (Polis/HeyForm can take a few seconds). Mirror the create-conversation overlay. -->
+<LoadingOverlay open={adding} message="Adding step…" />
