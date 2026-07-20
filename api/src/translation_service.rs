@@ -45,6 +45,19 @@ impl GoogleTranslateService {
     }
 }
 
+/// Maps an application locale code to the closest locale supported by the
+/// Google Translate API.
+///
+/// Google Translate has no distinct Dari (`prs`) model, so Dari is translated
+/// as Persian (`fa`), with which it shares a script and is largely mutually
+/// intelligible in written form. All other locales are passed through unchanged.
+fn to_google_locale(locale: &str) -> &str {
+    match locale {
+        "prs" => "fa",
+        other => other,
+    }
+}
+
 #[cfg(test)]
 impl MockTranslationService {
     pub fn base() -> MockTranslationService {
@@ -77,8 +90,8 @@ impl TranslationService for GoogleTranslateService {
             .post(&url)
             .json(&serde_json::json!({
                 "q": content,
-                "source": from_locale,
-                "target": to_locale,
+                "source": to_google_locale(from_locale),
+                "target": to_google_locale(to_locale),
                 "format": "text"
             }))
             .send()
@@ -89,5 +102,22 @@ impl TranslationService for GoogleTranslateService {
             .map_err(|e| TranslationError::TranslationFailed(e.to_string()))?;
 
         Ok(res.data.translations[0].translated_text.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::to_google_locale;
+
+    #[test]
+    fn maps_dari_to_persian() {
+        assert_eq!(to_google_locale("prs"), "fa");
+    }
+
+    #[test]
+    fn passes_other_locales_through() {
+        assert_eq!(to_google_locale("ps"), "ps");
+        assert_eq!(to_google_locale("en"), "en");
+        assert_eq!(to_google_locale("fa"), "fa");
     }
 }
