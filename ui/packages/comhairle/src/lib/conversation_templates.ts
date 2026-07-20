@@ -74,7 +74,7 @@ const BADGE = {
 	online: { label: 'Online', class: 'bg-cyan-200/20' },
 	broadAudience: { label: 'Broad audience', class: 'bg-amber-400/20' },
 	limitedCapacity: { label: 'Limited team capacity', class: 'bg-pink-400/20' },
-	onsite: { label: 'Onsite', class: 'bg-pink-400/20' },
+	inPerson: { label: 'In person', class: 'bg-pink-400/20' },
 	oneDay: { label: '1 day', class: 'bg-cyan-200/20' },
 	cycleDevelopment: { label: 'Delivery Cycle: Development', class: 'bg-amber-400/20' },
 	cycleAppraisal: { label: 'Delivery Cycle: Appraisal', class: 'bg-accent' }
@@ -103,6 +103,22 @@ const step = {
 		label: 'Proposal prioritisation',
 		description:
 			'Collect a set of proposals and have participants score each one against a shared set of questions.'
+	},
+	thinkingSpace: {
+		label: 'Thinking Space',
+		description:
+			"Understand participant's background and questions they might have to the topic"
+	},
+	workshop: {
+		label: 'Workshop',
+		description: 'Join in-person workshop with other participants'
+	},
+	// Distinct from `wikiPoll` above: the Citizen workshop card labels and
+	// describes its Polis step differently ("Wiki Poll (Polis)" vs "Wiki-poll
+	// (Pol.is)"), so it needs its own display entry to stay 1:1 with the design.
+	wikiPollWorkshop: {
+		label: 'Wiki Poll (Polis)',
+		description: 'Reflecting where they are with other people'
 	}
 } as const;
 
@@ -151,7 +167,7 @@ const prioritisationStep = (order: number): CreationStep => ({
 export const conversationTemplates: ConversationTemplate[] = [
 	{
 		key: 'simple_survey',
-		name: 'Simple survey',
+		name: 'Informed-participants survey',
 		description: 'Interview participants with planned questions',
 		badges: [BADGE.online, BADGE.broadAudience],
 		displaySteps: [step.topicOnboarding, step.survey],
@@ -169,7 +185,7 @@ export const conversationTemplates: ConversationTemplate[] = [
 	},
 	{
 		key: 'stakeholder_engagement',
-		name: 'Stakeholder engagement',
+		name: 'Closed-group engagement',
 		description: 'Ask question to stakeholders on policy decisions and choices',
 		badges: [BADGE.cycleDevelopment],
 		// "Online video conference" has no backing workflow tool, so the two
@@ -200,8 +216,17 @@ export const conversationTemplates: ConversationTemplate[] = [
 		key: 'citizen_workshop',
 		name: 'Citizen workshop',
 		description: 'Engage with citizens in person for quality communication and conversations',
-		badges: [BADGE.onsite, BADGE.oneDay],
-		displaySteps: [step.topicOnboarding, step.prioritisation],
+		badges: [BADGE.inPerson, BADGE.oneDay, BADGE.cycleDevelopment],
+		// "Thinking Space" and "Workshop" have no backing tool, so they are display
+		// only. creationSteps is deliberately left as learn + prioritisation (the
+		// created workflow is unchanged); revisit if these should instantiate real
+		// steps.
+		displaySteps: [
+			step.topicOnboarding,
+			step.thinkingSpace,
+			step.workshop,
+			step.wikiPollWorkshop
+		],
 		creationSteps: [learnStep(1), prioritisationStep(2)],
 		available: true
 	}
