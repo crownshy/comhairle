@@ -1,46 +1,20 @@
-import type { PolisStatementAux } from '@crownshy/api-client/api';
-import type { PolisReportData } from '$lib/tools/polis/reportTypes';
+import { redirect } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 
+/** Valid sub-tab route segments. A legacy `?subtab=` value is honoured if it matches one. */
+const SUBTAB_SEGMENTS = ['configure', 'setup', 'moderation', 'insights'];
+
+/**
+ * The step index has no content of its own; it lands on the Configure sub-tab. Old
+ * `?subtab=` deep links redirect to the matching route so existing bookmarks keep working.
+ * (A `moderation`/`insights` target on a non-polis step is bounced on to Configure by that
+ * route's own guard.)
+ */
 export const load: PageLoad = async (event) => {
-	const step_id = event.params.step_id;
-	const { api, conversation, workflows, workflowSteps } = await event.parent();
-
-	// Polis Moderation/Insights subtabs read the statement_aux table for this
-	// step. Declared here so the tabs can invalidate just this after
-	// sync/moderate/seed, and so both subtabs share one fetch. `polis:report`
-	// is a separate key for the Insights vote/report export.
-	event.depends('polis:statement-aux');
-	event.depends('polis:report');
-
-	const step = workflowSteps?.find((s) => s.id === step_id);
-	const toolConfig = step
-		? conversation.isLive
-			? step.toolConfig
-			: step.previewToolConfig
-		: null;
-
-	let statementAux: PolisStatementAux[] = [];
-	let reportData: PolisReportData | null = null;
-	if (toolConfig?.type === 'polis') {
-		try {
-			statementAux = await api.PolisListStatementAux({
-				queries: { workflow_step_id: step_id }
-			});
-		} catch (e) {
-			console.error('Failed to load Polis statement aux', e);
-		}
-		try {
-			// PolisReportData is WikiPollReport (the client's return type) plus the
-			// client-only theme overlay, so this assigns without a cast. Fails
-			// (→ null) when the poll has no votes yet.
-			reportData = await api.PolisGetReportData({
-				queries: { workflow_step_id: step_id }
-			});
-		} catch (e) {
-			console.error('Failed to load Polis report data', e);
-		}
-	}
-
-	return { step_id, conversation, workflows, workflowSteps, statementAux, reportData };
+	const legacy = event.url.searchParams.get('subtab');
+	const target = legacy && SUBTAB_SEGMENTS.includes(legacy) ? legacy : 'configure';
+	redirect(
+		307,
+		`/admin/conversations/${event.params.conversation_id}/design/step/${event.params.step_id}/${target}`
+	);
 };

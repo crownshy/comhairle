@@ -1,11 +1,5 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { getContext } from 'svelte';
-	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
-	import {
-		CONVERSATION_TAB_EXTRAS_CTX,
-		type ConversationTabExtras
-	} from '$lib/conversationTabExtras';
 	import * as Form from '$lib/components/ui/form/';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as RadioGroup from '$lib/components/ui/radio-group';
@@ -319,35 +313,11 @@
 	async function emailInvitesSubmitted() {
 		await invalidateAll();
 	}
-
-	const tabExtras = getContext<ConversationTabExtras>(CONVERSATION_TAB_EXTRAS_CTX);
-
-	$effect(() => {
-		if (!tabExtras) return;
-		tabExtras.secondary = eventSubtabStripSnippet;
-		return () => {
-			tabExtras.secondary = null;
-		};
-	});
 </script>
 
 <svelte:head>
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
-
-{#snippet eventSubtabStripSnippet()}
-	<SubTabStrip
-		items={[
-			{ label: 'Details', value: 'details' },
-			{ label: 'Event Structure', value: 'structure' },
-			{ label: 'Facilitators', value: 'facilitators' },
-			{ label: 'Location', value: 'location' },
-			{ label: 'Invites', value: 'invites' },
-			{ label: 'Recordings', value: 'recordings' }
-		]}
-		defaultValue="details"
-	/>
-{/snippet}
 
 <div class="mb-6 flex flex-row items-center gap-4">
 	<h1 class="text-3xl font-bold">Event: {event?.name}</h1>

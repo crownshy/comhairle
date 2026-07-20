@@ -6,6 +6,7 @@
 	import { notifications } from '$lib/notifications.svelte.js';
 	import { saveTranslation } from '$lib/components/Translation/translationUtils';
 	import DraggableList from '$lib/components/DraggableList.svelte';
+	import StepListSkeleton from './StepListSkeleton.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -14,6 +15,7 @@
 	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
 	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
 	import { moveItem } from '$lib/utils/reorder';
+	import { cn } from '$lib/utils';
 	import {
 		Pencil,
 		Trash2,
@@ -33,12 +35,16 @@
 	let workflow = $derived(data.workflows[0]);
 	let workflowSteps = $derived<WorkflowStepWithTranslations[] | undefined>(data.workflowSteps);
 
-	let reorderedSteps = $state<WorkflowStepWithTranslations[]>([]);
-	$effect(() => {
-		reorderedSteps = workflowSteps
-			? [...workflowSteps].sort((a, b) => a.stepOrder - b.stepOrder)
-			: [];
-	});
+	// `undefined` = steps not loaded yet (show a skeleton); `[]` = genuinely no steps.
+	let loadingSteps = $derived(workflowSteps === undefined);
+
+	// Writable derived: seeds from the loaded steps and re-seeds whenever they change (e.g.
+	// after `invalidate`), while a drag/reorder can still assign to it locally in between.
+	// Using $derived (not $state + $effect) means SSR renders the real order too, so a slow
+	// client no longer flashes the empty state before hydration. (See CLAUDE.md.)
+	let reorderedSteps = $derived(
+		workflowSteps ? [...workflowSteps].sort((a, b) => a.stepOrder - b.stepOrder) : []
+	);
 
 	// --- Ephemeral UI state ---
 	let editingId = $state<string | null>(null);
@@ -202,18 +208,30 @@
 		}
 	}
 
-	// --- Scroll a step just created via the AddStepDialog into view (dialog owned by the layout) ---
+	// --- Scroll a step just created via the AddStepDialog into view and briefly highlight
+	//     it, so it's clear which card is the one just added (the dialog is owned by the
+	//     layout, so it hands the new id over via `newStepHighlight`). ---
+	let highlightedStepId = $state<string | null>(null);
+	// Plain handle so the highlight's own timer isn't torn down when this effect re-runs
+	// after we clear `newStepHighlight` below.
+	let highlightTimer: ReturnType<typeof setTimeout> | undefined;
+
 	$effect(() => {
 		const pending = newStepHighlight.id;
 		if (!pending) return;
 		// Wait until the invalidated steps actually include the new one.
 		if (!reorderedSteps.some((s) => s.id === pending)) return;
 		newStepHighlight.clear();
+		highlightedStepId = pending;
 		tick().then(() => {
 			boardEl
 				?.querySelector(`[data-step-id="${pending}"]`)
 				?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		});
+		clearTimeout(highlightTimer);
+		highlightTimer = setTimeout(() => {
+			if (highlightedStepId === pending) highlightedStepId = null;
+		}, 2500);
 	});
 
 	let pageTitle = $derived(`Design ${conversation.title}`);
@@ -226,14 +244,15 @@
 <!-- Full-bleed surface; the design tab has no page padding. overflow-hidden makes this
 	 an independent scroll boundary so the list can't push the sidebar-inset past the
 	 viewport. Only the inner column scrolls. -->
-<div class="bg-muted flex min-h-0 w-full flex-1 overflow-hidden px-2">
+<div class="bg-muted flex min-h-0 w-full flex-1 overflow-hidden">
 	<div bind:this={boardEl} class="min-h-0 flex-1 overflow-auto">
-		<div class="mx-auto flex w-full max-w-5xl flex-col gap-4 py-6">
+		<!-- Same gutter column + top spacing as every other admin page; symmetric inset on mobile. -->
+		<div class="px-gutter pt-page-top flex w-full max-w-5xl flex-col gap-4 pb-8">
 			<!-- Toolbar -->
 			<div class="flex shrink-0 flex-col items-center justify-between gap-2 sm:flex-row">
 				<div class="flex flex-col">
 					<h1 class="self-start text-2xl font-bold sm:self-auto">Process steps</h1>
-					<p class="text-muted-foreground text-sm">
+					<p class="text-muted-foreground text-base">
 						Design and configure your engagement, one step at a time.
 					</p>
 				</div>
@@ -254,7 +273,9 @@
 				</DropdownMenu.Root>
 			</div>
 
-			{#if reorderedSteps.length === 0}
+			{#if loadingSteps}
+				<StepListSkeleton />
+			{:else if reorderedSteps.length === 0}
 				<div
 					class="border-border bg-card text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-12 text-center"
 				>
@@ -282,7 +303,11 @@
 						     its clicks win. Pointer cursor + hover lift read as clickable. -->
 						<div
 							data-step-id={step.id}
-							class="bg-card group hover:border-primary/50 border-border relative flex cursor-pointer items-center gap-4 rounded-xl border p-4 transition-all hover:shadow-md"
+							class={cn(
+								'bg-card group hover:border-primary/50 border-border relative flex cursor-pointer items-center gap-4 rounded-xl border p-4 transition-all hover:shadow-md',
+								highlightedStepId === step.id &&
+									'ring-primary ring-offset-muted ring-2 ring-offset-2'
+							)}
 						>
 							<!-- Drag handle. The whole card is draggable; this grip is the
 							     affordance that signals it. Sits above the stretched link. -->
@@ -383,7 +408,7 @@
 												target="_blank"
 												class="flex w-full items-center gap-2"
 											>
-												<Info class="size-4" /> Step info
+												<Info class="size-4" /> Learn more
 											</a>
 										</DropdownMenu.Item>
 										<DropdownMenu.Separator />
