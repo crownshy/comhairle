@@ -401,7 +401,7 @@
 												target="_blank"
 												class="flex w-full items-center gap-2"
 											>
-												<Info class="size-4" /> Step info
+												<Info class="size-4" /> Learn more
 											</a>
 										</DropdownMenu.Item>
 										<DropdownMenu.Separator />
