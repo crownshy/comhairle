@@ -16,13 +16,14 @@
 	import DraggableList from '$lib/components/DraggableList.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { onMount } from 'svelte';
-	import { GripVertical } from 'lucide-svelte';
+	import { GripVertical, Info, TriangleAlert } from 'lucide-svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import Pages, { type ExtendedLocalizedPage, type Language } from './Pages.svelte';
 	import type {
 		InstancedToolConfig,
 		WorkflowStepWithTranslationsAndTool
 	} from '$lib/tools/types';
+	import * as Popover from '$lib/components/ui/popover';
 
 	interface Props {
 		conversationId: string;
@@ -161,7 +162,7 @@
 				<DraggableList
 					items={pages.order}
 					onReorder={(order) => pages.reorder(order)}
-					class="bg-muted flex flex-row items-center gap-2"
+					class="bg-muted flex flex-row flex-wrap items-center gap-2"
 				>
 					{#snippet children(item, i)}
 						<Badge
@@ -188,13 +189,16 @@
 						</Badge>
 					{/snippet}
 				</DraggableList>
-				<Button variant="ghost" onclick={() => pages.new(primaryLocale)}>+ Add Page</Button>
-				<Button
-					variant="destructive"
-					class="rounded-md"
-					onclick={() => pages.current.delete()}
-					disabled={pages.count <= 1}>- Delete Page</Button
+				<Button variant="ghost" size="sm" onclick={() => pages.new(primaryLocale)}
+					>+ Add Page</Button
 				>
+				<Popover.Root>
+					{#if pages.count >= 5}
+						<TriangleAlert size={22} class="text-amber-400" />
+					{:else}
+						<Info size={22} />
+					{/if}
+				</Popover.Root>
 			{/if}
 		</div>
 	</div>
@@ -252,4 +256,10 @@
 			onMarkAsDraft={(lang) => pages.current.modifyValidation(lang, false)}
 		/>
 	{/if}
+	<Button
+		variant="destructive"
+		class="rounded-md {pages.count === 1 && 'hidden'}"
+		aria-hidden={pages.count === 1}
+		onclick={() => pages.current.delete()}>- Delete Page</Button
+	>
 </div>
