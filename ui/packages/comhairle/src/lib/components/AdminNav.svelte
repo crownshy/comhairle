@@ -21,7 +21,7 @@
 	import SidebarResizeHandle from './SidebarResizeHandle.svelte';
 	import { useSidebarWidth } from './sidebarWidthContext.svelte.js';
 	import { EXPAND_WIDTH } from './sidebarWidth.js';
-	import type { LocalizedConversationDto } from '@crownshy/api-client/api';
+	import type { LocalizedConversationDto, UserDto } from '@crownshy/api-client/api';
 	import { SIDEBAR_KEYBOARD_SHORTCUT } from './ui/sidebar/constants';
 
 	type Props = {

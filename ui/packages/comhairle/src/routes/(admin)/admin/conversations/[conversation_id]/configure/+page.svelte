@@ -13,13 +13,11 @@
 	import TeamManager from '$lib/components/TeamManager.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import * as HoverCard from '$lib/components/ui/hover-card';
-	import { CONFIGURE_TABS } from './tabs';
 	import CollapsibleRichField from './CollapsibleRichField.svelte';
 	import ExampleDialog from './ExampleDialog.svelte';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { autoTranslateNewLanguage } from '$lib/components/Translation/translationUtils';
 	import { LanguageSelector } from '$lib/components/ui/language-selector';
-	import ResourceRoleForm from '$lib/components/Permissions/ResourceRoleForm.svelte';
 	import type {
 		ConversationWithTranslations,
 		MediaDto,
@@ -34,12 +32,6 @@
 	} from '$lib/components/Media/MediaLibraryDialog.svelte';
 	import MediaUpload from '$lib/components/Media/MediaUpload.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
-	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
-	import { getContext } from 'svelte';
-	import {
-		CONVERSATION_TAB_EXTRAS_CTX,
-		type ConversationTabExtras
-	} from '$lib/conversationTabExtras';
 
 	let {
 		data
@@ -50,6 +42,7 @@
 			media: MediaDto | null;
 			user: UserDto;
 			usersWithPermission: UserWithPermissionDto[];
+			configureTabs: { id: string; label: string }[];
 		};
 	} = $props();
 	let conversation = $derived(data.conversation);
@@ -61,7 +54,7 @@
 	let supportedLanguages = $state(data.conversation.supportedLanguages ?? ['en']);
 	let pageTitle = $derived(`Configure ${conversation.title}`);
 
-	// The sub-tab strip (Row 3) is server-rendered by the conversation layout from CONFIGURE_TABS;
+	// The sub-tab strip (Row 3) is server-rendered by the conversation layout from `configureTabs`;
 	// this page reads the same list to pick the default tab and its header copy.
 	const tabHeaders: Record<string, { title: string; description: string }> = {
 		details: { title: 'Details', description: 'Title, description, language and banner.' },
@@ -72,7 +65,7 @@
 		access: { title: 'Access', description: 'Visibility, invites and participation.' },
 		team: { title: 'Team', description: 'Manage collaborators.' }
 	};
-	let activeTab = $derived(page.url.searchParams.get('tab') ?? CONFIGURE_TABS[0].id);
+	let activeTab = $derived(page.url.searchParams.get('tab') ?? data.configureTabs[0].id);
 	let header = $derived(tabHeaders[activeTab] ?? tabHeaders.details);
 
 	// "See example" opens a modal with a static screenshot of where the field appears for
@@ -363,20 +356,6 @@
 
 		await invalidate('conversation:meta');
 	}
-
-	const tabExtras = getContext<ConversationTabExtras>(CONVERSATION_TAB_EXTRAS_CTX);
-
-	$effect(() => {
-		if (!tabExtras) return;
-		if (conversation.ownerId !== data.user.id) return;
-
-		tabExtras.secondary = conversationSubtabStripSnippet;
-		return () => {
-			tabExtras.secondary = null;
-		};
-	});
-
-	let activeTab = $derived(page.url.searchParams.get('subtab') ?? 'details');
 </script>
 
 <svelte:head>
@@ -1013,9 +992,8 @@
 		<div
 			class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"
 		>
-			<p class="text-sm font-semibold lg:w-50 lg:shrink-0 lg:pt-2">Collaborators</p>
 			<div class="flex-1">
-				<TeamManager />
+				<TeamManager conversationId={conversation.id} {permittedUsers} />
 			</div>
 		</div>
 	{/if}

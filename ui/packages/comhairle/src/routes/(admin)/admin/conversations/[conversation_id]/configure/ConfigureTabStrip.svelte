@@ -2,11 +2,10 @@
 	import { page } from '$app/state';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import TabStripShell from '$lib/components/TabStripShell.svelte';
-	import type { ConfigureTab } from './tabs';
 
 	type Props = {
 		/** Tabs to render, in display order. First tab is the default when `?tab=` is absent. */
-		tabs: ConfigureTab[];
+		tabs: { id: string; label: string }[];
 	};
 
 	let { tabs }: Props = $props();

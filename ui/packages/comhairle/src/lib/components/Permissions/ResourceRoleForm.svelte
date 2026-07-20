@@ -116,7 +116,7 @@
 </script>
 
 <section class="flex flex-col gap-8 py-8">
-	<h2 class="text-2xl font-semibold">Permissions</h2>
+	<h3 class="text-xl font-semibold">Permissions</h3>
 
 	<form method="POST" class="flex flex-col gap-4" use:enhance>
 		<Form.Field form={userEmailPermissionForm} name="email" class="flex flex-col gap-2">

@@ -11,6 +11,7 @@ import type {
 	WorkflowStepWithTranslations
 } from '@crownshy/api-client/api';
 import type { LayoutLoad } from './$types';
+import type { ConfigureTab } from './configure/tabs';
 
 /**
  * Invalidation keys for this load. Each re-runs this fetch; the names let callers
@@ -63,8 +64,15 @@ export const load: LayoutLoad = async ({
 			media = await api.GetMedia({ params: { media_id: conversation.image } });
 		}
 
+		const configureTabs: { id: string; label: string }[] = [
+			{ id: 'details', label: 'Details' },
+			{ id: 'content', label: 'Content' },
+			{ id: 'access', label: 'Access' }
+		];
+
 		let usersWithPermission: UserWithPermissionDto[] = [];
 		if (user.id === conversation.ownerId) {
+			configureTabs.push({ id: 'team', label: 'Team' });
 			usersWithPermission = await api.ListUsersWithPermission({
 				params: {
 					resource_type: 'conversation',
@@ -83,7 +91,17 @@ export const load: LayoutLoad = async ({
 				queries: { withTranslations: true }
 			});
 		}
-		return { conversation, workflows, stats, workflowSteps, events, media };
+
+		return {
+			conversation,
+			workflows,
+			stats,
+			workflowSteps,
+			events,
+			media,
+			usersWithPermission,
+			configureTabs
+		};
 	} catch (e) {
 		console.error(e);
 		notifications.addFlash({
