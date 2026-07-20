@@ -236,7 +236,6 @@
 			minHeight="300px"
 			dialogMinHeight="250px"
 			dialogTitle="Translate: Page {pages.currentId + 1}"
-			translation={workflowStep.translations.description}
 			initialContents={pageData.initialContents}
 			initialStatuses={pageData.statuses}
 			{availableDocuments}
@@ -253,8 +252,8 @@
 				await pages.current.upsertContent('target', targetLang, translatedContent);
 				return { content: translatedContent, requiresValidation: true };
 			}}
-			onApprove={(lang) => pages.current.modifyValidation(lang, true)}
-			onMarkAsDraft={(lang) => pages.current.modifyValidation(lang, false)}
+			onApprove={(lang) => pages.current.approve(lang, true)}
+			onMarkAsDraft={(lang) => pages.current.approve(lang, false)}
 		/>
 	{/if}
 	{#if pages.count > 1}

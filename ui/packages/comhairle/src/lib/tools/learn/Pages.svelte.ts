@@ -125,13 +125,14 @@ class Pages {
 						break;
 				}
 				this.items[this.currentId] = page;
+				console.debug('requires_validation:', page);
 				return this.#saveHandler({ invalidate: false });
 			},
 
-			modifyValidation: async (lang: Language, validation: boolean) => {
+			approve: async (lang: Language, validation: boolean) => {
 				const page = this.items[this.currentId];
 				if (!page || !page[lang]) return;
-				page[lang].requires_validation = validation;
+				page[lang].requires_validation = !validation;
 				this.items[this.currentId] = page;
 				return this.#saveHandler({ invalidate: false });
 			}
