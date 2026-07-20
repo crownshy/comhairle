@@ -12,6 +12,7 @@
 	import { conversationTemplates } from '$lib/conversation_templates';
 	import { justCreatedConversation } from '$lib/stores/justCreatedConversation.svelte';
 	import SelectableOptionRow from '$lib/components/SelectableOptionRow.svelte';
+	import TemplateIllustration from '$lib/components/TemplateIllustration.svelte';
 	import { cn } from '$lib/utils';
 
 	let {
@@ -95,53 +96,21 @@
 					<h3 class="text-card-foreground text-base font-bold">{selected.name}</h3>
 					<div class="flex max-w-80 flex-wrap justify-end gap-2">
 						{#each selected.badges as badge (badge.label)}
+							{@const Icon = badge.icon}
 							<span
 								class={cn(
-									'text-foreground rounded-full px-2 py-0.5 text-xs font-medium',
+									'text-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
 									badge.class
 								)}
 							>
+								<Icon class="size-4 shrink-0" />
 								{badge.label}
 							</span>
 						{/each}
 					</div>
 				</div>
 
-				<!-- Decorative wireframe placeholder (per design) -->
-				<div class="relative h-44 overflow-hidden rounded-md bg-neutral-200">
-					<div
-						class="absolute top-[37px] left-[38px] flex h-24 w-32 flex-col items-start gap-[5px] rounded-lg bg-stone-300 pt-3.5 pr-3.5 pb-5 pl-3"
-					>
-						<div class="h-2.5 w-24 rounded-lg bg-gray-200"></div>
-						<div class="h-2.5 w-24 rounded-lg bg-gray-200"></div>
-						<div class="h-2.5 w-20 rounded-lg bg-gray-200"></div>
-						<div class="h-2.5 w-16 rounded-lg bg-gray-200"></div>
-					</div>
-					<div
-						class="absolute top-[37px] left-[202px] flex h-24 w-32 flex-col items-end justify-center gap-[5px] rounded-lg bg-stone-300 pt-3.5 pr-3.5 pb-5 pl-3"
-					>
-						<div class="h-1.5 w-24 rounded-lg bg-gray-200"></div>
-						<div class="h-10 w-24 rounded-lg bg-gray-200"></div>
-						<div class="h-2.5 w-6 rounded-lg bg-gray-200"></div>
-					</div>
-					<div
-						class="absolute top-[37px] left-[375px] flex h-24 w-32 flex-col items-center justify-center gap-[5px] rounded-lg bg-stone-300 pt-3.5 pr-3.5 pb-5 pl-3"
-					>
-						<div
-							class="flex flex-wrap content-start items-start gap-[5px] self-stretch"
-						>
-							{#each Array.from({ length: 14 }) as _, i (i)}
-								<div class="h-1.5 w-6 rounded-lg bg-gray-200"></div>
-							{/each}
-						</div>
-					</div>
-					<div
-						class="absolute top-[87px] left-[170px] h-0 w-6 outline outline-2 -outline-offset-1 outline-stone-300"
-					></div>
-					<div
-						class="absolute top-[87px] left-[340px] h-0 w-6 outline outline-2 -outline-offset-1 outline-stone-300"
-					></div>
-				</div>
+				<TemplateIllustration templateKey={selected.key} />
 
 				<div class="flex flex-col gap-1">
 					<h4 class="text-card-foreground text-sm font-bold">Workflow steps</h4>
