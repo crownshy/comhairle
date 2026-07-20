@@ -2,7 +2,8 @@
 	import AdminNav from '$lib/components/AdminNav.svelte';
 	import SidebarFloatingTriggers from '$lib/components/SidebarFloatingTriggers.svelte';
 	import * as SideBar from '$lib/components/ui/sidebar';
-	import { sidebarWidth } from '$lib/components/sidebarWidth.svelte.js';
+	import { setSidebarWidth } from '$lib/components/sidebarWidthContext.svelte.js';
+	import { clampWidth, DEFAULT_WIDTH } from '$lib/components/sidebarWidth.js';
 	import type { LayoutProps } from './$types';
 	import { page } from '$app/state';
 	import { loginRedirect } from '$lib/urls';
@@ -14,15 +15,22 @@
 		loginRedirect(page.url.toString(), 'You need to be logged in to access this');
 	}
 
-	$effect(() => {
-		sidebarWidth.hydrate();
+	// Writable derived seeded from the server-read cookie: SSR and the live value are one
+	// reactive expression, so first paint is correct (no jump) and a drag overrides it
+	// until the next load re-seeds. See ADR-0004.
+	let sidebarWidthPx = $derived(clampWidth(data.sidebarWidth ?? DEFAULT_WIDTH));
+	const sidebarWidth = setSidebarWidth({
+		width: () => sidebarWidthPx,
+		setWidth: (px) => {
+			sidebarWidthPx = clampWidth(px);
+		}
 	});
 </script>
 
 <SideBar.Provider
 	class="h-svh"
-	style="--sidebar-width: {sidebarWidth.width}px;"
-	data-sidebar-resizing={sidebarWidth.resizing || sidebarWidth.initializing ? '' : undefined}
+	style="--sidebar-width: {sidebarWidthPx}px;"
+	data-sidebar-resizing={sidebarWidth.resizing ? '' : undefined}
 >
 	<AdminNav user={data.user} conversations={conversations.records} path={page.url.pathname} />
 	<SideBar.Inset class="min-h-0 min-w-0">
