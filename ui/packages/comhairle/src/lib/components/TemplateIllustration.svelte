@@ -8,11 +8,21 @@
 	 * survey, polis, video, prioritisation) wired together per template and
 	 * separated by arrows.
 	 *
-	 * The card artwork is the Figma SVG export verbatim, except the accent colour
-	 * `#1975C4` is swapped for `currentColor` and each `<svg>` carries
-	 * `text-primary`, so the illustration recolours with the active theme. The
-	 * structural white / hairline greys stay literal (they read as the card's
-	 * paper against the `bg-secondary` panel).
+	 * The card artwork is the Figma SVG export, repainted with theme tokens so it
+	 * follows light and dark mode. The export's accent `#1975C4` became
+	 * `currentColor` (each `<svg>` carries `text-primary`), and its structural
+	 * paint maps by role rather than by literal colour:
+	 *
+	 * - `fill-card` / `stroke-border`: the card "paper" and its hairline outline.
+	 * - `stroke-card`: the knockout halo where a badge overlaps the paper.
+	 * - `fill-`/`stroke-primary-foreground`: glyphs and silhouettes drawn on top
+	 *   of a `currentColor`-filled shape, so they need contrast against the accent
+	 *   rather than against the paper.
+	 *
+	 * Three things stay literal on purpose: `<mask fill="white">` (that white is
+	 * mask luminance, not paint, so tokenising it would blank the mask),
+	 * `<clipPath>` child fills (the renderer ignores them), and `#A3CA92`, which
+	 * is a real accent rather than structural paint.
 	 *
 	 * When a composition (e.g. the 4-card Citizen workshop) is wider than the
 	 * panel, the whole row is scaled down uniformly to fit, so the cards, arrows,
@@ -79,7 +89,7 @@
 		xmlns="http://www.w3.org/2000/svg"
 		class="text-primary h-24 w-32 shrink-0"
 	>
-		<rect x="0.5" y="0.5" width="127" height="95" rx="7.5" fill="white" stroke="#E5E5E5" />
+		<rect x="0.5" y="0.5" width="127" height="95" rx="7.5" class="fill-card stroke-border" />
 		<rect
 			x="11.264"
 			y="44.1602"
@@ -159,8 +169,8 @@
 		xmlns="http://www.w3.org/2000/svg"
 		class="text-primary h-24 w-32 shrink-0"
 	>
-		<rect x="0.5" y="0.5" width="127" height="95" rx="7.5" fill="white" />
-		<rect x="0.5" y="0.5" width="127" height="95" rx="7.5" stroke="#E5E5E5" />
+		<rect x="0.5" y="0.5" width="127" height="95" rx="7.5" class="fill-card" />
+		<rect x="0.5" y="0.5" width="127" height="95" rx="7.5" class="stroke-border" />
 		<rect
 			x="46.0298"
 			y="18.3018"
@@ -215,23 +225,31 @@
 		<rect width="7" height="7" rx="2" transform="matrix(-1 0 0 1 80 26)" fill="currentColor" />
 		<rect width="7" height="7" rx="2" transform="matrix(-1 0 0 1 89 26)" fill="currentColor" />
 		<rect x="46" y="75" width="47" height="2" rx="1" fill="currentColor" />
-		<circle cx="60" cy="76" r="3.5" fill="currentColor" stroke="white" />
-		<circle cx="35.0366" cy="23.0366" r="6.53662" fill="currentColor" stroke="white" />
+		<circle cx="60" cy="76" r="3.5" fill="currentColor" class="stroke-card" />
+		<circle cx="35.0366" cy="23.0366" r="6.53662" fill="currentColor" class="stroke-card" />
 		<path
 			d="M35.5624 20.7872V25.1509H34.9019V21.4478H34.8764L33.8323 22.1296V21.4989L34.9211 20.7872H35.5624Z"
-			fill="white"
+			class="fill-primary-foreground"
 		/>
-		<circle cx="35.0366" cy="47.5879" r="6.53662" fill="currentColor" stroke="white" />
+		<circle cx="35.0366" cy="47.5879" r="6.53662" fill="currentColor" class="stroke-card" />
 		<path
 			d="M33.6768 49.3184V48.8411L35.1534 47.3113C35.311 47.1451 35.441 46.9995 35.5433 46.8745C35.647 46.748 35.7244 46.628 35.7755 46.5144C35.8267 46.4007 35.8522 46.28 35.8522 46.1522C35.8522 46.0073 35.8181 45.8823 35.75 45.7772C35.6818 45.6706 35.5887 45.589 35.4708 45.5321C35.3529 45.4739 35.2201 45.4448 35.0724 45.4448C34.9162 45.4448 34.7798 45.4767 34.6633 45.5407C34.5468 45.6046 34.4574 45.6948 34.3949 45.8113C34.3324 45.9277 34.3011 46.0641 34.3011 46.2203H33.6726C33.6726 45.9547 33.7336 45.7225 33.8558 45.5236C33.9779 45.3248 34.1456 45.1706 34.3586 45.0613C34.5717 44.9505 34.8139 44.8951 35.0852 44.8951C35.3593 44.8951 35.6008 44.9498 35.8096 45.0591C36.0199 45.1671 36.1839 45.3148 36.3018 45.5023C36.4197 45.6884 36.4787 45.8986 36.4787 46.133C36.4787 46.2949 36.4481 46.4533 36.387 46.6081C36.3274 46.763 36.223 46.9355 36.0738 47.1259C35.9247 47.3148 35.7173 47.5442 35.4517 47.8141L34.5845 48.7218V48.7537H36.549V49.3184H33.6768Z"
-			fill="white"
+			class="fill-primary-foreground"
 		/>
-		<circle cx="35.0366" cy="72.1392" r="6.53662" fill="currentColor" stroke="white" />
+		<circle cx="35.0366" cy="72.1392" r="6.53662" fill="currentColor" class="stroke-card" />
 		<path
 			d="M35.1022 73.9293C34.8096 73.9293 34.5483 73.8789 34.3181 73.778C34.0895 73.6772 33.9083 73.5372 33.7748 73.3583C33.6427 73.1779 33.5717 72.9691 33.5618 72.7318H34.2308C34.2393 72.8611 34.2826 72.9733 34.3608 73.0685C34.4403 73.1622 34.544 73.2347 34.6718 73.2858C34.7997 73.337 34.9417 73.3625 35.098 73.3625C35.2699 73.3625 35.4218 73.3327 35.5539 73.273C35.6875 73.2134 35.7919 73.1303 35.8672 73.0237C35.9424 72.9158 35.9801 72.7915 35.9801 72.6509C35.9801 72.5046 35.9424 72.376 35.8672 72.2652C35.7933 72.153 35.6846 72.0649 35.5412 72.001C35.3991 71.9371 35.2272 71.9051 35.0255 71.9051H34.6569V71.3682H35.0255C35.1875 71.3682 35.3295 71.3391 35.4517 71.2809C35.5752 71.2226 35.6718 71.1416 35.7414 71.038C35.811 70.9328 35.8458 70.81 35.8458 70.6693C35.8458 70.5344 35.8153 70.4172 35.7542 70.3178C35.6946 70.2169 35.6093 70.1381 35.4985 70.0813C35.3892 70.0245 35.2599 69.996 35.1108 69.996C34.9687 69.996 34.8359 70.0223 34.7123 70.0749C34.5902 70.126 34.4907 70.1999 34.414 70.2965C34.3373 70.3916 34.2961 70.506 34.2904 70.6395H33.6534C33.6605 70.4037 33.7301 70.1963 33.8622 70.0174C33.9957 69.8384 34.1718 69.6985 34.3906 69.5976C34.6093 69.4968 34.8522 69.4463 35.1193 69.4463C35.3991 69.4463 35.6406 69.501 35.8437 69.6104C36.0483 69.7184 36.2059 69.8625 36.3167 70.0429C36.4289 70.2233 36.4843 70.4208 36.4829 70.6353C36.4843 70.8796 36.4162 71.087 36.2784 71.2574C36.142 71.4279 35.9602 71.5422 35.7329 71.6005V71.6345C36.0227 71.6786 36.2471 71.7936 36.4062 71.9797C36.5667 72.1658 36.6463 72.3966 36.6449 72.6722C36.6463 72.9122 36.5795 73.1274 36.4446 73.3178C36.311 73.5081 36.1285 73.658 35.897 73.7674C35.6654 73.8753 35.4005 73.9293 35.1022 73.9293Z"
-			fill="white"
+			class="fill-primary-foreground"
 		/>
-		<rect x="45.5" y="50.5" width="47" height="9" rx="1.5" fill="white" stroke="currentColor" />
+		<rect
+			x="45.5"
+			y="50.5"
+			width="47"
+			height="9"
+			rx="1.5"
+			class="fill-card"
+			stroke="currentColor"
+		/>
 	</svg>
 {/snippet}
 
@@ -244,11 +262,11 @@
 	>
 		<path
 			d="M8 0.5H120C124.142 0.5 127.5 3.85786 127.5 8V88C127.5 92.1421 124.142 95.5 120 95.5H8C3.85786 95.5 0.5 92.1421 0.5 88V8C0.5 3.85786 3.85786 0.5 8 0.5Z"
-			fill="white"
+			class="fill-card"
 		/>
 		<path
 			d="M8 0.5H120C124.142 0.5 127.5 3.85786 127.5 8V88C127.5 92.1421 124.142 95.5 120 95.5H8C3.85786 95.5 0.5 92.1421 0.5 88V8C0.5 3.85786 3.85786 0.5 8 0.5Z"
-			stroke="#E5E5E5"
+			class="stroke-border"
 		/>
 		<path
 			d="M39.3074 67.1982L46.1804 58.2089C47.6607 56.2728 50.7095 56.8163 51.4296 59.1445L55.7518 73.1177C56.5135 75.5801 54.0204 77.7932 51.6657 76.7449L40.4705 71.761C38.7 70.9728 38.1302 68.7378 39.3074 67.1982Z"
@@ -262,19 +280,19 @@
 			d="M63.8289 74.3916L62.8033 75.5627C61.2893 77.2916 62.2017 80.011 64.4521 80.4768L81.8357 84.0756C83.9474 84.5127 85.8168 82.6456 85.3823 80.5334L83.8499 73.0845C83.5217 71.4892 81.9807 70.4471 80.378 70.7368L65.5523 73.4159C64.8839 73.5366 64.2763 73.8806 63.8289 74.3916Z"
 			fill="currentColor"
 		/>
-		<circle cx="67.9687" cy="54.4027" r="5.90272" fill="currentColor" stroke="white" />
+		<circle cx="67.9687" cy="54.4027" r="5.90272" fill="currentColor" class="stroke-card" />
 		<path
 			d="M66.1491 56.8201C66.1491 55.7971 66.9784 54.9678 68.0014 54.9678C69.0244 54.9678 69.8537 55.7971 69.8537 56.8201V57.7743H66.1491V56.8201Z"
-			fill="white"
+			class="fill-primary-foreground"
 		/>
-		<circle cx="68.0305" cy="52.9194" r="2.04876" fill="white" />
+		<circle cx="68.0305" cy="52.9194" r="2.04876" class="fill-primary-foreground" />
 		<rect
 			x="37.5001"
 			y="12.5"
 			width="55.913"
 			height="27.9647"
 			rx="3.5"
-			fill="white"
+			class="fill-card"
 			stroke="currentColor"
 		/>
 		<g clip-path="url(#polis_clip0)">
@@ -328,11 +346,11 @@
 	>
 		<path
 			d="M8 0.5H120C124.142 0.5 127.5 3.85786 127.5 8V88C127.5 92.1421 124.142 95.5 120 95.5H8C3.85786 95.5 0.5 92.1421 0.5 88V8C0.5 3.85786 3.85786 0.5 8 0.5Z"
-			fill="white"
+			class="fill-card"
 		/>
 		<path
 			d="M8 0.5H120C124.142 0.5 127.5 3.85786 127.5 8V88C127.5 92.1421 124.142 95.5 120 95.5H8C3.85786 95.5 0.5 92.1421 0.5 88V8C0.5 3.85786 3.85786 0.5 8 0.5Z"
-			stroke="#E5E5E5"
+			class="stroke-border"
 		/>
 		<rect
 			x="19.5"
@@ -340,7 +358,7 @@
 			width="89"
 			height="65"
 			rx="5.5"
-			fill="white"
+			class="fill-card"
 			stroke="currentColor"
 		/>
 		<rect x="58" y="18" width="11" height="2" rx="1" fill="currentColor" />
@@ -348,11 +366,16 @@
 		<circle cx="27" cy="19" r="1" fill="currentColor" />
 		<circle cx="30" cy="19" r="1" fill="currentColor" />
 		<rect x="22.4286" y="53.0073" width="40.31" height="24.5639" rx="4" fill="currentColor" />
-		<ellipse cx="42.5835" cy="64.3449" rx="5.24869" ry="5.24871" fill="white" />
+		<ellipse
+			cx="42.5835"
+			cy="64.3449"
+			rx="5.24869"
+			ry="5.24871"
+			class="fill-primary-foreground"
+		/>
 		<path
 			d="M42.5115 70.8125C44.8561 70.8125 46.7575 72.7131 46.7576 75.0576V77.0029H38.2664V75.0576C38.2666 72.7132 40.1671 70.8126 42.5115 70.8125Z"
-			fill="white"
-			stroke="white"
+			class="fill-primary-foreground stroke-primary-foreground"
 		/>
 		<mask id="video_mask0" fill="white">
 			<path
@@ -365,30 +388,42 @@
 		/>
 		<path
 			d="M42.5114 70.3125V69.3125H42.5113L42.5114 70.3125ZM47.2575 75.0576H48.2575V75.0576L47.2575 75.0576ZM47.2575 77.5L47.2673 78.5L48.2575 78.4903V77.5H47.2575ZM47.1862 77.502L47.1862 78.502H47.1862V77.502ZM40.194 70.916L39.7049 70.0438L39.1695 70.3441L39.1949 70.9574L40.194 70.916ZM42.5114 70.3125V71.3125C44.5802 71.3125 46.2575 72.9894 46.2575 75.0576L47.2575 75.0576L48.2575 75.0576C48.2575 71.8843 45.6842 69.3125 42.5114 69.3125V70.3125ZM47.2575 75.0576H46.2575V77.5H47.2575H48.2575V75.0576H47.2575ZM47.2575 77.5L47.2477 76.5C47.2316 76.5002 47.2175 76.5006 47.2071 76.5009C47.1974 76.5013 47.1874 76.5016 47.1833 76.5018C47.1806 76.5019 47.179 76.502 47.1777 76.502C47.1765 76.5021 47.1761 76.5021 47.1763 76.5021C47.1765 76.5021 47.1803 76.502 47.1862 76.502V77.502V78.502C47.2197 78.502 47.2494 78.5007 47.2605 78.5003C47.2682 78.5 47.2702 78.4999 47.2724 78.4999C47.2738 78.4998 47.2716 78.4999 47.2673 78.5L47.2575 77.5ZM47.1862 77.502L47.1862 76.502C43.9394 76.5019 41.322 73.9874 41.1932 70.8747L40.194 70.916L39.1949 70.9574C39.3692 75.1698 42.8954 78.5018 47.1862 78.502L47.1862 77.502ZM40.194 70.916L40.6832 71.7882C41.2229 71.4855 41.8454 71.3126 42.5115 71.3125L42.5114 70.3125L42.5113 69.3125C41.4941 69.3126 40.5358 69.5778 39.7049 70.0438L40.194 70.916Z"
-			fill="white"
+			class="fill-primary-foreground"
 			mask="url(#video_mask0)"
 		/>
 		<rect x="66" y="26" width="40" height="24" rx="4" fill="currentColor" />
 		<path
 			d="M81 47.5C81 45.0147 83.0147 43 85.5 43C87.9853 43 90 45.0147 90 47.5V50H81V47.5Z"
-			fill="white"
+			class="fill-primary-foreground"
 		/>
-		<ellipse cx="85.5" cy="37" rx="5.5" ry="5" fill="white" />
+		<ellipse cx="85.5" cy="37" rx="5.5" ry="5" class="fill-primary-foreground" />
 		<rect x="22.4286" y="25.7144" width="40.31" height="24.5639" rx="4" fill="currentColor" />
 		<path
 			d="M37.7665 48.031C37.7665 45.4102 39.8911 43.2856 42.5119 43.2856C45.1327 43.2856 47.2573 45.4102 47.2573 48.031V50.4756H37.7665V48.031Z"
-			fill="white"
+			class="fill-primary-foreground"
 		/>
-		<ellipse cx="42.5837" cy="37.0514" rx="5.24869" ry="5.2487" fill="white" />
+		<ellipse
+			cx="42.5837"
+			cy="37.0514"
+			rx="5.24869"
+			ry="5.2487"
+			class="fill-primary-foreground"
+		/>
 		<ellipse cx="42.6495" cy="45.154" rx="0.388867" ry="0.388868" fill="currentColor" />
 		<ellipse cx="42.6495" cy="46.4499" rx="0.388867" ry="0.388868" fill="currentColor" />
 		<ellipse cx="42.6495" cy="47.7463" rx="0.388867" ry="0.388868" fill="currentColor" />
 		<rect x="65.6779" y="53.0073" width="40.31" height="24.5639" rx="4" fill="currentColor" />
-		<ellipse cx="85.8328" cy="64.3449" rx="5.24869" ry="5.24871" fill="white" />
+		<ellipse
+			cx="85.8328"
+			cy="64.3449"
+			rx="5.24869"
+			ry="5.24871"
+			class="fill-primary-foreground"
+		/>
 		<path
 			d="M85.7605 70.8125C88.1051 70.8125 90.0064 72.7131 90.0066 75.0576V77.0029H81.5154V75.0576C81.5155 72.7132 83.416 70.8126 85.7605 70.8125Z"
 			fill="currentColor"
-			stroke="white"
+			class="stroke-primary-foreground"
 		/>
 		<mask id="video_mask1" fill="white">
 			<path
@@ -401,7 +436,7 @@
 		/>
 		<path
 			d="M89.6207 73.6139C89.6207 74.7389 88.7087 75.6509 87.5837 75.6509C86.4587 75.6509 85.5467 74.7389 85.5467 73.6139L87.5467 73.6139C87.5467 73.6343 87.5633 73.6509 87.5837 73.6509C87.6041 73.6509 87.6207 73.6343 87.6207 73.6139L89.6207 73.6139ZM87.6207 73.6139M86.5467 73.0954L88.6207 73.0954L86.5467 73.0954M89.6207 73.0954L89.6207 73.6139C89.6207 74.7389 88.7087 75.6509 87.5837 75.6509L87.5837 73.6509C87.6041 73.6509 87.6207 73.6343 87.6207 73.6139L87.6207 73.0954L89.6207 73.0954ZM87.5837 75.6509C86.4587 75.6509 85.5467 74.7389 85.5467 73.6139L85.5467 73.0954L87.5467 73.0954L87.5467 73.6139C87.5467 73.6343 87.5633 73.6509 87.5837 73.6509L87.5837 75.6509Z"
-			fill="white"
+			class="fill-primary-foreground"
 			mask="url(#video_mask1)"
 		/>
 		<rect
@@ -410,10 +445,18 @@
 			width="1.81471"
 			height="0.259246"
 			fill="#A3CA92"
-			stroke="white"
+			class="stroke-primary-foreground"
 			stroke-width="0.259246"
 		/>
-		<rect x="51.5" y="67.5" width="23" height="6" rx="3" fill="white" stroke="currentColor" />
+		<rect
+			x="51.5"
+			y="67.5"
+			width="23"
+			height="6"
+			rx="3"
+			class="fill-card"
+			stroke="currentColor"
+		/>
 		<circle cx="54.4286" cy="70.4999" r="1.71429" fill="currentColor" />
 		<circle cx="58.7143" cy="70.4999" r="1.71429" fill="currentColor" />
 		<circle cx="63" cy="70.4999" r="1.71429" fill="currentColor" />
@@ -432,25 +475,25 @@
 	>
 		<path
 			d="M8 0.5H120C124.142 0.5 127.5 3.85786 127.5 8V88C127.5 92.1421 124.142 95.5 120 95.5H8C3.85786 95.5 0.5 92.1421 0.5 88V8C0.5 3.85786 3.85786 0.5 8 0.5Z"
-			fill="white"
+			class="fill-card"
 		/>
 		<path
 			d="M8 0.5H120C124.142 0.5 127.5 3.85786 127.5 8V88C127.5 92.1421 124.142 95.5 120 95.5H8C3.85786 95.5 0.5 92.1421 0.5 88V8C0.5 3.85786 3.85786 0.5 8 0.5Z"
-			stroke="#E5E5E5"
+			class="stroke-border"
 		/>
 		<rect x="27" y="14" width="65" height="65" rx="3" fill="currentColor" />
-		<rect x="27" y="14" width="65" height="65" rx="3" stroke="#F3F4F6" stroke-width="2" />
-		<rect x="32" y="19" width="55" height="16" rx="2" fill="#F3F4F6" />
-		<rect x="32" y="37" width="49" height="2" rx="1" fill="#F3F4F6" />
-		<rect x="32" y="41" width="40" height="2" rx="1" fill="#F3F4F6" />
-		<rect x="32" y="45" width="32" height="2" rx="1" fill="#F3F4F6" />
-		<rect x="32" y="49" width="49" height="2" rx="1" fill="#F3F4F6" />
-		<rect x="32" y="53" width="40" height="2" rx="1" fill="#F3F4F6" />
-		<rect x="32" y="57" width="32" height="2" rx="1" fill="#F3F4F6" />
-		<rect x="32" y="61" width="49" height="2" rx="1" fill="#F3F4F6" />
-		<rect x="32" y="65" width="40" height="2" rx="1" fill="#F3F4F6" />
-		<rect x="32" y="69" width="32" height="2" rx="1" fill="#F3F4F6" />
-		<circle cx="92.5" cy="61.5" r="9" fill="currentColor" stroke="white" />
+		<rect x="27" y="14" width="65" height="65" rx="3" class="stroke-card" stroke-width="2" />
+		<rect x="32" y="19" width="55" height="16" rx="2" class="fill-primary-foreground" />
+		<rect x="32" y="37" width="49" height="2" rx="1" class="fill-primary-foreground" />
+		<rect x="32" y="41" width="40" height="2" rx="1" class="fill-primary-foreground" />
+		<rect x="32" y="45" width="32" height="2" rx="1" class="fill-primary-foreground" />
+		<rect x="32" y="49" width="49" height="2" rx="1" class="fill-primary-foreground" />
+		<rect x="32" y="53" width="40" height="2" rx="1" class="fill-primary-foreground" />
+		<rect x="32" y="57" width="32" height="2" rx="1" class="fill-primary-foreground" />
+		<rect x="32" y="61" width="49" height="2" rx="1" class="fill-primary-foreground" />
+		<rect x="32" y="65" width="40" height="2" rx="1" class="fill-primary-foreground" />
+		<rect x="32" y="69" width="32" height="2" rx="1" class="fill-primary-foreground" />
+		<circle cx="92.5" cy="61.5" r="9" fill="currentColor" class="stroke-card" />
 		<g clip-path="url(#prioritization_clip)">
 			<rect
 				width="11.6111"
@@ -460,20 +503,20 @@
 			/>
 			<path
 				d="M90.6089 60.3567V66.1623M94.4792 58.3635L93.9954 60.3567H96.816C96.9662 60.3567 97.1143 60.3917 97.2487 60.4588C97.383 60.526 97.4999 60.6236 97.59 60.7437C97.6802 60.8639 97.7411 61.0034 97.768 61.1512C97.7948 61.299 97.7869 61.451 97.7449 61.5952L96.6176 65.4656C96.559 65.6666 96.4368 65.8431 96.2693 65.9687C96.1018 66.0944 95.8981 66.1623 95.6887 66.1623H89.1575C88.9009 66.1623 88.6547 66.0603 88.4733 65.8789C88.2918 65.6974 88.1899 65.4513 88.1899 65.1947V61.3243C88.1899 61.0677 88.2918 60.8216 88.4733 60.6401C88.6547 60.4586 88.9009 60.3567 89.1575 60.3567H90.4928C90.6728 60.3566 90.8492 60.3063 91.0022 60.2114C91.1552 60.1166 91.2786 59.9809 91.3587 59.8197L93.0278 56.4863C93.256 56.4892 93.4806 56.5435 93.6847 56.6453C93.8889 56.7471 94.0675 56.8937 94.2071 57.0742C94.3466 57.2547 94.4436 57.4644 94.4907 57.6877C94.5378 57.9109 94.5339 58.1419 94.4792 58.3635Z"
-				stroke="white"
+				class="stroke-primary-foreground"
 				stroke-linecap="round"
 				stroke-linejoin="round"
 			/>
 		</g>
-		<circle cx="92.5" cy="81.2036" r="9" fill="currentColor" stroke="white" />
+		<circle cx="92.5" cy="81.2036" r="9" fill="currentColor" class="stroke-card" />
 		<path
 			d="M94.5788 76.8717H88.4159C88.0845 76.8717 87.8159 77.1403 87.8159 77.4717V82.561C87.8159 82.8924 88.0845 83.161 88.4159 83.161H89.2564C89.9589 83.161 90.6099 83.5296 90.9714 84.132L92.2716 86.2991C92.606 86.8564 93.3936 86.9094 93.7996 86.4018C93.991 86.1626 94.0527 85.8447 93.9646 85.5512L93.4793 83.9334C93.3638 83.5485 93.6521 83.161 94.054 83.161H95.2031C96.5219 83.161 97.4797 81.9071 97.1327 80.6348L96.5083 78.3454C96.271 77.4753 95.4807 76.8717 94.5788 76.8717Z"
-			stroke="white"
+			class="stroke-primary-foreground"
 			stroke-linecap="round"
 		/>
 		<path
 			d="M89.817 83.1611V76.8718"
-			stroke="white"
+			class="stroke-primary-foreground"
 			stroke-linecap="round"
 			stroke-linejoin="round"
 		/>
