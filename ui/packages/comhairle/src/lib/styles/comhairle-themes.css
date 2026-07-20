@@ -230,7 +230,7 @@
 	--chat-neutral: #6b7280;
 	--nav-text: hsla(79, 100%, 96%, 1);
 	--nav-background: hsla(79, 100%, 96%, 1);
-	--admin-background: hsla(60, 67%, 98%, 1);
+	--admin-background: #f9fafb;
 	--mutted: hsla(100, 29%, 10%, 1);
 	--sidebar-radius: 10px;
 }

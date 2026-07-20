@@ -107,6 +107,20 @@
 
 	let currentStepNumber = $derived(sortedSteps.findIndex((ws) => ws.id === workflowStep.id) + 1);
 
+	/**
+	 * Tool type of the step being navigated *to*, or undefined when we aren't navigating to a step.
+	 * Mid-navigation `data` still describes the step we're leaving, so the loading skeleton has to
+	 * be picked from the destination: otherwise a hop into a survey shows an article skeleton and
+	 * then flashes white while the form iframe boots.
+	 */
+	let navigatingToToolType = $derived.by(() => {
+		const targetId = navigating.to?.params?.workflow_step_id;
+		if (!targetId) return undefined;
+		const target = sortedSteps.find((ws) => ws.id === targetId);
+		if (!target) return undefined;
+		return conversation.isLive ? target.toolConfig?.type : target.previewToolConfig?.type;
+	});
+
 	let prevStepHref = $derived.by(() => {
 		const viewedIdx = sortedSteps.findIndex((ws) => ws.id === workflowStep.id);
 		if (viewedIdx <= 0) return undefined;
@@ -270,11 +284,15 @@
 				{/if}
 				<div class="mb-10 w-full grow">
 					{#if navigating.to}
-						<LearnArticleSkeleton />
-						{#if conversation?.chatBotId && conversation.enableQaChatBot}
-							<div class="mx-auto mt-6 w-full max-w-[65ch]">
-								<LearnTutorSkeleton />
-							</div>
+						{#if navigatingToToolType === HeyForm.TOOL_NAME}
+							<HeyForm.UserUISkeleton />
+						{:else}
+							<LearnArticleSkeleton />
+							{#if conversation?.chatBotId && conversation.enableQaChatBot}
+								<div class="mx-auto mt-6 w-full max-w-[65ch]">
+									<LearnTutorSkeleton />
+								</div>
+							{/if}
 						{/if}
 					{:else if toolConfig.type === Learn.TOOL_NAME}
 						{#key workflowStep.id}

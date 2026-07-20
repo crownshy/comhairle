@@ -30,11 +30,11 @@
 <SubTabStrip items={subtabItems} {basePath} />
 
 {#if isHeyformSetup}
-	<div class="bg-muted min-h-0 grow overflow-hidden">
+	<div class="bg-admin-background min-h-0 grow overflow-hidden">
 		{@render children()}
 	</div>
 {:else}
-	<div class="bg-muted pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
+	<div class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
 		<div class="h-full w-full max-w-[1200px]">
 			{@render children()}
 		</div>
