@@ -16,7 +16,7 @@
 	import DraggableList from '$lib/components/DraggableList.svelte';
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { onMount } from 'svelte';
-	import { GripVertical, Info, TriangleAlert } from 'lucide-svelte';
+	import { GripVertical, Info, Trash2, TriangleAlert } from 'lucide-svelte';
 	import { dragHandle } from 'svelte-dnd-action';
 	import Pages, { type ExtendedLocalizedPage, type Language } from './Pages.svelte';
 	import type {
@@ -259,8 +259,8 @@
 		/>
 	{/if}
 	{#if pages.count > 1}
-		<Button variant="destructive" class="rounded-md " onclick={() => pages.current.delete()}
-			>- Delete Page</Button
+		<Button variant="destructiveOutline" onclick={() => pages.current.delete()}
+			><Trash2 /> Delete Page</Button
 		>
 	{/if}
 </div>
