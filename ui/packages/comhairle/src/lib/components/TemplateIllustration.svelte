@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { ArrowRight } from 'lucide-svelte';
+	import type { Snippet } from 'svelte';
 
 	/**
 	 * Decorative wireframe illustration shown in the "Choose a template" dialog.
@@ -47,6 +48,23 @@
 		observer.observe(contentEl);
 		measure();
 		return () => observer.disconnect();
+	});
+
+	// The ordered cards for the selected template. The row renders these with an
+	// arrow between each, so a new template is just a new case here.
+	const composition = $derived.by<Snippet[]>(() => {
+		switch (templateKey) {
+			case 'understand_opinion_groups':
+				return [topicCard, polisCard, surveyCard];
+			case 'stakeholder_engagement':
+				return [topicCard, videoCard, prioritizationCard];
+			case 'citizen_workshop':
+				return [topicCard, surveyCard, videoCard, polisCard];
+			case 'compare_proposals':
+				return [topicCard, prioritizationCard];
+			default:
+				return [topicCard, surveyCard];
+		}
 	});
 </script>
 
@@ -473,43 +491,23 @@
 {/snippet}
 
 <div
-	bind:this={viewport}
-	class="border-border bg-secondary flex h-44 items-center justify-center overflow-hidden rounded-md border px-5"
+	class="border-border bg-secondary flex h-44 items-center justify-center overflow-hidden rounded-md border px-2"
 >
-	<!-- Natural-size row; scaled as one unit to preserve the design proportions. -->
-	<div
-		bind:this={content}
-		style="transform: scale({scale}); transform-origin: center center;"
-		class="flex items-center gap-4"
-	>
-		{#if templateKey === 'understand_opinion_groups'}
-			{@render topicCard()}
-			{@render arrow()}
-			{@render polisCard()}
-			{@render arrow()}
-			{@render surveyCard()}
-		{:else if templateKey === 'stakeholder_engagement'}
-			{@render topicCard()}
-			{@render arrow()}
-			{@render videoCard()}
-			{@render arrow()}
-			{@render prioritizationCard()}
-		{:else if templateKey === 'citizen_workshop'}
-			{@render topicCard()}
-			{@render arrow()}
-			{@render surveyCard()}
-			{@render arrow()}
-			{@render videoCard()}
-			{@render arrow()}
-			{@render polisCard()}
-		{:else if templateKey === 'compare_proposals'}
-			{@render topicCard()}
-			{@render arrow()}
-			{@render prioritizationCard()}
-		{:else}
-			{@render topicCard()}
-			{@render arrow()}
-			{@render surveyCard()}
-		{/if}
+	<!-- The padding-free area the row must fit into; its clientWidth is the true
+	     inner width, so the scale honours the outer padding instead of eating it. -->
+	<div bind:this={viewport} class="flex h-full w-full items-center justify-center">
+		<!-- Natural-size row; scaled as one unit to preserve the design proportions. -->
+		<div
+			bind:this={content}
+			style="transform: scale({scale}); transform-origin: center center;"
+			class="flex items-center gap-4"
+		>
+			{#each composition as card, index (index)}
+				{#if index > 0}
+					{@render arrow()}
+				{/if}
+				{@render card()}
+			{/each}
+		</div>
 	</div>
 </div>
