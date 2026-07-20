@@ -109,7 +109,7 @@
 
 	let sourceContent = $derived(pages.items[pages.currentId]?.[primaryLocale]?.content ?? '');
 	let targetLanguages = $derived(
-		supportedLanguages.filter((lang: string) => lang !== primaryLocale)
+		supportedLanguages.filter((lang: Language) => lang !== primaryLocale)
 	);
 
 	interface PageData {
@@ -161,7 +161,7 @@
 				<DraggableList
 					items={pages.order}
 					onReorder={(order) => pages.reorder(order)}
-					class="bg-muted flex flex-row flex-wrap items-center gap-2"
+					class="bg-muted flex flex-row flex-wrap items-center gap-2 rounded-md p-2"
 				>
 					{#snippet children(item, i)}
 						{@const itemId = Number(item.id)}
@@ -169,7 +169,7 @@
 							size="sm"
 							variant={itemId === pages.currentId ? 'default' : 'secondary'}
 							onclick={() => (pages.currentId = itemId)}
-							class="border border-transparent px-4 py-4"
+							class="rounded-md border border-transparent px-4 py-4"
 						>
 							<div use:dragHandle>
 								<GripVertical
