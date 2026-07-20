@@ -19,6 +19,7 @@
 	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
 	import { page, navigating } from '$app/state';
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
+	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 	import LearnTutorSkeleton from '$lib/tools/learn/LearnTutorSkeleton.svelte';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
@@ -106,6 +107,27 @@
 	);
 
 	let currentStepNumber = $derived(sortedSteps.findIndex((ws) => ws.id === workflowStep.id) + 1);
+
+	/**
+	 * Tool type of the step being navigated *to*, or undefined when we aren't navigating to a step.
+	 * Mid-navigation `data` still describes the step we're leaving, so the loading skeleton has to
+	 * be picked from the destination: otherwise a hop into a survey shows an article skeleton and
+	 * then flashes white while the form iframe boots.
+	 */
+	let navigatingToToolType = $derived.by(() => {
+		const targetId = navigating.to?.params?.workflow_step_id;
+		if (!targetId) return undefined;
+		const target = sortedSteps.find((ws) => ws.id === targetId);
+		if (!target) return undefined;
+		return conversation.isLive ? target.toolConfig?.type : target.previewToolConfig?.type;
+	});
+
+	/**
+	 * A step hop that resolves quickly never trips this, so the header and body skeletons stay
+	 * hidden and the page just swaps content. Only a genuinely slow load shows them, where the
+	 * feedback is worth having. See delayedFlag for the reasoning.
+	 */
+	let showNavigationSkeleton = delayedFlag(() => navigating.to !== null, 150);
 
 	let prevStepHref = $derived.by(() => {
 		const viewedIdx = sortedSteps.findIndex((ws) => ws.id === workflowStep.id);
@@ -233,7 +255,7 @@
 		</div>
 
 		<div class="mt-2 w-full md:mt-6 md:px-0">
-			{#if navigating.to}
+			{#if showNavigationSkeleton.current}
 				<StepHeaderSkeleton />
 			{:else}
 				<StepHeader
@@ -269,12 +291,16 @@
 					</Button>
 				{/if}
 				<div class="mb-10 w-full grow">
-					{#if navigating.to}
-						<LearnArticleSkeleton />
-						{#if conversation?.chatBotId && conversation.enableQaChatBot}
-							<div class="mx-auto mt-6 w-full max-w-[65ch]">
-								<LearnTutorSkeleton />
-							</div>
+					{#if showNavigationSkeleton.current}
+						{#if navigatingToToolType === HeyForm.TOOL_NAME}
+							<HeyForm.UserUISkeleton />
+						{:else}
+							<LearnArticleSkeleton />
+							{#if conversation?.chatBotId && conversation.enableQaChatBot}
+								<div class="mx-auto mt-6 w-full max-w-[65ch]">
+									<LearnTutorSkeleton />
+								</div>
+							{/if}
 						{/if}
 					{:else if toolConfig.type === Learn.TOOL_NAME}
 						{#key workflowStep.id}

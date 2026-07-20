@@ -26,9 +26,7 @@
 </script>
 
 <TabStripShell ariaLabel="Workflow steps">
-	<!-- First item bleeds left into the gutter (-ml-3.5 cancels its own px-3.5)
-		 so the "Design" icon aligns to the shared gutter column. -->
-	<li class="-ml-3.5">
+	<li>
 		<a
 			href={basePath}
 			class="text-foreground inline-flex h-9 items-center gap-1.5 px-3.5 text-sm font-medium whitespace-nowrap transition-opacity"

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/state';
+	import { page, navigating } from '$app/state';
 	import { conversationSections } from '$lib/config/conversation-steps';
 
 	let {
@@ -8,6 +8,11 @@
 	}: { conversationId: string; conversationIsLive: boolean } = $props();
 
 	let basePath = $derived(`/admin/conversations/${conversationId}`);
+
+	// During a pending navigation `page` still reflects the old route, so highlight the
+	// destination instead: the clicked tab lights up immediately rather than after a
+	// (possibly throttled) load resolves.
+	let activePathname = $derived(navigating.to?.url.pathname ?? page.url.pathname);
 
 	function isActive(sectionPath: string, currentPath: string): boolean {
 		const sectionUrl = `${basePath}/${sectionPath}`;
@@ -23,7 +28,7 @@
 		 link's px-4) so its label aligns to the shared gutter column. -->
 	<ul class="pl-gutter flex min-w-full items-center pr-5 [&>li:first-child]:-ml-4">
 		{#each conversationSections as section (section.path)}
-			{@const active = isActive(section.path, page.url.pathname)}
+			{@const active = isActive(section.path, activePathname)}
 			{@const disabled = section.requiresLive && !conversationIsLive}
 			<li class="shrink-0">
 				{#if disabled}

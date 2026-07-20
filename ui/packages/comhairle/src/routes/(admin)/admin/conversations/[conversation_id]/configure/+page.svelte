@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, getContext } from 'svelte';
+	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { Switch } from '$lib/components/ui/switch';
 	import * as Form from '$lib/components/ui/form/';
@@ -13,13 +13,9 @@
 	import TeamManager from '$lib/components/TeamManager.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import * as HoverCard from '$lib/components/ui/hover-card';
-	import ConfigureTabStrip, { type ConfigureTab } from './ConfigureTabStrip.svelte';
+	import { CONFIGURE_TABS } from './tabs';
 	import CollapsibleRichField from './CollapsibleRichField.svelte';
 	import ExampleDialog from './ExampleDialog.svelte';
-	import {
-		CONVERSATION_TAB_EXTRAS_CTX,
-		type ConversationTabExtras
-	} from '$lib/conversationTabExtras';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { autoTranslateNewLanguage } from '$lib/components/Translation/translationUtils';
 	import { LanguageSelector } from '$lib/components/ui/language-selector';
@@ -53,13 +49,8 @@
 	let supportedLanguages = $state(data.conversation.supportedLanguages ?? ['en']);
 	let pageTitle = $derived(`Configure ${conversation.title}`);
 
-	// Sub-tabs. `id` is the `?tab=` value; the first entry is the default when absent.
-	const tabs: ConfigureTab[] = [
-		{ id: 'details', label: 'Details' },
-		{ id: 'content', label: 'Content' },
-		{ id: 'access', label: 'Access' },
-		{ id: 'team', label: 'Team' }
-	];
+	// The sub-tab strip (Row 3) is server-rendered by the conversation layout from CONFIGURE_TABS;
+	// this page reads the same list to pick the default tab and its header copy.
 	const tabHeaders: Record<string, { title: string; description: string }> = {
 		details: { title: 'Details', description: 'Title, description, language and banner.' },
 		content: {
@@ -69,7 +60,7 @@
 		access: { title: 'Access', description: 'Visibility, invites and participation.' },
 		team: { title: 'Team', description: 'Manage collaborators.' }
 	};
-	let activeTab = $derived(page.url.searchParams.get('tab') ?? tabs[0].id);
+	let activeTab = $derived(page.url.searchParams.get('tab') ?? CONFIGURE_TABS[0].id);
 	let header = $derived(tabHeaders[activeTab] ?? tabHeaders.details);
 
 	// "See example" opens a modal with a static screenshot of where the field appears for
@@ -98,17 +89,6 @@
 	// The rich Content fields behave as an accordion: at most one is expanded at a time.
 	// Holds the field name of the open one, or null when all are collapsed.
 	let openContentField = $state<string | null>(null);
-
-	// Inject the full-bleed sub-tab strip into "Row 3" of the conversation layout,
-	// the same slot the workflow step strip uses. Cleared on unmount.
-	const tabExtras = getContext<ConversationTabExtras>(CONVERSATION_TAB_EXTRAS_CTX);
-	$effect(() => {
-		if (!tabExtras) return;
-		tabExtras.primary = configureStripSnippet;
-		return () => {
-			tabExtras.primary = null;
-		};
-	});
 
 	// When we land here straight after creating this conversation, focus and select the
 	// auto-generated "Untitled …" title so it's obvious this is a brand-new conversation
@@ -376,10 +356,6 @@
 <svelte:head>
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
-
-{#snippet configureStripSnippet()}
-	<ConfigureTabStrip {tabs} />
-{/snippet}
 
 <!-- The (i) affordance: a hover card (bits-ui LinkPreview, via our HoverCard wrapper) that shows
 	 the field's description on hover, plus an optional "See example" button that opens the image

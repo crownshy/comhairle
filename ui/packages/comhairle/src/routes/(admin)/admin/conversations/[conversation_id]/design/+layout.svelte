@@ -2,18 +2,12 @@
 	import { page } from '$app/state';
 	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { getContext } from 'svelte';
 	import { notifications } from '$lib/notifications.svelte.js';
 	import { createWorkflowStep } from '$lib/createWorkflowStep';
 	import type { CreationKey } from '$lib/tool_meta';
 	import { addStepDialog } from '$lib/stores/addStepDialog.svelte';
 	import { newStepHighlight } from '$lib/stores/newStepHighlight.svelte';
-	import WorkflowStepStrip from '$lib/components/WorkflowStepStrip.svelte';
 	import AddStepDialog from './AddStepDialog.svelte';
-	import {
-		CONVERSATION_TAB_EXTRAS_CTX,
-		type ConversationTabExtras
-	} from '$lib/conversationTabExtras';
 
 	let { data, children } = $props();
 
@@ -23,15 +17,9 @@
 
 	let adding = $state(false);
 
-	const tabExtras = getContext<ConversationTabExtras>(CONVERSATION_TAB_EXTRAS_CTX);
-
-	$effect(() => {
-		if (!tabExtras) return;
-		tabExtras.primary = workflowStripSnippet;
-		return () => {
-			tabExtras.primary = null;
-		};
-	});
+	// The workflow step strip (Row 3) is rendered by the shared conversation layout, not
+	// injected from here: rendering it there from `data.workflowSteps` puts it on the SSR
+	// path instead of a post-hydration `$effect`, so it no longer lags the page content.
 
 	// Deep link: /design?addStep=true opens the dialog, then drops the query param.
 	$effect(() => {
@@ -56,6 +44,15 @@
 			notifications.send({ priority: 'INFO', message: 'Step added' });
 			newStepHighlight.flag(created.id);
 			addStepDialog.open = false;
+
+			// Drop the operator straight into the new step's Configure tab, rather than leaving them
+			// on the board to hunt for it.
+			await goto(
+				resolve(
+					'/(admin)/admin/conversations/[conversation_id]/design/step/[step_id]/configure',
+					{ conversation_id: conversation.id, step_id: created.id }
+				)
+			);
 		} catch (e) {
 			console.error(e);
 			notifications.send({ priority: 'ERROR', message: 'Failed to create step' });
@@ -76,14 +73,6 @@
 		);
 	}
 </script>
-
-{#snippet workflowStripSnippet()}
-	<WorkflowStepStrip
-		conversationId={conversation.id}
-		steps={workflowSteps}
-		onAddStep={() => (addStepDialog.open = true)}
-	/>
-{/snippet}
 
 <AddStepDialog bind:open={addStepDialog.open} {adding} onAdd={addStep} onAddEvent={addEvent} />
 

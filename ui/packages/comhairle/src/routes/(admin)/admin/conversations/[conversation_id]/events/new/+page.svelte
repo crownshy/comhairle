@@ -35,12 +35,13 @@
 		formDefaults.data.facilitators = [user.email, ...(formDefaults.data.facilitators ?? [])];
 	}
 	if (!formDefaults.data.default_time_zone) {
-		formDefaults.data.default_time_zone = 'UTC';
+		formDefaults.data.default_time_zone = 'Europe/London';
 	}
 
-	const availableTimeZones = Array.from(
-		new Set(['UTC', ...Intl.supportedValuesOf('timeZone')])
-	).map((tz) => ({ value: tz, label: tz }));
+	const availableTimeZones = Intl.supportedValuesOf('timeZone').map((tz) => ({
+		value: tz,
+		label: tz
+	}));
 
 	const form = superForm(formDefaults, {
 		validators: zodClient(NewEventSchema),
@@ -166,7 +167,7 @@
 				priority: 'INFO'
 			});
 
-			goto(`/admin/conversations/${conversation.id}/events`);
+			goto(`/admin/conversations/${conversation.id}/events`, { invalidateAll: true });
 		} catch (e) {
 			console.error(e);
 			submitError = 'Something went wrong creating the event.';
@@ -377,7 +378,7 @@
 			<Form.Field {form} name="end_time" class="contents">
 				<Form.FieldErrors class="text-destructive text-sm" />
 			</Form.Field>
-			{#if $formData.default_time_zone && $formData.default_time_zone !== 'UTC' && $formData.start_date && $formData.start_time && $formData.end_time}
+			{#if $formData.default_time_zone && $formData.default_time_zone !== 'Europe/London' && $formData.start_date && $formData.start_time && $formData.end_time}
 				<div class="text-muted-foreground flex gap-2">
 					<span>{$formData.default_time_zone}</span>
 					<span>-</span>
