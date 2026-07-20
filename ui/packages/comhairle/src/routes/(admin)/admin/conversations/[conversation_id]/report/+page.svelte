@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
+	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -72,9 +73,7 @@
 	<title>Conversation Report - Comhairle Admin</title>
 </svelte:head>
 
-<h1 class="mb-4 text-3xl font-bold">Report</h1>
-
-<p class="mb-10">Use this space to edit the report for this conversation</p>
+<PageHeader title="Report" description="Use this space to edit the report for this conversation" />
 
 <div class="flex flex-col gap-4">
 	<div class="flex w-full flex-row items-center justify-end gap-2">

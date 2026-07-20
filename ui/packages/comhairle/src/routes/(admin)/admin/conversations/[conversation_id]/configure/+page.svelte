@@ -10,6 +10,7 @@
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { conversationConfigSchema } from './schema';
 	import TeamManager from '$lib/components/TeamManager.svelte';
+	import PageHeader from '$lib/components/PageHeader.svelte';
 	import TranslatableField from '$lib/components/Translation/TranslatableField.svelte';
 	import { autoTranslateNewLanguage } from '$lib/components/Translation/translationUtils';
 	import { LanguageSelector } from '$lib/components/ui/language-selector';
@@ -308,14 +309,9 @@
 	<title>{pageTitle} - Comhairle Admin</title>
 </svelte:head>
 
-<h1 class="mb-4 text-3xl font-bold">Configure</h1>
+<PageHeader title="Configure" description="Personal details and general information." />
 
-<div class="flex flex-col gap-4">
-	<h2 class="text-card-foreground text-xl font-semibold">Conversation configuration</h2>
-	<p class="text-muted-foreground text-sm">Personal details and general information.</p>
-</div>
-
-<form method="POST" onsubmit={updateConversation} class="mt-8 flex flex-col" use:enhance>
+<form method="POST" onsubmit={updateConversation} class="flex flex-col" use:enhance>
 	<!-- Title -->
 	<div
 		class="border-border flex flex-col gap-4 border-t py-6 lg:flex-row lg:items-start lg:gap-6"

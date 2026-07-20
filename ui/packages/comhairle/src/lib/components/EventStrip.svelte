@@ -25,9 +25,11 @@
 	aria-label="Events"
 >
 	<ul
-		class="flex min-w-max items-center gap-x-1.5 gap-y-0.5 px-5 py-1 sm:w-full sm:min-w-0 sm:flex-wrap"
+		class="pl-gutter flex min-w-max items-center gap-x-1.5 gap-y-0.5 py-1 pr-5 sm:w-full sm:min-w-0 sm:flex-wrap"
 	>
-		<li>
+		<!-- First item bleeds left into the gutter (-ml-3.5 cancels its own px-3.5)
+			 so the "All events" icon aligns to the shared gutter column. -->
+		<li class="-ml-3.5">
 			<a
 				href={basePath}
 				class="text-foreground inline-flex h-9 items-center gap-1.5 px-3.5 text-sm font-medium whitespace-nowrap transition-opacity"

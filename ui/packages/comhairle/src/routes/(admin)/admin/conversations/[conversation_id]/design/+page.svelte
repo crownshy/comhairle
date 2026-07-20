@@ -239,14 +239,15 @@
 <!-- Full-bleed surface; the design tab has no page padding. overflow-hidden makes this
 	 an independent scroll boundary so the list can't push the sidebar-inset past the
 	 viewport. Only the inner column scrolls. -->
-<div class="bg-muted flex min-h-0 w-full flex-1 overflow-hidden px-2">
+<div class="bg-muted flex min-h-0 w-full flex-1 overflow-hidden">
 	<div bind:this={boardEl} class="min-h-0 flex-1 overflow-auto">
-		<div class="mx-auto flex w-full max-w-5xl flex-col gap-4 py-6">
+		<!-- Same gutter column + top spacing as every other admin page; symmetric inset on mobile. -->
+		<div class="px-gutter pt-page-top flex w-full max-w-5xl flex-col gap-4 pb-8">
 			<!-- Toolbar -->
 			<div class="flex shrink-0 flex-col items-center justify-between gap-2 sm:flex-row">
 				<div class="flex flex-col">
 					<h1 class="self-start text-2xl font-bold sm:self-auto">Process steps</h1>
-					<p class="text-muted-foreground text-sm">
+					<p class="text-muted-foreground text-base">
 						Design and configure your engagement, one step at a time.
 					</p>
 				</div>

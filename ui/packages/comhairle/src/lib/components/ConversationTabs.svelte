@@ -19,7 +19,9 @@
 	class="border-border bg-background scrollbar-none flex w-full overflow-x-auto border-b"
 	aria-label="Conversation sections"
 >
-	<ul class="flex min-w-full items-center px-5">
+	<!-- First tab bleeds left into the gutter ([&>li:first-child]:-ml-4 cancels the
+		 link's px-4) so its label aligns to the shared gutter column. -->
+	<ul class="pl-gutter flex min-w-full items-center pr-5 [&>li:first-child]:-ml-4">
 		{#each conversationSections as section (section.path)}
 			{@const active = isActive(section.path, page.url.pathname)}
 			{@const disabled = section.requiresLive && !conversationIsLive}
