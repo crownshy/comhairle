@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use aide::axum::{
     ApiRouter,
-    routing::{delete_with, get_with, post_with},
+    routing::{delete_with, get_with, patch_with, post_with},
 };
 use axum::extract::{Json, Multipart, Path, Query, State};
 use hyper::StatusCode;
@@ -16,7 +16,10 @@ use crate::{
     bulk_storage_service::FileMetadata,
     error::ComhairleError,
     models::{
-        media::{self, CreateMedia, MediaContentType, MediaFilterOptions, MediaOrderOptions},
+        media::{
+            self, CreateMedia, MediaContentType, MediaEditableFields, MediaFilterOptions,
+            MediaOrderOptions,
+        },
         pagination::{PageOptions, PaginatedResults},
     },
     routes::{auth::RequiredAdminUser, media::dto::MediaDto},
@@ -106,9 +109,17 @@ async fn upload(
             .upload_file(&storage_key, bytes, metadata)
             .await?;
 
+        let mut name = filename.clone();
+
+        if let Some((prefix, _)) = name.rsplit_once('.') {
+            name = prefix.to_string();
+        }
+
+        // TODO: Change name to be able to be set when uploading instead of copied from filename
         let create_media = CreateMedia {
             store_name: bulk_storage_config.store_name.to_string(),
             storage_key,
+            name,
             filename,
             content_type,
         };
@@ -120,6 +131,18 @@ async fn upload(
     let media: Vec<MediaDto> = media.into_iter().map(Into::into).collect();
 
     Ok((StatusCode::CREATED, Json(media)))
+}
+
+#[instrument(err(Debug), skip(state))]
+async fn update(
+    State(state): State<Arc<ComhairleState>>,
+    RequiredAdminUser(user): RequiredAdminUser,
+    Path(media_id): Path<Uuid>,
+    Json(update_media): Json<MediaEditableFields>,
+) -> Result<(StatusCode, Json<MediaDto>), ComhairleError> {
+    let media = media::update(&state.db, &media_id, &update_media).await?;
+
+    Ok((StatusCode::OK, Json(media.into())))
 }
 
 #[instrument(err(Debug), skip(state))]
@@ -190,6 +213,17 @@ curl -X POST \\
         )
         .api_route(
             "/{media_id}",
+            patch_with(update, |op| {
+                op.id("UpdateMedia")
+                    .tag("Media")
+                    .summary("Update a media record")
+                    .description("Update a media record by id")
+                    .security_requirement("JWT")
+                    .response::<200, Json<MediaDto>>()
+            }),
+        )
+        .api_route(
+            "/{media_id}",
             delete_with(delete, |op| {
                 op.id("DeleteMedia")
                     .tag("Media")
@@ -229,6 +263,7 @@ mod tests {
             store_name: "comhairle-media-test".to_string(),
             storage_key: format!("images/{random_name}.jpg"),
             filename: format!("{random_name}.jpg"),
+            name: format!("{random_name}"),
             content_type: MediaContentType::Jpeg,
         };
 
@@ -334,6 +369,42 @@ mod tests {
             results.records[0].id, created_media_1.id,
             "incorrect first id"
         );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrator = "crate::SQLX_MIGRATOR")]
+    async fn should_update_media(pool: PgPool) -> Result<(), Box<dyn Error>> {
+        let (app, mut session) = setup_default_app_and_session(&pool).await?;
+        session.signup(&app).await?;
+
+        session
+            .login(&app, "admin@crown-shy.com", TEST_PASSWORD)
+            .await?;
+
+        let (_, user, _) = session.current_user(&app).await?;
+
+        let created_media = create_random_image_record(&pool, &user.id).await?;
+
+        let new_name = gen_id();
+        let update = MediaEditableFields {
+            name: Some(new_name.clone()),
+            ..Default::default()
+        };
+        let body = serde_json::to_vec(&update)?;
+
+        let _ = session
+            .patch(&app, &format!("/media/{}", created_media.id), body.into())
+            .await?;
+
+        let (status, response, _) = session
+            .get(&app, &format!("/media/{}", created_media.id))
+            .await?;
+
+        let media: MediaDto = serde_json::from_value(response)?;
+
+        assert!(status.is_success(), "error response status");
+        assert_eq!(media.name, new_name, "incorrect filename");
 
         Ok(())
     }

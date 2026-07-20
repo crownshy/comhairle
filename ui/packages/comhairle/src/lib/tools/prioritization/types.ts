@@ -25,16 +25,23 @@ export type TextTranslation = TextTranslationDto;
  * component expects. Same shape as the backend `Translation` DTO. */
 export type TextContentWithTranslations = Translation;
 
+/** One translatable body section of a proposal, in the admin editor's shape. */
+export type ProposalSection = {
+	id: string;
+	position: number;
+	body: string;
+	bodyTranslations: TextContentWithTranslations;
+};
+
 export type Proposal = {
 	id: string;
 	workflowStepId: string;
 	title: string;
-	body: string;
 	titleTranslations: TextContentWithTranslations;
-	bodyTranslations: TextContentWithTranslations;
+	sections: ProposalSection[];
 };
 
-/** Locale-resolved variant shown to participants. */
+/** Locale-resolved variant shown to participants (title + ordered section bodies). */
 export type LocalizedProposal = LocalizedProposalDto;
 
 /** Question definitions (from the workflow step's tool config) */
@@ -60,15 +67,19 @@ export type Question = {
 };
 
 export type ToolConfig = {
+	/** Questions asked once about the proposal as a whole. */
 	questions: Question[];
+	/** Questions asked about each section (same set for every section). */
+	sectionQuestions: Question[];
 	randomizeOrder: boolean;
 };
 
 /** Responses */
 
 /** Numeric for likert/continuous; string for free-text. The backend
- * `value` field is an untagged enum so JSON is `value: 4.5` or `value: "..."`. */
-export type QuestionResponse = { questionId: string; value: number | string };
+ * `value` field is an untagged enum so JSON is `value: 4.5` or `value: "..."`.
+ * `sectionId` is set for section-question answers and omitted for proposal-wide ones. */
+export type QuestionResponse = { questionId: string; value: number | string; sectionId?: string };
 
 export type ProposalResponse = {
 	id: string;

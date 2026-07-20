@@ -2,13 +2,16 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Accordion from '$lib/components/ui/accordion';
-	import { buttonVariants } from '$lib/components/ui/button';
+	import { buttonVariants, LoadingButton } from '$lib/components/ui/button';
+	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
 	import { Plus } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { notifications } from '$lib/notifications.svelte';
 	import { manage_conversation_url } from '$lib/urls';
 	import { createConversation } from '$lib/createConversation';
 	import { conversationTemplates } from '$lib/conversation_templates';
+	import { justCreatedConversation } from '$lib/stores/justCreatedConversation.svelte';
+	import SelectableOptionRow from '$lib/components/SelectableOptionRow.svelte';
 	import { cn } from '$lib/utils';
 
 	let {
@@ -29,6 +32,8 @@
 		submitting = true;
 		try {
 			const conversation = await createConversation(templateKey ? { templateKey } : {});
+			// Flag it so the configure page it lands on makes its newness obvious.
+			justCreatedConversation.flag(conversation.id);
 			notifications.addFlash({ message: 'Conversation created' });
 			dialogOpen = false;
 			await goto(manage_conversation_url(conversation.id), { invalidateAll: true });
@@ -69,34 +74,16 @@
 
 		<div class="flex min-h-0 flex-1 items-start gap-6 overflow-hidden">
 			<!-- Left: selectable template list -->
-			<div class="flex w-96 shrink-0 flex-col gap-3 self-stretch overflow-y-auto pr-1">
+			<div
+				class="flex w-96 shrink-0 flex-col gap-3 self-stretch overflow-y-auto pr-4 [scrollbar-gutter:stable]"
+			>
 				{#each conversationTemplates as template (template.key)}
-					<button
-						type="button"
-						onclick={() => (selectedKey = template.key)}
-						class={cn(
-							'flex items-start gap-3 rounded-lg border p-4 text-left transition-colors',
-							selectedKey === template.key
-								? 'border-primary bg-accent'
-								: 'border-border bg-card hover:bg-accent/50'
-						)}
-					>
-						<span
-							class={cn(
-								'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border',
-								selectedKey === template.key ? 'border-primary' : 'border-border'
-							)}
-						>
-							{#if selectedKey === template.key}
-								<span class="bg-primary size-2 rounded-full"></span>
-							{/if}
-						</span>
-						<span class="flex flex-col gap-1 overflow-hidden">
-							<span class="text-foreground text-sm">{template.name}</span>
-							<span class="text-muted-foreground text-sm">{template.description}</span
-							>
-						</span>
-					</button>
+					<SelectableOptionRow
+						selected={selectedKey === template.key}
+						name={template.name}
+						description={template.description}
+						onSelect={() => (selectedKey = template.key)}
+					/>
 				{/each}
 			</div>
 
@@ -178,14 +165,18 @@
 			<Dialog.Close class={buttonVariants({ variant: 'outline', size: 'sm' })}
 				>Close</Dialog.Close
 			>
-			<button
-				type="button"
-				disabled={submitting}
+			<LoadingButton
+				variant="default"
+				size="sm"
+				loading={submitting}
 				onclick={() => create(selected.key)}
-				class={buttonVariants({ variant: 'default', size: 'sm' })}
 			>
 				Get started
-			</button>
+			</LoadingButton>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
+
+<!-- Immediate, screen-level feedback while the conversation is being created (covers
+	both "Start from blank", where the dropdown has already closed, and a template). -->
+<LoadingOverlay open={submitting} message="Creating your conversation…" />

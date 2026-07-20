@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { ComhairleDocument, ConversationWithTranslations } from '@crownshy/api-client/api';
+	import PageHeader from '$lib/components/PageHeader.svelte';
 	import FileUpload from '$lib/components/KnowledgeBase/FileUpload.svelte';
 	import ParsedFileList from '$lib/components/KnowledgeBase/ParsedFileList.svelte';
 	import ParsingFileList from '$lib/components/KnowledgeBase/ParsingFileList.svelte';
@@ -31,9 +32,10 @@
 	<title>Knowledge Base - Comhairle Admin</title>
 </svelte:head>
 
-<h1 class="mb-4 text-3xl font-bold">Knowledge Base</h1>
-
-<p class="mb-10">Use this space to manage your conversation's knowledge base</p>
+<PageHeader
+	title="Knowledge Base"
+	description="Use this space to manage your conversation's knowledge base"
+/>
 <p>
 	The knowledge base is a set of documents that you can use to provide users information about the
 	topic at hand. They are used for a variety of tasks including influcencing the helper bot and

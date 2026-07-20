@@ -17,10 +17,13 @@
 		question?: Question | null;
 		store: PrioritizationStore;
 		toolConfig: ToolConfig;
+		/** Which question set this dialog edits. */
+		target?: 'proposal' | 'section';
 		onOpenChange: (open: boolean) => void;
 	};
 
-	let { open, question = null, store, toolConfig, onOpenChange }: Props = $props();
+	let { open, question = null, store, toolConfig, target = 'proposal', onOpenChange }: Props =
+		$props();
 
 	const defaultLikertCategories: LikertCategory[] = [
 		{ label: 'Strongly disagree', value: -2 },
@@ -129,15 +132,17 @@
 		saving = true;
 		errorMessage = null;
 		try {
-			const existing = toolConfig.questions ?? [];
+			const existing =
+				(target === 'section' ? toolConfig.sectionQuestions : toolConfig.questions) ?? [];
 			const id = editingId ?? crypto.randomUUID();
 			const next: Question = { id, text: draft.text, type: cloneType(draft.type) };
-			const questions =
+			const updated =
 				editingId !== undefined
 					? existing.map((q) => (q.id === editingId ? next : q))
 					: [...existing, next];
 			await store.saveToolConfig({
-				questions,
+				questions: target === 'section' ? toolConfig.questions : updated,
+				sectionQuestions: target === 'section' ? updated : toolConfig.sectionQuestions,
 				randomizeOrder: toolConfig.randomizeOrder
 			});
 			onOpenChange(false);
@@ -171,7 +176,9 @@
 		<Dialog.Header>
 			<Dialog.Title>{isEditing ? 'Edit question' : 'New question'}</Dialog.Title>
 			<Dialog.Description>
-				This question will apply to every proposal in this step.
+				{target === 'section'
+					? 'This question will be asked about every section of every proposal in this step.'
+					: 'This question will apply to every proposal in this step.'}
 			</Dialog.Description>
 		</Dialog.Header>
 
