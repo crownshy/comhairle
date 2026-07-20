@@ -7,7 +7,7 @@
 
 	let { data } = $props();
 	let conversation = $derived(data.conversation);
-	let events = $derived(data.events.records);
+	let events = $derived(data.events);
 
 	let pageTitle = $derived(`Manage Events - ${conversation.title}`);
 </script>

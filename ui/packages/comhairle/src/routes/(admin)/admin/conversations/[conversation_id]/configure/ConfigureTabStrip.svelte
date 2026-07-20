@@ -2,9 +2,7 @@
 	import { page } from '$app/state';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import TabStripShell from '$lib/components/TabStripShell.svelte';
-
-	/** One selectable sub-tab of the Configure page. `id` is the `?tab=` value. */
-	export type ConfigureTab = { id: string; label: string };
+	import type { ConfigureTab } from './tabs';
 
 	type Props = {
 		/** Tabs to render, in display order. First tab is the default when `?tab=` is absent. */
@@ -25,11 +23,9 @@
 </script>
 
 <TabStripShell ariaLabel="Configure sections">
-	{#each tabs as tab, i (tab.id)}
+	{#each tabs as tab (tab.id)}
 		{@const active = activeTab === tab.id}
-		<!-- First item bleeds left into the gutter (-ml-3.5 cancels its own px-3.5)
-			 so it aligns to the shared gutter column, matching WorkflowStepStrip. -->
-		<li class={i === 0 ? '-ml-3.5' : undefined}>
+		<li>
 			<a
 				href={hrefFor(tab.id)}
 				data-sveltekit-noscroll

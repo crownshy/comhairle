@@ -23,8 +23,12 @@
 	aria-label={ariaLabel}
 	aria-hidden={ariaHidden || undefined}
 >
+	<!-- Left padding is one item's px-3.5 short of the full gutter so that every item's
+		 text (each item carries px-3.5) starts on the gutter column. Compensating here rather
+		 than with -ml-3.5 on the first item means wrapped rows' first items land on the gutter
+		 too, not just row 1's. -->
 	<ul
-		class="pl-gutter flex min-w-max items-center gap-x-1.5 gap-y-0.5 py-1 pr-5 sm:w-full sm:min-w-0 sm:flex-wrap"
+		class="flex min-w-max items-center gap-x-1.5 gap-y-0.5 py-1 pr-5 pl-[calc(var(--spacing-gutter)-0.875rem)] sm:w-full sm:min-w-0 sm:flex-wrap"
 	>
 		{@render children()}
 	</ul>

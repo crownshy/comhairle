@@ -6,12 +6,6 @@
 
 	import EmailInviteForm from '$lib/components/ui/email-invites/EmailInviteForm.svelte';
 	import InviteLabelDialog from '$lib/components/InviteLabelDialog.svelte';
-	import SubTabStrip from '$lib/components/SubTabStrip.svelte';
-	import { getContext } from 'svelte';
-	import {
-		CONVERSATION_TAB_EXTRAS_CTX,
-		type ConversationTabExtras
-	} from '$lib/conversationTabExtras';
 
 	import { formatDistanceToNow } from 'date-fns';
 	import QrCode from 'svelte-qrcode';
@@ -32,17 +26,9 @@
 
 	let { conversation } = data;
 
+	// The sub-tab strip (Row 3) is server-rendered by the conversation layout from INVITE_SUBTABS;
+	// this page just reads `?subtab=` to pick which section to show.
 	let activeTab = $derived(page.url.searchParams.get('subtab') ?? 'email');
-
-	const tabExtras = getContext<ConversationTabExtras>(CONVERSATION_TAB_EXTRAS_CTX);
-
-	$effect(() => {
-		if (!tabExtras) return;
-		tabExtras.primary = inviteSubtabStripSnippet;
-		return () => {
-			tabExtras.primary = null;
-		};
-	});
 
 	function createInviteLink() {
 		selectedInvite = null;
@@ -81,18 +67,6 @@
 	<div class="flex flex-row gap-x-2">
 		<CopyButton copyText={inviteUrl(url, invite, conversation)}>{label}</CopyButton>
 	</div>
-{/snippet}
-
-{#snippet inviteSubtabStripSnippet()}
-	<SubTabStrip
-		tone="primary"
-		items={[
-			{ label: 'Email', value: 'email' },
-			{ label: 'Open Links', value: 'open-links' },
-			{ label: 'Physical', value: 'physical' }
-		]}
-		defaultValue="email"
-	/>
 {/snippet}
 
 <PageHeader title="Recruit" />
