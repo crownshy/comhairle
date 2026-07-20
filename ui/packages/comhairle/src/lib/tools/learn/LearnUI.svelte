@@ -113,9 +113,7 @@
 		<LearnArticleSkeleton />
 	{:else if content}
 		<article class="prose mx-auto w-full grow overflow-y-auto">
-			{#key content}
-				<ContentRenderer {content} {availableDocuments} conversationId={conversation?.id} />
-			{/key}
+			<ContentRenderer {content} {availableDocuments} conversationId={conversation?.id} />
 		</article>
 	{:else}
 		<h1>Sorry this page is currently not avaliable in this language</h1>
