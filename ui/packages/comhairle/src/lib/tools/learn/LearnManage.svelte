@@ -79,10 +79,9 @@
 		pages.restore();
 	}
 
-	pages.onChange((options) => {
-		pages.dirty();
-		return save(pages.toLocalizedPages(), { invalidate: options?.invalidate ?? true });
-	});
+	pages.onChange((options) =>
+		save(pages.toLocalizedPages(), { invalidate: options?.invalidate ?? true })
+	);
 
 	pages.onRestore(() => {
 		lastPropsConfig = JSON.stringify({

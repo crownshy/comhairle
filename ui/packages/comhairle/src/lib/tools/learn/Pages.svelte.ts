@@ -28,7 +28,10 @@ class Pages {
 	}
 
 	onChange(fn: OnChange) {
-		this.#onChange = fn;
+		this.#onChange = function () {
+			this.areDirty = true;
+			return fn();
+		};
 	}
 
 	onRestore(fn: OnRestore) {
