@@ -1,3 +1,4 @@
+import { Globe, Users, Timer, RefreshCw, type Icon } from 'lucide-svelte';
 import {
 	basic_learn_config,
 	basic_survey_config,
@@ -28,6 +29,8 @@ export type DisplayStep = {
 export type TemplateBadge = {
 	label: string;
 	class: string;
+	/** Leading glyph, rendered before the label (matches the Figma card badges). */
+	icon: typeof Icon;
 };
 
 /**
@@ -71,13 +74,17 @@ export type ConversationTemplate = {
 };
 
 const BADGE = {
-	online: { label: 'Online', class: 'bg-cyan-200/20' },
-	broadAudience: { label: 'Broad audience', class: 'bg-amber-400/20' },
-	limitedCapacity: { label: 'Limited team capacity', class: 'bg-pink-400/20' },
-	inPerson: { label: 'In person', class: 'bg-pink-400/20' },
-	oneDay: { label: '1 day', class: 'bg-cyan-200/20' },
-	cycleDevelopment: { label: 'Delivery Cycle: Development', class: 'bg-amber-400/20' },
-	cycleAppraisal: { label: 'Delivery Cycle: Appraisal', class: 'bg-accent' }
+	online: { label: 'Online', class: 'bg-cyan-200/20', icon: Globe },
+	broadAudience: { label: 'Broad audience', class: 'bg-amber-400/20', icon: Users },
+	limitedCapacity: { label: 'Limited team capacity', class: 'bg-pink-400/20', icon: Users },
+	inPerson: { label: 'In person', class: 'bg-pink-400/20', icon: Users },
+	oneDay: { label: '1 day', class: 'bg-cyan-200/20', icon: Timer },
+	cycleDevelopment: {
+		label: 'Delivery Cycle: Development',
+		class: 'bg-amber-400/20',
+		icon: RefreshCw
+	},
+	cycleAppraisal: { label: 'Delivery Cycle: Appraisal', class: 'bg-accent', icon: RefreshCw }
 } as const;
 
 const step = {

@@ -90,12 +90,14 @@
 					<h3 class="text-card-foreground text-base font-bold">{selected.name}</h3>
 					<div class="flex max-w-80 flex-wrap justify-end gap-2">
 						{#each selected.badges as badge (badge.label)}
+							{@const Icon = badge.icon}
 							<span
 								class={cn(
-									'text-foreground rounded-full px-2 py-0.5 text-xs font-medium',
+									'text-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
 									badge.class
 								)}
 							>
+								<Icon class="size-4 shrink-0" />
 								{badge.label}
 							</span>
 						{/each}

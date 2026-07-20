@@ -13,14 +13,41 @@
 	 * structural white / hairline greys stay literal (they read as the card's
 	 * paper against the `bg-secondary` panel).
 	 *
-	 * The row scrolls horizontally when a composition is wider than the panel, so
-	 * cards keep their exact 128×96 size instead of squashing.
+	 * When a composition (e.g. the 4-card Citizen workshop) is wider than the
+	 * panel, the whole row is scaled down uniformly to fit, so the cards, arrows,
+	 * and gaps keep their design proportions instead of squashing or scrolling.
 	 */
 	type Props = {
 		/** The `ConversationTemplate.key` that selects which composition to render. */
 		templateKey: string;
 	};
 	let { templateKey }: Props = $props();
+
+	// `viewport` is the padded area the row must fit into; `content` is the
+	// natural-size card row. We measure both and scale `content` down to fit.
+	let viewport = $state<HTMLDivElement | null>(null);
+	let content = $state<HTMLDivElement | null>(null);
+	/** Uniform scale (<= 1) applied to the card row so it fits the panel width. */
+	let scale = $state(1);
+
+	$effect(() => {
+		const viewportEl = viewport;
+		const contentEl = content;
+		if (!viewportEl || !contentEl) return;
+
+		const measure = () => {
+			// scrollWidth is the pre-transform layout width, so the scale we apply
+			// here does not feed back into the next measurement.
+			const natural = contentEl.scrollWidth;
+			scale = natural > 0 ? Math.min(1, viewportEl.clientWidth / natural) : 1;
+		};
+
+		const observer = new ResizeObserver(measure);
+		observer.observe(viewportEl);
+		observer.observe(contentEl);
+		measure();
+		return () => observer.disconnect();
+	});
 </script>
 
 {#snippet arrow()}
@@ -445,8 +472,16 @@
 	</svg>
 {/snippet}
 
-<div class="border-border bg-secondary h-44 overflow-x-auto overflow-y-hidden rounded-md border">
-	<div class="flex h-full w-max min-w-full items-center justify-center gap-4 px-5">
+<div
+	bind:this={viewport}
+	class="border-border bg-secondary flex h-44 items-center justify-center overflow-hidden rounded-md border px-5"
+>
+	<!-- Natural-size row; scaled as one unit to preserve the design proportions. -->
+	<div
+		bind:this={content}
+		style="transform: scale({scale}); transform-origin: center center;"
+		class="flex items-center gap-4"
+	>
 		{#if templateKey === 'understand_opinion_groups'}
 			{@render topicCard()}
 			{@render arrow()}
@@ -459,7 +494,15 @@
 			{@render videoCard()}
 			{@render arrow()}
 			{@render prioritizationCard()}
-		{:else if templateKey === 'compare_proposals' || templateKey === 'citizen_workshop'}
+		{:else if templateKey === 'citizen_workshop'}
+			{@render topicCard()}
+			{@render arrow()}
+			{@render surveyCard()}
+			{@render arrow()}
+			{@render videoCard()}
+			{@render arrow()}
+			{@render polisCard()}
+		{:else if templateKey === 'compare_proposals'}
 			{@render topicCard()}
 			{@render arrow()}
 			{@render prioritizationCard()}
