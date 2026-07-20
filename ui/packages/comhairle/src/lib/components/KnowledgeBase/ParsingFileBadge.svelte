@@ -79,12 +79,12 @@
 			});
 
 			notifications.send({
-				message: 'Stopped document parsing',
+				message: 'Stopped document processing',
 				priority: 'INFO'
 			});
 		} catch (e) {
 			notifications.send({
-				message: 'Failed to stop document parsing',
+				message: 'Failed to stop document processing',
 				priority: 'ERROR'
 			});
 			console.error(e);
