@@ -327,7 +327,7 @@
 	<!-- The step layout renders Row 4 + its own padded column; while switching in, stand in with
 		 the same padded skeleton so the region doesn't collapse before the step load resolves. -->
 	{#if showSwitchingSkeleton.current}
-		<div class="bg-muted pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
+		<div class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
 			<div class="h-full w-full max-w-[1200px]">
 				<TabContentSkeleton />
 			</div>
@@ -338,7 +338,7 @@
 {:else}
 	<!-- Mobile: symmetric `px-gutter` so content is evenly inset. Larger screens keep the
 		 left gutter for tab alignment and widen the right margin. Top is token-driven. -->
-	<div class="bg-muted pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
+	<div class="bg-admin-background pt-page-top px-gutter grow pb-8 sm:pr-8 sm:pb-12 lg:pr-16">
 		<div class="h-full w-full max-w-[1200px]">
 			{#if showSwitchingSkeleton.current}
 				<TabContentSkeleton />
