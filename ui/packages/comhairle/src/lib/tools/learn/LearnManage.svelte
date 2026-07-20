@@ -17,7 +17,7 @@
 	import { tryCatchAsync } from '$lib/utils/errorHandling';
 	import { onMount } from 'svelte';
 	import { GripVertical, Info, TriangleAlert } from 'lucide-svelte';
-	import { Badge } from '$lib/components/ui/badge';
+	import { dragHandle } from 'svelte-dnd-action';
 	import Pages, { type ExtendedLocalizedPage, type Language } from './Pages.svelte';
 	import type {
 		InstancedToolConfig,
@@ -165,28 +165,23 @@
 					class="bg-muted flex flex-row flex-wrap items-center gap-2"
 				>
 					{#snippet children(item, i)}
-						<Badge
-							class="flex flex-row items-center px-4 py-2"
-							variant={Number(item.id) === pages.currentId ? 'primary' : 'outline'}
+						{@const itemId = Number(item.id)}
+						<Button
+							size="sm"
+							variant={itemId === pages.currentId ? 'default' : 'secondary'}
+							onclick={() => (pages.currentId = itemId)}
+							class="border border-transparent px-4 py-4"
 						>
-							<GripVertical
-								class="text-muted-foreground cursor-grab {Number(item.id) ===
-								pages.currentId
-									? 'text-primary-foreground'
-									: ''}"
-								size={16}
-							/>
-							<label class="cursor-pointer"
-								>Page {i + 1}
-								<input
-									class="hidden"
-									type="radio"
-									name="currentId"
-									value={Number(item.id)}
-									bind:group={pages.currentId}
+							<div use:dragHandle>
+								<GripVertical
+									class="cursor-grab {itemId === pages.currentId
+										? 'text-primary-foreground'
+										: ''}"
+									size={16}
 								/>
-							</label>
-						</Badge>
+							</div>
+							Page {i + 1}
+						</Button>
 					{/snippet}
 				</DraggableList>
 				<Button variant="ghost" size="sm" onclick={() => pages.new(primaryLocale)}
