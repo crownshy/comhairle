@@ -1,8 +1,9 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { resolve } from '$app/paths';
-	import { buttonVariants } from '$lib/components/ui/button';
+	import { buttonVariants, LoadingButton } from '$lib/components/ui/button';
 	import SelectableOptionRow from '$lib/components/SelectableOptionRow.svelte';
+	import LoadingOverlay from '$lib/components/LoadingOverlay.svelte';
 	import { PALETTE_TOOLS, isEventPaletteItem, type CreationKey } from '$lib/tool_meta';
 	import { BookOpen, ExternalLink, Check } from 'lucide-svelte';
 
@@ -45,7 +46,9 @@
 
 		<div class="flex min-h-0 flex-1 items-start gap-6 overflow-hidden">
 			<!-- Left: selectable step-type list -->
-			<div class="flex w-96 shrink-0 flex-col gap-3 self-stretch overflow-y-auto pr-1">
+			<div
+				class="flex w-96 shrink-0 flex-col gap-3 self-stretch overflow-y-auto pr-4 [scrollbar-gutter:stable]"
+			>
 				{#each PALETTE_TOOLS as tool (tool.type)}
 					<SelectableOptionRow
 						selected={selectedType === tool.type}
@@ -168,16 +171,20 @@
 				<Dialog.Close class={buttonVariants({ variant: 'outline', size: 'sm' })}>
 					Cancel
 				</Dialog.Close>
-				<button
-					type="button"
-					disabled={adding}
+				<LoadingButton
+					variant="default"
+					size="sm"
+					loading={adding}
 					onclick={() =>
 						isEventPaletteItem(selected) ? onAddEvent() : onAdd(selected.creationKey)}
-					class={buttonVariants({ variant: 'default', size: 'sm' })}
 				>
 					+ Add this step
-				</button>
+				</LoadingButton>
 			</div>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
+
+<!-- The dialog stays open while the step is created, so a button spinner alone is easy to
+	miss (Polis/HeyForm can take a few seconds). Mirror the create-conversation overlay. -->
+<LoadingOverlay open={adding} message="Adding step…" />
