@@ -11,21 +11,28 @@ export interface ExtendedLocalizedPage extends LocalizedPage {
 }
 
 type From = 'source' | 'target';
-type Callback = (options?: { invalidate?: boolean }) => Promise<void>;
+type OnChange = (options?: { invalidate?: boolean }) => Promise<void>;
+type OnRestore = () => void;
 type Order = { id: string; [SHADOW_ITEM_MARKER_PROPERTY_NAME]?: boolean }[]; // Matching DraggableList "items" prop
 
 class Pages {
 	items = $state<IPages>({});
 	currentId = $state<number>(0);
-	#callback: Callback = () => Promise.resolve();
+	#onChange: OnChange = () => Promise.resolve();
+	#onRestore: () => void = () => {};
 	order = $state<Order>([]);
+	areDirty = $state<boolean>(false);
 
 	get count() {
 		return Object.keys(this.items).length;
 	}
 
-	onChange(fn: Callback) {
-		this.#callback = fn;
+	onChange(fn: OnChange) {
+		this.#onChange = fn;
+	}
+
+	onRestore(fn: OnRestore) {
+		this.#onRestore = fn;
 	}
 
 	new(primaryLocale: Language) {
@@ -40,7 +47,7 @@ class Pages {
 		};
 		this.items[newId] = { [primaryLocale]: newPage };
 		this.order.push({ id: newId });
-		return this.#callback();
+		return this.#onChange();
 	}
 
 	load(source: ExtendedLocalizedPage[][]) {
@@ -67,7 +74,16 @@ class Pages {
 		if (order.some((o) => o[SHADOW_ITEM_MARKER_PROPERTY_NAME])) {
 			return;
 		}
-		return this.#callback();
+		return this.#onChange();
+	}
+
+	dirty() {
+		this.areDirty = true;
+	}
+
+	restore() {
+		this.areDirty = false;
+		this.#onRestore();
 	}
 
 	get current() {
@@ -77,7 +93,7 @@ class Pages {
 				const index = this.order.findIndex((p) => Number(p.id) === this.currentId);
 				this.order.splice(index, 1);
 				this.currentId = Number(Math.max(index - 1, 0));
-				return this.#callback();
+				return this.#onChange();
 			},
 
 			upsertContent: (
@@ -106,7 +122,7 @@ class Pages {
 						break;
 				}
 				this.items[this.currentId] = page;
-				return this.#callback({ invalidate: false });
+				return this.#onChange({ invalidate: false });
 			},
 
 			modifyValidation: async (lang: Language, validation: boolean) => {
@@ -114,7 +130,7 @@ class Pages {
 				if (!page || !page[lang]) return;
 				page[lang].requires_validation = validation;
 				this.items[this.currentId] = page;
-				return this.#callback({ invalidate: false });
+				return this.#onChange({ invalidate: false });
 			}
 		};
 	}

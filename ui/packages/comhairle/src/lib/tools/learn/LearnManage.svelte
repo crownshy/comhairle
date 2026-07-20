@@ -45,14 +45,16 @@
 		(isLive ? workflowStep.toolConfig : workflowStep.previewToolConfig) as LearnToolConfig
 	);
 
+	const pages = new Pages();
+
 	type SaveToServerOptions = { invalidate?: boolean };
 	async function save(
-		pages: ExtendedLocalizedPage[][],
+		pagesToSave: ExtendedLocalizedPage[][],
 		{ invalidate = true }: SaveToServerOptions = {}
 	) {
 		const configToSave: Props['workflowStep']['toolConfig'] = {
 			type: 'learn',
-			pages
+			pages: pagesToSave
 		};
 
 		const response = await tryCatchAsync(() =>
@@ -73,30 +75,18 @@
 		}
 
 		if (invalidate) await invalidateAll();
-		localChanges.restore();
+		pages.restore();
 	}
-
-	class LocalChanges {
-		exist = $state(false);
-
-		dirty() {
-			this.exist = true;
-		}
-
-		restore() {
-			this.exist = false;
-			lastPropsConfig = JSON.stringify({
-				pages: sourceConfig?.pages
-			});
-		}
-	}
-
-	const localChanges = new LocalChanges();
-	const pages = new Pages();
 
 	pages.onChange((options) => {
-		localChanges.dirty();
+		pages.dirty();
 		return save(pages.toLocalizedPages(), { invalidate: options?.invalidate ?? true });
+	});
+
+	pages.onRestore(() => {
+		lastPropsConfig = JSON.stringify({
+			pages: sourceConfig?.pages
+		});
 	});
 
 	onMount(() => {
@@ -108,7 +98,7 @@
 		const propsConfig = JSON.stringify({
 			pages: sourceConfig.pages
 		});
-		if (propsConfig !== lastPropsConfig && !localChanges.exist) {
+		if (propsConfig !== lastPropsConfig && !pages.areDirty) {
 			pages.load(sourceConfig.pages);
 			lastPropsConfig = propsConfig;
 			if (isInitialLoad && Object.keys(pages).length > 0) {
