@@ -19,6 +19,7 @@
 	import { thank_you_page, next_workflow_step_url, workflow_step_url } from '$lib/urls';
 	import { page, navigating } from '$app/state';
 	import LearnArticleSkeleton from '$lib/tools/learn/LearnArticleSkeleton.svelte';
+	import { delayedFlag } from '$lib/utils/delayedFlag.svelte';
 	import LearnTutorSkeleton from '$lib/tools/learn/LearnTutorSkeleton.svelte';
 	import type { ComhairleDocument } from '@crownshy/api-client/api';
 
@@ -120,6 +121,13 @@
 		if (!target) return undefined;
 		return conversation.isLive ? target.toolConfig?.type : target.previewToolConfig?.type;
 	});
+
+	/**
+	 * A step hop that resolves quickly never trips this, so the header and body skeletons stay
+	 * hidden and the page just swaps content. Only a genuinely slow load shows them, where the
+	 * feedback is worth having. See delayedFlag for the reasoning.
+	 */
+	let showNavigationSkeleton = delayedFlag(() => navigating.to !== null, 150);
 
 	let prevStepHref = $derived.by(() => {
 		const viewedIdx = sortedSteps.findIndex((ws) => ws.id === workflowStep.id);
@@ -247,7 +255,7 @@
 		</div>
 
 		<div class="mt-2 w-full md:mt-6 md:px-0">
-			{#if navigating.to}
+			{#if showNavigationSkeleton.current}
 				<StepHeaderSkeleton />
 			{:else}
 				<StepHeader
@@ -283,7 +291,7 @@
 					</Button>
 				{/if}
 				<div class="mb-10 w-full grow">
-					{#if navigating.to}
+					{#if showNavigationSkeleton.current}
 						{#if navigatingToToolType === HeyForm.TOOL_NAME}
 							<HeyForm.UserUISkeleton />
 						{:else}

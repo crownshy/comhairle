@@ -16,10 +16,7 @@ export type RenderRichTextOptions = {
 	conversationId?: string;
 };
 
-function buildExtensions(
-	documents: ComhairleDocument[],
-	conversationId: string
-): AnyExtension[] {
+function buildExtensions(documents: ComhairleDocument[], conversationId: string): AnyExtension[] {
 	const documentsById: Record<string, { name: string; size: number }> = {};
 	for (const document of documents) {
 		documentsById[document.id] = { name: document.name, size: document.size };
