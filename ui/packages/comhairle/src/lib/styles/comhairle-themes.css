@@ -294,6 +294,8 @@
 	--chat-text: var(--foreground);
 	--chat-text-muted: var(--chat-neutral);
 	--chat-bubble: var(--card);
+
+	--admin-background: #111827;
 }
 
 [data-theme='waves']
