@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { CalendarDays, Plus } from 'lucide-svelte';
+	import TabStripShell from '$lib/components/TabStripShell.svelte';
 	import type { LocalizedEventDto } from '@crownshy/api-client/api';
 
 	let {
@@ -20,61 +21,45 @@
 	}
 </script>
 
-<nav
-	class="border-border bg-muted/50 scrollbar-none w-full overflow-x-auto border-b"
-	aria-label="Events"
->
-	<ul
-		class="pl-gutter flex min-w-max items-center gap-x-1.5 gap-y-0.5 py-1 pr-5 sm:w-full sm:min-w-0 sm:flex-wrap"
-	>
-		<!-- First item bleeds left into the gutter (-ml-3.5 cancels its own px-3.5)
-			 so the "All events" icon aligns to the shared gutter column. -->
-		<li class="-ml-3.5">
-			<a
-				href={basePath}
-				class="text-foreground inline-flex h-9 items-center gap-1.5 px-3.5 text-sm font-medium whitespace-nowrap transition-opacity"
-				class:text-primary={manageActive}
-				class:opacity-70={!manageActive}
-				class:hover:opacity-100={!manageActive}
-				aria-current={manageActive ? 'page' : undefined}
-			>
-				<CalendarDays class="size-4" />
-				All events
-			</a>
-		</li>
-		{#each events as event (event.id)}
-			{@const active = isEventActive(event.id, page.url.pathname)}
-			<li>
-				<a
-					href={`${basePath}/${event.id}`}
-					title={event.name || 'Unnamed event'}
-					class="text-foreground inline-flex h-9 max-w-[220px] items-center px-3.5 text-sm font-medium transition-opacity"
-					class:text-primary={active}
-					class:opacity-70={!active}
-					class:hover:opacity-100={!active}
-					aria-current={active ? 'page' : undefined}
-				>
-					<span class="truncate">{event.name || 'Unnamed event'}</span>
-				</a>
-			</li>
-		{/each}
+<TabStripShell ariaLabel="Events">
+	<!-- First item bleeds left into the gutter (-ml-3.5 cancels its own px-3.5)
+		 so the "All events" icon aligns to the shared gutter column. -->
+	<li class="-ml-3.5">
+		<a
+			href={basePath}
+			class="text-foreground inline-flex h-9 items-center gap-1.5 px-3.5 text-sm font-medium whitespace-nowrap transition-opacity"
+			class:text-primary={manageActive}
+			class:opacity-70={!manageActive}
+			class:hover:opacity-100={!manageActive}
+			aria-current={manageActive ? 'page' : undefined}
+		>
+			<CalendarDays class="size-4" />
+			All events
+		</a>
+	</li>
+	{#each events as event (event.id)}
+		{@const active = isEventActive(event.id, page.url.pathname)}
 		<li>
 			<a
-				href={newPath}
-				class="text-foreground/40 hover:text-foreground inline-flex h-9 items-center gap-1 px-3.5 text-sm font-medium whitespace-nowrap"
+				href={`${basePath}/${event.id}`}
+				title={event.name || 'Unnamed event'}
+				class="text-foreground inline-flex h-9 max-w-[220px] items-center px-3.5 text-sm font-medium transition-opacity"
+				class:text-primary={active}
+				class:opacity-70={!active}
+				class:hover:opacity-100={!active}
+				aria-current={active ? 'page' : undefined}
 			>
-				<Plus class="size-4" />
-				Add event
+				<span class="truncate">{event.name || 'Unnamed event'}</span>
 			</a>
 		</li>
-	</ul>
-</nav>
-
-<style>
-	.scrollbar-none {
-		scrollbar-width: none;
-	}
-	.scrollbar-none::-webkit-scrollbar {
-		display: none;
-	}
-</style>
+	{/each}
+	<li>
+		<a
+			href={newPath}
+			class="text-foreground/40 hover:text-foreground inline-flex h-9 items-center gap-1 px-3.5 text-sm font-medium whitespace-nowrap"
+		>
+			<Plus class="size-4" />
+			Add event
+		</a>
+	</li>
+</TabStripShell>

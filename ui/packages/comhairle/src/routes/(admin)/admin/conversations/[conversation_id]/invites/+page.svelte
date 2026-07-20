@@ -85,6 +85,7 @@
 
 {#snippet inviteSubtabStripSnippet()}
 	<SubTabStrip
+		tone="primary"
 		items={[
 			{ label: 'Email', value: 'email' },
 			{ label: 'Open Links', value: 'open-links' },
